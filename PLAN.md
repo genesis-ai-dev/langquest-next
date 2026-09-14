@@ -242,8 +242,15 @@ langquest-next/
    route each role to its home, and a dev menu switches persona by real
    sign-in and seeds a demo team. Sign-out is refused while events are
    queued or the device is offline. Verified in the iOS simulator.
-5. Recording: VAD cards to content-addressed blobs, take composition, blob
-   upload list derived from unconfirmed card hashes.
+5. **Built, pending device verification.** Recording: the LangQuest v2
+   `microphone-energy` native module (raw PCM tap, energy for the waveform,
+   VAD state machine, one WAV per card) plus expo-audio for hold-to-record
+   takes, both microphone sessions open at once as in v2. Cards are ingested
+   into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
+   `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
+   run on `TransferWorker` (packages/client) per section 14, with the server
+   storage trigger appending `BlobStored` as the only confirmation. Needs a
+   dev client (`npx expo run:ios`); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. Snapshot worker and org dashboard as a headless client folding every
    project in the org.

@@ -94,6 +94,8 @@ export function buildFixture(): AnyEvent[] {
     role: 'reviewer'
   });
   emit('dA', 'lead', 'v1.SourceImported', { sourceProjectId: 'src', sourceSeq: 42, unitIds: ['luke1'] });
+  // The storage trigger confirms c1 after it lands (server actor).
+  emit('storage', 'service', 'v1.BlobStored', { hash: 'c1', size: 12345 });
 
   // Translator records offline on device B.
   emit('dB', 't1', 'v1.RecordingAdded', {

@@ -91,3 +91,21 @@ Reason: queued events belong to the signed-in user and cannot be sent under
 anyone else. Sign-out lives behind a confirmation screen that refuses while
 anything is queued or the device is offline, and shows why with icons
 rather than words. The old header sign-out icon became the menu.
+
+## 13. Two recorders, on purpose
+
+Reason: expo-audio allows one recording at a time and exposes no PCM. v2
+solved this with a custom Expo module (`microphone-energy`) that taps raw
+PCM for energy and voice-activity segmentation and writes one WAV per card,
+while expo-audio writes hold-to-record takes. Both sessions are open during
+manual recording. We reuse that module unchanged rather than re-solving the
+cold-start and segmentation problems it already solved. Cost: no Expo Go;
+a dev client build is required.
+
+## 14. Confirmation is an event, not a column
+
+Reason: v2 stamped `audio_uploaded_at` on rows and needed guard triggers to
+stop clients echoing it back. Here the storage trigger appends
+`v1.BlobStored` to the project log under the service actor, `append_events`
+refuses the type from any client, and devices learn of it through the pull
+they already do. Same guarantee, no extra column, no extra sync path.

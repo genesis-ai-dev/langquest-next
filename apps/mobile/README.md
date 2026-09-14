@@ -35,6 +35,11 @@ No business logic and no sync logic live here. Screens read `state` and call
 `deriveTasks`, `deriveTakeStatus`, `deriveProgress`.
 
 Run: copy `.env.example` to `.env`, fill the anon key from
-`npx supabase status`, then `npx expo start --ios`. `EXPO_PUBLIC_DEV_EMAIL`
+`npx supabase status`, then build the dev client once with
+`LANG=en_US.UTF-8 npx expo run:ios` (the native `modules/microphone-energy`
+module cannot run in Expo Go) and afterwards `npx expo start --dev-client`.
+Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
+`src/blobs.ts` (content-addressed store), `src/blobTransport.ts` (Supabase
+Storage), and `src/screens/recordings.tsx`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.

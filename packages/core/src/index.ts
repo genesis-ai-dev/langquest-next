@@ -6,3 +6,4 @@ export * from './workflow';
 export * from './snapshot';
 export * from './tasks';
 export * from './status';
+export * from './blobs';

@@ -104,6 +104,8 @@ export interface ProjectState {
   selectedTakes: Record<string, Register<string>>;
   assignments: Record<string, Assignment>;
   sourcePins: Record<string, SourcePin>;
+  /** hash -> confirmed on the server. Set once; never cleared (audio is immutable). */
+  blobs: Record<string, { size: number; hlc: Hlc }>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */
   appliedEventIds: Record<string, true>;
 }
@@ -123,6 +125,7 @@ export function emptyState(): ProjectState {
     selectedTakes: {},
     assignments: {},
     sourcePins: {},
+    blobs: {},
     appliedEventIds: {}
   };
 }

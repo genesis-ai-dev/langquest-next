@@ -19,7 +19,8 @@ const CATALOG: EventType[] = [
   'v1.TakeSubmitted',
   'v1.ReviewSubmitted',
   'v1.AssignmentMade',
-  'v1.SourceImported'
+  'v1.SourceImported',
+  'v1.BlobStored'
 ];
 
 describe('reducer invariants (PLAN.md section 4)', () => {

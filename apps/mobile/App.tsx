@@ -12,6 +12,7 @@ import * as Account from './src/screens/account';
 import * as Config from './src/screens/config';
 import * as Entry from './src/screens/entry';
 import * as Org from './src/screens/org';
+import * as Recordings from './src/screens/recordings';
 import * as Review from './src/screens/review';
 import * as Status from './src/screens/status';
 import * as Translate from './src/screens/translate';
@@ -32,7 +33,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element> = {
   request_access: Entry.RequestAccess, scan_qr: Entry.ScanQr, walkthrough: Entry.Walkthrough,
   assignments_home: Work.AssignmentsHome, give_assignment: Work.GiveAssignment, pickup_home: Work.PickupHome,
   assignment_progress_detail: Work.AssignmentProgressDetail, progress_home: Work.ProgressHome,
-  translate_passage: Translate.TranslatePassage, quest_assets: Translate.QuestAssets,
+  translate_passage: Translate.TranslatePassage, quest_assets: Recordings.QuestAssets,
   attach_questions: Translate.AttachQuestions, add_to_tg: Translate.AddToTg,
   review_passage: Review.ReviewPassage, review_questions: Review.ReviewQuestions, done_await: Review.DoneAwait,
   material_editor: Review.MaterialEditor,

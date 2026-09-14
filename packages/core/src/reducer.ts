@@ -164,6 +164,10 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
         event.payload;
       break;
 
+    case 'v1.BlobStored':
+      state.blobs[event.payload.hash] ??= { size: event.payload.size, hlc: event.hlc };
+      break;
+
     default: {
       // Unknown future event type: ignore, do not throw. An older client must
       // keep working when a newer client emits events it does not understand.

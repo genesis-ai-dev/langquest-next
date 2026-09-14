@@ -31,9 +31,12 @@ export interface ProjectConfig {
   workflow: WorkflowStep[];
 }
 
+/** One voice-activity card: an immutable audio blob named by its content hash. */
 export interface Card {
   hash: string;
   durationMs: number;
+  /** Container of the blob; defaults to wav (native VAD segments). */
+  format?: 'wav' | 'm4a';
 }
 
 export interface EventPayloads {
@@ -100,6 +103,13 @@ export interface EventPayloads {
     instructions?: string;
   };
   'v1.SourceImported': { sourceProjectId: string; sourceSeq: number; unitIds: string[] };
+  /**
+   * Server-only. Appended by the storage trigger when a blob lands, so every
+   * device learns a card is safely stored through the normal pull. Clients
+   * cannot emit it (append_events refuses it), which is what makes it the
+   * confirmation of record (PLAN.md section 14).
+   */
+  'v1.BlobStored': { hash: string; size: number };
 }
 
 export type EventType = keyof EventPayloads;

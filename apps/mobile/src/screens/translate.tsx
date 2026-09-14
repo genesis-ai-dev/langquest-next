@@ -1,6 +1,6 @@
 // Avatar U. Translate passage, recordings, key terms, add to TG, attach questions. One yellow action per screen.
 import { currentTake, deriveTakeStatus, deriveTasks, takesFor, type Task } from '@langquest-next/core';
-import { BookOpen, Check, KeyRound, ListMusic, MessageSquare, Mic, Play, Plus, RotateCcw, Send, Trash2 } from 'lucide-react-native';
+import { BookOpen, Check, KeyRound, ListMusic, MessageSquare, Mic, Plus, RotateCcw, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -15,7 +15,7 @@ export function taskFor(ctx: Ctx): Task | undefined {
 }
 
 export function TranslatePassage(ctx: Ctx) {
-  const { state, append } = ctx.project;
+  const { state } = ctx.project;
   const task = taskFor(ctx);
   if (!state || !task) return <Note>Task not found.</Note>;
   const meta = TASK_META[task.type];
@@ -101,69 +101,6 @@ export function TranslatePassage(ctx: Ctx) {
         {isDraft ? (
           <ActionButton icon={Send} accessibilityLabel="Submit for review" onPress={() => ctx.go('attach_questions', { taskId: task.id })} />
         ) : null}
-        <View style={{ height: 1 }}>{void append}</View>
-      </View>
-    </View>
-  );
-}
-
-/** Spec quest_assets: takes for this passage. Placeholder capture until step 5 lands real audio. */
-export function QuestAssets(ctx: Ctx) {
-  const { state, append } = ctx.project;
-  const task = taskFor(ctx);
-  if (!state || !task) return <Note>Task not found.</Note>;
-  const takes = takesFor(state, task.unitId, task.laneId);
-  const cur = currentTake(state, task.unitId, task.laneId);
-
-  async function record() {
-    const stamp = Date.now();
-    await append('v1.RecordingAdded', {
-      recordingId: `rec-${stamp}`,
-      unitId: task!.unitId,
-      laneId: task!.laneId,
-      kind: 'target',
-      cards: [{ hash: `placeholder-${stamp}`, durationMs: 1000 }]
-    });
-    await append('v1.TakeComposed', {
-      takeId: `${task!.unitId}-${stamp}`,
-      unitId: task!.unitId,
-      laneId: task!.laneId,
-      cardHashes: [`placeholder-${stamp}`],
-      parentTakeId: cur
-    });
-  }
-
-  return (
-    <View style={[styles.screen, { backgroundColor: tint.translate }]}>
-      <View style={styles.content}>
-        <BackButton onPress={ctx.back} />
-        <View style={styles.titleRow}>
-          <ListMusic size={22} color={colors.translate} />
-          <Text style={[text.h3, { flex: 1 }]}>{state.units[task.unitId]?.label}</Text>
-          <Text style={text.small}>{takes.length}</Text>
-        </View>
-        <View style={{ gap: space.sm }}>
-          {takes.map((id) => {
-            const t = state.takes[id]!;
-            const st = deriveTakeStatus(state, id);
-            return (
-              <Card key={id} style={styles.takeRow}>
-                <View style={styles.play} accessibilityLabel="Play">
-                  <Play size={16} color={colors.white} />
-                </View>
-                <Text style={[text.body, { flex: 1 }]}>{t.cardHashes.length}</Text>
-                <StatusIcon outcome={st.outcome} />
-                {st.outcome === 'draft' ? (
-                  <Pressable onPress={() => void append('v1.TakeArchived', { takeId: id })} hitSlop={8} accessibilityLabel="Delete take">
-                    <Trash2 size={18} color={colors.reference} />
-                  </Pressable>
-                ) : null}
-              </Card>
-            );
-          })}
-        </View>
-        <ActionButton icon={Mic} accessibilityLabel="Hold to record" onPress={() => void record()} />
-        <Text style={[text.small, { textAlign: 'center' }]}>Placeholder capture until step 5</Text>
       </View>
     </View>
   );
@@ -227,7 +164,5 @@ const styles = StyleSheet.create({
   content: { gap: space.lg, padding: space.lg },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   refRow: { gap: 2, paddingVertical: space.xs },
-  takeRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md },
-  play: { width: 32, height: 32, borderRadius: radius.full, backgroundColor: colors.translate, alignItems: 'center', justifyContent: 'center' },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 100, backgroundColor: colors.card, color: colors.foreground }
 });

@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { deriveTakeStatus } from '@langquest-next/core';
+import { deriveTakeStatus, deriveUploadWork } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SupabaseTransport } from '../src/supabaseTransport';
 import { SyncClient } from '../src/syncClient';
@@ -92,5 +92,34 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
 
     expect(deriveTakeStatus(a.getState(), 'take1').outcome).toBe('approved');
     expect(deriveTakeStatus(b.getState(), 'take1').outcome).toBe('approved');
+  });
+
+  it('a member upload to the blobs bucket lands a BlobStored confirmation in the log', async () => {
+    // Why: PLAN.md section 14 rule 2. The client never declares completion;
+    // the storage trigger appends the confirmation and every device pulls it.
+    const stamp = Date.now();
+    const lead = await signUp(`blob-${stamp}@example.test`);
+    const pid = `pb-${stamp}`;
+    const a = new SyncClient({ orgId: 'org1', projectId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
+    await a.load();
+    await a.append('v1.ProjectCreated', { name: 'B', sourceLanguoidId: 'eng' });
+    await a.append('v1.MemberAdded', { profileId: lead.userId, role: 'owner' });
+    await a.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', laneId: 'L1', kind: 'target', cards: [{ hash: 'deadbeef', durationMs: 10, format: 'wav' }] });
+    await a.sync();
+    expect(deriveUploadWork(a.getState(), new Set(['deadbeef'])).map((r) => r.hash)).toEqual(['deadbeef']);
+
+    const bytes = new Uint8Array([82, 73, 70, 70, 0, 0, 0, 0]);
+    const { error } = await lead.sb.storage.from('blobs').upload(`org1/${pid}/deadbeef.wav`, bytes, { upsert: true, contentType: 'audio/wav' });
+    expect(error).toBeNull();
+
+    await a.sync();
+    expect(a.getState().blobs['deadbeef']?.size).toBe(bytes.byteLength);
+    expect(deriveUploadWork(a.getState(), new Set(['deadbeef']))).toEqual([]);
+
+    // A client cannot forge the confirmation.
+    await a.append('v1.BlobStored', { hash: 'forged', size: 1 });
+    const r = await a.sync();
+    expect(r.rejected).toBe(1);
+    expect(a.getState().blobs['forged']).toBeUndefined();
   });
 });

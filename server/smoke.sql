@@ -80,6 +80,30 @@ do $$ declare n int; begin
   if n <> 0 then raise exception 'empty project should pull 0 rows'; end if;
 end $$;
 
+-- 5c. Clients cannot forge a blob confirmation, but a storage object lands one.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; n int; begin
+  select * into r from public.append_events('[
+    {"id":"forged","type":"v1.BlobStored","orgId":"org1","projectId":"p1","actorId":"lead","deviceId":"dA","hlc":"000000000000009:000000:dA","payload":{"hash":"h1","size":1}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'client must not emit BlobStored'; end if;
+
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values ('blobs', 'org1/p1/abc123.wav', null, '{"size": 4321}'::jsonb);
+  select count(*) into n from public.events e
+    where e.project_id = 'p1' and e.type = 'v1.BlobStored' and e.payload->>'hash' = 'abc123' and (e.payload->>'size')::int = 4321;
+  if n <> 1 then raise exception 'storage insert should append one BlobStored, got %', n; end if;
+
+  -- A second insert of the same object name (re-upload) must not duplicate it.
+  begin
+    insert into storage.objects (bucket_id, name, owner, metadata)
+    values ('blobs', 'org1/p1/abc123.wav', null, '{"size": 4321}'::jsonb);
+  exception when unique_violation then null;
+  end;
+  select count(*) into n from public.events e where e.project_id = 'p1' and e.type = 'v1.BlobStored';
+  if n <> 1 then raise exception 'BlobStored must be idempotent'; end if;
+end $$;
+
 -- 6. Append-only is enforced even for the table owner.
 do $$ begin
   begin

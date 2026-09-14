@@ -1,13 +1,17 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "LangQuest Next",
+    "slug": "langquest-next",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.frontierrnd.langquestnext",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "LangQuest records your voice to translate passages."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,13 +20,21 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.frontierrnd.langquestnext"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
-    ]
+      "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "LangQuest records your voice to translate passages."
+        }
+      ]
+    ],
+    "scheme": "langquestnext"
   }
 }
