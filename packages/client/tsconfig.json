@@ -1,0 +1,7 @@
+{
+  "extends": "../core/tsconfig.json",
+  "compilerOptions": {
+    "paths": { "@langquest-next/core": ["../core/src/index.ts"] }
+  },
+  "include": ["src", "test"]
+}
