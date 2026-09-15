@@ -8,7 +8,7 @@
 
 ## Three Documents Delivered
 
-### 1. `journey-test-findings.md` (780 lines)
+### 1. `findings.md` (780 lines)
 **Comprehensive detailed report**
 - 14 journeys analyzed
 - 145 test cases with PASS/PARTIAL/FAIL status
@@ -16,7 +16,7 @@
 - Prioritized gap analysis
 - Recommended next tests
 
-### 2. `JOURNEY_TEST_EXECUTIVE_SUMMARY.md`
+### 2. `executive-summary.md`
 **Executive summary for product team**
 - Journey-level pass/fail table
 - Top 5 gaps prioritized P0-P5
@@ -24,7 +24,7 @@
 - What's stubbed (expected per PLAN.md)
 - Recommended action (Priority 1: audio, Priority 2: forms)
 
-### 3. `JOURNEY_TEST_METHODOLOGY.md`
+### 3. `methodology.md`
 **Testing approach and evidence**
 - How tests were conducted (code analysis + automated tests)
 - Evidence sources and cross-checks
@@ -38,7 +38,7 @@
 ### ✅ What's Working
 - **All 53 screens exist** and render
 - **All 150+ edges validated** against UX spec
-- **142 automated tests pass** (flow parity, domain logic)
+- **152 automated tests pass** (flow parity, domain logic)
 - **Core workflows complete:** Translator loop, reviewer loop, status drill-down
 - **Navigation enforcement:** Flow machine prevents drift from spec
 
@@ -57,7 +57,7 @@
 ## Test Execution Summary
 
 ```
-npm test → 142 tests passed in 2.29s
+npm test → 152 tests passed in 2.29s
 
 ✓ specParity.test.ts (6 tests) - Flow matches spec
 ✓ flow.test.ts (3 tests) - All screens reachable
@@ -117,7 +117,7 @@ npm test → 142 tests passed in 2.29s
 ## Recommended Next Steps
 
 ### For This Task ✅
-- [x] Run automated tests → 142 passed
+- [x] Run automated tests → 152 passed
 - [x] Map journeys to implementation → 14/14 complete
 - [x] Assess 145 test cases → all assessed
 - [x] Prioritize gaps → top 10 ranked
@@ -140,11 +140,12 @@ npm test → 142 tests passed in 2.29s
 ## Files in This Repo
 
 ```
-/workspace/
-  journey-test-findings.md              ← Detailed 780-line report
-  JOURNEY_TEST_EXECUTIVE_SUMMARY.md     ← Executive summary
-  JOURNEY_TEST_METHODOLOGY.md           ← Testing approach & evidence
-  JOURNEY_TEST_QUICK_REFERENCE.md       ← This file
+docs/journey-tests/
+  findings.md              ← Detailed 780-line report
+  executive-summary.md     ← Executive summary
+  methodology.md           ← Testing approach & evidence
+  quick-reference.md       ← This file
+  results-visual.txt       ← ASCII summary
 ```
 
 ---

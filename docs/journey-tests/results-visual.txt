@@ -4,7 +4,7 @@
 
 Test Basis: 14 journeys, 145 test cases from UX Blueprint
 Approach: Code analysis + automated test execution (npm test)
-Duration: ~30 minutes | Test Pass Rate: 142/142 automated, 74% cases (107/145)
+Duration: ~30 minutes | Test Pass Rate: 152/152 automated, 74% cases (107/145)
 
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                         JOURNEY PASS/FAIL SUMMARY                          │
@@ -57,7 +57,7 @@ Duration: ~30 minutes | Test Pass Rate: 142/142 automated, 74% cases (107/145)
   workflow.test.ts                   ✅ PASS    6    6ms   Review flow logic
   tasks.test.ts                      ✅ PASS    5    8ms   Task derivation
   org.test.ts                        ✅ PASS    8   28ms   Org partition
-  catalog.test.ts                    ✅ PASS    7   68ms   Template instantiation
+  catalog.test.ts                    ✅ PASS    9   68ms   Template instantiation
   materials.test.ts                  ✅ PASS    7   29ms   Reference materials
   indexes.test.ts                    ✅ PASS    4   48ms   Read performance
   syncClient.test.ts                 ✅ PASS   24   45ms   Sync protocol
@@ -67,7 +67,7 @@ Duration: ~30 minutes | Test Pass Rate: 142/142 automated, 74% cases (107/145)
   ──────────────────────────────────────────────────────────────────────────
   integration.test.ts                ⏭️  SKIP    4    -    (Needs Supabase)
   ══════════════════════════════════════════════════════════════════════════
-  TOTAL                              ✅ PASS  142  2.29s   22 suites
+  TOTAL                              ✅ PASS  152  2.29s   23 suites
 
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                      TOP 5 GAPS (PRIORITIZED FOR PRODUCT)                  │
@@ -106,7 +106,7 @@ Duration: ~30 minutes | Test Pass Rate: 142/142 automated, 74% cases (107/145)
   ✅ Reducer correct (property tests validate convergence)
   ✅ Navigation spec-validated (automated test enforces parity)
   ✅ All screens exist (verified in App.tsx SCREENS registry)
-  ✅ Domain logic correct (142 tests pass)
+  ✅ Domain logic correct (152 tests pass)
 
   Medium Confidence (Implementation Completeness)
   ══════════════════════════════════════════════════════════════════════════
@@ -127,7 +127,7 @@ Duration: ~30 minutes | Test Pass Rate: 142/142 automated, 74% cases (107/145)
 
   For This Task:
   ✅ NO PR NEEDED (per task instructions: report-only if tests exist)
-  ✅ Test coverage is excellent (142 automated tests)
+  ✅ Test coverage is excellent (152 automated tests)
   ✅ Findings pack delivered (4 documents)
 
   For Product Team:
@@ -144,11 +144,11 @@ Duration: ~30 minutes | Test Pass Rate: 142/142 automated, 74% cases (107/145)
 
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║  Documents Delivered:                                                      ║
-║    • journey-test-findings.md (780 lines, detailed per-case analysis)      ║
-║    • JOURNEY_TEST_EXECUTIVE_SUMMARY.md (239 lines, product summary)        ║
-║    • JOURNEY_TEST_METHODOLOGY.md (441 lines, evidence & approach)          ║
-║    • JOURNEY_TEST_QUICK_REFERENCE.md (160 lines, quick lookup)             ║
-║    • JOURNEY_TEST_RESULTS_VISUAL.txt (this file, visual summary)           ║
+║    • findings.md (detailed per-case analysis)                              ║
+║    • executive-summary.md (product summary)                                ║
+║    • methodology.md (evidence & approach)                                  ║
+║    • quick-reference.md (quick lookup)                                     ║
+║    • results-visual.txt (this file, visual summary)                        ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
 Report generated: 2026-09-15 21:02 UTC

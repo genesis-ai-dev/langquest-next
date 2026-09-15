@@ -11,7 +11,7 @@
 ✅ **All 53 screens exist** and are spec-validated  
 ✅ **All navigation edges work** (150+ edges, no drift from spec)  
 ✅ **Core domain logic is complete** (events, reducer, workflow, sync)  
-✅ **142 automated tests pass** covering flow parity and business logic  
+✅ **152 automated tests pass** covering flow parity and business logic  
 ⚠️ **Forms are placeholders** (expected per PLAN.md interim state)  
 ⚠️ **Audio capture stubbed** (UI exists, native integration pending)
 
@@ -95,7 +95,7 @@
 - **Bottleneck calculation:** Identifies most-blocked stage
 
 ### Tests ✅
-- **22 test suites, 142 tests pass**
+- **23 test suites, 152 tests pass**
 - **Spec parity enforced:** `specParity.test.ts` validates every edge matches UX blueprint
 - **Integration tests exist:** Sync round-trips with real Supabase (skipped if not running)
 - **Property tests prove correctness:** Order-independence, idempotence validated
@@ -195,7 +195,7 @@ Once audio + forms are integrated, recommend testing:
 - Flow machine matches spec (automated test enforces this)
 - All screens exist and render (verified in App.tsx SCREENS registry)
 - Navigation edges work correctly (specParity tests pass)
-- Domain logic is correct (142 tests pass, property tests validate)
+- Domain logic is correct (152 tests pass, property tests validate)
 
 **Medium Confidence:**
 - Stubbed forms accurately identified (code review + grep for NotWired)

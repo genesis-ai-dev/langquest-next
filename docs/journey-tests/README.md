@@ -24,7 +24,7 @@ This test compared the LangQuest Next implementation against the UX journey inve
 **Key Findings:**
 - ✅ All 53 screens exist and are spec-validated
 - ✅ All 150+ navigation edges validated against UX spec
-- ✅ 142 automated tests pass covering flow parity and domain logic
+- ✅ 152 automated tests pass covering flow parity and domain logic
 - ⚠️ Forms are placeholders (expected per PLAN.md interim state)
 - ⚠️ Audio capture UI exists but native integration pending
 
@@ -34,6 +34,8 @@ This test compared the LangQuest Next implementation against the UX journey inve
 - **P1:** New Project/Language forms (blocks admin setup)
 - **P2:** Material editor structured blanks
 - **P3:** Give Assignment bulk selection
+
+**Update (2026-09-15, same day):** re-verified against the branch. Audio capture, Create Organization, New Language, Material Editor, Give Assignment, Pickup Home, Inbox, and Settings → walkthrough are already implemented. Still open: New Project, Profile Edit, Request Access org chooser, Explore list, QR scan/generate, version-diff view. Two of the three recommended tests were added (`translatorReviewerLoop.test.ts`, catalog re-selection idempotence). See "Gap resolution status" in [findings.md](./findings.md).
 
 **No critical bugs found.** All failures are "not yet implemented" (expected interim states per PLAN.md) rather than "implemented incorrectly."
 

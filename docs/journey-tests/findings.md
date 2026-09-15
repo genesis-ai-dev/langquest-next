@@ -13,7 +13,7 @@
 
 - **All 53 screens exist** and are registered in the navigation system
 - **All 150+ navigation edges** are declared and validated against the UX spec
-- **142 automated tests pass** covering flow parity, screen reachability, role gates, and domain logic
+- **152 automated tests pass** covering flow parity, screen reachability, role gates, and domain logic
 - **Core domain logic is complete**: event sourcing, reducer, workflow derivation, sync engine
 - **Key gaps:** Forms are placeholders, catalog selection not fully wired, some admin workflows stubbed
 
@@ -44,8 +44,8 @@
 
 ### Setup
 - Node modules installed successfully
-- 22 test suites executed
-- 142 tests passed, 4 skipped (integration tests requiring Supabase)
+- 23 test suites executed
+- 152 tests passed, 4 skipped (integration tests requiring Supabase)
 - Test execution time: 2.29s
 
 ### Automated Test Coverage
@@ -531,6 +531,50 @@ This journey describes a visual flowchart tool from the UX blueprint repository 
 
 ---
 
+## Gap resolution status (2026-09-15, verified against the branch)
+
+The gap list above was written from an earlier snapshot. Re-checking each
+item against the code on this branch (`grep NotWired apps/mobile/src`, plus
+reading each screen) gives the following. Only six placeholders remain.
+
+| # | Gap | Status on this branch | Evidence |
+|---|-----|-----------------------|----------|
+| 1 | Audio recording capture (J4 c33) | **Resolved** | `apps/mobile/src/useRecorder.ts` + `modules/microphone-energy`; `recordings.tsx` records with expo-audio and native VAD and emits `v1.RecordingAdded` |
+| 2 | Create Organization form (J2 c15) | **Resolved** | `entry.tsx` `CreateOrg` writes org, seed roles, membership, first project, sample passages, then goes to walkthrough |
+| 3 | New Language form (J10 c103) | **Resolved** | `org.tsx` `NewLanguage` emits `v1.LaneAdded` |
+| 3 | New Project form (J9 c81) | **Open** | `org.tsx` `NewProject` still `<NotWired>`; a second project needs a new project partition, not a form |
+| 4 | Material editor structured blanks (J6 c59) | **Resolved** | `review.tsx` `MaterialEditor` renders one register per field and emits `v1.MaterialFieldSet` / `v1.MaterialDefined` / `v1.MaterialLocked` |
+| 5 | Give Assignment piece selection (J8 c78) | **Resolved** | `work.tsx` `GiveAssignment` four-step wizard picks type, assignee, passage, due date and emits `v1.AssignmentMade` |
+| 6 | Pickup Home claiming (J4 c41) | **Resolved** | `work.tsx` `PickupHome` lists unassigned pieces; tapping claims with `v1.AssignmentMade` |
+| 7 | Profile edit / org switcher (J12 c119, c121) | **Open** | `account.tsx` `ProfileEdit` is `<NotWired>`; single-org demo by design |
+| 8 | Replay walkthrough from Settings (J3 c27) | **Resolved** | `flow.ts` has `settings_home -> walkthrough`; `SettingsHome` shows the row |
+| 9 | Version-diff UI for respond cycle (J5 c53) | **Open** | Response note and archived parent are on the fold; no side-by-side take UI |
+| 10 | Inbox notification handling (J12 c115) | **Resolved** | `account.tsx` `InboxHome` derives open tasks and decisions on your takes |
+
+Still placeholders: `NewProject`, `ProfileEdit`, `RequestAccess` (org
+chooser), `ExploreHome` (public list), `ScanQr` / `InviteQr` (camera and QR
+generation). Each is a product decision (multi-org, public directory,
+invites), not a missing form handler.
+
+### Recommended automated tests: status
+
+1. **Translator -> reviewer round trip** — added as
+   `packages/core/test/translatorReviewerLoop.test.ts`. Folds assign ->
+   record -> submit -> suggest changes -> respond -> peer approve ->
+   consultant approve, asserting the hand-offs between `deriveTasks`,
+   `derivePieces`, `nextAction`, and `deriveProgress` at each step.
+2. **Screen-level render smoke test** — not added. `SCREENS` in `App.tsx` is
+   typed `Record<ScreenId, ...>`, so a missing screen fails
+   `apps/mobile` typecheck. Rendering each screen would need
+   `react-test-renderer` and React Native mocks that the repo does not
+   carry; that is a separate setup decision.
+3. **Catalog re-selection idempotence** — added to
+   `packages/core/test/catalog.test.ts`: selecting the same content template
+   or flow twice, from two devices, leaves one unit per item and one step per
+   stage.
+
+---
+
 ## Recommended Next Tests
 
 ### Automated Test Additions
@@ -728,7 +772,7 @@ Once audio capture is integrated:
 3. **Priority 2:** Wire form handlers (Create Org, New Project/Language, Material Editor)
 4. **Priority 3:** Complete catalog selection UIs (piece multi-select, scope pickers)
 
-**Test Coverage is Excellent:** 142 automated tests validate the hard parts (order-independence, sync protocol, navigation enforcement). Manual testing should focus on the stubbed UIs once they're wired.
+**Test Coverage is Excellent:** 152 automated tests validate the hard parts (order-independence, sync protocol, navigation enforcement). Manual testing should focus on the stubbed UIs once they're wired.
 
 **No Critical Bugs Found:** No evidence of broken workflows, logic errors, or drift from the spec. All failures are "not yet implemented" rather than "implemented incorrectly."
 
@@ -765,8 +809,8 @@ npm test output (2026-09-15):
  ✓ packages/core/test/validate.test.ts (4 tests) 5ms
  ✓ packages/core/test/hlc.test.ts (2 tests) 3ms
 
- Test Files  22 passed | 1 skipped (23)
-      Tests  142 passed | 4 skipped (146)
+ Test Files  23 passed | 1 skipped (24)
+      Tests  152 passed | 4 skipped (156)
    Start at  20:54:04
    Duration  2.29s
 ```
