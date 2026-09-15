@@ -103,3 +103,40 @@ describe('per-step workflow registers and review teams (audit 5.F)', () => {
     expect(deriveBlockers(state)).toEqual([]);
   });
 });
+
+describe('catalog: re-selecting a template or flow is idempotent', () => {
+  const env = (i: number, dev: string, type: AnyEvent['type'], payload: unknown): AnyEvent =>
+    ({ id: `${dev}-${type}-${i}`, type, orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: dev, hlc: encodeHlc(1_780_000_000_000 + i, 0, dev), payload }) as AnyEvent;
+
+  it('selecting the same content template twice, from two devices, leaves one of each unit and one lane selection', () => {
+    // Why: templates_home lets any admin tap the same template again, and two
+    // admins can do it offline. The fold must hold each unit once, or Status
+    // would double-count passages and derive twice the tasks.
+    const select = (dev: string, base: number) => [
+      env(base, dev, 'v1.LaneTemplateSelected', { laneId: 'L1', templateId: 'book', catalogVersion: CATALOG_VERSION }),
+      ...instantiateTemplate('book').map((payload, i) => env(base + 1 + i, dev, 'v1.UnitAdded', payload))
+    ];
+    const lane = env(0, 'dA', 'v1.LaneAdded', { laneId: 'L1', languoidId: 'din' });
+    const once = fold([lane, ...select('dA', 1)], emptyState());
+    const twice = fold([lane, ...select('dA', 1), ...select('dB', 5000), ...select('dA', 9000)], emptyState());
+
+    expect(Object.keys(twice.units).sort()).toEqual(Object.keys(once.units).sort());
+    expect(Object.keys(twice.units).length).toBe(instantiateTemplate('book').length);
+    expect(derivePieces(twice, 'L1').length).toBe(derivePieces(once, 'L1').length);
+    expect(twice.laneTemplates['L1']?.value).toEqual({ templateId: 'book', catalogVersion: CATALOG_VERSION });
+  });
+
+  it('selecting the same flow twice leaves one step per stage, in stage order', () => {
+    // Why: instantiateFlow emits WorkflowStepSet per stage; a repeat must
+    // overwrite the same step ids, never append a second review gate.
+    const select = (dev: string, base: number) => [
+      env(base, dev, 'v1.LaneFlowSelected', { laneId: 'L1', flowId: 'quick_check', catalogVersion: CATALOG_VERSION }),
+      ...instantiateFlow('quick_check', 'L1').map((payload, i) => env(base + 1 + i, dev, 'v1.WorkflowStepSet', payload))
+    ];
+    const lane = env(0, 'dA', 'v1.LaneAdded', { laneId: 'L1', languoidId: 'din' });
+    const once = fold([lane, ...select('dA', 1)], emptyState());
+    const twice = fold([lane, ...select('dA', 1), ...select('dB', 100)], emptyState());
+    expect(deriveWorkflow(twice, 'L1')).toEqual(deriveWorkflow(once, 'L1'));
+    expect(deriveWorkflow(twice, 'L1').map((s) => s.id)).toEqual(['quick_check@1/peer_review', 'quick_check@1/approval']);
+  });
+});
