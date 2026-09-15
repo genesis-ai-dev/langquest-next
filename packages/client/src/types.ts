@@ -72,8 +72,20 @@ export function rejectCodeOf(reason: string | undefined): RejectCode {
   return 'UNKNOWN';
 }
 
+/** The request never reached the server: no connection, DNS, or a dead link. */
 export class OfflineError extends Error {
   override name = 'OfflineError';
+}
+
+/**
+ * The server was reached and refused the request: this actor is not a member
+ * of the partition, or lacks the privilege. Distinct from `OfflineError` on
+ * purpose (PLAN.md invariant 1 keeps queued work, but a device whose session
+ * is refused is not offline and must not be treated as such: it cannot queue
+ * its way out, and telling the user "offline" strands them).
+ */
+export class NotAuthorizedError extends Error {
+  override name = 'NotAuthorizedError';
 }
 
 /** The server refuses this client's protocol version; the app must upgrade. */

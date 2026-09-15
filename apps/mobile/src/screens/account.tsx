@@ -1,4 +1,4 @@
-// Avatar P for inbox and settings; sign_out_confirm is Avatar U (icons, one action, guarded).
+// Avatar P for inbox and settings; sign_out_confirm is Avatar U (one action, guarded, and it says what the guard is).
 import { deriveTasks } from '@langquest-next/core';
 import { CloudOff, CloudUpload, LogOut, RefreshCw, User, Users } from 'lucide-react-native';
 import { Text, View } from 'react-native';
@@ -89,30 +89,40 @@ export function OrgSwitcher(ctx: Ctx) {
 }
 
 /**
- * Avatar U. Signing out is refused while anything is queued or the device is
- * offline: queued events belong to this user and would sit unsendable under
- * anyone else's session. Icons say why; there is no yellow action until it is
- * safe.
+ * Avatar U. One rule, and the screen says it: signing out is refused only
+ * while this device holds queued events that this session can still deliver
+ * (PLAN.md invariant 1 — no event is ever lost). Two things that used to
+ * block it no longer do:
+ *
+ * - Offline with nothing queued: there is nothing to lose.
+ * - A server refusal (this account is not a member): those events can never
+ *   go out under this session, so trapping the user achieves nothing. They
+ *   stay in the local log either way and go out if this account signs in
+ *   again here with membership.
  */
 export function SignOutConfirm(ctx: Ctx) {
-  const { pending, online } = ctx.project;
-  const blocked = pending > 0 || online === false;
+  const { pending, online, refused } = ctx.project;
+  const blocked = pending > 0 && !refused;
+  const why = blocked
+    ? `${pending} ${pending === 1 ? 'change is' : 'changes are'} waiting to send${online === false ? ', and this device is offline' : ''}. Sign out once they have synced so they are not stranded on this device.`
+    : refused
+      ? 'This account cannot sync this project: the server refused it. Signing out is safe — anything queued stays on this device.'
+      : 'Signed-in work is synced. Signing out keeps everything already on this device.';
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.xl, backgroundColor: colors.background }}>
-      {blocked ? (
-        <View style={{ alignItems: 'center', gap: space.md }}>
-          {pending > 0 ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <CloudUpload size={40} color={colors.reference} />
-              <Text style={text.h3}>{pending}</Text>
-            </View>
-          ) : (
-            <CloudOff size={40} color={colors.reference} />
-          )}
-        </View>
-      ) : (
-        <LogOut size={48} color={colors.mutedForeground} />
-      )}
+      <View style={{ alignItems: 'center', gap: space.md }}>
+        {blocked ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <CloudUpload size={40} color={colors.reference} />
+            <Text style={text.h3}>{pending}</Text>
+          </View>
+        ) : refused ? (
+          <CloudOff size={40} color={colors.reference} />
+        ) : (
+          <LogOut size={48} color={colors.mutedForeground} />
+        )}
+        <Text style={[text.muted, { textAlign: 'center' }]}>{why}</Text>
+      </View>
       <View style={{ alignSelf: 'stretch', gap: space.sm }}>
         <ActionButton icon={LogOut} accessibilityLabel="Sign out" onPress={() => void supabase.auth.signOut()} disabled={blocked} />
         <ActionButton label="Cancel" accessibilityLabel="Cancel" variant="outline" onPress={ctx.back} />

@@ -4,11 +4,26 @@ import { createClient } from '@supabase/supabase-js';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-if (!url || !anon) {
-  throw new Error('Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (see .env.example)');
-}
 
-export const supabase = createClient(url, anon, {
+/**
+ * Why this build cannot reach a server, or null when it can.
+ *
+ * `EXPO_PUBLIC_*` is inlined at bundle time, so a build made without those
+ * values has them `undefined` here forever; an EAS build never sees `.env`
+ * because it is gitignored. This used to `throw` at module scope, which is
+ * the worst possible way to say so: the import fails, `registerRootComponent`
+ * never runs, and the release app is a white screen with nothing to read.
+ * Report it as a value and let `App` put it on the screen.
+ */
+export const supabaseConfigError: string | null = !url || !anon
+  ? 'This build has no server configuration. EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY were not set when it was built (see apps/mobile/.env.example).'
+  : !__DEV__ && /^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2|192\.168\.)/.test(url)
+    ? `This build points at ${url}, which only exists on a developer machine. A device build needs the hosted Supabase URL.`
+    : null;
+
+// A placeholder keeps `createClient` from throwing when the config is
+// missing; nothing calls it, because App shows the error instead.
+export const supabase = createClient(url ?? 'https://unconfigured.invalid', anon ?? 'unconfigured', {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

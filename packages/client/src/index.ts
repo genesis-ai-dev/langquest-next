@@ -8,3 +8,4 @@ export * from './device';
 export * from './snapshotWorker';
 export * from './blobReconciler';
 export * from './snapshotFetch';
+export * from './v2import';

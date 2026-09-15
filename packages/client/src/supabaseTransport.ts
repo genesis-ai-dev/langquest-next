@@ -1,7 +1,7 @@
 import { CLIENT_PROTOCOL_VERSION, type AnyEvent } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AppendResult, SnapshotMeta, Transport } from './types';
-import { ClientTooOldError, OfflineError } from './types';
+import { ClientTooOldError, NotAuthorizedError, OfflineError } from './types';
 
 interface EventRow {
   id: string;
@@ -81,9 +81,20 @@ export class SupabaseTransport implements Transport {
   }
 }
 
+/**
+ * Classify an RPC failure. The distinction that matters to the app is
+ * whether the server answered: a refusal is an answer, so it must never
+ * become an `OfflineError` (the offline path keeps work queued and, in the
+ * UI, blocks escapes like sign-out).
+ */
 function toError(error: { message: string; code?: string }): Error {
   if (error.code === 'LQ001') return new ClientTooOldError(error.message);
-  if (/fetch failed|network|ECONNREFUSED/i.test(error.message)) {
+  // insufficient_privilege: every `raise ... using errcode = '42501'` in
+  // supabase/migrations, which is how the RPCs refuse a non-member.
+  if (error.code === '42501' || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
+    return new NotAuthorizedError(error.message);
+  }
+  if (/fetch failed|failed to fetch|network|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|timed out/i.test(error.message)) {
     return new OfflineError(error.message);
   }
   return new Error(`${error.code ?? 'rpc'}: ${error.message}`);

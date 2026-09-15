@@ -273,8 +273,12 @@ langquest-next/
    (`src/flow.ts` registry, `test/flow.test.ts` proves existence and
    reachability), navigation follows declared edges only, session facets
    route each role to its home, and a dev menu switches persona by real
-   sign-in and seeds a demo team. Sign-out is refused while events are
-   queued or the device is offline. Verified in the iOS simulator.
+   sign-in and seeds a demo team. Sign-out is refused only while this
+   session still has queued events it could deliver: not merely because the
+   device is offline, and never when the server has refused this actor
+   (a refusal cannot be queued out of, so trapping the user would leave a
+   reinstall as the only escape). The screen says which case it is.
+   Verified in the iOS simulator.
 5. **Built, pending device verification.** Recording: the LangQuest v2
    `microphone-energy` native module (raw PCM tap, energy for the waveform,
    VAD state machine, one WAV per card) plus expo-audio for hold-to-record
@@ -288,7 +292,12 @@ langquest-next/
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
    dashboard as a headless client folding every project in the org: later.
-8. Import path from LangQuest v2 rows into v1 events.
+8. **Done.** Import path from LangQuest v2 rows into v1 events:
+   `server/importV2.ts` (`npm run import:v2`) reads v2 anonymously, copies
+   audio by content hash into the blobs bucket, and appends deterministic
+   events (`packages/client/src/v2import.ts`), so re-runs are duplicates.
+   Text-only v2 translations have no oral equivalent and are counted, not
+   imported. Verified on three production projects in the simulator.
 9. **Done in part.** Flow coverage proof and read indexes
    (`docs/flow-coverage-audit.md`): `apps/mobile/test/specParity.test.ts`
    holds the app's flow machine to the spec's, edge by edge, with the spec's

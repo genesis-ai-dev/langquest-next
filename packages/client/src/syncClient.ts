@@ -11,7 +11,7 @@ import {
   HlcClock
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, Transport } from './types';
-import { ClientTooOldError, OfflineError, rejectCodeOf } from './types';
+import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
 import { fetchSnapshot } from './snapshotFetch';
 
 /**
@@ -39,6 +39,19 @@ export const PROJECT_MATERIALIZER: Materializer<ProjectState> = {
   },
   version: REDUCER_VERSION
 };
+
+/** What one `sync()` attempt did, and why it did nothing when it did nothing. */
+export interface SyncResult {
+  pushed: number;
+  rejected: number;
+  pulled: number;
+  /** The server refuses this client's protocol version. */
+  tooOld: boolean;
+  /** The server could not be reached at all. */
+  offline: boolean;
+  /** The server was reached and refused this actor; its reason, else null. */
+  refused: string | null;
+}
 
 export interface SyncClientOptions<S = ProjectState> {
   /** Defaults to the project reducer. */
@@ -468,18 +481,26 @@ export class SyncClient<S = ProjectState> {
   }
 
   /**
-   * Push then pull. Offline errors leave everything queued. A server that no
-   * longer accepts this client's protocol version leaves everything queued
-   * too and reports `tooOld` so the app can ask for an upgrade.
+   * Push then pull. Everything stays queued unless the server accepted it, so
+   * each outcome is reported rather than guessed at by the caller:
+   *
+   * - `offline`: the request never reached the server. Only this means the
+   *   device is offline.
+   * - `refused`: the server answered and refused this actor (not a member of
+   *   the partition). The device is online; more syncing will not help until
+   *   membership or the session changes.
+   * - `tooOld`: the server no longer accepts this client's protocol version.
    */
-  async sync(): Promise<{ pushed: number; rejected: number; pulled: number; tooOld: boolean }> {
+  async sync(): Promise<SyncResult> {
+    const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null };
     try {
       const { accepted, rejected } = await this.push();
       const pulled = await this.pull();
-      return { pushed: accepted, rejected, pulled, tooOld: false };
+      return { ...idle, pushed: accepted, rejected, pulled };
     } catch (err) {
-      if (err instanceof OfflineError) return { pushed: 0, rejected: 0, pulled: 0, tooOld: false };
-      if (err instanceof ClientTooOldError) return { pushed: 0, rejected: 0, pulled: 0, tooOld: true };
+      if (err instanceof OfflineError) return { ...idle, offline: true };
+      if (err instanceof ClientTooOldError) return { ...idle, tooOld: true };
+      if (err instanceof NotAuthorizedError) return { ...idle, refused: err.message };
       throw err;
     }
   }

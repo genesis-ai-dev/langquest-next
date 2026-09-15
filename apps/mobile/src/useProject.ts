@@ -13,10 +13,19 @@ export interface ProjectHandle {
   state: ProjectState | null;
   pending: number;
   lastSync: string;
-  /** null until the first sync attempt; false after an offline result. */
+  /**
+   * Did the server answer? null until the first sync attempt, false only
+   * when it could not be reached. A refusal is an answer: see `refused`.
+   */
   online: boolean | null;
   /** The server refuses this app version; work is kept locally until an upgrade. */
   tooOld: boolean;
+  /**
+   * The server answered and refused this actor for this partition (not a
+   * member), with its reason. Syncing again will not clear it; only a
+   * membership change or a different account will.
+   */
+  refused: string | null;
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
   blobs: {
     pendingUp: number;
@@ -47,6 +56,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [lastSync, setLastSync] = useState('never');
   const [online, setOnline] = useState<boolean | null>(null);
   const [tooOld, setTooOld] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
   const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
   const keptRef = useRef<ReadonlySet<string>>(new Set());
   const keepKey = `keep:${orgId}/${projectId}`;
@@ -74,24 +84,31 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       const r = await c.sync();
       pullingRef.current = false;
       setTooOld(r.tooOld);
-      // sync() swallows OfflineError into an all-zero result while pending stays > 0.
-      const stillQueued = (await c.pendingCount()) > 0 && r.pushed === 0 && r.rejected === 0;
+      setRefused(r.refused);
+      // Online is exactly "the server answered". A refusal is an answer, so a
+      // device whose membership is missing is online and says so; it must not
+      // be shown, or treated, as offline.
       const wasOnline = onlineRef.current;
-      onlineRef.current = !stillQueued;
-      setOnline(!stillQueued);
+      onlineRef.current = !r.offline;
+      setOnline(!r.offline);
       // New confirmations may have arrived: re-derive. Reconnect: retry now.
-      if (!stillQueued && wasOnline === false) upRef.current?.trigger();
+      if (!r.offline && wasOnline === false) upRef.current?.trigger();
       else upRef.current?.nudge();
       downRef.current?.nudge();
       setLastSync(
-        r.pushed === 0 && r.pulled === 0 && r.rejected === 0
-          ? `up to date ${new Date().toLocaleTimeString()}`
-          : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
+        r.offline
+          ? 'offline'
+          : r.refused
+            ? `refused: ${r.refused}`
+            : r.pushed === 0 && r.pulled === 0 && r.rejected === 0
+              ? `up to date ${new Date().toLocaleTimeString()}`
+              : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       );
     } catch (err) {
+      // Not a transport failure: those come back as `offline` above. We do not
+      // know whether the server is reachable, so leave the flag where it was
+      // rather than claiming offline.
       pullingRef.current = false;
-      onlineRef.current = false;
-      setOnline(false);
       setLastSync(`error: ${(err as Error).message}`);
     }
     await refresh();
@@ -221,5 +238,5 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   };
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, blobs, triggerUpload, append, appendMany, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, blobs, triggerUpload, append, appendMany, sync };
 }

@@ -1,6 +1,6 @@
 import { CLIENT_PROTOCOL_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
 import type { AppendResult, Transport } from '../src/types';
-import { ClientTooOldError, OfflineError } from '../src/types';
+import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../src/types';
 
 /**
  * In-memory stand-in for append_events / pull_events with the same
@@ -11,6 +11,12 @@ export class FakeServer {
   readonly log: AnyEvent[] = [];
   private seqs = new Map<string, number>();
   offline = false;
+  /**
+   * Reachable, but every RPC refuses this caller, as the RPCs do with
+   * errcode 42501 when the actor has no membership row. Distinct from
+   * `offline`: the server answers.
+   */
+  refuse: string | null = null;
   /** Batches larger than this fail like a statement timeout would. */
   maxBatch = Infinity;
   /** After this many append calls, every append throws (link dropped). */
@@ -31,6 +37,7 @@ export class FakeServer {
     return {
       append: async (events) => {
         if (this.offline) throw new OfflineError('offline');
+        if (this.refuse) throw new NotAuthorizedError(this.refuse);
         if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
         this.appendCalls += 1;
         if (this.appendCalls > this.failAfterCalls) throw new Error('fetch failed');
@@ -39,6 +46,7 @@ export class FakeServer {
       },
       snapshotMeta: async (orgId, projectId, reducerVersion) => {
         if (this.offline) throw new OfflineError('offline');
+        if (this.refuse) throw new NotAuthorizedError(this.refuse);
         const s = this.snapshots.get(`${orgId}/${projectId}`);
         if (!s || s.reducerVersion !== reducerVersion) return null;
         const text = JSON.stringify(s.state);
@@ -46,6 +54,7 @@ export class FakeServer {
       },
       snapshotChunk: async (orgId, projectId, reducerVersion, serverSeq, index) => {
         if (this.offline) throw new OfflineError('offline');
+        if (this.refuse) throw new NotAuthorizedError(this.refuse);
         this.chunkCalls += 1;
         if (this.chunkCalls > this.failChunkAfter) throw new OfflineError('fetch failed');
         const s = this.snapshots.get(`${orgId}/${projectId}`);
@@ -55,6 +64,7 @@ export class FakeServer {
       },
       pull: async (orgId, projectId, after, limit) => {
         if (this.offline) throw new OfflineError('offline');
+        if (this.refuse) throw new NotAuthorizedError(this.refuse);
         if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
         this.pullCalls += 1;
         return this.log

@@ -1,6 +1,6 @@
 import { EDGES, SCREEN_IDS, type Edge } from '../src/flow';
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { deriveSession, edgeAllowed, homeScreenFor } from '../src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen } from '../src/session';
 import spec from './spec-flow.json';
 
 /**
@@ -16,6 +16,7 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'create_account->terms_privacy': 'a new account is first-time, so it owes terms; the spec sends create_account straight to home_hub and never shows a new account the terms (A30 gap)',
   'assignments_home->assignment_progress_detail': 'legacy progress detail kept until the spec removes progress_home',
   'assignment_progress_detail->progress_home': 'legacy progress redirect (spec: progress_home is a legacy redirect)',
   'project_home->status_home': 'spec org-setup.flow.md project_open_status; missing from spec flow.ts (A40)',
@@ -96,6 +97,56 @@ describe('UX spec parity', () => {
     const homes = new Set(sessions.map(homeScreenFor));
     for (const h of ['intent_chooser', 'assignments_home', 'org_home', 'project_home', 'language_home', 'status_home']) {
       expect(homes.has(h as never), h).toBe(true);
+    }
+  });
+
+  it('every pre-auth screen has a declared way out for every session it can produce', () => {
+    // Why: signing in and signing up are the one navigation the user does not
+    // drive by tapping a declared edge, so nothing else holds them to the
+    // machine. Signing up used to strand you on create_account because the
+    // app looked for sign_in alone; this asserts the destination is reachable
+    // from *every* pre-auth screen, for a first-time session and for each
+    // role's home.
+    const roleSession = (role: string) =>
+      deriveSession(
+        'me',
+        'me@x',
+        { members: { me: { role: { value: role, hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } } } } as unknown as Parameters<typeof deriveSession>[2],
+        true,
+        null,
+        'p1'
+      );
+    const firstTime = deriveSession('me', 'me@x', null, false);
+    const sessions = [firstTime, deriveSession('noorg', 'n@x', null, true), ...['owner', 'coordinator', 'translator', 'reviewer', 'viewer'].map(roleSession)];
+    expect(postSignInScreen(firstTime)).toBe('terms_privacy');
+
+    const missing: string[] = [];
+    for (const from of AUTH_SCREENS) {
+      for (const s of sessions) {
+        const to = postSignInScreen(s);
+        const direct = EDGES.some((e) => e.from === from && e.to === to);
+        const viaHub = to === homeScreenFor(s) && EDGES.some((e) => e.from === from && e.to === 'home_hub');
+        if (!direct && !viaHub) missing.push(`${from}->${to}`);
+      }
+    }
+    expect([...new Set(missing)]).toEqual([]);
+  });
+
+  it('every guest-gated edge stays inside the signed-out screen set', () => {
+    // Why: the app sends a signed-out session back to sign_in from anywhere
+    // it should not be. That rule needs the list of places a guest may stand,
+    // and the guest edges are the spec's statement of it. Adding a guest edge
+    // to a new screen without listing the screen used to make the screen
+    // unreachable: you tapped it and were bounced straight back.
+    const stray = EDGES.filter((e) => e.when === 'guest')
+      .flatMap((e) => [e.from, e.to])
+      .filter((s) => s !== 'home_hub' && !GUEST_SCREENS.includes(s as never));
+    expect([...new Set(stray)]).toEqual([]);
+    // And a guest must never be stranded: sign_in is always reachable back.
+    for (const from of GUEST_SCREENS) {
+      if (from === 'sign_in') continue;
+      const out = EDGES.some((e) => e.from === from && (e.to === 'sign_in' || GUEST_SCREENS.includes(e.to as never)));
+      expect(out, `${from} has no way back toward sign_in`).toBe(true);
     }
   });
 });

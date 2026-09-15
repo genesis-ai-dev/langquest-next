@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 import { Home, Inbox, ListChecks, Settings } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, View } from 'react-native';
+import { Component, useCallback, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
 import { edgeFor, TAB_SCREENS, type ScreenId } from './src/flow';
@@ -17,15 +17,16 @@ import * as Review from './src/screens/review';
 import * as Status from './src/screens/status';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
-import { supabase } from './src/supabase';
-import { colors } from './src/theme';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
+import { supabase, supabaseConfigError } from './src/supabase';
+import { colors, space } from './src/theme';
 import { useOrg } from './src/useOrg';
 import { useProject } from './src/useProject';
 
 // One fixed partition for now. Project selection is a later screen.
-const ORG_ID = 'org1';
-const PROJECT_ID = 'luke-demo-4';
+// Overridable so an imported project (server/importV2.ts) can be opened.
+const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
+const PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID ?? 'luke-demo-4';
 const IS_DEV = __DEV__;
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element> = {
@@ -51,9 +52,46 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element> = {
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm
 };
 
+/**
+ * Whatever is wrong, the app says so. A release build has no redbox: an
+ * uncaught error there is a white screen, which tells a tester on TestFlight
+ * nothing and a developer less. Two backstops, because they catch different
+ * moments: `supabaseConfigError` for a build that was assembled without its
+ * configuration, and this boundary for anything thrown while rendering.
+ */
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  override state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  override componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[app] unhandled render error', error, info.componentStack);
+  }
+
+  override render() {
+    if (!this.state.error) return this.props.children;
+    return <Fatal title="Something went wrong" detail={`${this.state.error.message}\n\n${this.state.error.stack ?? ''}`} />;
+  }
+}
+
+/** A message a tester can read out over a call, and a developer can act on. */
+function Fatal(props: { title: string; detail: string }) {
+  return (
+    <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md }}>
+      <Text style={{ fontSize: 17, fontWeight: '600', color: colors.foreground }}>{props.title}</Text>
+      <Text style={{ fontSize: 13, color: colors.mutedForeground }} selectable>
+        {props.detail}
+      </Text>
+    </ScrollView>
+  );
+}
+
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
   useEffect(() => {
+    if (supabaseConfigError) return;
     supabase.auth.getSession().then(({ data }) => setAuth(data.session));
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setAuth(s));
     return () => data.subscription.unsubscribe();
@@ -61,7 +99,13 @@ export default function App() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="dark" />
-      {auth === undefined ? null : <Shell actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />}
+      {supabaseConfigError ? (
+        <Fatal title="This build is not configured" detail={supabaseConfigError} />
+      ) : auth === undefined ? null : (
+        <ErrorBoundary>
+          <Shell actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
+        </ErrorBoundary>
+      )}
     </SafeAreaView>
   );
 }
@@ -82,16 +126,26 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     [props.actorId, props.email, project.state, seenVision, org.state]
   );
 
-  // Route on sign-in / sign-out and once the fold is loaded.
-  const loaded = project.state !== null;
+  // Auth routing is an invariant, not a transition: a signed-in session is
+  // never on a pre-auth screen, a signed-out one is only on sign_in. Stated
+  // this way, sign-in, sign-up and a session restored at launch all land the
+  // same way, and the old bug where signing up left you on create_account
+  // (the guard only looked for sign_in) cannot come back. Checked every
+  // render because it is a property of the state, not of an edge; each branch
+  // makes its own guard false, so it settles in one extra render.
+  //
+  // Both folds must be loaded first: postSignInScreen reads the role out of
+  // them, and routing early sends an owner to the worker's home.
+  const loaded = project.state !== null && org.state !== null;
   useEffect(() => {
     if (!props.signedIn) {
-      if (nav.current.screen !== 'sign_in') nav.reset({ screen: 'sign_in' });
+      // Not "anything but sign_in": a guest legitimately walks to Create
+      // account, Browse public projects and the invite scanner.
+      if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }
-    if (loaded && nav.current.screen === 'sign_in') nav.reset({ screen: postSignInScreen(session) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.signedIn, loaded, props.actorId]);
+    if (loaded && AUTH_SCREENS.includes(nav.current.screen)) nav.reset({ screen: postSignInScreen(session) });
+  });
 
   const go = useCallback(
     (to: ScreenId, params?: Record<string, string>) => {

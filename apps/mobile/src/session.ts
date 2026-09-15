@@ -95,6 +95,21 @@ export function homeScreenFor(s: Session): ScreenId {
   return 'assignments_home';
 }
 
+/**
+ * Screens a signed-in session must never remain on: it has already done the
+ * thing they exist for. `explore_home` and `scan_qr` are not listed, because
+ * a signed-in member reaches both from `intent_chooser`.
+ */
+export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
+
+/**
+ * Screens a signed-out session may legitimately occupy. Anywhere else means
+ * the session ended under them, so they go back to `sign_in`. Kept in step
+ * with the guest-gated edges by a test: every `guest` edge's endpoints must
+ * appear here, so adding a guest screen without listing it fails.
+ */
+export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr'];
+
 /** UX spec `postSignInScreen`: first-time users see terms, then vision. */
 export function postSignInScreen(s: Session): ScreenId {
   return s.isFirstTime ? 'terms_privacy' : homeScreenFor(s);

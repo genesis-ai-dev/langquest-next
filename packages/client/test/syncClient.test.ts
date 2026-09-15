@@ -608,3 +608,61 @@ describe('SyncClient with the org materializer (core org.ts)', () => {
     expect({ ...sa, appliedEventIds: {} }).toEqual({ ...sb, appliedEventIds: {} });
   });
 });
+
+describe('SyncClient when the server refuses this actor', () => {
+  it('reports a refusal as refused, not offline, and keeps the work queued', async () => {
+    // Why: pointing a signed-in account at a project it has no membership row
+    // for makes pull_events raise `not a member` (errcode 42501). Reporting
+    // that as offline is what stranded users: the app hid a fixable
+    // authorization problem behind a cloud-off icon and blocked the escapes
+    // that are only meant to be blocked while a send is still possible.
+    const server = new FakeServer();
+    const { client } = device(server, 'dA', 'outsider', { t: 0 });
+    await client.load();
+    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    server.refuse = 'not a member';
+
+    const r = await client.sync();
+
+    expect(r.refused).toBe('not a member');
+    expect(r.offline).toBe(false);
+    expect(r.tooOld).toBe(false);
+    expect({ pushed: r.pushed, pulled: r.pulled, rejected: r.rejected }).toEqual({ pushed: 0, pulled: 0, rejected: 0 });
+    // Invariant 1: nothing is lost because the server said no.
+    expect(await client.pendingCount()).toBe(1);
+  });
+
+  it('still reports an unreachable server as offline', async () => {
+    // Why: the two must stay distinguishable in both directions. A transport
+    // failure is not an authorization problem either.
+    const server = new FakeServer();
+    const { client } = device(server, 'dA', 'lead', { t: 0 });
+    await client.load();
+    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    server.offline = true;
+
+    const r = await client.sync();
+
+    expect(r.offline).toBe(true);
+    expect(r.refused).toBe(null);
+    expect(await client.pendingCount()).toBe(1);
+  });
+
+  it('syncs normally once the refusal is lifted', async () => {
+    // Why: a refusal must leave the client able to recover without a
+    // reinstall; the queued events go out on the next sync.
+    const server = new FakeServer();
+    const { client } = device(server, 'dA', 'lead', { t: 0 });
+    await client.load();
+    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    server.refuse = 'not a member';
+    await client.sync();
+    server.refuse = null;
+
+    const r = await client.sync();
+
+    expect(r.refused).toBe(null);
+    expect(r.pushed).toBe(1);
+    expect(await client.pendingCount()).toBe(0);
+  });
+});

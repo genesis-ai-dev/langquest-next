@@ -94,6 +94,10 @@ export const EDGES: Edge[] = [
   e('sign_in', 'explore_home', undefined, 'guest'),
   e('create_account', 'scan_qr', undefined, 'guest'),
   e('create_account', 'home_hub', 'replace'),
+  // A brand-new account is always first-time, so it owes terms before home.
+  // The spec sends create_account straight to home_hub and has no screen
+  // that shows terms to a new account; see the drift log in specParity.
+  e('create_account', 'terms_privacy', 'replace'),
   e('create_account', 'sign_in', 'back', 'guest'),
   e('scan_qr', 'create_account', 'popTo', 'guest'),
   e('scan_qr', 'home_hub', 'replace'),
