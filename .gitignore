@@ -5,3 +5,6 @@ node_modules/
 supabase/.branches
 supabase/.temp
 .DS_Store
+
+# Glance memory shards
+.glance/
