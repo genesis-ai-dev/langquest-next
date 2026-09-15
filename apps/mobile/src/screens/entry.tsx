@@ -6,6 +6,7 @@ import { SEED_ROLES } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
+import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
 import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
 
@@ -20,7 +21,13 @@ export function SignIn(ctx: Ctx) {
   async function signIn() {
     setBusy(true);
     setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    let { error } = await supabase.auth.signInWithPassword({ email, password });
+    // Dev: `npm run db:test` resets the local database and wipes auth users.
+    // Recreate the dev account instead of stranding the developer at sign-in.
+    if (error && ctx.isDev && email === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
+      await ensurePersonaAccount({ id: 'dev', label: 'Dev', role: null, email });
+      ({ error } = await supabase.auth.signInWithPassword({ email, password }));
+    }
     if (error) setError(error.message);
     setBusy(false);
   }
