@@ -34,7 +34,7 @@ function harness() {
 }
 
 function ref(h: string): BlobRef {
-  return { hash: h, format: 'wav' };
+  return { hash: h, format: 'wav', unitId: 'u1' };
 }
 
 describe('TransferWorker (PLAN.md section 14)', () => {

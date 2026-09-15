@@ -7,6 +7,9 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
    package and is contract-tested there against node:sqlite.
 2. `src/useProject.ts`: one `SyncClient` per open project with
    `SupabaseTransport`, sync on open and every 15 s, a pending count.
+   `src/useOrg.ts`: the same client on the org partition (`_org`) with the
+   org materializer; `src/session.ts` derives privileges from both folds
+   (`can(privilege)`, `adminScope`), and Home follows the admin scope.
 3. Screens, one file per UX spec domain under `src/screens/`, every spec
    screen id present (`src/flow.ts` is the registry; `test/flow.test.ts`
    proves every screen exists and is reachable from `sign_in`):
@@ -25,7 +28,11 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
    - `account.tsx`: inbox, settings, profile, org switcher (P); sign-out
      confirm (U, refused while anything is queued or the device is offline).
    Navigation is `src/nav.ts` (stack) driven by `ctx.go`, which only follows
-   edges declared in `src/flow.ts`; undeclared transitions log `[flow] BLOCKED`.
+   edges declared in `src/flow.ts`; undeclared transitions log `[flow] BLOCKED`,
+   and so do gated edges the session's role cannot take (`edgeAllowed`).
+   `test/specParity.test.ts` holds `src/flow.ts` to the UX spec's machine
+   (`test/spec-flow.json`, regenerated with
+   `npx tsx scripts/extractSpecFlow.ts <path to ng-langquest-ux>`).
    Session facets and the home screen per role come from `src/session.ts`.
    `src/DevMenu.tsx` (dev builds only, from Settings or the sign-in screen)
    switches persona by really signing in as a seeded account, seeds the demo

@@ -1,51 +1,97 @@
-import { actorRole, type ProjectState, type Role } from '@langquest-next/core';
-import type { ScreenId } from './flow';
+import {
+  actorRole, adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, privilegesFor, privilegesOfFixedRole,
+  type OrgState, type Privilege, type ProjectState, type Role, type Scope
+} from '@langquest-next/core';
+import type { Edge, ScreenId } from './flow';
 
 /**
- * Session facets derived from the fold (UX spec `domain/session.ts`), not
- * stored anywhere. Who you are is your membership role in the open project.
+ * Session facets derived from the folds (UX spec `domain/session.ts`), not
+ * stored anywhere. Who you are is the union of your project membership (the
+ * fixed role, kept for compatibility) and your org memberships whose scope
+ * covers the open project (core `org.ts`). Screens ask `can(privilege)`;
+ * the rest are conveniences derived from it.
  */
 export interface Session {
   actorId: string;
   email: string | null;
+  /** The fixed role this session amounts to (workflow steps and eligibility still speak Role). */
   role: Role | null;
-  /** owner or coordinator: may configure and assign. */
+  privileges: ReadonlySet<Privilege>;
+  can: (p: Privilege) => boolean;
+  /** Highest scope with a manage privilege: where Home goes (A34). */
+  adminScope: Scope | null;
+  /** Holds any manage privilege. */
   isAdmin: boolean;
   isWorker: boolean;
   isViewer: boolean;
   hasNoOrg: boolean;
   /** Has not yet accepted terms and seen the vision steps on this device. */
   isFirstTime: boolean;
+  /** Not signed in at all (browsing public projects). */
+  isGuest: boolean;
 }
 
 export function deriveSession(
   actorId: string,
   email: string | null,
   state: ProjectState | null,
-  seenVision: boolean
+  seenVision: boolean,
+  org: OrgState | null = null,
+  projectId?: string
 ): Session {
-  const role = state ? actorRole(state, actorId) : null;
-  const isAdmin = role === 'owner' || role === 'coordinator';
-  const isWorker = role === 'translator' || role === 'reviewer' || isAdmin;
-  const isViewer = role === 'viewer';
+  const projectRole = state ? actorRole(state, actorId) : null;
+  const privileges = new Set<Privilege>(projectRole ? privilegesOfFixedRole(projectRole) : []);
+  if (org) for (const p of privilegesFor(org, actorId, projectId ? { projectId } : {})) privileges.add(p);
+  const role = projectRole ?? effectiveRole(privileges);
+  const isAdmin = MANAGE_PRIVILEGES.some((p) => privileges.has(p));
+  const isWorker = privileges.has('translate') || privileges.has('review') || privileges.has('fill_reference');
+  const isViewer = !isAdmin && !isWorker && privileges.has('view_status');
+  let adminScope: Scope | null = org ? adminScopeOf(org, actorId) : null;
+  if (!adminScope && projectRole === 'owner') adminScope = { level: 'org' };
+  if (!adminScope && projectRole === 'coordinator' && projectId) adminScope = { level: 'project', projectId };
   return {
     actorId,
     email,
     role,
+    privileges,
+    can: (p) => privileges.has(p),
+    adminScope,
     isAdmin,
     isWorker,
     isViewer,
-    hasNoOrg: role === null,
-    isFirstTime: !seenVision
+    hasNoOrg: privileges.size === 0,
+    isFirstTime: !seenVision,
+    isGuest: actorId === 'guest'
   };
 }
 
-/** UX spec `homeScreenFor`: where Home goes for this session. */
+/**
+ * UX spec `relevantFlowFor`: may this session take a gated edge? Each gate
+ * is one privilege from the spec's catalog. Ungated edges are open to
+ * anyone who can reach the from-screen.
+ */
+export function edgeAllowed(edge: Edge, s: Session): boolean {
+  switch (edge.when) {
+    case undefined: return true;
+    case 'guest': return s.isGuest;
+    case 'home': return edge.to === homeScreenFor(s);
+    case 'translator': return s.can('translate');
+    case 'fillReference': return s.can('fill_reference');
+    case 'reviewer': return s.can('review');
+    case 'assigner': return s.can('assign_work');
+    case 'manageTemplates': return s.can('manage_templates');
+    case 'manageReference': return s.can('manage_reference');
+    case 'manageFlows': return s.can('manage_flows');
+  }
+}
+
+/** UX spec `homeScreenFor` (A34): admins land on their scope's Manage home, viewers on Status, workers on My Work. */
 export function homeScreenFor(s: Session): ScreenId {
   if (s.hasNoOrg) return 'intent_chooser';
+  if (s.adminScope?.level === 'org') return 'org_home';
+  if (s.adminScope?.level === 'project') return 'project_home';
+  if (s.adminScope?.level === 'lane') return 'language_home';
   if (s.isViewer) return 'status_home';
-  if (s.role === 'owner') return 'org_home';
-  if (s.role === 'coordinator') return 'project_home';
   return 'assignments_home';
 }
 

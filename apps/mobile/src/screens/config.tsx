@@ -1,6 +1,6 @@
 // Avatar P. Roles, content templates, reference library, key terms, review flows.
 import type { QuorumRule, Role, WorkflowStep } from '@langquest-next/core';
-import { DEFAULT_CONFIG } from '@langquest-next/core';
+import { CATALOG_VERSION, contentTemplates, deriveWorkflow, FLOW_TEMPLATES, instantiateFlow, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
 import { Check, FileText, KeyRound, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
@@ -58,92 +58,244 @@ export function RoleEditor(ctx: Ctx) {
   );
 }
 
+/** UX spec A42 at language level: exactly one content template per lane, from the catalog. Selecting instantiates the units (audit 5.D). */
 export function TemplatesHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const kinds = (state?.config?.value ?? DEFAULT_CONFIG).unitKinds;
+  const { state, appendMany } = ctx.project;
+  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const selected = state?.laneTemplates[laneId]?.value;
+  const canManage = ctx.session.can('manage_templates') && !!laneId;
+  const [busy, setBusy] = useState('');
+  async function select(templateId: string) {
+    if (!state || busy) return;
+    setBusy(templateId);
+    try {
+      // Units the fold already has are skipped: the ids are deterministic, so
+      // re-selecting (or a second admin selecting) adds nothing twice.
+      const units = instantiateTemplate(templateId).filter((u) => !state.units[u.unitId]);
+      await appendMany([
+        { type: 'v1.LaneTemplateSelected' as const, payload: { laneId, templateId, catalogVersion: CATALOG_VERSION } },
+        ...units.map((payload) => ({ type: 'v1.UnitAdded' as const, payload }))
+      ]);
+    } finally {
+      setBusy('');
+    }
+  }
   return (
     <Screen>
-      <Header title="Content templates" onBack={ctx.back} />
-      <Note>The applied template is the unit tree: {kinds.map((k) => k.label).join(' › ')}.</Note>
-      <Section label="Applied">
-        {kinds.map((k, i) => (
-          <Row key={k.id} icon={FileText} label={k.label} sub={k.childKinds.length ? `holds ${k.childKinds.join(', ')}` : 'unit of work'} last={i === kinds.length - 1} />
-        ))}
+      <Header title="Content templates" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+      <Note>{selected ? `This language uses ${contentTemplates().find((t) => t.id === selected.templateId)?.name ?? selected.templateId} (catalog ${selected.catalogVersion}).` : 'No template selected for this language yet.'}</Note>
+      <Section label="Catalog">
+        {contentTemplates().map((t, i, a) => {
+          const leaves = t.items.filter((it) => t.unitKinds.find((k) => k.id === it.kind)?.childKinds.length === 0).length;
+          const on = selected?.templateId === t.id;
+          return (
+            <Row
+              key={t.id}
+              icon={FileText}
+              label={t.name}
+              sub={`${t.unitKinds.map((k) => k.label).join(' › ')} · ${leaves} units${busy === t.id ? ' · applying…' : ''}`}
+              onPress={canManage && !on ? () => void select(t.id) : undefined}
+              right={on ? <Check size={18} color={colors.done} /> : undefined}
+              last={i === a.length - 1}
+            />
+          );
+        })}
       </Section>
     </Screen>
   );
 }
 
+/** UX spec reference_home: general material by scope, stage-tied question sets, template-linked study material, and the key terms lists. */
 export function ReferenceHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const refs = Object.entries(state?.references ?? {});
-  const byKind = new Map<string, typeof refs>();
-  for (const r of refs) byKind.set(r[1].kind, [...(byKind.get(r[1].kind) ?? []), r]);
-  const firstUnit = Object.keys(state?.units ?? {}).find((u) => state!.units[u]!.parentUnitId !== null) ?? '';
+  const { state, appendMany } = ctx.project;
+  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const canManage = ctx.session.can('manage_reference');
+  const all = state ? materialsFor(state, laneId ? { laneId } : {}) : [];
+  const stageTied = all.filter((m) => m.scope.stepId !== undefined || (m.kind === 'questions' && m.templateRef));
+  const general = all.filter((m) => !stageTied.includes(m) && m.kind !== 'questions');
+  const written = all.filter((m) => !stageTied.includes(m) && m.kind === 'questions');
+  const legacy = Object.entries(state?.references ?? {});
+  const missingSets = QUESTION_TEMPLATES.filter((q) => !state?.materials[questionSetMaterialId(q.id)]);
+  const kindName = (k: string) => REFERENCE_KINDS.find((r) => r.id === k)?.name ?? k;
+  const row = (m: (typeof all)[number], i: number, a: unknown[]) => (
+    <Row key={m.materialId} icon={FileText} label={m.title} sub={`${kindName(m.kind)}${m.blanks ? ` · ${m.blanks} blanks` : ''}${m.locked ? ' · locked' : ''}`} onPress={() => ctx.go('material_editor', { materialId: m.materialId, laneId })} last={i === a.length - 1} />
+  );
   return (
-    <Screen footer={ctx.session.isAdmin ? <Footer label="Add material" onPress={() => ctx.go('material_editor', { unitId: firstUnit })} /> : undefined}>
-      <Header title="Reference library" onBack={ctx.back} />
-      <Section label={`Key terms · ${byKind.get('key_terms')?.length ?? 0}`}>
-        <Row icon={KeyRound} label="Living glossary" onPress={() => ctx.go('key_terms')} last />
+    <Screen footer={canManage ? <Footer label="Add material" onPress={() => ctx.go('material_editor', { laneId })} /> : undefined}>
+      <Header title="Reference library" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+      <Section label={`Key terms · ${state ? keyTermsFor(state, laneId).length : 0}`}>
+        <Row icon={KeyRound} label="Key terms list" sub="Living glossary for this language" onPress={() => ctx.go('key_terms', { laneId })} last />
       </Section>
-      {[...byKind.entries()].filter(([k]) => k !== 'key_terms').map(([kind, items]) => (
-        <Section key={kind} label={`${kind.replace('_', ' ')} · ${items.length}`}>
-          {items.map(([id, r], i) => (
-            <Row key={id} label={r.text?.split('\n')[0] ?? id} sub={state?.units[r.unitId]?.label} onPress={ctx.session.isAdmin ? () => ctx.go('material_editor', { refId: id }) : undefined} last={i === items.length - 1} />
+      <Section label={`General · ${general.length}`}>
+        {general.map(row)}
+        {general.length === 0 ? <Row label="None yet" last /> : null}
+      </Section>
+      <Section label={`Review question sets · ${stageTied.length + written.length}`}>
+        {[...stageTied, ...written].map(row)}
+        {canManage
+          ? missingSets.map((q, i) => (
+              <Row key={q.id} icon={Plus} label={`Add ${q.name} from the catalog`} onPress={() => void appendMany(instantiateQuestionSet(q.id, laneId) as never)} last={i === missingSets.length - 1} />
+            ))
+          : null}
+      </Section>
+      {legacy.length > 0 ? (
+        <Section label={`Passage notes · ${legacy.length}`}>
+          {legacy.map(([id, r], i) => (
+            <Row key={id} label={r.text?.split('\n')[0] ?? id} sub={`${r.kind} · ${state?.units[r.unitId]?.label ?? r.unitId}`} last={i === legacy.length - 1} />
           ))}
         </Section>
-      ))}
+      ) : null}
     </Screen>
   );
 }
 
+/** Living glossary. From translation work (unitId param) the shortlist for that passage comes first. */
 export function KeyTerms(ctx: Ctx) {
-  const { state } = ctx.project;
+  const { state, append } = ctx.project;
   const unitId = ctx.params['unitId'];
-  const all = Object.entries(state?.references ?? {}).filter(([, r]) => r.kind === 'key_terms');
-  const here = unitId ? all.filter(([, r]) => r.unitId === unitId) : [];
-  const other = unitId ? all.filter(([, r]) => r.unitId !== unitId) : all;
+  const takeId = ctx.params['takeId'];
+  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const all = state ? keyTermsFor(state, laneId) : [];
+  const here = state && unitId ? keyTermsForUnit(state, laneId, unitId) : [];
+  const other = all.filter((t) => !here.includes(t));
+  const [adding, setAdding] = useState(false);
+  const [term, setTerm] = useState('');
+  const [gloss, setGloss] = useState('');
+  const canAdd = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
+  async function add() {
+    const book = unitId ? state?.units[unitId]?.parentUnitId ?? unitId : undefined;
+    await append('v1.KeyTermDefined', { termId: `kt-${Date.now()}`, laneId, term: term.trim(), gloss: gloss.trim(), unitScope: book ? [book] : [] });
+    setTerm('');
+    setGloss('');
+    setAdding(false);
+  }
   const rows = (items: typeof all) =>
-    items.map(([id, r], i) => (
-      <Row key={id} icon={KeyRound} label={r.text ?? id} sub={state?.units[r.unitId]?.label} onPress={() => ctx.go('key_term_detail', { refId: id })} last={i === items.length - 1} />
+    items.map((t, i) => (
+      <Row key={t.termId} icon={KeyRound} label={t.term} sub={`${t.gloss}${t.renderings[0] ? ` · ${t.renderings[0].rendering}` : ''}`} onPress={() => ctx.go('key_term_detail', { termId: t.termId, ...(takeId ? { takeId } : {}), ...(unitId ? { unitId } : {}) })} last={i === items.length - 1} />
     ));
   return (
-    <Screen>
-      <Header title="Key terms" onBack={ctx.back} />
-      {unitId ? <Section label={`In this passage · ${here.length}`}>{here.length ? rows(here) : <Row label="None" last />}</Section> : null}
+    <Screen footer={canAdd ? <Footer label={adding ? 'Save term' : 'Add term'} onPress={() => (adding ? void add() : setAdding(true))} disabled={adding && !term.trim()} /> : undefined}>
+      <Header title="Key terms" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+      {adding ? (
+        <Card>
+          <TextInput style={styles.input} placeholder="Source term, e.g. Word (Logos)" value={term} onChangeText={setTerm} />
+          <TextInput style={styles.input} placeholder="Brief meaning" value={gloss} onChangeText={setGloss} />
+        </Card>
+      ) : null}
+      {unitId ? <Section label={`For this passage · ${here.length}`}>{here.length ? rows(here) : <Row label="None" last />}</Section> : null}
       <Section label={`${unitId ? 'Other terms' : 'All terms'} · ${other.length}`}>{other.length ? rows(other) : <Row label="None" last />}</Section>
     </Screen>
   );
 }
 
+/** Renderings, recorded adjustments, and linked translations; adjust or tie the term to the translation in progress. */
 export function KeyTermDetail(ctx: Ctx) {
-  const { state } = ctx.project;
-  const refId = ctx.params['refId'] ?? '';
-  const r = state?.references[refId];
-  if (!r) return <Note>Term not found.</Note>;
+  const { state, append } = ctx.project;
+  const termId = ctx.params['termId'] ?? '';
+  const takeId = ctx.params['takeId'];
+  const t = state ? keyTermView(state, termId) : null;
+  const [note, setNote] = useState('');
+  const [rendering, setRendering] = useState('');
+  const [context, setContext] = useState('');
+  if (!state || !t) return <Note>Term not found.</Note>;
+  const linked = takesLinkingTerm(state, termId);
+  const isLinked = !!takeId && !!state.keyTermLinks[takeId]?.[termId];
+  const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
+  async function adjust() {
+    const adjustmentId = `adj-${Date.now()}`;
+    await append('v1.KeyTermAdjusted', { termId, adjustmentId, note: note.trim(), ...(takeId ? { duringTakeId: takeId } : {}) });
+    if (takeId && !isLinked) await append('v1.KeyTermLinked', { takeId, termId, adjustmentId });
+    setNote('');
+  }
+  async function addRendering() {
+    await append('v1.KeyTermRenderingAdded', { termId, renderingId: `r-${Date.now()}`, rendering: rendering.trim(), context: context.trim() });
+    setRendering('');
+    setContext('');
+  }
   return (
-    <Screen>
-      <Header title={r.text ?? refId} sub={state?.units[r.unitId]?.label} onBack={ctx.back} />
-      <Note>Renderings and adjustment history arrive with living-glossary events.</Note>
-      <Section label="Linked translations">
-        {Object.entries(state?.takes ?? {}).filter(([, t]) => t.unitId === r.unitId && !t.archived).map(([id, t], i, a) => (
-          <Row key={id} label={`${t.cardHashes.length} cards`} sub={t.actorId.slice(0, 8)} onPress={() => ctx.go('piece_version', { takeId: id, laneId: t.laneId, unitId: t.unitId })} last={i === a.length - 1} />
+    <Screen footer={takeId && !isLinked ? <Footer label="Tie to this translation" onPress={() => void append('v1.KeyTermLinked', { takeId, termId })} /> : undefined}>
+      <Header title={t.term} sub={t.gloss} onBack={ctx.back} />
+      {isLinked ? <Note>Tied to the translation in progress.</Note> : null}
+      <Section label={`Renderings · ${t.renderings.length}`}>
+        {t.renderings.map((r, i) => (
+          <Row key={r.renderingId} label={r.rendering} sub={r.context} last={i === t.renderings.length - 1 && !canEdit} />
         ))}
+        {canEdit ? (
+          <Card>
+            <TextInput style={styles.input} placeholder="Rendering" value={rendering} onChangeText={setRendering} />
+            <TextInput style={styles.input} placeholder="When to use it and why" value={context} onChangeText={setContext} />
+            <Pressable onPress={() => void addRendering()} disabled={!rendering.trim()} accessibilityLabel="Add rendering">
+              <Plus size={22} color={colors.translate} />
+            </Pressable>
+          </Card>
+        ) : null}
+      </Section>
+      <Section label={`Adjustments · ${t.adjustments.length}`}>
+        {t.adjustments.map((a, i) => (
+          <Row key={a.adjustmentId} label={a.note} sub={`${a.actorId.slice(0, 8)}${a.duringTakeId ? ` · during ${state.units[state.takes[a.duringTakeId]?.unitId ?? '']?.label ?? 'a translation'}` : ''}${a.blobHash ? ' · audio' : ''}`} last={i === t.adjustments.length - 1 && !canEdit} />
+        ))}
+        {canEdit ? (
+          <Card>
+            <TextInput style={styles.input} placeholder="What changed and why" value={note} onChangeText={setNote} multiline />
+            <Pressable onPress={() => void adjust()} disabled={!note.trim()} accessibilityLabel="Record adjustment">
+              <Plus size={22} color={colors.translate} />
+            </Pressable>
+          </Card>
+        ) : null}
+      </Section>
+      <Section label={`Linked translations · ${linked.length}`}>
+        {linked.map((l, i) => {
+          const take = state.takes[l.takeId];
+          return <Row key={l.takeId} label={state.units[take?.unitId ?? '']?.label ?? l.takeId} sub={l.note} onPress={take ? () => ctx.go('piece_version', { takeId: l.takeId, laneId: take.laneId, unitId: take.unitId }) : undefined} last={i === linked.length - 1} />;
+        })}
+        {linked.length === 0 ? <Row label="None yet" last /> : null}
       </Section>
     </Screen>
   );
 }
 
+/** UX spec A42 at language level: exactly one review flow per lane. Selecting writes one register per step (audit 5.F). */
 export function FlowsHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const steps = (state?.config?.value ?? DEFAULT_CONFIG).workflow;
+  const { state, appendMany } = ctx.project;
+  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const selected = state?.laneFlows[laneId]?.value;
+  const steps = state ? deriveWorkflow(state, laneId) : [];
+  const canManage = ctx.session.can('manage_flows') && !!laneId;
+  async function select(flowId: string) {
+    if (!state) return;
+    // Steps of a previously selected flow are removed; hand-edited steps stay.
+    const removals = selected
+      ? steps.filter((s) => s.id.startsWith(`${selected.flowId}@`)).map((s) => ({ type: 'v1.WorkflowStepRemoved' as const, payload: { stepId: s.id } }))
+      : [];
+    await appendMany([
+      { type: 'v1.LaneFlowSelected' as const, payload: { laneId, flowId, catalogVersion: CATALOG_VERSION } },
+      ...removals,
+      ...instantiateFlow(flowId, laneId).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }))
+    ]);
+  }
   return (
-    <Screen footer={ctx.session.isAdmin ? <Footer label="Edit stages" onPress={() => ctx.go('flow_editor')} /> : undefined}>
-      <Header title="Review flows" onBack={ctx.back} />
-      <Section label="Applied flow">
+    <Screen footer={canManage ? <Footer label="Edit stages" onPress={() => ctx.go('flow_editor', { laneId })} /> : undefined}>
+      <Header title="Review flows" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+      <Section label="Catalog">
+        {FLOW_TEMPLATES.map((f, i, a) => {
+          const on = selected?.flowId === f.id;
+          return (
+            <Row
+              key={f.id}
+              label={f.name}
+              sub={f.stages.map((st) => st.label).join(' → ')}
+              onPress={canManage && !on ? () => void select(f.id) : undefined}
+              right={on ? <Check size={18} color={colors.done} /> : undefined}
+              last={i === a.length - 1}
+            />
+          );
+        })}
+      </Section>
+      <Section label="Applied stages">
         {steps.map((s, i) => (
-          <Row key={s.id} label={s.id} sub={`${s.role} · ${s.rule}${s.required ? ' · required' : ' · optional'}`} badge={`${i + 1}`} last={i === steps.length - 1} />
+          <Row key={s.id} label={s.label ?? s.id} sub={`${s.teamId ? `team ${state?.teams[s.teamId]?.name.value ?? s.teamId}` : s.role} · ${s.rule}${s.required ? ' · required' : ' · optional'}`} badge={`${i + 1}`} last={i === steps.length - 1} />
         ))}
+        {steps.length === 0 ? <Row label="No stages" last /> : null}
       </Section>
     </Screen>
   );
@@ -151,23 +303,40 @@ export function FlowsHome(ctx: Ctx) {
 
 const RULES: QuorumRule[] = ['any', 'majority', 'unanimous'];
 
+/** Edits are one register per step, so two admins editing offline merge per step instead of clobbering a document. */
 export function FlowEditor(ctx: Ctx) {
-  const { state, append } = ctx.project;
-  const config = state?.config?.value ?? DEFAULT_CONFIG;
-  const [steps, setSteps] = useState<WorkflowStep[]>(config.workflow);
+  const { state, appendMany } = ctx.project;
+  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const initial = state ? deriveWorkflow(state, laneId) : [];
+  const [steps, setSteps] = useState<WorkflowStep[]>(initial);
   const [name, setName] = useState('');
   async function save() {
-    await append('v1.ProjectConfigChanged', { config: { ...config, workflow: steps } }, state?.config?.eventId);
+    const after = new Map(steps.map((s) => [s.id, s]));
+    const removed = initial.filter((s) => !after.has(s.id)).map((s) => ({ type: 'v1.WorkflowStepRemoved' as const, payload: { stepId: s.id } }));
+    const changed = steps
+      .map((s, i) => ({ s, i }))
+      .filter(({ s, i }) => {
+        const before = initial[i];
+        return !before || before.id !== s.id || before.rule !== s.rule || before.required !== s.required || before.teamId !== s.teamId || !state?.workflowSteps[s.id];
+      })
+      .map(({ s, i }) => ({
+        type: 'v1.WorkflowStepSet' as const,
+        payload: {
+          stepId: s.id, laneId, order: `s${String(i).padStart(2, '0')}`, role: s.role, required: s.required, rule: s.rule,
+          ...(s.label !== undefined ? { label: s.label } : {}), ...(s.teamId !== undefined ? { teamId: s.teamId } : {})
+        }
+      }));
+    await appendMany([...removed, ...changed]);
     ctx.back();
   }
   return (
     <Screen footer={<Footer label="Save flow" onPress={() => void save()} disabled={steps.length === 0} />}>
-      <Header title="Edit stages" onBack={ctx.back} />
+      <Header title="Edit stages" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
       {steps.map((s, i) => (
         <Card key={s.id}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
             <Badge label={`${i + 1}`} />
-            <Text style={[text.h4, { flex: 1 }]}>{s.id}</Text>
+            <Text style={[text.h4, { flex: 1 }]}>{s.label ?? s.id}</Text>
             <Pressable onPress={() => setSteps(steps.filter((_, j) => j !== i))} hitSlop={8} accessibilityLabel="Remove stage">
               <Trash2 size={18} color={colors.reference} />
             </Pressable>
@@ -185,11 +354,12 @@ export function FlowEditor(ctx: Ctx) {
         </Card>
       ))}
       <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-        <TextInput style={[styles.input, { flex: 1 }]} placeholder="New stage id" autoCapitalize="none" value={name} onChangeText={setName} />
+        <TextInput style={[styles.input, { flex: 1 }]} placeholder="New stage name" value={name} onChangeText={setName} />
         <Pressable
           onPress={() => {
             if (!name.trim()) return;
-            setSteps([...steps, { id: name.trim(), role: 'reviewer', required: true, rule: 'any' }]);
+            const stageId = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+            setSteps([...steps, { id: templateStepId('custom', CATALOG_VERSION, `${laneId}_${stageId}`), label: name.trim(), role: 'reviewer', required: true, rule: 'any' }]);
             setName('');
           }}
           accessibilityLabel="Add stage"

@@ -4,9 +4,14 @@ import type { EventStore, LocalEvent } from './types';
 export class MemoryStore implements EventStore {
   private events = new Map<string, LocalEvent>();
   private cursors = new Map<string, number>();
+  private metas = new Map<string, string>();
 
   async put(local: LocalEvent): Promise<void> {
     this.events.set(local.event.id, local);
+  }
+
+  async putMany(locals: LocalEvent[]): Promise<void> {
+    for (const l of locals) this.events.set(l.event.id, l);
   }
 
   async get(id: string): Promise<LocalEvent | undefined> {
@@ -31,9 +36,26 @@ export class MemoryStore implements EventStore {
     this.cursors.set(`${orgId}/${projectId}`, seq);
   }
 
-  /** Test helper. */
-  rejected(): LocalEvent[] {
-    return [...this.events.values()].filter((e) => e.status === 'rejected');
+  async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
+    for (const [id, e] of this.events) {
+      if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.projectId === projectId
+          && (e.event.serverSeq ?? Infinity) <= uptoSeq) this.events.delete(id);
+    }
+  }
+
+  async meta(key: string): Promise<string | undefined> {
+    return this.metas.get(key);
+  }
+
+  async setMeta(key: string, value: string): Promise<void> {
+    this.metas.set(key, value);
+  }
+
+  async rejected(orgId?: string, projectId?: string): Promise<LocalEvent[]> {
+    return [...this.events.values()]
+      .filter((e) => e.status === 'rejected')
+      .filter((e) => orgId === undefined || (e.event.orgId === orgId && e.event.projectId === projectId))
+      .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
   private partition(orgId: string, projectId: string): LocalEvent[] {

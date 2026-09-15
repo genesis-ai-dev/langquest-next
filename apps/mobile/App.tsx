@@ -17,9 +17,10 @@ import * as Review from './src/screens/review';
 import * as Status from './src/screens/status';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { deriveSession, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
+import { deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
 import { supabase } from './src/supabase';
 import { colors } from './src/theme';
+import { useOrg } from './src/useOrg';
 import { useProject } from './src/useProject';
 
 // One fixed partition for now. Project selection is a later screen.
@@ -67,6 +68,7 @@ export default function App() {
 
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
   const project = useProject(ORG_ID, PROJECT_ID, props.actorId);
+  const org = useOrg(ORG_ID, props.actorId);
   const [seenVision, setSeenVision] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const nav = useNav({ screen: 'sign_in' });
@@ -75,7 +77,10 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     AsyncStorage.getItem(`vision:${props.actorId}`).then((v) => setSeenVision(v === '1')).catch(() => {});
   }, [props.actorId]);
 
-  const session = useMemo(() => deriveSession(props.actorId, props.email, project.state, seenVision), [props.actorId, props.email, project.state, seenVision]);
+  const session = useMemo(
+    () => deriveSession(props.actorId, props.email, project.state, seenVision, org.state, PROJECT_ID),
+    [props.actorId, props.email, project.state, seenVision, org.state]
+  );
 
   // Route on sign-in / sign-out and once the fold is loaded.
   const loaded = project.state !== null;
@@ -98,6 +103,12 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
         console.error(`[flow] BLOCKED ${from} -> ${to}: declare the edge in flow.ts`);
         return;
       }
+      // Role gates are part of the machine (UX spec): a screen must not
+      // offer an affordance the session's role cannot take.
+      if (!edgeAllowed(edge, session)) {
+        console.error(`[flow] BLOCKED ${from} -> ${to}: gate "${edge.when}" not met by role ${session.role ?? 'guest'}`);
+        return;
+      }
       switch (edge.mode ?? 'push') {
         case 'push': return nav.push(route);
         case 'replace': return nav.replace(route);
@@ -111,6 +122,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 
   const ctx: Ctx = {
     project,
+    org,
     session,
     params: nav.current.params ?? {},
     go,

@@ -1,4 +1,5 @@
 import type { BlobRef } from '@langquest-next/core';
+import type { BlobFile } from './blobs';
 import { RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MicrophoneEnergy, { type VADConfig } from '../modules/microphone-energy';
@@ -20,7 +21,7 @@ import { getBlobStore } from './blobs';
  * reported as a card; the caller appends the events.
  */
 export interface RecordedCard {
-  ref: BlobRef;
+  ref: BlobFile;
   durationMs: number;
   size: number;
 }

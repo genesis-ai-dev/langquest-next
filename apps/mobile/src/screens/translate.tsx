@@ -1,5 +1,5 @@
 // Avatar U. Translate passage, recordings, key terms, add to TG, attach questions. One yellow action per screen.
-import { currentTake, deriveTakeStatus, deriveTasks, takesFor, type Task } from '@langquest-next/core';
+import { currentTake, deriveTakeStatus, deriveTasks, keyTermLinksFor, keyTermsForUnit, materialsFor, takesFor, tgMaterialId, type Task } from '@langquest-next/core';
 import { BookOpen, Check, KeyRound, ListMusic, MessageSquare, Mic, Plus, RotateCcw, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -22,6 +22,9 @@ export function TranslatePassage(ctx: Ctx) {
   const unit = state.units[task.unitId];
   const refs = Object.values(state.references).filter((r) => r.unitId === task.unitId && r.kind !== 'review_questions');
   const takeId = currentTake(state, task.unitId, task.laneId);
+  const terms = keyTermsForUnit(state, task.laneId, task.unitId);
+  const tied = takeId ? keyTermLinksFor(state, takeId).length : 0;
+  const materials = materialsFor(state, { laneId: task.laneId, unitId: task.unitId }).filter((m) => m.kind !== 'questions');
   const status = takeId ? deriveTakeStatus(state, takeId) : null;
   const count = takesFor(state, task.unitId, task.laneId).length;
   const isDraft = status?.outcome === 'draft';
@@ -79,16 +82,25 @@ export function TranslatePassage(ctx: Ctx) {
           </Card>
         </Pressable>
 
-        <Pressable onPress={() => ctx.go('key_terms', { unitId: task.unitId })} accessibilityRole="button" accessibilityLabel="Key terms">
+        <Pressable onPress={() => ctx.go('key_terms', { unitId: task.unitId, laneId: task.laneId, ...(takeId ? { takeId } : {}) })} accessibilityRole="button" accessibilityLabel={`Key terms: ${terms.length} relevant, ${tied} tied to this translation`}>
           <Card style={{ backgroundColor: tint.translate }}>
             <View style={styles.titleRow}>
               <KeyRound size={18} color={colors.reference} />
-              <Text style={text.h4}>{refs.length}</Text>
+              <Text style={text.h4}>{terms.length}</Text>
+              {tied ? <Text style={text.small}>· {tied}</Text> : null}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => ctx.go('add_to_tg', { unitId: task.unitId })} hitSlop={8} accessibilityLabel="Add to translation guidelines">
+              <Pressable onPress={() => ctx.go('add_to_tg', { unitId: task.unitId, laneId: task.laneId })} hitSlop={8} accessibilityLabel="Add to translation guidelines">
                 <Plus size={18} color={colors.reference} />
               </Pressable>
             </View>
+            {materials.map((m) => (
+              <View key={m.materialId} style={styles.refRow}>
+                <Text style={text.small}>{m.title}</Text>
+                {m.fields.filter((f) => f.fieldId === task.unitId || m.fields.length <= 3).map((f) => (
+                  <Text key={f.fieldId} style={text.body}>{f.text ?? f.blobHash}</Text>
+                ))}
+              </View>
+            ))}
             {refs.map((r, i) => (
               <View key={i} style={styles.refRow}>
                 <Text style={text.small}>{r.kind.replace('_', ' ')}</Text>
@@ -111,12 +123,20 @@ export function AttachQuestions(ctx: Ctx) {
   const { state, append } = ctx.project;
   const task = taskFor(ctx);
   const [picked, setPicked] = useState<string[]>([]);
+  const [response, setResponse] = useState('');
   if (!state || !task) return <Note>Task not found.</Note>;
-  const sets = Object.entries(state.references).filter(([, r]) => r.kind === 'review_questions');
+  const sets = materialsFor(state, { laneId: task.laneId, unitId: task.unitId }).filter((m) => m.kind === 'questions');
   const takeId = currentTake(state, task.unitId, task.laneId);
+  const respondsTo = takeId ? state.takes[takeId]?.parentTakeId ?? null : null;
+  const isResponse = task.type === 'respond' || (!!respondsTo && !!state.submissions[respondsTo]);
 
   async function submit() {
     if (!takeId) return;
+    // The translator's answer to suggestions travels with the resubmission
+    // (UX spec PieceReviewResponse; audit 5.F).
+    if (isResponse && respondsTo && response.trim()) {
+      await append('v1.ResponseRecorded', { takeId, respondsToTakeId: respondsTo, note: response.trim() });
+    }
     await append('v1.TakeSubmitted', { takeId, questionSetIds: picked });
     ctx.go('done_await');
   }
@@ -124,15 +144,19 @@ export function AttachQuestions(ctx: Ctx) {
   return (
     <Screen footer={<ActionButton icon={Send} accessibilityLabel="Submit for review" onPress={() => void submit()} />}>
       <Header title="Review questions" onBack={ctx.back} />
-      {sets.length === 0 ? <Note>No question sets yet. Submit without questions, or add one from the reference library.</Note> : null}
+      {isResponse ? (
+        <TextInput style={styles.input} placeholder="What you changed, and why the rest stayed" value={response} onChangeText={setResponse} multiline />
+      ) : null}
+      {sets.length === 0 ? <Note>No question sets yet. Submit without questions, or write one from the reference library.</Note> : null}
       {sets.length > 0 ? (
         <Section label={`Question sets · ${sets.length}`}>
-          {sets.map(([id, r], i) => (
+          {sets.map((m, i) => (
             <Row
-              key={id}
-              label={r.text?.split('\n')[0] ?? id}
-              onPress={() => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))}
-              right={picked.includes(id) ? <Check size={18} color={colors.translate} /> : <View />}
+              key={m.materialId}
+              label={m.title}
+              sub={`${m.fields.length} questions`}
+              onPress={() => setPicked((p) => (p.includes(m.materialId) ? p.filter((x) => x !== m.materialId) : [...p, m.materialId]))}
+              right={picked.includes(m.materialId) ? <Check size={18} color={colors.translate} /> : <View />}
               last={i === sets.length - 1}
             />
           ))}
@@ -142,18 +166,23 @@ export function AttachQuestions(ctx: Ctx) {
   );
 }
 
-/** Spec add_to_tg: a translator adds a guideline note for this passage. */
+/** Spec add_to_tg: the note lands in the language's Translation Guidelines document, keyed by this passage (audit 5.E). */
 export function AddToTg(ctx: Ctx) {
-  const { append } = ctx.project;
+  const { state, appendMany } = ctx.project;
   const [note, setNote] = useState('');
   const unitId = ctx.params['unitId'] ?? '';
+  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const materialId = tgMaterialId(laneId);
   async function save() {
-    await append('v1.ReferenceAttached', { unitId, refId: `tg-${Date.now()}`, kind: 'tg', text: note.trim() });
+    const events: Parameters<typeof appendMany>[0] = [];
+    if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined', payload: { materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId } } });
+    events.push({ type: 'v1.MaterialFieldSet', payload: { materialId, fieldId: unitId, text: note.trim() } });
+    await appendMany(events);
     ctx.back();
   }
   return (
-    <Screen footer={<Footer label="Done" onPress={() => void save()} disabled={!note.trim()} />}>
-      <Header title="Add to TG" onBack={ctx.back} />
+    <Screen footer={<Footer label="Done" onPress={() => void save()} disabled={!note.trim() || !laneId} />}>
+      <Header title="Add to TG" sub={state?.units[unitId]?.label} onBack={ctx.back} />
       <TextInput style={styles.input} placeholder="Guideline for this passage" value={note} onChangeText={setNote} multiline />
     </Screen>
   );

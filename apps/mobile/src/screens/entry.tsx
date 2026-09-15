@@ -2,6 +2,7 @@
 import { Building2, Compass, Eye, Headphones, Mic, QrCode, ScanLine, Send, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SEED_ROLES } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
@@ -142,16 +143,23 @@ export function IntentChooser(ctx: Ctx) {
 }
 
 /**
- * Avatar P. Creating an organization here creates the first project with
- * sample passages and makes you its owner. Organizations above projects
- * come with multi-project support (PLAN.md section 13).
+ * Avatar P. Creating an organization writes the org partition first (the
+ * org, the seed roles with the spec's privilege sets, you as Organization
+ * Admin at org scope, the first project registered), then the first
+ * project with sample passages. UX spec A9: org create presets standard
+ * values.
  */
 export function CreateOrg(ctx: Ctx) {
   const [name, setName] = useState('');
   async function create() {
     const { append } = ctx.project;
     const me = ctx.session.actorId;
-    await append('v1.ProjectCreated', { name: name.trim() || 'Luke', sourceLanguoidId: 'eng' });
+    const orgName = name.trim() || 'My organization';
+    await ctx.org.append('v1.OrgCreated', { name: orgName });
+    for (const r of SEED_ROLES) await ctx.org.append('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
+    await ctx.org.append('v1.OrgMemberAdded', { profileId: me, roleId: 'org_admin', scope: { level: 'org' }, ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {}) });
+    await ctx.org.append('v1.ProjectRegistered', { projectId: ctx.project.projectId, name: 'Luke' });
+    await append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     await append('v1.MemberAdded', { profileId: me, role: 'owner' });
     await append('v1.ProjectConfigChanged', {
       config: {

@@ -1,6 +1,6 @@
-import { DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferWorker, UPLOAD_DEFAULTS } from '@langquest-next/client';
-import { deriveDownloadWork, deriveUploadWork, type BlobRef, type EventPayloads, type EventType, type ProjectState } from '@langquest-next/core';
-import { getBlobStore, type BlobStore } from './blobs';
+import { DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId } from '@langquest-next/client';
+import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, type BlobRef, type EventPayloads, type EventType, type ProjectState } from '@langquest-next/core';
+import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -8,16 +8,29 @@ import { getStore } from './store';
 import { supabase } from './supabase';
 
 export interface ProjectHandle {
+  orgId: string;
+  projectId: string;
   state: ProjectState | null;
   pending: number;
   lastSync: string;
   /** null until the first sync attempt; false after an offline result. */
   online: boolean | null;
-  /** Blob transfer state (PLAN.md section 14). */
-  blobs: { pendingUp: number; pendingDown: number; uriFor: (ref: BlobRef) => string | null; store: BlobStore | null };
+  /** The server refuses this app version; work is kept locally until an upgrade. */
+  tooOld: boolean;
+  /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
+  blobs: {
+    pendingUp: number;
+    pendingDown: number;
+    uriFor: (ref: BlobFile) => string | null;
+    store: BlobStore | null;
+    keptUnits: ReadonlySet<string>;
+    keepOffline: (unitId: string, keep: boolean) => Promise<void>;
+  };
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
   append: <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => Promise<void>;
+  /** Many events, one store transaction: template instantiation, bulk assignment. */
+  appendMany: <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => Promise<void>;
   sync: () => Promise<void>;
 }
 
@@ -33,6 +46,10 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [pending, setPending] = useState(0);
   const [lastSync, setLastSync] = useState('never');
   const [online, setOnline] = useState<boolean | null>(null);
+  const [tooOld, setTooOld] = useState(false);
+  const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
+  const keptRef = useRef<ReadonlySet<string>>(new Set());
+  const keepKey = `keep:${orgId}/${projectId}`;
   const [pendingUp, setPendingUp] = useState(0);
   const [pendingDown, setPendingDown] = useState(0);
   const storeRef = useRef<BlobStore | null>(null);
@@ -56,6 +73,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       pullingRef.current = true;
       const r = await c.sync();
       pullingRef.current = false;
+      setTooOld(r.tooOld);
       // sync() swallows OfflineError into an all-zero result while pending stays > 0.
       const stillQueued = (await c.pendingCount()) > 0 && r.pushed === 0 && r.rejected === 0;
       const wasOnline = onlineRef.current;
@@ -84,11 +102,17 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     let cleanupBlobs = () => {};
     (async () => {
       const store = await getStore();
+      // One random id per install, persisted. Every device must differ or
+      // clocks can tie and the fold becomes order-dependent.
+      const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
+      const kept = new Set<string>(JSON.parse((await store.meta(keepKey)) || '[]') as string[]);
+      keptRef.current = kept;
+      setKeptUnits(kept);
       const client = new SyncClient({
         orgId,
         projectId,
         actorId,
-        deviceId: 'mobile',
+        deviceId,
         store,
         transport: new SupabaseTransport(supabase),
         // Hermes has no global crypto.randomUUID.
@@ -107,14 +131,21 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       const up = new TransferWorker({
         ...UPLOAD_DEFAULTS,
         ...common,
-        work: () => deriveUploadWork(client.getState(), blobStore.snapshot()),
+        // Size from the confirmation versus the file here: a mismatch reopens the upload.
+        work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
         transfer: (ref) => uploadBlob(orgId, projectId, ref, blobStore),
         onChange: setPendingUp
       });
       const down = new TransferWorker({
         ...DOWNLOAD_DEFAULTS,
         ...common,
-        work: () => deriveDownloadWork(client.getState(), blobStore.snapshot()),
+        // Rule 10: by scope, never the whole project. Scope is the actor's
+        // own units plus what they explicitly chose to keep offline.
+        work: () => {
+          const scope = defaultOfflineScope(client.getState(), actorId);
+          for (const u of keptRef.current) scope.add(u);
+          return deriveDownloadWork(client.getState(), blobStore.snapshot(), scope);
+        },
         transfer: (ref) => downloadBlob(orgId, projectId, ref, blobStore),
         onChange: setPendingDown
       });
@@ -144,7 +175,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       upRef.current = null;
       downRef.current = null;
     };
-  }, [orgId, projectId, actorId, refresh, sync]);
+  }, [orgId, projectId, actorId, refresh, sync, keepKey]);
 
   const append = useCallback(
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
@@ -156,13 +187,39 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     [refresh]
   );
 
+  const appendMany = useCallback(
+    async <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => {
+      const c = clientRef.current;
+      if (!c || items.length === 0) return;
+      await c.appendMany(items);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const keepOffline = useCallback(
+    async (unitId: string, keep: boolean) => {
+      const next = new Set(keptRef.current);
+      if (keep) next.add(unitId);
+      else next.delete(unitId);
+      keptRef.current = next;
+      setKeptUnits(next);
+      const store = await getStore();
+      await store.setMeta(keepKey, JSON.stringify([...next]));
+      downRef.current?.nudge();
+    },
+    [keepKey]
+  );
+
   const blobs = {
     pendingUp,
     pendingDown,
-    uriFor: (ref: BlobRef) => storeRef.current?.uriFor(ref) ?? null,
-    store: storeRef.current
+    uriFor: (ref: BlobFile) => storeRef.current?.uriFor(ref) ?? null,
+    store: storeRef.current,
+    keptUnits,
+    keepOffline
   };
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
 
-  return { state, pending, lastSync, online, blobs, triggerUpload, append, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, blobs, triggerUpload, append, appendMany, sync };
 }

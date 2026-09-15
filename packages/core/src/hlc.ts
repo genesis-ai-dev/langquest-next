@@ -27,10 +27,30 @@ export class HlcClock {
   private wallMs = 0;
   private counter = 0;
 
+  /**
+   * @param seed the last clock this node emitted or received, persisted by
+   * the caller across restarts. Without it a device whose wall clock went
+   * backwards would emit clocks older than its own history.
+   */
   constructor(
     private readonly nodeId: string,
-    private readonly now: () => number = () => Date.now()
-  ) {}
+    private readonly now: () => number = () => Date.now(),
+    seed?: Hlc | null
+  ) {
+    if (seed) {
+      const { wallMs, counter } = decodeHlc(seed);
+      this.wallMs = wallMs;
+      this.counter = counter;
+      this.seeded = true;
+    }
+  }
+
+  private seeded = false;
+
+  /** Newest clock emitted or received, or null if nothing yet. */
+  last(): Hlc | null {
+    return this.seeded ? encodeHlc(this.wallMs, this.counter, this.nodeId) : null;
+  }
 
   /** Produce a clock for a locally generated event. */
   next(): Hlc {
@@ -41,6 +61,7 @@ export class HlcClock {
     } else {
       this.counter += 1;
     }
+    this.seeded = true;
     return encodeHlc(this.wallMs, this.counter, this.nodeId);
   }
 
@@ -59,5 +80,6 @@ export class HlcClock {
       this.counter = 0;
     }
     this.wallMs = maxWall;
+    this.seeded = true;
   }
 }

@@ -94,8 +94,21 @@ export function buildFixture(): AnyEvent[] {
     role: 'reviewer'
   });
   emit('dA', 'lead', 'v1.SourceImported', { sourceProjectId: 'src', sourceSeq: 42, unitIds: ['luke1'] });
-  // The storage trigger confirms c1 after it lands (server actor).
+  // The storage trigger confirms c1 after it lands (server actor). An earlier
+  // corrupt upload of c1 was invalidated by the reconciler; the later
+  // confirmation wins.
+  emit('storage', 'service', 'v1.BlobInvalidated', { hash: 'c1', reason: 'hash mismatch' });
   emit('storage', 'service', 'v1.BlobStored', { hash: 'c1', size: 12345 });
+
+  // A mistaken recording, later redacted by the lead (append-only removal).
+  const wrong = emit('dB', 't1', 'v1.RecordingAdded', {
+    recordingId: 'recWrong',
+    unitId: 'luke1',
+    laneId: 'L1',
+    kind: 'target',
+    cards: [{ hash: 'cWrong', durationMs: 500 }]
+  });
+  emit('dA', 'lead', 'v1.Redacted', { eventId: wrong.id, reason: 'wrong passage' });
 
   // Translator records offline on device B.
   emit('dB', 't1', 'v1.RecordingAdded', {
@@ -154,6 +167,90 @@ export function buildFixture(): AnyEvent[] {
     },
     cfg.id
   );
+
+  return events;
+}
+
+/**
+ * Step 11 events on top of the project fixture: lane L1 picks the Quick
+ * Check flow, its peer step is owned by a review team, a removed step, lane
+ * L2 picks a content template, the translator answers suggestions with a
+ * note, and a reviewer leaves a spoken comment. Kept apart from
+ * `buildFixture` so the workflow tests' config-toggling expectations hold.
+ */
+export function buildStep11Fixture(): AnyEvent[] {
+  const events: AnyEvent[] = [];
+  let seq = 500;
+  let wall = 1_750_000_000_000;
+  const clocks = new Map<string, HlcClock>();
+  const emit = <T extends EventType>(device: string, actorId: string, type: T, payload: EventPayloads[T]) => {
+    const clock = clocks.get(device) ?? new HlcClock(device, () => wall);
+    clocks.set(device, clock);
+    wall += 1000;
+    seq += 1;
+    events.push({ id: `s${seq}`, type, orgId: 'org1', projectId: 'p1', actorId, deviceId: device, hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
+  };
+  emit('dA', 'lead', 'v1.LaneFlowSelected', { laneId: 'L1', flowId: 'quick_check', catalogVersion: 1 });
+  emit('dA', 'lead', 'v1.WorkflowStepSet', { stepId: 'peer', laneId: 'L1', order: 's00', label: 'Peer', role: 'reviewer', teamId: 'team1', required: true, rule: 'unanimous' });
+  emit('dA', 'lead', 'v1.WorkflowStepSet', { stepId: 'consultant', laneId: 'L1', order: 's01', role: 'coordinator', required: false, rule: 'any' });
+  emit('dA', 'lead', 'v1.WorkflowStepSet', { stepId: 'extra', laneId: 'L1', order: 's02', role: 'reviewer', required: false, rule: 'any' });
+  emit('dA', 'lead', 'v1.WorkflowStepRemoved', { stepId: 'extra' });
+  emit('dA', 'lead', 'v1.ReviewTeamDefined', { teamId: 'team1', laneId: 'L1', name: 'Community reviewers' });
+  emit('dA', 'lead', 'v1.ReviewTeamMemberSet', { teamId: 'team1', profileId: 'r1', member: true });
+  emit('dA', 'lead', 'v1.ReviewTeamMemberSet', { teamId: 'team1', profileId: 'r2', member: true });
+  emit('dA', 'lead', 'v1.ReviewTeamMemberSet', { teamId: 'team1', profileId: 'r3', member: false });
+  emit('dA', 'lead', 'v1.LaneTemplateSelected', { laneId: 'L2', templateId: 'book', catalogVersion: 1 });
+  emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
+  emit('dD', 'r2', 'v1.ReviewCommentRecorded', { takeId: 'take2', stepId: 'peer', blobHash: 'c1' });
+
+  // Step 12: materials with per-field registers, a locked org document, the
+  // community question set from the catalog linked to the peer step, a
+  // translator-written set, and a living glossary tied to take2.
+  emit('dA', 'lead', 'v1.MaterialDefined', { materialId: 'tmf', kind: 'tmf', title: 'Translation Management Framework', scope: {} });
+  emit('dA', 'lead', 'v1.MaterialFieldSet', { materialId: 'tmf', fieldId: 'body', text: 'Four checks before publication.' });
+  emit('dA', 'lead', 'v1.MaterialLocked', { materialId: 'tmf', locked: true });
+  emit('dA', 'lead', 'v1.MaterialDefined', { materialId: 'questions@1/community_check', kind: 'questions', title: 'Community Check Questions', scope: {}, templateRef: 'questions/community_check' });
+  emit('dA', 'lead', 'v1.MaterialFieldSet', { materialId: 'questions@1/community_check', fieldId: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?' });
+  emit('dA', 'lead', 'v1.MaterialFieldSet', { materialId: 'questions@1/community_check', fieldId: 'natural', text: 'Is the translation natural and clear in the target language?' });
+  emit('dA', 'lead', 'v1.StepQuestionSetLinked', { stepId: 'peer', materialId: 'questions@1/community_check' });
+  emit('dB', 't1', 'v1.MaterialDefined', { materialId: 'q-luke1', kind: 'questions', title: 'Luke 1 questions', scope: { laneId: 'L1', unitId: 'luke1' } });
+  emit('dB', 't1', 'v1.MaterialFieldSet', { materialId: 'q-luke1', fieldId: 'q1', text: 'Does Theophilus sound like a name?' });
+  emit('dB', 't1', 'v1.MaterialDefined', { materialId: 'tg:L1', kind: 'tg', title: 'Translation Guidelines', scope: { laneId: 'L1' } });
+  emit('dB', 't1', 'v1.MaterialFieldSet', { materialId: 'tg:L1', fieldId: 'luke1', text: 'Keep the dedication formal.' });
+  emit('dC', 'r1', 'v1.MaterialFieldSet', { materialId: 'tg:L1', fieldId: 'general', text: 'Use the eastern dialect for narration.' });
+  emit('dA', 'lead', 'v1.KeyTermDefined', { termId: 'kt-logos', laneId: 'L1', term: 'Word (Logos)', gloss: 'The eternal Word of God', unitScope: ['luke'] });
+  emit('dA', 'lead', 'v1.KeyTermRenderingAdded', { termId: 'kt-logos', renderingId: 'r1', rendering: 'Wët Nhialic', context: "God's own Word" });
+  emit('dB', 't1', 'v1.KeyTermAdjusted', { termId: 'kt-logos', adjustmentId: 'adj1', note: 'Standardized on Wët Nhialic.', duringTakeId: 'take2' });
+  emit('dB', 't1', 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-logos', note: 'Used the divine sense.', adjustmentId: 'adj1' });
+  emit('dA', 'lead', 'v1.KeyTermDefined', { termId: 'kt-sarx', laneId: 'L1', term: 'flesh (sarx)', gloss: 'Body, or sinful nature', unitScope: ['romans'] });
+
+  return events;
+}
+
+/**
+ * One of each org partition event (org.ts). Separate from the project
+ * fixture so snapshot tests keep their cut, and appended to it wherever a
+ * test must see every catalog type.
+ */
+export function buildOrgFixture(): AnyEvent[] {
+  const events: AnyEvent[] = [];
+  let seq = 900;
+  let wall = 1_800_000_000_000;
+  const clock = new HlcClock('dA', () => wall);
+  const emit = <T extends EventType>(type: T, payload: EventPayloads[T]) => {
+    wall += 1000;
+    seq += 1;
+    events.push({ id: `o${seq}`, type, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
+  };
+  emit('v1.OrgCreated', { name: 'Wycliffe Associates' });
+  emit('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_roles', 'invite_members', 'manage_structure', 'assign_work', 'view_status'] });
+  emit('v1.RoleDefined', { roleId: 'translator', name: 'Translator', privileges: ['translate', 'view_status'] });
+  emit('v1.RoleRetired', { roleId: 'old_role' });
+  emit('v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' }, displayName: 'Lead' });
+  emit('v1.OrgMemberAdded', { profileId: 't1', roleId: 'translator', scope: { level: 'lane', projectId: 'p1', laneId: 'L1' } });
+  emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'project', projectId: 'p1' } });
+  emit('v1.CatalogItemToggled', { kind: 'flow', itemId: 'quick_check', level: 'org', enabled: false });
+  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Luke' });
 
   return events;
 }

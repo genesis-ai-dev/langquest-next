@@ -1,5 +1,29 @@
 import type { WorkflowStep } from './events';
+import { buildIndexes, unitLaneKey, type Indexes } from './indexes';
 import { DEFAULT_CONFIG, type ProjectState } from './state';
+
+/**
+ * The workflow in force for a lane: the lane's own step registers if any,
+ * else the project-wide step registers, else the whole-document config
+ * (kept for projects created before per-step registers). Steps are sorted
+ * by their order key; removed steps are gone.
+ */
+export function deriveWorkflow(state: ProjectState, laneId?: string): WorkflowStep[] {
+  const live = Object.values(state.workflowSteps).filter((s) => !s.removed && s.step.hlc !== '').map((s) => s.step.value);
+  const pick = (scoped: boolean) => live.filter((d) => (scoped ? d.laneId === laneId : d.laneId === undefined));
+  const chosen = laneId !== undefined && pick(true).length > 0 ? pick(true) : pick(false);
+  if (chosen.length === 0) return (state.config?.value ?? DEFAULT_CONFIG).workflow;
+  return chosen
+    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1))
+    .map((d) => ({
+      id: d.stepId,
+      role: d.role,
+      required: d.required,
+      rule: d.rule,
+      ...(d.teamId !== undefined ? { teamId: d.teamId } : {}),
+      ...(d.label !== undefined ? { label: d.label } : {})
+    }));
+}
 
 /**
  * All approval status is derived here (PLAN.md invariant 5). Nothing stores
@@ -27,11 +51,11 @@ export interface TakeStatus {
   outcome: TakeOutcome;
 }
 
-export function deriveTakeStatus(state: ProjectState, takeId: string): TakeStatus {
+export function deriveTakeStatus(state: ProjectState, takeId: string, idx: Indexes = buildIndexes(state)): TakeStatus {
   const take = state.takes[takeId];
   if (!take) throw new Error(`Unknown take ${takeId}`);
-  const workflow = (state.config?.value ?? DEFAULT_CONFIG).workflow;
-  const steps = workflow.map((step) => deriveStep(state, takeId, step));
+  const workflow = deriveWorkflow(state, take.laneId);
+  const steps = workflow.map((step) => deriveStep(state, takeId, step, idx));
   const submitted = state.submissions[takeId] !== undefined;
 
   let outcome: TakeOutcome;
@@ -44,9 +68,9 @@ export function deriveTakeStatus(state: ProjectState, takeId: string): TakeStatu
   return { takeId, archived: take.archived, submitted, steps, outcome };
 }
 
-function deriveStep(state: ProjectState, takeId: string, step: WorkflowStep): StepStatus {
+function deriveStep(state: ProjectState, takeId: string, step: WorkflowStep, idx: Indexes): StepStatus {
   const take = state.takes[takeId]!;
-  const eligible = eligibleReviewers(state, take.unitId, take.laneId, step);
+  const eligible = eligibleReviewers(state, take.unitId, take.laneId, step, idx);
   const reviews = state.reviews[takeId]?.[step.id] ?? {};
 
   const approved: string[] = [];
@@ -94,31 +118,37 @@ export function eligibleReviewers(
   state: ProjectState,
   unitId: string,
   laneId: string,
-  step: WorkflowStep
+  step: WorkflowStep,
+  idx: Indexes = buildIndexes(state)
 ): string[] {
   const active = (id: string) => {
     const m = state.members[id];
     return m !== undefined && !m.removed.value;
   };
 
-  const assigned = Object.values(state.assignments)
-    .filter((a) => a.unitId === unitId && a.laneId === laneId && a.role === step.role)
+  const assigned = (idx.assignmentsByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [])
+    .filter((a) => a.role === step.role)
     .map((a) => a.profileId)
     .filter(active);
   if (assigned.length > 0) return [...new Set(assigned)].sort();
 
-  return Object.entries(state.members)
-    .filter(([id, m]) => active(id) && m.role.value === step.role)
-    .map(([id]) => id)
-    .sort();
+  // Assignment beats team beats role: a coordinator can pull one consultant
+  // onto one passage without touching the team.
+  const team = step.teamId ? state.teams[step.teamId] : undefined;
+  if (team) {
+    const members = Object.entries(team.members)
+      .filter(([id, m]) => m.value && active(id))
+      .map(([id]) => id)
+      .sort();
+    if (members.length > 0) return members;
+  }
+
+  return idx.activeMembersByRole.get(step.role) ?? [];
 }
 
 /** Active takes for a unit and lane, newest first. */
-export function takesFor(state: ProjectState, unitId: string, laneId: string): string[] {
-  return Object.entries(state.takes)
-    .filter(([, t]) => t.unitId === unitId && t.laneId === laneId && !t.archived)
-    .sort(([, a], [, b]) => (a.hlc < b.hlc ? 1 : -1))
-    .map(([id]) => id);
+export function takesFor(state: ProjectState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): string[] {
+  return idx.takesByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [];
 }
 
 /**
@@ -126,10 +156,10 @@ export function takesFor(state: ProjectState, unitId: string, laneId: string): s
  * and is not archived, else the newest approved take, else the newest take
  * (which may be a draft).
  */
-export function currentTake(state: ProjectState, unitId: string, laneId: string): string | null {
-  const selected = state.selectedTakes[`${unitId}:${laneId}`]?.value;
+export function currentTake(state: ProjectState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): string | null {
+  const selected = state.selectedTakes[unitLaneKey(unitId, laneId)]?.value;
   if (selected && state.takes[selected] && !state.takes[selected]!.archived) return selected;
-  const candidates = takesFor(state, unitId, laneId);
-  const approved = candidates.find((id) => deriveTakeStatus(state, id).outcome === 'approved');
+  const candidates = takesFor(state, unitId, laneId, idx);
+  const approved = candidates.find((id) => deriveTakeStatus(state, id, idx).outcome === 'approved');
   return approved ?? candidates[0] ?? null;
 }

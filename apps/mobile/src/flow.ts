@@ -56,38 +56,60 @@ export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
   settings_home: 'P', profile_edit: 'P', org_switcher: 'P', sign_out_confirm: 'U'
 };
 
+/**
+ * Who may traverse an edge (UX spec `EdgeGate`). Declared on the edge so the
+ * persona-filtered flowchart, the spec parity test, and `go()` all read the
+ * same data. Omitted = anyone who can reach the from-screen.
+ *  - guest:   only while signed out
+ *  - home:    role dispatch; relevant iff `to` is this session's home
+ *  - translator / reviewer / fillReference: the matching My Work affordance
+ *  - assigner: may assign work (admins)
+ *  - manageTemplates / manageReference / manageFlows: the matching Manage permission
+ * `session.ts` maps each gate onto session facets (`edgeAllowed`).
+ */
+export type Gate =
+  | 'guest' | 'home'
+  | 'translator' | 'reviewer' | 'fillReference' | 'assigner'
+  | 'manageTemplates' | 'manageReference' | 'manageFlows';
+
 export interface Edge {
   from: NodeId;
   to: NodeId;
   mode?: Mode;
+  when?: Gate;
 }
 
-const e = (from: NodeId, to: NodeId, mode?: Mode): Edge => (mode ? { from, to, mode } : { from, to });
+const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
+  from,
+  to,
+  ...(mode ? { mode } : {}),
+  ...(when ? { when } : {})
+});
 
 export const EDGES: Edge[] = [
   // Entry
   e('sign_in', 'terms_privacy', 'replace'),
   e('sign_in', 'home_hub', 'replace'),
-  e('sign_in', 'create_account'),
-  e('sign_in', 'explore_home'),
-  e('create_account', 'scan_qr'),
+  e('sign_in', 'create_account', undefined, 'guest'),
+  e('sign_in', 'explore_home', undefined, 'guest'),
+  e('create_account', 'scan_qr', undefined, 'guest'),
   e('create_account', 'home_hub', 'replace'),
-  e('create_account', 'sign_in', 'back'),
-  e('scan_qr', 'create_account', 'popTo'),
+  e('create_account', 'sign_in', 'back', 'guest'),
+  e('scan_qr', 'create_account', 'popTo', 'guest'),
   e('scan_qr', 'home_hub', 'replace'),
   e('scan_qr', 'intent_chooser', 'back'),
   e('terms_privacy', 'vision', 'replace'),
   e('terms_privacy', 'sign_in', 'reset'),
   e('vision', 'home_hub', 'replace'),
   e('vision', 'terms_privacy', 'replace'),
-  e('explore_home', 'sign_in', 'reset'),
+  e('explore_home', 'sign_in', 'reset', 'guest'),
   // Home hub fan-out
-  e('home_hub', 'intent_chooser', 'replace'),
-  e('home_hub', 'assignments_home', 'replace'),
-  e('home_hub', 'org_home', 'replace'),
-  e('home_hub', 'project_home', 'replace'),
-  e('home_hub', 'language_home', 'replace'),
-  e('home_hub', 'status_home', 'replace'),
+  e('home_hub', 'intent_chooser', 'replace', 'home'),
+  e('home_hub', 'assignments_home', 'replace', 'home'),
+  e('home_hub', 'org_home', 'replace', 'home'),
+  e('home_hub', 'project_home', 'replace', 'home'),
+  e('home_hub', 'language_home', 'replace', 'home'),
+  e('home_hub', 'status_home', 'replace', 'home'),
   // No org
   e('intent_chooser', 'create_org'),
   e('intent_chooser', 'request_access'),
@@ -99,10 +121,10 @@ export const EDGES: Edge[] = [
   e('request_access', 'intent_chooser', 'replace'),
   e('walkthrough', 'home_hub', 'replace'),
   // My Work
-  e('assignments_home', 'translate_passage'),
-  e('assignments_home', 'review_passage'),
-  e('assignments_home', 'material_editor'),
-  e('assignments_home', 'pickup_home'),
+  e('assignments_home', 'translate_passage', undefined, 'translator'),
+  e('assignments_home', 'review_passage', undefined, 'reviewer'),
+  e('assignments_home', 'material_editor', undefined, 'fillReference'),
+  e('assignments_home', 'pickup_home', undefined, 'translator'),
   e('assignments_home', 'assignment_progress_detail'),
   e('assignment_progress_detail', 'progress_home'),
   e('progress_home', 'status_home', 'replace'),
@@ -110,12 +132,12 @@ export const EDGES: Edge[] = [
   e('pickup_home', 'assignments_home', 'back'),
   // Status
   e('status_home', 'language_status'),
-  e('status_home', 'give_assignment'),
+  e('status_home', 'give_assignment', undefined, 'assigner'),
   e('language_status', 'book_status'),
   e('language_status', 'status_home', 'back'),
   e('book_status', 'piece_status'),
   e('book_status', 'language_status', 'back'),
-  e('piece_status', 'piece_assign'),
+  e('piece_status', 'piece_assign', undefined, 'assigner'),
   e('piece_status', 'book_status', 'back'),
   e('piece_status', 'piece_stage'),
   e('piece_stage', 'piece_status', 'back'),
@@ -149,18 +171,18 @@ export const EDGES: Edge[] = [
   e('org_home', 'project_home'),
   e('org_home', 'new_project'),
   e('org_home', 'roles_home'),
-  e('org_home', 'templates_home'),
-  e('org_home', 'reference_home'),
-  e('org_home', 'flows_home'),
+  e('org_home', 'templates_home', undefined, 'manageTemplates'),
+  e('org_home', 'reference_home', undefined, 'manageReference'),
+  e('org_home', 'flows_home', undefined, 'manageFlows'),
   e('new_project', 'org_home', 'back'),
   e('project_home', 'members_list'),
   e('project_home', 'roles_home'),
   e('project_home', 'new_language'),
   e('project_home', 'language_home'),
   e('project_home', 'org_home', 'popTo'),
-  e('project_home', 'templates_home'),
-  e('project_home', 'reference_home'),
-  e('project_home', 'flows_home'),
+  e('project_home', 'templates_home', undefined, 'manageTemplates'),
+  e('project_home', 'reference_home', undefined, 'manageReference'),
+  e('project_home', 'flows_home', undefined, 'manageFlows'),
   e('project_home', 'status_home'),
   e('new_language', 'project_home', 'back'),
   e('language_home', 'members_list'),
@@ -168,16 +190,16 @@ export const EDGES: Edge[] = [
   e('language_home', 'review_teams'),
   e('language_home', 'org_home', 'popTo'),
   e('language_home', 'project_home', 'popTo'),
-  e('language_home', 'templates_home'),
-  e('language_home', 'reference_home'),
-  e('language_home', 'flows_home'),
+  e('language_home', 'templates_home', undefined, 'manageTemplates'),
+  e('language_home', 'reference_home', undefined, 'manageReference'),
+  e('language_home', 'flows_home', undefined, 'manageFlows'),
   e('language_home', 'status_home'),
   e('review_teams', 'review_team_editor'),
   e('review_team_editor', 'review_teams', 'back'),
   e('members_list', 'invite_member'),
   e('members_list', 'edit_member'),
   e('edit_member', 'members_list', 'back'),
-  e('inbox_home', 'edit_member'),
+  e('inbox_home', 'edit_member', undefined, 'assigner'),
   e('edit_member', 'inbox_home', 'back'),
   e('invite_member', 'invite_qr'),
   e('invite_member', 'members_list', 'back'),
@@ -187,8 +209,8 @@ export const EDGES: Edge[] = [
   // Config
   e('roles_home', 'role_editor'),
   e('role_editor', 'roles_home', 'back'),
-  e('role_editor', 'edit_member'),
-  e('reference_home', 'material_editor'),
+  e('role_editor', 'edit_member', undefined, 'assigner'),
+  e('reference_home', 'material_editor', undefined, 'manageReference'),
   e('reference_home', 'key_terms'),
   e('material_editor', 'reference_home', 'back'),
   e('key_terms', 'reference_home', 'back'),

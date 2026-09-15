@@ -4,3 +4,7 @@ export * from './memoryStore';
 export * from './supabaseTransport';
 export * from './sqliteStore';
 export * from './transferWorker';
+export * from './device';
+export * from './snapshotWorker';
+export * from './blobReconciler';
+export * from './snapshotFetch';

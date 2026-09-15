@@ -1,6 +1,6 @@
 import type { BlobRef } from '@langquest-next/core';
 import { File } from 'expo-file-system';
-import type { BlobStore } from './blobs';
+import { BlobStore } from './blobs';
 import { supabase } from './supabase';
 
 /**
@@ -28,10 +28,14 @@ export async function downloadBlob(orgId: string, projectId: string, ref: BlobRe
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, projectId, ref), 600);
   if (error || !data) throw new Error(error?.message ?? 'no signed url');
   const dest = store.fileFor(ref);
-  if (dest.exists) {
-    store.markPresent(ref.hash);
-    return;
+  // A file already on disk but not in the index is a previous download that
+  // never finished verification (partial or corrupt). Verify before trusting.
+  if (!dest.exists) await File.downloadFileAsync(data.signedUrl, dest);
+  const bytes = await dest.bytes();
+  const actual = await BlobStore.hashOf(bytes);
+  if (actual !== ref.hash) {
+    dest.delete();
+    throw new Error(`hash mismatch for ${ref.hash}: got ${actual}`);
   }
-  await File.downloadFileAsync(data.signedUrl, dest);
-  store.markPresent(ref.hash);
+  store.markPresent(ref.hash, bytes.byteLength);
 }

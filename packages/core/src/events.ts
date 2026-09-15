@@ -1,4 +1,6 @@
 import type { Hlc } from './hlc';
+import type { MaterialEvents } from './materials';
+import type { OrgEventPayloads } from './org';
 
 /**
  * Event catalog v1. See PLAN.md section 6.
@@ -15,8 +17,11 @@ export interface WorkflowStep {
   id: string;
   /** Members holding this role are eligible reviewers for the step. */
   role: Role;
+  /** A review team (`ReviewTeamDefined`) whose members are eligible instead of the role holders. */
+  teamId?: string;
   required: boolean;
   rule: QuorumRule;
+  label?: string;
 }
 
 export interface UnitKind {
@@ -39,7 +44,7 @@ export interface Card {
   format?: 'wav' | 'm4a';
 }
 
-export interface EventPayloads {
+export interface EventPayloads extends OrgEventPayloads, MaterialEvents {
   'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
   'v1.ProjectConfigChanged': { config: ProjectConfig };
   'v1.MemberAdded': { profileId: string; role: Role };
@@ -110,6 +115,36 @@ export interface EventPayloads {
    * confirmation of record (PLAN.md section 14).
    */
   'v1.BlobStored': { hash: string; size: number };
+  /**
+   * Append-only removal. The target event is excluded from every fold as if
+   * it had never been appended; its blobs drop out of every work list. Owner
+   * or coordinator only. The log itself keeps both events for audit.
+   */
+  'v1.Redacted': { eventId: string; reason?: string };
+  /**
+   * Server-only. The reconciler found the stored bytes do not match the
+   * hash (or the object is gone). Later than BlobStored by clock, so the
+   * blob counts as not stored: devices holding the file upload it again,
+   * nobody downloads it. A later BlobStored wins back.
+   */
+  'v1.BlobInvalidated': { hash: string; reason?: string };
+  // ---- step 11: catalog selection, per-step workflow, teams, respond loop
+  //      (docs/flow-coverage-audit.md 5.D, 5.F)
+  /** A lane picks one content template from the catalog; the selector also emits the UnitAdded events it implies. */
+  'v1.LaneTemplateSelected': { laneId: string; templateId: string; catalogVersion: number };
+  /** A lane picks one review flow; the selector also emits the WorkflowStepSet events it implies. */
+  'v1.LaneFlowSelected': { laneId: string; flowId: string; catalogVersion: number };
+  /** One workflow step as its own register, so two admins editing offline merge per step. laneId absent = project-wide. */
+  'v1.WorkflowStepSet': { stepId: string; laneId?: string; order: string; label?: string; role: Role; teamId?: string; required: boolean; rule: QuorumRule };
+  'v1.WorkflowStepRemoved': { stepId: string };
+  /** A named group of reviewers on one lane (UX spec review teams). */
+  'v1.ReviewTeamDefined': { teamId: string; laneId: string; name: string };
+  /** Register per (team, profile): in or out. */
+  'v1.ReviewTeamMemberSet': { teamId: string; profileId: string; member: boolean };
+  /** The translator's answer to suggestions: what changed and why the rest stayed (text or audio). */
+  'v1.ResponseRecorded': { takeId: string; respondsToTakeId: string; note?: string; blobHash?: string };
+  /** A reviewer's spoken comment on a take at a step. */
+  'v1.ReviewCommentRecorded': { takeId: string; stepId: string; blobHash: string };
 }
 
 export type EventType = keyof EventPayloads;

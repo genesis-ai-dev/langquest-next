@@ -1,13 +1,14 @@
 import type { AnyEvent, EventEnvelope } from './events';
 import type { Member, ProjectState, Register } from './state';
 import { emptyState } from './state';
+import { validateEvent } from './validate';
 
 /**
  * Bump when a materializer changes in a way that alters output for existing
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 1;
+export const REDUCER_VERSION = 2;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -17,6 +18,13 @@ export const REDUCER_VERSION = 1;
 export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
+
+  const invalid = validateEvent(event);
+  if (invalid) {
+    state.invalidEvents[event.id] = invalid;
+    return state;
+  }
+  if (state.redactions[event.id]) return state;
 
   switch (event.type) {
     case 'v1.ProjectCreated':
@@ -165,7 +173,157 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       break;
 
     case 'v1.BlobStored':
-      state.blobs[event.payload.hash] ??= { size: event.payload.size, hlc: event.hlc };
+      blobVerdict(state, event, { size: event.payload.size, stored: true });
+      break;
+
+    case 'v1.BlobInvalidated':
+      blobVerdict(state, event, { size: 0, stored: false });
+      break;
+
+    case 'v1.Redacted':
+      // Only effective for targets not yet applied; `fold` applies
+      // redactions first, and the sync client refolds when one arrives late.
+      state.redactions[event.payload.eventId] = true;
+      break;
+
+    case 'v1.LaneTemplateSelected': {
+      const { laneId, templateId, catalogVersion } = event.payload;
+      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion });
+      break;
+    }
+
+    case 'v1.LaneFlowSelected': {
+      const { laneId, flowId, catalogVersion } = event.payload;
+      lww(state.laneFlows, laneId, event, { flowId, catalogVersion });
+      break;
+    }
+
+    case 'v1.WorkflowStepSet': {
+      const def = event.payload;
+      const slot = (state.workflowSteps[def.stepId] ??= { step: { value: def, hlc: '', eventId: '' }, removed: false });
+      if (slot.step.hlc === '' || !loses(slot.step, event)) slot.step = { value: def, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
+    case 'v1.WorkflowStepRemoved': {
+      const slot = (state.workflowSteps[event.payload.stepId] ??= {
+        step: { value: { stepId: event.payload.stepId, order: '', role: 'reviewer', required: false, rule: 'any' }, hlc: '', eventId: '' },
+        removed: false
+      });
+      slot.removed = true; // add-wins
+      break;
+    }
+
+    case 'v1.ReviewTeamDefined': {
+      const { teamId, laneId, name } = event.payload;
+      const team = (state.teams[teamId] ??= { laneId, name: { value: name, hlc: '', eventId: '' }, members: {} });
+      if (team.name.hlc === '' || !loses(team.name, event)) {
+        team.name = { value: name, hlc: event.hlc, eventId: event.id };
+        team.laneId = laneId;
+      }
+      break;
+    }
+
+    case 'v1.ReviewTeamMemberSet': {
+      const { teamId, profileId, member } = event.payload;
+      // A membership may arrive before the definition; the placeholder lane is filled by ReviewTeamDefined.
+      const team = (state.teams[teamId] ??= { laneId: '', name: { value: '', hlc: '', eventId: '' }, members: {} });
+      lww(team.members, profileId, event, member);
+      break;
+    }
+
+    case 'v1.ResponseRecorded': {
+      const { takeId, respondsToTakeId, note, blobHash } = event.payload;
+      state.responses[takeId] ??= {
+        respondsToTakeId,
+        ...(note !== undefined ? { note } : {}),
+        ...(blobHash !== undefined ? { blobHash } : {}),
+        actorId: event.actorId,
+        hlc: event.hlc
+      };
+      break;
+    }
+
+    case 'v1.ReviewCommentRecorded': {
+      const { takeId, stepId, blobHash } = event.payload;
+      const byStep = (state.reviewComments[takeId] ??= {});
+      const byActor = (byStep[stepId] ??= {});
+      byActor[event.actorId] ??= { blobHash, hlc: event.hlc };
+      break;
+    }
+
+    case 'v1.MaterialDefined': {
+      const { materialId, kind, title, scope, templateRef } = event.payload;
+      // A field may arrive before the definition; the definition fills the rest in.
+      const m = (state.materials[materialId] ??= {
+        kind, title, scope: { ...scope }, createdBy: event.actorId, hlc: event.hlc, fields: {}, locked: { value: false, hlc: '', eventId: '' },
+        ...(templateRef !== undefined ? { templateRef } : {})
+      });
+      if (m.hlc === '' || m.hlc > event.hlc) {
+        // Earliest definition wins (grow-only, first wins), like submissions.
+        m.kind = kind; m.title = title; m.scope = { ...scope }; m.createdBy = event.actorId; m.hlc = event.hlc;
+        if (templateRef !== undefined) m.templateRef = templateRef; else delete m.templateRef;
+      }
+      break;
+    }
+
+    case 'v1.MaterialFieldSet': {
+      const { materialId, fieldId, text, blobHash } = event.payload;
+      const m = (state.materials[materialId] ??= { kind: '', title: '', scope: {}, createdBy: '', hlc: '', fields: {}, locked: { value: false, hlc: '', eventId: '' } });
+      lww(m.fields, fieldId, event, { ...(text !== undefined ? { text } : {}), ...(blobHash !== undefined ? { blobHash } : {}) });
+      break;
+    }
+
+    case 'v1.MaterialLocked': {
+      const m = (state.materials[event.payload.materialId] ??= { kind: '', title: '', scope: {}, createdBy: '', hlc: '', fields: {}, locked: { value: false, hlc: '', eventId: '' } });
+      if (m.locked.hlc === '' || !loses(m.locked, event)) m.locked = { value: event.payload.locked, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
+    case 'v1.StepQuestionSetLinked':
+      lww(state.stepQuestionSets, event.payload.stepId, event, event.payload.materialId);
+      break;
+
+    case 'v1.KeyTermDefined': {
+      const { termId, laneId, term, gloss, unitScope } = event.payload;
+      const t = (state.keyTerms[termId] ??= { laneId, term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} });
+      // Placeholder from an early rendering has an empty term; fill it in.
+      if (t.term === '') { t.laneId = laneId; t.term = term; t.gloss = gloss; t.unitScope = [...unitScope]; }
+      break;
+    }
+
+    case 'v1.KeyTermRenderingAdded': {
+      const { termId, renderingId, rendering, context } = event.payload;
+      const t = (state.keyTerms[termId] ??= { laneId: '', term: '', gloss: '', unitScope: [], renderings: {}, adjustments: {} });
+      t.renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
+      break;
+    }
+
+    case 'v1.KeyTermAdjusted': {
+      const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
+      const t = (state.keyTerms[termId] ??= { laneId: '', term: '', gloss: '', unitScope: [], renderings: {}, adjustments: {} });
+      t.adjustments[adjustmentId] ??= {
+        note, actorId: event.actorId, hlc: event.hlc,
+        ...(blobHash !== undefined ? { blobHash } : {}), ...(duringTakeId !== undefined ? { duringTakeId } : {})
+      };
+      break;
+    }
+
+    case 'v1.KeyTermLinked': {
+      const { takeId, termId, note, adjustmentId } = event.payload;
+      const byTerm = (state.keyTermLinks[takeId] ??= {});
+      byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...(note !== undefined ? { note } : {}), ...(adjustmentId !== undefined ? { adjustmentId } : {}) };
+      break;
+    }
+
+    case 'v1.OrgCreated':
+    case 'v1.RoleDefined':
+    case 'v1.RoleRetired':
+    case 'v1.OrgMemberAdded':
+    case 'v1.OrgMemberRemoved':
+    case 'v1.CatalogItemToggled':
+    case 'v1.ProjectRegistered':
+      // Org partition events (org.ts). Nothing to fold into project state.
       break;
 
     default: {
@@ -180,8 +338,22 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
 
 export function fold(events: Iterable<AnyEvent>, initial: ProjectState = emptyState()): ProjectState {
   let state = initial;
-  for (const event of events) state = applyEvent(state, event);
+  // Redactions first so their targets are never applied, whatever the order.
+  const rest: AnyEvent[] = [];
+  for (const event of events) {
+    if (event.type === 'v1.Redacted') state = applyEvent(state, event);
+    else rest.push(event);
+  }
+  for (const event of rest) state = applyEvent(state, event);
   return state;
+}
+
+/** Latest server verdict on a blob wins; ties by event id. */
+function blobVerdict(state: ProjectState, event: EventEnvelope, v: { size: number; stored: boolean }): void {
+  const hash = (event.payload as { hash: string }).hash;
+  const cur = state.blobs[hash];
+  if (cur && (cur.hlc > event.hlc || (cur.hlc === event.hlc && cur.eventId > event.id))) return;
+  state.blobs[hash] = { ...v, hlc: event.hlc, eventId: event.id };
 }
 
 function member(state: ProjectState, profileId: string): Member {
@@ -199,7 +371,7 @@ function lwwRegister<O, K extends keyof O>(
   value: O[K] extends Register<infer V> ? V : never
 ): void {
   const current = obj[key] as Register<unknown>;
-  if (current.hlc > event.hlc) return;
+  if (loses(current, event)) return;
   (obj as Record<K, Register<unknown>>)[key] = { value, hlc: event.hlc, eventId: event.id };
 }
 
@@ -211,8 +383,18 @@ function lww<V>(
   value: V
 ): void {
   const current = table[key];
-  if (current && current.hlc > event.hlc) return;
+  if (current && loses(current, event)) return;
   table[key] = { value, hlc: event.hlc, eventId: event.id };
+}
+
+/**
+ * Later HLC wins. Equal HLCs should not happen across nodes, but if they do
+ * (a device id bug), the event id breaks the tie so the fold stays
+ * order-independent instead of last-applied-wins.
+ */
+function loses(current: Register<unknown>, event: EventEnvelope): boolean {
+  if (current.hlc !== event.hlc) return current.hlc > event.hlc;
+  return current.eventId > event.id;
 }
 
 function setRegister<K extends 'project' | 'config'>(
@@ -222,6 +404,6 @@ function setRegister<K extends 'project' | 'config'>(
   value: NonNullable<ProjectState[K]>['value']
 ): void {
   const current = state[key];
-  if (current && current.hlc > event.hlc) return;
+  if (current && loses(current, event)) return;
   state[key] = { value, hlc: event.hlc, eventId: event.id } as ProjectState[K];
 }

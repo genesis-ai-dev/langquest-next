@@ -1,6 +1,7 @@
 // Avatar U. Spec quest_assets: the recordings screen. Hold the mic to record a card,
 // or turn on VAD and just speak; each card is an immutable blob. One yellow action.
-import { currentTake, deriveTakeStatus, type BlobRef } from '@langquest-next/core';
+import { currentTake, deriveTakeStatus, isStored, type BlobRef } from '@langquest-next/core';
+import type { BlobFile } from '../blobs';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { AudioWaveform, CloudCheck, CloudUpload, ListMusic, Mic, Pause, Play, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -64,7 +65,7 @@ export function QuestAssets(ctx: Ctx) {
   const takeId = currentTake(state, task.unitId, task.laneId);
   const take = takeId ? state.takes[takeId] : undefined;
   const status = takeId ? deriveTakeStatus(state, takeId) : null;
-  const cardRefs: BlobRef[] = (take?.cardHashes ?? []).map((h) => ({ hash: h, format: formatOf(state, h) }));
+  const cardRefs: BlobFile[] = (take?.cardHashes ?? []).map((h) => ({ hash: h, format: formatOf(state, h) }));
   const localUris = cardRefs.map((r) => blobs.uriFor(r));
 
   async function playFrom(i: number) {
@@ -139,7 +140,7 @@ export function QuestAssets(ctx: Ctx) {
 
         <View style={{ gap: space.sm }}>
           {cardRefs.map((ref, i) => {
-            const stored = !!state.blobs[ref.hash];
+            const stored = isStored(state, ref.hash);
             const here = localUris[i] !== null;
             return (
               <Card key={ref.hash} style={styles.cardRow}>

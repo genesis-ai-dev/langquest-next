@@ -1,5 +1,6 @@
 // Avatar P. Org, project, and language homes; members; invites; review teams.
 import type { Role } from '@langquest-next/core';
+import { deriveWorkflow } from '@langquest-next/core';
 import { Building2, Check, FileText, Globe, ListChecks, Plus, QrCode, Users, Workflow } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
@@ -210,47 +211,68 @@ export function NewLanguage(ctx: Ctx) {
   );
 }
 
-/** Reviewers per language = members assigned as reviewers on any of its passages. */
+/** UX spec review teams: named groups of reviewers per language, owning that language's reviewer stages (audit 5.F). */
 export function ReviewTeams(ctx: Ctx) {
   const { state } = ctx.project;
   const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
-  const reviewers = new Set(Object.values(state?.assignments ?? {}).filter((a) => a.laneId === laneId && a.role === 'reviewer').map((a) => a.profileId));
+  const teams = Object.entries(state?.teams ?? {}).filter(([, t]) => t.laneId === laneId);
+  const canManage = ctx.session.can('manage_teams');
   return (
-    <Screen footer={ctx.session.isAdmin ? <Footer label="Edit team" onPress={() => ctx.go('review_team_editor', { laneId })} /> : undefined}>
+    <Screen footer={canManage ? <Footer label={teams.length ? 'Edit team' : 'New team'} onPress={() => ctx.go('review_team_editor', { laneId, ...(teams[0] ? { teamId: teams[0][0] } : {}) })} /> : undefined}>
       <Header title="Review teams" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
-      <Section label={`Community reviewers · ${reviewers.size}`}>
-        {[...reviewers].map((id, i, a) => (
-          <Row key={id} icon={Users} label={id.slice(0, 8)} last={i === a.length - 1} />
-        ))}
-        {reviewers.size === 0 ? <Row label="Nobody yet" last /> : null}
-      </Section>
+      {teams.map(([teamId, t]) => {
+        const members = Object.entries(t.members).filter(([, m]) => m.value).map(([id]) => id);
+        return (
+          <Section key={teamId} label={`${t.name.value || teamId} · ${members.length}`}>
+            {members.map((id, i) => (
+              <Row key={id} icon={Users} label={id.slice(0, 8)} last={i === members.length - 1} />
+            ))}
+            {members.length === 0 ? <Row label="Nobody yet" last /> : null}
+          </Section>
+        );
+      })}
+      {teams.length === 0 ? <Note>No review team for this language yet. Reviewer stages fall back to everyone holding the reviewer role.</Note> : null}
       <Section label="Stages">
-        <Row icon={Workflow} label="Edit stages" onPress={() => ctx.go('flow_editor')} last />
+        <Row icon={Workflow} label="Edit stages" onPress={() => ctx.go('flow_editor', { laneId })} last />
       </Section>
     </Screen>
   );
 }
 
-/** Toggle a member as reviewer for every passage in the language. */
+/** Toggle members in the language's team; the team then owns every reviewer stage of that language. */
 export function ReviewTeamEditor(ctx: Ctx) {
-  const { state, append } = ctx.project;
+  const { state, appendMany } = ctx.project;
   const laneId = ctx.params['laneId'] ?? '';
+  const teamId = ctx.params['teamId'] ?? `team-${laneId}`;
+  const team = state?.teams[teamId];
   const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const current = new Set(Object.values(state?.assignments ?? {}).filter((a) => a.laneId === laneId && a.role === 'reviewer').map((a) => a.profileId));
+  const current = new Set(Object.entries(team?.members ?? {}).filter(([, m]) => m.value).map(([id]) => id));
   const [chosen, setChosen] = useState<Set<string>>(current);
+  const [name, setName] = useState(team?.name.value ?? 'Community reviewers');
   async function save() {
     if (!state) return;
-    const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null).map(([id]) => id);
-    for (const id of chosen) if (!current.has(id)) for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'reviewer' });
+    const events: Parameters<typeof appendMany>[0] = [];
+    if (!team || team.name.value !== name.trim()) events.push({ type: 'v1.ReviewTeamDefined', payload: { teamId, laneId, name: name.trim() || 'Review team' } });
+    for (const id of chosen) if (!current.has(id)) events.push({ type: 'v1.ReviewTeamMemberSet', payload: { teamId, profileId: id, member: true } });
+    for (const id of current) if (!chosen.has(id)) events.push({ type: 'v1.ReviewTeamMemberSet', payload: { teamId, profileId: id, member: false } });
+    // The team owns the language's reviewer stages.
+    deriveWorkflow(state, laneId).forEach((s, i) => {
+      if (s.role !== 'reviewer' || s.teamId === teamId) return;
+      events.push({
+        type: 'v1.WorkflowStepSet',
+        payload: { stepId: s.id, laneId, order: `s${String(i).padStart(2, '0')}`, role: s.role, teamId, required: s.required, rule: s.rule, ...(s.label !== undefined ? { label: s.label } : {}) }
+      });
+    });
+    await appendMany(events);
     ctx.back();
   }
   return (
     <Screen footer={<Footer label="Save team" onPress={() => void save()} />}>
-      <Header title="Review team" onBack={ctx.back} />
-      <Note>Removing a reviewer needs an unassign event; only adding is wired today.</Note>
+      <Header title="Review team" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+      <TextInput style={styles.input} placeholder="Team name" value={name} onChangeText={setName} />
       <Section label="Members">
         {members.map(([id, m], i) => (
-          <Row key={id} label={id.slice(0, 8)} sub={m.role.value} onPress={() => setChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; })} right={chosen.has(id) ? <Check size={18} color={colors.translate} /> : <View />} last={i === members.length - 1} />
+          <Row key={id} label={id.slice(0, 8)} sub={m.role.value} onPress={() => setChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; })} right={chosen.has(id) ? <Check size={18} color={colors.done} /> : <View />} last={i === members.length - 1} />
         ))}
       </Section>
       <View>{void text}</View>

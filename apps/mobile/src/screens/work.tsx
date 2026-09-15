@@ -1,6 +1,6 @@
 // Avatar U for My Work and Open Work; Avatar P for Give Assignment and progress detail.
 import { deriveProgress, derivePieces, deriveTasks, type Task, type TaskStatus } from '@langquest-next/core';
-import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudCheck, CloudUpload, Inbox, Menu, Search } from 'lucide-react-native';
+import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, Menu, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -33,8 +33,15 @@ export function AssignmentsHome(ctx: Ctx) {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statusRow}>
-          <View style={styles.statusChip} accessibilityLabel={ctx.project.lastSync}>
-            {pending > 0 ? (
+          <View style={styles.statusChip} accessibilityLabel={ctx.project.tooOld ? 'Update the app to sync' : ctx.project.lastSync}>
+            {ctx.project.tooOld ? (
+              // The server no longer accepts this app version. Work is safe
+              // locally; nothing syncs until the app is updated.
+              <>
+                <CloudAlert size={16} color={colors.action} />
+                <Text style={text.small}>{pending}</Text>
+              </>
+            ) : pending > 0 ? (
               <>
                 <CloudUpload size={16} color={colors.mutedForeground} />
                 <Text style={text.small}>{pending}</Text>

@@ -109,3 +109,120 @@ stop clients echoing it back. Here the storage trigger appends
 `v1.BlobStored` to the project log under the service actor, `append_events`
 refuses the type from any client, and devices learn of it through the pull
 they already do. Same guarantee, no extra column, no extra sync path.
+
+## 15. Device identity and clocks are persisted
+
+Reason: the fold's last-writer-wins registers depend on HLCs being unique
+across devices and monotonic on each one. The first mobile build used the
+same device id everywhere and forgot its clock on restart; on a phone whose
+clock was corrected backwards, a user's newer decision lost to their older
+one. Now `ensureDeviceId` mints one id per install and the client persists
+the last clock. The reducer also breaks exact HLC ties by event id, so even a
+future id collision cannot make state order-dependent.
+
+## 16. Removal is an event, and validation is the door
+
+Reason: the log refuses UPDATE and DELETE, so a malformed or unwanted event
+is permanent. `validate_payload` (SQL) and `validateEvent` (core) share one
+rule set, the fold skips and counts anything invalid instead of throwing,
+and `v1.Redacted` excludes a target from every fold. Reverse if: never; an
+append-only log without these is a liability, not a guarantee.
+
+## 17. Bytes are verified on both ends, and the bucket is reconciled
+
+Reason: content addressing only helps if someone checks the content. The
+downloader hashes before trusting a file. The confirmation carries the size
+so a device can detect a short upload. The reconciler is the server's own
+independent pass over the bucket: it confirms what the storage trigger
+missed and invalidates what hashes wrong, so blob truth never depends on a
+trigger on Supabase's managed storage schema. A fetch failure never
+invalidates anything; only bytes that were read and hash wrong do.
+
+## 18. Snapshots travel in pieces
+
+Reason: a Bible-scale snapshot is around 13 MB of JSON. One response on a
+weak link fails and restarts. 256 KB pieces, each persisted before the next
+is requested, make cold start resumable. The same helper feeds the worker
+and the reconciler.
+
+## 19. Read indexes are views, never state
+
+Reason: `deriveTasks` at Bible scale took 27 s because every derivation
+rescanned all takes and assignments per unit and lane. The fix is one pass
+that builds lookup maps (`packages/core/src/indexes.ts`) and derivations that
+take it as an argument. It is not stored in `ProjectState`, not snapshotted,
+not synced, and every derive function still works without it, so the fold
+and the invariants are untouched. Reverse if: never; a cache inside the
+state would have to be kept coherent by the reducer, which is exactly the
+trigger-maintained rollup PLAN.md section 2 warns against.
+
+## 20. The spec's flow machine is held to by a test, not a review
+
+Reason: the UX spec declares `flow.ts` its single authority; the app copies
+it by hand. `scripts/extractSpecFlow.ts` vendors the spec's screens, edges,
+modes and gates into `apps/mobile/test/spec-flow.json` and
+`specParity.test.ts` fails on any spec edge the app lacks and any app edge
+the spec lacks that is not listed with a reason. The spec's role gates are
+now data on our edges and `go()` refuses a gated edge the session cannot
+take. Reverse if: the spec repo publishes its machine as a package; then
+import it instead of vendoring.
+
+## 21. Blockers are derived, like status
+
+Reason: reachability proves a screen exists, not that the work can finish.
+A required step with no eligible reviewer, or an assignee who was removed,
+leaves a passage waiting forever with nothing on screen saying why. These
+are properties of the fold, so `deriveBlockers` computes them and the status
+screen can show the one action that clears each. Reverse if: never.
+
+## 22. One sync client, two folds
+
+Reason: the org partition (roles, memberships, catalog, projects) needs the
+same log, outbox, cursor, checkpoint and snapshot handling as a project, and
+a different reducer. `SyncClient` takes a `Materializer` (empty, apply, fold,
+compact, version); the project one is the default and the org one lives in
+core `org.ts`. Reverse if: never; a second sync path is the kind of surface
+PLAN.md section 2 exists to avoid.
+
+## 23. Authorization is a privilege, scope is on the membership
+
+Reason: UX spec A38. Roles are named privilege sets; a membership grants a
+role at org, project or lane scope; an event needs one privilege
+(`EVENT_PRIVILEGE`, mirrored in SQL `event_privilege`). The five fixed roles
+are seeded as roles with the spec's privilege sets and `effectiveRole` maps
+any privilege set back onto them, so workflow steps, eligibility and storage
+policies keep speaking `Role`. Reverse if: partners never define a custom
+role; then the seed roles are simply all there is.
+
+## 24. Refusals carry a code, and membership refusals retry themselves
+
+Reason: audit L1. A month of work refused because a role changed offline is
+not lost (invariant 1) but was stuck. The server authorizes as of the
+event's own clock within a window, and the client re-queues membership
+refusals when a pull shows the actor's membership changed. Clock-ahead
+refusals re-stamp the clock and keep the event ids. Invalid payloads never
+retry.
+
+## 25. Templates instantiate with derived ids, and per-lane settings layer over project settings
+
+Reason: the UX spec applies content templates and review flows per language
+(A42) while units and workflow live in the project partition. Deriving
+unit and step ids from the catalog (`fia@1/gen-p1`) makes instantiation a
+grow-only set: two admins selecting the same template offline emit the same
+events and no clone job, ordered insert or server step exists. A lane's
+step registers override project-wide ones, which override the old
+whole-document config, so nothing existing changes. Reverse if: partners
+need one lane to diverge from a template's structure; then hand-added
+units already coexist, and a per-lane unit-set event is the next step.
+
+## 26. Reference material is fields, and a question is a field
+
+Reason: audit 5.E. One material with one text register would make two
+people filling different blanks of the same document a conflict; per-field
+registers make it a merge. Treating a question set as a material whose
+fields are the questions means one screen, one lock rule and one scope rule
+cover TMF, briefs, guidelines, study material and questions alike, and
+`TakeSubmitted.questionSetIds` keeps its shape. Key terms stay grow-only
+because every part of a glossary entry is an addition: a rendering, a
+recorded adjustment, a link. Reverse if: partners need to edit a rendering
+in place; then renderings become registers, and nothing else changes.

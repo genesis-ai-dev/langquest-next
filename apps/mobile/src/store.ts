@@ -8,7 +8,10 @@ function expoDriver(db: SQLite.SQLiteDatabase): SqlDriver {
       await db.runAsync(sql, params as SQLite.SQLiteBindParams);
     },
     all: async <T,>(sql: string, params: unknown[] = []) =>
-      db.getAllAsync<T>(sql, params as SQLite.SQLiteBindParams)
+      db.getAllAsync<T>(sql, params as SQLite.SQLiteBindParams),
+    // One transaction per pull page or bulk append: tens of thousands of
+    // events after a month offline must not be one fsync each.
+    transaction: (fn) => db.withTransactionAsync(fn)
   };
 }
 

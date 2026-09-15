@@ -102,8 +102,15 @@ Agents: treat each of these as a test you must not break.
    the membership fold for authorization. Dashboards, snapshots, search, and
    integrity checks are async and may lag without affecting translators.
 10. **Snapshots are tagged with the reducer version.** A client only loads a
-    snapshot produced by its own reducer version, else it folds from an older
-    snapshot it can use.
+    snapshot produced by its own reducer version; otherwise it folds the log.
+    Devices roll their own checkpoint every 2000 confirmed events and prune
+    what it covers, so replay is bounded by recent history.
+11. **Every event is validated at the door, and the fold never throws.**
+    `validate_payload` (SQL) and `validateEvent` (core) are the same rules. A
+    malformed event that slips through is counted in `state.invalidEvents`
+    and skipped. Removal is `v1.Redacted`, never an edit.
+12. **Small requests.** The client pushes in pages of 200; the server refuses
+    batches over 500. One oversized request can never become a retry loop.
 
 ## 5. Scale-up rules from day one
 
@@ -150,6 +157,24 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.ReviewSubmitted` | takeId, stepId, decision (approve, suggest_changes), comment, answers | register per (take, step, actor) |
 | `v1.AssignmentMade` | unitId, laneId, profileId, role, dueDate, instructions | register per (unit, lane, person, role) |
 | `v1.SourceImported` | sourceProjectId, sourceSeq, units[] | grow-only set (pin) |
+| `v1.BlobStored` | hash, size | register per hash (LWW by clock); server-only; re-issued when the object's size changes |
+| `v1.BlobInvalidated` | hash, reason | register per hash; server-only; the reconciler's verdict that stored bytes do not match |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded (owner or coordinator) |
+| `v1.OrgCreated` | name | once (org partition `_org`) |
+| `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges[] | register per role; retired is add-wins |
+| `v1.OrgMemberAdded` / `v1.OrgMemberRemoved` | profileId, roleId, scope {level, projectId?, laneId?}, displayName? | register per (profile, scope) |
+| `v1.CatalogItemToggled` | kind, itemId, level, projectId?, enabled | register per (kind, item, level, project) |
+| `v1.ProjectRegistered` | projectId, name | grow-only set |
+| `v1.LaneTemplateSelected` / `v1.LaneFlowSelected` | laneId, templateId or flowId, catalogVersion | register per lane; the selector emits the implied `UnitAdded` / `WorkflowStepSet` with ids derived from the catalog (`fia@1/gen-p1`) |
+| `v1.WorkflowStepSet` / `v1.WorkflowStepRemoved` | stepId, laneId?, order, label?, role, teamId?, required, rule | register per step; removal is add-wins; lane steps override project steps override `config.workflow` |
+| `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` | teamId, laneId, name / teamId, profileId, member | register per team, register per (team, profile) |
+| `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
+| `v1.ReviewCommentRecorded` | takeId, stepId, blobHash | grow-only per (take, step, actor) |
+| `v1.MaterialDefined` | materialId, kind, title, scope {laneId?, unitId?, stepId?}, templateRef? | grow-only (earliest wins); question sets from the catalog get `questions@1/<template>` ids |
+| `v1.MaterialFieldSet` | materialId, fieldId, text? / blobHash? | register per (material, field) |
+| `v1.MaterialLocked` | materialId, locked | register per material |
+| `v1.StepQuestionSetLinked` | stepId, materialId | register per step |
+| `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, laneId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
 
 Smells to catch in review:
 
@@ -195,12 +220,20 @@ Current implementation is two Postgres RPCs on local Supabase
 (`append_events`, `pull_events`, see `server/README.md`). The HTTP shape
 below is the contract they satisfy; a Workers front end can wrap them later.
 
-- `POST /orgs/:org/projects/:project/events` with a batch of pending events.
-  Server checks membership fold, assigns `serverSeq`, returns per-event
-  accept or reject.
-- `GET /orgs/:org/projects/:project/events?after=<serverSeq>&limit=<n>`.
-- `GET /orgs/:org/projects/:project/snapshot?reducerVersion=<v>` returns the
-  newest snapshot at or below that version plus its `serverSeq`.
+- `POST /orgs/:org/projects/:project/events` with a batch of at most 500
+  pending events (`append_events`). Server checks membership fold and
+  payload shape, assigns `serverSeq`, returns per-event accept or reject.
+- `GET /orgs/:org/projects/:project/events?after=<serverSeq>&limit=<n>`
+  (`pull_events`).
+- `GET /orgs/:org/projects/:project/snapshot?reducerVersion=<v>`
+  (`get_snapshot`) returns the newest snapshot for exactly that version.
+  `get_snapshot_meta` and `get_snapshot_chunk` serve the same snapshot in
+  256 KB pieces; the client persists each piece so a dropped link resumes.
+  `put_snapshot` and `list_partitions` are service-role only and are what
+  `server/snapshotWorker.ts` uses (`npm run snapshot`).
+- Every call carries `CLIENT_PROTOCOL_VERSION`; below
+  `server_config.min_client_version` the server answers `LQ001` and the app
+  shows an upgrade state with nothing lost.
 - Blobs: `PUT /blobs/:hash` idempotent, `GET /blobs/:hash`. Presence of a blob
   is independent of presence of the events that reference it.
 
@@ -252,9 +285,45 @@ langquest-next/
    storage trigger appending `BlobStored` as the only confirmation. Needs a
    dev client (`npx expo run:ios`); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
-7. Snapshot worker and org dashboard as a headless client folding every
-   project in the org.
+7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
+   incremental, refolds fully when a redaction targets the snapshot). Org
+   dashboard as a headless client folding every project in the org: later.
 8. Import path from LangQuest v2 rows into v1 events.
+9. **Done in part.** Flow coverage proof and read indexes
+   (`docs/flow-coverage-audit.md`): `apps/mobile/test/specParity.test.ts`
+   holds the app's flow machine to the spec's, edge by edge, with the spec's
+   role gates now declared on edges and enforced by `go()`;
+   `packages/core/src/indexes.ts` makes every derivation linear (27 s to
+   20 ms for `deriveTasks` at Bible scale); `deriveBlockers` names the
+   states nobody can leave. **Done:** batched store writes (`putMany`, one
+   transaction per pull page), as-of authorization and membership-coded
+   refusals that re-queue on re-admission, clock-ahead refusal with client
+   re-stamping, snapshot-first handling of a redaction inside a checkpoint
+   (migration 000008, `syncClient.ts`, smoke section 7).
+10. **Done:** org partition (`_org`) with roles as privilege sets,
+    scoped memberships, catalog toggles and project registry (core `org.ts`,
+    migration 000009, smoke section 8, `apps/mobile/src/useOrg.ts`);
+    `SyncClient` is generic over a materializer; session facets are
+    privileges and Home follows the admin scope, so `language_home` is
+    reachable and the parity test has no known dead gate.
+11. **Done:** catalog bundle (`packages/core/src/catalog.ts`, data
+    generated from v2's `template_structure` by `scripts/buildCatalog.ts`:
+    FIA 1,352 pericopes, Chapter Units 1,189 chapters, Book Overview) with
+    deterministic instantiation per lane; per-step workflow registers with
+    lane > project > config precedence; review teams with assignment > team
+    > role eligibility; the respond note and spoken review comment events
+    (migration 000010, smoke section 9, `templates_home`, `flows_home`,
+    `flow_editor`, `review_teams`, `review_team_editor`, `attach_questions`).
+12. **Done:** reference material as per-field registers with scope, lock
+    and catalog templates; question sets as materials (a step's default set
+    via `StepQuestionSetLinked`, plus what the translator attaches); key
+    terms as a living glossary with renderings, recorded adjustments and
+    links both ways (core `materials.ts`, migration 000011, smoke section
+    10; `reference_home`, `material_editor`, `key_terms`,
+    `key_term_detail`, `attach_questions`, `review_questions`, `add_to_tg`).
+    `ReferenceAttached` remains as legacy passage notes. Next: requests,
+    invites, public projection, notifications, profiles
+    (`docs/flow-coverage-audit.md` sections 5 and 6).
 
 ## 12. Design language and the two avatars
 
@@ -322,24 +391,27 @@ like this. Where the spec forced a model change, it is noted.
 | Spec concept | Here | Note |
 | --- | --- | --- |
 | Org › Project › Language | `orgId` › `projectId` › lane (`LaneAdded`) | a lane is one target language of a project |
-| Content template (FIA, OpenBible…) | `ProjectConfig.unitKinds` | pieces are leaf units |
+| Content template (FIA, OpenBible…) | catalog template selected per lane (`LaneTemplateSelected`); units instantiated with catalog-derived ids | pieces are leaf units; a lane shows its template's units plus hand-added ones |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
 | Take (audio) | cards (`RecordingAdded`) referenced by a take | |
-| Review flow, stages A→B→C→D | `ProjectConfig.workflow[]` steps with role and quorum rule | |
-| Review team | `AssignmentMade` with `role: 'reviewer'` on a unit and lane | assignments override role membership for eligibility |
+| Review flow, stages A→B→C→D | catalog flow selected per lane (`LaneFlowSelected`) instantiated as `WorkflowStepSet` registers; `config.workflow` remains the fallback | |
+| Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`; a step's `teamId` | eligibility: per-unit assignment, else team, else role holders |
 | Stage round: assigned, submitted, reviewed | derived from assignment, submission, and review events | never stored |
 | Verdict approved / suggestions | `ReviewSubmitted.decision` = `approve` or `suggest_changes` | **renamed** from reject: suggestions are advisory (A11) |
-| Review questions and answers | `TakeSubmitted.questionSetIds`, `ReviewSubmitted.answers` | question sets are reference material |
-| Translator response to suggestions | a new take with `parentTakeId`, then `TakeSubmitted` | the `respond` task type |
+| Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), `StepQuestionSetLinked`, `ReviewSubmitted.answers` keyed `materialId#fieldId` | question sets are materials of kind `questions` |
+| Translator response to suggestions | a new take with `parentTakeId`, `ResponseRecorded` (note or audio), then `TakeSubmitted` | the `respond` task type |
 | Assignment: type, assignee, due, instructions | `AssignmentMade` | **added** `dueDate`, `instructions`; type is derived from role and state |
 | To Do / Doing / Done | `Task.status` from `deriveTasks` | todo: nothing; doing: draft exists; done: submitted or decided |
 | Piece work status: unassigned / doing / waiting / done | derived per unit from assignments and take status | P dashboard, step 7 |
 | Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
-| Reference material (TVP, TG, TR), key terms | `ReferenceAttached` by kind; key terms as a kind for now | living glossary events later |
+| Reference material (TMF, Brief, TG, FIA study), key terms | `MaterialDefined` + `MaterialFieldSet` per field, scoped to lane, unit or step; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
 | Roles with privilege switches | fixed `Role` set for now | custom roles and privileges later; `role_may_emit` is the server gate |
 | Member scope (org / project / language) | membership is per project; org and lane scope later | |
 | Inbox | derived from events addressed to the actor | later |
+| Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
+| Roles with privilege switches, member scope (org / project / language) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
+| Catalog enable at org, narrow at project (A42) | `CatalogItemToggled` in the org partition; `catalogEnabled` | selection per lane is next |
 
 Kept from the design language, on purpose: the spec prototype is purple and
 text-first. We keep its screens and flows but render U screens with the
@@ -358,7 +430,14 @@ below was earned in production there.
    not confirmed, intersected with files present on this device. Recording a
    card *is* the enqueue. Only disposable in-memory retry state exists, and
    losing it costs one idempotent attempt.
-2. **The server confirms, never the client.** A blob is uploaded when the
+2. **The server confirms, never the client, and the bytes are checked.** A
+   blob is uploaded when the server says so. The confirmation carries the
+   stored size; a device whose file differs in size uploads again. Every
+   download is hashed before the file is trusted; a mismatch is deleted and
+   retried. `server/blobReconciler.ts` (`npm run reconcile`, `--verify` to
+   hash every object) lists the bucket independently of the storage trigger,
+   confirms anything unconfirmed, and appends `v1.BlobInvalidated` for
+   objects whose bytes hash wrong, removing them. A blob is uploaded when the
    server says so. `PUT /blobs/:hash` is idempotent (content-addressed, so a
    re-upload is a byte-identical overwrite). Confirmation arrives as a
    `BlobStored {hash, size, storedAt}` event appended by the server into the
@@ -388,10 +467,11 @@ below was earned in production there.
    The on-disk path is a pure function of the hash; no table maps names to
    paths. A missing local file is simply absent from the upload list and
    surfaces as a visible pending count, never an error state.
-10. **Download by scope, not by demand.** Confirmed blobs for the project's
-    passages the user has chosen to keep offline; playback resolves the
-    local path or streams. Nothing marks a download done except the file
-    being on disk.
+10. **Download by scope, not by demand.** Confirmed blobs for the units the
+    user is assigned to or has worked in (`defaultOfflineScope`) plus units
+    they chose to keep offline (`keepOffline`); playback resolves the local
+    path or streams. Nothing marks a download done except the file being on
+    disk.
 11. **Audio is immutable.** Already invariant 4. It is what makes the
     confirmation monotonic and the upsert safe; v2 had to document the
     re-record-in-place case as unhandled.
@@ -400,13 +480,25 @@ below was earned in production there.
     works across rewrites.
 
 Known v2 gaps to close here: no cache eviction policy, and no server-side
-garbage collection of blobs nothing references.
+garbage collection of blobs nothing references (a redacted recording's
+blobs stay in the bucket until that exists).
+
+Load harness: `npm run loadtest -- 100000` folds a synthetic Bible-scale log.
+On a laptop, 100k events replay in 0.2 to 1.3 s with a 13 MB snapshot
+(1.1 MB gzipped, which is what HTTP compression sends) and a 250 MB heap.
+The gate is the same run on the slowest partner Android.
 
 ## 15. Open questions
 
+- The spec's `flow.ts` and its `*.flow.md` files disagree on three edges and
+  one screen name (`docs/flow-coverage-audit.md` section 1); ask the UX
+  team which is authoritative before step 10 ports more.
+
 - Caleb's workflow demo defines the review model; port its rules into
   `ProjectConfig.workflow` and confirm the quorum semantics with him.
-- Global reference data (languoids, templates) ships as a static bundle;
-  decide the update cadence.
+- Global reference data ships as a static bundle (`catalog.ts`, version 1:
+  content templates, flow templates, reference kinds, question templates);
+  languoids are still open. A catalog bump never rewrites units: a lane
+  stays on the version it selected.
 - Decided for now: local Supabase (Postgres) via colima, never linked to a
   hosted project. Cloudflare Workers plus Neon remains an option; the protocol fits both.

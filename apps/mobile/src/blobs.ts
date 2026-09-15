@@ -10,9 +10,13 @@ import { Directory, File, Paths } from 'expo-file-system';
  */
 const DIR_NAME = 'blobs';
 
+/** What the store needs to name a file; the unit is sync's concern, not disk's. */
+export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
+
 export class BlobStore {
   private readonly dir: Directory;
   private readonly present = new Set<string>();
+  private readonly sizeByHash = new Map<string, number>();
   private listeners = new Set<() => void>();
 
   constructor() {
@@ -25,9 +29,25 @@ export class BlobStore {
     for (const entry of this.dir.list()) {
       if (entry instanceof File) {
         const hash = entry.name.split('.')[0];
-        if (hash) this.present.add(hash);
+        if (hash) {
+          this.present.add(hash);
+          if (entry.size !== null) this.sizeByHash.set(hash, entry.size);
+        }
       }
     }
+  }
+
+  /** Byte sizes of present files, for the size check against confirmations. */
+  sizes(): ReadonlyMap<string, number> {
+    return new Map(this.sizeByHash);
+  }
+
+  /** SHA-256 hex of bytes: the name a file must have to be trusted. */
+  static async hashOf(bytes: Uint8Array): Promise<string> {
+    // expo-crypto wants a plain ArrayBuffer-backed view.
+    const view = new Uint8Array(bytes.byteLength);
+    view.set(bytes);
+    return Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, view).then(toHex);
   }
 
   has(hash: string): boolean {
@@ -39,11 +59,11 @@ export class BlobStore {
     return new Set(this.present);
   }
 
-  fileFor(ref: BlobRef): File {
+  fileFor(ref: BlobFile): File {
     return new File(this.dir, `${ref.hash}.${ref.format}`);
   }
 
-  uriFor(ref: BlobRef): string | null {
+  uriFor(ref: BlobFile): string | null {
     return this.present.has(ref.hash) ? this.fileFor(ref).uri : null;
   }
 
@@ -52,20 +72,21 @@ export class BlobStore {
    * content-addressed name, and return the ref. Idempotent: the same bytes
    * land on the same name.
    */
-  async ingest(sourceUri: string, format: BlobRef['format']): Promise<{ ref: BlobRef; size: number }> {
+  async ingest(sourceUri: string, format: BlobRef['format']): Promise<{ ref: BlobFile; size: number }> {
     const src = new File(sourceUri);
     const bytes = await src.bytes();
-    const hash = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes).then(toHex);
-    const ref: BlobRef = { hash, format };
+    const hash = await BlobStore.hashOf(bytes);
+    const ref: BlobFile = { hash, format };
     const dest = this.fileFor(ref);
     if (!dest.exists) src.move(dest);
     else src.delete();
-    this.markPresent(hash);
+    this.markPresent(hash, bytes.byteLength);
     return { ref, size: bytes.byteLength };
   }
 
-  /** Called by the downloader once a file is on disk. */
-  markPresent(hash: string): void {
+  /** Called by the downloader once a file is on disk and verified. */
+  markPresent(hash: string, size?: number): void {
+    if (size !== undefined) this.sizeByHash.set(hash, size);
     if (this.present.has(hash)) return;
     this.present.add(hash);
     for (const l of this.listeners) l();

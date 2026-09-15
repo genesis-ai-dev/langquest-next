@@ -1,7 +1,7 @@
-import type { AnyEvent } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, type AnyEvent } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppendResult, Transport } from './types';
-import { OfflineError } from './types';
+import type { AppendResult, SnapshotMeta, Transport } from './types';
+import { ClientTooOldError, OfflineError } from './types';
 
 interface EventRow {
   id: string;
@@ -22,7 +22,8 @@ export class SupabaseTransport implements Transport {
 
   async append(events: AnyEvent[]): Promise<AppendResult[]> {
     const { data, error } = await this.supabase.rpc('append_events', {
-      p_events: events.map(({ serverSeq: _s, ...e }) => e)
+      p_events: events.map(({ serverSeq: _s, ...e }) => e),
+      p_client_version: CLIENT_PROTOCOL_VERSION
     });
     if (error) throw toError(error);
     return (data as { id: string; accepted: boolean; server_seq: number | null; reason: string | null }[]).map(
@@ -30,12 +31,36 @@ export class SupabaseTransport implements Transport {
     );
   }
 
+  async snapshotMeta(orgId: string, projectId: string, reducerVersion: number): Promise<SnapshotMeta | null> {
+    const { data, error } = await this.supabase.rpc('get_snapshot_meta', {
+      p_org_id: orgId,
+      p_project_id: projectId,
+      p_reducer_version: reducerVersion
+    });
+    if (error) throw toError(error);
+    const row = (data as { server_seq: number; chunks: number; bytes: number }[] | null)?.[0];
+    return row ? { serverSeq: row.server_seq, chunks: row.chunks, bytes: row.bytes } : null;
+  }
+
+  async snapshotChunk(orgId: string, projectId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null> {
+    const { data, error } = await this.supabase.rpc('get_snapshot_chunk', {
+      p_org_id: orgId,
+      p_project_id: projectId,
+      p_reducer_version: reducerVersion,
+      p_server_seq: serverSeq,
+      p_index: index
+    });
+    if (error) throw toError(error);
+    return (data as string | null) ?? null;
+  }
+
   async pull(orgId: string, projectId: string, after: number, limit: number): Promise<AnyEvent[]> {
     const { data, error } = await this.supabase.rpc('pull_events', {
       p_org_id: orgId,
       p_project_id: projectId,
       p_after: after,
-      p_limit: limit
+      p_limit: limit,
+      p_client_version: CLIENT_PROTOCOL_VERSION
     });
     if (error) throw toError(error);
     return (data as EventRow[]).map(
@@ -57,6 +82,7 @@ export class SupabaseTransport implements Transport {
 }
 
 function toError(error: { message: string; code?: string }): Error {
+  if (error.code === 'LQ001') return new ClientTooOldError(error.message);
   if (/fetch failed|network|ECONNREFUSED/i.test(error.message)) {
     return new OfflineError(error.message);
   }

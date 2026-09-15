@@ -1,6 +1,6 @@
-import type { AnyEvent } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
 import type { AppendResult, Transport } from '../src/types';
-import { OfflineError } from '../src/types';
+import { ClientTooOldError, OfflineError } from '../src/types';
 
 /**
  * In-memory stand-in for append_events / pull_events with the same
@@ -11,22 +11,75 @@ export class FakeServer {
   readonly log: AnyEvent[] = [];
   private seqs = new Map<string, number>();
   offline = false;
+  /** Batches larger than this fail like a statement timeout would. */
+  maxBatch = Infinity;
+  /** After this many append calls, every append throws (link dropped). */
+  failAfterCalls = Infinity;
+  appendCalls = 0;
+  pullCalls = 0;
+  /** Clients below this protocol version are refused, like the server RPCs. */
+  minClientVersion = 0;
+  readonly snapshots = new Map<string, Snapshot>();
+  /** Snapshot state is served in pieces of this many characters. */
+  chunkChars = 1_000_000;
+  /** Chunk fetches after this many throw (link dropped mid-snapshot). */
+  failChunkAfter = Infinity;
+  chunkCalls = 0;
   authorize: (e: AnyEvent) => string | null = () => null;
 
   transportFor(): Transport {
     return {
       append: async (events) => {
         if (this.offline) throw new OfflineError('offline');
+        if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
+        this.appendCalls += 1;
+        if (this.appendCalls > this.failAfterCalls) throw new Error('fetch failed');
+        if (events.length > this.maxBatch) throw new Error('57014: statement timeout');
         return events.map((e) => this.accept(e));
+      },
+      snapshotMeta: async (orgId, projectId, reducerVersion) => {
+        if (this.offline) throw new OfflineError('offline');
+        const s = this.snapshots.get(`${orgId}/${projectId}`);
+        if (!s || s.reducerVersion !== reducerVersion) return null;
+        const text = JSON.stringify(s.state);
+        return { serverSeq: s.serverSeq, chunks: Math.max(1, Math.ceil(text.length / this.chunkChars)), bytes: text.length };
+      },
+      snapshotChunk: async (orgId, projectId, reducerVersion, serverSeq, index) => {
+        if (this.offline) throw new OfflineError('offline');
+        this.chunkCalls += 1;
+        if (this.chunkCalls > this.failChunkAfter) throw new OfflineError('fetch failed');
+        const s = this.snapshots.get(`${orgId}/${projectId}`);
+        if (!s || s.reducerVersion !== reducerVersion || s.serverSeq !== serverSeq) return null;
+        const text = JSON.stringify(s.state);
+        return text.slice(index * this.chunkChars, (index + 1) * this.chunkChars);
       },
       pull: async (orgId, projectId, after, limit) => {
         if (this.offline) throw new OfflineError('offline');
+        if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
+        this.pullCalls += 1;
         return this.log
           .filter((e) => e.orgId === orgId && e.projectId === projectId && (e.serverSeq ?? 0) > after)
           .sort((a, b) => a.serverSeq! - b.serverSeq!)
           .slice(0, limit);
       }
     };
+  }
+
+  /** Append a server-issued event (what the storage trigger and reconciler do). */
+  serviceEvent(type: 'v1.BlobStored' | 'v1.BlobInvalidated', payload: { hash: string; size?: number; reason?: string }): void {
+    const seq = (this.seqs.get('org1/p1') ?? 0) + 1;
+    this.seqs.set('org1/p1', seq);
+    this.log.push({
+      id: `svc${seq}`, type, orgId: 'org1', projectId: 'p1', actorId: 'service', deviceId: 'storage',
+      hlc: `${String(1_800_000_000_000 + seq).padStart(15, '0')}:000000:storage`, payload, serverSeq: seq
+    } as AnyEvent);
+  }
+
+  /** What the snapshot worker does: fold the whole partition and store it. */
+  makeSnapshot(orgId: string, projectId: string): Snapshot {
+    const s = takeSnapshot(orgId, projectId, this.log.filter((e) => e.orgId === orgId && e.projectId === projectId));
+    this.snapshots.set(`${orgId}/${projectId}`, s);
+    return s;
   }
 
   private accept(e: AnyEvent): AppendResult {

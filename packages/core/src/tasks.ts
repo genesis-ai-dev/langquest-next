@@ -1,7 +1,7 @@
 import type { Role } from './events';
+import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import type { ProjectState } from './state';
-import { currentTake, deriveTakeStatus, eligibleReviewers } from './workflow';
-import { DEFAULT_CONFIG } from './state';
+import { currentTake, deriveTakeStatus, deriveWorkflow, eligibleReviewers } from './workflow';
 
 /**
  * The task-first view: what should this actor do next, per passage and lane.
@@ -40,25 +40,23 @@ export function actorRole(state: ProjectState, actorId: string): Role | null {
   return m && !m.removed.value ? m.role.value : null;
 }
 
-export function deriveTasks(state: ProjectState, actorId: string): Task[] {
+export function deriveTasks(state: ProjectState, actorId: string, idx: Indexes = buildIndexes(state)): Task[] {
   const role = actorRole(state, actorId);
   if (!role) return [];
   const mayTranslate = TRANSLATING_ROLES.includes(role);
-  const workflow = (state.config?.value ?? DEFAULT_CONFIG).workflow;
 
-  const passages = Object.entries(state.units)
-    .filter(([, u]) => isLeaf(state, u.kind))
-    .sort(([, a], [, b]) => (a.order < b.order ? -1 : 1));
-  const lanes = Object.keys(state.lanes).sort();
+  const mine = new Map<string, (typeof state.assignments)[string]>();
+  for (const a of idx.assignmentsByActor.get(actorId) ?? []) {
+    if (a.role !== 'reviewer') mine.set(unitLaneKey(a.unitId, a.laneId), a);
+  }
 
   const tasks: Task[] = [];
-  for (const [unitId] of passages) {
-    for (const laneId of lanes) {
-      const takeId = currentTake(state, unitId, laneId);
-      const status = takeId ? deriveTakeStatus(state, takeId) : null;
-      const myAssignment = Object.values(state.assignments).find(
-        (a) => a.unitId === unitId && a.laneId === laneId && a.profileId === actorId && a.role !== 'reviewer'
-      );
+  for (const laneId of idx.lanes) {
+    const workflow = deriveWorkflow(state, laneId);
+    for (const unitId of laneLeafUnits(state, idx, laneId)) {
+      const takeId = currentTake(state, unitId, laneId, idx);
+      const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
+      const myAssignment = mine.get(unitLaneKey(unitId, laneId));
       const extras = {
         ...(myAssignment?.dueDate !== undefined ? { dueDate: myAssignment.dueDate } : {}),
         ...(myAssignment?.instructions !== undefined ? { instructions: myAssignment.instructions } : {})
@@ -76,7 +74,7 @@ export function deriveTasks(state: ProjectState, actorId: string): Task[] {
 
       if (takeId && status && status.submitted && status.outcome !== 'archived') {
         for (const step of workflow) {
-          if (!eligibleReviewers(state, unitId, laneId, step).includes(actorId)) continue;
+          if (!eligibleReviewers(state, unitId, laneId, step, idx).includes(actorId)) continue;
           const decided = state.reviews[takeId]?.[step.id]?.[actorId] !== undefined;
           tasks.push({
             ...task('review', unitId, laneId, takeId, decided ? 'done' : 'todo', {}),
@@ -103,16 +101,17 @@ function task(
 /** Progress per lane: share of passages with a submitted take, and with an approved take. */
 export function deriveProgress(
   state: ProjectState,
-  laneId: string
+  laneId: string,
+  idx: Indexes = buildIndexes(state)
 ): { translatedPct: number; approvedPct: number; passages: number } {
-  const passages = Object.entries(state.units).filter(([, u]) => isLeaf(state, u.kind));
+  const passages = laneLeafUnits(state, idx, laneId);
   if (passages.length === 0) return { translatedPct: 0, approvedPct: 0, passages: 0 };
   let translated = 0;
   let approved = 0;
-  for (const [unitId] of passages) {
-    const takeId = currentTake(state, unitId, laneId);
+  for (const unitId of passages) {
+    const takeId = currentTake(state, unitId, laneId, idx);
     if (!takeId) continue;
-    const st = deriveTakeStatus(state, takeId);
+    const st = deriveTakeStatus(state, takeId, idx);
     if (!st.submitted) continue;
     translated += 1;
     if (st.outcome === 'approved') approved += 1;
@@ -122,11 +121,4 @@ export function deriveProgress(
     approvedPct: Math.round((100 * approved) / passages.length),
     passages: passages.length
   };
-}
-
-/** A unit kind with no child kinds is a passage-level unit that gets tasks. */
-function isLeaf(state: ProjectState, kind: string): boolean {
-  const kinds = (state.config?.value ?? DEFAULT_CONFIG).unitKinds;
-  const k = kinds.find((x) => x.id === kind);
-  return k ? k.childKinds.length === 0 : true;
 }
