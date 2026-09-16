@@ -23,9 +23,12 @@ export interface JoinRequest {
   createdAt: string;
 }
 
-/** What the QR carries: enough for another device to redeem without typing. */
+/**
+ * What the QR carries: enough for another device to redeem without typing.
+ * The scheme is the app's own (app.json `scheme`), so a tapped link opens it.
+ */
 export function inviteLink(orgId: string, token: string): string {
-  return `langquest://join?org=${encodeURIComponent(orgId)}&token=${encodeURIComponent(token)}`;
+  return `langquestnext://join?org=${encodeURIComponent(orgId)}&token=${encodeURIComponent(token)}`;
 }
 
 /** The token out of a scanned link, or the raw token if that is what was pasted. */
