@@ -338,7 +338,9 @@ langquest-next/
 
 Ported from the LangQuest v2 task-first prototype (commit 2fe8e1e5) and kept
 as a rule set. Every screen declares its avatar in a comment at the top of
-its file, and follows that avatar's constraints.
+its file, and follows that avatar's constraints. `docs/ux/one-next-action.html`
+is the interactive reference for these rules: the slideshow workflow, the
+passage hub, and the VAD recording takeover, in the real tokens and icons.
 
 **Avatar U: the user (translator, reviewer).** Often non-literate, working
 orally, on a phone, offline. Constraints:

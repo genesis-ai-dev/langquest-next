@@ -1,0 +1,714 @@
+<title>One Next Action</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.454.0/lucide.min.js"></script>
+<style>
+/* Tokens are apps/mobile/src/theme.ts verbatim. Single theme on purpose:
+   the app has one — warm off-white ground, white cards, one yellow action. */
+:root{
+  --background:#FAF9F7;
+  --foreground:#252A37;
+  --card:#FFFFFF;
+  --muted:#F2F0EC;
+  --muted-foreground:#676D7E;
+  --border:#DDE0E8;
+  --action:#FDC317;
+  --action-foreground:#1D212B;
+  --translate:#0A5ADB;
+  --review:#228FA0;
+  --reference:#F3751B;
+  --done:#29A376;
+  --tint-translate:rgba(10,90,219,.06);
+  --tint-review:rgba(34,143,160,.06);
+  --tint-reference:rgba(243,117,27,.06);
+  --tint-done:rgba(41,163,118,.06);
+  --badge-translate:rgba(10,90,219,.15);
+  --badge-review:rgba(34,143,160,.15);
+  --badge-reference:rgba(243,117,27,.15);
+  --badge-done:rgba(41,163,118,.15);
+  --badge-action:rgba(253,195,23,.22);
+  --r-md:12px; --r-lg:16px; --r-xl:20px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--background);color:var(--foreground);
+  font-family:"Public Sans",system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}
+h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-.015em}
+h1{font-size:clamp(28px,4.2vw,42px);font-weight:700;line-height:1.06}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:36px 64px}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted-foreground);margin:0}
+.lede{max-width:64ch;color:var(--muted-foreground);margin-top:14px}
+.lede b{color:var(--foreground);font-weight:600}
+.avatar-key{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.akey{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--card);padding:10px 12px;max-width:330px;flex:1 1 300px}
+.akey .tag{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;letter-spacing:.08em;
+  border-radius:6px;padding:2px 6px;flex:none}
+.akey.u .tag{background:var(--badge-action);color:#6b5200}
+.akey.p .tag{background:var(--badge-review);color:var(--review)}
+.akey p{margin:0;font-size:12.5px;color:var(--muted-foreground)}
+.akey b{color:var(--foreground)}
+
+.cols{display:grid;grid-template-columns:minmax(0,344px) minmax(0,1fr);gap:40px;margin-top:36px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr;gap:30px}}
+
+/* ---------------- phone ---------------- */
+.phone-col{position:sticky;top:20px}
+@media (max-width:900px){.phone-col{position:static}}
+.phone{width:100%;max-width:324px;margin-inline:auto;background:#14161d;border-radius:40px;padding:11px;
+  box-shadow:0 26px 54px -24px rgba(37,42,55,.55)}
+.screen{background:var(--background);border-radius:29px;height:624px;display:flex;flex-direction:column;overflow:hidden}
+.statusbar{display:flex;justify-content:space-between;padding:11px 20px 2px;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--muted-foreground)}
+.navbar{display:flex;align-items:center;gap:10px;padding:8px 14px 10px;border-bottom:1px solid var(--border);
+  background:var(--card)}
+.navbar .ttl{font-weight:700;font-size:16px}
+.navbar .who{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+  padding:2px 6px;border-radius:6px}
+.who.u{background:var(--badge-action);color:#6b5200}
+.who.p{background:var(--badge-review);color:var(--review)}
+.body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.footer{padding:12px 14px 16px;border-top:1px solid var(--border);background:var(--card);
+  display:flex;gap:10px;align-items:center}
+
+.ic svg{display:block;width:20px;height:20px;stroke-width:2}
+.ic.lg svg{width:30px;height:30px;stroke-width:2.25}
+.ic.xl svg{width:40px;height:40px;stroke-width:2}
+
+/* the one action, yellow, icon-only for avatar U */
+.act{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;border:none;
+  background:var(--action);color:var(--action-foreground);border-radius:var(--r-md);
+  padding:15px;cursor:pointer;font:600 15px "Public Sans",sans-serif}
+/* dead control: grey fill, dashed edge, no yellow anywhere near it */
+.act.off{background:var(--muted);color:var(--muted-foreground);border:1px dashed var(--border);
+  cursor:not-allowed;position:relative}
+.act.off .bar-through{position:absolute;left:14px;right:14px;top:50%;height:1px;background:var(--border)}
+
+/* record is its own affordance: a circle, not the yellow next-step bar.
+   Rest = action yellow + mic (IconCircleButton). Held = reference orange +
+   a stop square, matching QuestAssets' hold-to-record Pressable. */
+.recbtn{width:76px;height:76px;border-radius:999px;border:none;flex:none;cursor:pointer;
+  background:var(--action);color:var(--action-foreground);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 6px var(--badge-action)}
+.recbtn .ic svg{width:32px;height:32px;stroke-width:2.25}
+.recbtn.live{background:var(--reference);color:#fff;box-shadow:0 0 0 6px var(--badge-reference)}
+.recbtn.live .stop{width:26px;height:26px;border-radius:6px;background:#fff}
+.reclabel{display:flex;flex-direction:column;align-items:center;gap:7px;flex:1}
+.reclabel .hint{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted-foreground);display:flex;align-items:center;gap:5px}
+.reclabel .hint svg{width:13px;height:13px}
+.timer{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:13px;
+  color:var(--reference);display:flex;align-items:center;gap:6px;justify-content:center}
+.timer .dot{width:8px;height:8px;border-radius:999px;background:var(--reference)}
+/* ---- VAD takeover. The session is red, start to stop — that is the "you are
+   recording" signal and it never flickers. Capturing vs ignoring is a subtle
+   delta on top: ground lifts one step, the dot pulses, bars go solid white.
+   Bar colour still follows WaveformVisualization (captured vs monitoring). ---- */
+.screen{position:relative}
+.takeover{position:absolute;inset:0;z-index:10;border-radius:29px;overflow:hidden;
+  background:#A8120A;color:#fff;display:flex;flex-direction:column;
+  transition:background .22s ease}
+.takeover.capturing{background:#C2160C}
+.takeover .tk-top{padding:16px 16px 4px;display:flex;align-items:center;gap:8px}
+.tk-state{display:flex;align-items:center;gap:7px;font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.75}
+.tk-state .pulse{width:9px;height:9px;border-radius:999px;background:#fff;opacity:.35}
+.takeover.capturing .tk-state{opacity:1}
+.takeover.capturing .tk-state .pulse{opacity:1;animation:blip 1s ease-in-out infinite}
+@keyframes blip{50%{opacity:.25}}
+.tk-count{margin-left:auto;display:flex;align-items:center;gap:6px;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums}
+.tk-count svg{width:15px;height:15px}
+
+.tk-wave{position:relative;flex:1;margin:4px 12px 0;touch-action:none;cursor:grab}
+.tk-wave:active{cursor:grabbing}
+.tk-wave canvas{display:block;width:100%;height:100%}
+/* the cutoff: a line you drag, not a number you set */
+.cut{position:absolute;left:0;right:0;height:0;pointer-events:none}
+.cut .line{position:absolute;left:0;right:56px;top:-1px;height:2px;
+  background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 13px);opacity:.85}
+.cut .knob{position:absolute;right:0;top:-19px;width:50px;height:38px;border-radius:12px;
+  background:#fff;color:#A8120A;display:flex;align-items:center;justify-content:center;gap:2px;
+  box-shadow:0 4px 12px rgba(0,0,0,.35)}
+.cut .knob svg{width:17px;height:17px}
+.cut .knob .grip{width:2px;height:15px;border-radius:2px;background:rgba(168,18,10,.3)}
+.cut .cap{position:absolute;left:2px;top:-24px;font-family:"IBM Plex Mono",monospace;
+  font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}
+
+.tk-cards{display:flex;gap:5px;align-items:center;padding:8px 16px 0;min-height:34px;overflow:hidden}
+.tk-card{height:26px;border-radius:6px;background:rgba(255,255,255,.9);flex:none;
+  display:flex;align-items:flex-end;justify-content:center;gap:1.5px;padding:0 4px 4px}
+.tk-card i{width:2px;border-radius:1px;background:#A8120A;display:block}
+.tk-card.fresh{animation:pop .3s ease}
+@keyframes pop{from{transform:translateY(10px) scale(.8);opacity:0}}
+
+.tk-gap{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px 0}
+.tk-gap .g{display:flex;align-items:center;gap:3px;padding:6px 9px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.28);cursor:pointer;background:transparent}
+.tk-gap .g[aria-pressed="true"]{background:#fff;border-color:#fff}
+.tk-gap .g i{width:4px;height:4px;border-radius:999px;background:rgba(255,255,255,.75);display:block}
+.tk-gap .g[aria-pressed="true"] i{background:#A8120A}
+.tk-gap .lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;opacity:.6}
+
+.tk-stop{padding:14px 16px 20px;display:flex;justify-content:center}
+.tk-stop button{width:96px;height:96px;border-radius:999px;border:none;cursor:pointer;
+  background:#fff;color:#A8120A;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 8px rgba(255,255,255,.18)}
+.tk-stop .sq{width:34px;height:34px;border-radius:8px;background:currentColor}
+
+.out{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);
+  background:transparent;color:var(--foreground);border-radius:var(--r-md);padding:15px;cursor:pointer;
+  font:600 15px "Public Sans",sans-serif;flex:none;min-width:54px}
+
+/* slideshow position — beads, not words */
+.beads{display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:wrap;padding:2px 0}
+.beads i{width:6px;height:6px;border-radius:50%;background:var(--border);display:block}
+.beads i.past{background:var(--done)}
+.beads i.on{width:20px;border-radius:3px;background:var(--action)}
+
+/* task tiles — icon carries the meaning */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{position:relative;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--card);
+  min-height:112px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.tile .nm{font-size:11.5px;font-weight:600;color:var(--muted-foreground);text-align:center}
+.tile .corner{position:absolute;top:8px;right:8px}
+.tile .corner svg{width:15px;height:15px}
+.tile.t-ref{background:var(--tint-reference);border-color:rgba(243,117,27,.25)}
+.tile.t-ref .ic{color:var(--reference)}
+.tile.t-tr{background:var(--tint-translate);border-color:rgba(10,90,219,.25)}
+.tile.t-tr .ic{color:var(--translate)}
+.tile.t-rv{background:var(--tint-review);border-color:rgba(34,143,160,.25)}
+.tile.t-rv .ic{color:var(--review)}
+.tile.next{background:var(--action);border-color:var(--action)}
+.tile.next .ic,.tile.next .nm,.tile.next .corner{color:var(--action-foreground)}
+.tile.next .nm{color:#6b5200}
+.tile.done .corner{color:var(--done)}
+.tile.waiting{opacity:.45}
+.tile .ring{position:absolute;bottom:8px;right:8px}
+
+/* rows */
+.row{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--card);padding:11px}
+.row .nm{font-weight:600;font-size:13.5px}
+.row .mt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted-foreground)}
+.row .tail{margin-left:auto;display:flex;align-items:center;gap:8px;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted-foreground)}
+.row.next{background:var(--action);border-color:var(--action)}
+.row.next .mt,.row.next .tail{color:#6b5200}
+.row.t-ref{background:var(--tint-reference);border-color:rgba(243,117,27,.22)}
+.row.t-ref .ic{color:var(--reference)}
+.row.t-tr .ic{color:var(--translate)}
+.row.t-rv .ic{color:var(--review)}
+.row.strike .nm{text-decoration:line-through;color:var(--muted-foreground)}
+
+/* passage reference — the only text avatar U is asked to read */
+.ref{text-align:center;font-weight:700;font-size:22px;letter-spacing:-.01em;padding:4px 0}
+.ref small{display:block;font-weight:500;font-size:12px;color:var(--muted-foreground);letter-spacing:0;margin-top:2px}
+
+.player{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:var(--r-lg);
+  background:var(--card);padding:12px}
+.player .bar{flex:1;height:5px;border-radius:3px;background:var(--muted);position:relative;overflow:hidden}
+.player .bar b{position:absolute;inset:0 58% 0 0;border-radius:3px;background:var(--reference)}
+.player.tr .bar b{background:var(--translate);inset:0 34% 0 0}
+.play{width:44px;height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex:none;
+  background:var(--badge-reference);color:var(--reference)}
+.player.tr .play{background:var(--badge-translate);color:var(--translate)}
+.waves{display:flex;align-items:center;justify-content:center;gap:3px;height:64px}
+.waves i{width:4px;border-radius:2px;background:var(--translate);opacity:.55;display:block}
+.micbig{width:96px;height:96px;border-radius:999px;margin:2px auto;display:flex;align-items:center;justify-content:center;
+  background:var(--action);color:var(--action-foreground);box-shadow:0 0 0 10px var(--badge-action)}
+.ring-wrap{display:flex;align-items:center;justify-content:center;gap:14px;border:1px solid var(--border);
+  border-radius:var(--r-lg);background:var(--card);padding:14px}
+.ring-wrap .count{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:20px;
+  font-variant-numeric:tabular-nums}
+.ring-wrap .sub{font-size:11.5px;color:var(--muted-foreground)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.chip{width:26px;height:26px;border-radius:7px;background:var(--muted);display:flex;align-items:center;justify-content:center}
+.chip.has{background:var(--badge-done);color:var(--done)}
+.chip.has svg{width:14px;height:14px}
+.chip.now{background:var(--action);box-shadow:0 0 0 2px var(--action-foreground)}
+.avatars{display:flex;align-items:center;gap:8px;justify-content:center;color:var(--muted-foreground);
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:324px;margin:16px auto 0}
+.tabs button{font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;
+  padding:6px 9px;border-radius:999px;border:1px solid var(--border);background:transparent;
+  color:var(--muted-foreground);cursor:pointer}
+.tabs button[aria-current="true"]{background:var(--foreground);color:var(--background);border-color:var(--foreground)}
+.caption{max-width:324px;margin:14px auto 0;font-size:13px;color:var(--muted-foreground);min-height:62px}
+.caption b{color:var(--foreground);font-weight:600}
+
+/* ---------------- flow (avatar P: text is fine) ---------------- */
+.flow h2{font-size:22px}
+.flow .sub{color:var(--muted-foreground);font-size:14px;max-width:62ch;margin:6px 0 0}
+.stage{margin-top:24px;border-top:1px solid var(--border);padding-top:14px}
+.stage .eyebrow{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.stage .eyebrow em{font-style:normal;font-family:"Public Sans",sans-serif;text-transform:none;
+  letter-spacing:0;font-size:12.5px;color:var(--muted-foreground)}
+.chain{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:12px}
+.branch{display:grid;gap:8px;margin-top:8px;grid-template-columns:repeat(auto-fit,minmax(176px,1fr))}
+.node{flex:1 1 158px;min-width:158px;text-align:left;font:inherit;color:inherit;cursor:pointer;
+  border:1px solid var(--border);background:var(--card);border-radius:var(--r-md);padding:10px 11px;
+  display:flex;flex-direction:column;gap:3px}
+.node:hover{border-color:var(--muted-foreground)}
+.node[aria-current="true"]{border-color:var(--foreground);box-shadow:inset 0 0 0 2px var(--foreground)}
+.node .k{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted-foreground);display:flex;align-items:center;gap:5px}
+.node .k .u{color:#6b5200;background:var(--badge-action);border-radius:4px;padding:0 4px}
+.node .k .p{color:var(--review);background:var(--badge-review);border-radius:4px;padding:0 4px}
+.node .t{font-weight:600;font-size:13.5px;line-height:1.3}
+.node .d{font-size:11.5px;color:var(--muted-foreground);line-height:1.35}
+.node.hub{border-color:var(--foreground)}
+.node.slides{border-left:3px solid var(--action)}
+.node.gate{border-left:3px solid var(--border);border-style:dashed}
+.arrow{align-self:center;color:var(--border)}
+.arrow svg{width:17px;height:17px}
+@media (max-width:540px){.arrow{display:none}}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:22px;border-top:1px solid var(--border);padding-top:14px}
+.legend div{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted-foreground)}
+.legend .ic svg{width:15px;height:15px}
+.sw{width:13px;height:13px;border-radius:4px;flex:none}
+.rules{margin-top:22px;border-top:1px solid var(--border);padding-top:14px}
+.rules ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:9px;
+  font-size:13.5px;color:var(--muted-foreground);max-width:66ch}
+.rules b{color:var(--foreground)}
+code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted);padding:1px 5px;border-radius:5px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+:focus-visible{outline:2px solid var(--action);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">LangQuest · workflow UX study · PLAN.md §12</p>
+  <h1>One next action, every screen</h1>
+  <p class="lede">The passage hub is the <b>only</b> screen that branches. Everything under it is a slideshow:
+  one slide, one action, one yellow control. Tap a node in the flow to load that screen in the phone.</p>
+  <div class="avatar-key">
+    <div class="akey u"><span class="tag">U</span><p><b>Translator / reviewer.</b> Often non-literate, oral,
+    on a phone, offline. Icons carry meaning; the only words on screen are a passage reference. Colour is never
+    the only signal.</p></div>
+    <div class="akey p"><span class="tag">P</span><p><b>Project manager / org admin.</b> Literate, configuring
+    on a bigger screen. Labels, counts and options are fine and expected — same tokens, more density.</p></div>
+  </div>
+</header>
+
+<div class="cols">
+  <div class="phone-col">
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><span>9:41</span><span id="sb-right">offline</span></div>
+      <div class="navbar">
+        <span class="ic" style="color:var(--muted-foreground)"><i data-lucide="chevron-left"></i></span>
+        <span class="ttl" id="nav-title">Jonah 1:1–3</span>
+        <span class="who u" id="nav-who">U</span>
+      </div>
+      <div class="body" id="scr-body"></div>
+      <div class="footer" id="scr-footer"></div>
+
+      <!-- VAD takeover: live. Drag the dashed line to move the cutoff. -->
+      <div class="takeover" id="tk" hidden>
+        <div class="tk-top">
+          <span class="tk-state"><span class="pulse"></span><span id="tk-word">listening</span></span>
+          <span class="tk-count"><i data-lucide="layers"></i><span id="tk-n">0</span></span>
+        </div>
+        <div class="tk-wave" id="tk-wave">
+          <canvas id="tk-canvas"></canvas>
+          <div class="cut" id="tk-cut">
+            <span class="cap">keep sound above this</span>
+            <span class="line"></span>
+            <span class="knob"><i data-lucide="chevron-up"></i><span class="grip"></span><i data-lucide="chevron-down"></i></span>
+          </div>
+        </div>
+        <div class="tk-cards" id="tk-cards"></div>
+        <div class="tk-gap">
+          <span class="lbl">pause</span>
+          <button class="g" data-gap="500" aria-pressed="false" aria-label="Short pause ends a card"><i></i></button>
+          <button class="g" data-gap="1000" aria-pressed="true" aria-label="Normal pause ends a card"><i></i><i></i></button>
+          <button class="g" data-gap="2000" aria-pressed="false" aria-label="Long pause ends a card"><i></i><i></i><i></i></button>
+        </div>
+        <div class="tk-stop"><button id="tk-stop" aria-label="Stop recording"><span class="sq"></span></button></div>
+      </div>
+    </div></div>
+    <div class="tabs" id="tabs"></div>
+    <p class="caption" id="caption"></p>
+  </div>
+
+  <div class="flow">
+    <h2>The flow</h2>
+    <p class="sub">Two avatars, one spine. A coordinator shapes the project once in text; translators then only
+    ever meet a hub and a run of slides.</p>
+
+    <section class="stage">
+      <p class="eyebrow">Set up · once per project <em>Avatar P — text, tables, all options</em></p>
+      <div class="chain">
+        <button class="node" data-s="structure"><span class="k"><span class="p">P</span> Step 1</span><span class="t">Pick a known structure</span><span class="d">Bible book → chapters → passages, or another template</span></button>
+        <span class="arrow"><i data-lucide="arrow-right"></i></span>
+        <button class="node" data-s="attach"><span class="k"><span class="p">P</span> Step 2</span><span class="t">Attach reference material</span><span class="d">Audio walkthroughs, encyclopedia, key term set</span></button>
+        <span class="arrow"><i data-lucide="arrow-right"></i></span>
+        <button class="node" data-s="assign"><span class="k"><span class="p">P</span> Step 3</span><span class="t">Assign the passages</span><span class="d">Work lands in each translator's My Work</span></button>
+      </div>
+    </section>
+
+    <section class="stage">
+      <p class="eyebrow">Do the work · the hub <em>Avatar U — the one screen that forks</em></p>
+      <div class="chain">
+        <button class="node" data-s="mywork"><span class="k"><span class="u">U</span> To do</span><span class="t">My Work</span><span class="d">Task cards, done ones struck through, not hidden</span></button>
+        <span class="arrow"><i data-lucide="arrow-right"></i></span>
+        <button class="node hub" data-s="hub"><span class="k"><span class="u">U</span> Hub · not a slideshow</span><span class="t">Passage tasks</span><span class="d">Icon grid, 6% tints. Exactly one tile is yellow.</span></button>
+      </div>
+      <div class="branch">
+        <button class="node slides" data-s="resources"><span class="k"><span class="u">U</span> Slides · 1</span><span class="t">Listen to the reference</span><span class="d">Walkthrough, then encyclopedia — orange, headphones</span></button>
+        <button class="node slides" data-s="terms"><span class="k"><span class="u">U</span> Slides · 2</span><span class="t">Key terms</span><span class="d">Ring counts terms already carrying audio · hold the circle to record</span></button>
+        <button class="node slides" data-s="vad"><span class="k"><span class="u">U</span> Slides · 3</span><span class="t">Record the passage</span><span class="d">VAD takeover — speak, and each phrase becomes a card</span></button>
+        <button class="node slides" data-s="record"><span class="k"><span class="u">U</span> Slides · 3b</span><span class="t">Keep or redo</span><span class="d">Play the take back; yellow keeps it</span></button>
+        <button class="node gate" data-s="qa"><span class="k"><span class="u">U</span> Gated</span><span class="t">Hand off for review</span><span class="d">Dead until a take exists — shown as a checklist of icons</span></button>
+      </div>
+    </section>
+
+    <section class="stage">
+      <p class="eyebrow">Return path <em>Every slideshow ends the same way</em></p>
+      <div class="chain">
+        <button class="node slides" data-s="termsdone"><span class="k"><span class="u">U</span> Last slide</span><span class="t">Finished</span><span class="d">A full ring and one yellow button</span></button>
+        <span class="arrow"><i data-lucide="arrow-right"></i></span>
+        <button class="node hub" data-s="hubafter"><span class="k"><span class="u">U</span> Back to hub</span><span class="t">The yellow has moved</span><span class="d">Terms take a green check; the next tile lights up</span></button>
+        <span class="arrow"><i data-lucide="arrow-right"></i></span>
+        <button class="node" data-s="mywork"><span class="k"><span class="u">U</span> Or up</span><span class="t">Next task</span><span class="d">Done work stays on the list, struck through</span></button>
+      </div>
+    </section>
+
+    <div class="legend">
+      <div><span class="sw" style="background:var(--action)"></span>Action — one per screen</div>
+      <div><span class="ic" style="color:var(--translate)"><i data-lucide="mic"></i></span>Translate — blue <em>and</em> a mic</div>
+      <div><span class="ic" style="color:var(--review)"><i data-lucide="list-checks"></i></span>Review — teal <em>and</em> a checklist</div>
+      <div><span class="ic" style="color:var(--reference)"><i data-lucide="headphones"></i></span>Reference — orange <em>and</em> headphones</div>
+      <div><span class="ic" style="color:var(--done)"><i data-lucide="check-circle-2"></i></span>Done</div>
+      <div><span class="ic" style="color:var(--muted-foreground)"><i data-lucide="clock"></i></span>Waiting</div>
+    </div>
+
+    <section class="rules">
+      <p class="eyebrow">What this mock is enforcing</p>
+      <ol>
+        <li><b>Words are optional on every U screen.</b> The only text a translator reads is a passage reference.
+        Instructions are audio: the walkthrough plays, it doesn't get explained. Labels here sit in
+        <code>accessibilityLabel</code>, matching <code>ActionButton</code>'s icon-only U variant.</li>
+        <li><b>One yellow at a time,</b> derived from <code>workflow.ts</code> — never a stored status column, so
+        a take syncing in from another device moves the yellow without a migration.</li>
+        <li><b>The VAD session takes the whole screen.</b> Ported from <code>FullScreenVADOverlay</code> and
+        <code>WaveformVisualization</code>: a 60-bar ring buffer, white bars where <code>isRecording</code> was
+        true and translucent where it was only monitoring, and a discarded segment reverts its bars. The screen is
+        red for the whole session so "you are recording" is unambiguous and stable; capturing versus ignoring
+        is a one-step lift in the ground plus solid bars, not a colour flip. The cutoff is a line you drag
+        across the waveform — never a number — so "keep sound above this" is the whole instruction, and a
+        segment under 200&nbsp;ms is dropped rather than carded.</li>
+        <li><b>Record is a mode, so it gets a mode control.</b> The yellow bar means "one step forward"; a circular
+        hold-to-record button means "this is running now". Breaking the bar pattern here is deliberate — it is the
+        one gesture every user already knows, and <code>IconCircleButton</code> and <code>QuestAssets</code>
+        already ship it.</li>
+        <li><b>Colour is never alone.</b> Every tile pairs its hue with its Lucide icon, and blocked state adds a
+        struck-through mic rather than only fading.</li>
+        <li><b>Blocked stays on screen.</b> Hand-off is greyed in place and the checklist above it shows the one
+        unmet condition as an icon — the grid never changes shape between passages.</li>
+        <li><b>Progress is cross-session.</b> The key-terms ring counts terms with audio anywhere in the project,
+        so a returning translator sees credit for last week without reading a report.</li>
+        <li><b>Structure is a template, not a schema.</b> "Bible book" generates passages as ordinary project
+        nodes; another org picks another template and gets the same U slideshows underneath.</li>
+      </ol>
+    </section>
+  </div>
+</div>
+</div>
+
+<script>
+const beads=(n,i)=>`<div class="beads">${Array.from({length:n},(_,k)=>
+  `<i class="${k===i?'on':(k<i?'past':'')}"></i>`).join('')}</div>`;
+const ic=(n,cls='')=>`<span class="ic ${cls}"><i data-lucide="${n}"></i></span>`;
+const wave=(bars,color)=>`<div class="waves">${bars.map(h=>
+  `<i style="height:${h}px;background:${color}"></i>`).join('')}</div>`;
+const ring=(pct,size,color,label)=>{
+  const r=(size-8)/2,c=2*Math.PI*r;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${label}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--muted)" stroke-width="7"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="7"
+      stroke-linecap="round" stroke-dasharray="${c*pct} ${c}" transform="rotate(-90 ${size/2} ${size/2})"/>
+  </svg>`;
+};
+
+const S={
+ /* ---------- Avatar P ---------- */
+ structure:{who:'p',title:'New project',sb:'online',
+  caption:"<b>Avatar P, step 1.</b> Text is fine here. Picking “Bible book” expands to chapters and passages immediately, so nobody hand-builds an outline.",
+  body:`<p class="eyebrow">Structure · Jonah — Amdo</p>
+   <div class="row next">${ic('book-open')}<div><div class="nm">Bible book</div><div class="mt">chapters → passages</div></div><div class="tail">4 ch · 12 pass</div></div>
+   <div class="row">${ic('layers')}<div><div class="nm">Story set</div><div class="mt">stories → scenes</div></div></div>
+   <div class="row">${ic('key-round')}<div><div class="nm">Key terms only</div><div class="mt">no passages</div></div></div>
+   <div class="row">${ic('pencil-line')}<div><div class="nm">Custom outline</div><div class="mt">you define the levels</div></div></div>`,
+  footer:`<button class="act">Use Bible book</button>`},
+
+ attach:{who:'p',title:'Reference material',sb:'online',
+  caption:"<b>Avatar P, step 2.</b> Material is attached once at book level and inherited by all 12 passages, so a translator never goes looking for it.",
+  body:`<p class="eyebrow">Attach to all 12 passages</p>
+   <div class="row t-ref next">${ic('headphones')}<div><div class="nm">Audio walkthrough</div><div class="mt">explore/jonah</div></div><div class="tail">12 files</div></div>
+   <div class="row t-ref">${ic('library')}<div><div class="nm">Audio encyclopedia</div><div class="mt">38 entries matched</div></div><div class="tail">on</div></div>
+   <div class="row">${ic('key-round')}<div><div class="nm">Key term set</div><div class="mt">Jonah · 24 terms</div></div><div class="tail">on</div></div>
+   <div class="row">${ic('help-circle')}<div><div class="nm">Review questions</div><div class="mt">optional per passage</div></div><div class="tail">off</div></div>`,
+  footer:`<button class="act">Save reference material</button>`},
+
+ assign:{who:'p',title:'Jonah 1 · assign',sb:'online',
+  caption:"<b>Avatar P, step 3.</b> Assignment is the handover point between the avatars: the last text-dense screen before everything becomes icons.",
+  body:`<p class="eyebrow">Passage status · Jonah 1</p>
+   <div class="row t-tr next">${ic('mic')}<div><div class="nm">Jonah 1:1–3</div><div class="mt">unassigned</div></div><div class="tail">assign</div></div>
+   <div class="row t-rv">${ic('list-checks')}<div><div class="nm">Jonah 1:4–6</div><div class="mt">Dolma · in review</div></div><div class="tail">${ic('clock')}</div></div>
+   <div class="row">${ic('check-circle-2')}<div><div class="nm">Jonah 1:7–10</div><div class="mt">Pema · approved</div></div><div class="tail">2 / 2</div></div>
+   <div class="row">${ic('circle-dashed')}<div><div class="nm">Jonah 1:11–16</div><div class="mt">unassigned</div></div></div>`,
+  footer:`<button class="act">Send assignment</button>`},
+
+ /* ---------- Avatar U ---------- */
+ mywork:{who:'u',title:'My Work',sb:'offline',
+  caption:"<b>The to-do list.</b> Task kind reads from the tinted card and its icon before any word. Finished work stays visible and struck through, so a returning user sees where they stopped.",
+  body:`<div class="row t-tr next">${ic('mic','lg')}<div><div class="nm">Jonah 1:1–3</div></div>
+     <div class="tail">${ring(.4,30,'var(--action-foreground)','2 of 5 steps done')}</div></div>
+   <div class="row t-rv">${ic('list-checks','lg')}<div><div class="nm">Jonah 1:4–6</div></div>
+     <div class="tail">${ic('clock')}</div></div>
+   <div class="row t-tr strike">${ic('mic','lg')}<div><div class="nm">Jonah 1:7–10</div></div>
+     <div class="tail" style="color:var(--done)">${ic('check-circle-2')}</div></div>
+   <div class="row strike">${ic('list-checks','lg')}<div><div class="nm">Jonah 2:1–4</div></div>
+     <div class="tail" style="color:var(--done)">${ic('check-circle-2')}</div></div>`,
+  footer:`<button class="act">${ic('arrow-right','lg')}</button>`},
+
+ hub:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>The hub — the only branching screen.</b> Six tiles, no sentences. Reference is orange with a green check, key terms is yellow because it is next, and hand-off carries a struck-through mic: blocked reads without colour.",
+  body:`<div class="grid">
+    <div class="tile t-ref done"><span class="corner ic">${ic('check-circle-2')}</span>${ic('headphones','xl')}<span class="nm">reference</span></div>
+    <div class="tile next"><span class="corner ic">${ic('chevron-right')}</span>${ic('key-round','xl')}<span class="nm">key terms</span>
+      <span class="ring">${ring(.375,26,'var(--action-foreground)','9 of 24 terms recorded')}</span></div>
+    <div class="tile t-tr">${ic('mic','xl')}<span class="nm">record</span></div>
+    <div class="tile waiting"><span class="corner ic">${ic('mic-off')}</span>${ic('send','xl')}<span class="nm">hand off</span></div>
+    <div class="tile t-rv">${ic('help-circle','xl')}<span class="nm">questions</span></div>
+    <div class="tile">${ic('message-square','xl')}<span class="nm">notes · 1</span></div>
+   </div>`,
+  footer:`<button class="act">${ic('key-round','lg')}${ic('arrow-right','lg')}</button>`},
+
+ hubafter:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>The same hub after the terms run.</b> Key terms takes a green check and a full ring; the yellow moved to record on its own. Nobody chose where to go next.",
+  body:`<div class="grid">
+    <div class="tile t-ref done"><span class="corner ic">${ic('check-circle-2')}</span>${ic('headphones','xl')}<span class="nm">reference</span></div>
+    <div class="tile t-ref done" style="background:var(--tint-done);border-color:rgba(41,163,118,.25)">
+      <span class="corner ic">${ic('check-circle-2')}</span><span class="ic xl" style="color:var(--done)"><i data-lucide="key-round"></i></span>
+      <span class="nm">key terms</span><span class="ring">${ring(1,26,'var(--done)','24 of 24 terms recorded')}</span></div>
+    <div class="tile next"><span class="corner ic">${ic('chevron-right')}</span>${ic('mic','xl')}<span class="nm">record</span></div>
+    <div class="tile waiting"><span class="corner ic">${ic('mic-off')}</span>${ic('send','xl')}<span class="nm">hand off</span></div>
+    <div class="tile t-rv">${ic('help-circle','xl')}<span class="nm">questions</span></div>
+    <div class="tile">${ic('message-square','xl')}<span class="nm">notes · 1</span></div>
+   </div>`,
+  footer:`<button class="act">${ic('mic','lg')}${ic('arrow-right','lg')}</button>`},
+
+ resources:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>Slides 1 of the reference run.</b> Nothing to read and nothing to decide — it plays. Orange plus headphones says what kind of thing this is; the beads say how many are left.",
+  body:`${beads(2,0)}
+   <div class="ref">Jonah 1:1–3</div>
+   <div class="player"><span class="play ic lg"><i data-lucide="play"></i></span>
+     <div class="bar"><b></b></div><span class="ic" style="color:var(--reference)"><i data-lucide="headphones"></i></span></div>
+   ${wave([14,26,38,22,47,31,54,29,41,19,35,50,24,44,17,28,39,21,33,12],'var(--reference)')}
+   <div class="avatars">${ic('volume-2')}<span>4:12</span></div>`,
+  footer:`<button class="out" aria-label="Back">${ic('chevron-left','lg')}</button>
+    <button class="act">${ic('arrow-right','lg')}</button>`},
+
+ terms:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>The ring is the whole point.</b> Nine of these terms already carry audio from earlier sessions, so this run is 15 slides, not 24. The term itself plays rather than being spelled out.",
+  body:`<div class="ring-wrap">${ring(.375,66,'var(--action)','9 of 24 terms have audio')}
+     <div><div class="count">9 / 24</div><div class="sub">${'●'} have audio<br>15 left in this run</div></div></div>
+   ${beads(15,1)}
+   <div class="player"><span class="play ic lg"><i data-lucide="play"></i></span>
+     <div class="bar"><b style="inset:0 70% 0 0"></b></div>
+     <span class="ic" style="color:var(--reference)"><i data-lucide="key-round"></i></span></div>
+   <div class="chips">
+     ${Array.from({length:24},(_,i)=>i<9?`<span class="chip has">${ic('check')}</span>`
+       :i===9?`<span class="chip now"></span>`:`<span class="chip"></span>`).join('')}
+   </div>`,
+  footer:`<button class="out" aria-label="No local term">${ic('skip-forward','lg')}</button>
+    <div class="reclabel"><button class="recbtn" aria-label="Hold to record this term">${ic('mic')}</button>
+      <span class="hint">${ic('hand')} hold</span></div>`},
+
+ termslive:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>Held down.</b> The circle goes reference-orange with a stop square and the waveform runs live — the same hold-to-record Pressable as <code>QuestAssets</code>. Recording is a mode, so it gets a mode control, not a next-step bar.",
+  body:`<div class="ring-wrap">${ring(.375,66,'var(--action)','9 of 24 terms have audio')}
+     <div><div class="count">10 / 24</div><div class="sub">recording now</div></div></div>
+   ${beads(15,1)}
+   ${wave([8,21,44,16,58,33,49,27,62,19,41,55,24,37,15,50,29,46,11,35,23,52],'var(--reference)')}
+   <div class="timer"><span class="dot"></span><span>0:06</span></div>`,
+  footer:`<button class="out" aria-label="Cancel">${ic('x','lg')}</button>
+    <div class="reclabel"><button class="recbtn live" aria-label="Release to stop"><span class="stop"></span></button>
+      <span class="hint">${ic('hand')} release</span></div>`},
+
+ record:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>Record, then one slide to keep or redo.</b> Blue and a mic; the yellow is the keep. Redo is an outline button with a rotate icon, never a second yellow.",
+  body:`${beads(3,1)}
+   <div class="ref">Jonah 1:1–3<small>1:48</small></div>
+   ${wave([9,17,28,42,31,55,38,24,47,33,52,26,40,19,30,12,22,36,14,25,44,18],'var(--translate)')}
+   <div class="player tr"><span class="play ic lg"><i data-lucide="play"></i></span>
+     <div class="bar"><b></b></div><span class="ic" style="color:var(--translate)"><i data-lucide="mic"></i></span></div>
+   <div class="avatars">${ic('cloud-off')}<span>saved on this phone</span></div>`,
+  footer:`<button class="out" aria-label="Record again">${ic('rotate-ccw','lg')}</button>
+    <button class="act">${ic('check','lg')}</button>`},
+
+ termsdone:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>Every slideshow ends on this shape.</b> A full ring, a row of green checks, one yellow button back to the hub. No summary to read.",
+  body:`<div class="ring-wrap">${ring(1,66,'var(--done)','24 of 24 terms have audio')}
+     <div><div class="count" style="color:var(--done)">24 / 24</div><div class="sub">all terms recorded</div></div></div>
+   ${beads(15,14)}
+   <div class="chips">${Array.from({length:24},()=>`<span class="chip has">${ic('check')}</span>`).join('')}</div>
+   <div class="avatars">${ic('cloud-off')}<span>15 new · 9 earlier</span></div>`,
+  footer:`<button class="act">${ic('arrow-right','lg')}</button>`},
+
+ vad:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>VAD session — full-screen, red start to stop.</b> The red is the session: it says “you are recording” and never flickers. Capturing versus ignoring is a subtle lift — the ground brightens a step, the dot pulses, bars go solid. Drag the dashed line to move the cutoff and watch cards appear as you talk.",
+  body:`${beads(3,0)}<div class="ref">Jonah 1:1–3</div>`,
+  footer:`<div class="reclabel"><button class="recbtn live" aria-label="Stop"><span class="stop"></span></button></div>`},
+
+ qa:{who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:"<b>The gate, shown not hidden.</b> Hand-off is grey, dashed and struck through — dead in greyscale, not just faded. The missing step carries the yellow, and the live control beside it is the record circle, not “send”.",
+  body:`<div class="row" style="background:var(--tint-done);border-color:rgba(41,163,118,.25)">
+     ${ic('headphones','lg')}<div><div class="nm">reference</div></div>
+     <div class="tail" style="color:var(--done)">${ic('check-circle-2')}</div></div>
+   <div class="row" style="background:var(--tint-done);border-color:rgba(41,163,118,.25)">
+     ${ic('key-round','lg')}<div><div class="nm">key terms</div></div>
+     <div class="tail" style="color:var(--done)">${ic('check-circle-2')}</div></div>
+   <div class="row next">${ic('mic','lg')}<div><div class="nm">recording</div></div>
+     <div class="tail">${ic('circle-dashed')}</div></div>
+   <div class="avatars" style="padding-top:4px">${ic('mic-off')}${ic('arrow-right')}${ic('send')}</div>`,
+  footer:`<button class="act off" disabled aria-label="Hand off — needs a recording">
+      <span class="bar-through"></span>${ic('send','lg')}</button>
+    <div class="reclabel"><button class="recbtn" aria-label="Record the passage">${ic('mic')}</button>
+      <span class="hint">${ic('hand')} hold</span></div>`}
+};
+
+const order=["structure","attach","assign","mywork","hub","resources","terms","termslive","vad","record","termsdone","hubafter","qa"];
+const label={structure:"Structure",attach:"Material",assign:"Assign",mywork:"My Work",hub:"Hub",
+  resources:"Listen",terms:"Terms",termslive:"Hold",vad:"VAD",record:"Record",termsdone:"Finish",hubafter:"Hub +1",qa:"Gate"};
+document.getElementById("tabs").innerHTML=order.map(k=>`<button data-s="${k}">${label[k]}</button>`).join("");
+
+function show(key){
+  const s=S[key]; if(!s) return;
+  document.getElementById("nav-title").textContent=s.title;
+  const who=document.getElementById("nav-who");
+  who.textContent=s.who.toUpperCase(); who.className="who "+s.who;
+  document.getElementById("sb-right").textContent=s.sb;
+  document.getElementById("scr-body").innerHTML=s.body;
+  document.getElementById("scr-footer").innerHTML=s.footer;
+  document.getElementById("caption").innerHTML=s.caption;
+  document.querySelectorAll("[data-s]").forEach(b=>
+    b.setAttribute("aria-current", b.dataset.s===key?"true":"false"));
+  if(window.lucide) window.lucide.createIcons();
+  if(key==="vad") openVAD(); else closeVAD();
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-s]"); if(b) show(b.dataset.s);
+});
+
+/* ---------------- VAD takeover engine ----------------
+   Mirrors ../langquest: a 60-bar ring buffer of mic energy, bars painted
+   red once isRecording flips, a threshold the user moves, and a silence
+   window that closes a segment into a card. Energy here is synthetic
+   speech-shaped noise, so the cutoff line visibly changes what is kept. */
+const BARS=60, MIN_SEG=200;                       // VAD_MIN_SEGMENT_LENGTH_DEFAULT
+let threshold=.30, silenceMs=1000;                // VAD_SILENCE_DURATION_DEFAULT
+const buf=Array.from({length:BARS},()=>({e:.01,kept:false}));
+let capturing=false, quietSince=0, segStart=0, segPeaks=[], cards=0, raf=null;
+
+const tk=document.getElementById("tk"), cv=document.getElementById("tk-canvas"),
+  cut=document.getElementById("tk-cut"), wave=document.getElementById("tk-wave"),
+  strip=document.getElementById("tk-cards");
+const ctx=cv.getContext("2d");
+
+function placeCut(){ cut.style.top=((1-threshold)*100)+"%"; }
+
+/* speech-shaped energy: phrases with breaths between them */
+let phrase=0, t0=performance.now();
+function energyAt(now){
+  const cycle=(now-t0)/1000 % 6.2;
+  const speaking = cycle<3.4 || (cycle>4.2 && cycle<5.4);
+  if(!speaking) return .02+Math.random()*.05;                 // room tone
+  phrase=phrase*.72+Math.random()*.28;
+  return Math.min(1,.28+phrase*.55+Math.sin(cycle*13)*.12+Math.random()*.12);
+}
+
+function popCard(peaks){
+  cards++; document.getElementById("tk-n").textContent=cards;
+  const el=document.createElement("span");
+  el.className="tk-card fresh";
+  el.innerHTML=peaks.slice(-9).map(p=>`<i style="height:${Math.max(3,p*20)|0}px"></i>`).join("");
+  strip.appendChild(el);
+  while(strip.children.length>7) strip.removeChild(strip.firstChild);
+}
+
+function frame(now){
+  const e=energyAt(now);
+  const wasCapturing=capturing;
+  if(e>=threshold){ quietSince=0; if(!capturing){capturing=true;segStart=now;segPeaks=[];} }
+  else if(capturing){
+    if(!quietSince) quietSince=now;
+    else if(now-quietSince>=silenceMs){
+      const len=now-segStart;
+      capturing=false; quietSince=0;
+      if(len>=MIN_SEG) popCard(segPeaks);
+      else buf.forEach(b=>b.kept=false);   // too short → discarded, bars revert
+    }
+  }
+  if(capturing) segPeaks.push(e);
+  buf.shift(); buf.push({e,kept:capturing});
+
+  if(wasCapturing!==capturing){
+    tk.classList.toggle("capturing",capturing);
+    document.getElementById("tk-word").textContent=capturing?"keeping":"listening";
+  }
+
+  const w=cv.width, h=cv.height, bw=w/BARS, gap=bw*.34;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle=capturing?"rgba(255,255,255,.20)":"rgba(255,255,255,.10)";
+  ctx.fillRect(0,0,w,h);
+  for(let i=0;i<BARS;i++){
+    const b=buf[i];
+    // recorded bars scale hard (exp .6), monitoring bars stay subtle (exp 2.5)
+    const hgt=Math.max(b.kept?5:2, Math.pow(Math.min(1,b.e), b.kept?.6:2.5)*h*(b.kept?1:.8));
+    ctx.fillStyle=b.kept?"#FFFFFF":"rgba(255,255,255,.34)";
+    const x=i*bw+gap/2, y=(h-hgt)/2;
+    ctx.beginPath(); ctx.roundRect(x,y,bw-gap,hgt,(bw-gap)/2); ctx.fill();
+  }
+  raf=requestAnimationFrame(frame);
+}
+
+function sizeCanvas(){
+  const r=wave.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  cv.width=Math.max(1,r.width*d); cv.height=Math.max(1,r.height*d);
+}
+
+function openVAD(){
+  tk.hidden=false; sizeCanvas(); placeCut();
+  cards=0; strip.innerHTML=""; document.getElementById("tk-n").textContent="0";
+  buf.forEach(b=>{b.e=.01;b.kept=false});
+  if(!raf) raf=requestAnimationFrame(frame);
+  if(window.lucide) window.lucide.createIcons();
+}
+function closeVAD(){ tk.hidden=true; if(raf){cancelAnimationFrame(raf);raf=null;} capturing=false;
+  tk.classList.remove("capturing"); }
+
+/* drag the cutoff line — pointer events, no lag, no numbers */
+let dragging=false;
+const setFromY=cy=>{
+  const r=wave.getBoundingClientRect();
+  threshold=Math.min(.92,Math.max(.04,1-(cy-r.top)/r.height));
+  placeCut();
+};
+wave.addEventListener("pointerdown",e=>{dragging=true;wave.setPointerCapture(e.pointerId);setFromY(e.clientY);});
+wave.addEventListener("pointermove",e=>{if(dragging)setFromY(e.clientY);});
+wave.addEventListener("pointerup",()=>{dragging=false;});
+wave.addEventListener("pointercancel",()=>{dragging=false;});
+document.querySelectorAll(".tk-gap .g").forEach(b=>b.addEventListener("click",()=>{
+  silenceMs=+b.dataset.gap;
+  document.querySelectorAll(".tk-gap .g").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));
+}));
+document.getElementById("tk-stop").addEventListener("click",()=>{closeVAD();show("record");});
+window.addEventListener("resize",()=>{ if(!tk.hidden) sizeCanvas(); });
+
+show("hub");
+</script>

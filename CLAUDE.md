@@ -14,6 +14,12 @@ Rules specific to this folder:
 - Every new event type needs: a type in `events.ts`, a case in `reducer.ts`,
   and coverage in the order-independence and idempotence tests. The tests
   generate permutations, so adding the event to the fixture list is enough.
+- User-facing screens follow PLAN.md section 12 and the mock in
+  `docs/ux/one-next-action.html` (see `docs/ux/README.md` for the rules it
+  encodes). Read it before changing an avatar U screen, the passage hub, or
+  the VAD recording takeover. It is reference, not shipping code — improve it
+  when a rule changes rather than letting it drift.
+
 - No `status` columns. Status comes from `workflow.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
