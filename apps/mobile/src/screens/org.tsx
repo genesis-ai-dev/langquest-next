@@ -1,15 +1,16 @@
 // Avatar P. Org, project, and language homes; members; invites; review teams.
 import type { Role } from '@langquest-next/core';
-import { deriveWorkflow } from '@langquest-next/core';
-import { Building2, Check, FileText, Globe, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
+import { CATALOG_VERSION, contentTemplates, derivePieces, deriveWorkflow, instantiateTemplate } from '@langquest-next/core';
+import { Building2, Check, FileText, Globe, Headphones, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import type { Ctx } from '../ctx';
-import { Badge, Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
+import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, text } from '../ui';
+import { templateSubtree } from '../setupFlow';
 
 // One org for now, the same constant App.tsx opens with.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
@@ -48,7 +49,7 @@ export function OrgHome(ctx: Ctx) {
       <Header title="Organization" crumbs={[{ label: 'org1' }]} />
       <Section label="Manage projects">
         <Row icon={Building2} label={name} sub={`${Object.keys(state?.lanes ?? {}).length} languages`} onPress={() => ctx.go('project_home')} />
-        {ctx.session.isAdmin ? <Row icon={Plus} label="New project" onPress={() => ctx.go('new_project')} last /> : <Row label="" last />}
+        {ctx.session.isAdmin ? <Row icon={Plus} label={state?.project ? "Set up project" : "New project"} onPress={() => ctx.go('new_project')} last /> : <Row label="" last />}
       </Section>
       {catalogRows(ctx)}
       {memberRows(ctx)}
@@ -261,10 +262,168 @@ export function EditMember(ctx: Ctx) {
 }
 
 export function NewProject(ctx: Ctx) {
+  const { state, appendMany } = ctx.project;
+  const laneEntries = state ? Object.entries(state.lanes) : [];
+  const laneId = laneEntries[0]?.[0] ?? `lane-${ctx.project.projectId}`;
+  const [step, setStep] = useState(0);
+  const [templateId, setTemplateId] = useState(state?.laneTemplates[laneId]?.value.templateId ?? 'bible');
+  const [rootItemId, setRootItemId] = useState('');
+  const [language, setLanguage] = useState(laneEntries[0]?.[1].languoidId ?? 'und');
+  const [reference, setReference] = useState('');
+  const [referenceAudioHash, setReferenceAudioHash] = useState('');
+  const [assignee, setAssignee] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [projectName, setProjectName] = useState(state?.project?.value.name ?? '');
+  const canStructure = ctx.session.can('manage_templates') && (laneEntries.length > 0 || ctx.session.can('manage_structure'));
+  const canReference = ctx.session.can('manage_reference');
+  const canAssign = ctx.session.can('assign_work');
+  const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
+  const template = contentTemplates().find((t) => t.id === templateId);
+  const rootUnitId = rootItemId ? `${templateId}@${CATALOG_VERSION}/${rootItemId}` : '';
+  const pieces = state ? derivePieces(state, laneId) : [];
+  const targetPiece = pieces.find((piece) => {
+    let id: string | null = piece.unitId;
+    const seen = new Set<string>();
+    while (id && !seen.has(id)) {
+      if (id === rootUnitId) return true;
+      seen.add(id); id = state?.units[id]?.parentUnitId ?? null;
+    }
+    return false;
+  });
+  const sourceRecordings = state
+    ? Object.entries(state.recordings).filter(([, r]) => {
+        if (r.kind !== 'source' || r.laneId !== laneId || !r.cards[0]) return false;
+        if (!rootUnitId) return false;
+        let id: string | null = r.unitId;
+        const seen = new Set<string>();
+        while (id && !seen.has(id)) {
+          seen.add(id);
+          if (id === rootUnitId) return true;
+          id = state.units[id]?.parentUnitId ?? null;
+        }
+        return false;
+      })
+    : [];
+  const assigned = !!targetPiece && !!state && Object.values(state.assignments).some((a) => a.laneId === laneId && a.unitId === targetPiece.unitId && a.role === 'translator');
+
+  function setupUnits(templateId: string) {
+    const t = contentTemplates().find((candidate) => candidate.id === templateId);
+    if (!t) return [];
+    const root = rootItemId;
+    if (!root) return [];
+    const ids = templateSubtree(t, root);
+    return instantiateTemplate(templateId).filter((unit) => ids.has(unit.unitId.split('/').pop() ?? ''));
+  }
+
+  async function saveStructure() {
+    if (!canStructure || busy || !template) return;
+    setBusy(true);
+    setError('');
+    try {
+      const events: Parameters<typeof appendMany>[0] = [];
+      if (!state?.project) {
+        const name = projectName.trim();
+        if (!name) throw new Error('Enter a project name first.');
+        await ctx.org.append('v1.ProjectRegistered', { projectId: ctx.project.projectId, name });
+        await ctx.project.append('v1.ProjectCreated', { name, sourceLanguoidId: 'eng' });
+        await ctx.project.append('v1.MemberAdded', { profileId: ctx.session.actorId, role: 'owner' });
+      }
+      if (!state?.lanes[laneId]) events.push({ type: 'v1.LaneAdded', payload: { laneId, languoidId: language.trim() || 'und' } });
+      const selected = state?.laneTemplates[laneId]?.value;
+      if (selected?.templateId !== templateId) {
+        events.push({ type: 'v1.LaneTemplateSelected', payload: { laneId, templateId, catalogVersion: CATALOG_VERSION } });
+      }
+      const existing = state?.units ?? {};
+      events.push(...setupUnits(templateId).filter((u) => !existing[u.unitId]).map((payload) => ({ type: 'v1.UnitAdded' as const, payload })));
+      if (events.length) await appendMany(events);
+      setStep(1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveReference() {
+    if (!canReference || busy || (!reference.trim() && !referenceAudioHash)) return;
+    setBusy(true);
+    setError('');
+    try {
+      const materialId = `setup-brief:${ctx.project.projectId}:${laneId}:${rootUnitId}`;
+      const events: Parameters<typeof appendMany>[0] = [];
+      if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined', payload: { materialId, kind: 'fia_study', title: 'Reference walkthrough', scope: { laneId, ...(rootUnitId ? { unitId: rootUnitId } : {}) }, templateRef: 'fia_study' } });
+      events.push({ type: 'v1.MaterialFieldSet', payload: { materialId, fieldId: 'summary', ...(reference.trim() ? { text: reference.trim() } : {}), ...(referenceAudioHash ? { blobHash: referenceAudioHash } : {}) } });
+      await appendMany(events);
+      setStep(2);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAssignment() {
+    if (busy || assigned) {
+      if (assigned) ctx.go('project_home');
+      return;
+    }
+    if (!canAssign || !assignee || !targetPiece) return;
+    setBusy(true);
+    setError('');
+    try {
+      await ctx.project.append('v1.AssignmentMade', { unitId: targetPiece.unitId, laneId, profileId: assignee, role: 'translator' });
+      ctx.go('project_home');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const footer = step === 0
+    ? <Footer label="Use structure" onPress={() => void saveStructure()} disabled={busy || !canStructure || !template || !rootItemId} />
+    : step === 1
+      ? <Footer label="Save reference material" onPress={() => void saveReference()} disabled={busy || !canReference || (!reference.trim() && !referenceAudioHash)} secondary={{ label: 'Skip for now', onPress: () => setStep(2) }} />
+    : <Footer label={assigned ? 'Open project' : 'Send assignment'} onPress={() => void saveAssignment()} disabled={busy || (!assigned && (!canAssign || !assignee || !targetPiece))} />;
+
   return (
-    <Screen footer={<Footer label="Create project" onPress={ctx.back} disabled />}>
-      <Header title="New project" onBack={ctx.back} />
-      <NotWired what="A second project per organization" />
+    <Screen footer={footer}>
+      <Header title="Set up project" sub={`Step ${step + 1} of 3`} onBack={() => (step > 0 ? setStep(step - 1) : ctx.back())} />
+      {step === 0 ? (
+        <>
+          <Note>Choose a known structure. It creates ordinary project units that translators can receive.</Note>
+          {!state?.project ? <TextInput style={styles.input} placeholder="Project name" value={projectName} onChangeText={setProjectName} /> : null}
+          {laneEntries.length === 0 ? <TextInput style={styles.input} placeholder="Target language code" autoCapitalize="none" value={language} onChangeText={setLanguage} /> : null}
+          <Section label="Structure">
+            {contentTemplates().map((t, i, a) => <Row key={t.id} icon={FileText} label={t.name} sub={t.description} onPress={() => { setTemplateId(t.id); setRootItemId(''); setReferenceAudioHash(''); }} right={templateId === t.id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+          </Section>
+          {template ? <Section label="Known book or collection">
+            {template.items.filter((item) => item.parentItemId === null).map((item, i, a) => <Row key={item.itemId} label={item.label} onPress={() => { setRootItemId(item.itemId); setReferenceAudioHash(''); }} right={rootItemId === item.itemId ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+          </Section> : null}
+        </>
+      ) : step === 1 ? (
+        <>
+          <Note>Give the team one shared brief or reference note before work starts.</Note>
+          <TextInput style={[styles.input, { minHeight: 110 }]} placeholder="Reference note (optional with audio)" multiline value={reference} onChangeText={setReference} />
+          {sourceRecordings.map(([id, r], i, a) => <Row key={id} icon={Headphones} label={state?.units[r.unitId]?.label ?? r.unitId} sub="Source audio" onPress={() => setReferenceAudioHash((hash) => hash === r.cards[0]!.hash ? '' : r.cards[0]!.hash)} right={referenceAudioHash === r.cards[0]!.hash ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+          {referenceAudioHash ? <Note>Selected audio is shared with this language’s reference slides.</Note> : null}
+          {state?.materials[`setup-brief:${ctx.project.projectId}:${laneId}:${rootUnitId}`] ? <Note>Project brief is already attached.</Note> : null}
+        </>
+      ) : (
+        <>
+          <Note>Send the first passage to a translator. You can assign the remaining passages from project status.</Note>
+          <Section label="First passage">
+            <Row icon={FileText} label={targetPiece?.label ?? 'Choose a structure first'} sub={targetPiece ? `${pieces.length} passages ready` : 'No passages yet'} last />
+          </Section>
+          <Section label="Translator">
+            {members.map(([id, m], i, a) => <Row key={id} label={id === ctx.session.actorId ? 'You' : id.slice(0, 8)} sub={m.role.value} onPress={() => setAssignee(id)} right={assignee === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+            {members.length === 0 ? <Row label="No members yet" last /> : null}
+          </Section>
+          {assigned ? <Note>The first passage already has an assignment.</Note> : null}
+        </>
+      )}
+      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
     </Screen>
   );
 }

@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
-import { Card, DualProgressBar, IconCircleButton, RoleBadge, TASK_META, text } from '../ui';
+import { ActionButton, Card, DualProgressBar, IconCircleButton, RoleBadge, TASK_META, text } from '../ui';
 
 const STATUS_META: Record<TaskStatus, { icon: typeof Circle; color: string }> = {
   todo: { icon: Circle, color: colors.mutedForeground },
@@ -16,7 +16,7 @@ const STATUS_META: Record<TaskStatus, { icon: typeof Circle; color: string }> = 
 
 export function AssignmentsHome(ctx: Ctx) {
   const { state, pending } = ctx.project;
-  const [filters, setFilters] = useState<TaskStatus[]>(['todo', 'doing']);
+  const [filters, setFilters] = useState<TaskStatus[]>(['todo', 'doing', 'done']);
   if (!state) return <Text style={[text.muted, styles.pad]}>Opening local log…</Text>;
 
   const role = ctx.session.role;
@@ -26,7 +26,9 @@ export function AssignmentsHome(ctx: Ctx) {
   const tasks = deriveTasks(state, ctx.session.actorId);
   const counts: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
   for (const t of tasks) counts[t.status] += 1;
-  const shown = tasks.filter((t) => filters.includes(t.status));
+  const shown = tasks.filter((t) => filters.includes(t.status))
+    .sort((a, b) => Number(a.done) - Number(b.done));
+  const next = shown.find((t) => !t.done);
   const toggle = (s: TaskStatus) => setFilters((f) => (f.includes(s) ? f.filter((x) => x !== s) : [...f, s]));
 
   return (
@@ -71,7 +73,7 @@ export function AssignmentsHome(ctx: Ctx) {
               </View>
               <View style={styles.cardActions}>
                 <RoleBadge type={roleType} accessibilityLabel={role ?? ''} />
-                <IconCircleButton icon={ArrowRight} onPress={() => ctx.go('status_home')} accessibilityLabel="Open status" />
+                <Pressable onPress={() => ctx.go('status_home')} accessibilityRole="button" accessibilityLabel="Open status" style={{ padding: space.md }}><ArrowRight size={24} color={colors.foreground} /></Pressable>
               </View>
             </View>
             {progress ? <DualProgressBar translatedPct={progress.translatedPct} approvedPct={progress.approvedPct} type={roleType} /> : null}
@@ -128,6 +130,15 @@ export function AssignmentsHome(ctx: Ctx) {
           </Pressable>
         ) : null}
       </ScrollView>
+      {next ? (
+        <View style={styles.nextFooter}>
+          <ActionButton
+            icon={TASK_META[next.type].icon}
+            accessibilityLabel={`Continue ${next.type}: ${state.units[next.unitId]?.label ?? next.unitId}`}
+            onPress={() => ctx.go(next.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: next.id })}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -284,6 +295,7 @@ export function ProgressHome(ctx: Ctx) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  nextFooter: { padding: space.lg, backgroundColor: colors.card, borderTopWidth: 1, borderColor: colors.border },
   content: { gap: space.lg, padding: space.lg },
   pad: { padding: space.lg },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

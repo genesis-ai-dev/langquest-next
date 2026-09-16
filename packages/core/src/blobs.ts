@@ -1,3 +1,4 @@
+import { unitAncestry } from './materials';
 import type { ProjectState } from './state';
 
 /**
@@ -88,11 +89,54 @@ export function deriveDownloadWork(
   present: ReadonlySet<string>,
   scope: ReadonlySet<string> | null = null
 ): BlobRef[] {
+  if (scope && scope.size === 0) return [];
+  const refs = referencedBlobs(state);
+  const needed = new Set<string>();
+  if (scope) {
+    // Preserve every directly scoped blob, including review comments and
+    // responses, then add resources inherited by these passages.
+    for (const ref of refs.values()) if (scope.has(ref.unitId)) needed.add(ref.hash);
+    const lanesByUnit = new Map<string, Set<string>>();
+    for (const item of [
+      ...Object.values(state.assignments), ...Object.values(state.recordings),
+      ...Object.values(state.takes)
+    ]) {
+      if (!scope.has(item.unitId)) continue;
+      const lanes = lanesByUnit.get(item.unitId) ?? new Set<string>();
+      lanes.add(item.laneId);
+      lanesByUnit.set(item.unitId, lanes);
+    }
+    for (const unitId of scope) {
+      const ancestors = unitAncestry(state, unitId);
+      const lanes = lanesByUnit.get(unitId);
+      // Explicit offline selection may precede assignment. In that case
+      // resources for this unit in every lane remain available, as before.
+      const laneMatches = (lane?: string) => !lane || !lanes || lanes.has(lane);
+      for (const ref of Object.values(state.references)) {
+        if (ref.blobHash && ancestors.has(ref.unitId)) needed.add(ref.blobHash);
+      }
+      for (const material of Object.values(state.materials)) {
+        if (!laneMatches(material.scope.laneId)) continue;
+        if (material.scope.unitId && !ancestors.has(material.scope.unitId)) continue;
+        if (material.scope.stepId) continue;
+        for (const field of Object.values(material.fields)) {
+          if (field.value.blobHash) needed.add(field.value.blobHash);
+        }
+      }
+      for (const term of Object.values(state.keyTerms)) {
+        if (!laneMatches(term.laneId)) continue;
+        if (term.unitScope.length && !term.unitScope.some((id) => ancestors.has(id))) continue;
+        for (const adjustment of Object.values(term.adjustments)) {
+          if (adjustment.blobHash) needed.add(adjustment.blobHash);
+        }
+      }
+    }
+  }
   const out: BlobRef[] = [];
-  for (const ref of referencedBlobs(state).values()) {
+  for (const ref of refs.values()) {
+    if (scope && !needed.has(ref.hash)) continue;
     if (!isStored(state, ref.hash)) continue;
     if (present.has(ref.hash)) continue;
-    if (scope && !scope.has(ref.unitId)) continue;
     out.push(ref);
   }
   return out;

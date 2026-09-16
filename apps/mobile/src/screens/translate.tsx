@@ -1,197 +1,257 @@
-// Avatar U. Translate passage, recordings, key terms, add to TG, attach questions. One yellow action per screen.
-import { currentTake, deriveTakeStatus, deriveTasks, keyTermLinksFor, keyTermsForUnit, materialsFor, takesFor, tgMaterialId, type Task } from '@langquest-next/core';
-import { BookOpen, Check, KeyRound, ListMusic, MessageSquare, Mic, Plus, RotateCcw, Send } from 'lucide-react-native';
-import { useState } from 'react';
+// Avatar U. Passage hub, question slides and notes. One yellow next action.
+import * as Crypto from 'expo-crypto';
+import { useRecorder, type RecordedCard } from '../useRecorder';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  currentTake, deriveTakeStatus, deriveTasks, materialsFor, tgMaterialId,
+  type Task
+} from '@langquest-next/core';
+import {
+  ArrowRight, BookOpen, Check, CheckCircle2, Circle, Clock, Headphones,
+  HelpCircle, KeyRound, MessageSquare, Mic, MicOff, Send
+} from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { Footer, Header, Note, Row, Screen, Section } from '../pui';
+import { AudioClip } from '../audioClip';
+import { passageProgress, type PassageAction } from '../passageFlow';
+import { getReferenceSlides, referenceRunSignature } from '../passageResources';
+import { Footer, Header, Note, Screen } from '../pui';
 import { colors, radius, space, tint } from '../theme';
-import { ActionButton, BackButton, Card, StatusIcon, TASK_META, text } from '../ui';
+import { ActionButton, Card, ProgressRing, text } from '../ui';
 
 export function taskFor(ctx: Ctx): Task | undefined {
-  const { state } = ctx.project;
+  const state = ctx.project.state;
   if (!state) return undefined;
-  return deriveTasks(state, ctx.session.actorId).find((t) => t.id === ctx.params['taskId']);
+  const tasks = deriveTasks(state, ctx.session.actorId);
+  const requested = ctx.params['taskId'] ?? '';
+  const exact = tasks.find((task) => task.id === requested);
+  if (exact) return exact;
+  // Recording a response turns its task into a translation draft. Keep the
+  // open passage usable while the event fold changes its task type.
+  if (/^(translate|respond):/.test(requested)) {
+    const suffix = requested.slice(requested.indexOf(':'));
+    return tasks.find((task) => task.type !== 'review' && task.id.endsWith(suffix));
+  }
+  return undefined;
 }
+
+const ACTION = {
+  reference: { icon: Headphones, label: 'Listen to reference material' },
+  terms: { icon: KeyRound, label: 'Record remaining key terms' },
+  record: { icon: Mic, label: 'Record the passage' },
+  submit: { icon: Send, label: 'Prepare hand-off for review' },
+  done: { icon: Clock, label: 'View hand-off status' }
+};
 
 export function TranslatePassage(ctx: Ctx) {
   const { state } = ctx.project;
   const task = taskFor(ctx);
-  if (!state || !task) return <Note>Task not found.</Note>;
-  const meta = TASK_META[task.type];
-  const unit = state.units[task.unitId];
-  const refs = Object.values(state.references).filter((r) => r.unitId === task.unitId && r.kind !== 'review_questions');
-  const takeId = currentTake(state, task.unitId, task.laneId);
-  const terms = keyTermsForUnit(state, task.laneId, task.unitId);
-  const tied = takeId ? keyTermLinksFor(state, takeId).length : 0;
-  const materials = materialsFor(state, { laneId: task.laneId, unitId: task.unitId }).filter((m) => m.kind !== 'questions');
-  const status = takeId ? deriveTakeStatus(state, takeId) : null;
-  const count = takesFor(state, task.unitId, task.laneId).length;
-  const isDraft = status?.outcome === 'draft';
-  const suggestions = takeId
-    ? Object.values(state.reviews[takeId] ?? {}).flatMap((byActor) =>
-        Object.values(byActor).filter((r) => r.value.decision === 'suggest_changes').map((r) => r.value.comment)
-      )
-    : [];
-
+  const [listened, setListened] = useState<string | null>(null);
+  const items = state && task ? getReferenceSlides(state, task.laneId, task.unitId) : [];
+  const signature = referenceRunSignature(items);
+  const key = `reference-run:${ctx.project.orgId}:${ctx.project.projectId}:${ctx.session.actorId}:${task?.laneId ?? ''}:${task?.unitId ?? ''}`;
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(key).then((value) => { if (mounted) setListened(value ?? ''); })
+      .catch(() => { if (mounted) setListened(''); });
+    return () => { mounted = false; };
+  }, [key]);
+  if (!state || !task) return <Screen><Header title="" onBack={ctx.back} /><Note>Task not found.</Note></Screen>;
+  const progress = passageProgress(state, task.laneId, task.unitId, !!items.length && listened !== signature);
+  const questions = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
+    .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
+  const note = state.materials[tgMaterialId(task.laneId)]?.fields[task.unitId];
+  const takeId = progress.takeId;
+  const suggestions = takeId ? Object.values(state.reviews[takeId] ?? {}).flatMap((byActor) =>
+    Object.values(byActor).filter((r) => r.value.decision === 'suggest_changes').map((r) => r.value.comment).filter(Boolean)) : [];
+  const params = { taskId: task.id, unitId: task.unitId, laneId: task.laneId };
+  function advance(action: PassageAction) {
+    if (action === 'reference') ctx.go('passage_references', params);
+    if (action === 'terms') ctx.go('passage_terms', params);
+    if (action === 'record') ctx.go('quest_assets', params);
+    if (action === 'submit') ctx.go('attach_questions', params);
+    if (action === 'done') ctx.go('done_await', { ...params, ...(takeId ? { takeId } : {}) });
+  }
+  const next = ACTION[progress.next];
   return (
-    <View style={[styles.screen, { backgroundColor: meta.tint }]}>
-      <View style={styles.content}>
-        <BackButton onPress={ctx.back} />
-        <View style={styles.titleRow}>
-          <BookOpen size={22} color={meta.color} />
-          <Text style={[text.h3, { flex: 1 }]}>{unit?.label ?? task.unitId}</Text>
-          {task.dueDate ? <Text style={text.small}>{task.dueDate}</Text> : null}
-        </View>
-
-        {task.instructions ? (
-          <Card style={{ backgroundColor: colors.muted }}>
-            <Text style={text.body}>{task.instructions}</Text>
-          </Card>
-        ) : null}
-
-        {suggestions.length > 0 ? (
-          <Card style={{ backgroundColor: tint.review }}>
-            <View style={styles.titleRow}>
-              <MessageSquare size={18} color={colors.review} />
-              <Text style={text.h4}>{suggestions.length}</Text>
-            </View>
-            {suggestions.map((c, i) => (
-              <Text key={i} style={text.body}>
-                {c ?? '…'}
-              </Text>
-            ))}
-          </Card>
-        ) : null}
-
-        {/* Recordings: the mic is the yellow action until a draft exists. */}
-        <Pressable onPress={() => ctx.go('quest_assets', { taskId: task.id })} accessibilityRole="button" accessibilityLabel="Recordings">
-          <Card style={{ alignItems: 'center', gap: space.md }}>
-            <View style={styles.titleRow} accessibilityLabel={`${count} takes${status ? `, ${status.outcome}` : ''}`}>
-              <ListMusic size={16} color={colors.mutedForeground} />
-              <Text style={text.small}>{count}</Text>
-              {status ? <StatusIcon outcome={status.outcome} /> : null}
-            </View>
-            <ActionButton
-              icon={takeId ? RotateCcw : Mic}
-              accessibilityLabel="Open recordings"
-              variant={takeId ? 'outline' : 'action'}
-              onPress={() => ctx.go('quest_assets', { taskId: task.id })}
-              style={{ alignSelf: 'stretch' }}
-            />
-          </Card>
-        </Pressable>
-
-        <Pressable onPress={() => ctx.go('key_terms', { unitId: task.unitId, laneId: task.laneId, ...(takeId ? { takeId } : {}) })} accessibilityRole="button" accessibilityLabel={`Key terms: ${terms.length} relevant, ${tied} tied to this translation`}>
-          <Card style={{ backgroundColor: tint.translate }}>
-            <View style={styles.titleRow}>
-              <KeyRound size={18} color={colors.reference} />
-              <Text style={text.h4}>{terms.length}</Text>
-              {tied ? <Text style={text.small}>· {tied}</Text> : null}
-              <View style={{ flex: 1 }} />
-              <Pressable onPress={() => ctx.go('add_to_tg', { unitId: task.unitId, laneId: task.laneId })} hitSlop={8} accessibilityLabel="Add to translation guidelines">
-                <Plus size={18} color={colors.reference} />
-              </Pressable>
-            </View>
-            {materials.map((m) => (
-              <View key={m.materialId} style={styles.refRow}>
-                <Text style={text.small}>{m.title}</Text>
-                {m.fields.filter((f) => f.fieldId === task.unitId || m.fields.length <= 3).map((f) => (
-                  <Text key={f.fieldId} style={text.body}>{f.text ?? f.blobHash}</Text>
-                ))}
-              </View>
-            ))}
-            {refs.map((r, i) => (
-              <View key={i} style={styles.refRow}>
-                <Text style={text.small}>{r.kind.replace('_', ' ')}</Text>
-                <Text style={text.body}>{r.text ?? r.blobHash}</Text>
-              </View>
-            ))}
-          </Card>
-        </Pressable>
-
-        {isDraft ? (
-          <ActionButton icon={Send} accessibilityLabel="Submit for review" onPress={() => ctx.go('attach_questions', { taskId: task.id })} />
-        ) : null}
+    <Screen footer={<ActionButton icon={next.icon} accessibilityLabel={next.label}
+      onPress={() => advance(progress.next)} disabled={listened === null} />}>
+      <Header title={state.units[task.unitId]?.label ?? task.unitId} onBack={ctx.back} />
+      <View style={styles.grid}>
+        <TaskTile icon={Headphones} label="Reference material" color={colors.reference}
+          done={!!items.length && listened === signature} onPress={() => advance('reference')} />
+        <TaskTile icon={KeyRound} label={`Key terms: ${progress.recordedTerms} of ${progress.totalTerms} recorded`}
+          color={colors.reference} done={progress.terms.length > 0 && !progress.remainingTerms.length}
+          onPress={() => advance('terms')}
+          extra={<ProgressRing completed={progress.recordedTerms} total={progress.totalTerms} size={30} />} />
+        <TaskTile icon={Mic} label="Recordings" color={colors.translate}
+          done={!!takeId && (state.takes[takeId]?.cardHashes.length ?? 0) > 0} onPress={() => advance('record')} />
+        <TaskTile icon={Send} label={progress.canSubmit ? 'Hand off for review' : progress.status?.submitted ? 'View hand-off status' : 'Hand-off needs a recording'}
+          color={colors.review} blocked={!progress.canSubmit && !progress.status?.submitted}
+          onPress={() => advance(progress.canSubmit ? 'submit' : 'done')} />
+        <TaskTile icon={HelpCircle} label={`Review question sets: ${questions.length}`} color={colors.review}
+          onPress={() => ctx.go('attach_questions', { ...params, mode: 'questions' })} />
+        <TaskTile icon={MessageSquare} label="Passage notes" color={colors.foreground}
+          done={!!note} onPress={() => ctx.go('add_to_tg', params)} />
       </View>
-    </View>
+      {suggestions.map((comment, i) => <Card key={i}><MessageSquare color={colors.review} size={24} /><Text style={text.body}>{comment}</Text></Card>)}
+      {task.instructions ? <Card><BookOpen color={colors.reference} size={24} /><Text style={text.body}>{task.instructions}</Text></Card> : null}
+    </Screen>
   );
 }
 
-/** Spec attach_questions: pick question sets (reference material) to send with the submission. */
+function TaskTile(props: {
+  icon: typeof Mic; label: string; color: string; done?: boolean;
+  blocked?: boolean; onPress: () => void; extra?: React.ReactNode;
+}) {
+  const Icon = props.icon;
+  return (
+    <Pressable onPress={props.onPress} disabled={props.blocked}
+      accessibilityRole="button" accessibilityLabel={props.label}
+      accessibilityState={{ disabled: !!props.blocked }}
+      style={({ pressed }) => [styles.tile, { backgroundColor: `${props.color}0F` },
+        props.blocked && styles.blocked, pressed && { opacity: 0.8 }]}>
+      <Icon size={40} color={props.blocked ? colors.mutedForeground : props.color} />
+      {props.done ? <View style={styles.corner}><CheckCircle2 size={18} color={colors.done} /></View> : null}
+      {props.blocked ? <View style={styles.corner}><MicOff size={18} color={colors.mutedForeground} /></View> : null}
+      {props.blocked ? <View style={styles.strike} /> : null}
+      {props.extra ? <View style={styles.ring}>{props.extra}</View> : null}
+    </Pressable>
+  );
+}
+
+/** One question set per slide, followed by an explicit hand-off. */
 export function AttachQuestions(ctx: Ctx) {
-  const { state, append } = ctx.project;
+  const { state, appendMany } = ctx.project;
   const task = taskFor(ctx);
+  const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
   const [response, setResponse] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
   if (!state || !task) return <Note>Task not found.</Note>;
-  const sets = materialsFor(state, { laneId: task.laneId, unitId: task.unitId }).filter((m) => m.kind === 'questions');
+  const sets = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
+    .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
   const takeId = currentTake(state, task.unitId, task.laneId);
-  const respondsTo = takeId ? state.takes[takeId]?.parentTakeId ?? null : null;
-  const isResponse = task.type === 'respond' || (!!respondsTo && !!state.submissions[respondsTo]);
+  const take = takeId ? state.takes[takeId] : undefined;
+  const status = takeId ? deriveTakeStatus(state, takeId) : null;
+  const respondsTo = take?.parentTakeId;
+  const isResponse = !!respondsTo && !!state.submissions[respondsTo];
+  const canSubmit = !!takeId && !!take?.cardHashes.length && status?.outcome === 'draft';
+  const browsing = ctx.params['mode'] === 'questions';
+  const set = sets[index];
 
   async function submit() {
-    if (!takeId) return;
-    // The translator's answer to suggestions travels with the resubmission
-    // (UX spec PieceReviewResponse; audit 5.F).
-    if (isResponse && respondsTo && response.trim()) {
-      await append('v1.ResponseRecorded', { takeId, respondsToTakeId: respondsTo, note: response.trim() });
-    }
-    await append('v1.TakeSubmitted', { takeId, questionSetIds: picked });
-    ctx.go('done_await');
+    if (!takeId || !canSubmit || saving.current) return;
+    saving.current = true; setBusy(true); setError('');
+    try {
+      const events: Parameters<typeof appendMany>[0] = [];
+      if (isResponse && respondsTo && response.trim()) events.push({ type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: respondsTo, note: response.trim() } });
+      events.push({ type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: picked.filter((id) => sets.some((s) => s.materialId === id)) } });
+      await appendMany(events);
+      ctx.go('done_await', { takeId });
+    } catch (e) { setError((e as Error).message); }
+    finally { saving.current = false; setBusy(false); }
   }
-
   return (
-    <Screen footer={<ActionButton icon={Send} accessibilityLabel="Submit for review" onPress={() => void submit()} />}>
-      <Header title="Review questions" onBack={ctx.back} />
-      {isResponse ? (
-        <TextInput style={styles.input} placeholder="What you changed, and why the rest stayed" value={response} onChangeText={setResponse} multiline />
-      ) : null}
-      {sets.length === 0 ? <Note>No question sets yet. Submit without questions, or write one from the reference library.</Note> : null}
-      {sets.length > 0 ? (
-        <Section label={`Question sets · ${sets.length}`}>
-          {sets.map((m, i) => (
-            <Row
-              key={m.materialId}
-              label={m.title}
-              sub={`${m.fields.length} questions`}
-              onPress={() => setPicked((p) => (p.includes(m.materialId) ? p.filter((x) => x !== m.materialId) : [...p, m.materialId]))}
-              right={picked.includes(m.materialId) ? <Check size={18} color={colors.translate} /> : <View />}
-              last={i === sets.length - 1}
-            />
-          ))}
-        </Section>
-      ) : null}
+    <Screen footer={set ? <ActionButton icon={ArrowRight} accessibilityLabel="Next question set" onPress={() => setIndex(index + 1)} />
+      : browsing ? <ActionButton icon={Check} accessibilityLabel="Back to passage" onPress={ctx.back} />
+      : <ActionButton icon={Send} accessibilityLabel={canSubmit ? 'Queue hand-off for review' : 'Record a take before handing off'} onPress={() => void submit()} disabled={busy || !canSubmit} />}>
+      <Header title={state.units[task.unitId]?.label ?? task.unitId}
+        onBack={index > 0 ? () => setIndex(index - 1) : ctx.back} />
+      {set ? <Card>
+        <HelpCircle size={36} color={colors.review} />
+        <Text style={text.small} accessibilityLabel={`Question set ${index + 1} of ${sets.length}`}>{index + 1} / {sets.length}</Text>
+        {set.fields.map((f) => <View key={f.fieldId} style={{ gap: space.sm }}>
+          {f.blobHash ? <AudioClip project={ctx.project} hashes={[f.blobHash]} label="Play question" /> : null}
+          {f.text ? <Text style={text.body}>{f.text}</Text> : null}
+        </View>)}
+        {!browsing ? <ActionButton icon={picked.includes(set.materialId) ? CheckCircle2 : Circle}
+          variant="outline" accessibilityLabel={picked.includes(set.materialId) ? 'Remove this question set' : 'Include this question set'}
+          onPress={() => setPicked((p) => p.includes(set.materialId) ? p.filter((id) => id !== set.materialId) : [...p, set.materialId])} /> : null}
+      </Card> : <Card style={{ alignItems: 'center' }}>
+        {browsing ? <CheckCircle2 size={48} color={colors.done} /> : canSubmit ? <><Mic size={36} color={colors.translate} /><CheckCircle2 size={32} color={colors.done} /></> : <MicOff size={48} color={colors.mutedForeground} />}
+      </Card>}
+      {!set && isResponse && !browsing ? <TextInput style={styles.input} accessibilityLabel="Optional response to review suggestions" placeholder="Optional response" value={response} onChangeText={setResponse} multiline /> : null}
+      {error ? <Text style={text.muted} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
 }
 
-/** Spec add_to_tg: the note lands in the language's Translation Guidelines document, keyed by this passage (audit 5.E). */
+/** Passage notes accept speech and preserve the existing written fallback. */
 export function AddToTg(ctx: Ctx) {
   const { state, appendMany } = ctx.project;
-  const [note, setNote] = useState('');
   const unitId = ctx.params['unitId'] ?? '';
-  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+  const laneId = ctx.params['laneId'] ?? '';
   const materialId = tgMaterialId(laneId);
-  async function save() {
+  const field = state?.materials[materialId]?.fields[unitId]?.value;
+  const [note, setNote] = useState(field?.text ?? '');
+  const [busy, setBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [error, setError] = useState('');
+  const saveLock = useRef(false);
+  async function saveCard(card: RecordedCard) {
     const events: Parameters<typeof appendMany>[0] = [];
-    if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined', payload: { materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId } } });
-    events.push({ type: 'v1.MaterialFieldSet', payload: { materialId, fieldId: unitId, text: note.trim() } });
+    if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined',
+      payload: { materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId } } });
+    events.push({ type: 'v1.RecordingAdded', payload: {
+      recordingId: Crypto.randomUUID(), unitId, laneId, kind: 'source',
+      cards: [{ hash: card.ref.hash, format: card.ref.format, durationMs: card.durationMs }]
+    } });
+    events.push({ type: 'v1.MaterialFieldSet', payload: {
+      materialId, fieldId: unitId, text: note.trim(), blobHash: card.ref.hash
+    } });
     await appendMany(events);
-    ctx.back();
+    ctx.project.triggerUpload();
   }
-  return (
-    <Screen footer={<Footer label="Done" onPress={() => void save()} disabled={!note.trim() || !laneId} />}>
-      <Header title="Add to TG" sub={state?.units[unitId]?.label} onBack={ctx.back} />
-      <TextInput style={styles.input} placeholder="Guideline for this passage" value={note} onChangeText={setNote} multiline />
-    </Screen>
-  );
+  const rec = useRecorder(saveCard);
+  async function save() {
+    if (saveLock.current || rec.busy || rec.manualOn || rec.failureCount || recording) return;
+    saveLock.current = true; setBusy(true); setError('');
+    try {
+      const events: Parameters<typeof appendMany>[0] = [];
+      if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined', payload: { materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId } } });
+      events.push({ type: 'v1.MaterialFieldSet', payload: { materialId, fieldId: unitId,
+        text: note.trim(), ...(field?.blobHash ? { blobHash: field.blobHash } : {}) } });
+      await appendMany(events); ctx.back();
+    } catch (e) { setError((e as Error).message); }
+    finally { saveLock.current = false; setBusy(false); }
+  }
+  return <Screen footer={field?.blobHash || note.trim() ? <ActionButton icon={Check}
+    accessibilityLabel="Save passage note" onPress={() => void save()}
+    disabled={busy || rec.busy || rec.manualOn || !!rec.failureCount || recording || !laneId || !unitId} /> : undefined}>
+    <Header title={state?.units[unitId]?.label ?? unitId}
+      onBack={rec.busy || recording || busy ? undefined : ctx.back} />
+    {field?.blobHash && !recording ? <AudioClip project={ctx.project} hashes={[field.blobHash]} label="Play passage note" /> : null}
+    <Pressable accessibilityRole="button" accessibilityLabel="Hold to record passage note"
+      onPressIn={() => { if (rec.busy || rec.failureCount || busy) return; setRecording(true); void rec.manualDown(); }}
+      onPressOut={() => { void rec.manualUp().finally(() => setRecording(false)); }}
+      style={{ alignSelf: 'center', alignItems: 'center', justifyContent: 'center',
+        width: 82, height: 82, borderRadius: 41,
+        backgroundColor: rec.manualOn ? '#A8120A' : field?.blobHash || note.trim() ? colors.muted : colors.action }}>
+      <Mic size={32} color={rec.manualOn ? 'white' : colors.foreground} />
+    </Pressable>
+    <TextInput style={styles.input} accessibilityLabel="Optional written note"
+      placeholder="Optional written note" value={note} onChangeText={setNote} multiline />
+    {rec.failureCount ? <ActionButton icon={ArrowRight} accessibilityLabel="Retry saving audio note"
+      variant="outline" onPress={() => void rec.retryFailed()} disabled={rec.busy} /> : null}
+    {error || rec.error ? <Note>{error || rec.error}</Note> : null}
+  </Screen>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { gap: space.lg, padding: space.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  refRow: { gap: 2, paddingVertical: space.xs },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 100, backgroundColor: colors.card, color: colors.foreground }
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  tile: { width: '47%', flexGrow: 1, height: 124, borderWidth: 1,
+    borderColor: colors.border, borderRadius: radius.lg,
+    alignItems: 'center', justifyContent: 'center' },
+  blocked: { borderStyle: 'dashed', backgroundColor: colors.muted },
+  corner: { position: 'absolute', right: 10, top: 10 },
+  ring: { position: 'absolute', right: 10, bottom: 10 },
+  strike: { position: 'absolute', width: 65, height: 2,
+    backgroundColor: colors.mutedForeground, transform: [{ rotate: '-35deg' }] },
+  input: { borderWidth: 1, borderColor: colors.border,
+    borderRadius: 10, padding: 12, minHeight: 100,
+    backgroundColor: colors.card, color: colors.foreground }
 });

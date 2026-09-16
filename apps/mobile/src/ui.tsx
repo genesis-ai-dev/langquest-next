@@ -1,3 +1,4 @@
+import Svg, { Circle } from 'react-native-svg';
 import type { LucideIcon } from 'lucide-react-native';
 import { CheckCircle2, ChevronLeft, Clock, ListChecks, MessageSquare, Mic, PencilLine, Reply } from 'lucide-react-native';
 import type { TakeOutcome } from '@langquest-next/core';
@@ -34,18 +35,46 @@ export function ActionButton(props: {
       disabled={props.disabled}
       accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel}
+      accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [
         styles.button,
         iconOnly && styles.buttonIconOnly,
         outline ? styles.buttonOutline : styles.buttonAction,
         pressed && { opacity: 0.85 },
-        props.disabled && { opacity: 0.5 },
+        props.disabled && { backgroundColor: colors.muted, borderColor: colors.border, borderWidth: 1, borderStyle: 'dashed' },
         props.style
       ]}
     >
       {Icon ? <Icon size={iconOnly ? 30 : 20} color={fg} strokeWidth={iconOnly ? 2.25 : 2} /> : null}
       {props.label ? <Text style={[styles.buttonLabel, { color: fg }]}>{props.label}</Text> : null}
     </Pressable>
+  );
+}
+
+/** Cross-session progress with a semantic value and a non-colour signal. */
+export function ProgressRing(props: {
+  completed: number;
+  total: number;
+  size?: number;
+  color?: string;
+}) {
+  const size = props.size ?? 64;
+  const r = (size - 10) / 2;
+  const circumference = 2 * Math.PI * r;
+  const fraction = props.total ? Math.min(1, Math.max(0, props.completed / props.total)) : 0;
+  return (
+    <View accessible accessibilityRole="progressbar"
+      accessibilityLabel={`${props.completed} of ${props.total} recorded`}
+      accessibilityValue={{ min: 0, max: Math.max(1, props.total), now: props.completed }}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={colors.border} strokeWidth={6} />
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={props.color ?? colors.done} strokeWidth={6}
+          strokeLinecap="round" strokeDasharray={`${circumference * fraction} ${circumference}`}
+          rotation={-90} origin={`${size / 2}, ${size / 2}`} />
+      </Svg>
+    </View>
   );
 }
 
@@ -173,8 +202,8 @@ const styles = StyleSheet.create({
   fillBase: { position: 'absolute', height: 12, borderRadius: radius.full },
   fillAccent: { position: 'absolute', height: 6, borderRadius: radius.full },
   back: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     backgroundColor: colors.muted,
     alignItems: 'center',

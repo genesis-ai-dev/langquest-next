@@ -25,7 +25,7 @@ export const SCREEN_IDS = [
   'roles_home', 'role_editor', 'templates_home', 'reference_home', 'material_editor',
   'key_terms', 'key_term_detail', 'flows_home', 'flow_editor',
   // Oral translation
-  'quest_assets', 'add_to_tg',
+  'quest_assets', 'add_to_tg', 'passage_references', 'passage_terms',
   // Notifications
   'inbox_home',
   // Settings
@@ -51,7 +51,7 @@ export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
   review_teams: 'P', review_team_editor: 'P',
   roles_home: 'P', role_editor: 'P', templates_home: 'P', reference_home: 'P', material_editor: 'P',
   key_terms: 'P', key_term_detail: 'P', flows_home: 'P', flow_editor: 'P',
-  quest_assets: 'U', add_to_tg: 'U',
+  quest_assets: 'U', add_to_tg: 'U', passage_references: 'U', passage_terms: 'U',
   inbox_home: 'P',
   settings_home: 'P', profile_edit: 'P', org_switcher: 'P', sign_out_confirm: 'U'
 };
@@ -156,6 +156,11 @@ export const EDGES: Edge[] = [
   e('give_assignment', 'status_home', 'back'),
   // Translate
   e('translate_passage', 'quest_assets'),
+  e('translate_passage', 'passage_references'),
+  e('translate_passage', 'passage_terms'),
+  e('passage_references', 'translate_passage', 'back'),
+  e('passage_terms', 'translate_passage', 'back'),
+  e('translate_passage', 'done_await'),
   e('translate_passage', 'add_to_tg'),
   e('translate_passage', 'key_terms'),
   e('translate_passage', 'attach_questions'),
@@ -179,6 +184,7 @@ export const EDGES: Edge[] = [
   e('org_home', 'reference_home', undefined, 'manageReference'),
   e('org_home', 'flows_home', undefined, 'manageFlows'),
   e('new_project', 'org_home', 'back'),
+  e('new_project', 'project_home', 'replace'),
   e('project_home', 'members_list'),
   e('project_home', 'roles_home'),
   e('project_home', 'new_language'),
@@ -266,6 +272,7 @@ export const TITLES: Record<ScreenId, string> = {
   reference_home: 'Reference library', material_editor: 'Fill reference', key_terms: 'Key terms',
   key_term_detail: 'Key term', flows_home: 'Review flows', flow_editor: 'Edit stages',
   quest_assets: 'Recordings', add_to_tg: 'Add to TG',
+  passage_references: 'Listen', passage_terms: 'Record key terms',
   inbox_home: 'Inbox',
   settings_home: 'Settings', profile_edit: 'Profile', org_switcher: 'Organizations', sign_out_confirm: 'Sign out'
 };

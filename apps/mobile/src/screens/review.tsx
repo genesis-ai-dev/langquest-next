@@ -1,8 +1,10 @@
 // Avatar U. Review passage, review questions, done. Material editor is Avatar P.
-import { deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
-import { BookOpen, Check, KeyRound, MessageSquare, Play, RotateCcw, Users } from 'lucide-react-native';
+import { isStored, deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
+import { BookOpen, Check, CloudAlert, CloudCheck, CloudOff, Clock, KeyRound, MessageSquare, Play, RotateCcw, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AudioClip } from '../audioClip';
+import { handoffState } from '../passageFlow';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
@@ -33,7 +35,7 @@ export function ReviewPassage(ctx: Ctx) {
     await append('v1.ReviewSubmitted', { takeId, stepId, decision, ...(answers ? { answers } : {}) });
     draftAnswers.delete(takeId);
     setChanging(false);
-    ctx.go('done_await');
+    ctx.go('done_await', { takeId });
   }
 
   return (
@@ -46,12 +48,7 @@ export function ReviewPassage(ctx: Ctx) {
         </View>
 
         <Card>
-          <View style={styles.chip} accessibilityLabel="Play take">
-            <View style={styles.chipPlay}>
-              <Play size={14} color={colors.white} />
-            </View>
-            <Text style={text.body}>{take?.cardHashes.length ?? 0}</Text>
-          </View>
+          <AudioClip project={ctx.project} hashes={take?.cardHashes ?? []} label="Play translation" />
           <View style={styles.chips}>
             <View style={styles.chip} accessibilityLabel={`waiting on ${step?.waitingOn.length ?? 0}`}>
               <Users size={14} color={colors.mutedForeground} />
@@ -136,11 +133,28 @@ export function ReviewQuestions(ctx: Ctx) {
 }
 
 export function DoneAwait(ctx: Ctx) {
+  const state = ctx.project.state;
+  const takeId = ctx.params['takeId'];
+  const take = takeId && state ? state.takes[takeId] : undefined;
+  const delivery = handoffState({
+    pending: ctx.project.pending,
+    online: ctx.project.online,
+    refused: ctx.project.refused,
+    tooOld: ctx.project.tooOld,
+    audioStored: !take || take.cardHashes.every((hash) => !!state && isStored(state, hash))
+  });
+  const Icon = delivery === 'blocked' ? CloudAlert : delivery === 'queued' ? CloudOff : CloudCheck;
+  const label = delivery === 'blocked' ? 'Saved locally. Sync needs attention.'
+    : delivery === 'queued' ? 'Saved on this phone. Waiting to sync.'
+    : 'Synced. Review status is separate.';
   return (
     <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]}>
-      <View style={styles.doneMark}>
-        <Check size={44} color={colors.done} />
+      <View style={styles.doneMark} accessible accessibilityLabel={label}>
+        <Icon size={44} color={delivery === 'sent' ? colors.done : colors.mutedForeground} />
       </View>
+      {delivery !== 'sent' ? <Clock size={28} color={colors.mutedForeground} /> : null}
+      {takeId && state?.takes[takeId] ? <StatusIcon outcome={deriveTakeStatus(state, takeId).outcome} size={32} /> : null}
+      {delivery === 'blocked' ? <Note>{ctx.project.refused ?? 'Update the app to sync this work.'}</Note> : null}
       <ActionButton icon={Check} accessibilityLabel="Back to my work" onPress={() => ctx.go('assignments_home')} style={{ alignSelf: 'stretch' }} />
     </View>
   );

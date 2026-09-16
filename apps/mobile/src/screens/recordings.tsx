@@ -1,216 +1,214 @@
-// Avatar U. Spec quest_assets: the recordings screen. Hold the mic to record a card,
-// or turn on VAD and just speak; each card is an immutable blob. One yellow action.
-import { currentTake, deriveTakeStatus, isStored, type BlobRef } from '@langquest-next/core';
-import type { BlobFile } from '../blobs';
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import { AudioWaveform, CloudCheck, CloudUpload, ListMusic, Mic, Pause, Play, Trash2 } from 'lucide-react-native';
+// Avatar U. Durable recording, full-screen VAD, then keep or redo.
+import { currentTake, deriveTakeStatus, isStored } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
+import { AudioWaveform, Check, CloudCheck, CloudUpload, Mic, RotateCcw, Square } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { Note } from '../pui';
-import { colors, radius, space, tint } from '../theme';
-import { ActionButton, BackButton, Card, StatusIcon, text } from '../ui';
+import { AudioClip } from '../audioClip';
+import { Header, Note, Screen } from '../pui';
+import { pendingPassageCards } from '../recordingFlow';
+import { colors, radius, space } from '../theme';
+import { ActionButton, Card, text } from '../ui';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { taskFor } from './translate';
 
-const BARS = 32;
-
 export function QuestAssets(ctx: Ctx) {
-  const { state, append, blobs, triggerUpload } = ctx.project;
+  const state = ctx.project.state;
   const task = taskFor(ctx);
-  const [history, setHistory] = useState<number[]>(() => Array(BARS).fill(0));
-  const [playing, setPlaying] = useState<string | null>(null);
-  const playerRef = useRef<AudioPlayer | null>(null);
-
-  // A card is durable the moment it is recorded (RecordingAdded), and the
-  // draft take is recomposed to include it. Re-composition archives the
-  // previous draft so history stays honest and ids stay unique.
-  const onCard = useCallback(
-    async (card: RecordedCard) => {
-      if (!state || !task) return;
-      const stamp = Date.now();
-      await append('v1.RecordingAdded', {
-        recordingId: `rec-${stamp}`,
-        unitId: task.unitId,
-        laneId: task.laneId,
-        kind: 'target',
-        cards: [{ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }]
-      });
-      const cur = currentTake(state, task.unitId, task.laneId);
-      const curTake = cur ? state.takes[cur] : undefined;
-      const draft = cur && deriveTakeStatus(state, cur).outcome === 'draft' ? cur : null;
-      const cards = [...(draft && curTake ? curTake.cardHashes : []), card.ref.hash];
-      await append('v1.TakeComposed', {
-        takeId: `${task.unitId}-${stamp}`,
-        unitId: task.unitId,
-        laneId: task.laneId,
-        cardHashes: cards,
-        parentTakeId: cur
-      });
-      if (draft) await append('v1.TakeArchived', { takeId: draft });
-      triggerUpload();
-    },
-    [state, task, append, triggerUpload]
+  const latest = useRef(ctx);
+  latest.current = ctx;
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const [history, setHistory] = useState<{ energy: number; captured: boolean }[]>(
+    () => Array.from({ length: 60 }, () => ({ energy: 0, captured: false }))
   );
-
-  const rec = useRecorder(onCard);
-
+  const recordingIds = useRef(new Map<string, string>());
+  const persist = useCallback(async (card: RecordedCard) => {
+    const current = latest.current;
+    const passage = taskFor(current);
+    if (!passage) throw new Error('This passage is no longer available.');
+    const recordingId = recordingIds.current.get(card.ref.hash) ?? Crypto.randomUUID();
+    recordingIds.current.set(card.ref.hash, recordingId);
+    if (!current.project.state?.recordings[recordingId]) {
+      await current.project.append('v1.RecordingAdded', {
+        recordingId, unitId: passage.unitId, laneId: passage.laneId,
+        kind: 'target', cards: [{ hash: card.ref.hash,
+          durationMs: card.durationMs, format: card.ref.format }]
+      });
+    }
+    current.project.triggerUpload();
+  }, []);
+  const rec = useRecorder(persist);
   useEffect(() => {
-    setHistory((h) => [...h.slice(1), rec.energy]);
-  }, [rec.energy]);
-
-  useEffect(() => () => playerRef.current?.remove(), []);
-
+    setHistory((bars) => [...bars.slice(1), {
+      energy: rec.energy, captured: rec.vadCapturing || rec.manualOn
+    }]);
+  }, [rec.energy, rec.vadCapturing, rec.manualOn]);
   if (!state || !task) return <Note>Task not found.</Note>;
   const takeId = currentTake(state, task.unitId, task.laneId);
   const take = takeId ? state.takes[takeId] : undefined;
-  const status = takeId ? deriveTakeStatus(state, takeId) : null;
-  const cardRefs: BlobFile[] = (take?.cardHashes ?? []).map((h) => ({ hash: h, format: formatOf(state, h) }));
-  const localUris = cardRefs.map((r) => blobs.uriFor(r));
-
-  async function playFrom(i: number) {
-    playerRef.current?.remove();
-    playerRef.current = null;
-    if (playing !== null) {
-      setPlaying(null);
-      return;
-    }
-    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-    const next = (idx: number) => {
-      const uri = localUris[idx];
-      if (idx >= cardRefs.length || !uri) {
-        setPlaying(null);
-        return;
-      }
-      setPlaying(cardRefs[idx]!.hash);
-      const p = createAudioPlayer({ uri });
-      playerRef.current = p;
-      p.addListener('playbackStatusUpdate', (s) => {
-        if (s.didJustFinish) {
-          p.remove();
-          next(idx + 1);
+  const pending = pendingPassageCards(state, task.unitId, task.laneId, ctx.session.actorId);
+  const hashes = pending.length ? pending.map((c) => c.hash) : take?.cardHashes ?? [];
+  const blocked = saving || rec.busy || rec.manualOn || rec.vadOn || rec.failureCount > 0;
+  async function keep() {
+    if (blocked || saveLock.current || !hashes.length) return;
+    saveLock.current = true; setSaving(true); setError('');
+    try {
+      if (pending.length) {
+        const nextId = Crypto.randomUUID();
+        const events: Parameters<Ctx['project']['appendMany']>[0] = [
+          { type: 'v1.TakeComposed', payload: { takeId: nextId,
+            unitId: task!.unitId, laneId: task!.laneId,
+            cardHashes: pending.map((c) => c.hash), parentTakeId: takeId } },
+          { type: 'v1.TakeSelected', payload: { takeId: nextId,
+            unitId: task!.unitId, laneId: task!.laneId } }
+        ];
+        if (takeId && deriveTakeStatus(state!, takeId).outcome === 'draft') {
+          events.push({ type: 'v1.TakeArchived', payload: { takeId } });
         }
-      });
-      p.play();
-    };
-    next(i);
+        await ctx.project.appendMany(events);
+      }
+      ctx.back();
+    } catch (e) { setError((e as Error).message); }
+    finally { saveLock.current = false; setSaving(false); }
   }
-
-  async function deleteCard(hash: string) {
-    if (!takeId || !take) return;
-    const stamp = Date.now();
-    const remaining = take.cardHashes.filter((h) => h !== hash);
-    await append('v1.TakeComposed', {
-      takeId: `${task!.unitId}-${stamp}`,
-      unitId: task!.unitId,
-      laneId: task!.laneId,
-      cardHashes: remaining,
-      parentTakeId: takeId
-    });
-    await append('v1.TakeArchived', { takeId });
+  async function redo() {
+    if (blocked || saveLock.current) return;
+    saveLock.current = true; setSaving(true); setError('');
+    try {
+      // An archived draft records the deliberate discard, so recovery never
+      // resurrects it. Immutable audio remains available in event history.
+      if (pending.length) {
+        const discarded = Crypto.randomUUID();
+        await ctx.project.appendMany([
+          { type: 'v1.TakeComposed', payload: { takeId: discarded,
+            unitId: task!.unitId, laneId: task!.laneId,
+            cardHashes: pending.map((c) => c.hash), parentTakeId: takeId } },
+          { type: 'v1.TakeArchived', payload: { takeId: discarded } }
+        ]);
+      }
+      await rec.toggleVad();
+    } catch (e) { setError((e as Error).message); }
+    finally { saveLock.current = false; setSaving(false); }
   }
-
-  const capturing = rec.manualOn || rec.vadCapturing;
-
+  const title = state.units[task.unitId]?.label ?? task.unitId;
   return (
-    <View style={[styles.screen, { backgroundColor: tint.translate }]}>
-      <View style={styles.content}>
-        <BackButton onPress={ctx.back} />
-        <View style={styles.titleRow}>
-          <ListMusic size={22} color={colors.translate} />
-          <Text style={[text.h3, { flex: 1 }]}>{state.units[task.unitId]?.label}</Text>
-          <View style={styles.titleRow} accessibilityLabel={`${blobs.pendingUp} uploads pending`}>
-            {blobs.pendingUp > 0 ? (
-              <>
-                <CloudUpload size={16} color={colors.mutedForeground} />
-                <Text style={text.small}>{blobs.pendingUp}</Text>
-              </>
-            ) : cardRefs.length > 0 ? (
-              <CloudCheck size={16} color={colors.done} />
-            ) : null}
-          </View>
-        </View>
-
-        {/* Waveform: native energy in both modes. */}
-        <View style={[styles.wave, capturing && { borderColor: colors.reference }]} accessibilityLabel={capturing ? 'Recording' : 'Listening'}>
-          {history.map((v, i) => (
-            <View key={i} style={[styles.bar, { height: 4 + Math.min(1, v * 4) * 44, backgroundColor: capturing ? colors.reference : colors.translate }]} />
-          ))}
-        </View>
-
-        <View style={{ gap: space.sm }}>
-          {cardRefs.map((ref, i) => {
-            const stored = isStored(state, ref.hash);
-            const here = localUris[i] !== null;
-            return (
-              <Card key={ref.hash} style={styles.cardRow}>
-                <Pressable onPress={() => void playFrom(i)} disabled={!here} accessibilityLabel={playing === ref.hash ? 'Pause' : 'Play card'} style={[styles.play, !here && { opacity: 0.4 }]}>
-                  {playing === ref.hash ? <Pause size={16} color={colors.white} /> : <Play size={16} color={colors.white} />}
-                </Pressable>
-                <Text style={[text.body, { flex: 1 }]}>{i + 1}</Text>
-                {stored ? <CloudCheck size={16} color={colors.done} /> : <CloudUpload size={16} color={colors.mutedForeground} />}
-                {status?.outcome === 'draft' ? (
-                  <Pressable onPress={() => void deleteCard(ref.hash)} hitSlop={8} accessibilityLabel="Delete card">
-                    <Trash2 size={18} color={colors.reference} />
-                  </Pressable>
-                ) : null}
-              </Card>
-            );
-          })}
-        </View>
-
-        {status ? (
-          <View style={[styles.titleRow, { justifyContent: 'center' }]}>
-            <StatusIcon outcome={status.outcome} />
-          </View>
-        ) : null}
-
-        {rec.error ? <Text style={{ color: colors.reference, textAlign: 'center' }}>{rec.error}</Text> : null}
-
-        {/* VAD toggle (outline) and the one yellow action: hold to record. */}
-        <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <ActionButton icon={AudioWaveform} accessibilityLabel={rec.vadOn ? 'Stop voice detection' : 'Start voice detection'} variant={rec.vadOn ? 'action' : 'outline'} onPress={() => void rec.toggleVad()} style={{ flex: 1 }} />
-          <Pressable
-            onPressIn={() => void rec.manualDown()}
-            onPressOut={() => void rec.manualUp()}
-            disabled={rec.vadOn}
-            accessibilityRole="button"
-            accessibilityLabel="Hold to record"
-            style={({ pressed }) => [styles.hold, rec.vadOn && { opacity: 0.4 }, (pressed || rec.manualOn) && { backgroundColor: colors.reference }]}
-          >
-            <Mic size={30} color={colors.actionForeground} strokeWidth={2.25} />
-          </Pressable>
-        </View>
+    <Screen footer={hashes.length && !rec.manualOn ? (
+      <View style={styles.row}>
+        <ActionButton icon={RotateCcw} variant="outline"
+          accessibilityLabel="Record a new take" disabled={blocked}
+          onPress={() => void redo()} />
+        <ActionButton icon={Check} accessibilityLabel="Keep take and return to passage"
+          disabled={blocked} onPress={() => void keep()} style={{ flex: 1 }} />
       </View>
-    </View>
+    ) : undefined}>
+      <Header title={title} onBack={blocked ? undefined : ctx.back} />
+      {hashes.length && !rec.manualOn ? <Card>
+        <AudioClip project={ctx.project} hashes={hashes} label="Play recorded passage" />
+        <View style={styles.row} accessible accessibilityLabel={hashes.every((h) => isStored(state, h)) ? 'Audio uploaded' : 'Audio saved locally'}>
+          {hashes.every((h) => isStored(state, h)) ? <CloudCheck color={colors.done} /> : <CloudUpload color={colors.mutedForeground} />}
+          <Text style={text.small}>{hashes.length}</Text>
+        </View>
+      </Card> : null}
+      {!hashes.length || rec.manualOn ? <View style={styles.controls}>
+        <ActionButton icon={AudioWaveform} variant="outline"
+          accessibilityLabel="Start voice-detected recording"
+          disabled={blocked} onPress={() => void rec.toggleVad()} />
+        <Pressable onPressIn={() => void rec.manualDown()}
+          onPressOut={() => void rec.manualUp()}
+          disabled={rec.vadOn || saving || rec.failureCount > 0}
+          accessibilityRole="button" accessibilityLabel="Hold to record passage"
+          style={[styles.record, rec.manualOn && styles.recordLive]}>
+          {rec.manualOn ? <Square color="white" fill="white" size={28} /> : <Mic color={colors.actionForeground} size={32} />}
+        </Pressable>
+      </View> : null}
+      {error || rec.error ? <Note>{error || rec.error}</Note> : null}
+      {rec.failureCount ? <ActionButton icon={RotateCcw} accessibilityLabel="Retry saving recording" disabled={rec.busy} onPress={() => void rec.retryFailed()} /> : null}
+      <Modal visible={rec.vadOn} animationType="none"
+        onRequestClose={() => void rec.stopVad()}>
+        <VADTakeover rec={rec} history={history} count={pending.length} />
+      </Modal>
+    </Screen>
   );
 }
 
-function formatOf(state: NonNullable<Ctx['project']['state']>, hash: string): BlobRef['format'] {
-  for (const r of Object.values(state.recordings)) {
-    const c = r.cards.find((x) => x.hash === hash);
-    if (c) return c.format ?? 'wav';
-  }
-  return 'wav';
+function VADTakeover(props: {
+  rec: ReturnType<typeof useRecorder>;
+  history: { energy: number; captured: boolean }[];
+  count: number;
+}) {
+  const { rec } = props;
+  const [height, setHeight] = useState(1);
+  const [cutoff, setCutoff] = useState(rec.cutoff);
+  const latest = useRef({ height, cutoff, rec });
+  latest.current = { height, cutoff, rec };
+  const dragStart = useRef(0);
+  const commit = (value: number) => void latest.current.rec.setCutoff(value);
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => { dragStart.current = latest.current.cutoff; },
+    onPanResponderMove: (_, gesture) => {
+      setCutoff(Math.max(0.04, Math.min(0.92,
+        dragStart.current - gesture.dy / latest.current.height)));
+    },
+    // One native configuration per drag avoids flooding the audio thread.
+    onPanResponderRelease: () => commit(latest.current.cutoff),
+    onPanResponderTerminate: () => setCutoff(latest.current.rec.cutoff)
+  })).current;
+  return (
+    <View style={[styles.takeover, rec.vadCapturing && styles.capturing]}>
+      <View style={styles.liveStatus} accessible accessibilityLabel={rec.vadCapturing ? 'Capturing speech' : 'Recording session: listening'}>
+        <View style={[styles.dot, { opacity: rec.vadCapturing ? 1 : 0.4 }]} />
+        <Mic size={26} color="white" />
+        <Text style={styles.white}>{props.count}</Text>
+      </View>
+      <View style={styles.wave} onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
+        {...pan.panHandlers} accessible accessibilityRole="adjustable"
+        accessibilityLabel="Sound cutoff" accessibilityValue={{ min: 4, max: 92, now: Math.round(cutoff * 100) }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={(event) => {
+          const next = Math.max(0.04, Math.min(0.92, cutoff + (event.nativeEvent.actionName === 'increment' ? 0.02 : -0.02)));
+          setCutoff(next); commit(next);
+        }}>
+        {props.history.map((bar, index) => <View key={index}
+          style={[styles.bar, { opacity: bar.captured ? 1 : 0.3,
+            height: `${Math.max(1, Math.pow(Math.min(1, Math.max(0, bar.energy)), bar.captured ? 0.6 : 2.5) * 100)}%` }]} />)}
+        <View style={[styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
+      </View>
+      <View style={styles.controls}>
+        {[500, 1000, 2000].map((duration, index) => <Pressable key={duration}
+          onPress={() => void rec.setPause(duration)} accessibilityRole="button"
+          accessibilityLabel={['Short pause', 'Normal pause', 'Long pause'][index]}
+          accessibilityState={{ selected: duration === rec.pauseDuration }}
+          style={[styles.pause, duration === rec.pauseDuration && { backgroundColor: 'white' }]}>
+          {Array.from({ length: index + 1 }, (_, i) => <View key={i} style={[styles.dot,
+            { width: 5, height: 5, backgroundColor: duration === rec.pauseDuration ? '#A8120A' : 'white' }]} />)}
+        </Pressable>)}
+      </View>
+      {rec.error ? <Text style={styles.white} accessibilityRole="alert">{rec.error}</Text> : null}
+      <Pressable style={styles.stop} accessibilityRole="button"
+        accessibilityLabel="Stop recording and review take" onPress={() => void rec.stopVad()}>
+        <Square size={36} fill="#A8120A" color="#A8120A" />
+      </Pressable>
+    </View>
+  );
 }
-
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { gap: space.lg, padding: space.lg, flex: 1 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  wave: {
-    height: 64,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 3,
-    paddingHorizontal: space.sm,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.card
-  },
-  bar: { flex: 1, borderRadius: 2 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md },
-  play: { width: 32, height: 32, borderRadius: radius.full, backgroundColor: colors.translate, alignItems: 'center', justifyContent: 'center' },
-  hold: { flex: 2, height: 64, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' }
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
+  record: { width: 82, height: 82, borderRadius: 41, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
+  recordLive: { backgroundColor: '#A8120A' },
+  takeover: { flex: 1, backgroundColor: '#A8120A', padding: space.xl, paddingTop: 60, paddingBottom: 44, gap: space.xl },
+  capturing: { backgroundColor: '#C2160C' },
+  liveStatus: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
+  white: { color: 'white', fontSize: 18, textAlign: 'center' },
+  dot: { width: 10, height: 10, borderRadius: radius.full, backgroundColor: 'white' },
+  wave: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  bar: { flex: 1, backgroundColor: 'white', borderRadius: 2 },
+  cutoff: { position: 'absolute', left: 0, right: 0, borderTopWidth: 2, borderStyle: 'dashed', borderColor: 'white' },
+  pause: { minWidth: 48, minHeight: 44, padding: 12, borderRadius: radius.full, borderWidth: 1, borderColor: '#ffffff88', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  stop: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', alignSelf: 'center' }
 });

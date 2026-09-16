@@ -16,6 +16,10 @@ class MicrophoneEnergyModule : Module() {
   private var audioRecord: AudioRecord? = null
   private var isActive = false
   private var recordingScope: CoroutineScope? = null
+  private var writeScope: CoroutineScope? = null
+  private val configLock = Any()
+  @Volatile private var pendingWrites = 0
+  private val writeWaiters = mutableListOf<() -> Unit>()
   
   private data class RingBufferEntry(val buffer: ShortArray, val timestamp: Long)
   private val ringBuffer = ArrayDeque<RingBufferEntry>()
@@ -55,13 +59,16 @@ class MicrophoneEnergyModule : Module() {
       promise.resolve(null)
     }
     AsyncFunction("enableVAD") { promise: Promise -> enableVAD(); promise.resolve(null) }
-    AsyncFunction("disableVAD") { promise: Promise -> disableVAD(); promise.resolve(null) }
+    AsyncFunction("disableVAD") { promise: Promise -> disableVAD { promise.resolve(null) } }
     AsyncFunction("startSegment") { options: Map<String, Any?>?, promise: Promise -> startSegment(options, promise) }
     AsyncFunction("stopSegment") { promise: Promise -> stopSegment(promise) }
   }
 
   private fun startEnergyDetection(promise: Promise) {
     if (isActive) stopEnergyDetectionInternal()
+    synchronized(ringBuffer) { ringBuffer.clear() }
+    synchronized(segmentBuffers) { segmentBuffers.clear() }
+    segmentFile = null; activeAudioTime = 0; lastFrameTime = 0
     try {
       val channelConfig = AudioFormat.CHANNEL_IN_MONO
       val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -89,27 +96,44 @@ class MicrophoneEnergyModule : Module() {
   }
 
   private fun stopEnergyDetection(promise: Promise) {
-    if (!isActive) { promise.resolve(null); return }
-    try { stopEnergyDetectionInternal(); promise.resolve(null) }
+    if (!isActive) { awaitWrites { promise.resolve(null) }; return }
+    try {
+      stopEnergyDetectionInternal()
+      awaitWrites { finishStoppedSegment { promise.resolve(null) } }
+    }
     catch (e: Exception) { promise.reject("STOP_ERROR", "Failed to stop", e) }
   }
 
+  private fun awaitWrites(done: () -> Unit) {
+    synchronized(writeWaiters) {
+      if (pendingWrites == 0) done() else writeWaiters.add(done)
+    }
+  }
+
+  private fun writeFinished() {
+    val callbacks: List<() -> Unit>
+    synchronized(writeWaiters) {
+      pendingWrites = (pendingWrites - 1).coerceAtLeast(0)
+      if (pendingWrites != 0) return
+      callbacks = writeWaiters.toList(); writeWaiters.clear()
+    }
+    callbacks.forEach { it() }
+  }
+
   private fun stopEnergyDetectionInternal() {
-    isActive = false
-    vadEnabled = false
-    vadState = "IDLE"
+    synchronized(configLock) {
+      isActive = false
+      vadEnabled = false
+      vadState = "IDLE"
+    }
     recordingScope?.cancel()
     recordingScope = null
-    if (isRecordingSegment) {
-      val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String, message: String?, cause: Throwable?) {} }
-      stopSegment(p)
-    }
     audioRecord?.stop()
     audioRecord?.release()
     audioRecord = null
   }
   
-  private fun configureVAD(config: Map<String, Any?>) {
+  private fun configureVAD(config: Map<String, Any?>) = synchronized(configLock) {
     (config["threshold"] as? Number)?.let { vadThreshold = it.toFloat() }
     (config["silenceDuration"] as? Number)?.let { vadSilenceDuration = it.toInt() }
     (config["minSegmentDuration"] as? Number)?.let { vadMinSegmentDuration = it.toInt() }
@@ -120,15 +144,27 @@ class MicrophoneEnergyModule : Module() {
   }
   
   private fun enableVAD() {
-    vadEnabled = true; vadState = "IDLE"; preOnsetCutPoint = 0; lockedOnsetTime = 0; lastAboveThresholdTime = 0
+    synchronized(configLock) {
+      vadEnabled = true; vadState = "IDLE"; preOnsetCutPoint = 0; lockedOnsetTime = 0; lastAboveThresholdTime = 0
+      activeAudioTime = 0; lastFrameTime = 0
+    }
   }
   
-  private fun disableVAD() {
-    vadEnabled = false; vadState = "IDLE"
-    if (isRecordingSegment) {
-      val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String, message: String?, cause: Throwable?) {} }
-      stopSegment(p)
+  private fun disableVAD(done: () -> Unit) {
+    synchronized(configLock) { vadEnabled = false; vadState = "IDLE" }
+    awaitWrites { finishStoppedSegment(done) }
+  }
+
+  private fun finishStoppedSegment(done: () -> Unit) {
+    if (!isRecordingSegment) { done(); return }
+    val p = object : Promise {
+      override fun resolve(value: Any?) { done() }
+      override fun reject(code: String, message: String?, cause: Throwable?) {
+        sendEvent("onError", mapOf("message" to (message ?: "Failed to save recording")))
+        done()
+      }
     }
+    stopSegment(p)
   }
 
   private suspend fun processAudioData(audioData: ShortArray, bytesRead: Int) {
@@ -140,16 +176,24 @@ class MicrophoneEnergyModule : Module() {
     val clampedDb = max(-60.0, kotlin.math.min(0.0, db))
     val normalizedAmplitude = 10.0.pow(clampedDb / 20.0).toFloat()
 
-    synchronized(ringBuffer) {
-      ringBuffer.addLast(RingBufferEntry(dataCopy, now))
-      if (ringBuffer.size > ringBufferMaxSize) ringBuffer.removeFirst()
+    synchronized(configLock) {
+      if (!isActive) return
+      synchronized(ringBuffer) {
+        ringBuffer.addLast(RingBufferEntry(dataCopy, now))
+        if (ringBuffer.size > ringBufferMaxSize) ringBuffer.removeFirst()
+      }
+      if (isRecordingSegment) synchronized(segmentBuffers) { segmentBuffers.add(dataCopy) }
+      if (vadEnabled) handleVAD(normalizedAmplitude, now)
     }
-    if (isRecordingSegment) synchronized(segmentBuffers) { segmentBuffers.add(dataCopy) }
-    if (vadEnabled) handleVAD(normalizedAmplitude, now)
     withContext(Dispatchers.Main) { sendEvent("onEnergyResult", mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble())) }
   }
   
   private fun handleVAD(rawPeak: Float, now: Long) {
+    synchronized(configLock) { handleVADLocked(rawPeak, now) }
+  }
+
+  private fun handleVADLocked(rawPeak: Float, now: Long) {
+    if (!vadEnabled || !isActive) return
     val onsetThreshold = vadThreshold * vadOnsetMultiplier
     if (rawPeak > vadThreshold) lastAboveThresholdTime = now
     
@@ -212,7 +256,8 @@ class MicrophoneEnergyModule : Module() {
     val rewindMs = if (vadRewindHalfPause) vadSilenceDuration / 2 else 0
     segmentBuffers.clear(); segmentFile = null
     
-    CoroutineScope(Dispatchers.IO).launch {
+    synchronized(writeWaiters) { pendingWrites += 1 }
+    (writeScope ?: CoroutineScope(Dispatchers.IO).also { writeScope = it }).launch {
       try {
         if (fileToWrite != null) {
           writeWavFileAsync(fileToWrite, buffersToWrite, rewindMs)
@@ -222,6 +267,7 @@ class MicrophoneEnergyModule : Module() {
           }
         }
       } catch (e: Exception) { println("Error writing WAV: ${e.message}") }
+      finally { writeFinished() }
     }
   }
   
@@ -258,54 +304,58 @@ class MicrophoneEnergyModule : Module() {
   }
 
   private fun startSegment(options: Map<String, Any?>?, promise: Promise) {
-    if (!isActive) { promise.reject("NOT_ACTIVE", "Energy detection not active", null); return }
-    if (isRecordingSegment) { promise.resolve(null); return }
-    try {
-      val prerollMs = (options?.get("prerollMs") as? Number)?.toInt() ?: 200
-      val context = appContext.reactContext ?: throw Exception("Context not available")
-      val file = java.io.File(context.cacheDir, "segment_${java.util.UUID.randomUUID()}.wav")
-      segmentFile = file; segmentStartTime = System.currentTimeMillis()
-      synchronized(ringBuffer) {
-        val maxPrerollBuffers = (prerollMs / (2048.0 / (sampleRate / 1000.0))).toInt()
-        val buffersToWrite = kotlin.math.min(ringBuffer.size, maxPrerollBuffers)
-        segmentBuffers.clear()
-        for (entry in ringBuffer.takeLast(buffersToWrite)) segmentBuffers.add(entry.buffer)
+    synchronized(configLock) {
+      if (!isActive) { promise.reject("NOT_ACTIVE", "Energy detection not active", null); return }
+      if (isRecordingSegment) { promise.resolve(null); return }
+      try {
+        val prerollMs = (options?.get("prerollMs") as? Number)?.toInt() ?: 200
+        val context = appContext.reactContext ?: throw Exception("Context not available")
+        val file = java.io.File(context.cacheDir, "segment_${java.util.UUID.randomUUID()}.wav")
+        segmentFile = file; segmentStartTime = System.currentTimeMillis()
+        synchronized(ringBuffer) {
+          val maxPrerollBuffers = (prerollMs / (2048.0 / (sampleRate / 1000.0))).toInt()
+          val buffersToWrite = kotlin.math.min(ringBuffer.size, maxPrerollBuffers)
+          segmentBuffers.clear()
+          for (entry in ringBuffer.takeLast(buffersToWrite)) segmentBuffers.add(entry.buffer)
+        }
+        isRecordingSegment = true; promise.resolve(null)
+      } catch (e: Exception) {
+        promise.reject("START_SEGMENT_ERROR", "Failed to start segment", e)
+        isRecordingSegment = false; segmentBuffers.clear(); segmentFile = null
       }
-      isRecordingSegment = true; promise.resolve(null)
-    } catch (e: Exception) {
-      promise.reject("START_SEGMENT_ERROR", "Failed to start segment", e)
-      isRecordingSegment = false; segmentBuffers.clear(); segmentFile = null
     }
   }
 
   private fun stopSegment(promise: Promise) {
-    if (!isRecordingSegment) { promise.resolve(null); return }
-    try {
-      isRecordingSegment = false; vadState = "IDLE"
-      val file = segmentFile; val startTime = segmentStartTime; val endTime = System.currentTimeMillis()
-      if (file != null) {
-        var totalSamples = 0
-        synchronized(segmentBuffers) { for (buffer in segmentBuffers) totalSamples += buffer.size }
-        val dataSize = totalSamples * 2L
-        val out = java.io.FileOutputStream(file)
-        writeWavHeader(out, dataSize, sampleRate, 1, 16)
-        synchronized(segmentBuffers) {
-          for (buffer in segmentBuffers) {
-            val byteBuffer = java.nio.ByteBuffer.allocate(buffer.size * 2)
-            byteBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            for (sample in buffer) byteBuffer.putShort(sample)
-            out.write(byteBuffer.array())
+    synchronized(configLock) {
+      if (!isRecordingSegment) { promise.resolve(null); return }
+      try {
+        isRecordingSegment = false; vadState = "IDLE"
+        val file = segmentFile; val startTime = segmentStartTime; val endTime = System.currentTimeMillis()
+        if (file != null) {
+          var totalSamples = 0
+          synchronized(segmentBuffers) { for (buffer in segmentBuffers) totalSamples += buffer.size }
+          val dataSize = totalSamples * 2L
+          val out = java.io.FileOutputStream(file)
+          writeWavHeader(out, dataSize, sampleRate, 1, 16)
+          synchronized(segmentBuffers) {
+            for (buffer in segmentBuffers) {
+              val byteBuffer = java.nio.ByteBuffer.allocate(buffer.size * 2)
+              byteBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN)
+              for (sample in buffer) byteBuffer.putShort(sample)
+              out.write(byteBuffer.array())
+            }
           }
-        }
-        out.flush(); out.close()
-        val uri = "file://${file.absolutePath}"
-        sendEvent("onSegmentComplete", mapOf("uri" to uri, "startTime" to startTime.toDouble(), "endTime" to endTime.toDouble(), "duration" to (endTime - startTime).toDouble()))
-        promise.resolve(uri)
-      } else promise.resolve(null)
-      segmentFile = null; segmentBuffers.clear()
-    } catch (e: Exception) {
-      promise.reject("STOP_SEGMENT_ERROR", "Failed to stop segment", e)
-      segmentFile = null; segmentBuffers.clear()
+          out.flush(); out.close()
+          val uri = "file://${file.absolutePath}"
+          sendEvent("onSegmentComplete", mapOf("uri" to uri, "startTime" to startTime.toDouble(), "endTime" to endTime.toDouble(), "duration" to (endTime - startTime).toDouble()))
+          promise.resolve(uri)
+        } else promise.resolve(null)
+        segmentFile = null; segmentBuffers.clear()
+      } catch (e: Exception) {
+        promise.reject("STOP_SEGMENT_ERROR", "Failed to stop segment", e)
+        segmentFile = null; segmentBuffers.clear()
+      }
     }
   }
 }

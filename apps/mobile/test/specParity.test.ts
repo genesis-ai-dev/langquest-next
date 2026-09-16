@@ -16,6 +16,10 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'translate_passage->passage_references': 'one-next-action reference adds an oral reference run',
+  'translate_passage->passage_terms': 'one-next-action reference adds an oral key-term run',
+  'translate_passage->done_await': 'view queued and synced hand-off status from the passage hub',
+  'new_project->project_home': 'guided setup finishes at the configured project',
   'create_account->terms_privacy': 'a new account is first-time, so it owes terms; the spec sends create_account straight to home_hub and never shows a new account the terms (A30 gap)',
   'assignments_home->assignment_progress_detail': 'legacy progress detail kept until the spec removes progress_home',
   'assignment_progress_detail->progress_home': 'legacy progress redirect (spec: progress_home is a legacy redirect)',
@@ -33,8 +37,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is exactly the spec screen set', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens].sort());
+  it('the screen set includes the documented oral-workflow extension', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'passage_references', 'passage_terms'].sort());
   });
 
   it('every spec transition exists in the app with the same nav mode and gate', () => {

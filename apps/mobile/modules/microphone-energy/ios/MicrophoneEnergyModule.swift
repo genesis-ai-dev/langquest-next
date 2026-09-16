@@ -30,6 +30,10 @@ public class MicrophoneEnergyModule: Module {
     private var segmentFile: URL?
     private var segmentStartTime: TimeInterval = 0
     private var segmentBuffers: [AVAudioPCMBuffer] = []
+    // All WAV writes share one queue. Stop waits for this queue so the JS
+    // promise cannot resolve before the final completion event is enqueued.
+    private let wavWriteQueue = DispatchQueue(label: "langquest.microphone-energy.wav")
+    private let configLock = NSRecursiveLock()
     
     private let sampleRate: Double = 44100
     
@@ -60,13 +64,18 @@ public class MicrophoneEnergyModule: Module {
         AsyncFunction("stopEnergyDetection") { () -> Void in try await self.stopEnergyDetection() }
         AsyncFunction("configureVAD") { (config: [String: Any?]) -> Void in self.configureVAD(config: config) }
         AsyncFunction("enableVAD") { () -> Void in self.enableVAD() }
-        AsyncFunction("disableVAD") { () -> Void in self.disableVAD() }
-        AsyncFunction("startSegment") { (options: [String: Any?]?) -> Void in try await self.startSegment(options: options) }
-        AsyncFunction("stopSegment") { () -> String? in return try await self.stopSegment() }
+        AsyncFunction("disableVAD") { () -> Void in await self.disableVAD() }
+        AsyncFunction("startSegment") { (options: [String: Any?]?) -> Void in try self.startSegment(options: options) }
+        AsyncFunction("stopSegment") { () -> String? in return try self.stopSegment() }
     }
     
     private func startEnergyDetection() async throws {
         if isActive { await stopEnergyDetectionInternal() }
+        ringBuffer.removeAll()
+        segmentBuffers.removeAll()
+        segmentFile = nil
+        activeAudioTime = 0
+        lastFrameTime = 0
         
         let audioSession = AVAudioSession.sharedInstance()
         let permissionGranted = await withCheckedContinuation { continuation in
@@ -141,13 +150,20 @@ public class MicrophoneEnergyModule: Module {
     }
     
     private func stopEnergyDetectionInternal() async {
+        configLock.lock()
         isActive = false
         vadEnabled = false
         vadState = "IDLE"
+        configLock.unlock()
         
+        // Preserve segment order: older queued writes emit before the final clip.
+        await drainWavWritesAndMain()
         if isRecordingSegment {
-            do { _ = try await stopSegment() } catch {}
+            do { _ = try stopSegment() } catch {
+                sendEvent("onError", ["message": error.localizedDescription])
+            }
         }
+        await drainWavWritesAndMain()
         
         inputNode?.removeTap(onBus: 0)
         audioEngine?.stop()
@@ -160,6 +176,8 @@ public class MicrophoneEnergyModule: Module {
     }
     
     private func configureVAD(config: [String: Any?]) {
+        configLock.lock()
+        defer { configLock.unlock() }
         if let threshold = config["threshold"] as? NSNumber { vadThreshold = threshold.floatValue }
         if let silenceDuration = config["silenceDuration"] as? NSNumber { vadSilenceDuration = silenceDuration.intValue }
         if let minSegmentDuration = config["minSegmentDuration"] as? NSNumber { vadMinSegmentDuration = minSegmentDuration.intValue }
@@ -170,19 +188,40 @@ public class MicrophoneEnergyModule: Module {
     }
     
     private func enableVAD() {
+        configLock.lock()
         vadEnabled = true
         vadState = "IDLE"
         preOnsetCutPoint = 0
         lockedOnsetTime = 0
         lastAboveThresholdTime = 0
+        activeAudioTime = 0
+        lastFrameTime = 0
+        configLock.unlock()
     }
     
-    private func disableVAD() {
+    private func drainWavWritesAndMain() async {
+        await withCheckedContinuation { continuation in
+            wavWriteQueue.async {
+                DispatchQueue.main.async {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    private func disableVAD() async {
+        configLock.lock()
         vadEnabled = false
         vadState = "IDLE"
+        configLock.unlock()
+        // Preserve segment order: older queued writes emit before the final clip.
+        await drainWavWritesAndMain()
         if isRecordingSegment {
-            Task { do { _ = try await stopSegment() } catch {} }
+            do { _ = try stopSegment() } catch {
+                sendEvent("onError", ["message": error.localizedDescription])
+            }
         }
+        await drainWavWritesAndMain()
     }
     
     private func processAudioData(buffer: AVAudioPCMBuffer, timestamp: TimeInterval) {
@@ -215,6 +254,9 @@ public class MicrophoneEnergyModule: Module {
             memcpy(dstFloat32.pointee, srcFloat32.pointee, frameLength * MemoryLayout<Float32>.size)
         }
         
+        configLock.lock()
+        defer { configLock.unlock() }
+        guard isActive else { return }
         ringBuffer.append(RingBufferEntry(buffer: bufferCopy, timestamp: now))
         if ringBuffer.count > ringBufferMaxSize { ringBuffer.removeFirst() }
         
@@ -225,6 +267,9 @@ public class MicrophoneEnergyModule: Module {
     }
     
     private func handleVAD(rawPeak: Float, now: TimeInterval) {
+        configLock.lock()
+        defer { configLock.unlock() }
+        guard vadEnabled && isActive else { return }
         let onsetThreshold = vadThreshold * vadOnsetMultiplier
         
         if rawPeak > vadThreshold { lastAboveThresholdTime = now }
@@ -266,7 +311,10 @@ public class MicrophoneEnergyModule: Module {
         lastFrameTime = now
         sendEvent("onSegmentStart", [:])
         let prerollMs = Int(now - lockedOnsetTime)
-        Task { do { try await startSegment(options: ["prerollMs": prerollMs]) } catch {} }
+        do { try startSegment(options: ["prerollMs": prerollMs]) } catch {
+            vadState = "IDLE"
+            sendEvent("onError", ["message": error.localizedDescription])
+        }
     }
     
     private func stopRecordingAsync() {
@@ -297,7 +345,7 @@ public class MicrophoneEnergyModule: Module {
         segmentBuffers.removeAll()
         segmentFile = nil
         
-        DispatchQueue.global(qos: .background).async { [weak self] in
+        wavWriteQueue.async { [weak self] in
             guard let self = self, let fileURL = fileToWrite else { return }
             do {
                 try self.writeWavFileAsync(fileURL: fileURL, buffers: buffersToWrite, rewindMs: rewindMs)
@@ -351,7 +399,9 @@ public class MicrophoneEnergyModule: Module {
         try fileHandle.synchronize()
     }
     
-    private func startSegment(options: [String: Any?]?) async throws {
+    private func startSegment(options: [String: Any?]?) throws {
+        configLock.lock()
+        defer { configLock.unlock() }
         guard isActive else { throw NSError(domain: "MicrophoneEnergy", code: 4, userInfo: nil) }
         if isRecordingSegment { return }
         
@@ -372,7 +422,9 @@ public class MicrophoneEnergyModule: Module {
         isRecordingSegment = true
     }
     
-    private func stopSegment() async throws -> String? {
+    private func stopSegment() throws -> String? {
+        configLock.lock()
+        defer { configLock.unlock() }
         guard isRecordingSegment else { return nil }
         isRecordingSegment = false
         vadState = "IDLE"
