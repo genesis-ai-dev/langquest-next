@@ -6,6 +6,7 @@ import { Component, useCallback, useEffect, useMemo, useState, type ErrorInfo, t
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
+import { maySwitchPersona } from './src/dev';
 import { edgeFor, TAB_SCREENS, type ScreenId } from './src/flow';
 import { useNav, type Route } from './src/nav';
 import * as Account from './src/screens/account';
@@ -174,6 +175,8 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     [nav, session]
   );
 
+  const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
+
   const ctx: Ctx = {
     project,
     org,
@@ -187,7 +190,8 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       AsyncStorage.setItem(`vision:${props.actorId}`, '1').catch(() => {});
     },
     openDev: () => setDevOpen(true),
-    isDev: IS_DEV
+    isDev: IS_DEV,
+    canSwitchPersona
   };
 
   const Screen = SCREENS[nav.current.screen];
@@ -212,8 +216,8 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
           })}
         </View>
       ) : null}
-      {IS_DEV ? (
-        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} currentEmail={props.email} isOwner={session.role === 'owner'} jump={(s) => nav.reset({ screen: s })} />
+      {canSwitchPersona ? (
+        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
     </View>
   );

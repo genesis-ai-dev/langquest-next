@@ -58,9 +58,9 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon={RefreshCw} label="Replay organization walkthrough" onPress={() => ctx.go('walkthrough')} />
         <Row icon={LogOut} label="Sign out" onPress={() => ctx.go('sign_out_confirm')} last />
       </Section>
-      {ctx.isDev ? (
-        <Section label="Developer">
-          <Row label="Switch persona" sub="dev builds only" onPress={ctx.openDev} last />
+      {ctx.canSwitchPersona ? (
+        <Section label="Testing">
+          <Row label="Switch persona" sub="sign in as a demo translator, reviewer or coordinator" onPress={ctx.openDev} last />
         </Section>
       ) : null}
     </Screen>

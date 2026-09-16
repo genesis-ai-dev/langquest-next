@@ -1,8 +1,12 @@
-// Dev-only sheet: switch persona (a real sign-in), seed the demo team, jump to any screen.
+// Persona sheet: switch persona (a real sign-in), seed the demo team, and in
+// a dev build jump to any screen. Shown to dev builds and to the testers named
+// in dev.ts, so the other roles' experience can be walked through in a real
+// build without five phones.
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ensurePersonaAccount, PERSONAS, switchToPersona, type Persona } from './dev';
 import { SCREEN_IDS, TITLES, type ScreenId } from './flow';
+import type { OrgHandle } from './useOrg';
 import type { ProjectHandle } from './useProject';
 import { colors, radius, space } from './theme';
 import { text } from './ui';
@@ -11,8 +15,11 @@ export function DevMenu(props: {
   open: boolean;
   onClose: () => void;
   project: ProjectHandle;
+  org: OrgHandle;
   currentEmail: string | null;
   isOwner: boolean;
+  /** Screen jumping bypasses the flow machine, so it stays in dev builds. */
+  isDev: boolean;
   jump: (s: ScreenId) => void;
 }) {
   const [busy, setBusy] = useState('');
@@ -31,7 +38,11 @@ export function DevMenu(props: {
     }
   }
 
-  /** Owner-only: create every persona account and add it to the open project. */
+  /**
+   * Owner-only: create every persona account, give it its org role (so it
+   * sees the org, the project and its own home) and its project membership,
+   * then assign the translator and reviewer some work to look at.
+   */
   async function seed() {
     const { state, append } = props.project;
     if (!state) return;
@@ -40,12 +51,18 @@ export function DevMenu(props: {
     for (const p of PERSONAS) {
       if (!p.role) continue;
       const id = await ensurePersonaAccount(p);
+      if (p.roleId && props.org.state && !Object.values(props.org.state.members[id] ?? {}).some((m) => m.removed.value === false)) {
+        await props.org.append('v1.OrgMemberAdded', {
+          profileId: id, roleId: p.roleId, scope: { level: 'org' }, displayName: p.email.split('@')[0]!
+        });
+      }
       if (state.members[id] && !state.members[id]!.removed.value) continue;
       await append('v1.MemberAdded', { profileId: id, role: p.role });
       if (laneId && p.role === 'translator') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'translator', dueDate: 'Sep 30' });
       if (laneId && p.role === 'reviewer') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'reviewer' });
     }
     await props.project.sync();
+    await props.org.sync();
   }
 
   return (
@@ -53,7 +70,7 @@ export function DevMenu(props: {
       <Pressable style={styles.backdrop} onPress={props.onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={text.h4}>Developer</Text>
+        <Text style={text.h4}>{props.isDev ? 'Developer' : 'Testing'}</Text>
         {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
         <ScrollView contentContainerStyle={{ gap: space.md }} showsVerticalScrollIndicator={false}>
           <Text style={styles.label}>PERSONAS (real sign-in)</Text>
@@ -71,15 +88,19 @@ export function DevMenu(props: {
               <Text style={text.small}>{busy === 'seed' ? '…' : 'owner'}</Text>
             </Pressable>
           ) : null}
-          <Text style={styles.label}>JUMP TO SCREEN (bypasses flow)</Text>
-          <View style={styles.group}>
-            {SCREEN_IDS.map((s) => (
-              <Pressable key={s} onPress={() => { props.jump(s); props.onClose(); }} style={styles.row}>
-                <Text style={text.body}>{TITLES[s]}</Text>
-                <Text style={text.small}>{s}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {props.isDev ? (
+            <>
+              <Text style={styles.label}>JUMP TO SCREEN (bypasses flow)</Text>
+              <View style={styles.group}>
+                {SCREEN_IDS.map((s) => (
+                  <Pressable key={s} onPress={() => { props.jump(s); props.onClose(); }} style={styles.row}>
+                    <Text style={text.body}>{TITLES[s]}</Text>
+                    <Text style={text.small}>{s}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
         </ScrollView>
       </View>
     </Modal>

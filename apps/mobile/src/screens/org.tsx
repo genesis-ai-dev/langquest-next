@@ -1,14 +1,17 @@
 // Avatar P. Org, project, and language homes; members; invites; review teams.
 import type { Role } from '@langquest-next/core';
-import { deriveWorkflow } from '@langquest-next/core';
+import { deriveWorkflow, SEED_ROLES } from '@langquest-next/core';
 import { Building2, Check, FileText, Globe, ListChecks, Plus, QrCode, Users, Workflow } from 'lucide-react-native';
-import { useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { ensurePersonaAccount, PERSONAS } from '../dev';
+import { acceptJoinRequest, declineJoinRequest, inviteLink, issueInvite, listJoinRequests, type JoinRequest } from '../invites';
 import { Badge, Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { text } from '../ui';
+
+// One org for now, the same constant App.tsx opens with.
+const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
 
 const ROLES: Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'];
 
@@ -96,10 +99,56 @@ export function LanguageHome(ctx: Ctx) {
 
 export function MembersList(ctx: Ctx) {
   const { state } = ctx.project;
+  const orgMembers = Object.entries(ctx.org.state?.members ?? {})
+    .map(([id, byScope]) => [id, Object.values(byScope).find((m) => m.removed.value === false)] as const)
+    .filter(([, m]) => m !== undefined);
   const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
+  const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const [error, setError] = useState('');
+
+  // Join requests are a table, not a partition: they are the one thing a
+  // non-member may write, so they are read here rather than folded.
+  useEffect(() => {
+    if (!ctx.session.can('invite_members')) return;
+    listJoinRequests(ORG_ID).then(setRequests).catch((e: Error) => setError(e.message));
+  }, [ctx.session]);
+
+  async function decide(r: JoinRequest, roleId: string | null) {
+    try {
+      if (roleId) await acceptJoinRequest(r.id, roleId);
+      else await declineJoinRequest(r.id);
+      setRequests((rs) => rs.filter((x) => x.id !== r.id));
+      await ctx.org.sync();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   return (
     <Screen>
       <Header title="Members" onBack={ctx.back} action={ctx.session.isAdmin ? <Badge label="Invite" color={colors.translate} /> : undefined} />
+      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
+      {requests.length > 0 ? (
+        <Section label={`Requests to join · ${requests.length}`}>
+          {requests.map((r, i) => (
+            <Row
+              key={r.id}
+              icon={Users}
+              label={r.profileId.slice(0, 8)}
+              sub={r.message || 'Asked to join'}
+              badge="accept as translator"
+              onPress={() => void decide(r, 'translator')}
+              right={<Pressable onPress={() => void decide(r, null)} hitSlop={8}><Text style={text.muted}>Decline</Text></Pressable>}
+              last={i === requests.length - 1}
+            />
+          ))}
+        </Section>
+      ) : null}
+      <Section label={`Organization members · ${orgMembers.length}`}>
+        {orgMembers.map(([id, m], i) => (
+          <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : m!.displayName ?? id.slice(0, 8)} sub={id.slice(0, 8)} badge={m!.roleId.value} last={i === orgMembers.length - 1} />
+        ))}
+      </Section>
       <Section label={`Project members · ${members.length}`}>
         {members.map(([id, m], i) => (
           <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : id.slice(0, 8)} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
@@ -111,53 +160,65 @@ export function MembersList(ctx: Ctx) {
 }
 
 /**
- * Invite by email. Real email invites come later; today an invite for a
- * known dev persona creates that account and adds it as a member, which is
- * exactly what "Seed demo team" does one by one.
+ * Invite by code (docs 5.B). `issue_invite` writes a single-use row whose
+ * token is returned exactly once and never stored in the clear; the invitee
+ * redeems it on their own device and the server appends the ordinary
+ * v1.OrgMemberAdded under this admin. Email delivery is not wired yet, so the
+ * code is shown here to send by whatever channel the team already uses.
  */
 export function InviteMember(ctx: Ctx) {
-  const { append } = ctx.project;
+  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
+  const roleIds = roles.length > 0 ? roles.map(([id]) => id) : SEED_ROLES.map((r) => r.roleId);
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('translator');
+  const [roleId, setRoleId] = useState('translator');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
   async function send() {
-    const persona = PERSONAS.find((p) => p.email === email.trim());
-    if (!persona) {
-      setError('Only dev personas can be invited until email invites land.');
-      return;
+    setBusy(true);
+    setError('');
+    try {
+      const invite = await issueInvite(ORG_ID, roleId, { level: 'org' }, email.trim() || undefined);
+      ctx.go('invite_qr', { token: invite.token, roleId, expiresAt: invite.expiresAt });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
-    const id = await ensurePersonaAccount(persona);
-    await append('v1.MemberAdded', { profileId: id, role });
-    ctx.back();
   }
+
   return (
-    <Screen footer={<Footer label="Send invite" onPress={() => void send()} disabled={!email.includes('@')} />}>
+    <Screen footer={<Footer label="Create invite" onPress={() => void send()} disabled={busy} />}>
       <Header title="Invite" onBack={ctx.back} />
-      <Section label="Or">
-        <Row icon={QrCode} label="Invite by QR code" onPress={() => ctx.go('invite_qr')} last />
-      </Section>
-      <TextInput style={styles.input} placeholder="email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+      <Note>The invite is a single-use code. Send it however you like; whoever redeems it joins {ORG_ID} with the role you pick.</Note>
+      <TextInput style={styles.input} placeholder="email (optional, for your own records)" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
       {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
       <Section label="Role">
-        {ROLES.map((r, i) => (
-          <Row key={r} label={r} onPress={() => setRole(r)} right={role === r ? <Check size={18} color={colors.translate} /> : <View />} last={i === ROLES.length - 1} />
+        {roleIds.map((r, i) => (
+          <Row key={r} label={r} onPress={() => setRoleId(r)} right={roleId === r ? <Check size={18} color={colors.translate} /> : <View />} last={i === roleIds.length - 1} />
         ))}
       </Section>
     </Screen>
   );
 }
 
+/** The issued code, shown once. The QR image itself is still to come. */
 export function InviteQr(ctx: Ctx) {
+  const token = ctx.params['token'] ?? '';
   return (
     <Screen footer={<Footer label="Done" onPress={() => ctx.go('members_list')} />}>
-      <Header title="Invite by QR" onBack={ctx.back} />
+      <Header title="Invite created" onBack={ctx.back} sub={ctx.params['roleId']} />
       <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
         <QrCode size={160} color={colors.mutedForeground} />
       </View>
-      <NotWired what="QR invite generation" />
-      <Section label="Roles">
-        <Row label="Create a new role" onPress={() => ctx.go('role_editor', { roleId: 'new' })} last />
-      </Section>
+      {token ? (
+        <Section label="Send this code">
+          <Row label={token} sub={inviteLink(ORG_ID, token)} last />
+        </Section>
+      ) : (
+        <NotWired what="QR invite generation" />
+      )}
+      <Note>Shown once: it is stored hashed, so it cannot be read again. Expires {ctx.params['expiresAt']?.slice(0, 10) ?? 'in two weeks'}.</Note>
     </Screen>
   );
 }

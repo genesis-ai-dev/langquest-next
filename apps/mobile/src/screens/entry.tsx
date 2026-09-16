@@ -7,8 +7,11 @@ import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
 import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
+import { redeemInvite, requestAccess } from '../invites';
 import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
+
+const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
 
 const SAMPLE_PASSAGES = ['Luke 1:1-4', 'Luke 1:5-25', 'Luke 1:26-38', 'Luke 1:39-56'];
 
@@ -25,7 +28,7 @@ export function SignIn(ctx: Ctx) {
     // Dev: `npm run db:test` resets the local database and wipes auth users.
     // Recreate the dev account instead of stranding the developer at sign-in.
     if (error && ctx.isDev && email === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
-      await ensurePersonaAccount({ id: 'dev', label: 'Dev', role: null, email });
+      await ensurePersonaAccount({ id: 'dev', email });
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
     }
     if (error) setError(error.message);
@@ -45,9 +48,9 @@ export function SignIn(ctx: Ctx) {
       <Pressable onPress={() => ctx.go('explore_home')} hitSlop={8}>
         <Text style={[text.muted, { textAlign: 'center' }]}>Browse public projects</Text>
       </Pressable>
-      {ctx.isDev ? (
+      {ctx.canSwitchPersona ? (
         <Pressable onPress={ctx.openDev} hitSlop={8}>
-          <Text style={[text.small, { textAlign: 'center' }]}>Dev: personas</Text>
+          <Text style={[text.small, { textAlign: 'center' }]}>Switch persona</Text>
         </Pressable>
       ) : null}
     </View>
@@ -206,23 +209,71 @@ export function ExploreHome(ctx: Ctx) {
 }
 
 export function RequestAccess(ctx: Ctx) {
+  const [org, setOrg] = useState(ORG_ID);
+  const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  async function send() {
+    try {
+      await requestAccess(org.trim(), ctx.session.actorId, message.trim());
+      setSent(true);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   return (
-    <Screen footer={<Footer label={sent ? 'Back' : 'Send request'} onPress={() => (sent ? ctx.go('intent_chooser') : setSent(true))} />}>
+    <Screen footer={<Footer label={sent ? 'Back' : 'Send request'} onPress={() => (sent ? ctx.go('intent_chooser') : void send())} disabled={!sent && !org.trim()} />}>
       <Header title="Request access" onBack={ctx.back} />
-      {sent ? <Note>Request sent. An admin will add you.</Note> : <NotWired what="Choosing an organization to ask" />}
+      {sent ? (
+        <Note>Request sent. An admin of {org} sees it on their Members screen and can accept it with a role.</Note>
+      ) : (
+        <>
+          <Note>Ask an organization for access. Someone who can invite members decides.</Note>
+          <TextInput style={styles.input} placeholder="organization id" autoCapitalize="none" value={org} onChangeText={setOrg} />
+          <TextInput style={styles.input} placeholder="who you are (optional)" value={message} onChangeText={setMessage} />
+        </>
+      )}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>
   );
 }
 
+/**
+ * Redeem an invite. The camera is still to come, so the code is pasted; both
+ * paths end in the same `redeem_invite`, which appends the membership and
+ * lands this session on its new home.
+ */
 export function ScanQr(ctx: Ctx) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function redeem() {
+    setBusy(true);
+    setError('');
+    try {
+      await redeemInvite(code);
+      await ctx.org.sync();
+      await ctx.project.sync();
+      ctx.home();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Screen footer={<Footer label="Capture" onPress={ctx.home} />}>
-      <Header title="Scan QR code" onBack={ctx.back} />
-      <View style={[styles.center, { minHeight: 240 }]}>
-        <QrCode size={120} color={colors.mutedForeground} />
+    <Screen footer={<Footer label="Join" onPress={() => void redeem()} disabled={busy || code.trim().length < 8} />}>
+      <Header title="Join with an invite" onBack={ctx.back} />
+      <View style={[styles.center, { minHeight: 160 }]}>
+        <QrCode size={96} color={colors.mutedForeground} />
       </View>
-      <NotWired what="The camera and invite decoding" />
+      <TextInput style={styles.input} placeholder="paste invite code or link" autoCapitalize="none" value={code} onChangeText={setCode} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <NotWired what="The camera scanner (the code works today)" />
     </Screen>
   );
 }

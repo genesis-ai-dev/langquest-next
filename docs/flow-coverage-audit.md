@@ -293,19 +293,24 @@ These are the only writes by non-members, so they live outside the log, in
 two small tables with row-level security, and enter the log only when a
 member decides.
 
-- `join_requests (id, org_id, profile_id, message, created_at)`: any
-  authenticated user may insert one per org; org members with the Invite
-  privilege may read them. Accepting appends `JoinDecided` plus
-  `OrgMemberAdded` under the coordinator's actor. Declining appends
-  `JoinDecided { accepted: false }`. `request_access` writes the row when
-  online and queues it locally otherwise (a local outbox row, not an event,
-  since the requester is not a member of any partition).
-- `invites (id, org_id, token_hash, role_id, scope, expires_at, issued_by)`:
-  issued by `InviteIssued`; the QR carries `orgId` and the token. A
-  `redeem_invite(token)` RPC, run as the redeemer, verifies the hash and
-  appends `OrgMemberAdded` under the service actor with `invitedBy`. This is
-  how `scan_qr` and `create_account` with an invite land on a home instead of
-  `intent_chooser`.
+- `join_requests (id, org_id, profile_id, message, created_at)`: **shipped**
+  (migration 12). Any authenticated user may insert one per org; org members
+  with the Invite privilege may read and clear them, by RLS. Accepting
+  (`accept_join_request(id, roleId, scope)`) appends `OrgMemberAdded` under
+  the accepting member's actor; declining deletes the row. No `JoinDecided`
+  event: the decision is the membership (or its absence), so no shipped event
+  gained a new shape. `request_access` writes the row when online; the local
+  outbox for the offline case is still to come.
+- `invites (id, org_id, token_hash, role_id, scope, email, expires_at,
+  issued_by, redeemed_by)`: **shipped** (migration 12). `issue_invite` returns
+  the token exactly once and stores only its sha256, so a leaked backup cannot
+  be redeemed; the QR carries `orgId` and the token. `redeem_invite(token)`,
+  run as the redeemer, verifies the hash and appends the ordinary
+  `OrgMemberAdded` under the *issuer's* actor id (they are the one who held
+  `invite_members`), which is why no `InviteIssued` event and no service actor
+  are needed. This is how `scan_qr` and `create_account` with an invite land
+  on a home instead of `intent_chooser`. Email delivery and the camera are
+  not wired: the code is shown to the admin and pasted by the invitee.
 - `public_projects (org_id, project_id, name, languages, translated_pct)`:
   written by the summary worker for projects whose org enabled visibility;
   readable by anyone. `explore_home` reads this table; `pull_events` stays
@@ -506,6 +511,12 @@ To append to PLAN.md section 11 after item 8:
     accepted by the events; the screens capture text until the recorder is
     wired there. "Key terms as content" (a `key_terms` unit kind) is not
     started.
-13. Requests, invites, public projection (5.B); notifications and inbox
-    (5.G); profiles (5.H); per-user partition (5.I).
+13. **Partly done.** Requests and invites (5.B) ship in migration 12 with
+    `issue_invite`, `redeem_invite`, `accept_join_request` and the two tables,
+    covered by smoke section 11; `members_list`, `invite_member`, `invite_qr`,
+    `request_access` and `scan_qr` run on them. Still open in 5.B: the public
+    projection (`public_projects`, `explore_home`), email delivery, the camera
+    scanner, and the offline outbox for a request made with no connection.
+    Then notifications and inbox (5.G); profiles (5.H); per-user partition
+    (5.I).
 14. Screen contracts test, then the model-based walk (section 1).

@@ -17,4 +17,6 @@ export interface Ctx {
   markVisionSeen: () => void;
   openDev: () => void;
   isDev: boolean;
+  /** May this session switch persona? Dev builds, or a named tester (dev.ts). */
+  canSwitchPersona: boolean;
 }
