@@ -29,7 +29,13 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ship": "npm run typecheck && eas update --branch preview",
+    "ship:prod": "npm run typecheck && eas update --branch production",
+    "ship:native": "eas build --profile preview --platform ios",
+    "ship:native:prod": "eas build --profile production --platform ios",
+    "ship:check": "eas fingerprint:compare",
+    "ship:status": "eas update:list --branch preview --limit 5"
   },
   "private": true
 }

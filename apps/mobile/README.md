@@ -65,14 +65,23 @@ project, so which changes need a new binary is decided for you rather than
 guessed:
 
 - **JavaScript only** (screens, hooks, `src/invites.ts`, the packages):
-  `eas update --branch preview -m "what changed"`. The fingerprint is
-  unchanged, so installed builds on that channel take it on next launch.
+  `npm run ship -- -m "what changed"`. Typechecks, then publishes to the
+  `preview` channel; the fingerprint is unchanged, so installed builds take it
+  on next launch.
 - **Anything native** (a new Expo module, `app.json` plugins or permissions,
   an SDK bump, `modules/microphone-energy`): the fingerprint changes, the
-  update no longer matches any installed binary, and you rebuild:
-  `eas build --profile preview --platform ios`. Pushing an update with a
-  changed fingerprint is not dangerous, it simply reaches nobody until a
-  matching build exists.
+  update no longer matches any installed binary, so `npm run ship:native`.
+  Pushing an update with a changed fingerprint is not dangerous, it simply
+  reaches nobody until a matching build exists.
+- **Not sure which** you are looking at: `npm run ship:check`
+  (`eas fingerprint:compare`) says whether this working tree still matches
+  the last build. `npm run ship:status` lists the recent updates on `preview`
+  with the runtime version each landed on, which is where a push that seems
+  to have reached nobody shows itself.
+
+`ship:prod` and `ship:native:prod` are the same two against `production`.
+All of them run from `apps/mobile`; the repository root forwards `ship`,
+`ship:native` and `ship:check` for when you are already there.
 
 Build profiles map to channels of the same name: `development`, `preview`,
 `production` (`eas.json`). `EXPO_PUBLIC_*` values are inlined into the bundle

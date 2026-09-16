@@ -11,6 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/client --noEmit",
+    "ship": "npm run ship -w mobile --",
+    "ship:native": "npm run ship:native -w mobile",
+    "ship:check": "npm run ship:check -w mobile",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
+    "eas-cli": "^24.6.0",
     "supabase": "^2.40.0",
     "tsx": "^4.23.13",
     "typescript": "^5.6.0",
