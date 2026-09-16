@@ -34,9 +34,16 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
    (`test/spec-flow.json`, regenerated with
    `npx tsx scripts/extractSpecFlow.ts <path to ng-langquest-ux>`).
    Session facets and the home screen per role come from `src/session.ts`.
-   `src/DevMenu.tsx` (dev builds only, from Settings or the sign-in screen)
-   switches persona by really signing in as a seeded account, seeds the demo
-   team as owner, and can jump to any screen.
+   `src/DevMenu.tsx` (from Settings or the sign-in screen) switches persona by
+   really signing in as a seeded account, seeds the demo team as owner, and in
+   a dev build can jump to any screen. It is shown to dev builds and to the
+   testers named in `src/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS` overrides the
+   list), because walking the translator's and reviewer's experience is how
+   this gets tested and a release build has no dev menu.
+   `src/invites.ts` holds the two writes a non-member may make: `issue_invite`
+   / `redeem_invite` and the `join_requests` table (migration 12, docs 5.B).
+   Both end in the ordinary `v1.OrgMemberAdded`; neither is an event of its
+   own.
 
 No business logic and no sync logic live here. Screens read `state` and call
 `deriveTasks`, `deriveTakeStatus`, `deriveProgress`.
@@ -50,3 +57,23 @@ Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
 Storage), and `src/screens/recordings.tsx`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
+
+## Shipping a change
+
+`runtimeVersion` is the `fingerprint` policy and updates point at this EAS
+project, so which changes need a new binary is decided for you rather than
+guessed:
+
+- **JavaScript only** (screens, hooks, `src/invites.ts`, the packages):
+  `eas update --branch preview -m "what changed"`. The fingerprint is
+  unchanged, so installed builds on that channel take it on next launch.
+- **Anything native** (a new Expo module, `app.json` plugins or permissions,
+  an SDK bump, `modules/microphone-energy`): the fingerprint changes, the
+  update no longer matches any installed binary, and you rebuild:
+  `eas build --profile preview --platform ios`. Pushing an update with a
+  changed fingerprint is not dangerous, it simply reaches nobody until a
+  matching build exists.
+
+Build profiles map to channels of the same name: `development`, `preview`,
+`production` (`eas.json`). `EXPO_PUBLIC_*` values are inlined into the bundle
+at publish time, so changing one ships as an ordinary update.
