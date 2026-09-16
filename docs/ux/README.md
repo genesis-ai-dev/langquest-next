@@ -2,7 +2,8 @@
 
 Interactive mocks that pin down how a screen should behave, for cases where
 prose in PLAN.md is not enough. They are reference, not shipping code: nothing
-here is imported, built, or tested. Open the file in a browser.
+here is imported into the mobile app. Open the HTML file in a browser.
+Keep `icons.js` beside it; the local Lucide subset avoids a CDN dependency.
 
 ## `one-next-action.html`
 
@@ -19,7 +20,8 @@ any of them should update the mock too:
 
 - Words are optional on every avatar U screen. The only text is a passage
   reference. Instructions are audio, never prose.
-- One yellow at a time, derived from `workflow.ts` — never a stored status
+- One yellow action at a time. The footer owns it on the hub; tiles retain
+  their semantic colours. Production state must be derived from `workflow.ts` — never a stored status
   column, so a take syncing in from another device moves the yellow without a
   migration.
 - Colour is never alone. Every tile pairs its hue with its Lucide icon, and a
@@ -49,5 +51,39 @@ reference only — do not import from it.
 1. Whether the two reds are far enough apart to read on a bright screen
    outdoors. If not, lean harder on the bars and panel brightness rather than
    widening the red gap.
-2. Whether orange-while-holding on the single-term record button is confusing,
-   given orange otherwise means reference material.
+2. Whether recording-red on the single-term button clearly communicates the
+   same recording mode as the full-screen passage recorder.
+
+
+## Walk through the reference
+
+- Use the phone controls for setup → My Work → hub → task → hand-off.
+- Record terms by holding the microphone for at least 200 ms, then releasing.
+  Space or Enter supports the same hold gesture. Cancellation adds no progress.
+- The reference run has two slides. Recorded terms update the project ring.
+- Stop the simulated passage recorder, keep the take, then queue the hand-off.
+  Cloud-off and a clock mean queued locally, not delivered or approved.
+- Drag the cutoff or use its arrow keys. Home and End select its limits.
+- Use the scenario buttons outside the phone to inspect fixture states directly.
+  These fixtures can intentionally show states outside the current journey.
+- Reload to reset the session. No microphone, audio playback, storage, or network
+  submission occurs. Questions, notes, and alternative setup choices remain
+  outside this study. Fonts are optional; icons load locally.
+
+## Review findings and design decisions
+
+| Before | After | Why |
+| --- | --- | --- |
+| Duplicate `wave` declarations prevent script execution | Waveform renderer and VAD element have separate names | Make every scenario load |
+| Flex styling overrides the hidden takeover | Explicit hidden rule | Keep the passage visible outside recording |
+| Icon CDN returns 404 | Local, licensed Lucide subset | Icons are essential to an oral interface |
+| Static phone controls | Connected main journey and term progress | Let reviewers test transitions |
+| Yellow tile and yellow footer compete | Footer owns the hub action | Give one clear next step |
+| Orange means reference and active recording | Active term recording uses red | Keep mode meanings consistent |
+| Hand-off ends at a blocked gate | Kept take → ready → locally queued | Show recovery and offline outcomes |
+| Cutoff only supports dragging | Keyboard slider with an accessible name | Support alternative input |
+
+This mock illustrates proposed interaction rules. It does not import the core
+workflow engine or validate production permissions. Before implementing the
+mobile screens, test icon comprehension and hold gestures with translators,
+and supply recorded audio guidance in their language.

@@ -1,6 +1,10 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>One Next Action</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.454.0/lucide.min.js"></script>
+<script src="./icons.js"></script>
 <style>
 /* Tokens are apps/mobile/src/theme.ts verbatim. Single theme on purpose:
    the app has one — warm off-white ground, white cards, one yellow action. */
@@ -165,7 +169,7 @@ h1{font-size:clamp(28px,4.2vw,42px);font-weight:700;line-height:1.06}
 .beads{display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:wrap;padding:2px 0}
 .beads i{width:6px;height:6px;border-radius:50%;background:var(--border);display:block}
 .beads i.past{background:var(--done)}
-.beads i.on{width:20px;border-radius:3px;background:var(--action)}
+.beads i.on{width:20px;border-radius:3px;background:var(--foreground)}
 
 /* task tiles — icon carries the meaning */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -227,7 +231,7 @@ h1{font-size:clamp(28px,4.2vw,42px);font-weight:700;line-height:1.06}
 .chip{width:26px;height:26px;border-radius:7px;background:var(--muted);display:flex;align-items:center;justify-content:center}
 .chip.has{background:var(--badge-done);color:var(--done)}
 .chip.has svg{width:14px;height:14px}
-.chip.now{background:var(--action);box-shadow:0 0 0 2px var(--action-foreground)}
+.chip.now{background:var(--muted);box-shadow:0 0 0 2px var(--action-foreground)}
 .avatars{display:flex;align-items:center;gap:8px;justify-content:center;color:var(--muted-foreground);
   font-family:"IBM Plex Mono",monospace;font-size:10.5px}
 
@@ -276,6 +280,26 @@ h1{font-size:clamp(28px,4.2vw,42px);font-weight:700;line-height:1.06}
 code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted);padding:1px 5px;border-radius:5px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 :focus-visible{outline:2px solid var(--action);outline-offset:2px}
+/* Preserve native hidden semantics over the takeover's flex layout. */
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;touch-action:manipulation}
+button:active{transform:scale(.97)}
+button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--translate);outline-offset:3px}
+.nav-back{border:0;background:transparent;min-width:44px;min-height:44px;display:grid;place-items:center;cursor:pointer}
+.tile{width:100%;cursor:pointer}
+.tile.waiting{opacity:1;background:var(--muted);border-style:dashed;cursor:not-allowed}
+.tile.waiting:after{content:"";position:absolute;left:25%;right:25%;top:50%;height:2px;background:var(--muted-foreground);transform:rotate(-35deg)}
+.screen[data-avatar="u"] .tile .nm,
+.screen[data-avatar="u"] .sub,
+.screen[data-avatar="u"] .hint,
+.screen[data-avatar="u"] .avatars span,
+.screen[data-avatar="u"] .tk-state #tk-word,
+.screen[data-avatar="u"] .cut .cap,
+.screen[data-avatar="u"] .tk-gap .lbl{display:none}
+.recbtn.live{background:#A8120A;box-shadow:0 0 0 6px #a8120a22}
+.tk-gap .g{min-width:44px;min-height:44px;justify-content:center}
+.play{border:0;cursor:pointer}
+.demo-note{max-width:65ch;color:var(--muted-foreground);font-size:13px}
 </style>
 
 <div class="wrap">
@@ -283,7 +307,8 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted
   <p class="eyebrow">LangQuest · workflow UX study · PLAN.md §12</p>
   <h1>One next action, every screen</h1>
   <p class="lede">The passage hub is the <b>only</b> screen that branches. Everything under it is a slideshow:
-  one slide, one action, one yellow control. Tap a node in the flow to load that screen in the phone.</p>
+  one slide, one action, one yellow control. Use the phone to walk through the journey, or select a flow node to inspect a state.</p>
+  <p class="demo-note">Interactive simulation: no microphone, audio files, uploads, or persistent storage. Recording and playback feedback are simulated. Reload to reset.</p>
   <div class="avatar-key">
     <div class="akey u"><span class="tag">U</span><p><b>Translator / reviewer.</b> Often non-literate, oral,
     on a phone, offline. Icons carry meaning; the only words on screen are a passage reference. Colour is never
@@ -298,7 +323,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted
     <div class="phone"><div class="screen">
       <div class="statusbar"><span>9:41</span><span id="sb-right">offline</span></div>
       <div class="navbar">
-        <span class="ic" style="color:var(--muted-foreground)"><i data-lucide="chevron-left"></i></span>
+        <button class="nav-back" id="nav-back" aria-label="Back to passage tasks"><i data-lucide="chevron-left"></i></button>
         <span class="ttl" id="nav-title">Jonah 1:1–3</span>
         <span class="who u" id="nav-who">U</span>
       </div>
@@ -311,7 +336,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted
           <span class="tk-state"><span class="pulse"></span><span id="tk-word">listening</span></span>
           <span class="tk-count"><i data-lucide="layers"></i><span id="tk-n">0</span></span>
         </div>
-        <div class="tk-wave" id="tk-wave">
+        <div class="tk-wave" id="tk-wave" role="slider" tabindex="0" aria-label="Sound cutoff" aria-valuemin="4" aria-valuemax="92" aria-valuenow="30" aria-orientation="vertical">
           <canvas id="tk-canvas"></canvas>
           <div class="cut" id="tk-cut">
             <span class="cap">keep sound above this</span>
@@ -354,7 +379,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted
       <div class="chain">
         <button class="node" data-s="mywork"><span class="k"><span class="u">U</span> To do</span><span class="t">My Work</span><span class="d">Task cards, done ones struck through, not hidden</span></button>
         <span class="arrow"><i data-lucide="arrow-right"></i></span>
-        <button class="node hub" data-s="hub"><span class="k"><span class="u">U</span> Hub · not a slideshow</span><span class="t">Passage tasks</span><span class="d">Icon grid, 6% tints. Exactly one tile is yellow.</span></button>
+        <button class="node hub" data-s="hub"><span class="k"><span class="u">U</span> Hub · not a slideshow</span><span class="t">Passage tasks</span><span class="d">Icon grid, 6% tints. One yellow footer advances the task.</span></button>
       </div>
       <div class="branch">
         <button class="node slides" data-s="resources"><span class="k"><span class="u">U</span> Slides · 1</span><span class="t">Listen to the reference</span><span class="d">Walkthrough, then encyclopedia — orange, headphones</span></button>
@@ -370,7 +395,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted
       <div class="chain">
         <button class="node slides" data-s="termsdone"><span class="k"><span class="u">U</span> Last slide</span><span class="t">Finished</span><span class="d">A full ring and one yellow button</span></button>
         <span class="arrow"><i data-lucide="arrow-right"></i></span>
-        <button class="node hub" data-s="hubafter"><span class="k"><span class="u">U</span> Back to hub</span><span class="t">The yellow has moved</span><span class="d">Terms take a green check; the next tile lights up</span></button>
+        <button class="node hub" data-s="hubafter"><span class="k"><span class="u">U</span> Back to hub</span><span class="t">The yellow has moved</span><span class="d">Terms take a green check; the next action changes</span></button>
         <span class="arrow"><i data-lucide="arrow-right"></i></span>
         <button class="node" data-s="mywork"><span class="k"><span class="u">U</span> Or up</span><span class="t">Next task</span><span class="d">Done work stays on the list, struck through</span></button>
       </div>
@@ -391,7 +416,7 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--muted
         <li><b>Words are optional on every U screen.</b> The only text a translator reads is a passage reference.
         Instructions are audio: the walkthrough plays, it doesn't get explained. Labels here sit in
         <code>accessibilityLabel</code>, matching <code>ActionButton</code>'s icon-only U variant.</li>
-        <li><b>One yellow at a time,</b> derived from <code>workflow.ts</code> — never a stored status column, so
+        <li><b>One yellow at a time,</b> in production, derived from <code>workflow.ts</code> — never a stored status column, so
         a take syncing in from another device moves the yellow without a migration.</li>
         <li><b>The VAD session takes the whole screen.</b> Ported from <code>FullScreenVADOverlay</code> and
         <code>WaveformVisualization</code>: a 60-bar ring buffer, white bars where <code>isRecording</code> was
@@ -476,7 +501,7 @@ const S={
   footer:`<button class="act">${ic('arrow-right','lg')}</button>`},
 
  hub:{who:'u',title:'Jonah 1:1–3',sb:'offline',
-  caption:"<b>The hub — the only branching screen.</b> Six tiles, no sentences. Reference is orange with a green check, key terms is yellow because it is next, and hand-off carries a struck-through mic: blocked reads without colour.",
+  caption:"<b>The hub — the only branching screen.</b> Six tiles, no sentences. Reference is orange with a green check, the yellow footer opens key terms, and hand-off carries a struck-through mic: blocked reads without colour.",
   body:`<div class="grid">
     <div class="tile t-ref done"><span class="corner ic">${ic('check-circle-2')}</span>${ic('headphones','xl')}<span class="nm">reference</span></div>
     <div class="tile next"><span class="corner ic">${ic('chevron-right')}</span>${ic('key-round','xl')}<span class="nm">key terms</span>
@@ -489,7 +514,7 @@ const S={
   footer:`<button class="act">${ic('key-round','lg')}${ic('arrow-right','lg')}</button>`},
 
  hubafter:{who:'u',title:'Jonah 1:1–3',sb:'offline',
-  caption:"<b>The same hub after the terms run.</b> Key terms takes a green check and a full ring; the yellow moved to record on its own. Nobody chose where to go next.",
+  caption:"<b>The same hub after the terms run.</b> Key terms takes a green check and a full ring; the yellow footer now opens recording. Nobody chose where to go next.",
   body:`<div class="grid">
     <div class="tile t-ref done"><span class="corner ic">${ic('check-circle-2')}</span>${ic('headphones','xl')}<span class="nm">reference</span></div>
     <div class="tile t-ref done" style="background:var(--tint-done);border-color:rgba(41,163,118,.25)">
@@ -515,7 +540,7 @@ const S={
 
  terms:{who:'u',title:'Jonah 1:1–3',sb:'offline',
   caption:"<b>The ring is the whole point.</b> Nine of these terms already carry audio from earlier sessions, so this run is 15 slides, not 24. The term itself plays rather than being spelled out.",
-  body:`<div class="ring-wrap">${ring(.375,66,'var(--action)','9 of 24 terms have audio')}
+  body:`<div class="ring-wrap">${ring(.375,66,'var(--done)','9 of 24 terms have audio')}
      <div><div class="count">9 / 24</div><div class="sub">${'●'} have audio<br>15 left in this run</div></div></div>
    ${beads(15,1)}
    <div class="player"><span class="play ic lg"><i data-lucide="play"></i></span>
@@ -530,8 +555,8 @@ const S={
       <span class="hint">${ic('hand')} hold</span></div>`},
 
  termslive:{who:'u',title:'Jonah 1:1–3',sb:'offline',
-  caption:"<b>Held down.</b> The circle goes reference-orange with a stop square and the waveform runs live — the same hold-to-record Pressable as <code>QuestAssets</code>. Recording is a mode, so it gets a mode control, not a next-step bar.",
-  body:`<div class="ring-wrap">${ring(.375,66,'var(--action)','9 of 24 terms have audio')}
+  caption:"<b>Held down.</b> The circle goes recording-red with a stop square and the waveform runs live — the hold-to-record pattern from <code>QuestAssets</code>. Recording is a mode, so it gets a mode control, not a next-step bar.",
+  body:`<div class="ring-wrap">${ring(.375,66,'var(--done)','9 of 24 terms have audio')}
      <div><div class="count">10 / 24</div><div class="sub">recording now</div></div></div>
    ${beads(15,1)}
    ${wave([8,21,44,16,58,33,49,27,62,19,41,55,24,37,15,50,29,46,11,35,23,52],'var(--reference)')}
@@ -582,13 +607,24 @@ const S={
       <span class="hint">${ic('hand')} hold</span></div>`}
 };
 
-const order=["structure","attach","assign","mywork","hub","resources","terms","termslive","vad","record","termsdone","hubafter","qa"];
+S.ready={who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:'<b>Ready to hand off.</b> A kept take unlocks submission. Offline submission queues the hand-off; it does not claim a reviewer has received it.',
+  body:`<div class="ref">Jonah 1:1–3</div><div class="ring-wrap">${ic('check-circle-2','xl')}${ic('mic','xl')}</div>`,
+  footer:`<button class="out" aria-label="Back to passage tasks">${ic('chevron-left')}</button><button class="act" aria-label="Queue hand-off for review">${ic('send','lg')}</button>`};
+S.queued={who:'u',title:'Jonah 1:1–3',sb:'offline',
+  caption:'<b>Queued on this phone.</b> Cloud-off and a clock distinguish a local hand-off from delivered work. The next action returns to My Work.',
+  body:`<div class="ring-wrap">${ic('cloud-off','xl')}${ic('clock','xl')}</div>`,
+  footer:`<button class="act" aria-label="Return to My Work">${ic('arrow-right','lg')}</button>`};
+let current='hub', termCount=9, referenceIndex=0, takeKept=false, submitted=false;
+const order=["structure","attach","assign","mywork","hub","resources","terms","termslive","vad","record","termsdone","hubafter","qa","ready","queued"];
 const label={structure:"Structure",attach:"Material",assign:"Assign",mywork:"My Work",hub:"Hub",
-  resources:"Listen",terms:"Terms",termslive:"Hold",vad:"VAD",record:"Record",termsdone:"Finish",hubafter:"Hub +1",qa:"Gate"};
+  resources:"Listen",terms:"Terms",termslive:"Hold",vad:"VAD",record:"Record",termsdone:"Finish",hubafter:"Hub +1",qa:"Gate",ready:"Hand off",queued:"Queued"};
 document.getElementById("tabs").innerHTML=order.map(k=>`<button data-s="${k}">${label[k]}</button>`).join("");
 
 function show(key){
   const s=S[key]; if(!s) return;
+  current=key;
+  document.querySelector('.screen').dataset.avatar=s.who;
   document.getElementById("nav-title").textContent=s.title;
   const who=document.getElementById("nav-who");
   who.textContent=s.who.toUpperCase(); who.className="who "+s.who;
@@ -598,12 +634,101 @@ function show(key){
   document.getElementById("caption").innerHTML=s.caption;
   document.querySelectorAll("[data-s]").forEach(b=>
     b.setAttribute("aria-current", b.dataset.s===key?"true":"false"));
+  wireScreen(key);
   if(window.lucide) window.lucide.createIcons();
   if(key==="vad") openVAD(); else closeVAD();
 }
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-s]"); if(b) show(b.dataset.s);
 });
+
+// Wire the phone separately from the scenario navigation outside it.
+function wireScreen(key){
+  const body=document.getElementById('scr-body');
+  const footer=document.getElementById('scr-footer');
+  const go=(selector,target,label)=>{
+    const b=footer.querySelector(selector);
+    if(b){b.onclick=()=>show(target);b.setAttribute('aria-label',label);}
+  };
+  const next={structure:'attach',attach:'assign',assign:'mywork',mywork:'hub',
+    hub:submitted?'queued':takeKept?'ready':termCount<24?'terms':'vad',hubafter:takeKept?'ready':'vad',resources:'hub',
+    termsdone:'hubafter',record:'ready',ready:'queued',queued:'mywork'};
+  if(next[key])go('.act',next[key],`Continue to ${label[next[key]]}`);
+  go('.out',key==='record'?'vad':'hub',key==='record'?'Record again':'Back to passage tasks');
+  if(key==='record')footer.querySelector('.act').setAttribute('aria-label','Keep recording');
+  if(key==='ready')footer.querySelector('.act').setAttribute('aria-label','Queue hand-off for review');
+  if(key==='record')footer.querySelector('.act').onclick=()=>{takeKept=true;show('ready');};
+  if(key==='ready')footer.querySelector('.act').onclick=()=>{submitted=true;show('queued');};
+  if(key==='hub'||key==='hubafter'){
+    const targets=['resources',termCount===24?'termsdone':'terms','vad',submitted?'queued':takeKept?'ready':'qa',null,null];
+    body.querySelectorAll('.tile').forEach((tile,i)=>{
+      const b=document.createElement('button');
+      b.className=tile.className;b.innerHTML=tile.innerHTML;
+      b.setAttribute('aria-label',tile.querySelector('.nm').textContent);
+      if(i===3&&!takeKept)b.setAttribute('aria-label','Hand off: recording required');
+      if(targets[i])b.onclick=()=>show(targets[i]);
+      else {b.disabled=true;b.setAttribute('aria-label',b.getAttribute('aria-label')+': outside this study');}
+      tile.replaceWith(b);
+      // The footer owns the yellow action; the tile keeps its semantic tint.
+      b.classList.remove('next');
+      if(i===1&&key==='hub')b.querySelector('.ring').innerHTML=ring(termCount/24,26,'var(--done)',`${termCount} of 24 terms recorded`);
+      if(i===2)b.classList.add('t-tr');
+      if(i===3&&takeKept)b.classList.remove('waiting');
+    });
+  }
+  if(key==='mywork'){
+    body.querySelector('.row').classList.remove('next');
+    if(submitted)body.querySelector('.row .tail').innerHTML=ic('cloud-off')+ic('clock');
+  }
+  if(key==='resources'){
+    body.querySelector('.beads').outerHTML=beads(2,referenceIndex);
+    footer.querySelector('.act').onclick=()=>{
+      if(referenceIndex===0){referenceIndex=1;show('resources');}
+      else {referenceIndex=0;show('hub');}
+    };
+  }
+  if(key==='terms'){
+    body.querySelector('.count').textContent=`${termCount} / 24`;
+    body.querySelector('.ring-wrap svg').outerHTML=ring(termCount/24,66,'var(--done)',`${termCount} of 24 terms recorded`);
+    body.querySelector('.beads').outerHTML=beads(15,Math.min(14,termCount-9));
+    body.querySelector('.chips').innerHTML=Array.from({length:24},(_,i)=>
+      `<span class="chip ${i<termCount?'has':i===termCount?'now':''}">${i<termCount?ic('check'):''}</span>`).join('');
+    const b=footer.querySelector('.recbtn');
+    let start=0;
+    const begin=()=>{if(start)return;start=performance.now();b.classList.add('live');b.innerHTML='<span class="stop"></span>';};
+    const end=(cancel=false)=>{
+      if(!start)return;
+      const kept=!cancel&&performance.now()-start>=200;start=0;
+      if(kept)termCount=Math.min(24,termCount+1);
+      show(termCount===24?'termsdone':'terms');
+      document.querySelector('#scr-footer .recbtn, #scr-footer .act')?.focus();
+    };
+    b.onpointerdown=e=>{if(e.button!==0)return;b.setPointerCapture(e.pointerId);begin();};
+    b.onpointerup=()=>end();b.onpointercancel=()=>end(true);
+    b.onkeydown=e=>{if([' ','Enter'].includes(e.key)){e.preventDefault();begin();}};
+    b.onkeyup=e=>{if([' ','Enter'].includes(e.key)){e.preventDefault();end();}};
+    b.onblur=()=>end(true);
+    footer.querySelector('.out').setAttribute('aria-label','Leave terms without recording');
+  }
+  if(key==='qa'){
+    body.querySelector('.row.next').classList.remove('next');
+    footer.querySelector('.recbtn').onclick=()=>show('vad');
+  }
+  if(key==='termslive')footer.querySelector('.recbtn').onclick=()=>show('terms');
+  body.querySelectorAll('.play').forEach(play=>{
+    const b=document.createElement('button');b.className=play.className;
+    b.innerHTML=play.innerHTML;b.setAttribute('aria-label','Play simulated audio');
+    b.setAttribute('aria-pressed','false');
+    b.onclick=()=>{const on=b.getAttribute('aria-pressed')!=='true';
+      b.setAttribute('aria-pressed',String(on));
+      b.setAttribute('aria-label',on?'Pause simulated audio':'Play simulated audio');
+      b.innerHTML=ic(on?'pause':'play');window.lucide?.createIcons();};
+    play.replaceWith(b);
+  });
+  body.scrollTop=0;
+}
+document.getElementById('nav-back').onclick=()=>show(
+  ['hub','hubafter','queued'].includes(current)?'mywork':'hub');
 
 /* ---------------- VAD takeover engine ----------------
    Mirrors ../langquest: a 60-bar ring buffer of mic energy, bars painted
@@ -616,11 +741,14 @@ const buf=Array.from({length:BARS},()=>({e:.01,kept:false}));
 let capturing=false, quietSince=0, segStart=0, segPeaks=[], cards=0, raf=null;
 
 const tk=document.getElementById("tk"), cv=document.getElementById("tk-canvas"),
-  cut=document.getElementById("tk-cut"), wave=document.getElementById("tk-wave"),
+  cut=document.getElementById("tk-cut"), waveArea=document.getElementById("tk-wave"),
   strip=document.getElementById("tk-cards");
 const ctx=cv.getContext("2d");
 
-function placeCut(){ cut.style.top=((1-threshold)*100)+"%"; }
+function placeCut(){
+  cut.style.top=((1-threshold)*100)+"%";
+  waveArea.setAttribute("aria-valuenow",Math.round(threshold*100));
+}
 
 /* speech-shaped energy: phrases with breaths between them */
 let phrase=0, t0=performance.now();
@@ -648,7 +776,7 @@ function frame(now){
   else if(capturing){
     if(!quietSince) quietSince=now;
     else if(now-quietSince>=silenceMs){
-      const len=now-segStart;
+      const len=quietSince-segStart;
       capturing=false; quietSince=0;
       if(len>=MIN_SEG) popCard(segPeaks);
       else buf.forEach(b=>b.kept=false);   // too short → discarded, bars revert
@@ -678,37 +806,61 @@ function frame(now){
 }
 
 function sizeCanvas(){
-  const r=wave.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  const r=waveArea.getBoundingClientRect(), d=window.devicePixelRatio||1;
   cv.width=Math.max(1,r.width*d); cv.height=Math.max(1,r.height*d);
 }
 
 function openVAD(){
+  closeVAD();
+  quietSince=0;segStart=0;segPeaks=[];phrase=0;t0=performance.now();
+  document.getElementById("tk-word").textContent="listening";
   tk.hidden=false; sizeCanvas(); placeCut();
+  document.getElementById("scr-body").inert=true;
+  document.getElementById("scr-footer").inert=true;
+  document.querySelector(".navbar").inert=true;
+  document.getElementById("tk-stop").focus();
   cards=0; strip.innerHTML=""; document.getElementById("tk-n").textContent="0";
   buf.forEach(b=>{b.e=.01;b.kept=false});
   if(!raf) raf=requestAnimationFrame(frame);
   if(window.lucide) window.lucide.createIcons();
 }
-function closeVAD(){ tk.hidden=true; if(raf){cancelAnimationFrame(raf);raf=null;} capturing=false;
+function closeVAD(){
+  document.getElementById("scr-body").inert=false;
+  document.getElementById("scr-footer").inert=false;
+  document.querySelector(".navbar").inert=false;
+  tk.hidden=true; if(raf){cancelAnimationFrame(raf);raf=null;} capturing=false;
   tk.classList.remove("capturing"); }
 
 /* drag the cutoff line — pointer events, no lag, no numbers */
 let dragging=false;
 const setFromY=cy=>{
-  const r=wave.getBoundingClientRect();
+  const r=waveArea.getBoundingClientRect();
   threshold=Math.min(.92,Math.max(.04,1-(cy-r.top)/r.height));
   placeCut();
 };
-wave.addEventListener("pointerdown",e=>{dragging=true;wave.setPointerCapture(e.pointerId);setFromY(e.clientY);});
-wave.addEventListener("pointermove",e=>{if(dragging)setFromY(e.clientY);});
-wave.addEventListener("pointerup",()=>{dragging=false;});
-wave.addEventListener("pointercancel",()=>{dragging=false;});
+waveArea.addEventListener("keydown",e=>{
+  if(!["ArrowUp","ArrowDown","Home","End"].includes(e.key))return;
+  e.preventDefault();
+  threshold=e.key==="Home"?.04:e.key==="End"?.92:
+    Math.min(.92,Math.max(.04,threshold+(e.key==="ArrowUp"?.02:-.02)));
+  placeCut();
+});
+waveArea.addEventListener("pointerdown",e=>{dragging=true;waveArea.setPointerCapture(e.pointerId);setFromY(e.clientY);});
+waveArea.addEventListener("pointermove",e=>{if(dragging)setFromY(e.clientY);});
+waveArea.addEventListener("pointerup",()=>{dragging=false;});
+waveArea.addEventListener("pointercancel",()=>{dragging=false;});
 document.querySelectorAll(".tk-gap .g").forEach(b=>b.addEventListener("click",()=>{
   silenceMs=+b.dataset.gap;
   document.querySelectorAll(".tk-gap .g").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));
 }));
-document.getElementById("tk-stop").addEventListener("click",()=>{closeVAD();show("record");});
+document.getElementById("tk-stop").addEventListener("click",()=>{
+  if(capturing&&(quietSince||performance.now())-segStart>=MIN_SEG)popCard(segPeaks);
+  const hasTake=cards>0;closeVAD();show(hasTake?"record":"hub");
+  document.querySelector("#scr-footer button:not(:disabled)")?.focus();
+});
 window.addEventListener("resize",()=>{ if(!tk.hidden) sizeCanvas(); });
 
 show("hub");
 </script>
+
+</html>
