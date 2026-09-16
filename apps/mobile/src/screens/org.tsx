@@ -1,14 +1,15 @@
 // Avatar P. Org, project, and language homes; members; invites; review teams.
 import type { Role } from '@langquest-next/core';
-import { deriveWorkflow, SEED_ROLES } from '@langquest-next/core';
-import { Building2, Check, FileText, Globe, ListChecks, Plus, QrCode, Users, Workflow } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { deriveWorkflow } from '@langquest-next/core';
+import { Building2, Check, FileText, Globe, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import type { Ctx } from '../ctx';
-import { acceptJoinRequest, declineJoinRequest, inviteLink, issueInvite, listJoinRequests, type JoinRequest } from '../invites';
 import { Badge, Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
-import { text } from '../ui';
+import { Card, text } from '../ui';
 
 // One org for now, the same constant App.tsx opens with.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
@@ -99,25 +100,29 @@ export function LanguageHome(ctx: Ctx) {
 
 export function MembersList(ctx: Ctx) {
   const { state } = ctx.project;
-  const orgMembers = Object.entries(ctx.org.state?.members ?? {})
-    .map(([id, byScope]) => [id, Object.values(byScope).find((m) => m.removed.value === false)] as const)
-    .filter(([, m]) => m !== undefined);
+  const orgId = ctx.project.orgId;
   const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const mayAdmit = ctx.session.can('invite_members');
+  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
+  const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [error, setError] = useState('');
 
-  // Join requests are a table, not a partition: they are the one thing a
-  // non-member may write, so they are read here rather than folded.
-  useEffect(() => {
-    if (!ctx.session.can('invite_members')) return;
-    listJoinRequests(ORG_ID).then(setRequests).catch((e: Error) => setError(e.message));
-  }, [ctx.session]);
-
-  async function decide(r: JoinRequest, roleId: string | null) {
+  const refresh = useCallback(async () => {
+    if (!mayAdmit) return;
     try {
-      if (roleId) await acceptJoinRequest(r.id, roleId);
-      else await declineJoinRequest(r.id);
-      setRequests((rs) => rs.filter((x) => x.id !== r.id));
+      setRequests(await pendingRequests(orgId));
+    } catch {
+      // Offline: the list is a server read with no local mirror, so it stays
+      // empty rather than claiming nobody asked.
+    }
+  }, [mayAdmit, orgId]);
+  useEffect(() => void refresh(), [refresh]);
+
+  async function decide(id: string, accepted: boolean) {
+    setError('');
+    try {
+      await decideRequest(id, accepted, roles.find(([r]) => r === 'translator')?.[0] ?? roles[0]?.[0]);
+      await refresh();
       await ctx.org.sync();
     } catch (e) {
       setError((e as Error).message);
@@ -127,28 +132,30 @@ export function MembersList(ctx: Ctx) {
   return (
     <Screen>
       <Header title="Members" onBack={ctx.back} action={ctx.session.isAdmin ? <Badge label="Invite" color={colors.translate} /> : undefined} />
-      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
       {requests.length > 0 ? (
-        <Section label={`Requests to join · ${requests.length}`}>
+        <Section label={`Asking to join · ${requests.length}`}>
           {requests.map((r, i) => (
             <Row
               key={r.id}
               icon={Users}
               label={r.profileId.slice(0, 8)}
-              sub={r.message || 'Asked to join'}
-              badge="accept as translator"
-              onPress={() => void decide(r, 'translator')}
-              right={<Pressable onPress={() => void decide(r, null)} hitSlop={8}><Text style={text.muted}>Decline</Text></Pressable>}
+              sub={r.message || 'No message'}
+              right={
+                <View style={{ flexDirection: 'row', gap: space.md }}>
+                  <Pressable onPress={() => void decide(r.id, true)} hitSlop={8} accessibilityLabel="Accept">
+                    <Check size={20} color={colors.translate} />
+                  </Pressable>
+                  <Pressable onPress={() => void decide(r.id, false)} hitSlop={8} accessibilityLabel="Decline">
+                    <X size={20} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              }
               last={i === requests.length - 1}
             />
           ))}
         </Section>
       ) : null}
-      <Section label={`Organization members · ${orgMembers.length}`}>
-        {orgMembers.map(([id, m], i) => (
-          <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : m!.displayName ?? id.slice(0, 8)} sub={id.slice(0, 8)} badge={m!.roleId.value} last={i === orgMembers.length - 1} />
-        ))}
-      </Section>
+      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
       <Section label={`Project members · ${members.length}`}>
         {members.map(([id, m], i) => (
           <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : id.slice(0, 8)} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
@@ -159,43 +166,17 @@ export function MembersList(ctx: Ctx) {
   );
 }
 
-/**
- * Invite by code (docs 5.B). `issue_invite` writes a single-use row whose
- * token is returned exactly once and never stored in the clear; the invitee
- * redeems it on their own device and the server appends the ordinary
- * v1.OrgMemberAdded under this admin. Email delivery is not wired yet, so the
- * code is shown here to send by whatever channel the team already uses.
- */
 export function InviteMember(ctx: Ctx) {
   const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
-  const roleIds = roles.length > 0 ? roles.map(([id]) => id) : SEED_ROLES.map((r) => r.roleId);
-  const [email, setEmail] = useState('');
-  const [roleId, setRoleId] = useState('translator');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function send() {
-    setBusy(true);
-    setError('');
-    try {
-      const invite = await issueInvite(ORG_ID, roleId, { level: 'org' }, email.trim() || undefined);
-      ctx.go('invite_qr', { token: invite.token, roleId, expiresAt: invite.expiresAt });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [roleId, setRoleId] = useState(roles[0]?.[0] ?? '');
 
   return (
-    <Screen footer={<Footer label="Create invite" onPress={() => void send()} disabled={busy} />}>
+    <Screen footer={<Footer label="Next" onPress={() => ctx.go('invite_qr', { roleId })} disabled={!roleId} />}>
       <Header title="Invite" onBack={ctx.back} />
-      <Note>The invite is a single-use code. Send it however you like; whoever redeems it joins {ORG_ID} with the role you pick.</Note>
-      <TextInput style={styles.input} placeholder="email (optional, for your own records)" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
-      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
-      <Section label="Role">
-        {roleIds.map((r, i) => (
-          <Row key={r} label={r} onPress={() => setRoleId(r)} right={roleId === r ? <Check size={18} color={colors.translate} /> : <View />} last={i === roleIds.length - 1} />
+      <Note>Pick what they join as. The next screen makes the code, which is shown once.</Note>
+      <Section label="They join as">
+        {roles.map(([id, r], i) => (
+          <Row key={id} label={r.name.value || id} onPress={() => setRoleId(id)} right={roleId === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === roles.length - 1} />
         ))}
       </Section>
     </Screen>
@@ -204,21 +185,52 @@ export function InviteMember(ctx: Ctx) {
 
 /** The issued code, shown once. The QR image itself is still to come. */
 export function InviteQr(ctx: Ctx) {
-  const token = ctx.params['token'] ?? '';
+  const orgId = ctx.project.orgId;
+  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
+  const [roleId, setRoleId] = useState(ctx.params['roleId'] ?? roles[0]?.[0] ?? '');
+  const [invite, setInvite] = useState<NewInvite | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function generate() {
+    setBusy(true);
+    setError('');
+    try {
+      setInvite(await issueInvite(orgId, roleId, { level: 'org' }));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setBusy(false);
+  }
+
   return (
-    <Screen footer={<Footer label="Done" onPress={() => ctx.go('members_list')} />}>
-      <Header title="Invite created" onBack={ctx.back} sub={ctx.params['roleId']} />
-      <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
-        <QrCode size={160} color={colors.mutedForeground} />
-      </View>
-      {token ? (
-        <Section label="Send this code">
-          <Row label={token} sub={inviteLink(ORG_ID, token)} last />
-        </Section>
+    <Screen footer={invite ? <Footer label="Done" onPress={() => ctx.go('members_list')} /> : <Footer label="Create invite" onPress={() => void generate()} disabled={busy || !roleId} />}>
+      <Header title="Invite by QR" onBack={ctx.back} />
+      {invite ? (
+        <>
+          <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
+            <QRCode value={inviteUri(orgId, invite.token)} size={200} backgroundColor="transparent" />
+          </View>
+          <Card>
+            <Text style={text.small}>Or type this code</Text>
+            <Text selectable style={[text.body, { fontFamily: 'Courier' }]}>{invite.token}</Text>
+          </Card>
+          <Note>Shown once. Leaving this screen loses the code, and you make a new invite instead. It expires {new Date(invite.expiresAt).toDateString()}.</Note>
+        </>
       ) : (
-        <NotWired what="QR invite generation" />
+        <>
+          <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
+            <QrCode size={160} color={colors.mutedForeground} />
+          </View>
+          <Note>Anyone who scans this joins the organization in the role you pick, once. The code is never stored, here or on the server.</Note>
+          <Section label="They join as">
+            {roles.map(([id, r], i) => (
+              <Row key={id} label={r.name.value || id} onPress={() => setRoleId(id)} right={roleId === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === roles.length - 1} />
+            ))}
+          </Section>
+        </>
       )}
-      <Note>Shown once: it is stored hashed, so it cannot be read again. Expires {ctx.params['expiresAt']?.slice(0, 10) ?? 'in two weeks'}.</Note>
+      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
     </Screen>
   );
 }

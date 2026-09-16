@@ -6,8 +6,8 @@ import { SEED_ROLES } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
+import { parseInvite, redeemInvite, requestAccess } from '../invites';
 import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
-import { redeemInvite, requestAccess } from '../invites';
 import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
 
@@ -209,33 +209,43 @@ export function ExploreHome(ctx: Ctx) {
 }
 
 export function RequestAccess(ctx: Ctx) {
-  const [org, setOrg] = useState(ORG_ID);
+  const [orgId, setOrgId] = useState('');
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   async function send() {
+    setBusy(true);
+    setError('');
     try {
-      await requestAccess(org.trim(), ctx.session.actorId, message.trim());
+      await requestAccess(orgId, message);
       setSent(true);
     } catch (e) {
       setError((e as Error).message);
     }
+    setBusy(false);
   }
 
   return (
-    <Screen footer={<Footer label={sent ? 'Back' : 'Send request'} onPress={() => (sent ? ctx.go('intent_chooser') : void send())} disabled={!sent && !org.trim()} />}>
+    <Screen
+      footer={
+        sent
+          ? <Footer label="Back" onPress={() => ctx.go('intent_chooser')} />
+          : <Footer label="Send request" onPress={() => void send()} disabled={busy || orgId.trim() === ''} />
+      }
+    >
       <Header title="Request access" onBack={ctx.back} />
       {sent ? (
-        <Note>Request sent. An admin of {org} sees it on their Members screen and can accept it with a role.</Note>
+        <Note>Request sent. An admin will add you. Nothing is shared with the organization until they accept.</Note>
       ) : (
         <>
-          <Note>Ask an organization for access. Someone who can invite members decides.</Note>
-          <TextInput style={styles.input} placeholder="organization id" autoCapitalize="none" value={org} onChangeText={setOrg} />
-          <TextInput style={styles.input} placeholder="who you are (optional)" value={message} onChangeText={setMessage} />
+          <Note>Ask an organization to let you in. Until someone accepts, you see nothing of theirs.</Note>
+          <TextInput style={styles.input} placeholder="organization code" autoCapitalize="none" value={orgId} onChangeText={setOrgId} />
+          <TextInput style={styles.input} placeholder="message (optional)" value={message} onChangeText={setMessage} />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </>
       )}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
     </Screen>
   );
 }
@@ -250,30 +260,41 @@ export function ScanQr(ctx: Ctx) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function redeem() {
+  async function join() {
+    const parsed = parseInvite(code);
+    if (!parsed) {
+      setError('That does not look like an invite code.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      await redeemInvite(code);
+      await redeemInvite(parsed.token);
+      // Membership arrives on the next org pull; home routes off the fold.
       await ctx.org.sync();
-      await ctx.project.sync();
       ctx.home();
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (
-    <Screen footer={<Footer label="Join" onPress={() => void redeem()} disabled={busy || code.trim().length < 8} />}>
+    <Screen footer={<Footer label="Join" onPress={() => void join()} disabled={busy || code.trim() === ''} />}>
       <Header title="Join with an invite" onBack={ctx.back} />
-      <View style={[styles.center, { minHeight: 160 }]}>
+      <View style={[styles.center, { minHeight: 120 }]}>
         <QrCode size={96} color={colors.mutedForeground} />
       </View>
-      <TextInput style={styles.input} placeholder="paste invite code or link" autoCapitalize="none" value={code} onChangeText={setCode} />
+      <Note>Paste the code someone sent you, or the whole invite link. Camera scanning is next; the code works the same either way.</Note>
+      <TextInput
+        style={styles.input}
+        placeholder="invite code"
+        autoCapitalize="none"
+        autoCorrect={false}
+        value={code}
+        onChangeText={setCode}
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <NotWired what="The camera scanner (the code works today)" />
     </Screen>
   );
 }

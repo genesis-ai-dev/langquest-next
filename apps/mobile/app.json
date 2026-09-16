@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.frontierrnd.langquestnext",
+      "buildNumber": "4",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "LangQuest records your voice to translate passages.",
         "ITSAppUsesNonExemptEncryption": false
@@ -47,6 +48,12 @@
         "expo-audio",
         {
           "microphonePermission": "LangQuest records your voice to translate passages."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "LangQuest uses the camera to scan invite and project QR codes."
         }
       ]
     ],

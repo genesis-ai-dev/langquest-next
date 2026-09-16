@@ -323,6 +323,9 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.OrgMemberRemoved':
     case 'v1.CatalogItemToggled':
     case 'v1.ProjectRegistered':
+    case 'v1.InviteIssued':
+    case 'v1.InviteRedeemed':
+    case 'v1.JoinDecided':
       // Org partition events (org.ts). Nothing to fold into project state.
       break;
 

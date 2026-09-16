@@ -64,11 +64,27 @@ export interface OrgEventPayloads {
   /** Org enables from the system catalog; a project narrows what the org enabled (A42). */
   'v1.CatalogItemToggled': { kind: CatalogKind; itemId: string; level: 'org' | 'project'; projectId?: string; enabled: boolean };
   'v1.ProjectRegistered': { projectId: string; name: string };
+  /**
+   * An invite that may be redeemed once, for a role at a scope (audit 5.B).
+   * The token itself is never in the log: only its hash, in the `invites`
+   * table. Every member pulls this partition, so a token here would be a
+   * token shared with everyone it was not issued to.
+   */
+  'v1.InviteIssued': { inviteId: string; roleId: string; scope: Scope; expiresAt: string };
+  /**
+   * Server-only. `redeem_invite` appends this beside the OrgMemberAdded it
+   * grants, so the log says which invite let someone in without changing
+   * the shape of the shipped OrgMemberAdded event.
+   */
+  'v1.InviteRedeemed': { inviteId: string; profileId: string };
+  /** A coordinator's verdict on a join request (audit 5.B). */
+  'v1.JoinDecided': { requestId: string; profileId: string; accepted: boolean };
 }
 export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.OrgMemberAdded',
-  'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.ProjectRegistered'
+  'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.ProjectRegistered',
+  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided'
 ];
 
 /**
@@ -119,7 +135,10 @@ export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_ki
   'v1.OrgMemberAdded': 'invite_members',
   'v1.OrgMemberRemoved': 'invite_members',
   'v1.CatalogItemToggled': 'by_kind',
-  'v1.ProjectRegistered': 'manage_structure'
+  'v1.ProjectRegistered': 'manage_structure',
+  'v1.InviteIssued': 'invite_members',
+  'v1.InviteRedeemed': null,
+  'v1.JoinDecided': 'invite_members'
 };
 
 const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
@@ -191,6 +210,27 @@ export interface OrgMembership {
   scope: Scope;
 }
 
+/**
+ * An invite as the log knows it. `redeemedBy` is written by a different
+ * event than the rest, so each event writes only its own fields and the two
+ * commute: a redemption that arrives before its issue still lands.
+ */
+export interface OrgInvite {
+  roleId: string;
+  scope: Scope;
+  expiresAt: string;
+  issuedBy: string;
+  hlc: string;
+  redeemedBy: string | null;
+}
+
+export interface JoinDecision {
+  profileId: string;
+  accepted: boolean;
+  decidedBy: string;
+  hlc: string;
+}
+
 export interface OrgState {
   org: Register<{ name: string }> | null;
   roles: Record<string, OrgRoleState>;
@@ -199,13 +239,17 @@ export interface OrgState {
   /** `${kind}:${itemId}:${level}:${projectId ?? ''}` -> enabled */
   catalog: Record<string, Register<boolean>>;
   projects: Record<string, { name: string }>;
+  /** inviteId -> invite. */
+  invites: Record<string, OrgInvite>;
+  /** requestId -> the verdict a coordinator recorded. */
+  joinDecisions: Record<string, JoinDecision>;
   appliedEventIds: Record<string, true>;
   invalidEvents: Record<string, string>;
   redactions: Record<string, true>;
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {} };
 }
 
 export function scopeKey(s: Scope): string {
@@ -217,6 +261,10 @@ export function catalogKey(kind: CatalogKind, itemId: string, level: 'org' | 'pr
 }
 
 const empty: Register<never> = { value: undefined as never, hlc: '', eventId: '' };
+
+function emptyInvite(): OrgInvite {
+  return { roleId: '', scope: { level: 'org' }, expiresAt: '', issuedBy: '', hlc: '', redeemedBy: null };
+}
 
 function loses(current: Register<unknown>, event: EventEnvelope): boolean {
   if (current.hlc !== event.hlc) return current.hlc > event.hlc;
@@ -272,6 +320,36 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       state.catalog[key] = set(state.catalog[key], event, enabled);
       break;
     }
+    case 'v1.InviteIssued': {
+      const { inviteId, roleId, scope, expiresAt } = event.payload;
+      const slot = (state.invites[inviteId] ??= emptyInvite());
+      // Register by clock so a duplicated id cannot make the fold depend on
+      // arrival order; only this event's own fields are written.
+      if (slot.hlc === '' || slot.hlc < event.hlc) {
+        slot.roleId = roleId;
+        slot.scope = scope;
+        slot.expiresAt = expiresAt;
+        slot.issuedBy = event.actorId;
+        slot.hlc = event.hlc;
+      }
+      break;
+    }
+
+    case 'v1.InviteRedeemed': {
+      const { inviteId, profileId } = event.payload;
+      (state.invites[inviteId] ??= emptyInvite()).redeemedBy = profileId;
+      break;
+    }
+
+    case 'v1.JoinDecided': {
+      const { requestId, profileId, accepted } = event.payload;
+      const prior = state.joinDecisions[requestId];
+      if (!prior || prior.hlc < event.hlc) {
+        state.joinDecisions[requestId] = { profileId, accepted, decidedBy: event.actorId, hlc: event.hlc };
+      }
+      break;
+    }
+
     case 'v1.ProjectRegistered':
       state.projects[event.payload.projectId] ??= { name: event.payload.name };
       break;

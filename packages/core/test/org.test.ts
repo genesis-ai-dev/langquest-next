@@ -104,3 +104,60 @@ describe('org partition fold', () => {
     expect(emptyOrgState().roles).toEqual({});
   });
 });
+
+describe('invites and join requests (audit 5.B)', () => {
+  const ev = (seq: number, type: string, payload: unknown, actorId = 'lead'): AnyEvent =>
+    ({ id: `i${seq}`, type, orgId: 'org1', projectId: '_org', actorId, deviceId: 'dA', hlc: encodeHlc(1_800_000_000_000 + seq, 0, 'dA'), payload, serverSeq: seq }) as AnyEvent;
+
+  const scope = { level: 'org' as const };
+
+  it('records an issued invite without ever carrying the token', () => {
+    // Why: the QR carries the secret; the log carries only the fact. A token
+    // in the log would be readable by every member who pulls the partition.
+    const e = ev(1, 'v1.InviteIssued', { inviteId: 'inv1', roleId: 'translator', scope, expiresAt: '2026-10-01T00:00:00Z' });
+    const s = foldOrg([e]);
+    expect(Object.keys(s.invalidEvents)).toHaveLength(0);
+    expect(s.invites['inv1']).toMatchObject({ roleId: 'translator', issuedBy: 'lead', redeemedBy: null });
+    expect(JSON.stringify(e.payload)).not.toContain('token');
+  });
+
+  it('marks an invite redeemed and is order-independent', () => {
+    const issued = ev(1, 'v1.InviteIssued', { inviteId: 'inv1', roleId: 'translator', scope, expiresAt: '2026-10-01T00:00:00Z' });
+    const redeemed = ev(2, 'v1.InviteRedeemed', { inviteId: 'inv1', profileId: 'newbie' }, 'service');
+    const forward = foldOrg([issued, redeemed]);
+    const reverse = foldOrg([redeemed, issued]);
+    expect(forward.invites['inv1']?.redeemedBy).toBe('newbie');
+    expect(reverse.invites['inv1']?.redeemedBy).toBe('newbie');
+    // Redemption arriving first must not invent an invite it cannot describe.
+    expect(reverse.invites['inv1']?.roleId).toBe('translator');
+  });
+
+  it('applying a redemption twice equals applying it once', () => {
+    const issued = ev(1, 'v1.InviteIssued', { inviteId: 'inv1', roleId: 'translator', scope, expiresAt: '2026-10-01T00:00:00Z' });
+    const redeemed = ev(2, 'v1.InviteRedeemed', { inviteId: 'inv1', profileId: 'newbie' }, 'service');
+    expect(foldOrg([issued, redeemed, redeemed])).toEqual(foldOrg([issued, redeemed]));
+  });
+
+  it('records a join decision either way', () => {
+    const yes = ev(1, 'v1.JoinDecided', { requestId: 'r1', profileId: 'asker', accepted: true });
+    const no = ev(2, 'v1.JoinDecided', { requestId: 'r2', profileId: 'other', accepted: false });
+    const s = foldOrg([yes, no]);
+    expect(s.joinDecisions['r1']).toMatchObject({ profileId: 'asker', accepted: true, decidedBy: 'lead' });
+    expect(s.joinDecisions['r2']?.accepted).toBe(false);
+  });
+
+  it('gates issuing and deciding on invite_members, and redemption is server-only', () => {
+    // Why: a translator must not be able to admit people, and no client may
+    // forge a redemption; only the redeem_invite RPC appends that.
+    expect(EVENT_PRIVILEGE['v1.InviteIssued']).toBe('invite_members');
+    expect(EVENT_PRIVILEGE['v1.JoinDecided']).toBe('invite_members');
+    expect(EVENT_PRIVILEGE['v1.InviteRedeemed']).toBeNull();
+  });
+
+  it('refuses a malformed invite rather than folding it', () => {
+    const bad = ev(1, 'v1.InviteIssued', { inviteId: 'inv1', roleId: '', scope, expiresAt: 'x' });
+    const s = foldOrg([bad]);
+    expect(Object.keys(s.invalidEvents)).toHaveLength(1);
+    expect(s.invites['inv1']).toBeUndefined();
+  });
+});

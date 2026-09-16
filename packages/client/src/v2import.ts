@@ -1,4 +1,4 @@
-import { CLIENT_PROTOCOL_VERSION, encodeHlc, type AnyEvent, type EventPayloads, type EventType, type Role } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, encodeHlc, ORG_PARTITION, SEED_ROLES, type AnyEvent, type EventPayloads, type EventType, type Role, type Scope } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -74,7 +74,7 @@ const STEP = 'community';
 /** Ties between member registers at the same clock go to the stronger role. */
 const ROLE_RANK: Record<Role, number> = { viewer: 1, translator: 2, reviewer: 3, coordinator: 4, owner: 5 };
 
-export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent[]; report: MapReport } {
+export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent[]; report: MapReport; owner: string; roles: ReadonlyMap<string, Role> } {
   const projectId = rows.project.id;
   const report: MapReport = {
     events: 0, books: 0, passages: 0, references: 0, takes: 0, reviews: 0, members: 0,
@@ -214,7 +214,7 @@ export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent
   }
 
   report.events = events.length;
-  return { events, report };
+  return { events, report, owner, roles };
 }
 
 function pad(n: number): string {
@@ -368,4 +368,61 @@ export async function appendAll(service: SupabaseClient, events: AnyEvent[]): Pr
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// The org partition for imported projects.
+//
+// v2 has no organization: it has projects with member links. Without an org
+// partition an imported org has no roles and no org memberships, so every
+// org-level feature (invites, roles, the members screen at org scope) has
+// nothing to work with. Seeding it here makes an imported org the same shape
+// as one created in the app, which is what `CreateOrg` builds by hand.
+// ---------------------------------------------------------------------------
+
+/** Project role -> the seeded org role that carries the same privileges. */
+const ORG_ROLE_OF: Record<Role, string> = {
+  owner: 'org_admin',
+  coordinator: 'project_coordinator',
+  translator: 'translator',
+  reviewer: 'reviewer',
+  viewer: 'viewer'
+};
+
+export interface SeededProject {
+  projectId: string;
+  name: string;
+  /** Project memberships as the mapper derived them. */
+  roles: ReadonlyMap<string, Role>;
+}
+
+/**
+ * Events for the `_org` partition. Order matters: the server lets an org
+ * with no members accept its creation and its creator's own admin
+ * membership, so the owner's org-scope membership comes before anyone
+ * else's. Ids derive from the org and profile, so re-running appends
+ * nothing new.
+ */
+export function mapOrgSeed(orgId: string, orgName: string, owner: string, projects: SeededProject[], at: string): AnyEvent[] {
+  const events: AnyEvent[] = [];
+  const clock = (n: number) => encodeHlc(Date.parse(at), n, DEVICE);
+  let n = 0;
+  const emit = <T extends EventType>(id: string, type: T, payload: EventPayloads[T]) => {
+    events.push({ id: `v2:${id}`, type, orgId, projectId: ORG_PARTITION, actorId: owner, deviceId: DEVICE, hlc: clock(n++), payload } as AnyEvent);
+  };
+
+  emit(`org:${orgId}`, 'v1.OrgCreated', { name: orgName });
+  for (const r of SEED_ROLES) emit(`role:${orgId}:${r.roleId}`, 'v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
+  emit(`orgmember:${orgId}:${owner}:org`, 'v1.OrgMemberAdded', { profileId: owner, roleId: 'org_admin', scope: { level: 'org' } });
+
+  for (const p of projects) {
+    emit(`projreg:${orgId}:${p.projectId}`, 'v1.ProjectRegistered', { projectId: p.projectId, name: p.name });
+    for (const [profileId, role] of p.roles) {
+      if (profileId === owner) continue;
+      // Scope follows where the person actually worked, never the role (A38).
+      const scope: Scope = { level: 'project', projectId: p.projectId };
+      emit(`orgmember:${orgId}:${profileId}:${p.projectId}`, 'v1.OrgMemberAdded', { profileId, roleId: ORG_ROLE_OF[role], scope });
+    }
+  }
+  return events;
 }

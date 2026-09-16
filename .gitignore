@@ -8,3 +8,9 @@ supabase/.temp
 
 # Glance memory shards
 .glance/
+
+# Signing credentials — never commit. Use EAS-managed credentials, or an
+# env var for the cert password (see apps/mobile/eas.json).
+apps/mobile/credentials.json
+*.p12
+*.mobileprovision

@@ -454,72 +454,122 @@ do $$ declare r record; begin
   if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'unitScope must be an array, got %', r; end if;
 end $$;
 
--- 11. Invites and join requests (migration 12, docs 5.B). The only writes by
---     non-members: a table each, and the ordinary OrgMemberAdded when a member
---     decides. org1's roles and memberships come from section 8.
-select set_config('request.jwt.claim.sub', 'akol', false);
-do $$ declare v_token text; begin
+-- ---------------------------------------------------------------------------
+-- 8. Invites and join requests (docs/flow-coverage-audit.md 5.B).
+-- The org partition exists from section 6; 'lead' holds org_admin there.
+-- ---------------------------------------------------------------------------
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$
+declare
+  v_org text;
+  v_hash text := encode(extensions.digest('tok-secret-1', 'sha256'), 'hex');
+  n int;
+begin
+  -- A member with invite_members may issue; the token itself never lands.
+  perform public.issue_invite('org1', 'inv1', v_hash, 'lang_lead',
+    '{"level":"org"}'::jsonb, now() + interval '7 days');
+  select count(*) into n from public.invites where id = 'inv1' and org_id = 'org1';
+  if n <> 1 then raise exception 'invite row missing'; end if;
+  select count(*) into n from public.events
+    where project_id = '_org' and type = 'v1.InviteIssued' and payload->>'inviteId' = 'inv1';
+  if n <> 1 then raise exception 'InviteIssued not appended'; end if;
+  select count(*) into n from public.events
+    where project_id = '_org' and payload::text like '%tok-secret-1%';
+  if n <> 0 then raise exception 'the token reached the log'; end if;
+
+  -- An unknown role is refused, so an invite cannot grant something undefined.
   begin
-    select token into v_token from public.issue_invite('org1', 'lang_lead');
-    raise exception 'a lane lead without invite_members must not issue invites';
-  exception when sqlstate '42501' then null; end;
+    perform public.issue_invite('org1', 'inv-bad', 'h2', 'no_such_role', '{"level":"org"}'::jsonb, now() + interval '1 day');
+    raise exception 'unknown role was accepted';
+  exception when sqlstate '22023' then null;
+  end;
 end $$;
 
-select set_config('request.jwt.claim.sub', 'lead', false);
-do $$ declare v_token text; r record; begin
-  select token into v_token from public.issue_invite('org1', 'lang_lead', '{"level":"org"}'::jsonb, 'newbie@example.test');
-  if v_token is null then raise exception 'no invite token'; end if;
-  if exists (select 1 from public.invites where token_hash = v_token) then
-    raise exception 'the token itself must never be stored';
-  end if;
-
-  -- Unknown roles and bad scopes are refused before a row exists.
+-- A translator holds no invite_members privilege and may not issue.
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$
+begin
   begin
-    perform public.issue_invite('org1', 'no_such_role');
-    raise exception 'unknown role must be refused';
-  exception when sqlstate '22023' then null; end;
+    perform public.issue_invite('org1', 'inv2', 'h3', 'lang_lead', '{"level":"org"}'::jsonb, now() + interval '1 day');
+    raise exception 'translator issued an invite';
+  exception when sqlstate '42501' then null;
+  end;
+end $$;
 
-  -- The invitee redeems it themselves; the membership lands under the issuer.
-  perform set_config('request.jwt.claim.sub', 'newbie', false);
-  select * into r from public.redeem_invite(v_token);
-  if r.org_id <> 'org1' or r.role_id <> 'lang_lead' then raise exception 'redeem returned %', r; end if;
-  if not exists (select 1 from public.org_memberships m
-                 where m.org_id = 'org1' and m.profile_id = 'newbie' and m.role_id = 'lang_lead' and not m.removed) then
-    raise exception 'redeeming must add the membership';
-  end if;
-  if not exists (select 1 from public.events e
-                 where e.org_id = 'org1' and e.project_id = '_org'
-                   and e.type = 'v1.OrgMemberAdded' and e.payload->>'profileId' = 'newbie'
-                   and e.actor_id = 'lead') then
-    raise exception 'redeeming must append OrgMemberAdded under the issuer';
-  end if;
+-- A stranger redeems, and becomes a member without ever being granted anything by themselves.
+select set_config('request.jwt.claim.sub', 'newbie', false);
+do $$
+declare v_org text; n int; v_actor text;
+begin
+  v_org := public.redeem_invite('tok-secret-1');
+  if v_org <> 'org1' then raise exception 'redeem returned %', v_org; end if;
+  if public.member_role('org1', 'p1', 'newbie') is null then raise exception 'membership not granted'; end if;
+  select actor_id into v_actor from public.events
+    where project_id = '_org' and type = 'v1.OrgMemberAdded' and payload->>'profileId' = 'newbie';
+  if v_actor <> 'service' then raise exception 'membership granted under actor %, not service', v_actor; end if;
+  select count(*) into n from public.events
+    where project_id = '_org' and type = 'v1.InviteRedeemed' and payload->>'inviteId' = 'inv1';
+  if n <> 1 then raise exception 'InviteRedeemed not appended'; end if;
 
-  -- Single use, by exactly one person.
-  perform set_config('request.jwt.claim.sub', 'stranger', false);
+  -- Once only, and a wrong token says the same thing as a used one.
   begin
-    perform public.redeem_invite(v_token);
-    raise exception 'an invite must not be redeemed twice';
-  exception when sqlstate '22023' then null; end;
+    perform public.redeem_invite('tok-secret-1');
+    raise exception 'invite redeemed twice';
+  exception when sqlstate '22023' then null;
+  end;
   begin
     perform public.redeem_invite('not-a-token');
-    raise exception 'an unknown token must be refused';
-  exception when sqlstate '22023' then null; end;
+    raise exception 'bogus token accepted';
+  exception when sqlstate '22023' then null;
+  end;
 end $$;
 
--- Join requests: a stranger asks, an admin accepts, the log gains the member.
-select set_config('request.jwt.claim.sub', 'stranger', false);
-insert into public.join_requests (org_id, profile_id, message) values ('org1', 'stranger', 'I translate Dinka');
+-- No client may forge a redemption through the normal append path.
+do $$
+declare r record;
+begin
+  select * into r from public.append_events('[
+    {"id":"forge1","type":"v1.InviteRedeemed","orgId":"org1","projectId":"_org","actorId":"newbie","deviceId":"dZ","hlc":"000000000000400:000000:dZ","payload":{"inviteId":"inv1","profileId":"newbie"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a client forged InviteRedeemed'; end if;
+end $$;
+
+-- Join requests: a non-member asks, a member decides.
+select set_config('request.jwt.claim.sub', 'asker', false);
+do $$
+declare n int;
+begin
+  perform public.create_join_request('org1', 'req1', 'please let me in');
+  select count(*) into n from public.join_requests where id = 'req1';
+  if n <> 1 then raise exception 'join request not stored'; end if;
+  -- Nothing reaches the log until someone decides.
+  select count(*) into n from public.events where project_id = '_org' and type = 'v1.JoinDecided';
+  if n <> 0 then raise exception 'a request wrote to the log'; end if;
+  -- An asker cannot admit themselves.
+  begin
+    perform public.decide_join_request('req1', true, 'org_admin');
+    raise exception 'asker admitted themselves';
+  exception when sqlstate '42501' then null;
+  end;
+end $$;
+
 select set_config('request.jwt.claim.sub', 'lead', false);
-do $$ declare v_id uuid; begin
-  select id into v_id from public.join_requests where org_id = 'org1' and profile_id = 'stranger';
-  perform public.accept_join_request(v_id, 'lang_lead');
-  if exists (select 1 from public.join_requests where id = v_id) then
-    raise exception 'an accepted request must be cleared';
-  end if;
-  if not exists (select 1 from public.org_memberships m
-                 where m.org_id = 'org1' and m.profile_id = 'stranger' and m.role_id = 'lang_lead' and not m.removed) then
-    raise exception 'accepting must add the membership';
-  end if;
+do $$
+declare n int;
+begin
+  -- Accepting without a role is refused: a membership needs one.
+  begin
+    perform public.decide_join_request('req1', true, null);
+    raise exception 'accepted with no role';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.decide_join_request('req1', true, 'lang_lead');
+  select count(*) into n from public.events
+    where project_id = '_org' and type = 'v1.JoinDecided' and payload->>'requestId' = 'req1' and (payload->>'accepted')::boolean;
+  if n <> 1 then raise exception 'JoinDecided not appended'; end if;
+  if public.member_role('org1', 'p1', 'asker') is null then raise exception 'asker not admitted'; end if;
+  select count(*) into n from public.join_requests where id = 'req1';
+  if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
 select 'smoke ok' as result;

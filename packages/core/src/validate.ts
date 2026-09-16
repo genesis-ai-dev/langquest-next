@@ -90,6 +90,12 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('eventId') ?? optStr('reason');
     case 'v1.BlobInvalidated':
       return str('hash') ?? optStr('reason');
+    case 'v1.InviteIssued':
+      return str('inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']);
+    case 'v1.InviteRedeemed':
+      return str('inviteId', 'profileId');
+    case 'v1.JoinDecided':
+      return str('requestId', 'profileId') ?? (typeof p['accepted'] === 'boolean' ? null : 'accepted must be a boolean');
     default:
       return null;
   }
