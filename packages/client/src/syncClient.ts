@@ -239,9 +239,15 @@ export class SyncClient<S = ProjectState> {
       payload,
       ...(parentEventId ? { parentEventId } : {})
     } as AnyEvent;
-    await this.opts.store.put({ event, status: 'pending' });
-    await this.persistClock();
+    // Applied to memory before the first await so the UI can show the
+    // result now; the write is still awaited before this resolves.
     this.state = this.m.apply(this.state, event);
+    try {
+      await Promise.all([this.opts.store.put({ event, status: 'pending' }), this.persistClock()]);
+    } catch (err) {
+      await this.load();
+      throw err;
+    }
     // Redacting something already folded needs a refold to take effect.
     if (type === 'v1.Redacted') await this.load();
     return event;
@@ -266,9 +272,16 @@ export class SyncClient<S = ProjectState> {
           payload
         }) as AnyEvent
     );
-    await this.opts.store.putMany(events.map((event) => ({ event, status: 'pending' as const })));
-    await this.persistClock();
     for (const event of events) this.state = this.m.apply(this.state, event);
+    try {
+      await Promise.all([
+        this.opts.store.putMany(events.map((event) => ({ event, status: 'pending' as const }))),
+        this.persistClock()
+      ]);
+    } catch (err) {
+      await this.load();
+      throw err;
+    }
     if (events.some((e) => e.type === 'v1.Redacted')) await this.load();
     return events;
   }

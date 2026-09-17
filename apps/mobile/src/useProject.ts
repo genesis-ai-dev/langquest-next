@@ -73,16 +73,19 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     if (!c) return;
     // The fold mutates in place; copy the top level so React sees a change.
     setState({ ...c.getState() });
-    setPending(await c.pendingCount());
+    // The count is a query; it must not hold the state update.
+    void c.pendingCount().then(setPending).catch(() => {});
   }, []);
 
   const sync = useCallback(async () => {
     const c = clientRef.current;
     if (!c) return;
+    let changed = true;
     try {
       pullingRef.current = true;
       const r = await c.sync();
       pullingRef.current = false;
+      changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
       setTooOld(r.tooOld);
       setRefused(r.refused);
       // Online is exactly "the server answered". A refusal is an answer, so a
@@ -101,7 +104,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
           : r.refused
             ? `refused: ${r.refused}`
             : r.pushed === 0 && r.pulled === 0 && r.rejected === 0
-              ? `up to date ${new Date().toLocaleTimeString()}`
+              ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       );
     } catch (err) {
@@ -111,7 +114,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       pullingRef.current = false;
       setLastSync(`error: ${(err as Error).message}`);
     }
-    await refresh();
+    if (changed) await refresh();
   }, [refresh]);
 
   useEffect(() => {
@@ -198,7 +201,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
       const c = clientRef.current;
       if (!c) return;
-      await c.append(type, payload, parentEventId);
+      const written = c.append(type, payload, parentEventId);
+      setState({ ...c.getState() });
+      await written;
       await refresh();
     },
     [refresh]
@@ -208,7 +213,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     async <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => {
       const c = clientRef.current;
       if (!c || items.length === 0) return;
-      await c.appendMany(items);
+      const written = c.appendMany(items);
+      setState({ ...c.getState() });
+      await written;
       await refresh();
     },
     [refresh]

@@ -38,18 +38,21 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
     const c = clientRef.current;
     if (!c) return;
     setState({ ...c.getState() });
-    setPending(await c.pendingCount());
+    // The count is a query; it must not hold the state update.
+    void c.pendingCount().then(setPending).catch(() => {});
   }, []);
 
   const sync = useCallback(async () => {
     const c = clientRef.current;
     if (!c) return;
+    let changed = true;
     try {
-      await c.sync();
+      const r = await c.sync();
+      changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
     } catch {
       // Offline or refused: state is whatever the local log says. Honest and quiet.
     }
-    await refresh();
+    if (changed) await refresh();
   }, [refresh]);
 
   useEffect(() => {
@@ -85,7 +88,9 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
     async <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => {
       const c = clientRef.current;
       if (!c) return;
-      await c.append(type, payload);
+      const written = c.append(type, payload);
+      setState({ ...c.getState() });
+      await written;
       await refresh();
     },
     [refresh]
