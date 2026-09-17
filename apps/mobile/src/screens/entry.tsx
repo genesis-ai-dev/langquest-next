@@ -293,6 +293,7 @@ export function RequestAccess(ctx: Ctx) {
  */
 export function ScanQr(ctx: Ctx) {
   const [code, setCode] = useState(ctx.params['invite'] ?? '');
+  useEffect(() => { setCode(ctx.params['invite'] ?? ''); }, [ctx.params['invite']]);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const scanned = useRef(false);
@@ -404,3 +405,6 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr', 'walkthrough');

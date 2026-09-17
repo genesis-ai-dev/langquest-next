@@ -25,7 +25,8 @@
     "snapshot": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/snapshotWorker.ts",
     "loadtest": "tsx scripts/loadtest.ts",
     "import:v2": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/importV2.ts",
-    "reconcile": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/blobReconciler.ts"
+    "reconcile": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/blobReconciler.ts",
+    "worker:build": "node scripts/build-projection-worker.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",

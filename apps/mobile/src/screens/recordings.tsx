@@ -209,3 +209,6 @@ const styles = StyleSheet.create({
   pause: { minWidth: 48, minHeight: 44, padding: 12, borderRadius: radius.full, borderWidth: 1, borderColor: '#ffffff88', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   stop: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', alignSelf: 'center' }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('quest_assets');

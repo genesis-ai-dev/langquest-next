@@ -361,6 +361,16 @@ begin
 end $$;
 
 -- Internal append helpers are never callable by a phone.
+do $$
+declare helper regprocedure;
+begin
+  for helper in select p.oid::regprocedure from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='_append_org_event'
+  loop
+    execute format('revoke all on function %s from public, anon, authenticated', helper);
+  end loop;
+end $$;
 revoke all on function public._append_event_as(text,text,text,text,text,text,jsonb) from public, anon, authenticated;
 revoke all on function public.issue_invite(text,text,text,text,jsonb,timestamptz) from public, anon;
 revoke all on function public.redeem_invite_v2(text) from public, anon;

@@ -365,3 +365,6 @@ const styles = StyleSheet.create({
   todoBottom: { borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: space.md }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('assignments_home', 'give_assignment', 'pickup_home', 'assignment_progress_detail', 'progress_home');

@@ -184,6 +184,8 @@ returns setof public.notifications language sql security definer set search_path
   update public.notifications n set push_lease_until=now()+interval '5 minutes'
   where id in (select id from public.notifications
     where active and pushed_at is null
+      and exists (select 1 from public.push_tokens t
+        where t.profile_id=notifications.profile_id)
       and (push_lease_until is null or push_lease_until<now())
     order by seq limit 100 for update skip locked)
   returning n.*;
@@ -197,3 +199,29 @@ create table public.push_receipts (
 );
 alter table public.push_receipts enable row level security;
 grant all on public.push_receipts to service_role;
+
+alter table public.invites add column if not exists email text;
+alter table public.invites add column if not exists email_sent_at timestamptz;
+
+-- Open work permits translators to assign themselves, never someone else.
+create or replace function public.may_emit(p_org text, p_project text, p_profile text, p_type text, p jsonb)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare
+  v_priv text := public.event_privilege(p_type, p);
+  v_role text;
+begin
+  if v_priv is null then return false; end if;
+  if v_priv = 'bootstrap' then return false; end if;
+  if p_project <> '_org' then
+    select case when m.removed then null else m.role end into v_role
+      from public.memberships m
+      where m.org_id = p_org and m.project_id = p_project and m.profile_id = p_profile;
+    if p_type='v1.AssignmentMade' and p->>'profileId'=p_profile
+      and p->>'role'='translator' and (
+        'translate'=any(public.fixed_role_privileges(v_role)) or
+        'translate'=any(public.org_privileges(p_org,p_profile,p_project,p->>'laneId'))
+      ) then return true; end if;
+    if v_role is not null and public.role_may_emit_event(v_role, p_type, p) then return true; end if;
+  end if;
+  return v_priv = any(public.org_privileges(p_org, p_profile, p_project, p->>'laneId'));
+end $$;

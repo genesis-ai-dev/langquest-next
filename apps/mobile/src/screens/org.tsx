@@ -228,6 +228,24 @@ export function InviteQr(ctx: Ctx) {
   const [invite, setInvite] = useState<NewInvite | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  async function sendEmail() {
+    if (!invite) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { error } = await supabase.functions.invoke('send-invite', {
+        body: { inviteId: invite.inviteId, token: invite.token, email }
+      });
+      if (error) {
+        const details = error.context instanceof Response ? await error.context.json() : null;
+        throw new Error(details?.error ?? error.message);
+      }
+      setEmailSent(true);
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
 
   async function generate() {
     setBusy(true);
@@ -241,7 +259,7 @@ export function InviteQr(ctx: Ctx) {
   }
 
   return (
-    <Screen footer={invite ? <Footer label="Done" onPress={() => ctx.go('members_list')} /> : <Footer label="Create invite" onPress={() => void generate()} disabled={busy || !roleId} />}>
+    <Screen footer={invite ? <Footer label="Done" onPress={() => ctx.go('members_list')} /> : <Footer label="Create invite" onPress={() => void generate()} disabled={busy || !roleName} />}>
       <Header title="Invite by QR" onBack={ctx.back} />
       {invite ? (
         <>
@@ -253,6 +271,11 @@ export function InviteQr(ctx: Ctx) {
             <Text selectable style={[text.body, { fontFamily: 'Courier' }]}>{invite.token}</Text>
           </Card>
           <Note>Shown once. Leaving this screen loses the code, and you make a new invite instead. It expires {new Date(invite.expiresAt).toDateString()}.</Note>
+          <TextInput accessibilityLabel="Invitation email" placeholder="Email address"
+            value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address"
+            editable={!emailSent && !busy} style={{ padding: space.md, backgroundColor: colors.card }} />
+          <Row label={emailSent ? 'Email sent' : busy ? 'Sending…' : 'Send invite by email'}
+            onPress={!busy && !emailSent && email.includes('@') ? () => void sendEmail() : undefined} />
           <Row label="Share invite" onPress={() => void Share.share({ message: inviteUri(orgId, invite.token) })} last />
         </>
       ) : (
@@ -270,31 +293,53 @@ export function InviteQr(ctx: Ctx) {
 }
 
 export function EditMember(ctx: Ctx) {
-  const { state, append } = ctx.project;
   const memberId = ctx.params['memberId'] ?? '';
-  const current = state?.members[memberId]?.role.value ?? 'viewer';
-  const [role, setRole] = useState<Role>(current);
-  async function save() {
-    if (role !== current) await append('v1.MemberRoleChanged', { profileId: memberId, role });
-    ctx.back();
-  }
-  async function remove() {
-    await append('v1.MemberRemoved', { profileId: memberId });
-    ctx.back();
+  const memberships = Object.entries(ctx.org.state?.members[memberId] ?? {})
+    .filter(([, m]) => !m.removed.value);
+  const [scopeKey, setScopeKey] = useState(memberships[0]?.[0] ?? '');
+  const membership = memberships.find(([key]) => key === scopeKey)?.[1];
+  const current = membership?.roleId.value ?? ctx.project.state?.members[memberId]?.role.value ?? 'viewer';
+  const [chosen, setChosen] = useState<string | null>(null);
+  const role = chosen ?? current;
+  const roles = membership ? Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired)
+    .map(([id,r]) => ({ id,name:r.name.value })) : ROLES.map((id) => ({ id,name:id }));
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const allowed = ctx.session.can('invite_members');
+  async function update(remove: boolean) {
+    if (!allowed || busy) return;
+    setBusy(true);
+    try {
+      if (membership) {
+        if (remove) await ctx.org.append('v1.OrgMemberRemoved', { profileId: memberId, scope: membership.scope });
+        else if (role !== current) await ctx.org.append('v1.OrgMemberAdded', { profileId: memberId, roleId: role, scope: membership.scope });
+      } else if (remove) await ctx.project.append('v1.MemberRemoved', { profileId: memberId });
+      else if (role !== current) await ctx.project.append('v1.MemberRoleChanged', { profileId: memberId, role: role as Role });
+      ctx.back();
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
   }
   return (
-    <Screen footer={<Footer label="Save assignment" onPress={() => void save()} secondary={{ label: 'Remove', onPress: () => void remove() }} />}>
-      <Header title="Edit member" sub={memberId} onBack={ctx.back} />
+    <Screen footer={allowed ? <Footer label="Save member" onPress={() => void update(false)} disabled={busy}
+      secondary={{ label: 'Remove from this scope', onPress: () => void update(true) }} /> : undefined}>
+      <Header title="Edit member" onBack={ctx.back} />
+      {memberships.length > 1 ? <Section label="Scope">
+        {memberships.map(([key]) => <Row key={key} label={key}
+          badge={key === scopeKey ? 'selected' : undefined}
+          onPress={() => { setScopeKey(key); setChosen(null); }} />)}
+      </Section> : null}
       <Section label="Role">
-        {ROLES.map((r, i) => (
-          <Row key={r} label={r} onPress={() => setRole(r)} right={role === r ? <Check size={18} color={colors.translate} /> : <View />} last={i === ROLES.length - 1} />
-        ))}
+        {roles.map((r) => <Row key={r.id} label={r.name}
+          onPress={allowed ? () => setChosen(r.id) : undefined}
+          right={role === r.id ? <Check size={18} color={colors.translate} /> : <View />} />)}
       </Section>
+      {error ? <Note>{error}</Note> : null}
     </Screen>
   );
 }
 
 export function NewProject(ctx: Ctx) {
+  const names = useDisplayNames(ctx.session.actorId);
   const { state, appendMany } = ctx.project;
   const laneEntries = state ? Object.entries(state.lanes) : [];
   const laneId = laneEntries[0]?.[0] ?? `lane-${ctx.project.projectId}`;
@@ -548,3 +593,6 @@ export function ReviewTeamEditor(ctx: Ctx) {
 const styles = {
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, backgroundColor: colors.card, color: colors.foreground }
 };
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('org_home', 'project_home', 'language_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member', 'new_project', 'new_language', 'review_teams', 'review_team_editor');

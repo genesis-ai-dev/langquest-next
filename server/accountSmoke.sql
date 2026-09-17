@@ -67,5 +67,54 @@ do $$ begin
   if exists(select 1 from public.public_projects where org_id='audit-private') then raise exception 'private project leaked'; end if;
 end $$;
 reset role;
+select set_config('request.jwt.claim.sub','audit-stranger',true);
+do $$ begin
+  if not public.may_emit('audit-test-org','p1','audit-stranger','v1.AssignmentMade',
+    '{"profileId":"audit-stranger","role":"translator","unitId":"u","laneId":"L1"}') then
+    raise exception 'translator cannot pick up own work';
+  end if;
+  if public.may_emit('audit-test-org','p1','audit-stranger','v1.AssignmentMade',
+    '{"profileId":"audit-admin","role":"translator","unitId":"u","laneId":"L1"}') then
+    raise exception 'translator assigned someone else';
+  end if;
+end $$;
+-- Cursor stability, privacy, and exclusive push leases.
+select public.reconcile_notifications('audit-test-org','p1',
+  '[{"id":"audit-notification","profile_id":"audit-stranger","kind":"assignment","title":"Translate"}]');
+do $$ declare original_seq bigint; begin
+  select seq into original_seq from public.notifications where id='audit-notification';
+  perform public.reconcile_notifications('audit-test-org','p1',
+    '[{"id":"audit-notification","profile_id":"audit-stranger","kind":"assignment","title":"Translate"}]');
+  if (select seq from public.notifications where id='audit-notification')<>original_seq then
+    raise exception 'unchanged inbox advanced cursor';
+  end if;
+  perform public.reconcile_notifications('audit-test-org','p1','[]');
+  if (select active or seq<=original_seq from public.notifications where id='audit-notification') then
+    raise exception 'removed inbox entry did not advance cursor';
+  end if;
+end $$;
+select public.reconcile_notifications('audit-test-org','p1',
+  '[{"id":"audit-notification","profile_id":"audit-stranger","kind":"assignment","title":"Translate"}]');
+select set_config('request.jwt.claim.sub','audit-outsider',true);
+set local role authenticated;
+do $$ begin
+  if exists(select 1 from public.notifications where id='audit-notification') then
+    raise exception 'inbox leaked across accounts';
+  end if;
+  begin
+    perform public.claim_notification_pushes();
+    raise exception 'phone can claim worker deliveries';
+  exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+insert into public.push_tokens(token,profile_id) values('ExponentPushToken[audit]','audit-stranger');
+do $$ begin
+  if not exists(select 1 from public.claim_notification_pushes() where id='audit-notification') then
+    raise exception 'push was not claimed';
+  end if;
+  if exists(select 1 from public.claim_notification_pushes() where id='audit-notification') then
+    raise exception 'push lease permits duplicate worker';
+  end if;
+end $$;
 select 'account smoke passed' as result;
 rollback;

@@ -258,3 +258,6 @@ const styles = StyleSheet.create({
   error: { color: colors.reference, textAlign: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('passage_references', 'passage_terms');

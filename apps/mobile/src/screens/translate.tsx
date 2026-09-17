@@ -252,3 +252,6 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 12, minHeight: 100,
     backgroundColor: colors.card, color: colors.foreground }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('translate_passage', 'attach_questions', 'add_to_tg');

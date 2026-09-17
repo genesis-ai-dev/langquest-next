@@ -48,6 +48,7 @@ export async function recordUserEvent(actorId: string, type: UserEventType) {
   const payload = type === 'v1.TermsAccepted' ? { version: TERMS_VERSION } : {};
   await queueAccountAction(actorId, 'user_event', { type, payload },
     `${actorId}:${type}:${type === 'v1.TermsAccepted' ? TERMS_VERSION : '1'}`);
+  if (type === 'v1.TermsAccepted') await AsyncStorage.setItem(`terms-version:${actorId}`, TERMS_VERSION);
 }
 export interface PublicProject {
   org_id: string; project_id: string; name: string;

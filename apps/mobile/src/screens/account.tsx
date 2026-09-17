@@ -1,5 +1,5 @@
 // Avatar P for inbox and settings; sign_out_confirm is Avatar U (one action, guarded, and it says what the guard is).
-import { decodeHlc, deriveTasks } from '@langquest-next/core';
+import { decodeHlc, deriveInbox } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import type { SyncInspection } from '@langquest-next/client';
 import { AlertCircle, ArrowDown, ArrowUp, Check, Cloud, CloudOff, CloudUpload, Database, LogOut, Radio, RefreshCw, User, Users } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cachedInbox, refreshInbox, enableNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { supabase } from '../supabase';
@@ -21,17 +22,29 @@ export function InboxHome(ctx: Ctx) {
   const { state } = ctx.project;
   const me = ctx.session.actorId;
   const accountActions = useAccountActions(me).filter((a) => a.status !== 'sent');
-  const names = useDisplayNames(me);
-  const tasks = state ? deriveTasks(state, me, indexesFor(state)).filter((t) => t.status !== 'done') : [];
-  const decisions = state
-    ? Object.entries(state.takes)
-        .filter(([, t]) => t.actorId === me)
-        .flatMap(([takeId, t]) =>
-          Object.entries(state.reviews[takeId] ?? {}).flatMap(([stepId, byActor]) =>
-            Object.entries(byActor).map(([actor, r]) => ({ id: `${takeId}:${stepId}:${actor}`, unit: state.units[t.unitId]?.label ?? t.unitId, stepId, decision: r.value.decision, actor }))
-          )
-        )
-    : [];
+  const localItems = state ? deriveInbox(state, me, indexesFor(state)) : [];
+  const [remote, setRemote] = useState<RemoteNotification[]>([]);
+  const [read, setRead] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const [cached, seen] = await Promise.all([cachedInbox(me), AsyncStorage.getItem(`inbox-read:${me}`)]);
+      if (active) { setRemote(cached); setRead(JSON.parse(seen ?? '[]')); }
+      const rows = await refreshInbox(me);
+      if (active) setRemote(rows);
+    })().catch(() => {});
+    return () => { active = false; };
+  }, [me]);
+  async function openRemote(row: RemoteNotification) {
+    const next = [...new Set([...read, row.id])];
+    await AsyncStorage.setItem(`inbox-read:${me}`, JSON.stringify(next));
+    setRead(next);
+    if (row.org_id !== ctx.project.orgId || (row.project_id !== '_org' && row.project_id !== ctx.project.projectId)) {
+      await ctx.openOrganization(row.org_id, row.project_id === '_org' ? undefined : row.project_id);
+    } else if (row.kind === 'join_request') ctx.go('members_list');
+    else if (row.task_id) ctx.go(row.task_id.startsWith('review:') ? 'review_passage' : 'translate_passage', { taskId: row.task_id });
+    else ctx.go('status_home');
+  }
   return (
     <Screen>
       <Header title="Inbox" />
@@ -41,36 +54,42 @@ export function InboxHome(ctx: Ctx) {
           sub={a.error ?? 'Waiting to send'} badge={a.status}
           onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id); } : undefined} />)}
       </Section> : null}
-      <Section label={`To do · ${tasks.length}`}>
-        {tasks.length === 0 ? <Row label="Nothing waiting" last /> : null}
-        {tasks.map((t, i) => (
-          <Row key={t.id} label={`${t.type}: ${state?.units[t.unitId]?.label ?? t.unitId}`} sub={t.dueDate ? `Due ${t.dueDate}` : undefined} onPress={() => ctx.go(t.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: t.id })} last={i === tasks.length - 1} />
-        ))}
+      <Section label="Your work">
+        {!localItems.length ? <Row label="Nothing waiting" last /> : null}
+        {localItems.map((item) => <Row key={item.id} label={item.title}
+          badge={item.kind} onPress={() => item.taskId
+            ? ctx.go(item.taskId.startsWith('review:') ? 'review_passage' : 'translate_passage', { taskId: item.taskId })
+            : ctx.go('status_home')} />)}
       </Section>
-      <Section label={`Decisions on your takes · ${decisions.length}`}>
-        {decisions.length === 0 ? <Row label="None yet" last /> : null}
-        {decisions.map((d, i) => (
-          <Row key={d.id} label={`${d.unit} · ${d.stepId}`} sub={names[d.actor] ?? d.actor.slice(0, 8)} badge={d.decision === 'approve' ? 'approved' : 'suggestions'} last={i === decisions.length - 1} />
-        ))}
+      <Section label="Organization updates">
+        {remote.filter((r) => r.kind === 'join_request' || r.org_id !== ctx.project.orgId || r.project_id !== ctx.project.projectId)
+          .map((row) => <Row key={row.id} label={row.title} badge={read.includes(row.id) ? undefined : 'new'}
+            onPress={() => void openRemote(row)} />)}
       </Section>
     </Screen>
   );
 }
 
 export function SettingsHome(ctx: Ctx) {
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
   return (
     <Screen>
       <Header title="Settings" />
       <Card>
-        <Text style={text.h4}>{s.email ?? s.actorId.slice(0, 8)}</Text>
-        <Text style={text.muted}>{s.role ?? 'not a member'} · org1</Text>
+        <Text style={text.h4}>{names[s.actorId] ?? s.email ?? s.actorId.slice(0, 8)}</Text>
+        <Text style={text.muted}>{s.role ?? 'not a member'} · {ctx.org.state?.org?.value.name ?? ctx.project.orgId}</Text>
       </Card>
       <Section label="Account">
         <Row icon={User} label="Edit profile" onPress={() => ctx.go('profile_edit')} />
-        <Row icon={Users} label="Switch organization" sub="org1 (active)" onPress={() => ctx.go('org_switcher')} last />
+        <Row icon={Users} label="Switch organization" sub={ctx.org.state?.org?.value.name ?? ctx.project.orgId} onPress={() => ctx.go('org_switcher')} last />
       </Section>
       <Section label="App">
+        <Row icon={Radio} label="Enable notifications" onPress={() => {
+          void enableNotifications().then(() => setNotificationMessage('Notifications enabled.')).catch((e) => setNotificationMessage(e.message));
+        }} />
+        {notificationMessage ? <Note>{notificationMessage}</Note> : null}
         <Row icon={Cloud} label="Sync" sub={ctx.project.live ? 'live' : ctx.project.lastSync} onPress={() => ctx.go('sync_status')} />
         <Row icon={RefreshCw} label="Replay organization walkthrough" onPress={() => ctx.go('walkthrough')} />
         <Row icon={LogOut} label="Sign out" onPress={() => ctx.go('sign_out_confirm')} last />
@@ -156,6 +175,11 @@ export function OrgSwitcher(ctx: Ctx) {
  */
 export function SignOutConfirm(ctx: Ctx) {
   const { pending, online, refused } = ctx.project;
+  const [error, setError] = useState('');
+  async function signOut() {
+    try { await unregisterNotifications(); const result = await supabase.auth.signOut(); if (result.error) throw result.error; }
+    catch (e) { setError((e as Error).message); }
+  }
   const blocked = pending > 0 && !refused;
   const why = blocked
     ? `${pending} ${pending === 1 ? 'change is' : 'changes are'} waiting to send${online === false ? ', and this device is offline' : ''}. Sign out once they have synced so they are not stranded on this device.`
@@ -178,7 +202,8 @@ export function SignOutConfirm(ctx: Ctx) {
         <Text style={[text.muted, { textAlign: 'center' }]}>{why}</Text>
       </View>
       <View style={{ alignSelf: 'stretch', gap: space.sm }}>
-        <ActionButton icon={LogOut} accessibilityLabel="Sign out" onPress={() => void supabase.auth.signOut()} disabled={blocked} />
+        {error ? <Note>{error}</Note> : null}
+        <ActionButton icon={LogOut} accessibilityLabel="Sign out" onPress={() => void signOut()} disabled={blocked} />
         <ActionButton label="Cancel" accessibilityLabel="Cancel" variant="outline" onPress={ctx.back} />
       </View>
     </View>
@@ -304,3 +329,6 @@ const sync = StyleSheet.create({
   fill: { height: '100%', borderRadius: 4 },
   speed: { minWidth: 72, textAlign: 'right' }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'sync_status');

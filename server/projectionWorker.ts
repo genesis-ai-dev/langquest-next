@@ -88,6 +88,7 @@ export async function deliverPushes(service: SupabaseClient, fetcher = fetch) {
     let accepted = true;
     for (const { token } of tokens.data) {
       const response = await fetcher('https://exp.host/--/api/v2/push/send', {
+        signal: AbortSignal.timeout(15_000),
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: token, title: 'LangQuest',
           body: 'You have an update in your inbox.',
@@ -112,6 +113,7 @@ export async function deliverPushes(service: SupabaseClient, fetcher = fetch) {
   check(receipts);
   if (!receipts.data?.length) return;
   const response = await fetcher('https://exp.host/--/api/v2/push/getReceipts', {
+    signal: AbortSignal.timeout(15_000),
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
   });

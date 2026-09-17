@@ -255,3 +255,6 @@ export function PieceReview(ctx: Ctx) {
     </Screen>
   );
 }
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('status_home', 'language_status', 'book_status', 'piece_status', 'piece_assign', 'piece_stage', 'piece_version', 'piece_review');
