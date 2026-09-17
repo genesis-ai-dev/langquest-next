@@ -54,8 +54,9 @@ export function removeEntry(entries: JournalEntry[], id: string): JournalEntry[]
 export interface ResumeDeps {
   /** Is the staging file (stage `recorded`) still on disk? */
   fileExists: (uri: string) => boolean;
-  /** Hash and move the file into the blob store. */
-  ingest: (uri: string, format: JournalEntry['format']) => Promise<{ hash: string; size: number }>;
+  /** Persist the destination through beforeMove before relocating the file. */
+  ingest: (uri: string, format: JournalEntry['format'], beforeMove: (hash: string, size: number) => Promise<void>) => Promise<{ hash: string; size: number }>;
+  blobExists: (hash: string, format: JournalEntry['format']) => boolean;
   /** Has the fold already got this recording? */
   hasRecording: (id: string) => boolean;
   /** Append RecordingAdded for a fully ingested entry. */
@@ -66,7 +67,7 @@ export interface ResumeDeps {
 
 export interface ResumeResult {
   resumed: string[];
-  /** Entries whose audio is gone or that cannot be placed; nothing to recover. */
+  /** Reserved for explicit discards; missing audio stays in failed. */
   dropped: string[];
   /** Entries that failed this pass and stay in the journal for the next one. */
   failed: { id: string; error: string }[];
@@ -87,18 +88,25 @@ export async function resumeEntries(
     if (!t || t.orgId !== partition.orgId || t.projectId !== partition.projectId) continue;
     let entry = original;
     try {
+      if (deps.hasRecording(entry.id)) {
+        result.resumed.push(entry.id);
+        continue;
+      }
       if (entry.stage === 'recorded') {
-        if (!deps.fileExists(entry.uri)) {
-          result.dropped.push(entry.id);
-          continue;
+        if (entry.hash && deps.blobExists(entry.hash, entry.format)) {
+          entry = { ...entry, stage: 'ingested' };
+        } else {
+          if (!deps.fileExists(entry.uri)) {
+            throw new Error('Recording file is missing; keep the journal for recovery.');
+          }
+          const { hash, size } = await deps.ingest(entry.uri, entry.format,
+            (hash, size) => deps.save({ ...entry, hash, size }));
+          entry = { ...entry, stage: 'ingested', hash, size };
         }
-        const { hash, size } = await deps.ingest(entry.uri, entry.format);
-        entry = { ...entry, stage: 'ingested', hash, size };
         await deps.save(entry);
       }
-      if (!entry.hash) {
-        result.dropped.push(entry.id);
-        continue;
+      if (!entry.hash || !deps.blobExists(entry.hash, entry.format)) {
+        throw new Error('Recorded audio is unavailable; keep the journal for recovery.');
       }
       if (!deps.hasRecording(entry.id)) await deps.append({ ...entry, hash: entry.hash, target: t });
       result.resumed.push(entry.id);

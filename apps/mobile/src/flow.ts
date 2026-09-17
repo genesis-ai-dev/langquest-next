@@ -99,6 +99,10 @@ export const EDGES: Edge[] = [
   // that shows terms to a new account; see the drift log in specParity.
   e('create_account', 'terms_privacy', 'replace'),
   e('create_account', 'sign_in', 'back', 'guest'),
+  e('scan_qr', 'sign_in', 'reset', 'guest'),
+  e('explore_home', 'request_access'),
+  e('inbox_home', 'members_list'),
+  e('inbox_home', 'status_home'),
   e('scan_qr', 'create_account', 'popTo', 'guest'),
   e('scan_qr', 'home_hub', 'replace'),
   e('scan_qr', 'intent_chooser', 'back'),

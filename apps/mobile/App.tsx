@@ -1,14 +1,19 @@
+import { orgQueries } from './src/orgQueries';
+import { getStore } from './src/store';
+import { withOrgMembers } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { Home, Inbox, ListChecks, Settings } from 'lucide-react-native';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
+import { UpdateBanner } from './src/UpdateBanner';
 import { maySwitchPersona } from './src/dev';
 import { edgeFor, SCREEN_IDS, TAB_SCREENS, TITLES, type ScreenId } from './src/flow';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
@@ -25,16 +30,19 @@ import * as Work from './src/screens/work';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
 import { colors, space } from './src/theme';
+import { recordUserEvent, TERMS_VERSION } from './src/accountData';
+import { useAccountSync } from './src/useAccount';
+import { parseInvite } from './src/inviteCode';
 import { useOrg } from './src/useOrg';
 import { useProject } from './src/useProject';
 
-// One fixed partition for now. Project selection is a later screen.
-// Overridable so an imported project (server/importV2.ts) can be opened.
+// Initial selection, before the account's saved organization is restored.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
 const PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID ?? 'luke-demo-4';
 const IS_DEV = __DEV__;
+let initialLinkRead = false;
 
-const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element> = {
+const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, create_account: Entry.CreateAccount, terms_privacy: Entry.TermsPrivacy, vision: Entry.Vision,
   intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg, explore_home: Entry.ExploreHome,
   request_access: Entry.RequestAccess, scan_qr: Entry.ScanQr, walkthrough: Entry.Walkthrough,
@@ -129,11 +137,12 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
+        <UpdateBanner />
         {supabaseConfigError ? (
           <Fatal title="This build is not configured" detail={supabaseConfigError} />
         ) : auth === undefined ? null : (
           <ErrorBoundary>
-            <Shell actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
+            <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
           </ErrorBoundary>
         )}
       </SafeAreaView>
@@ -142,19 +151,67 @@ export default function App() {
 }
 
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
-  const project = useProject(ORG_ID, PROJECT_ID, props.actorId);
-  const org = useOrg(ORG_ID, props.actorId);
+  const [selection, setSelection] = useState({ orgId: ORG_ID, projectId: PROJECT_ID });
+  const [selectionRevision, setSelectionRevision] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void AsyncStorage.getItem(`selection:${props.actorId}`).then((raw) => {
+      if (active && raw) setSelection(JSON.parse(raw));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [props.actorId]);
+  const openOrganization = useCallback(async (orgId: string, projectId?: string) => {
+    if (!projectId) {
+      const { data, error } = await supabase.rpc('my_organizations');
+      if (error) throw new Error(error.message);
+      projectId = data?.find((r: { org_id: string }) => r.org_id === orgId)?.project_id ?? 'unselected';
+    }
+    const next = { orgId, projectId: projectId! };
+    await AsyncStorage.setItem(`selection:${props.actorId}`, JSON.stringify(next));
+    await AsyncStorage.removeItem('pending-invite');
+    setSelection(next);
+    setSelectionRevision((revision) => revision + 1);
+  }, [props.actorId]);
+  return <Workspace key={`${selection.orgId}:${selection.projectId}:${selectionRevision}`} {...props}
+    {...selection} openOrganization={openOrganization} />;
+}
+
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean;
+  orgId: string; projectId: string; openOrganization: Ctx['openOrganization'] }) {
+  const rawProject = useProject(props.orgId, props.projectId, props.actorId);
+  const org = useOrg(props.orgId, props.actorId);
+  const projectedState = useMemo(() => rawProject.state && org.state
+    ? withOrgMembers(rawProject.state, org.state, props.projectId) : rawProject.state,
+    [rawProject.state, org.state, props.projectId]);
+  const queries = useMemo(() => rawProject.queries && projectedState && projectedState !== rawProject.state
+    ? orgQueries(rawProject.queries, getStore(), props.orgId, props.projectId, projectedState)
+    : rawProject.queries,
+    [rawProject.queries, projectedState, rawProject.state, props.orgId, props.projectId]);
+  const project = { ...rawProject, state: projectedState, queries };
+  useAccountSync(props.actorId);
   const [seenVision, setSeenVision] = useState(false);
+  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const nav = useNav({ screen: 'sign_in' });
 
   useEffect(() => {
-    AsyncStorage.getItem(`vision:${props.actorId}`).then((v) => setSeenVision(v === '1')).catch(() => {});
+    let active = true;
+    void (async () => {
+      const [local, terms] = await Promise.all([AsyncStorage.getItem(`vision:${props.actorId}`), AsyncStorage.getItem(`terms-version:${props.actorId}`)]);
+      if (active) { setSeenVision(local === '1' && terms === TERMS_VERSION); setOnboardingLoaded(true); }
+      if (!props.signedIn) return;
+      const { data, error } = await supabase.rpc('get_user_state');
+      if (!error && data?.visionSeen && data?.termsVersion === TERMS_VERSION) {
+        await AsyncStorage.multiSet([[`vision:${props.actorId}`, '1'], [`terms-version:${props.actorId}`, TERMS_VERSION]]);
+        if (active) setSeenVision(true);
+      }
+    })().catch(() => { if (active) setOnboardingLoaded(true); });
+    return () => { active = false; };
   }, [props.actorId]);
 
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, project.state, seenVision, org.state, PROJECT_ID),
-    [props.actorId, props.email, project.state, seenVision, org.state]
+    () => deriveSession(props.actorId, props.email, project.state, seenVision, org.state, props.projectId),
+    [props.actorId, props.email, project.state, seenVision, org.state, props.projectId]
   );
 
   // Auth routing is an invariant, not a transition: a signed-in session is
@@ -172,7 +229,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.
   // A role change is caught below once both folds are in.
-  const homeKey = `home:${props.actorId}`;
+  const homeKey = `home:${props.actorId}:${props.orgId}:${props.projectId}`;
   const [cachedHome, setCachedHome] = useState<ScreenId | null | undefined>(undefined);
   useEffect(() => {
     AsyncStorage.getItem(homeKey).then((v) => setCachedHome((v as ScreenId | null) ?? null)).catch(() => setCachedHome(null));
@@ -191,6 +248,11 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       // Not "anything but sign_in": a guest legitimately walks to Create
       // account, Browse public projects and the invite scanner.
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
+      return;
+    }
+    if (!onboardingLoaded) return;
+    if (seenVision && (nav.current.screen === 'terms_privacy' || nav.current.screen === 'vision')) {
+      nav.reset({ screen: homeScreenFor(session) });
       return;
     }
     if (!AUTH_SCREENS.includes(nav.current.screen)) return;
@@ -225,7 +287,40 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     [nav, session]
   );
 
+  useEffect(() => {
+    const receive = (url: string) => {
+      if (!parseInvite(url)) return;
+      void AsyncStorage.setItem('pending-invite', url).then(() => {
+        nav.reset({ screen: 'scan_qr', params: { invite: url } });
+      });
+    };
+    if (!initialLinkRead) {
+      initialLinkRead = true;
+      void Linking.getInitialURL().then((url) => { if (url) receive(url); });
+    }
+    const listener = Linking.addEventListener('url', ({ url }) => receive(url));
+    return () => listener.remove();
+  }, [nav.reset]);
+  useEffect(() => {
+    if (!props.signedIn || !seenVision) return;
+    void AsyncStorage.getItem('pending-invite').then((value) => {
+      if (value) nav.reset({ screen: 'scan_qr', params: { invite: value } });
+    });
+  }, [props.signedIn, seenVision, nav.reset]);
+
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
+
+  useEffect(() => {
+    if (!props.signedIn || !seenVision) return;
+    const receive = (response: Notifications.NotificationResponse | null) => {
+      if (!response?.notification.request.content.data?.notificationId) return;
+      nav.reset({ screen: 'inbox_home' });
+      void Notifications.clearLastNotificationResponseAsync();
+    };
+    void Notifications.getLastNotificationResponseAsync().then(receive);
+    const listener = Notifications.addNotificationResponseReceivedListener(receive);
+    return () => listener.remove();
+  }, [props.signedIn, seenVision, nav.reset]);
 
   const ctx: Ctx = {
     project,
@@ -235,10 +330,13 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     go,
     back: nav.back,
     home: () => nav.reset({ screen: homeScreenFor(session) }),
-    markVisionSeen: () => {
+    markVisionSeen: async () => {
+      await recordUserEvent(props.actorId, 'v1.VisionSeen');
+      await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
       setSeenVision(true);
-      AsyncStorage.setItem(`vision:${props.actorId}`, '1').catch(() => {});
     },
+    rememberInvite: (value) => AsyncStorage.setItem('pending-invite', value),
+    openOrganization: props.openOrganization,
     openDev: () => setDevOpen(true),
     isDev: IS_DEV,
     canSwitchPersona

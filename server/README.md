@@ -1,6 +1,7 @@
 # server
 
-Local Supabase (Postgres) via colima. Never linked to a hosted project.
+Local Supabase (Postgres) runs via colima. The repository also links to a
+hosted project; local migrations and hosted deployment are separate steps.
 
 Implemented in `supabase/migrations/20260914000001_event_log.sql`:
 
@@ -44,6 +45,16 @@ Implemented in `supabase/migrations/20260914000001_event_log.sql`:
 
 `smoke.sql` exercises all of it; `npm run db:test` resets the db and runs it.
 
-Not yet built: org dashboard summaries (`project_summaries`), requests and
-invites tables, public projection. See `docs/flow-coverage-audit.md`
-section 5.
+Invitations, join requests, profiles, durable user state, public discovery,
+and notification projections now have migrations and app consumers.
+See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
+`accountSmoke.sql` uses isolated identifiers and rolls back its test writes.
+Run it locally, not against production without explicit authorization.
+
+`npm run worker:build` bundles `projectionEdge.ts` and the shared core for
+the `project-projections` Edge Function. Schedule only one projection job.
+`schedule-projections.sql` reads its URL and worker credential from Vault.
+`send-invite` validates the caller and invite before contacting Resend.
+
+Still deferred: org dashboard summaries (`project_summaries`), profile
+photos, and the remaining content/audio gaps in the flow audit.

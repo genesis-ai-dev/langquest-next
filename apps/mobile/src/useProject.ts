@@ -1,4 +1,4 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type ProjectQueries, type SyncInspection } from '@langquest-next/client';
 import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type ProjectState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
@@ -38,6 +38,15 @@ export interface ProjectHandle {
    * locally (it may still be pending upload: see `pending`).
    */
   saving: boolean;
+  /**
+   * Queries over the persisted rows (client queries.ts); null before load.
+   * Screens read through `useQuery`, which re-runs on every publication.
+   */
+  queries: ProjectQueries | null;
+  /** Fold revision, bumped on every local or pulled change. */
+  revision: number;
+  /** Compare persisted rows with a rebuild from the fold (dev menu). */
+  verifyRows: () => Promise<{ rows: number; mismatches: string[] }>;
   /** The local log as the sync screen shows it; null before load. */
   inspect: () => Promise<SyncInspection | null>;
   blobs: {
@@ -96,6 +105,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [peakDown, setPeakDown] = useState(0);
   const [live, setLive] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const [queries, setQueries] = useState<ProjectQueries | null>(null);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const upMeter = useRef(new RateMeter());
   const downMeter = useRef(new RateMeter());
@@ -188,12 +199,14 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       if (cancelled) return;
       clientRef.current = client;
       storeRef.current = blobStore;
+      setQueries(client.queries());
       // The client publishes after every fold change and every commit; the
       // screen follows that, not the call sites. The fold mutates in place,
       // so copy the top level: identity is the revision.
       const unsubscribe = client.subscribe((s) => {
         setState({ ...s.state });
         setSaving(s.saving > 0);
+        setRevision(s.revision);
       });
 
       const common = {
@@ -274,8 +287,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
       const resumed = await getRecordingJournal().resume({ orgId, projectId }, {
-        ingest: async (uri, format) => {
-          const { ref, size } = await blobStore.ingest(uri, format);
+        blobExists: (hash, format) => blobStore.fileFor({ hash, format }).exists,
+        ingest: async (uri, format, beforeMove) => {
+          const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };
         },
         hasRecording: (id) => !!client.getState().recordings[id],
@@ -294,6 +308,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       cancelled = true;
       cleanupBlobs();
       clientRef.current = null;
+      setQueries(null);
       upRef.current = null;
       downRef.current = null;
     };
@@ -359,8 +374,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   };
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
+  const verifyRows = useCallback(() => clientRef.current?.verifyRows() ?? Promise.resolve({ rows: 0, mismatches: ['not loaded'] }), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, saving, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer and credit its bytes to the meter once it succeeds. */

@@ -1,5 +1,9 @@
 # Flow coverage audit and gap architecture
 
+Implementation update: 2026-09-17. Section 6 records the current status.
+The original findings below remain the design rationale. Local implementation
+does not mean hosted deployment; see `docs/invitation-rollout.md`.
+
 Date: 2026-09-14. Sources: `ng-langquest-ux` at HEAD (`src/flow.ts`,
 `src/data.ts`, `src/domain/session.ts`, `src/imports/*.flow.md`,
 `src/imports/README.md` Q1–Q30 and A1–A43), this repo at commit `1236f07`
@@ -511,12 +515,23 @@ To append to PLAN.md section 11 after item 8:
     accepted by the events; the screens capture text until the recorder is
     wired there. "Key terms as content" (a `key_terms` unit kind) is not
     started.
-13. **Partly done.** Requests and invites (5.B) ship in migration 12 with
-    `issue_invite`, `redeem_invite`, `accept_join_request` and the two tables,
-    covered by smoke section 11; `members_list`, `invite_member`, `invite_qr`,
-    `request_access` and `scan_qr` run on them. Still open in 5.B: the public
-    projection (`public_projects`, `explore_home`), email delivery, the camera
-    scanner, and the offline outbox for a request made with no connection.
-    Then notifications and inbox (5.G); profiles (5.H); per-user partition
-    (5.I).
-14. Screen contracts test, then the model-based walk (section 1).
+13. **Implemented locally; deployment pending.** The hosted invitation RPC
+    signatures diverged from the migration files despite matching history.
+    Forward repair adds the app's `issue_invite` signature,
+    `redeem_invite_v2`, `create_join_request`, and `decide_join_request`.
+    It supports both text and UUID identifiers and idempotent retries.
+    Invite role selection appears once. Camera scanning, pending deep links
+    across sign-in, and organization switching now connect the join flow.
+    Requests, profile names, and onboarding events use an account outbox.
+    Public discovery uses an explicit visibility setting and a safe worker
+    projection. Inbox derivation is shared by the app and worker, with
+    account-specific cursor pulls, push registration, leases, and receipts.
+    Email uses a server-side Resend adapter; credentials and sender remain
+    unconfigured. Profile photos remain deferred. Native rebuild, hosted
+    migrations/functions/schedule, and physical-device acceptance remain open.
+14. **Implemented locally.** Screen modules export action contracts.
+    Source checks require declared event types, model walks exercise offline
+    translation/review and reconnect convergence, and generated SQL compares
+    240 screen/role/event cases against `may_emit`. These checks found and
+    fixed translator self-assignment rejection and placeholder role screens.
+    They do not replace camera, email, push, or full device UI acceptance.

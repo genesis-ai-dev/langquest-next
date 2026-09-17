@@ -18,13 +18,13 @@ import { ActionButton, BackButton, Card, ProgressRing, text } from '../ui';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { getReferenceSlides, referenceRunSignature } from '../passageResources';
 import { indexesFor } from '../indexes';
-import { taskFor } from './translate';
+import { useTask } from './translate';
+import type { Task } from '@langquest-next/core';
 
 export { getReferenceSlides, referenceRunSignature } from '../passageResources';
 
 /** Stable local completion key used by the passage hub's derived workflow. */
-export function referenceRunKey(ctx: Ctx): string {
-  const task = taskFor(ctx);
+export function referenceRunKey(ctx: Ctx, task: Task | undefined): string {
   return `reference-run:${ctx.project.orgId}:${ctx.project.projectId}:${ctx.session.actorId}:${task?.laneId ?? ctx.params['laneId'] ?? ''}:${task?.unitId ?? ctx.params['unitId'] ?? ''}`;
 }
 
@@ -89,13 +89,13 @@ function AudioControl({ uri, color, label, onFinished }: {
 /** A run of one real reference audio item per slide. */
 export function PassageReferences(ctx: Ctx) {
   const { state, blobs } = ctx.project;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState('');
   const [seen, setSeen] = useState<Set<string>>(() => new Set());
   const [, refreshBlobs] = useState(0);
   useEffect(() => blobs.store?.onChange(() => refreshBlobs((n) => n + 1)), [blobs.store]);
-  if (!state || !task) return <Note>Task not found.</Note>;
+  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
   const unit = state.units[task.unitId];
   const items = getReferenceSlides(state, task.laneId, task.unitId);
   if (!items.length) return <EmptyRun icon={Headphones} onBack={ctx.back} label="No reference audio" />;
@@ -106,7 +106,7 @@ export function PassageReferences(ctx: Ctx) {
     if (!uri || !seen.has(item.id)) return;
     if (last) {
       try {
-        await AsyncStorage.setItem(referenceRunKey(ctx), referenceRunSignature(items));
+        await AsyncStorage.setItem(referenceRunKey(ctx, task), referenceRunSignature(items));
         ctx.back();
       } catch (e) { setError((e as Error).message); }
     } else setIndex(index + 1);
@@ -135,7 +135,7 @@ export function PassageReferences(ctx: Ctx) {
 /** A term recording run. Existing audio anywhere in the lane is credited and skipped. */
 export function PassageTerms(ctx: Ctx) {
   const { state, blobs } = ctx.project;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const [pending, setPending] = useState<{ card: RecordedCard; termId: string } | null>(null);
   const activeTerm = useRef<string | null>(null);
   const saveLock = useRef(false);
@@ -153,7 +153,7 @@ export function PassageTerms(ctx: Ctx) {
     setPending({ card, termId: activeTerm.current });
   }, []);
   const recorder = useRecorder(onCard);
-  if (!state || !task) return <Note>Task not found.</Note>;
+  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
   if (!terms.length) return <EmptyRun icon={KeyRound} onBack={ctx.back} label="No key terms" />;
   if (!run.length && !pending) return <TermFinished completed={completed} total={allTerms.length} onDone={ctx.back} />;
   if (!current) return <Note>Loading key terms.</Note>;
@@ -258,3 +258,6 @@ const styles = StyleSheet.create({
   error: { color: colors.reference, textAlign: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('passage_references', 'passage_terms');

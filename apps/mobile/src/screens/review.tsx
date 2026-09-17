@@ -11,16 +11,16 @@ import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
 import { ActionButton, BackButton, Card, StatusIcon, text } from '../ui';
-import { taskFor } from './translate';
+import { useTask } from './translate';
 
 /** Answers live here between review_questions and review_passage (screen-local, not synced). */
 const draftAnswers = new Map<string, Record<string, string>>();
 
 export function ReviewPassage(ctx: Ctx) {
   const { state, run } = ctx.project;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const [changing, setChanging] = useState(false);
-  if (!state || !task || !task.takeId) return <Note>Task not found.</Note>;
+  if (!state || !task || !task.takeId) return ready ? <Note>Task not found.</Note> : <></>;
   const takeId = task.takeId;
   const take = state.takes[takeId];
   const idx = indexesFor(state);
@@ -99,10 +99,10 @@ export function ReviewPassage(ctx: Ctx) {
 
 export function ReviewQuestions(ctx: Ctx) {
   const { state } = ctx.project;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const takeId = task?.takeId ?? '';
   const [answers, setAnswers] = useState<Record<string, string>>(draftAnswers.get(takeId) ?? {});
-  if (!state || !task) return <Note>Task not found.</Note>;
+  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
   const stepId = task.id.split(':')[3] ?? '';
   const questions = questionsOf(questionSetsFor(state, takeId, stepId));
 
@@ -246,3 +246,6 @@ const styles = StyleSheet.create({
   opt: { flex: 1, alignItems: 'center', paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: colors.muted },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 140, backgroundColor: colors.card, color: colors.foreground }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('review_passage', 'review_questions', 'done_await', 'material_editor');

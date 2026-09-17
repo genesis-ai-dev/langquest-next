@@ -19,7 +19,7 @@ export interface SnapshotResult {
  * tail targets something inside the snapshot, in which case it refolds the
  * whole log so the target really disappears.
  */
-export async function runSnapshotWorker(service: SupabaseClient, pageSize = 1000): Promise<SnapshotResult[]> {
+export async function runSnapshotWorker(service: SupabaseClient, pageSize = 1000, observe?: (snapshot: Snapshot) => Promise<void>): Promise<SnapshotResult[]> {
   const transport = new SupabaseTransport(service);
   const { data, error } = await service.rpc('list_partitions');
   if (error) throw new Error(`list_partitions: ${error.message}`);
@@ -28,9 +28,11 @@ export async function runSnapshotWorker(service: SupabaseClient, pageSize = 1000
   for (const row of (data ?? []) as { org_id: string; project_id: string }[]) {
     const orgId = row.org_id;
     const projectId = row.project_id;
+    if (projectId === '_org' || orgId === '_user') continue;
     const existing = await fetchSnapshot(transport, orgId, projectId, REDUCER_VERSION);
     const tail = await pullAll(transport, orgId, projectId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {
+      if (existing && observe) await observe(existing);
       out.push({ orgId, projectId, serverSeq: existing?.serverSeq ?? 0, updated: false });
       continue;
     }
@@ -59,6 +61,7 @@ export async function runSnapshotWorker(service: SupabaseClient, pageSize = 1000
       p_state: snapshot.state
     });
     if (put.error) throw new Error(`put_snapshot ${orgId}/${projectId}: ${put.error.message}`);
+    if (observe) await observe(snapshot);
     out.push({ orgId, projectId, serverSeq: snapshot.serverSeq, updated: true });
   }
   return out;

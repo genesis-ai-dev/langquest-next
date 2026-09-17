@@ -1,5 +1,7 @@
+import { openReadModels, updateReadModels, taskPage, laneCounts } from './sqliteReadModels';
+import { WriteQueue } from './writeQueue';
 import type { AnyEvent, PassageRow } from '@langquest-next/core';
-import type { EventStore, LocalEvent, PassageCursor, WriteBatch } from './types';
+import type { EventStore, LocalEvent, PassageCursor, WriteBatch, TaskQuery } from './types';
 
 /**
  * Minimal SQL driver so the same store runs on expo-sqlite in the app and on
@@ -33,6 +35,7 @@ interface Row {
  * a column on this table (PLAN.md invariant 7), never on state tables.
  */
 export class SqliteStore implements EventStore {
+  private readonly writer = new WriteQueue();
   private constructor(private readonly db: SqlDriver) {}
 
   static async open(db: SqlDriver): Promise<SqliteStore> {
@@ -75,17 +78,22 @@ export class SqliteStore implements EventStore {
     await db.run(
       `create index if not exists passage_rows_order on passage_rows (org_id, project_id, lane_id, ord, unit_id)`
     );
+    await openReadModels(db);
     return new SqliteStore(db);
   }
 
   async commit(batch: WriteBatch): Promise<void> {
     const write = async (tx: SqlDriver) => {
       for (const l of batch.events ?? []) await this.putOn(tx, l);
+      for (const key of new Set((batch.events ?? []).map((l) => `projection:${l.event.orgId}/${l.event.projectId}`))) {
+        await this.setMetaOn(tx, key, '');
+      }
       if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.projectId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
       if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
       const rows = batch.rows;
       if (rows) {
+        await updateReadModels(tx, rows);
         if (rows.clear) await tx.run(`delete from passage_rows where org_id = ? and project_id = ?`, [rows.orgId, rows.projectId]);
         for (const k of rows.delete ?? []) {
           await tx.run(`delete from passage_rows where org_id = ? and project_id = ? and unit_id = ? and lane_id = ?`, [rows.orgId, rows.projectId, k.unitId, k.laneId]);
@@ -97,10 +105,26 @@ export class SqliteStore implements EventStore {
             [rows.orgId, rows.projectId, r.unitId, r.laneId, r.order, JSON.stringify(r)]
           );
         }
+        if (rows.version) {
+          const cursor = await tx.all<{ seq: number }>(
+            'select seq from cursors where org_id = ? and project_id = ?', [rows.orgId, rows.projectId]);
+          await this.setMetaOn(tx, `projection:${rows.orgId}/${rows.projectId}`,
+            `${rows.version}:${cursor[0]?.seq ?? 0}`);
+        }
       }
     };
-    if (this.db.transaction) await this.db.transaction(write);
-    else await write(this.db);
+    await this.writer.run(async () => {
+      if (this.db.transaction) await this.db.transaction(write);
+      else await write(this.db);
+    });
+  }
+
+  taskPage(orgId: string, projectId: string, query: TaskQuery) {
+    return taskPage(this.db, orgId, projectId, query);
+  }
+
+  laneCounts(orgId: string, projectId: string, laneId: string) {
+    return laneCounts(this.db, orgId, projectId, laneId);
   }
 
   async passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
@@ -124,7 +148,7 @@ export class SqliteStore implements EventStore {
   }
 
   async put(local: LocalEvent): Promise<void> {
-    await this.putOn(this.db, local);
+    await this.commit({ events: [local] });
   }
 
   private async putOn(db: SqlDriver, local: LocalEvent): Promise<void> {
@@ -133,6 +157,7 @@ export class SqliteStore implements EventStore {
       `insert into events (id, org_id, project_id, status, reject_reason, hlc, server_seq, json)
        values (?, ?, ?, ?, ?, ?, ?, ?)
        on conflict(id) do update set
+         hlc = excluded.hlc,
          status = excluded.status,
          reject_reason = excluded.reject_reason,
          server_seq = excluded.server_seq,
@@ -204,7 +229,7 @@ export class SqliteStore implements EventStore {
   }
 
   async setCursor(orgId: string, projectId: string, seq: number): Promise<void> {
-    await this.setCursorOn(this.db, orgId, projectId, seq);
+    await this.commit({ cursor: { orgId, projectId, seq } });
   }
 
   private async setCursorOn(db: SqlDriver, orgId: string, projectId: string, seq: number): Promise<void> {
@@ -216,7 +241,7 @@ export class SqliteStore implements EventStore {
   }
 
   async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.pruneOn(this.db, orgId, projectId, uptoSeq);
+    await this.commit({ prune: { orgId, projectId, uptoSeq } });
   }
 
   private async pruneOn(db: SqlDriver, orgId: string, projectId: string, uptoSeq: number): Promise<void> {
@@ -232,7 +257,7 @@ export class SqliteStore implements EventStore {
   }
 
   async setMeta(key: string, value: string): Promise<void> {
-    await this.setMetaOn(this.db, key, value);
+    await this.commit({ meta: { [key]: value } });
   }
 
   private async setMetaOn(db: SqlDriver, key: string, value: string): Promise<void> {

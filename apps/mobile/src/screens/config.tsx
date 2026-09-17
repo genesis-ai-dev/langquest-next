@@ -1,59 +1,67 @@
 // Avatar P. Roles, content templates, reference library, key terms, review flows.
-import type { QuorumRule, Role, WorkflowStep } from '@langquest-next/core';
-import { CATALOG_VERSION, contentTemplates, deriveWorkflow, FLOW_TEMPLATES, instantiateFlow, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
+import type { Privilege, QuorumRule, Role, WorkflowStep } from '@langquest-next/core';
+import { PRIVILEGES, CATALOG_VERSION, contentTemplates, deriveWorkflow, FLOW_TEMPLATES, instantiateFlow, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
 import { Check, FileText, KeyRound, Plus, Trash2 } from 'lucide-react-native';
+import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, text } from '../ui';
 
-const ROLE_PRIVS: Record<Role, string[]> = {
-  owner: ['Manage org structure', 'Invite members', 'Manage roles', 'Manage content', 'Manage review flows', 'Assign work', 'Translate', 'Review', 'View status'],
-  coordinator: ['Invite members', 'Manage content', 'Manage review flows', 'Assign work', 'Translate', 'Review', 'View status'],
-  translator: ['Translate', 'Send to reviewers', 'View status'],
-  reviewer: ['Review', 'View status'],
-  viewer: ['View status']
-};
-
 export function RolesHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const counts = new Map<string, number>();
-  for (const m of Object.values(state?.members ?? {})) if (!m.removed.value) counts.set(m.role.value, (counts.get(m.role.value) ?? 0) + 1);
+  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
   return (
-    <Screen>
+    <Screen footer={ctx.session.can('manage_roles')
+      ? <Footer label="New role" onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : undefined}>
       <Header title="Roles" onBack={ctx.back} />
-      <Note>Roles are fixed for now. Custom roles with privilege switches come with organizations above projects.</Note>
       <Section label="Defined at organization">
-        {(Object.keys(ROLE_PRIVS) as Role[]).map((r, i, a) => (
-          <Row key={r} label={r} sub={`${counts.get(r) ?? 0} members · ${ROLE_PRIVS[r].length} privileges`} onPress={() => ctx.go('role_editor', { roleId: r })} last={i === a.length - 1} />
-        ))}
+        {roles.map(([id, role]) => <Row key={id} label={role.name.value}
+          sub={`${role.privileges.value.length} privileges`}
+          onPress={() => ctx.go('role_editor', { roleId: id })} />)}
       </Section>
     </Screen>
   );
 }
 
 export function RoleEditor(ctx: Ctx) {
-  const { state } = ctx.project;
-  const roleId = (ctx.params['roleId'] ?? 'translator') as Role | 'new';
-  const privs = roleId === 'new' ? [] : ROLE_PRIVS[roleId];
-  const members = Object.entries(state?.members ?? {}).filter(([, m]) => !m.removed.value && m.role.value === roleId);
+  const requested = ctx.params['roleId'] ?? 'new';
+  const [newId] = useState(() => `role-${Crypto.randomUUID()}`);
+  const roleId = requested === 'new' ? newId : requested;
+  const existing = ctx.org.state?.roles[roleId];
+  const [name, setName] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Privilege[] | null>(null);
+  const privileges = selected ?? existing?.privileges.value ?? [];
+  const label = name ?? existing?.name.value ?? '';
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const allowed = ctx.session.can('manage_roles');
+  async function save() {
+    if (!allowed) return;
+    setBusy(true);
+    try {
+      await ctx.org.append('v1.RoleDefined', { roleId, name: label.trim(), privileges });
+      ctx.back();
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
   return (
-    <Screen>
-      <Header title={roleId === 'new' ? 'New role' : roleId} sub="Role · Organization" onBack={ctx.back} />
-      {roleId === 'new' ? <Note>Custom roles are not wired yet.</Note> : null}
-      <Section label="Members with this role">
-        {members.length === 0 ? <Row label="Nobody" last /> : null}
-        {members.map(([id], i) => (
-          <Row key={id} label={id.slice(0, 8)} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
-        ))}
-      </Section>
+    <Screen footer={allowed ? <Footer label="Save role" onPress={() => void save()}
+      disabled={busy || !label.trim() || privileges.length === 0} /> : undefined}>
+      <Header title={existing ? 'Edit role' : 'New role'} onBack={ctx.back} />
+      <TextInput accessibilityLabel="Role name" placeholder="Role name" value={label}
+        onChangeText={setName} editable={allowed} maxLength={100}
+        style={{ padding: space.md, backgroundColor: colors.card }} />
       <Section label="Permissions">
-        {privs.map((p, i) => (
-          <Row key={p} label={p} right={<Check size={18} color={colors.done} />} last={i === privs.length - 1} />
-        ))}
+        {PRIVILEGES.map((privilege) => <Row key={privilege}
+          label={privilege.replaceAll('_', ' ')}
+          right={<Switch accessibilityLabel={privilege.replaceAll('_', ' ')}
+            disabled={!allowed || busy} value={privileges.includes(privilege)}
+            onValueChange={(on) => setSelected(on ? [...privileges, privilege]
+              : privileges.filter((p) => p !== privilege))} />} />)}
       </Section>
+      {error ? <Note>{error}</Note> : null}
     </Screen>
   );
 }
@@ -375,3 +383,6 @@ const styles = {
   opt: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: 8, backgroundColor: colors.muted },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, backgroundColor: colors.card, color: colors.foreground }
 };
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('roles_home', 'role_editor', 'templates_home', 'reference_home', 'key_terms', 'key_term_detail', 'flows_home', 'flow_editor');

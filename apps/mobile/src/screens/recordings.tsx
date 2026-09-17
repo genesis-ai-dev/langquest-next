@@ -12,19 +12,21 @@ import { pendingPassageCards } from '../recordingFlow';
 import { colors, radius, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
 import { useEnergyHistory, useRecorder, type RecordedCard } from '../useRecorder';
-import { taskFor } from './translate';
+import { useTask } from './translate';
 
 export function QuestAssets(ctx: Ctx) {
   const state = ctx.project.state;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const latest = useRef(ctx);
   latest.current = ctx;
+  const latestTask = useRef(task);
+  latestTask.current = task;
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latest.current;
-    const passage = taskFor(current);
+    const passage = latestTask.current;
     if (!passage) throw new Error('This passage is no longer available.');
     // card.id was chosen before the first save step, so a retry or a
     // journal resume after restart finds the event already in the fold.
@@ -48,7 +50,7 @@ export function QuestAssets(ctx: Ctx) {
     () => (state && task ? pendingPassageCards(state, task.unitId, task.laneId, actorId) : []),
     [state, task?.unitId, task?.laneId, actorId]
   );
-  if (!state || !task) return <Note>Task not found.</Note>;
+  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
   const takeId = currentTake(state, task.unitId, task.laneId, indexesFor(state));
   const take = takeId ? state.takes[takeId] : undefined;
   const hashes = pending.length ? pending.map((c) => c.hash) : take?.cardHashes ?? [];
@@ -207,3 +209,6 @@ const styles = StyleSheet.create({
   pause: { minWidth: 48, minHeight: 44, padding: 12, borderRadius: radius.full, borderWidth: 1, borderColor: '#ffffff88', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   stop: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', alignSelf: 'center' }
 });
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('quest_assets');

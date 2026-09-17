@@ -1,5 +1,6 @@
 /**
- * The single local writer. Every store mutation (a tap's events, a pulled
+ * A serial write queue. Stores own the database-wide queue; clients also
+ * use a queue to track their pending saves. Every store mutation (a tap's events, a pulled
  * page, push results, a checkpoint) runs through here one at a time, so no
  * two transactions overlap and "saved" has one meaning: the commit that
  * carried it has returned. `size` is how many writes are queued or in

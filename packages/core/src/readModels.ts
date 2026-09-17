@@ -153,7 +153,7 @@ export function progressFromRows(rows: Iterable<PassageRow>): { translatedPct: n
 export function affectedPassages(event: AnyEvent, state: ProjectState): 'all' | PassageKey[] {
   const ofTake = (takeId: string): 'all' | PassageKey[] => {
     const t = state.takes[takeId];
-    return t ? [{ unitId: t.unitId, laneId: t.laneId }] : [];
+    return t?.unitId && t.laneId ? [{ unitId: t.unitId, laneId: t.laneId }] : [];
   };
   switch (event.type) {
     case 'v1.ProjectCreated':

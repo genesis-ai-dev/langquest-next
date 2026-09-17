@@ -74,4 +74,26 @@ if [ "${1:-}" = "--diff" ]; then
   fi
 fi
 
+# Migration history can match while an applied file had different contents.
+if contracts=$(npx supabase db query --linked --file server/api-contracts.sql 2>/dev/null); then
+  if missing_contracts=$(echo "$contracts" | node -e '
+    let raw = "";
+    process.stdin.on("data", c => raw += c).on("end", () => {
+      const result = JSON.parse(raw.slice(raw.indexOf("{")));
+      if (!Array.isArray(result.rows)) throw new Error("No contract result");
+      for (const row of result.rows) console.log(row.missing_contract);
+    });'); then
+  if [ -n "$missing_contracts" ]; then
+    bad "mobile API contracts missing on the server:"
+    echo "$missing_contracts"
+  else
+    ok "mobile API contracts are installed"
+  fi
+  else
+    bad "could not parse deployed API contracts"
+  fi
+else
+  bad "could not verify deployed API contracts"
+fi
+
 exit $fail

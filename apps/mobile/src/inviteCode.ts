@@ -14,11 +14,18 @@ export function inviteUri(orgId: string, token: string): string {
 export function parseInvite(input: string): { orgId?: string; token: string } | null {
   const raw = input.trim();
   if (!raw) return null;
-  const m = /token=([^&\s]+)/.exec(raw);
+  if (!/^langquestnext:\/\/invite\?/.test(raw)) {
+    return /^[0-9a-f]{32,128}$/i.test(raw) ? { token: raw } : null;
+  }
+  const m = /[?&]token=([^&\s]+)/.exec(raw);
   if (m?.[1]) {
-    const org = /org=([^&\s]+)/.exec(raw)?.[1];
-    return { token: decodeURIComponent(m[1]), ...(org ? { orgId: decodeURIComponent(org) } : {}) };
+    try {
+      const token = decodeURIComponent(m[1]);
+      if (!/^[0-9a-f]{32,128}$/i.test(token)) return null;
+      const org = /[?&]org=([^&\s]+)/.exec(raw)?.[1];
+      return { token, ...(org ? { orgId: decodeURIComponent(org) } : {}) };
+    } catch { return null; }
   }
   // A bare token pasted out of a message.
-  return /^[0-9a-f]{32,}$/i.test(raw) ? { token: raw } : null;
+  return null;
 }

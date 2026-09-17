@@ -9,6 +9,7 @@ function deps(over: Partial<ResumeDeps> = {}) {
   const calls = { ingest: [] as string[], append: [] as string[], saved: [] as JournalEntry[] };
   const d: ResumeDeps = {
     fileExists: () => true,
+    blobExists: () => true,
     ingest: async (uri) => { calls.ingest.push(uri); return { hash: 'h-' + uri, size: 10 }; },
     hasRecording: () => false,
     append: async (e) => { calls.append.push(e.id); },
@@ -51,10 +52,11 @@ describe('recording journal', () => {
     expect(calls.ingest).toEqual([]);
   });
 
-  it('drops an entry whose staging audio is gone: there is nothing left to recover', async () => {
+  it('retains a missing file entry for recovery rather than silently dropping it', async () => {
     const { d, calls } = deps({ fileExists: () => false });
     const r = await resumeEntries([entry()], target, d);
-    expect(r.dropped).toEqual(['rec-1']);
+    expect(r.dropped).toEqual([]);
+    expect(r.failed[0]?.id).toBe('rec-1');
     expect(calls.append).toEqual([]);
   });
 
@@ -67,5 +69,118 @@ describe('recording journal', () => {
     expect(r.resumed).toEqual([]);
     expect(attempts).toBe(1);
     expect(calls.append).toEqual([]);
+  });
+});
+
+// Interrupt at the exact boundary between file relocation and journal advancement.
+it('recovers a moved blob using the destination saved before relocation', async () => {
+  let persisted = entry();
+  let sourceExists = true;
+  let destinationExists = false;
+  const { d, calls } = deps({
+    fileExists: () => sourceExists,
+    blobExists: (hash) => hash === 'content-hash' && destinationExists,
+    save: async (e) => { persisted = e; },
+    ingest: async (_uri, _format, beforeMove) => {
+      await beforeMove('content-hash', 10);
+      sourceExists = false;
+      destinationExists = true;
+      throw new Error('process interrupted');
+    }
+  });
+  expect((await resumeEntries([persisted], target, d)).failed).toHaveLength(1);
+  expect(persisted).toMatchObject({ stage: 'recorded', hash: 'content-hash' });
+  expect((await resumeEntries([persisted], target, d)).resumed).toEqual(['rec-1']);
+  expect(calls.append).toEqual(['rec-1']);
+});
+
+it('does not relocate audio when the destination journal write fails', async () => {
+  let moved = false;
+  const { d } = deps({
+    save: async () => { throw new Error('disk full'); },
+    ingest: async (_uri, _format, beforeMove) => {
+      await beforeMove('hash', 10);
+      moved = true;
+      return { hash: 'hash', size: 10 };
+    }
+  });
+  expect((await resumeEntries([entry()], target, d)).failed).toHaveLength(1);
+  expect(moved).toBe(false);
+});
+
+
+it('does not append an ingested recording when its blob is missing', async () => {
+  const { d, calls } = deps({ blobExists: () => false });
+  const result = await resumeEntries([entry({ stage: 'ingested', hash: 'lost' })], target, d);
+  expect(result.failed).toHaveLength(1);
+  expect(result.dropped).toEqual([]);
+  expect(calls.append).toEqual([]);
+});
+
+
+const disk = vi.hoisted(() => ({
+  value: '[]' as string | undefined,
+  legacy: undefined as string | undefined,
+  fail: false,
+  reads: 0
+}));
+vi.mock('../src/store', () => ({ getStore: async () => ({
+  meta: async () => { disk.reads++; await Promise.resolve(); return disk.value; },
+  setMeta: async (_key: string, value: string) => {
+    if (disk.fail) throw new Error('disk full');
+    disk.value = value;
+  }
+}) }));
+vi.mock('expo-file-system', () => ({
+  Paths: { document: 'file:///documents' },
+  File: class {
+    get exists() { return disk.legacy !== undefined; }
+    async text() { return disk.legacy; }
+  }
+}));
+
+// Exercise the production journal's read/modify/commit chain, not only recovery.
+describe('durable journal storage', () => {
+  beforeEach(() => {
+    disk.value = '[]'; disk.legacy = undefined; disk.fail = false; disk.reads = 0;
+  });
+
+  it('shares initial loading and preserves concurrent additions', async () => {
+    const { RecordingJournal } = await import('../src/recordingJournal');
+    const journal = new RecordingJournal();
+    await Promise.all([journal.all(), journal.put(entry()), journal.put(entry({ id: 'second' }))]);
+    expect(disk.reads).toBe(1);
+    expect((await journal.all()).map((e) => e.id)).toEqual(['rec-1', 'second']);
+    expect(JSON.parse(disk.value!).map((e: JournalEntry) => e.id)).toEqual(['rec-1', 'second']);
+  });
+
+  it('does not publish a failed write and permits a later retry', async () => {
+    const { RecordingJournal } = await import('../src/recordingJournal');
+    const journal = new RecordingJournal();
+    await journal.all();
+    disk.fail = true;
+    await expect(journal.put(entry())).rejects.toThrow('disk full');
+    expect(await journal.all()).toEqual([]);
+    disk.fail = false;
+    await journal.put(entry());
+    expect(await journal.all()).toHaveLength(1);
+  });
+
+  it('imports the previous journal once without overwriting a SQLite journal', async () => {
+    const { RecordingJournal } = await import('../src/recordingJournal');
+    disk.value = undefined;
+    disk.legacy = JSON.stringify([entry()]);
+    const journal = new RecordingJournal();
+    expect(await journal.all()).toHaveLength(1);
+    await journal.remove('rec-1');
+    expect(await new RecordingJournal().all()).toEqual([]);
+  });
+
+  it('retains a damaged legacy journal instead of replacing it with an empty one', async () => {
+    const { RecordingJournal } = await import('../src/recordingJournal');
+    disk.value = undefined;
+    disk.legacy = '{torn';
+    await expect(new RecordingJournal().all()).rejects.toThrow();
+    expect(disk.value).toBeUndefined();
   });
 });

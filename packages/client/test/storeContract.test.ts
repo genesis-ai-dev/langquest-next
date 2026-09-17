@@ -226,3 +226,88 @@ describe('SqliteStore transactions', () => {
     expect(await s.passages('o', 'p', { limit: 10 })).toEqual([]);
   });
 });
+
+
+it('serializes shared-store mutations across partitions and direct metadata writes', async () => {
+  const db = nodeDriver();
+  const original = db.transaction!;
+  let active = 0;
+  let maxActive = 0;
+  db.transaction = async (fn) => {
+    active++;
+    maxActive = Math.max(active, maxActive);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      await original(fn);
+    } finally { active--; }
+  };
+  const store = await SqliteStore.open(db);
+  await Promise.all([
+    store.put({ event: ev('one', '1'), status: 'pending' }),
+    store.putMany([{ event: { ...ev('two', '2'), projectId: '_org' }, status: 'pending' }]),
+    store.setMeta('journal', 'saved'),
+    store.setCursor('o', 'p', 5),
+    store.prune('o', 'p', 0)
+  ]);
+  expect(maxActive).toBe(1);
+  expect(await store.meta('journal')).toBe('saved');
+  expect(await store.pendingCount('o', 'p')).toBe(1);
+  expect(await store.pendingCount('o', '_org')).toBe(1);
+});
+
+it('SQLite task filters page individual tasks and maintain progress totals', async () => {
+  const store = await SqliteStore.open(nodeDriver());
+  const submitted: PassageRow = { ...row('u1', 'L1', 'a'), takeId: 'take',
+    submitted: true, outcome: 'approved', steps: [
+      { stepId: 'a', eligible: ['reviewer'], decided: [] },
+      { stepId: 'b', eligible: ['reviewer'], decided: ['reviewer'] }
+    ] };
+  await store.commit({ rows: { orgId: 'o', projectId: 'p', put: [submitted,
+    ...Array.from({ length: 500 }, (_, i) => row(`unused${i}`, 'L1', `z${i}`))] } });
+  const query = { actorId: 'reviewer', translate: false, limit: 1 };
+  const first = await store.taskPage('o', 'p', query);
+  expect(first.map((r) => r.taskId)).toEqual(['review:u1:L1:a']);
+  const next = await store.taskPage('o', 'p', { ...query,
+    after: { order: 'a', unitId: 'u1', laneId: 'L1', taskId: first[0]!.taskId } });
+  expect(next.map((r) => r.taskId)).toEqual(['review:u1:L1:b']);
+  expect((await store.taskPage('o', 'p', { ...query, status: ['done'], laneId: 'L1' })).map((r) => r.taskId))
+    .toEqual(['review:u1:L1:b']);
+  expect(await store.taskPage('o', 'p', { ...query, status: [] })).toEqual([]);
+  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 501, translated: 1, approved: 1 });
+  await store.commit({ rows: { orgId: 'o', projectId: 'p', put: [{ ...submitted, outcome: 'in_review' }] } });
+  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 501, translated: 1, approved: 0 });
+  await store.commit({ rows: { orgId: 'o', projectId: 'p', delete: [{ unitId: 'u1', laneId: 'L1' }] } });
+  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 500, translated: 0, approved: 0 });
+  expect(await store.taskPage('o', 'p', query)).toEqual([]);
+  await store.commit({ rows: { orgId: 'o', projectId: 'p', clear: true, put: [submitted] } });
+  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 1, translated: 1, approved: 1 });
+});
+
+
+it('filtered SQLite task lookup uses task indexes, not passage scans', async () => {
+  const db = nodeDriver();
+  const all = db.all.bind(db);
+  let plan: string[] = [];
+  db.all = async <T,>(sql: string, params: unknown[] = []) => {
+    if (sql.includes('select p.json, t.task_id')) {
+      plan = (await all<{ detail: string }>(`explain query plan ${sql}`, params)).map((r) => r.detail);
+    }
+    return all<T>(sql, params);
+  };
+  const store = await SqliteStore.open(db);
+  await store.commit({ rows: { orgId: 'o', projectId: 'p', put: [row('u', 'lane', 'a')] } });
+  await store.taskPage('o', 'p', { actorId: 'actor', translate: true,
+    status: ['todo', 'doing'], laneId: 'lane', limit: 20 });
+  expect(plan.some((line) => line.includes('SEARCH task_rows') && line.includes('task_rows_lane_status'))).toBe(true);
+  expect(plan.some((line) => line.includes('SCAN task_rows'))).toBe(false);
+});
+
+
+it('SQLite outbox pagination follows an event clock correction', async () => {
+  const store = await SqliteStore.open(nodeDriver());
+  await store.put({ event: ev('corrected', '9'), status: 'pending' });
+  await store.put({ event: ev('middle', '5'), status: 'pending' });
+  await store.put({ event: ev('corrected', '1'), status: 'pending' });
+  expect((await store.pendingPage('o', 'p', null, 1)).map((l) => l.event.id)).toEqual(['corrected']);
+  expect((await store.pendingPage('o', 'p', '1', 1)).map((l) => l.event.id)).toEqual(['middle']);
+});

@@ -3,13 +3,15 @@ import type { Role } from '@langquest-next/core';
 import { CATALOG_VERSION, contentTemplates, derivePieces, deriveWorkflow, instantiateTemplate } from '@langquest-next/core';
 import { Building2, Check, FileText, Globe, Headphones, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Share, Switch, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, text } from '../ui';
+import { supabase } from '../supabase';
+import { useDisplayNames } from '../useAccount';
 import { templateSubtree } from '../setupFlow';
 
 // One org for now, the same constant App.tsx opens with.
@@ -46,9 +48,15 @@ export function OrgHome(ctx: Ctx) {
   const name = state?.project?.value.name ?? 'Project';
   return (
     <Screen>
-      <Header title="Organization" crumbs={[{ label: 'org1' }]} />
+      <Header title={ctx.org.state?.org?.value.name ?? 'Organization'} />
       <Section label="Manage projects">
-        <Row icon={Building2} label={name} sub={`${Object.keys(state?.lanes ?? {}).length} languages`} onPress={() => ctx.go('project_home')} />
+        {Object.entries(ctx.org.state?.projects ?? {}).map(([id, p]) => <Row key={id}
+          icon={Building2} label={p.name} onPress={() => {
+            if (id === ctx.project.projectId) ctx.go('project_home');
+            else void ctx.openOrganization(ctx.project.orgId, id);
+          }} />)}
+        {!Object.keys(ctx.org.state?.projects ?? {}).length && state?.project
+          ? <Row icon={Building2} label={name} onPress={() => ctx.go('project_home')} /> : null}
         {ctx.session.isAdmin ? <Row icon={Plus} label={state?.project ? "Set up project" : "New project"} onPress={() => ctx.go('new_project')} last /> : <Row label="" last />}
       </Section>
       {catalogRows(ctx)}
@@ -58,12 +66,38 @@ export function OrgHome(ctx: Ctx) {
 }
 
 export function ProjectHome(ctx: Ctx) {
+  const [listed, setListed] = useState(false);
+  const [visibilityError, setVisibilityError] = useState('');
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  useEffect(() => {
+    void supabase.from('project_visibility').select('listed')
+      .eq('org_id', ctx.project.orgId).eq('project_id', ctx.project.projectId)
+      .maybeSingle().then(({ data, error }) => {
+        if (error) setVisibilityError(error.message);
+        else setListed(data?.listed ?? false);
+      });
+  }, [ctx.project.orgId, ctx.project.projectId]);
+  async function setVisibility(value: boolean) {
+    setVisibilityBusy(true);
+    const { error } = await supabase.rpc('set_project_visibility', {
+      p_org: ctx.project.orgId, p_project: ctx.project.projectId, p_listed: value
+    });
+    if (error) setVisibilityError(error.message);
+    else { setListed(value); setVisibilityError(''); }
+    setVisibilityBusy(false);
+  }
   const { state } = ctx.project;
   const lanes = state ? Object.entries(state.lanes) : [];
   const name = state?.project?.value.name ?? 'Project';
   return (
     <Screen>
       <Header title={name} crumbs={[{ label: 'org1', onPress: () => ctx.go('org_home') }, { label: name }]} />
+      {ctx.session.can('manage_structure') ? <Section label="Discovery">
+        <Row label="List this project publicly" sub="Share its name, languages, and progress only"
+          right={<Switch accessibilityLabel="List this project publicly" value={listed}
+            disabled={visibilityBusy} onValueChange={(value) => void setVisibility(value)} />} last />
+        {visibilityError ? <Note>{visibilityError}</Note> : null}
+      </Section> : null}
       <Section label="Manage languages">
         {lanes.map(([laneId, l]) => (
           <Row key={laneId} icon={Globe} label={l.languoidId} onPress={() => ctx.go('language_home', { laneId })} />
@@ -100,6 +134,7 @@ export function LanguageHome(ctx: Ctx) {
 }
 
 export function MembersList(ctx: Ctx) {
+  const names = useDisplayNames(ctx.session.actorId);
   const { state } = ctx.project;
   const orgId = ctx.project.orgId;
   const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
@@ -159,7 +194,7 @@ export function MembersList(ctx: Ctx) {
       {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
       <Section label={`Project members · ${members.length}`}>
         {members.map(([id, m], i) => (
-          <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : id.slice(0, 8)} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
+          <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : names[id] ?? Object.values(ctx.org.state?.members[id] ?? {})[0]?.displayName ?? id.slice(0, 8)} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
         ))}
       </Section>
       {ctx.session.isAdmin ? <Footer label="Invite" onPress={() => ctx.go('invite_member')} /> : null}
@@ -184,14 +219,33 @@ export function InviteMember(ctx: Ctx) {
   );
 }
 
-/** The issued code, shown once. The QR image itself is still to come. */
+/** Confirm the previously selected role and create one redeemable QR. */
 export function InviteQr(ctx: Ctx) {
   const orgId = ctx.project.orgId;
   const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
-  const [roleId, setRoleId] = useState(ctx.params['roleId'] ?? roles[0]?.[0] ?? '');
+  const roleId = ctx.params['roleId'] ?? '';
+  const roleName = roles.find(([id]) => id === roleId)?.[1].name.value;
   const [invite, setInvite] = useState<NewInvite | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  async function sendEmail() {
+    if (!invite) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { error } = await supabase.functions.invoke('send-invite', {
+        body: { inviteId: invite.inviteId, token: invite.token, email }
+      });
+      if (error) {
+        const details = error.context instanceof Response ? await error.context.json() : null;
+        throw new Error(details?.error ?? error.message);
+      }
+      setEmailSent(true);
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
 
   async function generate() {
     setBusy(true);
@@ -205,30 +259,32 @@ export function InviteQr(ctx: Ctx) {
   }
 
   return (
-    <Screen footer={invite ? <Footer label="Done" onPress={() => ctx.go('members_list')} /> : <Footer label="Create invite" onPress={() => void generate()} disabled={busy || !roleId} />}>
+    <Screen footer={invite ? <Footer label="Done" onPress={() => ctx.go('members_list')} /> : <Footer label="Create invite" onPress={() => void generate()} disabled={busy || !roleName} />}>
       <Header title="Invite by QR" onBack={ctx.back} />
       {invite ? (
         <>
           <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
-            <QRCode value={inviteUri(orgId, invite.token)} size={200} backgroundColor="transparent" />
+            <QRCode value={inviteUri(orgId, invite.token)} size={200} backgroundColor="white" />
           </View>
           <Card>
             <Text style={text.small}>Or type this code</Text>
             <Text selectable style={[text.body, { fontFamily: 'Courier' }]}>{invite.token}</Text>
           </Card>
           <Note>Shown once. Leaving this screen loses the code, and you make a new invite instead. It expires {new Date(invite.expiresAt).toDateString()}.</Note>
+          <TextInput accessibilityLabel="Invitation email" placeholder="Email address"
+            value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address"
+            editable={!emailSent && !busy} style={{ padding: space.md, backgroundColor: colors.card }} />
+          <Row label={emailSent ? 'Email sent' : busy ? 'Sending…' : 'Send invite by email'}
+            onPress={!busy && !emailSent && email.includes('@') ? () => void sendEmail() : undefined} />
+          <Row label="Share invite" onPress={() => void Share.share({ message: inviteUri(orgId, invite.token) })} last />
         </>
       ) : (
         <>
           <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
             <QrCode size={160} color={colors.mutedForeground} />
           </View>
-          <Note>Anyone who scans this joins the organization in the role you pick, once. The code is never stored, here or on the server.</Note>
-          <Section label="They join as">
-            {roles.map(([id, r], i) => (
-              <Row key={id} label={r.name.value || id} onPress={() => setRoleId(id)} right={roleId === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === roles.length - 1} />
-            ))}
-          </Section>
+          <Note>{roleName ? `They join as ${roleName}. This invite can be used once.` : 'Go back and choose a role first.'}</Note>
+          <Row label="Change role" onPress={ctx.back} last />
         </>
       )}
       {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
@@ -237,31 +293,53 @@ export function InviteQr(ctx: Ctx) {
 }
 
 export function EditMember(ctx: Ctx) {
-  const { state, append } = ctx.project;
   const memberId = ctx.params['memberId'] ?? '';
-  const current = state?.members[memberId]?.role.value ?? 'viewer';
-  const [role, setRole] = useState<Role>(current);
-  async function save() {
-    if (role !== current) await append('v1.MemberRoleChanged', { profileId: memberId, role });
-    ctx.back();
-  }
-  async function remove() {
-    await append('v1.MemberRemoved', { profileId: memberId });
-    ctx.back();
+  const memberships = Object.entries(ctx.org.state?.members[memberId] ?? {})
+    .filter(([, m]) => !m.removed.value);
+  const [scopeKey, setScopeKey] = useState(memberships[0]?.[0] ?? '');
+  const membership = memberships.find(([key]) => key === scopeKey)?.[1];
+  const current = membership?.roleId.value ?? ctx.project.state?.members[memberId]?.role.value ?? 'viewer';
+  const [chosen, setChosen] = useState<string | null>(null);
+  const role = chosen ?? current;
+  const roles = membership ? Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired)
+    .map(([id,r]) => ({ id,name:r.name.value })) : ROLES.map((id) => ({ id,name:id }));
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const allowed = ctx.session.can('invite_members');
+  async function update(remove: boolean) {
+    if (!allowed || busy) return;
+    setBusy(true);
+    try {
+      if (membership) {
+        if (remove) await ctx.org.append('v1.OrgMemberRemoved', { profileId: memberId, scope: membership.scope });
+        else if (role !== current) await ctx.org.append('v1.OrgMemberAdded', { profileId: memberId, roleId: role, scope: membership.scope });
+      } else if (remove) await ctx.project.append('v1.MemberRemoved', { profileId: memberId });
+      else if (role !== current) await ctx.project.append('v1.MemberRoleChanged', { profileId: memberId, role: role as Role });
+      ctx.back();
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
   }
   return (
-    <Screen footer={<Footer label="Save assignment" onPress={() => void save()} secondary={{ label: 'Remove', onPress: () => void remove() }} />}>
-      <Header title="Edit member" sub={memberId} onBack={ctx.back} />
+    <Screen footer={allowed ? <Footer label="Save member" onPress={() => void update(false)} disabled={busy}
+      secondary={{ label: 'Remove from this scope', onPress: () => void update(true) }} /> : undefined}>
+      <Header title="Edit member" onBack={ctx.back} />
+      {memberships.length > 1 ? <Section label="Scope">
+        {memberships.map(([key]) => <Row key={key} label={key}
+          badge={key === scopeKey ? 'selected' : undefined}
+          onPress={() => { setScopeKey(key); setChosen(null); }} />)}
+      </Section> : null}
       <Section label="Role">
-        {ROLES.map((r, i) => (
-          <Row key={r} label={r} onPress={() => setRole(r)} right={role === r ? <Check size={18} color={colors.translate} /> : <View />} last={i === ROLES.length - 1} />
-        ))}
+        {roles.map((r) => <Row key={r.id} label={r.name}
+          onPress={allowed ? () => setChosen(r.id) : undefined}
+          right={role === r.id ? <Check size={18} color={colors.translate} /> : <View />} />)}
       </Section>
+      {error ? <Note>{error}</Note> : null}
     </Screen>
   );
 }
 
 export function NewProject(ctx: Ctx) {
+  const names = useDisplayNames(ctx.session.actorId);
   const { state, appendMany } = ctx.project;
   const laneEntries = state ? Object.entries(state.lanes) : [];
   const laneId = laneEntries[0]?.[0] ?? `lane-${ctx.project.projectId}`;
@@ -417,7 +495,7 @@ export function NewProject(ctx: Ctx) {
             <Row icon={FileText} label={targetPiece?.label ?? 'Choose a structure first'} sub={targetPiece ? `${pieces.length} passages ready` : 'No passages yet'} last />
           </Section>
           <Section label="Translator">
-            {members.map(([id, m], i, a) => <Row key={id} label={id === ctx.session.actorId ? 'You' : id.slice(0, 8)} sub={m.role.value} onPress={() => setAssignee(id)} right={assignee === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+            {members.map(([id, m], i, a) => <Row key={id} label={id === ctx.session.actorId ? 'You' : names[id] ?? Object.values(ctx.org.state?.members[id] ?? {})[0]?.displayName ?? id.slice(0, 8)} sub={m.role.value} onPress={() => setAssignee(id)} right={assignee === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
             {members.length === 0 ? <Row label="No members yet" last /> : null}
           </Section>
           {assigned ? <Note>The first passage already has an assignment.</Note> : null}
@@ -515,3 +593,6 @@ export function ReviewTeamEditor(ctx: Ctx) {
 const styles = {
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, backgroundColor: colors.card, color: colors.foreground }
 };
+
+import { contractsFor } from '../screenContracts';
+export const contracts = contractsFor('org_home', 'project_home', 'language_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member', 'new_project', 'new_language', 'review_teams', 'review_team_editor');

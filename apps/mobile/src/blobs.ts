@@ -138,12 +138,13 @@ export class BlobStore {
    * content-addressed name, and return the ref. Idempotent: the same bytes
    * land on the same name.
    */
-  async ingest(sourceUri: string, format: BlobRef['format']): Promise<{ ref: BlobFile; size: number }> {
+  async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
     const src = new File(sourceUri);
     const bytes = await src.bytes();
     const hash = await BlobStore.hashOf(bytes);
     const ref: BlobFile = { hash, format };
     const dest = this.fileFor(ref);
+    await beforeMove?.(ref, bytes.byteLength);
     if (!dest.exists) src.move(dest);
     else src.delete();
     this.markPresent(hash, bytes.byteLength);

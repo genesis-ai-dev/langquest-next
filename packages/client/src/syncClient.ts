@@ -10,7 +10,6 @@ import {
   type Snapshot,
   HlcClock,
   affectedPassages,
-  buildIndexes,
   passageKeys,
   passageRow,
   passageRowKey,
@@ -18,6 +17,7 @@ import {
   type PassageRow
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
+import { ProjectIndexes } from './projectIndexes';
 import { WriteQueue } from './writeQueue';
 import { queriesFor, type ProjectQueries } from './queries';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
@@ -133,11 +133,15 @@ export class SyncClient<S = ProjectState> {
   /** Added to the device's wall clock after the server said it runs ahead. */
   private clockOffsetMs = 0;
   private readonly wall: () => number;
-  /** The single local writer (writeQueue.ts). */
+  /** Per-client save tracking; the shared store owns database serialization. */
   private readonly writer = new WriteQueue();
   /** Rows are maintained only for the project materializer. */
   private readonly projectRows: boolean;
   private revision = 0;
+  private indexes: ProjectIndexes | undefined;
+  /** Bump when persisted passage/task/count semantics change. */
+  private projectionVersion(): string { return `3:${this.m.version}`; }
+  private projectionKey(): string { return `projection:${this.opts.orgId}/${this.opts.projectId}`; }
   private readonly listeners = new Set<(s: PublishedState<S>) => void>();
 
   constructor(private readonly opts: SyncClientOptions<S>) {
@@ -158,6 +162,7 @@ export class SyncClient<S = ProjectState> {
 
   /** Rebuild the fold from the local log. Called once, and after a rejection. */
   async load(): Promise<S> {
+    const refold = this.loaded;
     if (!this.opts.clock && !this.loaded) {
       const seed = await this.opts.store.meta(this.clockKey());
       this.clockOffsetMs = Number((await this.opts.store.meta(this.offsetKey())) ?? 0);
@@ -169,8 +174,14 @@ export class SyncClient<S = ProjectState> {
     const snapshot = await this.localSnapshot();
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     this.loaded = true;
-    // The fold was rebuilt, so the rows are too: one commit, from scratch.
-    await this.commit({ rows: this.allRows() });
+    if (this.projectRows) {
+      this.indexes = new ProjectIndexes(this.state as unknown as ProjectState);
+      const marker = await this.opts.store.meta(this.projectionKey());
+      const cursor = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
+      if (refold || marker !== `${this.projectionVersion()}:${cursor}`) {
+        await this.commit({ rows: this.allRows() });
+      }
+    }
     this.publish();
     return this.state;
   }
@@ -179,7 +190,12 @@ export class SyncClient<S = ProjectState> {
 
   /** Every store mutation goes through here, one transaction at a time. */
   private commit(batch: WriteBatch): Promise<void> {
-    if (!batch.rows?.clear && !batch.rows?.put?.length && !batch.rows?.delete?.length) delete batch.rows;
+    // Redactions require a refold. A restart between this commit and load()
+    // must not trust rows calculated from the pre-refold state.
+    if (batch.rows && batch.events?.some((l) => l.event.type === 'v1.Redacted')) {
+      delete batch.rows.version;
+    }
+    if (!batch.rows?.version && !batch.rows?.clear && !batch.rows?.put?.length && !batch.rows?.delete?.length) delete batch.rows;
     if (batch.meta && Object.keys(batch.meta).length === 0) delete batch.meta;
     if (batch.events?.length === 0) delete batch.events;
     if (Object.keys(batch).length === 0) return Promise.resolve();
@@ -206,20 +222,44 @@ export class SyncClient<S = ProjectState> {
     for (const l of this.listeners) l(snap);
   }
 
+  /**
+   * Compare the persisted rows with a rebuild from the fold. The check the
+   * dev menu runs on a real device before trusting rows; empty means equal.
+   */
+  async verifyRows(): Promise<{ rows: number; mismatches: string[] }> {
+    const expected = this.allRows();
+    if (!expected) return { rows: 0, mismatches: [] };
+    const want = new Map((expected.put ?? []).map((r) => [passageRowKey(r), JSON.stringify(r)]));
+    const have = new Map<string, string>();
+    let after: { order: string; unitId: string; laneId: string } | null = null;
+    for (;;) {
+      const page = await this.opts.store.passages(this.opts.orgId, this.opts.projectId, { after, limit: 500 });
+      for (const r of page) have.set(passageRowKey(r), JSON.stringify(r));
+      if (page.length < 500) break;
+      const last = page[page.length - 1]!;
+      after = { order: last.order, unitId: last.unitId, laneId: last.laneId };
+    }
+    const mismatches: string[] = [];
+    for (const [k, v] of want) if (have.get(k) !== v) mismatches.push(have.has(k) ? `differs: ${k}` : `missing: ${k}`);
+    for (const k of have.keys()) if (!want.has(k)) mismatches.push(`extra: ${k}`);
+    return { rows: want.size, mismatches };
+  }
+
   /** Queries over the persisted rows (queries.ts). */
   queries(): ProjectQueries {
-    return queriesFor(this.opts.store, this.opts.orgId, this.opts.projectId, () => this.state as unknown as ProjectState);
+    return queriesFor(this.opts.store, this.opts.orgId, this.opts.projectId, () => this.state as unknown as ProjectState,
+      (unitId, laneId, actorId) => this.indexes!.pendingRecordings(unitId, laneId, actorId));
   }
 
   private rowsBatch(put: PassageRow[], clear = false): NonNullable<WriteBatch['rows']> {
-    return { orgId: this.opts.orgId, projectId: this.opts.projectId, put, clear };
+    return { orgId: this.opts.orgId, projectId: this.opts.projectId, put, clear, version: this.projectionVersion() };
   }
 
   /** Every row of the project, from the current fold. */
   private allRows(): NonNullable<WriteBatch['rows']> | undefined {
     if (!this.projectRows) return undefined;
     const state = this.state as unknown as ProjectState;
-    const idx = buildIndexes(state);
+    const idx = this.indexes!.get();
     return this.rowsBatch(passageKeys(state, idx).map((k) => passageRow(state, k.unitId, k.laneId, idx)), true);
   }
 
@@ -237,8 +277,8 @@ export class SyncClient<S = ProjectState> {
       if (hit === 'all') return this.allRows();
       for (const k of hit) keys.set(passageRowKey(k), k);
     }
-    if (keys.size === 0) return undefined;
-    const idx = buildIndexes(state);
+    if (keys.size === 0) return this.rowsBatch([]);
+    const idx = this.indexes!.get();
     return this.rowsBatch([...keys.values()].map((k) => passageRow(state, k.unitId, k.laneId, idx)));
   }
 
@@ -270,11 +310,11 @@ export class SyncClient<S = ProjectState> {
     return snap.reducerVersion === this.m.version ? snap : null;
   }
 
-  private async saveSnapshot(snap: Snapshot): Promise<void> {
+  private async saveSnapshot(snap: Snapshot, invalidateRows = true): Promise<void> {
     const { orgId, projectId } = this.opts;
     const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, projectId));
     await this.commit({
-      meta: { [this.snapshotKey()]: JSON.stringify(snap) },
+      meta: { ...(invalidateRows ? { [this.projectionKey()]: '' } : {}), [this.snapshotKey()]: JSON.stringify(snap) },
       cursor: { orgId, projectId, seq },
       prune: { orgId, projectId, uptoSeq: snap.serverSeq }
     });
@@ -353,7 +393,7 @@ export class SyncClient<S = ProjectState> {
       .map((l) => l.event);
     const state = this.resume(base, confirmed);
     this.m.compact(state);
-    await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as ProjectState });
+    await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as ProjectState }, false);
   }
 
   getState(): S {
@@ -389,8 +429,17 @@ export class SyncClient<S = ProjectState> {
    * rows they changed as one write. The promise resolves when that commit
    * is durable ("saved locally"); until then `saving` is above zero.
    */
+  private applyIndexed(event: AnyEvent): void {
+    const state = this.state as unknown as ProjectState;
+    const duplicate = this.projectRows && !!state.appliedEventIds[event.id];
+    this.state = this.m.apply(this.state, event);
+    if (!duplicate && this.projectRows && !state.invalidEvents[event.id] && !state.redactions[event.id]) {
+      this.indexes?.applied(event);
+    }
+  }
+
   private async applyLocal(events: AnyEvent[]): Promise<void> {
-    for (const event of events) this.state = this.m.apply(this.state, event);
+    for (const event of events) this.applyIndexed(event);
     // The writer publishes as soon as the commit is queued, carrying this
     // revision and saving > 0: the screen moves now, and can say "saved"
     // only once the queue drains.
@@ -503,7 +552,7 @@ export class SyncClient<S = ProjectState> {
             writes.push({ event: local.event, status: 'rejected', rejectReason: r.reason ?? 'rejected' });
           }
         }
-        await this.commit({ events: writes });
+        await this.commit({ events: writes, rows: this.projectRows && writes.every((l) => l.status === 'confirmed') ? this.rowsBatch([]) : undefined });
       }
       if (clockAhead.length > 0) await this.restamp(clockAhead);
     } finally {
@@ -594,7 +643,7 @@ export class SyncClient<S = ProjectState> {
         // Upsert: a pending event of ours whose ack was lost becomes confirmed.
         writes.push({ event, status: 'confirmed' });
         this.clock.receive(event.hlc);
-        this.state = this.m.apply(this.state, event);
+        this.applyIndexed(event);
         folded.push(event);
         if (event.type === 'v1.Redacted') {
           redacted = true;
