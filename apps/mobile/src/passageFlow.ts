@@ -2,6 +2,7 @@ import {
   currentTake, deriveTakeStatus, keyTermsFor, keyTermsForUnit,
   type ProjectState
 } from '@langquest-next/core';
+import { indexesFor } from './indexes';
 
 export type PassageAction = 'reference' | 'terms' | 'record' | 'submit' | 'done';
 
@@ -18,9 +19,10 @@ export function passageProgress(
     term.adjustments.some((a) => !!a.blobHash);
   const remainingTerms = terms.filter((t) => !hasAudio(t));
   const recordedTerms = glossary.filter(hasAudio).length;
-  const takeId = currentTake(state, unitId, laneId);
+  const idx = indexesFor(state);
+  const takeId = currentTake(state, unitId, laneId, idx);
   const take = takeId ? state.takes[takeId] : undefined;
-  const status = takeId ? deriveTakeStatus(state, takeId) : null;
+  const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
   const canSubmit = status?.outcome === 'draft' &&
     (take?.cardHashes.length ?? 0) > 0;
   let next: PassageAction;

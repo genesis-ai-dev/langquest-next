@@ -5,7 +5,7 @@ import { SyncScheduler } from '../src/syncScheduler';
  * moments while online, must not burn battery polling a dead radio, and
  * must never lose a nudge that lands while a sync is already running.
  */
-function harness(results: (() => Promise<{ offline: boolean }>)[] = []) {
+function harness(results: (() => Promise<{ offline: boolean; more?: boolean }>)[] = [], opts: { maxDelayMs?: number; random?: () => number } = {}) {
   const runs: number[] = [];
   let now = 0;
   const timers: { at: number; fn: () => void; id: number }[] = [];
@@ -20,6 +20,11 @@ function harness(results: (() => Promise<{ offline: boolean }>)[] = []) {
     pollMs: 60_000,
     offlineBackoffMs: [15_000, 30_000, 60_000],
     debounceMs: 250,
+    maxDelayMs: 2_000,
+    // 0.5 is unit jitter, so the timings below are exact unless a test injects its own.
+    random: () => 0.5,
+    ...opts,
+    now: () => now,
     setTimeout: (fn, ms) => {
       const id = nextId++;
       timers.push({ at: now + ms, fn, id });
@@ -118,5 +123,43 @@ describe('SyncScheduler', () => {
     h.s.stop();
     await h.advance(600_000);
     expect(h.runs).toEqual([0]);
+  });
+
+  it('continuous nudges cannot postpone a run past maxDelayMs', async () => {
+    // Why: a busy project pokes every phone on every event. Debounce alone
+    // would keep resetting the timer and a translator's own append could sit
+    // unsent for as long as the chatter lasts.
+    const h = harness();
+    h.s.start();
+    await h.advance(0);
+    for (let i = 0; i < 30; i++) {
+      h.s.nudge();
+      await h.advance(100);
+    }
+    expect(h.runs).toEqual([0, 2_000]);
+  });
+
+  it('offline backoff is jittered so reconnecting devices spread out', async () => {
+    const lo = harness([async () => ({ offline: true })], { random: () => 0 });
+    lo.s.start();
+    await lo.advance(0);
+    await lo.advance(12_000);
+    expect(lo.runs).toEqual([0, 12_000]);
+    const hi = harness([async () => ({ offline: true })], { random: () => 0.75 });
+    hi.s.start();
+    await hi.advance(0);
+    await hi.advance(16_500);
+    expect(hi.runs).toEqual([0, 16_500]);
+  });
+
+  it('a run that reports more work is followed by another run at once', async () => {
+    // Why: sync is a bounded slice now. A month offline drains as a series of
+    // slices, and the scheduler, not the slice, is what keeps them coming.
+    const h = harness([async () => ({ offline: false, more: true }), async () => ({ offline: false, more: true }), async () => ({ offline: false })]);
+    h.s.start();
+    await h.advance(0);
+    expect(h.runs).toEqual([0, 0, 0]);
+    await h.advance(59_999);
+    expect(h.runs).toHaveLength(3);
   });
 });

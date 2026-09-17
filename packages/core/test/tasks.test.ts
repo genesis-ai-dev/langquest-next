@@ -1,6 +1,7 @@
 import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
-import { deriveProgress, deriveTasks } from '../src/tasks';
+import { deriveProgress, deriveTasks, deriveTasksFor, findTask, parseTaskId } from '../src/tasks';
+import { buildIndexes } from '../src/indexes';
 import { buildFixture } from './fixtures';
 
 describe('task derivation (task-first UI)', () => {
@@ -58,5 +59,53 @@ describe('task derivation (task-first UI)', () => {
   it('progress counts passages with a take and with an approved take', () => {
     expect(deriveProgress(state, 'L1')).toEqual({ translatedPct: 100, approvedPct: 100, passages: 1 });
     expect(deriveProgress(state, 'missing')).toEqual({ translatedPct: 0, approvedPct: 0, passages: 1 });
+  });
+
+  describe('direct task lookup', () => {
+    // Why: opening one passage must cost one passage. `findTask` is the
+    // read path every single-passage screen uses, so it must agree with the
+    // full derivation for every task id the dashboard can hand out.
+    const withSuggestion = events.filter(
+      (e) => !(e.type === 'v1.ReviewSubmitted' && e.actorId === 'r2' && e.payload.decision === 'approve')
+    );
+    const r1Suggest = { ...withSuggestion.find((e) => e.actorId === 'r1' && e.type === 'v1.ReviewSubmitted')!, id: 'x', hlc: '999999999999999:000000:dC', payload: { takeId: 'take2', stepId: 'peer', decision: 'suggest_changes' as const } };
+    const states = [
+      state,
+      fold(events.filter((e) => e.type !== 'v1.TakeSubmitted'), emptyState()),
+      fold(events.filter((e) => !e.type.startsWith('v1.Take')), emptyState()),
+      fold([...withSuggestion, r1Suggest as (typeof events)[number]], emptyState())
+    ];
+    const actors = ['lead', 't1', 'r1', 'r2', 'r3', 'gone', 'stranger'];
+
+    it('finds by id exactly what the full derivation lists, for every actor and fold', () => {
+      for (const s of states) {
+        const idx = buildIndexes(s);
+        for (const actor of actors) {
+          const all = deriveTasks(s, actor, idx);
+          for (const t of all) expect(findTask(s, actor, t.id, idx)).toEqual(t);
+          for (const t of all) expect(deriveTasksFor(s, actor, t.unitId, t.laneId, idx)).toEqual(all.filter((o) => o.unitId === t.unitId && o.laneId === t.laneId));
+        }
+      }
+    });
+
+    it('a stale translate or respond id still opens the passage after its task type flips', () => {
+      // Why: the translator records a response from the respond screen; the
+      // fold turns that task into a translation draft and the screen's
+      // params still say respond. Losing the passage mid-flow is a bug.
+      const respond = states[3]!;
+      expect(findTask(respond, 't1', 'translate:luke1:L1')?.type).toBe('respond');
+      expect(findTask(state, 't1', 'respond:luke1:L1')?.type).toBe('translate');
+      expect(findTask(state, 't1', 'review:luke1:L1:peer')).toBeUndefined();
+      expect(findTask(state, 'r1', 'review:luke1:L1:peer')?.status).toBe('done');
+    });
+
+    it('unknown, malformed, and out-of-scope ids resolve to nothing', () => {
+      expect(findTask(state, 't1', 'translate:nope:L1')).toBeUndefined();
+      expect(findTask(state, 't1', 'translate:luke1:nolane')).toBeUndefined();
+      expect(findTask(state, 't1', 'garbage')).toBeUndefined();
+      expect(findTask(state, 'stranger', 'translate:luke1:L1')).toBeUndefined();
+      expect(parseTaskId('review:u:l:s')).toEqual({ type: 'review', unitId: 'u', laneId: 'l', stepId: 's' });
+      expect(parseTaskId('x:u:l')).toBeNull();
+    });
   });
 });

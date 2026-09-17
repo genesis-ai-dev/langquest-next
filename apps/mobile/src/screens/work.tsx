@@ -1,5 +1,6 @@
 // Avatar U for My Work and Open Work; Avatar P for Give Assignment and progress detail.
 import { deriveProgress, derivePieces, deriveTasks, type Task, type TaskStatus } from '@langquest-next/core';
+import { indexesFor } from '../indexes';
 import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, Menu, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -22,8 +23,9 @@ export function AssignmentsHome(ctx: Ctx) {
   const role = ctx.session.role;
   const roleType = role === 'reviewer' ? 'review' : 'translate';
   const laneId = Object.keys(state.lanes)[0] ?? null;
-  const progress = laneId ? deriveProgress(state, laneId) : null;
-  const tasks = deriveTasks(state, ctx.session.actorId);
+  const idx = indexesFor(state);
+  const progress = laneId ? deriveProgress(state, laneId, idx) : null;
+  const tasks = deriveTasks(state, ctx.session.actorId, idx);
   const counts: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
   for (const t of tasks) counts[t.status] += 1;
   const shown = tasks.filter((t) => filters.includes(t.status))
@@ -160,7 +162,7 @@ function openCount(ctx: Ctx): string {
   if (!state) return '';
   const laneId = Object.keys(state.lanes)[0];
   if (!laneId) return '0';
-  return String(derivePieces(state, laneId).filter((p) => p.status === 'unassigned').length);
+  return String(derivePieces(state, laneId, indexesFor(state)).filter((p) => p.status === 'unassigned').length);
 }
 
 function TodoRow(props: { task: Task; label: string; isLast: boolean; onOpen: () => void; onLong: () => void }) {
@@ -191,7 +193,7 @@ function TodoRow(props: { task: Task; label: string; isLast: boolean; onOpen: ()
 export function PickupHome(ctx: Ctx) {
   const { state, append } = ctx.project;
   const laneId = state ? Object.keys(state.lanes)[0] : undefined;
-  const open = state && laneId ? derivePieces(state, laneId).filter((p) => p.status === 'unassigned') : [];
+  const open = state && laneId ? derivePieces(state, laneId, indexesFor(state)).filter((p) => p.status === 'unassigned') : [];
   async function claim(unitId: string) {
     await append('v1.AssignmentMade', { unitId, laneId: laneId!, profileId: ctx.session.actorId, role: 'translator' });
     ctx.go('translate_passage', { taskId: `translate:${unitId}:${laneId}` });
@@ -219,7 +221,7 @@ export function GiveAssignment(ctx: Ctx) {
   const [due, setDue] = useState('Sep 30');
   const laneId = state ? Object.keys(state.lanes)[0] : undefined;
   const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const pieces = state && laneId ? derivePieces(state, laneId) : [];
+  const pieces = state && laneId ? derivePieces(state, laneId, indexesFor(state)) : [];
   const steps = ['Type', 'Assignee', 'Passage', 'Due date'];
   const can = [true, !!who, !!unitId, true][step];
 
@@ -277,7 +279,7 @@ export function AssignmentProgressDetail(ctx: Ctx) {
   const taskId = ctx.params['taskId'] ?? '';
   const [, unitId = '', laneId = ''] = taskId.split(':');
   const label = state?.units[unitId]?.label ?? unitId;
-  const piece = state && laneId ? derivePieces(state, laneId).find((p) => p.unitId === unitId) : undefined;
+  const piece = state && laneId ? derivePieces(state, laneId, indexesFor(state)).find((p) => p.unitId === unitId) : undefined;
   return (
     <Screen>
       <Header title="Assignment progress" sub={label} onBack={ctx.back} />

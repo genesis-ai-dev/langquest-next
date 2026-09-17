@@ -1,5 +1,6 @@
 // Avatar U. Durable recording, full-screen VAD, then keep or redo.
-import { currentTake, deriveTakeStatus, isStored } from '@langquest-next/core';
+import { commands, currentTake, isStored } from '@langquest-next/core';
+import { indexesFor } from '../indexes';
 import * as Crypto from 'expo-crypto';
 import { AudioWaveform, Check, CloudCheck, CloudUpload, Mic, RotateCcw, Save, Square } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -27,12 +28,12 @@ export function QuestAssets(ctx: Ctx) {
     if (!passage) throw new Error('This passage is no longer available.');
     // card.id was chosen before the first save step, so a retry or a
     // journal resume after restart finds the event already in the fold.
-    if (!current.project.state?.recordings[card.id]) {
-      await current.project.append('v1.RecordingAdded', {
-        recordingId: card.id, unitId: passage.unitId, laneId: passage.laneId,
-        kind: 'target', cards: [{ hash: card.ref.hash,
-          durationMs: card.durationMs, format: card.ref.format }]
-      });
+    const state = current.project.state;
+    if (state) {
+      await current.project.run(commands(state, indexesFor(state)).addRecording({
+        commandId: card.id, recordingId: card.id, unitId: passage.unitId, laneId: passage.laneId,
+        kind: 'target', card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
+      }));
     }
     current.project.triggerUpload();
   }, []);
@@ -48,7 +49,7 @@ export function QuestAssets(ctx: Ctx) {
     [state, task?.unitId, task?.laneId, actorId]
   );
   if (!state || !task) return <Note>Task not found.</Note>;
-  const takeId = currentTake(state, task.unitId, task.laneId);
+  const takeId = currentTake(state, task.unitId, task.laneId, indexesFor(state));
   const take = takeId ? state.takes[takeId] : undefined;
   const hashes = pending.length ? pending.map((c) => c.hash) : take?.cardHashes ?? [];
   const blocked = saving || rec.busy || rec.manualOn || rec.vadOn || rec.failureCount > 0;
@@ -57,18 +58,10 @@ export function QuestAssets(ctx: Ctx) {
     saveLock.current = true; setSaving(true); setError('');
     try {
       if (pending.length) {
-        const nextId = Crypto.randomUUID();
-        const events: Parameters<Ctx['project']['appendMany']>[0] = [
-          { type: 'v1.TakeComposed', payload: { takeId: nextId,
-            unitId: task!.unitId, laneId: task!.laneId,
-            cardHashes: pending.map((c) => c.hash), parentTakeId: takeId } },
-          { type: 'v1.TakeSelected', payload: { takeId: nextId,
-            unitId: task!.unitId, laneId: task!.laneId } }
-        ];
-        if (takeId && deriveTakeStatus(state!, takeId).outcome === 'draft') {
-          events.push({ type: 'v1.TakeArchived', payload: { takeId } });
-        }
-        await ctx.project.appendMany(events);
+        await ctx.project.run(commands(state!, indexesFor(state!)).keepTake({
+          commandId: Crypto.randomUUID(), unitId: task!.unitId, laneId: task!.laneId,
+          cardHashes: pending.map((c) => c.hash)
+        }));
       }
       ctx.back();
     } catch (e) { setError((e as Error).message); }
@@ -81,13 +74,10 @@ export function QuestAssets(ctx: Ctx) {
       // An archived draft records the deliberate discard, so recovery never
       // resurrects it. Immutable audio remains available in event history.
       if (pending.length) {
-        const discarded = Crypto.randomUUID();
-        await ctx.project.appendMany([
-          { type: 'v1.TakeComposed', payload: { takeId: discarded,
-            unitId: task!.unitId, laneId: task!.laneId,
-            cardHashes: pending.map((c) => c.hash), parentTakeId: takeId } },
-          { type: 'v1.TakeArchived', payload: { takeId: discarded } }
-        ]);
+        await ctx.project.run(commands(state!, indexesFor(state!)).discardCards({
+          commandId: Crypto.randomUUID(), unitId: task!.unitId, laneId: task!.laneId,
+          cardHashes: pending.map((c) => c.hash)
+        }));
       }
       await rec.toggleVad();
     } catch (e) { setError((e as Error).message); }

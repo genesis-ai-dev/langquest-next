@@ -18,8 +18,14 @@ export interface EventStore {
   get(id: string): Promise<LocalEvent | undefined>;
   /** Rejected events for a partition, oldest first, so the UI can show them and the client can retry them. */
   rejected(orgId: string, projectId: string): Promise<LocalEvent[]>;
-  /** Pending events for a partition, oldest first. */
+  /** Pending events for a partition, oldest first. The sync status screen reads this; push reads pages. */
   pending(orgId: string, projectId: string): Promise<LocalEvent[]>;
+  /**
+   * One page of pending events, oldest first, strictly after `afterHlc`
+   * (null for the first page). Push walks the outbox this way so a large
+   * offline backlog is never materialized at once.
+   */
+  pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
   /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
   pendingCount(orgId: string, projectId: string): Promise<number>;
   /** Every non-rejected event for a partition (confirmed then pending is fine). */

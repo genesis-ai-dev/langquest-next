@@ -1,5 +1,6 @@
 // Avatar P for inbox and settings; sign_out_confirm is Avatar U (one action, guarded, and it says what the guard is).
 import { decodeHlc, deriveTasks } from '@langquest-next/core';
+import { indexesFor } from '../indexes';
 import type { SyncInspection } from '@langquest-next/client';
 import { AlertCircle, ArrowDown, ArrowUp, Check, Cloud, CloudOff, CloudUpload, Database, LogOut, Radio, RefreshCw, User, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -14,7 +15,7 @@ import { ActionButton, Card, text } from '../ui';
 export function InboxHome(ctx: Ctx) {
   const { state } = ctx.project;
   const me = ctx.session.actorId;
-  const tasks = state ? deriveTasks(state, me).filter((t) => t.status !== 'done') : [];
+  const tasks = state ? deriveTasks(state, me, indexesFor(state)).filter((t) => t.status !== 'done') : [];
   const decisions = state
     ? Object.entries(state.takes)
         .filter(([, t]) => t.actorId === me)

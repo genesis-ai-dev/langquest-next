@@ -103,6 +103,15 @@ export class SqliteStore implements EventStore {
     return rows.map(toLocal);
   }
 
+  async pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
+    const rows = await this.db.all<Row>(
+      `select * from events where org_id = ? and project_id = ? and status = 'pending' and hlc > ?
+       order by hlc limit ?`,
+      [orgId, projectId, afterHlc ?? '', limit]
+    );
+    return rows.map(toLocal);
+  }
+
   async pendingCount(orgId: string, projectId: string): Promise<number> {
     const rows = await this.db.all<{ n: number }>(
       `select count(*) as n from events where org_id = ? and project_id = ? and status = 'pending'`,

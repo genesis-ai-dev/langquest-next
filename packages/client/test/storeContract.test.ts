@@ -51,6 +51,24 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect((await s.get('x'))?.rejectReason).toBe('no');
   });
 
+  it('pendingPage walks the outbox in hlc order without materializing it', async () => {
+    // Why: push reads pages so a large offline backlog never has to be loaded
+    // whole; the pages must tile the outbox exactly, no gaps and no repeats.
+    const s = await make();
+    for (const id of ['e', 'c', 'a', 'd', 'b']) await s.put({ event: ev(id, id), status: 'pending' });
+    await s.put({ event: ev('z', 'z', 1), status: 'confirmed' });
+    const seen: string[] = [];
+    let after: string | null = null;
+    for (;;) {
+      const page = await s.pendingPage('o', 'p', after, 2);
+      if (page.length === 0) break;
+      seen.push(...page.map((e) => e.event.id));
+      after = page[page.length - 1]!.event.hlc;
+    }
+    expect(seen).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(await s.pendingPage('o', 'p', 'e', 2)).toEqual([]);
+  });
+
   it('put is an upsert by id, so a confirm replaces the pending row', async () => {
     const s = await make();
     await s.put({ event: ev('a', '1'), status: 'pending' });

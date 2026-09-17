@@ -201,7 +201,7 @@ describe('SyncClient', () => {
 });
 
 describe('SyncClient push batching (PLAN.md section 2: small deltas succeed)', () => {
-  async function backlog(server: FakeServer, n: number, pushBatchSize: number) {
+  async function backlog(server: FakeServer, n: number, pushBatchSize: number, extra: { pushBatchesPerRun?: number; pullBudgetMs?: number; now?: () => number } = {}) {
     const store = new MemoryStore();
     const wall = { t: 0 };
     let k = 0;
@@ -214,7 +214,8 @@ describe('SyncClient push batching (PLAN.md section 2: small deltas succeed)', (
       transport: server.transportFor(),
       clock: new HlcClock('dA', () => (wall.t += 1)),
       newId: () => `e${++k}`,
-      pushBatchSize
+      pushBatchSize,
+      ...extra
     });
     await client.load();
     for (let i = 0; i < n; i++) {
@@ -234,6 +235,66 @@ describe('SyncClient push batching (PLAN.md section 2: small deltas succeed)', (
     expect(server.log.length).toBe(450);
     expect(server.appendCalls).toBe(3);
     expect(await client.pendingCount()).toBe(0);
+  });
+
+  it('one sync pushes a bounded number of batches, reports more, and still pulls', async () => {
+    // Why: a device back from a month offline must not spend its whole sync
+    // uploading before it sees anything new. Each slice pushes a little,
+    // pulls a little, and the scheduler runs the next slice.
+    const server = new FakeServer();
+    const { client } = await backlog(server, 450, 100, { pushBatchesPerRun: 2 });
+    const r1 = await client.sync();
+    expect(r1.pushed).toBe(200);
+    expect(r1.more).toBe(true);
+    expect(await client.pendingCount()).toBe(250);
+    const r2 = await client.sync();
+    expect(r2.pushed).toBe(200);
+    expect(r2.more).toBe(true);
+    const r3 = await client.sync();
+    expect(r3.pushed).toBe(50);
+    expect(r3.more).toBe(false);
+    expect(await client.pendingCount()).toBe(0);
+  });
+
+  it('a pull that runs out of time budget yields with more, and the next sync finishes it', async () => {
+    const server = new FakeServer();
+    const { client: a } = await backlog(server, 450, 200);
+    await a.push();
+    let t = 0;
+    const store = new MemoryStore();
+    const b = new SyncClient({
+      orgId: 'org1', projectId: 'p1', actorId: 't1', deviceId: 'dB', store,
+      transport: server.transportFor(),
+      pullPageSize: 100, pullBudgetMs: 10, now: () => t,
+      // Every page costs 6 ms of wall time; two pages exceed the budget.
+      yieldBetweenPages: async () => { t += 0; }
+    });
+    await b.load();
+    const orig = server.transportFor();
+    (b as unknown as { opts: { transport: typeof orig } }).opts.transport = {
+      ...orig,
+      pull: async (...args: Parameters<typeof orig.pull>) => { t += 6; return orig.pull(...args); }
+    };
+    const r1 = await b.sync();
+    expect(r1.more).toBe(true);
+    expect(r1.pulled).toBeLessThan(450);
+    expect(r1.pulled).toBeGreaterThan(0);
+    let total = r1.pulled;
+    for (let i = 0; i < 10 && total < 450; i++) total += (await b.sync()).pulled;
+    expect(total).toBe(450);
+    expect((await b.sync()).more).toBe(false);
+    expect(Object.keys(b.getState().units)).toHaveLength(450);
+  });
+
+  it('appendMany honours caller-supplied ids, so a retried command upserts instead of duplicating', async () => {
+    const server = new FakeServer();
+    const { client, store } = await backlog(server, 0, 200);
+    const spec = { id: 'cmd1:0', type: 'v1.UnitAdded' as const, payload: { unitId: 'u', parentUnitId: null, kind: 'passage', label: 'P', order: 'a' } };
+    await client.appendMany([spec]);
+    await client.appendMany([spec]);
+    expect(await store.pendingCount('org1', 'p1')).toBe(1);
+    expect((await client.push()).accepted).toBe(1);
+    expect(server.log.map((e) => e.id)).toEqual(['cmd1:0']);
   });
 
   it('progress survives a link that drops mid-backlog', async () => {

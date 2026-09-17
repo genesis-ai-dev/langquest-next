@@ -1,6 +1,6 @@
 import type { Role } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
-import type { ProjectState } from './state';
+import type { Assignment, ProjectState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, eligibleReviewers } from './workflow';
 
 /**
@@ -41,47 +41,119 @@ export function actorRole(state: ProjectState, actorId: string): Role | null {
 }
 
 export function deriveTasks(state: ProjectState, actorId: string, idx: Indexes = buildIndexes(state)): Task[] {
-  const role = actorRole(state, actorId);
-  if (!role) return [];
-  const mayTranslate = TRANSLATING_ROLES.includes(role);
-
-  const mine = new Map<string, (typeof state.assignments)[string]>();
-  for (const a of idx.assignmentsByActor.get(actorId) ?? []) {
-    if (a.role !== 'reviewer') mine.set(unitLaneKey(a.unitId, a.laneId), a);
-  }
-
+  const scope = taskScope(state, actorId, idx);
+  if (!scope) return [];
   const tasks: Task[] = [];
   for (const laneId of idx.lanes) {
     const workflow = deriveWorkflow(state, laneId);
     for (const unitId of laneLeafUnits(state, idx, laneId)) {
-      const takeId = currentTake(state, unitId, laneId, idx);
-      const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
-      const myAssignment = mine.get(unitLaneKey(unitId, laneId));
-      const extras = {
-        ...(myAssignment?.dueDate !== undefined ? { dueDate: myAssignment.dueDate } : {}),
-        ...(myAssignment?.instructions !== undefined ? { instructions: myAssignment.instructions } : {})
-      };
+      tasks.push(...tasksForUnitLane(state, scope, unitId, laneId, workflow, idx));
+    }
+  }
+  return tasks;
+}
 
-      if (mayTranslate) {
-        if (status?.outcome === 'changes_requested') {
-          tasks.push(task('respond', unitId, laneId, takeId, 'todo', extras));
-        } else {
-          const st: TaskStatus =
-            !takeId ? 'todo' : status?.outcome === 'draft' ? 'doing' : 'done';
-          tasks.push(task('translate', unitId, laneId, takeId, st, extras));
-        }
-      }
+/**
+ * One actor's tasks on one passage and lane: the same rows `deriveTasks`
+ * would produce for that (unit, lane), without visiting the rest of the
+ * project. Screens that show one passage read this; the dashboard reads the
+ * full list.
+ */
+export function deriveTasksFor(
+  state: ProjectState,
+  actorId: string,
+  unitId: string,
+  laneId: string,
+  idx: Indexes = buildIndexes(state)
+): Task[] {
+  const scope = taskScope(state, actorId, idx);
+  if (!scope || !state.lanes[laneId] || !laneLeafUnits(state, idx, laneId).includes(unitId)) return [];
+  return tasksForUnitLane(state, scope, unitId, laneId, deriveWorkflow(state, laneId), idx);
+}
 
-      if (takeId && status && status.submitted && status.outcome !== 'archived') {
-        for (const step of workflow) {
-          if (!eligibleReviewers(state, unitId, laneId, step, idx).includes(actorId)) continue;
-          const decided = state.reviews[takeId]?.[step.id]?.[actorId] !== undefined;
-          tasks.push({
-            ...task('review', unitId, laneId, takeId, decided ? 'done' : 'todo', {}),
-            id: `review:${unitId}:${laneId}:${step.id}`
-          });
-        }
-      }
+/**
+ * Task ids are `type:unitId:laneId[:stepId]`. Ids are opaque to the UI; this
+ * is the one place that knows their shape.
+ */
+export function parseTaskId(taskId: string): { type: TaskType; unitId: string; laneId: string; stepId?: string } | null {
+  const [type, unitId, laneId, stepId] = taskId.split(':');
+  if ((type !== 'translate' && type !== 'respond' && type !== 'review') || !unitId || !laneId) return null;
+  return { type, unitId, laneId, ...(stepId !== undefined ? { stepId } : {}) };
+}
+
+/**
+ * Find one task by id. Equals `deriveTasks(...).find((t) => t.id === taskId)`
+ * but costs one passage, not the project. A `translate` or `respond` id also
+ * resolves to the other type on the same passage: recording a response turns
+ * the respond task into a translation draft, and the open screen must keep
+ * working while the fold changes its task type.
+ */
+export function findTask(
+  state: ProjectState,
+  actorId: string,
+  taskId: string,
+  idx: Indexes = buildIndexes(state)
+): Task | undefined {
+  const parsed = parseTaskId(taskId);
+  if (!parsed) return undefined;
+  const tasks = deriveTasksFor(state, actorId, parsed.unitId, parsed.laneId, idx);
+  const exact = tasks.find((t) => t.id === taskId);
+  if (exact || parsed.type === 'review') return exact;
+  return tasks.find((t) => t.type !== 'review');
+}
+
+interface TaskScope {
+  actorId: string;
+  mayTranslate: boolean;
+  /** `${unitId}:${laneId}` -> this actor's non-reviewer assignment there. */
+  mine: Map<string, Assignment>;
+}
+
+function taskScope(state: ProjectState, actorId: string, idx: Indexes): TaskScope | null {
+  const role = actorRole(state, actorId);
+  if (!role) return null;
+  const mine = new Map<string, Assignment>();
+  for (const a of idx.assignmentsByActor.get(actorId) ?? []) {
+    if (a.role !== 'reviewer') mine.set(unitLaneKey(a.unitId, a.laneId), a);
+  }
+  return { actorId, mayTranslate: TRANSLATING_ROLES.includes(role), mine };
+}
+
+function tasksForUnitLane(
+  state: ProjectState,
+  scope: TaskScope,
+  unitId: string,
+  laneId: string,
+  workflow: ReturnType<typeof deriveWorkflow>,
+  idx: Indexes
+): Task[] {
+  const tasks: Task[] = [];
+  const takeId = currentTake(state, unitId, laneId, idx);
+  const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
+  const myAssignment = scope.mine.get(unitLaneKey(unitId, laneId));
+  const extras = {
+    ...(myAssignment?.dueDate !== undefined ? { dueDate: myAssignment.dueDate } : {}),
+    ...(myAssignment?.instructions !== undefined ? { instructions: myAssignment.instructions } : {})
+  };
+
+  if (scope.mayTranslate) {
+    if (status?.outcome === 'changes_requested') {
+      tasks.push(task('respond', unitId, laneId, takeId, 'todo', extras));
+    } else {
+      const st: TaskStatus =
+        !takeId ? 'todo' : status?.outcome === 'draft' ? 'doing' : 'done';
+      tasks.push(task('translate', unitId, laneId, takeId, st, extras));
+    }
+  }
+
+  if (takeId && status && status.submitted && status.outcome !== 'archived') {
+    for (const step of workflow) {
+      if (!eligibleReviewers(state, unitId, laneId, step, idx).includes(scope.actorId)) continue;
+      const decided = state.reviews[takeId]?.[step.id]?.[scope.actorId] !== undefined;
+      tasks.push({
+        ...task('review', unitId, laneId, takeId, decided ? 'done' : 'todo', {}),
+        id: `review:${unitId}:${laneId}:${step.id}`
+      });
     }
   }
   return tasks;

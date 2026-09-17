@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  currentTake, deriveTakeStatus, deriveTasks, materialsFor, tgMaterialId,
+  commands, currentTake, deriveTakeStatus, findTask, materialsFor, tgMaterialId,
   type Task
 } from '@langquest-next/core';
 import {
@@ -16,24 +16,16 @@ import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
 import { passageProgress, type PassageAction } from '../passageFlow';
 import { getReferenceSlides, referenceRunSignature } from '../passageResources';
+import { indexesFor } from '../indexes';
 import { Footer, Header, Note, Screen } from '../pui';
 import { colors, radius, space, tint } from '../theme';
 import { ActionButton, Card, ProgressRing, text } from '../ui';
 
+/** The task this screen was opened for: one passage's derivation, never the project's. */
 export function taskFor(ctx: Ctx): Task | undefined {
   const state = ctx.project.state;
   if (!state) return undefined;
-  const tasks = deriveTasks(state, ctx.session.actorId);
-  const requested = ctx.params['taskId'] ?? '';
-  const exact = tasks.find((task) => task.id === requested);
-  if (exact) return exact;
-  // Recording a response turns its task into a translation draft. Keep the
-  // open passage usable while the event fold changes its task type.
-  if (/^(translate|respond):/.test(requested)) {
-    const suffix = requested.slice(requested.indexOf(':'));
-    return tasks.find((task) => task.type !== 'review' && task.id.endsWith(suffix));
-  }
-  return undefined;
+  return findTask(state, ctx.session.actorId, ctx.params['taskId'] ?? '', indexesFor(state));
 }
 
 const ACTION = {
@@ -123,7 +115,7 @@ function TaskTile(props: {
 
 /** One question set per slide, followed by an explicit hand-off. */
 export function AttachQuestions(ctx: Ctx) {
-  const { state, appendMany } = ctx.project;
+  const { state, run } = ctx.project;
   const task = taskFor(ctx);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
@@ -134,9 +126,10 @@ export function AttachQuestions(ctx: Ctx) {
   if (!state || !task) return <Note>Task not found.</Note>;
   const sets = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
     .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
-  const takeId = currentTake(state, task.unitId, task.laneId);
+  const idx = indexesFor(state);
+  const takeId = currentTake(state, task.unitId, task.laneId, idx);
   const take = takeId ? state.takes[takeId] : undefined;
-  const status = takeId ? deriveTakeStatus(state, takeId) : null;
+  const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
   const respondsTo = take?.parentTakeId;
   const isResponse = !!respondsTo && !!state.submissions[respondsTo];
   const canSubmit = !!takeId && !!take?.cardHashes.length && status?.outcome === 'draft';
@@ -147,10 +140,11 @@ export function AttachQuestions(ctx: Ctx) {
     if (!takeId || !canSubmit || saving.current) return;
     saving.current = true; setBusy(true); setError('');
     try {
-      const events: Parameters<typeof appendMany>[0] = [];
-      if (isResponse && respondsTo && response.trim()) events.push({ type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: respondsTo, note: response.trim() } });
-      events.push({ type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: picked.filter((id) => sets.some((s) => s.materialId === id)) } });
-      await appendMany(events);
+      await run(commands(state!, idx).submitTake({
+        commandId: Crypto.randomUUID(), unitId: task!.unitId, laneId: task!.laneId,
+        questionSetIds: picked.filter((id) => sets.some((s) => s.materialId === id)),
+        ...(isResponse ? { responseNote: response } : {})
+      }));
       ctx.go('done_await', { takeId });
     } catch (e) { setError((e as Error).message); }
     finally { saving.current = false; setBusy(false); }
@@ -182,7 +176,7 @@ export function AttachQuestions(ctx: Ctx) {
 
 /** Passage notes accept speech and preserve the existing written fallback. */
 export function AddToTg(ctx: Ctx) {
-  const { state, appendMany } = ctx.project;
+  const { state, run } = ctx.project;
   const unitId = ctx.params['unitId'] ?? '';
   const laneId = ctx.params['laneId'] ?? '';
   const materialId = tgMaterialId(laneId);
@@ -193,17 +187,12 @@ export function AddToTg(ctx: Ctx) {
   const [error, setError] = useState('');
   const saveLock = useRef(false);
   async function saveCard(card: RecordedCard) {
-    const events: Parameters<typeof appendMany>[0] = [];
-    if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined',
-      payload: { materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId } } });
-    events.push({ type: 'v1.RecordingAdded', payload: {
-      recordingId: Crypto.randomUUID(), unitId, laneId, kind: 'source',
-      cards: [{ hash: card.ref.hash, format: card.ref.format, durationMs: card.durationMs }]
-    } });
-    events.push({ type: 'v1.MaterialFieldSet', payload: {
-      materialId, fieldId: unitId, text: note.trim(), blobHash: card.ref.hash
-    } });
-    await appendMany(events);
+    if (!state) return;
+    await run(commands(state, indexesFor(state)).savePassageNote({
+      commandId: Crypto.randomUUID(), materialId, laneId, unitId, text: note,
+      recordingId: Crypto.randomUUID(),
+      card: { hash: card.ref.hash, format: card.ref.format, durationMs: card.durationMs }
+    }));
     ctx.project.triggerUpload();
   }
   const rec = useRecorder(saveCard);
@@ -211,11 +200,12 @@ export function AddToTg(ctx: Ctx) {
     if (saveLock.current || rec.busy || rec.manualOn || rec.failureCount || recording) return;
     saveLock.current = true; setBusy(true); setError('');
     try {
-      const events: Parameters<typeof appendMany>[0] = [];
-      if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined', payload: { materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId } } });
-      events.push({ type: 'v1.MaterialFieldSet', payload: { materialId, fieldId: unitId,
-        text: note.trim(), ...(field?.blobHash ? { blobHash: field.blobHash } : {}) } });
-      await appendMany(events); ctx.back();
+      if (!state) return;
+      await run(commands(state, indexesFor(state)).savePassageNote({
+        commandId: Crypto.randomUUID(), materialId, laneId, unitId, text: note,
+        ...(field?.blobHash ? { blobHash: field.blobHash } : {})
+      }));
+      ctx.back();
     } catch (e) { setError((e as Error).message); }
     finally { saveLock.current = false; setBusy(false); }
   }

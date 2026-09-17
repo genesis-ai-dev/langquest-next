@@ -1,6 +1,6 @@
 // Avatar U. Oral passage runs: one reference or term action per slide.
 import {
-  currentTake,
+  commands,
   keyTermsFor,
   keyTermsForUnit,
   type KeyTermView
@@ -17,6 +17,7 @@ import { colors, radius, space, tint } from '../theme';
 import { ActionButton, BackButton, Card, ProgressRing, text } from '../ui';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { getReferenceSlides, referenceRunSignature } from '../passageResources';
+import { indexesFor } from '../indexes';
 import { taskFor } from './translate';
 
 export { getReferenceSlides, referenceRunSignature } from '../passageResources';
@@ -164,11 +165,11 @@ export function PassageTerms(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const takeId = currentTake(state, task.unitId, task.laneId);
-      await ctx.project.appendMany([
-        { type: 'v1.RecordingAdded', payload: { recordingId: Crypto.randomUUID(), unitId: task.unitId, laneId: task.laneId, kind: 'source', cards: [{ hash: pending.card.ref.hash, durationMs: pending.card.durationMs, format: pending.card.ref.format }] } },
-        { type: 'v1.KeyTermAdjusted', payload: { termId: current.termId, adjustmentId: Crypto.randomUUID(), note: '', blobHash: pending.card.ref.hash, ...(takeId ? { duringTakeId: takeId } : {}) } }
-      ]);
+      await ctx.project.run(commands(state, indexesFor(state)).adjustKeyTerm({
+        commandId: Crypto.randomUUID(), unitId: task.unitId, laneId: task.laneId, termId: current.termId,
+        recordingId: Crypto.randomUUID(), adjustmentId: Crypto.randomUUID(),
+        card: { hash: pending.card.ref.hash, durationMs: pending.card.durationMs, format: pending.card.ref.format }
+      }));
       ctx.project.triggerUpload();
       setPending(null);
 

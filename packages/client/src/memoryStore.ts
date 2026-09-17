@@ -24,6 +24,11 @@ export class MemoryStore implements EventStore {
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
+  async pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
+    const all = await this.pending(orgId, projectId);
+    return all.filter((e) => afterHlc === null || e.event.hlc > afterHlc).slice(0, limit);
+  }
+
   async pendingCount(orgId: string, projectId: string): Promise<number> {
     return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
   }

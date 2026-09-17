@@ -1,5 +1,5 @@
 import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
-import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventType, type ProjectState } from '@langquest-next/core';
+import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type ProjectState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
 import { getRecordingJournal } from './recordingJournal';
@@ -52,7 +52,14 @@ export interface ProjectHandle {
   append: <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => Promise<void>;
   /** Many events, one store transaction: template instantiation, bulk assignment. */
   appendMany: <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => Promise<void>;
-  sync: () => Promise<void>;
+  /**
+   * Apply a command's events (core `commands()`), one store transaction,
+   * with the command's stable ids. Screens describe the operation; core
+   * decides the events.
+   */
+  run: (specs: EventSpec[]) => Promise<void>;
+  /** One bounded sync slice. Resolves to whether work remains. */
+  sync: () => Promise<{ more: boolean }>;
 }
 
 /** Keep this much free for recording, and cap the cache; evict only what the server can give back. */
@@ -100,14 +107,16 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     void c.pendingCount().then(setPending).catch(() => {});
   }, []);
 
-  const sync = useCallback(async () => {
+  const sync = useCallback(async (): Promise<{ more: boolean }> => {
     const c = clientRef.current;
-    if (!c) return;
+    if (!c) return { more: false };
     let changed = true;
+    let more = false;
     try {
       pullingRef.current = true;
       const r = await c.sync();
       pullingRef.current = false;
+      more = r.more;
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
       setTooOld(r.tooOld);
       setRefused(r.refused);
@@ -138,6 +147,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       setLastSync(`error: ${(err as Error).message}`);
     }
     if (changed) await refresh();
+    return { more };
   }, [refresh]);
 
   useEffect(() => {
@@ -226,7 +236,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       // Sync on a poke from the server, after a local append, and on a
       // fallback poll that backs off while offline (SyncScheduler).
       const scheduler = new SyncScheduler({
-        run: async () => { await sync(); return { offline: onlineRef.current === false }; }
+        run: async () => { const { more } = await sync(); return { offline: onlineRef.current === false, more }; }
       });
       schedulerRef.current = scheduler;
       const unwatch = transport.watch(orgId, projectId, {
@@ -300,6 +310,19 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     [refresh]
   );
 
+  const run = useCallback(
+    async (specs: EventSpec[]) => {
+      const c = clientRef.current;
+      if (!c || specs.length === 0) return;
+      const written = c.appendMany(specs);
+      setState({ ...c.getState() });
+      await written;
+      await refresh();
+      schedulerRef.current?.nudge();
+    },
+    [refresh]
+  );
+
   const keepOffline = useCallback(
     async (unitId: string, keep: boolean) => {
       const next = new Set(keptRef.current);
@@ -328,7 +351,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, inspect, blobs, triggerUpload, append, appendMany, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer and credit its bytes to the meter once it succeeds. */

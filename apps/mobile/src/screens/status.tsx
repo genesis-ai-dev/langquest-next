@@ -3,13 +3,14 @@ import { bottleneck, deriveBooks, derivePieces, deriveTakeStatus, nextAction, pe
 import { BookOpen, Check, Globe, Mic } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { indexesFor } from '../indexes';
 import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, DualProgressBar, StatusIcon, text } from '../ui';
 
 function lanePieces(ctx: Ctx, laneId: string): Piece[] {
-  return ctx.project.state ? derivePieces(ctx.project.state, laneId) : [];
+  return ctx.project.state ? derivePieces(ctx.project.state, laneId, indexesFor(ctx.project.state)) : [];
 }
 
 const STATUS_COLOR: Record<Piece['status'], string> = {
@@ -196,7 +197,7 @@ export function PieceVersion(ctx: Ctx) {
   const takeId = ctx.params['takeId'] ?? '';
   const take = state?.takes[takeId];
   if (!state || !take) return <Note>Version not found.</Note>;
-  const st = deriveTakeStatus(state, takeId);
+  const st = deriveTakeStatus(state, takeId, indexesFor(state));
   const terms = Object.entries(state.references).filter(([, r]) => r.unitId === take.unitId && r.kind === 'key_terms');
   return (
     <Screen>

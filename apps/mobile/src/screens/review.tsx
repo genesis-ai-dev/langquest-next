@@ -1,5 +1,7 @@
 // Avatar U. Review passage, review questions, done. Material editor is Avatar P.
-import { isStored, deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
+import { commands, isStored, deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
+import { indexesFor } from '../indexes';
 import { BookOpen, Check, CloudAlert, CloudCheck, CloudOff, Clock, KeyRound, MessageSquare, Play, RotateCcw, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -15,13 +17,14 @@ import { taskFor } from './translate';
 const draftAnswers = new Map<string, Record<string, string>>();
 
 export function ReviewPassage(ctx: Ctx) {
-  const { state, append } = ctx.project;
+  const { state, run } = ctx.project;
   const task = taskFor(ctx);
   const [changing, setChanging] = useState(false);
   if (!state || !task || !task.takeId) return <Note>Task not found.</Note>;
   const takeId = task.takeId;
   const take = state.takes[takeId];
-  const status = deriveTakeStatus(state, takeId);
+  const idx = indexesFor(state);
+  const status = deriveTakeStatus(state, takeId, idx);
   const stepId = task.id.split(':')[3]!;
   const step = status.steps.find((s) => s.stepId === stepId);
   const mine = state.reviews[takeId]?.[stepId]?.[ctx.session.actorId]?.value;
@@ -32,7 +35,7 @@ export function ReviewPassage(ctx: Ctx) {
 
   async function decide(decision: 'approve' | 'suggest_changes') {
     const answers = draftAnswers.get(takeId);
-    await append('v1.ReviewSubmitted', { takeId, stepId, decision, ...(answers ? { answers } : {}) });
+    await run(commands(state!, idx).reviewTake({ commandId: Crypto.randomUUID(), takeId, stepId, decision, ...(answers ? { answers } : {}) }));
     draftAnswers.delete(takeId);
     setChanging(false);
     ctx.go('done_await', { takeId });
@@ -153,7 +156,7 @@ export function DoneAwait(ctx: Ctx) {
         <Icon size={44} color={delivery === 'sent' ? colors.done : colors.mutedForeground} />
       </View>
       {delivery !== 'sent' ? <Clock size={28} color={colors.mutedForeground} /> : null}
-      {takeId && state?.takes[takeId] ? <StatusIcon outcome={deriveTakeStatus(state, takeId).outcome} size={32} /> : null}
+      {takeId && state?.takes[takeId] ? <StatusIcon outcome={deriveTakeStatus(state, takeId, indexesFor(state)).outcome} size={32} /> : null}
       {delivery === 'blocked' ? <Note>{ctx.project.refused ?? 'Update the app to sync this work.'}</Note> : null}
       <ActionButton icon={Check} accessibilityLabel="Back to my work" onPress={() => ctx.go('assignments_home')} style={{ alignSelf: 'stretch' }} />
     </View>

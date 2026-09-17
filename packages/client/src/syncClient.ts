@@ -51,6 +51,8 @@ export interface SyncResult {
   offline: boolean;
   /** The server was reached and refused this actor; its reason, else null. */
   refused: string | null;
+  /** The run stopped at a push or pull budget with work left; run again soon. */
+  more: boolean;
 }
 
 export interface SyncClientOptions<S = ProjectState> {
@@ -69,6 +71,10 @@ export interface SyncClientOptions<S = ProjectState> {
   pullPageSize?: number;
   /** Pending events per append call. Small so a weak link makes progress. */
   pushBatchSize?: number;
+  /** Push batches per `sync()` before turning to pull, so an offline backlog cannot starve incoming work. */
+  pushBatchesPerRun?: number;
+  /** Wall time one `sync()` may spend pulling before it yields with `more: true`. */
+  pullBudgetMs?: number;
   /** Confirmed events since the last local checkpoint before taking a new one. */
   checkpointEvery?: number;
   /**
@@ -92,6 +98,9 @@ export interface SyncClientOptions<S = ProjectState> {
  *   rejected (invariant 1) and are removed from the fold.
  * - `pull` pages the partition tail and folds it. Because events commute,
  *   applying remote events after local pending ones needs no rebase.
+ * - `sync` is one bounded slice: a few push batches, then pulling for a
+ *   time budget. It reports `more` when it stopped short, and the scheduler
+ *   runs it again. A month offline drains in slices, never one long pass.
  */
 export class SyncClient<S = ProjectState> {
   private readonly m: Materializer<S>;
@@ -101,6 +110,8 @@ export class SyncClient<S = ProjectState> {
   private readonly newId: () => string;
   private readonly pullPageSize: number;
   private readonly pushBatchSize: number;
+  private readonly pushBatchesPerRun: number;
+  private readonly pullBudgetMs: number;
   private readonly checkpointEvery: number;
 
   /** Added to the device's wall clock after the server said it runs ahead. */
@@ -116,6 +127,8 @@ export class SyncClient<S = ProjectState> {
     this.newId = opts.newId ?? (() => crypto.randomUUID());
     this.pullPageSize = opts.pullPageSize ?? 500;
     this.pushBatchSize = opts.pushBatchSize ?? 200;
+    this.pushBatchesPerRun = opts.pushBatchesPerRun ?? 5;
+    this.pullBudgetMs = opts.pullBudgetMs ?? 2_000;
     this.checkpointEvery = opts.checkpointEvery ?? 2000;
   }
 
@@ -285,14 +298,16 @@ export class SyncClient<S = ProjectState> {
 
   /**
    * Record many intents in one transaction (template instantiation, bulk
-   * assignment). Same guarantees as `append`, one store write.
+   * assignment). Same guarantees as `append`, one store write. An item may
+   * carry its own id (a command's stable id): re-appending it is an upsert
+   * of the same row, so a retried command does not double-write.
    */
-  async appendMany<T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]): Promise<AnyEvent[]> {
+  async appendMany<T extends EventType>(items: { id?: string; type: T; payload: EventPayloads[T] }[]): Promise<AnyEvent[]> {
     if (!this.loaded) throw new Error('call load() first');
     const events = items.map(
-      ({ type, payload }) =>
+      ({ id, type, payload }) =>
         ({
-          id: this.newId(),
+          id: id ?? this.newId(),
           type,
           orgId: this.opts.orgId,
           projectId: this.opts.projectId,
@@ -333,24 +348,34 @@ export class SyncClient<S = ProjectState> {
     if (last) await this.opts.store.setMeta(this.clockKey(), last);
   }
 
-  /** Push pending events. Returns how many were rejected. */
-  async push(): Promise<{ accepted: number; rejected: number }> {
-    // Only this actor's events. A shared device may hold another user's
-    // queued events; pushing them under this session would be rejected
-    // (actorId must match the caller) and wrongly marked as refused.
-    const pending = (await this.opts.store.pending(this.opts.orgId, this.opts.projectId)).filter(
-      (p) => p.event.actorId === this.opts.actorId
-    );
-    if (pending.length === 0) return { accepted: 0, rejected: 0 };
-
+  /**
+   * Push pending events, at most `pushBatchesPerRun` batches. The outbox is
+   * read one page at a time, never whole. Returns how many were accepted
+   * and rejected, and whether pending work remains.
+   */
+  async push(): Promise<{ accepted: number; rejected: number; more: boolean }> {
     let accepted = 0;
     let rejected = 0;
-    let clockAhead: { local: LocalEvent; reason: string }[] = [];
+    let more = false;
+    const clockAhead: { local: LocalEvent; reason: string }[] = [];
     try {
-      // One bounded request per batch. Each batch's results are persisted
-      // before the next is sent, so a dropped link keeps what got through.
-      for (let i = 0; i < pending.length; i += this.pushBatchSize) {
-        const batch = pending.slice(i, i + this.pushBatchSize);
+      let afterHlc: string | null = null;
+      for (let batches = 0; ; ) {
+        // Only this actor's events. A shared device may hold another user's
+        // queued events; pushing them under this session would be rejected
+        // (actorId must match the caller) and wrongly marked as refused.
+        const page = await this.opts.store.pendingPage(this.opts.orgId, this.opts.projectId, afterHlc, this.pushBatchSize);
+        if (page.length === 0) break;
+        afterHlc = page[page.length - 1]!.event.hlc;
+        const batch = page.filter((p) => p.event.actorId === this.opts.actorId);
+        if (batch.length === 0) continue;
+        if (batches >= this.pushBatchesPerRun) {
+          more = true;
+          break;
+        }
+        batches += 1;
+        // One bounded request per batch. Each batch's results are persisted
+        // before the next is sent, so a dropped link keeps what got through.
         const results = await this.opts.transport.append(batch.map((p) => p.event));
         const writes: LocalEvent[] = [];
         for (const r of results) {
@@ -378,7 +403,7 @@ export class SyncClient<S = ProjectState> {
       // Refold from the log; the rejected event is excluded by `all()`.
       if (rejected > 0 || clockAhead.length > 0) await this.load();
     }
-    return { accepted, rejected };
+    return { accepted, rejected, more };
   }
 
   /**
@@ -425,12 +450,28 @@ export class SyncClient<S = ProjectState> {
     return mine.length;
   }
 
-  /** Pull the partition tail and fold it. Returns number of new events. */
+  /** Pull the whole partition tail and fold it. Returns number of new events. */
   async pull(): Promise<number> {
-    if (await this.resolvePendingRedaction()) return await this.pull();
+    let total = 0;
+    for (;;) {
+      const r = await this.pullSlice(Infinity);
+      total += r.pulled;
+      if (!r.more) return total;
+    }
+  }
+
+  /**
+   * Pull pages until caught up or `budgetMs` of wall time has passed.
+   * `more` says the budget ended it; `sync()` reports that so the scheduler
+   * runs again at once instead of waiting for the next poll.
+   */
+  async pullSlice(budgetMs: number = this.pullBudgetMs): Promise<{ pulled: number; more: boolean }> {
+    if (await this.resolvePendingRedaction()) return await this.pullSlice(budgetMs);
+    const started = this.wall();
     let after = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
     if (after === 0 && !(await this.localSnapshot())) after = await this.adoptServerSnapshot();
     let total = 0;
+    let more = false;
     let redacted = false;
     let redactedInsideCheckpoint = false;
     let membershipChanged = false;
@@ -469,6 +510,10 @@ export class SyncClient<S = ProjectState> {
       await this.persistClock();
       this.opts.onPullProgress?.(total);
       if (page.length < this.pullPageSize) break;
+      if (this.wall() - started >= budgetMs) {
+        more = true;
+        break;
+      }
       await this.opts.yieldBetweenPages?.();
     }
     if (redactedInsideCheckpoint) {
@@ -477,9 +522,12 @@ export class SyncClient<S = ProjectState> {
       // target stays visible for a bounded time, and every pull retries.
       await this.opts.store.setMeta(this.minSnapshotKey(), String(after));
       await this.opts.store.setMeta(this.redactionKey(), JSON.stringify({ seq: after, since: this.wall() }));
-      if (await this.resolvePendingRedaction()) return total + (await this.pull());
+      if (await this.resolvePendingRedaction()) {
+        const rest = await this.pullSlice(budgetMs);
+        return { pulled: total + rest.pulled, more: rest.more };
+      }
       await this.load();
-      return total;
+      return { pulled: total, more };
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.load();
@@ -488,7 +536,7 @@ export class SyncClient<S = ProjectState> {
     // Our membership changed on the server: work refused for membership
     // reasons may be acceptable now. Queue it; the next push decides.
     if (membershipChanged) await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
-    return total;
+    return { pulled: total, more };
   }
 
   /** How long a redacted-inside-checkpoint device waits for a snapshot before re-pulling the whole log. */
@@ -537,11 +585,11 @@ export class SyncClient<S = ProjectState> {
    * - `tooOld`: the server no longer accepts this client's protocol version.
    */
   async sync(): Promise<SyncResult> {
-    const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null };
+    const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false };
     try {
-      const { accepted, rejected } = await this.push();
-      const pulled = await this.pull();
-      return { ...idle, pushed: accepted, rejected, pulled };
+      const { accepted, rejected, more: morePush } = await this.push();
+      const { pulled, more: morePull } = await this.pullSlice();
+      return { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull };
     } catch (err) {
       if (err instanceof OfflineError) return { ...idle, offline: true };
       if (err instanceof ClientTooOldError) return { ...idle, tooOld: true };
