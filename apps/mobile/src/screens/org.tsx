@@ -477,7 +477,7 @@ export function NewProject(ctx: Ctx) {
             {contentTemplates().map((t, i, a) => <Row key={t.id} icon={FileText} label={t.name} sub={t.description} onPress={() => { setTemplateId(t.id); setRootItemId(''); setReferenceAudioHash(''); }} right={templateId === t.id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
           </Section>
           {template ? <Section label="Known book or collection">
-            {template.items.filter((item) => item.parentItemId === null).map((item, i, a) => <Row key={item.itemId} label={item.label} onPress={() => { setRootItemId(item.itemId); setReferenceAudioHash(''); }} right={rootItemId === item.itemId ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+            {template.items.filter((item) => item.parentItemId === null).map((item, i, a) => <Row key={item.itemId} bookId={item.itemId} label={item.label} onPress={() => { setRootItemId(item.itemId); setReferenceAudioHash(''); }} right={rootItemId === item.itemId ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
           </Section> : null}
         </>
       ) : step === 1 ? (

@@ -151,6 +151,7 @@ Two screens exist solely to redirect users to Status, adding unnecessary navigat
 
 ## Related Documents
 
+- [Spoken Worldwide workflow](spoken-worldwide-workflow.md) (six-stage mapping, resource access, proposed views, and acceptance walkthroughs)
 - [PLAN.md](../../PLAN.md) sections 12–13 (Avatar U/P design language)
 - [one-next-action.html](./one-next-action.html) (interactive UX reference)
 - [README.md](./README.md) (UX mocks overview)

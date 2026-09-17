@@ -7,6 +7,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
+import { PassageSourceAudio } from '../passageSourceAudio';
 import { Header, Note, Screen } from '../pui';
 import { pendingPassageCards } from '../recordingFlow';
 import { colors, radius, space } from '../theme';
@@ -87,7 +88,20 @@ export function QuestAssets(ctx: Ctx) {
   }
   const title = state.units[task.unitId]?.label ?? task.unitId;
   return (
-    <Screen footer={hashes.length && !rec.manualOn ? (
+    <Screen footer={<View style={{ gap: space.md }}>
+      <View style={styles.controls}>
+        <ActionButton icon={AudioWaveform} variant="outline"
+          accessibilityLabel={pending.length ? 'Add parts with voice detection' : 'Start voice-detected recording'}
+          disabled={blocked} onPress={() => void rec.toggleVad()} />
+        <Pressable onPressIn={() => { if (!blocked) void rec.manualDown(); }}
+          onPressOut={() => void rec.manualUp()}
+          disabled={rec.vadOn || saving || rec.failureCount > 0}
+          accessibilityRole="button" accessibilityLabel={pending.length ? 'Hold to record the next part' : 'Hold to record passage'}
+          style={[styles.record, !!hashes.length && { backgroundColor: colors.muted }, rec.manualOn && styles.recordLive]}>
+          {rec.manualOn ? <Square color="white" fill="white" size={28} /> : <Mic color={colors.actionForeground} size={32} />}
+        </Pressable>
+      </View>
+      {hashes.length && !rec.manualOn ? (
       <View style={styles.row}>
         <ActionButton icon={RotateCcw} variant="outline"
           accessibilityLabel="Record a new take" disabled={blocked}
@@ -95,27 +109,19 @@ export function QuestAssets(ctx: Ctx) {
         <ActionButton icon={Check} accessibilityLabel="Keep take and return to passage"
           disabled={blocked} onPress={() => void keep()} style={{ flex: 1 }} />
       </View>
-    ) : undefined}>
+      ) : null}
+    </View>}>
       <Header title={title} onBack={blocked ? undefined : ctx.back} />
+      <PassageSourceAudio ctx={ctx} unitId={task.unitId}
+        laneId={task.laneId} disabled={blocked} />
       {hashes.length && !rec.manualOn ? <Card>
-        <AudioClip project={ctx.project} hashes={hashes} label="Play recorded passage" />
+        <AudioClip project={ctx.project} hashes={hashes}
+          label="Play recorded passage" disabled={blocked} />
         <View style={styles.row} accessible accessibilityLabel={rec.busy ? 'Saving' : hashes.every((h) => isStored(state, h)) ? 'Backed up' : 'Saved on this device'}>
           {rec.busy ? <Save color={colors.mutedForeground} /> : hashes.every((h) => isStored(state, h)) ? <CloudCheck color={colors.done} /> : <CloudUpload color={colors.mutedForeground} />}
           <Text style={text.small}>{hashes.length}</Text>
         </View>
       </Card> : null}
-      {!hashes.length || rec.manualOn ? <View style={styles.controls}>
-        <ActionButton icon={AudioWaveform} variant="outline"
-          accessibilityLabel="Start voice-detected recording"
-          disabled={blocked} onPress={() => void rec.toggleVad()} />
-        <Pressable onPressIn={() => void rec.manualDown()}
-          onPressOut={() => void rec.manualUp()}
-          disabled={rec.vadOn || saving || rec.failureCount > 0}
-          accessibilityRole="button" accessibilityLabel="Hold to record passage"
-          style={[styles.record, rec.manualOn && styles.recordLive]}>
-          {rec.manualOn ? <Square color="white" fill="white" size={28} /> : <Mic color={colors.actionForeground} size={32} />}
-        </Pressable>
-      </View> : null}
       {error || rec.error ? <Note>{error || rec.error}</Note> : null}
       {rec.failureCount ? <ActionButton icon={RotateCcw} accessibilityLabel="Retry saving recording" disabled={rec.busy} onPress={() => void rec.retryFailed()} /> : null}
       <Modal visible={rec.vadOn} animationType="none"

@@ -30,8 +30,22 @@ describe('update banner wording', () => {
   });
 
   it('surfaces a failure with a retry rather than failing silently', () => {
-    const status = updateStatus({ ...idle, downloadError: new Error('timed out') });
-    expect(status).toEqual({ kind: 'failed', text: 'Update failed: timed out — tap to retry', action: 'retry' });
+    const status = updateStatus({ ...idle, downloadError: new Error('bundle signature mismatch') });
+    expect(status).toEqual({ kind: 'failed', text: 'Update failed: bundle signature mismatch — tap to retry', action: 'retry' });
+  });
+
+  // An unreachable server is not a broken app, and "Update failed" reads like
+  // one. The banner shows these as a struck-through cloud instead.
+  it('calls an unreachable server offline rather than a failed update', () => {
+    for (const message of [
+      'Network request failed',
+      'The Internet connection appears to be offline.',
+      'Could not connect to the server',
+      'Request timed out'
+    ]) {
+      expect(updateStatus({ ...idle, checkError: new Error(message) }))
+        .toEqual({ kind: 'offline', text: 'Offline — tap to retry', action: 'retry' });
+    }
   });
 
   it('names the running build so a tester can say which one they are on', () => {

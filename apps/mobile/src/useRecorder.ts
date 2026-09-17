@@ -1,6 +1,7 @@
 import type { BlobRef } from '@langquest-next/core';
 import type { BlobFile } from './blobs';
-import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
+import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
+import { setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -133,6 +134,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       return Promise.resolve();
     }
     wanted.current = true;
+    stopAudioPlayback();
     setError('');
     work(1);
     const start = (async () => {
@@ -140,7 +142,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         const permission = await AudioModule.requestRecordingPermissionsAsync();
         if (!wanted.current || !mounted.current) return;
         if (!permission.granted) throw new Error('Microphone permission is required.');
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!wanted.current || !mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
         await recorder.prepareToRecordAsync();
@@ -153,7 +155,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       finally {
         if (!active.current) {
           await MicrophoneEnergy.stopEnergyDetection().catch(fail);
-          await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
+          await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
         }
         starting.current = null;
         work(-1);
@@ -177,7 +179,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         if (mounted.current) setManualOn(false);
         const uri = recorder.uri;
         await MicrophoneEnergy.stopEnergyDetection().catch(fail);
-        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
+        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
         if (uri && durationMs >= 200) await deliver({ id: Crypto.randomUUID(), uri, format: 'm4a', durationMs });
       } catch (e) { fail(e); }
       finally { work(-1); }
@@ -197,6 +199,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         await MicrophoneEnergy.disableVAD();
         await MicrophoneEnergy.stopEnergyDetection();
         vadActive.current = false;
+        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
         if (mounted.current) { setVadOn(false); setVadCapturing(false); }
         await queue.current;
       } catch (e) { fail(e); }
@@ -211,6 +214,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     if (vadActive.current || vadStarting.current) return stopVad();
     if (starting.current || stopping.current || active.current ||
         vadStopping.current || !mounted.current) return Promise.resolve();
+    stopAudioPlayback();
     setError('');
     work(1);
     const start = (async () => {
@@ -219,6 +223,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         if (!mounted.current) return;
         if (!permission.granted) throw new Error('Microphone permission is required.');
         await MicrophoneEnergy.configureVAD({ ...BASE, ...config.current });
+        await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
         await MicrophoneEnergy.enableVAD();
@@ -227,6 +232,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
       } catch (e) {
         fail(e);
         await MicrophoneEnergy.stopEnergyDetection().catch(fail);
+        await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
       } finally { vadStarting.current = null; work(-1); }
     })();
     vadStarting.current = start;

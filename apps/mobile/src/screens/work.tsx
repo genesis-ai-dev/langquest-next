@@ -169,11 +169,10 @@ export function AssignmentsHome(ctx: Ctx) {
           </View>
         }
         renderItem={({ item: task, index }) => (
-          <View style={[styles.todo, index === 0 && styles.todoTop, index === shown.length - 1 && styles.todoBottom]}>
+          <View style={[styles.todo, index < shown.length - 1 && styles.todoGap]}>
             <TodoRow
               task={task}
               label={state.units[task.unitId]?.label ?? task.unitId}
-              isLast={index === shown.length - 1}
               onOpen={() => ctx.go(task.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: task.id })}
               onLong={() => ctx.go('assignment_progress_detail', { taskId: task.id })}
             />
@@ -201,7 +200,7 @@ function openCount(ctx: Ctx): string {
   return String(derivePieces(state, laneId, indexesFor(state)).filter((p) => p.status === 'unassigned').length);
 }
 
-function TodoRow(props: { task: Task; label: string; isLast: boolean; onOpen: () => void; onLong: () => void }) {
+function TodoRow(props: { task: Task; label: string; onOpen: () => void; onLong: () => void }) {
   const meta = TASK_META[props.task.type];
   const TypeIcon = meta.icon;
   const StatusIcon = STATUS_META[props.task.status].icon;
@@ -212,7 +211,7 @@ function TodoRow(props: { task: Task; label: string; isLast: boolean; onOpen: ()
       onLongPress={props.onLong}
       accessibilityRole="button"
       accessibilityLabel={`${props.task.type} ${props.label}, ${props.task.status}`}
-      style={[styles.row, !done && { backgroundColor: meta.tint }, !props.isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border }]}
+      style={[styles.row, !done && { backgroundColor: meta.tint }]}
     >
       <StatusIcon size={22} color={STATUS_META[props.task.status].color} />
       <BookOpen size={16} color={colors.mutedForeground} />
@@ -360,9 +359,8 @@ const styles = StyleSheet.create({
   filterCount: { fontSize: 18, fontWeight: '700' },
   // Rows carry the container look themselves so the list can virtualize them;
   // only the first and last rows round the corners.
-  todo: { backgroundColor: tint.mutedContainer, paddingHorizontal: space.md },
-  todoTop: { borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
-  todoBottom: { borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  todo: { backgroundColor: tint.mutedContainer, paddingHorizontal: space.md, borderRadius: radius.xl },
+  todoGap: { marginBottom: space.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: space.md }
 });
 

@@ -7,6 +7,19 @@ Keep `icons.js` beside it; the local Lucide subset avoids a CDN dependency.
 
 **See also:** [follow-ups.md](./follow-ups.md) — Remaining UX-vision alignment work after Inbox P0 fix (PR #4)
 
+## Spoken Worldwide workflow
+
+The [Spoken Worldwide workflow mapping](spoken-worldwide-workflow.md) extends
+these notes with Harvest Mission Ethiopia's six-stage oral translation process:
+first draft → community checking → revision → back translation → consultant
+checking → final recording.
+
+It maps participants to U/P personas, stages to existing and proposed views,
+and each task to single-action steps. It also defines resource continuity,
+back-translator source restrictions, draft selection, and final audio approval.
+Proposed behavior and open decisions remain distinct from implemented coverage.
+The current mock covers initial drafting, not this complete workflow.
+
 ## `one-next-action.html`
 
 The slideshow workflow: a passage hub that branches once, feeding runs of
@@ -35,6 +48,10 @@ any of them should update the mock too:
   audio anywhere in the project.
 - Record is a mode, so it gets a mode control — a circular hold-to-record
   button, not the yellow next-step bar.
+- Source playback stays beside the passage recorder. Pause, replay, or seek
+  between parts without leaving the view. Starting recording pauses playback.
+  Recording another part appends to the pending take; keeping composes the
+  parts in order. The source chapter label identifies full-chapter audio.
 - The VAD session takes the whole screen and stays red start to stop, so "you
   are recording" never flickers. Capturing versus ignoring is a subtle lift:
   brighter ground, pulsing dot, solid rather than translucent bars.

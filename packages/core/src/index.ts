@@ -18,3 +18,4 @@ export * from './commands';
 export * from './readModels';
 export * from './inbox';
 export * from './orgProject';
+export * from './sourceBibles';

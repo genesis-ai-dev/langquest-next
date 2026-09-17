@@ -17,6 +17,7 @@ export const colors = {
   review: '#228FA0',
   reference: '#F3751B',
   done: '#29A376',
+  danger: '#D93025',
   white: '#FFFFFF'
 } as const;
 

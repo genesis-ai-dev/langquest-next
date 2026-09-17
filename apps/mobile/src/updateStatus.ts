@@ -8,8 +8,13 @@
  * Pure so the wording is testable without a native module.
  */
 export type UpdateStatus = {
-  /** `busy` = something is happening, no action. `ready`/`failed` = tappable. */
-  kind: 'busy' | 'ready' | 'failed';
+  /**
+   * `busy` = something is happening, no action. `ready`/`failed`/`offline` are
+   * tappable. `offline` is its own kind because "Update failed" reads as "the
+   * app broke" when all that happened is the device has no network; the banner
+   * shows it as a struck-through cloud instead of an error.
+   */
+  kind: 'busy' | 'ready' | 'failed' | 'offline';
   text: string;
   /** What a tap does, when the banner is tappable. */
   action?: 'restart' | 'retry';
@@ -34,11 +39,35 @@ export function updateStatus(u: UpdateSignals): UpdateStatus | null {
     return { kind: 'busy', text: `Downloading update…${pct}` };
   }
   const error = u.downloadError ?? u.checkError;
-  if (error) return { kind: 'failed', text: `Update failed: ${error.message} — tap to retry`, action: 'retry' };
+  if (error) {
+    if (isOffline(error)) return { kind: 'offline', text: 'Offline — tap to retry', action: 'retry' };
+    return { kind: 'failed', text: `Update failed: ${error.message} — tap to retry`, action: 'retry' };
+  }
   // A check with nothing to report stays silent: a banner on every launch
   // saying "up to date" is a banner nobody reads.
   if (u.isChecking) return null;
   return null;
+}
+
+/**
+ * A reachability failure, as opposed to a real update failure. The update
+ * machine has no error codes, only messages, so this matches on the wording
+ * the platforms use when the request never reached a server.
+ */
+const OFFLINE_HINTS = [
+  'network request failed',
+  'internet connection appears to be offline',
+  'could not connect to the server',
+  'network is unreachable',
+  'no internet',
+  'offline',
+  'timed out',
+  'timeout'
+];
+
+function isOffline(error: Error): boolean {
+  const message = error.message.toLowerCase();
+  return OFFLINE_HINTS.some((hint) => message.includes(hint));
 }
 
 /** The running build, for the settings line: "update 4f2a1c9 · 17 Sep, 14:02". */

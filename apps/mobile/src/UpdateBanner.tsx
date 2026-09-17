@@ -1,3 +1,4 @@
+import { CloudOff } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -42,7 +43,15 @@ export function UpdateBanner() {
 
   if (!status) return null;
   const ready = status.kind === 'ready';
-  const body = (
+  const offline = status.kind === 'offline';
+  // Offline is shown as a red bar with a struck-through cloud and no wording:
+  // the device simply cannot reach the server, and spelling that out as an
+  // update failure reads as though the app itself broke.
+  const body = offline ? (
+    <View style={[styles.banner, styles.offline]}>
+      <CloudOff size={18} color={colors.white} />
+    </View>
+  ) : (
     <View style={[styles.banner, ready ? styles.ready : styles.quiet]}>
       {status.kind === 'busy' ? <ActivityIndicator size="small" color={colors.mutedForeground} /> : null}
       <Text style={[styles.text, ready && styles.readyText]} numberOfLines={2}>
@@ -71,6 +80,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border
   },
   quiet: { backgroundColor: colors.muted },
+  offline: { backgroundColor: colors.danger, borderColor: colors.danger, justifyContent: 'center' },
   ready: { backgroundColor: colors.action, borderColor: colors.action },
   text: { flex: 1, fontSize: 13, color: colors.mutedForeground },
   readyText: { color: colors.actionForeground, fontWeight: '600' }

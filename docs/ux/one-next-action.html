@@ -566,14 +566,18 @@ const S={
       <span class="hint">${ic('hand')} release</span></div>`},
 
  record:{who:'u',title:'Jonah 1:1–3',sb:'offline',
-  caption:"<b>Record, then one slide to keep or redo.</b> Blue and a mic; the yellow is the keep. Redo is an outline button with a rotate icon, never a second yellow.",
+  caption:"<b>Listen and record in one view.</b> Replay the source between parts. Another recording adds a part; yellow keeps the complete take. Source playback pauses before recording. The source is the full chapter.",
   body:`${beads(3,1)}
    <div class="ref">Jonah 1:1–3<small>1:48</small></div>
+   <div class="ref">Jonah 1 · BSB<small>Full chapter</small></div>
+   <div class="player"><span class="play ic lg"><i data-lucide="play"></i></span>
+     <div class="bar"><b></b></div>${ic('headphones')}</div>
    ${wave([9,17,28,42,31,55,38,24,47,33,52,26,40,19,30,12,22,36,14,25,44,18],'var(--translate)')}
    <div class="player tr"><span class="play ic lg"><i data-lucide="play"></i></span>
      <div class="bar"><b></b></div><span class="ic" style="color:var(--translate)"><i data-lucide="mic"></i></span></div>
    <div class="avatars">${ic('cloud-off')}<span>saved on this phone</span></div>`,
   footer:`<button class="out" aria-label="Record again">${ic('rotate-ccw','lg')}</button>
+    <button class="recbtn add-part" style="background:#F0EFED;flex-shrink:0" aria-label="Record another part">${ic('mic')}</button>
     <button class="act">${ic('check','lg')}</button>`},
 
  termsdone:{who:'u',title:'Jonah 1:1–3',sb:'offline',
@@ -656,6 +660,7 @@ function wireScreen(key){
   if(next[key])go('.act',next[key],`Continue to ${label[next[key]]}`);
   go('.out',key==='record'?'vad':'hub',key==='record'?'Record again':'Back to passage tasks');
   if(key==='record')footer.querySelector('.act').setAttribute('aria-label','Keep recording');
+  if(key==='record')footer.querySelector('.add-part').onclick=()=>show('vad');
   if(key==='ready')footer.querySelector('.act').setAttribute('aria-label','Queue hand-off for review');
   if(key==='record')footer.querySelector('.act').onclick=()=>{takeKept=true;show('ready');};
   if(key==='ready')footer.querySelector('.act').onclick=()=>{submitted=true;show('queued');};

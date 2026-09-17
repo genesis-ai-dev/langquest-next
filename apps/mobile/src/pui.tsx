@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BookIcon, bookIcon } from './bookIcons';
 import { colors, radius, space } from './theme';
 import { ActionButton, text } from './ui';
 
@@ -66,6 +67,8 @@ export function Section(props: { label: string; children?: ReactNode }) {
 
 export function Row(props: {
   icon?: LucideIcon;
+  /** Book icon (bookIcons.tsx) in the icon slot; wins over `icon`. */
+  bookId?: string;
   label: string;
   sub?: string;
   badge?: string;
@@ -74,6 +77,7 @@ export function Row(props: {
   last?: boolean;
 }) {
   const Icon = props.icon;
+  const book = props.bookId ? bookIcon(props.bookId) : undefined;
   return (
     <Pressable
       onPress={props.onPress}
@@ -81,7 +85,11 @@ export function Row(props: {
       accessibilityRole={props.onPress ? 'button' : undefined}
       style={[styles.row, !props.last && styles.rowBorder]}
     >
-      {Icon ? (
+      {book ? (
+        <View style={styles.rowIcon}>
+          <BookIcon bookId={props.bookId!} size={22} />
+        </View>
+      ) : Icon ? (
         <View style={styles.rowIcon}>
           <Icon size={18} color={colors.translate} />
         </View>
@@ -126,17 +134,19 @@ export function NotWired(props: { what: string }) {
 
 export function Footer(props: { label: string; onPress: () => void; disabled?: boolean; secondary?: { label: string; onPress: () => void } }) {
   return (
-    <View style={{ flexDirection: 'row', gap: space.sm }}>
+    // Stacked, secondary on top: the primary action keeps the same spot
+    // whether or not a secondary exists, so a secondary appearing mid-flow
+    // never lands under the thumb that was tapping the primary.
+    <View style={{ gap: space.sm }}>
       {props.secondary ? (
         <ActionButton
           label={props.secondary.label}
           accessibilityLabel={props.secondary.label}
           variant="outline"
           onPress={props.secondary.onPress}
-          style={{ flex: 1 }}
         />
       ) : null}
-      <ActionButton label={props.label} accessibilityLabel={props.label} onPress={props.onPress} disabled={props.disabled} style={{ flex: 1 }} />
+      <ActionButton label={props.label} accessibilityLabel={props.label} onPress={props.onPress} disabled={props.disabled} />
     </View>
   );
 }

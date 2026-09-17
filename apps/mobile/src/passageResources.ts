@@ -19,6 +19,14 @@ export function getReferenceSlides(state: ProjectState, laneId: string, unitId: 
     }
   }
   const ancestors = unitAncestry(state, unitId);
+  for (const [id, recording] of Object.entries(state.recordings)) {
+    if (recording.kind !== 'source' || recording.laneId !== laneId ||
+        !ancestors.has(recording.unitId)) continue;
+    recording.cards.forEach((card, index) => items.push({
+      id: `source:${id}:${index}`, label: 'Source audio', hash: card.hash,
+      format: card.format ?? 'wav'
+    }));
+  }
   for (const [id, ref] of Object.entries(state.references)) {
     if (ancestors.has(ref.unitId) && ref.blobHash && ref.kind !== 'review_questions' && ref.kind !== 'questions') items.push({ id, label: ref.kind.replaceAll('_', ' '), hash: ref.blobHash, format: formatFor(state, ref.blobHash) });
   }

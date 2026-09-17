@@ -67,7 +67,7 @@ export function LanguageStatus(ctx: Ctx) {
         {books.map((b, i) => {
           const bp = pieces.filter((p) => p.bookId === b.unitId);
           return (
-            <Row key={b.unitId} icon={BookOpen} label={b.label} sub={`${bp.length} pieces · ${bottleneck(bp)}`} badge={`${percentDone(bp)}%`} onPress={() => ctx.go('book_status', { laneId, bookId: b.unitId })} last={i === books.length - 1} />
+            <Row key={b.unitId} icon={BookOpen} bookId={b.unitId} label={b.label} sub={`${bp.length} pieces · ${bottleneck(bp)}`} badge={`${percentDone(bp)}%`} onPress={() => ctx.go('book_status', { laneId, bookId: b.unitId })} last={i === books.length - 1} />
           );
         })}
       </Section>

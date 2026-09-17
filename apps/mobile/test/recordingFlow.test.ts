@@ -16,6 +16,22 @@ function history() {
 }
 
 describe('pendingPassageCards', () => {
+  it('recovers successive parts in recording order and composes one take', () => {
+    const h = history();
+    for (const id of ['part-1', 'part-2', 'part-3']) {
+      h.add('v1.RecordingAdded', { recordingId: id, unitId: 'passage',
+        laneId: 'lane', kind: 'target',
+        cards: [{ hash: id, durationMs: 800 }] });
+    }
+    const hashes = pendingPassageCards(h.state(), 'passage', 'lane', 'me')
+      .map((card) => card.hash);
+    expect(hashes).toEqual(['part-1', 'part-2', 'part-3']);
+    h.add('v1.TakeComposed', { takeId: 'complete', unitId: 'passage',
+      laneId: 'lane', parentTakeId: null, cardHashes: hashes });
+    expect(h.state().takes.complete?.cardHashes).toEqual(hashes);
+    expect(pendingPassageCards(h.state(), 'passage', 'lane', 'me'))
+      .toEqual([]);
+  });
   it('recovers only uncomposed target cards for this passage, lane, and actor', () => {
     const h = history();
     h.add('v1.RecordingAdded', { recordingId: 'own', unitId: 'passage', laneId: 'lane', kind: 'target', cards: [

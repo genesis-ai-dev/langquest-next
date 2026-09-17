@@ -37,4 +37,18 @@ describe('passage reference resources', () => {
     const a = getReferenceSlides(state(), 'L', 'passage');
     expect(referenceRunSignature(a)).toBe(referenceRunSignature(a.slice().reverse()));
   });
+
+  it('includes source recordings, without target audio or other lanes', () => {
+    const s = state();
+    s.recordings = {
+      source: { kind: 'source', laneId: 'L', unitId: 'passage',
+        cards: [{ hash: 'source', format: 'wav' }] },
+      target: { kind: 'target', laneId: 'L', unitId: 'passage',
+        cards: [{ hash: 'target', format: 'wav' }] },
+      other: { kind: 'source', laneId: 'other', unitId: 'passage',
+        cards: [{ hash: 'other', format: 'wav' }] }
+    };
+    expect(getReferenceSlides(s, 'L', 'passage').map((item) => item.hash))
+      .toEqual(['r1', 'm1', 'source']);
+  });
 });

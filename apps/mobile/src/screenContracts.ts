@@ -30,7 +30,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   project_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.WorkflowStepSet'],reads:['deriveWorkflow'] },
   templates_home: { emits:['v1.LaneTemplateSelected','v1.UnitAdded'] },
-  reference_home: { emits:['v1.MaterialDefined','v1.MaterialFieldSet'],reads:['materialsFor'] },
+  reference_home: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.CatalogItemToggled'],reads:['materialsFor','sourceBibleEnabled'] },
   key_terms: { emits:['v1.KeyTermDefined'],reads:['keyTermsFor'] },
   key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView'] },
   flows_home: { emits:['v1.WorkflowStepRemoved','v1.LaneFlowSelected','v1.WorkflowStepSet'],reads:['deriveWorkflow'] },

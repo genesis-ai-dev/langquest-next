@@ -9,6 +9,7 @@ import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, text } from '../ui';
+import { SourceBibleSettings } from '../sourceBibleSettings';
 
 export function RolesHome(ctx: Ctx) {
   const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
@@ -131,6 +132,7 @@ export function ReferenceHome(ctx: Ctx) {
   return (
     <Screen footer={canManage ? <Footer label="Add material" onPress={() => ctx.go('material_editor', { laneId })} /> : undefined}>
       <Header title="Reference library" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+      <SourceBibleSettings ctx={ctx} />
       <Section label={`Key terms · ${state ? keyTermsFor(state, laneId).length : 0}`}>
         <Row icon={KeyRound} label="Key terms list" sub="Living glossary for this language" onPress={() => ctx.go('key_terms', { laneId })} last />
       </Section>
