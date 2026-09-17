@@ -54,7 +54,11 @@ Run it locally, not against production without explicit authorization.
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
 the `project-projections` Edge Function. Schedule only one projection job.
 `schedule-projections.sql` reads its URL and worker credential from Vault.
-`send-invite` validates the caller and invite before contacting Resend.
+`send-invite` validates the caller and invite before contacting the
+Cloudflare email Worker in `apps/invite-email`. The Worker sends through
+its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
+per invitation prevents concurrent and confirmed-delivery retries from
+sending duplicates. Neither service logs invitation tokens.
 
 Still deferred: org dashboard summaries (`project_summaries`), profile
 photos, and the remaining content/audio gaps in the flow audit.

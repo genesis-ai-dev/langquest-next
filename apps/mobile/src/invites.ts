@@ -10,9 +10,9 @@ import { supabase } from './supabase';
  * `v1.InviteRedeemed` and `v1.JoinDecided` so the log still says how everyone
  * got in. Migration 20260915120000.
  *
- * The token never leaves this file in a form the server keeps: we send its
- * sha256 when issuing, and the raw token only when redeeming, which is the
- * one moment the server needs it to find the row.
+ * Issuance stores only the token hash. Redemption and optional email
+ * delivery transmit the raw token over HTTPS; application logs and
+ * delivery receipts must never retain it.
  */
 
 /** Re-exported so screens have one import for everything invite-shaped. */

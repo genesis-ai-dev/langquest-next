@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "langquest-invite-email",
+  "main": "src/index.ts",
+  "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
+  "compatibility_date": "2026-09-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+  "secrets": { "required": ["INVITE_RELAY_SECRET"] },
+  "send_email": [{
+    "name": "EMAIL",
+    "allowed_sender_addresses": ["invites@frontierrnd.com"]
+  }],
+  "durable_objects": {
+    "bindings": [{ "name": "DELIVERIES", "class_name": "InviteDelivery" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }]
+}

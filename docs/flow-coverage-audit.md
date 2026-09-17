@@ -526,9 +526,11 @@ To append to PLAN.md section 11 after item 8:
     Public discovery uses an explicit visibility setting and a safe worker
     projection. Inbox derivation is shared by the app and worker, with
     account-specific cursor pulls, push registration, leases, and receipts.
-    Email uses a server-side Resend adapter; credentials and sender remain
-    unconfigured. Profile photos remain deferred. Native rebuild, hosted
-    migrations/functions/schedule, and physical-device acceptance remain open.
+    Hosted migrations and RPC signatures are verified on 2026-09-17.
+    Email now uses Cloudflare Email Sending from `invites@frontierrnd.com`;
+    see the rollout document for deployment and delivery verification.
+    Profile photos remain deferred. Native rebuild, notification worker
+    deployment/scheduling, and physical-device acceptance remain open.
 14. **Implemented locally.** Screen modules export action contracts.
     Source checks require declared event types, model walks exercise offline
     translation/review and reconnect convergence, and generated SQL compares

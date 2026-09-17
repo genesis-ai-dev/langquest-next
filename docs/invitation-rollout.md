@@ -1,7 +1,10 @@
 # Invitation and account flow rollout
 
-Status: implemented and validated locally on 2026-09-17. Hosted deployment
-and physical-device acceptance remain pending.
+Status on 2026-09-17: hosted migrations and mobile RPC contracts verified.
+Cloudflare Email Sending is enabled and the invitation email Worker is
+deployed. The hosted Supabase `send-invite` endpoint is deployed and its
+relay URL and credential are configured and verified against Cloudflare.
+Notification worker deployment and physical-device acceptance remain pending.
 
 ## Confirmed problem
 
@@ -32,14 +35,40 @@ only before the QR screen. The QR screen confirms the chosen role.
    `server/schedule-projections.sql`. This installs one job every five minutes.
    Avoid overlapping manual projection runs. Check function logs and
    `net._http_response` after the first scheduled request.
-6. Configure `INVITE_RESEND_API_KEY` and `INVITE_EMAIL_FROM` after selecting
-   a verified sender. No email credentials belong in the mobile build.
+6. Deploy the Cloudflare email Worker using `npm run email:deploy`.
+   Its configuration restricts sending to `invites@frontierrnd.com`.
+   Set the same random `INVITE_RELAY_SECRET` in the Worker and Supabase,
+   plus `INVITE_RELAY_URL` in Supabase pointing to the Worker `/send-invite`
+   endpoint. Deploy the Supabase `send-invite` function. No email credentials
+   belong in the mobile build. Resend is no longer used.
 7. Build a new native app with the Expo notifications plugin and configured
    push credentials. A JavaScript update alone cannot add the native module.
 
-Automatic approval review rejected a hosted migration preflight because it
-runs live database definitions, grants, and test writes. No hosted changes
-were made by this task. Obtain explicit hosted deployment approval first.
+The user applied the database migrations and explicitly approved the hosted
+email connection. `INVITE_RELAY_URL` and `INVITE_RELAY_SECRET` are set on
+project `xymxnebdwtbkfxlbylch`, and `send-invite` is deployed. Both hosted
+value digests match the Cloudflare configuration. Temporary credential files
+are removed after verification.
+
+## Cloudflare email deployment
+
+- Sender: `LangQuest <invites@frontierrnd.com>`.
+- Worker: `langquest-invite-email` in the Frontier R&D account.
+- Endpoint: `https://langquest-invite-email.blue-darkness-7674.workers.dev/send-invite`.
+- Wrangler profile: `langquest-email`, with email and Worker permissions.
+- Sending DNS: Cloudflare manages `cf-bounce.frontierrnd.com` and DKIM.
+  Public DNS resolves these records. Existing Google inbound MX and DMARC
+  policy remain intact. No incoming routing rule or catch-all was changed.
+- Run `npm run email:typecheck` before deployment. Generated runtime types
+  and local secrets are ignored by Git.
+- Delivery receipts store a hash of the request and provider message ID.
+  Receipts expire one day after the invitation expiry. Pending or uncertain
+  sends are not automatically repeated; the user can share the same QR/link.
+- Local runtime checks cover authorization, input size, concurrent requests,
+  repeated delivery, and recipient binding using simulated email only.
+  Live checks confirm the Supabase authentication gate, CORS preflight,
+  and Cloudflare relay authentication without sending a message.
+  A real recipient delivery check remains pending.
 
 ## Validation completed
 

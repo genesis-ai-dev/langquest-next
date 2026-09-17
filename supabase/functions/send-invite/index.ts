@@ -12,9 +12,9 @@ Deno.serve(async (request) => {
   });
   const { data: auth, error: authError } = await client.auth.getUser();
   if (authError || !auth.user) return reply({ error: 'Sign in required' }, 401);
-  const key = Deno.env.get('INVITE_RESEND_API_KEY');
-  const from = Deno.env.get('INVITE_EMAIL_FROM');
-  if (!key || !from) return reply({ error: 'Email delivery is not configured. Share the QR or invite link instead.' }, 503);
+  const relayUrl = Deno.env.get('INVITE_RELAY_URL');
+  const relaySecret = Deno.env.get('INVITE_RELAY_SECRET');
+  if (!relayUrl || !relaySecret) return reply({ error: 'Email delivery is not configured. Share the QR or invite link instead.' }, 503);
   try {
     const { inviteId, token, email } = await request.json();
     if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -41,13 +41,13 @@ Deno.serve(async (request) => {
     if (row.error) throw row.error;
     if (row.data.email !== normalized) return reply({ error: 'This invite already has an email recipient.' },409);
     if (row.data.email_sent_at) return reply({ sent: true });
-    const link = `langquestnext://invite?org=${encodeURIComponent(invite.org_id)}&token=${encodeURIComponent(token)}`;
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST', headers: { Authorization: `Bearer ${key}`,
-        'Content-Type':'application/json', 'Idempotency-Key': `langquest-invite-${inviteId}` },
-      body: JSON.stringify({ from, to: [normalized], subject: 'Your LangQuest invitation',
-        text: `You have been invited to LangQuest.\n\nOpen this link on your phone:\n${link}\n\nOr paste this code in Join with an invite:\n${token}\n\nThis invite expires ${invite.expires_at}.` })
+    const response = await fetch(relayUrl, {
+      method: 'POST', signal: AbortSignal.timeout(25_000),
+      headers: { Authorization: `Bearer ${relaySecret}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ inviteId, orgId: invite.org_id, token,
+        email: normalized, expiresAt: invite.expires_at })
     });
+    if (response.status === 409) return reply({ error: 'Delivery is pending or could not be confirmed. Check the recipient inbox or share the invite link.' },409);
     if (!response.ok) return reply({ error: 'Email delivery failed. Your QR and link still work. Please retry.' },502);
     const saved = await service.from('invites').update({ email_sent_at: new Date().toISOString() }).eq('id',inviteId);
     if (saved.error) throw saved.error;
