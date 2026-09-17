@@ -1,7 +1,7 @@
 // Avatar U for My Work and Open Work; Avatar P for Give Assignment and progress detail.
 import { deriveProgress, derivePieces, deriveTasks, type Task, type TaskStatus } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
-import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, Menu, Search } from 'lucide-react-native';
+import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, LoaderCircle, Menu, Search } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -39,8 +39,12 @@ export function AssignmentsHome(ctx: Ctx) {
     <View style={styles.headerBlock}>
         <View style={styles.statusRow}>
           <Pressable onPress={() => ctx.go('sync_status')} hitSlop={8} accessibilityRole="button" style={styles.statusChip}
-            accessibilityLabel={ctx.project.tooOld ? 'Update the app to sync' : `Sync: ${ctx.project.lastSync}`}>
-            {ctx.project.tooOld ? (
+            accessibilityLabel={ctx.project.saving ? 'Saving' : ctx.project.tooOld ? 'Update the app to sync' : `Saved locally. Sync: ${ctx.project.lastSync}`}>
+            {ctx.project.saving ? (
+              // A write is queued or in flight: what is shown is in memory,
+              // not yet on disk. Clears within a commit; upload state follows.
+              <LoaderCircle size={16} color={colors.mutedForeground} />
+            ) : ctx.project.tooOld ? (
               // The server no longer accepts this app version. Work is safe
               // locally; nothing syncs until the app is updated.
               <>

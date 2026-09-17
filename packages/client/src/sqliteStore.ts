@@ -1,5 +1,5 @@
-import type { AnyEvent } from '@langquest-next/core';
-import type { EventStore, LocalEvent } from './types';
+import type { AnyEvent, PassageRow } from '@langquest-next/core';
+import type { EventStore, LocalEvent, PassageCursor, WriteBatch } from './types';
 
 /**
  * Minimal SQL driver so the same store runs on expo-sqlite in the app and on
@@ -8,8 +8,15 @@ import type { EventStore, LocalEvent } from './types';
 export interface SqlDriver {
   run(sql: string, params?: unknown[]): Promise<void>;
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
-  /** Run `fn` inside one transaction. Optional: without it, putMany runs statement by statement. */
-  transaction?(fn: () => Promise<void>): Promise<void>;
+  /**
+   * Run `fn` inside one transaction, on a driver bound to that transaction.
+   * The store issues every statement of the batch through `tx`, never
+   * through the outer driver, so an implementation may open a separate
+   * connection (expo's exclusive transaction) and unrelated queries cannot
+   * slip into the batch. Optional: without it, a commit runs statement by
+   * statement and is not atomic.
+   */
+  transaction?(fn: (tx: SqlDriver) => Promise<void>): Promise<void>;
 }
 
 interface Row {
@@ -54,12 +61,75 @@ export class SqliteStore implements EventStore {
       primary key (org_id, project_id)
     )`);
     await db.run(`create table if not exists meta (key text primary key, value text not null)`);
+    // Read-model rows (PLAN.md invariant 5 still holds: derived, rebuildable,
+    // never written by a user). `ord` is the unit's order key for paging.
+    await db.run(`create table if not exists passage_rows (
+      org_id text not null,
+      project_id text not null,
+      unit_id text not null,
+      lane_id text not null,
+      ord text not null,
+      json text not null,
+      primary key (org_id, project_id, unit_id, lane_id)
+    )`);
+    await db.run(
+      `create index if not exists passage_rows_order on passage_rows (org_id, project_id, lane_id, ord, unit_id)`
+    );
     return new SqliteStore(db);
   }
 
+  async commit(batch: WriteBatch): Promise<void> {
+    const write = async (tx: SqlDriver) => {
+      for (const l of batch.events ?? []) await this.putOn(tx, l);
+      if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.projectId, batch.cursor.seq);
+      for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
+      if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
+      const rows = batch.rows;
+      if (rows) {
+        if (rows.clear) await tx.run(`delete from passage_rows where org_id = ? and project_id = ?`, [rows.orgId, rows.projectId]);
+        for (const k of rows.delete ?? []) {
+          await tx.run(`delete from passage_rows where org_id = ? and project_id = ? and unit_id = ? and lane_id = ?`, [rows.orgId, rows.projectId, k.unitId, k.laneId]);
+        }
+        for (const r of rows.put ?? []) {
+          await tx.run(
+            `insert into passage_rows (org_id, project_id, unit_id, lane_id, ord, json) values (?, ?, ?, ?, ?, ?)
+             on conflict(org_id, project_id, unit_id, lane_id) do update set ord = excluded.ord, json = excluded.json`,
+            [rows.orgId, rows.projectId, r.unitId, r.laneId, r.order, JSON.stringify(r)]
+          );
+        }
+      }
+    };
+    if (this.db.transaction) await this.db.transaction(write);
+    else await write(this.db);
+  }
+
+  async passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
+    const rows = await this.db.all<{ json: string }>(
+      `select json from passage_rows where org_id = ? and project_id = ? and unit_id = ? and lane_id = ?`,
+      [orgId, projectId, unitId, laneId]
+    );
+    return rows[0] ? (JSON.parse(rows[0].json) as PassageRow) : undefined;
+  }
+
+  async passages(orgId: string, projectId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]> {
+    const after = opts.after ?? null;
+    const rows = await this.db.all<{ json: string }>(
+      `select json from passage_rows where org_id = ? and project_id = ?
+         and (? is null or lane_id = ?)
+         and (? is null or (ord, unit_id, lane_id) > (?, ?, ?))
+       order by ord, unit_id, lane_id limit ?`,
+      [orgId, projectId, opts.laneId ?? null, opts.laneId ?? null, after ? 1 : null, after?.order ?? '', after?.unitId ?? '', after?.laneId ?? '', opts.limit]
+    );
+    return rows.map((r) => JSON.parse(r.json) as PassageRow);
+  }
+
   async put(local: LocalEvent): Promise<void> {
+    await this.putOn(this.db, local);
+  }
+
+  private async putOn(db: SqlDriver, local: LocalEvent): Promise<void> {
     const e = local.event;
-    await this.db.run(
+    await db.run(
       `insert into events (id, org_id, project_id, status, reject_reason, hlc, server_seq, json)
        values (?, ?, ?, ?, ?, ?, ?, ?)
        on conflict(id) do update set
@@ -82,11 +152,7 @@ export class SqliteStore implements EventStore {
 
   async putMany(locals: LocalEvent[]): Promise<void> {
     if (locals.length === 0) return;
-    const write = async () => {
-      for (const l of locals) await this.put(l);
-    };
-    if (this.db.transaction) await this.db.transaction(write);
-    else await write();
+    await this.commit({ events: locals });
   }
 
   async get(id: string): Promise<LocalEvent | undefined> {
@@ -138,7 +204,11 @@ export class SqliteStore implements EventStore {
   }
 
   async setCursor(orgId: string, projectId: string, seq: number): Promise<void> {
-    await this.db.run(
+    await this.setCursorOn(this.db, orgId, projectId, seq);
+  }
+
+  private async setCursorOn(db: SqlDriver, orgId: string, projectId: string, seq: number): Promise<void> {
+    await db.run(
       `insert into cursors (org_id, project_id, seq) values (?, ?, ?)
        on conflict(org_id, project_id) do update set seq = excluded.seq`,
       [orgId, projectId, seq]
@@ -146,7 +216,11 @@ export class SqliteStore implements EventStore {
   }
 
   async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.db.run(
+    await this.pruneOn(this.db, orgId, projectId, uptoSeq);
+  }
+
+  private async pruneOn(db: SqlDriver, orgId: string, projectId: string, uptoSeq: number): Promise<void> {
+    await db.run(
       `delete from events where org_id = ? and project_id = ? and status = 'confirmed' and server_seq <= ?`,
       [orgId, projectId, uptoSeq]
     );
@@ -158,7 +232,11 @@ export class SqliteStore implements EventStore {
   }
 
   async setMeta(key: string, value: string): Promise<void> {
-    await this.db.run(
+    await this.setMetaOn(this.db, key, value);
+  }
+
+  private async setMetaOn(db: SqlDriver, key: string, value: string): Promise<void> {
+    await db.run(
       `insert into meta (key, value) values (?, ?) on conflict(key) do update set value = excluded.value`,
       [key, value]
     );

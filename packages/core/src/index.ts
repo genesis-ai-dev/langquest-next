@@ -15,3 +15,4 @@ export * from './catalog';
 export * from './materials';
 export * from './version';
 export * from './commands';
+export * from './readModels';

@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import type { AnyEvent } from '@langquest-next/core';
+import type { AnyEvent, PassageRow } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import type { EventStore } from '../src/types';
@@ -7,13 +7,22 @@ import type { EventStore } from '../src/types';
 /** node:sqlite driver, the test twin of the expo-sqlite driver in apps/mobile. */
 function nodeDriver(): SqlDriver {
   const db = new DatabaseSync(':memory:');
-  return {
+  const driver: SqlDriver = {
     run: async (sql, params = []) => {
       db.prepare(sql).run(...(params as never[]));
     },
     all: async <T,>(sql: string, params: unknown[] = []) =>
-      db.prepare(sql).all(...(params as never[])) as T[]
+      db.prepare(sql).all(...(params as never[])) as T[],
+    transaction: async (fn) => {
+      db.exec('begin');
+      try { await fn(driver); db.exec('commit'); } catch (e) { db.exec('rollback'); throw e; }
+    }
   };
+  return driver;
+}
+
+function row(unitId: string, laneId: string, order: string): PassageRow {
+  return { unitId, laneId, order, label: unitId, takeId: null, outcome: null, submitted: false, cardCount: 0, steps: [], assignees: [] };
 }
 
 function ev(id: string, hlc: string, serverSeq?: number): AnyEvent {
@@ -67,6 +76,33 @@ describe.each(impls)('%s contract', (_name, make) => {
     }
     expect(seen).toEqual(['a', 'b', 'c', 'd', 'e']);
     expect(await s.pendingPage('o', 'p', 'e', 2)).toEqual([]);
+  });
+
+  it('commit writes events, cursor, meta, and rows together; rows page in display order', async () => {
+    // Why: the single writer's promise is that one batch is one durable
+    // step. The rows a screen reads must come from the same commit as the
+    // events that produced them.
+    const s = await make();
+    await s.commit({
+      events: [{ event: ev('a', '1'), status: 'pending' }],
+      cursor: { orgId: 'o', projectId: 'p', seq: 9 },
+      meta: { k: 'v' },
+      rows: { orgId: 'o', projectId: 'p', put: [row('u2', 'L1', 'b'), row('u1', 'L1', 'a'), row('u1', 'L2', 'a'), row('u3', 'L1', 'c')] }
+    });
+    expect((await s.pending('o', 'p')).map((e) => e.event.id)).toEqual(['a']);
+    expect(await s.cursor('o', 'p')).toBe(9);
+    expect(await s.meta('k')).toBe('v');
+    expect((await s.passage('o', 'p', 'u1', 'L2'))?.laneId).toBe('L2');
+    const first = await s.passages('o', 'p', { limit: 2 });
+    expect(first.map((r) => `${r.unitId}:${r.laneId}`)).toEqual(['u1:L1', 'u1:L2']);
+    const last = first[first.length - 1]!;
+    const rest = await s.passages('o', 'p', { after: { order: last.order, unitId: last.unitId, laneId: last.laneId }, limit: 10 });
+    expect(rest.map((r) => `${r.unitId}:${r.laneId}`)).toEqual(['u2:L1', 'u3:L1']);
+    expect((await s.passages('o', 'p', { laneId: 'L1', limit: 10 })).map((r) => r.unitId)).toEqual(['u1', 'u2', 'u3']);
+    await s.commit({ rows: { orgId: 'o', projectId: 'p', delete: [{ unitId: 'u3', laneId: 'L1' }] } });
+    expect(await s.passage('o', 'p', 'u3', 'L1')).toBeUndefined();
+    await s.commit({ rows: { orgId: 'o', projectId: 'p', clear: true, put: [row('u9', 'L1', 'z')] } });
+    expect((await s.passages('o', 'p', { limit: 10 })).map((r) => r.unitId)).toEqual(['u9']);
   });
 
   it('put is an upsert by id, so a confirm replaces the pending row', async () => {
@@ -166,12 +202,27 @@ describe('SqliteStore transactions', () => {
       transaction: async (fn) => {
         begun += 1;
         db.exec('begin');
-        try { await fn(); db.exec('commit'); } catch (e) { db.exec('rollback'); throw e; }
+        try { await fn(driver); db.exec('commit'); } catch (e) { db.exec('rollback'); throw e; }
       }
     };
     const s = await SqliteStore.open(driver);
     await s.putMany([{ event: ev('a', '1'), status: 'pending' }, { event: ev('b', '2'), status: 'pending' }]);
     expect(begun).toBe(1);
     expect((await s.pending('o', 'p')).length).toBe(2);
+  });
+
+  it('a commit that fails halfway leaves nothing behind (SQLite)', async () => {
+    // Why: a phone can die between statements. The log and the rows must
+    // move together or not at all, or a screen could show a take the log
+    // does not have.
+    const s = await SqliteStore.open(nodeDriver());
+    await s.commit({ events: [{ event: ev('a', '1'), status: 'pending' }] });
+    const bad = { ...row('u1', 'L1', 'a'), order: null as unknown as string };
+    await expect(
+      s.commit({ events: [{ event: ev('b', '2'), status: 'pending' }], cursor: { orgId: 'o', projectId: 'p', seq: 5 }, rows: { orgId: 'o', projectId: 'p', put: [bad] } })
+    ).rejects.toThrow();
+    expect((await s.pending('o', 'p')).map((e) => e.event.id)).toEqual(['a']);
+    expect(await s.cursor('o', 'p')).toBe(0);
+    expect(await s.passages('o', 'p', { limit: 10 })).toEqual([]);
   });
 });

@@ -8,9 +8,18 @@ import {
   type EventType,
   type ProjectState,
   type Snapshot,
-  HlcClock
+  HlcClock,
+  affectedPassages,
+  buildIndexes,
+  passageKeys,
+  passageRow,
+  passageRowKey,
+  type PassageKey,
+  type PassageRow
 } from '@langquest-next/core';
-import type { EventStore, LocalEvent, SyncInspection, Transport } from './types';
+import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
+import { WriteQueue } from './writeQueue';
+import { queriesFor, type ProjectQueries } from './queries';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
 import { fetchSnapshot } from './snapshotFetch';
 
@@ -39,6 +48,13 @@ export const PROJECT_MATERIALIZER: Materializer<ProjectState> = {
   },
   version: REDUCER_VERSION
 };
+
+/** What screens subscribe to: the fold, its revision, and how many local writes are not yet on disk. */
+export interface PublishedState<S = ProjectState> {
+  state: S;
+  revision: number;
+  saving: number;
+}
 
 /** What one `sync()` attempt did, and why it did nothing when it did nothing. */
 export interface SyncResult {
@@ -117,10 +133,18 @@ export class SyncClient<S = ProjectState> {
   /** Added to the device's wall clock after the server said it runs ahead. */
   private clockOffsetMs = 0;
   private readonly wall: () => number;
+  /** The single local writer (writeQueue.ts). */
+  private readonly writer = new WriteQueue();
+  /** Rows are maintained only for the project materializer. */
+  private readonly projectRows: boolean;
+  private revision = 0;
+  private readonly listeners = new Set<(s: PublishedState<S>) => void>();
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (PROJECT_MATERIALIZER as unknown as Materializer<S>);
+    this.projectRows = !opts.materializer;
     this.state = this.m.empty();
+    this.writer.onChange(() => this.publish());
     const base = opts.now ?? (() => Date.now());
     this.wall = () => base() + this.clockOffsetMs;
     this.clock = opts.clock ?? new HlcClock(opts.deviceId, this.wall);
@@ -145,7 +169,77 @@ export class SyncClient<S = ProjectState> {
     const snapshot = await this.localSnapshot();
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     this.loaded = true;
+    // The fold was rebuilt, so the rows are too: one commit, from scratch.
+    await this.commit({ rows: this.allRows() });
+    this.publish();
     return this.state;
+  }
+
+  // ---- the single writer and what it publishes ---------------------------
+
+  /** Every store mutation goes through here, one transaction at a time. */
+  private commit(batch: WriteBatch): Promise<void> {
+    if (!batch.rows?.clear && !batch.rows?.put?.length && !batch.rows?.delete?.length) delete batch.rows;
+    if (batch.meta && Object.keys(batch.meta).length === 0) delete batch.meta;
+    if (batch.events?.length === 0) delete batch.events;
+    if (Object.keys(batch).length === 0) return Promise.resolve();
+    return this.writer.run(() => this.opts.store.commit(batch));
+  }
+
+  /** How many local writes are queued or in flight; zero means everything shown is on disk. */
+  get saving(): number {
+    return this.writer.size;
+  }
+
+  /**
+   * Be told after every change to what a screen should show: a fold
+   * revision (memory) and the number of writes still in flight (disk).
+   * Listeners receive the live state; treat it as read-only.
+   */
+  subscribe(listener: (s: PublishedState<S>) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private publish(): void {
+    const snap = { state: this.state, revision: this.revision, saving: this.writer.size };
+    for (const l of this.listeners) l(snap);
+  }
+
+  /** Queries over the persisted rows (queries.ts). */
+  queries(): ProjectQueries {
+    return queriesFor(this.opts.store, this.opts.orgId, this.opts.projectId, () => this.state as unknown as ProjectState);
+  }
+
+  private rowsBatch(put: PassageRow[], clear = false): NonNullable<WriteBatch['rows']> {
+    return { orgId: this.opts.orgId, projectId: this.opts.projectId, put, clear };
+  }
+
+  /** Every row of the project, from the current fold. */
+  private allRows(): NonNullable<WriteBatch['rows']> | undefined {
+    if (!this.projectRows) return undefined;
+    const state = this.state as unknown as ProjectState;
+    const idx = buildIndexes(state);
+    return this.rowsBatch(passageKeys(state, idx).map((k) => passageRow(state, k.unitId, k.laneId, idx)), true);
+  }
+
+  /**
+   * The rows these just-applied events changed. One passage's events cost
+   * one row; a project-wide input (membership, workflow, units) costs a
+   * rebuild, which is still one pass over the passages, not one per event.
+   */
+  private rowsFor(events: AnyEvent[]): NonNullable<WriteBatch['rows']> | undefined {
+    if (!this.projectRows || events.length === 0) return undefined;
+    const state = this.state as unknown as ProjectState;
+    const keys = new Map<string, PassageKey>();
+    for (const e of events) {
+      const hit = affectedPassages(e, state);
+      if (hit === 'all') return this.allRows();
+      for (const k of hit) keys.set(passageRowKey(k), k);
+    }
+    if (keys.size === 0) return undefined;
+    const idx = buildIndexes(state);
+    return this.rowsBatch([...keys.values()].map((k) => passageRow(state, k.unitId, k.laneId, idx)));
   }
 
   /** core `resume` for any materializer: snapshot state plus events after its seq. */
@@ -177,12 +271,13 @@ export class SyncClient<S = ProjectState> {
   }
 
   private async saveSnapshot(snap: Snapshot): Promise<void> {
-    await this.opts.store.setMeta(this.snapshotKey(), JSON.stringify(snap));
-    await this.opts.store.setCursor(this.opts.orgId, this.opts.projectId, Math.max(
-      snap.serverSeq,
-      await this.opts.store.cursor(this.opts.orgId, this.opts.projectId)
-    ));
-    await this.opts.store.prune(this.opts.orgId, this.opts.projectId, snap.serverSeq);
+    const { orgId, projectId } = this.opts;
+    const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, projectId));
+    await this.commit({
+      meta: { [this.snapshotKey()]: JSON.stringify(snap) },
+      cursor: { orgId, projectId, seq },
+      prune: { orgId, projectId, uptoSeq: snap.serverSeq }
+    });
   }
 
   /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
@@ -225,21 +320,23 @@ export class SyncClient<S = ProjectState> {
         if (index.seq !== serverSeq) {
           await this.clearChunks(index);
           index = { seq: serverSeq, chunks: meta.chunks };
-          await this.opts.store.setMeta(this.chunkKey(), JSON.stringify(index));
+          await this.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
         }
-        await this.opts.store.setMeta(this.chunkPieceKey(serverSeq, i), text);
+        await this.commit({ meta: { [this.chunkPieceKey(serverSeq, i)]: text } });
       }
     });
     if (!snap || snap.serverSeq < minSeq) return 0;
     await this.clearChunks(index);
-    await this.opts.store.setMeta(this.chunkKey(), '');
+    await this.commit({ meta: { [this.chunkKey()]: '' } });
     await this.saveSnapshot(snap);
     await this.load();
     return snap.serverSeq;
   }
 
   private async clearChunks(index: { seq: number; chunks: number }): Promise<void> {
-    for (let i = 0; i < index.chunks; i++) await this.opts.store.setMeta(this.chunkPieceKey(index.seq, i), '');
+    const meta: Record<string, string> = {};
+    for (let i = 0; i < index.chunks; i++) meta[this.chunkPieceKey(index.seq, i)] = '';
+    if (index.chunks > 0) await this.commit({ meta });
   }
 
   /** Roll the confirmed prefix into a local checkpoint and prune it. */
@@ -282,18 +379,34 @@ export class SyncClient<S = ProjectState> {
       payload,
       ...(parentEventId ? { parentEventId } : {})
     } as AnyEvent;
-    // Applied to memory before the first await so the UI can show the
-    // result now; the write is still awaited before this resolves.
-    this.state = this.m.apply(this.state, event);
+    await this.applyLocal([event]);
+    return event;
+  }
+
+  /**
+   * Fold local events into memory now, so the screen shows the result
+   * before the disk is touched, then commit the events, the clock and the
+   * rows they changed as one write. The promise resolves when that commit
+   * is durable ("saved locally"); until then `saving` is above zero.
+   */
+  private async applyLocal(events: AnyEvent[]): Promise<void> {
+    for (const event of events) this.state = this.m.apply(this.state, event);
+    // The writer publishes as soon as the commit is queued, carrying this
+    // revision and saving > 0: the screen moves now, and can say "saved"
+    // only once the queue drains.
+    this.revision += 1;
     try {
-      await Promise.all([this.opts.store.put({ event, status: 'pending' }), this.persistClock()]);
+      await this.commit({
+        events: events.map((event) => ({ event, status: 'pending' as const })),
+        meta: this.clockMeta(),
+        rows: this.rowsFor(events)
+      });
     } catch (err) {
       await this.load();
       throw err;
     }
     // Redacting something already folded needs a refold to take effect.
-    if (type === 'v1.Redacted') await this.load();
-    return event;
+    if (events.some((e) => e.type === 'v1.Redacted')) await this.load();
   }
 
   /**
@@ -317,17 +430,7 @@ export class SyncClient<S = ProjectState> {
           payload
         }) as AnyEvent
     );
-    for (const event of events) this.state = this.m.apply(this.state, event);
-    try {
-      await Promise.all([
-        this.opts.store.putMany(events.map((event) => ({ event, status: 'pending' as const }))),
-        this.persistClock()
-      ]);
-    } catch (err) {
-      await this.load();
-      throw err;
-    }
-    if (events.some((e) => e.type === 'v1.Redacted')) await this.load();
+    await this.applyLocal(events);
     return events;
   }
 
@@ -343,9 +446,14 @@ export class SyncClient<S = ProjectState> {
     return `redactionPending:${this.opts.orgId}/${this.opts.projectId}`;
   }
 
-  private async persistClock(): Promise<void> {
+  /** The clock's last stamp, for the commit that carries the events it stamped. */
+  private clockMeta(): Record<string, string> {
     const last = this.clock.last();
-    if (last) await this.opts.store.setMeta(this.clockKey(), last);
+    return last ? { [this.clockKey()]: last } : {};
+  }
+
+  private async persistClock(): Promise<void> {
+    await this.commit({ meta: this.clockMeta() });
   }
 
   /**
@@ -395,7 +503,7 @@ export class SyncClient<S = ProjectState> {
             writes.push({ event: local.event, status: 'rejected', rejectReason: r.reason ?? 'rejected' });
           }
         }
-        await this.opts.store.putMany(writes);
+        await this.commit({ events: writes });
       }
       if (clockAhead.length > 0) await this.restamp(clockAhead);
     } finally {
@@ -418,21 +526,17 @@ export class SyncClient<S = ProjectState> {
     const serverMs = Number(/server (?:time|now) (\d+)/.exec(items[0]!.reason)?.[1]);
     if (Number.isFinite(serverMs) && serverMs > 0) {
       this.clockOffsetMs += serverMs - this.wall();
-      await this.opts.store.setMeta(this.offsetKey(), String(this.clockOffsetMs));
     } else {
       // No server time in the reason: fall back to one day back per attempt
       // rather than looping on the same refusal.
       this.clockOffsetMs -= 24 * 60 * 60 * 1000;
-      await this.opts.store.setMeta(this.offsetKey(), String(this.clockOffsetMs));
     }
     // A fresh clock, seeded only by the corrected wall time, so the new
     // stamps are not dragged forward by the old ones.
     this.clock = new HlcClock(this.opts.deviceId, this.wall);
     const ordered = [...items].sort((a, b) => (a.local.event.hlc < b.local.event.hlc ? -1 : 1));
-    await this.opts.store.putMany(
-      ordered.map(({ local }) => ({ event: { ...local.event, hlc: this.clock.next() } as AnyEvent, status: 'pending' as const }))
-    );
-    await this.persistClock();
+    const events = ordered.map(({ local }) => ({ event: { ...local.event, hlc: this.clock.next() } as AnyEvent, status: 'pending' as const }));
+    await this.commit({ events, meta: { ...this.clockMeta(), [this.offsetKey()]: String(this.clockOffsetMs) } });
   }
 
   /**
@@ -445,7 +549,7 @@ export class SyncClient<S = ProjectState> {
       (l) => l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
     );
     if (mine.length === 0) return 0;
-    await this.opts.store.putMany(mine.map((l) => ({ event: l.event, status: 'pending' as const })));
+    await this.commit({ events: mine.map((l) => ({ event: l.event, status: 'pending' as const })) });
     await this.load();
     return mine.length;
   }
@@ -483,6 +587,7 @@ export class SyncClient<S = ProjectState> {
         this.pullPageSize
       );
       const writes: LocalEvent[] = [];
+      const folded: AnyEvent[] = [];
       for (const event of page) {
         const seq = event.serverSeq;
         if (seq === undefined) continue;
@@ -490,6 +595,7 @@ export class SyncClient<S = ProjectState> {
         writes.push({ event, status: 'confirmed' });
         this.clock.receive(event.hlc);
         this.state = this.m.apply(this.state, event);
+        folded.push(event);
         if (event.type === 'v1.Redacted') {
           redacted = true;
           // The target is not in the local log: it lives inside the checkpoint,
@@ -505,9 +611,16 @@ export class SyncClient<S = ProjectState> {
         after = Math.max(after, seq);
         total += 1;
       }
-      await this.opts.store.putMany(writes);
-      await this.opts.store.setCursor(this.opts.orgId, this.opts.projectId, after);
-      await this.persistClock();
+      // One page, one transaction: events, cursor, clock, and the rows the
+      // page changed. A crash between them cannot leave the cursor ahead of
+      // the log or the rows behind it.
+      if (folded.length > 0) this.revision += 1;
+      await this.commit({
+        events: writes,
+        cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: after },
+        meta: this.clockMeta(),
+        rows: this.rowsFor(folded)
+      });
       this.opts.onPullProgress?.(total);
       if (page.length < this.pullPageSize) break;
       if (this.wall() - started >= budgetMs) {
@@ -520,8 +633,7 @@ export class SyncClient<S = ProjectState> {
       // Prefer a server snapshot at or past this point over re-pulling the
       // whole log (audit L3). Until one exists the checkpoint stays, the
       // target stays visible for a bounded time, and every pull retries.
-      await this.opts.store.setMeta(this.minSnapshotKey(), String(after));
-      await this.opts.store.setMeta(this.redactionKey(), JSON.stringify({ seq: after, since: this.wall() }));
+      await this.commit({ meta: { [this.minSnapshotKey()]: String(after), [this.redactionKey()]: JSON.stringify({ seq: after, since: this.wall() }) } });
       if (await this.resolvePendingRedaction()) {
         const rest = await this.pullSlice(budgetMs);
         return { pulled: total + rest.pulled, more: rest.more };
@@ -562,13 +674,14 @@ export class SyncClient<S = ProjectState> {
       if (!(err instanceof OfflineError)) throw err;
     }
     if (adopted >= seq && adopted > 0) {
-      await this.opts.store.setMeta(this.redactionKey(), '');
+      await this.commit({ meta: { [this.redactionKey()]: '' } });
       return true;
     }
     if (this.wall() - since < SyncClient.REDACTION_SNAPSHOT_WAIT_MS) return false;
-    await this.opts.store.setMeta(this.redactionKey(), '');
-    await this.opts.store.setMeta(this.snapshotKey(), '');
-    await this.opts.store.setCursor(this.opts.orgId, this.opts.projectId, 0);
+    await this.commit({
+      meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '' },
+      cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: 0 }
+    });
     await this.load();
     return true;
   }

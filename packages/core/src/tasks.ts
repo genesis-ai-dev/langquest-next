@@ -112,9 +112,14 @@ interface TaskScope {
 function taskScope(state: ProjectState, actorId: string, idx: Indexes): TaskScope | null {
   const role = actorRole(state, actorId);
   if (!role) return null;
+  // Latest by clock wins when one person holds two non-reviewer roles on a
+  // passage; picking by fold order would make the task depend on it.
   const mine = new Map<string, Assignment>();
   for (const a of idx.assignmentsByActor.get(actorId) ?? []) {
-    if (a.role !== 'reviewer') mine.set(unitLaneKey(a.unitId, a.laneId), a);
+    if (a.role === 'reviewer') continue;
+    const key = unitLaneKey(a.unitId, a.laneId);
+    const prior = mine.get(key);
+    if (!prior || prior.hlc < a.hlc) mine.set(key, a);
   }
   return { actorId, mayTranslate: TRANSLATING_ROLES.includes(role), mine };
 }

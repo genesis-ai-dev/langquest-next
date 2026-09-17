@@ -32,6 +32,12 @@ export interface ProjectHandle {
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
   /** The realtime channel is up: appends elsewhere reach this phone in seconds. */
   live: boolean;
+  /**
+   * A local write is queued or in flight: what the screen shows is in
+   * memory but not yet on disk. False means everything shown is saved
+   * locally (it may still be pending upload: see `pending`).
+   */
+  saving: boolean;
   /** The local log as the sync screen shows it; null before load. */
   inspect: () => Promise<SyncInspection | null>;
   blobs: {
@@ -89,6 +95,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [peakUp, setPeakUp] = useState(0);
   const [peakDown, setPeakDown] = useState(0);
   const [live, setLive] = useState(false);
+  const [saving, setSaving] = useState(false);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const upMeter = useRef(new RateMeter());
   const downMeter = useRef(new RateMeter());
@@ -181,6 +188,13 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       if (cancelled) return;
       clientRef.current = client;
       storeRef.current = blobStore;
+      // The client publishes after every fold change and every commit; the
+      // screen follows that, not the call sites. The fold mutates in place,
+      // so copy the top level: identity is the revision.
+      const unsubscribe = client.subscribe((s) => {
+        setState({ ...s.state });
+        setSaving(s.saving > 0);
+      });
 
       const common = {
         isOnline: () => onlineRef.current !== false,
@@ -244,6 +258,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
       });
       cleanupBlobs = () => {
+        unsubscribe();
         unsub();
         unsubReclaim();
         up.stop();
@@ -288,9 +303,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
       const c = clientRef.current;
       if (!c) return;
-      const written = c.append(type, payload, parentEventId);
-      setState({ ...c.getState() });
-      await written;
+      await c.append(type, payload, parentEventId);
       await refresh();
       schedulerRef.current?.nudge();
     },
@@ -301,9 +314,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     async <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => {
       const c = clientRef.current;
       if (!c || items.length === 0) return;
-      const written = c.appendMany(items);
-      setState({ ...c.getState() });
-      await written;
+      await c.appendMany(items);
       await refresh();
       schedulerRef.current?.nudge();
     },
@@ -314,9 +325,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     async (specs: EventSpec[]) => {
       const c = clientRef.current;
       if (!c || specs.length === 0) return;
-      const written = c.appendMany(specs);
-      setState({ ...c.getState() });
-      await written;
+      await c.appendMany(specs);
       await refresh();
       schedulerRef.current?.nudge();
     },
@@ -351,7 +360,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, saving, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer and credit its bytes to the meter once it succeeds. */

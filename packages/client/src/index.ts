@@ -10,3 +10,4 @@ export * from './snapshotWorker';
 export * from './blobReconciler';
 export * from './snapshotFetch';
 export * from './v2import';
+export * from './writeQueue';

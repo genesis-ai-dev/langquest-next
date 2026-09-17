@@ -1,4 +1,26 @@
-import type { AnyEvent, LocalEventStatus } from '@langquest-next/core';
+import type { AnyEvent, LocalEventStatus, PassageKey, PassageRow } from '@langquest-next/core';
+
+/**
+ * One atomic local write: events, outbox state, cursor, clock and other
+ * metadata, pruning, and the read-model rows the events changed. A store
+ * applies all of it or none of it, so a phone that dies mid-commit never
+ * holds rows that disagree with its log.
+ */
+export interface WriteBatch {
+  events?: LocalEvent[];
+  cursor?: { orgId: string; projectId: string; seq: number };
+  meta?: Record<string, string>;
+  /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
+  prune?: { orgId: string; projectId: string; uptoSeq: number };
+  rows?: { orgId: string; projectId: string; clear?: boolean; put?: PassageRow[]; delete?: PassageKey[] } | undefined;
+}
+
+/** A page position in a lane's rows: the last row seen, in display order. */
+export interface PassageCursor {
+  order: string;
+  unitId: string;
+  laneId: string;
+}
 
 /** An event as held on the device: the envelope plus sync bookkeeping. */
 export interface LocalEvent {
@@ -12,6 +34,12 @@ export interface LocalEvent {
  * the app. The client never touches storage except through this.
  */
 export interface EventStore {
+  /** Apply one write batch atomically. All other writers are conveniences over this. */
+  commit(batch: WriteBatch): Promise<void>;
+  /** One read-model row, or undefined when the projection has none. */
+  passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined>;
+  /** Rows in display order (unit order, unit id, lane id), strictly after `after`, optionally one lane. */
+  passages(orgId: string, projectId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]>;
   put(local: LocalEvent): Promise<void>;
   /** Upsert many in one transaction: one pull page, one bulk append. */
   putMany(locals: LocalEvent[]): Promise<void>;
