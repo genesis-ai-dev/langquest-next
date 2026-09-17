@@ -5,6 +5,8 @@ prose in PLAN.md is not enough. They are reference, not shipping code: nothing
 here is imported into the mobile app. Open the HTML file in a browser.
 Keep `icons.js` beside it; the local Lucide subset avoids a CDN dependency.
 
+**See also:** [follow-ups.md](./follow-ups.md) — Remaining UX-vision alignment work after Inbox P0 fix (PR #4)
+
 ## `one-next-action.html`
 
 The slideshow workflow: a passage hub that branches once, feeding runs of

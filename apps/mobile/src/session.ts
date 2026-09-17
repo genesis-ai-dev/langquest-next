@@ -5,6 +5,23 @@ import {
 import type { Edge, ScreenId } from './flow';
 
 /**
+ * Count inbox items: decisions on this actor's takes, plus (future) join
+ * requests and notifications. Inbox tab appears only when this count > 0.
+ */
+export function deriveInboxCount(state: ProjectState | null, actorId: string): number {
+  if (!state) return 0;
+  let count = 0;
+  for (const [takeId, take] of Object.entries(state.takes)) {
+    if (take.actorId !== actorId) continue;
+    const reviews = state.reviews[takeId] ?? {};
+    for (const byActor of Object.values(reviews)) {
+      count += Object.keys(byActor).length;
+    }
+  }
+  return count;
+}
+
+/**
  * Session facets derived from the folds (UX spec `domain/session.ts`), not
  * stored anywhere. Who you are is the union of your project membership (the
  * fixed role, kept for compatibility) and your org memberships whose scope
@@ -116,10 +133,11 @@ export function postSignInScreen(s: Session): ScreenId {
 }
 
 /** Bottom tabs for signed-in users (spec: Home or My Work or Status, Status, Inbox, Settings). */
-export function tabsFor(s: Session): ScreenId[] {
+export function tabsFor(s: Session, inboxCount: number = 0): ScreenId[] {
   const home = homeScreenFor(s);
   const tabs: ScreenId[] = [home];
   if (home !== 'status_home' && !s.hasNoOrg) tabs.push('status_home');
-  tabs.push('inbox_home', 'settings_home');
+  if (inboxCount > 0) tabs.push('inbox_home');
+  tabs.push('settings_home');
   return tabs;
 }
