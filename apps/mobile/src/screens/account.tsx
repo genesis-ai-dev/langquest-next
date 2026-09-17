@@ -1,5 +1,4 @@
 // Avatar P for inbox and settings; sign_out_confirm is Avatar U (one action, guarded, and it says what the guard is).
-import { deriveTasks } from '@langquest-next/core';
 import { CloudOff, CloudUpload, LogOut, RefreshCw, User, Users } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -8,35 +7,49 @@ import { supabase } from '../supabase';
 import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
 
-/** Notifications are derived: your open tasks, and decisions on your takes. */
+/** 
+ * Avatar P: admin notification centre (join requests + decisions on takes).
+ * Unlike My Work, Inbox does NOT show the task list — that duplication was
+ * the P0 confusion. Inbox shows only notifications addressed to this actor.
+ */
 export function InboxHome(ctx: Ctx) {
   const { state } = ctx.project;
   const me = ctx.session.actorId;
-  const tasks = state ? deriveTasks(state, me).filter((t) => t.status !== 'done') : [];
   const decisions = state
     ? Object.entries(state.takes)
         .filter(([, t]) => t.actorId === me)
         .flatMap(([takeId, t]) =>
           Object.entries(state.reviews[takeId] ?? {}).flatMap(([stepId, byActor]) =>
-            Object.entries(byActor).map(([actor, r]) => ({ id: `${takeId}:${stepId}:${actor}`, unit: state.units[t.unitId]?.label ?? t.unitId, stepId, decision: r.value.decision, actor }))
+            Object.entries(byActor).map(([actor, r]) => ({ 
+              id: `${takeId}:${stepId}:${actor}`, 
+              takeId,
+              unitId: t.unitId,
+              laneId: t.laneId,
+              unit: state.units[t.unitId]?.label ?? t.unitId, 
+              stepId, 
+              decision: r.value.decision, 
+              actor 
+            }))
           )
         )
     : [];
   return (
     <Screen>
       <Header title="Inbox" />
-      <Section label={`To do · ${tasks.length}`}>
-        {tasks.length === 0 ? <Row label="Nothing waiting" last /> : null}
-        {tasks.map((t, i) => (
-          <Row key={t.id} label={`${t.type}: ${state?.units[t.unitId]?.label ?? t.unitId}`} sub={t.dueDate ? `Due ${t.dueDate}` : undefined} onPress={() => ctx.go(t.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: t.id })} last={i === tasks.length - 1} />
-        ))}
-      </Section>
       <Section label={`Decisions on your takes · ${decisions.length}`}>
         {decisions.length === 0 ? <Row label="None yet" last /> : null}
         {decisions.map((d, i) => (
-          <Row key={d.id} label={`${d.unit} · ${d.stepId}`} sub={`${d.actor.slice(0, 8)}`} badge={d.decision === 'approve' ? 'approved' : 'suggestions'} last={i === decisions.length - 1} />
+          <Row 
+            key={d.id} 
+            label={`${d.unit} · ${d.stepId}`} 
+            sub={`${d.actor.slice(0, 8)}`} 
+            badge={d.decision === 'approve' ? 'approved' : 'suggestions'} 
+            onPress={() => ctx.go('piece_review', { takeId: d.takeId, stepId: d.stepId, actorId: d.actor })}
+            last={i === decisions.length - 1} 
+          />
         ))}
       </Section>
+      <Note>Join requests and other org notifications will appear here once the notification worker is built.</Note>
     </Screen>
   );
 }
