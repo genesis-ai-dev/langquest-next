@@ -5,6 +5,10 @@ node_modules/
 supabase/.branches
 supabase/.temp
 .DS_Store
+.wrangler/
+.dev.vars
+.dev.vars.*
+apps/invite-email/worker-configuration.d.ts
 
 # Glance memory shards
 .glance/
