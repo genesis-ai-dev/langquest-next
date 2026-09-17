@@ -111,7 +111,7 @@ function TaskTile(props: {
       accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.blocked }}
       style={({ pressed }) => [styles.tile, { backgroundColor: `${props.color}0F` },
-        props.blocked && styles.blocked, pressed && { opacity: 0.8 }]}>
+        props.done && styles.done, props.blocked && styles.blocked, pressed && { opacity: 0.8 }]}>
       <Icon size={40} color={props.blocked ? colors.mutedForeground : props.color} />
       {props.done ? <View style={styles.corner}><CheckCircle2 size={18} color={colors.done} /></View> : null}
       {props.blocked ? <View style={styles.corner}><MicOff size={18} color={colors.mutedForeground} /></View> : null}
@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
   tile: { width: '47%', flexGrow: 1, height: 124, borderWidth: 1,
     borderColor: colors.border, borderRadius: radius.lg,
     alignItems: 'center', justifyContent: 'center' },
+  done: { backgroundColor: tint.done, borderColor: tint.doneBorder },
   blocked: { borderStyle: 'dashed', backgroundColor: colors.muted },
   corner: { position: 'absolute', right: 10, top: 10 },
   ring: { position: 'absolute', right: 10, bottom: 10 },

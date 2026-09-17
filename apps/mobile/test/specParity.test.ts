@@ -26,7 +26,9 @@ const APP_ONLY: Record<string, string> = {
   'project_home->status_home': 'spec org-setup.flow.md project_open_status; missing from spec flow.ts (A40)',
   'language_home->status_home': 'spec org-setup.flow.md language_open_status; missing from spec flow.ts (A40)',
   'flows_home->flow_editor': 'stage editing from the catalog; spec opens flow_editor from review_groups only',
-  'review_teams->flow_editor': 'spec org-setup.flow.md review_groups_open_flow (review_teams is the renamed screen)'
+  'review_teams->flow_editor': 'spec org-setup.flow.md review_groups_open_flow (review_teams is the renamed screen)',
+  'inbox_home->translate_passage': 'the inbox lists open tasks; tapping one must open it (spec inbox only reaches edit_member)',
+  'inbox_home->review_passage': 'the inbox lists open review tasks; tapping one must open it'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };

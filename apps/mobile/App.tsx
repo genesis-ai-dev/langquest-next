@@ -140,6 +140,24 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   // Both folds must be loaded first: postSignInScreen reads the role out of
   // them, and routing early sends an owner to the worker's home.
   const loaded = project.state !== null && org.state !== null;
+  // Rendering must not wait on the log fold. The home screen for this
+  // actor is remembered from the last session and routed to at once; every
+  // screen already renders a light placeholder while its state is null.
+  // A role change is caught below once both folds are in.
+  const homeKey = `home:${props.actorId}`;
+  const [cachedHome, setCachedHome] = useState<ScreenId | null | undefined>(undefined);
+  useEffect(() => {
+    AsyncStorage.getItem(homeKey).then((v) => setCachedHome((v as ScreenId | null) ?? null)).catch(() => setCachedHome(null));
+  }, [homeKey]);
+  useEffect(() => {
+    if (!loaded || !props.signedIn) return;
+    const home = homeScreenFor(session);
+    if (home !== cachedHome) {
+      setCachedHome(home);
+      AsyncStorage.setItem(homeKey, home).catch(() => {});
+      if (cachedHome && nav.current.screen === cachedHome) nav.reset({ screen: home });
+    }
+  }, [loaded, props.signedIn, session, cachedHome, homeKey, nav]);
   useEffect(() => {
     if (!props.signedIn) {
       // Not "anything but sign_in": a guest legitimately walks to Create
@@ -147,7 +165,9 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }
-    if (loaded && AUTH_SCREENS.includes(nav.current.screen)) nav.reset({ screen: postSignInScreen(session) });
+    if (!AUTH_SCREENS.includes(nav.current.screen)) return;
+    if (loaded) nav.reset({ screen: postSignInScreen(session) });
+    else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
   });
 
   const go = useCallback(

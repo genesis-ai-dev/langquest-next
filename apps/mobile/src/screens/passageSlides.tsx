@@ -188,6 +188,16 @@ export function PassageTerms(ctx: Ctx) {
           {run.slice(0, 30).map((term, i) => <View key={term.termId} style={[styles.bead, i === 0 && styles.beadCurrent]} />)}
         </View>
         <View style={styles.termCard}><KeyRound size={34} color={colors.reference} /><Text style={styles.reference} accessibilityLabel="Current key term">{current.term}</Text></View>
+        <View style={styles.chips} accessibilityLabel="All key terms in this language">
+          {allTerms.map((term) => {
+            const recorded = hasAudio(term);
+            const active = term.termId === current.termId;
+            return <View key={term.termId} style={[styles.chip, recorded && styles.chipDone, active && styles.chipActive]}>
+              {recorded ? <Check size={12} color={colors.done} /> : null}
+              <Text style={[text.small, recorded && { color: colors.done }, active && { color: colors.foreground, fontWeight: '700' }]} numberOfLines={1}>{term.term}</Text>
+            </View>;
+          })}
+        </View>
         {pending ? <AudioControl uri={pendingUri} color={colors.translate} label="new recording" /> : null}
         {recorder.failureCount ? <ActionButton icon={RotateCcw}
           accessibilityLabel="Retry saving term audio" variant="outline"
@@ -236,6 +246,10 @@ const styles = StyleSheet.create({
   ring: { width: 76, height: 76, borderRadius: 38, borderWidth: 7, borderColor: colors.done, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
   ringText: { fontSize: 17, fontWeight: '700', color: colors.done },
   termCard: { alignItems: 'center', gap: space.md, padding: space.xl, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 140, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  chipDone: { borderColor: tint.doneBorder, backgroundColor: tint.done },
+  chipActive: { borderColor: colors.foreground, backgroundColor: 'rgba(253,195,23,0.22)' },
   record: { width: 82, height: 82, alignSelf: 'center', borderRadius: 41, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', borderWidth: 6, borderColor: 'rgba(253,195,23,0.22)' },
   recording: { backgroundColor: '#A8120A', borderColor: '#A8120A22' },
   stop: { width: 29, height: 29, borderRadius: 6, backgroundColor: colors.white },

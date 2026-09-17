@@ -26,6 +26,8 @@ export const tint = {
   translateBadge: 'rgba(10, 90, 219, 0.15)',
   reviewBadge: 'rgba(34, 143, 160, 0.15)',
   reviewChip: 'rgba(34, 143, 160, 0.10)',
+  done: 'rgba(41, 163, 118, 0.06)',
+  doneBorder: 'rgba(41, 163, 118, 0.25)',
   translateBar: 'rgba(10, 90, 219, 0.40)',
   reviewBar: 'rgba(34, 143, 160, 0.40)',
   mutedContainer: 'rgba(242, 240, 236, 0.70)'

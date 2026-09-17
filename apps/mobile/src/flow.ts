@@ -210,6 +210,8 @@ export const EDGES: Edge[] = [
   e('members_list', 'edit_member'),
   e('edit_member', 'members_list', 'back'),
   e('inbox_home', 'edit_member', undefined, 'assigner'),
+  e('inbox_home', 'translate_passage', undefined, 'translator'),
+  e('inbox_home', 'review_passage', undefined, 'reviewer'),
   e('edit_member', 'inbox_home', 'back'),
   e('invite_member', 'invite_qr'),
   e('invite_member', 'members_list', 'back'),
