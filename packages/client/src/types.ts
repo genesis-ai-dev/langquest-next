@@ -20,6 +20,8 @@ export interface EventStore {
   rejected(orgId: string, projectId: string): Promise<LocalEvent[]>;
   /** Pending events for a partition, oldest first. */
   pending(orgId: string, projectId: string): Promise<LocalEvent[]>;
+  /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
+  pendingCount(orgId: string, projectId: string): Promise<number>;
   /** Every non-rejected event for a partition (confirmed then pending is fine). */
   all(orgId: string, projectId: string): Promise<LocalEvent[]>;
   /** Highest confirmed server_seq seen for a partition, 0 if none. */

@@ -1,5 +1,5 @@
 import type { BlobRef } from '@langquest-next/core';
-import { TransferWorker, UPLOAD_DEFAULTS } from '../src/transferWorker';
+import { DOWNLOAD_DEFAULTS, TransferBudget, TransferWorker, UPLOAD_DEFAULTS } from '../src/transferWorker';
 
 /** Deterministic timers and clock so backoff and grace are testable. */
 function harness() {
@@ -195,5 +195,73 @@ describe('TransferWorker (PLAN.md section 14)', () => {
     // work() is called at pass start and pass end: one pass = 2 calls.
     expect(passes).toBe(2);
     w.stop();
+  });
+});
+
+describe('TransferWorker deferral and budget', () => {
+  it('attempts nothing while deferred (recording) but still reports the honest pending count', async () => {
+    // Why: background work must never compete with the microphone or a local save.
+    const h = harness();
+    let deferred = true;
+    const sent: string[] = [];
+    let pending = -1;
+    const w = new TransferWorker({
+      ...UPLOAD_DEFAULTS,
+      work: () => ['a', 'b'].map(ref),
+      transfer: async (r) => void sent.push(r.hash),
+      isOnline: () => true,
+      isPulling: () => false,
+      isDeferred: () => deferred,
+      onChange: (n) => { pending = n; },
+      ...h
+    });
+    w.start();
+    await h.advance(UPLOAD_DEFAULTS.debounceMs);
+    expect(sent).toEqual([]);
+    expect(pending).toBe(2);
+    deferred = false;
+    w.nudge();
+    await h.advance(UPLOAD_DEFAULTS.debounceMs);
+    expect(sent.sort()).toEqual(['a', 'b']);
+  });
+
+  it('a shared budget keeps bytes in flight bounded across workers, yet never starves an oversized file', async () => {
+    // Why: several large files finishing together is the peak-memory risk on a weak phone.
+    const budget = new TransferBudget(100);
+    let peak = 0;
+    let release: (() => void)[] = [];
+    const transfer = () => new Promise<void>((resolve) => {
+      peak = Math.max(peak, budget.bytesInFlight());
+      release.push(resolve);
+    });
+    const opts = (names: string[], size: number) => ({
+      ...DOWNLOAD_DEFAULTS,
+      concurrency: 4,
+      work: () => names.map(ref),
+      transfer,
+      isOnline: () => true,
+      isPulling: () => false,
+      budget,
+      sizeOf: () => size
+    });
+    const h = harness();
+    const a = new TransferWorker({ ...opts(['a', 'b', 'c'], 60), ...h });
+    const b = new TransferWorker({ ...opts(['big'], 500), ...h });
+    a.start();
+    b.start();
+    await h.advance(DOWNLOAD_DEFAULTS.debounceMs);
+    // Only one 60-byte file fits at a time under a 100-byte budget.
+    expect(release).toHaveLength(1);
+    expect(peak).toBe(60);
+    release.splice(0).forEach((r) => r());
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    expect(release).toHaveLength(1);
+    // Drain everything; the 500-byte file goes once nothing else is in flight.
+    for (let i = 0; i < 6 && release.length; i++) {
+      release.splice(0).forEach((r) => r());
+      for (let j = 0; j < 20; j++) await Promise.resolve();
+    }
+    expect(peak).toBe(500);
+    expect(budget.bytesInFlight()).toBe(0);
   });
 });

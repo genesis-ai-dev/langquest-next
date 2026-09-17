@@ -1,4 +1,4 @@
-import { defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, isStored, referencedBlobs } from '../src/blobs';
+import { defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, referencedBlobs } from '../src/blobs';
 import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
 import { buildFixture } from './fixtures';
@@ -73,5 +73,18 @@ describe('blob integrity (server-confirmed size, server-side invalidation)', () 
     // A later re-upload confirmation wins again.
     const again = { ...stored, id: 'st2', hlc: stored.hlc + '2', payload: { hash: 'c1', size: 12345 } } as never;
     expect(isStored(fold([invalid, again, ...events], emptyState()), 'c1')).toBe(true);
+  });
+});
+
+describe('eviction candidates (cache quota)', () => {
+  const state = fold(buildFixture(), emptyState());
+
+  it('offers only confirmed, out-of-scope, referenced files; unsynced and kept-offline files are protected', () => {
+    // Why: reclaiming space must never delete the only copy of a recording
+    // (c2 is unconfirmed) or something the user chose to keep (luke1 scope).
+    const present = new Set(['c1', 'c2', 'unrelated-project-file']);
+    expect(evictableBlobs(state, present, new Set(['elsewhere'])).map((r) => r.hash)).toEqual(['c1']);
+    expect(evictableBlobs(state, present, new Set(['luke1']))).toEqual([]);
+    expect(evictableBlobs(state, present, null)).toEqual([]);
   });
 });

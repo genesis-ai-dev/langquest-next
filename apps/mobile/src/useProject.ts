@@ -1,7 +1,9 @@
-import { DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
-import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, type BlobRef, type EventPayloads, type EventType, type ProjectState } from '@langquest-next/core';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
+import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventType, type ProjectState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
+import { getRecordingJournal } from './recordingJournal';
+import { isRecording } from './useRecorder';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RateMeter } from './rate';
@@ -52,6 +54,13 @@ export interface ProjectHandle {
   appendMany: <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => Promise<void>;
   sync: () => Promise<void>;
 }
+
+/** Keep this much free for recording, and cap the cache; evict only what the server can give back. */
+const MIN_FREE_BYTES = 500 * 1024 * 1024;
+const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
+
+/** One budget per device, shared by every project's workers. */
+const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
 
 /**
  * Owns one SyncClient for one project on this device. Screens read `state`
@@ -151,7 +160,11 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         store,
         transport,
         // Hermes has no global crypto.randomUUID.
-        newId: () => Crypto.randomUUID()
+        newId: () => Crypto.randomUUID(),
+        // A long catch-up shares the thread with taps and the meter, and the
+        // whole-state clone a checkpoint takes waits until recording is over.
+        yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
+        deferCheckpoint: isRecording
       });
       await client.load();
       const blobStore = await getBlobStore();
@@ -161,7 +174,27 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
 
       const common = {
         isOnline: () => onlineRef.current !== false,
-        isPulling: () => pullingRef.current
+        isPulling: () => pullingRef.current,
+        // Recording and local saves come first; transfers wait.
+        isDeferred: isRecording,
+        budget: transferBudget,
+        // Upload size from disk; download size from the server's confirmation.
+        sizeOf: (ref: BlobRef) => blobStore.sizeOf(ref.hash) ?? client.getState().blobs[ref.hash]?.size
+      };
+      const scopeNow = () => {
+        const scope = defaultOfflineScope(client.getState(), actorId);
+        for (const u of keptRef.current) scope.add(u);
+        return scope;
+      };
+      // Storage pressure must never reach the recorder: after any change to
+      // what is on disk, give back out-of-scope files the server still has.
+      const reclaim = () => {
+        try {
+          blobStore.reclaim(
+            evictableBlobs(client.getState(), blobStore.snapshot(), scopeNow(), blobStore.sizes()),
+            { minFreeBytes: MIN_FREE_BYTES, maxTotalBytes: MAX_CACHE_BYTES }
+          );
+        } catch { /* disk queries can fail on some devices; try again next change */ }
       };
       const up = new TransferWorker({
         ...UPLOAD_DEFAULTS,
@@ -176,11 +209,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         ...common,
         // Rule 10: by scope, never the whole project. Scope is the actor's
         // own units plus what they explicitly chose to keep offline.
-        work: () => {
-          const scope = defaultOfflineScope(client.getState(), actorId);
-          for (const u of keptRef.current) scope.add(u);
-          return deriveDownloadWork(client.getState(), blobStore.snapshot(), scope);
-        },
+        work: () => deriveDownloadWork(client.getState(), blobStore.snapshot(), scopeNow()),
         transfer: (ref) => metered(downMeter.current, blobStore, ref, () => downloadBlob(orgId, projectId, ref, blobStore)),
         onChange: (n) => { setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
@@ -192,6 +221,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         up.nudge();
         down.nudge();
       });
+      reclaim();
+      const unsubReclaim = blobStore.onChange(reclaim);
       // Sync on a poke from the server, after a local append, and on a
       // fallback poll that backs off while offline (SyncScheduler).
       const scheduler = new SyncScheduler({
@@ -204,6 +235,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       });
       cleanupBlobs = () => {
         unsub();
+        unsubReclaim();
         up.stop();
         down.stop();
         unwatch();
@@ -213,6 +245,25 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
 
       await refresh();
       scheduler.start();
+      // Finish any save a crash or kill interrupted (recordingJournalCore.ts).
+      // Idempotent by recordingId; runs after the workers so the upload
+      // pass sees the recovered card.
+      const resumed = await getRecordingJournal().resume({ orgId, projectId }, {
+        ingest: async (uri, format) => {
+          const { ref, size } = await blobStore.ingest(uri, format);
+          return { hash: ref.hash, size };
+        },
+        hasRecording: (id) => !!client.getState().recordings[id],
+        append: async (e) => {
+          await client.append('v1.RecordingAdded', {
+            recordingId: e.id, unitId: e.target.unitId, laneId: e.target.laneId, kind: 'target',
+            cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
+          });
+        }
+      }).catch(() => null);
+      if (cancelled || !resumed?.resumed.length) return;
+      await refresh();
+      up.trigger();
     })();
     return () => {
       cancelled = true;

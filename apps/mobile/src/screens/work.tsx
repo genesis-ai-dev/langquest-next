@@ -2,7 +2,7 @@
 import { deriveProgress, derivePieces, deriveTasks, type Task, type TaskStatus } from '@langquest-next/core';
 import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, Menu, Search } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
@@ -31,9 +31,10 @@ export function AssignmentsHome(ctx: Ctx) {
   const next = shown.find((t) => !t.done);
   const toggle = (s: TaskStatus) => setFilters((f) => (f.includes(s) ? f.filter((x) => x !== s) : [...f, s]));
 
-  return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  // The task list grows with the project; a FlatList mounts only the rows on
+  // screen. Everything above and below the rows is header and footer.
+  const header = (
+    <View style={styles.headerBlock}>
         <View style={styles.statusRow}>
           <Pressable onPress={() => ctx.go('sync_status')} hitSlop={8} accessibilityRole="button" style={styles.statusChip}
             accessibilityLabel={ctx.project.tooOld ? 'Update the app to sync' : `Sync: ${ctx.project.lastSync}`}>
@@ -103,35 +104,44 @@ export function AssignmentsHome(ctx: Ctx) {
           })}
         </View>
 
-        <View style={styles.todo}>
-          {shown.length === 0 ? (
-            <View style={[styles.pad, { alignItems: 'center' }]}>
-              <Check size={28} color={colors.done} />
-            </View>
-          ) : (
-            shown.map((task, i) => (
-              <TodoRow
-                key={task.id}
-                task={task}
-                label={state.units[task.unitId]?.label ?? task.unitId}
-                isLast={i === shown.length - 1}
-                onOpen={() => ctx.go(task.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: task.id })}
-                onLong={() => ctx.go('assignment_progress_detail', { taskId: task.id })}
-              />
-            ))
-          )}
-        </View>
+    </View>
+  );
+  const footer = role !== 'reviewer' ? (
+    <Pressable onPress={() => ctx.go('pickup_home')} accessibilityRole="button" accessibilityLabel="Browse open work" style={styles.footerBlock}>
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <Search size={20} color={colors.translate} />
+        <Text style={[text.body, { flex: 1 }]}>{openCount(ctx)}</Text>
+        <ArrowRight size={16} color={colors.mutedForeground} />
+      </Card>
+    </Pressable>
+  ) : null;
 
-        {role !== 'reviewer' ? (
-          <Pressable onPress={() => ctx.go('pickup_home')} accessibilityRole="button" accessibilityLabel="Browse open work">
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-              <Search size={20} color={colors.translate} />
-              <Text style={[text.body, { flex: 1 }]}>{openCount(ctx)}</Text>
-              <ArrowRight size={16} color={colors.mutedForeground} />
-            </Card>
-          </Pressable>
-        ) : null}
-      </ScrollView>
+  return (
+    <View style={styles.screen}>
+      <FlatList
+        data={shown}
+        keyExtractor={(task) => task.id}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        ListEmptyComponent={
+          <View style={[styles.todo, styles.pad, { alignItems: 'center' }]}>
+            <Check size={28} color={colors.done} />
+          </View>
+        }
+        renderItem={({ item: task, index }) => (
+          <View style={[styles.todo, index === 0 && styles.todoTop, index === shown.length - 1 && styles.todoBottom]}>
+            <TodoRow
+              task={task}
+              label={state.units[task.unitId]?.label ?? task.unitId}
+              isLast={index === shown.length - 1}
+              onOpen={() => ctx.go(task.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: task.id })}
+              onLong={() => ctx.go('assignment_progress_detail', { taskId: task.id })}
+            />
+          </View>
+        )}
+      />
       {next ? (
         <View style={styles.nextFooter}>
           <ActionButton
@@ -298,7 +308,9 @@ export function ProgressHome(ctx: Ctx) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   nextFooter: { padding: space.lg, backgroundColor: colors.card, borderTopWidth: 1, borderColor: colors.border },
-  content: { gap: space.lg, padding: space.lg },
+  content: { padding: space.lg },
+  headerBlock: { gap: space.lg, marginBottom: space.lg },
+  footerBlock: { marginTop: space.lg },
   pad: { padding: space.lg },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   statusChip: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
@@ -308,6 +320,10 @@ const styles = StyleSheet.create({
   filters: { flexDirection: 'row', gap: space.sm },
   filter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingVertical: space.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: 'transparent', backgroundColor: colors.muted },
   filterCount: { fontSize: 18, fontWeight: '700' },
-  todo: { borderRadius: radius.xl, backgroundColor: tint.mutedContainer, paddingHorizontal: space.md },
+  // Rows carry the container look themselves so the list can virtualize them;
+  // only the first and last rows round the corners.
+  todo: { backgroundColor: tint.mutedContainer, paddingHorizontal: space.md },
+  todoTop: { borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
+  todoBottom: { borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: space.md }
 });

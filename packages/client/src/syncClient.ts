@@ -71,6 +71,16 @@ export interface SyncClientOptions<S = ProjectState> {
   pushBatchSize?: number;
   /** Confirmed events since the last local checkpoint before taking a new one. */
   checkpointEvery?: number;
+  /**
+   * Called between pull pages so a long catch-up shares the thread with
+   * the screen (mobile passes a macrotask yield). Nothing is folded while it
+   * waits; what is already folded is already in state.
+   */
+  yieldBetweenPages?: () => Promise<void>;
+  /** A checkpoint clones the whole state; skip it while this is true (recording) and take it on a later pull. */
+  deferCheckpoint?: () => boolean;
+  /** Progress per pulled page: events so far this pull. */
+  onPullProgress?: (pulled: number) => void;
 }
 
 /**
@@ -162,41 +172,61 @@ export class SyncClient<S = ProjectState> {
     await this.opts.store.prune(this.opts.orgId, this.opts.projectId, snap.serverSeq);
   }
 
+  /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
   private chunkKey(): string {
     return `snapchunks:${this.opts.orgId}/${this.opts.projectId}`;
+  }
+
+  /** One piece, stored on its own so saving piece N never rewrites pieces 0..N-1. */
+  private chunkPieceKey(serverSeq: number, index: number): string {
+    return `${this.chunkKey()}:${serverSeq}:${index}`;
   }
 
   /**
    * Cold start: adopt the server snapshot if there is one we can use. It is
    * fetched in pieces and every piece is persisted first, so a link that
    * drops mid-way resumes from the pieces already here (PLAN.md section 2:
-   * small deltas succeed).
+   * small deltas succeed). Pieces are separate rows: persistence cost is
+   * linear in snapshot size, not quadratic in piece count.
    */
   private async adoptServerSnapshot(): Promise<number> {
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
-    const saved = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{"seq":0,"pieces":{}}') as {
-      seq: number;
-      pieces: Record<string, string>;
-    };
     const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.projectId, this.m.version);
     if (!meta) return 0;
-    const savedMap = meta.serverSeq === saved.seq
-      ? new Map(Object.entries(saved.pieces).map(([i, t]) => [Number(i), t]))
-      : new Map<number, string>();
-    let current = saved;
+    const savedMap = new Map<number, string>();
+    let index: { seq: number; chunks: number } = { seq: 0, chunks: 0 };
+    try {
+      const parsed = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{}') as Partial<typeof index>;
+      // An older build stored every piece inside this one row; ignore it and refetch.
+      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') index = { seq: parsed.seq, chunks: parsed.chunks };
+    } catch { /* refetch */ }
+    if (index.seq === meta.serverSeq) {
+      for (let i = 0; i < index.chunks; i++) {
+        const text = await this.opts.store.meta(this.chunkPieceKey(index.seq, i));
+        if (text) savedMap.set(i, text);
+      }
+    }
     const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.projectId, this.m.version, {
       saved: savedMap,
-      onChunk: async (serverSeq, index, text) => {
-        if (current.seq !== serverSeq) current = { seq: serverSeq, pieces: {} };
-        current.pieces[String(index)] = text;
-        await this.opts.store.setMeta(this.chunkKey(), JSON.stringify(current));
+      onChunk: async (serverSeq, i, text) => {
+        if (index.seq !== serverSeq) {
+          await this.clearChunks(index);
+          index = { seq: serverSeq, chunks: meta.chunks };
+          await this.opts.store.setMeta(this.chunkKey(), JSON.stringify(index));
+        }
+        await this.opts.store.setMeta(this.chunkPieceKey(serverSeq, i), text);
       }
     });
     if (!snap || snap.serverSeq < minSeq) return 0;
+    await this.clearChunks(index);
     await this.opts.store.setMeta(this.chunkKey(), '');
     await this.saveSnapshot(snap);
     await this.load();
     return snap.serverSeq;
+  }
+
+  private async clearChunks(index: { seq: number; chunks: number }): Promise<void> {
+    for (let i = 0; i < index.chunks; i++) await this.opts.store.setMeta(this.chunkPieceKey(index.seq, i), '');
   }
 
   /** Roll the confirmed prefix into a local checkpoint and prune it. */
@@ -437,7 +467,9 @@ export class SyncClient<S = ProjectState> {
       await this.opts.store.putMany(writes);
       await this.opts.store.setCursor(this.opts.orgId, this.opts.projectId, after);
       await this.persistClock();
+      this.opts.onPullProgress?.(total);
       if (page.length < this.pullPageSize) break;
+      await this.opts.yieldBetweenPages?.();
     }
     if (redactedInsideCheckpoint) {
       // Prefer a server snapshot at or past this point over re-pulling the
@@ -452,7 +484,7 @@ export class SyncClient<S = ProjectState> {
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.load();
     const base = (await this.localSnapshot())?.serverSeq ?? 0;
-    if (after - base >= this.checkpointEvery) await this.checkpoint(after);
+    if (after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
     // Our membership changed on the server: work refused for membership
     // reasons may be acceptable now. Queue it; the next push decides.
     if (membershipChanged) await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
@@ -532,6 +564,6 @@ export class SyncClient<S = ProjectState> {
   }
 
   async pendingCount(): Promise<number> {
-    return (await this.opts.store.pending(this.opts.orgId, this.opts.projectId)).length;
+    return this.opts.store.pendingCount(this.opts.orgId, this.opts.projectId);
   }
 }

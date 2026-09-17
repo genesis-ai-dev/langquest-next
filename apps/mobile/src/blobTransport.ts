@@ -1,7 +1,7 @@
 import type { BlobRef } from '@langquest-next/core';
-import { File } from 'expo-file-system';
+import { File, UploadType } from 'expo-file-system';
 import { BlobStore } from './blobs';
-import { supabase } from './supabase';
+import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
 
 /**
  * Blob transfers over Supabase Storage. Upload is an idempotent upsert of a
@@ -14,28 +14,41 @@ export function objectPath(orgId: string, projectId: string, ref: BlobRef): stri
   return `${orgId}/${projectId}/${ref.hash}.${ref.format}`;
 }
 
+/**
+ * Native streaming upload: the file never enters the JS heap. Same request
+ * supabase-js would make (POST object, x-upsert), with the session token,
+ * so bucket policies apply unchanged.
+ */
 export async function uploadBlob(orgId: string, projectId: string, ref: BlobRef, store: BlobStore): Promise<void> {
-  const file = store.fileFor(ref);
-  const bytes = await file.bytes();
-  const { error } = await supabase.storage.from(BUCKET).upload(objectPath(orgId, projectId, ref), bytes, {
-    upsert: true,
-    contentType: ref.format === 'wav' ? 'audio/wav' : 'audio/mp4'
+  const { data, error: authError } = await supabase.auth.getSession();
+  if (authError) throw new Error(authError.message);
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Not signed in.');
+  const res = await store.fileFor(ref).upload(`${supabaseUrl}/storage/v1/object/${BUCKET}/${objectPath(orgId, projectId, ref)}`, {
+    httpMethod: 'POST',
+    uploadType: UploadType.BINARY_CONTENT,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: supabaseAnonKey,
+      'x-upsert': 'true',
+      'Content-Type': ref.format === 'wav' ? 'audio/wav' : 'audio/mp4'
+    }
   });
-  if (error) throw new Error(error.message);
+  if (res.status < 200 || res.status >= 300) throw new Error(`Upload failed (${res.status}): ${res.body.slice(0, 200)}`);
 }
 
 export async function downloadBlob(orgId: string, projectId: string, ref: BlobRef, store: BlobStore): Promise<void> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, projectId, ref), 600);
   if (error || !data) throw new Error(error?.message ?? 'no signed url');
-  const dest = store.fileFor(ref);
-  // A file already on disk but not in the index is a previous download that
-  // never finished verification (partial or corrupt). Verify before trusting.
-  if (!dest.exists) await File.downloadFileAsync(data.signedUrl, dest);
-  const bytes = await dest.bytes();
+  // Land in a staging name; only a verified hash earns the trusted name.
+  const staged = store.stagingFor(ref);
+  if (staged.exists) staged.delete();
+  await File.downloadFileAsync(data.signedUrl, staged);
+  const bytes = await staged.bytes();
   const actual = await BlobStore.hashOf(bytes);
   if (actual !== ref.hash) {
-    dest.delete();
+    staged.delete();
     throw new Error(`hash mismatch for ${ref.hash}: got ${actual}`);
   }
-  store.markPresent(ref.hash, bytes.byteLength);
+  store.commitStaged(ref, bytes.byteLength);
 }

@@ -21,6 +21,10 @@ export const supabaseConfigError: string | null = !url || !anon
     ? `This build points at ${url}, which only exists on a developer machine. A device build needs the hosted Supabase URL.`
     : null;
 
+/** Where Storage objects live, for native uploads that bypass the JS heap. */
+export const supabaseUrl = url ?? 'https://unconfigured.invalid';
+export const supabaseAnonKey = anon ?? 'unconfigured';
+
 // A placeholder keeps `createClient` from throwing when the config is
 // missing; nothing calls it, because App shows the error instead.
 export const supabase = createClient(url ?? 'https://unconfigured.invalid', anon ?? 'unconfigured', {

@@ -26,10 +26,11 @@ class MicrophoneEnergyModule : Module() {
   private val ringBufferMaxSize = 10
   
   private var isRecordingSegment = false
-  private var segmentFile: java.io.File? = null
   private var segmentStartTime: Long = 0
   private val sampleRate = 44100
-  private var segmentBuffers = ArrayList<ShortArray>()
+  // Audio for the open segment streams to disk as it arrives; only the
+  // trimming window (half the pause) stays in memory.
+  private var segmentWriter: SegmentWriter? = null
   
   private var vadEnabled = false
   private var vadThreshold = 0.05f
@@ -67,8 +68,8 @@ class MicrophoneEnergyModule : Module() {
   private fun startEnergyDetection(promise: Promise) {
     if (isActive) stopEnergyDetectionInternal()
     synchronized(ringBuffer) { ringBuffer.clear() }
-    synchronized(segmentBuffers) { segmentBuffers.clear() }
-    segmentFile = null; activeAudioTime = 0; lastFrameTime = 0
+    segmentWriter?.discard(); segmentWriter = null; isRecordingSegment = false
+    activeAudioTime = 0; lastFrameTime = 0
     try {
       val channelConfig = AudioFormat.CHANNEL_IN_MONO
       val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -182,7 +183,10 @@ class MicrophoneEnergyModule : Module() {
         ringBuffer.addLast(RingBufferEntry(dataCopy, now))
         if (ringBuffer.size > ringBufferMaxSize) ringBuffer.removeFirst()
       }
-      if (isRecordingSegment) synchronized(segmentBuffers) { segmentBuffers.add(dataCopy) }
+      if (isRecordingSegment) {
+        val keep = if (vadRewindHalfPause) sampleRate * vadSilenceDuration / 2000 else 0
+        segmentWriter?.append(dataCopy, keep)
+      }
       if (vadEnabled) handleVAD(normalizedAmplitude, now)
     }
     withContext(Dispatchers.Main) { sendEvent("onEnergyResult", mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble())) }
@@ -236,71 +240,39 @@ class MicrophoneEnergyModule : Module() {
   private fun stopRecordingAsync() {
     if (!isRecordingSegment) return
     isRecordingSegment = false; vadState = "IDLE"
+    val writer = segmentWriter
+    segmentWriter = null
     
     // Check if enough active audio - discard transients/short sounds
     if (activeAudioTime < vadMinActiveAudioDuration) {
       println("VAD: Discarding segment - only ${activeAudioTime}ms of active audio (min: ${vadMinActiveAudioDuration}ms)")
-      segmentBuffers.clear()
-      segmentFile?.delete()  // Clean up temp file
-      segmentFile = null
-      
+      writer?.discard()
       // Emit empty URI to notify JS that recording stopped but was discarded
       sendEvent("onSegmentComplete", mapOf("uri" to "", "duration" to 0.0))
       return
     }
     
-    val buffersToWrite = ArrayList(segmentBuffers)
-    val fileToWrite = segmentFile
-    val startTime = segmentStartTime
-    val endTime = System.currentTimeMillis()
     val rewindMs = if (vadRewindHalfPause) vadSilenceDuration / 2 else 0
-    segmentBuffers.clear(); segmentFile = null
-    
+    val endTime = System.currentTimeMillis() - rewindMs
+    finishSegment(writer, segmentStartTime, endTime, sampleRate * rewindMs / 1000)
+  }
+  
+  /** Completes the file off the audio thread. Every failure reaches JS as onError. */
+  private fun finishSegment(writer: SegmentWriter?, startTime: Long, endTime: Long, trimSamples: Int) {
+    if (writer == null) return
     synchronized(writeWaiters) { pendingWrites += 1 }
     (writeScope ?: CoroutineScope(Dispatchers.IO).also { writeScope = it }).launch {
       try {
-        if (fileToWrite != null) {
-          writeWavFileAsync(fileToWrite, buffersToWrite, rewindMs)
-          val uri = "file://${fileToWrite.absolutePath}"
-          withContext(Dispatchers.Main) {
-            sendEvent("onSegmentComplete", mapOf("uri" to uri, "startTime" to startTime.toDouble(), "endTime" to (endTime - rewindMs).toDouble(), "duration" to (endTime - startTime - rewindMs).toDouble()))
-          }
+        writer.finish(trimSamples)
+        withContext(Dispatchers.Main) {
+          sendEvent("onSegmentComplete", mapOf("uri" to writer.uri, "startTime" to startTime.toDouble(), "endTime" to endTime.toDouble(), "duration" to (endTime - startTime).toDouble()))
         }
-      } catch (e: Exception) { println("Error writing WAV: ${e.message}") }
-      finally { writeFinished() }
+      } catch (e: Exception) {
+        withContext(Dispatchers.Main) {
+          sendEvent("onError", mapOf("message" to "Could not save recording (${writer.file.name}): ${e.message}"))
+        }
+      } finally { writeFinished() }
     }
-  }
-  
-  private fun writeWavFileAsync(file: java.io.File, buffers: ArrayList<ShortArray>, rewindMs: Int) {
-    val samplesToTrim = sampleRate * rewindMs / 1000
-    var totalSamples = 0
-    for (buffer in buffers) totalSamples += buffer.size
-    val finalSamples = max(0, totalSamples - samplesToTrim)
-    val dataSize = finalSamples * 2L
-    val out = java.io.FileOutputStream(file)
-    writeWavHeader(out, dataSize, sampleRate, 1, 16)
-    var samplesWritten = 0
-    for (buffer in buffers) {
-      val samplesToWrite = kotlin.math.min(buffer.size, finalSamples - samplesWritten)
-      if (samplesToWrite <= 0) break
-      val byteBuffer = java.nio.ByteBuffer.allocate(samplesToWrite * 2)
-      byteBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN)
-      for (i in 0 until samplesToWrite) byteBuffer.putShort(buffer[i])
-      out.write(byteBuffer.array())
-      samplesWritten += samplesToWrite
-    }
-    out.flush(); out.close()
-  }
-
-  private fun writeWavHeader(out: java.io.FileOutputStream, dataSize: Long, sampleRate: Int, channels: Int, bitsPerSample: Int) {
-    val header = java.nio.ByteBuffer.allocate(44)
-    header.order(java.nio.ByteOrder.LITTLE_ENDIAN)
-    header.put("RIFF".toByteArray()); header.putInt((36 + dataSize).toInt()); header.put("WAVE".toByteArray())
-    header.put("fmt ".toByteArray()); header.putInt(16); header.putShort(1); header.putShort(channels.toShort())
-    header.putInt(sampleRate); header.putInt(sampleRate * channels * bitsPerSample / 8)
-    header.putShort((channels * bitsPerSample / 8).toShort()); header.putShort(bitsPerSample.toShort())
-    header.put("data".toByteArray()); header.putInt(dataSize.toInt())
-    out.write(header.array())
   }
 
   private fun startSegment(options: Map<String, Any?>?, promise: Promise) {
@@ -310,52 +282,109 @@ class MicrophoneEnergyModule : Module() {
       try {
         val prerollMs = (options?.get("prerollMs") as? Number)?.toInt() ?: 200
         val context = appContext.reactContext ?: throw Exception("Context not available")
-        val file = java.io.File(context.cacheDir, "segment_${java.util.UUID.randomUUID()}.wav")
-        segmentFile = file; segmentStartTime = System.currentTimeMillis()
+        // filesDir survives restarts, unlike cacheDir, so JS can resume an
+        // interrupted save from its journal.
+        val dir = java.io.File(context.filesDir, "recording-staging").also { it.mkdirs() }
+        val writer = SegmentWriter(java.io.File(dir, "segment_${java.util.UUID.randomUUID()}.wav"), sampleRate)
+        segmentStartTime = System.currentTimeMillis()
         synchronized(ringBuffer) {
           val maxPrerollBuffers = (prerollMs / (2048.0 / (sampleRate / 1000.0))).toInt()
           val buffersToWrite = kotlin.math.min(ringBuffer.size, maxPrerollBuffers)
-          segmentBuffers.clear()
-          for (entry in ringBuffer.takeLast(buffersToWrite)) segmentBuffers.add(entry.buffer)
+          for (entry in ringBuffer.takeLast(buffersToWrite)) writer.append(entry.buffer, 0)
         }
+        segmentWriter = writer
         isRecordingSegment = true; promise.resolve(null)
       } catch (e: Exception) {
         promise.reject("START_SEGMENT_ERROR", "Failed to start segment", e)
-        isRecordingSegment = false; segmentBuffers.clear(); segmentFile = null
+        isRecordingSegment = false; segmentWriter = null
       }
     }
   }
 
+  /** Manual stop: no rewind. The file completes off-thread and is announced by onSegmentComplete. */
   private fun stopSegment(promise: Promise) {
     synchronized(configLock) {
       if (!isRecordingSegment) { promise.resolve(null); return }
-      try {
-        isRecordingSegment = false; vadState = "IDLE"
-        val file = segmentFile; val startTime = segmentStartTime; val endTime = System.currentTimeMillis()
-        if (file != null) {
-          var totalSamples = 0
-          synchronized(segmentBuffers) { for (buffer in segmentBuffers) totalSamples += buffer.size }
-          val dataSize = totalSamples * 2L
-          val out = java.io.FileOutputStream(file)
-          writeWavHeader(out, dataSize, sampleRate, 1, 16)
-          synchronized(segmentBuffers) {
-            for (buffer in segmentBuffers) {
-              val byteBuffer = java.nio.ByteBuffer.allocate(buffer.size * 2)
-              byteBuffer.order(java.nio.ByteOrder.LITTLE_ENDIAN)
-              for (sample in buffer) byteBuffer.putShort(sample)
-              out.write(byteBuffer.array())
-            }
-          }
-          out.flush(); out.close()
-          val uri = "file://${file.absolutePath}"
-          sendEvent("onSegmentComplete", mapOf("uri" to uri, "startTime" to startTime.toDouble(), "endTime" to endTime.toDouble(), "duration" to (endTime - startTime).toDouble()))
-          promise.resolve(uri)
-        } else promise.resolve(null)
-        segmentFile = null; segmentBuffers.clear()
-      } catch (e: Exception) {
-        promise.reject("STOP_SEGMENT_ERROR", "Failed to stop segment", e)
-        segmentFile = null; segmentBuffers.clear()
-      }
+      isRecordingSegment = false; vadState = "IDLE"
+      val writer = segmentWriter
+      segmentWriter = null
+      finishSegment(writer, segmentStartTime, System.currentTimeMillis(), 0)
+      promise.resolve(writer?.uri)
     }
+  }
+}
+
+/**
+ * Streams one segment's PCM to a WAV file as buffers arrive. Only the last
+ * `keepSamples` stay in memory so a trailing trim is still possible; a long
+ * utterance costs disk, not RAM. The first write error is kept and rethrown
+ * by finish(), so a full disk is never a silent loss.
+ */
+class SegmentWriter(val file: java.io.File, private val sampleRate: Int) {
+  private val out = java.io.RandomAccessFile(file, "rw")
+  private val tail = ArrayDeque<ShortArray>()
+  private var tailSamples = 0
+  private var samplesWritten = 0
+  private var failure: Exception? = null
+  private var closed = false
+  val uri: String get() = "file://${file.absolutePath}"
+
+  init {
+    out.setLength(0)
+    out.write(wavHeader(0, sampleRate, 1, 16))
+  }
+
+  @Synchronized fun append(buffer: ShortArray, keepSamples: Int) {
+    if (closed) return
+    tail.addLast(buffer); tailSamples += buffer.size
+    while (tail.isNotEmpty() && tailSamples - tail.first().size >= keepSamples) {
+      val first = tail.removeFirst(); tailSamples -= first.size
+      write(first, first.size)
+    }
+  }
+
+  private fun write(buffer: ShortArray, samples: Int) {
+    if (failure != null || samples <= 0) return
+    try {
+      val bytes = java.nio.ByteBuffer.allocate(samples * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+      for (i in 0 until samples) bytes.putShort(buffer[i])
+      out.write(bytes.array()); samplesWritten += samples
+    } catch (e: Exception) { failure = e }
+  }
+
+  /** Flush the tail minus `trimSamples`, patch the header, close. */
+  @Synchronized fun finish(trimSamples: Int) {
+    if (closed) return
+    closed = true
+    try {
+      var remaining = max(0, tailSamples - trimSamples)
+      for (buffer in tail) {
+        val n = kotlin.math.min(buffer.size, remaining)
+        if (n <= 0) break
+        write(buffer, n); remaining -= n
+      }
+      tail.clear()
+      failure?.let { file.delete(); throw it }
+      out.seek(0)
+      out.write(wavHeader(samplesWritten * 2L, sampleRate, 1, 16))
+      out.fd.sync()
+    } finally { try { out.close() } catch (_: Exception) {} }
+  }
+
+  @Synchronized fun discard() {
+    closed = true; tail.clear()
+    try { out.close() } catch (_: Exception) {}
+    file.delete()
+  }
+
+  private fun wavHeader(dataSize: Long, sampleRate: Int, channels: Int, bitsPerSample: Int): ByteArray {
+    val header = java.nio.ByteBuffer.allocate(44)
+    header.order(java.nio.ByteOrder.LITTLE_ENDIAN)
+    header.put("RIFF".toByteArray()); header.putInt((36 + dataSize).toInt()); header.put("WAVE".toByteArray())
+    header.put("fmt ".toByteArray()); header.putInt(16); header.putShort(1); header.putShort(channels.toShort())
+    header.putInt(sampleRate); header.putInt(sampleRate * channels * bitsPerSample / 8)
+    header.putShort((channels * bitsPerSample / 8).toShort()); header.putShort(bitsPerSample.toShort())
+    header.put("data".toByteArray()); header.putInt(dataSize.toInt())
+    return header.array()
   }
 }

@@ -24,6 +24,10 @@ export class MemoryStore implements EventStore {
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
+  async pendingCount(orgId: string, projectId: string): Promise<number> {
+    return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
+  }
+
   async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
     return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected');
   }

@@ -1,8 +1,8 @@
 // Avatar U. Durable recording, full-screen VAD, then keep or redo.
 import { currentTake, deriveTakeStatus, isStored } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { AudioWaveform, Check, CloudCheck, CloudUpload, Mic, RotateCcw, Square } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { AudioWaveform, Check, CloudCheck, CloudUpload, Mic, RotateCcw, Save, Square } from 'lucide-react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
@@ -10,7 +10,7 @@ import { Header, Note, Screen } from '../pui';
 import { pendingPassageCards } from '../recordingFlow';
 import { colors, radius, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
-import { useRecorder, type RecordedCard } from '../useRecorder';
+import { useEnergyHistory, useRecorder, type RecordedCard } from '../useRecorder';
 import { taskFor } from './translate';
 
 export function QuestAssets(ctx: Ctx) {
@@ -21,35 +21,35 @@ export function QuestAssets(ctx: Ctx) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
-  const [history, setHistory] = useState<{ energy: number; captured: boolean }[]>(
-    () => Array.from({ length: 60 }, () => ({ energy: 0, captured: false }))
-  );
-  const recordingIds = useRef(new Map<string, string>());
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latest.current;
     const passage = taskFor(current);
     if (!passage) throw new Error('This passage is no longer available.');
-    const recordingId = recordingIds.current.get(card.ref.hash) ?? Crypto.randomUUID();
-    recordingIds.current.set(card.ref.hash, recordingId);
-    if (!current.project.state?.recordings[recordingId]) {
+    // card.id was chosen before the first save step, so a retry or a
+    // journal resume after restart finds the event already in the fold.
+    if (!current.project.state?.recordings[card.id]) {
       await current.project.append('v1.RecordingAdded', {
-        recordingId, unitId: passage.unitId, laneId: passage.laneId,
+        recordingId: card.id, unitId: passage.unitId, laneId: passage.laneId,
         kind: 'target', cards: [{ hash: card.ref.hash,
           durationMs: card.durationMs, format: card.ref.format }]
       });
     }
     current.project.triggerUpload();
   }, []);
-  const rec = useRecorder(persist);
-  useEffect(() => {
-    setHistory((bars) => [...bars.slice(1), {
-      energy: rec.energy, captured: rec.vadCapturing || rec.manualOn
-    }]);
-  }, [rec.energy, rec.vadCapturing, rec.manualOn]);
+  const rec = useRecorder(persist, task ? {
+    orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId: task.unitId, laneId: task.laneId
+  } : undefined);
+  // The fold mutates in place and useProject republishes a fresh top-level
+  // object after every change, so `state` identity is the revision: this
+  // project-wide scan reruns per change, not per render.
+  const actorId = ctx.session.actorId;
+  const pending = useMemo(
+    () => (state && task ? pendingPassageCards(state, task.unitId, task.laneId, actorId) : []),
+    [state, task?.unitId, task?.laneId, actorId]
+  );
   if (!state || !task) return <Note>Task not found.</Note>;
   const takeId = currentTake(state, task.unitId, task.laneId);
   const take = takeId ? state.takes[takeId] : undefined;
-  const pending = pendingPassageCards(state, task.unitId, task.laneId, ctx.session.actorId);
   const hashes = pending.length ? pending.map((c) => c.hash) : take?.cardHashes ?? [];
   const blocked = saving || rec.busy || rec.manualOn || rec.vadOn || rec.failureCount > 0;
   async function keep() {
@@ -107,8 +107,8 @@ export function QuestAssets(ctx: Ctx) {
       <Header title={title} onBack={blocked ? undefined : ctx.back} />
       {hashes.length && !rec.manualOn ? <Card>
         <AudioClip project={ctx.project} hashes={hashes} label="Play recorded passage" />
-        <View style={styles.row} accessible accessibilityLabel={hashes.every((h) => isStored(state, h)) ? 'Audio uploaded' : 'Audio saved locally'}>
-          {hashes.every((h) => isStored(state, h)) ? <CloudCheck color={colors.done} /> : <CloudUpload color={colors.mutedForeground} />}
+        <View style={styles.row} accessible accessibilityLabel={rec.busy ? 'Saving' : hashes.every((h) => isStored(state, h)) ? 'Backed up' : 'Saved on this device'}>
+          {rec.busy ? <Save color={colors.mutedForeground} /> : hashes.every((h) => isStored(state, h)) ? <CloudCheck color={colors.done} /> : <CloudUpload color={colors.mutedForeground} />}
           <Text style={text.small}>{hashes.length}</Text>
         </View>
       </Card> : null}
@@ -128,15 +128,22 @@ export function QuestAssets(ctx: Ctx) {
       {rec.failureCount ? <ActionButton icon={RotateCcw} accessibilityLabel="Retry saving recording" disabled={rec.busy} onPress={() => void rec.retryFailed()} /> : null}
       <Modal visible={rec.vadOn} animationType="none"
         onRequestClose={() => void rec.stopVad()}>
-        <VADTakeover rec={rec} history={history} count={pending.length} />
+        <VADTakeover rec={rec} count={pending.length} />
       </Modal>
     </Screen>
   );
 }
 
+/** The only thing that re-renders with the microphone. */
+function EnergyBars(props: { captured: boolean }) {
+  const history = useEnergyHistory(props.captured);
+  return <>{history.map((bar, index) => <View key={index}
+    style={[styles.bar, { opacity: bar.captured ? 1 : 0.3,
+      height: `${Math.max(1, Math.pow(Math.min(1, Math.max(0, bar.energy)), bar.captured ? 0.6 : 2.5) * 100)}%` }]} />)}</>;
+}
+
 function VADTakeover(props: {
   rec: ReturnType<typeof useRecorder>;
-  history: { energy: number; captured: boolean }[];
   count: number;
 }) {
   const { rec } = props;
@@ -173,9 +180,7 @@ function VADTakeover(props: {
           const next = Math.max(0.04, Math.min(0.92, cutoff + (event.nativeEvent.actionName === 'increment' ? 0.02 : -0.02)));
           setCutoff(next); commit(next);
         }}>
-        {props.history.map((bar, index) => <View key={index}
-          style={[styles.bar, { opacity: bar.captured ? 1 : 0.3,
-            height: `${Math.max(1, Math.pow(Math.min(1, Math.max(0, bar.energy)), bar.captured ? 0.6 : 2.5) * 100)}%` }]} />)}
+        <EnergyBars captured={rec.vadCapturing} />
         <View style={[styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
       </View>
       <View style={styles.controls}>

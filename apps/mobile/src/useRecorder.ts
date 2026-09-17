@@ -1,21 +1,24 @@
 import type { BlobRef } from '@langquest-next/core';
 import type { BlobFile } from './blobs';
-import {
-  AudioModule, RecordingPresets, setAudioModeAsync,
-  useAudioRecorder, useAudioRecorderState
-} from 'expo-audio';
+import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
+import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import MicrophoneEnergy, { type VADConfig } from '../modules/microphone-energy';
 import { getBlobStore } from './blobs';
+import { getRecordingJournal } from './recordingJournal';
+import type { JournalTarget } from './recordingJournalCore';
 
 export interface RecordedCard {
+  /** Stable id chosen before any save step; the handler uses it as recordingId. */
+  id: string;
   ref: BlobFile;
   durationMs: number;
   size: number;
 }
 export type RecorderCardHandler = (card: RecordedCard) => void | Promise<void>;
 interface PendingFile {
+  id: string;
   uri: string;
   format: BlobRef['format'];
   durationMs: number;
@@ -26,13 +29,24 @@ const BASE: VADConfig = {
   minSegmentDuration: 200, minActiveAudioDuration: 250
 };
 
-/** Serializes microphone startup, release and durable file delivery. */
-export function useRecorder(onCard: RecorderCardHandler) {
+/** Recorders with the microphone open or a save in progress, app-wide. */
+const activity = new Set<symbol>();
+/** Transfers and checkpoints defer while this is true. */
+export function isRecording(): boolean {
+  return activity.size > 0;
+}
+
+/**
+ * Serializes microphone startup, release and durable file delivery.
+ * `target` names the passage a delivered card belongs to; with it, a save
+ * interrupted at any stage is journaled and finished on the next launch
+ * (see recordingJournalCore.ts). Without it the journal still protects the
+ * file until the handler returns.
+ */
+export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget) {
   const recorder = useAudioRecorder({
     ...RecordingPresets.HIGH_QUALITY, directory: 'document'
   });
-  const recorderState = useAudioRecorderState(recorder, 100);
-  const [energy, setEnergy] = useState(0);
   const [vadOn, setVadOn] = useState(false);
   const [vadCapturing, setVadCapturing] = useState(false);
   const [manualOn, setManualOn] = useState(false);
@@ -44,6 +58,8 @@ export function useRecorder(onCard: RecorderCardHandler) {
   const mounted = useRef(true);
   const handler = useRef(onCard);
   handler.current = onCard;
+  const targetRef = useRef(target);
+  targetRef.current = target;
   const wanted = useRef(false);
   const active = useRef(false);
   const startedAt = useRef(0);
@@ -65,13 +81,21 @@ export function useRecorder(onCard: RecorderCardHandler) {
   const deliver = useCallback((file: PendingFile) => {
     work(1);
     queue.current = queue.current.then(async () => {
+      const journal = getRecordingJournal();
+      const base = { id: file.id, uri: file.uri, format: file.format,
+        durationMs: Math.round(file.durationMs), target: targetRef.current };
       try {
         if (!file.card) {
+          // Journal writes never block the audio: a failed note is a lost
+          // resume, not a lost recording.
+          await journal.put({ ...base, stage: 'recorded' }).catch(() => {});
           const store = await getBlobStore();
           const { ref, size } = await store.ingest(file.uri, file.format);
-          file.card = { ref, size, durationMs: Math.round(file.durationMs) };
+          file.card = { id: file.id, ref, size, durationMs: base.durationMs };
+          await journal.put({ ...base, stage: 'ingested', hash: ref.hash, size }).catch(() => {});
         }
         await handler.current(file.card);
+        await journal.remove(file.id).catch(() => {});
       } catch (e) {
         failures.current.push(file);
         if (mounted.current) setFailureCount(failures.current.length);
@@ -147,7 +171,7 @@ export function useRecorder(onCard: RecorderCardHandler) {
         const uri = recorder.uri;
         await MicrophoneEnergy.stopEnergyDetection().catch(fail);
         await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
-        if (uri && durationMs >= 200) await deliver({ uri, format: 'm4a', durationMs });
+        if (uri && durationMs >= 200) await deliver({ id: Crypto.randomUUID(), uri, format: 'm4a', durationMs });
       } catch (e) { fail(e); }
       finally { work(-1); }
     })();
@@ -202,6 +226,14 @@ export function useRecorder(onCard: RecorderCardHandler) {
     return start;
   }, [fail, stopVad, work]);
 
+  const busy = working > 0;
+  useEffect(() => {
+    if (!(manualOn || vadOn || busy)) return;
+    const token = Symbol('recorder');
+    activity.add(token);
+    return () => { activity.delete(token); };
+  }, [manualOn, vadOn, busy]);
+
   const retryFailed = useCallback(async () => {
     const files = failures.current.splice(0);
     setFailureCount(0);
@@ -212,12 +244,11 @@ export function useRecorder(onCard: RecorderCardHandler) {
   useEffect(() => {
     mounted.current = true;
     const subscriptions = [
-      MicrophoneEnergy.addListener('onEnergyResult', (e) => setEnergy(e.energy)),
       MicrophoneEnergy.addListener('onError', (e) => fail(e.message)),
       MicrophoneEnergy.addListener('onSegmentStart', () => setVadCapturing(true)),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
         setVadCapturing(false);
-        if (e.uri) void deliver({ uri: e.uri, format: 'wav', durationMs: e.duration });
+        if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
       })
     ];
     const appState = AppState.addEventListener('change', (state) => {
@@ -235,9 +266,29 @@ export function useRecorder(onCard: RecorderCardHandler) {
   }, [deliver, fail, manualUp, stopVad]);
 
   return {
-    energy, vadOn, vadCapturing, manualOn, error, pauseDuration, cutoff,
-    busy: working > 0, failureCount, retryFailed,
-    metering: recorderState.metering,
+    vadOn, vadCapturing, manualOn, error, pauseDuration, cutoff,
+    busy, failureCount, retryFailed,
     toggleVad, stopVad, setPause, setCutoff, manualDown, manualUp
   };
+}
+
+/**
+ * Live meter history for one small component. The native energy stream
+ * (about 20 events a second) lands here and nowhere else, so the screen
+ * around the meter does not re-render per frame; `captured` is the only
+ * input from outside and it changes rarely.
+ */
+export function useEnergyHistory(captured: boolean, bars = 60) {
+  const [history, setHistory] = useState<{ energy: number; captured: boolean }[]>(
+    () => Array.from({ length: bars }, () => ({ energy: 0, captured: false }))
+  );
+  const capturedRef = useRef(captured);
+  capturedRef.current = captured;
+  useEffect(() => {
+    const sub = MicrophoneEnergy.addListener('onEnergyResult', (e) => {
+      setHistory((h) => [...h.slice(1), { energy: e.energy, captured: capturedRef.current }]);
+    });
+    return () => sub.remove();
+  }, []);
+  return history;
 }

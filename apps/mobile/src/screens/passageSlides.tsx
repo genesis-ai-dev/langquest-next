@@ -8,7 +8,7 @@ import {
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Check, ChevronLeft, ChevronRight, Headphones, KeyRound, Mic, Pause, Play, RotateCcw } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import type { Ctx } from '../ctx';
@@ -140,8 +140,9 @@ export function PassageTerms(ctx: Ctx) {
   const saveLock = useRef(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const terms = state && task ? keyTermsForUnit(state, task.laneId, task.unitId) : [];
-  const allTerms = state && task ? keyTermsFor(state, task.laneId) : [];
+  // Keyed on `state` identity, the per-change revision (see recordings.tsx).
+  const terms = useMemo(() => (state && task ? keyTermsForUnit(state, task.laneId, task.unitId) : []), [state, task?.laneId, task?.unitId]);
+  const allTerms = useMemo(() => (state && task ? keyTermsFor(state, task.laneId) : []), [state, task?.laneId]);
   const hasAudio = (term: KeyTermView) => term.adjustments.some((a) => !!a.blobHash);
   const run = terms.filter((term) => !hasAudio(term));
   const completed = allTerms.filter(hasAudio).length;

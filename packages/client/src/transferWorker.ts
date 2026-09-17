@@ -12,12 +12,22 @@ import type { BlobRef } from '@langquest-next/core';
  * 6. Concurrency, debounce, periodic tick, drain/dirty re-entrancy.
  * 7. Stop while pulling, checked before every file.
  * 8. Offline: report, attempt nothing, keep backoff.
+ *
+ * Beyond the plan: `isDeferred` (recording in progress) pauses transfers
+ * exactly like a pull does, and an optional shared `TransferBudget` bounds
+ * the bytes every worker holds in memory at once, so several large files
+ * finishing together cannot spike a weak phone.
  */
 export interface TransferWorkerOptions {
   work: () => BlobRef[];
   transfer: (ref: BlobRef) => Promise<void>;
   isOnline: () => boolean;
   isPulling: () => boolean;
+  /** Something more important is running (recording); attempt nothing, report honestly. */
+  isDeferred?: () => boolean;
+  /** Shared across workers; `sizeOf` must be given with it. Unknown sizes count as one byte. */
+  budget?: TransferBudget;
+  sizeOf?: (ref: BlobRef) => number | undefined;
   concurrency: number;
   backoffMs: readonly number[];
   graceMs: number;
@@ -124,7 +134,7 @@ export class TransferWorker {
     for (const h of [...this.attempts.keys()]) if (!live.has(h)) this.attempts.delete(h);
     this.publish(list.length);
 
-    if (!this.o.isOnline() || this.o.isPulling()) return;
+    if (!this.o.isOnline() || this.o.isPulling() || this.o.isDeferred?.()) return;
 
     const now = this.now();
     const queue = list.filter((r) => (this.attempts.get(r.hash)?.nextAttemptAt ?? 0) <= now);
@@ -133,11 +143,17 @@ export class TransferWorker {
     const worker = async () => {
       for (;;) {
         // Re-check before pulling each file: a pull may have started mid-batch.
-        if (this.stopped || !this.o.isOnline() || this.o.isPulling()) return;
+        if (this.stopped || !this.o.isOnline() || this.o.isPulling() || this.o.isDeferred?.()) return;
         const ref = queue.shift();
         if (!ref) return;
+        const bytes = Math.max(1, this.o.sizeOf?.(ref) ?? 1);
         try {
-          await this.o.transfer(ref);
+          if (this.o.budget) await this.o.budget.acquire(bytes);
+          try {
+            await this.o.transfer(ref);
+          } finally {
+            this.o.budget?.release(bytes);
+          }
           // Success is not completion: only the server's confirmation removes
           // it from work(). Grace prevents hammering while that round-trips.
           this.attempts.set(ref.hash, { failures: 0, nextAttemptAt: this.now() + this.o.graceMs });
@@ -167,8 +183,38 @@ export class TransferWorker {
   }
 }
 
+/**
+ * Bytes-in-flight budget shared by every worker on a device. A transfer
+ * waits until its bytes fit, except that one transfer always proceeds when
+ * nothing else is in flight: a file larger than the budget must still move.
+ */
+export class TransferBudget {
+  private inFlight = 0;
+  private waiters: (() => void)[] = [];
+
+  constructor(readonly maxBytes: number) {}
+
+  bytesInFlight(): number {
+    return this.inFlight;
+  }
+
+  async acquire(bytes: number): Promise<void> {
+    while (this.inFlight > 0 && this.inFlight + bytes > this.maxBytes) {
+      await new Promise<void>((resolve) => this.waiters.push(resolve));
+    }
+    this.inFlight += bytes;
+  }
+
+  release(bytes: number): void {
+    this.inFlight = Math.max(0, this.inFlight - bytes);
+    const woken = this.waiters.splice(0);
+    for (const w of woken) w();
+  }
+}
+
+/** Start conservative (one upload, two downloads); tune on representative devices. */
 export const UPLOAD_DEFAULTS = {
-  concurrency: 4,
+  concurrency: 1,
   backoffMs: [30_000, 60_000, 300_000, 1_800_000],
   graceMs: 10 * 60_000,
   debounceMs: 2000,
@@ -176,9 +222,12 @@ export const UPLOAD_DEFAULTS = {
 } as const;
 
 export const DOWNLOAD_DEFAULTS = {
-  concurrency: 25,
+  concurrency: 2,
   backoffMs: [30_000, 120_000, 600_000],
   graceMs: 0,
   debounceMs: 500,
   tickMs: 60_000
 } as const;
+
+/** Files held in memory across all transfers at once: about two long WAV cards. */
+export const DEFAULT_TRANSFER_BUDGET_BYTES = 24 * 1024 * 1024;

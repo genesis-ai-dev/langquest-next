@@ -27,9 +27,11 @@ public class MicrophoneEnergyModule: Module {
     private let ringBufferMaxSize = 10
     
     private var isRecordingSegment = false
-    private var segmentFile: URL?
     private var segmentStartTime: TimeInterval = 0
-    private var segmentBuffers: [AVAudioPCMBuffer] = []
+    // Audio for the open segment streams to disk as it arrives; only the
+    // trimming window (half the pause) stays in memory. Touched only on
+    // wavWriteQueue after creation.
+    private var segmentWriter: SegmentWriter?
     // All WAV writes share one queue. Stop waits for this queue so the JS
     // promise cannot resolve before the final completion event is enqueued.
     private let wavWriteQueue = DispatchQueue(label: "langquest.microphone-energy.wav")
@@ -72,8 +74,9 @@ public class MicrophoneEnergyModule: Module {
     private func startEnergyDetection() async throws {
         if isActive { await stopEnergyDetectionInternal() }
         ringBuffer.removeAll()
-        segmentBuffers.removeAll()
-        segmentFile = nil
+        if let stale = segmentWriter { wavWriteQueue.async { stale.discard() } }
+        segmentWriter = nil
+        isRecordingSegment = false
         activeAudioTime = 0
         lastFrameTime = 0
         
@@ -260,7 +263,10 @@ public class MicrophoneEnergyModule: Module {
         ringBuffer.append(RingBufferEntry(buffer: bufferCopy, timestamp: now))
         if ringBuffer.count > ringBufferMaxSize { ringBuffer.removeFirst() }
         
-        if isRecordingSegment { segmentBuffers.append(bufferCopy) }
+        if isRecordingSegment, let writer = segmentWriter {
+            let keep = vadRewindHalfPause ? Int(sampleRate) * vadSilenceDuration / 2000 : 0
+            wavWriteQueue.async { writer.append(bufferCopy, keepSamples: keep) }
+        }
         if vadEnabled { handleVAD(rawPeak: normalizedAmplitude, now: now) }
         
         sendEvent("onEnergyResult", ["energy": normalizedAmplitude, "timestamp": now])
@@ -321,82 +327,42 @@ public class MicrophoneEnergyModule: Module {
         guard isRecordingSegment else { return }
         isRecordingSegment = false
         vadState = "IDLE"
+        let writer = segmentWriter
+        segmentWriter = nil
         
         // Check if enough active audio - discard transients/short sounds
         if activeAudioTime < TimeInterval(vadMinActiveAudioDuration) {
             print("VAD: Discarding segment - only \(Int(activeAudioTime))ms of active audio (min: \(vadMinActiveAudioDuration)ms)")
-            segmentBuffers.removeAll()
-            if let fileURL = segmentFile {
-                try? FileManager.default.removeItem(at: fileURL)  // Clean up temp file
-            }
-            segmentFile = nil
-            
+            wavWriteQueue.async { writer?.discard() }
             // Emit empty URI to notify JS that recording stopped but was discarded
             self.sendEvent("onSegmentComplete", ["uri": "", "duration": 0])
             return
         }
         
-        let buffersToWrite = segmentBuffers
-        let fileToWrite = segmentFile
         let startTime = segmentStartTime
         let endTime = Date().timeIntervalSince1970 * 1000
         let rewindMs = vadRewindHalfPause ? vadSilenceDuration / 2 : 0
-        
-        segmentBuffers.removeAll()
-        segmentFile = nil
-        
-        wavWriteQueue.async { [weak self] in
-            guard let self = self, let fileURL = fileToWrite else { return }
-            do {
-                try self.writeWavFileAsync(fileURL: fileURL, buffers: buffersToWrite, rewindMs: rewindMs)
-                let pathString = fileURL.path
-                let normalizedPath = pathString.hasPrefix("/") ? pathString : "/\(pathString)"
-                let uri = "file://\(normalizedPath)"
-                let duration = endTime - startTime - Double(rewindMs)
-                DispatchQueue.main.async {
-                    self.sendEvent("onSegmentComplete", ["uri": uri, "startTime": startTime, "endTime": endTime - Double(rewindMs), "duration": duration])
-                }
-            } catch {}
-        }
+        let trimSamples = Int(sampleRate) * rewindMs / 1000
+        finishSegment(writer, startTime: startTime, endTime: endTime - Double(rewindMs), trimSamples: trimSamples)
     }
     
-    private func writeWavFileAsync(fileURL: URL, buffers: [AVAudioPCMBuffer], rewindMs: Int) throws {
-        let samplesToTrim = Int(sampleRate) * rewindMs / 1000
-        var totalSamples = 0
-        for buffer in buffers { totalSamples += Int(buffer.frameLength) }
-        let finalSamples = max(0, totalSamples - samplesToTrim)
-        let dataSize = finalSamples * 2
-        
-        if !FileManager.default.fileExists(atPath: fileURL.path) {
-            FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
-        }
-        
-        let fileHandle = try FileHandle(forWritingTo: fileURL)
-        defer { try? fileHandle.close() }
-        try fileHandle.truncate(atOffset: 0)
-        try writeWAVHeader(fileHandle: fileHandle, dataSize: Int64(dataSize), sampleRate: Int(sampleRate), channels: 1, bitsPerSample: 16)
-        
-        var samplesWritten = 0
-        for buffer in buffers {
-            let frameLength = Int(buffer.frameLength)
-            let samplesToWrite = min(frameLength, finalSamples - samplesWritten)
-            if samplesToWrite <= 0 { break }
-            
-            if let int16Data = buffer.int16ChannelData {
-                let audioData = Data(bytes: int16Data.pointee, count: samplesToWrite * MemoryLayout<Int16>.size)
-                try fileHandle.write(contentsOf: audioData)
-            } else if let float32Data = buffer.floatChannelData {
-                var int16Samples = [Int16](repeating: 0, count: samplesToWrite)
-                for i in 0..<samplesToWrite {
-                    let clampedSample = max(-1.0, min(1.0, Double(float32Data.pointee[i])))
-                    int16Samples[i] = Int16(clampedSample * 32767.0)
+    /// Completes the file on the write queue. Every failure reaches JS as
+    /// onError with the file path, so a full disk is never a silent loss.
+    private func finishSegment(_ writer: SegmentWriter?, startTime: Double, endTime: Double, trimSamples: Int) {
+        guard let writer = writer else { return }
+        wavWriteQueue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                try writer.finish(trimSamples: trimSamples)
+                let uri = writer.uri
+                DispatchQueue.main.async {
+                    self.sendEvent("onSegmentComplete", ["uri": uri, "startTime": startTime, "endTime": endTime, "duration": endTime - startTime])
                 }
-                let audioData = Data(bytes: int16Samples, count: samplesToWrite * MemoryLayout<Int16>.size)
-                try fileHandle.write(contentsOf: audioData)
+            } catch {
+                let message = "Could not save recording (\(writer.url.lastPathComponent)): \(error.localizedDescription)"
+                DispatchQueue.main.async { self.sendEvent("onError", ["message": message]) }
             }
-            samplesWritten += samplesToWrite
         }
-        try fileHandle.synchronize()
     }
     
     private func startSegment(options: [String: Any?]?) throws {
@@ -406,80 +372,143 @@ public class MicrophoneEnergyModule: Module {
         if isRecordingSegment { return }
         
         let prerollMs = (options?["prerollMs"] as? NSNumber)?.intValue ?? 200
-        let tempDir = FileManager.default.temporaryDirectory
-        let fileName = "segment_\(UUID().uuidString).wav"
-        let fileURL = tempDir.appendingPathComponent(fileName)
+        let fileURL = SegmentWriter.stagingDirectory().appendingPathComponent("segment_\(UUID().uuidString).wav")
+        let writer = try SegmentWriter(url: fileURL, sampleRate: Int(sampleRate))
         
-        segmentFile = fileURL
         segmentStartTime = Date().timeIntervalSince1970 * 1000
         
         let maxPrerollBuffers = Int(Double(prerollMs) / (2048.0 / (sampleRate / 1000.0)))
         let buffersToWrite = min(ringBuffer.count, maxPrerollBuffers)
+        let preroll = ringBuffer.suffix(buffersToWrite).map { $0.buffer }
+        wavWriteQueue.async { for buffer in preroll { writer.append(buffer, keepSamples: 0) } }
         
-        segmentBuffers.removeAll()
-        for entry in ringBuffer.suffix(buffersToWrite) { segmentBuffers.append(entry.buffer) }
-        
+        segmentWriter = writer
         isRecordingSegment = true
     }
     
+    /// Manual stop: no rewind. The file completes on the write queue and is
+    /// announced by onSegmentComplete; callers drain the queue before
+    /// resolving so the event precedes the promise.
     private func stopSegment() throws -> String? {
         configLock.lock()
         defer { configLock.unlock() }
         guard isRecordingSegment else { return nil }
         isRecordingSegment = false
         vadState = "IDLE"
-        
-        guard let fileURL = segmentFile else {
-            segmentBuffers.removeAll()
-            return nil
-        }
-        
+        let writer = segmentWriter
+        segmentWriter = nil
         let startTime = segmentStartTime
         let endTime = Date().timeIntervalSince1970 * 1000
-        let duration = endTime - startTime
-        
-        var totalSamples = 0
-        for buffer in segmentBuffers { totalSamples += Int(buffer.frameLength) }
-        let dataSize = totalSamples * 2
-        
-        if !FileManager.default.fileExists(atPath: fileURL.path) {
-            FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
-        }
-        
-        let fileHandle = try FileHandle(forWritingTo: fileURL)
-        defer { try? fileHandle.close() }
-        try fileHandle.truncate(atOffset: 0)
-        try writeWAVHeader(fileHandle: fileHandle, dataSize: Int64(dataSize), sampleRate: Int(sampleRate), channels: 1, bitsPerSample: 16)
-        
-        for buffer in segmentBuffers {
-            let frameLength = Int(buffer.frameLength)
-            if let int16Data = buffer.int16ChannelData {
-                let audioData = Data(bytes: int16Data.pointee, count: frameLength * MemoryLayout<Int16>.size)
-                try fileHandle.write(contentsOf: audioData)
-            } else if let float32Data = buffer.floatChannelData {
-                var int16Samples = [Int16](repeating: 0, count: frameLength)
-                for i in 0..<frameLength {
-                    let clampedSample = max(-1.0, min(1.0, Double(float32Data.pointee[i])))
-                    int16Samples[i] = Int16(clampedSample * 32767.0)
-                }
-                let audioData = Data(bytes: int16Samples, count: frameLength * MemoryLayout<Int16>.size)
-                try fileHandle.write(contentsOf: audioData)
-            }
-        }
-        try fileHandle.synchronize()
-        
-        let pathString = fileURL.path
-        let normalizedPath = pathString.hasPrefix("/") ? pathString : "/\(pathString)"
-        let uri = "file://\(normalizedPath)"
-        
-        sendEvent("onSegmentComplete", ["uri": uri, "startTime": startTime, "endTime": endTime, "duration": duration])
-        
-        segmentFile = nil
-        segmentBuffers.removeAll()
-        return uri
+        finishSegment(writer, startTime: startTime, endTime: endTime, trimSamples: 0)
+        return writer?.uri
     }
     
-    private func writeWAVHeader(fileHandle: FileHandle, dataSize: Int64, sampleRate: Int, channels: Int, bitsPerSample: Int) throws {
+}
+
+/**
+ * Streams one segment's PCM to a WAV file as buffers arrive. Only the last
+ * `keepSamples` stay in memory so a trailing trim (half the pause) is still
+ * possible; everything older is already on disk. A long utterance costs
+ * disk, not RAM. The first write error is kept and rethrown by finish().
+ */
+final class SegmentWriter {
+    let url: URL
+    private let sampleRate: Int
+    private let handle: FileHandle
+    private var tail: [AVAudioPCMBuffer] = []
+    private var tailSamples = 0
+    private var samplesWritten = 0
+    private var failure: Error?
+    private var closed = false
+    
+    var uri: String {
+        let path = url.path
+        return "file://" + (path.hasPrefix("/") ? path : "/" + path)
+    }
+    
+    /// Documents/recording-staging: survives restarts, unlike tmp, so JS can
+    /// resume an interrupted save from its journal.
+    static func stagingDirectory() -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("recording-staging", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+    
+    init(url: URL, sampleRate: Int) throws {
+        self.url = url
+        self.sampleRate = sampleRate
+        guard FileManager.default.createFile(atPath: url.path, contents: nil, attributes: nil) else {
+            throw NSError(domain: "MicrophoneEnergy", code: 5, userInfo: [NSLocalizedDescriptionKey: "Could not create \(url.lastPathComponent)"])
+        }
+        handle = try FileHandle(forWritingTo: url)
+        try SegmentWriter.writeWAVHeader(fileHandle: handle, dataSize: 0, sampleRate: sampleRate, channels: 1, bitsPerSample: 16)
+    }
+    
+    func append(_ buffer: AVAudioPCMBuffer, keepSamples: Int) {
+        guard !closed else { return }
+        tail.append(buffer)
+        tailSamples += Int(buffer.frameLength)
+        while let first = tail.first, tailSamples - Int(first.frameLength) >= keepSamples {
+            tail.removeFirst()
+            tailSamples -= Int(first.frameLength)
+            write(first, samples: Int(first.frameLength))
+        }
+    }
+    
+    private func write(_ buffer: AVAudioPCMBuffer, samples: Int) {
+        guard failure == nil, samples > 0 else { return }
+        do {
+            try handle.write(contentsOf: SegmentWriter.pcm16(buffer, samples: samples))
+            samplesWritten += samples
+        } catch { failure = error }
+    }
+    
+    /// Flush the tail minus `trimSamples`, patch the header, close.
+    func finish(trimSamples: Int) throws {
+        guard !closed else { return }
+        closed = true
+        defer { try? handle.close() }
+        var remaining = max(0, tailSamples - trimSamples)
+        for buffer in tail {
+            let n = min(Int(buffer.frameLength), remaining)
+            if n <= 0 { break }
+            write(buffer, samples: n)
+            remaining -= n
+        }
+        tail.removeAll()
+        if let error = failure {
+            try? FileManager.default.removeItem(at: url)
+            throw error
+        }
+        try handle.seek(toOffset: 0)
+        try SegmentWriter.writeWAVHeader(fileHandle: handle, dataSize: Int64(samplesWritten * 2), sampleRate: sampleRate, channels: 1, bitsPerSample: 16)
+        try handle.synchronize()
+    }
+    
+    func discard() {
+        closed = true
+        tail.removeAll()
+        try? handle.close()
+        try? FileManager.default.removeItem(at: url)
+    }
+    
+    private static func pcm16(_ buffer: AVAudioPCMBuffer, samples: Int) -> Data {
+        if let int16Data = buffer.int16ChannelData {
+            return Data(bytes: int16Data.pointee, count: samples * MemoryLayout<Int16>.size)
+        }
+        if let float32Data = buffer.floatChannelData {
+            var int16Samples = [Int16](repeating: 0, count: samples)
+            for i in 0..<samples {
+                let clampedSample = max(-1.0, min(1.0, Double(float32Data.pointee[i])))
+                int16Samples[i] = Int16(clampedSample * 32767.0)
+            }
+            return Data(bytes: int16Samples, count: samples * MemoryLayout<Int16>.size)
+        }
+        return Data()
+    }
+    
+    private static func writeWAVHeader(fileHandle: FileHandle, dataSize: Int64, sampleRate: Int, channels: Int, bitsPerSample: Int) throws {
         var header = Data()
         header.append("RIFF".data(using: .ascii)!)
         header.append(contentsOf: withUnsafeBytes(of: UInt32(36 + dataSize).littleEndian) { Data($0) })

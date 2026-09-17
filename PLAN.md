@@ -464,9 +464,14 @@ below was earned in production there.
 5. **Backoff ladder, never terminal.** Upload 30 s, 1 m, 5 m, 30 m cap;
    download 30 s, 2 m, 10 m cap. Failure counts survive a trigger; only the
    wait is cleared.
-6. **Pacing.** Upload concurrency 4, download 25. Debounce 2 s up, 0.5 s down.
-   A 60 s periodic tick as the catch-all. Re-entrancy via a draining/dirty
-   flag so a signal mid-pass schedules exactly one more pass.
+6. **Pacing.** Upload concurrency 1, download 2, plus a shared bytes-in-flight
+   budget (`TransferBudget`, 24 MB) across every worker on the device; v2 ran
+   4 and 25 with whole files in memory, which is the peak-memory risk on a
+   weak phone. Tune upward only from measurements on a representative
+   device. Debounce 2 s up, 0.5 s down. A 60 s periodic tick as the
+   catch-all. Re-entrancy via a draining/dirty flag so a signal mid-pass
+   schedules exactly one more pass. Transfers also pause while the
+   microphone is open or a recording is being saved (`isDeferred`).
 7. **Stop while pulling.** No transfers while a pull is in progress, and the
    check repeats before each file inside a batch: a batch of thousands of
    stale entries after an upgrade must end early, not run to completion on a
@@ -490,9 +495,17 @@ below was earned in production there.
     server and files on disk, never client counters, so the same harness
     works across rewrites.
 
-Known v2 gaps to close here: no cache eviction policy, and no server-side
-garbage collection of blobs nothing references (a redacted recording's
-blobs stay in the bucket until that exists).
+Cache eviction (closing a v2 gap): the device keeps 500 MB free for
+recording and caps the blob cache at 2 GB. Only files core `evictableBlobs`
+names may go: referenced by this project, confirmed intact on the server,
+outside the offline scope, and not upload work. Unsynced recordings, kept
+units, and other projects' files are never touched. Downloads land in a
+`.part` staging name and are renamed only after their hash matches;
+startup deletes leftover staging files.
+
+Known v2 gap still open: no server-side garbage collection of blobs nothing
+references (a redacted recording's blobs stay in the bucket until that
+exists).
 
 Load harness: `npm run loadtest -- 100000` folds a synthetic Bible-scale log.
 On a laptop, 100k events replay in 0.2 to 1.3 s with a 13 MB snapshot

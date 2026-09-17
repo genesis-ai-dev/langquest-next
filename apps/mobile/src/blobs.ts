@@ -6,9 +6,17 @@ import { Directory, File, Paths } from 'expo-file-system';
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
  * The on-disk path is a pure function of the hash; no table maps names to
  * paths. The index is built from one directory listing at startup and kept
- * current additively by every writer. Nothing here deletes.
+ * current additively by every writer.
+ *
+ * A file at its final name is trusted because only two writers create one,
+ * and both hash first: `ingest` hashes before naming, and downloads land in
+ * a `.part` staging name that is renamed only after its hash matches.
+ * Startup discards leftover staging files, so an interrupted download can
+ * never be mistaken for a verified one. Deletion happens only in `reclaim`,
+ * and only for files the caller has proven the server can give back.
  */
 const DIR_NAME = 'blobs';
+const STAGING_SUFFIX = '.part';
 
 /** What the store needs to name a file; the unit is sync's concern, not disk's. */
 export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
@@ -28,6 +36,11 @@ export class BlobStore {
     if (!this.dir.exists) this.dir.create({ intermediates: true, idempotent: true });
     for (const entry of this.dir.list()) {
       if (entry instanceof File) {
+        if (entry.name.endsWith(STAGING_SUFFIX)) {
+          // An unfinished download from before the last exit. Never trusted.
+          try { entry.delete(); } catch { /* retried next launch */ }
+          continue;
+        }
         const hash = entry.name.split('.')[0];
         if (hash) {
           this.present.add(hash);
@@ -40,6 +53,17 @@ export class BlobStore {
   /** Byte sizes of present files, for the size check against confirmations. */
   sizes(): ReadonlyMap<string, number> {
     return new Map(this.sizeByHash);
+  }
+
+  sizeOf(hash: string): number | undefined {
+    return this.sizeByHash.get(hash);
+  }
+
+  /** Bytes on disk across every present file. */
+  totalBytes(): number {
+    let total = 0;
+    for (const n of this.sizeByHash.values()) total += n;
+    return total;
   }
 
   /** SHA-256 hex of bytes: the name a file must have to be trusted. */
@@ -61,6 +85,48 @@ export class BlobStore {
 
   fileFor(ref: BlobFile): File {
     return new File(this.dir, `${ref.hash}.${ref.format}`);
+  }
+
+  /** Where a download lands before its bytes are verified. */
+  stagingFor(ref: BlobFile): File {
+    return new File(this.dir, `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
+  }
+
+  /**
+   * Promote a verified staging file to its trusted name (an atomic rename on
+   * the same volume) and index it. Callers verify first; this does not.
+   */
+  commitStaged(ref: BlobFile, size: number): void {
+    const staged = this.stagingFor(ref);
+    const dest = this.fileFor(ref);
+    if (dest.exists) staged.delete();
+    else staged.move(dest);
+    this.markPresent(ref.hash, size);
+  }
+
+  /**
+   * Delete files from `evictable` until at least `minFreeBytes` is free on
+   * the volume and the store holds at most `maxTotalBytes`. The caller
+   * decides eligibility (core `evictableBlobs`); this only does the disk
+   * work, largest first so the fewest files go.
+   */
+  reclaim(evictable: readonly BlobFile[], opts: { minFreeBytes: number; maxTotalBytes: number }): string[] {
+    const removed: string[] = [];
+    const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
+    for (const ref of bySize) {
+      if (Paths.availableDiskSpace >= opts.minFreeBytes && this.totalBytes() <= opts.maxTotalBytes) break;
+      if (!this.present.has(ref.hash)) continue;
+      try {
+        this.fileFor(ref).delete();
+      } catch {
+        continue;
+      }
+      this.present.delete(ref.hash);
+      this.sizeByHash.delete(ref.hash);
+      removed.push(ref.hash);
+    }
+    if (removed.length) for (const l of this.listeners) l();
+    return removed;
   }
 
   uriFor(ref: BlobFile): string | null {

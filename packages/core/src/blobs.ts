@@ -159,3 +159,27 @@ export function defaultOfflineScope(state: ProjectState, actorId: string): Set<s
 export function deriveMissingBlobs(state: ProjectState, present: ReadonlySet<string>): BlobRef[] {
   return [...referencedBlobs(state).values()].filter((r) => !isStored(state, r.hash) && !present.has(r.hash));
 }
+
+/**
+ * Local files this device may delete to reclaim space: referenced by this
+ * project, confirmed intact on the server (so they can come back), outside
+ * the offline scope, and not upload work. Everything else is protected:
+ * unsynced recordings, explicit offline selections, and files of other
+ * projects (which this state cannot see, so it never names them).
+ */
+export function evictableBlobs(
+  state: ProjectState,
+  present: ReadonlySet<string>,
+  scope: ReadonlySet<string> | null,
+  localSizes?: ReadonlyMap<string, number>
+): BlobRef[] {
+  const needed = new Set(deriveDownloadWork(state, new Set(), scope).map((r) => r.hash));
+  const uploading = new Set(deriveUploadWork(state, present, localSizes).map((r) => r.hash));
+  const out: BlobRef[] = [];
+  for (const ref of referencedBlobs(state).values()) {
+    if (!present.has(ref.hash) || !isStored(state, ref.hash)) continue;
+    if (needed.has(ref.hash) || uploading.has(ref.hash)) continue;
+    out.push(ref);
+  }
+  return out;
+}
