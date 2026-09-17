@@ -32,13 +32,26 @@ else
 fi
 
 # 2. Local migrations versus what the hosted project has applied.
-#    `migration list` prints one row per version: LOCAL | REMOTE | TIME.
-list=$(npx supabase migration list --linked 2>/dev/null | sed -n '/^ *[0-9]/p' || true)
+#    Piped, the CLI prints JSON: {"migrations":[{"local","remote","time"}]}.
+list=$(npx supabase migration list --linked 2>/dev/null | node -e '
+  // Piped, the CLI prints JSON; some versions print a table with
+  // backticked cells. Accept both. One line per row: "<local|-> <remote|->".
+  let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", () => {
+    const start = d.indexOf("{\"migrations\"");
+    if (start >= 0) {
+      for (const r of JSON.parse(d.slice(start)).migrations ?? []) console.log(`${r.local || "-"} ${r.remote || "-"}`);
+      return;
+    }
+    for (const line of d.split("\n")) {
+      const cells = line.split("|").map((c) => c.replace(/`/g, "").trim());
+      if (cells.length >= 2 && /^\d+$/.test(cells[0] + cells[1])) console.log(`${cells[0] || "-"} ${cells[1] || "-"}`);
+    }
+  });' || true)
 if [ -z "$list" ]; then
-  bad "could not read remote migrations for $ref (not logged in? run: npx supabase login)"
+  bad "could not read remote migrations for $ref (run: npx supabase login)"
 else
-  unapplied=$(echo "$list" | awk -F'|' '$1 ~ /[0-9]/ && $2 !~ /[0-9]/ {gsub(/ /,"",$1); print $1}')
-  missing=$(echo "$list"   | awk -F'|' '$1 !~ /[0-9]/ && $2 ~ /[0-9]/ {gsub(/ /,"",$2); print $2}')
+  unapplied=$(echo "$list" | awk '$1 != "-" && $2 == "-" {print $1}')
+  missing=$(echo "$list"   | awk '$1 == "-" && $2 != "-" {print $2}')
   if [ -n "$missing" ]; then
     bad "applied on $ref but not in this branch (drift, or you are behind main):"
     printf '    %s\n' $missing
