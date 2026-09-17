@@ -52,7 +52,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element> = {
   reference_home: Config.ReferenceHome, key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
   flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
-  org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm
+  org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, sync_status: Account.SyncStatus
 };
 
 /**

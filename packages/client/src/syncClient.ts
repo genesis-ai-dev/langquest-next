@@ -10,7 +10,7 @@ import {
   type Snapshot,
   HlcClock
 } from '@langquest-next/core';
-import type { EventStore, LocalEvent, Transport } from './types';
+import type { EventStore, LocalEvent, SyncInspection, Transport } from './types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
 import { fetchSnapshot } from './snapshotFetch';
 
@@ -516,6 +516,19 @@ export class SyncClient<S = ProjectState> {
       if (err instanceof NotAuthorizedError) return { ...idle, refused: err.message };
       throw err;
     }
+  }
+
+  /** The local log as the sync status screen shows it. */
+  async inspect(): Promise<SyncInspection> {
+    const { orgId, projectId } = this.opts;
+    const [pending, rejected, all, cursor, snap] = await Promise.all([
+      this.opts.store.pending(orgId, projectId),
+      this.opts.store.rejected(orgId, projectId),
+      this.opts.store.all(orgId, projectId),
+      this.opts.store.cursor(orgId, projectId),
+      this.localSnapshot()
+    ]);
+    return { pending, rejected, total: all.length, cursor, checkpointSeq: snap?.serverSeq ?? null };
   }
 
   async pendingCount(): Promise<number> {

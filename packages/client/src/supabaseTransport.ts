@@ -1,6 +1,6 @@
 import { CLIENT_PROTOCOL_VERSION, type AnyEvent } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppendResult, SnapshotMeta, Transport } from './types';
+import type { AppendResult, SnapshotMeta, Transport, WatchHandlers } from './types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError } from './types';
 
 interface EventRow {
@@ -52,6 +52,22 @@ export class SupabaseTransport implements Transport {
     });
     if (error) throw toError(error);
     return (data as string | null) ?? null;
+  }
+
+  /**
+   * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
+   * an empty poke on `events:<org>/<project>` after every insert. The
+   * channel is public because the poke says only that the partition moved;
+   * the events themselves still come through the RPC and its checks.
+   */
+  watch(orgId: string, projectId: string, handlers: WatchHandlers): () => void {
+    const channel = this.supabase
+      .channel(`events:${orgId}/${projectId}`, { config: { private: false } })
+      .on('broadcast', { event: 'appended' }, () => handlers.onPoke())
+      .subscribe((status) => handlers.onStatus(status === 'SUBSCRIBED'));
+    return () => {
+      void this.supabase.removeChannel(channel);
+    };
   }
 
   async pull(orgId: string, projectId: string, after: number, limit: number): Promise<AnyEvent[]> {

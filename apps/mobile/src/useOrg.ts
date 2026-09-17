@@ -1,4 +1,4 @@
-import { SupabaseTransport, SyncClient, ensureDeviceId, type Materializer } from '@langquest-next/client';
+import { SupabaseTransport, SyncClient, SyncScheduler, ensureDeviceId, type Materializer, type SyncInspection } from '@langquest-next/client';
 import { applyOrgEvent, emptyOrgState, foldOrg, ORG_PARTITION, REDUCER_VERSION, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,6 +10,8 @@ export interface OrgHandle {
   pending: number;
   append: <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => Promise<void>;
   sync: () => Promise<void>;
+  live: boolean;
+  inspect: () => Promise<SyncInspection | null>;
 }
 
 const ORG_MATERIALIZER: Materializer<OrgState> = {
@@ -22,8 +24,6 @@ const ORG_MATERIALIZER: Materializer<OrgState> = {
   version: REDUCER_VERSION
 };
 
-const SYNC_INTERVAL_MS = 15_000;
-
 /**
  * The organization partition on this device (docs/flow-coverage-audit.md
  * 5.A): roles, memberships, catalog toggles, project list. Same sync
@@ -33,6 +33,9 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   const clientRef = useRef<SyncClient<OrgState> | null>(null);
   const [state, setState] = useState<OrgState | null>(null);
   const [pending, setPending] = useState(0);
+  const [live, setLive] = useState(false);
+  const schedulerRef = useRef<SyncScheduler | null>(null);
+  const onlineRef = useRef<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     const c = clientRef.current;
@@ -48,6 +51,7 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
     let changed = true;
     try {
       const r = await c.sync();
+      onlineRef.current = !r.offline;
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
     } catch {
       // Offline or refused: state is whatever the local log says. Honest and quiet.
@@ -57,9 +61,11 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
 
   useEffect(() => {
     let cancelled = false;
+    let unwatch = () => {};
     (async () => {
       const store = await getStore();
       const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
+      const transport = new SupabaseTransport(supabase);
       const client = new SyncClient<OrgState>({
         materializer: ORG_MATERIALIZER,
         orgId,
@@ -67,19 +73,28 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
         actorId,
         deviceId,
         store,
-        transport: new SupabaseTransport(supabase),
+        transport,
         newId: () => Crypto.randomUUID()
       });
       await client.load();
       if (cancelled) return;
       clientRef.current = client;
+      const scheduler = new SyncScheduler({
+        run: async () => { await sync(); return { offline: onlineRef.current === false }; }
+      });
+      schedulerRef.current = scheduler;
+      unwatch = transport.watch(orgId, ORG_PARTITION, {
+        onPoke: () => scheduler.nudge(),
+        onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
+      });
       await refresh();
-      await sync();
+      scheduler.start();
     })();
-    const timer = setInterval(() => void sync(), SYNC_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      unwatch();
+      schedulerRef.current?.stop();
+      schedulerRef.current = null;
       clientRef.current = null;
     };
   }, [orgId, actorId, refresh, sync]);
@@ -92,9 +107,11 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
       setState({ ...c.getState() });
       await written;
       await refresh();
+      schedulerRef.current?.nudge();
     },
     [refresh]
   );
 
-  return { state, pending, append, sync };
+  const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
+  return { state, pending, append, sync, live, inspect };
 }

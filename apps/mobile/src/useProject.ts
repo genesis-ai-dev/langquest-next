@@ -1,9 +1,10 @@
-import { DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId } from '@langquest-next/client';
+import { DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
 import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, type BlobRef, type EventPayloads, type EventType, type ProjectState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { RateMeter } from './rate';
 import { getStore } from './store';
 import { supabase } from './supabase';
 
@@ -27,9 +28,18 @@ export interface ProjectHandle {
    */
   refused: string | null;
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
+  /** The realtime channel is up: appends elsewhere reach this phone in seconds. */
+  live: boolean;
+  /** The local log as the sync screen shows it; null before load. */
+  inspect: () => Promise<SyncInspection | null>;
   blobs: {
     pendingUp: number;
     pendingDown: number;
+    /** Highest pending count since the queue was last empty: the bar's denominator. */
+    peakUp: number;
+    peakDown: number;
+    /** Bytes per second over the last ten seconds. */
+    rates: () => { up: number; down: number };
     uriFor: (ref: BlobFile) => string | null;
     store: BlobStore | null;
     keptUnits: ReadonlySet<string>;
@@ -42,8 +52,6 @@ export interface ProjectHandle {
   appendMany: <T extends EventType>(items: { type: T; payload: EventPayloads[T] }[]) => Promise<void>;
   sync: () => Promise<void>;
 }
-
-const SYNC_INTERVAL_MS = 15_000;
 
 /**
  * Owns one SyncClient for one project on this device. Screens read `state`
@@ -62,6 +70,12 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const keepKey = `keep:${orgId}/${projectId}`;
   const [pendingUp, setPendingUp] = useState(0);
   const [pendingDown, setPendingDown] = useState(0);
+  const [peakUp, setPeakUp] = useState(0);
+  const [peakDown, setPeakDown] = useState(0);
+  const [live, setLive] = useState(false);
+  const schedulerRef = useRef<SyncScheduler | null>(null);
+  const upMeter = useRef(new RateMeter());
+  const downMeter = useRef(new RateMeter());
   const storeRef = useRef<BlobStore | null>(null);
   const upRef = useRef<TransferWorker | null>(null);
   const downRef = useRef<TransferWorker | null>(null);
@@ -128,13 +142,14 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       const kept = new Set<string>(JSON.parse((await store.meta(keepKey)) || '[]') as string[]);
       keptRef.current = kept;
       setKeptUnits(kept);
+      const transport = new SupabaseTransport(supabase);
       const client = new SyncClient({
         orgId,
         projectId,
         actorId,
         deviceId,
         store,
-        transport: new SupabaseTransport(supabase),
+        transport,
         // Hermes has no global crypto.randomUUID.
         newId: () => Crypto.randomUUID()
       });
@@ -153,8 +168,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         ...common,
         // Size from the confirmation versus the file here: a mismatch reopens the upload.
         work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
-        transfer: (ref) => uploadBlob(orgId, projectId, ref, blobStore),
-        onChange: setPendingUp
+        transfer: (ref) => metered(upMeter.current, blobStore, ref, () => uploadBlob(orgId, projectId, ref, blobStore)),
+        onChange: (n) => { setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       const down = new TransferWorker({
         ...DOWNLOAD_DEFAULTS,
@@ -166,8 +181,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
           for (const u of keptRef.current) scope.add(u);
           return deriveDownloadWork(client.getState(), blobStore.snapshot(), scope);
         },
-        transfer: (ref) => downloadBlob(orgId, projectId, ref, blobStore),
-        onChange: setPendingDown
+        transfer: (ref) => metered(downMeter.current, blobStore, ref, () => downloadBlob(orgId, projectId, ref, blobStore)),
+        onChange: (n) => { setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       upRef.current = up;
       downRef.current = down;
@@ -177,19 +192,30 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         up.nudge();
         down.nudge();
       });
+      // Sync on a poke from the server, after a local append, and on a
+      // fallback poll that backs off while offline (SyncScheduler).
+      const scheduler = new SyncScheduler({
+        run: async () => { await sync(); return { offline: onlineRef.current === false }; }
+      });
+      schedulerRef.current = scheduler;
+      const unwatch = transport.watch(orgId, projectId, {
+        onPoke: () => scheduler.nudge(),
+        onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
+      });
       cleanupBlobs = () => {
         unsub();
         up.stop();
         down.stop();
+        unwatch();
+        scheduler.stop();
+        schedulerRef.current = null;
       };
 
       await refresh();
-      await sync();
+      scheduler.start();
     })();
-    const timer = setInterval(() => void sync(), SYNC_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
       cleanupBlobs();
       clientRef.current = null;
       upRef.current = null;
@@ -205,6 +231,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       setState({ ...c.getState() });
       await written;
       await refresh();
+      schedulerRef.current?.nudge();
     },
     [refresh]
   );
@@ -217,6 +244,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       setState({ ...c.getState() });
       await written;
       await refresh();
+      schedulerRef.current?.nudge();
     },
     [refresh]
   );
@@ -241,9 +269,19 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     uriFor: (ref: BlobFile) => storeRef.current?.uriFor(ref) ?? null,
     store: storeRef.current,
     keptUnits,
-    keepOffline
+    keepOffline,
+    peakUp,
+    peakDown,
+    rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() })
   };
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
+  const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, blobs, triggerUpload, append, appendMany, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, inspect, blobs, triggerUpload, append, appendMany, sync };
+}
+
+/** Time one transfer and credit its bytes to the meter once it succeeds. */
+async function metered(meter: RateMeter, store: BlobStore, ref: BlobRef, run: () => Promise<void>): Promise<void> {
+  await run();
+  meter.add(store.sizes().get(ref.hash) ?? 0);
 }

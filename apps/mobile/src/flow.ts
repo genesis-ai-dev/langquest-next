@@ -29,7 +29,7 @@ export const SCREEN_IDS = [
   // Notifications
   'inbox_home',
   // Settings
-  'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm'
+  'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'sync_status'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -53,7 +53,7 @@ export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
   key_terms: 'P', key_term_detail: 'P', flows_home: 'P', flow_editor: 'P',
   quest_assets: 'U', add_to_tg: 'U', passage_references: 'U', passage_terms: 'U',
   inbox_home: 'P',
-  settings_home: 'P', profile_edit: 'P', org_switcher: 'P', sign_out_confirm: 'U'
+  settings_home: 'P', profile_edit: 'P', org_switcher: 'P', sign_out_confirm: 'U', sync_status: 'U'
 };
 
 /**
@@ -238,6 +238,9 @@ export const EDGES: Edge[] = [
   e('settings_home', 'org_switcher'),
   e('settings_home', 'walkthrough'),
   e('settings_home', 'sign_out_confirm'),
+  e('settings_home', 'sync_status'),
+  e('assignments_home', 'sync_status'),
+  e('sync_status', 'settings_home', 'back'),
   e('profile_edit', 'settings_home', 'back'),
   e('org_switcher', 'settings_home', 'back'),
   e('sign_out_confirm', 'sign_in', 'reset'),
@@ -276,5 +279,6 @@ export const TITLES: Record<ScreenId, string> = {
   quest_assets: 'Recordings', add_to_tg: 'Add to TG',
   passage_references: 'Listen', passage_terms: 'Record key terms',
   inbox_home: 'Inbox',
-  settings_home: 'Settings', profile_edit: 'Profile', org_switcher: 'Organizations', sign_out_confirm: 'Sign out'
+  settings_home: 'Settings', profile_edit: 'Profile', org_switcher: 'Organizations', sign_out_confirm: 'Sign out',
+  sync_status: 'Sync'
 };

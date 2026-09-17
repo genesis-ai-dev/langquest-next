@@ -35,7 +35,8 @@ export function AssignmentsHome(ctx: Ctx) {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.statusRow}>
-          <View style={styles.statusChip} accessibilityLabel={ctx.project.tooOld ? 'Update the app to sync' : ctx.project.lastSync}>
+          <Pressable onPress={() => ctx.go('sync_status')} hitSlop={8} accessibilityRole="button" style={styles.statusChip}
+            accessibilityLabel={ctx.project.tooOld ? 'Update the app to sync' : `Sync: ${ctx.project.lastSync}`}>
             {ctx.project.tooOld ? (
               // The server no longer accepts this app version. Work is safe
               // locally; nothing syncs until the app is updated.
@@ -51,7 +52,8 @@ export function AssignmentsHome(ctx: Ctx) {
             ) : (
               <CloudCheck size={16} color={colors.done} />
             )}
-          </View>
+            {ctx.project.live ? <View style={styles.liveDot} /> : null}
+          </Pressable>
           <View style={{ flexDirection: 'row', gap: space.lg }}>
             <Pressable onPress={() => ctx.go('inbox_home')} hitSlop={8} accessibilityLabel="Inbox">
               <Inbox size={18} color={colors.mutedForeground} />
@@ -300,6 +302,7 @@ const styles = StyleSheet.create({
   pad: { padding: space.lg },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   statusChip: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.done },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   filters: { flexDirection: 'row', gap: space.sm },

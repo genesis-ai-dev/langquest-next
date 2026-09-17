@@ -24,8 +24,8 @@ describe('UX flow coverage', () => {
       expect(TITLES[id as keyof typeof TITLES], id).toBeTruthy();
       expect(AVATAR[id as keyof typeof AVATAR], id).toMatch(/^[UP]$/);
     }
-    expect(SCREEN_IDS.length).toBe(SPEC_SCREENS.length + 2);
-    for (const id of ['passage_references', 'passage_terms'] as const) {
+    expect(SCREEN_IDS.length).toBe(SPEC_SCREENS.length + 3);
+    for (const id of ['passage_references', 'passage_terms', 'sync_status'] as const) {
       expect(AVATAR[id]).toBe('U');
       expect(TITLES[id]).toBeTruthy();
     }

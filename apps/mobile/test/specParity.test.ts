@@ -28,7 +28,9 @@ const APP_ONLY: Record<string, string> = {
   'flows_home->flow_editor': 'stage editing from the catalog; spec opens flow_editor from review_groups only',
   'review_teams->flow_editor': 'spec org-setup.flow.md review_groups_open_flow (review_teams is the renamed screen)',
   'inbox_home->translate_passage': 'the inbox lists open tasks; tapping one must open it (spec inbox only reaches edit_member)',
-  'inbox_home->review_passage': 'the inbox lists open review tasks; tapping one must open it'
+  'inbox_home->review_passage': 'the inbox lists open review tasks; tapping one must open it',
+  'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
+  'assignments_home->sync_status': 'the cloud chip on My Work opens the sync status screen'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -40,7 +42,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set includes the documented oral-workflow extension', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'passage_references', 'passage_terms'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'passage_references', 'passage_terms', 'sync_status'].sort());
   });
 
   it('every spec transition exists in the app with the same nav mode and gate', () => {

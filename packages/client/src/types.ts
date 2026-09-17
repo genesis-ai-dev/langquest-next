@@ -47,6 +47,26 @@ export interface Transport {
   snapshotMeta(orgId: string, projectId: string, reducerVersion: number): Promise<SnapshotMeta | null>;
   /** One piece of that snapshot's JSON state; null if the seq no longer exists. */
   snapshotChunk(orgId: string, projectId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null>;
+  /**
+   * Be told when something was appended to a partition, and whether the
+   * channel is up. Optional: a transport without it is polled. The poke
+   * carries no data; the client pulls through the authorized RPC.
+   */
+  watch?(orgId: string, projectId: string, handlers: WatchHandlers): () => void;
+}
+
+export interface WatchHandlers {
+  onPoke: () => void;
+  onStatus: (connected: boolean) => void;
+}
+
+/** What the local log holds for a partition, for the sync status screen. */
+export interface SyncInspection {
+  pending: LocalEvent[];
+  rejected: LocalEvent[];
+  total: number;
+  cursor: number;
+  checkpointSeq: number | null;
 }
 
 export interface SnapshotMeta {
