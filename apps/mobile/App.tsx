@@ -18,7 +18,7 @@ import * as Review from './src/screens/review';
 import * as Status from './src/screens/status';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveInboxCount, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
 import { colors, space } from './src/theme';
 import { useOrg } from './src/useOrg';
@@ -127,6 +127,11 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     [props.actorId, props.email, project.state, seenVision, org.state]
   );
 
+  const inboxCount = useMemo(
+    () => deriveInboxCount(project.state, props.actorId),
+    [project.state, props.actorId]
+  );
+
   // Auth routing is an invariant, not a transition: a signed-in session is
   // never on a pre-auth screen, a signed-out one is only on sign_in. Stated
   // this way, sign-in, sign-up and a session restored at launch all land the
@@ -196,7 +201,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 
   const Screen = SCREENS[nav.current.screen];
   const showTabs = props.signedIn && TAB_SCREENS.includes(nav.current.screen);
-  const tabs = tabsFor(session);
+  const tabs = tabsFor(session, inboxCount);
 
   return (
     <View style={{ flex: 1 }}>
