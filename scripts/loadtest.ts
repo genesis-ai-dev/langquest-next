@@ -5,7 +5,7 @@
  *
  *   npx tsx scripts/loadtest.ts [events=100000]
  */
-import { fold, emptyState, takeSnapshot, resume, encodeHlc, type AnyEvent } from '@langquest-next/core';
+import { fold, emptyState, takeSnapshot, resume, encodeHlc, buildIndexes, deriveTasks, passageKeys, passageRow, tasksFromRow, actorRole, type AnyEvent } from '@langquest-next/core';
 import { gzipSync } from 'node:zlib';
 
 const N = Number(process.argv[2] ?? 100_000);
@@ -65,6 +65,21 @@ t = performance.now();
 resume(JSON.parse(snapJson), events.slice(-500));
 const resumeMs = performance.now() - t;
 
+// Stage 3 gate: rows must equal the derivation at scale, and a task page
+// must cost its rows, not the project.
+t = performance.now();
+const idx = buildIndexes(state);
+const rows = passageKeys(state, idx).map((k) => passageRow(state, k.unitId, k.laneId, idx));
+const rowsBuildMs = performance.now() - t;
+t = performance.now();
+const derived = deriveTasks(state, 't1', idx);
+const deriveTasksMs = performance.now() - t;
+t = performance.now();
+const page = rows.slice(0, 30).flatMap((r) => tasksFromRow(r, 't1', actorRole(state, 't1')));
+const taskPage30Ms = performance.now() - t;
+const fromRows = rows.flatMap((r) => tasksFromRow(r, 't1', actorRole(state, 't1')));
+const rowsMatchDerivation = JSON.stringify(fromRows) === JSON.stringify(derived) && page.length === Math.min(30, derived.length);
+
 const heapMb = (process.memoryUsage().heapUsed / 1e6).toFixed(0);
 console.log(JSON.stringify({
   events: N,
@@ -79,5 +94,10 @@ console.log(JSON.stringify({
   resumeFromSnapshotPlus500Ms: Math.round(resumeMs),
   units: Object.keys(state.units).length,
   takes: Object.keys(state.takes).length,
+  rows: rows.length,
+  rowsBuildMs: Math.round(rowsBuildMs),
+  deriveTasksMs: Math.round(deriveTasksMs),
+  taskPage30Ms: Number(taskPage30Ms.toFixed(2)),
+  rowsMatchDerivation,
   heapMb: Number(heapMb)
 }, null, 2));

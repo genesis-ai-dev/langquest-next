@@ -1,6 +1,8 @@
-import { HlcClock, buildIndexes, passageKeys, passageRow, passageRowKey, type PassageRow, type ProjectState } from '@langquest-next/core';
+import { applyEvent, emptyState, deriveTasks, HlcClock, buildIndexes, passageKeys, passageRow, passageRowKey, type PassageRow, type ProjectState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
+import { ProjectIndexes } from '../src/projectIndexes';
+import { buildFixture, buildStep11Fixture } from '../../core/test/fixtures';
 import { FakeServer } from './fakeServer';
 
 /**
@@ -61,6 +63,11 @@ describe('read models on the client', () => {
       { type: 'v1.TakeSelected', payload: { takeId: 'take1', unitId: 'luke2', laneId: 'L1' } }
     ]);
     await expectRowsCurrent(a);
+    expect(await a.client.verifyRows()).toEqual({ rows: 5, mismatches: [] });
+    await a.store.commit({ rows: { orgId: 'org1', projectId: 'p1', delete: [{ unitId: 'luke5', laneId: 'L1' }] } });
+    expect((await a.client.verifyRows()).mismatches).toEqual(['missing: luke5:L1']);
+    await a.client.load();
+    expect((await a.client.verifyRows()).mismatches).toEqual([]);
     expect((await a.client.queries().getPassageView('luke2', 'L1'))?.outcome).toBe('draft');
     await a.client.append('v1.TakeSubmitted', { takeId: 'take1' });
     await expectRowsCurrent(a);
@@ -115,6 +122,8 @@ describe('read models on the client', () => {
     expect(p2.cursor).toBeNull();
     expect((await q.listTasks('t1', { status: ['doing'] }, null, 10)).tasks.map((t) => t.unitId)).toEqual(['luke1']);
     expect((await q.listTasks('stranger', {}, null, 10)).tasks).toEqual([]);
+    expect(await q.taskCounts('t1')).toEqual({ todo: 4, doing: 1, done: 0 });
+    expect(await q.taskCounts('stranger')).toEqual({ todo: 0, doing: 0, done: 0 });
     expect(await q.getLaneProgress('L1')).toEqual({ translatedPct: 0, approvedPct: 0, passages: 5 });
     expect(await q.getTask('respond:luke1:L1', 't1')).toMatchObject({ type: 'translate' });
   });
@@ -163,4 +172,113 @@ describe('read models on the client', () => {
     ]);
     expect(order).toEqual(['start:dA-1', 'end:dA-1', 'start:dA-2', 'end:dA-2']);
   });
+});
+
+
+it('reuses committed projections on restart but rebuilds stale versions', async () => {
+  const server = new FakeServer();
+  const a = device(server, 'dA', 'lead', { t: 0 });
+  await a.client.load();
+  await seed(a);
+  let rebuilds = 0;
+  const commit = a.store.commit.bind(a.store);
+  a.store.commit = async (batch) => {
+    if (batch.rows?.clear) rebuilds++;
+    await commit(batch);
+  };
+  const restart = () => new SyncClient({ orgId: 'org1', projectId: 'p1',
+    actorId: 'lead', deviceId: 'dA', store: a.store, transport: server.transportFor() });
+  await restart().load();
+  expect(rebuilds).toBe(0);
+  await a.store.setMeta('projection:org1/p1', 'old-version');
+  await restart().load();
+  expect(rebuilds).toBe(1);
+});
+
+it('pending recordings exclude every composed take, including archived drafts', async () => {
+  const a = device(new FakeServer(), 'dA', 'lead', { t: 0 });
+  await a.client.load();
+  await seed(a);
+  for (const id of ['discarded', 'current', 'pending']) {
+    await a.client.append('v1.RecordingAdded', { recordingId: id,
+      unitId: 'luke1', laneId: 'L1', kind: 'target', cards: [{ hash: id, durationMs: 500 }] });
+  }
+  for (const id of ['discarded', 'current']) {
+    await a.client.append('v1.TakeComposed', { takeId: id,
+      unitId: 'luke1', laneId: 'L1', cardHashes: [id], parentTakeId: null });
+  }
+  await a.client.append('v1.TakeArchived', { takeId: 'discarded' });
+  expect(await a.client.queries().listPendingRecordings('luke1', 'L1', 'lead')).toEqual(['pending']);
+  await a.client.load();
+  expect(await a.client.queries().listPendingRecordings('luke1', 'L1', 'lead')).toEqual(['pending']);
+});
+
+
+it('incremental indexes give the same tasks as fresh indexes after each event', () => {
+  for (const fixture of [buildFixture(), buildStep11Fixture()]) {
+    for (const events of [fixture, [...fixture].reverse()]) {
+      const state = emptyState();
+      const indexes = new ProjectIndexes(state);
+      for (const event of events) {
+        indexes.get(); // Exercise an already-built cache, not only lazy rebuilding.
+        applyEvent(state, event);
+        if (!state.invalidEvents[event.id]) indexes.applied(event);
+        for (const actor of ['lead', 't1', 'r1', 'r2']) {
+          expect(deriveTasks(state, actor, indexes.get())).toEqual(deriveTasks(state, actor));
+        }
+      }
+    }
+  }
+});
+
+it('a take edit and recording lookup do not enumerate unrelated project entities', async () => {
+  const a = device(new FakeServer(), 'dA', 'lead', { t: 0 });
+  await a.client.load();
+  await seed(a);
+  const state = a.client.getState();
+  const blockScan = <T extends object>(object: T): T => new Proxy(object, {
+    ownKeys: () => { throw new Error('project-wide scan'); }
+  });
+  state.units = blockScan(state.units);
+  state.takes = blockScan(state.takes);
+  state.assignments = blockScan(state.assignments);
+  state.recordings = blockScan(state.recordings);
+  await a.client.append('v1.TakeComposed', { takeId: 'bounded', unitId: 'luke1',
+    laneId: 'L1', cardHashes: ['h'], parentTakeId: null });
+  await a.client.append('v1.RecordingAdded', { recordingId: 'r', unitId: 'luke1',
+    laneId: 'L1', kind: 'target', cards: [{ hash: 'new', durationMs: 10 }] });
+  expect(await a.client.queries().getTask('translate:luke1:L1', 't1')).toMatchObject({ status: 'doing' });
+  expect(await a.client.queries().listPendingRecordings('luke1', 'L1', 'lead')).toEqual(['r']);
+});
+
+
+it('a redaction commit remains invalid until its refold is durable', async () => {
+  const server = new FakeServer();
+  const a = device(server, 'dA', 'lead', { t: 0 });
+  await a.client.load();
+  await seed(a);
+  const composed = await a.client.append('v1.TakeComposed', {
+    takeId: 'removed', unitId: 'luke1', laneId: 'L1', cardHashes: [], parentTakeId: null
+  });
+  const load = a.client.load.bind(a.client);
+  a.client.load = async () => { throw new Error('process stopped before refold'); };
+  await expect(a.client.append('v1.Redacted', { eventId: composed.id })).rejects.toThrow();
+  expect(await a.store.meta('projection:org1/p1')).toBe('');
+  a.client.load = load;
+  const restarted = new SyncClient({ orgId: 'org1', projectId: 'p1', actorId: 'lead',
+    deviceId: 'dA', store: a.store, transport: server.transportFor() });
+  await restarted.load();
+  expect((await restarted.queries().getPassageView('luke1', 'L1'))?.takeId).toBeNull();
+});
+
+
+it('archive-before-compose creates no phantom passage row', async () => {
+  const a = device(new FakeServer(), 'dA', 'lead', { t: 0 });
+  await a.client.load();
+  await seed(a);
+  await a.client.append('v1.TakeArchived', { takeId: 'late' });
+  await expectRowsCurrent(a);
+  await a.client.append('v1.TakeComposed', { takeId: 'late', unitId: 'luke1',
+    laneId: 'L1', cardHashes: [], parentTakeId: null });
+  await expectRowsCurrent(a);
 });

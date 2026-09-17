@@ -16,6 +16,8 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'scan_qr->sign_in': 'save an invite while its recipient signs in',
+  'explore_home->request_access': 'request membership from a public project listing',
   'translate_passage->passage_references': 'one-next-action reference adds an oral reference run',
   'translate_passage->passage_terms': 'one-next-action reference adds an oral key-term run',
   'translate_passage->done_await': 'view queued and synced hand-off status from the passage hub',

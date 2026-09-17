@@ -1,12 +1,15 @@
 // Avatar U (text fallback). Entry, onboarding, and no-org screens. One action each.
 import { Building2, Compass, Eye, Headphones, Mic, QrCode, ScanLine, Send, Users } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { cachedPublicProjects, publicProjects, queueAccountAction, recordUserEvent, type PublicProject } from '../accountData';
+import { useAccountActions } from '../useAccount';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SEED_ROLES } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
-import { parseInvite, redeemInvite, requestAccess } from '../invites';
+import { parseInvite, redeemInvite } from '../invites';
 import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
 import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
@@ -80,9 +83,18 @@ export function CreateAccount(ctx: Ctx) {
 
 export function TermsPrivacy(ctx: Ctx) {
   const [accepted, setAccepted] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function accept() {
+    setBusy(true);
+    try { await recordUserEvent(ctx.session.actorId, 'v1.TermsAccepted'); ctx.go('vision'); }
+    catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
   return (
-    <Screen footer={<Footer label="Continue" onPress={() => ctx.go('vision')} disabled={!accepted} />}>
+    <Screen footer={<Footer label="Continue" onPress={() => void accept()} disabled={!accepted || busy} />}>
       <Header title="Terms & Privacy" onBack={ctx.back} />
+      {error ? <Note>{error}</Note> : null}
       <Card>
         <Text style={text.body}>Your recordings belong to your organization. We store them to sync between your devices and your team.</Text>
       </Card>
@@ -106,6 +118,7 @@ const VISION = [
 ];
 
 export function Vision(ctx: Ctx) {
+  const [error, setError] = useState('');
   const [step, setStep] = useState(0);
   const last = step === VISION.length - 1;
   const Icon = VISION[step]!.icon;
@@ -116,14 +129,14 @@ export function Vision(ctx: Ctx) {
           label={last ? 'Get started' : 'Next'}
           onPress={() => {
             if (last) {
-              ctx.markVisionSeen();
-              ctx.home();
+              void ctx.markVisionSeen().then(ctx.home).catch((e) => setError(e.message));
             } else setStep(step + 1);
           }}
           secondary={step > 0 ? { label: 'Back', onPress: () => setStep(step - 1) } : undefined}
         />
       }
     >
+      {error ? <Note>{error}</Note> : null}
       <Header title="LangQuest vision" onBack={() => ctx.go('terms_privacy')} />
       <View style={styles.center}>
         <Icon size={72} color={colors.translate} />
@@ -199,19 +212,44 @@ export function CreateOrg(ctx: Ctx) {
 }
 
 export function ExploreHome(ctx: Ctx) {
+  const [projects, setProjects] = useState<PublicProject[]>([]);
+  const [message, setMessage] = useState('Loading projects…');
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const cached = await cachedPublicProjects();
+      if (active) setProjects(cached);
+      try {
+        const rows = await publicProjects();
+        if (active) { setProjects(rows); setMessage(rows.length ? '' : 'No public projects yet.'); }
+      } catch {
+        if (active) setMessage('Unable to refresh. Showing saved projects when available.');
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   return (
     <Screen>
-      <Header title="Explore projects" onBack={ctx.back} action={ctx.session.hasNoOrg ? undefined : undefined} />
-      <NotWired what="The public project list" />
-      {ctx.session.actorId === 'guest' ? <Footer label="Sign in" onPress={() => ctx.go('sign_in')} /> : null}
+      <Header title="Explore projects" onBack={ctx.back} />
+      {message ? <Note>{message}</Note> : null}
+      <Section label="Public projects">
+        {projects.map((p) => <Row key={`${p.org_id}:${p.project_id}`}
+          label={p.name} sub={p.languages.join(', ')}
+          badge={`${Math.round(p.translated_pct)}% translated`}
+          onPress={() => ctx.session.isGuest ? ctx.go('sign_in')
+            : ctx.go('request_access', { orgId: p.org_id })} />)}
+      </Section>
     </Screen>
   );
 }
 
 export function RequestAccess(ctx: Ctx) {
-  const [orgId, setOrgId] = useState('');
+  const [orgId, setOrgId] = useState(ctx.params['orgId'] ?? '');
   const [message, setMessage] = useState('');
-  const [sent, setSent] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const actions = useAccountActions(ctx.session.actorId);
+  const request = actions.find((a) => a.id === requestId);
+  const sent = requestId !== null;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -219,8 +257,7 @@ export function RequestAccess(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      await requestAccess(orgId, message);
-      setSent(true);
+      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', { orgId: orgId.trim(), message: message.trim() }));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -237,7 +274,7 @@ export function RequestAccess(ctx: Ctx) {
     >
       <Header title="Request access" onBack={ctx.back} />
       {sent ? (
-        <Note>Request sent. An admin will add you. Nothing is shared with the organization until they accept.</Note>
+        <Note>{request?.status === 'sent' ? 'Request sent. An admin can now review it.' : request?.status === 'failed' ? request.error : 'Request saved on this device. It sends when you have a connection.'}</Note>
       ) : (
         <>
           <Note>Ask an organization to let you in. Until someone accepts, you see nothing of theirs.</Note>
@@ -251,12 +288,14 @@ export function RequestAccess(ctx: Ctx) {
 }
 
 /**
- * Redeem an invite. The camera is still to come, so the code is pasted; both
- * paths end in the same `redeem_invite`, which appends the membership and
+ * Camera and pasted invites use the same redemption contract, which appends membership and
  * lands this session on its new home.
  */
 export function ScanQr(ctx: Ctx) {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(ctx.params['invite'] ?? '');
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanning, setScanning] = useState(false);
+  const scanned = useRef(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -269,10 +308,13 @@ export function ScanQr(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      await redeemInvite(parsed.token);
-      // Membership arrives on the next org pull; home routes off the fold.
-      await ctx.org.sync();
-      ctx.home();
+      if (ctx.session.isGuest) {
+        await ctx.rememberInvite(code);
+        ctx.go('sign_in');
+        return;
+      }
+      const joined = await redeemInvite(parsed.token);
+      await ctx.openOrganization(joined.orgId);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -282,10 +324,29 @@ export function ScanQr(ctx: Ctx) {
   return (
     <Screen footer={<Footer label="Join" onPress={() => void join()} disabled={busy || code.trim() === ''} />}>
       <Header title="Join with an invite" onBack={ctx.back} />
-      <View style={[styles.center, { minHeight: 120 }]}>
+      {scanning && permission?.granted ? (
+        <CameraView style={{ height: 260 }} facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={({ data }) => {
+            if (scanned.current) return;
+            if (!parseInvite(data)) { setError('This QR code is not a LangQuest invite.'); return; }
+            scanned.current = true;
+            setCode(data);
+            setError('');
+            setScanning(false);
+          }} />
+      ) : <View style={[styles.center, { minHeight: 120 }]} >
         <QrCode size={96} color={colors.mutedForeground} />
-      </View>
-      <Note>Paste the code someone sent you, or the whole invite link. Camera scanning is next; the code works the same either way.</Note>
+      </View>}
+      <Row icon={ScanLine} label={scanning ? 'Stop camera' : 'Scan QR code'} onPress={() => {
+        if (scanning) { setScanning(false); return; }
+        void (async () => {
+          const result = permission?.granted ? permission : await requestPermission();
+          if (result.granted) { scanned.current = false; setScanning(true); }
+          else setError('Camera access is off. You can paste an invite below.');
+        })();
+      }} last />
+      <Note>Scan a QR code or paste the invite code or link.</Note>
       <TextInput
         style={styles.input}
         placeholder="invite code"
@@ -310,6 +371,8 @@ const WALK = [
 ];
 
 export function Walkthrough(ctx: Ctx) {
+  const [error, setError] = useState('');
+  const finish = () => { void recordUserEvent(ctx.session.actorId, 'v1.WalkthroughDone').then(ctx.home).catch((e) => setError(e.message)); };
   const [step, setStep] = useState(0);
   const last = step === WALK.length - 1;
   return (
@@ -317,11 +380,12 @@ export function Walkthrough(ctx: Ctx) {
       footer={
         <Footer
           label={last ? 'Done' : 'Next'}
-          onPress={() => (last ? ctx.home() : setStep(step + 1))}
+          onPress={() => (last ? finish() : setStep(step + 1))}
           secondary={{ label: 'Skip', onPress: ctx.home }}
         />
       }
     >
+      {error ? <Note>{error}</Note> : null}
       <Header title="Organization walkthrough" sub={`Step ${step + 1} of ${WALK.length}`} />
       <Card>
         <Text style={text.h4}>{WALK[step]}</Text>

@@ -86,16 +86,23 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         durationMs: Math.round(file.durationMs), target: targetRef.current };
       try {
         if (!file.card) {
-          // Journal writes never block the audio: a failed note is a lost
-          // resume, not a lost recording.
-          await journal.put({ ...base, stage: 'recorded' }).catch(() => {});
           const store = await getBlobStore();
-          const { ref, size } = await store.ingest(file.uri, file.format);
-          file.card = { id: file.id, ref, size, durationMs: base.durationMs };
-          await journal.put({ ...base, stage: 'ingested', hash: ref.hash, size }).catch(() => {});
+          const previous = (await journal.all()).find((e) => e.id === file.id);
+          if (previous?.hash && store.fileFor({ hash: previous.hash, format: file.format }).exists) {
+            file.card = { id: file.id, ref: { hash: previous.hash, format: file.format },
+              size: previous.size ?? store.fileFor({ hash: previous.hash, format: file.format }).size,
+              durationMs: base.durationMs };
+          } else {
+            await journal.put(previous ?? { ...base, stage: 'recorded' });
+            const { ref, size } = await store.ingest(file.uri, file.format, (ref, size) =>
+              journal.put({ ...base, stage: 'recorded', hash: ref.hash, size }));
+            file.card = { id: file.id, ref, size, durationMs: base.durationMs };
+          }
         }
+        await journal.put({ ...base, stage: 'ingested',
+          hash: file.card.ref.hash, size: file.card.size });
         await handler.current(file.card);
-        await journal.remove(file.id).catch(() => {});
+        await journal.remove(file.id);
       } catch (e) {
         failures.current.push(file);
         if (mounted.current) setFailureCount(failures.current.length);

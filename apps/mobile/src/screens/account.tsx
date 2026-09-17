@@ -4,17 +4,24 @@ import { indexesFor } from '../indexes';
 import type { SyncInspection } from '@langquest-next/client';
 import { AlertCircle, ArrowDown, ArrowUp, Check, Cloud, CloudOff, CloudUpload, Database, LogOut, Radio, RefreshCw, User, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { accountOutbox, queueAccountAction } from '../accountData';
+import { useAccountActions, useDisplayNames } from '../useAccount';
 import { supabase } from '../supabase';
 import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
+import * as Updates from 'expo-updates';
+import { runningBuildLabel } from '../updateStatus';
 
 /** Notifications are derived: your open tasks, and decisions on your takes. */
 export function InboxHome(ctx: Ctx) {
   const { state } = ctx.project;
   const me = ctx.session.actorId;
+  const accountActions = useAccountActions(me).filter((a) => a.status !== 'sent');
+  const names = useDisplayNames(me);
   const tasks = state ? deriveTasks(state, me, indexesFor(state)).filter((t) => t.status !== 'done') : [];
   const decisions = state
     ? Object.entries(state.takes)
@@ -28,6 +35,12 @@ export function InboxHome(ctx: Ctx) {
   return (
     <Screen>
       <Header title="Inbox" />
+      {accountActions.length ? <Section label="Saved account changes">
+        {accountActions.map((a) => <Row key={a.id}
+          label={a.kind === 'join_request' ? 'Access request' : a.kind === 'profile' ? 'Profile' : 'Onboarding'}
+          sub={a.error ?? 'Waiting to send'} badge={a.status}
+          onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id); } : undefined} />)}
+      </Section> : null}
       <Section label={`To do · ${tasks.length}`}>
         {tasks.length === 0 ? <Row label="Nothing waiting" last /> : null}
         {tasks.map((t, i) => (
@@ -37,7 +50,7 @@ export function InboxHome(ctx: Ctx) {
       <Section label={`Decisions on your takes · ${decisions.length}`}>
         {decisions.length === 0 ? <Row label="None yet" last /> : null}
         {decisions.map((d, i) => (
-          <Row key={d.id} label={`${d.unit} · ${d.stepId}`} sub={`${d.actor.slice(0, 8)}`} badge={d.decision === 'approve' ? 'approved' : 'suggestions'} last={i === decisions.length - 1} />
+          <Row key={d.id} label={`${d.unit} · ${d.stepId}`} sub={names[d.actor] ?? d.actor.slice(0, 8)} badge={d.decision === 'approve' ? 'approved' : 'suggestions'} last={i === decisions.length - 1} />
         ))}
       </Section>
     </Screen>
@@ -72,22 +85,59 @@ export function SettingsHome(ctx: Ctx) {
 }
 
 export function ProfileEdit(ctx: Ctx) {
+  const names = useDisplayNames(ctx.session.actorId);
+  const [name, setName] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const actions = useAccountActions(ctx.session.actorId);
+  const pending = actions.filter((a) => a.kind === 'profile' && a.status !== 'sent').at(-1);
+  const value = name ?? String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '');
+  async function save() {
+    setBusy(true);
+    try {
+      await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
+      setMessage('Saved on this device. Your profile syncs when connected.');
+    } catch (e) { setMessage((e as Error).message); }
+    finally { setBusy(false); }
+  }
   return (
-    <Screen footer={<Footer label="Save profile" onPress={ctx.back} disabled />}>
+    <Screen footer={<Footer label="Save profile" onPress={() => void save()} disabled={busy || !value.trim()} />}>
       <Header title="Profile" onBack={ctx.back} />
-      <NotWired what="Profile names and photos" />
+      <TextInput accessibilityLabel="Display name" placeholder="Your name"
+        value={value} onChangeText={setName} maxLength={100}
+        style={{ padding: space.md, backgroundColor: colors.card }} />
+      {message ? <Note>{message}</Note> : null}
+      {pending?.error ? <Note>{pending.error}</Note> : null}
     </Screen>
   );
 }
 
 export function OrgSwitcher(ctx: Ctx) {
+  const [rows, setRows] = useState<{ org_id: string; project_id: string | null; name: string }[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    const key = `organizations:${ctx.session.actorId}`;
+    void (async () => {
+      const cached = JSON.parse(await AsyncStorage.getItem(key) ?? '[]');
+      if (active) setRows(cached);
+      const { data, error } = await supabase.rpc('my_organizations');
+      if (error) { if (active) setError('Unable to refresh. Saved organizations remain available.'); return; }
+      await AsyncStorage.setItem(key, JSON.stringify(data));
+      if (active) setRows(data ?? []);
+    })().catch((e) => { if (active) setError(e.message); });
+    return () => { active = false; };
+  }, [ctx.session.actorId]);
   return (
     <Screen>
       <Header title="Organizations" onBack={ctx.back} />
       <Section label="Your organizations">
-        <Row label="org1" badge="active" last />
+        {rows.map((r) => <Row key={`${r.org_id}:${r.project_id}`} label={r.name}
+          sub={r.project_id ?? undefined}
+          badge={r.org_id === ctx.project.orgId ? 'active' : undefined}
+          onPress={() => void ctx.openOrganization(r.org_id, r.project_id ?? 'unselected').catch((e) => setError(e.message))} />)}
       </Section>
-      <Note>Multiple organizations come with org-level membership.</Note>
+      {error ? <Note>{error}</Note> : null}
     </Screen>
   );
 }
@@ -200,6 +250,9 @@ export function SyncStatus(ctx: Ctx) {
         </Section>
       ) : null}
       <Text style={[text.small, { textAlign: 'center' }]}>{ins ? `${ins.total} events on this phone` : ''}</Text>
+      <Text style={[text.small, { textAlign: 'center' }]} selectable>
+        {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
+      </Text>
     </Screen>
   );
 }

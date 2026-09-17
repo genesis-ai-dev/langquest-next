@@ -1,20 +1,29 @@
-import { passageRowKey, type PassageRow } from '@langquest-next/core';
-import type { EventStore, LocalEvent, PassageCursor, WriteBatch } from './types';
+import { WriteQueue } from './writeQueue';
+import { tasksFromRow, passageRowKey, type PassageRow } from '@langquest-next/core';
+import type { EventStore, LocalEvent, PassageCursor, WriteBatch, TaskQuery, TaskMatch } from './types';
 
 /** In-memory EventStore for tests. The SQLite one mirrors this shape. */
 export class MemoryStore implements EventStore {
+  private readonly writer = new WriteQueue();
   private events = new Map<string, LocalEvent>();
   private cursors = new Map<string, number>();
   private metas = new Map<string, string>();
   private rows = new Map<string, Map<string, PassageRow>>();
 
-  async commit(batch: WriteBatch): Promise<void> {
+  commit(batch: WriteBatch): Promise<void> {
+    return this.writer.run(() => this.commitNow(batch));
+  }
+
+  private async commitNow(batch: WriteBatch): Promise<void> {
     // Not transactional: this store is for tests, and nothing here can fail
     // halfway. The SQLite store is where atomicity is real.
-    for (const l of batch.events ?? []) this.events.set(l.event.id, l);
+    for (const l of batch.events ?? []) {
+      this.events.set(l.event.id, l);
+      this.metas.set(`projection:${l.event.orgId}/${l.event.projectId}`, '');
+    }
     if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.projectId}`, batch.cursor.seq);
     for (const [k, v] of Object.entries(batch.meta ?? {})) this.metas.set(k, v);
-    if (batch.prune) await this.prune(batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
+    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
     if (batch.rows) {
       const key = `${batch.rows.orgId}/${batch.rows.projectId}`;
       if (batch.rows.clear) this.rows.delete(key);
@@ -22,7 +31,43 @@ export class MemoryStore implements EventStore {
       this.rows.set(key, table);
       for (const k of batch.rows.delete ?? []) table.delete(passageRowKey(k));
       for (const r of batch.rows.put ?? []) table.set(passageRowKey(r), r);
+      if (batch.rows.version) this.metas.set(`projection:${key}`,
+        `${batch.rows.version}:${this.cursors.get(key) ?? 0}`);
     }
+  }
+
+  async taskPage(orgId: string, projectId: string, q: TaskQuery): Promise<TaskMatch[]> {
+    const out: TaskMatch[] = [];
+    for (const row of this.rows.get(`${orgId}/${projectId}`)?.values() ?? []) {
+      if (q.laneId !== undefined && q.laneId !== row.laneId) continue;
+      for (const t of tasksFromRow(row, q.actorId, q.translate ? 'translator' : 'reviewer')) {
+        if (!q.status || q.status.includes(t.status)) out.push({ row, taskId: t.id });
+      }
+    }
+    const tuple = (r: TaskMatch) => [r.row.order, r.row.unitId, r.row.laneId, r.taskId];
+    const cmp = (a: string[], b: string[]) => {
+      for (let i = 0; i < a.length; i++) {
+        if (a[i]! < b[i]!) return -1;
+        if (a[i]! > b[i]!) return 1;
+      }
+      return 0;
+    };
+    const after = q.after && [q.after.order, q.after.unitId, q.after.laneId, q.after.taskId];
+    return out.filter((r) => !after || cmp(tuple(r), after) > 0)
+      .sort((a, b) => cmp(tuple(a), tuple(b))).slice(0, q.limit);
+  }
+
+  async laneCounts(orgId: string, projectId: string, laneId: string) {
+    const counts = { passages: 0, translated: 0, approved: 0 };
+    for (const row of this.rows.get(`${orgId}/${projectId}`)?.values() ?? []) {
+      if (row.laneId !== laneId) continue;
+      counts.passages++;
+      if (row.takeId && row.submitted) {
+        counts.translated++;
+        if (row.outcome === 'approved') counts.approved++;
+      }
+    }
+    return counts;
   }
 
   async passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
@@ -40,11 +85,11 @@ export class MemoryStore implements EventStore {
   }
 
   async put(local: LocalEvent): Promise<void> {
-    this.events.set(local.event.id, local);
+    await this.commit({ events: [local] });
   }
 
   async putMany(locals: LocalEvent[]): Promise<void> {
-    for (const l of locals) this.events.set(l.event.id, l);
+    await this.commit({ events: locals });
   }
 
   async get(id: string): Promise<LocalEvent | undefined> {
@@ -75,10 +120,14 @@ export class MemoryStore implements EventStore {
   }
 
   async setCursor(orgId: string, projectId: string, seq: number): Promise<void> {
-    this.cursors.set(`${orgId}/${projectId}`, seq);
+    await this.commit({ cursor: { orgId, projectId, seq } });
   }
 
   async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
+    await this.commit({ prune: { orgId, projectId, uptoSeq } });
+  }
+
+  private async pruneNow(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
     for (const [id, e] of this.events) {
       if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.projectId === projectId
           && (e.event.serverSeq ?? Infinity) <= uptoSeq) this.events.delete(id);
@@ -90,7 +139,7 @@ export class MemoryStore implements EventStore {
   }
 
   async setMeta(key: string, value: string): Promise<void> {
-    this.metas.set(key, value);
+    await this.commit({ meta: { [key]: value } });
   }
 
   async rejected(orgId?: string, projectId?: string): Promise<LocalEvent[]> {

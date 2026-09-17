@@ -14,7 +14,9 @@ export interface Ctx {
   go: (to: ScreenId, params?: Record<string, string>) => void;
   back: () => void;
   home: () => void;
-  markVisionSeen: () => void;
+  markVisionSeen: () => Promise<void>;
+  rememberInvite: (value: string) => Promise<void>;
+  openOrganization: (orgId: string, projectId?: string) => Promise<void>;
   openDev: () => void;
   isDev: boolean;
   /** May this session switch persona? Dev builds, or a named tester (dev.ts). */

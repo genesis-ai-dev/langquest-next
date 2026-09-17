@@ -1,4 +1,4 @@
-import type { AnyEvent, LocalEventStatus, PassageKey, PassageRow } from '@langquest-next/core';
+import type { AnyEvent, LocalEventStatus, PassageKey, PassageRow, TaskStatus } from '@langquest-next/core';
 
 /**
  * One atomic local write: events, outbox state, cursor, clock and other
@@ -12,7 +12,7 @@ export interface WriteBatch {
   meta?: Record<string, string>;
   /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
   prune?: { orgId: string; projectId: string; uptoSeq: number };
-  rows?: { orgId: string; projectId: string; clear?: boolean; put?: PassageRow[]; delete?: PassageKey[] } | undefined;
+  rows?: { orgId: string; projectId: string; clear?: boolean; version?: string; put?: PassageRow[]; delete?: PassageKey[] } | undefined;
 }
 
 /** A page position in a lane's rows: the last row seen, in display order. */
@@ -21,6 +21,18 @@ export interface PassageCursor {
   unitId: string;
   laneId: string;
 }
+
+export interface TaskCursor extends PassageCursor { taskId: string }
+export interface TaskQuery {
+  actorId: string;
+  translate: boolean;
+  laneId?: string;
+  status?: TaskStatus[];
+  after?: TaskCursor | null;
+  limit: number;
+}
+export interface TaskMatch { row: PassageRow; taskId: string }
+export interface LaneCounts { passages: number; translated: number; approved: number }
 
 /** An event as held on the device: the envelope plus sync bookkeeping. */
 export interface LocalEvent {
@@ -36,6 +48,8 @@ export interface LocalEvent {
 export interface EventStore {
   /** Apply one write batch atomically. All other writers are conveniences over this. */
   commit(batch: WriteBatch): Promise<void>;
+  taskPage(orgId: string, projectId: string, query: TaskQuery): Promise<TaskMatch[]>;
+  laneCounts(orgId: string, projectId: string, laneId: string): Promise<LaneCounts>;
   /** One read-model row, or undefined when the projection has none. */
   passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined>;
   /** Rows in display order (unit order, unit id, lane id), strictly after `after`, optionally one lane. */

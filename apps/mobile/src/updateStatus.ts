@@ -1,0 +1,50 @@
+/**
+ * OTA updates are invisible by default: expo-updates checks on load, downloads
+ * in the background, and swaps the bundle at some later cold start. A tester
+ * then cannot say which build they are on, and a fix we shipped looks like a
+ * fix we did not. This turns the update machine's state into one line of text
+ * the banner shows, so "is the new version in yet?" has an answer on screen.
+ *
+ * Pure so the wording is testable without a native module.
+ */
+export type UpdateStatus = {
+  /** `busy` = something is happening, no action. `ready`/`failed` = tappable. */
+  kind: 'busy' | 'ready' | 'failed';
+  text: string;
+  /** What a tap does, when the banner is tappable. */
+  action?: 'restart' | 'retry';
+};
+
+export type UpdateSignals = {
+  isChecking: boolean;
+  isDownloading: boolean;
+  isUpdatePending: boolean;
+  isRestarting: boolean;
+  downloadProgress?: number;
+  checkError?: Error;
+  downloadError?: Error;
+};
+
+export function updateStatus(u: UpdateSignals): UpdateStatus | null {
+  if (u.isRestarting) return { kind: 'busy', text: 'Restarting…' };
+  // Pending outranks a stale error: the bundle is on the device either way.
+  if (u.isUpdatePending) return { kind: 'ready', text: 'Update ready — tap to restart', action: 'restart' };
+  if (u.isDownloading) {
+    const pct = typeof u.downloadProgress === 'number' ? ` ${Math.round(u.downloadProgress * 100)}%` : '';
+    return { kind: 'busy', text: `Downloading update…${pct}` };
+  }
+  const error = u.downloadError ?? u.checkError;
+  if (error) return { kind: 'failed', text: `Update failed: ${error.message} — tap to retry`, action: 'retry' };
+  // A check with nothing to report stays silent: a banner on every launch
+  // saying "up to date" is a banner nobody reads.
+  if (u.isChecking) return null;
+  return null;
+}
+
+/** The running build, for the settings line: "update 4f2a1c9 · 17 Sep, 14:02". */
+export function runningBuildLabel(c: { updateId?: string; createdAt?: Date; isEmbeddedLaunch: boolean }): string {
+  const which = c.isEmbeddedLaunch ? 'store build' : `update ${c.updateId ? c.updateId.slice(0, 7) : 'unknown'}`;
+  if (!c.createdAt) return which;
+  const when = c.createdAt.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return `${which} · ${when}`;
+}

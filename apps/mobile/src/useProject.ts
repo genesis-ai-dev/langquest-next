@@ -274,8 +274,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
       const resumed = await getRecordingJournal().resume({ orgId, projectId }, {
-        ingest: async (uri, format) => {
-          const { ref, size } = await blobStore.ingest(uri, format);
+        blobExists: (hash, format) => blobStore.fileFor({ hash, format }).exists,
+        ingest: async (uri, format, beforeMove) => {
+          const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };
         },
         hasRecording: (id) => !!client.getState().recordings[id],

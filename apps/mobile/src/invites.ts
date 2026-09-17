@@ -79,7 +79,7 @@ export async function issueInvite(
 export async function redeemInvite(input: string): Promise<{ orgId: string }> {
   const parsed = parseInvite(input);
   if (!parsed) throw new Error('That does not look like an invite code.');
-  const { data, error } = await supabase.rpc('redeem_invite', { p_token: parsed.token });
+  const { data, error } = await supabase.rpc('redeem_invite_v2', { p_token: parsed.token });
   if (error) throw new Error(error.message);
   const orgId = data as string | null;
   if (!orgId) throw new Error('invite not found');
