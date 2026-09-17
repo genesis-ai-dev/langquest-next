@@ -2,13 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 import { Home, Inbox, ListChecks, Settings } from 'lucide-react-native';
-import { Component, useCallback, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer, type RouteProp } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Component, createContext, useCallback, useContext, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
 import { maySwitchPersona } from './src/dev';
-import { edgeFor, TAB_SCREENS, type ScreenId } from './src/flow';
-import { useNav, type Route } from './src/nav';
+import { edgeFor, SCREEN_IDS, TAB_SCREENS, TITLES, type ScreenId } from './src/flow';
+import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
 import * as Config from './src/screens/config';
 import * as Entry from './src/screens/entry';
@@ -56,6 +59,29 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element> = {
 };
 
 /**
+ * Screens read the shared context through React context rather than props,
+ * so the navigator can own the component tree (and its transitions) while
+ * the Shell still owns state. `params` comes from the route, so a screen
+ * below the top keeps its own params while another is pushed over it.
+ */
+const CtxContext = createContext<Ctx | null>(null);
+const Stack = createNativeStackNavigator<StackParams>();
+
+type HostProps = { route: RouteProp<StackParams, ScreenId> };
+function hostFor(id: ScreenId) {
+  const Screen = SCREENS[id];
+  function Host(props: HostProps) {
+    const ctx = useContext(CtxContext);
+    if (!ctx) return null;
+    return <Screen {...ctx} params={props.route.params ?? {}} />;
+  }
+  Host.displayName = `Host(${id})`;
+  return Host;
+}
+const HOSTS = {} as Record<ScreenId, (props: HostProps) => React.JSX.Element | null>;
+for (const id of SCREEN_IDS) HOSTS[id] = hostFor(id);
+
+/**
  * Whatever is wrong, the app says so. A release build has no redbox: an
  * uncaught error there is a white screen, which tells a tester on TestFlight
  * nothing and a developer less. Two backstops, because they catch different
@@ -100,16 +126,18 @@ export default function App() {
     return () => data.subscription.unsubscribe();
   }, []);
   return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar style="dark" />
-      {supabaseConfigError ? (
-        <Fatal title="This build is not configured" detail={supabaseConfigError} />
-      ) : auth === undefined ? null : (
-        <ErrorBoundary>
-          <Shell actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
-        </ErrorBoundary>
-      )}
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.root}>
+        <StatusBar style="dark" />
+        {supabaseConfigError ? (
+          <Fatal title="This build is not configured" detail={supabaseConfigError} />
+        ) : auth === undefined ? null : (
+          <ErrorBoundary>
+            <Shell actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
+          </ErrorBoundary>
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -216,23 +244,42 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     canSwitchPersona
   };
 
-  const Screen = SCREENS[nav.current.screen];
   const showTabs = props.signedIn && TAB_SCREENS.includes(nav.current.screen);
   const tabs = tabsFor(session);
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1 }}>
-        <Screen {...ctx} />
-      </View>
+      <CtxContext.Provider value={ctx}>
+        <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}>
+          <Stack.Navigator
+            initialRouteName={nav.initial.screen}
+            screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}
+          >
+            {SCREEN_IDS.map((id) => (
+              // Tab-level screens are only ever reached by reset, so they
+              // crossfade like a tab switch; everything else slides like a push.
+              <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: TAB_SCREENS.includes(id) ? 'fade' : 'default' }} />
+            ))}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </CtxContext.Provider>
       {showTabs ? (
         <View style={styles.tabs}>
           {tabs.map((t) => {
             const Icon = t === 'status_home' ? ListChecks : t === 'inbox_home' ? Inbox : t === 'settings_home' ? Settings : Home;
             const active = nav.current.screen === t;
+            const color = active ? colors.translate : colors.mutedForeground;
             return (
-              <Pressable key={t} onPress={() => nav.reset({ screen: t })} accessibilityRole="tab" accessibilityLabel={t} style={styles.tab}>
-                <Icon size={22} color={active ? colors.translate : colors.mutedForeground} />
+              <Pressable
+                key={t}
+                onPress={() => { if (!active) nav.reset({ screen: t }); }}
+                accessibilityRole="tab"
+                accessibilityLabel={TITLES[t]}
+                accessibilityState={{ selected: active }}
+                style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}
+              >
+                <View style={[styles.tabIndicator, active && { backgroundColor: colors.translate }]} />
+                <Icon size={22} color={color} />
               </Pressable>
             );
           })}
@@ -248,5 +295,6 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.card },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 12 }
+  tab: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 12, gap: 6 },
+  tabIndicator: { width: 24, height: 3, borderRadius: 2, backgroundColor: 'transparent' }
 });
