@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  commands, currentTake, deriveTakeStatus, findTask, materialsFor, tgMaterialId,
+  commands, currentTake, deriveTakeStatus, materialsFor, tgMaterialId,
   type Task
 } from '@langquest-next/core';
 import {
@@ -17,15 +17,21 @@ import { AudioClip } from '../audioClip';
 import { passageProgress, type PassageAction } from '../passageFlow';
 import { getReferenceSlides, referenceRunSignature } from '../passageResources';
 import { indexesFor } from '../indexes';
+import { useQuery } from '../useQuery';
 import { Footer, Header, Note, Screen } from '../pui';
 import { colors, radius, space, tint } from '../theme';
 import { ActionButton, Card, ProgressRing, text } from '../ui';
 
-/** The task this screen was opened for: one passage's derivation, never the project's. */
-export function taskFor(ctx: Ctx): Task | undefined {
-  const state = ctx.project.state;
-  if (!state) return undefined;
-  return findTask(state, ctx.session.actorId, ctx.params['taskId'] ?? '', indexesFor(state));
+/**
+ * The task this screen was opened for: one persisted row, never the
+ * project. `task` is undefined until the row is read (`ready` false) and
+ * when there is no such task (`ready` true).
+ */
+export function useTask(ctx: Ctx): { task: Task | undefined; ready: boolean } {
+  const taskId = ctx.params['taskId'] ?? '';
+  const actorId = ctx.session.actorId;
+  const r = useQuery(ctx.project, (q) => q.getTask(taskId, actorId), [taskId, actorId], undefined as Task | undefined);
+  return { task: r.data, ready: r.ready };
 }
 
 const ACTION = {
@@ -38,7 +44,7 @@ const ACTION = {
 
 export function TranslatePassage(ctx: Ctx) {
   const { state } = ctx.project;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const [listened, setListened] = useState<string | null>(null);
   const items = state && task ? getReferenceSlides(state, task.laneId, task.unitId) : [];
   const signature = referenceRunSignature(items);
@@ -49,7 +55,7 @@ export function TranslatePassage(ctx: Ctx) {
       .catch(() => { if (mounted) setListened(''); });
     return () => { mounted = false; };
   }, [key]);
-  if (!state || !task) return <Screen><Header title="" onBack={ctx.back} /><Note>Task not found.</Note></Screen>;
+  if (!state || !task) return <Screen><Header title="" onBack={ctx.back} />{ready ? <Note>Task not found.</Note> : <></>}</Screen>;
   const progress = passageProgress(state, task.laneId, task.unitId, !!items.length && listened !== signature);
   const questions = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
     .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
@@ -116,14 +122,14 @@ function TaskTile(props: {
 /** One question set per slide, followed by an explicit hand-off. */
 export function AttachQuestions(ctx: Ctx) {
   const { state, run } = ctx.project;
-  const task = taskFor(ctx);
+  const { task, ready } = useTask(ctx);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
   const [response, setResponse] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
-  if (!state || !task) return <Note>Task not found.</Note>;
+  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
   const sets = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
     .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
   const idx = indexesFor(state);

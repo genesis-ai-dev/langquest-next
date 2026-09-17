@@ -1,5 +1,7 @@
 // Avatar U for My Work and Open Work; Avatar P for Give Assignment and progress detail.
-import { deriveProgress, derivePieces, deriveTasks, type Task, type TaskStatus } from '@langquest-next/core';
+import { derivePieces, type Task, type TaskStatus } from '@langquest-next/core';
+import type { ProjectQueries, TaskPage } from '@langquest-next/client';
+import { useQuery } from '../useQuery';
 import { indexesFor } from '../indexes';
 import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, LoaderCircle, Menu, Search } from 'lucide-react-native';
 import { useState } from 'react';
@@ -15,23 +17,51 @@ const STATUS_META: Record<TaskStatus, { icon: typeof Circle; color: string }> = 
   done: { icon: Check, color: colors.done }
 };
 
+/** Rows per page of the dashboard list; more load as the list is scrolled. */
+const TASK_PAGE = 50;
+const NO_COUNTS: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+
+/**
+ * The visible slice of the task list: open work first, then done, each
+ * read from rows in passage order. `limit` grows as the user scrolls; a
+ * publication re-reads only what is on screen.
+ */
+async function taskSlice(q: ProjectQueries, actorId: string, filters: TaskStatus[], limit: number): Promise<{ tasks: Task[]; more: boolean }> {
+  const phases = [filters.filter((s) => s !== 'done'), filters.filter((s) => s === 'done')].filter((p) => p.length);
+  const tasks: Task[] = [];
+  for (const status of phases) {
+    let cursor: string | null = null;
+    while (tasks.length < limit) {
+      const page: TaskPage = await q.listTasks(actorId, { status }, cursor, Math.min(TASK_PAGE, limit - tasks.length));
+      tasks.push(...page.tasks);
+      cursor = page.cursor;
+      if (!cursor) break;
+    }
+    if (tasks.length >= limit) return { tasks, more: true };
+  }
+  return { tasks, more: false };
+}
+
 export function AssignmentsHome(ctx: Ctx) {
   const { state, pending } = ctx.project;
   const [filters, setFilters] = useState<TaskStatus[]>(['todo', 'doing', 'done']);
+  const [limit, setLimit] = useState(TASK_PAGE);
+  const actorId = ctx.session.actorId;
+  const laneId = state ? Object.keys(state.lanes)[0] ?? null : null;
+  // Everything the dashboard shows comes from persisted rows: counts, the
+  // lane's progress, and the visible page of tasks. None of it derives
+  // from the fold, so opening the dashboard costs the rows on screen.
+  const counts = useQuery(ctx.project, (q) => q.taskCounts(actorId), [actorId], NO_COUNTS).data;
+  const progress = useQuery(ctx.project, (q) => (laneId ? q.getLaneProgress(laneId) : Promise.resolve(null)), [laneId], null as { translatedPct: number; approvedPct: number; passages: number } | null).data;
+  const filterKey = filters.join(',');
+  const slice = useQuery(ctx.project, (q) => taskSlice(q, actorId, filters, limit), [actorId, filterKey, limit], { tasks: [] as Task[], more: false });
   if (!state) return <Text style={[text.muted, styles.pad]}>Opening local log…</Text>;
 
   const role = ctx.session.role;
   const roleType = role === 'reviewer' ? 'review' : 'translate';
-  const laneId = Object.keys(state.lanes)[0] ?? null;
-  const idx = indexesFor(state);
-  const progress = laneId ? deriveProgress(state, laneId, idx) : null;
-  const tasks = deriveTasks(state, ctx.session.actorId, idx);
-  const counts: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
-  for (const t of tasks) counts[t.status] += 1;
-  const shown = tasks.filter((t) => filters.includes(t.status))
-    .sort((a, b) => Number(a.done) - Number(b.done));
+  const shown = slice.data.tasks;
   const next = shown.find((t) => !t.done);
-  const toggle = (s: TaskStatus) => setFilters((f) => (f.includes(s) ? f.filter((x) => x !== s) : [...f, s]));
+  const toggle = (s: TaskStatus) => { setLimit(TASK_PAGE); setFilters((f) => (f.includes(s) ? f.filter((x) => x !== s) : [...f, s])); };
 
   // The task list grows with the project; a FlatList mounts only the rows on
   // screen. Everything above and below the rows is header and footer.
@@ -131,6 +161,8 @@ export function AssignmentsHome(ctx: Ctx) {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
+        onEndReachedThreshold={0.5}
+        onEndReached={() => { if (slice.data.more) setLimit((n) => n + TASK_PAGE); }}
         ListEmptyComponent={
           <View style={[styles.todo, styles.pad, { alignItems: 'center' }]}>
             <Check size={28} color={colors.done} />

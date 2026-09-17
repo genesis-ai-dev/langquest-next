@@ -11,3 +11,4 @@ export * from './blobReconciler';
 export * from './snapshotFetch';
 export * from './v2import';
 export * from './writeQueue';
+export * from './queries';
