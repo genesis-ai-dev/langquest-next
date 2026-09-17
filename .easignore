@@ -1,0 +1,17 @@
+# Keep the EAS upload to source only. The 424 MB archive that shipped
+# node_modules and the nested git worktrees is what broke INSTALL_DEPENDENCIES.
+node_modules/
+**/node_modules/
+.claude/worktrees/
+.git/
+dist/
+build/
+apps/mobile/ios/
+apps/mobile/android/
+**/*.tsbuildinfo
+supabase/.branches/
+supabase/.temp/
+
+# npm-style packing drops lockfiles by default; EAS runs `npm ci` at the
+# monorepo root, so the lockfile must be in the archive.
+!package-lock.json
