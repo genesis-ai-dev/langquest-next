@@ -39,7 +39,12 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
    a dev build can jump to any screen. It is shown to dev builds and to the
    testers named in `src/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS` overrides the
    list), because walking the translator's and reviewer's experience is how
-   this gets tested and a release build has no dev menu.
+   this gets tested and a release build has no dev menu. The persona accounts
+   keep the switcher too, so a tester can switch back without signing out.
+   For a full demo, `npm run seed:demo` (repo root, `scripts/seedDemo.ts`)
+   builds `org1/luke-demo`, the app's default project: eight Luke passages,
+   one approved, one waiting on review, one sent back with changes, one draft,
+   each written by the persona who would do it in the field.
    `src/invites.ts` holds the two writes a non-member may make: `issue_invite`
    / `redeem_invite` and the `join_requests` table (migration 12, docs 5.B).
    Both end in the ordinary `v1.OrgMemberAdded`; neither is an event of its

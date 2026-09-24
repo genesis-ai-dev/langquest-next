@@ -24,6 +24,7 @@
     "test:integration": "SUPABASE_ANON_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).ANON_KEY))\") SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") vitest run packages/client/test/integration.test.ts",
     "snapshot": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/snapshotWorker.ts",
     "loadtest": "tsx scripts/loadtest.ts",
+    "seed:demo": "tsx scripts/seedDemo.ts",
     "import:v2": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/importV2.ts",
     "reconcile": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/blobReconciler.ts",
     "worker:build": "node scripts/build-projection-worker.mjs",

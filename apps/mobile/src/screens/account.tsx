@@ -151,9 +151,10 @@ export function OrgSwitcher(ctx: Ctx) {
     <Screen>
       <Header title="Organizations" onBack={ctx.back} />
       <Section label="Your organizations">
-        {rows.map((r) => <Row key={`${r.org_id}:${r.project_id}`} label={r.name}
-          sub={r.project_id ?? undefined}
-          badge={r.org_id === ctx.project.orgId ? 'active' : undefined}
+        {rows.map((r) => <Row key={`${r.org_id}:${r.project_id}`}
+          label={(r.org_id === ctx.project.orgId && r.project_id && ctx.org.state?.projects[r.project_id]?.name) || r.project_id || r.name}
+          sub={r.name}
+          badge={r.org_id === ctx.project.orgId && r.project_id === ctx.project.projectId ? 'active' : undefined}
           onPress={() => void ctx.openOrganization(r.org_id, r.project_id ?? 'unselected').catch((e) => setError(e.message))} />)}
       </Section>
       {error ? <Note>{error}</Note> : null}

@@ -11,6 +11,9 @@ import type { ProjectHandle } from './useProject';
 import { colors, radius, space } from './theme';
 import { text } from './ui';
 
+/** Passages the seed assigns to the translator and reviewer. */
+const SEED_PASSAGES = 6;
+
 export function DevMenu(props: {
   open: boolean;
   onClose: () => void;
@@ -41,19 +44,31 @@ export function DevMenu(props: {
   /**
    * Owner-only: create every persona account, give it its org role (so it
    * sees the org, the project and its own home) and its project membership,
-   * then assign the translator and reviewer some work to look at.
+   * then assign the translator and reviewer a handful of passages. The
+   * project admin's role is scoped to this project, or it lands on the org
+   * home exactly like the org admin. Only the first few leaf passages are
+   * assigned: a whole-Bible project would otherwise hand one persona
+   * thousands of tasks. For a full scripted story (takes, reviews,
+   * approvals) run `npm run seed:demo` instead.
    */
   async function seed() {
     const { state, append } = props.project;
     if (!state) return;
     const laneId = Object.keys(state.lanes)[0];
-    const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null).map(([id]) => id);
+    const parents = new Set(Object.values(state.units).map((u) => u.parentUnitId).filter(Boolean));
+    const units = Object.entries(state.units)
+      .filter(([id, u]) => u.parentUnitId !== null && !parents.has(id))
+      .sort(([, a], [, b]) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0))
+      .slice(0, SEED_PASSAGES)
+      .map(([id]) => id);
     for (const p of PERSONAS) {
-      if (!p.role) continue;
       const id = await ensurePersonaAccount(p);
-      if (p.roleId && props.org.state && !Object.values(props.org.state.members[id] ?? {}).some((m) => m.removed.value === false)) {
+      if (!p.role) continue;
+      const scope = p.id === 'coordinator' ? { level: 'project' as const, projectId: props.project.projectId } : { level: 'org' as const };
+      const held = Object.values(props.org.state?.members[id] ?? {}).filter((m) => m.removed.value === false);
+      if (p.roleId && props.org.state && !held.some((m) => m.scope.level === scope.level)) {
         await props.org.append('v1.OrgMemberAdded', {
-          profileId: id, roleId: p.roleId, scope: { level: 'org' }, displayName: p.email.split('@')[0]!
+          profileId: id, roleId: p.roleId, scope, displayName: p.email.split('@')[0]!
         });
       }
       if (state.members[id] && !state.members[id]!.removed.value) continue;

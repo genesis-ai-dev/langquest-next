@@ -43,7 +43,12 @@ export const PERSONA_TESTERS: string[] = (process.env.EXPO_PUBLIC_PERSONA_EMAILS
   .filter(Boolean);
 
 export function maySwitchPersona(email: string | null | undefined, isDev: boolean): boolean {
-  return isDev || (!!email && PERSONA_TESTERS.includes(email.toLowerCase()));
+  if (isDev || !email) return isDev;
+  const e = email.toLowerCase();
+  // A tester who switched into a persona is now signed in as that persona,
+  // so the persona accounts themselves must keep the switcher, or the only
+  // way back is to sign out and in again.
+  return PERSONA_TESTERS.includes(e) || !!personaForEmail(e);
 }
 
 export const DEV_PASSWORD = process.env.EXPO_PUBLIC_DEV_PASSWORD ?? 'password123';

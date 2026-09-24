@@ -38,7 +38,8 @@ import { useProject } from './src/useProject';
 
 // Initial selection, before the account's saved organization is restored.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
-const PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID ?? 'luke-demo-4';
+// The project `npm run seed:demo` builds; a stored selection always wins.
+const PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID ?? 'luke-demo';
 const IS_DEV = __DEV__;
 let initialLinkRead = false;
 
