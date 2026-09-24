@@ -2,7 +2,7 @@
 import { commands, currentTake, isStored } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import * as Crypto from 'expo-crypto';
-import { AudioWaveform, Check, CloudCheck, CloudUpload, Mic, RotateCcw, Save, Square } from 'lucide-react-native';
+import { Check, CloudCheck, CloudUpload, Mic, RotateCcw, Save, Square } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -88,27 +88,27 @@ export function QuestAssets(ctx: Ctx) {
   }
   const title = state.units[task.unitId]?.label ?? task.unitId;
   return (
-    <Screen footer={<View style={{ gap: space.md }}>
-      <View style={styles.controls}>
-        <ActionButton icon={AudioWaveform} variant="outline"
-          accessibilityLabel={pending.length ? 'Add parts with voice detection' : 'Start voice-detected recording'}
-          disabled={blocked} onPress={() => void rec.toggleVad()} />
-        <Pressable onPressIn={() => { if (!blocked) void rec.manualDown(); }}
-          onPressOut={() => void rec.manualUp()}
-          disabled={rec.vadOn || saving || rec.failureCount > 0}
-          accessibilityRole="button" accessibilityLabel={pending.length ? 'Hold to record the next part' : 'Hold to record passage'}
-          style={[styles.record, !!hashes.length && { backgroundColor: colors.muted }, rec.manualOn && styles.recordLive]}>
-          {rec.manualOn ? <Square color="white" fill="white" size={28} /> : <Mic color={colors.actionForeground} size={32} />}
-        </Pressable>
-      </View>
-      {hashes.length && !rec.manualOn ? (
-      <View style={styles.row}>
+    <Screen footer={<View style={styles.controls}>
+      {hashes.length ? (
         <ActionButton icon={RotateCcw} variant="outline"
           accessibilityLabel="Record a new take" disabled={blocked}
-          onPress={() => void redo()} />
+          onPress={() => void redo()} style={styles.reviewAction} />
+      ) : null}
+      <Pressable onPress={() => void rec.toggleVad()}
+        disabled={blocked} accessibilityRole="button"
+        accessibilityLabel={hashes.length ? 'Record another part' : 'Start recording'}
+        accessibilityHint="Tap to start. Tap stop when you finish."
+        accessibilityState={{ disabled: blocked, busy: rec.busy }}
+        style={({ pressed }) => [styles.record,
+          !!hashes.length && styles.recordSecondary,
+          blocked && styles.recordDisabled,
+          pressed && { opacity: 0.85 }]}>
+        <Mic color={blocked ? colors.mutedForeground : colors.actionForeground}
+          size={32} />
+      </Pressable>
+      {hashes.length ? (
         <ActionButton icon={Check} accessibilityLabel="Keep take and return to passage"
-          disabled={blocked} onPress={() => void keep()} style={{ flex: 1 }} />
-      </View>
+          disabled={blocked} onPress={() => void keep()} style={styles.reviewAction} />
       ) : null}
     </View>}>
       <Header title={title} onBack={blocked ? undefined : ctx.back} />
@@ -203,7 +203,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   record: { width: 82, height: 82, borderRadius: 41, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
-  recordLive: { backgroundColor: '#A8120A' },
+  reviewAction: { flex: 1 },
+  recordSecondary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  recordDisabled: { backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
   takeover: { flex: 1, backgroundColor: '#A8120A', padding: space.xl, paddingTop: 60, paddingBottom: 44, gap: space.xl },
   capturing: { backgroundColor: '#C2160C' },
   liveStatus: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },

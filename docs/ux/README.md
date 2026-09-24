@@ -46,8 +46,10 @@ any of them should update the mock too:
   passages.
 - Cross-session progress is visible: the key-terms ring counts terms with
   audio anywhere in the project.
-- Record is a mode, so it gets a mode control — a circular hold-to-record
-  button, not the yellow next-step bar.
+- Passage recording starts with one centered, yellow microphone button.
+  Tap it to enter the full-screen voice-detected session; tap stop to review.
+  Review places redo, the neutral microphone, and yellow keep in one row.
+  Key terms still use a circular hold-to-record button.
 - Source playback stays beside the passage recorder. Pause, replay, or seek
   between parts without leaving the view. Starting recording pauses playback.
   Recording another part appends to the pending take; keeping composes the

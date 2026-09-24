@@ -87,9 +87,8 @@ h1{font-size:clamp(28px,4.2vw,42px);font-weight:700;line-height:1.06}
   cursor:not-allowed;position:relative}
 .act.off .bar-through{position:absolute;left:14px;right:14px;top:50%;height:1px;background:var(--border)}
 
-/* record is its own affordance: a circle, not the yellow next-step bar.
-   Rest = action yellow + mic (IconCircleButton). Held = reference orange +
-   a stop square, matching QuestAssets' hold-to-record Pressable. */
+/* Passage recording starts with a tap on the microphone.
+   Key terms use hold-to-record; their active state shows a stop square. */
 .recbtn{width:76px;height:76px;border-radius:999px;border:none;flex:none;cursor:pointer;
   background:var(--action);color:var(--action-foreground);
   display:flex;align-items:center;justify-content:center;
@@ -577,7 +576,7 @@ const S={
      <div class="bar"><b></b></div><span class="ic" style="color:var(--translate)"><i data-lucide="mic"></i></span></div>
    <div class="avatars">${ic('cloud-off')}<span>saved on this phone</span></div>`,
   footer:`<button class="out" aria-label="Record again">${ic('rotate-ccw','lg')}</button>
-    <button class="recbtn add-part" style="background:#F0EFED;flex-shrink:0" aria-label="Record another part">${ic('mic')}</button>
+    <button class="recbtn add-part" style="background:var(--card);border:1px solid var(--border);box-shadow:none;flex-shrink:0" aria-label="Record another part">${ic('mic')}</button>
     <button class="act">${ic('check','lg')}</button>`},
 
  termsdone:{who:'u',title:'Jonah 1:1–3',sb:'offline',
