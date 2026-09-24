@@ -11,7 +11,6 @@ import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, text } from '../ui';
 import { supabase } from '../supabase';
-import { useDisplayNames } from '../useAccount';
 import { templateSubtree } from '../setupFlow';
 
 // One org for now, the same constant App.tsx opens with.
@@ -134,7 +133,6 @@ export function LanguageHome(ctx: Ctx) {
 }
 
 export function MembersList(ctx: Ctx) {
-  const names = useDisplayNames(ctx.session.actorId);
   const { state } = ctx.project;
   const orgId = ctx.project.orgId;
   const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
@@ -173,8 +171,7 @@ export function MembersList(ctx: Ctx) {
           {requests.map((r, i) => (
             <Row
               key={r.id}
-              icon={Users}
-              label={r.profileId.slice(0, 8)}
+              personId={r.profileId}
               sub={r.message || 'No message'}
               right={
                 <View style={{ flexDirection: 'row', gap: space.md }}>
@@ -194,7 +191,7 @@ export function MembersList(ctx: Ctx) {
       {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
       <Section label={`Project members · ${members.length}`}>
         {members.map(([id, m], i) => (
-          <Row key={id} icon={Users} label={id === ctx.session.actorId ? 'You' : names[id] ?? Object.values(ctx.org.state?.members[id] ?? {})[0]?.displayName ?? id.slice(0, 8)} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
+          <Row key={id} personId={id} label={id === ctx.session.actorId ? 'You' : undefined} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
         ))}
       </Section>
       {ctx.session.isAdmin ? <Footer label="Invite" onPress={() => ctx.go('invite_member')} /> : null}
@@ -339,7 +336,6 @@ export function EditMember(ctx: Ctx) {
 }
 
 export function NewProject(ctx: Ctx) {
-  const names = useDisplayNames(ctx.session.actorId);
   const { state, appendMany } = ctx.project;
   const laneEntries = state ? Object.entries(state.lanes) : [];
   const laneId = laneEntries[0]?.[0] ?? `lane-${ctx.project.projectId}`;
@@ -495,7 +491,7 @@ export function NewProject(ctx: Ctx) {
             <Row icon={FileText} label={targetPiece?.label ?? 'Choose a structure first'} sub={targetPiece ? `${pieces.length} passages ready` : 'No passages yet'} last />
           </Section>
           <Section label="Translator">
-            {members.map(([id, m], i, a) => <Row key={id} label={id === ctx.session.actorId ? 'You' : names[id] ?? Object.values(ctx.org.state?.members[id] ?? {})[0]?.displayName ?? id.slice(0, 8)} sub={m.role.value} onPress={() => setAssignee(id)} right={assignee === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
+            {members.map(([id, m], i, a) => <Row key={id} personId={id} label={id === ctx.session.actorId ? 'You' : undefined} sub={m.role.value} onPress={() => setAssignee(id)} right={assignee === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
             {members.length === 0 ? <Row label="No members yet" last /> : null}
           </Section>
           {assigned ? <Note>The first passage already has an assignment.</Note> : null}
@@ -535,7 +531,7 @@ export function ReviewTeams(ctx: Ctx) {
         return (
           <Section key={teamId} label={`${t.name.value || teamId} · ${members.length}`}>
             {members.map((id, i) => (
-              <Row key={id} icon={Users} label={id.slice(0, 8)} last={i === members.length - 1} />
+              <Row key={id} personId={id} last={i === members.length - 1} />
             ))}
             {members.length === 0 ? <Row label="Nobody yet" last /> : null}
           </Section>
@@ -582,7 +578,7 @@ export function ReviewTeamEditor(ctx: Ctx) {
       <TextInput style={styles.input} placeholder="Team name" value={name} onChangeText={setName} />
       <Section label="Members">
         {members.map(([id, m], i) => (
-          <Row key={id} label={id.slice(0, 8)} sub={m.role.value} onPress={() => setChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; })} right={chosen.has(id) ? <Check size={18} color={colors.done} /> : <View />} last={i === members.length - 1} />
+          <Row key={id} personId={id} sub={m.role.value} onPress={() => setChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; })} right={chosen.has(id) ? <Check size={18} color={colors.done} /> : <View />} last={i === members.length - 1} />
         ))}
       </Section>
       <View>{void text}</View>

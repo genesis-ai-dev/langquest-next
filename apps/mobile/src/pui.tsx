@@ -7,6 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BookIcon, bookIcon } from './bookIcons';
 import { colors, radius, space } from './theme';
 import { ActionButton, text } from './ui';
+import { PersonAvatar, usePerson } from './UserChip';
 
 export function Screen(props: { children: ReactNode; footer?: ReactNode; tint?: string }) {
   return (
@@ -21,7 +22,8 @@ export function Screen(props: { children: ReactNode; footer?: ReactNode; tint?: 
 
 export function Header(props: {
   title: string;
-  sub?: string;
+  /** Text, or a node such as a Byline (UserChip.tsx). */
+  sub?: ReactNode;
   crumbs?: { label: string; onPress?: () => void }[];
   onBack?: () => void;
   action?: ReactNode;
@@ -48,7 +50,7 @@ export function Header(props: {
             </View>
           ) : null}
           <Text style={text.h3}>{props.title}</Text>
-          {props.sub ? <Text style={text.muted}>{props.sub}</Text> : null}
+          {typeof props.sub === 'string' ? <Text style={text.muted}>{props.sub}</Text> : props.sub ?? null}
         </View>
         {props.action}
       </View>
@@ -69,8 +71,12 @@ export function Row(props: {
   icon?: LucideIcon;
   /** Book icon (bookIcons.tsx) in the icon slot; wins over `icon`. */
   bookId?: string;
-  label: string;
-  sub?: string;
+  /** Person avatar (UserChip.tsx) in the icon slot; wins over `icon`. */
+  personId?: string;
+  /** Defaults to the person's name when `personId` is set. */
+  label?: string;
+  /** Text, or a node such as a Byline (UserChip.tsx). */
+  sub?: ReactNode;
   badge?: string;
   right?: ReactNode;
   onPress?: () => void;
@@ -78,6 +84,7 @@ export function Row(props: {
 }) {
   const Icon = props.icon;
   const book = props.bookId ? bookIcon(props.bookId) : undefined;
+  const person = usePerson();
   return (
     <Pressable
       onPress={props.onPress}
@@ -85,7 +92,11 @@ export function Row(props: {
       accessibilityRole={props.onPress ? 'button' : undefined}
       style={[styles.row, !props.last && styles.rowBorder]}
     >
-      {book ? (
+      {props.personId ? (
+        <View style={styles.rowIcon}>
+          <PersonAvatar look={person(props.personId)} size={22} />
+        </View>
+      ) : book ? (
         <View style={styles.rowIcon}>
           <BookIcon bookId={props.bookId!} size={22} />
         </View>
@@ -96,13 +107,13 @@ export function Row(props: {
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={text.body} numberOfLines={1}>
-          {props.label}
+          {props.label ?? (props.personId ? person(props.personId).name : '')}
         </Text>
-        {props.sub ? (
+        {typeof props.sub === 'string' ? (
           <Text style={text.small} numberOfLines={2}>
             {props.sub}
           </Text>
-        ) : null}
+        ) : props.sub ?? null}
       </View>
       {props.badge ? <Badge label={props.badge} /> : null}
       {props.right ?? (props.onPress ? <ChevronRight size={16} color={colors.mutedForeground} /> : null)}

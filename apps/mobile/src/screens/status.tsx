@@ -1,13 +1,14 @@
 // Avatar P. Status drill-down: status_home → language_status → book_status → piece_status → piece_assign / piece_stage → piece_version / piece_review.
 import { bottleneck, deriveBooks, derivePieces, deriveTakeStatus, nextAction, percentDone, type Piece } from '@langquest-next/core';
 import { BookOpen, Check, Globe, Mic } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { indexesFor } from '../indexes';
 import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, DualProgressBar, StatusIcon, text } from '../ui';
+import { Byline } from '../UserChip';
 
 function lanePieces(ctx: Ctx, laneId: string): Piece[] {
   return ctx.project.state ? derivePieces(ctx.project.state, laneId, indexesFor(ctx.project.state)) : [];
@@ -89,7 +90,7 @@ export function BookStatus(ctx: Ctx) {
             key={p.unitId}
             icon={Mic}
             label={p.label}
-            sub={`${p.stage}${p.assignee ? ` · ${p.assignee.slice(0, 8)}` : ''}`}
+            sub={p.assignee ? <Byline before={`${p.stage} ·`} id={p.assignee} /> : p.stage}
             right={<Badge label={p.status} color={STATUS_COLOR[p.status]} />}
             onPress={() => ctx.go('piece_status', { laneId, unitId: p.unitId })}
             last={i === pieces.length - 1}
@@ -104,12 +105,12 @@ export function BookStatus(ctx: Ctx) {
 function rounds(ctx: Ctx, piece: Piece) {
   const { state } = ctx.project;
   if (!state || !piece.takeId) return [];
-  const out: { id: string; stage: string; sub: string; verdict: string }[] = [];
+  const out: { id: string; stage: string; sub: ReactNode; verdict: string }[] = [];
   const sub = state.submissions[piece.takeId];
-  if (sub) out.push({ id: 'submit', stage: 'Draft', sub: `submitted by ${sub.actorId.slice(0, 8)}`, verdict: 'drafted' });
+  if (sub) out.push({ id: 'submit', stage: 'Draft', sub: <Byline before="submitted by" id={sub.actorId} />, verdict: 'drafted' });
   for (const [stepId, byActor] of Object.entries(state.reviews[piece.takeId] ?? {})) {
     for (const [actor, r] of Object.entries(byActor)) {
-      out.push({ id: `${stepId}:${actor}`, stage: stepId, sub: `reviewed by ${actor.slice(0, 8)}`, verdict: r.value.decision === 'approve' ? 'approved' : 'suggestions' });
+      out.push({ id: `${stepId}:${actor}`, stage: stepId, sub: <Byline before="reviewed by" id={actor} />, verdict: r.value.decision === 'approve' ? 'approved' : 'suggestions' });
     }
   }
   return out;
@@ -131,7 +132,7 @@ export function PieceStatus(ctx: Ctx) {
           <Text style={[text.h4, { flex: 1 }]}>{piece.stage}</Text>
           <Badge label={piece.status} color={STATUS_COLOR[piece.status]} />
         </View>
-        <Text style={text.muted}>{piece.assignee ? `Assigned to ${piece.assignee.slice(0, 8)}` : 'Unassigned'}</Text>
+        {piece.assignee ? <Byline before="Assigned to" id={piece.assignee} /> : <Text style={text.muted}>Unassigned</Text>}
         <Text style={text.muted}>Next: {next.label}</Text>
       </Card>
       <Section label="Stage history">
@@ -161,7 +162,7 @@ export function PieceAssign(ctx: Ctx) {
       <Header title={role === 'reviewer' ? `Assign ${ctx.params['stepId']}` : 'Assign translation'} sub={state?.units[unitId]?.label} onBack={ctx.back} />
       <Section label="Assignee">
         {members.map(([id, m], i) => (
-          <Row key={id} label={id.slice(0, 8)} sub={m.role.value} onPress={() => setWho(id)} right={who === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === members.length - 1} />
+          <Row key={id} personId={id} sub={m.role.value} onPress={() => setWho(id)} right={who === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === members.length - 1} />
         ))}
       </Section>
       <Section label="Due date">
@@ -201,7 +202,7 @@ export function PieceVersion(ctx: Ctx) {
   const terms = Object.entries(state.references).filter(([, r]) => r.unitId === take.unitId && r.kind === 'key_terms');
   return (
     <Screen>
-      <Header title="Version" sub={`${state.units[take.unitId]?.label} · by ${take.actorId.slice(0, 8)}`} onBack={ctx.back} />
+      <Header title="Version" sub={<Byline before={`${state.units[take.unitId]?.label} · by`} id={take.actorId} />} onBack={ctx.back} />
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <StatusIcon outcome={st.outcome} />
@@ -219,7 +220,7 @@ export function PieceVersion(ctx: Ctx) {
       <Section label="Reviews">
         {Object.entries(state.reviews[takeId] ?? {}).flatMap(([stepId, byActor]) =>
           Object.entries(byActor).map(([actor, r]) => (
-            <Row key={`${stepId}:${actor}`} label={stepId} sub={actor.slice(0, 8)} badge={r.value.decision === 'approve' ? 'approved' : 'suggestions'} onPress={() => ctx.go('piece_review', { ...ctx.params, round: `${stepId}:${actor}` })} />
+            <Row key={`${stepId}:${actor}`} label={stepId} sub={<Byline id={actor} />} badge={r.value.decision === 'approve' ? 'approved' : 'suggestions'} onPress={() => ctx.go('piece_review', { ...ctx.params, round: `${stepId}:${actor}` })} />
           ))
         )}
         <Row label="" last />
@@ -237,7 +238,7 @@ export function PieceReview(ctx: Ctx) {
   const approved = review.decision === 'approve';
   return (
     <Screen>
-      <Header title={stepId} sub={`by ${actor.slice(0, 8)}`} onBack={ctx.back} />
+      <Header title={stepId} sub={<Byline before="by" id={actor} />} onBack={ctx.back} />
       <Card style={{ backgroundColor: approved ? 'rgba(41,163,118,0.12)' : 'rgba(243,117,27,0.12)' }}>
         <Text style={text.h4}>{approved ? 'Approved' : 'Suggestions'}</Text>
         {review.comment ? <Text style={text.body}>{review.comment}</Text> : null}

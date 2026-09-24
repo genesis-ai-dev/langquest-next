@@ -31,7 +31,8 @@ import { AUTH_SCREENS, GUEST_SCREENS, deriveInboxCount, deriveSession, edgeAllow
 import { supabase, supabaseConfigError } from './src/supabase';
 import { colors, space } from './src/theme';
 import { recordUserEvent, TERMS_VERSION } from './src/accountData';
-import { useAccountSync } from './src/useAccount';
+import { useAccountSync, useDisplayNames } from './src/useAccount';
+import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
 import { useOrg } from './src/useOrg';
 import { useProject } from './src/useProject';
@@ -189,6 +190,15 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     [rawProject.queries, projectedState, rawProject.state, props.orgId, props.projectId]);
   const project = { ...rawProject, state: projectedState, queries };
   useAccountSync(props.actorId);
+  const profileNames = useDisplayNames(props.actorId);
+  const people = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [id, scopes] of Object.entries(org.state?.members ?? {})) {
+      const name = Object.values(scopes)[0]?.displayName;
+      if (name) out[id] = name;
+    }
+    return { ...out, ...profileNames };
+  }, [org.state, profileNames]);
   const [seenVision, setSeenVision] = useState(false);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
@@ -352,6 +362,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
 
   return (
     <View style={{ flex: 1 }}>
+      <PeopleContext.Provider value={people}>
       <CtxContext.Provider value={ctx}>
         <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}>
           <Stack.Navigator
@@ -366,6 +377,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
           </Stack.Navigator>
         </NavigationContainer>
       </CtxContext.Provider>
+      </PeopleContext.Provider>
       {showTabs ? (
         <View style={styles.tabs}>
           {tabs.map((t) => {

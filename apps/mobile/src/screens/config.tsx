@@ -9,6 +9,7 @@ import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, text } from '../ui';
+import { Byline } from '../UserChip';
 import { SourceBibleSettings } from '../sourceBibleSettings';
 
 export function RolesHome(ctx: Ctx) {
@@ -242,7 +243,7 @@ export function KeyTermDetail(ctx: Ctx) {
       </Section>
       <Section label={`Adjustments · ${t.adjustments.length}`}>
         {t.adjustments.map((a, i) => (
-          <Row key={a.adjustmentId} label={a.note} sub={`${a.actorId.slice(0, 8)}${a.duringTakeId ? ` · during ${state.units[state.takes[a.duringTakeId]?.unitId ?? '']?.label ?? 'a translation'}` : ''}${a.blobHash ? ' · audio' : ''}`} last={i === t.adjustments.length - 1 && !canEdit} />
+          <Row key={a.adjustmentId} label={a.note} sub={<Byline id={a.actorId} after={`${a.duringTakeId ? ` · during ${state.units[state.takes[a.duringTakeId]?.unitId ?? '']?.label ?? 'a translation'}` : ''}${a.blobHash ? ' · audio' : ''}`.trim() || undefined} />} last={i === t.adjustments.length - 1 && !canEdit} />
         ))}
         {canEdit ? (
           <Card>

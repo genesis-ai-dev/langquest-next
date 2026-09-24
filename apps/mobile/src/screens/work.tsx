@@ -10,6 +10,7 @@ import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
 import { ActionButton, Card, DualProgressBar, IconCircleButton, RoleBadge, TASK_META, text } from '../ui';
+import { Byline } from '../UserChip';
 
 const STATUS_META: Record<TaskStatus, { icon: typeof Circle; color: string }> = {
   todo: { icon: Circle, color: colors.mutedForeground },
@@ -286,7 +287,7 @@ export function GiveAssignment(ctx: Ctx) {
       {step === 1 ? (
         <Section label="Assignee">
           {members.map(([id, m], i) => (
-            <Row key={id} label={id.slice(0, 8)} sub={m.role.value} onPress={() => setWho(id)} right={who === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === members.length - 1} />
+            <Row key={id} personId={id} sub={m.role.value} onPress={() => setWho(id)} right={who === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === members.length - 1} />
           ))}
         </Section>
       ) : null}
@@ -320,7 +321,7 @@ export function AssignmentProgressDetail(ctx: Ctx) {
       <Header title="Assignment progress" sub={label} onBack={ctx.back} />
       {piece ? (
         <Section label="Now">
-          <Row label={piece.stage} sub={piece.status} badge={piece.assignee ? piece.assignee.slice(0, 8) : undefined} last />
+          <Row label={piece.stage} sub={piece.assignee ? <Byline before={`${piece.status} ·`} id={piece.assignee} /> : piece.status} last />
         </Section>
       ) : (
         <Note>No piece found for this task.</Note>
