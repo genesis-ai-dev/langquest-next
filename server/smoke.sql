@@ -52,12 +52,12 @@ end $$;
 select set_config('request.jwt.claim.sub', 'stranger', false);
 do $$ declare r record; begin
   select * into r from public.append_events('[
-    {"id":"e6","type":"v1.RecordingAdded","orgId":"org1","projectId":"p1","actorId":"stranger","deviceId":"dX","hlc":"000000000000006:000000:dX","payload":{}}
+    {"id":"e6","type":"v1.RecordingAdded","orgId":"org1","projectId":"p1","actorId":"stranger","deviceId":"dX","hlc":"000000000000006:000000:dX","payload":{"recordingId":"unauthorized","unitId":"u1","laneId":"L1","kind":"target","cards":[{"hash":"c1","durationMs":100}]}}
   ]'::jsonb);
   if r.accepted or r.reason <> 'not a member' then raise exception 'stranger should be rejected, got %', r; end if;
 
   select * into r from public.append_events('[
-    {"id":"e7","type":"v1.RecordingAdded","orgId":"org1","projectId":"p1","actorId":"t1","deviceId":"dX","hlc":"000000000000007:000000:dX","payload":{}}
+    {"id":"e7","type":"v1.RecordingAdded","orgId":"org1","projectId":"p1","actorId":"t1","deviceId":"dX","hlc":"000000000000007:000000:dX","payload":{"recordingId":"unauthorized","unitId":"u1","laneId":"L1","kind":"target","cards":[{"hash":"c1","durationMs":100}]}}
   ]'::jsonb);
   if r.accepted then raise exception 'spoofed actorId should be rejected'; end if;
 end $$;
@@ -222,22 +222,17 @@ do $$ begin
 end $$;
 select set_config('request.jwt.claim.sub', 'lead', false);
 
--- 5h. Minimum client version: old clients are refused with a distinct code.
-update public.server_config set min_client_version = 2;
+-- 5h. All client versions can transport events. The global gate cannot return.
 do $$ begin
+  perform * from public.pull_events('org1', 'p1', 0, 10, 0);
+  perform * from public.pull_events('org1', 'p1', 0, 10, null);
+  perform * from public.append_events('[]'::jsonb, 1);
   begin
-    perform * from public.pull_events('org1', 'p1', 0, 10, 1);
-    raise exception 'old client pull should have been refused';
-  exception when sqlstate 'LQ001' then null;
+    update public.server_config set min_client_version = 2;
+    raise exception 'Global sync gate was re-enabled';
+  exception when check_violation then null;
   end;
-  begin
-    perform * from public.append_events('[]'::jsonb, 1);
-    raise exception 'old client append should have been refused';
-  exception when sqlstate 'LQ001' then null;
-  end;
-  perform * from public.pull_events('org1', 'p1', 0, 10, 2);
 end $$;
-update public.server_config set min_client_version = 0;
 
 -- 6. Append-only is enforced even for the table owner.
 do $$ begin

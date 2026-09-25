@@ -60,5 +60,12 @@ its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
 per invitation prevents concurrent and confirmed-delivery retries from
 sending duplicates. Neither service logs invitation tokens.
 
+`npm run import:v2:follow` is the live v2 migration: it imports every v2
+project once, then polls v2 every 15 s and re-imports the projects that
+received rows. It targets whatever `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`
+name, and it needs `V2_SUPABASE_ANON_KEY`. It keeps its poll cursor in
+`V2_IMPORT_CACHE`, so it resumes after a restart. Run one copy per target.
+It needs `ffmpeg` on the PATH: v2 WAV and MP3 audio is converted to m4a.
+
 Still deferred: org dashboard summaries (`project_summaries`), profile
 photos, and the remaining content/audio gaps in the flow audit.
