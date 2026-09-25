@@ -1,10 +1,11 @@
+import { StyleSheet } from '../theme';
 // Avatar P for inbox and settings; sign_out_confirm is Avatar U (one action, guarded, and it says what the guard is).
 import { decodeHlc, deriveInbox } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import type { SyncInspection } from '@langquest-next/client';
 import { AlertCircle, ArrowDown, ArrowUp, Check, Cloud, CloudOff, CloudUpload, Database, LogOut, Radio, RefreshCw, User, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +17,7 @@ import { colors, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
 import * as Updates from 'expo-updates';
 import { runningBuildLabel } from '../updateStatus';
+import { AccountPrivacySettings } from '../accountPrivacySettings';
 
 /** Notifications are derived: your open tasks, and decisions on your takes. */
 export function InboxHome(ctx: Ctx) {
@@ -94,6 +96,7 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon={RefreshCw} label="Replay organization walkthrough" onPress={() => ctx.go('walkthrough')} />
         <Row icon={LogOut} label="Sign out" onPress={() => ctx.go('sign_out_confirm')} last />
       </Section>
+      <AccountPrivacySettings ctx={ctx} />
       {ctx.canSwitchPersona ? (
         <Section label="Testing">
           <Row label="Switch persona" sub="sign in as a demo translator, reviewer or coordinator" onPress={ctx.openDev} last />

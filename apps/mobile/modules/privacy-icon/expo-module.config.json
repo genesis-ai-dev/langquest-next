@@ -1,0 +1,5 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": { "modules": ["PrivacyIconModule"] },
+  "android": { "modules": ["expo.modules.privacyicon.PrivacyIconModule"] }
+}
