@@ -1,3 +1,7 @@
+import type { TakeMetadata } from './audioEdits';
+import type { SavedTextTranslation } from './textTranslations';
+import { emptyObt, type ObtState } from './obt';
+import type { BibleSettings } from './dynamicBible';
 import type { Card, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
@@ -127,6 +131,10 @@ export interface KeyTerm {
 }
 
 export interface ProjectState {
+  takeMetadata: Record<string, Register<TakeMetadata>>;
+  textTranslations: Record<string, Register<SavedTextTranslation>>;
+  bibleSettings: Record<string, Register<BibleSettings>>;
+  obt: ObtState;
   project: Register<{ name: string; sourceLanguoidId: string }> | null;
   config: Register<ProjectConfig> | null;
   members: Record<string, Member>;
@@ -175,6 +183,10 @@ export interface ProjectState {
 
 export function emptyState(): ProjectState {
   return {
+    takeMetadata: {},
+    textTranslations: {},
+    bibleSettings: {},
+    obt: emptyObt(),
     project: null,
     config: null,
     members: {},

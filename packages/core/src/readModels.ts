@@ -1,3 +1,5 @@
+import { deriveObt, isObtLane } from './obt';
+import { obtTasks } from './tasks';
 import type { AnyEvent, Role } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import type { ProjectState } from './state';
@@ -35,6 +37,7 @@ export interface PassageAssignee {
 
 export interface PassageRow extends PassageKey {
   /** Unit order key, so a lane's rows page in display order. */
+  obtTasks?: Record<string, Task[]>;
   order: string;
   label: string;
   takeId: string | null;
@@ -58,7 +61,8 @@ export function passageKeys(state: ProjectState, idx: Indexes = buildIndexes(sta
 
 export function passageRow(state: ProjectState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): PassageRow {
   const unit = state.units[unitId];
-  const takeId = currentTake(state, unitId, laneId, idx);
+  const oral = isObtLane(state,laneId) ? deriveObt(state,unitId,laneId) : null;
+  const takeId = oral?.finalTakeId ?? oral?.draftId ?? currentTake(state, unitId, laneId, idx);
   const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
   const steps: PassageStep[] =
     takeId && status && status.submitted && status.outcome !== 'archived'
@@ -80,6 +84,7 @@ export function passageRow(state: ProjectState, unitId: string, laneId: string, 
   return {
     unitId,
     laneId,
+    ...(isObtLane(state, laneId) ? { obtTasks: Object.fromEntries(Object.keys(state.members).map(id => [id, obtTasks(state, id, unitId, laneId)])) } : {}),
     order: unit?.order ?? '',
     label: unit?.label ?? unitId,
     takeId,
@@ -100,6 +105,7 @@ const TRANSLATING_ROLES: Role[] = ['owner', 'coordinator', 'translator'];
  */
 export function tasksFromRow(row: PassageRow, actorId: string, role: Role | null): Task[] {
   if (!role) return [];
+  if (row.obtTasks) return row.obtTasks[actorId] ?? [];
   const tasks: Task[] = [];
   const { unitId, laneId, takeId } = row;
   // Latest non-reviewer assignment to this actor wins, as in deriveTasks.

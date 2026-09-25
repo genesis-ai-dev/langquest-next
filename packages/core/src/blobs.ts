@@ -1,3 +1,4 @@
+import { deriveTasks } from './tasks';
 import { unitAncestry } from './materials';
 import type { ProjectState } from './state';
 
@@ -9,7 +10,7 @@ import type { ProjectState } from './state';
 
 export interface BlobRef {
   hash: string;
-  format: 'wav' | 'm4a';
+  format: 'wav' | 'm4a' | 'jpg';
   /** The unit this blob belongs to; download scope is a set of units. */
   unitId: string;
 }
@@ -46,6 +47,12 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
     for (const byActor of Object.values(bySteps)) {
       for (const c of Object.values(byActor)) if (!out.has(c.blobHash)) out.set(c.blobHash, { hash: c.blobHash, format: 'm4a', unitId });
     }
+  }
+  for (const r of Object.values(state.obt.audio)) {
+    for (const c of r.value.cards) out.set(c.hash, { hash: c.hash, format: c.format ?? 'm4a', unitId: r.value.unitId });
+  }
+  for (const r of Object.values(state.obt.interactions)) {
+    if (r.value.photoHash) out.set(r.value.photoHash, { hash: r.value.photoHash, format: 'jpg', unitId: r.value.unitId });
   }
   return out;
 }
@@ -149,6 +156,9 @@ export function deriveDownloadWork(
  */
 export function defaultOfflineScope(state: ProjectState, actorId: string): Set<string> {
   const scope = new Set<string>();
+  if (Object.values(state.laneFlows).some(f => f.value.flowId === 'spoken_worldwide')) {
+    for (const task of deriveTasks(state,actorId)) if (task.obtStage && !task.done) scope.add(task.unitId);
+  }
   for (const a of Object.values(state.assignments)) if (a.profileId === actorId) scope.add(a.unitId);
   for (const r of Object.values(state.recordings)) if (r.actorId === actorId) scope.add(r.unitId);
   for (const t of Object.values(state.takes)) if (t.actorId === actorId && t.unitId) scope.add(t.unitId);

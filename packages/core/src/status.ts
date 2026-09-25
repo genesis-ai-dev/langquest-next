@@ -1,3 +1,4 @@
+import { deriveObt, isObtLane, OBT_LABELS } from './obt';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import type { ProjectState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, type TakeOutcome } from './workflow';
@@ -49,6 +50,15 @@ export function derivePieces(state: ProjectState, laneId: string, idx: Indexes =
           stage = pending?.stepId ?? 'Draft';
           status = st.outcome === 'changes_requested' ? 'doing' : 'waiting';
         }
+      }
+      if (isObtLane(state, laneId)) {
+        const journey = deriveObt(state, unitId, laneId);
+        return { unitId, bookId: u.parentUnitId, label: u.label, order: u.order,
+          laneId, takeId: journey.finalTakeId ?? journey.draftId ?? takeId,
+          outcome: journey.stage === 'complete' ? 'approved' as const : st?.outcome ?? null,
+          stage: OBT_LABELS[journey.stage], assignee,
+          status: journey.stage === 'complete' ? 'done' as const :
+            ['first_draft', 'revision', 'final_recording'].includes(journey.stage) ? 'doing' as const : 'waiting' as const };
       }
       return {
         unitId,

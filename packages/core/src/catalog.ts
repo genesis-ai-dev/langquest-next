@@ -122,7 +122,18 @@ function bookTemplate(): ContentTemplate {
 let templates: ContentTemplate[] | null = null;
 /** Built once per process; the item lists are large. */
 export function contentTemplates(): ContentTemplate[] {
-  templates ??= [fiaTemplate(), bibleTemplate(), bookTemplate()];
+  templates ??= [{
+    id: 'dynamic', name: 'Dynamic Bible passages',
+    description: 'Choose the next passage within each book, with BSB text, audio and key terms.',
+    unitKinds: [
+      { id: 'book', label: 'Book', childKinds: ['passage'] },
+      { id: 'passage', label: 'Passage', childKinds: [] }
+    ],
+    items: BIBLE_BOOKS.map((b, i) => ({
+      itemId: b.itemId, parentItemId: null, kind: 'book',
+      label: b.label, order: `b${pad(i)}`
+    }))
+  }, fiaTemplate(), bibleTemplate(), bookTemplate()];
   return templates;
 }
 
@@ -132,6 +143,17 @@ export function contentTemplate(id: string): ContentTemplate | undefined {
 
 /** UX spec REVIEW_FLOWS, with the roles and quorum rules each stage needs. */
 export const FLOW_TEMPLATES: FlowTemplate[] = [
+  {
+    id: 'spoken_worldwide', name: 'Spoken Worldwide oral translation',
+    stages: [
+      { stageId: 'community', label: 'Community checking', role: 'reviewer', required: true, rule: 'any' },
+      { stageId: 'revision', label: 'Revision', role: 'translator', required: true, rule: 'any' },
+      { stageId: 'back_translation', label: 'Back translation', role: 'translator', required: true, rule: 'any' },
+      { stageId: 'consultant', label: 'Consultant checking', role: 'coordinator', required: true, rule: 'any' },
+      { stageId: 'final_recording', label: 'Final recording', role: 'translator', required: true, rule: 'any' },
+      { stageId: 'final_approval', label: 'Final audio approval', role: 'owner', required: true, rule: 'any' }
+    ]
+  },
   {
     id: 'standard_bible',
     name: 'Standard Bible Flow',

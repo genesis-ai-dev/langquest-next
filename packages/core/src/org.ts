@@ -94,6 +94,16 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
  * The SQL `event_privilege` is this table; keep them identical.
  */
 export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_kind' | null> = {
+  'v1.BibleSettingsSet': 'manage_reference',
+  'v1.BiblePassageSelected': 'translate',
+  'v1.TextTranslationCreated': 'translate',
+  'v1.TakeMetadataSet': 'translate',
+  'v1.ObtPolicySet': 'manage_flows',
+  'v1.ObtRoundStarted': 'translate',
+  'v1.ObtAudioAdded': 'view_status',
+  'v1.ObtInteractionSet': 'view_status',
+  'v1.ObtStepRecorded': 'view_status',
+  'v1.ObtWorkspaceCreated': null,
   'v1.ProjectCreated': 'bootstrap',
   'v1.ProjectConfigChanged': 'manage_structure',
   'v1.MemberAdded': 'invite_members',

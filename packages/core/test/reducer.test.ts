@@ -1,3 +1,4 @@
+import { buildObtFixture, obtEvent } from './obtFixtures';
 import type { EventType } from '../src/events';
 import { fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
@@ -6,6 +7,9 @@ import { emptyState } from '../src/state';
 import { buildFixture, buildOrgFixture, buildStep11Fixture, shuffle } from './fixtures';
 
 const CATALOG: EventType[] = [
+  'v1.BibleSettingsSet', 'v1.BiblePassageSelected',
+  'v1.ObtPolicySet','v1.ObtRoundStarted','v1.ObtAudioAdded',
+  'v1.ObtInteractionSet','v1.ObtStepRecorded','v1.ObtWorkspaceCreated',
   'v1.ProjectCreated',
   'v1.ProjectConfigChanged',
   'v1.MemberAdded',
@@ -51,7 +55,9 @@ const CATALOG: EventType[] = [
 ];
 
 describe('reducer invariants (PLAN.md section 4)', () => {
-  const events = [...buildFixture(), ...buildStep11Fixture(), ...buildOrgFixture()];
+  const events = [...buildFixture(), ...buildStep11Fixture(), ...buildOrgFixture(),...buildObtFixture(),obtEvent('obt-workspace','v1.ObtWorkspaceCreated',{unitId:'input',laneId:'blind',inputTakeId:'input',language:'English'}),
+    obtEvent('bible-settings', 'v1.BibleSettingsSet', { laneId: 'BL', sourceId: 'bsb', density: 35 }),
+    obtEvent('bible-passage', 'v1.BiblePassageSelected', { laneId: 'BL', book: 'gen', start: 1, end: 2 })];
   const canonical = fold(events, emptyState());
 
   it('fixture exercises every event type in the catalog', () => {

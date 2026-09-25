@@ -1,3 +1,7 @@
+import { validTakeMetadata } from './audioEdits';
+import { validateTextTranslation } from './textTranslations';
+import { validateObt } from './obt';
+import { validateBibleEvent } from './dynamicBible';
 import type { AnyEvent, Role } from './events';
 import { PRIVILEGES } from './org';
 
@@ -16,6 +20,12 @@ export function validateEvent(e: AnyEvent): string | null {
   }
   if (!isObject(e.payload)) return 'payload must be an object';
   const p = e.payload as Record<string, unknown>;
+  if (e.type === 'v1.TakeMetadataSet') return typeof p.takeId === 'string' && p.takeId.length > 0 && typeof p.unitId === 'string' && !!p.unitId && typeof p.laneId === 'string' && !!p.laneId && validTakeMetadata(p) ? null : 'Invalid recording metadata';
+  if (e.type === 'v1.TextTranslationCreated') return validateTextTranslation(p);
+  if (e.type === 'v1.BibleSettingsSet' || e.type === 'v1.BiblePassageSelected') {
+    return validateBibleEvent(e.type, p);
+  }
+  if (e.type.startsWith('v1.Obt')) return validateObt(e.type, p);
   const str = (...keys: string[]) => {
     for (const k of keys) if (typeof p[k] !== 'string' || p[k] === '') return `${k} must be a non-empty string`;
     return null;

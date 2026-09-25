@@ -13,7 +13,7 @@ const bucket = 'langquest-source-bibles';
 const directory = await mkdtemp(join(tmpdir(), 'langquest-sources-'));
 const manifest: object[] = [];
 try {
-  for (const bible of SOURCE_BIBLES) {
+  for (const bible of SOURCE_BIBLES.filter(b => b.suffix === 'FS')) {
     for (const chapter of sourceChapters('book@1/jon')) {
       const url = sourceAudioUrl(bible, chapter);
       const file = sourceAudioFile(bible, chapter);

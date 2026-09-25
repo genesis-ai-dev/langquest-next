@@ -1,8 +1,5 @@
-/**
- * Sync protocol version this client speaks. Sent with every append and pull;
- * the server refuses clients below its `server_config.min_client_version`
- * with a distinct error so the app can say "upgrade" instead of silently
- * folding a project it can no longer read correctly. Bump when an event or
- * RPC change makes older clients unsafe, not on every reducer change.
+/** Legacy RPC telemetry only. NEVER gate append/pull on client age.
+ * Event schema versions and reducer cache versions evolve independently.
+ * See AGENTS.md and docs/sync-integrity.md before changing sync.
  */
-export const CLIENT_PROTOCOL_VERSION = 1;
+export const CLIENT_PROTOCOL_VERSION = 4;

@@ -1,3 +1,5 @@
+import { validTakeMetadata, type TakeMetadata } from './audioEdits';
+import { isObtLane } from './obt';
 import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import type { ProjectState } from './state';
@@ -28,7 +30,7 @@ export interface Commands {
   /** Save one recorded card against a passage. Idempotent by recordingId. */
   addRecording(c: { commandId: string; unitId: string; laneId: string; recordingId: string; kind: 'source' | 'target'; card: Card }): EventSpec[];
   /** Compose the pending cards into the passage's current take, retiring a draft it replaces. */
-  keepTake(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[] }): EventSpec[];
+  keepTake(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[]; metadata?: TakeMetadata }): EventSpec[];
   /** Record a deliberate discard of pending cards so recovery never resurrects them. */
   discardCards(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[] }): EventSpec[];
   /** Hand the passage's current draft to review, with an optional response note. */
@@ -67,7 +69,11 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
         { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, laneId: c.laneId, cardHashes: c.cardHashes, parentTakeId: previous } },
         { id: next(), type: 'v1.TakeSelected', payload: { takeId, unitId: c.unitId, laneId: c.laneId } }
       ];
-      if (previous && deriveTakeStatus(state, previous, idx).outcome === 'draft') {
+      if (c.metadata) {
+        if (!validTakeMetadata(c.metadata)) throw new CommandError('Invalid recording metadata.');
+        out.push({ id: next(), type: 'v1.TakeMetadataSet', payload: { takeId, unitId: c.unitId, laneId: c.laneId, ...c.metadata } });
+      }
+      if (previous && !isObtLane(state, c.laneId) && !state.obt.workspace && deriveTakeStatus(state, previous, idx).outcome === 'draft') {
         out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: previous } });
       }
       return out;

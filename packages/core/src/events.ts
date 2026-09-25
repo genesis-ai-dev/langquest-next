@@ -1,3 +1,7 @@
+import type { TakeMetadata } from './audioEdits';
+import type { TextTranslationEvents } from './textTranslations';
+import type { ObtEvents } from './obt';
+import type { BibleEvents } from './dynamicBible';
 import type { Hlc } from './hlc';
 import type { MaterialEvents } from './materials';
 import type { OrgEventPayloads } from './org';
@@ -44,7 +48,7 @@ export interface Card {
   format?: 'wav' | 'm4a';
 }
 
-export interface EventPayloads extends OrgEventPayloads, MaterialEvents {
+export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEvents, BibleEvents, TextTranslationEvents {
   'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
   'v1.ProjectConfigChanged': { config: ProjectConfig };
   'v1.MemberAdded': { profileId: string; role: Role };
@@ -80,6 +84,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents {
     cardHashes: string[];
     parentTakeId: string | null;
   };
+  'v1.TakeMetadataSet': TakeMetadata & { takeId: string; unitId: string; laneId: string };
   'v1.TakeArchived': { takeId: string };
   'v1.TakeSelected': { unitId: string; laneId: string; takeId: string };
   /**

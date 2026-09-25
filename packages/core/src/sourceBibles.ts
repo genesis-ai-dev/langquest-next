@@ -1,19 +1,24 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
+import { bibleRangeFromUnit, verseAddress } from './dynamicBible';
 import { catalogEnabled, catalogKey, type OrgState } from './org';
 
-/** Audio editions are explicit opt-ins, unlike the legacy reference catalog. */
+/** BSB is the default. Explicit organization/project opt-outs still win. */
 export const SOURCE_BIBLES = [
   { id: 'berean-bsb-fs', name: 'Berean Standard Bible', code: 'BSB',
-    directory: 'bsb_frederick_surrey', narrator: 'Frederick Surrey' },
+    directory: 'bsb_frederick_surrey', narrator: 'Frederick Surrey', suffix: 'FS' },
   { id: 'berean-msb-fs', name: 'Majority Standard Bible', code: 'MSB',
-    directory: 'msb_frederick_surrey', narrator: 'Frederick Surrey' }
+    directory: 'msb_frederick_surrey', narrator: 'Frederick Surrey', suffix: 'FS' },
+  { id: 'berean-bsb-hays', name: 'Berean Standard Bible', code: 'BSB',
+    directory: 'hays', narrator: 'Barry Hays', suffix: 'H' }
 ] as const;
+export const DEFAULT_SOURCE_BIBLE_ID = 'berean-bsb-hays';
 export type SourceBible = typeof SOURCE_BIBLES[number];
 
 export function sourceBibleEnabled(
   org: OrgState, id: string, projectId?: string
 ): boolean {
-  return org.catalog[catalogKey('reference', id, 'org')]?.value === true &&
+  return (org.catalog[catalogKey('reference', id, 'org')]?.value ??
+    id === DEFAULT_SOURCE_BIBLE_ID) &&
     catalogEnabled(org, 'reference', id, projectId);
 }
 
@@ -29,6 +34,16 @@ export type SourceChapter = { book: string; chapter: number; label: string };
 
 /** Only resolve known template ids; never guess from a passage's display text. */
 export function sourceChapters(unitId: string): SourceChapter[] {
+  const dynamic = bibleRangeFromUnit(unitId);
+  if (dynamic) {
+    const first = verseAddress(dynamic.book, dynamic.start)!;
+    const last = verseAddress(dynamic.book, dynamic.end)!;
+    const book = BIBLE_BOOKS.find(b => b.itemId === dynamic.book)!;
+    return Array.from({ length: last.chapter - first.chapter + 1 }, (_, i) => ({
+      book: dynamic.book, chapter: first.chapter + i,
+      label: `${book.label} ${first.chapter + i}`
+    }));
+  }
   const match = /^(bible|fia|book)@1\/(.+)$/.exec(unitId);
   if (!match) return [];
   const [, template, item] = match;
@@ -63,7 +78,7 @@ export function sourceAudioFile(bible: SourceBible, item: SourceChapter): string
     throw new Error('Unknown source chapter');
   }
   return `${bible.code}_${String(index + 1).padStart(2, '0')}_` +
-    `${AUDIO_BOOKS[index]}_${String(item.chapter).padStart(3, '0')}_FS.mp3`;
+    `${AUDIO_BOOKS[index]}_${String(item.chapter).padStart(3, '0')}_${bible.suffix}.mp3`;
 }
 
 export function sourceAudioUrl(
@@ -71,7 +86,7 @@ export function sourceAudioUrl(
 ): string {
   const file = sourceAudioFile(bible, item);
   // The trial mirrors Jonah only. Other chapters stay on the publisher CDN.
-  if (pilotBaseUrl && item.book === 'jon') {
+  if (pilotBaseUrl && item.book === 'jon' && bible.suffix === 'FS') {
     return `${pilotBaseUrl.replace(/\/$/, '')}/${bible.id}/${file}`;
   }
   return `https://openbible.com/audio/${bible.directory}/${file}`;

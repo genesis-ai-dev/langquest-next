@@ -2,13 +2,14 @@ import type { AnyEvent, EventEnvelope } from './events';
 import type { Member, ProjectState, Register } from './state';
 import { emptyState } from './state';
 import { validateEvent } from './validate';
+import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId } from './dynamicBible';
 
 /**
  * Bump when a materializer changes in a way that alters output for existing
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 2;
+export const REDUCER_VERSION = 5;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -27,6 +28,68 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
   if (state.redactions[event.id]) return state;
 
   switch (event.type) {
+    case 'v1.TakeMetadataSet':
+      lww(state.takeMetadata ??= {}, event.payload.takeId, event, { name: event.payload.name, milestones: event.payload.milestones });
+      break;
+    case 'v1.TextTranslationCreated':
+      lww(state.textTranslations ??= {}, event.payload.translationId, event, { ...event.payload, actorId: event.actorId });
+      break;
+    case 'v1.BibleSettingsSet':
+      lww(state.bibleSettings, event.payload.laneId, event, event.payload);
+      break;
+    case 'v1.BiblePassageSelected': {
+      const range = event.payload;
+      const unitId = bibleUnitId(range.laneId, range);
+      const bookIndex = bibleBooks.findIndex(b => b.itemId === range.book);
+      const parentUnitId = `dynamic@1/${range.book}`;
+      state.units[parentUnitId] ??= {
+        parentUnitId: null, kind: 'book', label: bibleBooks[bookIndex]!.label,
+        order: `b${String(bookIndex).padStart(4, '0')}`
+      };
+      state.units[unitId] ??= {
+        parentUnitId, kind: 'passage', label: bibleRangeLabel(range),
+        order: `b${String(bookIndex).padStart(4, '0')}v${String(range.start).padStart(5, '0')}-${String(range.end).padStart(5, '0')}`
+      };
+      for (const { term } of bibleRankedTerms(range)) {
+        const termId = bibleTermId(range.laneId, term);
+        const t = state.keyTerms[termId] ??= {
+          laneId: range.laneId, term, gloss: 'Berean Standard Bible',
+          unitScope: [], renderings: {}, adjustments: {}
+        };
+        if (!t.term) {
+          t.laneId = range.laneId; t.term = term;
+          t.gloss = 'Berean Standard Bible'; t.unitScope = [];
+        }
+      }
+      // Selecting a passage is self-assignment, never assignment to another user.
+      const key = `${unitId}:${range.laneId}:${event.actorId}:translator`;
+      const prior = state.assignments[key];
+      if (!prior || prior.hlc < event.hlc) state.assignments[key] = {
+        unitId, laneId: range.laneId, profileId: event.actorId,
+        role: 'translator', hlc: event.hlc
+      };
+      break;
+    }
+    case 'v1.ObtPolicySet':
+      obtRegister(state.obt.policies, event.payload.laneId, event);
+      break;
+    case 'v1.ObtRoundStarted':
+      obtRegister(state.obt.rounds, event.payload.roundId, event);
+      break;
+    case 'v1.ObtAudioAdded':
+      obtRegister(state.obt.audio, event.payload.clipId, event);
+      break;
+    case 'v1.ObtInteractionSet':
+      obtRegister(state.obt.interactions, event.payload.interactionId, event);
+      break;
+    case 'v1.ObtStepRecorded':
+      obtRegister(state.obt.steps, event.id, event);
+      break;
+    case 'v1.ObtWorkspaceCreated':
+      if (!state.obt.workspace || !loses(state.obt.workspace, event)) {
+        state.obt.workspace = { value: event.payload, hlc: event.hlc, eventId: event.id, actorId: event.actorId };
+      }
+      break;
     case 'v1.ProjectCreated':
       setRegister(state, 'project', event, event.payload);
       break;
@@ -409,4 +472,10 @@ function setRegister<K extends 'project' | 'config'>(
   const current = state[key];
   if (current && loses(current, event)) return;
   state[key] = { value, hlc: event.hlc, eventId: event.id } as ProjectState[K];
+}
+
+function obtRegister<V>(table: Record<string, Register<V> & { actorId: string }>, key: string, event: EventEnvelope & { payload: V }): void {
+  const current = table[key];
+  if (current && loses(current, event)) return;
+  table[key] = { value: event.payload, hlc: event.hlc, eventId: event.id, actorId: event.actorId };
 }

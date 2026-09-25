@@ -1,4 +1,5 @@
 import { CATALOG_VERSION, QUESTION_TEMPLATES } from './catalog';
+import { bibleShortlist, bibleTermId } from './dynamicBible';
 import type { EventPayloads } from './events';
 import type { Indexes } from './indexes';
 import type { ProjectState } from './state';
@@ -92,6 +93,9 @@ export function templateFields(templateRef: string | undefined): string[] {
   if (!templateRef) return [];
   const [kind, id] = templateRef.split('/');
   if (kind === 'questions') return QUESTION_TEMPLATES.find((q) => q.id === id)?.questions.map((q) => q.id) ?? [];
+  if (kind === 'fia_study' && id?.startsWith('guided@')) {
+    return ['hear', 'stage', 'scenes', 'embody', 'gaps', 'speak'];
+  }
   if (kind === 'fia_study') return ['summary', 'key_ideas', 'scenes', 'discussion'];
   return [];
 }
@@ -200,7 +204,12 @@ export function keyTermsFor(state: ProjectState, laneId: string): KeyTermView[] 
  */
 export function keyTermsForUnit(state: ProjectState, laneId: string, unitId: string): KeyTermView[] {
   const ancestors = unitAncestry(state, unitId);
-  return keyTermsFor(state, laneId).filter((t) => t.unitScope.length === 0 || t.unitScope.some((u) => ancestors.has(u)));
+  const automatic = new Map(bibleShortlist(state, laneId, unitId)
+    .map((t, index) => [bibleTermId(laneId, t.term), index]));
+  return keyTermsFor(state, laneId).filter((t) =>
+    t.termId.startsWith('bsb-terms@1/') ? automatic.has(t.termId) :
+      t.unitScope.length === 0 || t.unitScope.some((u) => ancestors.has(u)))
+    .sort((a, b) => (automatic.get(a.termId) ?? -1) - (automatic.get(b.termId) ?? -1));
 }
 
 /** The terms a submitted take relied on (reviewer's "terms the translator tied in"). */

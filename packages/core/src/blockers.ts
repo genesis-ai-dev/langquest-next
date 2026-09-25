@@ -1,3 +1,4 @@
+import { deriveObt, isObtLane, obtCanAct, OBT_LABELS } from './obt';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import type { ProjectState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, eligibleReviewers } from './workflow';
@@ -43,6 +44,7 @@ export function deriveBlockers(state: ProjectState, idx: Indexes = buildIndexes(
 
   const seenSteps = new Set<string>();
   for (const laneId of idx.lanes.length ? idx.lanes : [undefined]) {
+    if (laneId && isObtLane(state, laneId)) continue;
     for (const step of deriveWorkflow(state, laneId)) {
       if (seenSteps.has(step.id)) continue;
       seenSteps.add(step.id);
@@ -64,6 +66,14 @@ export function deriveBlockers(state: ProjectState, idx: Indexes = buildIndexes(
         }
       }
 
+      if (isObtLane(state, laneId)) {
+        const journey = deriveObt(state, unitId, laneId);
+        if (journey.stage !== 'complete' && !Object.keys(state.members).some(actor => obtCanAct(state, actor, laneId, journey.stage))) {
+          out.push({kind:'role_unfilled',unitId,laneId,stepId:journey.stage,
+            fix:`Add an authorized participant for ${OBT_LABELS[journey.stage]}`});
+        }
+        continue;
+      }
       const takeId = currentTake(state, unitId, laneId, idx);
       if (!takeId) continue;
       const st = deriveTakeStatus(state, takeId, idx);

@@ -1,4 +1,5 @@
 import { effectiveUnitKinds, templateOfUnit } from './catalog';
+import { bibleRangeFromUnit } from './dynamicBible';
 import type { Role } from './events';
 import type { Assignment, ProjectState } from './state';
 import { DEFAULT_CONFIG } from './state';
@@ -99,8 +100,10 @@ export function buildIndexes(state: ProjectState): Indexes {
  */
 export function laneLeafUnits(state: ProjectState, idx: Indexes, laneId: string): string[] {
   const sel = state.laneTemplates[laneId]?.value;
-  if (!sel) return idx.leafUnits;
   return idx.leafUnits.filter((id) => {
+    const range = bibleRangeFromUnit(id);
+    if (range && range.laneId !== laneId) return false;
+    if (!sel) return true;
     const t = templateOfUnit(id);
     return t === null || (t.templateId === sel.templateId && t.catalogVersion === sel.catalogVersion);
   });

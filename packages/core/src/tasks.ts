@@ -1,3 +1,4 @@
+import { deriveObt, isObtLane, obtCanAct, type ObtStage } from './obt';
 import type { Role } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import type { Assignment, ProjectState } from './state';
@@ -21,6 +22,7 @@ export type TaskStatus = 'todo' | 'doing' | 'done';
 
 export interface Task {
   id: string;
+  obtStage?: ObtStage;
   type: TaskType;
   unitId: string;
   laneId: string;
@@ -132,6 +134,7 @@ function tasksForUnitLane(
   workflow: ReturnType<typeof deriveWorkflow>,
   idx: Indexes
 ): Task[] {
+  if (isObtLane(state, laneId)) return obtTasks(state, scope.actorId, unitId, laneId);
   const tasks: Task[] = [];
   const takeId = currentTake(state, unitId, laneId, idx);
   const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
@@ -186,7 +189,8 @@ export function deriveProgress(
   let translated = 0;
   let approved = 0;
   for (const unitId of passages) {
-    const takeId = currentTake(state, unitId, laneId, idx);
+    const oral = isObtLane(state,laneId) ? deriveObt(state,unitId,laneId) : null;
+    const takeId = oral?.finalTakeId ?? oral?.draftId ?? currentTake(state, unitId, laneId, idx);
     if (!takeId) continue;
     const st = deriveTakeStatus(state, takeId, idx);
     if (!st.submitted) continue;
@@ -198,4 +202,16 @@ export function deriveProgress(
     approvedPct: Math.round((100 * approved) / passages.length),
     passages: passages.length
   };
+}
+
+export function obtTasks(state: ProjectState, actorId: string, unitId: string, laneId: string): Task[] {
+  const role = actorRole(state, actorId);
+  if (!role || role === 'viewer') return [];
+  const j = deriveObt(state, unitId, laneId);
+  const acting = obtCanAct(state, actorId, laneId, j.stage);
+  const type = role === 'reviewer' ? 'review' : 'translate';
+  const status = acting ? (j.round ? 'doing' : 'todo') : 'done';
+  return [{ id: `${type}:${unitId}:${laneId}`, type, unitId, laneId,
+    takeId: j.finalTakeId ?? j.draftId ?? currentTake(state, unitId, laneId),
+    status, done: status === 'done', obtStage: j.stage }];
 }

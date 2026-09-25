@@ -1,3 +1,4 @@
+import { deriveObt, isObtLane } from './obt';
 import type { WorkflowStep } from './events';
 import { buildIndexes, unitLaneKey, type Indexes } from './indexes';
 import { DEFAULT_CONFIG, type ProjectState } from './state';
@@ -54,6 +55,14 @@ export interface TakeStatus {
 export function deriveTakeStatus(state: ProjectState, takeId: string, idx: Indexes = buildIndexes(state)): TakeStatus {
   const take = state.takes[takeId];
   if (!take) throw new Error(`Unknown take ${takeId}`);
+  if (isObtLane(state, take.laneId)) {
+    const j = deriveObt(state, take.unitId, take.laneId);
+    const used = !!j.round && (j.draftId === takeId || j.finalTakeId === takeId || j.round.value.firstDraftId === takeId);
+    const outcome: TakeOutcome = take.archived ? 'archived' :
+      j.stage === 'complete' && j.finalTakeId === takeId ? 'approved' :
+      j.reason && used ? 'changes_requested' : used ? 'in_review' : 'draft';
+    return { takeId, archived: take.archived, submitted: used, steps: [], outcome };
+  }
   const workflow = deriveWorkflow(state, take.laneId);
   const steps = workflow.map((step) => deriveStep(state, takeId, step, idx));
   const submitted = state.submissions[takeId] !== undefined;
