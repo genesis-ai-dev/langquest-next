@@ -1,3 +1,4 @@
+import { StyleSheet } from '../theme';
 // Avatar U for My Work and Open Work; Avatar P for Give Assignment and progress detail.
 import { derivePieces, type Task, type TaskStatus } from '@langquest-next/core';
 import type { ProjectQueries, TaskPage } from '@langquest-next/client';
@@ -5,7 +6,7 @@ import { useQuery } from '../useQuery';
 import { indexesFor } from '../indexes';
 import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, LoaderCircle, Menu, Search } from 'lucide-react-native';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
@@ -120,6 +121,9 @@ export function AssignmentsHome(ctx: Ctx) {
           </Card>
         ) : null}
 
+        {laneId && state.laneTemplates[laneId]?.value.templateId === 'dynamic' &&
+          ctx.session.can('translate') && !state.obt.workspace ?
+          <Row icon={BookOpen} label="Bible" onPress={() => ctx.go('dynamic_bible', { laneId })} /> : null}
         <View style={styles.filters}>
           {(['todo', 'doing', 'done'] as TaskStatus[]).map((s) => {
             const on = filters.includes(s);
@@ -174,7 +178,7 @@ export function AssignmentsHome(ctx: Ctx) {
             <TodoRow
               task={task}
               label={state.units[task.unitId]?.label ?? task.unitId}
-              onOpen={() => ctx.go(task.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: task.id })}
+              onOpen={() => ctx.go(task.obtStage || state.obt.workspace ? 'obt_passage' : task.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: task.id })}
               onLong={() => ctx.go('assignment_progress_detail', { taskId: task.id })}
             />
           </View>

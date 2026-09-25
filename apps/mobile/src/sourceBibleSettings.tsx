@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import { Switch } from 'react-native';
 import type { Ctx } from './ctx';
 import { Note, Row, Section } from './pui';
+import { BibleSettingsPanel } from './bibleSettings';
 
 export function SourceBibleSettings({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
@@ -28,12 +29,13 @@ export function SourceBibleSettings({ ctx }: { ctx: Ctx }) {
     finally { lock.current = false; setBusy(false); }
   }
   return <>
+    <BibleSettingsPanel ctx={ctx} />
     <Section label="Source Bibles for your organization">
       {SOURCE_BIBLES.map((bible) => {
         const added = sourceBibleEnabled(org, bible.id);
         return <Row key={bible.id} label={bible.name}
-          sub={`English · ${bible.narrator} · chapter audio · CC0`}
-          right={<Switch accessibilityLabel={`Add ${bible.name} to organization`}
+          sub={`English · ${bible.narrator} · ${bible.suffix === 'H' ? 'passage and chapter audio' : 'chapter audio'} · CC0`}
+          right={<Switch accessibilityLabel={`Use ${bible.name}, ${bible.narrator}, in organization`}
             value={added} disabled={busy || !canManageOrg}
             onValueChange={(on) => void toggle(bible.id, on, 'org')} />} />;
       })}

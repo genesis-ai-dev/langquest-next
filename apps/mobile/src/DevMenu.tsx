@@ -1,9 +1,10 @@
+import { StyleSheet } from './theme';
 // Persona sheet: switch persona (a real sign-in), seed the demo team, and in
 // a dev build jump to any screen. Shown to dev builds and to the testers named
 // in dev.ts, so the other roles' experience can be walked through in a real
 // build without five phones.
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { ensurePersonaAccount, PERSONAS, switchToPersona, type Persona } from './dev';
 import { SCREEN_IDS, TITLES, type ScreenId } from './flow';
 import type { OrgHandle } from './useOrg';

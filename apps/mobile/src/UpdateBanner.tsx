@@ -1,7 +1,8 @@
+import { StyleSheet } from './theme';
 import { CloudOff } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect } from 'react';
-import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, Text, View } from 'react-native';
 import { colors, radius, space } from './theme';
 import { updateStatus } from './updateStatus';
 

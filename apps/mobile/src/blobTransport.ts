@@ -31,7 +31,7 @@ export async function uploadBlob(orgId: string, projectId: string, ref: BlobRef,
       Authorization: `Bearer ${token}`,
       apikey: supabaseAnonKey,
       'x-upsert': 'true',
-      'Content-Type': ref.format === 'wav' ? 'audio/wav' : 'audio/mp4'
+      'Content-Type': ref.format === 'jpg' ? 'image/jpeg' : ref.format === 'wav' ? 'audio/wav' : 'audio/mp4'
     }
   });
   if (res.status < 200 || res.status >= 300) throw new Error(`Upload failed (${res.status}): ${res.body.slice(0, 200)}`);

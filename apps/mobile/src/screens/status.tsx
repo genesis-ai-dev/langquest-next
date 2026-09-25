@@ -1,5 +1,5 @@
 // Avatar P. Status drill-down: status_home → language_status → book_status → piece_status → piece_assign / piece_stage → piece_version / piece_review.
-import { bottleneck, deriveBooks, derivePieces, deriveTakeStatus, nextAction, percentDone, type Piece } from '@langquest-next/core';
+import { isObtLane, bottleneck, deriveBooks, derivePieces, deriveTakeStatus, nextAction, percentDone, type Piece } from '@langquest-next/core';
 import { BookOpen, Check, Globe, Mic } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
@@ -8,6 +8,7 @@ import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
 import { Card, DualProgressBar, StatusIcon, text } from '../ui';
+import { collectionAudio, ShareAudioButton } from '../audioExport';
 import { Byline } from '../UserChip';
 
 function lanePieces(ctx: Ctx, laneId: string): Piece[] {
@@ -84,6 +85,8 @@ export function BookStatus(ctx: Ctx) {
   return (
     <Screen>
       <Header title={state?.units[bookId]?.label ?? bookId} sub={`${pieces.length} pieces · ${bottleneck(pieces)}`} onBack={ctx.back} />
+      <Text style={text.small}>Share approved passages in order</Text>
+      <ShareAudioButton project={ctx.project} hashes={collectionAudio(ctx.project, bookId, laneId)} name={state?.units[bookId]?.label ?? bookId} />
       <Section label="Passages">
         {pieces.map((p, i) => (
           <Row
@@ -135,6 +138,8 @@ export function PieceStatus(ctx: Ctx) {
         {piece.assignee ? <Byline before="Assigned to" id={piece.assignee} /> : <Text style={text.muted}>Unassigned</Text>}
         <Text style={text.muted}>Next: {next.label}</Text>
       </Card>
+      {isObtLane(state, laneId) ? <Row label="Open oral workflow and complete history"
+        onPress={() => ctx.go('obt_passage', { unitId,laneId,taskId:`${ctx.session.role === 'reviewer' ? 'review' : 'translate'}:${unitId}:${laneId}` })} /> : null}
       <Section label="Stage history">
         {history.length === 0 ? <Row label="Nothing submitted yet" last /> : null}
         {history.map((r, i) => (

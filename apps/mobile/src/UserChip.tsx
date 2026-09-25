@@ -1,7 +1,8 @@
+import { StyleSheet } from './theme';
 // The one way to show a person: avatar + name, tap for name and full id.
 // Names are not unique and can change, so the id is always one tap away.
 import { createContext, useContext, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { personLook, type PersonLook } from './people';
 import { colors, radius, space } from './theme';

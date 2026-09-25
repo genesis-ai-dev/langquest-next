@@ -1,10 +1,11 @@
+import { StyleSheet } from '../theme';
 // Avatar U. Durable recording, full-screen VAD, then keep or redo.
-import { commands, currentTake, isStored } from '@langquest-next/core';
+import { commands, currentTake, isStored, deriveObt, isObtLane, obtCanAct } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import * as Crypto from 'expo-crypto';
 import { Check, CloudCheck, CloudUpload, Mic, RotateCcw, Save, Square } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, PanResponder, Pressable, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
 import { PassageSourceAudio } from '../passageSourceAudio';
@@ -35,7 +36,7 @@ export function QuestAssets(ctx: Ctx) {
     if (state) {
       await current.project.run(commands(state, indexesFor(state)).addRecording({
         commandId: card.id, recordingId: card.id, unitId: passage.unitId, laneId: passage.laneId,
-        kind: 'target', card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
+        kind: 'target', card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format === 'wav' ? 'wav' : 'm4a' }
       }));
     }
     current.project.triggerUpload();
@@ -52,6 +53,10 @@ export function QuestAssets(ctx: Ctx) {
     [state, task?.unitId, task?.laneId, actorId]
   );
   if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
+  if (isObtLane(state,task.laneId)) {
+    const stage=deriveObt(state,task.unitId,task.laneId).stage;
+    if (!['first_draft','revision','final_recording'].includes(stage) || !obtCanAct(state,ctx.session.actorId,task.laneId,stage)) return <Note>This stage does not accept passage recordings.</Note>;
+  }
   const takeId = currentTake(state, task.unitId, task.laneId, indexesFor(state));
   const take = takeId ? state.takes[takeId] : undefined;
   const hashes = pending.length ? pending.map((c) => c.hash) : take?.cardHashes ?? [];
@@ -116,7 +121,8 @@ export function QuestAssets(ctx: Ctx) {
         laneId={task.laneId} disabled={blocked} />
       {hashes.length && !rec.manualOn ? <Card>
         <AudioClip project={ctx.project} hashes={hashes}
-          label="Play recorded passage" disabled={blocked} />
+          label="Play recorded passage" disabled={blocked}
+          editTarget={{ unitId: task.unitId, laneId: task.laneId }} />
         <View style={styles.row} accessible accessibilityLabel={rec.busy ? 'Saving' : hashes.every((h) => isStored(state, h)) ? 'Backed up' : 'Saved on this device'}>
           {rec.busy ? <Save color={colors.mutedForeground} /> : hashes.every((h) => isStored(state, h)) ? <CloudCheck color={colors.done} /> : <CloudUpload color={colors.mutedForeground} />}
           <Text style={text.small}>{hashes.length}</Text>

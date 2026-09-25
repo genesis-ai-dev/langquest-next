@@ -1,10 +1,11 @@
+import { StyleSheet } from '../theme';
 // Avatar U. Review passage, review questions, done. Material editor is Avatar P.
 import { commands, isStored, deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { indexesFor } from '../indexes';
 import { BookOpen, Check, CloudAlert, CloudCheck, CloudOff, Clock, KeyRound, MessageSquare, Play, RotateCcw, Users } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import { handoffState } from '../passageFlow';
 import type { Ctx } from '../ctx';
@@ -12,6 +13,8 @@ import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
 import { ActionButton, BackButton, Card, StatusIcon, text } from '../ui';
 import { useTask } from './translate';
+import { defineFiaProgress, fiaProgressId, FIA_STAGES } from '@langquest-next/core';
+import { FiaGuidanceRecorder } from '../fia';
 
 /** Answers live here between review_questions and review_passage (screen-local, not synced). */
 const draftAnswers = new Map<string, Record<string, string>>();
@@ -172,9 +175,12 @@ export function MaterialEditor(ctx: Ctx) {
   const existing = materialId && state ? materialView(state, materialId) : null;
   const [kind, setKind] = useState(existing?.kind ?? 'tg');
   const [title, setTitle] = useState(existing?.title ?? '');
-  const expected = templateFields(existing?.templateRef);
-  const fieldIds = [...new Set([...expected, ...(existing?.fields.map((f) => f.fieldId) ?? [])])];
-  const [fields, setFields] = useState<Record<string, string>>(Object.fromEntries((existing?.fields ?? []).map((f) => [f.fieldId, f.text ?? ''])));
+  const expected = kind === 'fia_study' ? FIA_STAGES.map(s => s.id)
+    : templateFields(existing?.templateRef);
+  const editableFields = (existing?.fields ?? [])
+    .filter(f => !f.fieldId.startsWith('fia-progress:'));
+  const fieldIds = [...new Set([...expected, ...editableFields.map(f => f.fieldId)])];
+  const [fields, setFields] = useState<Record<string, string>>(Object.fromEntries(editableFields.map((f) => [f.fieldId, f.text ?? ''])));
   const [newField, setNewField] = useState('');
   const canManage = ctx.session.can('manage_reference');
   const canFill = canManage || (ctx.session.can('fill_reference') && !existing?.locked);
@@ -182,10 +188,18 @@ export function MaterialEditor(ctx: Ctx) {
   async function save() {
     const id = existing?.materialId ?? `${kind}-${Date.now()}`;
     const events: Parameters<typeof appendMany>[0] = [];
-    if (isNew) events.push({ type: 'v1.MaterialDefined', payload: { materialId: id, kind, title: title.trim() || kind, scope: { ...(laneId ? { laneId } : {}), ...(unitId ? { unitId } : {}) } } });
+    if (kind === 'fia_study' && laneId && canManage &&
+      !state?.materials[fiaProgressId(laneId)]) {
+      events.push(defineFiaProgress(laneId));
+    }
+    if (isNew) events.push({ type: 'v1.MaterialDefined', payload: { materialId: id, kind, title: title.trim() || kind, scope: { ...(laneId ? { laneId } : {}), ...(unitId ? { unitId } : {}) }, ...(kind === 'fia_study' ? { templateRef: 'fia_study/guided@1' } : {}) } });
     for (const [fieldId, value] of Object.entries(fields)) {
-      const before = existing?.fields.find((f) => f.fieldId === fieldId)?.text ?? '';
-      if (value.trim() !== before) events.push({ type: 'v1.MaterialFieldSet', payload: { materialId: id, fieldId, text: value.trim() } });
+      if (fieldId.startsWith('fia-progress:')) continue;
+      const previous = existing?.fields.find((f) => f.fieldId === fieldId);
+      if (value.trim() !== (previous?.text ?? '')) events.push({
+        type: 'v1.MaterialFieldSet', payload: { materialId: id, fieldId,
+          text: value.trim(), ...(previous?.blobHash ? { blobHash: previous.blobHash } : {}) }
+      });
     }
     await appendMany(events);
     ctx.back();
@@ -212,6 +226,9 @@ export function MaterialEditor(ctx: Ctx) {
           <Card key={fieldId}>
             <Text style={text.small}>{fieldId}</Text>
             <TextInput style={styles.input} editable={canFill} placeholder="Empty" value={fields[fieldId] ?? ''} onChangeText={(v) => setFields((f) => ({ ...f, [fieldId]: v }))} multiline />
+            {existing?.kind === 'fia_study' && FIA_STAGES.some(s => s.id === fieldId)
+              ? <FiaGuidanceRecorder ctx={ctx} materialId={existing.materialId}
+                  stage={fieldId as (typeof FIA_STAGES)[number]['id']} /> : null}
           </Card>
         ))}
         {canFill ? (
@@ -220,7 +237,7 @@ export function MaterialEditor(ctx: Ctx) {
             <Pressable
               onPress={() => {
                 const id = newField.trim();
-                if (id && !(id in fields)) setFields((f) => ({ ...f, [id]: '' }));
+                if (id && !id.startsWith('fia-progress:') && !(id in fields)) setFields((f) => ({ ...f, [id]: '' }));
                 setNewField('');
               }}
               accessibilityLabel="Add field"

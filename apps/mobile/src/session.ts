@@ -44,7 +44,7 @@ export interface Session {
   hasNoOrg: boolean;
   /** Has not yet accepted terms and seen the vision steps on this device. */
   isFirstTime: boolean;
-  /** Not signed in at all (browsing public projects). */
+  /** Not signed in; can create an account or scan an invitation. */
   isGuest: boolean;
 }
 
@@ -114,8 +114,8 @@ export function homeScreenFor(s: Session): ScreenId {
 
 /**
  * Screens a signed-in session must never remain on: it has already done the
- * thing they exist for. `explore_home` and `scan_qr` are not listed, because
- * a signed-in member reaches both from `intent_chooser`.
+ * thing they exist for. `scan_qr` is not listed because
+ * a signed-in member reaches it from `intent_chooser`.
  */
 export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
 
@@ -125,7 +125,7 @@ export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
  * with the guest-gated edges by a test: every `guest` edge's endpoints must
  * appear here, so adding a guest screen without listing it fails.
  */
-export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr'];
+export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'scan_qr'];
 
 /** UX spec `postSignInScreen`: first-time users see terms, then vision. */
 export function postSignInScreen(s: Session): ScreenId {

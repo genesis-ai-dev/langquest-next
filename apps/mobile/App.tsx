@@ -1,3 +1,12 @@
+import { AccountLifecycleBoundary } from './src/accountLifecycle';
+import { AccountPreferencesProvider, usePreferences } from './src/accountPreferences';
+import { AccountRecoveryBoundary } from './src/accountRecovery';
+import { StyleSheet } from './src/theme';
+import { isObtLane } from '@langquest-next/core';
+import * as Obt from './src/screens/obt';
+import * as DynamicBible from './src/screens/dynamicBible';
+import * as ObtCapture from './src/screens/obtCapture';
+import * as ObtManage from './src/screens/obtManage';
 import { orgQueries } from './src/orgQueries';
 import { getStore } from './src/store';
 import { withOrgMembers } from '@langquest-next/core';
@@ -9,7 +18,7 @@ import { Home, Inbox, ListChecks, Settings } from 'lucide-react-native';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
@@ -44,8 +53,10 @@ const IS_DEV = __DEV__;
 let initialLinkRead = false;
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
+  dynamic_bible: DynamicBible.DynamicBible,
+  obt_passage: Obt.WorkflowPassage, obt_interaction: ObtCapture.ObtCapture, obt_manage: ObtManage.ObtManage,
   sign_in: Entry.SignIn, create_account: Entry.CreateAccount, terms_privacy: Entry.TermsPrivacy, vision: Entry.Vision,
-  intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg, explore_home: Entry.ExploreHome,
+  intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
   request_access: Entry.RequestAccess, scan_qr: Entry.ScanQr, walkthrough: Entry.Walkthrough,
   assignments_home: Work.AssignmentsHome, give_assignment: Work.GiveAssignment, pickup_home: Work.PickupHome,
   assignment_progress_detail: Work.AssignmentProgressDetail, progress_home: Work.ProgressHome,
@@ -78,11 +89,19 @@ const Stack = createNativeStackNavigator<StackParams>();
 
 type HostProps = { route: RouteProp<StackParams, ScreenId> };
 function hostFor(id: ScreenId) {
-  const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
     if (!ctx) return null;
-    return <Screen {...ctx} params={props.route.params ?? {}} />;
+    const params = props.route.params ?? {};
+    const laneId = params.laneId ?? params.taskId?.split(':')[2] ?? '';
+    const oral = !!ctx.project.state && (ctx.project.state.obt.workspace || isObtLane(ctx.project.state,laneId));
+    const workspace = ctx.project.state?.obt.workspace;
+    if (workspace && !['obt_passage','translate_passage','quest_assets','assignments_home',
+      'settings_home','org_switcher','sign_out_confirm','sync_status','profile_edit'].includes(id)) {
+      return <Obt.BackTranslation {...ctx} params={{ taskId:'translate:passage:output' }} />;
+    }
+    const Screen = oral && (id === 'translate_passage' || id === 'review_passage') ? Obt.WorkflowPassage : SCREENS[id];
+    return <Screen {...ctx} params={params} />;
   }
   Host.displayName = `Host(${id})`;
   return Host;
@@ -127,6 +146,21 @@ function Fatal(props: { title: string; detail: string }) {
 }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AccountPreferencesProvider>
+        <AccountRecoveryBoundary>
+          <AccountLifecycleBoundary>
+            <AppContent />
+          </AccountLifecycleBoundary>
+        </AccountRecoveryBoundary>
+      </AccountPreferencesProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
+  usePreferences();
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
   useEffect(() => {
     if (supabaseConfigError) return;
@@ -137,7 +171,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
-        <StatusBar style="dark" />
+        <StatusBar style={colors.background === '#151820' ? 'light' : 'dark'} />
         <UpdateBanner />
         {supabaseConfigError ? (
           <Fatal title="This build is not configured" detail={supabaseConfigError} />
@@ -261,7 +295,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
   useEffect(() => {
     if (!props.signedIn) {
       // Not "anything but sign_in": a guest legitimately walks to Create
-      // account, Browse public projects and the invite scanner.
+      // account and the invite scanner.
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }

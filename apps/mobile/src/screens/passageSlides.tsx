@@ -1,3 +1,4 @@
+import { StyleSheet } from '../theme';
 // Avatar U. Oral passage runs: one reference or term action per slide.
 import {
   commands,
@@ -9,7 +10,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Check, ChevronLeft, ChevronRight, Headphones, KeyRound, Mic, Pause, Play, RotateCcw } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import type { Ctx } from '../ctx';
 import { Note } from '../pui';

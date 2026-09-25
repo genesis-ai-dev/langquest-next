@@ -11,6 +11,7 @@ import { colors, space } from '../theme';
 import { Card, text } from '../ui';
 import { Byline } from '../UserChip';
 import { SourceBibleSettings } from '../sourceBibleSettings';
+import { FiaReferenceSetup } from '../fia';
 
 export function RolesHome(ctx: Ctx) {
   const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
@@ -94,6 +95,8 @@ export function TemplatesHome(ctx: Ctx) {
     <Screen>
       <Header title="Content templates" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
       <Note>{selected ? `This language uses ${contentTemplates().find((t) => t.id === selected.templateId)?.name ?? selected.templateId} (catalog ${selected.catalogVersion}).` : 'No template selected for this language yet.'}</Note>
+      {selected?.templateId === 'dynamic' && ctx.session.can('translate') ?
+        <Row icon={FileText} label="Choose a Bible passage" onPress={() => ctx.go('dynamic_bible', { laneId })} /> : null}
       <Section label="Catalog">
         {contentTemplates().map((t, i, a) => {
           const leaves = t.items.filter((it) => t.unitKinds.find((k) => k.id === it.kind)?.childKinds.length === 0).length;
@@ -120,7 +123,8 @@ export function ReferenceHome(ctx: Ctx) {
   const { state, appendMany } = ctx.project;
   const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
   const canManage = ctx.session.can('manage_reference');
-  const all = state ? materialsFor(state, laneId ? { laneId } : {}) : [];
+  const all = state ? materialsFor(state, laneId ? { laneId } : {})
+    .filter(m => m.kind !== 'fia_progress') : [];
   const stageTied = all.filter((m) => m.scope.stepId !== undefined || (m.kind === 'questions' && m.templateRef));
   const general = all.filter((m) => !stageTied.includes(m) && m.kind !== 'questions');
   const written = all.filter((m) => !stageTied.includes(m) && m.kind === 'questions');
@@ -134,6 +138,7 @@ export function ReferenceHome(ctx: Ctx) {
     <Screen footer={canManage ? <Footer label="Add material" onPress={() => ctx.go('material_editor', { laneId })} /> : undefined}>
       <Header title="Reference library" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
       <SourceBibleSettings ctx={ctx} />
+      <FiaReferenceSetup ctx={ctx} laneId={laneId} />
       <Section label={`Key terms · ${state ? keyTermsFor(state, laneId).length : 0}`}>
         <Row icon={KeyRound} label="Key terms list" sub="Living glossary for this language" onPress={() => ctx.go('key_terms', { laneId })} last />
       </Section>
@@ -285,7 +290,7 @@ export function FlowsHome(ctx: Ctx) {
     ]);
   }
   return (
-    <Screen footer={canManage ? <Footer label="Edit stages" onPress={() => ctx.go('flow_editor', { laneId })} /> : undefined}>
+    <Screen footer={canManage ? <Footer label={selected?.flowId === 'spoken_worldwide' ? "Configure oral workflow" : "Edit stages"} onPress={() => ctx.go(selected?.flowId === 'spoken_worldwide' ? 'obt_manage' : 'flow_editor', { laneId })} /> : undefined}>
       <Header title="Review flows" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
       <Section label="Catalog">
         {FLOW_TEMPLATES.map((f, i, a) => {

@@ -13,7 +13,7 @@ import type { JournalTarget } from './recordingJournalCore';
 export interface RecordedCard {
   /** Stable id chosen before any save step; the handler uses it as recordingId. */
   id: string;
-  ref: BlobFile;
+  ref: { hash: string; format: 'wav' | 'm4a' };
   durationMs: number;
   size: number;
 }
@@ -21,7 +21,7 @@ export type RecorderCardHandler = (card: RecordedCard) => void | Promise<void>;
 interface PendingFile {
   id: string;
   uri: string;
-  format: BlobRef['format'];
+  format: 'wav' | 'm4a';
   durationMs: number;
   card?: RecordedCard;
 }
@@ -97,7 +97,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
             await journal.put(previous ?? { ...base, stage: 'recorded' });
             const { ref, size } = await store.ingest(file.uri, file.format, (ref, size) =>
               journal.put({ ...base, stage: 'recorded', hash: ref.hash, size }));
-            file.card = { id: file.id, ref, size, durationMs: base.durationMs };
+            file.card = { id: file.id, ref: { hash: ref.hash, format: file.format }, size, durationMs: base.durationMs };
           }
         }
         await journal.put({ ...base, stage: 'ingested',

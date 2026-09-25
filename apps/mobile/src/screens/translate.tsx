@@ -1,3 +1,6 @@
+import { StyleSheet } from '../theme';
+import { TranslationOptions } from '../translationOptions';
+import { FiaGuide } from '../fia';
 // Avatar U. Passage hub, question slides and notes. One yellow next action.
 import * as Crypto from 'expo-crypto';
 import { useRecorder, type RecordedCard } from '../useRecorder';
@@ -11,7 +14,7 @@ import {
   HelpCircle, KeyRound, MessageSquare, Mic, MicOff, Send
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
 import { passageProgress, type PassageAction } from '../passageFlow';
@@ -76,6 +79,9 @@ export function TranslatePassage(ctx: Ctx) {
     <Screen footer={<ActionButton icon={next.icon} accessibilityLabel={next.label}
       onPress={() => advance(progress.next)} disabled={listened === null} />}>
       <Header title={state.units[task.unitId]?.label ?? task.unitId} onBack={ctx.back} />
+      <TranslationOptions ctx={ctx} unitId={task.unitId} laneId={task.laneId} />
+      <FiaGuide ctx={ctx} laneId={task.laneId} unitId={task.unitId}
+        onSpeak={() => advance('record')} />
       <View style={styles.grid}>
         <TaskTile icon={Headphones} label="Reference material" color={colors.reference}
           done={!!items.length && listened === signature} onPress={() => advance('reference')} />

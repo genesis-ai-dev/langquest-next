@@ -1,10 +1,12 @@
+import { StyleSheet } from './theme';
 import Svg, { Circle } from 'react-native-svg';
 import type { LucideIcon } from 'lucide-react-native';
 import { CheckCircle2, ChevronLeft, Clock, ListChecks, MessageSquare, Mic, PencilLine, Reply } from 'lucide-react-native';
 import type { TakeOutcome } from '@langquest-next/core';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radius, space, tint } from './theme';
+import { translateUi } from './uiLanguage';
 
 export function Card(props: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.card, props.style]}>{props.children}</View>;
@@ -21,6 +23,7 @@ export function ActionButton(props: {
   label?: string;
   accessibilityLabel: string;
   onPress: () => void;
+  onLongPress?: () => void;
   variant?: 'action' | 'outline';
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
@@ -32,9 +35,10 @@ export function ActionButton(props: {
   return (
     <Pressable
       onPress={props.onPress}
+      onLongPress={props.onLongPress}
       disabled={props.disabled}
       accessibilityRole="button"
-      accessibilityLabel={props.accessibilityLabel}
+      accessibilityLabel={translateUi(props.accessibilityLabel)}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [
         styles.button,
@@ -46,7 +50,7 @@ export function ActionButton(props: {
       ]}
     >
       {Icon ? <Icon size={iconOnly ? 30 : 20} color={fg} strokeWidth={iconOnly ? 2.25 : 2} /> : null}
-      {props.label ? <Text style={[styles.buttonLabel, { color: fg }]}>{props.label}</Text> : null}
+      {props.label ? <Text style={[styles.buttonLabel, { color: fg }]}>{translateUi(props.label)}</Text> : null}
     </Pressable>
   );
 }
@@ -104,7 +108,7 @@ export function IconCircleButton(props: {
   return (
     <Pressable
       onPress={props.onPress}
-      accessibilityLabel={props.accessibilityLabel}
+      accessibilityLabel={translateUi(props.accessibilityLabel)}
       style={({ pressed }) => [
         styles.circle,
         { width: size, height: size, backgroundColor: colors.action },
@@ -128,7 +132,7 @@ export function RoleBadge(props: { type: 'translate' | 'review'; accessibilityLa
   const Icon = meta.icon;
   return (
     <View
-      accessibilityLabel={props.accessibilityLabel}
+      accessibilityLabel={translateUi(props.accessibilityLabel)}
       style={[styles.circle, { width: 36, height: 36, backgroundColor: meta.badge }]}
     >
       <Icon size={17} color={meta.color} />

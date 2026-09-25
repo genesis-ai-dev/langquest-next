@@ -6,9 +6,11 @@
  */
 
 export const SCREEN_IDS = [
+  'dynamic_bible',
+  'obt_passage', 'obt_interaction', 'obt_manage',
   // Entry
   'sign_in', 'terms_privacy', 'vision', 'intent_chooser', 'create_org',
-  'explore_home', 'request_access', 'create_account', 'scan_qr', 'walkthrough',
+  'request_access', 'create_account', 'scan_qr', 'walkthrough',
   // Assignments hub
   'assignments_home', 'give_assignment',
   // Work
@@ -39,8 +41,10 @@ export type Mode = 'push' | 'replace' | 'back' | 'reset' | 'popTo';
 
 /** Which avatar a screen is designed for (PLAN.md section 12). */
 export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
+  dynamic_bible: 'U',
+  obt_passage: 'U', obt_interaction: 'U', obt_manage: 'P',
   sign_in: 'U', terms_privacy: 'U', vision: 'U', intent_chooser: 'U', create_org: 'P',
-  explore_home: 'U', request_access: 'U', create_account: 'U', scan_qr: 'U', walkthrough: 'U',
+  request_access: 'U', create_account: 'U', scan_qr: 'U', walkthrough: 'U',
   assignments_home: 'U', give_assignment: 'P',
   translate_passage: 'U', attach_questions: 'U', review_passage: 'U', review_questions: 'U', done_await: 'U',
   status_home: 'P', language_status: 'P', book_status: 'P', piece_status: 'P', piece_assign: 'P',
@@ -87,11 +91,14 @@ const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
 });
 
 export const EDGES: Edge[] = [
+  e('assignments_home', 'dynamic_bible', undefined, 'translator'),
+  e('templates_home', 'dynamic_bible', undefined, 'translator'),
+  e('dynamic_bible', 'translate_passage', undefined, 'translator'),
+  e('dynamic_bible', 'obt_passage', undefined, 'translator'),
   // Entry
   e('sign_in', 'terms_privacy', 'replace'),
   e('sign_in', 'home_hub', 'replace'),
   e('sign_in', 'create_account', undefined, 'guest'),
-  e('sign_in', 'explore_home', undefined, 'guest'),
   e('create_account', 'scan_qr', undefined, 'guest'),
   e('create_account', 'home_hub', 'replace'),
   // A brand-new account is always first-time, so it owes terms before home.
@@ -100,7 +107,6 @@ export const EDGES: Edge[] = [
   e('create_account', 'terms_privacy', 'replace'),
   e('create_account', 'sign_in', 'back', 'guest'),
   e('scan_qr', 'sign_in', 'reset', 'guest'),
-  e('explore_home', 'request_access'),
   e('inbox_home', 'members_list'),
   e('inbox_home', 'status_home'),
   e('scan_qr', 'create_account', 'popTo', 'guest'),
@@ -110,7 +116,6 @@ export const EDGES: Edge[] = [
   e('terms_privacy', 'sign_in', 'reset'),
   e('vision', 'home_hub', 'replace'),
   e('vision', 'terms_privacy', 'replace'),
-  e('explore_home', 'sign_in', 'reset', 'guest'),
   // Home hub fan-out
   e('home_hub', 'intent_chooser', 'replace', 'home'),
   e('home_hub', 'assignments_home', 'replace', 'home'),
@@ -122,12 +127,32 @@ export const EDGES: Edge[] = [
   e('intent_chooser', 'create_org'),
   e('intent_chooser', 'request_access'),
   e('intent_chooser', 'scan_qr'),
-  e('intent_chooser', 'explore_home'),
   e('intent_chooser', 'sign_in', 'reset'),
   e('create_org', 'walkthrough', 'replace'),
   e('create_org', 'intent_chooser', 'back'),
   e('request_access', 'intent_chooser', 'replace'),
   e('walkthrough', 'home_hub', 'replace'),
+  e('assignments_home', 'obt_passage'),
+  e('piece_status', 'obt_passage'),
+  e('flows_home', 'obt_manage', undefined, 'manageFlows'),
+  e('obt_passage', 'quest_assets'),
+  e('obt_passage', 'passage_references'),
+  e('obt_passage', 'passage_terms'),
+  e('obt_passage', 'add_to_tg'),
+  e('obt_passage', 'obt_interaction'),
+  e('obt_passage', 'obt_manage'),
+  e('obt_passage', 'done_await', 'replace'),
+  e('obt_passage', 'assignments_home', 'back'),
+  e('obt_interaction', 'obt_passage', 'back'),
+  e('obt_manage', 'obt_passage', 'back'),
+  e('translate_passage', 'obt_interaction'),
+  e('translate_passage', 'obt_manage'),
+  e('review_passage', 'obt_interaction'),
+  e('review_passage', 'obt_manage'),
+  e('review_passage', 'quest_assets'),
+  e('review_passage', 'passage_references'),
+  e('review_passage', 'passage_terms'),
+  e('review_passage', 'add_to_tg'),
   // My Work
   e('assignments_home', 'translate_passage', undefined, 'translator'),
   e('assignments_home', 'review_passage', undefined, 'reviewer'),
@@ -262,9 +287,11 @@ export function edgeFor(from: NodeId, to: NodeId): Edge | undefined {
 }
 
 export const TITLES: Record<ScreenId, string> = {
+  dynamic_bible: 'Bible',
+  obt_passage: 'Oral translation', obt_interaction: 'Community interaction', obt_manage: 'Oral workflow settings',
   sign_in: 'Sign in', terms_privacy: 'Terms & Privacy', vision: 'LangQuest vision',
   intent_chooser: 'What do you want to do?', create_org: 'Create a new organization',
-  explore_home: 'Explore projects', request_access: 'Request access', create_account: 'Create account',
+  request_access: 'Request access', create_account: 'Create account',
   scan_qr: 'Scan QR code', walkthrough: 'Organization walkthrough',
   assignments_home: 'My Work', give_assignment: 'Give assignment',
   translate_passage: 'Translate passage', attach_questions: 'Review questions',

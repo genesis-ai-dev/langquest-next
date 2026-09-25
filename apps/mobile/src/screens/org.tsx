@@ -3,7 +3,7 @@ import type { Role } from '@langquest-next/core';
 import { CATALOG_VERSION, contentTemplates, derivePieces, deriveWorkflow, instantiateTemplate } from '@langquest-next/core';
 import { Building2, Check, FileText, Globe, Headphones, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, Share, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, Share, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import type { Ctx } from '../ctx';
@@ -65,38 +65,12 @@ export function OrgHome(ctx: Ctx) {
 }
 
 export function ProjectHome(ctx: Ctx) {
-  const [listed, setListed] = useState(false);
-  const [visibilityError, setVisibilityError] = useState('');
-  const [visibilityBusy, setVisibilityBusy] = useState(false);
-  useEffect(() => {
-    void supabase.from('project_visibility').select('listed')
-      .eq('org_id', ctx.project.orgId).eq('project_id', ctx.project.projectId)
-      .maybeSingle().then(({ data, error }) => {
-        if (error) setVisibilityError(error.message);
-        else setListed(data?.listed ?? false);
-      });
-  }, [ctx.project.orgId, ctx.project.projectId]);
-  async function setVisibility(value: boolean) {
-    setVisibilityBusy(true);
-    const { error } = await supabase.rpc('set_project_visibility', {
-      p_org: ctx.project.orgId, p_project: ctx.project.projectId, p_listed: value
-    });
-    if (error) setVisibilityError(error.message);
-    else { setListed(value); setVisibilityError(''); }
-    setVisibilityBusy(false);
-  }
   const { state } = ctx.project;
   const lanes = state ? Object.entries(state.lanes) : [];
   const name = state?.project?.value.name ?? 'Project';
   return (
     <Screen>
       <Header title={name} crumbs={[{ label: 'org1', onPress: () => ctx.go('org_home') }, { label: name }]} />
-      {ctx.session.can('manage_structure') ? <Section label="Discovery">
-        <Row label="List this project publicly" sub="Share its name, languages, and progress only"
-          right={<Switch accessibilityLabel="List this project publicly" value={listed}
-            disabled={visibilityBusy} onValueChange={(value) => void setVisibility(value)} />} last />
-        {visibilityError ? <Note>{visibilityError}</Note> : null}
-      </Section> : null}
       <Section label="Manage languages">
         {lanes.map(([laneId, l]) => (
           <Row key={laneId} icon={Globe} label={l.languoidId} onPress={() => ctx.go('language_home', { laneId })} />
@@ -340,7 +314,7 @@ export function NewProject(ctx: Ctx) {
   const laneEntries = state ? Object.entries(state.lanes) : [];
   const laneId = laneEntries[0]?.[0] ?? `lane-${ctx.project.projectId}`;
   const [step, setStep] = useState(0);
-  const [templateId, setTemplateId] = useState(state?.laneTemplates[laneId]?.value.templateId ?? 'bible');
+  const [templateId, setTemplateId] = useState(state?.laneTemplates[laneId]?.value.templateId ?? 'dynamic');
   const [rootItemId, setRootItemId] = useState('');
   const [language, setLanguage] = useState(laneEntries[0]?.[1].languoidId ?? 'und');
   const [reference, setReference] = useState('');
@@ -382,6 +356,7 @@ export function NewProject(ctx: Ctx) {
   const assigned = !!targetPiece && !!state && Object.values(state.assignments).some((a) => a.laneId === laneId && a.unitId === targetPiece.unitId && a.role === 'translator');
 
   function setupUnits(templateId: string) {
+    if (templateId === 'dynamic') return instantiateTemplate(templateId);
     const t = contentTemplates().find((candidate) => candidate.id === templateId);
     if (!t) return [];
     const root = rootItemId;
@@ -411,7 +386,8 @@ export function NewProject(ctx: Ctx) {
       const existing = state?.units ?? {};
       events.push(...setupUnits(templateId).filter((u) => !existing[u.unitId]).map((payload) => ({ type: 'v1.UnitAdded' as const, payload })));
       if (events.length) await appendMany(events);
-      setStep(1);
+      if (templateId === 'dynamic') ctx.go('project_home');
+      else setStep(1);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -456,7 +432,7 @@ export function NewProject(ctx: Ctx) {
   }
 
   const footer = step === 0
-    ? <Footer label="Use structure" onPress={() => void saveStructure()} disabled={busy || !canStructure || !template || !rootItemId} />
+    ? <Footer label={templateId === 'dynamic' ? 'Create with Bible defaults' : 'Use structure'} onPress={() => void saveStructure()} disabled={busy || !canStructure || !template || (templateId !== 'dynamic' && !rootItemId)} />
     : step === 1
       ? <Footer label="Save reference material" onPress={() => void saveReference()} disabled={busy || !canReference || (!reference.trim() && !referenceAudioHash)} secondary={{ label: 'Skip for now', onPress: () => setStep(2) }} />
     : <Footer label={assigned ? 'Open project' : 'Send assignment'} onPress={() => void saveAssignment()} disabled={busy || (!assigned && (!canAssign || !assignee || !targetPiece))} />;
@@ -472,7 +448,7 @@ export function NewProject(ctx: Ctx) {
           <Section label="Structure">
             {contentTemplates().map((t, i, a) => <Row key={t.id} icon={FileText} label={t.name} sub={t.description} onPress={() => { setTemplateId(t.id); setRootItemId(''); setReferenceAudioHash(''); }} right={templateId === t.id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
           </Section>
-          {template ? <Section label="Known book or collection">
+          {template && templateId !== 'dynamic' ? <Section label="Known book or collection">
             {template.items.filter((item) => item.parentItemId === null).map((item, i, a) => <Row key={item.itemId} bookId={item.itemId} label={item.label} onPress={() => { setRootItemId(item.itemId); setReferenceAudioHash(''); }} right={rootItemId === item.itemId ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
           </Section> : null}
         </>

@@ -1,12 +1,14 @@
+import { StyleSheet } from './theme';
 // Avatar P (project manager) primitives: text is fine here. Header with
 // breadcrumbs, sections of rows, one pinned footer action (UX spec phone-ux).
 import type { LucideIcon } from 'lucide-react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BookIcon, bookIcon } from './bookIcons';
 import { colors, radius, space } from './theme';
 import { ActionButton, text } from './ui';
+import { translateUi } from './uiLanguage';
 import { PersonAvatar, usePerson } from './UserChip';
 
 export function Screen(props: { children: ReactNode; footer?: ReactNode; tint?: string }) {
@@ -49,7 +51,7 @@ export function Header(props: {
               ))}
             </View>
           ) : null}
-          <Text style={text.h3}>{props.title}</Text>
+          <Text style={text.h3}>{translateUi(props.title)}</Text>
           {typeof props.sub === 'string' ? <Text style={text.muted}>{props.sub}</Text> : props.sub ?? null}
         </View>
         {props.action}
@@ -61,7 +63,7 @@ export function Header(props: {
 export function Section(props: { label: string; children?: ReactNode }) {
   return (
     <View style={{ gap: space.xs }}>
-      <Text style={styles.sectionLabel}>{props.label.toUpperCase()}</Text>
+      <Text style={styles.sectionLabel}>{translateUi(props.label).toUpperCase()}</Text>
       <View style={styles.group}>{props.children}</View>
     </View>
   );
@@ -107,7 +109,7 @@ export function Row(props: {
       ) : null}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={text.body} numberOfLines={1}>
-          {props.label ?? (props.personId ? person(props.personId).name : '')}
+          {props.label ? translateUi(props.label) : (props.personId ? person(props.personId).name : '')}
         </Text>
         {typeof props.sub === 'string' ? (
           <Text style={text.small} numberOfLines={2}>

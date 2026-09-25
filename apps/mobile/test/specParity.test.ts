@@ -16,10 +16,32 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'assignments_home->dynamic_bible': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
+  'templates_home->dynamic_bible': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
+  'dynamic_bible->translate_passage': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
+  'dynamic_bible->obt_passage': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
+  'assignments_home->obt_passage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'piece_status->obt_passage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'flows_home->obt_manage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->quest_assets': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->passage_references': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->passage_terms': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->add_to_tg': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->obt_interaction': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->obt_manage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'obt_passage->done_await': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'translate_passage->obt_interaction': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'translate_passage->obt_manage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'review_passage->obt_interaction': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'review_passage->obt_manage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'review_passage->quest_assets': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'review_passage->passage_references': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'review_passage->passage_terms': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'review_passage->add_to_tg': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+
   'inbox_home->members_list': 'administrators act on join requests from the inbox',
   'inbox_home->status_home': 'blocker notifications open status',
   'scan_qr->sign_in': 'save an invite while its recipient signs in',
-  'explore_home->request_access': 'request membership from a public project listing',
   'translate_passage->passage_references': 'one-next-action reference adds an oral reference run',
   'translate_passage->passage_terms': 'one-next-action reference adds an oral key-term run',
   'translate_passage->done_await': 'view queued and synced hand-off status from the passage hub',
@@ -46,7 +68,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set includes the documented oral-workflow extension', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'passage_references', 'passage_terms', 'sync_status'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter(id => id !== 'explore_home'), 'passage_references', 'passage_terms', 'sync_status', 'obt_passage', 'obt_interaction', 'obt_manage', 'dynamic_bible'].sort());
   });
 
   it('every spec transition exists in the app with the same nav mode and gate', () => {
@@ -54,7 +76,8 @@ describe('UX spec parity', () => {
     // A transition that exists in one and not the other is a flow nobody
     // has walked end to end.
     const missing: string[] = [];
-    for (const s of specEdges) {
+    // Public discovery is intentionally retired; joining uses invitations.
+    for (const s of specEdges.filter(edge => edge.from !== 'explore_home' && edge.to !== 'explore_home')) {
       const a = appEdges.find((x) => x.from === s.from && x.to === s.to && (x.mode ?? 'push') === s.mode);
       if (!a) missing.push(`${key(s)} [${s.mode}] "${s.label}"`);
       else if ((a.when ?? null) !== s.when) missing.push(`${key(s)} gate spec=${s.when} app=${a.when ?? null}`);

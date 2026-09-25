@@ -292,8 +292,14 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
           const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };
         },
-        hasRecording: (id) => !!client.getState().recordings[id],
+        hasRecording: (id) => !!client.getState().recordings[id] || Object.keys(client.getState().obt.audio).some(key => key.endsWith(`:${id}`)),
         append: async (e) => {
+          if (e.target.obtClipPrefix) {
+            await client.append('v1.ObtAudioAdded', { clipId: `${e.target.obtClipPrefix}:${e.id}`,
+              unitId:e.target.unitId,laneId:e.target.laneId,
+              cards:[{ hash:e.hash,durationMs:e.durationMs,format:e.format }] });
+            return;
+          }
           await client.append('v1.RecordingAdded', {
             recordingId: e.id, unitId: e.target.unitId, laneId: e.target.laneId, kind: 'target',
             cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]

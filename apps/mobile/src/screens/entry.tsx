@@ -1,14 +1,17 @@
+import { StyleSheet } from '../theme';
 // Avatar U (text fallback). Entry, onboarding, and no-org screens. One action each.
-import { Building2, Compass, Eye, Headphones, Mic, QrCode, ScanLine, Send, Users } from 'lucide-react-native';
+import { Building2, Eye, Headphones, Mic, QrCode, ScanLine, Send, Users } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { cachedPublicProjects, publicProjects, queueAccountAction, recordUserEvent, type PublicProject } from '../accountData';
+import { queueAccountAction, recordUserEvent } from '../accountData';
 import { useAccountActions } from '../useAccount';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { SEED_ROLES } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
+import { requestPasswordReset } from '../accountRecovery';
+import { translateUi } from '../uiLanguage';
 import { parseInvite, redeemInvite } from '../invites';
 import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
 import { colors, space } from '../theme';
@@ -46,10 +49,14 @@ export function SignIn(ctx: Ctx) {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <ActionButton label="Sign in" accessibilityLabel="Sign in" onPress={() => void signIn()} disabled={busy} />
       <Pressable onPress={() => ctx.go('create_account')} hitSlop={8}>
-        <Text style={[text.muted, { textAlign: 'center' }]}>Create account</Text>
+        <Text style={[text.muted, { textAlign: 'center' }]}>{translateUi('Create account')}</Text>
       </Pressable>
-      <Pressable onPress={() => ctx.go('explore_home')} hitSlop={8}>
-        <Text style={[text.muted, { textAlign: 'center' }]}>Browse public projects</Text>
+      <Pressable disabled={busy} onPress={() => {
+        setBusy(true);
+        void requestPasswordReset(email).then(() => setError('If an account exists, a recovery email is on its way.'))
+          .catch((e) => setError(e.message)).finally(() => setBusy(false));
+      }} hitSlop={8}>
+        <Text style={[text.muted, { textAlign: 'center' }]}>{translateUi('Forgot password?')}</Text>
       </Pressable>
       {ctx.canSwitchPersona ? (
         <Pressable onPress={ctx.openDev} hitSlop={8}>
@@ -159,7 +166,6 @@ export function IntentChooser(ctx: Ctx) {
         <Row icon={Building2} label="Create an organization" sub="You become its admin" onPress={() => ctx.go('create_org')} />
         <Row icon={Users} label="Join an existing org" sub="Ask an admin for access" onPress={() => ctx.go('request_access')} />
         <Row icon={QrCode} label="Join with QR code" onPress={() => ctx.go('scan_qr')} />
-        <Row icon={Compass} label="Explore projects" onPress={() => ctx.go('explore_home')} last />
       </Section>
     </Screen>
   );
@@ -207,38 +213,6 @@ export function CreateOrg(ctx: Ctx) {
       <Header title="Create a new organization" onBack={ctx.back} />
       <Note>Creating an organization presets standard roles, a passage template, and a one-step community review flow. You can change all of it later.</Note>
       <TextInput style={styles.input} placeholder="Organization name" value={name} onChangeText={setName} />
-    </Screen>
-  );
-}
-
-export function ExploreHome(ctx: Ctx) {
-  const [projects, setProjects] = useState<PublicProject[]>([]);
-  const [message, setMessage] = useState('Loading projects…');
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const cached = await cachedPublicProjects();
-      if (active) setProjects(cached);
-      try {
-        const rows = await publicProjects();
-        if (active) { setProjects(rows); setMessage(rows.length ? '' : 'No public projects yet.'); }
-      } catch {
-        if (active) setMessage('Unable to refresh. Showing saved projects when available.');
-      }
-    })();
-    return () => { active = false; };
-  }, []);
-  return (
-    <Screen>
-      <Header title="Explore projects" onBack={ctx.back} />
-      {message ? <Note>{message}</Note> : null}
-      <Section label="Public projects">
-        {projects.map((p) => <Row key={`${p.org_id}:${p.project_id}`}
-          label={p.name} sub={p.languages.join(', ')}
-          badge={`${Math.round(p.translated_pct)}% translated`}
-          onPress={() => ctx.session.isGuest ? ctx.go('sign_in')
-            : ctx.go('request_access', { orgId: p.org_id })} />)}
-      </Section>
     </Screen>
   );
 }
@@ -407,4 +381,4 @@ const styles = StyleSheet.create({
 });
 
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr', 'walkthrough');
+export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'request_access', 'scan_qr', 'walkthrough');

@@ -11,6 +11,7 @@
  * removed" appends nothing twice: the fold already has that id.
  */
 export interface JournalTarget {
+  obtClipPrefix?: string;
   orgId: string;
   projectId: string;
   unitId: string;
