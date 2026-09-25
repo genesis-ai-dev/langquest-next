@@ -62,6 +62,9 @@ public class MicrophoneEnergyModule: Module {
         Name("MicrophoneEnergy")
         Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart")
         
+        AsyncFunction("renderAudio") { (clips: [[String: Any]], destination: String) -> String in
+            return try AudioRenderer.render(clips, destination: destination)
+        }
         AsyncFunction("startEnergyDetection") { () -> Void in try await self.startEnergyDetection() }
         AsyncFunction("stopEnergyDetection") { () -> Void in try await self.stopEnergyDetection() }
         AsyncFunction("configureVAD") { (config: [String: Any?]) -> Void in self.configureVAD(config: config) }

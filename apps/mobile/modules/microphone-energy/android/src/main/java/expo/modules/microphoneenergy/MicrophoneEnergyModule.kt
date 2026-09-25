@@ -1,4 +1,4 @@
-﻿package expo.modules.microphoneenergy
+package expo.modules.microphoneenergy
 
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -53,6 +53,9 @@ class MicrophoneEnergyModule : Module() {
     Name("MicrophoneEnergy")
     Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart")
     
+    AsyncFunction("renderAudio") { clips: List<Map<String, Any?>>, destination: String ->
+      AudioRenderer.render(clips, destination)
+    }
     AsyncFunction("startEnergyDetection") { promise: Promise -> startEnergyDetection(promise) }
     AsyncFunction("stopEnergyDetection") { promise: Promise -> stopEnergyDetection(promise) }
     AsyncFunction("configureVAD") { config: Map<String, Any?>, promise: Promise ->

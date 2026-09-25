@@ -32,6 +32,7 @@ export type MicrophoneEnergyModuleEvents = {
 };
 
 declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModuleEvents> {
+  renderAudio(clips: { uri: string; startMs?: number; endMs?: number }[], destination: string): Promise<string>;
   startEnergyDetection(): Promise<void>;
   stopEnergyDetection(): Promise<void>;
   configureVAD(config: VADConfig): Promise<void>;
