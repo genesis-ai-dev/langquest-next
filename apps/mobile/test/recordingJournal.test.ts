@@ -131,12 +131,9 @@ vi.mock('../src/store', () => ({ getStore: async () => ({
     disk.value = value;
   }
 }) }));
-vi.mock('expo-file-system', () => ({
-  Paths: { document: 'file:///documents' },
-  File: class {
-    get exists() { return disk.legacy !== undefined; }
-    async text() { return disk.legacy; }
-  }
+vi.mock('../src/disk', () => ({
+  readDocumentText: async () => disk.legacy,
+  sourceExists: () => false
 }));
 
 // Exercise the production journal's read/modify/commit chain, not only recovery.

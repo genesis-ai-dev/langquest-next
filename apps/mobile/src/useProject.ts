@@ -227,10 +227,10 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       // what is on disk, give back out-of-scope files the server still has.
       const reclaim = () => {
         try {
-          blobStore.reclaim(
+          void blobStore.reclaim(
             evictableBlobs(client.getState(), blobStore.snapshot(), scopeNow(), blobStore.sizes()),
             { minFreeBytes: MIN_FREE_BYTES, maxTotalBytes: MAX_CACHE_BYTES }
-          );
+          ).catch(() => { /* disk queries can fail on some devices; try again next change */ });
         } catch { /* disk queries can fail on some devices; try again next change */ }
       };
       const up = new TransferWorker({
@@ -287,7 +287,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
       const resumed = await getRecordingJournal().resume({ orgId, projectId }, {
-        blobExists: (hash, format) => blobStore.fileFor({ hash, format }).exists,
+        blobExists: (hash) => blobStore.has(hash),
         ingest: async (uri, format, beforeMove) => {
           const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
           return { hash: ref.hash, size };

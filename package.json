@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/client --noEmit",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/client --noEmit && tsc -p smart-tests",
     "ship": "npm run ship -w mobile --",
     "ship:native": "npm run ship:native -w mobile",
     "ship:check": "npm run ship:check -w mobile",
@@ -29,9 +29,11 @@
     "reconcile": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/blobReconciler.ts",
     "worker:build": "node scripts/build-projection-worker.mjs",
     "email:typecheck": "wrangler types -c apps/invite-email/wrangler.jsonc apps/invite-email/worker-configuration.d.ts && tsc -p apps/invite-email",
-    "email:deploy": "wrangler deploy -c apps/invite-email/wrangler.jsonc --profile langquest-email"
+    "email:deploy": "wrangler deploy -c apps/invite-email/wrangler.jsonc --profile langquest-email",
+    "smart": "smart-tests/run.sh"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^26.5.1",
     "eas-cli": "^24.6.0",
     "supabase": "^2.40.0",

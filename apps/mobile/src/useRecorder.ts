@@ -4,7 +4,7 @@ import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import MicrophoneEnergy, { type VADConfig } from '../modules/microphone-energy';
 import { getBlobStore } from './blobs';
 import { getRecordingJournal } from './recordingJournal';
@@ -25,6 +25,8 @@ interface PendingFile {
   durationMs: number;
   card?: RecordedCard;
 }
+/** Cards are labeled m4a; on web (a test target) the bytes must really be AAC in MP4. */
+const WEB_M4A = 'audio/mp4;codecs=mp4a.40.2';
 const BASE: VADConfig = {
   onsetMultiplier: 0.1, maxOnsetDuration: 250, rewindHalfPause: true,
   minSegmentDuration: 200, minActiveAudioDuration: 250
@@ -46,7 +48,8 @@ export function isRecording(): boolean {
  */
 export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget) {
   const recorder = useAudioRecorder({
-    ...RecordingPresets.HIGH_QUALITY, directory: 'document'
+    ...RecordingPresets.HIGH_QUALITY, directory: 'document',
+    web: { ...RecordingPresets.HIGH_QUALITY.web, mimeType: WEB_M4A }
   });
   const [vadOn, setVadOn] = useState(false);
   const [vadCapturing, setVadCapturing] = useState(false);
@@ -89,9 +92,11 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         if (!file.card) {
           const store = await getBlobStore();
           const previous = (await journal.all()).find((e) => e.id === file.id);
-          if (previous?.hash && store.fileFor({ hash: previous.hash, format: file.format }).exists) {
+          const knownSize = previous?.hash && store.has(previous.hash)
+            ? previous.size ?? store.sizeOf(previous.hash) : undefined;
+          if (previous?.hash && knownSize !== undefined) {
             file.card = { id: file.id, ref: { hash: previous.hash, format: file.format },
-              size: previous.size ?? store.fileFor({ hash: previous.hash, format: file.format }).size,
+              size: knownSize,
               durationMs: base.durationMs };
           } else {
             await journal.put(previous ?? { ...base, stage: 'recorded' });
@@ -142,6 +147,10 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         const permission = await AudioModule.requestRecordingPermissionsAsync();
         if (!wanted.current || !mounted.current) return;
         if (!permission.granted) throw new Error('Microphone permission is required.');
+        // expo-audio silently falls back to WebM, which would be stored as m4a.
+        if (Platform.OS === 'web' && !MediaRecorder.isTypeSupported(WEB_M4A)) {
+          throw new Error('This browser cannot record m4a audio.');
+        }
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!wanted.current || !mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();

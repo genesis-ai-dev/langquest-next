@@ -380,10 +380,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--translate)
     <section class="stage">
       <p class="eyebrow">Set up · once per project <em>Avatar P — text, tables, all options</em></p>
       <div class="chain">
-        <button class="node" data-s="setup"><span class="k"><span class="p">P</span> Setup</span><span class="t">Three folders</span><span class="d">What to translate, Briefing, How it's checked (PLAN.md §16)</span></button>
+        <button class="node" data-s="setup"><span class="k"><span class="p">P</span> Setup</span><span class="t">Three folders</span><span class="d">What to translate, What to study, How it's checked (PLAN.md §16)</span></button>
         <span class="arrow"><i data-lucide="arrow-right"></i></span>
         <button class="node" data-s="structure"><span class="k"><span class="p">P</span> Blue folder</span><span class="t">What to translate</span><span class="d">Dynamic passages, chapters, or FIA</span></button>
-        <button class="node" data-s="attach"><span class="k"><span class="p">P</span> Orange folder</span><span class="t">Briefing</span><span class="d">Source Bible, key terms, study guide</span></button>
+        <button class="node" data-s="attach"><span class="k"><span class="p">P</span> Orange folder</span><span class="t">What to study</span><span class="d">Source Bible, key terms, study guide</span></button>
         <button class="node" data-s="checks"><span class="k"><span class="p">P</span> Teal folder</span><span class="t">How it's checked</span><span class="d">A ready-made flow of checks, or your own</span></button>
       </div>
     </section>
@@ -475,10 +475,10 @@ const ring=(pct,size,color,label)=>{
 const S={
  /* ---------- Avatar P ---------- */
  setup:{who:'p',title:'Jonah — Amdo',sb:'online',
-  caption:"<b>Avatar P: setup is three folders.</b> Each folder keeps the colour its contents will have for the translator: blue for the work, orange for the briefing, teal for checks. The summary line says what is filled in, so an empty folder is obvious.",
+  caption:"<b>Avatar P: setup is three folders.</b> Each folder keeps the colour its contents will have for the translator: blue for the work, orange for what to study, teal for checks. The summary line says what is filled in, so an empty folder is obvious.",
   body:`<p class="eyebrow">Set up · Jonah — Amdo</p>
    <button class="folder f-tr" data-open="structure">${ic('book-open','lg')}<div><div class="nm">What to translate</div><div class="mt">Dynamic passages · Jonah · 12 passages</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
-   <button class="folder f-ref" data-open="attach">${ic('folder-open','lg')}<div><div class="nm">Briefing</div><div class="mt">BSB audio and text · 24 key terms · FIA study</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
+   <button class="folder f-ref" data-open="attach">${ic('folder-open','lg')}<div><div class="nm">What to study</div><div class="mt">BSB audio and text · 24 key terms · FIA study</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
    <button class="folder f-rv" data-open="checks">${ic('list-checks','lg')}<div><div class="nm">How it's checked</div><div class="mt">One check</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
    <div class="row" style="margin-top:18px">${ic('users')}<div><div class="nm">Members</div><div class="mt">3 people</div></div></div>`,
   footer:`<button class="act">Open My Work</button>`},
@@ -501,14 +501,14 @@ const S={
    <div class="row">${ic('graduation-cap')}<div><div class="nm">FIA</div><div class="mt">study guide, then record</div></div></div>`,
   footer:`<button class="act">Use dynamic passages</button>`},
 
- attach:{who:'p',title:'Briefing',sb:'online',
-  caption:"<b>Avatar P: Briefing.</b> Material is attached once at book level and inherited by all 12 passages, so a translator never goes looking for it.",
+ attach:{who:'p',title:'What to study',sb:'online',
+  caption:"<b>Avatar P: What to study.</b> Material is attached once at book level and inherited by all 12 passages, so a translator never goes looking for it.",
   body:`<p class="eyebrow">Attach to all 12 passages</p>
    <div class="row t-ref next">${ic('headphones')}<div><div class="nm">Audio walkthrough</div><div class="mt">explore/jonah</div></div><div class="tail">12 files</div></div>
    <div class="row t-ref">${ic('library')}<div><div class="nm">Audio encyclopedia</div><div class="mt">38 entries matched</div></div><div class="tail">on</div></div>
    <div class="row">${ic('key-round')}<div><div class="nm">Key term set</div><div class="mt">Jonah · 24 terms</div></div><div class="tail">on</div></div>
    <div class="row">${ic('help-circle')}<div><div class="nm">Review questions</div><div class="mt">optional per passage</div></div><div class="tail">off</div></div>`,
-  footer:`<button class="act">Save briefing</button>`},
+  footer:`<button class="act">Save study material</button>`},
 
  assign:{who:'p',title:'Jonah 1 · assign',sb:'online',
   caption:"<b>Avatar P, step 3.</b> Assignment is the handover point between the avatars: the last text-dense screen before everything becomes icons.",
@@ -653,7 +653,7 @@ S.queued={who:'u',title:'Jonah 1:1–3',sb:'offline',
   footer:`<button class="act" aria-label="Return to My Work">${ic('arrow-right','lg')}</button>`};
 let current='hub', termCount=9, referenceIndex=0, takeKept=false, submitted=false;
 const order=["setup","structure","checks","attach","assign","mywork","hub","resources","terms","termslive","vad","record","termsdone","hubafter","qa","ready","queued"];
-const label={setup:"Setup",checks:"Checks",structure:"Translate",attach:"Briefing",assign:"Assign",mywork:"My Work",hub:"Hub",
+const label={setup:"Setup",checks:"Checks",structure:"Translate",attach:"Study",assign:"Assign",mywork:"My Work",hub:"Hub",
   resources:"Listen",terms:"Terms",termslive:"Hold",vad:"VAD",record:"Record",termsdone:"Finish",hubafter:"Hub +1",qa:"Gate",ready:"Hand off",queued:"Queued"};
 document.getElementById("tabs").innerHTML=order.map(k=>`<button data-s="${k}">${label[k]}</button>`).join("");
 

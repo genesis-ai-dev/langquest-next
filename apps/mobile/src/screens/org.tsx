@@ -1,15 +1,16 @@
 // Avatar P. Org, project, and language homes; members; invites; review teams.
-import type { Role } from '@langquest-next/core';
-import { CATALOG_VERSION, contentTemplates, derivePieces, deriveWorkflow, instantiateTemplate } from '@langquest-next/core';
-import { Building2, Check, FileText, Globe, Headphones, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
+import type { ProjectState, Role } from '@langquest-next/core';
+import { CATALOG_VERSION, contentTemplates, derivePieces, deriveWorkflow, FLOW_TEMPLATES, instantiateTemplate, keyTermsFor, materialsFor } from '@langquest-next/core';
+import { BookOpen, Building2, Check, ChevronRight, FileText, FolderOpen, Globe, Headphones, ListChecks, Plus, QrCode, Users, Workflow, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Share, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
-import { colors, space } from '../theme';
+import { colors, radius, space, tint } from '../theme';
 import { Card, text } from '../ui';
+import { translateUi } from '../uiLanguage';
 import { supabase } from '../supabase';
 import { templateSubtree } from '../setupFlow';
 
@@ -18,18 +19,49 @@ const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
 
 const ROLES: Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'];
 
-function catalogRows(ctx: Ctx) {
+/**
+ * One setup folder (PLAN.md section 16). Its colour is the colour its
+ * contents have for the translator; the summary says what is filled in.
+ */
+function SetupFolder(props: { icon: LucideIcon; hue: string; tint: string; title: string; summary: string; onPress?: () => void }) {
+  const Icon = props.icon;
+  const face = { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 };
   return (
-    <>
-      <Section label="Manage content">
-        <Row icon={FileText} label="Content templates" onPress={() => ctx.go('templates_home')} />
-        <Row icon={FileText} label="Reference material" onPress={() => ctx.go('reference_home')} last />
-      </Section>
-      <Section label="Manage processes">
-        <Row icon={Workflow} label="Review flows" onPress={() => ctx.go('flows_home')} last />
-      </Section>
-    </>
+    <Pressable onPress={props.onPress} disabled={!props.onPress} accessibilityRole="button"
+      accessibilityLabel={`${translateUi(props.title)}: ${props.summary}`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, paddingTop: 13 })}>
+      <View style={[face, { position: 'absolute', top: 0, left: 0, width: '42%', height: 16,
+        borderBottomWidth: 0, borderTopLeftRadius: 10, borderTopRightRadius: 10 }]}>
+        <View style={{ flex: 1, backgroundColor: props.tint, borderTopLeftRadius: 10, borderTopRightRadius: 10 }} />
+      </View>
+      <View style={[face, { borderRadius: radius.lg, borderTopLeftRadius: 0 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg,
+          minHeight: 72, backgroundColor: props.tint, borderRadius: radius.lg, borderTopLeftRadius: 0 }}>
+          <Icon size={26} color={props.hue} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[text.body, { fontWeight: '700' }]}>{translateUi(props.title)}</Text>
+            <Text style={text.small} numberOfLines={2}>{props.summary}</Text>
+          </View>
+          {props.onPress ? <ChevronRight size={20} color={colors.mutedForeground} /> : null}
+        </View>
+      </View>
+    </Pressable>
   );
+}
+
+/** Folder summaries for one language, from the fold. */
+function setupSummary(state: ProjectState | null, laneId: string) {
+  const templateId = state?.laneTemplates[laneId]?.value.templateId;
+  const flowId = state?.laneFlows[laneId]?.value.flowId;
+  const terms = state ? keyTermsFor(state, laneId).length : 0;
+  const materials = state ? materialsFor(state, { laneId }).length : 0;
+  const steps = state ? deriveWorkflow(state, laneId).length : 0;
+  return {
+    translate: contentTemplates().find((t) => t.id === templateId)?.name ?? 'Not chosen yet',
+    study: `${terms} key term${terms === 1 ? '' : 's'} · ${materials} material${materials === 1 ? '' : 's'}`,
+    checks: FLOW_TEMPLATES.find((f) => f.id === flowId)?.name
+      ?? (steps ? `${steps} step${steps === 1 ? '' : 's'}` : 'No checks')
+  };
 }
 
 function memberRows(ctx: Ctx) {
@@ -52,13 +84,12 @@ export function OrgHome(ctx: Ctx) {
         {Object.entries(ctx.org.state?.projects ?? {}).map(([id, p]) => <Row key={id}
           icon={Building2} label={p.name} onPress={() => {
             if (id === ctx.project.projectId) ctx.go('project_home');
-            else void ctx.openOrganization(ctx.project.orgId, id);
+            else void ctx.openOrganization(ctx.project.orgId, id, 'project_home');
           }} />)}
         {!Object.keys(ctx.org.state?.projects ?? {}).length && state?.project
           ? <Row icon={Building2} label={name} onPress={() => ctx.go('project_home')} /> : null}
         {ctx.session.isAdmin ? <Row icon={Plus} label={state?.project ? "Set up project" : "New project"} onPress={() => ctx.go('new_project')} last /> : <Row label="" last />}
       </Section>
-      {catalogRows(ctx)}
       {memberRows(ctx)}
     </Screen>
   );
@@ -73,11 +104,12 @@ export function ProjectHome(ctx: Ctx) {
       <Header title={name} crumbs={[{ label: 'org1', onPress: () => ctx.go('org_home') }, { label: name }]} />
       <Section label="Manage languages">
         {lanes.map(([laneId, l]) => (
-          <Row key={laneId} icon={Globe} label={l.languoidId} onPress={() => ctx.go('language_home', { laneId })} />
+          <Row key={laneId} icon={Globe} label={l.languoidId}
+            sub={(({ translate, checks }) => `${translate} · ${checks}`)(setupSummary(state, laneId))}
+            onPress={() => ctx.go('language_home', { laneId })} />
         ))}
         {ctx.session.isAdmin ? <Row icon={Plus} label="New language" onPress={() => ctx.go('new_language')} last /> : <Row label="" last />}
       </Section>
-      {catalogRows(ctx)}
       {memberRows(ctx)}
       <Section label="Status">
         <Row label="Open status" onPress={() => ctx.go('status_home')} last />
@@ -91,10 +123,19 @@ export function LanguageHome(ctx: Ctx) {
   const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
   const name = state?.project?.value.name ?? 'Project';
   const lang = state?.lanes[laneId]?.languoidId ?? laneId;
+  const summary = setupSummary(state, laneId);
+  const can = (p: 'manage_templates' | 'manage_reference' | 'manage_flows') => ctx.session.can(p) && !!laneId;
   return (
     <Screen>
       <Header title={lang} crumbs={[{ label: 'org1', onPress: () => ctx.go('org_home') }, { label: name, onPress: () => ctx.go('project_home') }, { label: lang }]} />
-      {catalogRows(ctx)}
+      <View style={{ gap: space.md }}>
+        <SetupFolder icon={BookOpen} hue={colors.translate} tint={tint.translate} title="What to translate"
+          summary={summary.translate} onPress={can('manage_templates') ? () => ctx.go('templates_home', { laneId }) : undefined} />
+        <SetupFolder icon={FolderOpen} hue={colors.reference} tint={tint.reference} title="What to study"
+          summary={summary.study} onPress={can('manage_reference') ? () => ctx.go('reference_home', { laneId }) : undefined} />
+        <SetupFolder icon={ListChecks} hue={colors.review} tint={tint.review} title="How it's checked"
+          summary={summary.checks} onPress={can('manage_flows') ? () => ctx.go('flows_home', { laneId }) : undefined} />
+      </View>
       <Section label="Review">
         <Row icon={Users} label="Review teams" onPress={() => ctx.go('review_teams', { laneId })} last />
       </Section>

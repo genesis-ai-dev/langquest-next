@@ -6,7 +6,11 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { queueAccountAction, recordUserEvent } from '../accountData';
 import { useAccountActions } from '../useAccount';
 import { Pressable, Switch, Text, TextInput, View } from 'react-native';
-import { SEED_ROLES } from '@langquest-next/core';
+import { ORG_PARTITION, SEED_ROLES, type EventPayloads, type EventType } from '@langquest-next/core';
+import { SupabaseTransport, SyncClient, ensureDeviceId, type Materializer } from '@langquest-next/client';
+import * as Crypto from 'expo-crypto';
+import { getStore } from '../store';
+import { ORG_MATERIALIZER } from '../useOrg';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import { supabase } from '../supabase';
@@ -15,7 +19,7 @@ import { translateUi } from '../uiLanguage';
 import { parseInvite, redeemInvite } from '../invites';
 import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
 import { colors, space } from '../theme';
-import { ActionButton, Card, text } from '../ui';
+import { ActionButton, Card, IconCircleButton, text } from '../ui';
 
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
 
@@ -159,17 +163,50 @@ export function Vision(ctx: Ctx) {
 }
 
 export function IntentChooser(ctx: Ctx) {
+  // Oral-first: joining by an invite QR is the one yellow action. Creating an
+  // org or requesting access by code are advanced, so they sit behind a
+  // secondary button instead of competing with the scan.
+  const [advanced, setAdvanced] = useState(false);
   return (
-    <Screen>
-      <Header title="What do you want to do?" />
-      <Section label="Get started">
-        <Row icon={Building2} label="Create an organization" sub="You become its admin" onPress={() => ctx.go('create_org')} />
-        <Row icon={Users} label="Join an existing org" sub="Ask an admin for access" onPress={() => ctx.go('request_access')} />
-        <Row icon={QrCode} label="Join with QR code" onPress={() => ctx.go('scan_qr')} />
-      </Section>
+    <Screen
+      footer={
+        <ActionButton
+          label={advanced ? 'Hide options' : 'More options'}
+          accessibilityLabel={advanced ? 'Hide options' : 'More options'}
+          variant="outline"
+          onPress={() => setAdvanced(!advanced)}
+        />
+      }
+    >
+      <View style={[styles.center, { minHeight: 360 }]}>
+        <IconCircleButton icon={QrCode} size={180} accessibilityLabel="Join with QR code" onPress={() => ctx.go('scan_qr')} />
+      </View>
+      {advanced ? (
+        <Section label="Advanced">
+          <Row icon={Building2} label="Create an organization" sub="You become its admin" onPress={() => ctx.go('create_org')} />
+          <Row icon={Users} label="Join an existing org" sub="Ask an admin for access" onPress={() => ctx.go('request_access')} last />
+        </Section>
+      ) : null}
     </Screen>
   );
 }
+
+/** A client for a partition other than the selected one, to write its first events. */
+async function partitionClient<S>(actorId: string, orgId: string, projectId: string, materializer?: Materializer<S>) {
+  const store = await getStore();
+  const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
+  const client = new SyncClient<S>({
+    ...(materializer ? { materializer } : {}),
+    orgId, projectId, actorId, deviceId, store,
+    transport: new SupabaseTransport(supabase),
+    newId: () => Crypto.randomUUID()
+  });
+  await client.load();
+  return client;
+}
+
+type Intent = { type: EventType; payload: EventPayloads[EventType] };
+const intent = <T extends EventType>(type: T, payload: EventPayloads[T]): Intent => ({ type, payload });
 
 /**
  * Avatar P. Creating an organization writes the org partition first (the
@@ -180,38 +217,60 @@ export function IntentChooser(ctx: Ctx) {
  */
 export function CreateOrg(ctx: Ctx) {
   const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   async function create() {
-    const { append } = ctx.project;
-    const me = ctx.session.actorId;
-    const orgName = name.trim() || 'My organization';
-    await ctx.org.append('v1.OrgCreated', { name: orgName });
-    for (const r of SEED_ROLES) await ctx.org.append('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
-    await ctx.org.append('v1.OrgMemberAdded', { profileId: me, roleId: 'org_admin', scope: { level: 'org' }, ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {}) });
-    await ctx.org.append('v1.ProjectRegistered', { projectId: ctx.project.projectId, name: 'Luke' });
-    await append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-    await append('v1.MemberAdded', { profileId: me, role: 'owner' });
-    await append('v1.ProjectConfigChanged', {
-      config: {
-        unitKinds: [
-          { id: 'book', label: 'Book', childKinds: ['passage'] },
-          { id: 'passage', label: 'Passage', childKinds: [] }
-        ],
-        workflow: [{ id: 'community', role: 'reviewer', required: true, rule: 'any' }]
-      }
-    });
-    await append('v1.LaneAdded', { laneId: 'L1', languoidId: 'und' });
-    await append('v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Luke', order: 'a' });
-    for (const [i, label] of SAMPLE_PASSAGES.entries()) {
-      const unitId = `luke-${i}`;
-      await append('v1.UnitAdded', { unitId, parentUnitId: 'luke', kind: 'passage', label, order: `a${i}` });
-      await append('v1.ReferenceAttached', { unitId, refId: `${unitId}-terms`, kind: 'key_terms', text: 'Theophilus, eyewitnesses, orderly account' });
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const me = ctx.session.actorId;
+      const orgName = name.trim() || 'My organization';
+      // A new organization gets fresh partitions. ctx.org and ctx.project are
+      // the selected ones (EXPO_PUBLIC_ORG_ID in dev), which belong to others.
+      const orgId = Crypto.randomUUID();
+      const projectId = Crypto.randomUUID();
+      const org = await partitionClient(me, orgId, ORG_PARTITION, ORG_MATERIALIZER);
+      await org.appendMany([
+        intent('v1.OrgCreated', { name: orgName }),
+        ...SEED_ROLES.map((r) => intent('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
+        intent('v1.OrgMemberAdded', { profileId: me, roleId: 'org_admin', scope: { level: 'org' }, ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {}) }),
+        intent('v1.ProjectRegistered', { projectId, name: 'Luke' })
+      ]);
+      const project = await partitionClient(me, orgId, projectId);
+      await project.appendMany([
+        intent('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
+        intent('v1.MemberAdded', { profileId: me, role: 'owner' }),
+        intent('v1.ProjectConfigChanged', {
+          config: {
+            unitKinds: [
+              { id: 'book', label: 'Book', childKinds: ['passage'] },
+              { id: 'passage', label: 'Passage', childKinds: [] }
+            ],
+            workflow: [{ id: 'community', role: 'reviewer', required: true, rule: 'any' }]
+          }
+        }),
+        intent('v1.LaneAdded', { laneId: 'L1', languoidId: 'und' }),
+        intent('v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Luke', order: 'a' }),
+        ...SAMPLE_PASSAGES.flatMap((label, i) => [
+          intent('v1.UnitAdded', { unitId: `luke-${i}`, parentUnitId: 'luke', kind: 'passage', label, order: `a${i}` }),
+          intent('v1.ReferenceAttached', { unitId: `luke-${i}`, refId: `luke-${i}-terms`, kind: 'key_terms', text: 'Theophilus, eyewitnesses, orderly account' })
+        ])
+      ]);
+      // The org first: its admin membership authorizes the project's events.
+      // Offline, both stay pending and the workspace pushes them later.
+      await org.sync().then(() => project.sync()).catch(() => {});
+      await ctx.openOrganization(orgId, projectId, 'walkthrough');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
     }
-    ctx.go('walkthrough');
   }
   return (
-    <Screen footer={<Footer label="Create organization" onPress={() => void create()} />}>
+    <Screen footer={<Footer label={busy ? 'Creating...' : 'Create organization'} onPress={() => void create()} />}>
       <Header title="Create a new organization" onBack={ctx.back} />
       <Note>Creating an organization presets standard roles, a passage template, and a one-step community review flow. You can change all of it later.</Note>
+      {error ? <Note>{error}</Note> : null}
       <TextInput style={styles.input} placeholder="Organization name" value={name} onChangeText={setName} />
     </Screen>
   );

@@ -70,7 +70,7 @@ any of them should update the mock too:
   brighter ground, pulsing dot, solid rather than translucent bars.
 - The VAD cutoff is a line dragged across the waveform, never a number.
 - Avatar P setup is three folder cards (PLAN.md section 16): *What to translate*
-  (translate blue), *Briefing* (reference orange), *How it's checked* (review
+  (translate blue), *What to study* (reference orange), *How it's checked* (review
   teal). Each folder uses the colour its contents have for the translator, and
   its summary line shows what is filled in. Advanced rows sit below the folders.
 

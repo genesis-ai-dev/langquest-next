@@ -45,6 +45,7 @@ const APP_ONLY: Record<string, string> = {
   'translate_passage->passage_references': 'one-next-action reference adds an oral reference run',
   'translate_passage->passage_terms': 'one-next-action reference adds an oral key-term run',
   'translate_passage->done_await': 'view queued and synced hand-off status from the passage hub',
+  'org_home->walkthrough': 'create_org switches to the new org, whose home opens the walkthrough on landing',
   'new_project->project_home': 'guided setup finishes at the configured project',
   'create_account->terms_privacy': 'a new account is first-time, so it owes terms; the spec sends create_account straight to home_hub and never shows a new account the terms (A30 gap)',
   'assignments_home->assignment_progress_detail': 'legacy progress detail kept until the spec removes progress_home',
@@ -57,6 +58,20 @@ const APP_ONLY: Record<string, string> = {
   'inbox_home->review_passage': 'the inbox lists open review tasks; tapping one must open it',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
   'assignments_home->sync_status': 'the cloud chip on My Work opens the sync status screen'
+};
+
+/**
+ * Spec transitions the app deliberately drops, each with a reason. Like
+ * APP_ONLY, this is a drift log: bring it to the UX team rather than letting
+ * it grow silently.
+ */
+const SPEC_RETIRED: Record<string, string> = {
+  'org_home->templates_home': 'PLAN.md section 16: settings live on the language, in three folders',
+  'org_home->reference_home': 'PLAN.md section 16: settings live on the language, in three folders',
+  'org_home->flows_home': 'PLAN.md section 16: settings live on the language, in three folders',
+  'project_home->templates_home': 'PLAN.md section 16: settings live on the language, in three folders',
+  'project_home->reference_home': 'PLAN.md section 16: settings live on the language, in three folders',
+  'project_home->flows_home': 'PLAN.md section 16: settings live on the language, in three folders'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -77,12 +92,16 @@ describe('UX spec parity', () => {
     // has walked end to end.
     const missing: string[] = [];
     // Public discovery is intentionally retired; joining uses invitations.
-    for (const s of specEdges.filter(edge => edge.from !== 'explore_home' && edge.to !== 'explore_home')) {
+    for (const s of specEdges.filter(edge => edge.from !== 'explore_home' && edge.to !== 'explore_home' && !(key(edge) in SPEC_RETIRED))) {
       const a = appEdges.find((x) => x.from === s.from && x.to === s.to && (x.mode ?? 'push') === s.mode);
       if (!a) missing.push(`${key(s)} [${s.mode}] "${s.label}"`);
       else if ((a.when ?? null) !== s.when) missing.push(`${key(s)} gate spec=${s.when} app=${a.when ?? null}`);
     }
     expect(missing).toEqual([]);
+    // A retired entry the app still has, or the spec no longer has, is stale.
+    const staleRetired = Object.keys(SPEC_RETIRED).filter((k) =>
+      appEdges.some((a) => key(a) === k) || !specEdges.some((s) => key(s) === k));
+    expect(staleRetired).toEqual([]);
   });
 
   it('every app transition is in the spec or in the drift log with a reason', () => {

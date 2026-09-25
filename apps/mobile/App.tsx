@@ -17,8 +17,8 @@ import * as Notifications from 'expo-notifications';
 import { Home, Inbox, ListChecks, Settings } from 'lucide-react-native';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Component, createContext, useCallback, useContext, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
@@ -188,6 +188,8 @@ function AppContent() {
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
   const [selection, setSelection] = useState({ orgId: ORG_ID, projectId: PROJECT_ID });
   const [selectionRevision, setSelectionRevision] = useState(0);
+  // One-shot: the screen to open once the switched-to project loads.
+  const [landing, setLanding] = useState<ScreenId | undefined>(undefined);
   useEffect(() => {
     let active = true;
     void AsyncStorage.getItem(`selection:${props.actorId}`).then((raw) => {
@@ -195,7 +197,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     }).catch(() => {});
     return () => { active = false; };
   }, [props.actorId]);
-  const openOrganization = useCallback(async (orgId: string, projectId?: string) => {
+  const openOrganization = useCallback(async (orgId: string, projectId?: string, landingScreen?: ScreenId) => {
     if (!projectId) {
       const { data, error } = await supabase.rpc('my_organizations');
       if (error) throw new Error(error.message);
@@ -205,14 +207,15 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     await AsyncStorage.setItem(`selection:${props.actorId}`, JSON.stringify(next));
     await AsyncStorage.removeItem('pending-invite');
     setSelection(next);
+    setLanding(landingScreen);
     setSelectionRevision((revision) => revision + 1);
   }, [props.actorId]);
   return <Workspace key={`${selection.orgId}:${selection.projectId}:${selectionRevision}`} {...props}
-    {...selection} openOrganization={openOrganization} />;
+    {...selection} landing={landing} openOrganization={openOrganization} />;
 }
 
 function Workspace(props: { actorId: string; email: string | null; signedIn: boolean;
-  orgId: string; projectId: string; openOrganization: Ctx['openOrganization'] }) {
+  orgId: string; projectId: string; landing?: ScreenId; openOrganization: Ctx['openOrganization'] }) {
   const rawProject = useProject(props.orgId, props.projectId, props.actorId);
   const org = useOrg(props.orgId, props.actorId);
   const projectedState = useMemo(() => rawProject.state && org.state
@@ -308,6 +311,16 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     if (loaded) nav.reset({ screen: postSignInScreen(session) });
     else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
   });
+  // Picking a project on the org home opens that project, with the org home
+  // still under it for Back, instead of the same org home again.
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || !loaded || !props.landing) return;
+    const home = homeScreenFor(session);
+    if (nav.current.screen !== home) return;
+    landed.current = true;
+    if (edgeFor(home, props.landing)) nav.push({ screen: props.landing });
+  });
 
   const go = useCallback(
     (to: ScreenId, params?: Record<string, string>) => {
@@ -360,8 +373,9 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   useEffect(() => {
-    if (!props.signedIn || !seenVision) return;
-    const receive = (response: Notifications.NotificationResponse | null) => {
+    // Web is a test target with no notification responses to deliver.
+    if (!props.signedIn || !seenVision || Platform.OS === 'web') return;
+    const receive =(response: Notifications.NotificationResponse | null) => {
       if (!response?.notification.request.content.data?.notificationId) return;
       nav.reset({ screen: 'inbox_home' });
       void Notifications.clearLastNotificationResponseAsync();

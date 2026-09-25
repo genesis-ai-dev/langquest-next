@@ -14,7 +14,7 @@ export interface OrgHandle {
   inspect: () => Promise<SyncInspection | null>;
 }
 
-const ORG_MATERIALIZER: Materializer<OrgState> = {
+export const ORG_MATERIALIZER: Materializer<OrgState> = {
   empty: emptyOrgState,
   apply: applyOrgEvent,
   fold: foldOrg,

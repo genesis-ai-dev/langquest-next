@@ -1,6 +1,7 @@
 import type { BlobRef } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { Directory, File, Paths } from 'expo-file-system';
+import { blobDisk } from './disk';
+import type { BlobDisk } from './diskTypes';
 
 /**
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
@@ -15,37 +16,38 @@ import { Directory, File, Paths } from 'expo-file-system';
  * never be mistaken for a verified one. Deletion happens only in `reclaim`,
  * and only for files the caller has proven the server can give back.
  */
-const DIR_NAME = 'blobs';
 const STAGING_SUFFIX = '.part';
 
 /** What the store needs to name a file; the unit is sync's concern, not disk's. */
 export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
 
 export class BlobStore {
-  private readonly dir: Directory;
   private readonly present = new Set<string>();
   private readonly sizeByHash = new Map<string, number>();
   private listeners = new Set<() => void>();
+  /** Disk mutations run one at a time, as they did when they were synchronous. */
+  private queue: Promise<unknown> = Promise.resolve();
 
-  constructor() {
-    this.dir = new Directory(Paths.document, DIR_NAME);
+  constructor(readonly disk: BlobDisk = blobDisk) {}
+
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(fn, fn);
+    this.queue = next.catch(() => {});
+    return next;
   }
 
   /** One listing at startup. Additive after that. */
   async init(): Promise<void> {
-    if (!this.dir.exists) this.dir.create({ intermediates: true, idempotent: true });
-    for (const entry of this.dir.list()) {
-      if (entry instanceof File) {
-        if (entry.name.endsWith(STAGING_SUFFIX)) {
-          // An unfinished download from before the last exit. Never trusted.
-          try { entry.delete(); } catch { /* retried next launch */ }
-          continue;
-        }
-        const hash = entry.name.split('.')[0];
-        if (hash) {
-          this.present.add(hash);
-          if (entry.size !== null) this.sizeByHash.set(hash, entry.size);
-        }
+    for (const entry of await this.disk.list()) {
+      if (entry.name.endsWith(STAGING_SUFFIX)) {
+        // An unfinished download from before the last exit. Never trusted.
+        try { await this.disk.remove(entry.name); } catch { /* retried next launch */ }
+        continue;
+      }
+      const hash = entry.name.split('.')[0];
+      if (hash) {
+        this.present.add(hash);
+        if (entry.size !== null) this.sizeByHash.set(hash, entry.size);
       }
     }
   }
@@ -83,25 +85,27 @@ export class BlobStore {
     return new Set(this.present);
   }
 
-  fileFor(ref: BlobFile): File {
-    return new File(this.dir, `${ref.hash}.${ref.format}`);
+  nameFor(ref: BlobFile): string {
+    return `${ref.hash}.${ref.format}`;
   }
 
   /** Where a download lands before its bytes are verified. */
-  stagingFor(ref: BlobFile): File {
-    return new File(this.dir, `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
+  stagingNameFor(ref: BlobFile): string {
+    return `${ref.hash}.${ref.format}${STAGING_SUFFIX}`;
   }
 
   /**
    * Promote a verified staging file to its trusted name (an atomic rename on
    * the same volume) and index it. Callers verify first; this does not.
    */
-  commitStaged(ref: BlobFile, size: number): void {
-    const staged = this.stagingFor(ref);
-    const dest = this.fileFor(ref);
-    if (dest.exists) staged.delete();
-    else staged.move(dest);
-    this.markPresent(ref.hash, size);
+  commitStaged(ref: BlobFile, size: number): Promise<void> {
+    return this.serial(async () => {
+      const staged = this.stagingNameFor(ref);
+      const dest = this.nameFor(ref);
+      if (await this.disk.exists(dest)) await this.disk.remove(staged);
+      else await this.disk.rename(staged, dest);
+      this.markPresent(ref.hash, size);
+    });
   }
 
   /**
@@ -110,27 +114,29 @@ export class BlobStore {
    * decides eligibility (core `evictableBlobs`); this only does the disk
    * work, largest first so the fewest files go.
    */
-  reclaim(evictable: readonly BlobFile[], opts: { minFreeBytes: number; maxTotalBytes: number }): string[] {
-    const removed: string[] = [];
-    const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
-    for (const ref of bySize) {
-      if (Paths.availableDiskSpace >= opts.minFreeBytes && this.totalBytes() <= opts.maxTotalBytes) break;
-      if (!this.present.has(ref.hash)) continue;
-      try {
-        this.fileFor(ref).delete();
-      } catch {
-        continue;
+  reclaim(evictable: readonly BlobFile[], opts: { minFreeBytes: number; maxTotalBytes: number }): Promise<string[]> {
+    return this.serial(async () => {
+      const removed: string[] = [];
+      const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
+      for (const ref of bySize) {
+        if (await this.disk.freeBytes() >= opts.minFreeBytes && this.totalBytes() <= opts.maxTotalBytes) break;
+        if (!this.present.has(ref.hash)) continue;
+        try {
+          await this.disk.remove(this.nameFor(ref));
+        } catch {
+          continue;
+        }
+        this.present.delete(ref.hash);
+        this.sizeByHash.delete(ref.hash);
+        removed.push(ref.hash);
       }
-      this.present.delete(ref.hash);
-      this.sizeByHash.delete(ref.hash);
-      removed.push(ref.hash);
-    }
-    if (removed.length) for (const l of this.listeners) l();
-    return removed;
+      if (removed.length) for (const l of this.listeners) l();
+      return removed;
+    });
   }
 
   uriFor(ref: BlobFile): string | null {
-    return this.present.has(ref.hash) ? this.fileFor(ref).uri : null;
+    return this.present.has(ref.hash) ? this.disk.uri(this.nameFor(ref)) : null;
   }
 
   /**
@@ -139,15 +145,16 @@ export class BlobStore {
    * land on the same name.
    */
   async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
-    const src = new File(sourceUri);
-    const bytes = await src.bytes();
+    const bytes = await this.disk.sourceBytes(sourceUri);
     const hash = await BlobStore.hashOf(bytes);
     const ref: BlobFile = { hash, format };
-    const dest = this.fileFor(ref);
+    const dest = this.nameFor(ref);
     await beforeMove?.(ref, bytes.byteLength);
-    if (!dest.exists) src.move(dest);
-    else src.delete();
-    this.markPresent(hash, bytes.byteLength);
+    await this.serial(async () => {
+      if (!await this.disk.exists(dest)) await this.disk.adopt(sourceUri, dest, bytes);
+      else await this.disk.discardSource(sourceUri);
+      this.markPresent(hash, bytes.byteLength);
+    });
     return { ref, size: bytes.byteLength };
   }
 

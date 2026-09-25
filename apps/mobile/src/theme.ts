@@ -74,6 +74,7 @@ export const StyleSheet = {
 const lightTint = {
   translate: 'rgba(10, 90, 219, 0.06)',
   review: 'rgba(34, 143, 160, 0.06)',
+  reference: 'rgba(243, 117, 27, 0.06)',
   translateBadge: 'rgba(10, 90, 219, 0.15)',
   reviewBadge: 'rgba(34, 143, 160, 0.15)',
   reviewChip: 'rgba(34, 143, 160, 0.10)',
@@ -87,6 +88,7 @@ const lightTint = {
 const darkTint: Record<keyof typeof lightTint, string> = {
   translate: 'rgba(124, 171, 255, 0.10)',
   review: 'rgba(102, 198, 210, 0.10)',
+  reference: 'rgba(255, 171, 112, 0.10)',
   translateBadge: 'rgba(124, 171, 255, 0.22)',
   reviewBadge: 'rgba(102, 198, 210, 0.22)',
   reviewChip: 'rgba(102, 198, 210, 0.15)',

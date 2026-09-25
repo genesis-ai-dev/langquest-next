@@ -8,7 +8,11 @@ remains deferred.
 ## Written translation and AI assistance
 
 The neutral text button on standard and OBT passage screens opens written
-translation. Saving creates an immutable version. Choosing an earlier version
+translation as a slide run, like the reference and key-term runs: source text,
+then the draft, then saved versions. Each slide has one yellow action (next,
+save, done); transcription, AI drafts, branching and starting over are outline
+icon buttons. A suggestion replaces the slide until it is used or discarded.
+It opens on saved versions when some exist. Saving creates an immutable version. Choosing an earlier version
 creates a child, preserving the original and its source text. These drafts
 supplement recorded takes; they do not independently mark a passage approved.
 

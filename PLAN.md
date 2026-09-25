@@ -600,11 +600,11 @@ translator sees later:
 | Folder | Colour and icon | Holds |
 | --- | --- | --- |
 | **What to translate** | translate blue, book | the content template (dynamic passages, chapters, FIA) and which books |
-| **Briefing** | reference orange, folder | what the team needs before they start: the source Bible (audio and text), key terms, study guides such as FIA, and other reference material |
+| **What to study** | reference orange, folder | what the team needs before they start: the source Bible (audio and text), key terms, study guides such as FIA, and other reference material |
 | **How it's checked** | review teal, checklist | the review flow: a ready-made flow or the flow designer |
 
-"Briefing" hints at a mission briefing but stays calm. Its summary line
-says what is in it ("BSB audio and text · 42 key terms · FIA study").
+The three titles read as a set of questions an admin answers. The
+orange folder's summary line says what is in it ("BSB audio and text · 42 key terms · FIA study").
 Advanced controls (roles, review teams) sit below the folders as plain rows.
 
 **Units.** Dynamic passages, chapters, or FIA. A translator opens a book on

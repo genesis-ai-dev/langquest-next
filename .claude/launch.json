@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web", "-w", "mobile", "--", "--port", "8090", "--clear"],
+      "port": 8090
+    }
+  ]
+}
