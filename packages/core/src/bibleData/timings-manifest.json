@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/BSB-publishing/bsb-align",
+  "commit": "bdb859afc427b215b78e12ee4a7798c32b7b91e0",
+  "archiveSha256": "379191589590965ee49492c98256413cc8a05b10acf99c269d423baa2b7db1c8",
+  "narration": "Barry Hays",
+  "audioBase": "https://openbible.com/audio/hays/",
+  "license": "MIT; see alignment-LICENSE.txt",
+  "acceptedVerses": 17049,
+  "rejectedVerses": 14053,
+  "validation": "Text match, positive ordered word spans, mean score >= 0.65. Unverified spans use full chapter audio."
+}

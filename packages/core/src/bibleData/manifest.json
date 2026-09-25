@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "scorerVersion": 1,
+  "documents": 1189,
+  "sources": {
+    "text": "https://bereanbible.com/bsb.txt",
+    "passages": "https://a.openbible.info/data/bible-section-counts.txt"
+  },
+  "textLicense": "Public domain",
+  "textNotice": "The Holy Bible, Berean Standard Bible, BSB is produced in cooperation with Bible Hub, Discovery Bible, unfoldingWord, Bible Aquifer, OpenBible.com, and the Berean Bible Translation Committee. This text of God's Word has been dedicated to the public domain. Free resources and databases are available at BereanBible.com.",
+  "passagesDescription": "Observed section boundaries across 20 translations; not every possible verse range.",
+  "versification": {
+    "3John.1.15": "3John.1.14 (BSB)"
+  },
+  "sha256": {
+    "text": "7b3268309565774a4a87bb0902111716b84c36b8ee89e10ec3a1bc8df3b4715c",
+    "passages": "5e9e838d0226c6106ff8c578aa5c1cb8fa8b206f0fb83f784aa1613cc50e26e8"
+  },
+  "verseCount": 31102,
+  "sectionCount": 12648
+}
