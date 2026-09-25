@@ -6,15 +6,17 @@ leaving the view. Playback pauses before microphone startup. Keep composes
 all pending parts in recording order. Redo discards the pending parts and
 starts a replacement recording. Existing recording recovery remains active.
 
-In **Reference material**, an organization manager adds either source Bible:
+In **Reference material**, an organization manager controls these sources:
 
 - Berean Standard Bible (BSB), Frederick Surrey.
 - Majority Standard Bible (MSB), Frederick Surrey.
+- Berean Standard Bible (BSB), Barry Hays: enabled by default, with validated
+  passage timings for dynamic Bible passages.
 
-Sources require explicit organization opt-in. Projects can disable an added
-source. Settings use existing `v1.CatalogItemToggled` events and permissions;
-no database migration is required. The app does not enable either source
-on behalf of an organization.
+Frederick Surrey editions require organization opt-in. Projects can disable
+any enabled source through existing `v1.CatalogItemToggled` events. See
+[dynamic Bible passages](dynamic-bible-passages.md) for shared text, key-term
+density, alignment coverage, and the new passage-selection migration.
 
 Chapter Units, Book Overview, and FIA catalog version 1 map to the source
 chapters. FIA audio covers the full chapter, including every chapter for
@@ -33,7 +35,8 @@ Eight MP3s cover Jonah 1–4 in both editions, about 14.3 MB total.
   narrator, and CC0-1.0 license metadata, following the supplied license check.
 - Origin: [OpenBible audio](https://openbible.com/audio/).
 
-Jonah uses R2; other chapters use OpenBible directly. To override the R2 base,
+The Frederick Surrey Jonah pilot uses R2; other audio uses OpenBible directly.
+To override the R2 base,
 set `EXPO_PUBLIC_SOURCE_AUDIO_BASE_URL` before bundling the app. An empty value
 uses OpenBible for all chapters. R2's development endpoint is appropriate for
 this trial; use a custom domain before production rollout.

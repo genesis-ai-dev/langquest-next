@@ -1,4 +1,7 @@
 <!doctype html>
+<!-- Dynamic Bible entry (docs/dynamic-bible-passages.md): book → passage
+     preview → this existing hub. The preview has one yellow start arrow.
+     Source playback uses verified passage bounds or a full-chapter label. -->
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -203,6 +206,18 @@ h1{font-size:clamp(28px,4.2vw,42px);font-weight:700;line-height:1.06}
 .row.t-ref .ic{color:var(--reference)}
 .row.t-tr .ic{color:var(--translate)}
 .row.t-rv .ic{color:var(--review)}
+.folder{position:relative;display:flex;align-items:center;gap:11px;width:100%;margin:22px 0 4px;padding:16px 14px;
+  text-align:left;font:inherit;color:inherit;cursor:pointer;border:1px solid;border-radius:0 var(--r-lg) var(--r-lg) var(--r-lg);
+  background:linear-gradient(var(--f-tint),var(--f-tint)),var(--card);border-color:var(--f-edge)}
+.folder::before{content:"";position:absolute;left:-1px;top:-13px;width:42%;height:14px;border:1px solid var(--f-edge);
+  border-bottom:none;border-radius:10px 10px 0 0;background:linear-gradient(var(--f-tint),var(--f-tint)),var(--card)}
+.folder .ic{color:var(--f-hue)}
+.folder .nm{font-weight:700;font-size:15px}
+.folder .mt{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+.folder .tail{margin-left:auto;color:var(--muted-foreground)}
+.folder.f-tr{--f-hue:var(--translate);--f-tint:var(--tint-translate);--f-edge:rgba(10,90,219,.22)}
+.folder.f-ref{--f-hue:var(--reference);--f-tint:var(--tint-reference);--f-edge:rgba(243,117,27,.22)}
+.folder.f-rv{--f-hue:var(--review);--f-tint:var(--tint-review);--f-edge:rgba(34,143,160,.22)}
 .row.strike .nm{text-decoration:line-through;color:var(--muted-foreground)}
 
 /* passage reference — the only text avatar U is asked to read */
@@ -365,11 +380,11 @@ button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--translate)
     <section class="stage">
       <p class="eyebrow">Set up · once per project <em>Avatar P — text, tables, all options</em></p>
       <div class="chain">
-        <button class="node" data-s="structure"><span class="k"><span class="p">P</span> Step 1</span><span class="t">Pick a known structure</span><span class="d">Bible book → chapters → passages, or another template</span></button>
+        <button class="node" data-s="setup"><span class="k"><span class="p">P</span> Setup</span><span class="t">Three folders</span><span class="d">What to translate, Briefing, How it's checked (PLAN.md §16)</span></button>
         <span class="arrow"><i data-lucide="arrow-right"></i></span>
-        <button class="node" data-s="attach"><span class="k"><span class="p">P</span> Step 2</span><span class="t">Attach reference material</span><span class="d">Audio walkthroughs, encyclopedia, key term set</span></button>
-        <span class="arrow"><i data-lucide="arrow-right"></i></span>
-        <button class="node" data-s="assign"><span class="k"><span class="p">P</span> Step 3</span><span class="t">Assign the passages</span><span class="d">Work lands in each translator's My Work</span></button>
+        <button class="node" data-s="structure"><span class="k"><span class="p">P</span> Blue folder</span><span class="t">What to translate</span><span class="d">Dynamic passages, chapters, or FIA</span></button>
+        <button class="node" data-s="attach"><span class="k"><span class="p">P</span> Orange folder</span><span class="t">Briefing</span><span class="d">Source Bible, key terms, study guide</span></button>
+        <button class="node" data-s="checks"><span class="k"><span class="p">P</span> Teal folder</span><span class="t">How it's checked</span><span class="d">A ready-made flow of checks, or your own</span></button>
       </div>
     </section>
 
@@ -459,23 +474,41 @@ const ring=(pct,size,color,label)=>{
 
 const S={
  /* ---------- Avatar P ---------- */
- structure:{who:'p',title:'New project',sb:'online',
-  caption:"<b>Avatar P, step 1.</b> Text is fine here. Picking “Bible book” expands to chapters and passages immediately, so nobody hand-builds an outline.",
-  body:`<p class="eyebrow">Structure · Jonah — Amdo</p>
-   <div class="row next">${ic('book-open')}<div><div class="nm">Bible book</div><div class="mt">chapters → passages</div></div><div class="tail">4 ch · 12 pass</div></div>
-   <div class="row">${ic('layers')}<div><div class="nm">Story set</div><div class="mt">stories → scenes</div></div></div>
-   <div class="row">${ic('key-round')}<div><div class="nm">Key terms only</div><div class="mt">no passages</div></div></div>
-   <div class="row">${ic('pencil-line')}<div><div class="nm">Custom outline</div><div class="mt">you define the levels</div></div></div>`,
-  footer:`<button class="act">Use Bible book</button>`},
+ setup:{who:'p',title:'Jonah — Amdo',sb:'online',
+  caption:"<b>Avatar P: setup is three folders.</b> Each folder keeps the colour its contents will have for the translator: blue for the work, orange for the briefing, teal for checks. The summary line says what is filled in, so an empty folder is obvious.",
+  body:`<p class="eyebrow">Set up · Jonah — Amdo</p>
+   <button class="folder f-tr" data-open="structure">${ic('book-open','lg')}<div><div class="nm">What to translate</div><div class="mt">Dynamic passages · Jonah · 12 passages</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
+   <button class="folder f-ref" data-open="attach">${ic('folder-open','lg')}<div><div class="nm">Briefing</div><div class="mt">BSB audio and text · 24 key terms · FIA study</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
+   <button class="folder f-rv" data-open="checks">${ic('list-checks','lg')}<div><div class="nm">How it's checked</div><div class="mt">One check</div></div><span class="tail"><i data-lucide="chevron-right"></i></span></button>
+   <div class="row" style="margin-top:18px">${ic('users')}<div><div class="nm">Members</div><div class="mt">3 people</div></div></div>`,
+  footer:`<button class="act">Open My Work</button>`},
 
- attach:{who:'p',title:'Reference material',sb:'online',
-  caption:"<b>Avatar P, step 2.</b> Material is attached once at book level and inherited by all 12 passages, so a translator never goes looking for it.",
+ checks:{who:'p',title:"How it's checked",sb:'online',
+  caption:"<b>Avatar P: pick a ready-made flow.</b> Drafting and revising are not steps; a flow lists only checks. Every check needs one voice or text response after the reviewer has pressed play. Advice, not gates: only a checkpoint (the flag) stops the next step.",
+  body:`<p class="eyebrow">Review flow · Jonah — Amdo</p>
+   <div class="row">${ic('circle-dashed')}<div><div class="nm">Collect only</div><div class="mt">recorded = done</div></div></div>
+   <div class="row t-rv next">${ic('list-checks')}<div><div class="nm">One check</div><div class="mt">any reviewer</div></div><div class="tail">${ic('check')}</div></div>
+   <div class="row t-rv">${ic('user-check')}<div><div class="nm">Consultant only</div><div class="mt">consultant ⚑</div></div></div>
+   <div class="row t-rv">${ic('globe')}<div><div class="nm">Spoken oral method</div><div class="mt">community → peer → back translation → consultant ⚑ → local</div></div></div>
+   <div class="row">${ic('pencil-line')}<div><div class="nm">Design your own</div><div class="mt">steps, kinds, checkpoints</div></div></div>`,
+  footer:`<button class="act">Use One check</button>`},
+
+ structure:{who:'p',title:'What to translate',sb:'online',
+  caption:"<b>Avatar P: What to translate.</b> Text is fine here. A template generates the units, so nobody hand-builds an outline. Admins don't pick passages here; translators pick the next one from the Map.",
+  body:`<p class="eyebrow">Structure · Jonah — Amdo</p>
+   <div class="row next">${ic('book-open')}<div><div class="nm">Dynamic passages</div><div class="mt">translator picks the next passage</div></div><div class="tail">12 pass</div></div>
+   <div class="row">${ic('layers')}<div><div class="nm">Chapters</div><div class="mt">one unit per chapter</div></div></div>
+   <div class="row">${ic('graduation-cap')}<div><div class="nm">FIA</div><div class="mt">study guide, then record</div></div></div>`,
+  footer:`<button class="act">Use dynamic passages</button>`},
+
+ attach:{who:'p',title:'Briefing',sb:'online',
+  caption:"<b>Avatar P: Briefing.</b> Material is attached once at book level and inherited by all 12 passages, so a translator never goes looking for it.",
   body:`<p class="eyebrow">Attach to all 12 passages</p>
    <div class="row t-ref next">${ic('headphones')}<div><div class="nm">Audio walkthrough</div><div class="mt">explore/jonah</div></div><div class="tail">12 files</div></div>
    <div class="row t-ref">${ic('library')}<div><div class="nm">Audio encyclopedia</div><div class="mt">38 entries matched</div></div><div class="tail">on</div></div>
    <div class="row">${ic('key-round')}<div><div class="nm">Key term set</div><div class="mt">Jonah · 24 terms</div></div><div class="tail">on</div></div>
    <div class="row">${ic('help-circle')}<div><div class="nm">Review questions</div><div class="mt">optional per passage</div></div><div class="tail">off</div></div>`,
-  footer:`<button class="act">Save reference material</button>`},
+  footer:`<button class="act">Save briefing</button>`},
 
  assign:{who:'p',title:'Jonah 1 · assign',sb:'online',
   caption:"<b>Avatar P, step 3.</b> Assignment is the handover point between the avatars: the last text-dense screen before everything becomes icons.",
@@ -619,8 +652,8 @@ S.queued={who:'u',title:'Jonah 1:1–3',sb:'offline',
   body:`<div class="ring-wrap">${ic('cloud-off','xl')}${ic('clock','xl')}</div>`,
   footer:`<button class="act" aria-label="Return to My Work">${ic('arrow-right','lg')}</button>`};
 let current='hub', termCount=9, referenceIndex=0, takeKept=false, submitted=false;
-const order=["structure","attach","assign","mywork","hub","resources","terms","termslive","vad","record","termsdone","hubafter","qa","ready","queued"];
-const label={structure:"Structure",attach:"Material",assign:"Assign",mywork:"My Work",hub:"Hub",
+const order=["setup","structure","checks","attach","assign","mywork","hub","resources","terms","termslive","vad","record","termsdone","hubafter","qa","ready","queued"];
+const label={setup:"Setup",checks:"Checks",structure:"Translate",attach:"Briefing",assign:"Assign",mywork:"My Work",hub:"Hub",
   resources:"Listen",terms:"Terms",termslive:"Hold",vad:"VAD",record:"Record",termsdone:"Finish",hubafter:"Hub +1",qa:"Gate",ready:"Hand off",queued:"Queued"};
 document.getElementById("tabs").innerHTML=order.map(k=>`<button data-s="${k}">${label[k]}</button>`).join("");
 
@@ -653,9 +686,10 @@ function wireScreen(key){
     const b=footer.querySelector(selector);
     if(b){b.onclick=()=>show(target);b.setAttribute('aria-label',label);}
   };
-  const next={structure:'attach',attach:'assign',assign:'mywork',mywork:'hub',
+  const next={setup:'mywork',structure:'setup',attach:'setup',checks:'setup',assign:'mywork',mywork:'hub',
     hub:submitted?'queued':takeKept?'ready':termCount<24?'terms':'vad',hubafter:takeKept?'ready':'vad',resources:'hub',
     termsdone:'hubafter',record:'ready',ready:'queued',queued:'mywork'};
+  body.querySelectorAll('[data-open]').forEach(f=>f.onclick=()=>show(f.dataset.open));
   if(next[key])go('.act',next[key],`Continue to ${label[next[key]]}`);
   go('.out',key==='record'?'vad':'hub',key==='record'?'Record again':'Back to passage tasks');
   if(key==='record')footer.querySelector('.act').setAttribute('aria-label','Keep recording');

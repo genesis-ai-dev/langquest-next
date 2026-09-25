@@ -7,6 +7,15 @@ Keep `icons.js` beside it; the local Lucide subset avoids a CDN dependency.
 
 **See also:** [follow-ups.md](./follow-ups.md) — Remaining UX-vision alignment work after Inbox P0 fix (PR #4)
 
+## Dynamic Bible passages
+
+For the book picker and passage selection before the translation workflow,
+see [dynamic Bible passages](../dynamic-bible-passages.md). Translators preview
+passage choices, listen to source audio, see the team's key-term shortlist,
+and use one yellow arrow to start work. Existing selections remain resumable.
+The player labels bounded passage audio and full-chapter fallback explicitly.
+Managers control shared key-term density in the reference library.
+
 ## Spoken Worldwide workflow
 
 The [Spoken Worldwide workflow mapping](spoken-worldwide-workflow.md) extends
@@ -17,8 +26,10 @@ checking → final recording.
 It maps participants to U/P personas, stages to existing and proposed views,
 and each task to single-action steps. It also defines resource continuity,
 back-translator source restrictions, draft selection, and final audio approval.
-Proposed behavior and open decisions remain distinct from implemented coverage.
-The current mock covers initial drafting, not this complete workflow.
+The mapping now includes implemented routes, stage behavior, access boundaries,
+and [setup and validation](spoken-worldwide-implementation.md). Partner choices
+remain explicit. The HTML mock remains the initial-drafting layout reference;
+the new passage and interaction screens reuse its one-yellow-action rule.
 
 ## `one-next-action.html`
 
@@ -58,6 +69,10 @@ any of them should update the mock too:
   are recording" never flickers. Capturing versus ignoring is a subtle lift:
   brighter ground, pulsing dot, solid rather than translucent bars.
 - The VAD cutoff is a line dragged across the waveform, never a number.
+- Avatar P setup is three folder cards (PLAN.md section 16): *What to translate*
+  (translate blue), *Briefing* (reference orange), *How it's checked* (review
+  teal). Each folder uses the colour its contents have for the translator, and
+  its summary line shows what is filled in. Advanced rows sit below the folders.
 
 **Sources.** Tokens are `apps/mobile/src/theme.ts` verbatim; icons are the set
 in `apps/mobile/src/ui.tsx`. The VAD takeover is modelled on the parent

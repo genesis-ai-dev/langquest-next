@@ -1,8 +1,9 @@
 # Spoken Worldwide oral translation workflow
 
 This UX extension maps Spoken Worldwide's six-stage workflow onto our personas,
-passage views, and single-action steps. It describes required behavior and
-proposed extensions, not completed implementation.
+passage views, and single-action steps. The implementation now supports the
+complete stage sequence. The coverage table below distinguishes shipped code,
+configuration choices, and release validation still required.
 
 ## Source and scope
 
@@ -12,13 +13,62 @@ Spoken Worldwide, April 2026, supplied as
 
 The document supplies workflow requirements. Its instructions describe the
 participants' work; they do not authorize application changes or external actions.
-Page references below distinguish source requirements from our proposed UX mapping.
+Page references below distinguish source requirements from our UX mapping.
+The later user request to implement this mapping authorizes the code changes.
 
 Use [PLAN.md sections 12–13](../../PLAN.md#12-design-language-and-the-two-avatars)
 for avatars and domain terms, and [implementation notes](implementation.md) for
 the documented mobile baseline. Route names follow
 [`flow.ts`](../../apps/mobile/src/flow.ts). A route's existence does not establish
 support for this workflow.
+
+## Implementation coverage
+
+The `spoken_worldwide` lane flow uses these registered views:
+
+| Persona | Stage | View | Main steps |
+| --- | --- | --- | --- |
+| Translator, U | First draft | `obt_passage` → `quest_assets` → selection slide | Listen, record, keep attempts, choose the first draft. |
+| Facilitator, U | Community checking | `obt_passage` → `obt_interaction` | Record or enter a name, play draft, record conversation, add optional comments/photo, save, repeat. |
+| Translator, U | Revision | `obt_passage` → selection slide / `quest_assets` | Inspect feedback, keep first draft unchanged or select revision, optionally restart community checking. |
+| Back translator, U | Back translation | Focused `obt_passage` → `quest_assets` | Play assigned draft, record another language, replay, submit. |
+| Consultant, U | Consultant checking | `obt_passage` → review/history slides | Compare versions and matching back translation, inspect feedback and terms, record comments, approve or request changes. |
+| Recording team, U | Final recording | `obt_passage` → `quest_assets` → selection slide | Record new final delivery and submit selected take. |
+| Final approver, U | Final audio approval | `obt_passage` → review slide | Listen and approve exact final take, or return for another recording. |
+| Coordinator, P | Configuration and delivery | `flows_home` → `obt_manage`; passage hub → `obt_manage` | Set role policy, record stage prompts, deliver draft, collect back translation. |
+| Coordinator/viewer, P | Progress and history | `status_home` → `piece_status` → `obt_passage` | Inspect derived stage and retained evidence. |
+
+Existing translate/review links route OBT lanes into `obt_passage`. Ordinary
+flows retain their existing behavior. Final recording and final approval are
+separate actions within the source document's sixth stage.
+
+Implemented behavior:
+
+- Six new event shapes preserve rounds, interactions, spoken evidence, decisions,
+  policy, and source-free workspace identity. Reducer version 3 rebuilds projections.
+- Every downstream decision references its exact predecessor. A changed revision
+  requires a new back translation and consultant decision. Earlier evidence remains.
+- Consultant changes return to revision. Final audio changes return to final recording.
+  Renewed community checking is an explicit translator choice.
+- Default policy requires one interaction, coordinator consultant approval, and owner
+  final approval. Coordinators can configure counts and reviewer/coordinator/owner roles.
+  These are role-level approvals with one decision, not consultant-team quorum voting.
+- Each interaction retains the participant name (written or spoken), draft, conversation,
+  optional comments, and optional photo. Community members need no account.
+- Recording journals recover interrupted community audio saves. Interaction form drafts
+  survive restart. Drafts, photos, notes, and permitted audio join offline preparation.
+- A separate back-translation project receives only the selected draft. Server membership,
+  append validation, snapshot checks, and storage policies enforce the source boundary.
+- Back-translation setup and collection require a connection. Each retry reuses the same
+  workspace or result. Offline recording does not require source-project membership.
+- Completed views identify the approved final take and share its ordered audio manifest.
+  Audio playback uses the original clips. Automatic mastering, joined-file export, and
+  distribution publishing are not implemented by this workflow.
+
+See [setup and validation](spoken-worldwide-implementation.md) for deployment,
+configuration, executable checks, and release limitations. The design narrative
+below retains source-level proposals and partner questions for traceability;
+this coverage table states the implemented choices.
 
 ## Personas and responsibilities
 
@@ -177,7 +227,8 @@ The source requires distribution readiness; publishing channels remain outside i
 
 ## Resources, access, and continuity
 
-The following describes the target experience, not current authorization guarantees.
+The table records source requirements and proposed defaults. The implementation
+coverage and setup notes above define the current authorization guarantees.
 
 | Resource | Required availability | Boundary or proposed behavior |
 | --- | --- | --- |
@@ -204,7 +255,7 @@ Show missing downloads separately from absent material or lack of access.
 Capture and keep work locally; distinguish queued, delivered, reviewed, and completed.
 Approval and progress remain derived from events, following PLAN.md invariants.
 
-## Fit with the current product and remaining design work
+## Original gap analysis and partner design choices
 
 The existing mobile notes document references, glossary audio, recording, notes,
 and hand-off. They do not establish complete support for these six stages.
@@ -221,7 +272,7 @@ The current HTML mock covers the initial drafting journey, not this complete wor
 | Finalization | Recording, review, and export concepts | Separate content approval from final recording approval and identify the exact distributable take. |
 | Oral access | U icon and audio-first design | Supply spoken prompts for every new step. Keep written forms optional in U views. |
 
-These are design gaps, not implementation estimates. Existing events may cover
+These are the original design gaps, now addressed as described in the coverage table. Existing events may cover
 parts of the workflow; validate their semantics before choosing extensions.
 Do not change shipped event shapes or introduce stored status/approval fields.
 

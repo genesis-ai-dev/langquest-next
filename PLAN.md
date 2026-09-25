@@ -73,12 +73,15 @@ of card hashes, editing produces a new take. **All status is derived** by a
 pure reducer that runs identically on device and server; nothing stores
 "approved". Clients materialize state locally the moment they append, so they
 never wait for a projection to come down. Sync is push my pending events, pull
-the partition tail from a cursor. Cold start is snapshot plus tail. There is
+the partition tail from a cursor. First sync downloads raw history; warm starts
+use a local checkpoint plus its retained raw tail. There is
 one state schema, not two; sync status lives on events, not rows.
 
 ## 4. Invariants (the things we care about most)
 
 Agents: treat each of these as a test you must not break.
+
+**Sync is version-independent. Read AGENTS.md and docs/sync-integrity.md.**
 
 1. **No event is ever lost or silently dropped.** A rejected event stays in the
    local log marked rejected with a reason and is shown to the user.
@@ -103,14 +106,18 @@ Agents: treat each of these as a test you must not break.
    integrity checks are async and may lag without affecting translators.
 10. **Snapshots are tagged with the reducer version.** A client only loads a
     snapshot produced by its own reducer version; otherwise it folds the log.
-    Devices roll their own checkpoint every 2000 confirmed events and prune
-    what it covers, so replay is bounded by recent history.
+    Devices cache a fold every 2000 confirmed events but retain the raw log.
+    Matching caches replay only their local tail; upgrades replay retained facts.
+    A snapshot never advances the raw-log download cursor.
 11. **Every event is validated at the door, and the fold never throws.**
     `validate_payload` (SQL) and `validateEvent` (core) are the same rules. A
     malformed event that slips through is counted in `state.invalidEvents`
     and skipped. Removal is `v1.Redacted`, never an edit.
 12. **Small requests.** The client pushes in pages of 200; the server refuses
     batches over 500. One oversized request can never become a retry loop.
+
+13. **Sync never requires a client upgrade.** Unfamiliar events remain raw facts.
+    Authorization and validation apply per operation, independently of client age.
 
 ## 5. Scale-up rules from day one
 
@@ -176,6 +183,23 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.StepQuestionSetLinked` | stepId, materialId | register per step |
 | `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, laneId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
 
+Spoken Worldwide extension (reducer version 3, client protocol 2):
+
+| Event | Shape | Merge rule |
+| --- | --- | --- |
+| `v1.ObtPolicySet` | laneId, consultantRole, finalRole, minimumInteractions | LWW per lane |
+| `v1.ObtRoundStarted` | unitId, laneId, roundId, firstDraftId, previousRoundId | LWW per round; newest round is active |
+| `v1.ObtAudioAdded` | unitId, laneId, clipId, cards | LWW per clip |
+| `v1.ObtInteractionSet` | unitId, laneId, interactionId, roundId, draftId, participantName, clipIds, comments, photoHash? | LWW per interaction |
+| `v1.ObtStepRecorded` | unitId, laneId, roundId, step, inputId, decision, takeId?, note?, clipIds?, language? | history by event id; derive newest decision for exact predecessor |
+| `v1.ObtWorkspaceCreated` | unitId, laneId, inputTakeId, language | server-only source-free project marker |
+
+`obt.ts` derives the six-stage journey, including separate final recording and
+final approval. Status is never stored. `obt_private.workspaces` binds access
+between partitions; it contains no workflow status. Back translators never join
+the source partition. Protocol 1 clients must upgrade before syncing OBT projects.
+Other projects keep their existing protocol compatibility.
+
 Smells to catch in review:
 
 - Any event phrased as "set the whole list" or "move X from A to B". Split it
@@ -231,9 +255,10 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   256 KB pieces; the client persists each piece so a dropped link resumes.
   `put_snapshot` and `list_partitions` are service-role only and are what
   `server/snapshotWorker.ts` uses (`npm run snapshot`).
-- Every call carries `CLIENT_PROTOCOL_VERSION`; below
-  `server_config.min_client_version` the server answers `LQ001` and the app
-  shows an upgrade state with nothing lost.
+- Calls retain `CLIENT_PROTOCOL_VERSION` as legacy telemetry. No version blocks
+  append or pull. `require_client_version` is a no-op compatibility shim; the
+  minimum-version column is constrained to zero. New events require feature UI,
+  not a global transport cutover. See `docs/sync-integrity.md`.
 - Blobs: `PUT /blobs/:hash` idempotent, `GET /blobs/:hash`. Presence of a blob
   is independent of presence of the events that reference it.
 
@@ -298,6 +323,10 @@ langquest-next/
    events (`packages/client/src/v2import.ts`), so re-runs are duplicates.
    Text-only v2 translations have no oral equivalent and are counted, not
    imported. Verified on three production projects in the simulator.
+   Live migration: `npm run import:v2:follow` sweeps every v2 project once,
+   then polls v2's server-set `uploaded_at` stamps and re-imports only the
+   projects that received rows, so late uploads from long-offline phones
+   arrive as ordinary events (`changedV2Projects`).
 9. **Done in part.** Flow coverage proof and read indexes
    (`docs/flow-coverage-audit.md`): `apps/mobile/test/specParity.test.ts`
    holds the app's flow machine to the spec's, edge by edge, with the spec's
@@ -335,6 +364,8 @@ langquest-next/
     (`docs/flow-coverage-audit.md` sections 5 and 6).
 
 ## 12. Design language and the two avatars
+
+Section 16 supersedes this section's screen inventory where they disagree.
 
 Ported from the LangQuest v2 task-first prototype (commit 2fe8e1e5) and kept
 as a rule set. Every screen declares its avatar in a comment at the top of
@@ -382,6 +413,9 @@ pinned footer action) with our tokens.
 | `review_passage` (listen, questions, suggest changes or approve) | U | approve | built, no questions yet |
 | `review_questions` | U | save answers | later |
 | `done_await` | U | back to My Work | built |
+| `obt_passage` (stage hub, draft selection, review, history; focused back translation) | U | next stage action | implemented |
+| `obt_interaction` (name, draft playback, conversation, comments, photo) | U | save interaction | implemented |
+| `obt_manage` (policy, prompts, draft delivery and collection) | P | save stage policy | implemented |
 | `pickup_home` (claim open work) | U | claim | later |
 | `intent_chooser`, `create_org`, `request_access`, `walkthrough` | U | one per screen | later |
 | `status_home` → `language_status` → `book_status` → `piece_status` | P | assign | step 7 (headless fold) |
@@ -395,6 +429,9 @@ pinned footer action) with our tokens.
 | `inbox_home`, `settings_home`, `profile_edit`, `org_switcher` | P | varies | later |
 
 ## 13. UX spec to event model
+
+Section 16 supersedes rows here where they disagree (OBT, review flows,
+reference material, key terms).
 
 The spec's domain (`ng-langquest-ux/src/data.ts`) maps onto the event log
 like this. Where the spec forced a model change, it is noted.
@@ -526,3 +563,175 @@ The gate is the same run on the slowest partner Android.
   stays on the version it selected.
 - Decided for now: local Supabase (Postgres) via colima, never linked to a
   hosted project. Cloudflare Workers plus Neon remains an option; the protocol fits both.
+
+
+## 16. Fewer requirements (decided 2026-09-24, revised 2026-09-25)
+
+Walking the setup, translate, and review journeys showed that most admin
+settings never reach a translator or reviewer. The fix is to delete
+requirements first, then simplify what is left. This section adopts most of
+Caleb's UX branch (`ng-langquest-ux`, `caleb-spoken-mobbin-overhaul`,
+`docs/decisions.md` ADR-001 to ADR-020). It keeps our translator and reviewer
+screens (section 12) and not his colour themes. It supersedes section 12's
+screen inventory and section 13's rows where they disagree.
+
+**The method advises; it does not gate.** Each passage builds a record.
+The language's review flow suggests what comes next. People may skip a
+step or work out of order, and each departure is recorded with a reason
+("comply or explain"). The only hard stops are steps marked as checkpoints,
+and someone with authority can override one, with the reason logged.
+
+**Levels.** Org › project › language stays for now. Settings live only on
+the project and language, and their screens always name what is being
+edited. The org screen lists projects and members. Research item: can the
+project level be dropped (org › language)?
+
+**Navigation.** Tabs: My Work, Map, Manage (admins only), Inbox, Settings.
+Everyone who does or asks for work lands on My Work, admins included. The
+Map finds any passage: search by reference, or book, then a grid of
+chapters, then the passage options. Admins do not pick passages from setup.
+
+**Setup is three folders.** A project or language setup screen shows three
+cards styled as folders: a tab on top, a 6% tint of the card's colour, an
+icon, a title, and a one-line summary of what is filled in. The colours are
+the existing tokens (section 12), so the admin's colours match what the
+translator sees later:
+
+| Folder | Colour and icon | Holds |
+| --- | --- | --- |
+| **What to translate** | translate blue, book | the content template (dynamic passages, chapters, FIA) and which books |
+| **Briefing** | reference orange, folder | what the team needs before they start: the source Bible (audio and text), key terms, study guides such as FIA, and other reference material |
+| **How it's checked** | review teal, checklist | the review flow: a ready-made flow or the flow designer |
+
+"Briefing" hints at a mission briefing but stays calm. Its summary line
+says what is in it ("BSB audio and text · 42 key terms · FIA study").
+Advanced controls (roles, review teams) sit below the folders as plain rows.
+
+**Units.** Dynamic passages, chapters, or FIA. A translator opens a book on
+the Map and sees the next passage options.
+
+**Recording.** Drafting, revising, and final recording are not flow steps.
+Each is a new version of the passage, made on the record screen. The source
+player is docked above the takes. It seeks easily and keeps its position
+between short recording sessions. Several takes, one saved as the version.
+
+**Review flows hold only checks.** A flow is an ordered list of steps. A
+step holds one or more review kinds, done in either order, and may be a
+checkpoint. Review kinds are org vocabulary (Community Check, Peer Review,
+Consultant Check). A kind can *produce* content instead of judging it: back
+translation records a new recording, in the same record screen, from the
+version it was given, and the consultant checks it. A kind can withhold
+earlier context (back translation hears only the version).
+
+- Ready-made flows replace a "simple mode": **Collect only** (no checks),
+  **One check**, **Consultant only**, and **Spoken oral method** (Community,
+  Peer, Back Translation, Consultant as checkpoint, Local). OBT is not a
+  separate template.
+- Every check needs at least one voice or text response. Its submit button
+  stays disabled until the reviewer has pressed play on the version once.
+- A passage is done when every step is complete: it looked good, its
+  feedback was answered, or it was set aside with a reason. A checkpoint
+  clears only when its reviewer says it looks good, or on an override.
+- Progress is shown as counts, not one percentage: recorded, cleared per
+  step, done.
+
+**Community check by share link** (not built). The translator shares an
+anonymous link. It opens a one-off web page that plays the version, asks for
+a name or nickname, and takes text feedback, audio feedback, or a recorded
+conversation. The translator can also record notes about what was said.
+Feedback is credited to whoever gave it ("Logged by you" when the
+translator typed it in).
+
+**Context items.** Key terms, notes, review questions, reference material,
+and study guides are one kind of thing. Each has a home (org, project,
+language, passage), anchors (a passage, a verse, a key term, a section or
+moment of a study step), provenance (who, when, which version), and a status
+(suggested or confirmed). Levels add up; a lower level may hide an inherited
+item, with a reason, but not edit it. A note is anchored to the spot it is
+about, so it reappears wherever that spot appears again. Nobody forwards
+notes to the next stage. Machine suggestions (the BSB key-term shortlist)
+stay marked as suggestions until a person confirms them.
+
+Today, reference material lives in four stores (materials, source
+recordings, `references`, source Bible settings), and the Reference step
+reads only audio blobs. That is why a text-only Berean setting shows "No
+reference audio". Context items replace that split in the read model.
+
+**Key terms are decisions.** The concept lives at the org or project; each
+language adds its rendering, anchored to the version that chose it, with a
+recorded clip and any text or audio note on why. On a passage, the terms
+anchored to it come first and are actionable; the rest of the inventory
+sits below a divider, quieter and not actionable. Minimal by default; the
+slider shows more.
+
+**FIA study** is a context item with steps, each one document with one
+audio file. Studying first is suggested on an unrecorded passage, never
+required, and each finished step goes on the record as evidence.
+
+**Translator passage hub: three tiles.** *Listen & record* (source and
+takes together; passage notes are a mic button here). *Reference* (key
+terms, source text, study, other material). *Hand off* (the yellow action).
+Review questions move to the reviewer's check screen.
+
+**Hidden until someone needs them:** review teams, the roles editor, and
+settings rows repeated at the org level.
+
+### 16.1 Rules for the new events
+
+The new facts below are additive. They follow section 4, AGENTS.md, and
+`docs/sync-integrity.md`. The log is the durable record that users,
+consultants, and auditors rely on to show who did what, when, and why. The
+new events have to make that record richer without making any older copy
+of it wrong.
+
+1. **New names, never new meanings.** A new fact gets a new event name.
+   Where it replaces a shipped event, it is `v2.X` and the `v1.X`
+   materializer stays forever. An optional field may be added to an existing
+   event only when a reducer that ignores it still derives a true state.
+   A back translation is therefore a new event, not a field on
+   `TakeComposed`: an old client that ignored the field would show it as the
+   translator's own version.
+2. **Old clients degrade to "less shown", never to "wrong shown".** An old
+   client stores and uploads the new events raw and folds what it knows. It
+   may miss a skip reason or a checkpoint. It must not show a false fact, and
+   it must never block sync or unrelated work.
+3. **Commutative by construction.** Every new fold is a set union keyed by
+   event id or a last-writer-wins register keyed by HLC. An undo is its own
+   event that names the event it undoes. Both orders fold to the same state.
+   Every new event goes into the permutation and idempotence fixtures.
+4. **Status stays derived.** "Done", "checkpoint cleared", "set aside",
+   and progress counts are computed from facts. No event stores a status.
+5. **Legacy facts are read, not rewritten.** Materials, `KeyTerm*`,
+   `ReferenceAttached`, OBT events, and `v1.WorkflowStepSet` keep folding.
+   The context-item and flow read models merge old and new facts. We stop
+   emitting the old events; we never migrate or prune them.
+6. **Checkpoints are enforced by derivation, not refusal.** A check that an
+   older client submits past an uncleared checkpoint is accepted and kept.
+   The reducer derives it as a departure (done before the checkpoint
+   cleared), so the record stays honest. The server refuses only
+   unauthorized or malformed writes (section 4, rule 11).
+7. **Share-link writes are scoped.** Anonymous feedback enters through the
+   server with a scoped, expiring token. The event names the token as its
+   actor and the translator's share as its origin. The token authorizes
+   feedback on one version and nothing else.
+
+Proposed facts (names to be confirmed during implementation):
+
+| Fact | Folds as |
+| --- | --- |
+| `v2.WorkflowStepSet` `{ stepId, kindIds[], checkpoint?, order }` | LWW per step; v1 steps read as single-kind steps |
+| `v1.ReviewKindDefined` `{ kindId, name, produces?, withholdsContext? }` | LWW per kind |
+| `v1.StepSetAside` `{ stepId, kindId?, reason, reasonTakeId? }` and `v1.StepOverridden` | set by id |
+| `v1.DepartureUndone` `{ departureEventId }` | set by id; a departure with an undo is inactive |
+| `v1.ContentProduced` `{ takeId, fromTakeId, kindId, language }` | set by id; the back translation of a version |
+| `v1.ContextItemAdded` `{ itemId, kind, home, anchors[], body }` | set by id; immutable once added |
+| `v1.ContextItemAnchored`, `v1.ContextItemUnanchored` | add-wins set per (item, anchor) |
+| `v1.ContextItemHidden` `{ itemId, level, reason }` | set by id |
+| `v1.KeyTermRenderingSet` `{ termId, languageId, rendering, versionId?, noteTakeId? }` | LWW per (term, language); history kept |
+| `v1.StudyStepFinished` `{ itemId, stepId, passageUnitId }` | set by id |
+| `v1.ShareFeedbackRecorded` `{ versionTakeId, giverName, text?, takeId?, tokenId }` | set by id |
+
+Required tests (AGENTS.md "Required release evidence"): permutation and
+idempotence fixtures for each fact; unfamiliar-event round trip through an
+old reducer; old and new clients writing to one project; legacy facts
+folding into the new read models with no rewrite.

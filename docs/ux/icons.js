@@ -1,6 +1,120 @@
 // Lucide icon subset from lucide-react-native v1.46.0 (ISC).
 // See icons.LICENSE. Generated from the installed package's icon nodes.
 const iconNodes={
+  "folder-open": [
+    [
+      "path",
+      {
+        "d": "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2",
+        "key": "usdka0"
+      }
+    ]
+  ],
+  "graduation-cap": [
+    [
+      "path",
+      {
+        "d": "M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z",
+        "key": "j76jl0"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M22 10v6",
+        "key": "1lu8f3"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M6 12.5V16a6 3 0 0 0 12 0v-3.5",
+        "key": "1r8lef"
+      }
+    ]
+  ],
+  "user-check": [
+    [
+      "path",
+      {
+        "d": "m16 11 2 2 4-4",
+        "key": "9rsbq5"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",
+        "key": "1yyitq"
+      }
+    ],
+    [
+      "circle",
+      {
+        "cx": "9",
+        "cy": "7",
+        "r": "4",
+        "key": "nufk8"
+      }
+    ]
+  ],
+  "users": [
+    [
+      "path",
+      {
+        "d": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",
+        "key": "1yyitq"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M16 3.128a4 4 0 0 1 0 7.744",
+        "key": "16gr8j"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M22 21v-2a4 4 0 0 0-3-3.87",
+        "key": "kshegd"
+      }
+    ],
+    [
+      "circle",
+      {
+        "cx": "9",
+        "cy": "7",
+        "r": "4",
+        "key": "nufk8"
+      }
+    ]
+  ],
+  "globe": [
+    [
+      "circle",
+      {
+        "cx": "12",
+        "cy": "12",
+        "r": "10",
+        "key": "1mglay"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",
+        "key": "13o1zl"
+      }
+    ],
+    [
+      "path",
+      {
+        "d": "M2 12h20",
+        "key": "9i4pu4"
+      }
+    ]
+  ],
   "chevron-left": [
     [
       "path",
