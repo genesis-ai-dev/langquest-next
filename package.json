@@ -25,6 +25,7 @@
     "snapshot": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/snapshotWorker.ts",
     "loadtest": "tsx scripts/loadtest.ts",
     "import:v2": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/importV2.ts",
+    "import:v2:follow": "tsx server/importV2.ts --follow",
     "reconcile": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/blobReconciler.ts",
     "worker:build": "node scripts/build-projection-worker.mjs",
     "email:typecheck": "wrangler types -c apps/invite-email/wrangler.jsonc apps/invite-email/worker-configuration.d.ts && tsc -p apps/invite-email",

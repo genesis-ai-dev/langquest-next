@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveTakeStatus, fold, validateEvent } from '@langquest-next/core';
-import { copyBlobs, mapV2Project, type V2Rows } from '../src/v2import';
+import { changedV2Projects, copyBlobs, mapV2Project, type V2Cursor, type V2Rows } from '../src/v2import';
 
 const OWNER = 'owner-1';
 const TRANSLATOR = 'trans-1';
@@ -178,5 +178,51 @@ describe('copyBlobs', () => {
     const d = deps(async () => new Uint8Array([7]), uploaded);
     await copyBlobs(['a.m4a'], 'o', 'p', { ...d, alreadyStored: new Set(['h7']) });
     expect(uploaded).toEqual([]);
+  });
+});
+
+describe('changedV2Projects', () => {
+  const src = { url: 'https://v2.example', anonKey: 'anon', bucket: 'assets' };
+  const start: V2Cursor = { watermark: '2026-09-24T12:00:00.000Z', seen: {} };
+  // A fake v2 that answers by table name with whatever the test put there.
+  const v2 = (byTable: Record<string, Record<string, unknown>[]>) => async <T,>(path: string) => (byTable[path.split('?')[0]!] ?? []) as T[];
+
+  it('finds a recording an offline phone uploads today even though it was made weeks ago', async () => {
+    // created_at is weeks old; only the server's uploaded_at says it is new.
+    const late = { id: 'acl-1', asset: { project_id: 'remote-project' }, created_at: '2026-08-01T00:00:00Z', uploaded_at: '2026-09-24T12:00:30Z', audio_uploaded_at: null };
+    const { projects, cursor } = await changedV2Projects(src, start, 60_000, v2({ asset_content_link: [late] }));
+    expect([...projects]).toEqual(['remote-project']);
+    expect(cursor.watermark).toBe('2026-09-24T12:00:30.000Z');
+  });
+
+  it('reaches the project through quests, assets, and votes', async () => {
+    const { projects } = await changedV2Projects(src, start, 60_000, v2({
+      quest_asset_link: [{ quest_id: 'q', asset_id: 'a', quest: { project_id: 'p-quest' }, uploaded_at: '2026-09-24T12:00:01Z' }],
+      vote: [{ id: 'v', asset: { project_id: 'p-vote' }, uploaded_at: '2026-09-24T12:00:02Z' }],
+      project: [{ id: 'p-new', project_id: 'p-new', uploaded_at: '2026-09-24T12:00:03Z' }]
+    }));
+    expect([...projects].sort()).toEqual(['p-new', 'p-quest', 'p-vote']);
+  });
+
+  it('reports a row once even though the look-back window returns it again', async () => {
+    const tables = v2({ vote: [{ id: 'v', asset: { project_id: 'p' }, uploaded_at: '2026-09-24T12:00:10Z' }] });
+    const first = await changedV2Projects(src, start, 60_000, tables);
+    const second = await changedV2Projects(src, first.cursor, 60_000, tables);
+    expect([...first.projects]).toEqual(['p']);
+    expect([...second.projects]).toEqual([]);
+  });
+
+  it('keeps its watermark when v2 is quiet, so no gap opens between polls', async () => {
+    const { projects, cursor } = await changedV2Projects(src, start, 60_000, v2({}));
+    expect(projects.size).toBe(0);
+    expect(cursor.watermark).toBe(start.watermark);
+  });
+
+  it('sees audio that lands after its row did', async () => {
+    const tables = (audioAt: string | null) => v2({ asset_content_link: [{ id: 'acl', asset: { project_id: 'p' }, uploaded_at: '2026-09-24T12:00:05Z', audio_uploaded_at: audioAt }] });
+    const first = await changedV2Projects(src, start, 60_000, tables(null));
+    const second = await changedV2Projects(src, first.cursor, 60_000, tables('2026-09-24T12:05:00Z'));
+    expect([...second.projects]).toEqual(['p']);
+    expect(second.cursor.watermark).toBe('2026-09-24T12:05:00.000Z');
   });
 });

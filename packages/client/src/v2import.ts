@@ -279,6 +279,74 @@ export async function fetchV2Rows(src: V2Source, projectId: string): Promise<V2R
   };
 }
 
+/** Every active v2 project id, oldest first. */
+export async function fetchV2ProjectIds(src: V2Source): Promise<string[]> {
+  const rows = await pageAll<{ id: string }>(src, 'project?select=id&active=eq.true&order=created_at,id');
+  return rows.map((r) => r.id);
+}
+
+// ---------------------------------------------------------------------------
+// Following v2. A phone that was offline for weeks uploads rows whose
+// `created_at` is weeks old, so `created_at` cannot say what is new. v2's
+// server stamps `uploaded_at = now()` on insert (and `audio_uploaded_at` when
+// the audio object lands later), and its membership and language triggers
+// stamp `last_updated` server-side. Those are the watermarks.
+// ---------------------------------------------------------------------------
+
+type Stamped = Record<string, unknown> & { project_id?: string; quest?: { project_id: string }; asset?: { project_id: string } };
+
+/** What to watch per table: the server-set stamp columns and how to reach the project. */
+const WATCHED: { table: string; select: string; stamp: string }[] = [
+  { table: 'project', select: 'id,project_id:id', stamp: 'uploaded_at' },
+  { table: 'quest', select: 'id,project_id', stamp: 'uploaded_at' },
+  { table: 'quest_asset_link', select: 'quest_id,asset_id,quest!inner(project_id)', stamp: 'uploaded_at' },
+  { table: 'asset', select: 'id,project_id', stamp: 'uploaded_at' },
+  // Two queries, not one with an OR: v2 times out on the OR, each alone is indexed and fast.
+  { table: 'asset_content_link', select: 'id,asset!inner(project_id)', stamp: 'uploaded_at' },
+  { table: 'asset_content_link', select: 'id,asset!inner(project_id)', stamp: 'audio_uploaded_at' },
+  { table: 'vote', select: 'id,asset!inner(project_id)', stamp: 'uploaded_at' },
+  { table: 'profile_project_link', select: 'profile_id,project_id', stamp: 'last_updated' },
+  { table: 'project_language_link', select: 'languoid_id,language_type,project_id', stamp: 'last_updated' }
+];
+
+export interface V2Cursor {
+  /** Newest server stamp seen, ISO. Queries look back `overlapMs` before it. */
+  watermark: string;
+  /** Rows already reported inside the overlap window, so they are not reported twice. */
+  seen: Record<string, string>;
+}
+
+/**
+ * Projects with rows v2's server received after the cursor. The look-back
+ * overlap catches rows whose transaction committed after a later-stamped one
+ * was already read; `seen` keeps the overlap from re-reporting them. The
+ * watermark only moves to stamps v2 itself wrote, never to this machine's clock.
+ */
+export async function changedV2Projects(
+  src: V2Source, cursor: V2Cursor, overlapMs = 60_000, get: <T>(path: string) => Promise<T[]> = (path) => pageAll(src, path)
+): Promise<{ projects: Set<string>; cursor: V2Cursor }> {
+  const since = new Date(Date.parse(cursor.watermark) - overlapMs).toISOString();
+  const projects = new Set<string>();
+  const seen: Record<string, string> = { ...cursor.seen };
+  let watermark = cursor.watermark;
+  for (const w of WATCHED) {
+    const rows = await get<Stamped>(`${w.table}?select=${w.select},${w.stamp}&${w.stamp}=gt.${since}`);
+    for (const row of rows) {
+      if (typeof row[w.stamp] !== 'string') continue;
+      const stamp = new Date(row[w.stamp] as string).toISOString();
+      const key = `${w.table}.${w.stamp}:${JSON.stringify(row)}`;
+      if (seen[key]) continue;
+      seen[key] = stamp;
+      const projectId = row.project_id ?? row.quest?.project_id ?? row.asset?.project_id;
+      if (projectId) projects.add(projectId);
+      if (stamp > watermark) watermark = stamp;
+    }
+  }
+  const floor = new Date(Date.parse(watermark) - overlapMs).toISOString();
+  for (const [k, stamp] of Object.entries(seen)) if (stamp <= floor) delete seen[k];
+  return { projects, cursor: { watermark, seen } };
+}
+
 export function* chunks<T>(items: T[], size: number): Generator<T[]> {
   for (let i = 0; i < items.length; i += size) yield items.slice(i, i + size);
 }
