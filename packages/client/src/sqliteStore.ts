@@ -90,7 +90,6 @@ export class SqliteStore implements EventStore {
       }
       if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.projectId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
-      if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
       const rows = batch.rows;
       if (rows) {
         await updateReadModels(tx, rows);
@@ -211,11 +210,12 @@ export class SqliteStore implements EventStore {
     return Number(rows[0]?.n ?? 0);
   }
 
-  async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
+  async all(orgId: string, projectId: string, afterSeq = 0): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(
       `select * from events where org_id = ? and project_id = ? and status <> 'rejected'
+       and (status <> 'confirmed' or server_seq is null or server_seq > ?)
        order by server_seq is null, server_seq, hlc`,
-      [orgId, projectId]
+      [orgId, projectId, afterSeq]
     );
     return rows.map(toLocal);
   }
@@ -240,16 +240,8 @@ export class SqliteStore implements EventStore {
     );
   }
 
-  async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.commit({ prune: { orgId, projectId, uptoSeq } });
-  }
-
-  private async pruneOn(db: SqlDriver, orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await db.run(
-      `delete from events where org_id = ? and project_id = ? and status = 'confirmed' and server_seq <= ?`,
-      [orgId, projectId, uptoSeq]
-    );
-  }
+  /** Legacy compatibility: checkpoints never authorize deleting raw facts. */
+  async prune(_orgId: string, _projectId: string, _uptoSeq: number): Promise<void> {}
 
   async meta(key: string): Promise<string | undefined> {
     const rows = await this.db.all<{ value: string }>(`select value from meta where key = ?`, [key]);

@@ -60,6 +60,13 @@ export async function updateReadModels(db: SqlDriver, rows: NonNullable<WriteBat
   }
   for (const row of puts.values()) {
     await countDelta(db, org, project, row, 1);
+    if (row.obtTasks) {
+      for (const [actor, tasks] of Object.entries(row.obtTasks)) for (const t of tasks) {
+        await db.run('insert into task_rows values (?, ?, ?, ?, ?, ?, ?, ?)',
+          [org, project, row.unitId, row.laneId, row.order, `actor:${actor}`, t.id, t.status]);
+      }
+      continue;
+    }
     // Translation tasks are shared by translating roles; avoid copying them per member.
     const translation = tasksFromRow(row, '', 'translator').filter((t) => t.type !== 'review');
     for (const t of translation) {

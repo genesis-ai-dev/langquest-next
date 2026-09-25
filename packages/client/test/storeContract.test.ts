@@ -57,6 +57,8 @@ describe.each(impls)('%s contract', (_name, make) => {
     await s.put({ event: ev('x', '4'), status: 'rejected', rejectReason: 'no' });
     expect((await s.pending('o', 'p')).map((e) => e.event.id)).toEqual(['a', 'b']);
     expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b', 'c']);
+    // A warm checkpoint reads its tail without hiding pending work.
+    expect((await s.all('o', 'p', 1)).map((e) => e.event.id).sort()).toEqual(['a', 'b']);
     expect((await s.get('x'))?.rejectReason).toBe('no');
   });
 
@@ -140,7 +142,7 @@ describe.each(impls)('%s meta contract', (_name, make) => {
 });
 
 describe.each(impls)('%s prune contract', (_name, make) => {
-  it('prune drops confirmed events at or below a sequence and keeps the rest', async () => {
+  it('legacy prune cannot delete raw events', async () => {
     const s = await make();
     await s.put({ event: ev('a', '1', 1), status: 'confirmed' });
     await s.put({ event: ev('b', '2', 2), status: 'confirmed' });
@@ -148,7 +150,7 @@ describe.each(impls)('%s prune contract', (_name, make) => {
     await s.put({ event: ev('p', '4'), status: 'pending' });
     await s.put({ event: ev('x', '5'), status: 'rejected', rejectReason: 'no' });
     await s.prune('o', 'p', 2);
-    expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['c', 'p']);
+    expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b', 'c', 'p']);
     expect((await s.get('x'))?.status).toBe('rejected');
   });
 });

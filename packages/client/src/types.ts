@@ -10,7 +10,7 @@ export interface WriteBatch {
   events?: LocalEvent[];
   cursor?: { orgId: string; projectId: string; seq: number };
   meta?: Record<string, string>;
-  /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
+  /** @deprecated Ignored. A checkpoint must never delete raw events. */
   prune?: { orgId: string; projectId: string; uptoSeq: number };
   rows?: { orgId: string; projectId: string; clear?: boolean; version?: string; put?: PassageRow[]; delete?: PassageKey[] } | undefined;
 }
@@ -70,12 +70,12 @@ export interface EventStore {
   pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
   /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
   pendingCount(orgId: string, projectId: string): Promise<number>;
-  /** Every non-rejected event for a partition (confirmed then pending is fine). */
-  all(orgId: string, projectId: string): Promise<LocalEvent[]>;
+  /** Raw non-rejected events after a cache boundary, plus all pending intents. */
+  all(orgId: string, projectId: string, afterSeq?: number): Promise<LocalEvent[]>;
   /** Highest confirmed server_seq seen for a partition, 0 if none. */
   cursor(orgId: string, projectId: string): Promise<number>;
   setCursor(orgId: string, projectId: string, seq: number): Promise<void>;
-  /** Drop confirmed events at or below `uptoSeq`; they live in a checkpoint now. */
+  /** @deprecated No-op. Raw events remain available for future reducers. */
   prune(orgId: string, projectId: string, uptoSeq: number): Promise<void>;
   /** Small device-level key/value state: device id, persisted clocks. */
   meta(key: string): Promise<string | undefined>;

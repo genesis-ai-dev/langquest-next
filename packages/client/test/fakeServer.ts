@@ -1,6 +1,6 @@
-import { CLIENT_PROTOCOL_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
+import { takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
 import type { AppendResult, Transport } from '../src/types';
-import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../src/types';
+import { NotAuthorizedError, OfflineError } from '../src/types';
 
 /**
  * In-memory stand-in for append_events / pull_events with the same
@@ -23,7 +23,7 @@ export class FakeServer {
   failAfterCalls = Infinity;
   appendCalls = 0;
   pullCalls = 0;
-  /** Clients below this protocol version are refused, like the server RPCs. */
+  /** Legacy telemetry setting; it must not affect append or pull. */
   minClientVersion = 0;
   readonly snapshots = new Map<string, Snapshot>();
   /** Snapshot state is served in pieces of this many characters. */
@@ -38,7 +38,6 @@ export class FakeServer {
       append: async (events) => {
         if (this.offline) throw new OfflineError('offline');
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
-        if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
         this.appendCalls += 1;
         if (this.appendCalls > this.failAfterCalls) throw new Error('fetch failed');
         if (events.length > this.maxBatch) throw new Error('57014: statement timeout');
@@ -65,7 +64,6 @@ export class FakeServer {
       pull: async (orgId, projectId, after, limit) => {
         if (this.offline) throw new OfflineError('offline');
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
-        if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
         this.pullCalls += 1;
         return this.log
           .filter((e) => e.orgId === orgId && e.projectId === projectId && (e.serverSeq ?? 0) > after)

@@ -21,7 +21,6 @@ import { ProjectIndexes } from './projectIndexes';
 import { WriteQueue } from './writeQueue';
 import { queriesFor, type ProjectQueries } from './queries';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
-import { fetchSnapshot } from './snapshotFetch';
 
 /**
  * How a partition's events become state. The project materializer is the
@@ -61,7 +60,7 @@ export interface SyncResult {
   pushed: number;
   rejected: number;
   pulled: number;
-  /** The server refuses this client's protocol version. */
+  /** Compatibility with legacy servers only; current servers never gate sync by age. */
   tooOld: boolean;
   /** The server could not be reached at all. */
   offline: boolean;
@@ -169,9 +168,11 @@ export class SyncClient<S = ProjectState> {
       this.clock = new HlcClock(this.opts.deviceId, this.wall, seed ?? null);
     }
     // fold() applies redactions first, so the store's order does not matter.
-    const locals = await this.opts.store.all(this.opts.orgId, this.opts.projectId);
-    const events = locals.map((l) => l.event);
+    await this.ensureRawHistory();
     const snapshot = await this.localSnapshot();
+    const locals = await this.opts.store.all(
+      this.opts.orgId, this.opts.projectId, snapshot?.serverSeq ?? 0);
+    const events = locals.map((l) => l.event);
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     this.loaded = true;
     if (this.projectRows) {
@@ -190,6 +191,9 @@ export class SyncClient<S = ProjectState> {
 
   /** Every store mutation goes through here, one transaction at a time. */
   private commit(batch: WriteBatch): Promise<void> {
+    if (batch.events?.some((l) => l.event.type === 'v1.Redacted')) {
+      batch.meta = { ...batch.meta, [this.snapshotKey()]: '' };
+    }
     // Redactions require a refold. A restart between this commit and load()
     // must not trust rows calculated from the pre-refold state.
     if (batch.rows && batch.events?.some((l) => l.event.type === 'v1.Redacted')) {
@@ -289,18 +293,22 @@ export class SyncClient<S = ProjectState> {
     return this.m.fold(newer, state);
   }
 
-  // ---- checkpoints -------------------------------------------------------
-  // A checkpoint is a snapshot held locally (PLAN.md invariant 10). Cold start
-  // takes the server's; afterwards the device rolls its own every
-  // `checkpointEvery` confirmed events and prunes what the checkpoint covers,
-  // so replay on launch is bounded by recent history, not project age.
-
+  // Checkpoints cache a fold; raw facts remain durable and replayable offline.
   private snapshotKey(): string {
     return `snapshot:${this.opts.orgId}/${this.opts.projectId}`;
   }
 
-  private minSnapshotKey(): string {
-    return `snapshotMinSeq:${this.opts.orgId}/${this.opts.projectId}`;
+  /** Old builds pruned raw history. Recover once, without deleting the outbox. */
+  private async ensureRawHistory(): Promise<void> {
+    const { orgId, projectId, store } = this.opts;
+    const key = `rawHistory:${orgId}/${projectId}`;
+    if (await store.meta(key) === '1') return;
+    const hadCheckpoint = !!(await store.meta(this.snapshotKey()));
+    await this.commit({
+      meta: { [key]: '1', [this.snapshotKey()]: '',
+        [this.projectionKey()]: '', [`redactionPending:${orgId}/${projectId}`]: '' },
+      ...(hadCheckpoint ? { cursor: { orgId, projectId, seq: 0 } } : {})
+    });
   }
 
   private async localSnapshot(): Promise<Snapshot | null> {
@@ -312,74 +320,15 @@ export class SyncClient<S = ProjectState> {
 
   private async saveSnapshot(snap: Snapshot, invalidateRows = true): Promise<void> {
     const { orgId, projectId } = this.opts;
-    const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, projectId));
-    await this.commit({
-      meta: { ...(invalidateRows ? { [this.projectionKey()]: '' } : {}), [this.snapshotKey()]: JSON.stringify(snap) },
-      cursor: { orgId, projectId, seq },
-      prune: { orgId, projectId, uptoSeq: snap.serverSeq }
-    });
-  }
-
-  /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
-  private chunkKey(): string {
-    return `snapchunks:${this.opts.orgId}/${this.opts.projectId}`;
-  }
-
-  /** One piece, stored on its own so saving piece N never rewrites pieces 0..N-1. */
-  private chunkPieceKey(serverSeq: number, index: number): string {
-    return `${this.chunkKey()}:${serverSeq}:${index}`;
-  }
-
-  /**
-   * Cold start: adopt the server snapshot if there is one we can use. It is
-   * fetched in pieces and every piece is persisted first, so a link that
-   * drops mid-way resumes from the pieces already here (PLAN.md section 2:
-   * small deltas succeed). Pieces are separate rows: persistence cost is
-   * linear in snapshot size, not quadratic in piece count.
-   */
-  private async adoptServerSnapshot(): Promise<number> {
-    const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
-    const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.projectId, this.m.version);
-    if (!meta) return 0;
-    const savedMap = new Map<number, string>();
-    let index: { seq: number; chunks: number } = { seq: 0, chunks: 0 };
-    try {
-      const parsed = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{}') as Partial<typeof index>;
-      // An older build stored every piece inside this one row; ignore it and refetch.
-      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') index = { seq: parsed.seq, chunks: parsed.chunks };
-    } catch { /* refetch */ }
-    if (index.seq === meta.serverSeq) {
-      for (let i = 0; i < index.chunks; i++) {
-        const text = await this.opts.store.meta(this.chunkPieceKey(index.seq, i));
-        if (text) savedMap.set(i, text);
-      }
+    if (snap.serverSeq > await this.opts.store.cursor(orgId, projectId)) {
+      throw new Error('A checkpoint cannot advance raw history');
     }
-    const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.projectId, this.m.version, {
-      saved: savedMap,
-      onChunk: async (serverSeq, i, text) => {
-        if (index.seq !== serverSeq) {
-          await this.clearChunks(index);
-          index = { seq: serverSeq, chunks: meta.chunks };
-          await this.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
-        }
-        await this.commit({ meta: { [this.chunkPieceKey(serverSeq, i)]: text } });
-      }
+    await this.commit({
+      meta: { ...(invalidateRows ? { [this.projectionKey()]: '' } : {}), [this.snapshotKey()]: JSON.stringify(snap) }
     });
-    if (!snap || snap.serverSeq < minSeq) return 0;
-    await this.clearChunks(index);
-    await this.commit({ meta: { [this.chunkKey()]: '' } });
-    await this.saveSnapshot(snap);
-    await this.load();
-    return snap.serverSeq;
   }
 
-  private async clearChunks(index: { seq: number; chunks: number }): Promise<void> {
-    const meta: Record<string, string> = {};
-    for (let i = 0; i < index.chunks; i++) meta[this.chunkPieceKey(index.seq, i)] = '';
-    if (index.chunks > 0) await this.commit({ meta });
-  }
-
-  /** Roll the confirmed prefix into a local checkpoint and prune it. */
+  /** Cache the confirmed fold without deleting the source events. */
   private async checkpoint(cursor: number): Promise<void> {
     const base = (await this.localSnapshot()) ?? {
       orgId: this.opts.orgId,
@@ -388,8 +337,8 @@ export class SyncClient<S = ProjectState> {
       serverSeq: 0,
       state: this.m.empty() as unknown as ProjectState
     };
-    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.projectId))
-      .filter((l) => l.status === 'confirmed')
+    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.projectId, base.serverSeq))
+      .filter((l) => l.status === 'confirmed' && (l.event.serverSeq ?? Infinity) <= cursor)
       .map((l) => l.event);
     const state = this.resume(base, confirmed);
     this.m.compact(state);
@@ -491,9 +440,7 @@ export class SyncClient<S = ProjectState> {
     return `clockOffset:${this.opts.deviceId}`;
   }
 
-  private redactionKey(): string {
-    return `redactionPending:${this.opts.orgId}/${this.opts.projectId}`;
-  }
+
 
   /** The clock's last stamp, for the commit that carries the events it stamped. */
   private clockMeta(): Record<string, string> {
@@ -619,14 +566,11 @@ export class SyncClient<S = ProjectState> {
    * runs again at once instead of waiting for the next poll.
    */
   async pullSlice(budgetMs: number = this.pullBudgetMs): Promise<{ pulled: number; more: boolean }> {
-    if (await this.resolvePendingRedaction()) return await this.pullSlice(budgetMs);
     const started = this.wall();
     let after = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
-    if (after === 0 && !(await this.localSnapshot())) after = await this.adoptServerSnapshot();
     let total = 0;
     let more = false;
     let redacted = false;
-    let redactedInsideCheckpoint = false;
     let membershipChanged = false;
     for (;;) {
       const page = await this.opts.transport.pull(
@@ -647,9 +591,7 @@ export class SyncClient<S = ProjectState> {
         folded.push(event);
         if (event.type === 'v1.Redacted') {
           redacted = true;
-          // The target is not in the local log: it lives inside the checkpoint,
-          // which cannot be edited. Only a fresh snapshot removes it.
-          if (!(await this.opts.store.get(event.payload.eventId))) redactedInsideCheckpoint = true;
+
         }
         if (
           (event.type === 'v1.MemberAdded' || event.type === 'v1.MemberRoleChanged') &&
@@ -678,61 +620,17 @@ export class SyncClient<S = ProjectState> {
       }
       await this.opts.yieldBetweenPages?.();
     }
-    if (redactedInsideCheckpoint) {
-      // Prefer a server snapshot at or past this point over re-pulling the
-      // whole log (audit L3). Until one exists the checkpoint stays, the
-      // target stays visible for a bounded time, and every pull retries.
-      await this.commit({ meta: { [this.minSnapshotKey()]: String(after), [this.redactionKey()]: JSON.stringify({ seq: after, since: this.wall() }) } });
-      if (await this.resolvePendingRedaction()) {
-        const rest = await this.pullSlice(budgetMs);
-        return { pulled: total + rest.pulled, more: rest.more };
-      }
+    // A cached fold cannot undo a past event. Rebuild immediately from raw facts.
+    if (redacted) {
+      await this.commit({ meta: { [this.snapshotKey()]: '' } });
       await this.load();
-      return { pulled: total, more };
     }
-    // A redaction may target an event already folded; only a refold undoes it.
-    if (redacted) await this.load();
     const base = (await this.localSnapshot())?.serverSeq ?? 0;
     if (after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
     // Our membership changed on the server: work refused for membership
     // reasons may be acceptable now. Queue it; the next push decides.
     if (membershipChanged) await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
     return { pulled: total, more };
-  }
-
-  /** How long a redacted-inside-checkpoint device waits for a snapshot before re-pulling the whole log. */
-  static readonly REDACTION_SNAPSHOT_WAIT_MS = 30 * 60 * 1000;
-
-  /**
-   * A redaction targeted something inside our checkpoint. Try to replace the
-   * checkpoint with a server snapshot that already excludes it. Returns true
-   * when state was rebuilt and the caller should pull again from the new
-   * cursor. After the wait window, fall back to dropping the checkpoint and
-   * re-pulling everything, which is always correct, only expensive.
-   */
-  private async resolvePendingRedaction(): Promise<boolean> {
-    const raw = await this.opts.store.meta(this.redactionKey());
-    if (!raw) return false;
-    const { seq, since } = JSON.parse(raw) as { seq: number; since: number };
-    // adoptServerSnapshot fetches in persisted pieces and refuses anything
-    // older than snapshotMinSeq, which pull() set to the redaction's seq.
-    let adopted = 0;
-    try {
-      adopted = await this.adoptServerSnapshot();
-    } catch (err) {
-      if (!(err instanceof OfflineError)) throw err;
-    }
-    if (adopted >= seq && adopted > 0) {
-      await this.commit({ meta: { [this.redactionKey()]: '' } });
-      return true;
-    }
-    if (this.wall() - since < SyncClient.REDACTION_SNAPSHOT_WAIT_MS) return false;
-    await this.commit({
-      meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '' },
-      cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: 0 }
-    });
-    await this.load();
-    return true;
   }
 
   /**

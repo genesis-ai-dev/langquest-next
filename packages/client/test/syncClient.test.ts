@@ -2,6 +2,7 @@ import { HlcClock, applyOrgEvent, deriveTakeStatus, emptyOrgState, foldOrg, REDU
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
 import { FakeServer } from './fakeServer';
+import { fetchSnapshot } from '../src/snapshotFetch';
 import { rejectCodeOf } from '../src/types';
 
 function device(server: FakeServer, deviceId: string, actorId: string, wall: { t: number }) {
@@ -347,7 +348,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     return a;
   }
 
-  it('a new device cold-starts from the server snapshot and pulls only the tail', async () => {
+  it('a new device downloads raw history even when a server snapshot exists', async () => {
     // Why: a phone joining a project with years of history must not replay
     // every event. Snapshot plus tail, one page, done.
     const server = new FakeServer();
@@ -359,10 +360,10 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     const b = device(server, 'dB', 'r1', { t: 0 });
     await b.client.load();
     const pulled = await b.client.pull();
-    expect(pulled).toBe(1); // only the LaneAdded after the snapshot
+    expect(pulled).toBe(8); // a cache cannot stand in for raw facts
     expect(Object.keys(b.client.getState().units).length).toBe(7);
     expect(await b.store.cursor('org1', 'p1')).toBe(8);
-    expect((await b.store.all('org1', 'p1')).length).toBe(1);
+    expect((await b.store.all('org1', 'p1')).length).toBe(8);
 
     // Relaunch on the same device: the local checkpoint carries the state.
     const b2 = new SyncClient({
@@ -374,7 +375,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(server.pullCalls).toBe(pullsBefore);
   });
 
-  it('a device checkpoints locally after enough confirmed events and prunes its log', async () => {
+  it('a device checkpoints locally while retaining every raw event', async () => {
     // Why: replay on launch must be bounded by history since the last
     // checkpoint, not by the age of the project.
     const server = new FakeServer();
@@ -393,7 +394,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
       await c.append('v1.UnitAdded', { unitId: `u${i}`, parentUnitId: null, kind: 'passage', label: `P${i}`, order: `a${i}` });
     }
     await c.sync();
-    expect((await store.all('org1', 'p1')).length).toBeLessThan(12);
+    expect((await store.all('org1', 'p1')).length).toBe(12);
     const again = mk();
     await again.load();
     expect(Object.keys(again.getState().units).length).toBe(12);
@@ -419,22 +420,16 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
   });
 });
 
-describe('SyncClient minimum client version (cutover gate 5)', () => {
-  it('a client the server no longer accepts is told so, and nothing is marked or lost', async () => {
-    // Why: v2 hard-blocked sync on a version handshake; ignoring unknown
-    // events is quieter but lets an old app act on stale state. The server
-    // must be able to say "upgrade", and the app must show it.
+describe('SyncClient cross-version transport', () => {
+  it('a legacy version setting cannot block an existing client outbox', async () => {
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'lead', { t: 0 });
     await client.load();
     await client.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
     server.minClientVersion = 99;
-    const r = await client.sync();
-    expect(r.tooOld).toBe(true);
-    expect(r.pushed).toBe(0);
-    expect(await client.pendingCount()).toBe(1);
-    server.minClientVersion = 0;
-    expect((await client.sync()).tooOld).toBe(false);
+    const result = await client.sync();
+    expect(result.tooOld).toBe(false);
+    expect(result.pushed).toBe(1);
     expect(await client.pendingCount()).toBe(0);
   });
 });
@@ -458,11 +453,9 @@ describe('SyncClient snapshot download in chunks (weak links make progress)', ()
     const server = new FakeServer();
     await bigProject(server);
     server.chunkChars = 4000;
-    const b = device(server, 'dB', 'r1', { t: 0 });
-    await b.client.load();
-    await b.client.pull();
+    const snapshot = await fetchSnapshot(server.transportFor(), 'org1', 'p1', REDUCER_VERSION);
     expect(server.chunkCalls).toBeGreaterThan(3);
-    expect(Object.keys(b.client.getState().units).length).toBe(300);
+    expect(Object.keys(snapshot!.state.units).length).toBe(300);
   });
 
   it('a link that drops mid-snapshot resumes from the pieces already saved', async () => {
@@ -470,14 +463,13 @@ describe('SyncClient snapshot download in chunks (weak links make progress)', ()
     await bigProject(server);
     server.chunkChars = 4000;
     server.failChunkAfter = 2;
-    const b = device(server, 'dB', 'r1', { t: 0 });
-    await b.client.load();
-    expect((await b.client.sync()).pulled).toBe(0); // offline result, nothing lost
+    const saved = new Map<number, string>();
+    const opts = { saved, onChunk: async (_seq: number, i: number, text: string) => { saved.set(i, text); } };
+    await expect(fetchSnapshot(server.transportFor(), 'org1', 'p1', REDUCER_VERSION, opts)).rejects.toThrow();
     const fetchedBeforeDrop = server.chunkCalls;
     server.failChunkAfter = Infinity;
-    await b.client.pull();
-    expect(Object.keys(b.client.getState().units).length).toBe(300);
-    // Only the remaining pieces were fetched, not the whole snapshot again.
+    const snapshot = await fetchSnapshot(server.transportFor(), 'org1', 'p1', REDUCER_VERSION, opts);
+    expect(Object.keys(snapshot!.state.units).length).toBe(300);
     const total = Math.ceil(JSON.stringify(server.snapshots.get('org1/p1')!.state).length / 4000);
     expect(server.chunkCalls - fetchedBeforeDrop).toBe(total - 2);
   });
@@ -576,10 +568,9 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     expect(Number(e3.hlc.split(':')[0])).toBeLessThanOrEqual(SERVER_NOW + 1000);
   });
 
-  it('a redaction inside the checkpoint waits for a fresh snapshot instead of re-pulling the whole log', async () => {
-    // Why: dropping the checkpoint re-downloads every event, 24 MB per 100k,
-    // on the link that made the team offline. A snapshot that already
-    // excludes the target is a fraction of that; wait for it, bounded.
+  it('a redaction rebuilds immediately from retained history without a server snapshot', async () => {
+    // Retained raw history lets us rebuild immediately without another download
+    // or waiting for the projection worker to process the redaction.
     const server = new FakeServer();
     const a = await seeded(server, 3);
     server.makeSnapshot('org1', 'p1');
@@ -596,9 +587,9 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     await a.client.sync();
 
     const pullsBefore = server.pullCalls;
-    await b.pull(); // no fresh snapshot yet: keep the checkpoint, keep waiting
+    await b.pull(); // no fresh server snapshot needed
     expect(server.pullCalls - pullsBefore).toBeLessThanOrEqual(2);
-    expect(b.getState().units['u1']).toBeDefined();
+    expect(b.getState().units['u1']).toBeUndefined();
     expect(await store.cursor('org1', 'p1')).toBeGreaterThan(0);
 
     server.makeSnapshot('org1', 'p1'); // the worker catches up
@@ -607,7 +598,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     expect(Object.keys(b.getState().units).sort()).toEqual(['u0', 'u2']);
   });
 
-  it('after the wait window with no snapshot, the device falls back to the full log', async () => {
+  it('redactions remain applied after a later pull without a fresh server snapshot', async () => {
     const server = new FakeServer();
     const a = await seeded(server, 3);
     server.makeSnapshot('org1', 'p1');
@@ -623,8 +614,8 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     await a.client.append('v1.Redacted', { eventId: target.id });
     await a.client.sync();
     await b.pull();
-    expect(b.getState().units['u1']).toBeDefined();
-    clock.t += SyncClient.REDACTION_SNAPSHOT_WAIT_MS + 1;
+    expect(b.getState().units['u1']).toBeUndefined();
+    clock.t += 1;
     await b.pull();
     expect(b.getState().units['u1']).toBeUndefined();
     expect(Object.keys(b.getState().units).sort()).toEqual(['u0', 'u2']);

@@ -23,7 +23,6 @@ export class MemoryStore implements EventStore {
     }
     if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.projectId}`, batch.cursor.seq);
     for (const [k, v] of Object.entries(batch.meta ?? {})) this.metas.set(k, v);
-    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
     if (batch.rows) {
       const key = `${batch.rows.orgId}/${batch.rows.projectId}`;
       if (batch.rows.clear) this.rows.delete(key);
@@ -111,8 +110,9 @@ export class MemoryStore implements EventStore {
     return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
   }
 
-  async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
-    return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected');
+  async all(orgId: string, projectId: string, afterSeq = 0): Promise<LocalEvent[]> {
+    return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected' &&
+      (e.status !== 'confirmed' || (e.event.serverSeq ?? Infinity) > afterSeq));
   }
 
   async cursor(orgId: string, projectId: string): Promise<number> {
@@ -123,16 +123,8 @@ export class MemoryStore implements EventStore {
     await this.commit({ cursor: { orgId, projectId, seq } });
   }
 
-  async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.commit({ prune: { orgId, projectId, uptoSeq } });
-  }
-
-  private async pruneNow(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    for (const [id, e] of this.events) {
-      if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.projectId === projectId
-          && (e.event.serverSeq ?? Infinity) <= uptoSeq) this.events.delete(id);
-    }
-  }
+  /** Legacy compatibility: checkpoints never authorize deleting raw facts. */
+  async prune(_orgId: string, _projectId: string, _uptoSeq: number): Promise<void> {}
 
   async meta(key: string): Promise<string | undefined> {
     return this.metas.get(key);
