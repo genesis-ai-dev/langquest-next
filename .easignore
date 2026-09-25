@@ -12,6 +12,21 @@ apps/mobile/android/
 supabase/.branches/
 supabase/.temp/
 
+# Keep local credentials and environment files out of cloud build archives.
+**/.env
+**/.env.*
+!**/.env.example
+**/.dev.vars*
+**/.wrangler/
+**/.expo/
+**/credentials.json
+**/*.p12
+**/*.p8
+**/*.pem
+**/*.key
+**/*.jks
+**/*.mobileprovision
+
 # npm-style packing drops lockfiles by default; EAS runs `npm ci` at the
 # monorepo root, so the lockfile must be in the archive.
 !package-lock.json

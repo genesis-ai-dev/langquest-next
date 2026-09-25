@@ -1,5 +1,8 @@
 # Agent instructions for langquest-next
 
+**First read AGENTS.md. Sync across client versions is non-negotiable.**
+Never gate event transport on a client upgrade or prune history into snapshots.
+
 Read `PLAN.md` before doing anything. Section 4 lists invariants; every change
 must keep them true. Section 6 is the event catalog; never change a shipped
 event's shape, add a new versioned event instead.
