@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { splitByRead, visibleRemote } from './inboxRead';
 import { supabase } from './supabase';
 
 export async function enableNotifications(): Promise<void> {
@@ -45,10 +47,45 @@ export async function refreshInbox(actorId: string): Promise<RemoteNotification[
     }
     cached.rows = [...rows.values()];
     await AsyncStorage.setItem(key, JSON.stringify(cached));
+    changed();
     if (!data || data.length < 100) break;
   }
   return cached.rows;
 }
 export async function cachedInbox(actorId: string): Promise<RemoteNotification[]> {
   return JSON.parse(await AsyncStorage.getItem(`inbox:${actorId}`) ?? '{"rows":[]}').rows;
+}
+
+/**
+ * Inbox read state is per device (`inbox-read:{actor}`). One listener set
+ * keeps the Inbox screen and the tab badge in step without a reload.
+ */
+const listeners = new Set<() => void>();
+function changed() { for (const l of listeners) l(); }
+export async function inboxRead(actorId: string): Promise<string[]> {
+  return JSON.parse(await AsyncStorage.getItem(`inbox-read:${actorId}`) ?? '[]');
+}
+export async function markInboxRead(actorId: string, ids: string[]): Promise<void> {
+  const next = [...new Set([...await inboxRead(actorId), ...ids])];
+  await AsyncStorage.setItem(`inbox-read:${actorId}`, JSON.stringify(next));
+  changed();
+}
+/** The read ids and cached server rows, refreshed whenever either changes. */
+export function useInboxState(actorId: string): { read: string[]; remote: RemoteNotification[] } {
+  const [value, setValue] = useState<{ read: string[]; remote: RemoteNotification[] }>({ read: [], remote: [] });
+  useEffect(() => {
+    let active = true;
+    const load = () => { void Promise.all([inboxRead(actorId), cachedInbox(actorId)])
+      .then(([read, remote]) => { if (active) setValue({ read, remote }); }).catch(() => {}); };
+    listeners.add(load);
+    load();
+    return () => { active = false; listeners.delete(load); };
+  }, [actorId]);
+  return value;
+}
+/** Tab badge: unread derived items plus unread server rows the inbox shows. */
+export function useInboxUnread(actorId: string, localIds: string[], orgId: string, projectId: string): number {
+  const { read, remote } = useInboxState(actorId);
+  const items = [...localIds.map((id) => ({ id })), ...visibleRemote(remote, orgId, projectId)];
+  return splitByRead(items, read).unread.length;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   defineFiaProgress, defineFiaStudy, FIA_STAGES, fiaPericopes,
-  fiaProgressField, fiaProgressId, fiaStageContent, fiaStudiesFor
+  fiaProgressField, fiaProgressId, fiaStageContent, fiaStudiesFor, fiaStudyId, fiaStudyStatus
 } from '../src/fia';
 import { materialView, templateFields } from '../src/materials';
 import { emptyState, type Material } from '../src/state';
@@ -99,5 +99,53 @@ describe('FIA study templates and guided stages', () => {
     expect(fieldId).not.toBe(fiaProgressField('t1', 'luke2', 'hear'));
     expect(fiaProgressField('a:b', 'c', 'hear'))
       .not.toBe(fiaProgressField('a', 'b:c', 'hear'));
+  });
+});
+
+describe('FIA study status (team progress from the existing progress fields)', () => {
+  // Why: study is team work and a reviewer reads it as evidence. A step is
+  // done when anyone finished it, "Done by" is the first finisher, an undo
+  // (the field set back to '') stops counting, and progress for another
+  // passage never leaks in. All of it comes from existing registers.
+  function stateWith(fields: Record<string, string>, hlcs: Record<string, string> = {}) {
+    const state = emptyState();
+    state.units['fia@1/gen-p2'] = { parentUnitId: null, label: 'Genesis 2:4-25', kind: 'pericope', order: '1' };
+    state.materials[fiaStudyId('L1')] = material({ laneId: 'L1' }, { hear: 'Listen twice.' });
+    state.materials[fiaProgressId('L1')] = { ...material({ laneId: 'L1' }), kind: 'fia_progress',
+      fields: Object.fromEntries(Object.entries(fields).map(([k, v]) =>
+        [k, { value: { text: v }, hlc: hlcs[k] ?? '5', eventId: k }])) };
+    return state;
+  }
+
+  it('counts a step once anyone finished it and credits the first finisher', () => {
+    const unit = 'fia@1/gen-p2';
+    const state = stateWith({
+      [fiaProgressField('akol', unit, 'hear')]: 'complete',
+      [fiaProgressField('mary', unit, 'hear')]: 'complete',
+      [fiaProgressField('mary', unit, 'stage')]: 'complete',
+      [fiaProgressField('akol', 'fia@1/gen-p3', 'scenes')]: 'complete'
+    }, { [fiaProgressField('mary', unit, 'hear')]: '1' });
+    const s = fiaStudyStatus(state, 'L1', unit)!;
+    expect(s.doneCount).toBe(2);
+    expect(s.steps[0]!.done).toEqual({ by: 'mary', hlc: '1' });
+    expect(s.next?.stage.id).toBe('scenes');
+    expect(s.people).toEqual(['mary']);
+    expect(s.steps[0]!.content[0]?.text).toBe('Listen twice.');
+    expect(s.progressMaterialId).toBe(fiaProgressId('L1'));
+  });
+
+  it('forgets a step whose finisher undid it', () => {
+    const unit = 'fia@1/gen-p2';
+    const s = fiaStudyStatus(stateWith({ [fiaProgressField('akol', unit, 'hear')]: '' }), 'L1', unit)!;
+    expect(s.doneCount).toBe(0);
+    expect(s.next?.stage.id).toBe('hear');
+  });
+
+  it('is null for a passage with no FIA study', () => {
+    expect(fiaStudyStatus(emptyState(), 'L1', 'x')).toBeNull();
+  });
+
+  it('groups the six steps into FIA\'s three phases', () => {
+    expect([...new Set(FIA_STAGES.map((s) => s.phase))]).toEqual(['Familiarize', 'Internalize', 'Articulate']);
   });
 });

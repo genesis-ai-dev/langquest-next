@@ -9,7 +9,7 @@ import { buildFixture } from '../../../packages/core/test/fixtures';
 
 const root = path.resolve('apps/mobile');
 const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
-const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Org|Config|Account|Work|Review|Translate|Status|PassageSlides|Recordings|Obt|ObtCapture|ObtManage|DynamicBible|Record|Study)\.(\w+)/g)]
+const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Org|Config|Account|Work|Review|Translate|Status|PassageSlides|Recordings|Obt|ObtCapture|ObtManage|DynamicBible|Record|Study|MapScreens)\.(\w+)/g)]
   .map((m) => [m[2]!,m[1]! as ScreenId]));
 
 describe('screen action contracts', () => {
@@ -69,8 +69,8 @@ describe('screen action contracts', () => {
   it('permits picking up your own work without permitting assignment to others', () => {
     const session = deriveSession('t1',null,fold(buildFixture()),true);
     const event = { type:'v1.AssignmentMade',payload:{ unitId:'u',laneId:'L1',profileId:'t1',role:'translator' } } as AnyEvent;
-    expect(screenMayEmit('pickup_home',session,event)).toBe(true);
-    expect(screenMayEmit('pickup_home',session,{ ...event,payload:{ ...event.payload,profileId:'someone-else' } } as AnyEvent)).toBe(false);
+    expect(screenMayEmit('ask_someone',session,event)).toBe(true);
+    expect(screenMayEmit('ask_someone',session,{ ...event,payload:{ ...event.payload,profileId:'someone-else' } } as AnyEvent)).toBe(false);
     expect(screenMayEmit('review_passage',session,event)).toBe(false);
   });
 });

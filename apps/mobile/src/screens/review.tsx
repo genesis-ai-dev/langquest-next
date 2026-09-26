@@ -1,169 +1,362 @@
 import { StyleSheet } from '../theme';
-// Avatar U. Review passage, review questions, done. Material editor is Avatar P.
-import { commands, isStored, deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
+// Avatar U: review_capture (do-work J-REV-1/2, J-STUDY-6). One screen: listen
+// (play once before deciding, PLAN 16), background collapsed (translator
+// context, the team's study, earlier reviews), questions inline by type,
+// feedback by voice or text, then "Needs changes" or "Looks good". Legacy
+// OBT lanes compare the back translation and decide the OBT stage.
+// Avatar P: material_editor.
+import {
+  assertObtStep, commands, deriveObt, derivePassageRecord, deriveTakeStatus, fiaStudyStatus, isObtLane,
+  keyTermLinksFor, materialView, obtCanAct, parseTaskId, questionsOf, questionSetsFor, skippedAnswerKey,
+  tgMaterialId, REFERENCE_KINDS, templateFields, type ObtStep, type QuestionView, type RecordReview
+} from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { indexesFor } from '../indexes';
-import { BookOpen, Check, CloudAlert, CloudCheck, CloudOff, Clock, KeyRound, MessageSquare, Play, RotateCcw, Users } from 'lucide-react-native';
-import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import {
+  ArrowLeftRight, Ban, Check, CheckCircle2, ChevronDown, ChevronUp, Circle, Clock, EarOff, Headphones,
+  KeyRound, ListChecks, MessageSquare, SkipForward, Sparkles, Star, Timer, X
+} from 'lucide-react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { AudioClip } from '../audioClip';
-import { handoffState } from '../passageFlow';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, radius, space, tint } from '../theme';
-import { ActionButton, BackButton, Card, StatusIcon, text } from '../ui';
-import { useTask } from './translate';
+import { ActionButton, Card, text } from '../ui';
+import { Byline, usePerson } from '../UserChip';
 import { defineFiaProgress, fiaProgressId, FIA_STAGES } from '@langquest-next/core';
 import { FiaGuidanceRecorder } from '../fia';
+import { ObtHistory } from './obt';
+import { Beads, passageOf } from './translate';
+import { HoldToRecord } from './recordings';
 
-/** Answers live here between review_questions and review_passage (screen-local, not synced). */
-const draftAnswers = new Map<string, Record<string, string>>();
-
+/**
+ * RETIRING: the old review screen. Links that still open it (My Work)
+ * land here and are handed to review_capture. Legacy OBT lanes never get
+ * here: App.tsx mounts the OBT hub.
+ */
 export function ReviewPassage(ctx: Ctx) {
-  const { state, run } = ctx.project;
-  const { task, ready } = useTask(ctx);
-  const [changing, setChanging] = useState(false);
-  if (!state || !task || !task.takeId) return ready ? <Note>Task not found.</Note> : <></>;
-  const takeId = task.takeId;
-  const take = state.takes[takeId];
-  const idx = indexesFor(state);
-  const status = deriveTakeStatus(state, takeId, idx);
-  const stepId = task.id.split(':')[3]!;
-  const step = status.steps.find((s) => s.stepId === stepId);
-  const mine = state.reviews[takeId]?.[stepId]?.[ctx.session.actorId]?.value;
-  const questionSets = questionSetsFor(state, takeId, stepId);
-  const termsUsed = keyTermLinksFor(state, takeId);
-  const answered = questionSets.length === 0 || draftAnswers.has(takeId);
-  const showButtons = !mine || changing;
-
-  async function decide(decision: 'approve' | 'suggest_changes') {
-    const answers = draftAnswers.get(takeId);
-    await run(commands(state!, idx).reviewTake({ commandId: Crypto.randomUUID(), takeId, stepId, decision, ...(answers ? { answers } : {}) }));
-    draftAnswers.delete(takeId);
-    setChanging(false);
-    ctx.go('done_await', { takeId });
-  }
-
-  return (
-    <View style={[styles.screen, { backgroundColor: tint.review }]}>
-      <View style={styles.content}>
-        <BackButton onPress={ctx.back} />
-        <View style={styles.titleRow}>
-          <BookOpen size={22} color={colors.review} />
-          <Text style={[text.h3, { flex: 1 }]}>{state.units[task.unitId]?.label}</Text>
-        </View>
-
-        <Card>
-          <AudioClip project={ctx.project} hashes={take?.cardHashes ?? []} label="Play translation" />
-          <View style={styles.chips}>
-            <View style={styles.chip} accessibilityLabel={`waiting on ${step?.waitingOn.length ?? 0}`}>
-              <Users size={14} color={colors.mutedForeground} />
-              <Text style={text.small}>{step?.waitingOn.length ?? 0}</Text>
-            </View>
-            <View style={styles.chip} accessibilityLabel={`status ${status.outcome}`}>
-              <StatusIcon outcome={status.outcome} size={16} />
-              {mine ? mine.decision === 'approve' ? <Check size={14} color={colors.done} /> : <MessageSquare size={14} color={colors.review} /> : null}
-            </View>
-          </View>
-        </Card>
-
-        {termsUsed.length > 0 ? (
-          <Card style={{ backgroundColor: tint.translate }}>
-            {termsUsed.map(({ term, note }) => (
-              <Pressable key={term.termId} onPress={() => ctx.go('key_term_detail', { termId: term.termId })} style={styles.titleRow} accessibilityLabel={`key term ${term.term}`}>
-                <KeyRound size={16} color={colors.reference} />
-                <Text style={[text.body, { flex: 1 }]}>{term.term}{note ? ` · ${note}` : ''}</Text>
-              </Pressable>
-            ))}
-          </Card>
-        ) : null}
-
-        {questionSets.length > 0 ? (
-          <ActionButton
-            icon={answered ? Check : MessageSquare}
-            accessibilityLabel={answered ? 'Edit answers' : 'Answer questions'}
-            variant={answered ? 'outline' : 'action'}
-            onPress={() => ctx.go('review_questions', { taskId: task.id })}
-          />
-        ) : null}
-
-        {showButtons ? (
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <ActionButton icon={MessageSquare} accessibilityLabel="Suggest changes" variant="outline" onPress={() => void decide('suggest_changes')} disabled={!answered} style={{ flex: 1 }} />
-            <ActionButton icon={Check} accessibilityLabel="Approve" onPress={() => void decide('approve')} disabled={!answered} style={{ flex: 1 }} />
-          </View>
-        ) : (
-          <ActionButton icon={RotateCcw} accessibilityLabel="Change decision" variant="outline" onPress={() => setChanging(true)} />
-        )}
-      </View>
-    </View>
-  );
+  const { unitId, laneId } = passageOf(ctx);
+  const stepId = ctx.params['taskId'] ? parseTaskId(ctx.params['taskId'])?.stepId : undefined;
+  const sent = useRef(false);
+  useEffect(() => {
+    if (sent.current || !unitId || !laneId) return;
+    sent.current = true;
+    ctx.go('review_capture', { unitId, laneId, ...(stepId ? { stepId } : {}) });
+  });
+  return <Screen><Header title={ctx.project.state?.units[unitId]?.label ?? unitId} onBack={ctx.back} />
+    {!unitId || !laneId ? <Note>Task not found.</Note> : null}
+  </Screen>;
 }
 
-export function ReviewQuestions(ctx: Ctx) {
-  const { state } = ctx.project;
-  const { task, ready } = useTask(ctx);
-  const takeId = task?.takeId ?? '';
-  const [answers, setAnswers] = useState<Record<string, string>>(draftAnswers.get(takeId) ?? {});
-  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
-  const stepId = task.id.split(':')[3] ?? '';
-  const questions = questionsOf(questionSetsFor(state, takeId, stepId));
+/** Why a required question was left unanswered; stored as its `#skipped` answer. */
+const CANT_ANSWER = [
+  { icon: EarOff, reason: "Listeners weren't able to judge this" },
+  { icon: Ban, reason: 'Not relevant for this passage' },
+  { icon: Timer, reason: 'Ran out of time in the session' }
+];
 
-  function save() {
-    draftAnswers.set(takeId, answers);
-    ctx.back();
+export function ReviewCapture(ctx: Ctx) {
+  const { unitId, laneId } = passageOf(ctx);
+  const state = ctx.project.state;
+  const person = usePerson();
+  const [played, setPlayed] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [skipFor, setSkipFor] = useState<QuestionView | null>(null);
+  const [comment, setComment] = useState('');
+  const [voice, setVoice] = useState<string | undefined>();
+  const [open, setOpen] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const lock = useRef(false);
+  if (!state || !unitId || !laneId || !state.units[unitId]) {
+    return <Screen><Header title="" onBack={ctx.back} /><Note>{state ? 'Task not found.' : 'Opening passage…'}</Note></Screen>;
+  }
+  const title = state.units[unitId]?.label ?? unitId;
+  const toggle = (id: string) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
+  const idx = indexesFor(state);
+  const obt = isObtLane(state, laneId);
+
+  // ---- what is being reviewed ----
+  let takeId: string | null = null;
+  let stepId = '';
+  let stepLabel = '';
+  let n = 0;
+  let obtStage: ObtStep | null = null;
+  const record = obt ? null : derivePassageRecord(state, unitId, laneId, ctx.session.actorId, idx);
+  const j = obt ? deriveObt(state, unitId, laneId) : null;
+  if (record) {
+    takeId = ctx.params['takeId'] && record.versions.some((v) => v.takeId === ctx.params['takeId'])
+      ? ctx.params['takeId'] : record.latest?.takeId ?? null;
+    const version = record.versions.find((v) => v.takeId === takeId);
+    n = version?.n ?? 0;
+    const steps = takeId ? deriveTakeStatus(state, takeId, idx).steps : [];
+    const mine = steps.find((s) => s.eligible.includes(ctx.session.actorId) && !s.approved.includes(ctx.session.actorId) && !s.rejected.includes(ctx.session.actorId));
+    stepId = ctx.params['stepId'] ?? (ctx.params['taskId'] ? parseTaskId(ctx.params['taskId'])?.stepId : undefined) ?? mine?.stepId ?? steps[0]?.stepId ?? '';
+    stepLabel = record.steps.find((s) => s.stepId === stepId)?.label ?? stepId;
+  } else if (j) {
+    if ((j.stage === 'consultant' || j.stage === 'final_approval') && obtCanAct(state, ctx.session.actorId, laneId, j.stage)) {
+      obtStage = j.stage;
+      takeId = j.stage === 'consultant' ? j.draftId : j.finalTakeId;
+    }
+    stepLabel = obtStage ?? '';
+  }
+  if (!takeId || (!obt && !stepId)) {
+    return <Screen><Header title={title} onBack={ctx.back} />
+      <View accessible accessibilityLabel="Nothing is waiting for your review here." style={styles.row}>
+        <ListChecks size={28} color={colors.mutedForeground} /><Clock size={20} color={colors.mutedForeground} />
+      </View>
+    </Screen>;
+  }
+  const take = state.takes[takeId];
+  const questions = obt ? [] : questionsOf(questionSetsFor(state, takeId, stepId));
+  const handled = (q: QuestionView) => answers[q.id] !== undefined || answers[skippedAnswerKey(q.id)] !== undefined;
+  const left = questions.filter((q) => q.required && !handled(q));
+  const saysWhat = !!comment.trim() || !!voice;
+  const canDecide = played && left.length === 0 && !busy;
+  const response = state.responses[takeId];
+  const study = obt ? null : fiaStudyStatus(state, laneId, unitId);
+  const termLinks = keyTermLinksFor(state, takeId);
+  const tg = state.materials[tgMaterialId(laneId)]?.fields[unitId]?.value;
+  const earlier: RecordReview[] = (record?.versions ?? []).flatMap((v) => v.reviews)
+    .filter((r) => !(r.takeId === takeId && r.stepId === stepId && r.reviewerId === ctx.session.actorId)).reverse();
+  const versionN = (id: string) => record?.versions.find((v) => v.takeId === id)?.n ?? 0;
+  const bt = j?.backTranslationId ? state.takes[j.backTranslationId] : undefined;
+  const btStep = j?.steps.back_translation?.value;
+  const obtClips = j?.inputId ? Object.entries(state.obt.audio).filter(([id]) => id.startsWith(`${j.inputId}:`)) : [];
+
+  async function voiceCard(card: { id: string; ref: { hash: string; format: 'wav' | 'm4a' }; durationMs: number }) {
+    if (obt && j?.inputId) {
+      // OBT spoken comments are clips named by the stage input they answer.
+      await ctx.project.append('v1.ObtAudioAdded', { clipId: `${j.inputId}:${card.id}`, unitId, laneId,
+        cards: [{ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format === 'wav' ? 'wav' : 'm4a' }] });
+      ctx.project.triggerUpload();
+    }
+    setVoice(card.ref.hash);
   }
 
+  async function decide(outcome: 'approve' | 'suggest_changes') {
+    if (!canDecide || lock.current || (outcome === 'suggest_changes' && !saysWhat)) return;
+    lock.current = true; setBusy(true); setError('');
+    try {
+      if (obt && j && obtStage && j.round && j.inputId) {
+        const payload = { unitId, laneId, roundId: j.round.value.roundId, step: obtStage, inputId: j.inputId,
+          decision: outcome === 'approve' ? 'approve' as const : 'changes_requested' as const,
+          clipIds: obtClips.map(([id]) => id), ...(comment.trim() ? { note: comment.trim() } : {}) };
+        assertObtStep(state!, ctx.session.actorId, payload);
+        await ctx.project.append('v1.ObtStepRecorded', payload);
+        ctx.toast(outcome === 'approve' ? 'Approved — looks good' : 'Feedback sent');
+        ctx.back();
+        return;
+      }
+      const mineVoice = state!.reviewComments[takeId!]?.[stepId]?.[ctx.session.actorId];
+      if (voice && !mineVoice) await ctx.project.append('v1.ReviewCommentRecorded', { takeId: takeId!, stepId, blobHash: voice });
+      await ctx.project.run(commands(state!, indexesFor(state!)).reviewTake({
+        commandId: Crypto.randomUUID(), takeId: takeId!, stepId, decision: outcome,
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
+        ...(Object.keys(answers).length ? { answers } : {})
+      }));
+      ctx.project.triggerUpload();
+      ctx.toast(outcome === 'approve' ? `${stepLabel} added — looks good` : `Feedback sent to ${person(take?.actorId ?? '').name}`);
+      ctx.go('passage_record', { unitId, laneId });
+    } catch (e) { setError((e as Error).message); }
+    finally { lock.current = false; setBusy(false); }
+  }
+
+  const hint = !played ? 'Play the version before deciding'
+    : left.length ? `${left.length} required question${left.length === 1 ? '' : 's'} left — answer, or say why not`
+    : !saysWhat ? 'To ask for changes, say what to change above' : '';
+  const mine = obt ? undefined : state.reviews[takeId]?.[stepId]?.[ctx.session.actorId]?.value;
+
   return (
-    <Screen footer={<Footer label="Save answers" onPress={save} />}>
-      <Header title="Review questions" onBack={ctx.back} />
-      {questions.length === 0 ? <Note>The attached sets have no questions.</Note> : null}
-      {questions.map((q) => (
-        <Card key={q.id}>
-          <Text style={text.body}>{q.text}</Text>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {['Yes', 'Partly', 'No'].map((v) => (
-              <Pressable
-                key={v}
-                onPress={() => setAnswers((a) => ({ ...a, [q.id]: v }))}
-                style={[styles.opt, answers[q.id] === v && { backgroundColor: colors.translate }]}
-              >
-                <Text style={[text.small, answers[q.id] === v && { color: colors.white }]}>{v}</Text>
-              </Pressable>
-            ))}
+    <Screen tint={tint.review} footer={<View style={{ gap: space.sm }}>
+      {hint ? <View accessible accessibilityLabel={hint} style={[styles.row, { justifyContent: 'center' }]}>
+        {!played ? <Headphones size={18} color={colors.mutedForeground} /> : left.length ? <ListChecks size={18} color={colors.mutedForeground} /> : <MessageSquare size={18} color={colors.mutedForeground} />}
+        {left.length && played ? <Text style={text.small}>{left.length}</Text> : null}
+      </View> : null}
+      <View style={styles.row}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Needs changes"
+          accessibilityState={{ disabled: !canDecide || !saysWhat }} disabled={!canDecide || !saysWhat}
+          onPress={() => void decide('suggest_changes')}
+          style={[styles.needs, (!canDecide || !saysWhat) && styles.dead]}>
+          <MessageSquare size={28} color={canDecide && saysWhat ? colors.review : colors.mutedForeground} />
+          {!canDecide || !saysWhat ? <View style={styles.strike} /> : null}
+        </Pressable>
+        <ActionButton icon={Check} accessibilityLabel="Looks good" disabled={!canDecide}
+          onPress={() => void decide('approve')} style={{ flex: 1 }} />
+      </View>
+    </View>}>
+      <Header title={title} sub={obt ? undefined : `v${n}`} onBack={busy ? undefined : ctx.back}
+        action={<View accessible accessibilityLabel={`${stepLabel}${mine ? `, you said ${mine.decision === 'approve' ? 'looks good' : 'needs changes'}` : ''}`} style={styles.row}>
+          <ListChecks size={22} color={colors.review} />
+          {mine ? mine.decision === 'approve' ? <CheckCircle2 size={18} color={colors.done} /> : <MessageSquare size={18} color={colors.review} /> : null}
+        </View>} />
+
+      <Card>
+        <View accessible accessibilityLabel={obt ? 'Listen' : `Listen to version ${n}`} style={styles.row}>
+          <Headphones size={20} color={colors.review} />
+          {played ? <Check size={16} color={colors.done} /> : null}
+        </View>
+        <AudioClip project={ctx.project} hashes={take?.cardHashes ?? []} label={obt ? 'Play the version' : `Play version ${n}`} onPlay={() => setPlayed(true)} />
+        {response?.blobHash ? <AudioClip project={ctx.project} hashes={[response.blobHash]} label="Hear what changed" hideActions /> : null}
+        {response?.note ? <Text style={text.small} accessibilityLabel={`What changed: ${response.note}`}>{response.note}</Text> : null}
+      </Card>
+
+      {obt && bt ? <Card style={{ borderColor: colors.review, borderWidth: 1.5 }}>
+        <View accessible style={styles.row}
+          accessibilityLabel={`Back translation to compare${btStep?.language ? `, in ${btStep.language}` : ''}. Made for this check: compare its meaning with the source.`}>
+          <ArrowLeftRight size={20} color={colors.review} />
+          {btStep?.language ? <Text style={text.small}>{btStep.language}</Text> : null}
+        </View>
+        <AudioClip project={ctx.project} hashes={bt.cardHashes} label="Play the back translation" seekControls />
+        {btStep?.note ? <Text style={text.body} accessibilityLabel={`Back translator's note: ${btStep.note}`}>{btStep.note}</Text> : null}
+      </Card> : null}
+
+      {!obt && (termLinks.length || tg) ? <Disclosure icon={KeyRound} label={`From the translator: ${termLinks.length} terms, ${tg ? 1 : 0} notes`}
+        count={termLinks.length + (tg ? 1 : 0)} open={open.includes('translator')} onToggle={() => toggle('translator')}>
+        {termLinks.map(({ term, note }) => <Pressable key={term.termId} style={styles.row} accessibilityRole="button"
+          accessibilityLabel={`Key term ${term.term}`} onPress={() => ctx.go('key_term_detail', { termId: term.termId, takeId: takeId! })}>
+          <KeyRound size={16} color={colors.reference} />
+          <Text style={[text.body, { flex: 1 }]}>{term.term}{term.renderings[0] ? ` · ${term.renderings[0].rendering}` : ''}{note ? ` · ${note}` : ''}</Text>
+        </Pressable>)}
+        {tg?.blobHash ? <AudioClip project={ctx.project} hashes={[tg.blobHash]} label="Play the translator's note" hideActions /> : null}
+        {tg?.text ? <Text style={text.body}>{tg.text}</Text> : null}
+      </Disclosure> : null}
+
+      {study ? <Disclosure icon={Sparkles} label={`The team's study: FIA, ${study.doneCount} of ${study.steps.length} steps`}
+        count={study.doneCount} open={open.includes('study')} onToggle={() => toggle('study')}>
+        <Beads done={study.steps.map((s) => !!s.done)} />
+        {study.steps.map((s) => <Pressable key={s.stage.id} style={styles.row} accessibilityRole="button"
+          accessibilityLabel={`${s.index + 1}. ${s.stage.label}${s.done ? ', done' : ''}`}
+          onPress={() => ctx.go('study_step', { unitId, laneId, stage: s.stage.id })}>
+          {s.done ? <CheckCircle2 size={18} color={colors.done} /> : <Circle size={18} color={colors.mutedForeground} />}
+          <Text style={[text.body, { flex: 1 }]}>{s.index + 1} · {s.stage.label}</Text>
+          {s.done ? <Byline id={s.done.by} /> : null}
+        </Pressable>)}
+        <ActionButton icon={Sparkles} variant="outline" accessibilityLabel="Open the study" onPress={() => ctx.go('study_guide', { unitId, laneId })} />
+      </Disclosure> : null}
+
+      {earlier.length ? <Disclosure icon={MessageSquare} label={`Earlier reviews: ${earlier.length}`}
+        count={earlier.length} open={open.includes('earlier')} onToggle={() => toggle('earlier')}>
+        {earlier.map((r) => <EarlierReview key={r.eventId} ctx={ctx} review={r} n={versionN(r.takeId)}
+          stepLabel={record?.steps.find((s) => s.stepId === r.stepId)?.label ?? r.stepId}
+          response={Object.values(state.responses).find((x) => x.respondsToTakeId === r.takeId)} />)}
+      </Disclosure> : null}
+
+      {obt ? <Disclosure icon={MessageSquare} label="Earlier rounds and resources" count={0}
+        open={open.includes('history')} onToggle={() => toggle('history')}>
+        <ObtHistory ctx={ctx} unitId={unitId} laneId={laneId} />
+      </Disclosure> : null}
+
+      {questions.length ? <View style={{ gap: space.sm }}>
+        <View accessible style={styles.row} accessibilityLabel={`Questions, ${questions.filter((q) => q.required).length} required`}>
+          <ListChecks size={20} color={colors.review} /><Text style={text.small}>{questions.length}</Text>
+        </View>
+        {questions.map((q) => {
+          const skipped = answers[skippedAnswerKey(q.id)];
+          return <Card key={q.id} style={q.required && !handled(q) ? { borderColor: colors.review } : undefined}>
+            <View style={styles.row}>
+              {q.required ? <View accessible accessibilityLabel="Required"><Star size={14} color={colors.review} /></View> : null}
+              <Text style={[text.body, { flex: 1 }]}>{q.text}</Text>
+            </View>
+            {skipped !== undefined ? <View style={styles.row} accessible accessibilityLabel={`Left unanswered: ${skipped}`}>
+              <SkipForward size={18} color={colors.mutedForeground} />
+              <Text style={[text.small, { flex: 1 }]}>{skipped}</Text>
+              <ActionButton icon={X} variant="outline" style={styles.small} accessibilityLabel="Answer it instead"
+                onPress={() => setAnswers((a) => { const next = { ...a }; delete next[skippedAnswerKey(q.id)]; return next; })} />
+            </View> : <>
+              <AnswerInput q={q} value={answers[q.id]} onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))} />
+              {q.required && answers[q.id] === undefined ? <ActionButton icon={SkipForward} variant="outline" style={styles.small}
+                accessibilityLabel="Can't answer this?" onPress={() => setSkipFor(q)} /> : null}
+            </>}
+          </Card>;
+        })}
+      </View> : null}
+
+      <Card>
+        <View accessible accessibilityLabel="Your feedback" style={styles.row}>
+          <MessageSquare size={20} color={colors.review} />
+        </View>
+        <HoldToRecord accessibilityLabel="Record voice feedback" disabled={busy} onCard={voiceCard} />
+        {voice ? <AudioClip project={ctx.project} hashes={[voice]} label="Hear your voice feedback" hideActions /> : null}
+        {obtClips.filter(([, r]) => r.value.cards[0]?.hash !== voice).map(([id, r]) => <AudioClip key={id} project={ctx.project}
+          hashes={r.value.cards.map((c) => c.hash)} label="Play spoken review comment" hideActions />)}
+        <TextInput style={styles.input} accessibilityLabel="Or type it — what worked, what didn't"
+          placeholder="Or type it" value={comment} onChangeText={setComment} multiline />
+      </Card>
+      {error ? <Note>{error}</Note> : null}
+
+      <Modal visible={!!skipFor} transparent animationType="fade" onRequestClose={() => setSkipFor(null)}>
+        <View style={styles.scrim}>
+          <View style={styles.sheet} accessibilityViewIsModal>
+            <View accessible style={styles.row}
+              accessibilityLabel="Leave this question unanswered? Required questions can be skipped. The reason is saved with your review.">
+              <SkipForward size={24} color={colors.review} /><Text style={[text.body, { flex: 1 }]}>{skipFor?.text}</Text>
+            </View>
+            {CANT_ANSWER.map((c) => <Row key={c.reason} icon={c.icon} label={c.reason}
+              onPress={() => { if (skipFor) setAnswers((a) => ({ ...a, [skippedAnswerKey(skipFor.id)]: c.reason })); setSkipFor(null); }} />)}
+            <ActionButton icon={X} variant="outline" accessibilityLabel="Cancel" onPress={() => setSkipFor(null)} />
           </View>
-        </Card>
-      ))}
+        </View>
+      </Modal>
     </Screen>
   );
 }
 
-export function DoneAwait(ctx: Ctx) {
-  const state = ctx.project.state;
-  const takeId = ctx.params['takeId'];
-  const take = takeId && state ? state.takes[takeId] : undefined;
-  const delivery = handoffState({
-    pending: ctx.project.pending,
-    online: ctx.project.online,
-    refused: ctx.project.refused,
-    tooOld: ctx.project.tooOld,
-    audioStored: !take || take.cardHashes.every((hash) => !!state && isStored(state, hash))
-  });
-  const Icon = delivery === 'blocked' ? CloudAlert : delivery === 'queued' ? CloudOff : CloudCheck;
-  const label = delivery === 'blocked' ? 'Saved locally. Sync needs attention.'
-    : delivery === 'queued' ? 'Saved on this phone. Waiting to sync.'
-    : 'Synced. Review status is separate.';
-  return (
-    <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]}>
-      <View style={styles.doneMark} accessible accessibilityLabel={label}>
-        <Icon size={44} color={delivery === 'sent' ? colors.done : colors.mutedForeground} />
-      </View>
-      {delivery !== 'sent' ? <Clock size={28} color={colors.mutedForeground} /> : null}
-      {takeId && state?.takes[takeId] ? <StatusIcon outcome={deriveTakeStatus(state, takeId, indexesFor(state)).outcome} size={32} /> : null}
-      {delivery === 'blocked' ? <Note>{ctx.project.refused ?? 'Update the app to sync this work.'}</Note> : null}
-      <ActionButton icon={Check} accessibilityLabel="Back to my work" onPress={() => ctx.go('my_work')} style={{ alignSelf: 'stretch' }} />
-    </View>
-  );
+/** A collapsed background section: icon, count, and a chevron. */
+function Disclosure(props: { icon: typeof Check; label: string; count: number; open: boolean; onToggle: () => void; children: ReactNode }) {
+  return <Card style={{ gap: space.sm }}>
+    <Pressable onPress={props.onToggle} accessibilityRole="button" accessibilityLabel={props.label}
+      accessibilityState={{ expanded: props.open }} style={styles.row}>
+      <props.icon size={20} color={colors.review} />
+      <Text style={[text.small, { flex: 1 }]}>{props.count || ''}</Text>
+      {props.open ? <ChevronUp size={18} color={colors.mutedForeground} /> : <ChevronDown size={18} color={colors.mutedForeground} />}
+    </Pressable>
+    {props.open ? props.children : null}
+  </Card>;
+}
+
+/** What an earlier reviewer said and recorded; recordings play in place. */
+function EarlierReview(props: { ctx: Ctx; review: RecordReview; n: number; stepLabel: string;
+  response: { note?: string; blobHash?: string } | undefined }) {
+  const [open, setOpen] = useState(false);
+  const r = props.review;
+  const good = r.decision === 'approve';
+  return <View style={{ gap: space.xs }}>
+    <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }}
+      accessibilityLabel={`${props.stepLabel}, version ${props.n}, ${good ? 'looks good' : 'needs changes'}`} style={styles.row}>
+      {good ? <CheckCircle2 size={18} color={colors.done} /> : <MessageSquare size={18} color={colors.review} />}
+      <Byline before={`v${props.n} · ${props.stepLabel} ·`} id={r.reviewerId} />
+    </Pressable>
+    {open ? <View style={{ gap: space.xs, paddingLeft: space.lg }}>
+      {r.voiceHash ? <AudioClip project={props.ctx.project} hashes={[r.voiceHash]} label="Hear the voice feedback" hideActions /> : null}
+      {r.comment ? <Text style={text.body}>{r.comment}</Text> : null}
+      {!good && props.response?.blobHash ? <AudioClip project={props.ctx.project} hashes={[props.response.blobHash]} label="Hear the translator's response" hideActions /> : null}
+      {!good && props.response?.note ? <Text style={text.small} accessibilityLabel={`Revised: ${props.response.note}`}>{props.response.note}</Text> : null}
+    </View> : null}
+  </View>;
+}
+
+/** The answer control a question's type asks for. Selected is review teal, never yellow. */
+function AnswerInput(props: { q: QuestionView; value?: string; onChange: (v: string) => void }) {
+  if (props.q.type === 'text') {
+    return <TextInput style={[styles.input, { minHeight: 64 }]} accessibilityLabel="Your answer" placeholder="Your answer"
+      value={props.value ?? ''} onChangeText={props.onChange} multiline />;
+  }
+  const options = props.q.type === 'rating'
+    ? ['1', '2', '3', '4', '5'].map((v) => ({ v, label: `${v} of 5`, node: <Text style={styles.optText}>{v}</Text> }))
+    : [{ v: 'Yes', label: 'Yes', node: <Check size={22} color={colors.foreground} /> },
+       { v: 'No', label: 'No', node: <X size={22} color={colors.foreground} /> }];
+  return <View style={styles.row}>
+    {options.map((o) => {
+      const on = props.value === o.v;
+      return <Pressable key={o.v} onPress={() => props.onChange(o.v)} accessibilityRole="button"
+        accessibilityLabel={o.label} accessibilityState={{ selected: on }}
+        style={[styles.opt, on && { backgroundColor: tint.reviewBadge, borderColor: colors.review }]}>
+        {o.node}
+      </Pressable>;
+    })}
+  </View>;
 }
 
 /** Avatar P. Fill the blanks of a material (each field is its own register), or define a new one. Lock restricts editing, never hides (A7). */
@@ -252,17 +445,19 @@ export function MaterialEditor(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.xl },
-  content: { gap: space.lg, padding: space.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderRadius: radius.full, backgroundColor: tint.reviewChip, paddingVertical: 6, paddingLeft: 6, paddingRight: space.md },
-  chipPlay: { width: 28, height: 28, borderRadius: radius.full, backgroundColor: colors.review, alignItems: 'center', justifyContent: 'center' },
-  doneMark: { width: 96, height: 96, borderRadius: 20, backgroundColor: 'rgba(41, 163, 118, 0.12)', alignItems: 'center', justifyContent: 'center' },
-  opt: { flex: 1, alignItems: 'center', paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: colors.muted },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 140, backgroundColor: colors.card, color: colors.foreground }
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  needs: { flex: 1, height: 64, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.review,
+    backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  dead: { borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.muted },
+  strike: { position: 'absolute', width: 48, height: 2, backgroundColor: colors.mutedForeground, transform: [{ rotate: '-35deg' }] },
+  small: { height: 44, paddingHorizontal: space.md, alignSelf: 'flex-start' },
+  opt: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  optText: { fontSize: 18, fontWeight: '700', color: colors.foreground },
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.background, padding: space.lg, gap: space.md, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 100, backgroundColor: colors.card, color: colors.foreground }
 });
 
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('review_passage', 'review_questions', 'done_await', 'material_editor');
+export const contracts = contractsFor('review_passage', 'review_capture', 'material_editor');

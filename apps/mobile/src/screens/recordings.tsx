@@ -1,141 +1,202 @@
 import { StyleSheet } from '../theme';
-// Avatar U. Durable recording, full-screen VAD, then keep or redo.
-import { commands, currentTake, isStored, deriveObt, isObtLane, obtCanAct } from '@langquest-next/core';
+// Avatar U. The recording machinery shared by the workspace and the back
+// translation screen: durable recording, the full-screen VAD takeover, the
+// numbered parts list, and hold-to-record for short voice notes. The VAD
+// takeover below is unchanged from the retired `quest_assets` screen.
+import { commands, currentTake } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import * as Crypto from 'expo-crypto';
-import { Check, CloudCheck, CloudUpload, Mic, RotateCcw, Save, Square } from 'lucide-react-native';
+import { Check, Mic, RotateCcw, Square, Trash2 } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Pressable, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
-import { PassageSourceAudio } from '../passageSourceAudio';
-import { Header, Note, Screen } from '../pui';
 import { pendingPassageCards } from '../recordingFlow';
 import { colors, radius, space } from '../theme';
 import { ActionButton, Card, text } from '../ui';
 import { useEnergyHistory, useRecorder, type RecordedCard } from '../useRecorder';
-import { useTask } from './translate';
 
-export function QuestAssets(ctx: Ctx) {
+/**
+ * The parts of the take being made for a passage. A part is one card (one
+ * VAD segment). Parts are the current take's cards (a draft, or the last
+ * version when revising, so a new version starts from the old one; cards are
+ * immutable, PLAN invariant 4) followed by recorded cards not yet kept.
+ * Deleting a kept part only drops it from the next take; deleting a new part
+ * records the discard, so recovery never brings it back.
+ * `seedFromTake` false starts from new recordings only (legacy OBT lanes).
+ */
+export function useRecordingParts(ctx: Ctx, unitId: string, laneId: string, seedFromTake = true) {
   const state = ctx.project.state;
-  const { task, ready } = useTask(ctx);
   const latest = useRef(ctx);
   latest.current = ctx;
-  const latestTask = useRef(task);
-  latestTask.current = task;
+  const where = useRef({ unitId, laneId });
+  where.current = { unitId, laneId };
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const saveLock = useRef(false);
+  const [removed, setRemoved] = useState<string[]>([]);
+  const lock = useRef(false);
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latest.current;
-    const passage = latestTask.current;
-    if (!passage) throw new Error('This passage is no longer available.');
+    const passage = where.current;
+    if (!passage.unitId || !passage.laneId) throw new Error('This passage is no longer available.');
     // card.id was chosen before the first save step, so a retry or a
     // journal resume after restart finds the event already in the fold.
-    const state = current.project.state;
-    if (state) {
-      await current.project.run(commands(state, indexesFor(state)).addRecording({
+    const s = current.project.state;
+    if (s) {
+      await current.project.run(commands(s, indexesFor(s)).addRecording({
         commandId: card.id, recordingId: card.id, unitId: passage.unitId, laneId: passage.laneId,
         kind: 'target', card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format === 'wav' ? 'wav' : 'm4a' }
       }));
     }
     current.project.triggerUpload();
   }, []);
-  const rec = useRecorder(persist, task ? {
-    orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId: task.unitId, laneId: task.laneId
+  const rec = useRecorder(persist, unitId && laneId ? {
+    orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId, laneId
   } : undefined);
-  // The fold mutates in place and useProject republishes a fresh top-level
-  // object after every change, so `state` identity is the revision: this
-  // project-wide scan reruns per change, not per render.
+  // `state` identity is the fold revision (useProject republishes per change).
   const actorId = ctx.session.actorId;
   const pending = useMemo(
-    () => (state && task ? pendingPassageCards(state, task.unitId, task.laneId, actorId) : []),
-    [state, task?.unitId, task?.laneId, actorId]
+    () => (state && unitId && laneId ? pendingPassageCards(state, unitId, laneId, actorId) : []),
+    [state, unitId, laneId, actorId]
   );
-  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
-  if (isObtLane(state,task.laneId)) {
-    const stage=deriveObt(state,task.unitId,task.laneId).stage;
-    if (!['first_draft','revision','final_recording'].includes(stage) || !obtCanAct(state,ctx.session.actorId,task.laneId,stage)) return <Note>This stage does not accept passage recordings.</Note>;
-  }
-  const takeId = currentTake(state, task.unitId, task.laneId, indexesFor(state));
-  const take = takeId ? state.takes[takeId] : undefined;
-  const hashes = pending.length ? pending.map((c) => c.hash) : take?.cardHashes ?? [];
+  const takeId = state && unitId && laneId ? currentTake(state, unitId, laneId, indexesFor(state)) : null;
+  const take = takeId ? state?.takes[takeId] : undefined;
+  const base = seedFromTake ? take?.cardHashes ?? [] : [];
+  const parts = [...base, ...pending.map((c) => c.hash)].filter((h) => !removed.includes(h));
+  /** The parts differ from the current take: there is something to keep. */
+  const changed = pending.length > 0 || base.some((h) => removed.includes(h));
   const blocked = saving || rec.busy || rec.manualOn || rec.vadOn || rec.failureCount > 0;
-  async function keep() {
-    if (blocked || saveLock.current || !hashes.length) return;
-    saveLock.current = true; setSaving(true); setError('');
-    try {
-      if (pending.length) {
-        await ctx.project.run(commands(state!, indexesFor(state!)).keepTake({
-          commandId: Crypto.randomUUID(), unitId: task!.unitId, laneId: task!.laneId,
-          cardHashes: pending.map((c) => c.hash)
-        }));
-      }
-      ctx.back();
-    } catch (e) { setError((e as Error).message); }
-    finally { saveLock.current = false; setSaving(false); }
+
+  async function guarded(work: () => Promise<void>) {
+    if (lock.current) return;
+    lock.current = true; setSaving(true); setError('');
+    try { await work(); }
+    catch (e) { setError((e as Error).message); }
+    finally { lock.current = false; setSaving(false); }
   }
+  /** Compose the parts into the passage's new current take. */
+  async function keep(): Promise<boolean> {
+    if (blocked || !parts.length || !state) return false;
+    let kept = false;
+    await guarded(async () => {
+      await ctx.project.run(commands(state, indexesFor(state)).keepTake({
+        commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: parts
+      }));
+      setRemoved([]);
+      kept = true;
+    });
+    return kept;
+  }
+  /** Drop the new parts and record again (the review row's redo). */
   async function redo() {
-    if (blocked || saveLock.current) return;
-    saveLock.current = true; setSaving(true); setError('');
-    try {
+    if (blocked || !state) return;
+    await guarded(async () => {
       // An archived draft records the deliberate discard, so recovery never
       // resurrects it. Immutable audio remains available in event history.
       if (pending.length) {
-        await ctx.project.run(commands(state!, indexesFor(state!)).discardCards({
-          commandId: Crypto.randomUUID(), unitId: task!.unitId, laneId: task!.laneId,
-          cardHashes: pending.map((c) => c.hash)
+        await ctx.project.run(commands(state, indexesFor(state)).discardCards({
+          commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: pending.map((c) => c.hash)
         }));
       }
+      setRemoved([]);
       await rec.toggleVad();
-    } catch (e) { setError((e as Error).message); }
-    finally { saveLock.current = false; setSaving(false); }
+    });
   }
-  const title = state.units[task.unitId]?.label ?? task.unitId;
-  return (
-    <Screen footer={<View style={styles.controls}>
-      {hashes.length ? (
-        <ActionButton icon={RotateCcw} variant="outline"
-          accessibilityLabel="Record a new take" disabled={blocked}
-          onPress={() => void redo()} style={styles.reviewAction} />
-      ) : null}
-      <Pressable onPress={() => void rec.toggleVad()}
-        disabled={blocked} accessibilityRole="button"
-        accessibilityLabel={hashes.length ? 'Record another part' : 'Start recording'}
-        accessibilityHint="Tap to start. Tap stop when you finish."
-        accessibilityState={{ disabled: blocked, busy: rec.busy }}
-        style={({ pressed }) => [styles.record,
-          !!hashes.length && styles.recordSecondary,
-          blocked && styles.recordDisabled,
-          pressed && { opacity: 0.85 }]}>
-        <Mic color={blocked ? colors.mutedForeground : colors.actionForeground}
-          size={32} />
-      </Pressable>
-      {hashes.length ? (
-        <ActionButton icon={Check} accessibilityLabel="Keep take and return to passage"
-          disabled={blocked} onPress={() => void keep()} style={styles.reviewAction} />
-      ) : null}
-    </View>}>
-      <Header title={title} onBack={blocked ? undefined : ctx.back} />
-      <PassageSourceAudio ctx={ctx} unitId={task.unitId}
-        laneId={task.laneId} disabled={blocked} />
-      {hashes.length && !rec.manualOn ? <Card>
-        <AudioClip project={ctx.project} hashes={hashes}
-          label="Play recorded passage" disabled={blocked}
-          editTarget={{ unitId: task.unitId, laneId: task.laneId }} />
-        <View style={styles.row} accessible accessibilityLabel={rec.busy ? 'Saving' : hashes.every((h) => isStored(state, h)) ? 'Backed up' : 'Saved on this device'}>
-          {rec.busy ? <Save color={colors.mutedForeground} /> : hashes.every((h) => isStored(state, h)) ? <CloudCheck color={colors.done} /> : <CloudUpload color={colors.mutedForeground} />}
-          <Text style={text.small}>{hashes.length}</Text>
-        </View>
-      </Card> : null}
-      {error || rec.error ? <Note>{error || rec.error}</Note> : null}
-      {rec.failureCount ? <ActionButton icon={RotateCcw} accessibilityLabel="Retry saving recording" disabled={rec.busy} onPress={() => void rec.retryFailed()} /> : null}
-      <Modal visible={rec.vadOn} animationType="none"
-        onRequestClose={() => void rec.stopVad()}>
-        <VADTakeover rec={rec} count={pending.length} />
-      </Modal>
-    </Screen>
-  );
+  async function remove(hash: string) {
+    if (blocked || !state) return;
+    if (pending.some((c) => c.hash === hash)) {
+      await guarded(async () => {
+        await ctx.project.run(commands(state, indexesFor(state)).discardCards({
+          commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: [hash]
+        }));
+      });
+    } else setRemoved((r) => [...r, hash]);
+  }
+  return { rec, pending, parts, changed, blocked, saving, error, takeId, take, keep, redo, remove };
+}
+
+export type RecordingParts = ReturnType<typeof useRecordingParts>;
+
+/** Numbered parts, each with play and delete. Words optional: the number is an icon-sized badge. */
+export function PartsList(props: { ctx: Ctx; parts: RecordingParts; labelFor?: (n: number) => string }) {
+  const { ctx, parts } = props;
+  if (!parts.parts.length || parts.rec.manualOn) return null;
+  return <Card>
+    {parts.parts.map((hash, i) => <View key={hash} style={styles.part}>
+      <View style={styles.partNumber} accessible accessibilityLabel={props.labelFor?.(i + 1) ?? `Part ${i + 1}`}>
+        <Text style={text.small}>{i + 1}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <AudioClip project={ctx.project} hashes={[hash]} hideActions disabled={parts.blocked}
+          label={`Play ${props.labelFor?.(i + 1) ?? `part ${i + 1}`}`} />
+      </View>
+      <ActionButton icon={Trash2} variant="outline" style={styles.partDelete}
+        accessibilityLabel={`Delete ${props.labelFor?.(i + 1) ?? `part ${i + 1}`}`}
+        disabled={parts.blocked} onPress={() => void parts.remove(hash)} />
+    </View>)}
+  </Card>;
+}
+
+/**
+ * The recording controls. Nothing changed: one centred mic (yellow unless
+ * `quiet`, when the footer's yellow belongs to another action). After a
+ * recording: redo (outline) · neutral mic · yellow keep.
+ */
+export function RecordControls(props: { parts: RecordingParts; quiet?: boolean; onKept?: () => void; keepLabel?: string }) {
+  const { parts } = props;
+  const reviewing = parts.changed && parts.parts.length > 0;
+  return <View style={styles.controls}>
+    {reviewing ? <ActionButton icon={RotateCcw} variant="outline"
+      accessibilityLabel="Record a new take" disabled={parts.blocked}
+      onPress={() => void parts.redo()} style={styles.reviewAction} /> : null}
+    <Pressable onPress={() => void parts.rec.toggleVad()}
+      disabled={parts.blocked} accessibilityRole="button"
+      accessibilityLabel={parts.parts.length ? 'Record another part' : 'Start recording'}
+      accessibilityHint="Tap to start. Tap stop when you finish."
+      accessibilityState={{ disabled: parts.blocked, busy: parts.rec.busy }}
+      style={({ pressed }) => [styles.record,
+        (reviewing || props.quiet) && styles.recordSecondary,
+        parts.blocked && styles.recordDisabled,
+        pressed && { opacity: 0.85 }]}>
+      <Mic color={parts.blocked ? colors.mutedForeground : colors.actionForeground} size={32} />
+    </Pressable>
+    {reviewing ? <ActionButton icon={Check} accessibilityLabel={props.keepLabel ?? 'Keep take'}
+      disabled={parts.blocked} style={styles.reviewAction}
+      onPress={() => void parts.keep().then((kept) => { if (kept) props.onKept?.(); })} /> : null}
+  </View>;
+}
+
+/** The takeover, mounted over the screen while the VAD session runs. */
+export function RecordingTakeover(props: { parts: RecordingParts }) {
+  return <Modal visible={props.parts.rec.vadOn} animationType="none"
+    onRequestClose={() => void props.parts.rec.stopVad()}>
+    <VADTakeover rec={props.parts.rec} count={props.parts.pending.length} />
+  </Modal>;
+}
+
+/**
+ * Hold to record a short voice note (feedback, what changed). Red while
+ * held; outline otherwise, since a screen's yellow belongs to its main
+ * action. `onCard` receives the saved audio.
+ */
+export function HoldToRecord(props: {
+  accessibilityLabel: string; onCard: (card: RecordedCard) => void | Promise<void>; disabled?: boolean;
+}) {
+  const [error, setError] = useState('');
+  const rec = useRecorder(async (card) => { await props.onCard(card); });
+  const off = props.disabled || rec.busy || rec.failureCount > 0;
+  return <View style={{ gap: space.sm, alignItems: 'center' }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      accessibilityHint="Hold to record, release to stop." disabled={off}
+      onPressIn={() => { if (!off) void rec.manualDown().catch((e) => setError((e as Error).message)); }}
+      onPressOut={() => void rec.manualUp()}
+      style={[styles.hold, rec.manualOn && styles.holding, off && styles.recordDisabled]}>
+      <Mic size={28} color={rec.manualOn ? 'white' : off ? colors.mutedForeground : colors.foreground} />
+    </Pressable>
+    {rec.failureCount ? <ActionButton icon={RotateCcw} variant="outline" accessibilityLabel="Retry saving audio"
+      onPress={() => void rec.retryFailed()} disabled={rec.busy} /> : null}
+    {error || rec.error ? <Text style={text.muted} accessibilityRole="alert">{error || rec.error}</Text> : null}
+  </View>;
 }
 
 /** The only thing that re-renders with the microphone. */
@@ -146,7 +207,7 @@ function EnergyBars(props: { captured: boolean }) {
       height: `${Math.max(1, Math.pow(Math.min(1, Math.max(0, bar.energy)), bar.captured ? 0.6 : 2.5) * 100)}%` }]} />)}</>;
 }
 
-function VADTakeover(props: {
+export function VADTakeover(props: {
   rec: ReturnType<typeof useRecorder>;
   count: number;
 }) {
@@ -206,6 +267,11 @@ function VADTakeover(props: {
   );
 }
 const styles = StyleSheet.create({
+  part: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  partNumber: { width: 28, height: 28, borderRadius: radius.full, backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  partDelete: { height: 52, paddingHorizontal: space.md },
+  hold: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  holding: { backgroundColor: '#A8120A', borderColor: '#A8120A' },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   record: { width: 82, height: 82, borderRadius: 41, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
@@ -224,5 +290,6 @@ const styles = StyleSheet.create({
   stop: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', alignSelf: 'center' }
 });
 
+// Shared machinery, not a screen of its own: it declares no screen contract.
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('quest_assets');
+export const contracts = contractsFor();

@@ -61,6 +61,8 @@ export function ProgressRing(props: {
   total: number;
   size?: number;
   color?: string;
+  /** Defaults to "{completed} of {total} recorded". */
+  accessibilityLabel?: string;
 }) {
   const size = props.size ?? 64;
   const r = (size - 10) / 2;
@@ -68,7 +70,7 @@ export function ProgressRing(props: {
   const fraction = props.total ? Math.min(1, Math.max(0, props.completed / props.total)) : 0;
   return (
     <View accessible accessibilityRole="progressbar"
-      accessibilityLabel={`${props.completed} of ${props.total} recorded`}
+      accessibilityLabel={props.accessibilityLabel ?? `${props.completed} of ${props.total} recorded`}
       accessibilityValue={{ min: 0, max: Math.max(1, props.total), now: props.completed }}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Circle cx={size / 2} cy={size / 2} r={r} fill="none"

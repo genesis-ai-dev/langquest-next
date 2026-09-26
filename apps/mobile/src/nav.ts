@@ -58,11 +58,14 @@ export function useNav(initial: Route) {
   const back = useCallback(() => {
     if (navRef.isReady() && navRef.canGoBack()) navRef.dispatch(CommonActions.goBack());
   }, []);
-  /** Pop until `screen` is on top; reset to it if it is not in the stack. */
-  const popTo = useCallback((screen: ScreenId) => {
+  /**
+   * Pop until `screen` is on top; reset to it if it is not in the stack.
+   * `params` apply only to the reset: a screen already in the stack keeps its own.
+   */
+  const popTo = useCallback((screen: ScreenId, params?: Record<string, string>) => {
     if (!navRef.isReady()) return;
     const inStack = navRef.getRootState()?.routes.some((r) => r.name === screen);
-    navRef.dispatch(inStack ? StackActions.popTo(screen) : CommonActions.reset({ index: 0, routes: [{ name: screen }] }));
+    navRef.dispatch(inStack ? StackActions.popTo(screen) : CommonActions.reset({ index: 0, routes: [{ name: screen, params }] }));
   }, []);
 
   return useMemo(

@@ -74,6 +74,21 @@ describe('commands', () => {
     const resp = commands(responded).submitTake({ commandId: 's4', unitId: 'luke1', laneId: 'L1', questionSetIds: [], responseNote: 'done' });
     expect(resp.map((e) => e.type)).toEqual(['v1.ResponseRecorded', 'v1.TakeSubmitted']);
     expect(resp[0]!.payload).toMatchObject({ takeId: 'take:k', respondsToTakeId: 'take2', note: 'done' });
+
+    // Why: on an oral screen "what changed" may be said, not typed. A voice
+    // answer alone is still an answer to the feedback, so it is recorded.
+    const voiced = commands(responded).submitTake({ commandId: 's5', unitId: 'luke1', laneId: 'L1', questionSetIds: [], responseBlobHash: 'v1' });
+    expect(voiced[0]!.payload).toEqual({ takeId: 'take:k', respondsToTakeId: 'take2', blobHash: 'v1' });
+    const silent = commands(responded).submitTake({ commandId: 's6', unitId: 'luke1', laneId: 'L1', questionSetIds: [], responseNote: '  ' });
+    expect(silent.map((e) => e.type)).toEqual(['v1.TakeSubmitted']);
+
+    // Why: a translator may keep twice while revising (record, keep, record
+    // another part, keep). The response still answers the submitted version,
+    // not the intermediate draft that the second keep archived.
+    const twice = fold(commands(responded).keepTake({ commandId: 'k2', unitId: 'luke1', laneId: 'L1', cardHashes: ['c9', 'c10'] })
+      .map((spec, i) => ({ ...spec, orgId: 'o', projectId: 'p', actorId: 't1', deviceId: 'dB', hlc: `${910000000000000 + i}:000000:dB` } as AnyEvent)), responded);
+    const answer = commands(twice).submitTake({ commandId: 's7', unitId: 'luke1', laneId: 'L1', questionSetIds: [], responseNote: 'fixed v.3' });
+    expect(answer[0]!.payload).toMatchObject({ takeId: 'take:k2', respondsToTakeId: 'take2', note: 'fixed v.3' });
   });
 
   it('reviewTake refuses takes that were never handed off', () => {

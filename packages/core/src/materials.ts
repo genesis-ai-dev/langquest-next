@@ -151,12 +151,31 @@ export interface QuestionView {
   materialId: string;
   fieldId: string;
   text: string;
+  /** From the catalog template; a hand-written question is answered yes or no. */
+  type: 'rating' | 'yesno' | 'text';
+  /** Needs an answer, or a reason for leaving it (the `${id}#skipped` answer). */
+  required: boolean;
 }
 
 export function questionsOf(sets: MaterialView[]): QuestionView[] {
-  return sets.flatMap((m) =>
-    m.fields.filter((f) => (f.text ?? '') !== '').map((f) => ({ id: `${m.materialId}#${f.fieldId}`, materialId: m.materialId, fieldId: f.fieldId, text: f.text! }))
-  );
+  return sets.flatMap((m) => {
+    const [kind, templateId] = (m.templateRef ?? '').split('/');
+    const template = kind === 'questions' ? QUESTION_TEMPLATES.find((q) => q.id === templateId) : undefined;
+    return m.fields.filter((f) => (f.text ?? '') !== '').map((f) => {
+      const q = template?.questions.find((x) => x.id === f.fieldId);
+      return { id: `${m.materialId}#${f.fieldId}`, materialId: m.materialId, fieldId: f.fieldId, text: f.text!,
+        type: q?.type ?? 'yesno', required: !!q?.required };
+    });
+  });
+}
+
+/**
+ * The answer key a reviewer uses to leave a required question unanswered,
+ * with the reason as its value. A convention inside `ReviewSubmitted.answers`,
+ * not a new fact: an older client shows it as one more answer, which is true.
+ */
+export function skippedAnswerKey(questionId: string): string {
+  return `${questionId}#skipped`;
 }
 
 // ---- key terms -------------------------------------------------------------

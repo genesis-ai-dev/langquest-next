@@ -53,47 +53,51 @@ Phase 0 notes: `progress_home` is retired; the other retiring screens stay until
 
 ## Phase 1: journeys that need no new events
 
+Legend: `[x]` built and walked; `[~]` built, typecheck and unit tests pass, not yet walked in the app; `[ ]` not built.
+Walked so far (smart-tests, 2026-09-25): translator records a passage in the workspace, online and offline with restart and sync.
+Partial items and their missing parts are listed in each agent report; the needs-Phase-2 parts are in Phase 2 below.
+
 Entry and account
-- [ ] J-ENTRY-1 Sign in → home (subtitle, "Sign In", keep Forgot password)
-- [ ] J-ENTRY-2 Terms → Vision (five reference steps, icons, "Continue"); fix the Back loop on terms
-- [ ] J-ENTRY-3 Create account (confirm password, invite card, scan returns to create_account)
-- [ ] J-ONB-1 "What brings you here?" (QR stays yellow, rows visible, no tabs, sign-out path)
-- [ ] J-ONB-2 Create org → walkthrough (six steps) → My Work
-- [ ] J-ONB-3 Request access → "Waiting for {org}" card
-- [ ] J-ONB-4 Inbox join request → "Assign role & accept" → edit_member
-- [ ] J-INBOX-1 Unread / Earlier, type icons, rows open passage_record
-- [ ] J-ACCT-1…5 Settings card, Edit profile, Switch organization, Sign out, walkthrough replay
+- [~] J-ENTRY-1 Sign in → home (subtitle, "Sign In", keep Forgot password)
+- [~] J-ENTRY-2 Terms → Vision (five reference steps, icons, "Continue"); fix the Back loop on terms
+- [~] J-ENTRY-3 Create account (confirm password, invite card, scan returns to create_account)
+- [~] J-ONB-1 "What brings you here?" (QR stays yellow, rows visible, no tabs, sign-out path)
+- [~] J-ONB-2 Create org → walkthrough (six steps) → My Work
+- [~] J-ONB-3 Request access → "Waiting for {org}" card
+- [~] J-ONB-4 Inbox join request → "Assign role & accept" → edit_member
+- [~] J-INBOX-1 Unread / Earlier, type icons, rows open passage_record
+- [~] J-ACCT-1…5 Settings card, Edit profile, Switch organization, Sign out, walkthrough replay
 
 My Work and Map
-- [ ] J-WORK-2…10 For you (feedback, asked record, asked review, draft), Recent (device-local), Waiting on others, caps, empty state
-- [ ] J-MAP-1 Progress with several counts per language (no bottleneck or percent)
-- [ ] J-MAP-2 Search "luk 15" at whole-Bible scale (port canon parsing)
-- [ ] J-MAP-3 Testament → book rows → chapter grid → parts sheet → record
-- [ ] J-MAP-4…7 Filter chips, switch language, for-you marks (never yellow), edges
+- [~] J-WORK-2…10 For you (feedback, asked record, asked review, draft), Recent (device-local), Waiting on others, caps, empty state
+- [~] J-MAP-1 Progress with several counts per language (no bottleneck or percent)
+- [~] J-MAP-2 Search "luk 15" at whole-Bible scale (port canon parsing)
+- [~] J-MAP-3 Testament → book rows → chapter grid → parts sheet → record
+- [~] J-MAP-4…7 Filter chips, switch language, for-you marks (never yellow), edges
 
 Passage record (existing facts: per-take status until Phase 2)
-- [ ] J-REC-1 Hero (whose turn), step path tiles, latest event
-- [ ] J-REC-3 Record a fix → workspace with respondsTo → popTo record + toast
-- [ ] J-REC-8/9 Next step zone, step sheet, parallel steps from equal order
-- [ ] J-REC-12…18 Reviews by version, History, version detail, review detail, waiting-on-author, done card, asked step
+- [~] J-REC-1 Hero (whose turn), step path tiles, latest event
+- [~] J-REC-3 Record a fix → workspace with respondsTo → popTo record + toast
+- [~] J-REC-8/9 Next step zone, step sheet, parallel steps from equal order
+- [~] J-REC-12…18 Reviews by version, History, version detail, review detail, waiting-on-author, done card, asked step
 
 Doing the work
-- [ ] Workspace (do-work J-REC-1…4): one screen replaces translate hub + quest_assets + add_to_tg + attach_questions; VAD takeover moved unchanged; tray (key terms, study, notes, history); Save Version N
-- [ ] J-REC-5 Polished final version via the same workspace
-- [ ] J-REV-1/2 review_capture: questions inline with types, skip with reason, voice and text feedback, Needs changes needs feedback, Background disclosures, back-translation compare (OBT lanes)
-- [ ] J-STUDY-1/5/6 study_guide and study_step screens from existing FIA content and progress (modal retired)
-- [ ] J-STUDY-3 PassageReader with BSB text and real timings
-- [ ] J-BT-1 back_translation screen for OBT lanes (partition boundary kept)
+- [~] Workspace (do-work J-REC-1…4): one screen replaces translate hub + quest_assets + add_to_tg + attach_questions; VAD takeover moved unchanged; tray (key terms, study, notes, history); Save Version N
+- [~] J-REC-5 Polished final version via the same workspace
+- [~] J-REV-1/2 review_capture: questions inline with types, skip with reason, voice and text feedback, Needs changes needs feedback, Background disclosures, back-translation compare (OBT lanes)
+- [~] J-STUDY-1/5/6 study_guide and study_step screens from existing FIA content and progress (modal retired)
+- [~] J-STUDY-3 PassageReader with BSB text and real timings
+- [~] J-BT-1 back_translation screen for OBT lanes (partition boundary kept)
 
 Organization and configuration
-- [ ] J-ORG-0 Manage tab reaches org/project/language homes
-- [ ] J-ORG-1…4 Homes with counts and catalog rows; new project = name + description; new language with name + defaults; fix hardcoded `org1` crumb
-- [ ] J-ORG-5…8 Members by level, invite with role and scope, QR invite stepper, edit member / approve join
-- [ ] J-ORG-9 Review teams without silently rewriting steps
-- [ ] J-ORG-10 Roles by level with labels, descriptions, members
-- [ ] J-CFG-1/2 Templates and ready-made flows
-- [ ] J-CFG-7…9 Reference library by level, key terms, key term detail (FIA glossary card)
-- [ ] J-VIEW-1 Viewer progress
+- [~] J-ORG-0 Manage tab reaches org/project/language homes
+- [~] J-ORG-1…4 Homes with counts and catalog rows; new project = name + description; new language with name + defaults; fix hardcoded `org1` crumb
+- [~] J-ORG-5…8 Members by level, invite with role and scope, QR invite stepper, edit member / approve join
+- [~] J-ORG-9 Review teams without silently rewriting steps
+- [~] J-ORG-10 Roles by level with labels, descriptions, members
+- [~] J-CFG-1/2 Templates and ready-made flows
+- [~] J-CFG-7…9 Reference library by level, key terms, key term detail (FIA glossary card)
+- [~] J-VIEW-1 Viewer progress
 
 ## Phase 2: journeys that need new events (awaiting approval)
 

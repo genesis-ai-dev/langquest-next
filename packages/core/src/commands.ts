@@ -34,7 +34,7 @@ export interface Commands {
   /** Record a deliberate discard of pending cards so recovery never resurrects them. */
   discardCards(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[] }): EventSpec[];
   /** Hand the passage's current draft to review, with an optional response note. */
-  submitTake(c: { commandId: string; unitId: string; laneId: string; questionSetIds: string[]; responseNote?: string }): EventSpec[];
+  submitTake(c: { commandId: string; unitId: string; laneId: string; questionSetIds: string[]; responseNote?: string; responseBlobHash?: string }): EventSpec[];
   /** A reviewer's decision on one workflow step of a take. */
   reviewTake(c: { commandId: string; takeId: string; stepId: string; decision: 'approve' | 'suggest_changes'; comment?: string; answers?: Record<string, string> }): EventSpec[];
   /** Attach a recorded pronunciation to a key term, saving the card too. */
@@ -97,10 +97,18 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       if (deriveTakeStatus(state, takeId, idx).outcome !== 'draft') throw new CommandError('This take was already handed off.');
       const next = ids(c.commandId);
       const out: EventSpec[] = [];
-      const respondsTo = take.parentTakeId;
+      // The version this one answers: the nearest submitted ancestor. Drafts
+      // kept on the way (record, keep, record more, keep) sit in between.
+      let respondsTo = take.parentTakeId;
+      const seen = new Set<string>([takeId]);
+      while (respondsTo && !state.submissions[respondsTo] && !seen.has(respondsTo)) {
+        seen.add(respondsTo);
+        respondsTo = state.takes[respondsTo]?.parentTakeId ?? null;
+      }
       const note = c.responseNote?.trim();
-      if (respondsTo && state.submissions[respondsTo] && note) {
-        out.push({ id: next(), type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: respondsTo, note } });
+      if (respondsTo && state.submissions[respondsTo] && (note || c.responseBlobHash)) {
+        out.push({ id: next(), type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: respondsTo,
+          ...(note ? { note } : {}), ...(c.responseBlobHash ? { blobHash: c.responseBlobHash } : {}) } });
       }
       out.push({ id: next(), type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: c.questionSetIds } });
       return out;

@@ -115,3 +115,21 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
   return { state, pending, append, sync, live, inspect };
 }
+
+/**
+ * A sync client for a partition this device has not opened, so a screen can
+ * write the first facts of a new project (new_project) without switching the
+ * workspace to it. screens/entry.tsx keeps its own private copy for create_org.
+ */
+export async function partitionClient<S>(actorId: string, orgId: string, projectId: string, materializer?: Materializer<S>) {
+  const store = await getStore();
+  const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
+  const client = new SyncClient<S>({
+    ...(materializer ? { materializer } : {}),
+    orgId, projectId, actorId, deviceId, store,
+    transport: new SupabaseTransport(supabase),
+    newId: () => Crypto.randomUUID()
+  });
+  await client.load();
+  return client;
+}

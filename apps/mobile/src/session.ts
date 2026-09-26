@@ -5,23 +5,6 @@ import {
 import type { Edge, ScreenId } from './flow';
 
 /**
- * Count inbox items: decisions on this actor's takes, plus (future) join
- * requests and notifications. The Inbox tab shows it as a badge.
- */
-export function deriveInboxCount(state: ProjectState | null, actorId: string): number {
-  if (!state) return 0;
-  let count = 0;
-  for (const [takeId, take] of Object.entries(state.takes)) {
-    if (take.actorId !== actorId) continue;
-    const reviews = state.reviews[takeId] ?? {};
-    for (const byActor of Object.values(reviews)) {
-      count += Object.keys(byActor).length;
-    }
-  }
-  return count;
-}
-
-/**
  * Session facets derived from the folds (UX spec `domain/session.ts`), not
  * stored anywhere. Who you are is the union of your project membership (the
  * fixed role, kept for compatibility) and your org memberships whose scope

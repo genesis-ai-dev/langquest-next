@@ -26,3 +26,6 @@ export * from './bibleAudio';
 export * from './textTranslations';
 export * from './audioEdits';
 export * from './fia';
+export * from './record';
+export * from './studyText';
+export * from './canon';

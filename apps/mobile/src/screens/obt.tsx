@@ -1,24 +1,25 @@
 import { TranslationOptions } from '../translationOptions';
 import { OBT_GUIDANCE, type ObtGuidanceKey } from '../obtGuidance';
-import { FiaGuide } from '../fia';
 import { contractsFor } from '../screenContracts';
 // Avatar U. Six-stage passage hub and focused slides; one yellow action.
 import {
-  assertObtStep, currentTake, deriveObt, deriveTasksFor, isObtLane, materialsFor, tgMaterialId, unitAncestry,
+  assertObtStep, currentTake, deriveObt, fiaStudiesFor, isObtLane, isStored, materialsFor, tgMaterialId, unitAncestry,
   OBT_LABELS, obtCanAct, type ObtStep, type ObtStage
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { ArrowLeft, ArrowRight, Check, Clock, Headphones, History, KeyRound, MessageSquare, Mic, Plus, Send, ShieldCheck, Users, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock, CloudAlert, CloudCheck, CloudOff, Headphones, History, KeyRound, Lock, MessageSquare, Mic, Plus, Send, ShieldCheck, Sparkles, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Image, Text, TextInput, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { AudioClip } from '../audioClip';
 import { PassageSourceAudio } from '../passageSourceAudio';
 import { Header, Note, Screen } from '../pui';
 import { ActionButton, Card, text } from '../ui';
 import { Byline } from '../UserChip';
-import { colors, space } from '../theme';
-import { useTask } from './translate';
+import { colors, space, tint } from '../theme';
+import { NotesSheet, useTask } from './translate';
+import { PartsList, RecordControls, RecordingTakeover, useRecordingParts } from './recordings';
+import { handoffState } from '../passageFlow';
 
 export const STAGE_ICONS = {
   first_draft: Mic, community: Users, revision: Mic,
@@ -35,7 +36,8 @@ export function ObtPassage(ctx: Ctx) {
   const task = assignedTask ?? (ctx.params.unitId && ctx.params.laneId ? {
     id:ctx.params.taskId ?? '',unitId:ctx.params.unitId,laneId:ctx.params.laneId
   } : undefined);
-  const [mode, setMode] = useState<'hub' | 'select' | 'review' | 'history'>(ctx.session.isViewer ? 'history' : 'hub');
+  const [mode, setMode] = useState<'hub' | 'select' | 'history'>(ctx.session.isViewer ? 'history' : 'hub');
+  const [notesOpen, setNotesOpen] = useState(false);
   const [choice, setChoice] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -77,9 +79,9 @@ export function ObtPassage(ctx: Ctx) {
   }
   function next() {
     if (j.stage === 'back_translation') ctx.go('obt_manage', params);
-    else if (['consultant', 'final_approval'].includes(j.stage)) setMode('review');
+    else if (['consultant', 'final_approval'].includes(j.stage)) ctx.go('review_capture', params);
     else if (['first_draft', 'revision', 'final_recording'].includes(j.stage)) {
-      if (!takes.length) ctx.go('quest_assets', params); else setMode('select');
+      if (!takes.length) ctx.go('workspace', params); else setMode('select');
     } else if (j.stage === 'community') void save();
     else setMode('history');
   }
@@ -96,8 +98,6 @@ export function ObtPassage(ctx: Ctx) {
   const minimum = state.obt.policies[laneId]?.value.minimumInteractions ?? 1;
   const footer = mode === 'select' ? <ActionButton icon={Send} accessibilityLabel="Select this recording and hand off"
     onPress={() => void save()} disabled={busy || !selected} /> :
-    mode === 'review' ? <ActionButton icon={Check} accessibilityLabel="Approve this version"
-      onPress={() => void save('approve')} disabled={busy || !can} /> :
     mode === 'history' ? <ActionButton icon={ArrowLeft} accessibilityLabel="Return to passage" onPress={() => setMode('hub')} /> :
     <ActionButton icon={j.stage === 'complete' ? Check : can ? ArrowRight : Clock}
       accessibilityLabel={can ? OBT_LABELS[j.stage] : 'Waiting for the next participant'} onPress={next}
@@ -111,15 +111,14 @@ export function ObtPassage(ctx: Ctx) {
     <ObtPrompt ctx={ctx} laneId={laneId} stage={j.stage} />
     {mode === 'hub' ? <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-        <FiaGuide ctx={ctx} laneId={laneId} unitId={unitId}
-          canSpeak={can && ['first_draft', 'revision', 'final_recording'].includes(j.stage)}
-          onSpeak={() => ctx.go('quest_assets', params)} />
+        {fiaStudiesFor(state, laneId, unitId).length ? <ActionButton icon={Sparkles} variant="outline"
+          accessibilityLabel="Open the FIA study" onPress={() => ctx.go('study_guide', { unitId, laneId })} /> : null}
         <ActionButton icon={Headphones} variant="outline" accessibilityLabel="Source references" onPress={() => ctx.go('passage_references', params)} />
         <ActionButton icon={KeyRound} variant="outline" accessibilityLabel="Record key terms" disabled={!ctx.session.can('translate')} onPress={() => ctx.go('passage_terms', params)} />
-        <ActionButton icon={MessageSquare} variant="outline" accessibilityLabel="Record translation notes" disabled={!ctx.session.can('fill_reference')} onPress={() => ctx.go('add_to_tg', params)} />
+        <ActionButton icon={MessageSquare} variant="outline" accessibilityLabel="Record translation notes" disabled={!ctx.session.can('fill_reference')} onPress={() => setNotesOpen(true)} />
         <ActionButton icon={History} variant="outline" accessibilityLabel="Draft and review history" onPress={() => setMode('history')} />
         <ActionButton icon={Mic} variant="outline" accessibilityLabel="Record another attempt"
-          disabled={!can || !['first_draft','revision','final_recording'].includes(j.stage)} onPress={() => ctx.go('quest_assets', params)} />
+          disabled={!can || !['first_draft','revision','final_recording'].includes(j.stage)} onPress={() => ctx.go('workspace', params)} />
         <ActionButton icon={Users} variant="outline" accessibilityLabel="Capture community interaction"
           disabled={j.stage !== 'community' || !can} onPress={() => ctx.go('obt_interaction', { ...params, roundId: j.round!.value.roundId })} />
       </View>
@@ -146,15 +145,10 @@ export function ObtPassage(ctx: Ctx) {
       </> : null}
       {j.stage === 'revision' ? <ActionButton icon={Users} variant="outline" accessibilityLabel="Send this recording through a new community-checking round" disabled={busy} onPress={() => void repeatCommunity()} /> : null}
       {j.stage === 'revision' && j.draftId ? <ActionButton icon={Check} variant="outline" accessibilityLabel="Continue with the first draft unchanged" onPress={() => setChoice(j.draftId)} /> : null}
-      <ActionButton icon={Plus} variant="outline" accessibilityLabel="Record another attempt" onPress={() => ctx.go('quest_assets', params)} />
+      <ActionButton icon={Plus} variant="outline" accessibilityLabel="Record another attempt" onPress={() => ctx.go('workspace', params)} />
     </> : null}
-    {mode === 'history' || mode === 'review' ? <ObtHistory ctx={ctx} unitId={unitId} laneId={laneId} /> : null}
-    {mode === 'review' ? <>
-      <TextInput accessibilityLabel="Optional consultant comments or final corrections" value={note} onChangeText={setNote}
-        multiline style={{ borderWidth: 1, borderColor: colors.border, padding: space.md }} />
-      <ActionButton icon={MessageSquare} variant="outline" accessibilityLabel="Record spoken review comments" onPress={() => ctx.go('obt_interaction', { ...params, noteOnly: 'true', roundId: j.round!.value.roundId, inputId: j.inputId! })} />
-      <ActionButton icon={X} variant="outline" accessibilityLabel="Request changes" disabled={busy || !can} onPress={() => void save('changes_requested')} />
-    </> : null}
+    {mode === 'history' ? <ObtHistory ctx={ctx} unitId={unitId} laneId={laneId} /> : null}
+    <NotesSheet ctx={ctx} unitId={unitId} laneId={laneId} visible={notesOpen} onClose={() => setNotesOpen(false)} />
     {error ? <Note>{error}</Note> : null}
     {ctx.project.refused ? <Note>{ctx.project.refused}</Note> : null}
     <Text accessibilityLabel={ctx.project.pending ? 'Hand-off queued on this phone' : 'Events synced; audio may still be uploading'} style={text.small}>
@@ -221,30 +215,81 @@ export function ObtHistory({ ctx, unitId, laneId }: { ctx: Ctx; unitId: string; 
   </>;
 }
 
+/**
+ * back_translation (do-work J-BT-1): the back-translator's recording screen
+ * in the OBT back-translation project. Listen to the version only (notes and
+ * earlier reviews are not in this project, so nothing else shapes what they
+ * say), record parts with the same VAD takeover, keep, then "Save back
+ * translation". The partition boundary holds: the back-translator is not a
+ * member of the source project, so saving ends on a done view here, never on
+ * the source passage record; the coordinator collects the result
+ * (obt_collect_result). Outside a back-translation project (ordinary lanes)
+ * a back translation needs `ContentProduced` (Phase 2) and is not offered.
+ */
 export function BackTranslation(ctx: Ctx) {
-  const { task: assignedTask } = useTask(ctx);
-  const workspace = ctx.project.state?.obt.workspace?.value;
-  const task = assignedTask ?? (workspace && ctx.project.state ? deriveTasksFor(ctx.project.state,ctx.session.actorId,workspace.unitId,workspace.laneId)[0] : undefined);
+  const state = ctx.project.state;
+  const w = state?.obt.workspace?.value;
+  const parts = useRecordingParts(ctx, w?.unitId ?? '', w?.laneId ?? '', false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const state = ctx.project.state;
-  if (!state || !task || !state.obt.workspace) return <Note>Opening back translation…</Note>;
-  const w = state.obt.workspace.value;
-  const takeId = currentTake(state, task.unitId, task.laneId);
+  if (!state) return <Note>Opening back translation…</Note>;
+  if (!w) return <Screen><Header title="" onBack={ctx.back} />
+    <View accessible accessibilityLabel="Back translation here needs a newer version of the app's records. Ask your coordinator to deliver the version for back translation." style={{ flexDirection: 'row', gap: space.sm }}>
+      <Headphones size={28} color={colors.mutedForeground} /><Lock size={20} color={colors.mutedForeground} />
+    </View>
+  </Screen>;
+  const takeId = currentTake(state, w.unitId, w.laneId);
   const output = takeId && takeId !== w.inputTakeId ? state.takes[takeId] : null;
-  return <Screen footer={<ActionButton icon={output ? Send : Mic} accessibilityLabel={output ? 'Submit back translation' : 'Record back translation'}
-    disabled={busy || !!(takeId && state.submissions[takeId])} onPress={() => {
-      if (!output) { ctx.go('quest_assets', { taskId: task.id }); return; }
-      setBusy(true); void ctx.project.append('v1.TakeSubmitted', { takeId: takeId! })
-        .catch(e => setError(e.message)).finally(() => setBusy(false));
-    }} />}>
-    <Header title={state.units[task.unitId]?.label ?? ''} onBack={ctx.back} />
-    <Text style={text.body}>{w.language}</Text>
-    <AudioClip project={ctx.project} hashes={state.takes[w.inputTakeId]?.cardHashes ?? []} label="Listen to the assigned draft" seekControls />
-    {output ? <AudioClip project={ctx.project} hashes={output.cardHashes} label="Listen to your back translation" /> : null}
-    <ActionButton icon={Mic} variant="outline" accessibilityLabel="Record another back translation" onPress={() => ctx.go('quest_assets', { taskId: task.id })} />
-    {takeId && state.submissions[takeId] ? <Clock color={colors.review} accessibilityLabel="Back translation queued; return to My Work" /> : null}
-    {error ? <Note>{error}</Note> : null}
+  const submitted = !!(takeId && output && state.submissions[takeId]);
+  const kept = !!output && !parts.changed && !submitted;
+  if (submitted) {
+    const delivery = handoffState({ pending: ctx.project.pending, online: ctx.project.online, refused: ctx.project.refused,
+      tooOld: ctx.project.tooOld, audioStored: output!.cardHashes.every((h) => isStored(state, h)) });
+    const Cloud = delivery === 'blocked' ? CloudAlert : delivery === 'queued' ? CloudOff : CloudCheck;
+    return <Screen footer={<ActionButton icon={ArrowLeft} variant="outline" accessibilityLabel="Back" onPress={ctx.back} />}>
+      <Header title={state.units[w.unitId]?.label ?? ''} />
+      <View accessible style={{ alignItems: 'center', gap: space.lg, padding: space.xl }}
+        accessibilityLabel={`Back translation saved. ${delivery === 'sent' ? 'Sent for the consultant check.' : delivery === 'queued' ? 'Saved on this phone. Waiting to sync.' : 'Saved locally. Sync needs attention.'}`}>
+        <CheckCircle2 size={56} color={colors.done} />
+        <Cloud size={32} color={delivery === 'sent' ? colors.done : colors.mutedForeground} />
+      </View>
+      <AudioClip project={ctx.project} hashes={output!.cardHashes} label="Listen to your back translation" />
+      {delivery === 'blocked' ? <Note>{ctx.project.refused ?? 'Update the app to sync this work.'}</Note> : null}
+    </Screen>;
+  }
+  async function save() {
+    if (!kept || busy || parts.blocked) return;
+    setBusy(true); setError('');
+    try {
+      await ctx.project.append('v1.TakeSubmitted', { takeId: takeId! });
+      ctx.project.triggerUpload();
+      ctx.toast('Back translation saved · ready for the Consultant Check');
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return <Screen tint={tint.review} footer={kept
+    ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <RecordControls parts={parts} quiet />
+        <ActionButton icon={Send} accessibilityLabel="Save back translation" disabled={busy || parts.blocked}
+          onPress={() => void save()} style={{ flex: 1 }} />
+      </View>
+    : <RecordControls parts={parts} />}>
+    <Header title={state.units[w.unitId]?.label ?? ''} sub={w.language} onBack={parts.blocked || busy ? undefined : ctx.back} />
+    <View accessible style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+      accessibilityLabel={`You're making new content. Listen to the version, then say what it means in ${w.language}, in your own words. You're not judging it: the consultant check compares your back translation with the source.`}>
+      <Headphones size={24} color={colors.review} /><ArrowRight size={16} color={colors.review} /><Mic size={24} color={colors.review} />
+    </View>
+    <ObtPrompt ctx={ctx} laneId={w.laneId} stage="back_translation" />
+    <Card>
+      <AudioClip project={ctx.project} hashes={state.takes[w.inputTakeId]?.cardHashes ?? []} label="Listen to the version" seekControls disabled={parts.blocked} />
+      <View accessible accessibilityLabel="Notes and earlier reviews are hidden, so only the recording shapes what you say.">
+        <Lock size={16} color={colors.mutedForeground} />
+      </View>
+    </Card>
+    <PartsList ctx={ctx} parts={parts} labelFor={(n) => `${w.language} part ${n}`} />
+    {output && !parts.parts.length ? <AudioClip project={ctx.project} hashes={output.cardHashes} label="Listen to your back translation" /> : null}
+    {error || parts.error || parts.rec.error ? <Note>{error || parts.error || parts.rec.error}</Note> : null}
+    <RecordingTakeover parts={parts} />
   </Screen>;
 }
 

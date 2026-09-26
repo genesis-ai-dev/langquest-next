@@ -43,7 +43,7 @@ it('walks two devices through recording and review with randomized connection lo
     }
     async function record() {
       const d=devices[0]!;
-      d.screen='quest_assets';
+      d.screen='workspace';
       const id=`command-${seed}-${++commandId}`;
       await act(d,commands(d.client.getState()).addRecording({ commandId:id,
         recordingId:id,unitId:'u',laneId:'L',kind:'target',card:{hash:id,durationMs:100} }));
@@ -62,11 +62,11 @@ it('walks two devices through recording and review with randomized connection lo
         d.screen=edge.to==='home_hub'?homeScreenFor(session):edge.to;
       }
       const take=currentTake(state,'u','L');
-      if (d.screen==='quest_assets' && d.actor==='translator' && random()<0.35) await record();
-      if (d.screen==='attach_questions' && take && deriveTakeStatus(state,take).outcome==='draft') {
+      if (d.screen==='workspace' && d.actor==='translator' && random()<0.35) await record();
+      else if (d.screen==='workspace' && d.actor==='translator' && take && deriveTakeStatus(state,take).outcome==='draft') {
         await act(d,commands(state).submitTake({commandId:`submit-${seed}-${++commandId}`,unitId:'u',laneId:'L',questionSetIds:[]}));
       }
-      if (d.screen==='review_passage' && take && deriveTakeStatus(state,take).submitted) {
+      if (d.screen==='review_capture' && d.actor==='reviewer' && take && deriveTakeStatus(state,take).submitted) {
         await act(d,commands(state).reviewTake({commandId:`review-${seed}-${++commandId}`,takeId:take,
           stepId:'review',decision:random()<0.4?'suggest_changes':'approve'}));
       }
@@ -79,12 +79,12 @@ it('walks two devices through recording and review with randomized connection lo
     await translator.sync();await reviewer.sync();await translator.sync();
     let take=currentTake(translator.getState(),'u','L')!;
     if (deriveTakeStatus(translator.getState(),take).outcome==='draft') {
-      devices[0]!.screen='attach_questions';
+      devices[0]!.screen='workspace';
       await act(devices[0]!,commands(translator.getState()).submitTake({commandId:`finish-${seed}`,unitId:'u',laneId:'L',questionSetIds:[]}));
     }
     await translator.sync();await reviewer.sync();
     take=currentTake(reviewer.getState(),'u','L')!;
-    devices[1]!.screen='review_passage';
+    devices[1]!.screen='review_capture';
     await act(devices[1]!,commands(reviewer.getState()).reviewTake({commandId:`approve-${seed}`,takeId:take,stepId:'review',decision:'approve'}));
     await reviewer.sync();await translator.sync();await reviewer.sync();
     expect(deriveTakeStatus(translator.getState(),take).outcome).toBe('approved');

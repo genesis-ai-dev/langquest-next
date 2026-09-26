@@ -2,7 +2,9 @@ import { AccountLifecycleBoundary } from './src/accountLifecycle';
 import { AccountPreferencesProvider, usePreferences } from './src/accountPreferences';
 import { AccountRecoveryBoundary } from './src/accountRecovery';
 import { StyleSheet } from './src/theme';
-import { isObtLane } from '@langquest-next/core';
+import { deriveInbox, highlightsFor, isObtLane } from '@langquest-next/core';
+import { indexesFor } from './src/indexes';
+import { useInboxUnread } from './src/notifications';
 import * as Obt from './src/screens/obt';
 import * as DynamicBible from './src/screens/dynamicBible';
 import * as ObtCapture from './src/screens/obtCapture';
@@ -31,14 +33,14 @@ import * as Config from './src/screens/config';
 import * as Entry from './src/screens/entry';
 import * as Org from './src/screens/org';
 import * as PassageSlides from './src/screens/passageSlides';
-import * as Recordings from './src/screens/recordings';
 import * as Record from './src/screens/record';
 import * as Review from './src/screens/review';
 import * as Status from './src/screens/status';
+import * as MapScreens from './src/screens/map';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { AUTH_SCREENS, GUEST_SCREENS, activeTabFor, deriveInboxCount, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, activeTabFor, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
 import { colors, radius, space } from './src/theme';
 import { recordUserEvent, TERMS_VERSION } from './src/accountData';
@@ -47,7 +49,7 @@ import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
 import { useOrg } from './src/useOrg';
 import { useProject } from './src/useProject';
-import { useQuery } from './src/useQuery';
+import { recentKey, rememberRecent, RECENT_SCREENS } from './src/recent';
 
 // Initial selection, before the account's saved organization is restored.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
@@ -61,19 +63,16 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, create_account: Entry.CreateAccount, terms_privacy: Entry.TermsPrivacy, vision: Entry.Vision,
   intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
   request_access: Entry.RequestAccess, scan_qr: Entry.ScanQr, walkthrough: Entry.Walkthrough,
-  my_work: Work.AssignmentsHome, give_assignment: Work.GiveAssignment, pickup_home: Work.PickupHome,
-  assignment_progress_detail: Work.AssignmentProgressDetail,
+  my_work: Work.MyWork,
   passage_record: Record.PassageRecord, ask_someone: Record.AskSomeone, add_record: Record.AddRecord,
-  workspace: Record.Workspace, review_capture: Record.ReviewCapture, back_translation: Record.BackTranslate,
+  workspace: Translate.Workspace, review_capture: Review.ReviewCapture, back_translation: Obt.BackTranslation,
   study_guide: Study.StudyGuide, study_step: Study.StudyStep,
-  translate_passage: Translate.TranslatePassage, quest_assets: Recordings.QuestAssets,
+  translate_passage: Translate.TranslatePassage,
   passage_references: PassageSlides.PassageReferences, passage_terms: PassageSlides.PassageTerms,
-  attach_questions: Translate.AttachQuestions, add_to_tg: Translate.AddToTg,
-  review_passage: Review.ReviewPassage, review_questions: Review.ReviewQuestions, done_await: Review.DoneAwait,
+  review_passage: Review.ReviewPassage,
   material_editor: Review.MaterialEditor,
-  status_home: Status.StatusHome, map_home: Status.LanguageStatus, book_map: Status.BookStatus,
-  piece_status: Status.PieceStatus, piece_assign: Status.PieceAssign, piece_stage: Status.PieceStage,
-  version_detail: Status.PieceVersion, review_detail: Status.PieceReview,
+  status_home: Status.StatusHome, map_home: MapScreens.MapHome, book_map: MapScreens.BookMap,
+  version_detail: Record.VersionDetail, review_detail: Record.ReviewDetail,
   org_home: Org.OrgHome, project_home: Org.ProjectHome, language_home: Org.LanguageHome,
   members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr, edit_member: Org.EditMember,
   new_project: Org.NewProject, new_language: Org.NewLanguage, review_teams: Org.ReviewTeams, review_team_editor: Org.ReviewTeamEditor,
@@ -102,7 +101,7 @@ function hostFor(id: ScreenId) {
     const laneId = params.laneId ?? params.taskId?.split(':')[2] ?? '';
     const oral = !!ctx.project.state && (ctx.project.state.obt.workspace || isObtLane(ctx.project.state,laneId));
     const workspace = ctx.project.state?.obt.workspace;
-    if (workspace && !['obt_passage','translate_passage','quest_assets','my_work',
+    if (workspace && !['obt_passage','translate_passage','back_translation','my_work',
       'settings_home','org_switcher','sign_out_confirm','sync_status','profile_edit'].includes(id)) {
       return <Obt.BackTranslation {...ctx} params={{ taskId:'translate:passage:output' }} />;
     }
@@ -267,12 +266,17 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     [props.actorId, props.email, project.state, seenVision, org.state, props.projectId]
   );
 
-  const inboxCount = useMemo(
-    () => deriveInboxCount(project.state, props.actorId),
+  // Inbox badge: unread items, the same list and read state the Inbox shows.
+  const inboxIds = useMemo(
+    () => (project.state ? deriveInbox(project.state, props.actorId, indexesFor(project.state)).map((i) => i.id) : []),
     [project.state, props.actorId]
   );
-  // The My Work badge counts open tasks until My Work gets its For you list.
-  const taskCounts = useQuery(project, (q) => q.taskCounts(props.actorId), [props.actorId], { todo: 0, doing: 0, done: 0 }).data;
+  const inboxCount = useInboxUnread(props.actorId, inboxIds, props.orgId, props.projectId);
+  // The My Work badge is the For you count (J-HOME-1), the list My Work leads with.
+  const forYouCount = useMemo(
+    () => (project.state ? highlightsFor(project.state, props.actorId, indexesFor(project.state)).length : 0),
+    [project.state, props.actorId]
+  );
 
   const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
   useEffect(() => {
@@ -345,6 +349,12 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
       const from = nav.current.screen;
       const edge = edgeFor(from, to) ?? (edgeFor(from, 'home_hub') && to === homeScreenFor(session) ? edgeFor(from, 'home_hub') : undefined);
       const route: Route = params ? { screen: to, params } : { screen: to };
+      // Opening a passage is a visit My Work's Recent list remembers (J-WORK-8).
+      const visit = () => {
+        if ((RECENT_SCREENS as readonly ScreenId[]).includes(to) && params?.['unitId'] && params['laneId']) {
+          void rememberRecent(recentKey(props.orgId, props.projectId, props.actorId), { unitId: params['unitId'], laneId: params['laneId'] });
+        }
+      };
       if (!edge) {
         if (TAB_SCREENS.includes(to)) return nav.reset(route);
         console.error(`[flow] BLOCKED ${from} -> ${to}: declare the edge in flow.ts`);
@@ -356,15 +366,16 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
         console.error(`[flow] BLOCKED ${from} -> ${to}: gate "${edge.when}" not met by role ${session.role ?? 'guest'}`);
         return;
       }
+      visit();
       switch (edge.mode ?? 'push') {
         case 'push': return nav.push(route);
         case 'replace': return nav.replace(route);
         case 'reset': return nav.reset(route);
         case 'back': return nav.back();
-        case 'popTo': return nav.popTo(to);
+        case 'popTo': return nav.popTo(to, params);
       }
     },
-    [nav, session]
+    [nav, session, props.orgId, props.projectId, props.actorId]
   );
 
   useEffect(() => {
@@ -424,7 +435,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     canSwitchPersona
   };
 
-  const tabs = tabsFor(session, { work: taskCounts.todo + taskCounts.doing, inbox: inboxCount });
+  const tabs = tabsFor(session, { work: forYouCount, inbox: inboxCount });
   const showTabs = props.signedIn && tabs.length > 0 && homeScreenFor(session) !== 'intent_chooser' && TAB_SCREENS.includes(nav.current.screen);
   const activeTab = activeTabFor(tabs, nav.current.screen);
 

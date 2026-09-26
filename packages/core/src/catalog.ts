@@ -58,7 +58,7 @@ export interface QuestionTemplate {
   name: string;
   /** Stage this set is the default for, if any. */
   stageId?: string;
-  questions: { id: string; text: string; type: 'rating' | 'yesno' | 'text' }[];
+  questions: { id: string; text: string; type: 'rating' | 'yesno' | 'text'; required?: boolean }[];
 }
 
 const pad = (n: number, w = 4) => String(n).padStart(w, '0');
@@ -211,7 +211,7 @@ export const QUESTION_TEMPLATES: QuestionTemplate[] = [
     name: 'Community Check Questions',
     stageId: 'community_check',
     questions: [
-      { id: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?', type: 'rating' },
+      { id: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?', type: 'rating', required: true },
       { id: 'natural', text: 'Is the translation natural and clear in the target language?', type: 'rating' },
       { id: 'terms', text: 'Are key theological terms rendered consistently with the Translation Guidelines?', type: 'yesno' },
       { id: 'revisit', text: 'Are there any passages you would suggest revisiting?', type: 'text' }
@@ -222,8 +222,8 @@ export const QUESTION_TEMPLATES: QuestionTemplate[] = [
     name: 'Consultant Check Questions',
     stageId: 'consultant_check',
     questions: [
-      { id: 'hardest', text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating' },
-      { id: 'kt_aligned', text: "Are the key terms aligned with the language's key terms list?", type: 'yesno' },
+      { id: 'hardest', text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating', required: true },
+      { id: 'kt_aligned', text: "Are the key terms aligned with the language's key terms list?", type: 'yesno', required: true },
       { id: 'notes', text: 'Notes for the translation team', type: 'text' }
     ]
   }

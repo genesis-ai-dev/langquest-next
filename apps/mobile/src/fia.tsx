@@ -1,28 +1,19 @@
-// Avatars P and U. Managers supply FIA study content; participants use one
-// focused guided action at a time, with recorded instructions when supplied.
+// Avatar P. Managers supply FIA study content and its spoken guidance.
+// Participants study on the study_guide / study_step screens (screens/study.tsx).
 import {
-  CATALOG_VERSION, defineFiaStudy, defineFiaProgress, FIA_STAGES,
-  fiaPericopes, fiaProgressField, fiaStageContent, fiaStudiesFor,
-  instantiateTemplate, fiaProgressId, materialView, type FiaStage
+  CATALOG_VERSION, defineFiaStudy, defineFiaProgress,
+  fiaPericopes, instantiateTemplate, fiaProgressId, type FiaStage
 } from '@langquest-next/core';
-import {
-  ArrowRight, BookOpen, Check, ChevronLeft, Ear, HelpCircle,
-  Layers, MapPin, Mic, Plus, RotateCcw, Users, X
-} from 'lucide-react-native';
+import { BookOpen, Mic, Plus, RotateCcw } from 'lucide-react-native';
 import { useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, TextInput, View } from 'react-native';
 import { AudioClip } from './audioClip';
 import type { Ctx } from './ctx';
-import { Header, Note, Row, Screen, Section } from './pui';
-import { PassageSourceAudio } from './passageSourceAudio';
+import { Note, Row, Section } from './pui';
 import { colors, space } from './theme';
-import { ActionButton, Card, text } from './ui';
+import { ActionButton } from './ui';
 import { useRecorder } from './useRecorder';
-import { usePreferences } from './accountPreferences';
 
-const icons = { hear: Ear, stage: MapPin, scenes: Layers,
-  embody: Users, gaps: HelpCircle, speak: Mic };
 const input = { borderWidth: 1, borderColor: colors.border,
   borderRadius: 12, padding: space.md, color: colors.foreground };
 
@@ -125,94 +116,4 @@ export function FiaGuidanceRecorder({ ctx, materialId, stage }: {
       onPress={() => void rec.retryFailed()} /> : null}
     {rec.error ? <Note>{rec.error}</Note> : null}
   </View>;
-}
-
-export function FiaGuide({ ctx, laneId, unitId, onSpeak, canSpeak = true }: {
-  ctx: Ctx; laneId: string; unitId: string; onSpeak: () => void;
-  canSpeak?: boolean;
-}) {
-  const { locked } = usePreferences();
-  const [open, setOpen] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const state = ctx.project.state;
-  const studies = state ? fiaStudiesFor(state, laneId, unitId) : [];
-  if (!studies.length || state?.obt.workspace) return null;
-  const stage = FIA_STAGES[index]!;
-  const Icon = icons[stage.id];
-  const fields = fiaStageContent(studies, stage.id);
-  const dedicatedProgress = state ? materialView(state, fiaProgressId(laneId)) : null;
-  const progress = dedicatedProgress ?? studies.find(m => !m.locked) ?? studies[0]!;
-  const writable = ctx.session.can('manage_reference') ||
-    (ctx.session.can('fill_reference') && !progress.locked);
-  const complete = (id: FiaStage) => [...studies, ...(dedicatedProgress ? [dedicatedProgress] : [])].some(m => m.fields.some(f =>
-    f.fieldId === fiaProgressField(ctx.session.actorId, unitId, id) &&
-    f.text === 'complete'));
-  function show() {
-    const next = FIA_STAGES.findIndex(s => !complete(s.id));
-    setIndex(next < 0 ? 0 : next); setError(''); setOpen(true);
-  }
-  async function next() {
-    if (busy) return;
-    setBusy(true); setError('');
-    try {
-      // Speak hands over to the actual recorder; opening it is not completion.
-      if (stage.id !== 'speak' && writable) {
-        await ctx.project.append('v1.MaterialFieldSet', {
-          materialId: progress.materialId,
-          fieldId: fiaProgressField(ctx.session.actorId, unitId, stage.id),
-          text: 'complete'
-        });
-      }
-      if (stage.id === 'speak') { setOpen(false); onSpeak(); }
-      else setIndex(index + 1);
-    } catch (e) { setError((e as Error).message); }
-    finally { setBusy(false); }
-  }
-  return <>
-    <ActionButton icon={BookOpen} variant="outline"
-      accessibilityLabel="Open FIA guided study" onPress={show} />
-    <Modal visible={open && !locked} animationType="slide" presentationStyle="pageSheet"
-      onRequestClose={() => { if (!busy) setOpen(false); }}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <Screen footer={<ActionButton icon={stage.id === 'speak' ? Mic : ArrowRight}
-          accessibilityLabel={stage.id === 'speak' ? 'Record the passage' : 'Complete this stage and continue'}
-          disabled={busy || (stage.id === 'speak' && (!canSpeak || !ctx.session.can('translate')))}
-          onPress={() => void next()} />}>
-          <Header title={state?.units[unitId]?.label ?? unitId}
-            onBack={busy ? undefined : () => setOpen(false)} />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-            {FIA_STAGES.map((s, i) => <ActionButton key={s.id}
-              icon={complete(s.id) ? Check : icons[s.id]} variant="outline"
-              accessibilityLabel={`${s.label}${i === index ? ', current stage' : ''}`}
-              disabled={busy} onPress={() => setIndex(i)} />)}
-          </View>
-          <View accessible accessibilityLabel={`${stage.label}. ${stage.prompt}`}
-            style={{ alignItems: 'center', padding: space.xl }}>
-            <Icon color={colors.reference} size={64} />
-          </View>
-          {stage.id === 'hear' ? <PassageSourceAudio ctx={ctx}
-            unitId={unitId} laneId={laneId} disabled={busy} /> : null}
-          {fields.map(f => <Card key={f.materialId}>
-            {f.blobHash ? <AudioClip project={ctx.project} hashes={[f.blobHash]}
-              label={`Hear ${stage.label} study guidance`} /> : null}
-            {f.text ? <Text style={text.body}>{f.text}</Text> : null}
-          </Card>)}
-          {!fields.length ? <View accessible
-            accessibilityLabel={`No ${stage.label} study guidance supplied yet`}>
-            <HelpCircle size={24} color={colors.mutedForeground} />
-          </View> : null}
-          <View style={{ flexDirection: 'row', gap: space.md }}>
-            <ActionButton icon={ChevronLeft} variant="outline"
-              accessibilityLabel="Previous FIA stage" disabled={busy || index === 0}
-              onPress={() => setIndex(index - 1)} />
-            <ActionButton icon={X} variant="outline" accessibilityLabel="Close FIA study"
-              disabled={busy} onPress={() => setOpen(false)} />
-          </View>
-          {error ? <Note>{error}</Note> : null}
-        </Screen>
-      </SafeAreaView>
-    </Modal>
-  </>;
 }

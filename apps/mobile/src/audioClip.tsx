@@ -34,6 +34,8 @@ export function AudioClip(props: {
   editTarget?: AudioEditTarget;
   startSeconds?: number;
   endSeconds?: number;
+  /** Called when the listener starts playback (a review's "played once" rule). */
+  onPlay?: () => void;
 }) {
   const { locked } = usePreferences();
   const [editing, setEditing] = useState(false);
@@ -95,6 +97,7 @@ export function AudioClip(props: {
       player.current?.pause(); setPlaying(false); return;
     }
     stopAudioPlayback();
+    props.onPlay?.();
     const run = generation.current;
     wantsPlayback.current = true;
     setPlaying(true);

@@ -82,6 +82,8 @@ export interface Assignment {
   role: Role;
   dueDate?: string;
   instructions?: string;
+  /** Who asked: the envelope actor of the winning `AssignmentMade` (reducer v6). */
+  assignedBy: string;
   hlc: Hlc;
 }
 

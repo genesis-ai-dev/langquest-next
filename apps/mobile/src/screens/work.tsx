@@ -1,360 +1,362 @@
 import { StyleSheet } from '../theme';
-// Avatar U for My Work and Open Work; Avatar P for Give Assignment and progress detail.
-import { derivePieces, type Task, type TaskStatus } from '@langquest-next/core';
-import type { ProjectQueries, TaskPage } from '@langquest-next/client';
-import { useQuery } from '../useQuery';
-import { indexesFor } from '../indexes';
-import { ArrowRight, BookOpen, Check, Circle, CircleDot, CloudAlert, CloudCheck, CloudUpload, Inbox, LoaderCircle, Menu, Search } from 'lucide-react-native';
-import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+// Avatar U. My Work answers "what should I do next?" (J-HOME-1, J-WORK-2…10):
+// For you, Recent (this device), Waiting on others, and the last few things
+// you finished, struck through, so a returning person sees where they were.
+// Everything is derived from the record (core record.ts); nothing here gates
+// the work, and every passage is also reachable from the Map. Reference copy
+// lives in accessibility labels; the only visible words are the header,
+// passage references, language codes, due dates and counts.
+import {
+  decodeHlc, derivePassageRecord, highlightsFor, isObtLane, recentlyDone, recordHeadline, waitingOn,
+  type DoneItem, type Highlight, type RecordAsk, type Task
+} from '@langquest-next/core';
+import type { LucideIcon } from 'lucide-react-native';
+import {
+  Building2, Check, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, Clock, CloudAlert, CloudCheck, CloudUpload,
+  Headphones, History, Inbox, ListChecks, LoaderCircle, Map as MapIcon, MessageSquare, Mic
+} from 'lucide-react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { Footer, Header, Note, Row, Screen, Section } from '../pui';
+import { edgeFor, type ScreenId } from '../flow';
+import { indexesFor } from '../indexes';
+import { onRecentChange, readRecent, recentKey, type RecentPassage } from '../recent';
+import { edgeAllowed, manageHomeFor, mapScreenFor } from '../session';
 import { colors, radius, space, tint } from '../theme';
-import { ActionButton, Card, DualProgressBar, IconCircleButton, RoleBadge, TASK_META, text } from '../ui';
-import { Byline } from '../UserChip';
+import { ActionButton, text } from '../ui';
+import { PersonAvatar, usePerson } from '../UserChip';
+import { useQuery } from '../useQuery';
+import { contractsFor } from '../screenContracts';
 
-const STATUS_META: Record<TaskStatus, { icon: typeof Circle; color: string }> = {
-  todo: { icon: Circle, color: colors.mutedForeground },
-  doing: { icon: CircleDot, color: colors.translate },
-  done: { icon: Check, color: colors.done }
-};
+const FOR_YOU_CAP = 5;
+const WAITING_CAP = 3;
 
-/** Rows per page of the dashboard list; more load as the list is scrolled. */
-const TASK_PAGE = 50;
-const NO_COUNTS: Record<TaskStatus, number> = { todo: 0, doing: 0, done: 0 };
+/** One "For you" item: a record highlight, or a legacy OBT stage task. */
+type ForYou = { kind: Highlight['kind']; h: Highlight } | { kind: 'obt'; task: Task };
 
-/**
- * The visible slice of the task list: open work first, then done, each
- * read from rows in passage order. `limit` grows as the user scrolls; a
- * publication re-reads only what is on screen.
- */
-async function taskSlice(q: ProjectQueries, actorId: string, filters: TaskStatus[], limit: number): Promise<{ tasks: Task[]; more: boolean }> {
-  const phases = [filters.filter((s) => s !== 'done'), filters.filter((s) => s === 'done')].filter((p) => p.length);
-  const tasks: Task[] = [];
-  for (const status of phases) {
-    let cursor: string | null = null;
-    while (tasks.length < limit) {
-      const page: TaskPage = await q.listTasks(actorId, { status }, cursor, Math.min(TASK_PAGE, limit - tasks.length));
-      tasks.push(...page.tasks);
-      cursor = page.cursor;
-      if (!cursor) break;
-    }
-    if (tasks.length >= limit) return { tasks, more: true };
+/** Icon and hue per kind (analysis §4.2); read at render so the palette follows light/dark. */
+function look(kind: ForYou['kind']): { icon: LucideIcon; color: string; tint: string; cta: string } {
+  switch (kind) {
+    case 'respond': return { icon: MessageSquare, color: colors.review, tint: tint.review, cta: 'Respond' };
+    case 'record': return { icon: Mic, color: colors.translate, tint: tint.translate, cta: 'Record' };
+    case 'draft': return { icon: Mic, color: colors.translate, tint: tint.translate, cta: 'Continue' };
+    case 'review': return { icon: ListChecks, color: colors.review, tint: tint.review, cta: 'Review' };
+    case 'obt': return { icon: Headphones, color: colors.translate, tint: tint.translate, cta: 'Start' };
   }
-  return { tasks, more: false };
 }
 
-export function AssignmentsHome(ctx: Ctx) {
-  const { state, pending } = ctx.project;
-  const [filters, setFilters] = useState<TaskStatus[]>(['todo', 'doing', 'done']);
-  const [limit, setLimit] = useState(TASK_PAGE);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "2026-10-01" → "Oct 1"; legacy free-text dates ("Sep 30") pass through. */
+function shortDue(due: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(due);
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : due;
+}
+function shortClock(hlc: string): string {
+  const d = new Date(decodeHlc(hlc).wallMs);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+export function MyWork(ctx: Ctx) {
+  const { state } = ctx.project;
   const actorId = ctx.session.actorId;
-  const laneId = state ? Object.keys(state.lanes)[0] ?? null : null;
-  // Everything the dashboard shows comes from persisted rows: counts, the
-  // lane's progress, and the visible page of tasks. None of it derives
-  // from the fold, so opening the dashboard costs the rows on screen.
-  const counts = useQuery(ctx.project, (q) => q.taskCounts(actorId), [actorId], NO_COUNTS).data;
-  const progress = useQuery(ctx.project, (q) => (laneId ? q.getLaneProgress(laneId) : Promise.resolve(null)), [laneId], null as { translatedPct: number; approvedPct: number; passages: number } | null).data;
-  const filterKey = filters.join(',');
-  const slice = useQuery(ctx.project, (q) => taskSlice(q, actorId, filters, limit), [actorId, filterKey, limit], { tasks: [] as Task[], more: false });
-  if (!state) return <Text style={[text.muted, styles.pad]}>Opening local log…</Text>;
+  const person = usePerson();
+  const [allForYou, setAllForYou] = useState(false);
+  const [allWaiting, setAllWaiting] = useState(false);
 
-  const role = ctx.session.role;
-  const roleType = role === 'reviewer' ? 'review' : 'translate';
-  const shown = slice.data.tasks;
-  const next = shown.find((t) => !t.done);
-  const toggle = (s: TaskStatus) => { setLimit(TASK_PAGE); setFilters((f) => (f.includes(s) ? f.filter((x) => x !== s) : [...f, s])); };
+  // Derived once per state change; each walks only this person's asks and takes.
+  const derived = useMemo(() => {
+    if (!state) return null;
+    const idx = indexesFor(state);
+    return { highlights: highlightsFor(state, actorId, idx), waiting: waitingOn(state, actorId, idx), done: recentlyDone(state, actorId, 3) };
+  }, [state, actorId]);
 
-  // The task list grows with the project; a FlatList mounts only the rows on
-  // screen. Everything above and below the rows is header and footer.
-  const header = (
-    <View style={styles.headerBlock}>
-        <View style={styles.statusRow}>
-          <Pressable onPress={() => ctx.go('sync_status')} hitSlop={8} accessibilityRole="button" style={styles.statusChip}
-            accessibilityLabel={ctx.project.saving ? 'Saving' : ctx.project.tooOld ? 'Update the app to sync' : `Saved locally. Sync: ${ctx.project.lastSync}`}>
-            {ctx.project.saving ? (
-              // A write is queued or in flight: what is shown is in memory,
-              // not yet on disk. Clears within a commit; upload state follows.
-              <LoaderCircle size={16} color={colors.mutedForeground} />
-            ) : ctx.project.tooOld ? (
-              // The server no longer accepts this app version. Work is safe
-              // locally; nothing syncs until the app is updated.
-              <>
-                <CloudAlert size={16} color={colors.action} />
-                <Text style={text.small}>{pending}</Text>
-              </>
-            ) : pending > 0 ? (
-              <>
-                <CloudUpload size={16} color={colors.mutedForeground} />
-                <Text style={text.small}>{pending}</Text>
-              </>
-            ) : (
-              <CloudCheck size={16} color={colors.done} />
-            )}
-            {ctx.project.live ? <View style={styles.liveDot} /> : null}
-          </Pressable>
-          <View style={{ flexDirection: 'row', gap: space.lg }}>
-            <Pressable onPress={() => ctx.go('inbox_home')} hitSlop={8} accessibilityLabel="Inbox">
-              <Inbox size={18} color={colors.mutedForeground} />
-            </Pressable>
-            <Pressable onPress={() => ctx.go('settings_home')} hitSlop={8} accessibilityLabel="Menu">
-              <Menu size={18} color={colors.mutedForeground} />
-            </Pressable>
-          </View>
-        </View>
+  // Legacy OBT lanes keep their stage tasks (highlightsFor leaves them out).
+  const obtLanes = state ? Object.keys(state.lanes).filter((l) => isObtLane(state, l)) : [];
+  const obtTasks = useQuery(ctx.project, async (q) => {
+    const pages = await Promise.all(obtLanes.map((laneId) => q.listTasks(actorId, { status: ['todo', 'doing'], laneId }, null, 50)));
+    return pages.flatMap((p) => p.tasks).filter((t) => t.obtStage);
+  }, [actorId, obtLanes.join(',')], [] as Task[]).data;
 
-        {state.project ? (
-          <Card style={{ backgroundColor: TASK_META[roleType].tint }}>
-            <View style={styles.cardHeader}>
-              <View style={{ flex: 1, gap: space.xs }}>
-                <Text style={text.h4} numberOfLines={1}>
-                  {state.project.value.name}
-                </Text>
-                <Text style={text.muted}>{laneId ? state.lanes[laneId]?.languoidId : 'no lane'}</Text>
-              </View>
-              <View style={styles.cardActions}>
-                <RoleBadge type={roleType} accessibilityLabel={role ?? ''} />
-                <Pressable onPress={() => ctx.go('status_home')} accessibilityRole="button" accessibilityLabel="Open status" style={{ padding: space.md }}><ArrowRight size={24} color={colors.foreground} /></Pressable>
-              </View>
-            </View>
-            {progress ? <DualProgressBar translatedPct={progress.translatedPct} approvedPct={progress.approvedPct} type={roleType} /> : null}
-          </Card>
-        ) : null}
+  // Recent is device-local (J-WORK-8); App.tsx writes it when a passage opens.
+  const key = recentKey(ctx.project.orgId, ctx.project.projectId, actorId);
+  const [recent, setRecent] = useState<RecentPassage[]>([]);
+  useEffect(() => {
+    let live = true;
+    const load = () => void readRecent(key).then((r) => { if (live) setRecent(r); });
+    load();
+    const off = onRecentChange((k) => { if (k === key) load(); });
+    return () => { live = false; off(); };
+  }, [key]);
 
-        {laneId && state.laneTemplates[laneId]?.value.templateId === 'dynamic' &&
-          ctx.session.can('translate') && !state.obt.workspace ?
-          <Row icon={BookOpen} label="Bible" onPress={() => ctx.go('dynamic_bible', { laneId })} /> : null}
-        <View style={styles.filters}>
-          {(['todo', 'doing', 'done'] as TaskStatus[]).map((s) => {
-            const on = filters.includes(s);
-            const Icon = STATUS_META[s].icon;
-            const color = STATUS_META[s].color;
-            return (
-              <Pressable
-                key={s}
-                onPress={() => toggle(s)}
-                accessibilityRole="button"
-                accessibilityLabel={`${s}: ${counts[s]}`}
-                accessibilityState={{ selected: on }}
-                style={[styles.filter, on && { borderColor: color, backgroundColor: colors.card }]}
-              >
-                <Icon size={20} color={on ? color : colors.mutedForeground} />
-                <Text style={[styles.filterCount, { color: on ? color : colors.mutedForeground }]}>{counts[s]}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+  if (!state || !derived) return <Text style={[text.muted, styles.pad]}>Opening local log…</Text>;
 
-    </View>
-  );
-  const footer = role !== 'reviewer' ? (
-    <Pressable onPress={() => ctx.go('pickup_home')} accessibilityRole="button" accessibilityLabel="Browse open work" style={styles.footerBlock}>
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-        <Search size={20} color={colors.translate} />
-        <Text style={[text.body, { flex: 1 }]}>{openCount(ctx)}</Text>
-        <ArrowRight size={16} color={colors.mutedForeground} />
-      </Card>
-    </Pressable>
-  ) : null;
+  const forYou: ForYou[] = [...derived.highlights.map((h) => ({ kind: h.kind, h }) as ForYou), ...obtTasks.map((task) => ({ kind: 'obt', task }) as ForYou)];
+  const pk = (unitId: string, laneId: string) => `${unitId}:${laneId}`;
+  const listed = new Set([...forYou.map((f) => (f.kind === 'obt' ? pk(f.task.unitId, f.task.laneId) : pk(f.h.unitId, f.h.laneId))),
+    ...derived.waiting.map((w) => pk(w.unitId, w.laneId)), ...derived.done.map((d) => pk(d.unitId, d.laneId))]);
+  const recentShown = recent.filter((r) => state.units[r.unitId] && state.lanes[r.laneId] && !listed.has(pk(r.unitId, r.laneId)));
+
+  const multiLane = Object.keys(state.lanes).length > 1;
+  const labelOf = (unitId: string) => state.units[unitId]?.label ?? unitId;
+  const langOf = (laneId: string) => (multiLane ? state.lanes[laneId]?.languoidId ?? laneId : undefined);
+  const nameOf = (id: string) => (id === actorId ? 'you' : person(id).name);
+  const can = (to: ScreenId) => { const e = edgeFor('my_work', to); return !!e && edgeAllowed(e, ctx.session); };
+  const openRecord = (unitId: string, laneId: string) => ctx.go('passage_record', { unitId, laneId });
+
+  /** The primary action of a For you item; falls back to the record when the gate is closed. */
+  const act = (f: ForYou) => {
+    if (f.kind === 'obt') return ctx.go('obt_passage', { unitId: f.task.unitId, laneId: f.task.laneId, taskId: f.task.id });
+    const { h } = f;
+    const params = { unitId: h.unitId, laneId: h.laneId };
+    if ((h.kind === 'record' || h.kind === 'draft') && can('workspace')) return ctx.go('workspace', params);
+    if (h.kind === 'review' && can('review_capture')) {
+      return ctx.go('review_capture', { ...params, ...(h.takeId ? { takeId: h.takeId } : {}), ...(h.stepId ? { stepId: h.stepId } : {}) });
+    }
+    return openRecord(h.unitId, h.laneId);
+  };
+  const describe = (f: ForYou): string => {
+    if (f.kind === 'obt') return `${labelOf(f.task.unitId)} · ${f.task.obtStage ?? ''}`;
+    const { h } = f;
+    const label = labelOf(h.unitId);
+    const asked = h.askedBy ? `${nameOf(h.askedBy)} asked${h.dueDate ? ` · due ${shortDue(h.dueDate)}` : ''}` : '';
+    if (h.kind === 'respond') return `Feedback on ${label} · from ${h.reviewerId ? nameOf(h.reviewerId) : 'a reviewer'}`;
+    if (h.kind === 'record') return `Record ${label} · ${asked}`;
+    if (h.kind === 'review') return `Review ${label} · ${asked}`;
+    return `Continue ${label} · recorded, not saved yet`;
+  };
+
+  const top = forYou[0];
+  const shownForYou = allForYou ? forYou : forYou.slice(0, FOR_YOU_CAP);
+  const shownWaiting = allWaiting ? derived.waiting : derived.waiting.slice(0, WAITING_CAP);
+  const manage = manageHomeFor(ctx.session);
+  const orgName = ctx.org.state?.org?.value.name ?? '';
+  const pending = ctx.project.pending;
 
   return (
     <View style={styles.screen}>
-      <FlatList
-        data={shown}
-        keyExtractor={(task) => task.id}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={header}
-        ListFooterComponent={footer}
-        onEndReachedThreshold={0.5}
-        onEndReached={() => { if (slice.data.more) setLimit((n) => n + TASK_PAGE); }}
-        ListEmptyComponent={
-          <View style={[styles.todo, styles.pad, { alignItems: 'center' }]}>
-            <Check size={28} color={colors.done} />
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={text.h3}>My Work</Text>
+          <Text style={text.muted} numberOfLines={1}>{[person(actorId).name, orgName].filter(Boolean).join(' · ')}</Text>
+        </View>
+        <Pressable onPress={() => ctx.go('sync_status')} hitSlop={8} accessibilityRole="button" style={styles.statusChip}
+          accessibilityLabel={ctx.project.saving ? 'Saving' : ctx.project.tooOld ? 'Update the app to sync' : `Saved locally. Sync: ${ctx.project.lastSync}`}>
+          {ctx.project.saving ? (
+            // A write is queued or in flight: what is shown is in memory, not yet on disk.
+            <LoaderCircle size={16} color={colors.mutedForeground} />
+          ) : ctx.project.tooOld ? (
+            // The server no longer accepts this app version; work is safe locally.
+            <><CloudAlert size={16} color={colors.foreground} /><Text style={text.small}>{pending}</Text></>
+          ) : pending > 0 ? (
+            <><CloudUpload size={16} color={colors.mutedForeground} /><Text style={text.small}>{pending}</Text></>
+          ) : (
+            <CloudCheck size={16} color={colors.done} />
+          )}
+          {ctx.project.live ? <View style={styles.liveDot} /> : null}
+        </Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <SectionMark icon={Inbox} count={forYou.length} label="For you" />
+        {forYou.length === 0 ? (
+          <View style={styles.empty} accessible accessibilityLabel={`Nothing is waiting on you. ${manage
+            ? 'Set up people, projects and review flows under Manage, or find any passage on the Map.'
+            : 'Find any passage on the Map to keep going.'}`}>
+            <View style={[styles.tile, { backgroundColor: tint.done }]}><CheckCircle2 size={28} color={colors.done} /></View>
+            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm }}>
+              {manage ? <IconLink icon={Building2} label="Manage" onPress={() => ctx.go(manage)} /> : null}
+              <IconLink icon={MapIcon} label="Map" onPress={() => ctx.go(mapScreenFor(ctx.session))} />
+            </View>
           </View>
-        }
-        renderItem={({ item: task, index }) => (
-          <View style={[styles.todo, index < shown.length - 1 && styles.todoGap]}>
-            <TodoRow
-              task={task}
-              label={state.units[task.unitId]?.label ?? task.unitId}
-              onOpen={() => ctx.go(task.obtStage || state.obt.workspace ? 'obt_passage' : task.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: task.id })}
-              onLong={() => ctx.go('assignment_progress_detail', { taskId: task.id })}
-            />
+        ) : (
+          <View style={styles.cards}>
+            {shownForYou.map((f) => {
+              const unitId = f.kind === 'obt' ? f.task.unitId : f.h.unitId;
+              const laneId = f.kind === 'obt' ? f.task.laneId : f.h.laneId;
+              const k = look(f.kind);
+              const due = f.kind !== 'obt' && f.h.dueDate ? shortDue(f.h.dueDate) : undefined;
+              return (
+                <Card key={f.kind === 'obt' ? f.task.id : `${f.kind}:${unitId}:${laneId}:${f.h.stepId ?? ''}:${f.h.reviewerId ?? ''}`}
+                  icon={k.icon} color={k.color} background={k.tint} dashed={f.kind === 'draft'}
+                  title={labelOf(unitId)} sub={[langOf(laneId), due].filter(Boolean).join(' · ')}
+                  accessibilityLabel={describe(f)}
+                  onPress={() => (f.kind === 'obt' ? act(f) : openRecord(unitId, laneId))}
+                  trailing={f.kind === 'obt' ? undefined : (
+                    <Pressable onPress={() => act(f)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${k.cta} ${labelOf(unitId)}`}
+                      style={[styles.cta, { backgroundColor: k.tint, borderColor: k.color }]}>
+                      <k.icon size={20} color={k.color} />
+                    </Pressable>
+                  )} />
+              );
+            })}
+            {forYou.length > FOR_YOU_CAP ? <ShowAll all={allForYou} total={forYou.length} onToggle={() => setAllForYou((a) => !a)} /> : null}
           </View>
         )}
-      />
-      {next ? (
-        <View style={styles.nextFooter}>
-          <ActionButton
-            icon={TASK_META[next.type].icon}
-            accessibilityLabel={`Continue ${next.type}: ${state.units[next.unitId]?.label ?? next.unitId}`}
-            onPress={() => ctx.go(next.type === 'review' ? 'review_passage' : 'translate_passage', { taskId: next.id })}
-          />
+
+        {recentShown.length > 0 ? (
+          <>
+            <SectionMark icon={History} label="Recent" />
+            <View style={styles.group}>
+              {recentShown.map((r, i) => {
+                const rec = derivePassageRecord(state, r.unitId, r.laneId, actorId, indexesFor(state));
+                return (
+                  <ListRow key={pk(r.unitId, r.laneId)} last={i === recentShown.length - 1}
+                    icon={<History size={20} color={colors.mutedForeground} />}
+                    title={labelOf(r.unitId)} sub={langOf(r.laneId)}
+                    accessibilityLabel={`${labelOf(r.unitId)} · ${recordHeadline(rec, nameOf)}`}
+                    trailing={rec.feedbackIsMine ? <MessageSquare size={18} color={colors.review} /> : rec.done ? <Check size={18} color={colors.done} /> : undefined}
+                    onPress={() => openRecord(r.unitId, r.laneId)} />
+                );
+              })}
+            </View>
+          </>
+        ) : null}
+
+        {derived.waiting.length > 0 ? (
+          <>
+            <SectionMark icon={Clock} count={derived.waiting.length} label="Waiting on others" />
+            <View style={styles.group}>
+              {shownWaiting.map((w, i) => <WaitingRow key={`${w.unitId}:${w.laneId}:${w.profileId}:${w.role}`} w={w} last={i === shownWaiting.length - 1}
+                title={labelOf(w.unitId)} lang={langOf(w.laneId)} nameOf={nameOf} onPress={() => openRecord(w.unitId, w.laneId)} />)}
+            </View>
+            {derived.waiting.length > WAITING_CAP ? <ShowAll all={allWaiting} total={derived.waiting.length} onToggle={() => setAllWaiting((a) => !a)} /> : null}
+          </>
+        ) : null}
+
+        {derived.done.length > 0 ? (
+          <>
+            <SectionMark icon={CheckCircle2} label="Done" />
+            <View style={styles.group}>
+              {derived.done.map((d, i) => <DoneRow key={`${d.unitId}:${d.laneId}`} d={d} last={i === derived.done.length - 1}
+                title={labelOf(d.unitId)} lang={langOf(d.laneId)} onPress={() => openRecord(d.unitId, d.laneId)} />)}
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+
+      {top ? (
+        // The one yellow element: the top For you item's action.
+        <View style={styles.footer}>
+          <ActionButton icon={look(top.kind).icon} accessibilityLabel={describe(top)} onPress={() => act(top)} />
         </View>
       ) : null}
     </View>
   );
 }
 
-function openCount(ctx: Ctx): string {
-  const { state } = ctx.project;
-  if (!state) return '';
-  const laneId = Object.keys(state.lanes)[0];
-  if (!laneId) return '0';
-  return String(derivePieces(state, laneId, indexesFor(state)).filter((p) => p.status === 'unassigned').length);
+function SectionMark(props: { icon: LucideIcon; label: string; count?: number }) {
+  const Icon = props.icon;
+  return (
+    <View style={styles.sectionMark} accessible accessibilityRole="header" accessibilityLabel={props.count ? `${props.label} · ${props.count}` : props.label}>
+      <Icon size={18} color={colors.mutedForeground} />
+      {props.count ? <Text style={[text.small, { fontWeight: '700' }]}>{props.count}</Text> : null}
+    </View>
+  );
 }
 
-function TodoRow(props: { task: Task; label: string; onOpen: () => void; onLong: () => void }) {
-  const meta = TASK_META[props.task.type];
-  const TypeIcon = meta.icon;
-  const StatusIcon = STATUS_META[props.task.status].icon;
-  const done = props.task.done;
+function Card(props: {
+  icon: LucideIcon; color: string; background: string; dashed?: boolean; title: string; sub?: string;
+  accessibilityLabel: string; onPress: () => void; trailing?: ReactNode;
+}) {
+  const Icon = props.icon;
   return (
-    <Pressable
-      onPress={props.onOpen}
-      onLongPress={props.onLong}
-      accessibilityRole="button"
-      accessibilityLabel={`${props.task.type} ${props.label}, ${props.task.status}`}
-      style={[styles.row, !done && { backgroundColor: meta.tint }]}
-    >
-      <StatusIcon size={22} color={STATUS_META[props.task.status].color} />
-      <BookOpen size={16} color={colors.mutedForeground} />
-      <Text style={[text.body, { flex: 1 }, done && { color: colors.mutedForeground, textDecorationLine: 'line-through' }]} numberOfLines={1}>
-        {props.label}
-      </Text>
-      {props.task.dueDate && !done ? <Text style={text.small}>{props.task.dueDate}</Text> : null}
-      <TypeIcon size={16} color={meta.color} />
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      style={({ pressed }) => [styles.card, { backgroundColor: props.background }, pressed && { opacity: 0.85 }]}>
+      <View style={[styles.tile, { backgroundColor: colors.card, borderColor: props.color }, props.dashed && styles.dashed]}>
+        <Icon size={24} color={props.color} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={text.h4} numberOfLines={1}>{props.title}</Text>
+        {props.sub ? <Text style={text.small} numberOfLines={1}>{props.sub}</Text> : null}
+      </View>
+      {props.trailing ?? <ChevronRight size={20} color={colors.mutedForeground} />}
     </Pressable>
   );
 }
 
-/** Avatar U. Passages nobody is assigned to; claiming assigns yourself. */
-export function PickupHome(ctx: Ctx) {
-  const { state, append } = ctx.project;
-  const laneId = state ? Object.keys(state.lanes)[0] : undefined;
-  const open = state && laneId ? derivePieces(state, laneId, indexesFor(state)).filter((p) => p.status === 'unassigned') : [];
-  async function claim(unitId: string) {
-    await append('v1.AssignmentMade', { unitId, laneId: laneId!, profileId: ctx.session.actorId, role: 'translator' });
-    ctx.go('translate_passage', { taskId: `translate:${unitId}:${laneId}` });
-  }
+function ListRow(props: { icon: ReactNode; title: string; sub?: string | undefined; accessibilityLabel: string; trailing?: ReactNode; strike?: boolean; last: boolean; onPress: () => void }) {
   return (
-    <Screen>
-      <Header title="Open work" onBack={ctx.back} />
-      <Section label={`Passages · ${open.length}`}>
-        {open.length === 0 ? <Row label="Nothing open" last /> : null}
-        {open.map((p, i) => (
-          <Row key={p.unitId} icon={BookOpen} label={p.label} sub={p.stage} onPress={() => void claim(p.unitId)} last={i === open.length - 1} />
-        ))}
-      </Section>
-    </Screen>
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      style={({ pressed }) => [styles.row, !props.last && styles.rowBorder, pressed && { opacity: 0.8 }]}>
+      <View style={styles.rowIcon}>{props.icon}</View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[text.body, props.strike && styles.strike]} numberOfLines={1}>{props.title}</Text>
+        {props.sub ? <Text style={text.small} numberOfLines={1}>{props.sub}</Text> : null}
+      </View>
+      {props.trailing ?? <ChevronRight size={18} color={colors.mutedForeground} />}
+    </Pressable>
   );
 }
 
-/** Avatar P. Five-step wizard: type, assignee, passage, due date, send. */
-export function GiveAssignment(ctx: Ctx) {
-  const { state, append } = ctx.project;
-  const [step, setStep] = useState(0);
-  const [type, setType] = useState<'translator' | 'reviewer'>('translator');
-  const [who, setWho] = useState(ctx.params['assignee'] ?? '');
-  const [unitId, setUnitId] = useState(ctx.params['unitId'] ?? '');
-  const [due, setDue] = useState('Sep 30');
-  const laneId = state ? Object.keys(state.lanes)[0] : undefined;
-  const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const pieces = state && laneId ? derivePieces(state, laneId, indexesFor(state)) : [];
-  const steps = ['Type', 'Assignee', 'Passage', 'Due date'];
-  const can = [true, !!who, !!unitId, true][step];
-
-  async function send() {
-    await append('v1.AssignmentMade', { unitId, laneId: laneId!, profileId: who, role: type, dueDate: due });
-    ctx.back();
-  }
-
+function WaitingRow(props: { w: RecordAsk; title: string; lang: string | undefined; nameOf: (id: string) => string; last: boolean; onPress: () => void }) {
+  const person = usePerson();
+  const { w } = props;
+  const when = w.dueDate ? `due ${shortDue(w.dueDate)}` : `asked ${shortClock(w.at)}`;
   return (
-    <Screen
-      footer={
-        <Footer
-          label={step === steps.length - 1 ? 'Send assignment' : 'Next'}
-          onPress={() => (step === steps.length - 1 ? void send() : setStep(step + 1))}
-          disabled={!can}
-          secondary={step > 0 ? { label: 'Back', onPress: () => setStep(step - 1) } : undefined}
-        />
-      }
-    >
-      <Header title="Give assignment" sub={`Step ${step + 1} of ${steps.length} — ${steps[step]}`} onBack={ctx.back} />
-      {step === 0 ? (
-        <Section label="Type">
-          <Row label="Translation" sub="Assign a passage to translate" onPress={() => setType('translator')} right={type === 'translator' ? <Check size={18} color={colors.translate} /> : <View />} />
-          <Row label="Review" sub="Assign a passage to review" onPress={() => setType('reviewer')} right={type === 'reviewer' ? <Check size={18} color={colors.translate} /> : <View />} last />
-        </Section>
-      ) : null}
-      {step === 1 ? (
-        <Section label="Assignee">
-          {members.map(([id, m], i) => (
-            <Row key={id} personId={id} sub={m.role.value} onPress={() => setWho(id)} right={who === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === members.length - 1} />
-          ))}
-        </Section>
-      ) : null}
-      {step === 2 ? (
-        <Section label="Passage">
-          {pieces.map((p, i) => (
-            <Row key={p.unitId} label={p.label} sub={`${p.stage} · ${p.status}`} onPress={() => setUnitId(p.unitId)} right={unitId === p.unitId ? <Check size={18} color={colors.translate} /> : <View />} last={i === pieces.length - 1} />
-          ))}
-        </Section>
-      ) : null}
-      {step === 3 ? (
-        <Section label="Due date">
-          {['Sep 15', 'Sep 30', 'Oct 15', 'Oct 31'].map((d, i, a) => (
-            <Row key={d} label={d} onPress={() => setDue(d)} right={due === d ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />
-          ))}
-        </Section>
-      ) : null}
-    </Screen>
+    <ListRow last={props.last} onPress={props.onPress} title={props.title}
+      sub={[props.lang, w.dueDate ? shortDue(w.dueDate) : undefined].filter(Boolean).join(' · ') || undefined}
+      icon={<PersonAvatar look={person(w.profileId)} size={24} />}
+      accessibilityLabel={`${props.title} · ${w.kind === 'record' ? 'Recording' : 'Review'} · ${props.nameOf(w.profileId)} · ${when}`}
+      trailing={<Clock size={18} color={colors.mutedForeground} />} />
   );
 }
 
-/** Avatar P. One task's history, derived from the events that touched its unit. */
-export function AssignmentProgressDetail(ctx: Ctx) {
-  const { state } = ctx.project;
-  const taskId = ctx.params['taskId'] ?? '';
-  const [, unitId = '', laneId = ''] = taskId.split(':');
-  const label = state?.units[unitId]?.label ?? unitId;
-  const piece = state && laneId ? derivePieces(state, laneId, indexesFor(state)).find((p) => p.unitId === unitId) : undefined;
+function DoneRow(props: { d: DoneItem; title: string; lang: string | undefined; last: boolean; onPress: () => void }) {
+  const { d } = props;
+  const what = d.kind === 'version' ? 'You saved a version' : d.decision === 'approve' ? 'You approved it' : 'You asked for changes';
+  const Icon = d.kind === 'version' ? Mic : ListChecks;
   return (
-    <Screen>
-      <Header title="Assignment progress" sub={label} onBack={ctx.back} />
-      {piece ? (
-        <Section label="Now">
-          <Row label={piece.stage} sub={piece.assignee ? <Byline before={`${piece.status} ·`} id={piece.assignee} /> : piece.status} last />
-        </Section>
-      ) : (
-        <Note>No piece found for this task.</Note>
-      )}
-    </Screen>
+    <ListRow last={props.last} onPress={props.onPress} title={props.title} sub={props.lang} strike
+      icon={<Icon size={20} color={colors.mutedForeground} />}
+      accessibilityLabel={`Done: ${props.title} · ${what} · ${shortClock(d.at)}`}
+      trailing={<Check size={18} color={colors.done} />} />
+  );
+}
+
+function ShowAll(props: { all: boolean; total: number; onToggle: () => void }) {
+  return (
+    <Pressable onPress={props.onToggle} accessibilityRole="button" accessibilityLabel={props.all ? 'Show fewer' : `Show all ${props.total}`} style={styles.showAll}>
+      {props.all ? <ChevronUp size={20} color={colors.translate} /> : <ChevronDown size={20} color={colors.translate} />}
+      {props.all ? null : <Text style={[text.muted, { color: colors.translate, fontWeight: '600' }]}>{props.total}</Text>}
+    </Pressable>
+  );
+}
+
+function IconLink(props: { icon: LucideIcon; label: string; onPress: () => void }) {
+  const Icon = props.icon;
+  return (
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={styles.iconLink}>
+      <Icon size={22} color={colors.translate} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  nextFooter: { padding: space.lg, backgroundColor: colors.card, borderTopWidth: 1, borderColor: colors.border },
-  content: { padding: space.lg },
-  headerBlock: { gap: space.lg, marginBottom: space.lg },
-  footerBlock: { marginTop: space.lg },
   pad: { padding: space.lg },
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusChip: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.md,
+    backgroundColor: colors.card, borderBottomWidth: 1, borderColor: colors.border },
+  statusChip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, padding: space.sm },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.done },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
-  cardActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  filters: { flexDirection: 'row', gap: space.sm },
-  filter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingVertical: space.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: 'transparent', backgroundColor: colors.muted },
-  filterCount: { fontSize: 18, fontWeight: '700' },
-  // Rows carry the container look themselves so the list can virtualize them;
-  // only the first and last rows round the corners.
-  todo: { backgroundColor: tint.mutedContainer, paddingHorizontal: space.md, borderRadius: radius.xl },
-  todoGap: { marginBottom: space.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: space.md }
+  content: { padding: space.lg, gap: space.sm, paddingBottom: space.xl },
+  sectionMark: { flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingTop: space.md, paddingHorizontal: space.xs },
+  cards: { gap: space.sm },
+  card: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
+  tile: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
+  dashed: { borderStyle: 'dashed' },
+  cta: { width: 44, height: 44, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  empty: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg, backgroundColor: colors.card,
+    borderWidth: 1, borderColor: colors.border },
+  iconLink: { width: 48, height: 48, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.card },
+  group: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.md, minHeight: 60 },
+  rowBorder: { borderBottomWidth: 1, borderColor: colors.border },
+  rowIcon: { width: 36, height: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.muted },
+  strike: { color: colors.mutedForeground, textDecorationLine: 'line-through' },
+  showAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs, minHeight: 48, borderRadius: radius.lg,
+    backgroundColor: tint.translate },
+  footer: { padding: space.lg, backgroundColor: colors.card, borderTopWidth: 1, borderColor: colors.border }
 });
 
-import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('my_work', 'give_assignment', 'pickup_home', 'assignment_progress_detail');
+export const contracts = contractsFor('my_work');

@@ -9,7 +9,7 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 5;
+export const REDUCER_VERSION = 6;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -66,7 +66,7 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       const prior = state.assignments[key];
       if (!prior || prior.hlc < event.hlc) state.assignments[key] = {
         unitId, laneId: range.laneId, profileId: event.actorId,
-        role: 'translator', hlc: event.hlc
+        role: 'translator', assignedBy: event.actorId, hlc: event.hlc
       };
       break;
     }
@@ -224,6 +224,9 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
           role,
           ...(dueDate !== undefined ? { dueDate } : {}),
           ...(instructions !== undefined ? { instructions } : {}),
+          // The envelope actor rides with the winning register, so the asker
+          // is as deterministic as the assignment itself (reducer v6).
+          assignedBy: event.actorId,
           hlc: event.hlc
         };
       }

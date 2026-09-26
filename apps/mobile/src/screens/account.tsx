@@ -1,15 +1,16 @@
 import { StyleSheet } from '../theme';
 // Avatar P for inbox and settings; sign_out_confirm is Avatar U (one action, guarded, and it says what the guard is).
-import { decodeHlc, deriveInbox } from '@langquest-next/core';
+import { decodeHlc, deriveInbox, type InboxItem } from '@langquest-next/core';
 import { indexesFor } from '../indexes';
 import type { SyncInspection } from '@langquest-next/client';
-import { AlertCircle, ArrowDown, ArrowUp, Check, Cloud, CloudOff, CloudUpload, Database, LogOut, Radio, RefreshCw, User, Users } from 'lucide-react-native';
+import { AlertCircle, ArrowDown, ArrowUp, Bell, BookOpen, Building2, Check, CheckCircle2, Cloud, CloudOff, CloudUpload, Database, ListChecks, LogOut, MessageSquare, Mic, Radio, RefreshCw, User, Users, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { cachedInbox, refreshInbox, enableNotifications, unregisterNotifications, type RemoteNotification } from '../notifications';
+import { refreshInbox, enableNotifications, unregisterNotifications, markInboxRead, useInboxState } from '../notifications';
+import { splitByRead, visibleRemote } from '../inboxRead';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { supabase } from '../supabase';
@@ -18,35 +19,47 @@ import { ActionButton, Card, text } from '../ui';
 import * as Updates from 'expo-updates';
 import { runningBuildLabel } from '../updateStatus';
 import { AccountPrivacySettings } from '../accountPrivacySettings';
+import { PersonAvatar } from '../UserChip';
+import { personLook } from '../people';
 
-/** Notifications are derived: your open tasks, and decisions on your takes. */
+const INBOX_ICON: Record<InboxItem['kind'], LucideIcon> = {
+  assignment: Mic, review_requested: ListChecks, suggestions: MessageSquare, decision: CheckCircle2, blocker: AlertCircle
+};
+
+/**
+ * Notifications are derived (your open tasks, decisions on your takes,
+ * blockers for coordinators) plus server rows for join requests and other
+ * projects. Read state is per device. A row about a passage opens its record.
+ */
 export function InboxHome(ctx: Ctx) {
   const { state } = ctx.project;
   const me = ctx.session.actorId;
   const accountActions = useAccountActions(me).filter((a) => a.status !== 'sent');
-  const localItems = state ? deriveInbox(state, me, indexesFor(state)) : [];
-  const [remote, setRemote] = useState<RemoteNotification[]>([]);
-  const [read, setRead] = useState<string[]>([]);
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const [cached, seen] = await Promise.all([cachedInbox(me), AsyncStorage.getItem(`inbox-read:${me}`)]);
-      if (active) { setRemote(cached); setRead(JSON.parse(seen ?? '[]')); }
-      const rows = await refreshInbox(me);
-      if (active) setRemote(rows);
-    })().catch(() => {});
-    return () => { active = false; };
-  }, [me]);
-  async function openRemote(row: RemoteNotification) {
-    const next = [...new Set([...read, row.id])];
-    await AsyncStorage.setItem(`inbox-read:${me}`, JSON.stringify(next));
-    setRead(next);
-    if (row.org_id !== ctx.project.orgId || (row.project_id !== '_org' && row.project_id !== ctx.project.projectId)) {
-      await ctx.openOrganization(row.org_id, row.project_id === '_org' ? undefined : row.project_id);
-    } else if (row.kind === 'join_request') ctx.go('members_list');
-    else if (row.task_id) ctx.go(row.task_id.startsWith('review:') ? 'review_passage' : 'translate_passage', { taskId: row.task_id });
-    else ctx.go('status_home');
-  }
+  const { read, remote } = useInboxState(me);
+  useEffect(() => { void refreshInbox(me).catch(() => {}); }, [me]);
+  const local = state ? deriveInbox(state, me, indexesFor(state)) : [];
+  const items: { id: string; icon: LucideIcon; title: string; open: () => void | Promise<void> }[] = [
+    ...local.map((item) => ({
+      id: item.id, icon: INBOX_ICON[item.kind], title: item.title,
+      open: () => item.unitId && item.laneId
+        ? ctx.go('passage_record', { unitId: item.unitId, laneId: item.laneId })
+        : ctx.go('status_home')
+    })),
+    ...visibleRemote(remote, ctx.project.orgId, ctx.project.projectId).map((row) => ({
+      id: row.id, icon: row.kind === 'join_request' ? Users : Bell, title: row.title,
+      open: async () => {
+        if (row.org_id !== ctx.project.orgId || (row.project_id !== '_org' && row.project_id !== ctx.project.projectId)) {
+          await ctx.openOrganization(row.org_id, row.project_id === '_org' ? undefined : row.project_id);
+        } else if (row.kind === 'join_request') ctx.go('members_list');
+        else ctx.go('status_home');
+      }
+    }))
+  ];
+  const { unread, earlier } = splitByRead(items, read);
+  const row = (item: typeof items[number], i: number, all: typeof items) => (
+    <Row key={item.id} icon={item.icon} label={item.title} last={i === all.length - 1}
+      onPress={() => { void markInboxRead(me, [item.id]).then(item.open); }} />
+  );
   return (
     <Screen>
       <Header title="Inbox" />
@@ -56,18 +69,14 @@ export function InboxHome(ctx: Ctx) {
           sub={a.error ?? 'Waiting to send'} badge={a.status}
           onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id); } : undefined} />)}
       </Section> : null}
-      <Section label="Your work">
-        {!localItems.length ? <Row label="Nothing waiting" last /> : null}
-        {localItems.map((item) => <Row key={item.id} label={item.title}
-          badge={item.kind} onPress={() => item.taskId
-            ? ctx.go(item.taskId.startsWith('review:') ? 'review_passage' : 'translate_passage', { taskId: item.taskId })
-            : ctx.go('status_home')} />)}
-      </Section>
-      <Section label="Organization updates">
-        {remote.filter((r) => r.kind === 'join_request' || r.org_id !== ctx.project.orgId || r.project_id !== ctx.project.projectId)
-          .map((row) => <Row key={row.id} label={row.title} badge={read.includes(row.id) ? undefined : 'new'}
-            onPress={() => void openRemote(row)} />)}
-      </Section>
+      {unread.length ? <Section label={`Unread (${unread.length})`}>{unread.map(row)}</Section> : null}
+      {earlier.length ? <Section label="Earlier">{earlier.map(row)}</Section> : null}
+      {!items.length ? (
+        <View style={{ alignItems: 'center', gap: space.md, paddingVertical: space.xl }}>
+          <CheckCircle2 size={40} color={colors.done} />
+          <Text style={[text.muted, { textAlign: 'center' }]}>Nothing yet. Requests and feedback about your passages show up here.</Text>
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -76,16 +85,23 @@ export function SettingsHome(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
+  const orgName = ctx.org.state?.org?.value.name ?? ctx.project.orgId;
   return (
     <Screen>
       <Header title="Settings" />
       <Card>
-        <Text style={text.h4}>{names[s.actorId] ?? s.email ?? s.actorId.slice(0, 8)}</Text>
-        <Text style={text.muted}>{s.role ?? 'not a member'} · {ctx.org.state?.org?.value.name ?? ctx.project.orgId}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <PersonAvatar look={personLook(s.actorId, names[s.actorId] ?? s.email)} size={52} />
+          <View style={{ flex: 1 }}>
+            <Text style={text.h4}>{names[s.actorId] ?? s.email ?? s.actorId.slice(0, 8)}</Text>
+            {s.email ? <Text style={text.muted}>{s.email}</Text> : null}
+            <Text style={[text.small, { color: colors.translate }]}>{s.role ?? 'not a member'} · {orgName}</Text>
+          </View>
+        </View>
       </Card>
       <Section label="Account">
         <Row icon={User} label="Edit profile" onPress={() => ctx.go('profile_edit')} />
-        <Row icon={Users} label="Switch organization" sub={ctx.org.state?.org?.value.name ?? ctx.project.orgId} onPress={() => ctx.go('org_switcher')} last />
+        <Row icon={Building2} label="Switch organization" sub={`${orgName} · active`} onPress={() => ctx.go('org_switcher')} last />
       </Section>
       <Section label="App">
         <Row icon={Radio} label="Enable notifications" onPress={() => {
@@ -93,8 +109,7 @@ export function SettingsHome(ctx: Ctx) {
         }} />
         {notificationMessage ? <Note>{notificationMessage}</Note> : null}
         <Row icon={Cloud} label="Sync" sub={ctx.project.live ? 'live' : ctx.project.lastSync} onPress={() => ctx.go('sync_status')} />
-        <Row icon={RefreshCw} label="Replay organization walkthrough" onPress={() => ctx.go('walkthrough')} />
-        <Row icon={LogOut} label="Sign out" onPress={() => ctx.go('sign_out_confirm')} last />
+        <Row icon={BookOpen} label="Replay organization walkthrough" onPress={() => ctx.go('walkthrough')} last />
       </Section>
       <AccountPrivacySettings ctx={ctx} />
       {ctx.canSwitchPersona ? (
@@ -102,6 +117,8 @@ export function SettingsHome(ctx: Ctx) {
           <Row label="Switch persona" sub="sign in as a demo translator, reviewer or coordinator" onPress={ctx.openDev} last />
         </Section>
       ) : null}
+      {/* Outline, not red: red means recording. The guard lives on the confirm screen. */}
+      <ActionButton icon={LogOut} label="Sign out" accessibilityLabel="Sign out" variant="outline" onPress={() => ctx.go('sign_out_confirm')} />
     </Screen>
   );
 }
@@ -118,13 +135,18 @@ export function ProfileEdit(ctx: Ctx) {
     setBusy(true);
     try {
       await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
-      setMessage('Saved on this device. Your profile syncs when connected.');
+      ctx.toast('Profile saved on this device. It syncs when connected.');
+      ctx.back();
+      return;
     } catch (e) { setMessage((e as Error).message); }
     finally { setBusy(false); }
   }
   return (
     <Screen footer={<Footer label="Save profile" onPress={() => void save()} disabled={busy || !value.trim()} />}>
-      <Header title="Profile" onBack={ctx.back} />
+      <Header title="Edit profile" onBack={ctx.back} />
+      <View style={{ alignItems: 'center', paddingVertical: space.md }}>
+        <PersonAvatar look={personLook(ctx.session.actorId, value.trim() || ctx.session.email)} size={72} />
+      </View>
       <TextInput accessibilityLabel="Display name" placeholder="Your name"
         value={value} onChangeText={setName} maxLength={100}
         style={{ padding: space.md, backgroundColor: colors.card }} />
@@ -152,11 +174,11 @@ export function OrgSwitcher(ctx: Ctx) {
   }, [ctx.session.actorId]);
   return (
     <Screen>
-      <Header title="Organizations" onBack={ctx.back} />
+      <Header title="Switch organization" onBack={ctx.back} />
       <Section label="Your organizations">
-        {rows.map((r) => <Row key={`${r.org_id}:${r.project_id}`} label={r.name}
-          sub={r.project_id ?? undefined}
-          badge={r.org_id === ctx.project.orgId ? 'active' : undefined}
+        {rows.map((r, i) => <Row key={`${r.org_id}:${r.project_id}`} icon={Building2} label={r.name}
+          last={i === rows.length - 1}
+          right={r.org_id === ctx.project.orgId ? <Check size={20} color={colors.done} accessibilityLabel="Active" /> : undefined}
           onPress={() => void ctx.openOrganization(r.org_id, r.project_id ?? 'unselected').catch((e) => setError(e.message))} />)}
       </Section>
       {error ? <Note>{error}</Note> : null}
@@ -188,7 +210,7 @@ export function SignOutConfirm(ctx: Ctx) {
     ? `${pending} ${pending === 1 ? 'change is' : 'changes are'} waiting to send${online === false ? ', and this device is offline' : ''}. Sign out once they have synced so they are not stranded on this device.`
     : refused
       ? 'This account cannot sync this project: the server refused it. Signing out is safe — anything queued stays on this device.'
-      : 'Signed-in work is synced. Signing out keeps everything already on this device.';
+      : 'You can sign back in anytime.';
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.xl, backgroundColor: colors.background }}>
       <View style={{ alignItems: 'center', gap: space.md }}>
@@ -202,6 +224,7 @@ export function SignOutConfirm(ctx: Ctx) {
         ) : (
           <LogOut size={48} color={colors.mutedForeground} />
         )}
+        <Text style={text.h3}>Sign out?</Text>
         <Text style={[text.muted, { textAlign: 'center' }]}>{why}</Text>
       </View>
       <View style={{ alignSelf: 'stretch', gap: space.sm }}>

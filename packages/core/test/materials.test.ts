@@ -2,7 +2,7 @@ import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
 import { referencedBlobs } from '../src/blobs';
 import {
-  instantiateQuestionSet, keyTermLinksFor, keyTermsForUnit, keyTermsFor, materialsFor, materialView, questionSetsFor, questionsOf,
+  instantiateQuestionSet, keyTermLinksFor, keyTermsForUnit, keyTermsFor, materialsFor, materialView, questionSetsFor, questionsOf, skippedAnswerKey,
   questionSetMaterialId, takesLinkingTerm, templateFields
 } from '../src/materials';
 import { buildFixture, buildStep11Fixture, shuffle } from './fixtures';
@@ -41,6 +41,13 @@ describe('reference material: per-field registers, scopes, locks, question sets 
     expect(questionSetsFor(withAttached, 'take2', 'peer').map((s) => s.materialId).sort()).toEqual(['q-luke1', 'questions@1/community_check']);
     const qs = questionsOf(sets);
     expect(qs.map((q) => q.id)).toEqual(['questions@1/community_check#meaning', 'questions@1/community_check#natural']);
+    // Why: the reviewer answers each question the way its template asks
+    // (a 1-5 rating is not a yes/no), and only template-required questions
+    // need an answer or a reason. A hand-written set stays yes/no, optional.
+    expect(qs.map((q) => [q.type, q.required])).toEqual([['rating', true], ['rating', false]]);
+    const handWritten = questionsOf([{ ...sets[0]!, templateRef: undefined as unknown as string }]);
+    expect(handWritten.every((q) => q.type === 'yesno' && !q.required)).toBe(true);
+    expect(skippedAnswerKey(qs[0]!.id)).toBe('questions@1/community_check#meaning#skipped');
   });
 
   it('instantiating a catalog question set is deterministic', () => {
