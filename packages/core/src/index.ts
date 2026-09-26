@@ -8,6 +8,7 @@ export * from './tasks';
 export * from './status';
 export * from './blobs';
 export * from './validate';
+export { EVENT_REGISTRY, eventBlobHashes, registryEntry, type EventRegistryEntry } from './eventRegistry';
 export * from './indexes';
 export * from './blockers';
 export * from './org';

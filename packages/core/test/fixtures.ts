@@ -1,10 +1,13 @@
+import { EVENT_REGISTRY } from '../src/eventRegistry';
 import type { AnyEvent, EventEnvelope, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
+import { ORG_EVENT_TYPES, ORG_PARTITION } from '../src/org';
 
 /**
  * Builds a realistic event history from several devices. Every event type in
  * the catalog appears at least once so the permutation tests cover all of
- * them. Adding a new event type: add it here and the tests pick it up.
+ * them. A new event type is covered automatically by its registry example
+ * (`buildRegistryExampleFixture`); add it here too when it needs a story.
  */
 export function buildFixture(): AnyEvent[] {
   const events: AnyEvent[] = [];
@@ -253,6 +256,25 @@ export function buildOrgFixture(): AnyEvent[] {
   emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Luke' });
 
   return events;
+}
+
+/**
+ * One event per EVENT_REGISTRY entry, built from its example payload. The
+ * permutation and idempotence tests fold these, so a type added to the
+ * registry is covered without anyone remembering to extend a fixture.
+ * Clocks start before every other fixture so register expectations there hold.
+ */
+export function buildRegistryExampleFixture(): AnyEvent[] {
+  let wall = 1_600_000_000_000;
+  const clock = new HlcClock('dX', () => wall);
+  return (Object.keys(EVENT_REGISTRY) as EventType[]).map((type, i) => {
+    wall += 1000;
+    const org = (ORG_EVENT_TYPES as readonly string[]).includes(type);
+    return {
+      id: `x${String(i).padStart(3, '0')}`, type, orgId: 'org1', projectId: org ? ORG_PARTITION : 'p1',
+      actorId: 'lead', deviceId: 'dX', hlc: clock.next(), payload: EVENT_REGISTRY[type].example, serverSeq: 300 + i
+    } as AnyEvent;
+  });
 }
 
 export function shuffle<T>(items: T[], seed: number): T[] {

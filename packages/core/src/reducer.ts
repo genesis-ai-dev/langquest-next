@@ -8,8 +8,13 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * Bump when a materializer changes in a way that alters output for existing
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
+ *
+ * 7: validateEvent gained the SQL validate_payload rules for step 11/12 and
+ * org events. Events the server refused never reach a fold, but a cached
+ * fold may hold a locally pending or pre-validation malformed one that now
+ * lands in invalidEvents instead.
  */
-export const REDUCER_VERSION = 6;
+export const REDUCER_VERSION = 7;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent

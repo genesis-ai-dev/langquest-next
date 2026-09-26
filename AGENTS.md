@@ -66,6 +66,17 @@ the server. Read [smart-tests/README.md](smart-tests/README.md).
 - `packages/core` is pure TypeScript with no I/O. Status is derived.
 - `packages/client` owns sync through EventStore and Transport interfaces.
 - Every new event requires type, validation, reducer, permission, and permutation tests.
+  To add one:
+  1. Add the payload type in `packages/core/src/events.ts` (or its feature module).
+  2. Add its `EVENT_REGISTRY` entry in `packages/core/src/eventRegistry.ts`:
+     validate, privilege, blobHashes, an example with every optional field, `shipped`.
+  3. Add its case in `reducer.ts` (and `org.ts` for org events).
+  4. Add a migration that wraps `validate_payload` and `event_privilege` with
+     the same rule and privilege. Keep every old case.
+  5. Once released, set `shipped: true` and run `UPDATE_SHIPPED_EVENTS=1 npm test`
+     to record its shape in `packages/core/test/shipped-events.json`.
+  `packages/core/test/eventRegistry.test.ts` enforces the rest: SQL parity,
+  frozen shipped shapes, unchanged privileges, and permutation coverage.
 - Follow the avatar UI rules in `docs/ux/README.md` for mobile screens.
 - Preserve unrelated work. Freeze a reviewed release snapshot before native builds
   when other tasks are editing this workspace.

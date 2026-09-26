@@ -1,0 +1,310 @@
+{
+  "v1.ProjectCreated": {
+    "name": "string",
+    "sourceLanguoidId": "string"
+  },
+  "v1.ProjectConfigChanged": {
+    "config": "{unitKinds:array<{childKinds:array<empty>,id:string,label:string}>,workflow:array<{id:string,label:string,required:boolean,role:string,rule:string,teamId:string}>}"
+  },
+  "v1.MemberAdded": {
+    "profileId": "string",
+    "role": "string"
+  },
+  "v1.MemberRoleChanged": {
+    "profileId": "string",
+    "role": "string"
+  },
+  "v1.MemberRemoved": {
+    "profileId": "string"
+  },
+  "v1.LaneAdded": {
+    "laneId": "string",
+    "languoidId": "string"
+  },
+  "v1.UnitAdded": {
+    "kind": "string",
+    "label": "string",
+    "order": "string",
+    "parentUnitId": "null",
+    "unitId": "string"
+  },
+  "v1.ReferenceAttached": {
+    "blobHash?": "string",
+    "kind": "string",
+    "refId": "string",
+    "text?": "string",
+    "unitId": "string"
+  },
+  "v1.RecordingAdded": {
+    "cards": "array<{durationMs:number,format:string,hash:string}>",
+    "kind": "string",
+    "laneId": "string",
+    "recordingId": "string",
+    "unitId": "string"
+  },
+  "v1.TakeComposed": {
+    "cardHashes": "array<string>",
+    "laneId": "string",
+    "parentTakeId": "null",
+    "takeId": "string",
+    "unitId": "string"
+  },
+  "v1.TakeMetadataSet": {
+    "laneId": "string",
+    "milestones": "array<{endMs:number,startMs:number,verseEnd:number,verseStart:number}>",
+    "name": "string",
+    "takeId": "string",
+    "unitId": "string"
+  },
+  "v1.TakeArchived": {
+    "takeId": "string"
+  },
+  "v1.TakeSelected": {
+    "laneId": "string",
+    "takeId": "string",
+    "unitId": "string"
+  },
+  "v1.TakeSubmitted": {
+    "questionSetIds?": "array<string>",
+    "takeId": "string"
+  },
+  "v1.ReviewSubmitted": {
+    "answers?": "{q1:string}",
+    "comment?": "string",
+    "decision": "string",
+    "stepId": "string",
+    "takeId": "string"
+  },
+  "v1.AssignmentMade": {
+    "dueDate?": "string",
+    "instructions?": "string",
+    "laneId": "string",
+    "profileId": "string",
+    "role": "string",
+    "unitId": "string"
+  },
+  "v1.SourceImported": {
+    "sourceProjectId": "string",
+    "sourceSeq": "number",
+    "unitIds": "array<string>"
+  },
+  "v1.BlobStored": {
+    "hash": "string",
+    "size": "number"
+  },
+  "v1.Redacted": {
+    "eventId": "string",
+    "reason?": "string"
+  },
+  "v1.BlobInvalidated": {
+    "hash": "string",
+    "reason?": "string"
+  },
+  "v1.LaneTemplateSelected": {
+    "catalogVersion": "number",
+    "laneId": "string",
+    "templateId": "string"
+  },
+  "v1.LaneFlowSelected": {
+    "catalogVersion": "number",
+    "flowId": "string",
+    "laneId": "string"
+  },
+  "v1.WorkflowStepSet": {
+    "label?": "string",
+    "laneId?": "string",
+    "order": "string",
+    "required": "boolean",
+    "role?": "string",
+    "rule?": "string",
+    "stepId": "string",
+    "teamId?": "string"
+  },
+  "v1.WorkflowStepRemoved": {
+    "stepId": "string"
+  },
+  "v1.ReviewTeamDefined": {
+    "laneId": "string",
+    "name": "string",
+    "teamId": "string"
+  },
+  "v1.ReviewTeamMemberSet": {
+    "member": "boolean",
+    "profileId": "string",
+    "teamId": "string"
+  },
+  "v1.ResponseRecorded": {
+    "blobHash?": "string",
+    "note?": "string",
+    "respondsToTakeId": "string",
+    "takeId": "string"
+  },
+  "v1.ReviewCommentRecorded": {
+    "blobHash": "string",
+    "stepId": "string",
+    "takeId": "string"
+  },
+  "v1.MaterialDefined": {
+    "kind": "string",
+    "materialId": "string",
+    "scope": "{laneId:string,stepId:string,unitId:string}",
+    "templateRef?": "string",
+    "title": "string"
+  },
+  "v1.MaterialFieldSet": {
+    "blobHash?": "string",
+    "fieldId": "string",
+    "materialId": "string",
+    "text?": "string"
+  },
+  "v1.MaterialLocked": {
+    "locked": "boolean",
+    "materialId": "string"
+  },
+  "v1.StepQuestionSetLinked": {
+    "materialId": "string",
+    "stepId": "string"
+  },
+  "v1.KeyTermDefined": {
+    "gloss": "string",
+    "laneId": "string",
+    "term": "string",
+    "termId": "string",
+    "unitScope": "array<string>"
+  },
+  "v1.KeyTermRenderingAdded": {
+    "context": "string",
+    "rendering": "string",
+    "renderingId": "string",
+    "termId": "string"
+  },
+  "v1.KeyTermAdjusted": {
+    "adjustmentId": "string",
+    "blobHash?": "string",
+    "duringTakeId?": "string",
+    "note": "string",
+    "termId": "string"
+  },
+  "v1.KeyTermLinked": {
+    "adjustmentId?": "string",
+    "note?": "string",
+    "takeId": "string",
+    "termId": "string"
+  },
+  "v1.OrgCreated": {
+    "name": "string"
+  },
+  "v1.RoleDefined": {
+    "name": "string",
+    "privileges": "array<string>",
+    "roleId": "string"
+  },
+  "v1.RoleRetired": {
+    "roleId": "string"
+  },
+  "v1.OrgMemberAdded": {
+    "displayName?": "string",
+    "profileId": "string",
+    "roleId": "string",
+    "scope": "{laneId:string,level:string,projectId:string}"
+  },
+  "v1.OrgMemberRemoved": {
+    "profileId": "string",
+    "scope": "{level:string,projectId:string}"
+  },
+  "v1.CatalogItemToggled": {
+    "enabled": "boolean",
+    "itemId": "string",
+    "kind?": "string",
+    "level?": "string",
+    "projectId": "string"
+  },
+  "v1.ProjectRegistered": {
+    "name": "string",
+    "projectId": "string"
+  },
+  "v1.InviteIssued": {
+    "expiresAt": "string",
+    "inviteId": "string",
+    "roleId": "string",
+    "scope": "{level:string}"
+  },
+  "v1.InviteRedeemed": {
+    "inviteId": "string",
+    "profileId": "string"
+  },
+  "v1.JoinDecided": {
+    "accepted": "boolean",
+    "profileId": "string",
+    "requestId": "string"
+  },
+  "v1.ObtPolicySet": {
+    "consultantRole": "string",
+    "finalRole": "string",
+    "laneId": "string",
+    "minimumInteractions": "number"
+  },
+  "v1.ObtRoundStarted": {
+    "firstDraftId": "string",
+    "laneId": "string",
+    "previousRoundId": "null",
+    "roundId": "string",
+    "unitId": "string"
+  },
+  "v1.ObtAudioAdded": {
+    "cards": "array<{durationMs:number,format:string,hash:string}>",
+    "clipId": "string",
+    "laneId": "string",
+    "unitId": "string"
+  },
+  "v1.ObtInteractionSet": {
+    "clipIds": "array<string>",
+    "comments": "string",
+    "draftId": "string",
+    "interactionId": "string",
+    "laneId": "string",
+    "participantName": "string",
+    "photoHash?": "string",
+    "roundId": "string",
+    "unitId": "string"
+  },
+  "v1.ObtStepRecorded": {
+    "clipIds?": "array<string>",
+    "decision": "string",
+    "inputId": "string",
+    "laneId": "string",
+    "language": "string",
+    "note?": "string",
+    "roundId": "string",
+    "step": "string",
+    "takeId": "string",
+    "unitId": "string"
+  },
+  "v1.ObtWorkspaceCreated": {
+    "inputTakeId": "string",
+    "laneId": "string",
+    "language": "string",
+    "unitId": "string"
+  },
+  "v1.BibleSettingsSet": {
+    "audioFilesetId?": "string",
+    "density": "number",
+    "laneId": "string",
+    "sourceId": "string"
+  },
+  "v1.BiblePassageSelected": {
+    "book": "string",
+    "end": "number",
+    "laneId": "string",
+    "start": "number"
+  },
+  "v1.TextTranslationCreated": {
+    "laneId": "string",
+    "origin": "string",
+    "parentTranslationId": "null",
+    "sourceText?": "string",
+    "text": "string",
+    "translationId": "string",
+    "unitId": "string"
+  }
+}

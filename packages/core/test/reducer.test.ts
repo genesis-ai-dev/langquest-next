@@ -4,60 +4,19 @@ import { fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { derivePieces } from '../src/status';
 import { emptyState } from '../src/state';
-import { buildFixture, buildOrgFixture, buildStep11Fixture, shuffle } from './fixtures';
+import { EVENT_REGISTRY } from '../src/eventRegistry';
+import { buildFixture, buildOrgFixture, buildRegistryExampleFixture, buildStep11Fixture, shuffle } from './fixtures';
 
-const CATALOG: EventType[] = [
-  'v1.BibleSettingsSet', 'v1.BiblePassageSelected',
-  'v1.ObtPolicySet','v1.ObtRoundStarted','v1.ObtAudioAdded',
-  'v1.ObtInteractionSet','v1.ObtStepRecorded','v1.ObtWorkspaceCreated',
-  'v1.ProjectCreated',
-  'v1.ProjectConfigChanged',
-  'v1.MemberAdded',
-  'v1.MemberRoleChanged',
-  'v1.MemberRemoved',
-  'v1.LaneAdded',
-  'v1.UnitAdded',
-  'v1.ReferenceAttached',
-  'v1.RecordingAdded',
-  'v1.TakeComposed',
-  'v1.TakeArchived',
-  'v1.TakeSelected',
-  'v1.TakeSubmitted',
-  'v1.ReviewSubmitted',
-  'v1.AssignmentMade',
-  'v1.SourceImported',
-  'v1.BlobStored',
-  'v1.Redacted',
-  'v1.BlobInvalidated',
-  'v1.OrgCreated',
-  'v1.RoleDefined',
-  'v1.RoleRetired',
-  'v1.OrgMemberAdded',
-  'v1.OrgMemberRemoved',
-  'v1.CatalogItemToggled',
-  'v1.ProjectRegistered',
-  'v1.LaneTemplateSelected',
-  'v1.LaneFlowSelected',
-  'v1.WorkflowStepSet',
-  'v1.WorkflowStepRemoved',
-  'v1.ReviewTeamDefined',
-  'v1.ReviewTeamMemberSet',
-  'v1.ResponseRecorded',
-  'v1.ReviewCommentRecorded',
-  'v1.MaterialDefined',
-  'v1.MaterialFieldSet',
-  'v1.MaterialLocked',
-  'v1.StepQuestionSetLinked',
-  'v1.KeyTermDefined',
-  'v1.KeyTermRenderingAdded',
-  'v1.KeyTermAdjusted',
-  'v1.KeyTermLinked'
-];
+// Every registered type, so a new type fails here until a fixture folds it.
+const CATALOG = Object.keys(EVENT_REGISTRY) as EventType[];
 
 describe('reducer invariants (PLAN.md section 4)', () => {
   const events = [...buildFixture(), ...buildStep11Fixture(), ...buildOrgFixture(),...buildObtFixture(),obtEvent('obt-workspace','v1.ObtWorkspaceCreated',{unitId:'input',laneId:'blind',inputTakeId:'input',language:'English'}),
     obtEvent('bible-settings', 'v1.BibleSettingsSet', { laneId: 'BL', sourceId: 'bsb', density: 35 }),
     obtEvent('bible-passage', 'v1.BiblePassageSelected', { laneId: 'BL', book: 'gen', start: 1, end: 2 })];
+  // Registry examples for any type the hand-written stories above do not reach.
+  const told = new Set(events.map((e) => e.type));
+  events.push(...buildRegistryExampleFixture().filter((e) => !told.has(e.type)));
   const canonical = fold(events, emptyState());
 
   it('fixture exercises every event type in the catalog', () => {

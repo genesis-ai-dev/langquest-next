@@ -1,6 +1,7 @@
-import type { AnyEvent, EventEnvelope, EventType, Role } from './events';
+import type { AnyEvent, EventEnvelope, Role } from './events';
 import type { Hlc } from './hlc';
 import type { Register } from './state';
+import { EVENT_PRIVILEGE } from './eventRegistry';
 import { validateEvent } from './validate';
 
 /**
@@ -88,68 +89,12 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
 ];
 
 /**
- * The privilege an event type needs. `null` means server-only (never a
- * client), `'bootstrap'` means the partition's creation rule applies.
- * `v1.CatalogItemToggled` depends on its payload kind: see `privilegeFor`.
- * The SQL `event_privilege` is this table; keep them identical.
+ * The privilege an event type needs, read from EVENT_REGISTRY
+ * (eventRegistry.ts). The SQL `event_privilege` is this table; keep them
+ * identical. `v1.CatalogItemToggled` and `v1.MaterialDefined` depend on
+ * their payload kind: see `privilegeFor`.
  */
-export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_kind' | null> = {
-  'v1.BibleSettingsSet': 'manage_reference',
-  'v1.BiblePassageSelected': 'translate',
-  'v1.TextTranslationCreated': 'translate',
-  'v1.TakeMetadataSet': 'translate',
-  'v1.ObtPolicySet': 'manage_flows',
-  'v1.ObtRoundStarted': 'translate',
-  'v1.ObtAudioAdded': 'view_status',
-  'v1.ObtInteractionSet': 'view_status',
-  'v1.ObtStepRecorded': 'view_status',
-  'v1.ObtWorkspaceCreated': null,
-  'v1.ProjectCreated': 'bootstrap',
-  'v1.ProjectConfigChanged': 'manage_structure',
-  'v1.MemberAdded': 'invite_members',
-  'v1.MemberRoleChanged': 'invite_members',
-  'v1.MemberRemoved': 'invite_members',
-  'v1.LaneAdded': 'manage_structure',
-  'v1.UnitAdded': 'manage_templates',
-  'v1.ReferenceAttached': 'fill_reference',
-  'v1.RecordingAdded': 'translate',
-  'v1.TakeComposed': 'translate',
-  'v1.TakeArchived': 'translate',
-  'v1.TakeSelected': 'translate',
-  'v1.TakeSubmitted': 'translate',
-  'v1.ReviewSubmitted': 'review',
-  'v1.AssignmentMade': 'assign_work',
-  'v1.SourceImported': 'manage_structure',
-  'v1.BlobStored': null,
-  'v1.BlobInvalidated': null,
-  'v1.Redacted': 'manage_structure',
-  'v1.LaneTemplateSelected': 'manage_templates',
-  'v1.LaneFlowSelected': 'manage_flows',
-  'v1.WorkflowStepSet': 'manage_flows',
-  'v1.WorkflowStepRemoved': 'manage_flows',
-  'v1.ReviewTeamDefined': 'manage_teams',
-  'v1.ReviewTeamMemberSet': 'manage_teams',
-  'v1.ResponseRecorded': 'translate',
-  'v1.ReviewCommentRecorded': 'review',
-  'v1.MaterialDefined': 'by_kind',
-  'v1.MaterialFieldSet': 'fill_reference',
-  'v1.MaterialLocked': 'manage_reference',
-  'v1.StepQuestionSetLinked': 'manage_flows',
-  'v1.KeyTermDefined': 'fill_reference',
-  'v1.KeyTermRenderingAdded': 'fill_reference',
-  'v1.KeyTermAdjusted': 'fill_reference',
-  'v1.KeyTermLinked': 'fill_reference',
-  'v1.OrgCreated': 'bootstrap',
-  'v1.RoleDefined': 'manage_roles',
-  'v1.RoleRetired': 'manage_roles',
-  'v1.OrgMemberAdded': 'invite_members',
-  'v1.OrgMemberRemoved': 'invite_members',
-  'v1.CatalogItemToggled': 'by_kind',
-  'v1.ProjectRegistered': 'manage_structure',
-  'v1.InviteIssued': 'invite_members',
-  'v1.InviteRedeemed': null,
-  'v1.JoinDecided': 'invite_members'
-};
+export { EVENT_PRIVILEGE };
 
 const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
   template: 'manage_templates',
