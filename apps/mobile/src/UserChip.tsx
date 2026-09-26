@@ -53,7 +53,7 @@ export function UserChip(props: { id: string }) {
         <Text style={[text.small, styles.chipName]} numberOfLines={1}>{look.name}</Text>
       </Pressable>
       <Modal visible={!!at} transparent animationType="fade" onRequestClose={() => setAt(null)}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel="Close">
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityRole="button" accessibilityLabel="Close">
           {at ? (
             <View style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x, width - TIP_WIDTH - space.lg)) }]}>
               <View style={styles.tipHead}>

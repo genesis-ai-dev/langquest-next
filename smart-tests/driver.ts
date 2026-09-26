@@ -99,3 +99,46 @@ export async function runJev(page: Page, goal: string, options: {
     run.elapsedMs = Date.now() - started;
   }
 }
+
+/** Attach and print a journey's outcome with the driver's action log, as the first journeys do. */
+export async function reportRun(page: Page, run: AgentRun, outcome: { verdict: string; checks: { name: string; ok: boolean; detail?: string }[] }): Promise<void> {
+  const { test } = await import('@playwright/test');
+  await test.info().attach('outcome.json', { contentType: 'application/json', body: JSON.stringify({
+    jev: { status: run.status, actions: run.actions, elapsedMs: run.elapsedMs, modelCalls: run.modelCalls.length },
+    outcome
+  }, null, 2) });
+  console.log(`[outcome] ${outcome.verdict} (jev: ${run.status}, ${run.actions.length} actions)`);
+  for (const c of outcome.checks) console.log(`  ${c.ok ? 'ok  ' : 'FAIL'} ${c.name}${c.detail ? ` — ${c.detail}` : ''}`);
+  console.log(`[jev actions] ${run.actions.map((a) => `${a.kind}:${a.label}${a.text ? `=${JSON.stringify(a.text)}` : ''}`).join(' → ')}`);
+  for (const step of run.steps.filter((x) => x['operation'] === 'ERROR')) console.log(`[jev error] ${step['error']}: ${step['reason']}`);
+  if (process.env['SMART_DEBUG']) {
+    for (const step of run.steps.slice(-(Number(process.env['SMART_DEBUG']) || 3))) console.log(`[jev step] ${JSON.stringify(step).slice(0, 3000)}`);
+    for (const step of run.steps) console.log(`[jev seen] ${String((step['observation'] as { text?: string } | undefined)?.text ?? '').replace(/\s+/g, ' ').slice(0, 160)}`);
+    await page.waitForTimeout(3000);
+    console.log(`[screen after 3s] ${(await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 200)}`);
+    // Controls Jev would refuse to press: centre off-screen or covered by another element.
+    const covered = await page.evaluate(() => [...document.querySelectorAll('[role=button],button,input,textarea')].flatMap((e) => {
+      const r = e.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+      if (!r.width || !r.height) return [];
+      const top = x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+      return e.contains(top) ? [] : [`${e.getAttribute('aria-label') ?? e.tagName} @${Math.round(x)},${Math.round(y)} under ${top ? `${top.tagName}.${top.className}`.slice(0, 80) + ` "${top.getAttribute('aria-label') ?? ''}"` : 'off-screen'}`];
+    }));
+    console.log(`[unreachable] ${covered.join(' | ') || 'none'}`);
+    const cover = await page.evaluate(() => {
+      const top = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+      const out: string[] = [];
+      for (let e = top; e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.opacity !== '1' || cs.visibility !== 'visible' || e.getAttribute('aria-hidden')) out.push(`${e.tagName} opacity=${cs.opacity} vis=${cs.visibility} aria-hidden=${e.getAttribute('aria-hidden')} aria-modal=${e.getAttribute('aria-modal')}`);
+      }
+      return `${top?.getAttribute('aria-label') ?? top?.tagName} visible=${top?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })}; ${out.join(' < ')}`;
+    });
+    console.log(`[centre] ${cover}`);
+    console.log(`[stop] ${await page.evaluate(() => [...document.querySelectorAll('[aria-label="Stop recording and review take"]')].map((e) => {
+      const r = e.getBoundingClientRect();
+      return `rect=${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)}x${Math.round(r.height)} hiddenBy=${e.closest('[aria-hidden="true"],[inert]')?.outerHTML.slice(0, 120) ?? 'none'} visible=${e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })}`;
+    }).join(' | ') || 'no stop button')}`);
+    await page.screenshot({ path: test.info().outputPath('final.png') });
+  }
+  console.log(`[final screen] ${await page.title()} · ${(await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 200)}`);
+}

@@ -122,3 +122,162 @@ export function accountForDriver(outcome: Outcome, driverStatus: string): Outcom
   const hard = outcome.checks.some((c) => !c.ok && ALWAYS_WRONG.test(c.name));
   return hard ? outcome : { ...outcome, verdict: 'inconclusive' };
 }
+
+// ---- Phase 1 journeys: versions, reviews, asks, map search -----------------
+
+const cardsOf = (r: DeviceRow) => (r.event.payload['cardHashes'] as string[] | undefined) ?? [];
+const rejectedCheck = (device: DeviceRow[]): Check => {
+  const rejected = device.filter((r) => r.status === 'rejected');
+  return { name: 'no-rejected-events', ok: rejected.length === 0,
+    detail: rejected.map((r) => `${r.event.type}: ${r.rejectReason}`).join('; ') || undefined };
+};
+/** On the server by id and confirmed on the device: synced, not just written. */
+const synced = (rows: DeviceRow[], server: ServerRow[]) => {
+  const ids = new Set(server.map((e) => e.id));
+  return rows.length > 0 && rows.every((r) => r.status === 'confirmed' && ids.has(r.event.id));
+};
+
+export interface VersionContract {
+  actorId: string; unitId: string; laneId: string;
+  /** Takes that existed before the journey; a version made from them is not new. */
+  priorTakeIds: string[];
+  /** When the version answers feedback: the reviewed take it must name. */
+  respondsToTakeId?: string;
+  /** Audio of earlier versions a new version may reuse; it need not be on this device. */
+  priorHashes?: string[];
+}
+export interface LogEvidence { device: DeviceRow[]; server: ServerRow[]; blobsAfter: string[] }
+
+/**
+ * "Save Version N": a new take of this passage by this translator is
+ * composed (with audio on the device) and submitted, both events are
+ * confirmed on the server, and nothing was rejected. When it answers
+ * feedback, a ResponseRecorded with a note names the reviewed take.
+ */
+export function judgeSavedVersion(contract: VersionContract, evidence: LogEvidence): Outcome {
+  const mine = (r: DeviceRow) => r.event.actorId === contract.actorId;
+  const composed = evidence.device.filter((r) => mine(r) && r.event.type === 'v1.TakeComposed'
+    && r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+    && !contract.priorTakeIds.includes(String(r.event.payload['takeId'])));
+  const submitted = evidence.device.filter((r) => mine(r) && r.event.type === 'v1.TakeSubmitted'
+    && composed.some((c) => c.event.payload['takeId'] === r.event.payload['takeId']));
+  const takeIds = submitted.map((r) => String(r.event.payload['takeId']));
+  const composedSubmitted = composed.filter((c) => takeIds.includes(String(c.event.payload['takeId'])));
+  const hashes = composedSubmitted.flatMap(cardsOf).filter((h) => !(contract.priorHashes ?? []).includes(h));
+  const responses = evidence.device.filter((r) => mine(r) && r.event.type === 'v1.ResponseRecorded'
+    && takeIds.includes(String(r.event.payload['takeId'])));
+
+  const checks: Check[] = [
+    { name: 'version-submitted', ok: submitted.length > 0,
+      detail: `${composed.length} new TakeComposed, ${submitted.length} submitted` },
+    { name: 'version-has-new-audio', ok: hashes.length > 0 && hashes.every((h) => evidence.blobsAfter.includes(h)),
+      detail: `${hashes.length} new card(s)` },
+    rejectedCheck(evidence.device),
+    { name: 'version-reached-server', ok: synced([...composedSubmitted, ...submitted], evidence.server),
+      detail: `device status: ${[...composedSubmitted, ...submitted].map((r) => `${r.event.type}=${r.status}`).join(', ') || 'none'}` }
+  ];
+  if (contract.respondsToTakeId !== undefined) {
+    const answering = responses.filter((r) => r.event.payload['respondsToTakeId'] === contract.respondsToTakeId
+      && String(r.event.payload['note'] ?? '').trim() !== '');
+    checks.push(
+      { name: 'response-names-reviewed-take', ok: answering.length > 0,
+        detail: responses.map((r) => `responds to ${String(r.event.payload['respondsToTakeId'])}`).join('; ') || 'no ResponseRecorded' },
+      { name: 'response-reached-server', ok: synced(answering, evidence.server) });
+  }
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = composed.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface ReviewContract {
+  reviewerId: string; takeId: string; stepId: string;
+  decision: 'approve' | 'suggest_changes';
+  /** Each needs an answer or a `${id}#skipped` reason. */
+  requiredQuestionIds: string[];
+}
+
+/**
+ * A reviewer's decision on one version: a ReviewSubmitted by them for that
+ * take and step, with the decision asked for, typed feedback when asking
+ * for changes, every required question handled, confirmed on the server.
+ */
+export function judgeReview(contract: ReviewContract, evidence: LogEvidence): Outcome {
+  const reviews = evidence.device.filter((r) => r.event.type === 'v1.ReviewSubmitted' && r.event.actorId === contract.reviewerId
+    && r.event.payload['takeId'] === contract.takeId && r.event.payload['stepId'] === contract.stepId);
+  const decided = reviews.filter((r) => r.event.payload['decision'] === contract.decision);
+  const complete = decided.filter((r) => {
+    const answers = (r.event.payload['answers'] as Record<string, string> | undefined) ?? {};
+    const comment = String(r.event.payload['comment'] ?? '').trim();
+    return (contract.decision === 'approve' || comment !== '')
+      && contract.requiredQuestionIds.every((id) => (answers[id] ?? answers[`${id}#skipped`] ?? '') !== '');
+  });
+  const checks: Check[] = [
+    { name: 'review-in-device-log', ok: decided.length > 0,
+      detail: `${reviews.length} review(s): ${reviews.map((r) => String(r.event.payload['decision'])).join(', ') || 'none'}` },
+    { name: 'review-says-what-and-answers', ok: complete.length > 0,
+      detail: decided.map((r) => `comment=${JSON.stringify(r.event.payload['comment'] ?? null)} answers=${JSON.stringify(r.event.payload['answers'] ?? {})}`).join('; ') || undefined },
+    rejectedCheck(evidence.device),
+    { name: 'review-reached-server', ok: synced(complete, evidence.server),
+      detail: `device status: ${decided.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  // Only the other decision: the driver chose differently; nothing about this decision was shown.
+  const exercised = decided.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface AskContract { askerId: string; unitId: string; laneId: string; profileId: string; role: string }
+
+/** An ask with a due date: an AssignmentMade by the asker naming the person, role and an ISO date, confirmed on the server. */
+export function judgeAsk(contract: AskContract, evidence: LogEvidence): Outcome {
+  const asks = evidence.device.filter((r) => r.event.type === 'v1.AssignmentMade' && r.event.actorId === contract.askerId);
+  const right = asks.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+    && r.event.payload['profileId'] === contract.profileId && r.event.payload['role'] === contract.role);
+  const dated = right.filter((r) => /^\d{4}-\d{2}-\d{2}/.test(String(r.event.payload['dueDate'] ?? '')));
+  const checks: Check[] = [
+    { name: 'ask-in-device-log', ok: right.length > 0,
+      detail: asks.map((r) => `${String(r.event.payload['unitId'])} → ${String(r.event.payload['profileId'])} as ${String(r.event.payload['role'])}`).join('; ') || 'none' },
+    { name: 'ask-has-due-date', ok: dated.length > 0, detail: right.map((r) => String(r.event.payload['dueDate'] ?? 'no date')).join(', ') || undefined },
+    rejectedCheck(evidence.device),
+    { name: 'ask-reached-server', ok: synced(dated, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = asks.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface SearchContract {
+  /** Exactly what the user types, e.g. "luk 1". */
+  query: string;
+  laneId: string;
+  /** Passages the query means; opening any other one is not this journey. */
+  matchingUnitIds: string[];
+}
+export interface SearchEvidence {
+  /** Text the user typed, in order (the driver's own keystrokes, not its claims). */
+  typed: string[];
+  /** The device-local Recent list (RecentPassage[]) before and after the journey. */
+  recentBefore: { unitId: string; laneId: string }[];
+  recentAfter: { unitId: string; laneId: string }[];
+}
+
+/**
+ * Map search opened a passage. The product persists every opened passage to
+ * the device's Recent list (App.tsx, rememberRecent); that write, for a
+ * passage the query means, after the query was typed, is the outcome.
+ */
+export function judgeMapSearch(contract: SearchContract, evidence: SearchEvidence): Outcome {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const searched = evidence.typed.some((t) => norm(t) === norm(contract.query));
+  const opened = evidence.recentAfter[0];
+  const fresh = !!opened && !evidence.recentBefore.some((r) => r.unitId === opened.unitId && r.laneId === opened.laneId);
+  const matches = !!opened && opened.laneId === contract.laneId && contract.matchingUnitIds.includes(opened.unitId);
+  const checks: Check[] = [
+    { name: 'query-typed', ok: searched, detail: `typed: ${JSON.stringify(evidence.typed)}` },
+    { name: 'passage-opened', ok: fresh, detail: `recent before ${evidence.recentBefore.length}, after ${evidence.recentAfter.length}` },
+    { name: 'opened-passage-matches-query', ok: matches, detail: opened ? `${opened.unitId} in ${opened.laneId}` : 'none' }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  // Without the typed query there is nothing to judge about search.
+  return { verdict: searched && fresh ? 'product_failure' : 'inconclusive', checks };
+}

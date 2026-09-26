@@ -2,14 +2,15 @@
 // seed event passes the same authorization and validation a phone's would,
 // so a seed that drifts from the event catalog fails here, loudly.
 import { readFileSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  applyOrgEvent, emptyOrgState, foldOrg, ORG_PARTITION, REDUCER_VERSION, SEED_ROLES,
+  applyOrgEvent, emptyOrgState, foldOrg, instantiateQuestionSet, ORG_PARTITION, QUESTION_TEMPLATES, questionSetMaterialId, REDUCER_VERSION, SEED_ROLES,
   type EventPayloads, type EventType, type OrgState
 } from '@langquest-next/core';
 import { MemoryStore, SupabaseTransport, SyncClient, type Materializer } from '@langquest-next/client';
+import { VOICE_WAV } from './fixtures/voice';
 
 const SUPABASE_URL = process.env['EXPO_PUBLIC_SUPABASE_URL'] ?? 'http://127.0.0.1:54321';
 const ANON = process.env['EXPO_PUBLIC_SUPABASE_ANON_KEY'] ?? '';
@@ -32,6 +33,20 @@ export interface World {
   passages: { unitId: string; label: string }[];
   owner: Person;
   translator: Person;
+  /** In the project but assigned to nobody: a passage someone still has to be asked to record. */
+  unassigned: { unitId: string; label: string };
+  /** Present only when asked for (seedTranslatorWorld options). */
+  reviewer?: Person;
+  coordinator?: Person;
+}
+
+/** A translator's Version 1 of passages[0], submitted for the community step, with real audio on the server. */
+export interface SubmittedWorld extends World {
+  reviewer: Person;
+  stepId: string;
+  /** Required questions the reviewer must answer or skip, as `${materialId}#${fieldId}`. */
+  requiredQuestionIds: string[];
+  version1: { takeId: string; hash: string };
 }
 
 async function person(role: string): Promise<Person> {
@@ -57,17 +72,17 @@ async function commit<S>(client: SyncClient<S>, intents: Intent[], what: string)
 /**
  * An org and project exactly as CreateOrg (apps/mobile/src/screens/entry.tsx)
  * makes them, plus a translator with an org role, a project membership and
- * every passage assigned — what DevMenu's "Seed demo team" gives one.
+ * every passage assigned — what DevMenu's "Seed demo team" gives one — and
+ * one more passage nobody is asked to record. A reviewer or coordinator
+ * joins (org role and project membership) only when asked for.
  */
-export async function seedTranslatorWorld(): Promise<World> {
-  const [owner, translator] = await Promise.all([person('owner'), person('translator')]);
+export async function seedTranslatorWorld(options: { reviewer?: boolean; coordinator?: boolean } = {}): Promise<World> {
+  const [owner, translator, reviewer, coordinator] = await Promise.all([person('owner'), person('translator'),
+    options.reviewer ? person('reviewer') : undefined, options.coordinator ? person('coordinator') : undefined]);
   const orgId = randomUUID(), projectId = randomUUID(), laneId = 'L1';
   const passages = ['Luke 1:1-4', 'Luke 1:5-25'].map((label, i) => ({ unitId: `luke-${i}`, label }));
-  const client = <S,>(partition: string, materializer?: Materializer<S>) => new SyncClient<S>({
-    ...(materializer ? { materializer } : {}),
-    orgId, projectId: partition, actorId: owner.id, deviceId: `seed-${owner.id}`,
-    store: new MemoryStore(), transport: new SupabaseTransport(owner.sb), newId: () => randomUUID()
-  });
+  const unassigned = { unitId: 'luke-2', label: 'Luke 2:1-7' };
+  const client = <S,>(partition: string, materializer?: Materializer<S>) => clientFor(owner, orgId, partition, materializer);
 
   const org = client(ORG_PARTITION, ORG_MATERIALIZER);
   await org.load();
@@ -76,7 +91,9 @@ export async function seedTranslatorWorld(): Promise<World> {
     ...SEED_ROLES.map((r) => intent('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
     intent('v1.OrgMemberAdded', { profileId: owner.id, roleId: 'org_admin', scope: { level: 'org' }, displayName: 'owner' }),
     intent('v1.ProjectRegistered', { projectId, name: 'Luke' }),
-    intent('v1.OrgMemberAdded', { profileId: translator.id, roleId: 'translator', scope: { level: 'org' }, displayName: 'translator' })
+    intent('v1.OrgMemberAdded', { profileId: translator.id, roleId: 'translator', scope: { level: 'org' }, displayName: 'translator' }),
+    ...(reviewer ? [intent('v1.OrgMemberAdded', { profileId: reviewer.id, roleId: 'reviewer', scope: { level: 'org' }, displayName: 'reviewer' })] : []),
+    ...(coordinator ? [intent('v1.OrgMemberAdded', { profileId: coordinator.id, roleId: 'project_coordinator', scope: { level: 'org' }, displayName: 'coordinator' })] : [])
   ], 'org');
 
   const project = client(projectId);
@@ -90,17 +107,84 @@ export async function seedTranslatorWorld(): Promise<World> {
     } }),
     intent('v1.LaneAdded', { laneId, languoidId: 'und' }),
     intent('v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Luke', order: 'a' }),
-    ...passages.map((p, i) => intent('v1.UnitAdded', { unitId: p.unitId, parentUnitId: 'luke', kind: 'passage', label: p.label, order: `a${i}` })),
+    ...[...passages, unassigned].map((p, i) => intent('v1.UnitAdded', { unitId: p.unitId, parentUnitId: 'luke', kind: 'passage', label: p.label, order: `a${i}` })),
     intent('v1.MemberAdded', { profileId: translator.id, role: 'translator' }),
+    ...(reviewer ? [intent('v1.MemberAdded', { profileId: reviewer.id, role: 'reviewer' })] : []),
+    ...(coordinator ? [intent('v1.MemberAdded', { profileId: coordinator.id, role: 'coordinator' })] : []),
     ...passages.map((p) => intent('v1.AssignmentMade', { unitId: p.unitId, laneId, profileId: translator.id, role: 'translator' }))
   ], 'project');
 
-  // First-run screens are recorded on the server, with the app's own ids (accountData.ts).
+  for (const p of [translator, reviewer, coordinator]) if (p) await firstRunDone(p);
+  return { orgId, projectId, laneId, passages, owner, translator, unassigned,
+    ...(reviewer ? { reviewer } : {}), ...(coordinator ? { coordinator } : {}) };
+}
+
+function clientFor<S>(who: Person, orgId: string, partition: string, materializer?: Materializer<S>): SyncClient<S> {
+  return new SyncClient<S>({
+    ...(materializer ? { materializer } : {}),
+    orgId, projectId: partition, actorId: who.id, deviceId: `seed-${who.id}`,
+    store: new MemoryStore(), transport: new SupabaseTransport(who.sb), newId: () => randomUUID()
+  });
+}
+
+/** First-run screens are recorded on the server, with the app's own ids (accountData.ts). */
+async function firstRunDone(who: Person) {
   for (const [type, payload, key] of [['v1.TermsAccepted', { version: TERMS_VERSION }, TERMS_VERSION], ['v1.VisionSeen', {}, '1']] as const) {
-    const { error } = await translator.sb.rpc('record_user_event', { p_id: `${translator.id}:${type}:${key}`, p_type: type, p_payload: payload });
+    const { error } = await who.sb.rpc('record_user_event', { p_id: `${who.id}:${type}:${key}`, p_type: type, p_payload: payload });
     if (error) throw new Error(`seed ${type}: ${error.message}`);
   }
-  return { orgId, projectId, laneId, passages, owner, translator };
+}
+
+/**
+ * The translator world plus a reviewer asked to review passages[0], the
+ * catalog's community questions linked to the review step, and the
+ * translator's Version 1 of that passage submitted with its audio uploaded
+ * exactly as the app uploads it (so the storage trigger confirms it).
+ * With `feedback`, the reviewer has already asked for changes on it.
+ */
+export async function seedSubmittedWorld(options: { feedback?: string } = {}): Promise<SubmittedWorld> {
+  const world = await seedTranslatorWorld({ reviewer: true });
+  const reviewer = world.reviewer!;
+  const { orgId, projectId, laneId, owner, translator } = world;
+  const unitId = world.passages[0]!.unitId;
+  const stepId = 'community';
+  const questions = instantiateQuestionSet('community_check', laneId);
+  const materialId = questionSetMaterialId('community_check');
+  const template = QUESTION_TEMPLATES.find((q) => q.id === 'community_check')!;
+
+  const owners = clientFor(owner, orgId, projectId);
+  await owners.load();
+  await commit(owners, [
+    ...questions.map((q) => intent(q.type, q.payload)),
+    intent('v1.StepQuestionSetLinked', { stepId, materialId }),
+    intent('v1.AssignmentMade', { unitId, laneId, profileId: reviewer.id, role: 'reviewer' })
+  ], 'review setup');
+
+  // The same bytes Chrome plays as the microphone, stored where the app stores a take.
+  const bytes = readFileSync(VOICE_WAV);
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  const { error: uploadError } = await translator.sb.storage.from('blobs')
+    .upload(`${orgId}/${projectId}/${hash}.wav`, bytes, { contentType: 'audio/wav', upsert: true });
+  if (uploadError) throw new Error(`seed audio upload: ${uploadError.message}`);
+
+  const takeId = `take:seed-${randomUUID()}`;
+  const translators = clientFor(translator, orgId, projectId);
+  await translators.load();
+  await commit(translators, [
+    intent('v1.RecordingAdded', { recordingId: `rec:${randomUUID()}`, unitId, laneId, kind: 'target', cards: [{ hash, durationMs: 4000, format: 'wav' }] }),
+    intent('v1.TakeComposed', { takeId, unitId, laneId, cardHashes: [hash], parentTakeId: null }),
+    intent('v1.TakeSelected', { takeId, unitId, laneId }),
+    intent('v1.TakeSubmitted', { takeId, questionSetIds: [] })
+  ], 'version 1');
+
+  const requiredQuestionIds = template.questions.filter((q) => q.required).map((q) => `${materialId}#${q.id}`);
+  if (options.feedback) {
+    const reviewers = clientFor(reviewer, orgId, projectId);
+    await reviewers.load();
+    await commit(reviewers, [intent('v1.ReviewSubmitted', { takeId, stepId, decision: 'suggest_changes', comment: options.feedback,
+      answers: Object.fromEntries(requiredQuestionIds.map((id) => [id, '2'])) })], 'feedback');
+  }
+  return { ...world, reviewer, stepId, requiredQuestionIds, version1: { takeId, hash } };
 }
 
 /** Open the app signed in as `who`, on the seeded project, and wait for the device log. */

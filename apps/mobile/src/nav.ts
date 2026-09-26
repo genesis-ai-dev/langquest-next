@@ -30,6 +30,19 @@ export const navRef = createNavigationContainerRef<StackParams>();
  * render. Dispatches before the container is ready are dropped; `ready`
  * flips once so those effects re-run.
  */
+/**
+ * Pop until `screen` is on top; reset to it if it is not in the stack.
+ * `params` apply only to the reset: a screen already in the stack keeps its
+ * own. `merge` is what keeps them: React Navigation 7's POP_TO without it
+ * replaces the found route's params with the action's (none), so
+ * passage_record lost its unitId and showed "Passage not found".
+ */
+export function popToAction(routes: readonly { name: string }[], screen: ScreenId, params?: Record<string, string>) {
+  return routes.some((r) => r.name === screen)
+    ? StackActions.popTo(screen, undefined, { merge: true })
+    : CommonActions.reset({ index: 0, routes: [{ name: screen, params }] });
+}
+
 export function useNav(initial: Route) {
   const [stack, setStack] = useState<Route[]>([initial]);
   const [ready, setReady] = useState(false);
@@ -58,14 +71,9 @@ export function useNav(initial: Route) {
   const back = useCallback(() => {
     if (navRef.isReady() && navRef.canGoBack()) navRef.dispatch(CommonActions.goBack());
   }, []);
-  /**
-   * Pop until `screen` is on top; reset to it if it is not in the stack.
-   * `params` apply only to the reset: a screen already in the stack keeps its own.
-   */
   const popTo = useCallback((screen: ScreenId, params?: Record<string, string>) => {
     if (!navRef.isReady()) return;
-    const inStack = navRef.getRootState()?.routes.some((r) => r.name === screen);
-    navRef.dispatch(inStack ? StackActions.popTo(screen) : CommonActions.reset({ index: 0, routes: [{ name: screen, params }] }));
+    navRef.dispatch(popToAction(navRef.getRootState()?.routes ?? [], screen, params));
   }, []);
 
   return useMemo(

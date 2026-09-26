@@ -54,7 +54,7 @@ Phase 0 notes: `progress_home` is retired; the other retiring screens stay until
 ## Phase 1: journeys that need no new events
 
 Legend: `[x]` built and walked; `[~]` built, typecheck and unit tests pass, not yet walked in the app; `[ ]` not built.
-Walked so far (smart-tests, 2026-09-25): translator records a passage in the workspace, online and offline with restart and sync.
+Walked so far (smart-tests, 2026-09-25): translator records a passage in the workspace, online and offline with restart and sync; translator saves Version 1 from My Work (TakeComposed + TakeSubmitted confirmed); reviewer opens review_capture from My Work, plays, answers the required question and sends Needs changes with typed feedback (ReviewSubmitted confirmed); translator answers that feedback with Record a fix and saves Version 2 with a what-changed note (TakeSubmitted + ResponseRecorded naming Version 1); coordinator opens an unrecorded passage from the Map and asks the translator to record it, due in a week (AssignmentMade with dueDate confirmed; the existing-facts ask, not Phase 2 J-REC-10); translator searches the Map for "luk 1" and opens a Luke 1 passage (device Recent list). Not walked by these: voice feedback, skip-with-reason, background disclosures, back-translation compare, search at whole-Bible scale.
 Partial items and their missing parts are listed in each agent report; the needs-Phase-2 parts are in Phase 2 below.
 
 Entry and account
@@ -71,20 +71,20 @@ Entry and account
 My Work and Map
 - [~] J-WORK-2…10 For you (feedback, asked record, asked review, draft), Recent (device-local), Waiting on others, caps, empty state
 - [~] J-MAP-1 Progress with several counts per language (no bottleneck or percent)
-- [~] J-MAP-2 Search "luk 15" at whole-Bible scale (port canon parsing)
+- [x] J-MAP-2 Search "luk 15" at whole-Bible scale (port canon parsing) — walked with "luk 1" on a three-passage project; whole-Bible scale not walked
 - [~] J-MAP-3 Testament → book rows → chapter grid → parts sheet → record
 - [~] J-MAP-4…7 Filter chips, switch language, for-you marks (never yellow), edges
 
 Passage record (existing facts: per-take status until Phase 2)
 - [~] J-REC-1 Hero (whose turn), step path tiles, latest event
-- [~] J-REC-3 Record a fix → workspace with respondsTo → popTo record + toast
+- [x] J-REC-3 Record a fix → workspace with respondsTo → popTo record + toast
 - [~] J-REC-8/9 Next step zone, step sheet, parallel steps from equal order
 - [~] J-REC-12…18 Reviews by version, History, version detail, review detail, waiting-on-author, done card, asked step
 
 Doing the work
-- [~] Workspace (do-work J-REC-1…4): one screen replaces translate hub + quest_assets + add_to_tg + attach_questions; VAD takeover moved unchanged; tray (key terms, study, notes, history); Save Version N
+- [x] Workspace (do-work J-REC-1…4): one screen replaces translate hub + quest_assets + add_to_tg + attach_questions; VAD takeover moved unchanged; tray (key terms, study, notes, history); Save Version N
 - [~] J-REC-5 Polished final version via the same workspace
-- [~] J-REV-1/2 review_capture: questions inline with types, skip with reason, voice and text feedback, Needs changes needs feedback, Background disclosures, back-translation compare (OBT lanes)
+- [x] J-REV-1/2 review_capture (walked: required question, typed feedback, Needs changes; the rest by hand still): questions inline with types, skip with reason, voice and text feedback, Needs changes needs feedback, Background disclosures, back-translation compare (OBT lanes)
 - [~] J-STUDY-1/5/6 study_guide and study_step screens from existing FIA content and progress (modal retired)
 - [~] J-STUDY-3 PassageReader with BSB text and real timings
 - [~] J-BT-1 back_translation screen for OBT lanes (partition boundary kept)
@@ -123,3 +123,6 @@ permutation/idempotence fixtures.
 ## Existing bug found in passing
 
 - [ ] Core `validateEvent` has no cases for `WorkflowStepSet`, `LaneFlowSelected`, `ResponseRecorded`, `ReviewCommentRecorded`, `Material*`, `KeyTerm*`, `ReviewTeam*`, `StepQuestionSetLinked`, though SQL validates them (invariant 11)
+- [x] `popTo` into a screen already in the stack dropped its params (React Navigation 7 POP_TO without `merge`), so saving in the workspace, deciding in review_capture or sending an ask landed on "Passage not found" whenever passage_record was already open. Fixed in `apps/mobile/src/nav.ts` (`popToAction`), pinned by `apps/mobile/test/nav.test.ts`.
+- [x] The person-chip id popover's full-screen dismiss had a label but no role, so assistive tech (and Jev) could not find "Close". Fixed in `apps/mobile/src/UserChip.tsx`.
+- [ ] passage_record's step path has no reference caption "Tap any step to ask someone, log it, or set it aside." (rule 1: reference copy goes in accessibility labels). Without it the coordinator journey could not find "Ask someone to record"; its goal now states the caption.

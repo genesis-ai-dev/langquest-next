@@ -52,3 +52,9 @@ export async function settle<T>(read: () => Promise<T>, done: (value: T) => bool
   }
   return value;
 }
+
+/** The device-local Recent list My Work reads (apps/mobile/src/recent.ts; AsyncStorage is localStorage on web). */
+export async function deviceRecent(page: Page, orgId: string, projectId: string, actorId: string): Promise<{ unitId: string; laneId: string }[]> {
+  const raw = await page.evaluate((key) => localStorage.getItem(key), `recent:${orgId}:${projectId}:${actorId}`);
+  return raw ? JSON.parse(raw) as { unitId: string; laneId: string }[] : [];
+}

@@ -12,6 +12,12 @@ here only a shell-started Metro picks up edits.
 
 - `world.ts` seeds a fresh org, project and translator through the real
   server, then hands the browser a signed-in session. No sign-in screens.
+  `seedSubmittedWorld` adds a reviewer and a submitted Version 1 whose audio
+  is uploaded the way the app uploads it (optionally with feedback on it).
+- Jev scrolls only the document; React Native web scrolls inside a view. A
+  journey whose screen outgrows a phone viewport sets a tall viewport
+  (`test.use`) rather than leaving controls out of Jev's reach.
+- `SMART_DEBUG=n` prints Jev's last n observations and the screen 3 s after.
 - `fixtures/voice.ts` writes the WAV Chrome plays as the microphone.
 - `outcome.ts` holds the verdicts: `passed`, `product_failure` (the product
   was exercised and got it wrong), `inconclusive` (Jev never reached the
