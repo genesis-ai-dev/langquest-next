@@ -5,6 +5,9 @@ import { writeVoice } from './fixtures/voice';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const voice = writeVoice();
+// Journeys get their own dev server, started from a shell so Metro sees edits
+// (the preview pane's server on 8090 does not in this environment).
+const port = process.env['SMART_PORT'] ?? '8091';
 
 export default defineConfig({
   testDir: path.join(directory, 'journeys'),
@@ -13,11 +16,11 @@ export default defineConfig({
   // A retry that turns red into green hides exactly what this suite exists to find.
   retries: 0,
   forbidOnly: Boolean(process.env['CI']),
-  timeout: 240_000,
+  timeout: 180_000,
   reporter: [['line']],
   outputDir: path.join(directory, 'results'),
   use: {
-    baseURL: process.env['SMART_BASE_URL'] ?? 'http://localhost:8090',
+    baseURL: `http://localhost:${port}`,
     viewport: { width: 430, height: 932 },
     permissions: ['microphone'],
     launchOptions: {
@@ -27,9 +30,9 @@ export default defineConfig({
     trace: 'off', screenshot: 'off', video: 'off'
   },
   webServer: {
-    command: 'npm run web -w mobile -- --port 8090',
+    command: `npm run web -w mobile -- --port ${port}`,
     cwd: path.join(directory, '..'),
-    url: 'http://localhost:8090',
+    url: `http://localhost:${port}`,
     reuseExistingServer: true,
     timeout: 300_000
   }

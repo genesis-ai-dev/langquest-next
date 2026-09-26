@@ -62,3 +62,63 @@ export function judgeRecording(contract: RecordingContract, evidence: RecordingE
   const exercised = newBlobs.length > 0 || recordings.length > 0 || rejected.length > 0;
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
+
+/** The contract's takes in one reading of the device log. */
+function takesIn(contract: RecordingContract, device: DeviceRow[]) {
+  return device.filter((r) => r.event.type === 'v1.RecordingAdded' && r.event.actorId === contract.actorId
+    && contract.unitIds.includes(String(r.event.payload['unitId'])) && r.event.payload['laneId'] === contract.laneId
+    && r.event.payload['kind'] === 'target');
+}
+
+/**
+ * Extended offline use: a take recorded with the server unreachable is a
+ * pending event with its audio on the device, survives an app restart while
+ * still offline, and syncs completely once the server is back.
+ */
+export function judgeOfflineRecording(contract: RecordingContract, evidence: {
+  offline: RecordingEvidence; afterRestart: RecordingEvidence; online: RecordingEvidence;
+}): Outcome {
+  const offlineTakes = takesIn(contract, evidence.offline.device);
+  const ids = offlineTakes.map((r) => r.event.id);
+  const hashes = offlineTakes.flatMap((r) => (r.event.payload['cards'] as { hash: string }[] | undefined ?? []).map((c) => c.hash));
+  const serverIds = new Set(evidence.offline.server.map((e) => e.id));
+  const restarted = new Map(takesIn(contract, evidence.afterRestart.device).map((r) => [r.event.id, r]));
+  const online = judgeRecording(contract, evidence.online);
+
+  const checks: Check[] = [
+    { name: 'recorded-while-offline', ok: offlineTakes.length > 0 && offlineTakes.every((r) => r.status === 'pending'),
+      detail: `${offlineTakes.length} take(s): ${offlineTakes.map((r) => r.status).join(', ') || 'none'}` },
+    { name: 'audio-kept-offline', ok: hashes.length > 0 && hashes.every((h) => evidence.offline.blobsAfter.includes(h)) },
+    { name: 'server-unreachable-while-offline', ok: ids.every((id) => !serverIds.has(id)),
+      detail: 'a take on the server here means the journey was never offline' },
+    { name: 'take-survives-offline-restart', ok: ids.length > 0 && ids.every((id) => restarted.get(id)?.status === 'pending'),
+      detail: `${ids.filter((id) => restarted.has(id)).length}/${ids.length} after restart` },
+    { name: 'audio-survives-offline-restart', ok: hashes.length > 0 && hashes.every((h) => evidence.afterRestart.blobsAfter.includes(h)) },
+    ...online.checks.map((c) => ({ ...c, name: `after-reconnect: ${c.name}` }))
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = offlineTakes.length > 0
+    || evidence.offline.blobsAfter.some((h) => !evidence.offline.blobsBefore.includes(h));
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+/** Driver endings that mean the harness, not the user, stopped. `blocked` is Jev's judgement and never softens a verdict. */
+const HARNESS_STOPS = new Set(['driver_error', 'timed_out', 'budget_exhausted', 'incomplete']);
+/**
+ * Wrong whatever state the user was left in: a refused write, or a take in
+ * the log whose audio is not on the device (ingest writes audio before the
+ * event, so an unfinished user can never cause it).
+ */
+const ALWAYS_WRONG = /(^|: )(no-rejected-events|recording-has-audio|audio-kept-offline|audio-survives-offline-restart|take-survives-offline-restart)$/;
+
+/**
+ * A harness that stopped early (bridge or model error, timeout, budget) may
+ * leave the user mid-task, e.g. with the microphone open, where uploads
+ * correctly wait. Only there, and only for failures such a state can
+ * explain, is a product failure softened to inconclusive.
+ */
+export function accountForDriver(outcome: Outcome, driverStatus: string): Outcome {
+  if (!HARNESS_STOPS.has(driverStatus) || outcome.verdict !== 'product_failure') return outcome;
+  const hard = outcome.checks.some((c) => !c.ok && ALWAYS_WRONG.test(c.name));
+  return hard ? outcome : { ...outcome, verdict: 'inconclusive' };
+}

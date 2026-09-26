@@ -6,8 +6,9 @@ device event log, the device blob store and the server. Native iOS/Android
 behavior is a separate gap, tested on devices.
 
 Run: `npm run smart` (needs local Supabase up and `~/.bash_profile` exporting
-`TYPESAFE_API_KEY` and `OPENROUTER_API_KEY`). It reuses a web server on 8090
-or starts one.
+`TYPESAFE_API_KEY` and `OPENROUTER_API_KEY`). It reuses the journey web server on
+8091 (`SMART_PORT`) or starts one. Start it from a shell, not the preview pane:
+here only a shell-started Metro picks up edits.
 
 - `world.ts` seeds a fresh org, project and translator through the real
   server, then hands the browser a signed-in session. No sign-in screens.

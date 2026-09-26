@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/smart-tests/stop-hook.sh",
+            "timeout": 420
+          }
+        ]
+      }
+    ]
+  }
+}

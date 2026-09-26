@@ -26,13 +26,6 @@ function webDriver(db: SQLite.SQLiteDatabase): SqlDriver {
     lock = next.catch(() => {});
     return next;
   };
-  // The journey oracle reads the device log directly (smart tests, dev only).
-  if (__DEV__) (globalThis as { __langquestLog?: unknown }).__langquestLog = {
-    select: (sql: string, params?: unknown[]) => {
-      if (!/^\s*select\b/i.test(sql)) throw new Error('__langquestLog is read-only.');
-      return exclusive(() => raw.all(sql, params));
-    }
-  };
   return {
     run: (sql, params) => exclusive(() => raw.run(sql, params)),
     all: <T,>(sql: string, params?: unknown[]) => exclusive(() => raw.all<T>(sql, params)),
@@ -63,8 +56,18 @@ let storePromise: Promise<SqliteStore> | undefined;
 
 /** One local event log per device, shared by every open project. */
 export function getStore(): Promise<SqliteStore> {
-  storePromise ??= SQLite.openDatabaseAsync('langquest-next.db').then((db) =>
-    SqliteStore.open(expoDriver(db))
-  );
+  storePromise ??= SQLite.openDatabaseAsync('langquest-next.db').then(async (db) => {
+    const driver = expoDriver(db);
+    const store = await SqliteStore.open(driver);
+    // The journey oracle reads the device log directly (smart tests, web dev
+    // only). Installed once the schema exists, so its presence means ready.
+    if (__DEV__ && Platform.OS === 'web') (globalThis as { __langquestLog?: unknown }).__langquestLog = {
+      select: (sql: string, params?: unknown[]) => {
+        if (!/^\s*select\b/i.test(sql)) throw new Error('__langquestLog is read-only.');
+        return driver.all(sql, params);
+      }
+    };
+    return store;
+  });
   return storePromise;
 }

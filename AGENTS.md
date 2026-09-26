@@ -41,6 +41,25 @@ Run `server/syncIntegritySmoke.sql` in an isolated migrated database for SQL cha
 Also run existing server regression suites; legacy error responses are contracts.
 A passing new-client happy path alone is not evidence of sync compatibility.
 
+## Jev journeys before pushing
+
+Run `npm run smart` before every push and whenever you finish a coherent
+feature. It walks avatar journeys in the web build (a test target, not a
+shipped platform) and judges only the device event log, the blob store and
+the server. Read [smart-tests/README.md](smart-tests/README.md).
+
+- It needs local Supabase (`npm run db:start`), `TYPESAFE_API_KEY`, and an
+  OpenRouter key (`OPENROUTER_API_KEY`) exported from `~/.bash_profile`.
+  If the user has none, ask them for an OpenRouter key. Never commit keys.
+- `product_failure` means the product is wrong: fix the product, not the
+  journey or the oracle. `inconclusive` is not a pass. Report it as unverified.
+- A Stop hook (`.claude/settings.json`) runs the journeys after any turn that
+  changed app code since the last green run, and sends you back on a product
+  failure. `SMART_HOOK_OFF=1` disables it; say so if you use it.
+- A new user-facing flow needs a journey with an outcome oracle, and the
+  oracle needs tests that pin its false passes (`smart-tests/outcome.test.ts`).
+- Web does not cover iOS/Android-only behavior. Test that on devices.
+
 ## Repository architecture
 
 - Read PLAN.md before implementation. Its invariants apply to every change.

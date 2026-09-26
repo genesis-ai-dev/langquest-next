@@ -3,6 +3,7 @@
 // so a seed that drifts from the event catalog fails here, loudly.
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import type { Page } from '@playwright/test';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import {
   applyOrgEvent, emptyOrgState, foldOrg, ORG_PARTITION, REDUCER_VERSION, SEED_ROLES,
@@ -100,6 +101,20 @@ export async function seedTranslatorWorld(): Promise<World> {
     if (error) throw new Error(`seed ${type}: ${error.message}`);
   }
   return { orgId, projectId, laneId, passages, owner, translator };
+}
+
+/** Open the app signed in as `who`, on the seeded project, and wait for the device log. */
+export async function openAs(page: Page, world: World, who: Person): Promise<void> {
+  // Only on first load: the app refreshes the session itself afterwards.
+  await page.addInitScript((entries) => {
+    for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
+  }, browserStateFor(world, who));
+  await page.goto('/');
+  await waitForLog(page);
+}
+
+export async function waitForLog(page: Page): Promise<void> {
+  await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 60_000 });
 }
 
 /** localStorage the app reads at startup: the signed-in session and the open project. */
