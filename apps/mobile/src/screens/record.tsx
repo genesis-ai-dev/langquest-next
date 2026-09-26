@@ -226,7 +226,8 @@ function StepPath(props: { rec: Rec; onStep: (id: string) => void; onRecorded: (
   const groups = [...new Set(rec.steps.map((s) => s.group))].map((g) => rec.steps.filter((s) => s.group === g));
   const recordedState: RecordStep['state'] = rec.recorded ? 'complete' : 'current';
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.path}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.path}
+      accessibilityLabel="Steps" accessibilityHint="Tap any step to ask someone, log it, or set it aside.">
       <StepTile icon={Mic} state={recordedState} label="Recorded" onPress={props.onRecorded} />
       {groups.map((g) => (
         <View key={g[0]!.group} style={styles.pathGroup}>
