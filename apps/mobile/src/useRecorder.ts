@@ -38,6 +38,13 @@ const activity = new Set<symbol>();
 export function isRecording(): boolean {
   return activity.size > 0;
 }
+/**
+ * The recorder that last enabled VAD. Native segment events are app-wide, so
+ * every mounted recorder hears them; only the owner may keep a segment, or a
+ * hidden recorder (a notes sheet) would file the passage's audio as its own.
+ * Ownership survives stop so the final segment emitted by stop still lands.
+ */
+let vadOwner: symbol | null = null;
 
 /**
  * Serializes microphone startup, release and durable file delivery.
@@ -65,6 +72,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   const targetRef = useRef(target);
   targetRef.current = target;
   const wanted = useRef(false);
+  const self = useRef(Symbol('recorder')).current;
   const active = useRef(false);
   const startedAt = useRef(0);
   const starting = useRef<Promise<void> | null>(null);
@@ -235,6 +243,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
+        vadOwner = self;
         await MicrophoneEnergy.enableVAD();
         vadActive.current = true;
         if (mounted.current) setVadOn(true);
@@ -267,8 +276,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     mounted.current = true;
     const subscriptions = [
       MicrophoneEnergy.addListener('onError', (e) => fail(e.message)),
-      MicrophoneEnergy.addListener('onSegmentStart', () => setVadCapturing(true)),
+      MicrophoneEnergy.addListener('onSegmentStart', () => { if (vadOwner === self) setVadCapturing(true); }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
+        if (vadOwner !== self) return;
         setVadCapturing(false);
         if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
       })
@@ -285,7 +295,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         subscriptions.forEach((subscription) => subscription.remove());
       });
     };
-  }, [deliver, fail, manualUp, stopVad]);
+  }, [deliver, fail, manualUp, self, stopVad]);
 
   return {
     vadOn, vadCapturing, manualOn, error, pauseDuration, cutoff,
