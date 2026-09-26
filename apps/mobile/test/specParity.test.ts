@@ -1,13 +1,13 @@
 import { EDGES, SCREEN_IDS, type Edge } from '../src/flow';
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen } from '../src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, activeTabFor, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, mapScreenFor, postSignInScreen, tabsFor } from '../src/session';
 import spec from './spec-flow.json';
 
 /**
  * Proof that the app's flow machine is the UX spec's flow machine.
  *
- * `spec-flow.json` is vendored from ng-langquest-ux/src/flow.ts by
- * `scripts/extractSpecFlow.ts`. The spec declares that file as the single
+ * `spec-flow.json` is vendored from ng-langquest-ux/src/flow.ts (branch
+ * caleb-spoken-mobbin-overhaul) by `scripts/extractSpecFlow.ts`. The spec declares that file as the single
  * authority for screens, transitions, nav modes, and role gates; this test
  * holds the app to it edge by edge. Spec edges with mode "back" document
  * the stack-pop Back button and are not machine edges in either repo.
@@ -16,11 +16,11 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
-  'assignments_home->dynamic_bible': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
+  'my_work->dynamic_bible': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
   'templates_home->dynamic_bible': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
   'dynamic_bible->translate_passage': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
   'dynamic_bible->obt_passage': 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
-  'assignments_home->obt_passage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  'my_work->obt_passage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
   'piece_status->obt_passage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
   'flows_home->obt_manage': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
   'obt_passage->quest_assets': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
@@ -39,25 +39,46 @@ const APP_ONLY: Record<string, string> = {
   'review_passage->passage_terms': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
   'review_passage->add_to_tg': 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
 
+  // Screens the new spec dropped that the app keeps until their replacement
+  // works (flow.ts "RETIRING (Phase 1)"). Each edge goes when its screen goes.
+  'my_work->translate_passage': 'RETIRING: My Work opens the recording hub until workspace is built (spec my_work->workspace)',
+  'my_work->review_passage': 'RETIRING: My Work opens the review screen until review_capture is built (spec my_work->review_capture)',
+  'my_work->pickup_home': 'RETIRING: open work stays until the Map finds and starts any passage',
+  'pickup_home->translate_passage': 'RETIRING: claiming open work opens the recording hub',
+  'my_work->assignment_progress_detail': 'RETIRING: a task\'s current stage, until passage_record shows it',
+  'status_home->give_assignment': 'RETIRING: assigning work stays until ask_someone is built',
+  'book_map->piece_status': 'RETIRING: the piece view stays until passage_record is built (spec book_map->passage_record)',
+  'piece_status->piece_assign': 'RETIRING: assigning a piece stays until ask_someone is built',
+  'piece_status->piece_stage': 'RETIRING: one round of a piece, until the passage_record history shows it',
+  'piece_stage->version_detail': 'RETIRING: piece_stage opens the renamed version detail',
+  'piece_stage->review_detail': 'RETIRING: piece_stage opens the renamed review detail',
+  'translate_passage->quest_assets': 'RETIRING: the recording hub opens recordings until workspace is built',
+  'translate_passage->add_to_tg': 'RETIRING: the recording hub adds to the translator guide until workspace is built',
+  'translate_passage->key_terms': 'RETIRING: the recording hub opens key terms (spec workspace->key_terms)',
+  'translate_passage->attach_questions': 'RETIRING: attach questions leaves the save path when workspace saves versions',
+  'attach_questions->done_await': 'RETIRING: done_await gives way to a toast and popTo passage_record',
+  'review_passage->review_questions': 'RETIRING: the review screen shows questions until review_capture is built',
+  'review_passage->key_term_detail': 'RETIRING: the review screen opens key terms (spec review_capture->key_term_detail)',
+  'review_passage->done_await': 'RETIRING: done_await gives way to a toast and popTo passage_record',
+  'done_await->my_work': 'RETIRING: done_await returns to My Work',
+  'my_work->material_editor': 'filling reference is My Work for fill_reference holders; the spec has no fill-reference task',
+  'my_work->walkthrough': 'create_org opens the new org, whose home (My Work) opens the walkthrough on landing; the spec goes create_org->walkthrough directly',
+
   'inbox_home->members_list': 'administrators act on join requests from the inbox',
   'inbox_home->status_home': 'blocker notifications open status',
   'scan_qr->sign_in': 'save an invite while its recipient signs in',
   'translate_passage->passage_references': 'one-next-action reference adds an oral reference run',
   'translate_passage->passage_terms': 'one-next-action reference adds an oral key-term run',
   'translate_passage->done_await': 'view queued and synced hand-off status from the passage hub',
-  'org_home->walkthrough': 'create_org switches to the new org, whose home opens the walkthrough on landing',
   'new_project->project_home': 'guided setup finishes at the configured project',
   'create_account->terms_privacy': 'a new account is first-time, so it owes terms; the spec sends create_account straight to home_hub and never shows a new account the terms (A30 gap)',
-  'assignments_home->assignment_progress_detail': 'legacy progress detail kept until the spec removes progress_home',
-  'assignment_progress_detail->progress_home': 'legacy progress redirect (spec: progress_home is a legacy redirect)',
   'project_home->status_home': 'spec org-setup.flow.md project_open_status; missing from spec flow.ts (A40)',
   'language_home->status_home': 'spec org-setup.flow.md language_open_status; missing from spec flow.ts (A40)',
-  'flows_home->flow_editor': 'stage editing from the catalog; spec opens flow_editor from review_groups only',
   'review_teams->flow_editor': 'spec org-setup.flow.md review_groups_open_flow (review_teams is the renamed screen)',
   'inbox_home->translate_passage': 'the inbox lists open tasks; tapping one must open it (spec inbox only reaches edit_member)',
   'inbox_home->review_passage': 'the inbox lists open review tasks; tapping one must open it',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
-  'assignments_home->sync_status': 'the cloud chip on My Work opens the sync status screen'
+  'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen'
 };
 
 /**
@@ -71,7 +92,39 @@ const SPEC_RETIRED: Record<string, string> = {
   'org_home->flows_home': 'PLAN.md section 16: settings live on the language, in three folders',
   'project_home->templates_home': 'PLAN.md section 16: settings live on the language, in three folders',
   'project_home->reference_home': 'PLAN.md section 16: settings live on the language, in three folders',
-  'project_home->flows_home': 'PLAN.md section 16: settings live on the language, in three folders'
+  'project_home->flows_home': 'PLAN.md section 16: settings live on the language, in three folders',
+  'sign_in->explore_home': 'public discovery is retired; joining uses invitations',
+  'intent_chooser->explore_home': 'public discovery is retired; joining uses invitations',
+  'explore_home->sign_in': 'public discovery is retired; joining uses invitations',
+  'ask_someone->guest_review': 'review by link needs an outside-reviewer RPC; guest_review is not built yet'
+};
+
+/** Spec screens the app does not have, and app screens the spec does not have, each with a reason. */
+const SPEC_UNBUILT: Record<string, string> = {
+  explore_home: 'public discovery is retired; joining uses invitations',
+  guest_review: 'review by link needs an outside-reviewer RPC; not built yet'
+};
+const APP_SCREENS: Record<string, string> = {
+  passage_references: 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  passage_terms: 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  obt_passage: 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  obt_interaction: 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  obt_manage: 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
+  dynamic_bible: 'Dynamic passage selection (docs/dynamic-bible-passages.md)',
+  sync_status: 'the local event log, realtime state and transfer progress',
+  translate_passage: 'RETIRING: the recording hub, until workspace and passage_record replace it',
+  quest_assets: 'RETIRING: recordings, until workspace replaces it',
+  add_to_tg: 'RETIRING: translator-guide notes, until the passage record keeps notes',
+  attach_questions: 'RETIRING: leaves the save path when workspace saves versions',
+  review_passage: 'RETIRING: the review screen, until review_capture replaces it',
+  review_questions: 'RETIRING: review questions, until review_capture shows them',
+  done_await: 'RETIRING: hand-off status, until a toast and popTo passage_record replace it',
+  piece_status: 'RETIRING: a piece, until passage_record replaces it',
+  piece_assign: 'RETIRING: assign a piece, until ask_someone replaces it',
+  piece_stage: 'RETIRING: one round, until the passage_record history replaces it',
+  give_assignment: 'RETIRING: assign work, until ask_someone replaces it',
+  pickup_home: 'RETIRING: open work, until the Map starts any passage',
+  assignment_progress_detail: 'RETIRING: a task\'s stage, until passage_record shows it'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -82,8 +135,11 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set includes the documented oral-workflow extension', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter(id => id !== 'explore_home'), 'passage_references', 'passage_terms', 'sync_status', 'obt_passage', 'obt_interaction', 'obt_manage', 'dynamic_bible'].sort());
+  it('the screen set is the spec\'s, give or take the screens logged with a reason', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((id) => !(id in SPEC_UNBUILT)), ...Object.keys(APP_SCREENS)].sort());
+    // Neither log may name a screen that is no longer different.
+    for (const id of Object.keys(SPEC_UNBUILT)) expect(spec.screens, id).toContain(id);
+    for (const id of Object.keys(APP_SCREENS)) expect(spec.screens, id).not.toContain(id);
   });
 
   it('every spec transition exists in the app with the same nav mode and gate', () => {
@@ -91,8 +147,7 @@ describe('UX spec parity', () => {
     // A transition that exists in one and not the other is a flow nobody
     // has walked end to end.
     const missing: string[] = [];
-    // Public discovery is intentionally retired; joining uses invitations.
-    for (const s of specEdges.filter(edge => edge.from !== 'explore_home' && edge.to !== 'explore_home' && !(key(edge) in SPEC_RETIRED))) {
+    for (const s of specEdges.filter((edge) => !(key(edge) in SPEC_RETIRED))) {
       const a = appEdges.find((x) => x.from === s.from && x.to === s.to && (x.mode ?? 'push') === s.mode);
       if (!a) missing.push(`${key(s)} [${s.mode}] "${s.label}"`);
       else if ((a.when ?? null) !== s.when) missing.push(`${key(s)} gate spec=${s.when} app=${a.when ?? null}`);
@@ -139,7 +194,10 @@ describe('UX spec parity', () => {
       ].map((e) => ({ ...e, id: `o${++seq}`, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'd', hlc: `00000000000000${seq}:000000:d` }) as AnyEvent)
     );
     const langAdmin = deriveSession('akol', 'a@x', null, true, org, 'p1');
-    expect(homeScreenFor(langAdmin)).toBe('language_home');
+    // ADR-017: an admin lands on My Work and reaches their home by the Manage tab.
+    expect(homeScreenFor(langAdmin)).toBe('my_work');
+    expect(manageHomeFor(langAdmin)).toBe('language_home');
+    expect(mapScreenFor(langAdmin)).toBe('status_home');
     sessions.push(langAdmin);
 
     const deadGates: string[] = [];
@@ -148,10 +206,15 @@ describe('UX spec parity', () => {
     }
     expect(deadGates).toEqual([]);
 
+    // Why: the spec routes home three ways only; admin scopes live behind Manage.
     const homes = new Set(sessions.map(homeScreenFor));
-    for (const h of ['intent_chooser', 'assignments_home', 'org_home', 'project_home', 'language_home', 'status_home']) {
-      expect(homes.has(h as never), h).toBe(true);
-    }
+    expect([...homes].sort()).toEqual(['intent_chooser', 'my_work', 'status_home']);
+    const manageHomes = new Set(sessions.map(manageHomeFor).filter((h) => h !== null));
+    expect([...manageHomes].sort()).toEqual(['language_home', 'org_home', 'project_home']);
+    // A translator's Map is their language; a viewer's is the overview.
+    expect(mapScreenFor(sessions[2]!)).toBe('map_home');
+    expect(mapScreenFor(sessions[4]!)).toBe('status_home');
+    expect(manageHomeFor(sessions[2]!)).toBeNull();
   });
 
   it('every pre-auth screen has a declared way out for every session it can produce', () => {
@@ -202,5 +265,32 @@ describe('UX spec parity', () => {
       const out = EDGES.some((e) => e.from === from && (e.to === 'sign_in' || GUEST_SCREENS.includes(e.to as never)));
       expect(out, `${from} has no way back toward sign_in`).toBe(true);
     }
+  });
+});
+
+describe('tab bar (spec NAV_ITEMS)', () => {
+  const as = (role: string) => deriveSession('me', 'me@x',
+    { members: { me: { role: { value: role, hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } } } } as unknown as Parameters<typeof deriveSession>[2],
+    true, null, 'p1');
+
+  it('shows My Work only to people who work, Manage only to admins, Inbox always, and nothing without an org', () => {
+    // Why: the tab bar is how an admin reaches their org now that My Work is
+    // their home, and how a viewer (no My Work) reaches anything at all.
+    const ids = (s: ReturnType<typeof as>) => tabsFor(s).map((t) => t.id);
+    expect(ids(as('translator'))).toEqual(['work', 'map', 'inbox', 'settings']);
+    expect(ids(as('owner'))).toEqual(['work', 'map', 'manage', 'inbox', 'settings']);
+    expect(ids(as('viewer'))).toEqual(['map', 'inbox', 'settings']);
+    expect(tabsFor(deriveSession('noorg', 'n@x', null, true))).toEqual([]);
+    expect(tabsFor(as('owner')).find((t) => t.id === 'manage')?.screen).toBe('org_home');
+  });
+
+  it('keeps Map active under the map screens and Manage under the manage homes', () => {
+    const tabs = tabsFor(as('coordinator'));
+    for (const screen of ['map_home', 'book_map', 'passage_record', 'version_detail', 'review_detail'] as const) {
+      expect(activeTabFor(tabs, screen), screen).toBe('map');
+    }
+    expect(activeTabFor(tabs, 'org_home')).toBe('manage');
+    expect(activeTabFor(tabs, 'my_work')).toBe('work');
+    expect(activeTabFor(tabs, 'translate_passage')).toBeUndefined();
   });
 });

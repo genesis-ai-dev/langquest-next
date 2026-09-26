@@ -31,8 +31,8 @@ it('walks two devices through recording and review with randomized connection lo
     await translator.append('v1.UnitAdded',{unitId:'u',parentUnitId:null,kind:'passage',label:'Passage',order:'a'});
     await translator.append('v1.AssignmentMade',{unitId:'u',laneId:'L',profileId:'translator',role:'translator'});
     await translator.sync(); await reviewer.sync();
-    const devices=[{client:translator,actor:'translator',screen:'assignments_home' as ScreenId},
-      {client:reviewer,actor:'reviewer',screen:'assignments_home' as ScreenId}];
+    const devices=[{client:translator,actor:'translator',screen:'my_work' as ScreenId},
+      {client:reviewer,actor:'reviewer',screen:'my_work' as ScreenId}];
     let commandId=0;
     async function act(d: typeof devices[number], specs: EventSpec[]) {
       const session=deriveSession(d.actor,null,d.client.getState(),true);

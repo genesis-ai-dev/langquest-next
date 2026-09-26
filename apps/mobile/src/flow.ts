@@ -3,6 +3,23 @@
  * Every screen id is the spec's. `go()` refuses undeclared transitions, so
  * the app and the spec flowchart cannot drift. `home_hub` resolves to the
  * session's home screen at runtime (see session.ts).
+ *
+ * RETIRING (Phase 1). The spec (branch caleb-spoken-mobbin-overhaul) has
+ * dropped these screens. Each stays reachable until its replacement works,
+ * because each still carries functionality the placeholders do not:
+ *  - pickup_home: claim unassigned work. Replaced by the Map (map_home →
+ *    passage_record → workspace), which is a placeholder today.
+ *  - give_assignment, piece_assign: send AssignmentMade. Replaced by
+ *    ask_someone, a placeholder today.
+ *  - piece_stage: one round of a piece. Replaced by the passage_record history.
+ *  - assignment_progress_detail: a task's current stage. Replaced by
+ *    passage_record.
+ *  - done_await: hand-off status after save. Replaced by ctx.toast plus
+ *    popTo passage_record once translate/review return there.
+ *  - attach_questions (translator save path): leaves the save path when the
+ *    workspace saves versions directly.
+ * Retired now: progress_home (its only job was a link to Status; the Map tab
+ * replaces it) and explore_home (never ported; joining uses invitations).
  */
 
 export const SCREEN_IDS = [
@@ -12,12 +29,16 @@ export const SCREEN_IDS = [
   'sign_in', 'terms_privacy', 'vision', 'intent_chooser', 'create_org',
   'request_access', 'create_account', 'scan_qr', 'walkthrough',
   // Assignments hub
-  'assignments_home', 'give_assignment',
+  'my_work', 'give_assignment',
+  // Map & record (spec group "map")
+  'passage_record', 'ask_someone', 'add_record',
+  // Do the work (spec group "work")
+  'workspace', 'review_capture', 'back_translation', 'study_guide', 'study_step',
   // Work
   'translate_passage', 'attach_questions', 'review_passage', 'review_questions', 'done_await',
   // Status
-  'status_home', 'language_status', 'book_status', 'piece_status', 'piece_assign',
-  'piece_stage', 'piece_version', 'piece_review', 'progress_home', 'assignment_progress_detail',
+  'status_home', 'map_home', 'book_map', 'piece_status', 'piece_assign',
+  'piece_stage', 'version_detail', 'review_detail', 'assignment_progress_detail',
   'pickup_home',
   // Org setup
   'org_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member',
@@ -45,10 +66,12 @@ export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
   obt_passage: 'U', obt_interaction: 'U', obt_manage: 'P',
   sign_in: 'U', terms_privacy: 'U', vision: 'U', intent_chooser: 'U', create_org: 'P',
   request_access: 'U', create_account: 'U', scan_qr: 'U', walkthrough: 'U',
-  assignments_home: 'U', give_assignment: 'P',
+  my_work: 'U', give_assignment: 'P',
   translate_passage: 'U', attach_questions: 'U', review_passage: 'U', review_questions: 'U', done_await: 'U',
-  status_home: 'P', language_status: 'P', book_status: 'P', piece_status: 'P', piece_assign: 'P',
-  piece_stage: 'P', piece_version: 'P', piece_review: 'P', progress_home: 'P', assignment_progress_detail: 'P',
+  passage_record: 'U', ask_someone: 'P', add_record: 'P',
+  workspace: 'U', review_capture: 'U', back_translation: 'U', study_guide: 'U', study_step: 'U',
+  status_home: 'P', map_home: 'P', book_map: 'P', piece_status: 'P', piece_assign: 'P',
+  piece_stage: 'P', version_detail: 'P', review_detail: 'P', assignment_progress_detail: 'P',
   pickup_home: 'U',
   org_home: 'P', members_list: 'P', invite_member: 'P', invite_qr: 'P', edit_member: 'P',
   new_project: 'P', project_home: 'P', new_language: 'P', language_home: 'P',
@@ -67,13 +90,15 @@ export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
  *  - guest:   only while signed out
  *  - home:    role dispatch; relevant iff `to` is this session's home
  *  - translator / reviewer / fillReference: the matching My Work affordance
+ *  - contributor: translate or review (may add to the passage record)
+ *  - asker: send to reviewers or assign work (may ask someone)
  *  - assigner: may assign work (admins)
  *  - manageTemplates / manageReference / manageFlows: the matching Manage permission
  * `session.ts` maps each gate onto session facets (`edgeAllowed`).
  */
 export type Gate =
   | 'guest' | 'home'
-  | 'translator' | 'reviewer' | 'fillReference' | 'assigner'
+  | 'translator' | 'reviewer' | 'contributor' | 'asker' | 'fillReference' | 'assigner'
   | 'manageTemplates' | 'manageReference' | 'manageFlows';
 
 export interface Edge {
@@ -91,7 +116,7 @@ const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
 });
 
 export const EDGES: Edge[] = [
-  e('assignments_home', 'dynamic_bible', undefined, 'translator'),
+  e('my_work', 'dynamic_bible', undefined, 'translator'),
   e('templates_home', 'dynamic_bible', undefined, 'translator'),
   e('dynamic_bible', 'translate_passage', undefined, 'translator'),
   e('dynamic_bible', 'obt_passage', undefined, 'translator'),
@@ -118,10 +143,7 @@ export const EDGES: Edge[] = [
   e('vision', 'terms_privacy', 'replace'),
   // Home hub fan-out
   e('home_hub', 'intent_chooser', 'replace', 'home'),
-  e('home_hub', 'assignments_home', 'replace', 'home'),
-  e('home_hub', 'org_home', 'replace', 'home'),
-  e('home_hub', 'project_home', 'replace', 'home'),
-  e('home_hub', 'language_home', 'replace', 'home'),
+  e('home_hub', 'my_work', 'replace', 'home'),
   e('home_hub', 'status_home', 'replace', 'home'),
   // No org
   e('intent_chooser', 'create_org'),
@@ -129,12 +151,12 @@ export const EDGES: Edge[] = [
   e('intent_chooser', 'scan_qr'),
   e('intent_chooser', 'sign_in', 'reset'),
   e('create_org', 'walkthrough', 'replace'),
-  // A new org opens on its own home; the walkthrough lands over it.
-  e('org_home', 'walkthrough'),
+  // A new org opens on its own home (My Work); the walkthrough lands over it.
+  e('my_work', 'walkthrough'),
   e('create_org', 'intent_chooser', 'back'),
   e('request_access', 'intent_chooser', 'replace'),
   e('walkthrough', 'home_hub', 'replace'),
-  e('assignments_home', 'obt_passage'),
+  e('my_work', 'obt_passage'),
   e('piece_status', 'obt_passage'),
   e('flows_home', 'obt_manage', undefined, 'manageFlows'),
   e('obt_passage', 'quest_assets'),
@@ -144,7 +166,7 @@ export const EDGES: Edge[] = [
   e('obt_passage', 'obt_interaction'),
   e('obt_passage', 'obt_manage'),
   e('obt_passage', 'done_await', 'replace'),
-  e('obt_passage', 'assignments_home', 'back'),
+  e('obt_passage', 'my_work', 'back'),
   e('obt_interaction', 'obt_passage', 'back'),
   e('obt_manage', 'obt_passage', 'back'),
   e('translate_passage', 'obt_interaction'),
@@ -156,33 +178,77 @@ export const EDGES: Edge[] = [
   e('review_passage', 'passage_terms'),
   e('review_passage', 'add_to_tg'),
   // My Work
-  e('assignments_home', 'translate_passage', undefined, 'translator'),
-  e('assignments_home', 'review_passage', undefined, 'reviewer'),
-  e('assignments_home', 'material_editor', undefined, 'fillReference'),
-  e('assignments_home', 'pickup_home', undefined, 'translator'),
-  e('assignments_home', 'assignment_progress_detail'),
-  e('assignment_progress_detail', 'progress_home'),
-  e('progress_home', 'status_home', 'replace'),
+  e('my_work', 'translate_passage', undefined, 'translator'),
+  e('my_work', 'review_passage', undefined, 'reviewer'),
+  e('my_work', 'material_editor', undefined, 'fillReference'),
+  e('my_work', 'pickup_home', undefined, 'translator'),
+  e('my_work', 'assignment_progress_detail'),
   e('pickup_home', 'translate_passage'),
-  e('pickup_home', 'assignments_home', 'back'),
+  e('pickup_home', 'my_work', 'back'),
+  // Map & record (spec flow.ts "The map" / "The passage record")
+  e('my_work', 'workspace', undefined, 'translator'),
+  e('my_work', 'review_capture', undefined, 'reviewer'),
+  e('my_work', 'back_translation', undefined, 'reviewer'),
+  e('my_work', 'passage_record'),
+  e('passage_record', 'my_work', 'back'),
+  e('language_home', 'map_home'),
+  e('map_home', 'passage_record'),
+  e('book_map', 'passage_record'),
+  e('passage_record', 'book_map', 'back'),
+  e('passage_record', 'map_home', 'back'),
+  e('passage_record', 'workspace', undefined, 'translator'),
+  e('passage_record', 'review_capture', undefined, 'reviewer'),
+  e('passage_record', 'back_translation', undefined, 'reviewer'),
+  e('passage_record', 'ask_someone', undefined, 'asker'),
+  e('passage_record', 'add_record', undefined, 'contributor'),
+  e('passage_record', 'study_guide'),
+  e('passage_record', 'study_step'),
+  e('passage_record', 'version_detail'),
+  e('passage_record', 'review_detail'),
+  e('version_detail', 'passage_record', 'back'),
+  e('review_detail', 'passage_record', 'back'),
+  e('review_detail', 'workspace', undefined, 'translator'),
+  e('ask_someone', 'passage_record', 'popTo'),
+  e('add_record', 'passage_record', 'popTo'),
+  e('inbox_home', 'passage_record'),
+  // Study (FIA): a guide of steps, the passage one tap away
+  e('study_guide', 'study_step'),
+  e('study_guide', 'workspace', undefined, 'translator'),
+  e('study_guide', 'passage_record', 'back'),
+  e('study_step', 'study_guide', 'popTo'),
+  e('study_step', 'key_term_detail'),
+  e('study_step', 'workspace', undefined, 'translator'),
+  e('key_term_detail', 'study_step', 'back'),
+  // Doing the work
+  e('workspace', 'passage_record', 'popTo'),
+  e('workspace', 'key_term_detail'),
+  e('workspace', 'key_terms'),
+  e('workspace', 'study_step'),
+  e('workspace', 'study_guide'),
+  e('key_terms', 'workspace', 'back'),
+  e('review_capture', 'passage_record', 'popTo'),
+  e('review_capture', 'key_term_detail'),
+  e('review_capture', 'study_guide'),
+  e('review_capture', 'study_step'),
+  e('back_translation', 'passage_record', 'popTo'),
   // Status
-  e('status_home', 'language_status'),
+  e('status_home', 'map_home'),
   e('status_home', 'give_assignment', undefined, 'assigner'),
-  e('language_status', 'book_status'),
-  e('language_status', 'status_home', 'back'),
-  e('book_status', 'piece_status'),
-  e('book_status', 'language_status', 'back'),
+  e('map_home', 'book_map'),
+  e('map_home', 'status_home', 'back'),
+  e('book_map', 'piece_status'),
+  e('book_map', 'map_home', 'back'),
   e('piece_status', 'piece_assign', undefined, 'assigner'),
-  e('piece_status', 'book_status', 'back'),
+  e('piece_status', 'book_map', 'back'),
   e('piece_status', 'piece_stage'),
   e('piece_stage', 'piece_status', 'back'),
-  e('piece_stage', 'piece_version'),
-  e('piece_stage', 'piece_review'),
-  e('piece_version', 'piece_stage', 'back'),
-  e('piece_version', 'piece_review'),
-  e('piece_version', 'key_term_detail'),
-  e('piece_review', 'piece_stage', 'back'),
-  e('piece_review', 'piece_version'),
+  e('piece_stage', 'version_detail'),
+  e('piece_stage', 'review_detail'),
+  e('version_detail', 'piece_stage', 'back'),
+  e('version_detail', 'review_detail'),
+  e('version_detail', 'key_term_detail'),
+  e('review_detail', 'piece_stage', 'back'),
+  e('review_detail', 'version_detail'),
   e('piece_assign', 'piece_status', 'back'),
   e('give_assignment', 'status_home', 'back'),
   // Translate
@@ -204,8 +270,8 @@ export const EDGES: Edge[] = [
   e('review_passage', 'key_term_detail'),
   e('review_questions', 'review_passage', 'back'),
   e('review_passage', 'done_await', 'replace'),
-  e('done_await', 'assignments_home', 'reset'),
-  e('material_editor', 'assignments_home', 'back'),
+  e('done_await', 'my_work', 'reset'),
+  e('material_editor', 'my_work', 'back'),
   // Org setup
   e('org_home', 'members_list'),
   e('org_home', 'project_home'),
@@ -254,8 +320,8 @@ export const EDGES: Edge[] = [
   e('key_terms', 'translate_passage', 'back'),
   e('key_terms', 'key_term_detail'),
   e('key_term_detail', 'key_terms', 'back'),
-  e('key_term_detail', 'piece_version'),
-  e('flows_home', 'flow_editor'),
+  e('key_term_detail', 'version_detail'),
+  e('flows_home', 'flow_editor', undefined, 'manageFlows'),
   e('flow_editor', 'flows_home', 'back'),
   e('review_teams', 'flow_editor'),
   // Settings
@@ -264,7 +330,7 @@ export const EDGES: Edge[] = [
   e('settings_home', 'walkthrough'),
   e('settings_home', 'sign_out_confirm'),
   e('settings_home', 'sync_status'),
-  e('assignments_home', 'sync_status'),
+  e('my_work', 'sync_status'),
   e('sync_status', 'settings_home', 'back'),
   e('profile_edit', 'settings_home', 'back'),
   e('org_switcher', 'settings_home', 'back'),
@@ -272,10 +338,15 @@ export const EDGES: Edge[] = [
   e('sign_out_confirm', 'settings_home', 'back')
 ];
 
-/** Tab-bar targets are the documented exception to declared edges. */
+/**
+ * Tab-bar targets are the documented exception to declared edges, and the
+ * screens the bar stays on: My Work, the map screens (Map tab), the manage
+ * homes (Manage tab), Inbox and Settings. `intent_chooser` is not here: a
+ * session with no organization has no tab bar.
+ */
 export const TAB_SCREENS: ScreenId[] = [
-  'assignments_home', 'org_home', 'project_home', 'language_home', 'status_home', 'intent_chooser',
-  'inbox_home', 'settings_home'
+  'my_work', 'status_home', 'map_home', 'book_map', 'passage_record', 'version_detail', 'review_detail',
+  'org_home', 'project_home', 'language_home', 'inbox_home', 'settings_home'
 ];
 
 export function edgeFor(from: NodeId, to: NodeId): Edge | undefined {
@@ -289,12 +360,15 @@ export const TITLES: Record<ScreenId, string> = {
   intent_chooser: 'What do you want to do?', create_org: 'Create a new organization',
   request_access: 'Request access', create_account: 'Create account',
   scan_qr: 'Scan QR code', walkthrough: 'Organization walkthrough',
-  assignments_home: 'My Work', give_assignment: 'Give assignment',
+  my_work: 'My Work', give_assignment: 'Give assignment',
+  passage_record: 'Passage record', ask_someone: 'Ask someone', add_record: 'Log what happened',
+  workspace: 'Workspace', review_capture: 'Review it', back_translation: 'Back-translate',
+  study_guide: 'Study guide', study_step: 'Study step',
   translate_passage: 'Translate passage', attach_questions: 'Review questions',
   review_passage: 'Review passage', review_questions: 'Review questions', done_await: 'Done',
-  status_home: 'Status', language_status: 'Language status', book_status: 'Book status',
+  status_home: 'All languages', map_home: 'Passage map', book_map: 'Book chapters',
   piece_status: 'Piece status', piece_assign: 'Assign piece', piece_stage: 'Stage round',
-  piece_version: 'Version', piece_review: 'Review detail', progress_home: 'Progress',
+  version_detail: 'Version', review_detail: 'Review',
   assignment_progress_detail: 'Assignment progress', pickup_home: 'Open work',
   org_home: 'Organization', members_list: 'Members', invite_member: 'Invite', invite_qr: 'Invite by QR',
   edit_member: 'Edit member', new_project: 'New project', project_home: 'Project',

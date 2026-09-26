@@ -407,7 +407,7 @@ pinned footer action) with our tokens.
 | Spec screen | Avatar | Main action | Status |
 | --- | --- | --- | --- |
 | `sign_in` | U (text fallback) | sign in | built |
-| `assignments_home` (My Work: To Do / Doing / Done, task cards) | U | open a task | built |
+| `my_work` (My Work: To Do / Doing / Done, task cards) | U | open a task | built |
 | `translate_passage` (instructions, recordings, key terms, reference, submit) | U | record, then submit | built, placeholder take |
 | `quest_assets` (takes: play, delete, hold-to-record, VAD) | U | record | step 5 |
 | `review_passage` (listen, questions, suggest changes or approve) | U | approve | built, no questions yet |
@@ -418,7 +418,7 @@ pinned footer action) with our tokens.
 | `obt_manage` (policy, prompts, draft delivery and collection) | P | save stage policy | implemented |
 | `pickup_home` (claim open work) | U | claim | later |
 | `intent_chooser`, `create_org`, `request_access`, `walkthrough` | U | one per screen | later |
-| `status_home` → `language_status` → `book_status` → `piece_status` | P | assign | step 7 (headless fold) |
+| `status_home` → `map_home` → `book_map` → `piece_status` | P | assign | step 7 (headless fold) |
 | `piece_assign`, `give_assignment` | P | send assignment | later |
 | `org_home`, `project_home`, `language_home` | P | none (hub) | later |
 | `members_list`, `invite_member`, `edit_member`, `invite_qr` | P | invite | later |

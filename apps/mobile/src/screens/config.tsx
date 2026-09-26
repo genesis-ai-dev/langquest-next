@@ -262,7 +262,7 @@ export function KeyTermDetail(ctx: Ctx) {
       <Section label={`Linked translations · ${linked.length}`}>
         {linked.map((l, i) => {
           const take = state.takes[l.takeId];
-          return <Row key={l.takeId} label={state.units[take?.unitId ?? '']?.label ?? l.takeId} sub={l.note} onPress={take ? () => ctx.go('piece_version', { takeId: l.takeId, laneId: take.laneId, unitId: take.unitId }) : undefined} last={i === linked.length - 1} />;
+          return <Row key={l.takeId} label={state.units[take?.unitId ?? '']?.label ?? l.takeId} sub={l.note} onPress={take ? () => ctx.go('version_detail', { takeId: l.takeId, laneId: take.laneId, unitId: take.unitId }) : undefined} last={i === linked.length - 1} />;
         })}
         {linked.length === 0 ? <Row label="None yet" last /> : null}
       </Section>

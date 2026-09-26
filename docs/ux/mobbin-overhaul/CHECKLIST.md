@@ -34,13 +34,15 @@ gaps, and the data it needs.
 
 ## Phase 0: foundation (no new events)
 
-- [ ] Re-vendor `apps/mobile/test/spec-flow.json` from the reference branch (`scripts/extractSpecFlow.ts`) and rework `APP_ONLY` / `SPEC_RETIRED`
-- [ ] Screen ids: rename `assignments_home→my_work`, `language_status→map_home`, `book_status→book_map`, `piece_version→version_detail`, `piece_review→review_detail`. Add `passage_record`, `ask_someone`, `add_record`, `workspace`, `review_capture`, `back_translation`, `study_guide`, `study_step`
-- [ ] Retire `pickup_home`, `give_assignment`, `piece_assign`, `piece_stage`, `progress_home`, `assignment_progress_detail`, `done_await`, `attach_questions` (translator path), `explore_home` (stays retired)
-- [ ] Gates: add `contributor` (translate‖review) and `asker` (send_to_reviewers‖assign_work)
-- [ ] J-WORK-1 / J-HOME-2 / J-HOME-3: `homeScreenFor` → my_work for everyone who works, admins included; add `manageHomeFor` and `mapScreenFor`; the three `home_hub` edges
-- [ ] Tab bar: My Work · Map · Manage (admins) · Inbox (always, badge) · Settings. Icons only, labels as accessibility labels, non-red badges; Map/record screens keep the bar; no bar with no org
-- [ ] J-SHELL-1 / J-TOAST-1: toast host plus `ctx.toast(text, undo?)`, dark pill with offline state icon
+- [x] Re-vendor `apps/mobile/test/spec-flow.json` from the reference branch (`scripts/extractSpecFlow.ts`) and rework `APP_ONLY` / `SPEC_RETIRED`
+- [x] Screen ids: rename `assignments_home→my_work`, `language_status→map_home`, `book_status→book_map`, `piece_version→version_detail`, `piece_review→review_detail`. Add `passage_record`, `ask_someone`, `add_record`, `workspace`, `review_capture`, `back_translation`, `study_guide`, `study_step`
+- [~] Retire `pickup_home`, `give_assignment`, `piece_assign`, `piece_stage`, `progress_home`, `assignment_progress_detail`, `done_await`, `attach_questions` (translator path), `explore_home` (stays retired)
+- [x] Gates: add `contributor` (translate‖review) and `asker` (send_to_reviewers‖assign_work)
+- [x] J-WORK-1 / J-HOME-2 / J-HOME-3: `homeScreenFor` → my_work for everyone who works, admins included; add `manageHomeFor` and `mapScreenFor`; the three `home_hub` edges
+- [x] Tab bar: My Work · Map · Manage (admins) · Inbox (always, badge) · Settings. Icons only, labels as accessibility labels, non-red badges; Map/record screens keep the bar; no bar with no org
+- [~] J-SHELL-1 / J-TOAST-1: toast host plus `ctx.toast(text, undo?)`, dark pill with offline state icon
+
+Phase 0 notes: `progress_home` is retired; the other retiring screens stay until their replacements exist (see "RETIRING" in `flow.ts`). The toast host exists but has no offline-state icon yet.
 
 ## Phase 1: journeys that need no new events
 

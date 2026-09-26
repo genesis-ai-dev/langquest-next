@@ -1,4 +1,4 @@
-// Avatar P. Status drill-down: status_home → language_status → book_status → piece_status → piece_assign / piece_stage → piece_version / piece_review.
+// Avatar P. Status drill-down: status_home → map_home → book_map → piece_status → piece_assign / piece_stage → version_detail / review_detail.
 import { isObtLane, bottleneck, deriveBooks, derivePieces, deriveTakeStatus, nextAction, percentDone, type Piece } from '@langquest-next/core';
 import { BookOpen, Check, Globe, Mic } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
@@ -43,7 +43,7 @@ export function StatusHome(ctx: Ctx) {
               label={lane.languoidId}
               sub={`${pieces.length} pieces · ${bottleneck(pieces)}`}
               badge={`${percentDone(pieces)}%`}
-              onPress={() => ctx.go('language_status', { laneId })}
+              onPress={() => ctx.go('map_home', { laneId })}
               last={i === lanes.length - 1}
             />
           );
@@ -56,7 +56,8 @@ export function StatusHome(ctx: Ctx) {
 
 export function LanguageStatus(ctx: Ctx) {
   const { state } = ctx.project;
-  const laneId = ctx.params['laneId'] ?? '';
+  // The Map tab opens this with no lane: a worker's map is their (first) language.
+  const laneId = ctx.params['laneId'] ?? (state ? Object.keys(state.lanes)[0] ?? '' : '');
   const pieces = lanePieces(ctx, laneId);
   const books = state ? deriveBooks(state) : [];
   return (
@@ -69,7 +70,7 @@ export function LanguageStatus(ctx: Ctx) {
         {books.map((b, i) => {
           const bp = pieces.filter((p) => p.bookId === b.unitId);
           return (
-            <Row key={b.unitId} icon={BookOpen} bookId={b.unitId} label={b.label} sub={`${bp.length} pieces · ${bottleneck(bp)}`} badge={`${percentDone(bp)}%`} onPress={() => ctx.go('book_status', { laneId, bookId: b.unitId })} last={i === books.length - 1} />
+            <Row key={b.unitId} icon={BookOpen} bookId={b.unitId} label={b.label} sub={`${bp.length} pieces · ${bottleneck(bp)}`} badge={`${percentDone(bp)}%`} onPress={() => ctx.go('book_map', { laneId, bookId: b.unitId })} last={i === books.length - 1} />
           );
         })}
       </Section>
@@ -191,8 +192,8 @@ export function PieceStage(ctx: Ctx) {
     <Screen>
       <Header title={isReview ? round.split(':')[0]! : 'Draft'} sub={piece.label} onBack={ctx.back} />
       <Section label="This round">
-        <Row label="Submitted content" sub={`${state.takes[piece.takeId]?.cardHashes.length ?? 0} cards`} onPress={() => ctx.go('piece_version', { laneId, unitId, takeId: piece.takeId! })} />
-        <Row label="Review" sub={isReview ? 'decision recorded' : 'not reviewed in this round'} onPress={isReview ? () => ctx.go('piece_review', { laneId, unitId, takeId: piece.takeId!, round }) : undefined} last />
+        <Row label="Submitted content" sub={`${state.takes[piece.takeId]?.cardHashes.length ?? 0} cards`} onPress={() => ctx.go('version_detail', { laneId, unitId, takeId: piece.takeId! })} />
+        <Row label="Review" sub={isReview ? 'decision recorded' : 'not reviewed in this round'} onPress={isReview ? () => ctx.go('review_detail', { laneId, unitId, takeId: piece.takeId!, round }) : undefined} last />
       </Section>
     </Screen>
   );
@@ -225,7 +226,7 @@ export function PieceVersion(ctx: Ctx) {
       <Section label="Reviews">
         {Object.entries(state.reviews[takeId] ?? {}).flatMap(([stepId, byActor]) =>
           Object.entries(byActor).map(([actor, r]) => (
-            <Row key={`${stepId}:${actor}`} label={stepId} sub={<Byline id={actor} />} badge={r.value.decision === 'approve' ? 'approved' : 'suggestions'} onPress={() => ctx.go('piece_review', { ...ctx.params, round: `${stepId}:${actor}` })} />
+            <Row key={`${stepId}:${actor}`} label={stepId} sub={<Byline id={actor} />} badge={r.value.decision === 'approve' ? 'approved' : 'suggestions'} onPress={() => ctx.go('review_detail', { ...ctx.params, round: `${stepId}:${actor}` })} />
           ))
         )}
         <Row label="" last />
@@ -256,11 +257,11 @@ export function PieceReview(ctx: Ctx) {
         </Section>
       ) : null}
       <Section label="Version">
-        <Row label="Reviewed version" onPress={() => ctx.go('piece_version', ctx.params)} last />
+        <Row label="Reviewed version" onPress={() => ctx.go('version_detail', ctx.params)} last />
       </Section>
     </Screen>
   );
 }
 
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('status_home', 'language_status', 'book_status', 'piece_status', 'piece_assign', 'piece_stage', 'piece_version', 'piece_review');
+export const contracts = contractsFor('status_home', 'map_home', 'book_map', 'piece_status', 'piece_assign', 'piece_stage', 'version_detail', 'review_detail');

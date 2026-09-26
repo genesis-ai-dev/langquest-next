@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { Home, Inbox, ListChecks, Settings } from 'lucide-react-native';
+import { Building2, CheckCircle2, ClipboardList, Inbox, Map as MapIcon, Settings, type LucideIcon } from 'lucide-react-native';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
@@ -24,7 +24,7 @@ import type { Ctx } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
 import { UpdateBanner } from './src/UpdateBanner';
 import { maySwitchPersona } from './src/dev';
-import { edgeFor, SCREEN_IDS, TAB_SCREENS, TITLES, type ScreenId } from './src/flow';
+import { edgeFor, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
 import * as Config from './src/screens/config';
@@ -32,19 +32,22 @@ import * as Entry from './src/screens/entry';
 import * as Org from './src/screens/org';
 import * as PassageSlides from './src/screens/passageSlides';
 import * as Recordings from './src/screens/recordings';
+import * as Record from './src/screens/record';
 import * as Review from './src/screens/review';
 import * as Status from './src/screens/status';
+import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveInboxCount, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor } from './src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, activeTabFor, deriveInboxCount, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
-import { colors, space } from './src/theme';
+import { colors, radius, space } from './src/theme';
 import { recordUserEvent, TERMS_VERSION } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
 import { useOrg } from './src/useOrg';
 import { useProject } from './src/useProject';
+import { useQuery } from './src/useQuery';
 
 // Initial selection, before the account's saved organization is restored.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
@@ -58,16 +61,19 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, create_account: Entry.CreateAccount, terms_privacy: Entry.TermsPrivacy, vision: Entry.Vision,
   intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
   request_access: Entry.RequestAccess, scan_qr: Entry.ScanQr, walkthrough: Entry.Walkthrough,
-  assignments_home: Work.AssignmentsHome, give_assignment: Work.GiveAssignment, pickup_home: Work.PickupHome,
-  assignment_progress_detail: Work.AssignmentProgressDetail, progress_home: Work.ProgressHome,
+  my_work: Work.AssignmentsHome, give_assignment: Work.GiveAssignment, pickup_home: Work.PickupHome,
+  assignment_progress_detail: Work.AssignmentProgressDetail,
+  passage_record: Record.PassageRecord, ask_someone: Record.AskSomeone, add_record: Record.AddRecord,
+  workspace: Record.Workspace, review_capture: Record.ReviewCapture, back_translation: Record.BackTranslate,
+  study_guide: Study.StudyGuide, study_step: Study.StudyStep,
   translate_passage: Translate.TranslatePassage, quest_assets: Recordings.QuestAssets,
   passage_references: PassageSlides.PassageReferences, passage_terms: PassageSlides.PassageTerms,
   attach_questions: Translate.AttachQuestions, add_to_tg: Translate.AddToTg,
   review_passage: Review.ReviewPassage, review_questions: Review.ReviewQuestions, done_await: Review.DoneAwait,
   material_editor: Review.MaterialEditor,
-  status_home: Status.StatusHome, language_status: Status.LanguageStatus, book_status: Status.BookStatus,
+  status_home: Status.StatusHome, map_home: Status.LanguageStatus, book_map: Status.BookStatus,
   piece_status: Status.PieceStatus, piece_assign: Status.PieceAssign, piece_stage: Status.PieceStage,
-  piece_version: Status.PieceVersion, piece_review: Status.PieceReview,
+  version_detail: Status.PieceVersion, review_detail: Status.PieceReview,
   org_home: Org.OrgHome, project_home: Org.ProjectHome, language_home: Org.LanguageHome,
   members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr, edit_member: Org.EditMember,
   new_project: Org.NewProject, new_language: Org.NewLanguage, review_teams: Org.ReviewTeams, review_team_editor: Org.ReviewTeamEditor,
@@ -96,7 +102,7 @@ function hostFor(id: ScreenId) {
     const laneId = params.laneId ?? params.taskId?.split(':')[2] ?? '';
     const oral = !!ctx.project.state && (ctx.project.state.obt.workspace || isObtLane(ctx.project.state,laneId));
     const workspace = ctx.project.state?.obt.workspace;
-    if (workspace && !['obt_passage','translate_passage','quest_assets','assignments_home',
+    if (workspace && !['obt_passage','translate_passage','quest_assets','my_work',
       'settings_home','org_switcher','sign_out_confirm','sync_status','profile_edit'].includes(id)) {
       return <Obt.BackTranslation {...ctx} params={{ taskId:'translate:passage:output' }} />;
     }
@@ -265,6 +271,16 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     () => deriveInboxCount(project.state, props.actorId),
     [project.state, props.actorId]
   );
+  // The My Work badge counts open tasks until My Work gets its For you list.
+  const taskCounts = useQuery(project, (q) => q.taskCounts(props.actorId), [props.actorId], { todo: 0, doing: 0, done: 0 }).data;
+
+  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    // Undo needs time to find and hit, so those toasts stay longer.
+    const t = setTimeout(() => setToast(null), toast.undo ? 7000 : 3400);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Auth routing is an invariant, not a transition: a signed-in session is
   // never on a pre-auth screen, a signed-out one is only on sign_in. Stated
@@ -320,6 +336,8 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     if (nav.current.screen !== home) return;
     landed.current = true;
     if (edgeFor(home, props.landing)) nav.push({ screen: props.landing });
+    // A manage home is no longer anyone's home; it is a tab.
+    else if (TAB_SCREENS.includes(props.landing)) nav.reset({ screen: props.landing });
   });
 
   const go = useCallback(
@@ -393,6 +411,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     go,
     back: nav.back,
     home: () => nav.reset({ screen: homeScreenFor(session) }),
+    toast: (text, undo) => setToast(undo ? { text, undo } : { text }),
     markVisionSeen: async () => {
       await recordUserEvent(props.actorId, 'v1.VisionSeen');
       await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
@@ -405,8 +424,9 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     canSwitchPersona
   };
 
-  const showTabs = props.signedIn && TAB_SCREENS.includes(nav.current.screen);
-  const tabs = tabsFor(session, inboxCount);
+  const tabs = tabsFor(session, { work: taskCounts.todo + taskCounts.doing, inbox: inboxCount });
+  const showTabs = props.signedIn && tabs.length > 0 && homeScreenFor(session) !== 'intent_chooser' && TAB_SCREENS.includes(nav.current.screen);
+  const activeTab = activeTabFor(tabs, nav.current.screen);
 
   return (
     <View style={{ flex: 1 }}>
@@ -418,31 +438,52 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
             screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}
           >
             {SCREEN_IDS.map((id) => (
-              // Tab-level screens are only ever reached by reset, so they
-              // crossfade like a tab switch; everything else slides like a push.
-              <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: TAB_SCREENS.includes(id) ? 'fade' : 'default' }} />
+              // Tab targets are reached by reset, so they crossfade like a tab
+              // switch; everything else, the map's deeper screens included,
+              // slides like a push.
+              <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: TAB_TARGETS.includes(id) ? 'fade' : 'default' }} />
             ))}
           </Stack.Navigator>
         </NavigationContainer>
       </CtxContext.Provider>
       </PeopleContext.Provider>
+      {toast ? (
+        <Pressable onPress={() => setToast(null)} accessibilityRole="alert" accessibilityLabel={toast.text} style={[styles.toast, { bottom: showTabs ? 64 : space.lg }]}>
+          <CheckCircle2 size={24} color={colors.done} />
+          <Text style={[styles.toastText, { flex: 1 }]}>{toast.text}</Text>
+          {toast.undo ? (
+            <Pressable onPress={() => { toast.undo?.(); setToast(null); }} accessibilityRole="button" accessibilityLabel="Undo"
+              style={({ pressed }) => [styles.toastUndo, pressed && { opacity: 0.7 }]}>
+              <Text style={styles.toastText}>Undo</Text>
+            </Pressable>
+          ) : null}
+        </Pressable>
+      ) : null}
       {showTabs ? (
         <View style={styles.tabs}>
           {tabs.map((t) => {
-            const Icon = t === 'status_home' ? ListChecks : t === 'inbox_home' ? Inbox : t === 'settings_home' ? Settings : Home;
-            const active = nav.current.screen === t;
+            const Icon = TAB_ICONS[t.id];
+            const active = activeTab === t.id;
             const color = active ? colors.translate : colors.mutedForeground;
             return (
               <Pressable
-                key={t}
-                onPress={() => { if (!active) nav.reset({ screen: t }); }}
+                key={t.id}
+                onPress={() => { if (nav.current.screen !== t.screen) nav.reset({ screen: t.screen }); }}
                 accessibilityRole="tab"
-                accessibilityLabel={TITLES[t]}
+                accessibilityLabel={t.label}
+                accessibilityValue={t.badge ? { text: String(t.badge) } : undefined}
                 accessibilityState={{ selected: active }}
                 style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}
               >
                 <View style={[styles.tabIndicator, active && { backgroundColor: colors.translate }]} />
-                <Icon size={22} color={color} />
+                <View>
+                  <Icon size={22} color={color} />
+                  {t.badge ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{t.badge > 99 ? '99+' : t.badge}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </Pressable>
             );
           })}
@@ -455,9 +496,22 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
   );
 }
 
+/** Every screen a tab can reset to (tabsFor); a subset of TAB_SCREENS. */
+const TAB_TARGETS: ScreenId[] = ['my_work', 'status_home', 'map_home', 'org_home', 'project_home', 'language_home', 'inbox_home', 'settings_home'];
+
+const TAB_ICONS: Record<TabId, LucideIcon> = {
+  work: ClipboardList, map: MapIcon, manage: Building2, inbox: Inbox, settings: Settings
+};
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.card },
   tab: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 12, gap: 6 },
-  tabIndicator: { width: 24, height: 3, borderRadius: 2, backgroundColor: 'transparent' }
+  tabIndicator: { width: 24, height: 3, borderRadius: 2, backgroundColor: 'transparent' },
+  // Never red (recording) or yellow (the next action): the numeral carries the meaning.
+  badge: { position: 'absolute', top: -6, right: -12, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.foreground },
+  badgeText: { color: colors.background, fontSize: 11, fontWeight: '700' },
+  toast: { position: 'absolute', left: space.lg, right: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingLeft: space.lg, paddingRight: space.sm, paddingVertical: space.sm, borderRadius: radius.lg, backgroundColor: colors.foreground },
+  toastText: { flexShrink: 1, color: colors.background, fontSize: 16, fontWeight: '600' },
+  toastUndo: { minHeight: 48, justifyContent: 'center', paddingHorizontal: space.lg, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.background }
 });

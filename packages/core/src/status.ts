@@ -4,8 +4,8 @@ import type { ProjectState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, type TakeOutcome } from './workflow';
 
 /**
- * The project-manager view of progress (UX spec status_home → language_status
- * → book_status → piece_status). Derived from the fold; nothing stored.
+ * The project-manager view of progress (UX spec status_home → map_home
+ * → book_map → piece_status). Derived from the fold; nothing stored.
  */
 
 export type PieceWorkStatus = 'unassigned' | 'doing' | 'waiting' | 'done';

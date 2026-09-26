@@ -330,19 +330,6 @@ export function AssignmentProgressDetail(ctx: Ctx) {
       ) : (
         <Note>No piece found for this task.</Note>
       )}
-      <Section label="More">
-        <Row label="Open progress overview" onPress={() => ctx.go('progress_home')} last />
-      </Section>
-    </Screen>
-  );
-}
-
-/** Legacy redirect to Status (spec progress_home). */
-export function ProgressHome(ctx: Ctx) {
-  return (
-    <Screen footer={<Footer label="Open status" onPress={() => ctx.go('status_home')} />}>
-      <Header title="Progress" />
-      <Note>Progress now lives on the Status map.</Note>
     </Screen>
   );
 }
@@ -370,4 +357,4 @@ const styles = StyleSheet.create({
 });
 
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('assignments_home', 'give_assignment', 'pickup_home', 'assignment_progress_detail', 'progress_home');
+export const contracts = contractsFor('my_work', 'give_assignment', 'pickup_home', 'assignment_progress_detail');

@@ -161,7 +161,7 @@ export function DoneAwait(ctx: Ctx) {
       {delivery !== 'sent' ? <Clock size={28} color={colors.mutedForeground} /> : null}
       {takeId && state?.takes[takeId] ? <StatusIcon outcome={deriveTakeStatus(state, takeId, indexesFor(state)).outcome} size={32} /> : null}
       {delivery === 'blocked' ? <Note>{ctx.project.refused ?? 'Update the app to sync this work.'}</Note> : null}
-      <ActionButton icon={Check} accessibilityLabel="Back to my work" onPress={() => ctx.go('assignments_home')} style={{ alignSelf: 'stretch' }} />
+      <ActionButton icon={Check} accessibilityLabel="Back to my work" onPress={() => ctx.go('my_work')} style={{ alignSelf: 'stretch' }} />
     </View>
   );
 }

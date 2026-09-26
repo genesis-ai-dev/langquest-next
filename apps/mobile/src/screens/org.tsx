@@ -141,7 +141,7 @@ export function LanguageHome(ctx: Ctx) {
       </Section>
       {memberRows(ctx)}
       <Section label="Status">
-        <Row label="Open status" onPress={() => ctx.go('language_status', { laneId })} last />
+        <Row label="Open status" onPress={() => ctx.go('map_home', { laneId })} last />
       </Section>
     </Screen>
   );

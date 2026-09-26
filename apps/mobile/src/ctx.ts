@@ -14,6 +14,8 @@ export interface Ctx {
   go: (to: ScreenId, params?: Record<string, string>) => void;
   back: () => void;
   home: () => void;
+  /** Confirm an action with a toast above the tab bar; `undo` adds an Undo button and a longer stay. */
+  toast: (text: string, undo?: () => void) => void;
   markVisionSeen: () => Promise<void>;
   rememberInvite: (value: string) => Promise<void>;
   openOrganization: (orgId: string, projectId?: string, landing?: ScreenId) => Promise<void>;
