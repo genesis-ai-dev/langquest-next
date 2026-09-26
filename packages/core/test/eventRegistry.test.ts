@@ -35,6 +35,16 @@ describe('a: every event type has a complete registry entry', () => {
     expect(e.example && typeof e.example === 'object').toBe(true);
   });
 
+  it('the registry module imports nothing that imports it back', () => {
+    // Why: org.ts re-exports EVENT_PRIVILEGE from the registry. A cycle
+    // through org, validate or reducer left it uninitialized in the Metro web
+    // bundle ("Cannot access 'EVENT_PRIVILEGE' before initialization") and
+    // the app never started, while vitest's loader hid the problem.
+    const source = readFileSync(join(here, '../src/eventRegistry.ts'), 'utf8');
+    const imports = [...source.matchAll(/^import\s+(?!type\b)[^;]*from\s+'\.\/(\w+)'/gm)].map((m) => m[1]);
+    for (const cyclic of ['org', 'validate', 'reducer', 'index', 'commands', 'state']) expect(imports).not.toContain(cyclic);
+  });
+
   it('lookups for unfamiliar or prototype names find nothing and never throw', () => {
     // Why: a type string comes off the wire. `constructor` must not be read
     // as an entry, or validateEvent would throw inside the fold.

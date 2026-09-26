@@ -2,7 +2,7 @@ import { validTakeMetadata } from './audioEdits';
 import { validateBibleEvent } from './dynamicBible';
 import type { EventPayloads, EventType, Role } from './events';
 import { validateObt } from './obt';
-import { PRIVILEGES, type Privilege } from './org';
+import { PRIVILEGES, type Privilege } from './privileges';
 import { validateTextTranslation } from './textTranslations';
 
 /**
@@ -22,7 +22,9 @@ import { validateTextTranslation } from './textTranslations';
  * Every `validate` must equal the SQL `validate_payload` rule for its type
  * (PLAN.md invariant 11). Never make a shipped rule stricter than SQL: the
  * fold would then drop events the server accepted from older clients.
- * Arrow wrappers keep module-cycle order irrelevant (org.ts re-exports from here).
+ * This module must not import org.ts, validate.ts or reducer.ts: org.ts
+ * re-exports EVENT_PRIVILEGE from here, and a cycle leaves it uninitialized
+ * at load time in the Metro web bundle.
  */
 export interface EventRegistryEntry<T extends EventType> {
   /** Payload rule. `null` means valid. Must never throw on any JSON object. */

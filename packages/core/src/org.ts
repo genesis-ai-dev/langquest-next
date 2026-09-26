@@ -2,6 +2,7 @@ import type { AnyEvent, EventEnvelope, Role } from './events';
 import type { Hlc } from './hlc';
 import type { Register } from './state';
 import { EVENT_PRIVILEGE } from './eventRegistry';
+import { PRIVILEGES, type Privilege } from './privileges';
 import { validateEvent } from './validate';
 
 /**
@@ -21,23 +22,7 @@ import { validateEvent } from './validate';
  */
 export const ORG_PARTITION = '_org';
 
-/** The UX spec's privilege catalog (ROLE_PRIVILEGES), as stable ids. */
-export const PRIVILEGES = [
-  'manage_structure',
-  'invite_members',
-  'manage_roles',
-  'manage_templates',
-  'manage_reference',
-  'manage_flows',
-  'manage_teams',
-  'assign_work',
-  'translate',
-  'fill_reference',
-  'send_to_reviewers',
-  'review',
-  'view_status'
-] as const;
-export type Privilege = (typeof PRIVILEGES)[number];
+export { PRIVILEGES, type Privilege };
 
 /** Privileges that make a member an admin of their scope (spec MANAGE_PRIVILEGES). */
 export const MANAGE_PRIVILEGES: readonly Privilege[] = [
