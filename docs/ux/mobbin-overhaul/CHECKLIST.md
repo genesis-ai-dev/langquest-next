@@ -18,6 +18,13 @@ gaps, and the data it needs.
 - `analysis-org-config.md`: J-ORG, J-CFG, J-VIEW
 - `analysis-event-model.md`: facts, new events, derivation rules D1–D13
 
+## Decisions (Ryder, 2026-09-25)
+
+- Approvals reset per version: a new version needs fresh reviews, so a checkpoint certifies the audio that ships.
+- Spoken: adopt the reference flow (community, peer, back translation, consultant checkpoint, local check by link) as a new flow id; existing `spoken_worldwide` OBT lanes keep working as legacy.
+- My Work: For you / Recent / Waiting on others, plus the three most recent done items (struck through) so a returning user can pick up where they left off.
+- New events: open. Ryder asked whether record facts can be more generic (indexed fields plus a JSON payload) instead of ~10 specific events. Phase 2 waits on that design.
+
 ## Rules for every item
 
 1. Copy from the reference goes into `accessibilityLabel` and audio prompts on
