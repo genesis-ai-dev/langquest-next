@@ -1,7 +1,7 @@
 import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
-  CATALOG_VERSION, contentTemplates, effectiveUnitKinds, FLOW_TEMPLATES, instantiateFlow, instantiateTemplate,
+  CATALOG_VERSION, contentTemplates, effectiveUnitKinds, flowSelectionEvents, FLOW_TEMPLATES, instantiateFlow, instantiateTemplate,
   templateOfUnit, templateUnitId
 } from '../src/catalog';
 import { buildIndexes, laneLeafUnits } from '../src/indexes';
@@ -9,7 +9,7 @@ import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
 import { derivePieces } from '../src/status';
 import { deriveProgress, deriveTasks } from '../src/tasks';
-import { deriveTakeStatus, deriveWorkflow, eligibleReviewers } from '../src/workflow';
+import { deriveFlow, deriveTakeStatus, deriveWorkflow, eligibleReviewers } from '../src/workflow';
 import { deriveBlockers } from '../src/blockers';
 import { buildFixture, buildStep11Fixture, shuffle } from './fixtures';
 
@@ -138,5 +138,45 @@ describe('catalog: re-selecting a template or flow is idempotent', () => {
     const twice = fold([lane, ...select('dA', 1), ...select('dB', 100)], emptyState());
     expect(deriveWorkflow(twice, 'L1')).toEqual(deriveWorkflow(once, 'L1'));
     expect(deriveWorkflow(twice, 'L1').map((s) => s.id)).toEqual(['quick_check@1/peer_review', 'quick_check@1/approval']);
+  });
+});
+
+describe('selecting a flow again brings its steps back (fresh step ids)', () => {
+  const at = (n: number) => encodeHlc(1_700_000_000_000 + n * 1000, 0, 'dA');
+  /** Apply the flows_home selection against the state so far, as the app does. */
+  function apply(events: AnyEvent[], laneId: string, flowId: string, instance: string): AnyEvent[] {
+    const state = fold(events, emptyState());
+    const next = flowSelectionEvents(state, laneId, flowId, instance).map((e, i) => ({
+      id: `${instance}-${i}`, type: e.type, orgId: 'o', projectId: 'p', actorId: 'lead', deviceId: 'dA',
+      hlc: at(events.length + i + 1), payload: e.payload
+    }) as AnyEvent);
+    return [...events, ...next];
+  }
+  const base = (): AnyEvent[] => [
+    { id: 'lane1', type: 'v1.LaneAdded', orgId: 'o', projectId: 'p', actorId: 'lead', deviceId: 'dA', hlc: at(0), payload: { laneId: 'L1', languoidId: 'din' } },
+    { id: 'lane2', type: 'v1.LaneAdded', orgId: 'o', projectId: 'p', actorId: 'lead', deviceId: 'dA', hlc: at(0), payload: { laneId: 'L2', languoidId: 'nus' } }
+  ] as AnyEvent[];
+  const kindsOn = (events: AnyEvent[], laneId: string) => deriveFlow(fold(events, emptyState()), laneId).map((s) => s.kindIds.join('+'));
+
+  it('switching A, B, then back to A (or Undo) shows A\'s steps, not an empty flow', () => {
+    // Why (bug found in 2b-A): WorkflowStepRemoved is add-wins, so reusing
+    // template step ids left A's steps removed forever after switching back.
+    let log = apply(base(), 'L1', 'consultant_checkpoint', 'i1');
+    const a = kindsOn(log, 'L1');
+    expect(a).toEqual(['kind@1/consultant', 'kind@1/final']);
+    log = apply(log, 'L1', 'one_check', 'i2');
+    expect(kindsOn(log, 'L1')).toEqual(['kind@1/peer']);
+    log = apply(log, 'L1', 'consultant_checkpoint', 'i3');
+    expect(kindsOn(log, 'L1')).toEqual(a);
+    expect(fold(log, emptyState()).laneFlows['L1']?.value.flowId).toBe('consultant_checkpoint');
+  });
+
+  it('two languages on one flow keep their own steps', () => {
+    // Why: template step ids carry no lane, so both lanes wrote one register
+    // and the later lane took the steps.
+    let log = apply(base(), 'L1', 'one_check', 'i1');
+    log = apply(log, 'L2', 'one_check', 'i2');
+    expect(kindsOn(log, 'L1')).toEqual(['kind@1/peer']);
+    expect(kindsOn(log, 'L2')).toEqual(['kind@1/peer']);
   });
 });

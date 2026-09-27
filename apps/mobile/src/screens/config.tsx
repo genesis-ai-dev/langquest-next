@@ -1,6 +1,6 @@
 // Avatar P. Roles, content templates, reference library, key terms, review flows.
 import type { Privilege, ProjectState, ReviewKind } from '@langquest-next/core';
-import { PRIVILEGES, CATALOG_VERSION, contentTemplates, deriveFlow, FLOW_TEMPLATES, instantiateFlow, instantiateFlowV2, READY_FLOWS, readyFlow, reviewKind, reviewKinds, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
+import { PRIVILEGES, CATALOG_VERSION, contentTemplates, deriveFlow, FLOW_TEMPLATES, flowSelectionEvents, READY_FLOWS, readyFlow, reviewKind, reviewKinds, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
 import type { LucideIcon } from 'lucide-react-native';
 import { ArrowDown, ArrowUp, BadgeCheck, Check, ChevronDown, ChevronRight, FileText, Globe, KeyRound, Languages, Link2, Lock, MapPin, MessageCircle, Mic, Octagon, Plus, Search, Star, Trash2, Users, Workflow, X } from 'lucide-react-native';
 import * as Crypto from 'expo-crypto';
@@ -462,17 +462,10 @@ function kindNames(state: ProjectState, kindIds: string[]): string {
   return kindIds.map((k) => reviewKind(state, k).name).join(' + ');
 }
 
-/** The events a flow selection implies: ready-made flows emit v2 steps, legacy flows v1 steps. */
-function flowEvents(flowId: string, laneId: string) {
-  return readyFlow(flowId)
-    ? instantiateFlowV2(flowId, laneId).map((payload) => ({ type: 'v2.WorkflowStepSet' as const, payload }))
-    : instantiateFlow(flowId, laneId).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }));
-}
-
 /**
  * UX spec A42 / J-CFG-2: exactly one review flow per language, picked from
  * the ready-made flows. A ready-made flow replaces the language's steps with
- * v2 steps (kinds, checkpoints) under its own ids; Undo re-selects the
+ * v2 steps (kinds, checkpoints) under fresh ids; Undo re-selects the
  * previous flow. Lanes on a legacy v1 flow keep it until someone picks again.
  */
 export function FlowsHome(ctx: Ctx) {
@@ -485,13 +478,9 @@ export function FlowsHome(ctx: Ctx) {
   const legacy = selected ? FLOW_TEMPLATES.find((f) => f.id === selected.flowId) : undefined;
   async function select(flowId: string) {
     if (!state || !laneId) return;
-    const events = flowEvents(flowId, laneId);
-    const keep = new Set(events.map((e) => e.payload.stepId));
-    // The language runs one flow: its other lane steps go.
-    const removals = Object.entries(state.workflowSteps)
-      .filter(([id, s]) => !s.removed && s.step.hlc !== '' && s.step.value.laneId === laneId && !keep.has(id))
-      .map(([stepId]) => ({ type: 'v1.WorkflowStepRemoved' as const, payload: { stepId } }));
-    await appendMany([{ type: 'v1.LaneFlowSelected' as const, payload: { laneId, flowId, catalogVersion: CATALOG_VERSION } }, ...removals, ...events]);
+    // The language runs one flow: its other steps go, and the flow's steps
+    // get fresh ids so switching back (or Undo) brings them back.
+    await appendMany(flowSelectionEvents(state, laneId, flowId, Crypto.randomUUID().slice(0, 8)));
   }
   function use(flowId: string, name: string) {
     if (busy) return;

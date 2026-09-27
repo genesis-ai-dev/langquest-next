@@ -810,7 +810,8 @@ export function NewLanguage(ctx: Ctx) {
         ] : []),
         ...(withFlow ? [
           { type: 'v1.LaneFlowSelected' as const, payload: { laneId, flowId: DEFAULT_FLOW, catalogVersion: CATALOG_VERSION } },
-          ...instantiateFlow(DEFAULT_FLOW, laneId).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }))
+          // Fresh step ids: template ids are shared by every lane on the flow.
+          ...instantiateFlow(DEFAULT_FLOW, laneId, CATALOG_VERSION, Crypto.randomUUID().slice(0, 8)).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }))
         ] : [])
       ]);
       ctx.toast(`${languoidId} added to ${project}`);

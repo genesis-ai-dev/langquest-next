@@ -286,11 +286,11 @@ export function readyFlow(id: string): FlowTemplateV2 | undefined {
 }
 
 /** Every v2.WorkflowStepSet a ready-made flow implies, in step order. Ids derive from the flow, so two admins agree. */
-export function instantiateFlowV2(flowId: string, laneId: string, catalogVersion = CATALOG_VERSION): EventPayloads['v2.WorkflowStepSet'][] {
+export function instantiateFlowV2(flowId: string, laneId: string, catalogVersion = CATALOG_VERSION, instance?: string): EventPayloads['v2.WorkflowStepSet'][] {
   const f = readyFlow(flowId);
   if (!f) throw new Error(`Unknown ready-made flow ${flowId}`);
   return f.steps.map((s, i) => ({
-    stepId: templateStepId(flowId, catalogVersion, s.stageId),
+    stepId: flowStepId(flowId, catalogVersion, s.stageId, instance),
     laneId,
     order: `s${pad(i, 2)}`,
     kindIds: [...s.kindIds],
@@ -365,12 +365,48 @@ export function templateStepId(flowId: string, catalogVersion: number, stageId: 
   return `${flowId}@${catalogVersion}/${stageId}`;
 }
 
+/**
+ * A flow step's id for one application of a flow. `instance` makes it
+ * fresh: `v1.WorkflowStepRemoved` is add-wins, so a step id once removed can
+ * never come back, and template ids are shared by every lane. Reusing them
+ * left steps removed after switching back to a flow (or its Undo), and let
+ * two lanes on one flow fight over one step register. The cost: two admins
+ * picking the same flow offline get two copies of its steps, which the flow
+ * editor shows and can remove.
+ */
+function flowStepId(flowId: string, catalogVersion: number, stageId: string, instance?: string): string {
+  const base = templateStepId(flowId, catalogVersion, stageId);
+  return instance === undefined ? base : `${base}~${instance}`;
+}
+
+export type FlowSelectionEvent =
+  | { type: 'v1.LaneFlowSelected'; payload: EventPayloads['v1.LaneFlowSelected'] }
+  | { type: 'v1.WorkflowStepRemoved'; payload: EventPayloads['v1.WorkflowStepRemoved'] }
+  | { type: 'v1.WorkflowStepSet'; payload: EventPayloads['v1.WorkflowStepSet'] }
+  | { type: 'v2.WorkflowStepSet'; payload: EventPayloads['v2.WorkflowStepSet'] };
+
+/**
+ * Everything that puts a flow on a lane: the selection, a removal for each
+ * other live step of the lane, and the flow's steps under fresh ids
+ * (`instance`, e.g. a random id from the caller). Ready-made flows emit v2
+ * steps; legacy flow templates v1 steps. No event changes meaning.
+ */
+export function flowSelectionEvents(state: ProjectState, laneId: string, flowId: string, instance: string, catalogVersion = CATALOG_VERSION): FlowSelectionEvent[] {
+  const steps: FlowSelectionEvent[] = readyFlow(flowId)
+    ? instantiateFlowV2(flowId, laneId, catalogVersion, instance).map((payload) => ({ type: 'v2.WorkflowStepSet' as const, payload }))
+    : instantiateFlow(flowId, laneId, catalogVersion, instance).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }));
+  const removals = Object.entries(state.workflowSteps)
+    .filter(([, s]) => !s.removed && s.step.hlc !== '' && s.step.value.laneId === laneId)
+    .map(([stepId]): FlowSelectionEvent => ({ type: 'v1.WorkflowStepRemoved', payload: { stepId } }));
+  return [{ type: 'v1.LaneFlowSelected', payload: { laneId, flowId, catalogVersion } }, ...removals, ...steps];
+}
+
 /** Every WorkflowStepSet a lane's flow selection implies, in stage order. */
-export function instantiateFlow(flowId: string, laneId: string, catalogVersion = CATALOG_VERSION): EventPayloads['v1.WorkflowStepSet'][] {
+export function instantiateFlow(flowId: string, laneId: string, catalogVersion = CATALOG_VERSION, instance?: string): EventPayloads['v1.WorkflowStepSet'][] {
   const f = flowTemplate(flowId);
   if (!f) throw new Error(`Unknown flow template ${flowId}`);
   return f.stages.map((s, i) => ({
-    stepId: templateStepId(flowId, catalogVersion, s.stageId),
+    stepId: flowStepId(flowId, catalogVersion, s.stageId, instance),
     laneId,
     order: `s${pad(i, 2)}`,
     label: s.label,
