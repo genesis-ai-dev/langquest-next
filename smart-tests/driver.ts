@@ -18,6 +18,9 @@ export interface AgentRun {
   elapsedMs: number;
 }
 
+/** Pages already logging console output under SMART_DEBUG. */
+const debugged = new WeakSet<Page>();
+
 /** Jev chooses observed actions on this page; the test supplies no selectors or code. */
 export async function runJev(page: Page, goal: string, options: {
   timeoutMs?: number;
@@ -29,6 +32,11 @@ export async function runJev(page: Page, goal: string, options: {
     throw new Error('Set TYPESAFE_API_KEY and TEXT_MODEL_API_KEY (smart-tests/run.sh loads them).');
   }
   const timeoutMs = options.timeoutMs ?? 90_000;
+  if (process.env['SMART_DEBUG'] && !debugged.has(page)) {
+    debugged.add(page);
+    page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log(`[page ${m.type()}] ${m.text().slice(0, 500)}`); });
+    page.on('pageerror', (e) => console.log(`[pageerror] ${e.message.slice(0, 500)}`));
+  }
   const session = await page.context().newCDPSession(page);
   const child = spawn(path.join(directory, '.venv/bin/python'), ['-u', path.join(directory, 'jev_bridge.py')],
     { stdio: ['pipe', 'pipe', 'pipe'], env: process.env });
