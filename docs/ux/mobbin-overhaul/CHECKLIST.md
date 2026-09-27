@@ -107,9 +107,9 @@ permutation/idempotence fixtures.
 
 - [~] `v2.WorkflowStepSet {kindIds, checkpoint}` + seed kinds → J-CFG-3/4/5, parallel kinds, checkpoint lock, done rule (core, SQL `20260927000001_flow_kinds.sql`, flow editor and record UI; journey "admin builds a flow" added, see verdict in the 2b-A report)
 - [~] `v1.CheckRecorded` → per-kind reviews (reset per version), feedback answered (core, SQL `20260927000002_check_recorded.sql`, review_capture emits it on v2 steps; journey "reviewer checks a kind" added)
-- [ ] `v1.StepSetAside`, `v1.CheckpointOverridden`, `v1.DepartureUndone` → J-REC-5/6/7, toast Undo
-- [ ] `v1.FeedbackKept` → J-REC-4 "Keep it, say why"
-- [ ] `v1.RequestMade`, `v1.RequestWithdrawn` → J-REC-10 ask someone, precise For you / Waiting on others
+- [~] `v1.StepSetAside`, `v1.CheckpointOverridden`, `v1.DepartureUndone` → J-REC-5/6/7, toast Undo (core, SQL `20260927000003_departures.sql`, passage_record ReasonSheet, Set aside per kind, Move past this checkpoint…, history Undo / Brought back; journey "translator sets a step aside" written, not run: local stack down)
+- [~] `v1.FeedbackKept` → J-REC-4 "Keep it, say why" (core, SQL `20260927000004_feedback_kept.sql`, feedback card and review_detail, inbox "Kept as is"; no undo fact yet; journey "translator keeps the version" written, not run)
+- [~] `v1.RequestMade`, `v1.RequestWithdrawn` → J-REC-10 ask someone, precise For you / Waiting on others (core, SQL `20260927000005_requests.sql`, ask_someone fixed to step and kind with toast Undo, My Work; outside-person asks are Phase 3; journey "translator asks for a kind check" written, coordinator ask oracle moved to RequestMade, not run)
 - [ ] `v1.CheckLogged` → J-REC-11 Log what happened
 - [ ] `v1.ContentProduced` → J-BT-1/2 in ordinary lanes, J-REV-1 compare
 - [ ] `v1.ContextItemAdded` → J-STUDY-2/3 notes, tray notes, verse notes, version change note
@@ -121,6 +121,8 @@ permutation/idempotence fixtures.
 - [ ] `v1.ShareLinkIssued` + server-only `v1.ShareFeedbackRecorded` + RPC + web page → J-GUEST-1, S7 (needs a security review)
 
 ## Existing bug found in passing
+
+- [~] Re-selecting a flow (or flows_home Undo) left its steps removed: step ids were reused and `WorkflowStepRemoved` is add-wins; two lanes on one flow also shared step ids. Fixed by fresh step ids per application (`flowSelectionEvents`, core), pinned by `packages/core/test/catalog.test.ts`; not walked
 
 - [ ] Core `validateEvent` has no cases for `WorkflowStepSet`, `LaneFlowSelected`, `ResponseRecorded`, `ReviewCommentRecorded`, `Material*`, `KeyTerm*`, `ReviewTeam*`, `StepQuestionSetLinked`, though SQL validates them (invariant 11)
 - [x] `popTo` into a screen already in the stack dropped its params (React Navigation 7 POP_TO without `merge`), so saving in the workspace, deciding in review_capture or sending an ask landed on "Passage not found" whenever passage_record was already open. Fixed in `apps/mobile/src/nav.ts` (`popToAction`), pinned by `apps/mobile/test/nav.test.ts`.

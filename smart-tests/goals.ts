@@ -41,3 +41,18 @@ export const checkKindLooksGood = (label: string) =>
   `You are a reviewer. From My Work, review the version of "${label}" you were asked to review. ` +
   'Play the recording first. Answer the required question (it is accurate, so rate it high) and leave the optional ones. ' +
   'It looks good: send it as looking good. Stop when it is sent.';
+
+export const setAsideStep = (label: string) =>
+  `You are the translator of "${label}". From My Work, open that passage's page. Its version is saved and waiting for Peer Review, ` +
+  'but no peer will be available for this passage. On the passage page, tap the Peer Review step on the path and set it aside. ' +
+  'When asked why, choose the reason "Not needed for this passage" and confirm. Stop when it is set aside.';
+
+export const keepAfterFeedback = (label: string) =>
+  `You are a translator. A reviewer asked for changes to your passage "${label}", but your listeners preferred the current wording. ` +
+  'Open the passage from My Work. Do not record anything: keep the version as it is and say why, choosing the reason ' +
+  '"Listeners preferred the current wording", then send the reason. Stop when it is sent.';
+
+export const askForKindCheck = (label: string, person: string) =>
+  `You are the translator of "${label}". From My Work, open that passage's page (your Version 1 is saved). ` +
+  'On a passage page you tap a step on its path to ask someone to do it. Tap the Peer Review step and ask someone for Peer Review: ' +
+  `ask ${person}, due in a week, and send the ask. Stop when the ask is sent.`;
