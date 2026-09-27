@@ -1,7 +1,7 @@
 // Avatar P. Org, project, and language homes; members; invites; review teams.
 import type { LanguageProgress, OrgState, Privilege, ProjectState, Role, Scope, ScopeLevel } from '@langquest-next/core';
 import {
-  CATALOG_VERSION, contentTemplates, deriveWorkflow, FLOW_TEMPLATES,
+  CATALOG_VERSION, contentTemplates, deriveWorkflow, FLOW_TEMPLATES, READY_FLOWS,
   instantiateFlow, instantiateTemplate, keyTermsFor, languageProgress, materialsFor, membershipsOf, privilegesFor,
   privilegesOfFixedRole, scopeKey
 } from '@langquest-next/core';
@@ -47,7 +47,7 @@ export function progressLine(c: LaneCounts): string {
 
 export function flowName(state: ProjectState | null, laneId: string): string {
   const flowId = state?.laneFlows[laneId]?.value.flowId;
-  const named = FLOW_TEMPLATES.find((f) => f.id === flowId)?.name;
+  const named = READY_FLOWS.find((f) => f.id === flowId)?.name ?? FLOW_TEMPLATES.find((f) => f.id === flowId)?.name;
   if (named) return named;
   const steps = state ? deriveWorkflow(state, laneId).length : 0;
   return steps ? plural(steps, 'review step') : 'No review flow';

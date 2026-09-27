@@ -1,10 +1,11 @@
 // Avatar P. Roles, content templates, reference library, key terms, review flows.
-import type { Privilege, ProjectState, QuorumRule, WorkflowStep } from '@langquest-next/core';
-import { PRIVILEGES, CATALOG_VERSION, contentTemplates, deriveWorkflow, FLOW_TEMPLATES, instantiateFlow, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
-import { Check, ChevronDown, ChevronRight, FileText, KeyRound, Link2, Lock, Plus, Search, Trash2, Workflow } from 'lucide-react-native';
+import type { Privilege, ProjectState, ReviewKind } from '@langquest-next/core';
+import { PRIVILEGES, CATALOG_VERSION, contentTemplates, deriveFlow, FLOW_TEMPLATES, instantiateFlow, instantiateFlowV2, READY_FLOWS, readyFlow, reviewKind, reviewKinds, instantiateQuestionSet, instantiateTemplate, keyTermsFor, keyTermsForUnit, keyTermView, materialsFor, QUESTION_TEMPLATES, questionSetMaterialId, REFERENCE_KINDS, takesLinkingTerm, templateStepId } from '@langquest-next/core';
+import type { LucideIcon } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, BadgeCheck, Check, ChevronDown, ChevronRight, FileText, Globe, KeyRound, Languages, Link2, Lock, MapPin, MessageCircle, Mic, Octagon, Plus, Search, Star, Trash2, Users, Workflow, X } from 'lucide-react-native';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
 import { colors, space } from '../theme';
@@ -443,53 +444,78 @@ export function KeyTermDetail(ctx: Ctx) {
   );
 }
 
+/** The icon a kind names (catalog seeds and new kinds), with a generic fallback. */
+function kindIcon(kind: Pick<ReviewKind, 'icon' | 'id'>): LucideIcon {
+  switch (kind.icon) {
+    case 'users': return Users;
+    case 'languages': return Languages;
+    case 'globe': return Globe;
+    case 'badge-check': return BadgeCheck;
+    case 'star': return Star;
+    case 'map-pin': return MapPin;
+    default: return MessageCircle;
+  }
+}
+
+/** One step's kinds as words, "Peer Review + Back Translation". */
+function kindNames(state: ProjectState, kindIds: string[]): string {
+  return kindIds.map((k) => reviewKind(state, k).name).join(' + ');
+}
+
+/** The events a flow selection implies: ready-made flows emit v2 steps, legacy flows v1 steps. */
+function flowEvents(flowId: string, laneId: string) {
+  return readyFlow(flowId)
+    ? instantiateFlowV2(flowId, laneId).map((payload) => ({ type: 'v2.WorkflowStepSet' as const, payload }))
+    : instantiateFlow(flowId, laneId).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }));
+}
+
 /**
  * UX spec A42 / J-CFG-2: exactly one review flow per language, picked from
- * the ready-made flows. Use writes one register per step; Undo re-selects the
- * previous flow. Parallel kinds and checkpoints wait for v2 steps (Phase 2).
+ * the ready-made flows. A ready-made flow replaces the language's steps with
+ * v2 steps (kinds, checkpoints) under its own ids; Undo re-selects the
+ * previous flow. Lanes on a legacy v1 flow keep it until someone picks again.
  */
 export function FlowsHome(ctx: Ctx) {
   const { state, appendMany } = ctx.project;
   const { laneId, lanes, level } = viewLanes(ctx);
   const selected = laneId ? state?.laneFlows[laneId]?.value : undefined;
-  const steps = state && laneId ? deriveWorkflow(state, laneId) : [];
+  const steps = state && laneId ? deriveFlow(state, laneId) : [];
   const canManage = ctx.session.can('manage_flows') && !!laneId;
   const [busy, setBusy] = useState('');
-  async function select(flowId: string, from: typeof selected) {
+  const legacy = selected ? FLOW_TEMPLATES.find((f) => f.id === selected.flowId) : undefined;
+  async function select(flowId: string) {
     if (!state || !laneId) return;
-    const current = deriveWorkflow(state, laneId);
-    // Steps of the previously selected flow are removed; hand-edited steps stay.
-    const removals = from
-      ? current.filter((s) => s.id.startsWith(`${from.flowId}@`)).map((s) => ({ type: 'v1.WorkflowStepRemoved' as const, payload: { stepId: s.id } }))
-      : [];
-    await appendMany([
-      { type: 'v1.LaneFlowSelected' as const, payload: { laneId, flowId, catalogVersion: CATALOG_VERSION } },
-      ...removals,
-      ...instantiateFlow(flowId, laneId).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }))
-    ]);
+    const events = flowEvents(flowId, laneId);
+    const keep = new Set(events.map((e) => e.payload.stepId));
+    // The language runs one flow: its other lane steps go.
+    const removals = Object.entries(state.workflowSteps)
+      .filter(([id, s]) => !s.removed && s.step.hlc !== '' && s.step.value.laneId === laneId && !keep.has(id))
+      .map(([stepId]) => ({ type: 'v1.WorkflowStepRemoved' as const, payload: { stepId } }));
+    await appendMany([{ type: 'v1.LaneFlowSelected' as const, payload: { laneId, flowId, catalogVersion: CATALOG_VERSION } }, ...removals, ...events]);
   }
   function use(flowId: string, name: string) {
     if (busy) return;
     const previous = selected;
     setBusy(flowId);
-    void select(flowId, previous).then(() => ctx.toast(`${state?.lanes[laneId!]?.languoidId ?? 'This language'} now uses ${name}`,
-      previous && FLOW_TEMPLATES.some((f) => f.id === previous.flowId)
-        ? () => void select(previous.flowId, { flowId, catalogVersion: CATALOG_VERSION }).then(() => ctx.toast('Undone — the previous flow is back'))
+    void select(flowId).then(() => ctx.toast(`${state?.lanes[laneId!]?.languoidId ?? 'This language'} now uses ${name}`,
+      previous && (readyFlow(previous.flowId) || FLOW_TEMPLATES.some((f) => f.id === previous.flowId))
+        ? () => void select(previous.flowId).then(() => ctx.toast('Undone — the previous flow is back'))
         : undefined)).finally(() => setBusy(''));
   }
   const scopeName = level === 'org' ? 'organization' : 'project';
   return (
-    <Screen footer={canManage ? <Footer label="Edit stages" onPress={() => ctx.go('flow_editor', { laneId: laneId! })} /> : undefined}>
+    <Screen footer={canManage ? <Footer label="Edit flow" onPress={() => ctx.go('flow_editor', { laneId: laneId! })} /> : undefined}>
       <Header title="Review flows" sub={laneId ? state?.lanes[laneId]?.languoidId : `${level === 'org' ? 'Organization' : 'Project'} · ${lanes.length} language${lanes.length === 1 ? '' : 's'}`} onBack={ctx.back} />
       <Note>{laneId
         ? 'The flow suggests what should happen next for each passage in this language.'
         : `Each language runs one review flow — this view covers the ${lanes.length} language${lanes.length === 1 ? '' : 's'} in this ${scopeName}${level === 'org' ? ' that are open on this device' : ''}. Apply one from a language's home.`}</Note>
       <Section label="Ready-made flows">
-        {FLOW_TEMPLATES.map((f, i, a) => {
+        {READY_FLOWS.map((f, i, a) => {
           const users = lanes.filter((l) => state?.laneFlows[l]?.value.flowId === f.id);
+          const shape = f.steps.length === 0 ? 'No reviews' : f.steps.map((st) => `${state ? kindNames(state, st.kindIds) : st.kindIds.join(' + ')}${st.checkpoint ? ' (checkpoint)' : ''}`).join(' → ');
           return (
             <Row key={f.id} icon={Workflow} label={f.name}
-              sub={`${f.stages.map((st) => st.label).join(' → ')}${laneId ? '' : ` · ${users.length ? `Used by ${langNames(state, users)}` : 'Not used in this view'}`}`}
+              sub={`${shape}${laneId ? '' : ` · ${users.length ? `Used by ${langNames(state, users)}` : 'Not used in this view'}`}`}
               right={laneId ? <UsePill label={f.name} on={selected?.flowId === f.id} busy={busy === f.id}
                 onPress={canManage ? () => use(f.id, f.name) : undefined} /> : <View />}
               last={i === a.length - 1} />
@@ -497,9 +523,13 @@ export function FlowsHome(ctx: Ctx) {
         })}
       </Section>
       {laneId ? (
-        <Section label="Steps in use">
+        <Section label={legacy ? `Steps in use · ${legacy.name}` : 'Steps in use'}>
           {steps.map((s, i) => (
-            <Row key={s.id} label={s.label ?? s.id} sub={`${s.teamId ? `team ${state?.teams[s.teamId]?.name.value ?? s.teamId}` : s.role} · ${s.rule}${s.required ? ' · required' : ' · optional'}`} badge={`${i + 1}`} last={i === steps.length - 1 && selected?.flowId !== 'spoken_worldwide'} />
+            <Row key={s.id} icon={s.checkpoint ? Octagon : undefined} label={s.label ?? (state ? kindNames(state, s.kindIds) : s.id)}
+              sub={s.legacy
+                ? `${s.legacy.teamId ? `team ${state?.teams[s.legacy.teamId]?.name.value ?? s.legacy.teamId}` : s.legacy.role} · ${s.legacy.rule}${s.legacy.required ? ' · required' : ' · optional'}`
+                : `${s.kindIds.length > 1 ? 'Together · ' : ''}${s.checkpoint ? 'Checkpoint · later steps wait for it' : 'Can be set aside with a reason'}`}
+              badge={`${i + 1}`} last={i === steps.length - 1 && selected?.flowId !== 'spoken_worldwide'} />
           ))}
           {steps.length === 0 ? <Row label="No reviews — done once recorded" last={selected?.flowId !== 'spoken_worldwide'} /> : null}
           {/* Legacy Spoken Worldwide lanes keep their oral workflow settings. */}
@@ -511,78 +541,180 @@ export function FlowsHome(ctx: Ctx) {
   );
 }
 
-const RULES: QuorumRule[] = ['any', 'majority', 'unanimous'];
+interface DraftStep { id: string; kindIds: string[]; checkpoint: boolean; label?: string; legacy: boolean }
 
-/** Edits are one register per step, so two admins editing offline merge per step instead of clobbering a document. */
+/**
+ * J-CFG-3/4/5/6: a language's flow as steps of review kinds. Kinds in one
+ * step happen together; a checkpoint is the only hard stop. Saving writes one
+ * `v2.WorkflowStepSet` per changed step (so two admins merge per step), a
+ * removal per dropped step, and `v1.ReviewKindDefined` for new kinds. A v1
+ * step is never edited with v2: saving replaces it under a new id, so an old
+ * client sees fewer steps rather than a stale one.
+ */
 export function FlowEditor(ctx: Ctx) {
   const { state, appendMany } = ctx.project;
   const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
-  const initial = state ? deriveWorkflow(state, laneId) : [];
-  const [steps, setSteps] = useState<WorkflowStep[]>(initial);
-  const [name, setName] = useState('');
+  const initial = state ? deriveFlow(state, laneId) : [];
+  const [steps, setSteps] = useState<DraftStep[]>(() => initial.map((s) => ({
+    id: s.id, kindIds: [...s.kindIds], checkpoint: s.checkpoint, legacy: s.legacy !== undefined, ...(s.label !== undefined ? { label: s.label } : {})
+  })));
+  const [newKinds, setNewKinds] = useState<{ kindId: string; name: string }[]>([]);
+  const [picker, setPicker] = useState<number | null>(null);
+  const [kindName, setKindName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const canManage = ctx.session.can('manage_flows');
+  const language = state?.lanes[laneId]?.languoidId ?? laneId;
+  const nameOf = (id: string) => newKinds.find((k) => k.kindId === id)?.name ?? (state ? reviewKind(state, id).name : id);
+  const kindOf = (id: string): ReviewKind => newKinds.find((k) => k.kindId === id) ? { id, name: nameOf(id), icon: 'message-circle' } : state ? reviewKind(state, id) : { id, name: id };
+  const edit = (i: number, f: (s: DraftStep) => DraftStep) => setSteps((all) => all.map((s, j) => (j === i ? f(s) : s)));
+  const move = (i: number, by: number) => setSteps((all) => {
+    const j = i + by;
+    if (j < 0 || j >= all.length) return all;
+    const out = [...all];
+    [out[i], out[j]] = [out[j]!, out[i]!];
+    return out;
+  });
+
   async function save() {
-    const after = new Map(steps.map((s) => [s.id, s]));
-    const removed = initial.filter((s) => !after.has(s.id)).map((s) => ({ type: 'v1.WorkflowStepRemoved' as const, payload: { stepId: s.id } }));
-    const changed = steps
-      .map((s, i) => ({ s, i }))
-      .filter(({ s, i }) => {
-        const before = initial[i];
-        return !before || before.id !== s.id || before.rule !== s.rule || before.required !== s.required || before.teamId !== s.teamId || !state?.workflowSteps[s.id];
-      })
-      .map(({ s, i }) => ({
-        type: 'v1.WorkflowStepSet' as const,
-        payload: {
-          stepId: s.id, laneId, order: `s${String(i).padStart(2, '0')}`, role: s.role, required: s.required, rule: s.rule,
-          ...(s.label !== undefined ? { label: s.label } : {}), ...(s.teamId !== undefined ? { teamId: s.teamId } : {})
-        }
-      }));
-    await appendMany([...removed, ...changed]);
-    ctx.back();
+    if (!state || busy) return;
+    setBusy(true);
+    try {
+      const kept = steps.filter((s) => s.kindIds.length > 0);
+      const events: Parameters<typeof appendMany>[0] = [];
+      for (const k of newKinds) {
+        if (kept.some((s) => s.kindIds.includes(k.kindId))) events.push({ type: 'v1.ReviewKindDefined', payload: { kindId: k.kindId, name: k.name, icon: 'message-circle' } });
+      }
+      const finalIds = kept.map((s) => (s.legacy ? `step:${laneId}:${Crypto.randomUUID()}` : s.id));
+      const before = new Map(initial.map((s) => [s.id, s]));
+      for (const s of initial) if (!finalIds.includes(s.id)) events.push({ type: 'v1.WorkflowStepRemoved', payload: { stepId: s.id } });
+      kept.forEach((s, i) => {
+        const stepId = finalIds[i]!;
+        const order = `s${String(i).padStart(2, '0')}`;
+        const was = before.get(stepId);
+        if (was && !was.legacy && was.order === order && was.checkpoint === s.checkpoint && was.kindIds.join('|') === s.kindIds.join('|')) return;
+        events.push({ type: 'v2.WorkflowStepSet', payload: {
+          stepId, laneId, order, kindIds: s.kindIds, checkpoint: s.checkpoint, ...(s.label !== undefined && !s.legacy ? { label: s.label } : {})
+        } });
+      });
+      // No steps left: the language collects only, rather than inheriting the project's steps.
+      if (kept.length === 0 && initial.length > 0) events.push({ type: 'v1.LaneFlowSelected', payload: { laneId, flowId: 'collect_only', catalogVersion: CATALOG_VERSION } });
+      if (events.length) await appendMany(events);
+      ctx.toast(`${language} flow saved`);
+      ctx.back();
+    } finally { setBusy(false); }
   }
+
+  function addKind(kindId: string) {
+    if (picker === null) return;
+    edit(picker, (s) => (s.kindIds.includes(kindId) ? s : { ...s, kindIds: [...s.kindIds, kindId] }));
+    setPicker(null);
+  }
+  function createKind() {
+    const name = kindName.trim();
+    if (!name) return;
+    const kindId = `kind:${Crypto.randomUUID()}`;
+    setNewKinds((k) => [...k, { kindId, name }]);
+    setKindName('');
+    addKind(kindId);
+  }
+
+  const available = state ? [...reviewKinds(state), ...newKinds.map((k) => kindOf(k.kindId))] : [];
   return (
-    <Screen footer={<Footer label="Save flow" onPress={() => void save()} disabled={steps.length === 0} />}>
-      <Header title="Edit stages" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
+    <Screen footer={canManage ? <View style={{ gap: space.sm }}>
+      <Text style={text.small}>{`Used by ${language}. Changes apply to its passages right away — nothing already recorded is lost.`}</Text>
+      <Footer label="Save flow" onPress={() => void save()} disabled={busy} />
+    </View> : undefined}>
+      <Header title="Edit flow" sub={`Review flow · ${language}`} onBack={ctx.back} />
+      <Note>Steps are a suggested order. Kinds in the same step can happen together. Anyone can set a step aside with a reason; a checkpoint is the only hard stop — moving past one needs permission, and the reason is recorded.</Note>
+      {steps.length === 0 ? <Note>No reviews. A passage counts as done once it's recorded. Teams can still record reviews — they just aren't suggested.</Note> : null}
       {steps.map((s, i) => (
-        <Card key={s.id}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <Badge label={`${i + 1}`} />
-            <Text style={[text.h4, { flex: 1 }]}>{s.label ?? s.id}</Text>
-            <Pressable onPress={() => setSteps(steps.filter((_, j) => j !== i))} hitSlop={8} accessibilityLabel="Remove stage">
-              <Trash2 size={18} color={colors.reference} />
-            </Pressable>
-          </View>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {RULES.map((r) => (
-              <Pressable key={r} onPress={() => setSteps(steps.map((x, j) => (j === i ? { ...x, rule: r } : x)))} style={[styles.opt, s.rule === r && { backgroundColor: colors.translate }]}>
-                <Text style={[text.small, s.rule === r && { color: colors.white }]}>{r}</Text>
-              </Pressable>
-            ))}
-            <Pressable onPress={() => setSteps(steps.map((x, j) => (j === i ? { ...x, required: !x.required } : x)))} style={[styles.opt, s.required && { backgroundColor: colors.review }]}>
-              <Text style={[text.small, s.required && { color: colors.white }]}>required</Text>
-            </Pressable>
-          </View>
-        </Card>
+        <View key={s.id} style={{ gap: space.xs }}>
+          {i > 0 ? <Text style={[text.small, { textAlign: 'center' }]}>{steps[i - 1]!.checkpoint ? 'then, once cleared' : 'then'}</Text> : null}
+          <Card style={s.checkpoint ? { borderColor: colors.review, borderWidth: 1.5 } : undefined}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <Badge label={`${i + 1}`} />
+              <Text style={[text.h4, { flex: 1 }]}>{s.kindIds.length > 1 ? 'Together' : 'Step'}</Text>
+              {canManage ? <>
+                <Pressable onPress={() => move(i, -1)} disabled={i === 0} hitSlop={4} style={styles.iconHit} accessibilityRole="button" accessibilityLabel="Move step up">
+                  <ArrowUp size={18} color={i === 0 ? colors.mutedForeground : colors.foreground} />
+                </Pressable>
+                <Pressable onPress={() => move(i, 1)} disabled={i === steps.length - 1} hitSlop={4} style={styles.iconHit} accessibilityRole="button" accessibilityLabel="Move step down">
+                  <ArrowDown size={18} color={i === steps.length - 1 ? colors.mutedForeground : colors.foreground} />
+                </Pressable>
+                <Pressable onPress={() => setSteps(steps.filter((_, j) => j !== i))} hitSlop={4} style={styles.iconHit} accessibilityRole="button" accessibilityLabel="Remove step">
+                  <Trash2 size={18} color={colors.reference} />
+                </Pressable>
+              </> : null}
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+              {s.kindIds.map((k) => {
+                const kind = kindOf(k);
+                const Icon = kindIcon(kind);
+                return (
+                  <View key={k} style={styles.chip} accessible accessibilityLabel={`${kind.name}${kind.produces ? `, makes a ${kind.produces.what}` : ''}`}>
+                    <Icon size={16} color={colors.review} />
+                    <Text style={text.small}>{kind.name}</Text>
+                    {kind.produces ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}><Mic size={12} color={colors.mutedForeground} /><Text style={text.small}>makes a recording</Text></View> : null}
+                    {canManage ? <Pressable onPress={() => edit(i, (x) => ({ ...x, kindIds: x.kindIds.filter((y) => y !== k) }))} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${kind.name}`}>
+                      <X size={14} color={colors.mutedForeground} />
+                    </Pressable> : null}
+                  </View>
+                );
+              })}
+              {canManage ? <Pressable onPress={() => setPicker(i)} style={styles.chip} accessibilityRole="button" accessibilityLabel={s.kindIds.length ? 'Add a kind alongside' : 'Add kind'}>
+                <Plus size={16} color={colors.translate} /><Text style={text.small}>{s.kindIds.length ? 'Alongside' : 'Add kind'}</Text>
+              </Pressable> : null}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <Octagon size={18} color={s.checkpoint ? colors.review : colors.mutedForeground} />
+              <View style={{ flex: 1 }}>
+                <Text style={text.body}>Checkpoint</Text>
+                <Text style={text.small}>{s.checkpoint ? 'Later steps wait for this one.' : 'Can be set aside with a reason.'}</Text>
+              </View>
+              <Switch value={s.checkpoint} disabled={!canManage} accessibilityLabel={`Checkpoint for step ${i + 1}`}
+                onValueChange={(v) => edit(i, (x) => ({ ...x, checkpoint: v }))} />
+            </View>
+          </Card>
+        </View>
       ))}
-      <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-        <TextInput style={[styles.input, { flex: 1 }]} placeholder="New stage name" value={name} onChangeText={setName} />
-        <Pressable
-          onPress={() => {
-            if (!name.trim()) return;
-            const stageId = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
-            setSteps([...steps, { id: templateStepId('custom', CATALOG_VERSION, `${laneId}_${stageId}`), label: name.trim(), role: 'reviewer', required: true, rule: 'any' }]);
-            setName('');
-          }}
-          accessibilityLabel="Add stage"
-        >
-          <Plus size={24} color={colors.translate} />
-        </Pressable>
-      </View>
+      {canManage ? <Pressable onPress={() => { setSteps([...steps, { id: `step:${laneId}:${Crypto.randomUUID()}`, kindIds: [], checkpoint: false, legacy: false }]); setPicker(steps.length); }}
+        style={[styles.chip, { alignSelf: 'flex-start', minHeight: 48 }]} accessibilityRole="button" accessibilityLabel="Add step">
+        <Plus size={20} color={colors.translate} /><Text style={text.body}>Add step</Text>
+      </Pressable> : null}
+
+      <Modal visible={picker !== null} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setPicker(null)} accessibilityLabel="Close" accessibilityRole="button" />
+        <View style={styles.sheet}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={[text.h4, { flex: 1 }]}>Add a kind of review</Text>
+            <Pressable onPress={() => setPicker(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close"><X size={20} color={colors.foreground} /></Pressable>
+          </View>
+          <Text style={text.small}>Kinds are your organization's vocabulary. Add your own if these don't fit.</Text>
+          <ScrollView style={{ maxHeight: 360 }}>
+            {available.filter((k) => picker === null || !steps[picker]?.kindIds.includes(k.id)).map((k, i, a) => (
+              <Row key={k.id} icon={kindIcon(k)} label={k.name}
+                sub={`${k.description ?? 'Defined by your organization.'}${k.produces ? ` · makes a ${k.produces.what}` : ''}`}
+                onPress={() => addKind(k.id)} last={i === a.length - 1} />
+            ))}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+            <TextInput style={[styles.input, { flex: 1 }]} placeholder="New kind — e.g. Elder Review" value={kindName} onChangeText={setKindName}
+              accessibilityLabel="New kind name" onSubmitEditing={createKind} />
+            <Pressable onPress={createKind} style={styles.iconHit} accessibilityRole="button" accessibilityLabel="Add new kind">
+              <Plus size={24} color={colors.translate} />
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
 
 const styles = {
   opt: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: 8, backgroundColor: colors.muted },
+  chip: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, minHeight: 36, paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: 18, backgroundColor: colors.muted },
+  iconHit: { minWidth: 48, minHeight: 48, alignItems: 'center' as const, justifyContent: 'center' as const },
+  sheet: { padding: space.lg, paddingBottom: space.xl, gap: space.md, backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, backgroundColor: colors.card, color: colors.foreground }
 };
 

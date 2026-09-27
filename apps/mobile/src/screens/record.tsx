@@ -4,12 +4,12 @@
 // wired yet (docs/ux/mobbin-overhaul/CHECKLIST.md); later phases build them out.
 import {
   decodeHlc, deriveObt, derivePassageRecord, deriveTakeStatus, keyTermLinksFor, OBT_LABELS, questionsOf, questionSetsFor,
-  recordHeadline, recordNextAction, type PassageRecord as Rec, type RecordEntry, type RecordStep
+  recordHeadline, recordNextAction, type PassageRecord as Rec, type RecordEntry, type RecordKind, type RecordStep
 } from '@langquest-next/core';
 import type { LucideIcon } from 'lucide-react-native';
 import {
   ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight, Clock, Globe, Grid3x3, Headphones, History, ListChecks, Lock,
-  MessageSquare, Mic, Reply, ShieldCheck, UserPlus, Users, X
+  Languages, MapPin, MessageSquare, Mic, Octagon, Reply, ShieldCheck, Star, UserPlus, Users, X
 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -42,8 +42,10 @@ export function Placeholder(props: { ctx: Ctx; id: ScreenId }) {
 // Where a passage stands and whose turn it is (J-REC-1), from the pure
 // `derivePassageRecord` in core. Reference copy is the accessibility label;
 // the passage reference, language code and step names are the only text.
-// Phase 2 facts are absent, not faked: checkpoints and locks behind them,
-// Set aside, Move past a checkpoint, Keep it and say why, Log what happened.
+// Kinds in one step show as stacked tiles ("Either order"); a checkpoint
+// carries a stop badge and later steps show locked until it clears. Still
+// absent, not faked: Set aside, Move past a checkpoint, Keep it and say
+// why, Log what happened (slice B and later).
 
 const canGo = (ctx: Ctx, from: ScreenId, to: ScreenId) => {
   const edge = edgeFor(from, to);
@@ -58,8 +60,10 @@ function shortDate(hlc: string): string {
 
 /** A step's icon: by its id where the flow names the kind of check, else by role. */
 function stepIcon(step: Pick<RecordStep, 'stepId' | 'role'>): LucideIcon {
+  if (/local/.test(step.stepId)) return MapPin;
+  if (/final/.test(step.stepId)) return Star;
   if (/community|retell|playback/.test(step.stepId)) return Users;
-  if (/back_?translation/.test(step.stepId)) return Headphones;
+  if (/back_?translation/.test(step.stepId)) return Languages;
   if (/consult|approv/.test(step.stepId) || step.role === 'coordinator' || step.role === 'owner') return ShieldCheck;
   return ListChecks;
 }
@@ -95,7 +99,7 @@ export function PassageRecord(ctx: Ctx) {
       case 'new_version':
         return canGo(ctx, 'passage_record', 'workspace') ? <ActionButton icon={Mic} accessibilityLabel="New version" onPress={() => ctx.go('workspace', params)} /> : null;
       case 'review':
-        return canGo(ctx, 'passage_record', 'review_capture') ? <ActionButton icon={ListChecks} accessibilityLabel="Review it now" onPress={() => ctx.go('review_capture', { ...params, takeId: action.takeId, stepId: action.stepId })} /> : null;
+        return canGo(ctx, 'passage_record', 'review_capture') ? <ActionButton icon={ListChecks} accessibilityLabel="Review it now" onPress={() => ctx.go('review_capture', { ...params, takeId: action.takeId, stepId: action.stepId, ...(action.kindId ? { kindId: action.kindId } : {}) })} /> : null;
       case 'ask':
         return canGo(ctx, 'passage_record', 'ask_someone') ? <ActionButton icon={UserPlus} accessibilityLabel="Ask someone" onPress={() => ctx.go('ask_someone', { ...params, stepId: action.stepId })} /> : null;
       case 'none':
@@ -200,8 +204,26 @@ const TILE_STATE_LABEL: Record<RecordStep['state'], string> = {
   complete: 'looks good', attention: 'needs changes', waiting: 'asked', current: 'next', todo: 'not yet', locked: 'not recorded yet'
 };
 
+/** A kind's tile state inside its step: the kind's own state, with the step's next/locked framing. */
+function kindTileState(k: RecordKind, step: RecordStep): RecordStep['state'] {
+  switch (k.state) {
+    case 'approved': case 'addressed': case 'skipped': case 'recorded': return 'complete';
+    case 'suggestions': return 'attention';
+    case 'asked': return 'waiting';
+    case 'locked': return 'locked';
+    case 'todo': return step.state === 'current' ? 'current' : step.state === 'locked' ? 'locked' : 'todo';
+  }
+}
+
+/** The accessibility words for a tile, naming the checkpoint that holds a locked step. */
+function tileLabel(rec: Rec, step: RecordStep, name: string, state: RecordStep['state']): string {
+  const lockedBy = step.lockedBy ? rec.steps.find((x) => x.stepId === step.lockedBy)?.label ?? step.lockedBy : null;
+  const words = state === 'locked' && lockedBy ? `waits for the ${lockedBy} checkpoint` : TILE_STATE_LABEL[state];
+  return `${name}${step.checkpoint ? ', checkpoint' : ''}: ${words}`;
+}
+
 /** A pressable step tile. Colour never alone: every state has its corner icon. */
-function StepTile(props: { icon: LucideIcon; state: RecordStep['state']; label: string; half?: boolean; asked?: string[]; onPress: () => void }) {
+function StepTile(props: { icon: LucideIcon; state: RecordStep['state']; label: string; half?: boolean; asked?: string[]; onPress: () => void; a11y?: string }) {
   const person = usePerson();
   const Icon = props.icon;
   const s = props.state;
@@ -209,7 +231,7 @@ function StepTile(props: { icon: LucideIcon; state: RecordStep['state']; label: 
   const fg = s === 'complete' ? colors.done : s === 'attention' || s === 'current' || s === 'waiting' ? colors.review : colors.mutedForeground;
   const Corner = s === 'complete' ? CheckCircle2 : s === 'attention' ? MessageSquare : s === 'waiting' ? Clock : s === 'locked' ? Lock : null;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={`${props.label}: ${TILE_STATE_LABEL[s]}`}
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.a11y ?? `${props.label}: ${TILE_STATE_LABEL[s]}`}
       style={({ pressed }) => [styles.tile, props.half && styles.tileHalf, { backgroundColor: bg },
         s === 'current' && styles.tileCurrent, s === 'locked' && styles.tileLocked, pressed && { opacity: 0.8 }]}>
       <Icon size={props.half ? 20 : 26} color={fg} />
@@ -232,13 +254,20 @@ function StepPath(props: { rec: Rec; onStep: (id: string) => void; onRecorded: (
       {groups.map((g) => (
         <View key={g[0]!.group} style={styles.pathGroup}>
           <View style={styles.connector} />
-          <View style={{ gap: 2, alignItems: 'center' }} accessibilityLabel={g.length > 1 ? 'Either order' : undefined}>
-            {g.map((s, i) => (
-              <View key={s.stepId} style={{ alignItems: 'center' }}>
-                {i > 0 ? <ArrowUpDown size={12} color={colors.mutedForeground} /> : null}
-                <StepTile icon={stepIcon(s)} state={s.state} label={s.label} half={g.length > 1} asked={s.askedOf} onPress={() => props.onStep(s.stepId)} />
-              </View>
-            ))}
+          <View style={{ gap: 2, alignItems: 'center' }} accessibilityLabel={g.length > 1 || g.some((s) => s.kinds.length > 1) ? 'Either order' : undefined}>
+            {g.flatMap((s): { s: RecordStep; k: RecordKind | null }[] => (s.legacy || s.kinds.length === 0 ? [{ s, k: null }] : s.kinds.map((k) => ({ s, k }))))
+              .map(({ s, k }, i, all) => {
+                const tileState = k ? kindTileState(k, s) : s.state;
+                const name = k ? k.name : s.label;
+                return (
+                  <View key={`${s.stepId}:${k?.kindId ?? ''}`} style={{ alignItems: 'center' }}>
+                    {i > 0 ? <ArrowUpDown size={12} color={colors.mutedForeground} /> : null}
+                    <StepTile icon={stepIcon({ stepId: k?.kindId ?? s.stepId, role: s.role })} state={tileState} label={name}
+                      a11y={tileLabel(props.rec, s, name, tileState)} half={all.length > 1} asked={s.askedOf} onPress={() => props.onStep(s.stepId)} />
+                  </View>
+                );
+              })}
+            {g.some((s) => s.checkpoint) ? <View accessible accessibilityLabel="Checkpoint: later steps wait for this one"><Octagon size={12} color={colors.review} /></View> : null}
           </View>
         </View>
       ))}
@@ -314,7 +343,7 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
   const person = usePerson();
   const Icon = stepIcon(step);
   const reviews = rec.latest?.reviews.filter((r) => r.stepId === step.stepId) ?? [];
-  const parallel = rec.steps.filter((s) => s.group === step.group).length > 1;
+  const parallel = rec.steps.filter((s) => s.group === step.group).length > 1 || step.kinds.length > 1;
   const go = (to: ScreenId, extra: Record<string, string>) => { props.close(); ctx.go(to, { ...props.params, ...extra }); };
   const canReview = rec.recorded && ctx.session.can('review') && !!step.status?.eligible.includes(ctx.session.actorId) && canGo(ctx, 'passage_record', 'review_capture');
   const canAsk = rec.recorded && step.role !== 'translator' && canGo(ctx, 'passage_record', 'ask_someone');
@@ -341,7 +370,30 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
           </View>
         ))}
         {!rec.recorded ? <View accessibilityLabel="Not recorded yet"><Lock size={20} color={colors.mutedForeground} /></View> : null}
+        {rec.recorded && step.lockedBy ? <View accessible style={styles.personMark}
+          accessibilityLabel={`Waits for the ${rec.steps.find((x) => x.stepId === step.lockedBy)?.label ?? step.lockedBy} checkpoint`}>
+          <Lock size={20} color={colors.mutedForeground} /><Octagon size={16} color={colors.review} />
+        </View> : null}
       </View>
+      {step.checkpoint ? <View accessible style={styles.personMark} accessibilityLabel="Checkpoint: later steps wait for this one">
+        <Octagon size={18} color={colors.review} />
+      </View> : null}
+      {!step.legacy && step.kinds.length > 0 ? <View style={{ gap: space.xs }} accessibilityLabel={step.kinds.length > 1 ? 'Together, either order' : undefined}>
+        {step.kinds.map((k) => {
+          const KIcon = stepIcon({ stepId: k.kindId, role: step.role });
+          const done = k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded';
+          return (
+            <Pressable key={k.kindId} style={styles.personMark} accessibilityRole={canReview ? 'button' : undefined} disabled={!canReview || done}
+              accessibilityLabel={`${k.name}: ${k.state === 'suggestions' ? 'needs changes' : done ? 'looks good' : k.state === 'asked' ? 'asked' : k.state === 'locked' ? 'waits for the checkpoint' : 'not yet'}${k.produces ? ', makes a recording' : ''}${k.outOfOrder ? ', done before the checkpoint cleared' : ''}`}
+              onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId, kindId: k.kindId })}>
+              <KIcon size={20} color={done ? colors.done : colors.review} />
+              <Text style={[text.body, { flex: 1 }]}>{k.name}</Text>
+              {k.produces ? <Mic size={14} color={colors.mutedForeground} /> : null}
+              {done ? <CheckCircle2 size={16} color={colors.done} /> : k.state === 'suggestions' ? <MessageSquare size={16} color={colors.review} /> : k.state === 'locked' ? <Lock size={16} color={colors.mutedForeground} /> : null}
+            </Pressable>
+          );
+        })}
+      </View> : null}
       <View style={styles.sheetActions}>
         {canReview ? <ActionButton variant="outline" icon={ListChecks} accessibilityLabel="Review it now" style={styles.iconBtn}
           onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId })} /> : null}
@@ -392,7 +444,7 @@ function entryTitle(e: RecordEntry, rec: Rec): string {
   const label = (id: string) => rec.steps.find((s) => s.stepId === id)?.label ?? id;
   switch (e.kind) {
     case 'version': return `Version ${e.n} saved`;
-    case 'review': return `${label(e.stepId)} · ${e.decision === 'approve' ? 'looks good' : 'needs changes'}`;
+    case 'review': return `${rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.kindId && e.kindId !== e.stepId)?.name ?? label(e.stepId)} · ${e.decision === 'approve' ? 'looks good' : 'needs changes'}`;
     case 'response': return `Version ${e.n} answers the feedback`;
     case 'ask': return e.role === 'translator' ? 'Asked someone to record' : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
   }

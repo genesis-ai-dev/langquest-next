@@ -179,7 +179,7 @@ export type RecordTurn =
 
 export type RecordEntry =
   | { kind: 'version'; at: string; by: string; id: string; takeId: string; n: number }
-  | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; decision: 'approve' | 'suggest_changes' }
+  | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; decision: 'approve' | 'suggest_changes' }
   | { kind: 'response'; at: string; by: string; id: string; takeId: string; n: number; respondsToTakeId: string }
   | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string };
 
@@ -474,7 +474,7 @@ export function derivePassageRecord(
 
   const history: RecordEntry[] = [
     ...versions.map((v): RecordEntry => ({ kind: 'version', at: v.at, by: v.authorId, id: `version:${v.takeId}`, takeId: v.takeId, n: v.n })),
-    ...versions.flatMap((v) => v.reviews.map((r): RecordEntry => ({ kind: 'review', at: r.at, by: r.reviewerId, id: r.eventId, takeId: v.takeId, n: v.n, stepId: r.stepId, decision: r.decision }))),
+    ...versions.flatMap((v) => v.reviews.map((r): RecordEntry => ({ kind: 'review', at: r.at, by: r.reviewerId, id: r.eventId, takeId: v.takeId, n: v.n, stepId: r.stepId, kindId: r.kindId, decision: r.decision }))),
     ...versions.flatMap((v) => {
       const r = state.responses[v.takeId];
       return r ? [{ kind: 'response' as const, at: r.hlc, by: r.actorId, id: `response:${v.takeId}`, takeId: v.takeId, n: v.n, respondsToTakeId: r.respondsToTakeId }] : [];
