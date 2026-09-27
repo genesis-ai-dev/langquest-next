@@ -2,7 +2,7 @@ import type { TakeMetadata } from './audioEdits';
 import type { SavedTextTranslation } from './textTranslations';
 import { emptyObt, type ObtState } from './obt';
 import type { BibleSettings } from './dynamicBible';
-import type { Card, CheckOutcome, KindProduces, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, CheckOutcome, DepartureKind, KindProduces, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -138,6 +138,26 @@ export interface Check {
   actorId: string;
 }
 
+/** A `v1.StepSetAside` or `v1.CheckpointOverridden` for one passage. */
+export interface Departure {
+  kind: DepartureKind;
+  unitId: string;
+  laneId: string;
+  stepId: string;
+  /** Set aside one kind of the step; absent = the whole step. */
+  kindId?: string;
+  reason?: string;
+  reasonBlobHash?: string;
+  actorId: string;
+}
+
+/** A `v1.DepartureUndone`. */
+export interface DepartureUndo {
+  departureKind: DepartureKind;
+  reason?: string;
+  actorId: string;
+}
+
 export interface ReviewTeam {
   laneId: string;
   name: Register<string>;
@@ -208,6 +228,10 @@ export interface ProjectState {
   reviewKinds: Record<string, Register<ReviewKindDef>>;
   /** takeId -> checkId -> check (set by id; the register settles a reused id) */
   checks: Record<string, Record<string, Register<Check>>>;
+  /** departureId -> set-aside or override (set by id; the register settles a reused id) */
+  departures: Record<string, Register<Departure>>;
+  /** departureId -> undoId -> undo (add-wins: an undo may arrive before its departure) */
+  departureUndos: Record<string, Record<string, Register<DepartureUndo>>>;
   teams: Record<string, ReviewTeam>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
@@ -249,6 +273,8 @@ export function emptyState(): ProjectState {
     workflowSteps: {},
     reviewKinds: {},
     checks: {},
+    departures: {},
+    departureUndos: {},
     teams: {},
     responses: {},
     reviewComments: {},

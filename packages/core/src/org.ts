@@ -1,7 +1,7 @@
 import type { AnyEvent, EventEnvelope, Role } from './events';
 import type { Hlc } from './hlc';
 import type { Register } from './state';
-import { EVENT_PRIVILEGE, scopeError } from './eventRegistry';
+import { EVENT_PRIVILEGE, isObject, registryEntry, scopeError } from './eventRegistry';
 import { PRIVILEGES, type Privilege } from './privileges';
 import { validateEvent } from './validate';
 
@@ -91,6 +91,8 @@ const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
 export function privilegeFor(event: AnyEvent): Privilege | 'bootstrap' | null {
   const p = EVENT_PRIVILEGE[event.type];
   if (p === 'by_kind') {
+    const entry = registryEntry(event.type);
+    if (entry?.privilegeOf) return entry.privilegeOf(isObject(event.payload) ? event.payload : {});
     const kind = (event.payload as { kind?: string }).kind;
     // Translators may write question sets at submit time (UX spec); every
     // other material is managed reference.

@@ -1,4 +1,4 @@
-import type { KindProduces, Role, WorkflowStep } from './events';
+import type { DepartureKind, KindProduces, Role, WorkflowStep } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import { deriveObt, isObtLane, OBT_LABELS, OBT_STEPS } from './obt';
 import type { Assignment, ProjectState } from './state';
@@ -31,8 +31,10 @@ import { deriveFlow, deriveTakeStatus, eligibleReviewers, reviewKind, takesFor, 
  * - A checkpoint step not complete locks every later step. Checks made on a
  *   locked step still count and are flagged `outOfOrder` (never refused).
  * - Done = recorded and every non-optional step complete or overridden.
- * - Set-aside, overrides and kept feedback arrive with their own facts
- *   (slice B); `stepOverridden` and `kindSetAside` are their hooks.
+ * - Departures (D7): a set-aside makes a kind `skipped` (complete on a
+ *   non-checkpoint step); an override moves past a checkpoint, unlocks later
+ *   steps and counts toward done. Both survive new versions. An undo naming
+ *   the departure with the matching kind brings it back (add-wins).
  * - OBT lanes keep `deriveObt` (analysis-event-model D13): the record marks
  *   them `obt` and leaves steps and feedback empty.
  */
@@ -132,6 +134,20 @@ export type RecordStepState = 'complete' | 'attention' | 'waiting' | 'current' |
  */
 export type RecordKindState = 'approved' | 'suggestions' | 'addressed' | 'skipped' | 'recorded' | 'asked' | 'todo' | 'locked';
 
+/** A set-aside or override on this passage (D7), active or brought back. */
+export interface RecordDeparture {
+  departureId: string;
+  kind: DepartureKind;
+  stepId: string;
+  kindId?: string;
+  reason?: string;
+  reasonBlobHash?: string;
+  by: string;
+  at: string;
+  /** The first matching undo, or null while the departure is active. */
+  undone: { at: string; by: string; reason?: string } | null;
+}
+
 export interface RecordKind {
   kindId: string;
   name: string;
@@ -143,6 +159,8 @@ export interface RecordKind {
   checks: RecordReview[];
   /** Checked before an earlier checkpoint cleared (a derived departure, D6). */
   outOfOrder: boolean;
+  /** The active set-aside that makes this kind `skipped`, when it is shown. */
+  setAside: RecordDeparture | null;
 }
 
 export interface RecordStep {
@@ -166,6 +184,8 @@ export interface RecordStep {
   status: StepStatus | null;
   /** People asked for this step whose ask is not yet satisfied. */
   askedOf: string[];
+  /** An active override (the step counts toward done; later steps unlock). */
+  override: RecordDeparture | null;
 }
 
 export type RecordTurn =
@@ -181,7 +201,8 @@ export type RecordEntry =
   | { kind: 'version'; at: string; by: string; id: string; takeId: string; n: number }
   | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; decision: 'approve' | 'suggest_changes' }
   | { kind: 'response'; at: string; by: string; id: string; takeId: string; n: number; respondsToTakeId: string }
-  | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string };
+  | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string }
+  | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture };
 
 export interface PassageRecord {
   unitId: string;
@@ -207,6 +228,8 @@ export interface PassageRecord {
   turn: RecordTurn;
   /** Every entry, newest first. */
   history: RecordEntry[];
+  /** Every set-aside and override on this passage, oldest first, brought-back ones included. */
+  departures: RecordDeparture[];
   /** Steps cleared on the latest version, for the progress ring. */
   cleared: number;
 }
@@ -326,16 +349,27 @@ function legacyStep(step: FlowStep): WorkflowStep {
 }
 
 /**
- * Hook for slice B (`v1.CheckpointOverridden` + `v1.DepartureUndone`): an
- * active override of this step on this passage. No such fact exists yet.
+ * D7: every departure on this passage, oldest first. A departure is active
+ * unless an undo names it with its own kind; the first such undo is shown.
  */
-function stepOverridden(_state: ProjectState, _unitId: string, _laneId: string, _stepId: string): boolean {
-  return false;
-}
-
-/** Hook for slice B (`v1.StepSetAside`): an active set-aside of this kind or step. */
-function kindSetAside(_state: ProjectState, _unitId: string, _laneId: string, _stepId: string, _kindId: string): boolean {
-  return false;
+function departuresOf(state: ProjectState, unitId: string, laneId: string, idx: Indexes): RecordDeparture[] {
+  const out: RecordDeparture[] = [];
+  for (const id of idx.departuresByUnitLane.get(unitLaneKey(unitId, laneId)) ?? []) {
+    const reg = state.departures[id]!;
+    const d = reg.value;
+    const undos = Object.values(state.departureUndos[id] ?? {})
+      .filter((u) => u.value.departureKind === d.kind)
+      .sort((a, b) => byClock({ at: a.hlc, id: a.eventId }, { at: b.hlc, id: b.eventId }));
+    const u = undos[0];
+    out.push({
+      departureId: id, kind: d.kind, stepId: d.stepId, by: d.actorId, at: reg.hlc,
+      ...(d.kindId !== undefined ? { kindId: d.kindId } : {}),
+      ...(d.reason !== undefined ? { reason: d.reason } : {}),
+      ...(d.reasonBlobHash !== undefined ? { reasonBlobHash: d.reasonBlobHash } : {}),
+      undone: u ? { at: u.hlc, by: u.value.actorId, ...(u.value.reason !== undefined ? { reason: u.value.reason } : {}) } : null
+    });
+  }
+  return out.sort((a, b) => byClock({ at: a.at, id: a.departureId }, { at: b.at, id: b.departureId }));
 }
 
 /**
@@ -379,6 +413,8 @@ export function derivePassageRecord(
   const draft = draftOf(state, unitId, laneId, idx);
   const workflow = grouped.map((g) => legacyStep(g.step));
   const asks = asksFor(state, idx.assignmentsByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [], workflow, latest, versions);
+  const departures = obt ? [] : departuresOf(state, unitId, laneId, idx);
+  const active = departures.filter((d) => d.undone === null);
 
   const status = latest ? deriveTakeStatus(state, latest.takeId, idx) : null;
   const outcome = status?.outcome ?? null;
@@ -402,7 +438,9 @@ export function derivePassageRecord(
     const askedOf = [...new Set(openAsks.filter((a) => a.stepIds.includes(step.id)).map((a) => a.profileId))].sort();
     const legacy = step.legacy !== undefined;
     const lockedBy = recorded ? gate : null;
+    const override = active.find((d) => d.kind === 'override' && d.stepId === step.id) ?? null;
     const kinds = step.kindIds.map((kindId): RecordKind => {
+      const aside = active.find((d) => d.kind === 'set_aside' && d.stepId === step.id && (d.kindId === undefined || d.kindId === kindId)) ?? null;
       const def = reviewKind(state, kindId, legacy ? step.label : undefined);
       const checks = latestChecks.filter((c) => legacy
         ? c.stepId === step.id
@@ -417,16 +455,20 @@ export function derivePassageRecord(
         const st = stepStatus.get(step.id);
         kstate = st?.outcome === 'passed' ? 'approved'
           : st?.outcome === 'failed' || openFeedback.some((f) => f.stepId === step.id) ? 'suggestions'
-          : askedOf.length > 0 ? 'asked' : 'todo';
+          : aside ? 'skipped' : askedOf.length > 0 ? 'asked' : 'todo';
       } else if (last?.decision === 'approve') kstate = 'approved';
       else if (last?.decision === 'suggest_changes') kstate = answeredOnLatest ? 'addressed' : 'suggestions';
-      else if (kindSetAside(state, unitId, laneId, step.id, kindId)) kstate = 'skipped';
+      else if (aside) kstate = 'skipped';
       else if (askedOf.length > 0) kstate = 'asked';
       else kstate = 'todo';
-      const outOfOrder = recorded && checks.length > 0 && (lockedBy !== null || checks.some((c) => c.at < clearedAt));
-      if (lockedBy !== null && checks.length === 0) kstate = 'locked';
+      // A set-aside is a fact on the step like a check: on a locked step it
+      // still counts, flagged out of order (D6), never refused.
+      const shownAside = recorded && kstate === 'skipped' ? aside : null;
+      const outOfOrder = recorded && (checks.length > 0 || shownAside !== null) && (lockedBy !== null ||
+        checks.some((c) => c.at < clearedAt) || (shownAside !== null && shownAside.at < clearedAt));
+      if (lockedBy !== null && checks.length === 0 && shownAside === null) kstate = 'locked';
       return {
-        kindId, name: def.name, state: kstate, checks, outOfOrder,
+        kindId, name: def.name, state: kstate, checks, outOfOrder, setAside: shownAside,
         ...(def.icon !== undefined ? { icon: def.icon } : {}),
         ...(def.produces !== undefined ? { produces: def.produces } : {}),
         ...(def.withholdsContext !== undefined ? { withholdsContext: def.withholdsContext } : {})
@@ -435,7 +477,7 @@ export function derivePassageRecord(
     const complete = recorded && kinds.length > 0 && kinds.every((k) => step.checkpoint
       ? k.state === 'approved' || k.state === 'recorded'
       : k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded');
-    const touched = kinds.some((k) => k.checks.length > 0);
+    const touched = kinds.some((k) => k.checks.length > 0 || k.setAside !== null);
     const state_: RecordStepState = !recorded ? 'locked'
       : complete ? 'complete'
       : lockedBy !== null && !touched ? 'locked'
@@ -443,20 +485,28 @@ export function derivePassageRecord(
       : askedOf.length > 0 || kinds.some((k) => k.state === 'asked') ? 'waiting'
       : 'todo';
     if (step.checkpoint && recorded) {
-      if (!complete && !stepOverridden(state, unitId, laneId, step.id)) gate ??= step.id;
-      else if (complete) for (const k of kinds) for (const c of k.checks) if (c.decision === 'approve' && c.at > clearedAt) clearedAt = c.at;
+      if (!complete && !override) gate ??= step.id;
+      else {
+        // Cleared at its last approval, or at the override if that came first.
+        let at = '';
+        if (complete) for (const k of kinds) for (const c of k.checks) if (c.decision === 'approve' && c.at > at) at = c.at;
+        if (override && (at === '' || override.at < at)) at = override.at;
+        if (at > clearedAt) clearedAt = at;
+      }
     }
     const st = legacy ? stepStatus.get(step.id) ?? null : latest ? v2Status(state, unitId, laneId, step, kinds, idx) : null;
     return {
       stepId: step.id, label: step.label ?? (kinds.length === 1 ? kinds[0]!.name : kinds.map((k) => k.name).join(' + ')),
       role: legacyStep(step).role, required: !step.optional, checkpoint: step.checkpoint, kinds,
-      lockedBy: state_ === 'locked' ? lockedBy : null, legacy, group, state: state_, status: st, askedOf
+      lockedBy: state_ === 'locked' ? lockedBy : null, legacy, group, state: state_, status: st, askedOf, override
     };
   });
   const done = obt ? deriveObt(state, unitId, laneId).stage === 'complete'
-    : recorded && base.every((s) => !s.required || s.state === 'complete' || stepOverridden(state, unitId, laneId, s.stepId));
-  const nextStep = recorded && !done ? base.find((s) => s.state !== 'complete' && s.state !== 'locked') : undefined;
-  const next = nextStep ? { group: nextStep.group, stepIds: base.filter((s) => s.group === nextStep.group && s.state !== 'complete' && s.state !== 'locked').map((s) => s.stepId) } : null;
+    : recorded && base.every((s) => !s.required || s.state === 'complete' || s.override !== null);
+  // D10: an overridden step is moved past, so it is never the suggestion.
+  const open = (s: (typeof base)[number]) => s.state !== 'complete' && s.state !== 'locked' && s.override === null;
+  const nextStep = recorded && !done ? base.find(open) : undefined;
+  const next = nextStep ? { group: nextStep.group, stepIds: base.filter((s) => s.group === nextStep.group && open(s)).map((s) => s.stepId) } : null;
   const steps: RecordStep[] = base.map((s) => (next?.stepIds.includes(s.stepId) && s.state === 'todo' ? { ...s, state: 'current' } : s));
 
   let turn: RecordTurn;
@@ -479,13 +529,14 @@ export function derivePassageRecord(
       const r = state.responses[v.takeId];
       return r ? [{ kind: 'response' as const, at: r.hlc, by: r.actorId, id: `response:${v.takeId}`, takeId: v.takeId, n: v.n, respondsToTakeId: r.respondsToTakeId }] : [];
     }),
-    ...asks.map((a): RecordEntry => ({ kind: 'ask', at: a.at, by: a.askedBy, id: `ask:${a.profileId}:${a.role}`, profileId: a.profileId, role: a.role, ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}) }))
+    ...asks.map((a): RecordEntry => ({ kind: 'ask', at: a.at, by: a.askedBy, id: `ask:${a.profileId}:${a.role}`, profileId: a.profileId, role: a.role, ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}) })),
+    ...departures.map((d): RecordEntry => ({ kind: 'departure', at: d.at, by: d.by, id: `departure:${d.departureId}`, departure: d }))
   ].sort((a, b) => -byClock(a, b));
 
   return {
     unitId, laneId, obt, versions, latest, recorded, draft, outcome, steps, next, done,
     feedback: [...openFeedback, ...feedback.filter((f) => f.answered)], openFeedback, feedbackIsMine,
-    asks, turn, history, cleared: steps.filter((s) => s.state === 'complete').length
+    asks, turn, history, departures, cleared: steps.filter((s) => s.state === 'complete').length
   };
 }
 
@@ -766,8 +817,11 @@ export function languageProgress(state: ProjectState, laneId: string, idx: Index
     if (rec.recorded) recorded++;
     if (rec.done) done++;
     if (rec.asks.some((a) => a.kind === 'review' && !a.satisfied)) waiting++;
-    // D11: a step counts as cleared when complete on the latest version (or overridden, slice B).
-    for (const s of steps) if (rec.recorded && (rec.steps.find((x) => x.stepId === s.stepId)?.state === 'complete' || stepOverridden(state, unitId, laneId, s.stepId))) s.cleared++;
+    // D11: a step counts as cleared when complete on the latest version, or overridden.
+    for (const s of steps) {
+      const x = rec.steps.find((y) => y.stepId === s.stepId);
+      if (rec.recorded && (x?.state === 'complete' || x?.override)) s.cleared++;
+    }
   }
   return { laneId, total: units.length, recorded, done, waiting, steps };
 }

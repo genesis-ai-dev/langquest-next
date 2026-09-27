@@ -4,12 +4,15 @@
 // wired yet (docs/ux/mobbin-overhaul/CHECKLIST.md); later phases build them out.
 import {
   decodeHlc, deriveObt, derivePassageRecord, deriveTakeStatus, keyTermLinksFor, OBT_LABELS, questionsOf, questionSetsFor,
-  recordHeadline, recordNextAction, type PassageRecord as Rec, type RecordEntry, type RecordKind, type RecordStep
+  recordHeadline, recordNextAction, type DepartureKind, type PassageRecord as Rec, type RecordDeparture, type RecordEntry,
+  type RecordKind, type RecordStep
 } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  ArrowUpDown, CheckCircle2, ChevronDown, ChevronRight, Clock, Globe, Grid3x3, Headphones, History, ListChecks, Lock,
-  Languages, MapPin, MessageSquare, Mic, Octagon, Reply, ShieldCheck, Star, UserPlus, Users, X
+  ArrowUpDown, Ban, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
+  Headphones, History, ListChecks, Lock, Languages, MapPin, MessageSquare, Mic, Octagon, Reply, RotateCcw, ShieldCheck,
+  SkipForward, Star, Undo2, UserPlus, UserX, Users, X
 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -18,6 +21,7 @@ import type { Ctx } from '../ctx';
 import { edgeFor, TITLES, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import { Footer, Header, Note, NotWired, Row, Screen, Section } from '../pui';
+import { ReasonSheet, type Reason } from '../reasonSheet';
 import { edgeAllowed } from '../session';
 import { colors, radius, space, StyleSheet, tint } from '../theme';
 import { ActionButton, Card, ProgressRing, StatusIcon, text } from '../ui';
@@ -43,9 +47,24 @@ export function Placeholder(props: { ctx: Ctx; id: ScreenId }) {
 // `derivePassageRecord` in core. Reference copy is the accessibility label;
 // the passage reference, language code and step names are the only text.
 // Kinds in one step show as stacked tiles ("Either order"); a checkpoint
-// carries a stop badge and later steps show locked until it clears. Still
-// absent, not faked: Set aside, Move past a checkpoint, Keep it and say
-// why, Log what happened (slice B and later).
+// carries a stop badge and later steps show locked until it clears.
+// Departures (J-REC-5/6/7): "Set aside" a kind or step with a reason, "Move
+// past this checkpoint…" (manage_flows), and Undo from the toast or the
+// history, each a compensating fact. Still absent: Log what happened.
+
+/** Reference ReasonSheet copy for the departures (ref:passage.tsx:31-39). */
+const SET_ASIDE_QUICK = [
+  { icon: UserX, reason: 'No one available for this right now' },
+  { icon: CopyCheck, reason: 'Another review already covered this' },
+  { icon: Ban, reason: 'Not needed for this passage' }
+];
+const OVERRIDE_QUICK = [
+  { icon: CalendarClock, reason: 'Consultant visit is months away; church needs it now' },
+  { icon: ClipboardCheck, reason: 'Checked informally — will record it later' }
+];
+
+/** What the reason sheet is for. */
+type Departing = { kind: DepartureKind; stepId: string; kindId?: string; name: string };
 
 const canGo = (ctx: Ctx, from: ScreenId, to: ScreenId) => {
   const edge = edgeFor(from, to);
@@ -80,6 +99,7 @@ export function PassageRecord(ctx: Ctx) {
   const person = usePerson();
   const [sheet, setSheet] = useState<string | null>(null);
   const [open, setOpen] = useState<{ reviews: boolean; history: boolean }>({ reviews: false, history: false });
+  const [departing, setDeparting] = useState<Departing | null>(null);
   const loaded = useRecord(ctx);
   const { state } = ctx.project;
   if (!state || !loaded) return <Note>Passage not found.</Note>;
@@ -89,6 +109,30 @@ export function PassageRecord(ctx: Ctx) {
   const headline = recordHeadline(rec, nameOf);
   const action = recordNextAction(rec, me, { record: ctx.session.can('translate'), review: ctx.session.can('review'), ask: ctx.session.can('assign_work') });
   const params = { unitId, laneId };
+  const depart = (d: Departing) => { setSheet(null); setDeparting(d); };
+  const mayUndo = (d: RecordDeparture) => ctx.session.can(d.kind === 'set_aside' ? 'translate' : 'manage_flows');
+
+  async function undoDeparture(departureId: string, departureKind: DepartureKind) {
+    await ctx.project.append('v1.DepartureUndone', { undoId: Crypto.randomUUID(), departureId, departureKind });
+    ctx.project.triggerUpload();
+    ctx.toast('Brought back — it\'s a suggested step again');
+  }
+
+  async function confirmDeparture(d: Departing, why: Reason) {
+    const departureId = Crypto.randomUUID();
+    if (d.kind === 'set_aside') {
+      await ctx.project.append('v1.StepSetAside', { departureId, unitId, laneId, stepId: d.stepId, ...(d.kindId ? { kindId: d.kindId } : {}), ...why });
+      ctx.project.triggerUpload();
+      setDeparting(null);
+      ctx.toast(`${d.name} set aside · reason saved`, () => void undoDeparture(departureId, 'set_aside'));
+    } else {
+      await ctx.project.append('v1.CheckpointOverridden', { departureId, unitId, laneId, stepId: d.stepId, ...why });
+      ctx.project.triggerUpload();
+      setDeparting(null);
+      // Reference: no toast Undo for an override; the history Undo works.
+      ctx.toast('Moved past the checkpoint · reason saved');
+    }
+  }
 
   const footer = (() => {
     switch (action.kind) {
@@ -122,8 +166,9 @@ export function PassageRecord(ctx: Ctx) {
             <FeedbackCard key={`${f.stepId}:${f.reviewerId}`} ctx={ctx} rec={rec} feedback={f} nameOf={nameOf}
               onPress={() => ctx.go('review_detail', { ...params, takeId: f.takeId, round: `${f.stepId}:${f.reviewerId}` })} />
           ))}
-          <NextZone ctx={ctx} rec={rec} action={action} params={params} />
-          <Details ctx={ctx} rec={rec} open={open} setOpen={setOpen} params={params} nameOf={nameOf} />
+          <NextZone ctx={ctx} rec={rec} action={action} params={params} onDepart={depart} />
+          <Details ctx={ctx} rec={rec} open={open} setOpen={setOpen} params={params} nameOf={nameOf}
+            mayUndo={mayUndo} onUndo={(d) => void undoDeparture(d.departureId, d.kind)} />
         </>
       )}
 
@@ -131,9 +176,21 @@ export function PassageRecord(ctx: Ctx) {
         <Pressable style={styles.scrim} onPress={() => setSheet(null)} accessibilityLabel="Close" />
         <View style={styles.sheet}>
           {sheet === 'recorded' ? <RecordedSheet ctx={ctx} rec={rec} params={params} close={() => setSheet(null)} nameOf={nameOf} />
-            : sheetStep ? <StepSheet ctx={ctx} rec={rec} step={sheetStep} params={params} close={() => setSheet(null)} nameOf={nameOf} /> : null}
+            : sheetStep ? <StepSheet ctx={ctx} rec={rec} step={sheetStep} params={params} close={() => setSheet(null)} nameOf={nameOf} onDepart={depart} /> : null}
         </View>
       </Modal>
+      <ReasonSheet ctx={ctx} visible={departing !== null} onClose={() => setDeparting(null)}
+        icon={departing?.kind === 'override' ? Octagon : SkipForward} name={departing?.name ?? ''}
+        {...(departing?.kind === 'override' ? {
+          title: 'Move past the checkpoint?',
+          sub: 'Checkpoints are the flow\'s hard stops. Your reason is recorded with your name, and anyone can see it on the record.',
+          quick: OVERRIDE_QUICK, confirmIcon: Octagon, confirmLabel: 'Move past checkpoint'
+        } : {
+          title: `Set aside ${departing?.name ?? ''}?`,
+          sub: 'The flow suggests this step. Setting it aside is fine — say why so the next person understands.',
+          quick: SET_ASIDE_QUICK, confirmIcon: SkipForward, confirmLabel: 'Set aside'
+        })}
+        onConfirm={(why) => departing ? confirmDeparture(departing, why) : Promise.resolve()} />
     </Screen>
   );
 }
@@ -216,10 +273,12 @@ function kindTileState(k: RecordKind, step: RecordStep): RecordStep['state'] {
 }
 
 /** The accessibility words for a tile, naming the checkpoint that holds a locked step. */
-function tileLabel(rec: Rec, step: RecordStep, name: string, state: RecordStep['state']): string {
+function tileLabel(rec: Rec, step: RecordStep, name: string, state: RecordStep['state'], kind?: RecordKind | null): string {
   const lockedBy = step.lockedBy ? rec.steps.find((x) => x.stepId === step.lockedBy)?.label ?? step.lockedBy : null;
-  const words = state === 'locked' && lockedBy ? `waits for the ${lockedBy} checkpoint` : TILE_STATE_LABEL[state];
-  return `${name}${step.checkpoint ? ', checkpoint' : ''}: ${words}`;
+  const words = state === 'locked' && lockedBy ? `waits for the ${lockedBy} checkpoint`
+    : kind?.state === 'skipped' || (!kind && step.kinds.every((k) => k.state === 'skipped') && step.kinds.length > 0) ? 'set aside'
+    : TILE_STATE_LABEL[state];
+  return `${name}${step.checkpoint ? ', checkpoint' : ''}: ${words}${step.override ? ', moved past' : ''}`;
 }
 
 /** A pressable step tile. Colour never alone: every state has its corner icon. */
@@ -263,7 +322,7 @@ function StepPath(props: { rec: Rec; onStep: (id: string) => void; onRecorded: (
                   <View key={`${s.stepId}:${k?.kindId ?? ''}`} style={{ alignItems: 'center' }}>
                     {i > 0 ? <ArrowUpDown size={12} color={colors.mutedForeground} /> : null}
                     <StepTile icon={stepIcon({ stepId: k?.kindId ?? s.stepId, role: s.role })} state={tileState} label={name}
-                      a11y={tileLabel(props.rec, s, name, tileState)} half={all.length > 1} asked={s.askedOf} onPress={() => props.onStep(s.stepId)} />
+                      a11y={tileLabel(props.rec, s, name, tileState, k)} half={all.length > 1} asked={s.askedOf} onPress={() => props.onStep(s.stepId)} />
                   </View>
                 );
               })}
@@ -306,7 +365,7 @@ function FeedbackCard(props: { ctx: Ctx; rec: Rec; feedback: Rec['openFeedback']
  * dashed "Then: …" state with no buttons (ADR-014). The action the footer
  * already offers is not repeated here, so nothing but the footer is yellow.
  */
-function NextZone(props: { ctx: Ctx; rec: Rec; action: ReturnType<typeof recordNextAction>; params: Record<string, string> }) {
+function NextZone(props: { ctx: Ctx; rec: Rec; action: ReturnType<typeof recordNextAction>; params: Record<string, string>; onDepart: (d: Departing) => void }) {
   const { ctx, rec } = props;
   const person = usePerson();
   if (!rec.next) return null;
@@ -331,6 +390,8 @@ function NextZone(props: { ctx: Ctx; rec: Rec; action: ReturnType<typeof recordN
               onPress={() => ctx.go('review_capture', { ...props.params, takeId: rec.latest!.takeId, stepId: s.stepId })} /> : null}
             {canAsk ? <ActionButton variant="outline" icon={UserPlus} accessibilityLabel={s.askedOf.length ? 'Ask again' : 'Ask someone'} style={styles.iconBtn}
               onPress={() => ctx.go('ask_someone', { ...props.params, stepId: s.stepId })} /> : null}
+            {!then && s.checkpoint && ctx.session.can('manage_flows') ? <ActionButton variant="outline" icon={Octagon} style={styles.iconBtn}
+              accessibilityLabel="Move past this checkpoint…" onPress={() => props.onDepart({ kind: 'override', stepId: s.stepId, name: s.label })} /> : null}
           </View>
         );
       })}
@@ -338,7 +399,7 @@ function NextZone(props: { ctx: Ctx; rec: Rec; action: ReturnType<typeof recordN
   );
 }
 
-function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record<string, string>; close: () => void; nameOf: (id: string) => string }) {
+function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record<string, string>; close: () => void; nameOf: (id: string) => string; onDepart: (d: Departing) => void }) {
   const { ctx, rec, step } = props;
   const person = usePerson();
   const Icon = stepIcon(step);
@@ -347,6 +408,11 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
   const go = (to: ScreenId, extra: Record<string, string>) => { props.close(); ctx.go(to, { ...props.params, ...extra }); };
   const canReview = rec.recorded && ctx.session.can('review') && !!step.status?.eligible.includes(ctx.session.actorId) && canGo(ctx, 'passage_record', 'review_capture');
   const canAsk = rec.recorded && step.role !== 'translator' && canGo(ctx, 'passage_record', 'ask_someone');
+  // Set aside is for suggested steps, never a checkpoint (J-REC-5); moving
+  // past a checkpoint needs manage_flows (J-REC-7).
+  const canSetAside = rec.recorded && !step.checkpoint && step.state !== 'complete' && ctx.session.can('translate');
+  const canOverride = rec.recorded && step.checkpoint && step.state !== 'complete' && !step.override && ctx.session.can('manage_flows');
+  const kindDone = (k: RecordKind) => k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded';
   return (
     <View style={{ gap: space.md }}>
       <View style={styles.sheetHead}>
@@ -378,19 +444,31 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
       {step.checkpoint ? <View accessible style={styles.personMark} accessibilityLabel="Checkpoint: later steps wait for this one">
         <Octagon size={18} color={colors.review} />
       </View> : null}
+      {step.override ? <View accessible style={styles.personMark}
+        accessibilityLabel={`Moved past by ${props.nameOf(step.override.by)}${step.override.reason ? `: ${step.override.reason}` : ''}`}>
+        <Octagon size={18} color={colors.done} /><CheckCircle2 size={14} color={colors.done} /><PersonAvatar look={person(step.override.by)} size={20} />
+        {step.override.reason ? <Text style={[text.small, { flex: 1 }]} numberOfLines={2}>{step.override.reason}</Text> : null}
+      </View> : null}
       {!step.legacy && step.kinds.length > 0 ? <View style={{ gap: space.xs }} accessibilityLabel={step.kinds.length > 1 ? 'Together, either order' : undefined}>
         {step.kinds.map((k) => {
           const KIcon = stepIcon({ stepId: k.kindId, role: step.role });
-          const done = k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded';
+          const done = kindDone(k);
+          const said = k.state === 'skipped' ? `set aside${k.setAside?.reason ? `: ${k.setAside.reason}` : ''}`
+            : k.state === 'suggestions' ? 'needs changes' : done ? 'looks good' : k.state === 'asked' ? 'asked' : k.state === 'locked' ? 'waits for the checkpoint' : 'not yet';
           return (
-            <Pressable key={k.kindId} style={styles.personMark} accessibilityRole={canReview ? 'button' : undefined} disabled={!canReview || done}
-              accessibilityLabel={`${k.name}: ${k.state === 'suggestions' ? 'needs changes' : done ? 'looks good' : k.state === 'asked' ? 'asked' : k.state === 'locked' ? 'waits for the checkpoint' : 'not yet'}${k.produces ? ', makes a recording' : ''}${k.outOfOrder ? ', done before the checkpoint cleared' : ''}`}
-              onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId, kindId: k.kindId })}>
-              <KIcon size={20} color={done ? colors.done : colors.review} />
-              <Text style={[text.body, { flex: 1 }]}>{k.name}</Text>
-              {k.produces ? <Mic size={14} color={colors.mutedForeground} /> : null}
-              {done ? <CheckCircle2 size={16} color={colors.done} /> : k.state === 'suggestions' ? <MessageSquare size={16} color={colors.review} /> : k.state === 'locked' ? <Lock size={16} color={colors.mutedForeground} /> : null}
-            </Pressable>
+            <View key={k.kindId} style={styles.personMark}>
+              <Pressable style={[styles.personMark, { flex: 1 }]} accessibilityRole={canReview ? 'button' : undefined} disabled={!canReview || done}
+                accessibilityLabel={`${k.name}: ${said}${k.produces ? ', makes a recording' : ''}${k.outOfOrder ? ', done before the checkpoint cleared' : ''}`}
+                onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId, kindId: k.kindId })}>
+                <KIcon size={20} color={done ? colors.done : colors.review} />
+                <Text style={[text.body, { flex: 1 }]}>{k.name}</Text>
+                {k.produces ? <Mic size={14} color={colors.mutedForeground} /> : null}
+                {k.state === 'skipped' ? <SkipForward size={16} color={colors.done} />
+                  : done ? <CheckCircle2 size={16} color={colors.done} /> : k.state === 'suggestions' ? <MessageSquare size={16} color={colors.review} /> : k.state === 'locked' ? <Lock size={16} color={colors.mutedForeground} /> : null}
+              </Pressable>
+              {canSetAside && !done ? <ActionButton variant="outline" icon={SkipForward} style={styles.iconBtn} accessibilityLabel={`Set aside ${k.name}`}
+                onPress={() => props.onDepart({ kind: 'set_aside', stepId: step.stepId, kindId: k.kindId, name: k.name })} /> : null}
+            </View>
           );
         })}
       </View> : null}
@@ -399,6 +477,10 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
           onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId })} /> : null}
         {canAsk ? <ActionButton variant="outline" icon={UserPlus} accessibilityLabel="Ask someone" style={styles.iconBtn}
           onPress={() => go('ask_someone', { stepId: step.stepId })} /> : null}
+        {canSetAside && (step.legacy || step.kinds.length === 0) ? <ActionButton variant="outline" icon={SkipForward} style={styles.iconBtn}
+          accessibilityLabel="Set aside" onPress={() => props.onDepart({ kind: 'set_aside', stepId: step.stepId, name: step.label })} /> : null}
+        {canOverride ? <ActionButton variant="outline" icon={Octagon} style={styles.iconBtn} accessibilityLabel="Move past this checkpoint…"
+          onPress={() => props.onDepart({ kind: 'override', stepId: step.stepId, name: step.label })} /> : null}
       </View>
     </View>
   );
@@ -447,6 +529,12 @@ function entryTitle(e: RecordEntry, rec: Rec): string {
     case 'review': return `${rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.kindId && e.kindId !== e.stepId)?.name ?? label(e.stepId)} · ${e.decision === 'approve' ? 'looks good' : 'needs changes'}`;
     case 'response': return `Version ${e.n} answers the feedback`;
     case 'ask': return e.role === 'translator' ? 'Asked someone to record' : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
+    case 'departure': {
+      const d = e.departure;
+      const name = d.kindId ? rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === d.kindId)?.name ?? d.kindId : label(d.stepId);
+      const what = d.kind === 'override' ? `Moved past the ${name} checkpoint` : `${name} set aside`;
+      return `${what}${d.reason ? `: ${d.reason}` : ''}${d.undone ? ` · brought back ${shortDate(d.undone.at)}` : ''}`;
+    }
   }
 }
 
@@ -455,12 +543,14 @@ function EntryIcon(props: { entry: RecordEntry }) {
   if (e.kind === 'version') return <Mic size={16} color={colors.translate} />;
   if (e.kind === 'response') return <Reply size={16} color={colors.translate} />;
   if (e.kind === 'ask') return <UserPlus size={16} color={colors.mutedForeground} />;
+  if (e.kind === 'departure') return e.departure.kind === 'override' ? <Octagon size={16} color={colors.review} /> : <SkipForward size={16} color={colors.review} />;
   return e.decision === 'approve' ? <CheckCircle2 size={16} color={colors.done} /> : <MessageSquare size={16} color={colors.review} />;
 }
 
 /** Details on request (ADR-013): Reviews by version and History, collapsed. */
 function Details(props: {
   ctx: Ctx; rec: Rec; params: Record<string, string>; nameOf: (id: string) => string;
+  mayUndo: (d: RecordDeparture) => boolean; onUndo: (d: RecordDeparture) => void;
   open: { reviews: boolean; history: boolean }; setOpen: (f: (o: { reviews: boolean; history: boolean }) => { reviews: boolean; history: boolean }) => void;
 }) {
   const { ctx, rec } = props;
@@ -500,6 +590,22 @@ function Details(props: {
         label={rec.history.length ? `${rec.history.length} entries since ${shortDate(rec.history[rec.history.length - 1]!.at)}` : 'No entries yet'}
         onToggle={() => props.setOpen((o) => ({ ...o, history: !o.history }))}>
         {rec.history.map((e) => {
+          if (e.kind === 'departure') {
+            const d = e.departure;
+            return (
+              <View key={e.id} style={styles.historyRow} accessible={!!d.undone || !props.mayUndo(d)}
+                accessibilityLabel={`${entryTitle(e, rec)} · ${props.nameOf(e.by)} · ${shortDate(e.at)}`}>
+                <EntryIcon entry={e} />
+                <PersonAvatar look={person(e.by)} size={20} />
+                {d.reasonBlobHash ? <View style={{ flex: 1 }}><AudioClip project={ctx.project} hashes={[d.reasonBlobHash]} label="Hear the reason" hideActions /></View>
+                  : <View style={{ flex: 1 }} />}
+                {d.undone ? <View accessibilityLabel={`Brought back ${shortDate(d.undone.at)}`}><RotateCcw size={16} color={colors.mutedForeground} /></View>
+                  : props.mayUndo(d) ? <ActionButton variant="outline" icon={Undo2} style={styles.iconBtn}
+                    accessibilityLabel={`Undo: ${entryTitle(e, rec)}`} onPress={() => props.onUndo(d)} /> : null}
+                <Text style={text.small}>{shortDate(e.at)}</Text>
+              </View>
+            );
+          }
           const onPress = e.kind === 'review' ? () => ctx.go('review_detail', { ...props.params, takeId: e.takeId, round: `${e.stepId}:${e.by}` })
             : e.kind === 'version' || e.kind === 'response' ? () => ctx.go('version_detail', { ...props.params, takeId: e.takeId })
             : undefined;

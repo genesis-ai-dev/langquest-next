@@ -1,4 +1,4 @@
-import type { AnyEvent, EventEnvelope, Role } from './events';
+import type { AnyEvent, EventEnvelope, EventPayloads, Role } from './events';
 import type { Member, ProjectState, Register } from './state';
 import { emptyState } from './state';
 import { validateEvent } from './validate';
@@ -24,8 +24,11 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * folds into `reviewKinds`. Events formerly ignored as unfamiliar now fold.
  *
  * 10: v1.CheckRecorded folds into `checks`.
+ *
+ * 11: v1.StepSetAside, v1.CheckpointOverridden and v1.DepartureUndone fold
+ * into `departures` and `departureUndos`.
  */
-export const REDUCER_VERSION = 10;
+export const REDUCER_VERSION = 11;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -340,6 +343,27 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
         ...(answers !== undefined ? { answers: { ...answers } } : {}),
         ...(skippedQuestions !== undefined ? { skippedQuestions: skippedQuestions.map((q) => ({ questionId: q.questionId, reason: q.reason })) } : {}),
         ...(requestId !== undefined ? { requestId } : {})
+      });
+      break;
+    }
+
+    case 'v1.StepSetAside':
+    case 'v1.CheckpointOverridden': {
+      const p = event.payload as EventPayloads['v1.StepSetAside'];
+      lww(state.departures, p.departureId, event, {
+        kind: event.type === 'v1.StepSetAside' ? 'set_aside' : 'override',
+        unitId: p.unitId, laneId: p.laneId, stepId: p.stepId, actorId: event.actorId,
+        ...(event.type === 'v1.StepSetAside' && p.kindId !== undefined ? { kindId: p.kindId } : {}),
+        ...(p.reason !== undefined ? { reason: p.reason } : {}),
+        ...(p.reasonBlobHash !== undefined ? { reasonBlobHash: p.reasonBlobHash } : {})
+      });
+      break;
+    }
+
+    case 'v1.DepartureUndone': {
+      const { undoId, departureId, departureKind, reason } = event.payload;
+      lww((state.departureUndos[departureId] ??= {}), undoId, event, {
+        departureKind, actorId: event.actorId, ...(reason !== undefined ? { reason } : {})
       });
       break;
     }

@@ -214,6 +214,15 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dE', 'c1', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elders', icon: 'users' });
   emit('dE', 'c1', 'v1.WorkflowStepRemoved', { stepId: 'l2-s3' });
   emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'l2-s3', laneId: 'L2', order: 's02', kindIds: ['kind@1/local'], checkpoint: false });
+  // Phase 2b departures: an undo that arrives before its departure (add-wins
+  // either way), an undo naming the wrong kind (ignored by the derivation),
+  // and a departure id reused by two devices (the register settles it).
+  emit('dE', 'c1', 'v1.DepartureUndone', { undoId: 'u1', departureId: 'dep1', departureKind: 'set_aside' });
+  emit('dA', 't1', 'v1.StepSetAside', { departureId: 'dep1', unitId: 'luke1', laneId: 'L2', stepId: 'l2-s1', kindId: 'elder', reason: 'No elders this month' });
+  emit('dA', 'lead', 'v1.CheckpointOverridden', { departureId: 'dep2', unitId: 'luke1', laneId: 'L2', stepId: 'l2-s2', reasonBlobHash: 'why-audio' });
+  emit('dB', 't1', 'v1.DepartureUndone', { undoId: 'u2', departureId: 'dep2', departureKind: 'set_aside', reason: 'wrong kind' });
+  emit('dD', 'r2', 'v1.StepSetAside', { departureId: 'dep3', unitId: 'luke1', laneId: 'L2', stepId: 'l2-s3', reason: 'Covered by peer' });
+  emit('dE', 'c1', 'v1.StepSetAside', { departureId: 'dep3', unitId: 'luke1', laneId: 'L2', stepId: 'l2-s3', reason: 'Not needed here' });
 
   // Step 12: materials with per-field registers, a locked org document, the
   // community question set from the catalog linked to the peer step, a

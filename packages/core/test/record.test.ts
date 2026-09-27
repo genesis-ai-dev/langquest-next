@@ -536,3 +536,133 @@ describe('passage record: CheckRecorded on v2 kinds', () => {
     }
   });
 });
+
+describe('passage record: departures (set aside, override, undo)', () => {
+  /** Peer + community together, a consultant checkpoint, then a local check. */
+  function flow() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer', 'kind@1/community'], checkpoint: false });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's2', laneId: 'L', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's3', laneId: 'L', order: 's02', kindIds: ['kind@1/local'], checkpoint: false });
+    let n = 0;
+    const check = (by: string, takeId: string, kindId: string, stepId: string) =>
+      l.add(by, 'v1.CheckRecorded', { checkId: `c${++n}`, unitId: 'p1', laneId: 'L', takeId, kindId: `kind@1/${kindId}`, stepId, outcome: 'looks_good' });
+    const aside = (by: string, departureId: string, stepId: string, kindId?: string, reason = 'No one available for this right now') =>
+      l.add(by, 'v1.StepSetAside', { departureId, unitId: 'p1', laneId: 'L', stepId, reason, ...(kindId ? { kindId: `kind@1/${kindId}` } : {}) });
+    const override = (by: string, departureId: string, stepId = 's2') =>
+      l.add(by, 'v1.CheckpointOverridden', { departureId, unitId: 'p1', laneId: 'L', stepId, reason: 'Consultant visit is months away' });
+    const undo = (by: string, undoId: string, departureId: string, departureKind: 'set_aside' | 'override') =>
+      l.add(by, 'v1.DepartureUndone', { undoId, departureId, departureKind });
+    return { ...l, check, aside, override, undo };
+  }
+  const rec = (events: AnyEvent[]) => derivePassageRecord(state(events), 'p1', 'L', 't1');
+
+  it('a set-aside kind is skipped with its reason and completes a non-checkpoint step', () => {
+    // Why (ADR-004, comply or explain): a suggested step may be skipped when
+    // someone says why, and the passage moves on instead of waiting forever.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('r1', v1, 'peer', 's1');
+    l.aside('t1', 'd1', 's1', 'community');
+    const r = rec(l.events);
+    expect(r.steps[0]!.kinds.map((k) => k.state)).toEqual(['approved', 'skipped']);
+    expect(r.steps[0]!.kinds[1]!.setAside).toMatchObject({ departureId: 'd1', reason: 'No one available for this right now', by: 't1', undone: null });
+    expect(r.steps[0]!.state).toBe('complete');
+    expect(r.next?.stepIds).toEqual(['s2']);
+    expect(r.history[0]).toMatchObject({ kind: 'departure', by: 't1', departure: { departureId: 'd1', kind: 'set_aside' } });
+  });
+
+  it('a set-aside survives a new version, but never completes a checkpoint', () => {
+    // Why (Ryder: a departure is per passage and survives new versions; ADR-012:
+    // a checkpoint certifies the audio, so only its own approval clears it).
+    const l = flow();
+    const v1 = l.version('t1');
+    l.aside('t1', 'd1', 's1');
+    l.aside('t1', 'd2', 's2');
+    l.version('t1', 'p1', v1);
+    const r = rec(l.events);
+    expect(r.steps[0]).toMatchObject({ state: 'complete' });
+    expect(r.steps[1]!.kinds[0]!.state).toBe('skipped');
+    expect(r.steps[1]!.state).not.toBe('complete');
+    expect(r.steps[2]!.state).toBe('locked');
+    expect(r.done).toBe(false);
+  });
+
+  it('an override moves past the checkpoint: later steps unlock and it counts toward done', () => {
+    // Why (PLAN 16 / D9, Ryder): "clears … or on an override". Without it a
+    // church waiting months for a consultant could never finish a passage.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.aside('t1', 'd1', 's1');
+    let r = rec(l.events);
+    expect(r.steps[2]!.state).toBe('locked');
+    l.override('lead', 'o1');
+    r = rec(l.events);
+    expect(r.steps[1]).toMatchObject({ state: 'todo', override: { departureId: 'o1', kind: 'override' } });
+    expect(r.steps[2]!.state).toBe('current');
+    expect(r.next?.stepIds).toEqual(['s3']);
+    l.check('r2', v1, 'local', 's3');
+    r = rec(l.events);
+    expect(r.done).toBe(true);
+    // The local check came after the override, so it is not out of order.
+    expect(r.steps[2]!.kinds[0]!.outOfOrder).toBe(false);
+    expect(languageProgress(state(l.events), 'L').steps.map((s) => s.cleared)).toEqual([1, 1, 1]);
+  });
+
+  it('an undo brings a departure back; the record keeps both, and a new departure is needed to depart again', () => {
+    // Why (J-REC-6): undo is a compensating fact, never deletion, so the
+    // history shows "set aside" and "brought back" and nobody loses the reason.
+    const l = flow();
+    l.version('t1');
+    l.aside('t1', 'd1', 's1');
+    l.undo('t1', 'u1', 'd1', 'set_aside');
+    let r = rec(l.events);
+    expect(r.steps[0]!.state).not.toBe('complete');
+    expect(r.departures).toMatchObject([{ departureId: 'd1', undone: { by: 't1' } }]);
+    expect(r.history[0]).toMatchObject({ kind: 'departure', departure: { departureId: 'd1', undone: { by: 't1' } } });
+    l.aside('t1', 'd2', 's1');
+    r = rec(l.events);
+    expect(r.steps[0]!.state).toBe('complete');
+  });
+
+  it('an undo that names the wrong kind leaves the departure active', () => {
+    // Why (R11): undoing an override needs manage_flows. A translator may
+    // send an undo for a set-aside; it must not bring back an override.
+    const l = flow();
+    l.version('t1');
+    l.override('lead', 'o1');
+    l.undo('t1', 'u1', 'o1', 'set_aside');
+    expect(rec(l.events).steps[1]!.override).toMatchObject({ departureId: 'o1', undone: null });
+  });
+
+  it('a set-aside past an uncleared checkpoint counts, flagged out of order', () => {
+    // Why (PLAN 16.1 rule 6): checkpoints are enforced by derivation, never refusal.
+    const l = flow();
+    l.version('t1');
+    l.aside('t1', 'd1', 's1');
+    l.aside('t1', 'd2', 's3');
+    const r = rec(l.events);
+    expect(r.steps[2]!.kinds[0]).toMatchObject({ state: 'skipped', outOfOrder: true });
+    expect(r.steps[2]!.state).toBe('complete');
+  });
+
+  it('undo before its departure and any arrival order derive the same record', () => {
+    // Why (analysis R12): an undo can sync in before the departure it names.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('r1', v1, 'peer', 's1');
+    l.aside('t1', 'd1', 's1', 'community');
+    l.override('lead', 'o1');
+    l.undo('lead', 'u1', 'o1', 'override');
+    l.aside('t1', 'd2', 's3');
+    const expected = rec(l.events);
+    const undoFirst = [...l.events.filter((e) => e.type === 'v1.DepartureUndone'), ...l.events.filter((e) => e.type !== 'v1.DepartureUndone')];
+    expect(rec(undoFirst)).toEqual(expected);
+    for (const seed of [1, 2, 3]) {
+      const shuffled = [...l.events].sort((a, b) => ((a.id.charCodeAt(3) * seed) % 5) - ((b.id.charCodeAt(3) * seed) % 5) || (a.id < b.id ? 1 : -1));
+      expect(rec(shuffled)).toEqual(expected);
+    }
+  });
+});

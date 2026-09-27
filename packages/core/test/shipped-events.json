@@ -335,5 +335,28 @@
     "stepId?": "string",
     "takeId": "string",
     "unitId": "string"
+  },
+  "v1.StepSetAside": {
+    "departureId": "string",
+    "kindId?": "string",
+    "laneId": "string",
+    "reason?": "string",
+    "reasonBlobHash?": "string",
+    "stepId": "string",
+    "unitId": "string"
+  },
+  "v1.CheckpointOverridden": {
+    "departureId": "string",
+    "laneId": "string",
+    "reason?": "string",
+    "reasonBlobHash?": "string",
+    "stepId": "string",
+    "unitId": "string"
+  },
+  "v1.DepartureUndone": {
+    "departureId": "string",
+    "departureKind": "string",
+    "reason?": "string",
+    "undoId": "string"
   }
 }

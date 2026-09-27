@@ -105,6 +105,18 @@ describe('b: examples are valid and privileges did not move', () => {
   });
 });
 
+describe('b2: payload-dependent privileges added after the registry', () => {
+  it('undoing a departure needs the privilege of the departure it names', () => {
+    // Why (analysis R11): a translator may bring back a set-aside, but only
+    // someone who may override a checkpoint may bring back an override.
+    // SQL event_privilege has the same case (20260927000003_departures.sql).
+    const undo = (departureKind: string) => envelope('v1.DepartureUndone', { undoId: 'u', departureId: 'd', departureKind });
+    expect(privilegeFor(undo('set_aside'))).toBe('translate');
+    expect(privilegeFor(undo('override'))).toBe('manage_flows');
+    expect(privilegeFor(undo('nonsense'))).toBe('manage_flows');
+  });
+});
+
 // ---- c: shipped shapes are frozen -------------------------------------------------
 
 /** Field name (suffixed `?` when the validator lets it be absent) to JSON shape. */

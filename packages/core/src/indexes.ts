@@ -26,6 +26,8 @@ export interface Indexes {
   assignmentsByUnitLane: Map<string, Assignment[]>;
   /** profileId -> that person's assignments. */
   assignmentsByActor: Map<string, Assignment[]>;
+  /** `${unitId}:${laneId}` -> departure ids (set-asides and overrides) on that passage. */
+  departuresByUnitLane: Map<string, string[]>;
   /** role -> active member ids holding it, sorted. */
   activeMembersByRole: Map<Role, string[]>;
   /** Leaf unit ids in display order. */
@@ -74,6 +76,14 @@ export function buildIndexes(state: ProjectState): Indexes {
     else assignmentsByActor.set(a.profileId, [a]);
   }
 
+  const departuresByUnitLane = new Map<string, string[]>();
+  for (const [id, d] of Object.entries(state.departures)) {
+    const key = unitLaneKey(d.value.unitId, d.value.laneId);
+    const list = departuresByUnitLane.get(key);
+    if (list) list.push(id);
+    else departuresByUnitLane.set(key, [id]);
+  }
+
   const activeMembersByRole = new Map<Role, string[]>();
   for (const [id, m] of Object.entries(state.members)) {
     if (m.removed.value) continue;
@@ -87,6 +97,7 @@ export function buildIndexes(state: ProjectState): Indexes {
     takesByUnitLane,
     assignmentsByUnitLane,
     assignmentsByActor,
+    departuresByUnitLane,
     activeMembersByRole,
     leafUnits,
     containerUnits,

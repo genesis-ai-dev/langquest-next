@@ -184,7 +184,26 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
     skippedQuestions?: { questionId: string; reason: string }[];
     requestId?: string;
   };
+  /**
+   * A step (or one kind of it) set aside for one passage, with a reason in
+   * words or a voice note. Set by departureId. Survives new versions. A
+   * non-checkpoint step counts it complete (comply or explain).
+   */
+  'v1.StepSetAside': { departureId: string; unitId: string; laneId: string; stepId: string; kindId?: string; reason?: string; reasonBlobHash?: string };
+  /**
+   * A checkpoint moved past for one passage, with a reason. Set by
+   * departureId. Later steps unlock and the step counts toward done.
+   */
+  'v1.CheckpointOverridden': { departureId: string; unitId: string; laneId: string; stepId: string; reason?: string; reasonBlobHash?: string };
+  /**
+   * Brings a departure back (add-wins: any undo naming it makes it
+   * inactive). Applies only when `departureKind` matches the departure, so
+   * the payload-dependent privilege cannot be dodged by lying about it.
+   */
+  'v1.DepartureUndone': { undoId: string; departureId: string; departureKind: DepartureKind; reason?: string };
 }
+
+export type DepartureKind = 'set_aside' | 'override';
 
 export type CheckOutcome = 'looks_good' | 'needs_changes';
 

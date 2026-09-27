@@ -59,7 +59,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   book_map: { reads:['mapPassages','highlightsFor','locateLabel'] },
   version_detail: { reads:['derivePassageRecord','deriveTakeStatus','keyTermLinksFor'] },
   review_detail: { reads:['derivePassageRecord','questionSetsFor'] },
-  passage_record: { reads:['derivePassageRecord','recordNextAction','deriveObt'] },
+  passage_record: { emits:['v1.StepSetAside','v1.CheckpointOverridden','v1.DepartureUndone'],reads:['derivePassageRecord','recordNextAction','deriveObt'] },
   ask_someone: { emits:['v1.AssignmentMade'],reads:['derivePassageRecord'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },

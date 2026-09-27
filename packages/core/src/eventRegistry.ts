@@ -31,6 +31,12 @@ export interface EventRegistryEntry<T extends EventType> {
   validate: (p: Record<string, unknown>) => string | null;
   /** Same semantics as EVENT_PRIVILEGE: null = server-only, 'by_kind' = see privilegeFor. */
   privilege: Privilege | 'bootstrap' | 'by_kind' | null;
+  /**
+   * For a `'by_kind'` type added after the registry: the concrete privilege
+   * one payload needs. It must equal the SQL `event_privilege` case for the
+   * type. (MaterialDefined and CatalogItemToggled resolve in org.ts, as before.)
+   */
+  privilegeOf?: (p: Record<string, unknown>) => Privilege;
   /** Blob hashes this payload references, the ones `referencedBlobs` derives from it. */
   blobHashes: (p: Record<string, unknown>) => string[];
   /** A minimal valid payload with every optional field filled. Fixtures and the shape snapshot use it. */
@@ -262,6 +268,28 @@ export const EVENT_REGISTRY = {
     }
   },
 
+  // ---- Phase 2b departures (SQL 20260927000003_departures.sql).
+  'v1.StepSetAside': {
+    validate: (p) =>
+      str(p, 'departureId', 'unitId', 'laneId', 'stepId') ?? optStr(p, 'kindId') ?? reasonGiven(p),
+    privilege: 'translate', blobHashes: (p) => hashes(p['reasonBlobHash']), shipped: true,
+    example: { departureId: 'ex-departure', unitId: 'ex-unit', laneId: 'ex-lane', stepId: 'ex-step-v2', kindId: 'kind@1/peer', reason: 'No one available for this right now', reasonBlobHash: HASH }
+  },
+  'v1.CheckpointOverridden': {
+    validate: (p) => str(p, 'departureId', 'unitId', 'laneId', 'stepId') ?? reasonGiven(p),
+    privilege: 'manage_flows', blobHashes: (p) => hashes(p['reasonBlobHash']), shipped: true,
+    example: { departureId: 'ex-override', unitId: 'ex-unit', laneId: 'ex-lane', stepId: 'ex-step-v2', reason: 'Checked informally — will record it later', reasonBlobHash: HASH }
+  },
+  'v1.DepartureUndone': {
+    validate: (p) =>
+      str(p, 'undoId', 'departureId') ?? optText(p, 'reason') ??
+      (p['departureKind'] === 'set_aside' || p['departureKind'] === 'override' ? null : 'departureKind must be set_aside or override'),
+    // Undoing needs the privilege of the departure it names (SQL: the same case).
+    privilege: 'by_kind', privilegeOf: (p) => (p['departureKind'] === 'set_aside' ? 'translate' : 'manage_flows'),
+    blobHashes: noBlobs, shipped: true,
+    example: { undoId: 'ex-undo', departureId: 'ex-departure', departureKind: 'set_aside', reason: 'Peer is back from leave' }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>
@@ -468,6 +496,14 @@ function optStr(p: Record<string, unknown>, k: string): string | null {
 /** Absent, or a string. SQL: `p ? k and jsonb_typeof(p->k) <> 'string'` refuses. */
 function optText(p: Record<string, unknown>, k: string): string | null {
   return p[k] === undefined || typeof p[k] === 'string' ? null : `${k} must be a string`;
+}
+/**
+ * A departure or a kept version says why: `reason` (optional text) and
+ * `reasonBlobHash` (optional voice), at least one non-empty. SQL: the same.
+ */
+function reasonGiven(p: Record<string, unknown>): string | null {
+  return optText(p, 'reason') ?? optStr(p, 'reasonBlobHash') ??
+    (sqlStr(p, 'reason') || sqlStr(p, 'reasonBlobHash') ? null : 'say why: reason or reasonBlobHash');
 }
 function cards(p: Record<string, unknown>, k: string): string | null {
   const v = p[k];
