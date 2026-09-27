@@ -82,7 +82,11 @@ async function start() {
     throw e;
   }
   try {
-    const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    // The tap is muted, so it needs no speaker. Without a sink the render clock
+    // runs even when the output device stalls (seen on macOS: currentTime
+    // stood still and no segment was ever emitted). Browsers without sinkId
+    // ignore the option.
+    const ctx = new AudioContext({ sampleRate: SAMPLE_RATE, sinkId: { type: 'none' } } as AudioContextOptions);
     const url = URL.createObjectURL(new Blob([TAP], { type: 'text/javascript' }));
     await ctx.audioWorklet.addModule(url);
     URL.revokeObjectURL(url);
