@@ -102,23 +102,42 @@ export interface RecordFeedback extends RecordReview {
   kept: RecordKept | null;
 }
 
+/**
+ * One ask (D8): a `v1.RequestMade`, or a legacy `v1.AssignmentMade` folded
+ * into the same read model (translator -> record; a role that does a step ->
+ * check with no kind).
+ */
 export interface RecordAsk {
   unitId: string;
   laneId: string;
+  /** The person asked; '' for a request with no assignee. */
   profileId: string;
   role: Role;
-  /** Who asked: the assignment's envelope actor. */
+  /** Who asked: the envelope actor. */
   askedBy: string;
   dueDate?: string;
+  /** Directions: the assignment's instructions, or the request's note. */
   instructions?: string;
   at: string;
-  /** `record` for a translator ask; `review` when the role does a workflow step. */
+  /** `record` for an ask to record; `review` for an ask to check. */
   kind: 'record' | 'review';
-  /** The steps this ask covers (every step done by `role`). Empty for record asks. */
-  stepIds: string[];
   /**
-   * Record: a version was submitted after the ask. Review: the person has a
-   * decision on the latest version for one of `stepIds` (a new version reopens it).
+   * The steps this ask covers: a request for a kind covers the steps holding
+   * that kind; an assignment covers every step done by `role`. Empty for record asks.
+   */
+  stepIds: string[];
+  /** A request's id; absent for a legacy assignment. */
+  requestId?: string;
+  /** The kind a check request is fixed to (ADR-020). */
+  kindId?: string;
+  noteBlobHash?: string;
+  questionSetId?: string;
+  /** D8: withdrawn, else done, else open. */
+  state: 'open' | 'done' | 'withdrawn';
+  /**
+   * Not open. Record: a version was submitted after the ask. Check: a check
+   * names the request, or the assignee checked the kind after the ask (an
+   * assignment: on the latest version, so a new version reopens it). Or withdrawn.
    */
   satisfied: boolean;
 }
@@ -214,7 +233,7 @@ export type RecordEntry =
   | { kind: 'version'; at: string; by: string; id: string; takeId: string; n: number }
   | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; decision: 'approve' | 'suggest_changes' }
   | { kind: 'response'; at: string; by: string; id: string; takeId: string; n: number; respondsToTakeId: string }
-  | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string }
+  | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string; kindId?: string; requestId?: string; state: RecordAsk['state'] }
   | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture }
   | { kind: 'kept'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; reviewerId: string; kept: RecordKept };
 
@@ -338,10 +357,20 @@ function stepsWithGroups(state: ProjectState, laneId: string): { step: FlowStep;
   });
 }
 
-function asksFor(state: ProjectState, assignments: Assignment[], workflow: WorkflowStep[], latest: RecordVersion | null, versions: RecordVersion[]): RecordAsk[] {
-  return assignments
+const mayWithdrawAny = (state: ProjectState, id: string) => {
+  const m = state.members[id];
+  return m !== undefined && !m.removed.value && (m.role.value === 'owner' || m.role.value === 'coordinator');
+};
+
+/** D8: every ask on this passage, legacy assignments and requests, oldest first. */
+function asksFor(
+  state: ProjectState, unitId: string, laneId: string, idx: Indexes, flow: FlowStep[], workflow: WorkflowStep[],
+  latest: RecordVersion | null, versions: RecordVersion[]
+): RecordAsk[] {
+  const key = unitLaneKey(unitId, laneId);
+  const legacy = (idx.assignmentsByUnitLane.get(key) ?? [])
     .filter((a) => isActive(state, a.profileId))
-    .map((a) => {
+    .map((a): RecordAsk => {
       const stepIds = a.role === 'translator' ? [] : workflow.filter((s) => s.role === a.role).map((s) => s.id);
       const kind: RecordAsk['kind'] = stepIds.length > 0 ? 'review' : 'record';
       const satisfied = kind === 'record'
@@ -351,10 +380,39 @@ function asksFor(state: ProjectState, assignments: Assignment[], workflow: Workf
         unitId: a.unitId, laneId: a.laneId, profileId: a.profileId, role: a.role, askedBy: a.assignedBy,
         ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}),
         ...(a.instructions !== undefined ? { instructions: a.instructions } : {}),
-        at: a.hlc, kind, stepIds, satisfied
+        at: a.hlc, kind, stepIds, state: satisfied ? 'done' : 'open', satisfied
       };
-    })
-    .sort((x, y) => byClock({ at: x.at, id: x.profileId + x.role }, { at: y.at, id: y.profileId + y.role }));
+    });
+  const requests = (idx.requestsByUnitLane.get(key) ?? []).flatMap((requestId): RecordAsk[] => {
+    const reg = state.requests[requestId]!;
+    const r = reg.value;
+    if (r.assigneeId !== undefined && !isActive(state, r.assigneeId)) return [];
+    const stepIds = r.what === 'record' ? []
+      : r.kindId !== undefined ? flow.filter((s) => s.kindIds.includes(r.kindId!)).map((s) => s.id)
+      : workflow.filter((s) => s.role !== 'translator').map((s) => s.id);
+    const role: Role = r.what === 'record' ? 'translator' : workflow.find((s) => s.id === stepIds[0])?.role ?? 'reviewer';
+    // A withdrawal counts from the asker, or from an owner or coordinator.
+    const withdrawn = Object.values(state.requestWithdrawals[requestId] ?? {})
+      .some((w) => w.value.actorId === r.actorId || mayWithdrawAny(state, w.value.actorId));
+    const done = r.what === 'record'
+      ? versions.some((v) => v.at > reg.hlc)
+      : versions.some((v) => v.reviews.some((c) => c.requestId === requestId ||
+        (r.assigneeId !== undefined && c.reviewerId === r.assigneeId && c.at > reg.hlc &&
+          (r.kindId !== undefined ? c.kindId === r.kindId : stepIds.includes(c.stepId)))));
+    const state_: RecordAsk['state'] = withdrawn ? 'withdrawn' : done ? 'done' : 'open';
+    return [{
+      unitId: r.unitId, laneId: r.laneId, profileId: r.assigneeId ?? '', role, askedBy: r.actorId,
+      ...(r.dueDate !== undefined ? { dueDate: r.dueDate } : {}),
+      ...(r.note !== undefined ? { instructions: r.note } : {}),
+      at: reg.hlc, kind: r.what === 'record' ? 'record' : 'review', stepIds, requestId,
+      ...(r.kindId !== undefined ? { kindId: r.kindId } : {}),
+      ...(r.noteBlobHash !== undefined ? { noteBlobHash: r.noteBlobHash } : {}),
+      ...(r.questionSetId !== undefined ? { questionSetId: r.questionSetId } : {}),
+      state: state_, satisfied: state_ !== 'open'
+    }];
+  });
+  return [...legacy, ...requests]
+    .sort((x, y) => byClock({ at: x.at, id: (x.requestId ?? '') + x.profileId + x.role }, { at: y.at, id: (y.requestId ?? '') + y.profileId + y.role }));
 }
 
 /** The legacy (role and quorum) view of a flow step, for asks and old callers. */
@@ -440,7 +498,7 @@ export function derivePassageRecord(
   const recorded = latest !== null;
   const draft = draftOf(state, unitId, laneId, idx);
   const workflow = grouped.map((g) => legacyStep(g.step));
-  const asks = asksFor(state, idx.assignmentsByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [], workflow, latest, versions);
+  const asks = asksFor(state, unitId, laneId, idx, grouped.map((g) => g.step), workflow, latest, versions);
   const departures = obt ? [] : departuresOf(state, unitId, laneId, idx);
   const active = departures.filter((d) => d.undone === null);
 
@@ -466,7 +524,8 @@ export function derivePassageRecord(
   let gate: string | null = null;
   let clearedAt = '';
   const base = grouped.map(({ step, group }) => {
-    const askedOf = [...new Set(openAsks.filter((a) => a.stepIds.includes(step.id)).map((a) => a.profileId))].sort();
+    const stepAsks = openAsks.filter((a) => a.stepIds.includes(step.id));
+    const askedOf = [...new Set(stepAsks.map((a) => a.profileId).filter((id) => id !== ''))].sort();
     const legacy = step.legacy !== undefined;
     const lockedBy = recorded ? gate : null;
     const override = active.find((d) => d.kind === 'override' && d.stepId === step.id) ?? null;
@@ -493,7 +552,8 @@ export function derivePassageRecord(
       } else if (last?.decision === 'approve') kstate = 'approved';
       else if (last?.decision === 'suggest_changes') kstate = answeredOnLatest || keptFor(state, last, idx) !== null ? 'addressed' : 'suggestions';
       else if (aside) kstate = 'skipped';
-      else if (askedOf.length > 0) kstate = 'asked';
+      // A request fixed to a kind asks for that kind only; an assignment asks for the whole step.
+      else if (stepAsks.some((a) => a.kindId === undefined || a.kindId === kindId)) kstate = 'asked';
       else kstate = 'todo';
       // A set-aside is a fact on the step like a check: on a locked step it
       // still counts, flagged out of order (D6), never refused.
@@ -563,7 +623,13 @@ export function derivePassageRecord(
       const r = state.responses[v.takeId];
       return r ? [{ kind: 'response' as const, at: r.hlc, by: r.actorId, id: `response:${v.takeId}`, takeId: v.takeId, n: v.n, respondsToTakeId: r.respondsToTakeId }] : [];
     }),
-    ...asks.map((a): RecordEntry => ({ kind: 'ask', at: a.at, by: a.askedBy, id: `ask:${a.profileId}:${a.role}`, profileId: a.profileId, role: a.role, ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}) })),
+    ...asks.map((a): RecordEntry => ({
+      kind: 'ask', at: a.at, by: a.askedBy, id: a.requestId !== undefined ? `request:${a.requestId}` : `ask:${a.profileId}:${a.role}`,
+      profileId: a.profileId, role: a.role, state: a.state,
+      ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}),
+      ...(a.kindId !== undefined ? { kindId: a.kindId } : {}),
+      ...(a.requestId !== undefined ? { requestId: a.requestId } : {})
+    })),
     ...departures.map((d): RecordEntry => ({ kind: 'departure', at: d.at, by: d.by, id: `departure:${d.departureId}`, departure: d })),
     ...feedback.flatMap((f): RecordEntry[] => f.kept ? [{ kind: 'kept', at: f.kept.at, by: f.kept.by, id: `kept:${f.kept.keptId}`, takeId: f.takeId, n: latest!.n, stepId: f.stepId, kindId: f.kindId, reviewerId: f.reviewerId, kept: f.kept }] : [])
   ].sort((a, b) => -byClock(a, b));
@@ -599,7 +665,7 @@ export interface RecordAbilities {
   record: boolean;
   /** Privilege `review`. */
   review: boolean;
-  /** Privilege to emit `v1.AssignmentMade` (`assign_work`). */
+  /** Privilege to ask for a check (`v1.RequestMade` what check: `send_to_reviewers`). */
   ask: boolean;
 }
 
@@ -655,6 +721,10 @@ export interface Highlight {
   /** respond: the version with feedback; review: the latest version; draft: the draft take. */
   takeId?: string;
   stepId?: string;
+  /** review: the kind to check (the request's kind, else the step's first kind still open); respond: the kind that asked. */
+  kindId?: string;
+  /** The request behind a record or review card. */
+  requestId?: string;
   reviewerId?: string;
   askedBy?: string;
   dueDate?: string;
@@ -681,20 +751,39 @@ export function highlightsFor(state: ProjectState, actorId: string, idx: Indexes
     return r;
   };
 
-  for (const a of idx.assignmentsByActor.get(actorId) ?? []) {
-    if (isObtLane(state, a.laneId) || !state.units[a.unitId]) continue;
-    const rec = recordOf(a.unitId, a.laneId);
-    const ask = rec.asks.find((x) => x.profileId === actorId && x.role === a.role);
-    if (!ask || ask.satisfied) continue;
-    const extra = {
-      askedBy: ask.askedBy,
-      ...(ask.dueDate !== undefined ? { dueDate: ask.dueDate } : {}),
-      ...(ask.instructions !== undefined ? { instructions: ask.instructions } : {})
-    };
-    if (ask.kind === 'record') out.push({ kind: 'record', unitId: a.unitId, laneId: a.laneId, at: ask.at, ...extra });
-    else if (rec.latest) {
-      const stepId = ask.stepIds.find((id) => rec.steps.find((s) => s.stepId === id)?.state !== 'complete') ?? ask.stepIds[0]!;
-      out.push({ kind: 'review', unitId: a.unitId, laneId: a.laneId, takeId: rec.latest.takeId, stepId, at: ask.at, ...extra });
+  // Asks of me: legacy assignments and requests, one card per open ask.
+  const asked = new Set<string>();
+  for (const a of idx.assignmentsByActor.get(actorId) ?? []) asked.add(unitLaneKey(a.unitId, a.laneId));
+  for (const id of idx.requestsByAssignee.get(actorId) ?? []) asked.add(unitLaneKey(state.requests[id]!.value.unitId, state.requests[id]!.value.laneId));
+  const seenCards = new Set<string>();
+  for (const key of [...asked].sort()) {
+    const [unitId, laneId] = splitKey(key);
+    if (isObtLane(state, laneId) || !state.units[unitId]) continue;
+    const rec = recordOf(unitId, laneId);
+    for (const ask of [...rec.asks].reverse()) {
+      if (ask.profileId !== actorId || ask.satisfied) continue;
+      const extra = {
+        askedBy: ask.askedBy,
+        ...(ask.dueDate !== undefined ? { dueDate: ask.dueDate } : {}),
+        ...(ask.instructions !== undefined ? { instructions: ask.instructions } : {}),
+        ...(ask.requestId !== undefined ? { requestId: ask.requestId } : {})
+      };
+      if (ask.kind === 'record') {
+        if (seenCards.has(`record:${key}`)) continue;
+        seenCards.add(`record:${key}`);
+        out.push({ kind: 'record', unitId, laneId, at: ask.at, ...extra });
+      } else if (rec.latest) {
+        const stepId = ask.stepIds.find((id) => rec.steps.find((s) => s.stepId === id)?.state !== 'complete') ?? ask.stepIds[0];
+        if (stepId === undefined) continue;
+        const step = rec.steps.find((s) => s.stepId === stepId);
+        const kindId = ask.kindId ?? (step && !step.legacy
+          ? step.kinds.find((k) => k.state !== 'approved' && k.state !== 'recorded' && k.state !== 'skipped' && k.state !== 'addressed')?.kindId
+          : undefined);
+        const card = `review:${key}:${stepId}:${kindId ?? ''}`;
+        if (seenCards.has(card)) continue;
+        seenCards.add(card);
+        out.push({ kind: 'review', unitId, laneId, takeId: rec.latest.takeId, stepId, ...(kindId !== undefined ? { kindId } : {}), at: ask.at, ...extra });
+      }
     }
   }
 
@@ -707,7 +796,7 @@ export function highlightsFor(state: ProjectState, actorId: string, idx: Indexes
     const rec = recordOf(unitId, laneId);
     if (rec.feedbackIsMine && !rec.done) {
       for (const f of rec.openFeedback) {
-        out.push({ kind: 'respond', unitId, laneId, takeId: f.takeId, stepId: f.stepId, reviewerId: f.reviewerId, at: f.at });
+        out.push({ kind: 'respond', unitId, laneId, takeId: f.takeId, stepId: f.stepId, kindId: f.kindId, reviewerId: f.reviewerId, at: f.at });
       }
     }
     if (rec.draft && rec.draft.authorId === actorId && !out.some((h) => h.unitId === unitId && h.laneId === laneId)) {
@@ -738,20 +827,24 @@ const dueKey = (due?: string) => (due === undefined ? '2' : /^\d{4}-\d{2}-\d{2}/
 export function waitingOn(state: ProjectState, actorId: string, idx: Indexes = buildIndexes(state)): RecordAsk[] {
   const out: RecordAsk[] = [];
   const seen = new Set<string>();
-  for (const a of Object.values(state.assignments)) {
-    if (a.assignedBy !== actorId || a.profileId === actorId || isObtLane(state, a.laneId) || !state.units[a.unitId]) continue;
+  const mine: { unitId: string; laneId: string }[] = [
+    ...Object.values(state.assignments).filter((a) => a.assignedBy === actorId && a.profileId !== actorId),
+    ...(idx.requestsByAsker.get(actorId) ?? []).map((id) => state.requests[id]!.value)
+  ];
+  for (const a of mine) {
+    if (isObtLane(state, a.laneId) || !state.units[a.unitId]) continue;
     const key = unitLaneKey(a.unitId, a.laneId);
     if (seen.has(key)) continue;
     seen.add(key);
     for (const ask of derivePassageRecord(state, a.unitId, a.laneId, actorId, idx).asks) {
-      if (ask.askedBy === actorId && ask.profileId !== actorId && !ask.satisfied) out.push(ask);
+      if (ask.askedBy === actorId && ask.profileId !== actorId && ask.profileId !== '' && !ask.satisfied) out.push(ask);
     }
   }
   return out.sort((a, b) => {
     const x = dueKey(a.dueDate);
     const y = dueKey(b.dueDate);
     if (x !== y) return x < y ? -1 : 1;
-    return a.at !== b.at ? (a.at < b.at ? -1 : 1) : `${a.unitId}${a.profileId}` < `${b.unitId}${b.profileId}` ? -1 : 1;
+    return a.at !== b.at ? (a.at < b.at ? -1 : 1) : `${a.unitId}${a.profileId}${a.requestId ?? ''}` < `${b.unitId}${b.profileId}${b.requestId ?? ''}` ? -1 : 1;
   });
 }
 

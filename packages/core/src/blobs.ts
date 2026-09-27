@@ -65,6 +65,10 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
       if (!out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId });
     }
   }
+  for (const r of Object.values(state.requests)) {
+    const h = r.value.noteBlobHash;
+    if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: r.value.unitId });
+  }
   for (const d of Object.values(state.departures)) {
     const h = d.value.reasonBlobHash;
     if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: d.value.unitId });

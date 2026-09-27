@@ -164,13 +164,17 @@ export function ReviewCapture(ctx: Ctx) {
         const skip = skippedAnswerKey('');
         const skippedQuestions = Object.entries(answers).filter(([k]) => k.endsWith(skip)).map(([k, reason]) => ({ questionId: k.slice(0, -skip.length), reason }));
         const given = Object.fromEntries(Object.entries(answers).filter(([k]) => !k.endsWith(skip)));
+        // The open ask this check answers (D8), so the asker sees it done.
+        const request = record?.asks.find((a) => a.requestId !== undefined && a.profileId === ctx.session.actorId && !a.satisfied
+          && a.kind === 'review' && (a.kindId === undefined || a.kindId === kind!.kindId));
         await ctx.project.run(commands(state!, indexesFor(state!)).recordCheck({
           commandId: Crypto.randomUUID(), checkId: Crypto.randomUUID(), takeId: takeId!, kindId: kind.kindId, stepId,
           outcome: outcome === 'approve' ? 'looks_good' : 'needs_changes',
           ...(comment.trim() ? { comment: comment.trim() } : {}),
           ...(voice ? { commentBlobHash: voice } : {}),
           ...(Object.keys(given).length ? { answers: given } : {}),
-          ...(skippedQuestions.length ? { skippedQuestions } : {})
+          ...(skippedQuestions.length ? { skippedQuestions } : {}),
+          ...(request?.requestId ? { requestId: request.requestId } : {})
         }));
         ctx.project.triggerUpload();
         ctx.toast(outcome === 'approve' ? `${kind.name} added — looks good` : `Feedback sent to ${person(take?.actorId ?? '').name}`);

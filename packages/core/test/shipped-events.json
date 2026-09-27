@@ -365,5 +365,21 @@
     "legacyTarget?": "{reviewerId:string,stepId:string,takeId:string}",
     "reason?": "string",
     "reasonBlobHash?": "string"
+  },
+  "v1.RequestMade": {
+    "assigneeId?": "string",
+    "dueDate?": "string",
+    "kindId?": "string",
+    "laneId": "string",
+    "note?": "string",
+    "noteBlobHash?": "string",
+    "questionSetId?": "string",
+    "requestId": "string",
+    "unitId": "string",
+    "what": "string"
+  },
+  "v1.RequestWithdrawn": {
+    "reason?": "string",
+    "requestId": "string"
   }
 }

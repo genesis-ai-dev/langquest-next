@@ -208,7 +208,30 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
    * feedback (D5) without a new version; a checkpoint still needs its own approval.
    */
   'v1.FeedbackKept': { keptId: string; checkId?: string; legacyTarget?: LegacyReviewTarget; reason?: string; reasonBlobHash?: string };
+  /**
+   * Ask someone for one piece of work on one passage: to record it, or to
+   * check it for one kind (fixed to the kind whose button opened the ask,
+   * ADR-020). Set by requestId. Its state is derived (open, done, withdrawn).
+   * Privilege by `what`: record needs assign_work, check needs send_to_reviewers.
+   * `dueDate` is an ISO date (YYYY-MM-DD).
+   */
+  'v1.RequestMade': {
+    requestId: string;
+    unitId: string;
+    laneId: string;
+    what: RequestWhat;
+    kindId?: string;
+    assigneeId?: string;
+    dueDate?: string;
+    note?: string;
+    noteBlobHash?: string;
+    questionSetId?: string;
+  };
+  /** Withdraws an ask (add-wins). Honoured from the asker, or an owner or coordinator. */
+  'v1.RequestWithdrawn': { requestId: string; reason?: string };
 }
+
+export type RequestWhat = 'record' | 'check';
 
 /** A legacy `v1.ReviewSubmitted`, which has no id of its own. */
 export interface LegacyReviewTarget {

@@ -1,5 +1,5 @@
 import {
-  accountForDriver, judgeAsk, judgeCheck, judgeFlow, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeReview, judgeSavedVersion,
+  accountForDriver, judgeCheck, judgeFlow, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
   type DeviceRow, type LogEvidence, type RecordingEvidence, type ServerRow
 } from './outcome';
 
@@ -254,33 +254,104 @@ describe('review oracle', () => {
   });
 });
 
-describe('ask someone oracle', () => {
-  const contract = { askerId: 'coordinator', unitId: 'luke-2', laneId: 'L1', profileId: 'translator', role: 'translator' };
+describe('ask someone oracle (RequestMade)', () => {
+  const contract = { askerId: 'coordinator', unitId: 'luke-2', laneId: 'L1', assigneeId: 'translator', what: 'record' as const };
   const ask = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'coordinator') =>
-    row(`a-${actorId}`, 'v1.AssignmentMade', actorId, { unitId: 'luke-2', laneId: 'L1', profileId: 'translator', role: 'translator', dueDate: '2026-10-02', ...payload }, over);
+    row(`a-${actorId}`, 'v1.RequestMade', actorId, { requestId: 'rq1', unitId: 'luke-2', laneId: 'L1', what: 'record', assigneeId: 'translator', dueDate: '2026-10-02', ...payload }, over);
 
-  it('passes on a confirmed ask with an ISO due date', () => {
-    expect(judgeAsk(contract, log([ask()])).verdict).toBe('passed');
+  it('passes on a confirmed request with an ISO due date', () => {
+    expect(judgeRequest(contract, log([ask()])).verdict).toBe('passed');
   });
 
-  it('does not count the seed\'s assignment by the owner (same passage and person, no date)', () => {
-    expect(judgeAsk(contract, log([ask({ dueDate: undefined }, {}, 'owner')])).verdict).toBe('inconclusive');
+  it('does not count the seed\'s assignment by the owner, and fails when the product sends the legacy fact', () => {
+    const seed = row('seed', 'v1.AssignmentMade', 'owner', { unitId: 'luke-2', laneId: 'L1', profileId: 'translator', role: 'translator' });
+    expect(judgeRequest(contract, log([seed])).verdict).toBe('inconclusive');
+    const legacy = row('a1', 'v1.AssignmentMade', 'coordinator', { unitId: 'luke-2', laneId: 'L1', profileId: 'translator', role: 'translator', dueDate: '2026-10-02' });
+    expect(judgeRequest(contract, log([legacy])).verdict).toBe('product_failure');
   });
 
-  it('fails when the date chosen did not make it into the ask', () => {
-    expect(judgeAsk(contract, log([ask({ dueDate: undefined })])).verdict).toBe('product_failure');
-    expect(judgeAsk(contract, log([ask({ dueDate: 'next week' })])).verdict).toBe('product_failure');
+  it('fails when the date chosen did not make it into the ask, or is not an ISO date', () => {
+    expect(judgeRequest(contract, log([ask({ dueDate: undefined })])).verdict).toBe('product_failure');
+    expect(judgeRequest(contract, log([ask({ dueDate: 'next week' })])).verdict).toBe('product_failure');
+    expect(judgeRequest(contract, log([ask({ dueDate: '2026-10-02T00:00' })])).verdict).toBe('product_failure');
   });
 
-  it('fails when the ask names another person, passage or role', () => {
-    for (const payload of [{ profileId: 'reviewer' }, { unitId: 'luke-0' }, { role: 'reviewer' }]) {
-      expect(judgeAsk(contract, log([ask(payload)])).verdict).toBe('product_failure');
+  it('fails when the ask names another person, passage, what or kind', () => {
+    for (const payload of [{ assigneeId: 'reviewer' }, { unitId: 'luke-0' }, { what: 'check' }]) {
+      expect(judgeRequest(contract, log([ask(payload)])).verdict).toBe('product_failure');
     }
+    const check = { ...contract, what: 'check' as const, kindId: 'kind@1/peer' };
+    expect(judgeRequest(check, log([ask({ what: 'check', kindId: 'kind@1/community' })])).verdict).toBe('product_failure');
+    expect(judgeRequest(check, log([ask({ what: 'check' })])).verdict).toBe('product_failure');
+    expect(judgeRequest(check, log([ask({ what: 'check', kindId: 'kind@1/peer' })])).verdict).toBe('passed');
   });
 
-  it('fails when the ask never synced', () => {
-    expect(judgeAsk(contract, log([ask({}, { status: 'pending' })])).verdict).toBe('product_failure');
-    expect(judgeAsk(contract, { ...log([ask()]), server: onServer([]) }).verdict).toBe('product_failure');
+  it('fails when the ask was withdrawn afterwards (toast Undo), or never synced', () => {
+    // Why: an undone ask is not an ask; passing it would hide an Undo that fires by itself.
+    expect(judgeRequest(contract, log([ask(), row('w', 'v1.RequestWithdrawn', 'coordinator', { requestId: 'rq1' })])).verdict).toBe('product_failure');
+    expect(judgeRequest(contract, log([ask({}, { status: 'pending' })])).verdict).toBe('product_failure');
+    expect(judgeRequest(contract, { ...log([ask()]), server: onServer([]) }).verdict).toBe('product_failure');
+  });
+});
+
+describe('set aside with a reason oracle', () => {
+  const contract = { actorId: 'translator', unitId: 'luke-0', laneId: 'L1', stepId: 'one_check@1/s1', kindId: 'kind@1/peer' };
+  const aside = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'translator') =>
+    row('sa', 'v1.StepSetAside', actorId, { departureId: 'd1', unitId: 'luke-0', laneId: 'L1', stepId: 'one_check@1/s1', kindId: 'kind@1/peer',
+      reason: 'Not needed for this passage', ...payload }, over);
+
+  it('passes on a confirmed set-aside of the step that says why, in words or voice', () => {
+    expect(judgeSetAside(contract, log([aside()])).verdict).toBe('passed');
+    expect(judgeSetAside(contract, log([aside({ reason: undefined, reasonBlobHash: 'h' })])).verdict).toBe('passed');
+    expect(judgeSetAside(contract, log([aside({ kindId: undefined })])).verdict).toBe('passed');
+  });
+
+  it('fails when the reason is blank, or it was brought back afterwards', () => {
+    expect(judgeSetAside(contract, log([aside({ reason: ' ' })])).verdict).toBe('product_failure');
+    const undo = row('u', 'v1.DepartureUndone', 'translator', { undoId: 'u1', departureId: 'd1', departureKind: 'set_aside' });
+    expect(judgeSetAside(contract, log([aside(), undo])).verdict).toBe('product_failure');
+  });
+
+  it('does not count another step, kind, passage or person', () => {
+    for (const r of [aside({ stepId: 'x' }), aside({ kindId: 'kind@1/community' }), aside({ unitId: 'luke-1' })]) {
+      expect(judgeSetAside(contract, log([r])).verdict).toBe('product_failure');
+    }
+    expect(judgeSetAside(contract, log([aside({}, {}, 'owner')])).verdict).toBe('inconclusive');
+  });
+
+  it('fails when it never synced or anything was rejected', () => {
+    expect(judgeSetAside(contract, log([aside({}, { status: 'pending' })])).verdict).toBe('product_failure');
+    expect(judgeSetAside(contract, { ...log([aside()]), server: onServer([]) }).verdict).toBe('product_failure');
+    expect(judgeSetAside(contract, log([aside(), row('x', 'v1.DepartureUndone', 'translator', {}, { status: 'rejected', rejectReason: 'no' })])).verdict).toBe('product_failure');
+  });
+});
+
+describe('keep it, say why oracle', () => {
+  const contract = { authorId: 'translator', target: { takeId: 't1', stepId: 'community', reviewerId: 'reviewer' } };
+  const kept = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'translator') =>
+    row('k', 'v1.FeedbackKept', actorId, { keptId: 'k1', legacyTarget: { takeId: 't1', stepId: 'community', reviewerId: 'reviewer' },
+      reason: 'Listeners preferred the current wording', ...payload }, over);
+
+  it('passes on a confirmed kept answer naming the feedback, with a reason', () => {
+    expect(judgeKept(contract, log([kept()])).verdict).toBe('passed');
+    expect(judgeKept({ authorId: 'translator', target: { checkId: 'c1' } }, log([kept({ legacyTarget: undefined, checkId: 'c1' })])).verdict).toBe('passed');
+  });
+
+  it('fails when it names other feedback, says nothing, or a new version was saved instead', () => {
+    expect(judgeKept(contract, log([kept({ legacyTarget: { takeId: 't1', stepId: 'community', reviewerId: 'other' } })])).verdict).toBe('product_failure');
+    expect(judgeKept(contract, log([kept({ reason: '' })])).verdict).toBe('product_failure');
+    const submitted = row('s', 'v1.TakeSubmitted', 'translator', { takeId: 't2' });
+    expect(judgeKept(contract, log([kept(), submitted])).verdict).toBe('product_failure');
+  });
+
+  it('is inconclusive when nothing was kept, and does not count someone else', () => {
+    expect(judgeKept(contract, log([])).verdict).toBe('inconclusive');
+    expect(judgeKept(contract, log([kept({}, {}, 'owner')])).verdict).toBe('inconclusive');
+  });
+
+  it('fails when it never synced', () => {
+    expect(judgeKept(contract, log([kept({}, { status: 'pending' })])).verdict).toBe('product_failure');
+    expect(judgeKept(contract, { ...log([kept()]), server: onServer([]) }).verdict).toBe('product_failure');
   });
 });
 

@@ -60,7 +60,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   version_detail: { reads:['derivePassageRecord','deriveTakeStatus','keyTermLinksFor'] },
   review_detail: { emits:['v1.FeedbackKept'],reads:['derivePassageRecord','questionSetsFor'] },
   passage_record: { emits:['v1.StepSetAside','v1.CheckpointOverridden','v1.DepartureUndone','v1.FeedbackKept'],reads:['derivePassageRecord','recordNextAction','deriveObt'] },
-  ask_someone: { emits:['v1.AssignmentMade'],reads:['derivePassageRecord'] },
+  ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassageRecord'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   settings_home: { rpcs:['register_push_token','request_account_deletion','account_deletion_status','restore_account'] },

@@ -228,6 +228,13 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.FeedbackKept', { keptId: 'k1', checkId: 'not-synced-check', reasonBlobHash: 'kept-audio' });
   emit('dB', 't1', 'v1.FeedbackKept', { keptId: 'k2', legacyTarget: { takeId: 'take1', stepId: 'peer', reviewerId: 'r1' }, reason: 'Listeners preferred the current wording' });
   emit('dA', 't1', 'v1.FeedbackKept', { keptId: 'k2', legacyTarget: { takeId: 'take1', stepId: 'peer', reviewerId: 'r2' }, reason: 'Matches our key terms decision' });
+  // Phase 2b requests: a withdrawal that arrives before its request, a check
+  // request fixed to a kind, and a withdrawal by someone who may not (kept
+  // raw, ignored by the derivation).
+  emit('dE', 'c1', 'v1.RequestWithdrawn', { requestId: 'rq1', reason: 'Asked the wrong person' });
+  emit('dA', 'c1', 'v1.RequestMade', { requestId: 'rq1', unitId: 'luke1', laneId: 'L2', what: 'record', assigneeId: 't1', dueDate: '2026-10-04' });
+  emit('dB', 't1', 'v1.RequestMade', { requestId: 'rq2', unitId: 'luke1', laneId: 'L2', what: 'check', kindId: 'elder', assigneeId: 'r2', note: 'Listen for the names', noteBlobHash: 'note-audio' });
+  emit('dD', 'r2', 'v1.RequestWithdrawn', { requestId: 'rq2' });
 
   // Step 12: materials with per-field registers, a locked org document, the
   // community question set from the catalog linked to the peer step, a

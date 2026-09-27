@@ -66,11 +66,14 @@ describe('screen action contracts', () => {
     expect(checked).toBeGreaterThan(40);
   });
 
-  it('permits picking up your own work without permitting assignment to others', () => {
+  it('lets a translator ask for a check of their own work but not ask someone to record', () => {
+    // Why (ADR-006, Phase 2b): ask_someone emits v1.RequestMade, whose
+    // privilege depends on what is asked: a check needs send_to_reviewers
+    // (translators hold it), a recording needs assign_work (they do not).
     const session = deriveSession('t1',null,fold(buildFixture()),true);
-    const event = { type:'v1.AssignmentMade',payload:{ unitId:'u',laneId:'L1',profileId:'t1',role:'translator' } } as AnyEvent;
-    expect(screenMayEmit('ask_someone',session,event)).toBe(true);
-    expect(screenMayEmit('ask_someone',session,{ ...event,payload:{ ...event.payload,profileId:'someone-else' } } as AnyEvent)).toBe(false);
-    expect(screenMayEmit('review_passage',session,event)).toBe(false);
+    const ask = (what: string) => ({ type:'v1.RequestMade',payload:{ requestId:'r',unitId:'u',laneId:'L1',what,assigneeId:'r1' } } as AnyEvent);
+    expect(screenMayEmit('ask_someone',session,ask('check'))).toBe(true);
+    expect(screenMayEmit('ask_someone',session,ask('record'))).toBe(false);
+    expect(screenMayEmit('review_passage',session,ask('check'))).toBe(false);
   });
 });

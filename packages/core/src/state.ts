@@ -2,7 +2,7 @@ import type { TakeMetadata } from './audioEdits';
 import type { SavedTextTranslation } from './textTranslations';
 import { emptyObt, type ObtState } from './obt';
 import type { BibleSettings } from './dynamicBible';
-import type { Card, CheckOutcome, DepartureKind, KindProduces, LegacyReviewTarget, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, CheckOutcome, DepartureKind, KindProduces, LegacyReviewTarget, RequestWhat, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -167,6 +167,20 @@ export interface Kept {
   actorId: string;
 }
 
+/** A `v1.RequestMade`: an ask for one piece of work on one passage. */
+export interface Request {
+  unitId: string;
+  laneId: string;
+  what: RequestWhat;
+  kindId?: string;
+  assigneeId?: string;
+  dueDate?: string;
+  note?: string;
+  noteBlobHash?: string;
+  questionSetId?: string;
+  actorId: string;
+}
+
 export interface ReviewTeam {
   laneId: string;
   name: Register<string>;
@@ -243,6 +257,10 @@ export interface ProjectState {
   departureUndos: Record<string, Record<string, Register<DepartureUndo>>>;
   /** keptId -> kept feedback (set by id) */
   kept: Record<string, Register<Kept>>;
+  /** requestId -> ask (set by id) */
+  requests: Record<string, Register<Request>>;
+  /** requestId -> withdrawing eventId -> who withdrew it (add-wins; may arrive first) */
+  requestWithdrawals: Record<string, Record<string, Register<{ reason?: string; actorId: string }>>>;
   teams: Record<string, ReviewTeam>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
@@ -287,6 +305,8 @@ export function emptyState(): ProjectState {
     departures: {},
     departureUndos: {},
     kept: {},
+    requests: {},
+    requestWithdrawals: {},
     teams: {},
     responses: {},
     reviewComments: {},

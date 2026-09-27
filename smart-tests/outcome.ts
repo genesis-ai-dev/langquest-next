@@ -226,23 +226,110 @@ export function judgeReview(contract: ReviewContract, evidence: LogEvidence): Ou
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface AskContract { askerId: string; unitId: string; laneId: string; profileId: string; role: string }
+export interface RequestContract {
+  askerId: string; unitId: string; laneId: string; assigneeId: string;
+  what: 'record' | 'check';
+  /** A check request must be fixed to this kind (ADR-020). */
+  kindId?: string;
+}
 
-/** An ask with a due date: an AssignmentMade by the asker naming the person, role and an ISO date, confirmed on the server. */
-export function judgeAsk(contract: AskContract, evidence: LogEvidence): Outcome {
-  const asks = evidence.device.filter((r) => r.event.type === 'v1.AssignmentMade' && r.event.actorId === contract.askerId);
+/**
+ * An ask with a due date (J-REC-10): a RequestMade by the asker for this
+ * passage, naming the person, what is asked (and for a check, the kind),
+ * with an ISO due date (YYYY-MM-DD), confirmed on the server and not
+ * withdrawn afterwards. A legacy AssignmentMade is not a request: it has no
+ * id, so the ask could not be withdrawn or answered precisely.
+ */
+export function judgeRequest(contract: RequestContract, evidence: LogEvidence): Outcome {
+  const asks = evidence.device.filter((r) => r.event.type === 'v1.RequestMade' && r.event.actorId === contract.askerId);
+  const withdrawn = new Set(evidence.device.filter((r) => r.event.type === 'v1.RequestWithdrawn').map((r) => String(r.event.payload['requestId'])));
   const right = asks.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
-    && r.event.payload['profileId'] === contract.profileId && r.event.payload['role'] === contract.role);
-  const dated = right.filter((r) => /^\d{4}-\d{2}-\d{2}/.test(String(r.event.payload['dueDate'] ?? '')));
+    && r.event.payload['assigneeId'] === contract.assigneeId && r.event.payload['what'] === contract.what
+    && (contract.kindId === undefined || r.event.payload['kindId'] === contract.kindId));
+  const dated = right.filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(String(r.event.payload['dueDate'] ?? '')));
+  const standing = dated.filter((r) => !withdrawn.has(String(r.event.payload['requestId'])));
+  const legacy = evidence.device.filter((r) => r.event.type === 'v1.AssignmentMade' && r.event.actorId === contract.askerId
+    && r.event.payload['unitId'] === contract.unitId);
   const checks: Check[] = [
-    { name: 'ask-in-device-log', ok: right.length > 0,
-      detail: asks.map((r) => `${String(r.event.payload['unitId'])} → ${String(r.event.payload['profileId'])} as ${String(r.event.payload['role'])}`).join('; ') || 'none' },
-    { name: 'ask-has-due-date', ok: dated.length > 0, detail: right.map((r) => String(r.event.payload['dueDate'] ?? 'no date')).join(', ') || undefined },
+    { name: 'request-in-device-log', ok: right.length > 0,
+      detail: asks.map((r) => `${String(r.event.payload['unitId'])} → ${String(r.event.payload['assigneeId'])}: ${String(r.event.payload['what'])} ${String(r.event.payload['kindId'] ?? '')}`).join('; ')
+        + (legacy.length ? `; ${legacy.length} legacy AssignmentMade` : '') || 'none' },
+    { name: 'request-has-iso-due-date', ok: dated.length > 0, detail: right.map((r) => String(r.event.payload['dueDate'] ?? 'no date')).join(', ') || undefined },
+    { name: 'request-not-withdrawn', ok: standing.length > 0 },
     rejectedCheck(evidence.device),
-    { name: 'ask-reached-server', ok: synced(dated, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
+    { name: 'request-reached-server', ok: synced(standing, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
   ];
   if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
-  const exercised = asks.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  // An AssignmentMade instead of a request is the product emitting the old fact.
+  const exercised = asks.length > 0 || legacy.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+// ---- Phase 2b journeys: departures and kept feedback -----------------------
+
+export interface SetAsideContract { actorId: string; unitId: string; laneId: string; stepId: string; kindId?: string }
+
+/**
+ * A step (or its kind) was set aside with a reason (J-REC-5): a
+ * StepSetAside by the actor for this passage and step, with a non-blank
+ * reason or a voice reason, confirmed on the server, and not brought back
+ * afterwards by an undo of its kind.
+ */
+export function judgeSetAside(contract: SetAsideContract, evidence: LogEvidence): Outcome {
+  const mine = evidence.device.filter((r) => r.event.type === 'v1.StepSetAside' && r.event.actorId === contract.actorId);
+  const undone = new Set(evidence.device.filter((r) => r.event.type === 'v1.DepartureUndone' && r.event.payload['departureKind'] === 'set_aside')
+    .map((r) => String(r.event.payload['departureId'])));
+  const right = mine.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+    && r.event.payload['stepId'] === contract.stepId
+    && (contract.kindId === undefined || r.event.payload['kindId'] === undefined || r.event.payload['kindId'] === contract.kindId));
+  const why = right.filter((r) => String(r.event.payload['reason'] ?? '').trim() !== '' || String(r.event.payload['reasonBlobHash'] ?? '') !== '');
+  const standing = why.filter((r) => !undone.has(String(r.event.payload['departureId'])));
+  const checks: Check[] = [
+    { name: 'set-aside-in-device-log', ok: right.length > 0,
+      detail: mine.map((r) => `${String(r.event.payload['stepId'])}/${String(r.event.payload['kindId'] ?? '-')}`).join('; ') || 'none' },
+    { name: 'set-aside-says-why', ok: why.length > 0, detail: right.map((r) => JSON.stringify(r.event.payload['reason'] ?? null)).join(', ') || undefined },
+    { name: 'set-aside-not-undone', ok: standing.length > 0 },
+    rejectedCheck(evidence.device),
+    { name: 'set-aside-reached-server', ok: synced(standing, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = mine.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface KeptContract {
+  authorId: string;
+  /** The feedback kept: a legacy review by (take, step, reviewer), or a check by id. */
+  target: { takeId: string; stepId: string; reviewerId: string } | { checkId: string };
+}
+
+/**
+ * The author kept the version and said why (J-REC-4): a FeedbackKept by the
+ * author naming exactly this feedback, with a non-blank reason or a voice
+ * reason, confirmed on the server. No new version may have been saved for
+ * it: keeping is the point.
+ */
+export function judgeKept(contract: KeptContract, evidence: LogEvidence): Outcome {
+  const mine = evidence.device.filter((r) => r.event.type === 'v1.FeedbackKept' && r.event.actorId === contract.authorId);
+  const names = (r: DeviceRow) => {
+    const t = contract.target;
+    if ('checkId' in t) return r.event.payload['checkId'] === t.checkId;
+    const lt = r.event.payload['legacyTarget'] as Record<string, unknown> | undefined;
+    return !!lt && lt['takeId'] === t.takeId && lt['stepId'] === t.stepId && lt['reviewerId'] === t.reviewerId;
+  };
+  const right = mine.filter(names);
+  const why = right.filter((r) => String(r.event.payload['reason'] ?? '').trim() !== '' || String(r.event.payload['reasonBlobHash'] ?? '') !== '');
+  const revised = evidence.device.filter((r) => r.event.type === 'v1.TakeSubmitted' && r.event.actorId === contract.authorId);
+  const checks: Check[] = [
+    { name: 'kept-in-device-log', ok: right.length > 0, detail: `${mine.length} FeedbackKept, ${right.length} naming the feedback` },
+    { name: 'kept-says-why', ok: why.length > 0, detail: right.map((r) => JSON.stringify(r.event.payload['reason'] ?? null)).join(', ') || undefined },
+    { name: 'no-new-version', ok: revised.length === 0, detail: revised.length ? `${revised.length} TakeSubmitted` : undefined },
+    rejectedCheck(evidence.device),
+    { name: 'kept-reached-server', ok: synced(why, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  // Answering with a new version is a different journey; nothing was kept.
+  const exercised = mine.length > 0 || evidence.device.some((r) => r.status === 'rejected');
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 

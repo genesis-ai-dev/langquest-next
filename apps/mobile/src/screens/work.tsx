@@ -110,7 +110,7 @@ export function MyWork(ctx: Ctx) {
     const params = { unitId: h.unitId, laneId: h.laneId };
     if ((h.kind === 'record' || h.kind === 'draft') && can('workspace')) return ctx.go('workspace', params);
     if (h.kind === 'review' && can('review_capture')) {
-      return ctx.go('review_capture', { ...params, ...(h.takeId ? { takeId: h.takeId } : {}), ...(h.stepId ? { stepId: h.stepId } : {}) });
+      return ctx.go('review_capture', { ...params, ...(h.takeId ? { takeId: h.takeId } : {}), ...(h.stepId ? { stepId: h.stepId } : {}), ...(h.kindId ? { kindId: h.kindId } : {}) });
     }
     return openRecord(h.unitId, h.laneId);
   };

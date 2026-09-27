@@ -133,7 +133,7 @@ export function PassageRecord(ctx: Ctx) {
   const me = ctx.session.actorId;
   const nameOf = (id: string) => (id === me ? 'you' : person(id).name);
   const headline = recordHeadline(rec, nameOf);
-  const action = recordNextAction(rec, me, { record: ctx.session.can('translate'), review: ctx.session.can('review'), ask: ctx.session.can('assign_work') });
+  const action = recordNextAction(rec, me, { record: ctx.session.can('translate'), review: ctx.session.can('review'), ask: ctx.session.can('send_to_reviewers') });
   const params = { unitId, laneId };
   const depart = (d: Departing) => { setSheet(null); setDeparting(d); };
   const mayUndo = (d: RecordDeparture) => ctx.session.can(d.kind === 'set_aside' ? 'translate' : 'manage_flows');
@@ -501,6 +501,8 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
                 {k.state === 'skipped' ? <SkipForward size={16} color={colors.done} />
                   : done ? <CheckCircle2 size={16} color={colors.done} /> : k.state === 'suggestions' ? <MessageSquare size={16} color={colors.review} /> : k.state === 'locked' ? <Lock size={16} color={colors.mutedForeground} /> : null}
               </Pressable>
+              {canAsk && !done && k.state !== 'locked' ? <ActionButton variant="outline" icon={UserPlus} style={styles.iconBtn} accessibilityLabel={`Ask someone for ${k.name}`}
+                onPress={() => go('ask_someone', { stepId: step.stepId, kindId: k.kindId })} /> : null}
               {canSetAside && !done ? <ActionButton variant="outline" icon={SkipForward} style={styles.iconBtn} accessibilityLabel={`Set aside ${k.name}`}
                 onPress={() => props.onDepart({ kind: 'set_aside', stepId: step.stepId, kindId: k.kindId, name: k.name })} /> : null}
             </View>
@@ -510,7 +512,7 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
       <View style={styles.sheetActions}>
         {canReview ? <ActionButton variant="outline" icon={ListChecks} accessibilityLabel="Review it now" style={styles.iconBtn}
           onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId })} /> : null}
-        {canAsk ? <ActionButton variant="outline" icon={UserPlus} accessibilityLabel="Ask someone" style={styles.iconBtn}
+        {canAsk && (step.legacy || step.kinds.length <= 1) ? <ActionButton variant="outline" icon={UserPlus} accessibilityLabel="Ask someone" style={styles.iconBtn}
           onPress={() => go('ask_someone', { stepId: step.stepId })} /> : null}
         {canSetAside && (step.legacy || step.kinds.length === 0) ? <ActionButton variant="outline" icon={SkipForward} style={styles.iconBtn}
           accessibilityLabel="Set aside" onPress={() => props.onDepart({ kind: 'set_aside', stepId: step.stepId, name: step.label })} /> : null}
@@ -563,7 +565,12 @@ function entryTitle(e: RecordEntry, rec: Rec): string {
     case 'version': return `Version ${e.n} saved`;
     case 'review': return `${rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.kindId && e.kindId !== e.stepId)?.name ?? label(e.stepId)} · ${e.decision === 'approve' ? 'looks good' : 'needs changes'}`;
     case 'response': return `Version ${e.n} answers the feedback`;
-    case 'ask': return e.role === 'translator' ? 'Asked someone to record' : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
+    case 'ask': {
+      const what = e.role === 'translator' ? 'Asked someone to record'
+        : e.kindId ? `Asked for ${rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.kindId)?.name ?? label(e.kindId)}`
+        : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
+      return `${what}${e.state === 'withdrawn' ? ' · withdrawn' : e.state === 'done' ? ' · done' : ''}`;
+    }
     case 'kept': return `Kept Version ${e.n} as is${e.kept.reason ? `: ${e.kept.reason}` : ''}`;
     case 'departure': {
       const d = e.departure;
@@ -680,11 +687,12 @@ function Disclosure(props: { icon: LucideIcon; label: string; count: number; ope
 }
 
 // ─── ask_someone (Avatar P) ─────────────────────────────────────────────────
-// Built on v1.AssignmentMade (J-REC-10, partial). Fixed to the step whose
-// button opened it (ADR-020); without a step it asks someone to record.
-// The event names a role, not a step, so an ask covers every step that role
-// does (F6 is Phase 2). Sending needs `assign_work`, the privilege the server
-// requires for AssignmentMade. No Undo: there is no fact to withdraw an ask yet.
+// J-REC-10 on v1.RequestMade. Fixed to the step and kind whose button opened
+// it (ADR-020): a check request names one kind; without a step it asks
+// someone to record. Asking for a check needs send_to_reviewers (a
+// translator may ask for their own review); asking to record needs
+// assign_work. The toast's Undo is a compensating v1.RequestWithdrawn.
+// People outside the app (share links) are Phase 3.
 
 function isoIn(days: number): string {
   const d = new Date(Date.now() + days * 86_400_000);
@@ -704,10 +712,17 @@ export function AskSomeone(ctx: Ctx) {
   const stepId = ctx.params['stepId'];
   const step = stepId ? rec.steps.find((s) => s.stepId === stepId) : undefined;
   if (stepId && !step) return <Note>Step not found.</Note>;
+  // The kind this ask is fixed to: the one whose button opened it, else the
+  // step's first kind still open. A v1 step is one kind: its own id.
+  const kind = step
+    ? step.kinds.find((k) => k.kindId === ctx.params['kindId'])
+      ?? step.kinds.find((k) => k.state !== 'approved' && k.state !== 'recorded' && k.state !== 'skipped' && k.state !== 'addressed')
+      ?? step.kinds[0]
+    : undefined;
+  const what = step ? 'check' as const : 'record' as const;
+  const kindName = kind?.name ?? step?.label ?? '';
   const role = step ? step.role : 'translator';
-  const also = step ? rec.steps.filter((s) => s.role === step.role && s.stepId !== step.stepId) : [];
-  const askable = !step || step.role !== 'translator';
-  const mayAsk = ctx.session.can('assign_work');
+  const mayAsk = ctx.session.can(what === 'check' ? 'send_to_reviewers' : 'assign_work');
   const members = Object.entries(state.members).filter(([, m]) => !m.removed.value && m.role.value !== 'viewer').map(([id, m]) => ({ id, role: m.role.value }));
   const usual = step?.status?.eligible ?? members.filter((m) => m.role === role).map((m) => m.id);
   const others = members.map((m) => m.id).filter((id) => !usual.includes(id));
@@ -715,11 +730,22 @@ export function AskSomeone(ctx: Ctx) {
   const first = who ? person(who).name.split(' ')[0] : '';
 
   async function send() {
-    if (!who || sending) return;
+    if (!who || sending || !mayAsk) return;
     setSending(true);
     try {
-      await append('v1.AssignmentMade', { unitId, laneId, profileId: who, role, ...(due ? { dueDate: due } : {}), ...(directions.trim() ? { instructions: directions.trim() } : {}) });
-      ctx.toast(`${person(who).name} will see it on their My Work`);
+      const requestId = Crypto.randomUUID();
+      await append('v1.RequestMade', {
+        requestId, unitId, laneId, what, assigneeId: who,
+        ...(what === 'check' && kind ? { kindId: kind.kindId } : {}),
+        ...(due ? { dueDate: due } : {}),
+        ...(directions.trim() ? { note: directions.trim() } : {})
+      });
+      ctx.project.triggerUpload();
+      ctx.toast(`${person(who).name} will see it on their My Work`, () => void (async () => {
+        await append('v1.RequestWithdrawn', { requestId });
+        ctx.project.triggerUpload();
+        ctx.toast('Undone — nothing was sent');
+      })());
       ctx.go('passage_record', { unitId, laneId });
     } finally {
       setSending(false);
@@ -731,29 +757,23 @@ export function AskSomeone(ctx: Ctx) {
       right={who === id ? <CheckCircle2 size={18} color={colors.translate} /> : <View />} />
   );
   return (
-    <Screen footer={askable ? <Footer label={who ? `Ask ${first}` : 'Choose someone'} onPress={() => void send()} disabled={!who || !mayAsk || sending} /> : undefined}>
-      <Header title={step ? `Ask for ${step.label}` : 'Ask someone to record'} sub={`${state.units[unitId]!.label} · ${language}`} onBack={ctx.back} />
-      {!askable ? <Note>This step is done by translators, so an ask would read as an ask to record. Asking for one step needs a request that names the step, which is not built yet.</Note> : null}
-      {askable && !mayAsk ? <Note>Only people who can assign work can send an ask today.</Note> : null}
-      {also.length > 0 ? <Note>{`This also asks for ${also.map((s) => s.label).join(' and ')}: an ask names a role, and the same role does those steps.`}</Note> : null}
-      {askable ? (
-        <>
-          <Section label={step ? `Usually does ${step.label}` : 'Translators'}>
-            {usual.length === 0 ? <Row label="Nobody on the team does this yet" last /> : usual.map(pick)}
-          </Section>
-          {others.length > 0 ? <Section label="Others who can">{others.map(pick)}</Section> : null}
-          <Section label="Directions · optional">
-            <TextInput value={directions} onChangeText={setDirections} placeholder="What to listen for" multiline
-              placeholderTextColor={colors.mutedForeground} style={styles.input} accessibilityLabel="Directions" />
-          </Section>
-          <Section label="By when · optional">
-            {([['No date', null], ['In 3 days', isoIn(3)], ['In a week', isoIn(7)], ['In two weeks', isoIn(14)]] as const).map(([label, value], i, all) => (
-              <Row key={label} label={label} sub={value ? `Due ${value}` : undefined} onPress={() => setDue(value)} last={i === all.length - 1}
-                right={due === value ? <CheckCircle2 size={18} color={colors.translate} /> : <View />} />
-            ))}
-          </Section>
-        </>
-      ) : null}
+    <Screen footer={<Footer label={who ? `Ask ${first}` : 'Choose someone'} onPress={() => void send()} disabled={!who || !mayAsk || sending} />}>
+      <Header title={step ? `Ask for ${kindName}` : 'Ask someone to record'} sub={`${state.units[unitId]!.label} · ${language}`} onBack={ctx.back} />
+      {!mayAsk ? <Note>{what === 'check' ? 'Only people who can ask for reviews can send this ask.' : 'Only people who can assign work can ask someone to record.'}</Note> : null}
+      <Section label={step ? `Usually does ${kindName}` : 'Translators'}>
+        {usual.length === 0 ? <Row label="Nobody on the team does this yet" last /> : usual.map(pick)}
+      </Section>
+      {others.length > 0 ? <Section label="Others who can">{others.map(pick)}</Section> : null}
+      <Section label="Directions · optional">
+        <TextInput value={directions} onChangeText={setDirections} placeholder="What to listen for" multiline
+          placeholderTextColor={colors.mutedForeground} style={styles.input} accessibilityLabel="Directions" />
+      </Section>
+      <Section label="By when · optional">
+        {([['No date', null], ['In 3 days', isoIn(3)], ['In a week', isoIn(7)], ['In two weeks', isoIn(14)]] as const).map(([label, value], i, all) => (
+          <Row key={label} label={label} sub={value ? `Due ${value}` : undefined} onPress={() => setDue(value)} last={i === all.length - 1}
+            right={due === value ? <CheckCircle2 size={18} color={colors.translate} /> : <View />} />
+        ))}
+      </Section>
     </Screen>
   );
 }

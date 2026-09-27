@@ -305,6 +305,28 @@ export const EVENT_REGISTRY = {
     }
   },
 
+  // ---- Phase 2b requests (SQL 20260927000005_requests.sql).
+  'v1.RequestMade': {
+    validate: (p) =>
+      str(p, 'requestId', 'unitId', 'laneId') ??
+      (p['what'] === 'record' || p['what'] === 'check' ? null : 'what must be record or check') ??
+      optStr(p, 'kindId') ?? optStr(p, 'assigneeId') ?? optStr(p, 'noteBlobHash') ?? optStr(p, 'questionSetId') ?? optText(p, 'note') ??
+      (p['dueDate'] === undefined || (typeof p['dueDate'] === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(p['dueDate']))
+        ? null : 'dueDate must be an ISO date (YYYY-MM-DD)'),
+    // Asking to record assigns work; asking for a check sends to reviewers (SQL: the same case).
+    privilege: 'by_kind', privilegeOf: (p) => (p['what'] === 'check' ? 'send_to_reviewers' : 'assign_work'),
+    blobHashes: (p) => hashes(p['noteBlobHash']), shipped: true,
+    example: {
+      requestId: 'ex-request', unitId: 'ex-unit', laneId: 'ex-lane', what: 'check', kindId: 'kind@1/consultant', assigneeId: 'ex-member',
+      dueDate: '2026-10-04', note: 'Listen for the names', noteBlobHash: HASH, questionSetId: 'ex-material'
+    }
+  },
+  'v1.RequestWithdrawn': {
+    validate: (p) => str(p, 'requestId') ?? optText(p, 'reason'),
+    privilege: 'send_to_reviewers', blobHashes: noBlobs, shipped: true,
+    example: { requestId: 'ex-request', reason: 'Asked the wrong person' }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>

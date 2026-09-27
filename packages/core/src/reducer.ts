@@ -29,8 +29,11 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * into `departures` and `departureUndos`.
  *
  * 12: v1.FeedbackKept folds into `kept`.
+ *
+ * 13: v1.RequestMade and v1.RequestWithdrawn fold into `requests` and
+ * `requestWithdrawals`.
  */
-export const REDUCER_VERSION = 12;
+export const REDUCER_VERSION = 13;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -379,6 +382,26 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
         ...(reason !== undefined ? { reason } : {}),
         ...(reasonBlobHash !== undefined ? { reasonBlobHash } : {})
       });
+      break;
+    }
+
+    case 'v1.RequestMade': {
+      const { requestId, unitId, laneId, what, kindId, assigneeId, dueDate, note, noteBlobHash, questionSetId } = event.payload;
+      lww(state.requests, requestId, event, {
+        unitId, laneId, what, actorId: event.actorId,
+        ...(kindId !== undefined ? { kindId } : {}),
+        ...(assigneeId !== undefined ? { assigneeId } : {}),
+        ...(dueDate !== undefined ? { dueDate } : {}),
+        ...(note !== undefined ? { note } : {}),
+        ...(noteBlobHash !== undefined ? { noteBlobHash } : {}),
+        ...(questionSetId !== undefined ? { questionSetId } : {})
+      });
+      break;
+    }
+
+    case 'v1.RequestWithdrawn': {
+      const { requestId, reason } = event.payload;
+      lww((state.requestWithdrawals[requestId] ??= {}), event.id, event, { actorId: event.actorId, ...(reason !== undefined ? { reason } : {}) });
       break;
     }
 

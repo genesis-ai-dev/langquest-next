@@ -30,6 +30,12 @@ export interface Indexes {
   departuresByUnitLane: Map<string, string[]>;
   /** `check:${checkId}` or `legacy:${takeId}:${stepId}:${reviewerId}` -> kept ids naming that feedback. */
   keptByTarget: Map<string, string[]>;
+  /** `${unitId}:${laneId}` -> request ids on that passage. */
+  requestsByUnitLane: Map<string, string[]>;
+  /** assignee profileId -> request ids asked of them. */
+  requestsByAssignee: Map<string, string[]>;
+  /** asker profileId -> request ids they made. */
+  requestsByAsker: Map<string, string[]>;
   /** role -> active member ids holding it, sorted. */
   activeMembersByRole: Map<Role, string[]>;
   /** Leaf unit ids in display order. */
@@ -101,6 +107,20 @@ export function buildIndexes(state: ProjectState): Indexes {
     }
   }
 
+  const requestsByUnitLane = new Map<string, string[]>();
+  const requestsByAssignee = new Map<string, string[]>();
+  const requestsByAsker = new Map<string, string[]>();
+  const push = (map: Map<string, string[]>, key: string, id: string) => {
+    const list = map.get(key);
+    if (list) list.push(id);
+    else map.set(key, [id]);
+  };
+  for (const [id, r] of Object.entries(state.requests)) {
+    push(requestsByUnitLane, unitLaneKey(r.value.unitId, r.value.laneId), id);
+    if (r.value.assigneeId !== undefined) push(requestsByAssignee, r.value.assigneeId, id);
+    push(requestsByAsker, r.value.actorId, id);
+  }
+
   const activeMembersByRole = new Map<Role, string[]>();
   for (const [id, m] of Object.entries(state.members)) {
     if (m.removed.value) continue;
@@ -116,6 +136,9 @@ export function buildIndexes(state: ProjectState): Indexes {
     assignmentsByActor,
     departuresByUnitLane,
     keptByTarget,
+    requestsByUnitLane,
+    requestsByAssignee,
+    requestsByAsker,
     activeMembersByRole,
     leafUnits,
     containerUnits,

@@ -115,6 +115,16 @@ describe('b2: payload-dependent privileges added after the registry', () => {
     expect(privilegeFor(undo('override'))).toBe('manage_flows');
     expect(privilegeFor(undo('nonsense'))).toBe('manage_flows');
   });
+
+  it('asking to record assigns work; asking for a check sends to reviewers', () => {
+    // Why (analysis row 17, ADR-006): a translator may ask for their own
+    // review, but only someone who assigns work may ask a person to record.
+    // SQL event_privilege has the same case (20260927000005_requests.sql).
+    const ask = (what: string) => envelope('v1.RequestMade', { requestId: 'r', unitId: 'u', laneId: 'L', what });
+    expect(privilegeFor(ask('record'))).toBe('assign_work');
+    expect(privilegeFor(ask('check'))).toBe('send_to_reviewers');
+    expect(privilegeFor(envelope('v1.RequestWithdrawn', { requestId: 'r' }))).toBe('send_to_reviewers');
+  });
 });
 
 // ---- c: shipped shapes are frozen -------------------------------------------------

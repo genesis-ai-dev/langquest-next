@@ -752,3 +752,105 @@ describe('passage record: Keep it, say why (FeedbackKept)', () => {
     expect(rec(keptFirst)).toEqual(expected);
   });
 });
+
+describe('asks as requests (RequestMade, RequestWithdrawn, D8)', () => {
+  function flow() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer', 'kind@1/community'], checkpoint: false });
+    const ask = (by: string, requestId: string, extra: Partial<EventPayloads['v1.RequestMade']> = {}) =>
+      l.add(by, 'v1.RequestMade', { requestId, unitId: 'p1', laneId: 'L', what: 'check', kindId: 'kind@1/community', assigneeId: 'r1', ...extra });
+    return { ...l, ask };
+  }
+  const rec = (events: AnyEvent[], actor = 't1') => derivePassageRecord(state(events), 'p1', 'L', actor);
+
+  it('a check request asks for its kind only, and is done once the assignee checks that kind', () => {
+    // Why (ADR-020): the ask is fixed to the kind whose button opened it. Two
+    // asks of one person for different kinds must not collide (analysis row 17).
+    const l = flow();
+    const v1 = l.version('t1');
+    l.ask('t1', 'rq1', { dueDate: '2026-10-04' });
+    let r = rec(l.events);
+    expect(r.steps[0]!.kinds.map((k) => k.state)).toEqual(['todo', 'asked']);
+    expect(r.steps[0]!.askedOf).toEqual(['r1']);
+    expect(r.asks).toMatchObject([{ requestId: 'rq1', kind: 'review', kindId: 'kind@1/community', profileId: 'r1', askedBy: 't1', state: 'open', dueDate: '2026-10-04' }]);
+    expect(highlightsFor(state(l.events), 'r1')).toMatchObject([{ kind: 'review', stepId: 's1', kindId: 'kind@1/community', requestId: 'rq1', takeId: v1, askedBy: 't1', dueDate: '2026-10-04' }]);
+    expect(waitingOn(state(l.events), 't1')).toMatchObject([{ requestId: 'rq1', profileId: 'r1' }]);
+    // A peer check by the same person does not answer a community request.
+    l.add('r1', 'v1.CheckRecorded', { checkId: 'c1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/peer', outcome: 'looks_good' });
+    expect(rec(l.events).asks[0]!.state).toBe('open');
+    l.add('r1', 'v1.CheckRecorded', { checkId: 'c2', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'looks_good' });
+    r = rec(l.events);
+    expect(r.asks[0]!.state).toBe('done');
+    expect(highlightsFor(state(l.events), 'r1')).toEqual([]);
+    expect(waitingOn(state(l.events), 't1')).toEqual([]);
+  });
+
+  it('a check naming the request answers it, whoever made it', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.ask('t1', 'rq1');
+    l.add('r2', 'v1.CheckRecorded', { checkId: 'c1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'looks_good', requestId: 'rq1' });
+    expect(rec(l.events).asks[0]!.state).toBe('done');
+  });
+
+  it('a record request is done by the next saved version', () => {
+    const l = flow();
+    l.add('c1', 'v1.RequestMade', { requestId: 'rq1', unitId: 'p1', laneId: 'L', what: 'record', assigneeId: 't2' });
+    expect(highlightsFor(state(l.events), 't2')).toMatchObject([{ kind: 'record', requestId: 'rq1', askedBy: 'c1' }]);
+    l.version('t2');
+    expect(rec(l.events).asks[0]).toMatchObject({ kind: 'record', state: 'done' });
+    expect(highlightsFor(state(l.events), 't2').filter((h) => h.kind === 'record')).toEqual([]);
+  });
+
+  it('withdrawing (toast Undo) closes the ask for everyone, even arriving first', () => {
+    // Why (ADR-008 without rewriting history): Undo after send is a
+    // compensating fact. It is add-wins, so it may sync in before the ask.
+    const l = flow();
+    l.version('t1');
+    l.ask('t1', 'rq1');
+    l.add('t1', 'v1.RequestWithdrawn', { requestId: 'rq1' });
+    const r = rec(l.events);
+    expect(r.asks[0]).toMatchObject({ state: 'withdrawn', satisfied: true });
+    expect(r.steps[0]!.kinds[1]!.state).toBe('todo');
+    expect(r.history.find((e) => e.kind === 'ask')).toMatchObject({ requestId: 'rq1', state: 'withdrawn' });
+    expect(highlightsFor(state(l.events), 'r1')).toEqual([]);
+    const withdrawFirst = [...l.events.filter((e) => e.type === 'v1.RequestWithdrawn'), ...l.events.filter((e) => e.type !== 'v1.RequestWithdrawn')];
+    expect(rec(withdrawFirst)).toEqual(r);
+  });
+
+  it('only the asker, an owner or a coordinator can withdraw an ask', () => {
+    // Why: RequestWithdrawn carries no `what`, so the server checks
+    // send_to_reviewers; a translator must not withdraw a coordinator's ask.
+    const l = flow();
+    l.version('t1');
+    l.add('c1', 'v1.RequestMade', { requestId: 'rq1', unitId: 'p1', laneId: 'L', what: 'check', kindId: 'kind@1/peer', assigneeId: 'r2' });
+    l.add('t2', 'v1.RequestWithdrawn', { requestId: 'rq1' });
+    expect(rec(l.events).asks[0]!.state).toBe('open');
+    l.add('lead', 'v1.RequestWithdrawn', { requestId: 'rq1' });
+    expect(rec(l.events).asks[0]!.state).toBe('withdrawn');
+  });
+
+  it('a legacy assignment and a request fold into one read model', () => {
+    // Why (D8): old clients still send AssignmentMade; both must show.
+    const l = flow();
+    l.version('t1');
+    l.add('c1', 'v1.AssignmentMade', { unitId: 'p1', laneId: 'L', profileId: 'r2', role: 'reviewer', dueDate: 'Sep 30' });
+    l.ask('t1', 'rq1');
+    const r = rec(l.events);
+    expect(r.asks.map((a) => [a.requestId ?? 'assignment', a.profileId, a.state])).toEqual([['assignment', 'r2', 'open'], ['rq1', 'r1', 'open']]);
+    expect(r.steps[0]!.askedOf).toEqual(['r1', 'r2']);
+    expect(r.steps[0]!.kinds.map((k) => k.state)).toEqual(['asked', 'asked']);
+  });
+
+  it('an assignment review card on a v2 step names the kind still to check', () => {
+    // Why (2b-A open issue 5): My Work opened review_capture without a kind,
+    // so a v2 step fell back to the legacy review path.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.add('c1', 'v1.AssignmentMade', { unitId: 'p1', laneId: 'L', profileId: 'r2', role: 'reviewer' });
+    l.add('r1', 'v1.CheckRecorded', { checkId: 'c1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/peer', outcome: 'looks_good' });
+    expect(highlightsFor(state(l.events), 'r2')).toMatchObject([{ kind: 'review', stepId: 's1', kindId: 'kind@1/community' }]);
+  });
+});
