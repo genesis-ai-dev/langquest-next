@@ -165,6 +165,25 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
    * data with stable ids). Register per kindId.
    */
   'v1.ReviewKindDefined': { kindId: string; name: string; icon?: string; withholdsContext?: boolean; produces?: KindProduces };
+  /**
+   * One check of one kind on one version. Set by checkId. `needs_changes`
+   * must say what (comment or voice). A check counts for the version it was
+   * made on: approvals reset per version.
+   */
+  'v1.CheckRecorded': {
+    checkId: string;
+    unitId: string;
+    laneId: string;
+    takeId: string;
+    kindId: string;
+    stepId?: string;
+    outcome: CheckOutcome;
+    comment?: string;
+    commentBlobHash?: string;
+    answers?: Record<string, string>;
+    skippedQuestions?: { questionId: string; reason: string }[];
+    requestId?: string;
+  };
 }
 
 export type CheckOutcome = 'looks_good' | 'needs_changes';

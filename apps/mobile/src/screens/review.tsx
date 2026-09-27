@@ -81,6 +81,8 @@ export function ReviewCapture(ctx: Ctx) {
   let takeId: string | null = null;
   let stepId = '';
   let stepLabel = '';
+  /** Set on a v2 step: the kind this check is of. v1 steps keep ReviewSubmitted (old clients read it). */
+  let kind: { kindId: string; name: string } | null = null;
   let n = 0;
   let obtStage: ObtStep | null = null;
   const record = obt ? null : derivePassageRecord(state, unitId, laneId, ctx.session.actorId, idx);
@@ -93,7 +95,15 @@ export function ReviewCapture(ctx: Ctx) {
     const steps = takeId ? deriveTakeStatus(state, takeId, idx).steps : [];
     const mine = steps.find((s) => s.eligible.includes(ctx.session.actorId) && !s.approved.includes(ctx.session.actorId) && !s.rejected.includes(ctx.session.actorId));
     stepId = ctx.params['stepId'] ?? (ctx.params['taskId'] ? parseTaskId(ctx.params['taskId'])?.stepId : undefined) ?? mine?.stepId ?? steps[0]?.stepId ?? '';
-    stepLabel = record.steps.find((s) => s.stepId === stepId)?.label ?? stepId;
+    const recStep = record.steps.find((s) => s.stepId === stepId);
+    stepLabel = recStep?.label ?? stepId;
+    if (recStep && !recStep.legacy) {
+      const me = ctx.session.actorId;
+      const k = recStep.kinds.find((x) => x.kindId === ctx.params['kindId'])
+        ?? recStep.kinds.find((x) => x.state !== 'approved' && x.state !== 'recorded' && !x.checks.some((c) => c.reviewerId === me))
+        ?? recStep.kinds[0];
+      if (k) { kind = { kindId: k.kindId, name: k.name }; stepLabel = k.name; }
+    }
   } else if (j) {
     if ((j.stage === 'consultant' || j.stage === 'final_approval') && obtCanAct(state, ctx.session.actorId, laneId, j.stage)) {
       obtStage = j.stage;
@@ -149,6 +159,24 @@ export function ReviewCapture(ctx: Ctx) {
         ctx.back();
         return;
       }
+      if (kind) {
+        // v2 step: one check of one kind. The voice comment travels in the check.
+        const skip = skippedAnswerKey('');
+        const skippedQuestions = Object.entries(answers).filter(([k]) => k.endsWith(skip)).map(([k, reason]) => ({ questionId: k.slice(0, -skip.length), reason }));
+        const given = Object.fromEntries(Object.entries(answers).filter(([k]) => !k.endsWith(skip)));
+        await ctx.project.run(commands(state!, indexesFor(state!)).recordCheck({
+          commandId: Crypto.randomUUID(), checkId: Crypto.randomUUID(), takeId: takeId!, kindId: kind.kindId, stepId,
+          outcome: outcome === 'approve' ? 'looks_good' : 'needs_changes',
+          ...(comment.trim() ? { comment: comment.trim() } : {}),
+          ...(voice ? { commentBlobHash: voice } : {}),
+          ...(Object.keys(given).length ? { answers: given } : {}),
+          ...(skippedQuestions.length ? { skippedQuestions } : {})
+        }));
+        ctx.project.triggerUpload();
+        ctx.toast(outcome === 'approve' ? `${kind.name} added — looks good` : `Feedback sent to ${person(take?.actorId ?? '').name}`);
+        ctx.go('passage_record', { unitId, laneId });
+        return;
+      }
       const mineVoice = state!.reviewComments[takeId!]?.[stepId]?.[ctx.session.actorId];
       if (voice && !mineVoice) await ctx.project.append('v1.ReviewCommentRecorded', { takeId: takeId!, stepId, blobHash: voice });
       await ctx.project.run(commands(state!, indexesFor(state!)).reviewTake({
@@ -166,7 +194,8 @@ export function ReviewCapture(ctx: Ctx) {
   const hint = !played ? 'Play the version before deciding'
     : left.length ? `${left.length} required question${left.length === 1 ? '' : 's'} left — answer, or say why not`
     : !saysWhat ? 'To ask for changes, say what to change above' : '';
-  const mine = obt ? undefined : state.reviews[takeId]?.[stepId]?.[ctx.session.actorId]?.value;
+  const myCheck = kind ? record?.versions.find((v) => v.takeId === takeId)?.reviews.filter((r) => r.kindId === kind!.kindId && r.reviewerId === ctx.session.actorId).pop() : undefined;
+  const mine = obt ? undefined : kind ? myCheck : state.reviews[takeId]?.[stepId]?.[ctx.session.actorId]?.value;
 
   return (
     <Screen tint={tint.review} footer={<View style={{ gap: space.sm }}>

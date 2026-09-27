@@ -91,6 +91,19 @@ describe('commands', () => {
     expect(answer[0]!.payload).toMatchObject({ takeId: 'take:k2', respondsToTakeId: 'take2', note: 'fixed v.3' });
   });
 
+  it('recordCheck names the passage from the take, and needs changes must say what', () => {
+    // Why (PLAN 16): every check needs a voice or text response; a blank
+    // "needs changes" would leave the translator nothing to answer.
+    const [spec] = commands(submitted()).recordCheck({ commandId: 'k', checkId: 'chk1', takeId: 'take2', kindId: 'kind@1/peer', outcome: 'needs_changes', comment: '  Slower  ' });
+    expect(spec).toMatchObject({ type: 'v1.CheckRecorded', payload: { checkId: 'chk1', unitId: 'luke1', laneId: 'L1', takeId: 'take2', kindId: 'kind@1/peer', comment: 'Slower' } });
+    expect(() => commands(submitted()).recordCheck({ commandId: 'k', checkId: 'chk2', takeId: 'take2', kindId: 'kind@1/peer', outcome: 'needs_changes', comment: '   ' })).toThrow(CommandError);
+    expect(commands(submitted()).recordCheck({ commandId: 'k', checkId: 'chk3', takeId: 'take2', kindId: 'kind@1/peer', outcome: 'needs_changes', commentBlobHash: 'v' })).toHaveLength(1);
+    expect(() => commands(draft()).recordCheck({ commandId: 'k', checkId: 'chk4', takeId: 'take2', kindId: 'kind@1/peer', outcome: 'looks_good' })).toThrow(CommandError);
+    // Idempotent by checkId once the check has folded.
+    const after = apply(submitted(), [spec!]);
+    expect(commands(after).recordCheck({ commandId: 'k2', checkId: 'chk1', takeId: 'take2', kindId: 'kind@1/peer', outcome: 'looks_good' })).toEqual([]);
+  });
+
   it('reviewTake refuses takes that were never handed off', () => {
     expect(commands(submitted()).reviewTake({ commandId: 'r', takeId: 'take2', stepId: 'peer', decision: 'approve', answers: { q: 'Yes' } })[0]!.payload)
       .toEqual({ takeId: 'take2', stepId: 'peer', decision: 'approve', answers: { q: 'Yes' } });

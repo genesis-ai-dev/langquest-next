@@ -243,6 +243,25 @@ export const EVENT_REGISTRY = {
     example: { kindId: 'ex-kind', name: 'Elder Review', icon: 'chat', withholdsContext: true, produces: { what: 'back translation', language: 'eng', checkedByKindId: 'kind@1/consultant' } }
   },
 
+  'v1.CheckRecorded': {
+    validate: (p) =>
+      str(p, 'checkId', 'unitId', 'laneId', 'takeId', 'kindId') ?? optStr(p, 'stepId') ?? optStr(p, 'requestId') ??
+      optText(p, 'comment') ?? optStr(p, 'commentBlobHash') ??
+      (p['outcome'] === 'looks_good' || p['outcome'] === 'needs_changes' ? null : 'outcome must be looks_good or needs_changes') ??
+      (p['outcome'] === 'needs_changes' && !sqlStr(p, 'comment') && !sqlStr(p, 'commentBlobHash') ? 'needs changes must say what: comment or commentBlobHash' : null) ??
+      (p['answers'] === undefined || (isObject(p['answers']) && Object.values(p['answers']).every((v) => typeof v === 'string'))
+        ? null : 'answers must map question ids to strings') ??
+      (p['skippedQuestions'] === undefined || (Array.isArray(p['skippedQuestions']) &&
+        (p['skippedQuestions'] as unknown[]).every((q) => isObject(q) && str(q, 'questionId', 'reason') === null))
+        ? null : 'skippedQuestions entries need questionId and reason'),
+    privilege: 'review', blobHashes: (p) => hashes(p['commentBlobHash']), shipped: true,
+    example: {
+      checkId: 'ex-check', unitId: 'ex-unit', laneId: 'ex-lane', takeId: 'ex-take', kindId: 'kind@1/peer', stepId: 'ex-step-v2',
+      outcome: 'needs_changes', comment: 'Slow down in verse 2', commentBlobHash: HASH, answers: { q1: 'yes' },
+      skippedQuestions: [{ questionId: 'q2', reason: 'Not asked in this language' }], requestId: 'ex-request'
+    }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>

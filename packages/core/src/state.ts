@@ -2,7 +2,7 @@ import type { TakeMetadata } from './audioEdits';
 import type { SavedTextTranslation } from './textTranslations';
 import { emptyObt, type ObtState } from './obt';
 import type { BibleSettings } from './dynamicBible';
-import type { Card, KindProduces, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, CheckOutcome, KindProduces, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -123,6 +123,21 @@ export interface ReviewKindDef {
   produces?: KindProduces;
 }
 
+/** A `v1.CheckRecorded`: one check of one kind on one version. */
+export interface Check {
+  unitId: string;
+  laneId: string;
+  kindId: string;
+  stepId?: string;
+  outcome: CheckOutcome;
+  comment?: string;
+  commentBlobHash?: string;
+  answers?: Record<string, string>;
+  skippedQuestions?: { questionId: string; reason: string }[];
+  requestId?: string;
+  actorId: string;
+}
+
 export interface ReviewTeam {
   laneId: string;
   name: Register<string>;
@@ -191,6 +206,8 @@ export interface ProjectState {
   workflowSteps: Record<string, { step: Register<StepDef | StepDefV2>; removed: boolean }>;
   /** kindId -> project-defined review kind (catalog kinds are not stored). */
   reviewKinds: Record<string, Register<ReviewKindDef>>;
+  /** takeId -> checkId -> check (set by id; the register settles a reused id) */
+  checks: Record<string, Record<string, Register<Check>>>;
   teams: Record<string, ReviewTeam>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
@@ -231,6 +248,7 @@ export function emptyState(): ProjectState {
     laneFlows: {},
     workflowSteps: {},
     reviewKinds: {},
+    checks: {},
     teams: {},
     responses: {},
     reviewComments: {},

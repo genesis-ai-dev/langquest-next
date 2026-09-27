@@ -66,6 +66,10 @@ export interface RecordReview {
   /** Spoken comment (`v1.ReviewCommentRecorded`). */
   voiceHash?: string;
   answers?: Record<string, string>;
+  /** Required questions the reviewer skipped, each with a reason (CheckRecorded). */
+  skippedQuestions?: { questionId: string; reason: string }[];
+  /** The ask this check answers (CheckRecorded). */
+  requestId?: string;
   at: string;
   eventId: string;
 }
@@ -226,8 +230,26 @@ function versionTakes(state: ProjectState, unitId: string, laneId: string, idx: 
     });
 }
 
-function reviewsOf(state: ProjectState, takeId: string): RecordReview[] {
+/**
+ * Every check of a take, oldest first: `v1.CheckRecorded` (via app) and
+ * legacy `v1.ReviewSubmitted` (kind = its step). A check without a step, or
+ * naming a step no longer in the flow, belongs to the first step holding
+ * its kind (`stepOfKind`).
+ */
+function reviewsOf(state: ProjectState, takeId: string, stepOfKind: (kindId: string, stepId?: string) => string): RecordReview[] {
   const out: RecordReview[] = [];
+  for (const reg of Object.values(state.checks[takeId] ?? {})) {
+    const c = reg.value;
+    out.push({
+      takeId, stepId: stepOfKind(c.kindId, c.stepId), kindId: c.kindId, via: 'app', reviewerId: c.actorId,
+      decision: c.outcome === 'looks_good' ? 'approve' : 'suggest_changes', at: reg.hlc, eventId: reg.eventId,
+      ...(c.comment !== undefined ? { comment: c.comment } : {}),
+      ...(c.answers !== undefined ? { answers: c.answers } : {}),
+      ...(c.commentBlobHash !== undefined ? { voiceHash: c.commentBlobHash } : {}),
+      ...(c.skippedQuestions !== undefined ? { skippedQuestions: c.skippedQuestions } : {}),
+      ...(c.requestId !== undefined ? { requestId: c.requestId } : {})
+    });
+  }
   for (const [stepId, byActor] of Object.entries(state.reviews[takeId] ?? {})) {
     for (const [reviewerId, reg] of Object.entries(byActor)) {
       const r = reg.value;
@@ -243,7 +265,9 @@ function reviewsOf(state: ProjectState, takeId: string): RecordReview[] {
   return out.sort(byClock);
 }
 
-function versionsOf(state: ProjectState, unitId: string, laneId: string, idx: Indexes): RecordVersion[] {
+function versionsOf(state: ProjectState, unitId: string, laneId: string, idx: Indexes, flow: FlowStep[]): RecordVersion[] {
+  const stepOfKind = (kindId: string, stepId?: string) =>
+    stepId !== undefined && flow.some((s) => s.id === stepId) ? stepId : flow.find((s) => s.kindIds.includes(kindId))?.id ?? stepId ?? kindId;
   const ids = versionTakes(state, unitId, laneId, idx);
   return ids.map((takeId, i) => {
     const take = state.takes[takeId]!;
@@ -253,7 +277,7 @@ function versionsOf(state: ProjectState, unitId: string, laneId: string, idx: In
       takeId, n: i + 1, authorId: take.actorId, at: state.submissions[takeId]!.hlc, cards: take.cardHashes.length,
       ...(respondsTo !== undefined ? { respondsToTakeId: respondsTo } : {}),
       ...(response?.note !== undefined ? { responseNote: response.note } : {}),
-      reviews: reviewsOf(state, takeId)
+      reviews: reviewsOf(state, takeId, stepOfKind)
     };
   });
 }
@@ -348,11 +372,11 @@ export function derivePassageRecord(
   idx: Indexes = buildIndexes(state)
 ): PassageRecord {
   const obt = isObtLane(state, laneId);
-  const versions = versionsOf(state, unitId, laneId, idx);
+  const grouped = obt ? [] : stepsWithGroups(state, laneId);
+  const versions = versionsOf(state, unitId, laneId, idx, grouped.map((g) => g.step));
   const latest = versions[versions.length - 1] ?? null;
   const recorded = latest !== null;
   const draft = draftOf(state, unitId, laneId, idx);
-  const grouped = obt ? [] : stepsWithGroups(state, laneId);
   const workflow = grouped.map((g) => legacyStep(g.step));
   const asks = asksFor(state, idx.assignmentsByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [], workflow, latest, versions);
 
@@ -383,7 +407,7 @@ export function derivePassageRecord(
       const checks = latestChecks.filter((c) => legacy
         ? c.stepId === step.id
         : c.via === 'app'
-          ? c.kindId === kindId && (c.stepId === step.id || c.stepId === kindId)
+          ? c.kindId === kindId && c.stepId === step.id
           // A legacy review names a step, not a kind: it counts for a single-kind step.
           : c.stepId === step.id && step.kindIds.length === 1);
       const last = checks[checks.length - 1];
@@ -496,7 +520,8 @@ export interface RecordAbilities {
 export type RecordAction =
   | { kind: 'record_fix'; respondsTo: string }
   | { kind: 'record' }
-  | { kind: 'review'; stepId: string; takeId: string }
+  /** `kindId` names the kind to check on a v2 step (absent for a v1 step). */
+  | { kind: 'review'; stepId: string; takeId: string; kindId?: string }
   | { kind: 'ask'; stepId: string }
   | { kind: 'new_version' }
   | { kind: 'none' };
@@ -517,7 +542,10 @@ export function recordNextAction(rec: PassageRecord, actorId: string, can: Recor
   if (rec.openFeedback.length > 0) return { kind: 'none' };
   const next = rec.steps.filter((s) => rec.next?.stepIds.includes(s.stepId));
   const mine = next.find((s) => s.status?.waitingOn.includes(actorId));
-  if (mine && can.review && rec.latest) return { kind: 'review', stepId: mine.stepId, takeId: rec.latest.takeId };
+  if (mine && can.review && rec.latest) {
+    const kind = mine.legacy ? undefined : mine.kinds.find((k) => k.state !== 'approved' && k.state !== 'recorded' && !k.checks.some((c) => c.reviewerId === actorId));
+    return { kind: 'review', stepId: mine.stepId, takeId: rec.latest.takeId, ...(kind ? { kindId: kind.kindId } : {}) };
+  }
   const unasked = next.find((s) => s.askedOf.length === 0 && s.role !== 'translator');
   if (unasked && can.ask && rec.latest?.authorId === actorId) return { kind: 'ask', stepId: unasked.stepId };
   return { kind: 'none' };
@@ -648,6 +676,8 @@ export interface DoneItem {
   laneId: string;
   takeId: string;
   stepId?: string;
+  /** The kind checked (CheckRecorded). */
+  kindId?: string;
   decision?: 'approve' | 'suggest_changes';
   at: string;
 }
@@ -670,6 +700,15 @@ export function recentlyDone(state: ProjectState, actorId: string, limit = 3): D
     for (const [stepId, byActor] of Object.entries(bySteps)) {
       const r = byActor[actorId];
       if (r) items.push({ kind: 'review', unitId: t.unitId, laneId: t.laneId, takeId, stepId, decision: r.value.decision, at: r.hlc });
+    }
+  }
+  for (const [takeId, byId] of Object.entries(state.checks)) {
+    const t = state.takes[takeId];
+    if (!t || t.archived || !state.units[t.unitId]) continue;
+    for (const reg of Object.values(byId)) {
+      if (reg.value.actorId !== actorId) continue;
+      items.push({ kind: 'review', unitId: t.unitId, laneId: t.laneId, takeId, stepId: reg.value.stepId ?? reg.value.kindId, kindId: reg.value.kindId,
+        decision: reg.value.outcome === 'looks_good' ? 'approve' : 'suggest_changes', at: reg.hlc });
     }
   }
   items.sort((a, b) => (a.at !== b.at ? (a.at < b.at ? 1 : -1) : a.takeId + (a.stepId ?? '') < b.takeId + (b.stepId ?? '') ? -1 : 1));

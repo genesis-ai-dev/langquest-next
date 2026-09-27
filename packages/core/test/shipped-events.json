@@ -321,5 +321,19 @@
     "name": "string",
     "produces?": "{checkedByKindId:string,language:string,what:string}",
     "withholdsContext?": "boolean"
+  },
+  "v1.CheckRecorded": {
+    "answers?": "{q1:string}",
+    "checkId": "string",
+    "comment?": "string",
+    "commentBlobHash?": "string",
+    "kindId": "string",
+    "laneId": "string",
+    "outcome": "string",
+    "requestId?": "string",
+    "skippedQuestions?": "array<{questionId:string,reason:string}>",
+    "stepId?": "string",
+    "takeId": "string",
+    "unitId": "string"
   }
 }

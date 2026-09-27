@@ -442,3 +442,97 @@ describe('passage record: v2 flows with kinds and checkpoints', () => {
     }
   });
 });
+
+describe('passage record: CheckRecorded on v2 kinds', () => {
+  function flow() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer', 'kind@1/community'], checkpoint: false });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's2', laneId: 'L', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true });
+    let n = 0;
+    const check = (by: string, takeId: string, kindId: string, outcome: 'looks_good' | 'needs_changes', extra: Partial<EventPayloads['v1.CheckRecorded']> = {}) =>
+      l.add(by, 'v1.CheckRecorded', { checkId: `c${++n}`, unitId: 'p1', laneId: 'L', takeId, kindId: `kind@1/${kindId}`, outcome, ...(outcome === 'needs_changes' ? { comment: 'Slower' } : {}), ...extra });
+    return { ...l, check };
+  }
+
+  it('kinds in one step are done in either order; the step completes when both look good', () => {
+    // Why (ADR-005/016): "Together" means no order inside a step, so either
+    // kind first must leave the other as the suggestion, and only both clear it.
+    for (const order of [['peer', 'community'], ['community', 'peer']] as const) {
+      const l = flow();
+      const v1 = l.version('t1');
+      l.check('r1', v1, order[0], 'looks_good');
+      let rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+      expect(rec.steps[0]!.state).toBe('current');
+      expect(rec.steps[0]!.kinds.find((k) => k.kindId === `kind@1/${order[0]}`)!.state).toBe('approved');
+      expect(rec.steps[0]!.kinds.find((k) => k.kindId === `kind@1/${order[1]}`)!.state).toBe('todo');
+      expect(rec.steps[1]!.state).toBe('todo');
+      l.check('r2', v1, order[1], 'looks_good', { stepId: 's1' });
+      rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+      expect(rec.steps.map((s) => s.state)).toEqual(['complete', 'current']);
+      expect(rec.cleared).toBe(1);
+    }
+  });
+
+  it('needs changes opens feedback for the author; a new version answers it and resets the kind', () => {
+    // Why (D5 + approvals reset per version): the translator answers by
+    // recording; the new version needs a fresh check of every kind.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('r1', v1, 'peer', 'needs_changes', { commentBlobHash: 'voiceC' });
+    let rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.openFeedback).toMatchObject([{ kindId: 'kind@1/peer', stepId: 's1', via: 'app', comment: 'Slower', voiceHash: 'voiceC', answered: false }]);
+    expect(rec.steps[0]!.state).toBe('attention');
+    expect(rec.feedbackIsMine).toBe(true);
+    expect(highlightsFor(state(l.events), 't1').map((h) => h.kind)).toEqual(['respond']);
+    l.version('t1', 'p1', v1, 'Slowed down');
+    rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.openFeedback).toEqual([]);
+    expect(rec.steps[0]!.kinds.map((k) => k.state)).toEqual(['todo', 'todo']);
+    expect(rec.versions[0]!.reviews.map((r) => r.kindId)).toEqual(['kind@1/peer']);
+  });
+
+  it('the same reviewer may record several checks; the latest of each kind decides', () => {
+    // Why (analysis row 8): ReviewSubmitted kept one verdict per person and
+    // step; checks are set by id, so a second session is a new check.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('c1', v1, 'consultant', 'needs_changes');
+    l.check('c1', v1, 'consultant', 'looks_good');
+    const rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps[1]!.kinds[0]).toMatchObject({ state: 'approved', outOfOrder: false });
+    expect(rec.steps[1]!.kinds[0]!.checks).toHaveLength(2);
+  });
+
+  it('a check naming no step, or a step no longer in the flow, belongs to the first step with its kind', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('c1', v1, 'consultant', 'looks_good', { stepId: 'retired-step' });
+    expect(derivePassageRecord(state(l.events), 'p1', 'L', 't1').steps[1]!.kinds[0]!.state).toBe('approved');
+  });
+
+  it('the next action for a reviewer names the kind still to check', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('r2', v1, 'peer', 'looks_good');
+    const rec = derivePassageRecord(state(l.events), 'p1', 'L', 'r1');
+    expect(recordNextAction(rec, 'r1', reviewer)).toEqual({ kind: 'review', stepId: 's1', takeId: v1, kindId: 'kind@1/community' });
+    expect(recentlyDone(state(l.events), 'r2')).toMatchObject([{ kind: 'review', kindId: 'kind@1/peer', decision: 'approve' }]);
+  });
+
+  it('check before step definition and in any arrival order derives the same record', () => {
+    // Why (analysis R12): a check can sync in before the step that holds its kind.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('r1', v1, 'peer', 'looks_good');
+    l.check('r2', v1, 'community', 'needs_changes');
+    const expected = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    const checksFirst = [...l.events.filter((e) => e.type === 'v1.CheckRecorded'), ...l.events.filter((e) => e.type !== 'v1.CheckRecorded')];
+    expect(derivePassageRecord(state(checksFirst), 'p1', 'L', 't1')).toEqual(expected);
+    for (const seed of [1, 2, 3]) {
+      const shuffled = [...l.events].sort((a, b) => ((a.id.charCodeAt(3) * seed) % 5) - ((b.id.charCodeAt(3) * seed) % 5) || (a.id < b.id ? 1 : -1));
+      expect(derivePassageRecord(state(shuffled), 'p1', 'L', 't1')).toEqual(expected);
+    }
+  });
+});

@@ -1,6 +1,6 @@
 import { validTakeMetadata, type TakeMetadata } from './audioEdits';
 import { isObtLane } from './obt';
-import type { Card, EventPayloads, EventType } from './events';
+import type { Card, CheckOutcome, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import type { ProjectState } from './state';
 import { currentTake, deriveTakeStatus } from './workflow';
@@ -37,6 +37,15 @@ export interface Commands {
   submitTake(c: { commandId: string; unitId: string; laneId: string; questionSetIds: string[]; responseNote?: string; responseBlobHash?: string }): EventSpec[];
   /** A reviewer's decision on one workflow step of a take. */
   reviewTake(c: { commandId: string; takeId: string; stepId: string; decision: 'approve' | 'suggest_changes'; comment?: string; answers?: Record<string, string> }): EventSpec[];
+  /**
+   * One check of one kind on a submitted version (v2 flow steps). Needs
+   * changes must say what, in words or a voice comment. Idempotent by checkId.
+   */
+  recordCheck(c: {
+    commandId: string; checkId: string; takeId: string; kindId: string; stepId?: string; outcome: CheckOutcome;
+    comment?: string; commentBlobHash?: string; answers?: Record<string, string>;
+    skippedQuestions?: { questionId: string; reason: string }[]; requestId?: string;
+  }): EventSpec[];
   /** Attach a recorded pronunciation to a key term, saving the card too. */
   adjustKeyTerm(c: { commandId: string; unitId: string; laneId: string; termId: string; recordingId: string; adjustmentId: string; card: Card }): EventSpec[];
   /** Set a passage note in the lane's translation guidelines, defining the material on first use. */
@@ -122,6 +131,28 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
         id: ids(c.commandId)(),
         type: 'v1.ReviewSubmitted',
         payload: { takeId: c.takeId, stepId: c.stepId, decision: c.decision, ...(c.comment ? { comment: c.comment } : {}), ...(c.answers ? { answers: c.answers } : {}) }
+      }];
+    },
+
+    recordCheck(c) {
+      const take = state.takes[c.takeId];
+      if (!take) throw new CommandError('Unknown take.');
+      if (state.submissions[c.takeId] === undefined) throw new CommandError('This take was not handed off.');
+      const comment = c.comment?.trim();
+      if (c.outcome === 'needs_changes' && !comment && !c.commentBlobHash) throw new CommandError('Say what to change, in words or a voice comment.');
+      if (state.checks[c.takeId]?.[c.checkId]) return [];
+      return [{
+        id: ids(c.commandId)(),
+        type: 'v1.CheckRecorded',
+        payload: {
+          checkId: c.checkId, unitId: take.unitId, laneId: take.laneId, takeId: c.takeId, kindId: c.kindId, outcome: c.outcome,
+          ...(c.stepId ? { stepId: c.stepId } : {}),
+          ...(comment ? { comment } : {}),
+          ...(c.commentBlobHash ? { commentBlobHash: c.commentBlobHash } : {}),
+          ...(c.answers && Object.keys(c.answers).length ? { answers: c.answers } : {}),
+          ...(c.skippedQuestions?.length ? { skippedQuestions: c.skippedQuestions } : {}),
+          ...(c.requestId ? { requestId: c.requestId } : {})
+        }
       }];
     },
 

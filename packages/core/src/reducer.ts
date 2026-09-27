@@ -22,8 +22,10 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  *
  * 9: v2.WorkflowStepSet shares the step register; v1.ReviewKindDefined
  * folds into `reviewKinds`. Events formerly ignored as unfamiliar now fold.
+ *
+ * 10: v1.CheckRecorded folds into `checks`.
  */
-export const REDUCER_VERSION = 9;
+export const REDUCER_VERSION = 10;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -324,6 +326,20 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
         ...(icon !== undefined ? { icon } : {}),
         ...(withholdsContext !== undefined ? { withholdsContext } : {}),
         ...(produces !== undefined ? { produces: { ...produces } } : {})
+      });
+      break;
+    }
+
+    case 'v1.CheckRecorded': {
+      const { checkId, unitId, laneId, takeId, kindId, stepId, outcome, comment, commentBlobHash, answers, skippedQuestions, requestId } = event.payload;
+      lww((state.checks[takeId] ??= {}), checkId, event, {
+        unitId, laneId, kindId, outcome, actorId: event.actorId,
+        ...(stepId !== undefined ? { stepId } : {}),
+        ...(comment !== undefined ? { comment } : {}),
+        ...(commentBlobHash !== undefined ? { commentBlobHash } : {}),
+        ...(answers !== undefined ? { answers: { ...answers } } : {}),
+        ...(skippedQuestions !== undefined ? { skippedQuestions: skippedQuestions.map((q) => ({ questionId: q.questionId, reason: q.reason })) } : {}),
+        ...(requestId !== undefined ? { requestId } : {})
       });
       break;
     }

@@ -48,6 +48,12 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
       for (const c of Object.values(byActor)) if (!out.has(c.blobHash)) out.set(c.blobHash, { hash: c.blobHash, format: 'm4a', unitId });
     }
   }
+  for (const byId of Object.values(state.checks)) {
+    for (const c of Object.values(byId)) {
+      const h = c.value.commentBlobHash;
+      if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: c.value.unitId });
+    }
+  }
   for (const r of Object.values(state.obt.audio)) {
     for (const c of r.value.cards) out.set(c.hash, { hash: c.hash, format: c.format ?? 'm4a', unitId: r.value.unitId });
   }

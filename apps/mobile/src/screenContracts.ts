@@ -46,7 +46,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeSelected','v1.TakeArchived','v1.TakeSubmitted',
     'v1.ResponseRecorded','v1.MaterialDefined','v1.MaterialFieldSet'],
     reads:['derivePassageRecord','pendingPassageCards','keyTermsForUnit','keyTermLinksFor','fiaStudyStatus','passageReading'] },
-  review_capture: { emits:['v1.ReviewSubmitted','v1.ReviewCommentRecorded','v1.ObtStepRecorded','v1.ObtAudioAdded'],
+  review_capture: { emits:['v1.ReviewSubmitted','v1.CheckRecorded','v1.ReviewCommentRecorded','v1.ObtStepRecorded','v1.ObtAudioAdded'],
     reads:['derivePassageRecord','questionsOf','keyTermLinksFor','fiaStudyStatus','deriveObt'] },
   back_translation: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeSelected','v1.TakeArchived','v1.TakeSubmitted'],reads:['pendingPassageCards'] },
   study_guide: { reads:['fiaStudyStatus','passageReading'] },
