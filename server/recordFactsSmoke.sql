@@ -1,4 +1,5 @@
--- Phase 2b: departures (StepSetAside, CheckpointOverridden, DepartureUndone).
+-- Phase 2b: departures (StepSetAside, CheckpointOverridden, DepartureUndone)
+-- and kept feedback (FeedbackKept).
 -- Run in a migrated local test database. Every test write rolls back.
 \set ON_ERROR_STOP on
 begin;
@@ -51,6 +52,25 @@ begin
     raise exception 'Departure privileges drifted from core';
   end if;
 
+  -- ---- kept feedback
+  if public.validate_payload('v1.FeedbackKept','{"keptId":"k","checkId":"c","reason":"Listeners preferred the current wording"}') is not null
+    or public.validate_payload('v1.FeedbackKept','{"keptId":"k","legacyTarget":{"takeId":"t","stepId":"s","reviewerId":"r"},"reasonBlobHash":"h"}') is not null then
+    raise exception 'Valid kept payload rejected';
+  end if;
+  foreach payload in array array[
+    '{"keptId":"k","reason":"x"}'::jsonb,
+    '{"keptId":"k","checkId":"c"}'::jsonb,
+    '{"keptId":"k","checkId":"","reason":"x"}'::jsonb,
+    '{"keptId":"k","legacyTarget":{"takeId":"t","stepId":"s"},"reason":"x"}'::jsonb,
+    '{"keptId":"k","legacyTarget":"t","reason":"x"}'::jsonb
+  ] loop
+    if public.validate_payload('v1.FeedbackKept',payload) is null then raise exception 'Invalid kept accepted: %',payload; end if;
+  end loop;
+  if not public.may_emit('record-test','P','translator','v1.FeedbackKept','{}')
+    or public.may_emit('record-test','P','reviewer','v1.FeedbackKept','{}') then
+    raise exception 'Kept privileges drifted from core';
+  end if;
+
   -- Coexistence: an old client (version 0) appends legacy facts next to the
   -- new ones, and pulls every fact, familiar or not.
   perform set_config('request.jwt.claims','{"sub":"owner","role":"authenticated"}',true);
@@ -66,14 +86,15 @@ begin
     {"id":"rec-aside","orgId":"record-test","projectId":"P","type":"v1.StepSetAside","actorId":"translator","deviceId":"new-t","hlc":"000000000000005:000000:new-t","payload":{"departureId":"d1","unitId":"u","laneId":"L","stepId":"s1","reason":"No one available"}},
     {"id":"rec-undo-aside","orgId":"record-test","projectId":"P","type":"v1.DepartureUndone","actorId":"translator","deviceId":"new-t","hlc":"000000000000006:000000:new-t","payload":{"undoId":"u1","departureId":"d1","departureKind":"set_aside"}},
     {"id":"rec-undo-override","orgId":"record-test","projectId":"P","type":"v1.DepartureUndone","actorId":"translator","deviceId":"new-t","hlc":"000000000000007:000000:new-t","payload":{"undoId":"u2","departureId":"o1","departureKind":"override"}},
-    {"id":"rec-bad-aside","orgId":"record-test","projectId":"P","type":"v1.StepSetAside","actorId":"translator","deviceId":"new-t","hlc":"000000000000008:000000:new-t","payload":{"departureId":"d2","unitId":"u","laneId":"L","stepId":"s1"}}
+    {"id":"rec-kept","orgId":"record-test","projectId":"P","type":"v1.FeedbackKept","actorId":"translator","deviceId":"new-t","hlc":"000000000000008:000000:new-t","payload":{"keptId":"k1","checkId":"c1","reason":"Matches our key terms decision"}},
+    {"id":"rec-bad-aside","orgId":"record-test","projectId":"P","type":"v1.StepSetAside","actorId":"translator","deviceId":"new-t","hlc":"000000000000009:000000:new-t","payload":{"departureId":"d2","unitId":"u","laneId":"L","stepId":"s1"}}
   ]'::jsonb,0) loop
-    if result.accepted is distinct from (result.id in ('rec-aside','rec-undo-aside')) then
+    if result.accepted is distinct from (result.id in ('rec-aside','rec-undo-aside','rec-kept')) then
       raise exception 'Unexpected departure append result: %',row_to_json(result);
     end if;
   end loop;
   select count(*) into facts from public.pull_events('record-test','P',0,50,0);
-  if facts <> 5 then raise exception 'Old client did not receive every fact: %',facts; end if;
+  if facts <> 6 then raise exception 'Old client did not receive every fact: %',facts; end if;
 
   if (select min_client_version from public.server_config) <> 0 then
     raise exception 'Sync must not require an app upgrade';

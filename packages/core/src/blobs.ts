@@ -54,6 +54,17 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
       if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: c.value.unitId });
     }
   }
+  const keptVoices = Object.values(state.kept).filter((k) => k.value.reasonBlobHash);
+  if (keptVoices.length > 0) {
+    const checkUnit = new Map<string, string>();
+    for (const byId of Object.values(state.checks)) for (const [id, c] of Object.entries(byId)) checkUnit.set(id, c.value.unitId);
+    for (const k of keptVoices) {
+      const h = k.value.reasonBlobHash!;
+      const legacy = k.value.legacyTarget ? state.takes[k.value.legacyTarget.takeId]?.unitId : undefined;
+      const unitId = (k.value.checkId !== undefined ? checkUnit.get(k.value.checkId) : undefined) ?? legacy ?? '';
+      if (!out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId });
+    }
+  }
   for (const d of Object.values(state.departures)) {
     const h = d.value.reasonBlobHash;
     if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: d.value.unitId });

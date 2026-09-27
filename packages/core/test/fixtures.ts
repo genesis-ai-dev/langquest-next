@@ -223,6 +223,11 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.DepartureUndone', { undoId: 'u2', departureId: 'dep2', departureKind: 'set_aside', reason: 'wrong kind' });
   emit('dD', 'r2', 'v1.StepSetAside', { departureId: 'dep3', unitId: 'luke1', laneId: 'L2', stepId: 'l2-s3', reason: 'Covered by peer' });
   emit('dE', 'c1', 'v1.StepSetAside', { departureId: 'dep3', unitId: 'luke1', laneId: 'L2', stepId: 'l2-s3', reason: 'Not needed here' });
+  // Phase 2b kept feedback: one names a check that has not synced yet, one a
+  // legacy review by (take, step, reviewer), and one id reused by two devices.
+  emit('dB', 't1', 'v1.FeedbackKept', { keptId: 'k1', checkId: 'not-synced-check', reasonBlobHash: 'kept-audio' });
+  emit('dB', 't1', 'v1.FeedbackKept', { keptId: 'k2', legacyTarget: { takeId: 'take1', stepId: 'peer', reviewerId: 'r1' }, reason: 'Listeners preferred the current wording' });
+  emit('dA', 't1', 'v1.FeedbackKept', { keptId: 'k2', legacyTarget: { takeId: 'take1', stepId: 'peer', reviewerId: 'r2' }, reason: 'Matches our key terms decision' });
 
   // Step 12: materials with per-field registers, a locked org document, the
   // community question set from the catalog linked to the peer step, a

@@ -5,14 +5,14 @@
 import {
   decodeHlc, deriveObt, derivePassageRecord, deriveTakeStatus, keyTermLinksFor, OBT_LABELS, questionsOf, questionSetsFor,
   recordHeadline, recordNextAction, type DepartureKind, type PassageRecord as Rec, type RecordDeparture, type RecordEntry,
-  type RecordKind, type RecordStep
+  type RecordKind, type RecordReview, type RecordStep
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  ArrowUpDown, Ban, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
+  ArrowUpDown, Ban, BookmarkCheck, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
   Headphones, History, ListChecks, Lock, Languages, MapPin, MessageSquare, Mic, Octagon, Reply, RotateCcw, ShieldCheck,
-  SkipForward, Star, Undo2, UserPlus, UserX, Users, X
+  KeyRound, SkipForward, Star, Undo2, UserPlus, UserX, Users, X
 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -63,6 +63,31 @@ const OVERRIDE_QUICK = [
   { icon: ClipboardCheck, reason: 'Checked informally — will record it later' }
 ];
 
+/** "Keep it, say why" (J-REC-4, ref:passage.tsx:40-44). No new version is made. */
+const KEEP_SHEET = {
+  title: 'Keep it as it is?',
+  sub: 'No new version is made. Your reason goes back to the reviewer and into the record.',
+  quick: [
+    { icon: Users, reason: 'Listeners preferred the current wording' },
+    { icon: KeyRound, reason: 'Matches our key terms decision' },
+    { icon: MessageSquare, reason: 'The suggestion changes the meaning' }
+  ],
+  confirmIcon: BookmarkCheck,
+  confirmLabel: 'Keep and send reason'
+};
+
+/** Answer feedback by keeping the version: a FeedbackKept naming the check, or the legacy review. */
+async function keepFeedback(ctx: Ctx, f: RecordReview, why: Reason) {
+  await ctx.project.append('v1.FeedbackKept', {
+    keptId: Crypto.randomUUID(),
+    ...(f.checkId !== undefined ? { checkId: f.checkId } : { legacyTarget: { takeId: f.takeId, stepId: f.stepId, reviewerId: f.reviewerId } }),
+    ...why
+  });
+  ctx.project.triggerUpload();
+  // No toast Undo: there is no fact to take a kept answer back yet.
+  ctx.toast('Kept · your reason is on the record');
+}
+
 /** What the reason sheet is for. */
 type Departing = { kind: DepartureKind; stepId: string; kindId?: string; name: string };
 
@@ -100,6 +125,7 @@ export function PassageRecord(ctx: Ctx) {
   const [sheet, setSheet] = useState<string | null>(null);
   const [open, setOpen] = useState<{ reviews: boolean; history: boolean }>({ reviews: false, history: false });
   const [departing, setDeparting] = useState<Departing | null>(null);
+  const [keeping, setKeeping] = useState<RecordReview | null>(null);
   const loaded = useRecord(ctx);
   const { state } = ctx.project;
   if (!state || !loaded) return <Note>Passage not found.</Note>;
@@ -163,8 +189,9 @@ export function PassageRecord(ctx: Ctx) {
           <Hero rec={rec} headline={headline} me={me} onLatest={() => setOpen((o) => ({ ...o, history: true }))} />
           <StepPath rec={rec} onStep={setSheet} onRecorded={() => setSheet('recorded')} />
           {rec.openFeedback.map((f) => (
-            <FeedbackCard key={`${f.stepId}:${f.reviewerId}`} ctx={ctx} rec={rec} feedback={f} nameOf={nameOf}
-              onPress={() => ctx.go('review_detail', { ...params, takeId: f.takeId, round: `${f.stepId}:${f.reviewerId}` })} />
+            <FeedbackCard key={`${f.stepId}:${f.reviewerId}:${f.eventId}`} ctx={ctx} rec={rec} feedback={f} nameOf={nameOf}
+              onPress={() => ctx.go('review_detail', { ...params, takeId: f.takeId, round: `${f.stepId}:${f.reviewerId}` })}
+              onKeep={rec.feedbackIsMine && ctx.session.can('translate') ? () => setKeeping(f) : undefined} />
           ))}
           <NextZone ctx={ctx} rec={rec} action={action} params={params} onDepart={depart} />
           <Details ctx={ctx} rec={rec} open={open} setOpen={setOpen} params={params} nameOf={nameOf}
@@ -191,6 +218,9 @@ export function PassageRecord(ctx: Ctx) {
           quick: SET_ASIDE_QUICK, confirmIcon: SkipForward, confirmLabel: 'Set aside'
         })}
         onConfirm={(why) => departing ? confirmDeparture(departing, why) : Promise.resolve()} />
+      <ReasonSheet ctx={ctx} visible={keeping !== null} onClose={() => setKeeping(null)} icon={BookmarkCheck}
+        name={keeping ? rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === keeping.kindId)?.name ?? keeping.stepId : ''}
+        {...KEEP_SHEET} onConfirm={async (why) => { if (keeping) { await keepFeedback(ctx, keeping, why); setKeeping(null); } }} />
     </Screen>
   );
 }
@@ -335,7 +365,7 @@ function StepPath(props: { rec: Rec; onStep: (id: string) => void; onRecorded: (
 }
 
 /** Feedback on the latest version (J-REC-3, J-REC-16). The author's footer is Record a fix. */
-function FeedbackCard(props: { ctx: Ctx; rec: Rec; feedback: Rec['openFeedback'][number]; nameOf: (id: string) => string; onPress: () => void }) {
+function FeedbackCard(props: { ctx: Ctx; rec: Rec; feedback: Rec['openFeedback'][number]; nameOf: (id: string) => string; onPress: () => void; onKeep?: () => void }) {
   const { rec, feedback: f } = props;
   const person = usePerson();
   const step = rec.steps.find((s) => s.stepId === f.stepId);
@@ -345,8 +375,9 @@ function FeedbackCard(props: { ctx: Ctx; rec: Rec; feedback: Rec['openFeedback']
     ? `${step?.label ?? f.stepId} asked for changes. Record a fix to answer it.`
     : `Waiting on ${props.nameOf(author)} to answer the ${step?.label ?? f.stepId}`;
   return (
+    <View style={styles.feedback}>
     <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={label}
-      style={({ pressed }) => [styles.feedback, pressed && { opacity: 0.85 }]}>
+      style={({ pressed }) => [{ gap: space.sm }, pressed && { opacity: 0.85 }]}>
       <View style={styles.feedbackHead}>
         <PersonAvatar look={person(f.reviewerId)} size={28} />
         <StepIcon size={18} color={colors.review} />
@@ -357,6 +388,10 @@ function FeedbackCard(props: { ctx: Ctx; rec: Rec; feedback: Rec['openFeedback']
       {f.voiceHash ? <AudioClip project={props.ctx.project} hashes={[f.voiceHash]} label="Voice feedback" hideActions /> : null}
       {f.comment ? <Text style={text.body} numberOfLines={3}>{f.comment}</Text> : null}
     </Pressable>
+    {props.onKeep ? <View style={styles.sheetActions}>
+      <ActionButton variant="outline" icon={BookmarkCheck} style={styles.iconBtn} accessibilityLabel="Keep it, say why" onPress={props.onKeep} />
+    </View> : null}
+    </View>
   );
 }
 
@@ -529,6 +564,7 @@ function entryTitle(e: RecordEntry, rec: Rec): string {
     case 'review': return `${rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.kindId && e.kindId !== e.stepId)?.name ?? label(e.stepId)} · ${e.decision === 'approve' ? 'looks good' : 'needs changes'}`;
     case 'response': return `Version ${e.n} answers the feedback`;
     case 'ask': return e.role === 'translator' ? 'Asked someone to record' : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
+    case 'kept': return `Kept Version ${e.n} as is${e.kept.reason ? `: ${e.kept.reason}` : ''}`;
     case 'departure': {
       const d = e.departure;
       const name = d.kindId ? rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === d.kindId)?.name ?? d.kindId : label(d.stepId);
@@ -543,6 +579,7 @@ function EntryIcon(props: { entry: RecordEntry }) {
   if (e.kind === 'version') return <Mic size={16} color={colors.translate} />;
   if (e.kind === 'response') return <Reply size={16} color={colors.translate} />;
   if (e.kind === 'ask') return <UserPlus size={16} color={colors.mutedForeground} />;
+  if (e.kind === 'kept') return <BookmarkCheck size={16} color={colors.translate} />;
   if (e.kind === 'departure') return e.departure.kind === 'override' ? <Octagon size={16} color={colors.review} /> : <SkipForward size={16} color={colors.review} />;
   return e.decision === 'approve' ? <CheckCircle2 size={16} color={colors.done} /> : <MessageSquare size={16} color={colors.review} />;
 }
@@ -778,25 +815,30 @@ export function VersionDetail(ctx: Ctx) {
 }
 
 export function ReviewDetail(ctx: Ctx) {
+  const [keeping, setKeeping] = useState(false);
   const { state } = ctx.project;
   const takeId = ctx.params['takeId'] ?? '';
   const [stepId = '', actor = ''] = (ctx.params['round'] ?? '').split(':');
   const take = state?.takes[takeId];
-  const review = state?.reviews[takeId]?.[stepId]?.[actor]?.value;
-  if (!state || !take || !review) return <Note>Review not found.</Note>;
-  const rec = derivePassageRecord(state, take.unitId, take.laneId, ctx.session.actorId, indexesFor(state));
-  const version = rec.versions.find((v) => v.takeId === takeId);
+  const rec = state && take ? derivePassageRecord(state, take.unitId, take.laneId, ctx.session.actorId, indexesFor(state)) : null;
+  const version = rec?.versions.find((v) => v.takeId === takeId);
+  // The newest review by this person at this step: a CheckRecorded or a legacy ReviewSubmitted.
+  const review = version?.reviews.filter((r) => r.stepId === stepId && r.reviewerId === actor).pop();
+  if (!state || !take || !rec || !review) return <Note>Review not found.</Note>;
   const approved = review.decision === 'approve';
-  const voice = state.reviewComments[takeId]?.[stepId]?.[actor]?.blobHash;
+  const voice = review.voiceHash;
   const questions = new Map(questionsOf(questionSetsFor(state, takeId, stepId)).map((q) => [q.id, q.text]));
   const answeredBy = rec.versions.find((v) => v.respondsToTakeId === takeId);
-  const open = rec.openFeedback.some((f) => f.takeId === takeId && f.stepId === stepId && f.reviewerId === actor);
+  const fb = rec.feedback.find((f) => f.eventId === review.eventId);
+  const open = rec.openFeedback.some((f) => f.eventId === review.eventId);
   const params = { unitId: take.unitId, laneId: take.laneId };
-  const label = rec.steps.find((s) => s.stepId === stepId)?.label ?? stepId;
+  const label = rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === review.kindId && review.kindId !== review.stepId)?.name
+    ?? rec.steps.find((s) => s.stepId === stepId)?.label ?? stepId;
   const canFix = open && rec.feedbackIsMine && ctx.session.can('translate') && canGo(ctx, 'review_detail', 'workspace');
+  const canKeep = open && rec.feedbackIsMine && ctx.session.can('translate');
   return (
     <Screen footer={canFix ? <Footer label="Record a fix" onPress={() => ctx.go('workspace', { ...params, respondsTo: takeId })} /> : undefined}>
-      <Header title={label} sub={<Byline before="by" id={actor} after={`· ${shortDate(state.reviews[takeId]![stepId]![actor]!.hlc)}`} />} onBack={ctx.back} />
+      <Header title={label} sub={<Byline before="by" id={actor} after={`· ${shortDate(review.at)}`} />} onBack={ctx.back} />
       <Card style={{ backgroundColor: approved ? tint.done : tint.review }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           {approved ? <CheckCircle2 size={20} color={colors.done} /> : <MessageSquare size={20} color={colors.review} />}
@@ -813,11 +855,17 @@ export function ReviewDetail(ctx: Ctx) {
         </Section>
       ) : null}
       <Section label="Version">
-        <Row label={version ? `Reviewed Version ${version.n}` : 'Reviewed version'} onPress={() => ctx.go('version_detail', { ...params, takeId })} last={!answeredBy} />
+        <Row label={version ? `Reviewed Version ${version.n}` : 'Reviewed version'} onPress={() => ctx.go('version_detail', { ...params, takeId })} last={!answeredBy && !fb?.kept} />
         {answeredBy ? <Row icon={Reply} label={`Revised in Version ${answeredBy.n}`} sub={<Byline before="by" id={answeredBy.authorId} after={`· ${shortDate(answeredBy.at)}`} />}
-          onPress={() => ctx.go('version_detail', { ...params, takeId: answeredBy.takeId })} last /> : null}
+          onPress={() => ctx.go('version_detail', { ...params, takeId: answeredBy.takeId })} last={!fb?.kept} /> : null}
+        {fb?.kept ? <Row icon={BookmarkCheck} label={`Kept as is${fb.kept.reason ? `: ${fb.kept.reason}` : ''}`}
+          sub={<Byline before="by" id={fb.kept.by} after={`· ${shortDate(fb.kept.at)}`} />} last /> : null}
       </Section>
+      {fb?.kept?.reasonBlobHash ? <AudioClip project={ctx.project} hashes={[fb.kept.reasonBlobHash]} label="Hear why it was kept" hideActions /> : null}
+      {canKeep ? <ActionButton variant="outline" icon={BookmarkCheck} label="Keep it, say why" accessibilityLabel="Keep it, say why" onPress={() => setKeeping(true)} /> : null}
       {open && !rec.feedbackIsMine && rec.latest ? <Byline before="Waiting on" id={rec.latest.authorId} after={`to answer the ${label}`} /> : null}
+      <ReasonSheet ctx={ctx} visible={keeping} onClose={() => setKeeping(false)} icon={BookmarkCheck} name={label}
+        {...KEEP_SHEET} onConfirm={async (why) => { await keepFeedback(ctx, review, why); setKeeping(false); }} />
     </Screen>
   );
 }

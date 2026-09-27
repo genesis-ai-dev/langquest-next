@@ -290,6 +290,21 @@ export const EVENT_REGISTRY = {
     example: { undoId: 'ex-undo', departureId: 'ex-departure', departureKind: 'set_aside', reason: 'Peer is back from leave' }
   },
 
+  // ---- Phase 2b kept feedback (SQL 20260927000004_feedback_kept.sql).
+  'v1.FeedbackKept': {
+    validate: (p) =>
+      str(p, 'keptId') ?? optStr(p, 'checkId') ??
+      (p['legacyTarget'] === undefined || (isObject(p['legacyTarget']) && str(p['legacyTarget'], 'takeId', 'stepId', 'reviewerId') === null)
+        ? null : 'legacyTarget needs takeId, stepId and reviewerId') ??
+      (p['checkId'] !== undefined || p['legacyTarget'] !== undefined ? null : 'name the feedback: checkId or legacyTarget') ??
+      reasonGiven(p),
+    privilege: 'translate', blobHashes: (p) => hashes(p['reasonBlobHash']), shipped: true,
+    example: {
+      keptId: 'ex-kept', checkId: 'ex-check', legacyTarget: { takeId: 'ex-take', stepId: 'ex-step', reviewerId: 'ex-member' },
+      reason: 'Listeners preferred the current wording', reasonBlobHash: HASH
+    }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>

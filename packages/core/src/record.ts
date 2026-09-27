@@ -1,5 +1,5 @@
 import type { DepartureKind, KindProduces, Role, WorkflowStep } from './events';
-import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
+import { buildIndexes, keptCheckKey, keptLegacyKey, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import { deriveObt, isObtLane, OBT_LABELS, OBT_STEPS } from './obt';
 import type { Assignment, ProjectState } from './state';
 import { deriveFlow, deriveTakeStatus, eligibleReviewers, reviewKind, takesFor, type FlowStep, type StepStatus, type TakeOutcome } from './workflow';
@@ -72,6 +72,8 @@ export interface RecordReview {
   skippedQuestions?: { questionId: string; reason: string }[];
   /** The ask this check answers (CheckRecorded). */
   requestId?: string;
+  /** The CheckRecorded id; absent for a legacy review (named by take, step and reviewer). */
+  checkId?: string;
   at: string;
   eventId: string;
 }
@@ -83,10 +85,21 @@ export interface RecordDraft {
   at: string;
 }
 
+/** The author kept the version after this feedback and said why (`v1.FeedbackKept`). */
+export interface RecordKept {
+  keptId: string;
+  by: string;
+  at: string;
+  reason?: string;
+  reasonBlobHash?: string;
+}
+
 /** A suggest-changes review on the latest version. */
 export interface RecordFeedback extends RecordReview {
-  /** A later version was submitted, or a response names this version. */
+  /** D5: a later version was submitted, a response names this version, or the author kept it. */
   answered: boolean;
+  /** The first "Keep it, say why" naming this feedback, or null. */
+  kept: RecordKept | null;
 }
 
 export interface RecordAsk {
@@ -202,7 +215,8 @@ export type RecordEntry =
   | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; decision: 'approve' | 'suggest_changes' }
   | { kind: 'response'; at: string; by: string; id: string; takeId: string; n: number; respondsToTakeId: string }
   | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string }
-  | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture };
+  | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture }
+  | { kind: 'kept'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; reviewerId: string; kept: RecordKept };
 
 export interface PassageRecord {
   unitId: string;
@@ -261,10 +275,10 @@ function versionTakes(state: ProjectState, unitId: string, laneId: string, idx: 
  */
 function reviewsOf(state: ProjectState, takeId: string, stepOfKind: (kindId: string, stepId?: string) => string): RecordReview[] {
   const out: RecordReview[] = [];
-  for (const reg of Object.values(state.checks[takeId] ?? {})) {
+  for (const [checkId, reg] of Object.entries(state.checks[takeId] ?? {})) {
     const c = reg.value;
     out.push({
-      takeId, stepId: stepOfKind(c.kindId, c.stepId), kindId: c.kindId, via: 'app', reviewerId: c.actorId,
+      takeId, stepId: stepOfKind(c.kindId, c.stepId), kindId: c.kindId, via: 'app', reviewerId: c.actorId, checkId,
       decision: c.outcome === 'looks_good' ? 'approve' : 'suggest_changes', at: reg.hlc, eventId: reg.eventId,
       ...(c.comment !== undefined ? { comment: c.comment } : {}),
       ...(c.answers !== undefined ? { answers: c.answers } : {}),
@@ -372,6 +386,20 @@ function departuresOf(state: ProjectState, unitId: string, laneId: string, idx: 
   return out.sort((a, b) => byClock({ at: a.at, id: a.departureId }, { at: b.at, id: b.departureId }));
 }
 
+/** D5 (a): the first FeedbackKept naming this feedback, by check id or legacy target. */
+function keptFor(state: ProjectState, r: RecordReview, idx: Indexes): RecordKept | null {
+  const ids = idx.keptByTarget.get(r.checkId !== undefined ? keptCheckKey(r.checkId) : keptLegacyKey(r.takeId, r.stepId, r.reviewerId)) ?? [];
+  const first = ids.map((id) => ({ id, reg: state.kept[id]! }))
+    .sort((a, b) => byClock({ at: a.reg.hlc, id: a.id }, { at: b.reg.hlc, id: b.id }))[0];
+  if (!first) return null;
+  const k = first.reg.value;
+  return {
+    keptId: first.id, by: k.actorId, at: first.reg.hlc,
+    ...(k.reason !== undefined ? { reason: k.reason } : {}),
+    ...(k.reasonBlobHash !== undefined ? { reasonBlobHash: k.reasonBlobHash } : {})
+  };
+}
+
 /**
  * A v2 step's reviewer view for screens that list who may still check it:
  * eligible = the usual reviewers (an assignment, else the reviewer role;
@@ -422,7 +450,10 @@ export function derivePassageRecord(
   const answeredOnLatest = !!latest && takesFor(state, unitId, laneId, idx).some((t) => state.responses[t]?.respondsToTakeId === latest.takeId);
   const feedback: RecordFeedback[] = obt || !latest ? [] : latest.reviews
     .filter((r) => r.decision === 'suggest_changes')
-    .map((r) => ({ ...r, answered: versions.some((v) => v.at > latest.at) || answeredOnLatest }));
+    .map((r) => {
+      const kept = keptFor(state, r, idx);
+      return { ...r, answered: versions.some((v) => v.at > latest.at) || answeredOnLatest || kept !== null, kept };
+    });
   const openFeedback = feedback.filter((f) => !f.answered);
   const feedbackIsMine = openFeedback.length > 0 && latest?.authorId === actorId;
 
@@ -453,11 +484,14 @@ export function derivePassageRecord(
       if (!recorded) kstate = 'todo';
       else if (legacy) {
         const st = stepStatus.get(step.id);
+        // Kept feedback answers a v1 step too (D5): every suggestion on it kept -> addressed.
+        const stepFeedback = feedback.filter((f) => f.stepId === step.id);
         kstate = st?.outcome === 'passed' ? 'approved'
-          : st?.outcome === 'failed' || openFeedback.some((f) => f.stepId === step.id) ? 'suggestions'
+          : st?.outcome === 'failed' || stepFeedback.some((f) => !f.answered)
+            ? (stepFeedback.length > 0 && stepFeedback.every((f) => f.kept !== null) ? 'addressed' : 'suggestions')
           : aside ? 'skipped' : askedOf.length > 0 ? 'asked' : 'todo';
       } else if (last?.decision === 'approve') kstate = 'approved';
-      else if (last?.decision === 'suggest_changes') kstate = answeredOnLatest ? 'addressed' : 'suggestions';
+      else if (last?.decision === 'suggest_changes') kstate = answeredOnLatest || keptFor(state, last, idx) !== null ? 'addressed' : 'suggestions';
       else if (aside) kstate = 'skipped';
       else if (askedOf.length > 0) kstate = 'asked';
       else kstate = 'todo';
@@ -530,7 +564,8 @@ export function derivePassageRecord(
       return r ? [{ kind: 'response' as const, at: r.hlc, by: r.actorId, id: `response:${v.takeId}`, takeId: v.takeId, n: v.n, respondsToTakeId: r.respondsToTakeId }] : [];
     }),
     ...asks.map((a): RecordEntry => ({ kind: 'ask', at: a.at, by: a.askedBy, id: `ask:${a.profileId}:${a.role}`, profileId: a.profileId, role: a.role, ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}) })),
-    ...departures.map((d): RecordEntry => ({ kind: 'departure', at: d.at, by: d.by, id: `departure:${d.departureId}`, departure: d }))
+    ...departures.map((d): RecordEntry => ({ kind: 'departure', at: d.at, by: d.by, id: `departure:${d.departureId}`, departure: d })),
+    ...feedback.flatMap((f): RecordEntry[] => f.kept ? [{ kind: 'kept', at: f.kept.at, by: f.kept.by, id: `kept:${f.kept.keptId}`, takeId: f.takeId, n: latest!.n, stepId: f.stepId, kindId: f.kindId, reviewerId: f.reviewerId, kept: f.kept }] : [])
   ].sort((a, b) => -byClock(a, b));
 
   return {

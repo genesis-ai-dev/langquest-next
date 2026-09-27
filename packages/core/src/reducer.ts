@@ -27,8 +27,10 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  *
  * 11: v1.StepSetAside, v1.CheckpointOverridden and v1.DepartureUndone fold
  * into `departures` and `departureUndos`.
+ *
+ * 12: v1.FeedbackKept folds into `kept`.
  */
-export const REDUCER_VERSION = 11;
+export const REDUCER_VERSION = 12;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -364,6 +366,18 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       const { undoId, departureId, departureKind, reason } = event.payload;
       lww((state.departureUndos[departureId] ??= {}), undoId, event, {
         departureKind, actorId: event.actorId, ...(reason !== undefined ? { reason } : {})
+      });
+      break;
+    }
+
+    case 'v1.FeedbackKept': {
+      const { keptId, checkId, legacyTarget, reason, reasonBlobHash } = event.payload;
+      lww(state.kept, keptId, event, {
+        actorId: event.actorId,
+        ...(checkId !== undefined ? { checkId } : {}),
+        ...(legacyTarget !== undefined ? { legacyTarget: { takeId: legacyTarget.takeId, stepId: legacyTarget.stepId, reviewerId: legacyTarget.reviewerId } } : {}),
+        ...(reason !== undefined ? { reason } : {}),
+        ...(reasonBlobHash !== undefined ? { reasonBlobHash } : {})
       });
       break;
     }

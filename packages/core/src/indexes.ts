@@ -28,6 +28,8 @@ export interface Indexes {
   assignmentsByActor: Map<string, Assignment[]>;
   /** `${unitId}:${laneId}` -> departure ids (set-asides and overrides) on that passage. */
   departuresByUnitLane: Map<string, string[]>;
+  /** `check:${checkId}` or `legacy:${takeId}:${stepId}:${reviewerId}` -> kept ids naming that feedback. */
+  keptByTarget: Map<string, string[]>;
   /** role -> active member ids holding it, sorted. */
   activeMembersByRole: Map<Role, string[]>;
   /** Leaf unit ids in display order. */
@@ -39,6 +41,8 @@ export interface Indexes {
 }
 
 export const unitLaneKey = (unitId: string, laneId: string): string => `${unitId}:${laneId}`;
+export const keptCheckKey = (checkId: string): string => `check:${checkId}`;
+export const keptLegacyKey = (takeId: string, stepId: string, reviewerId: string): string => `legacy:${takeId}:${stepId}:${reviewerId}`;
 
 export function buildIndexes(state: ProjectState): Indexes {
   const kinds = effectiveUnitKinds(state, (state.config?.value ?? DEFAULT_CONFIG).unitKinds);
@@ -84,6 +88,19 @@ export function buildIndexes(state: ProjectState): Indexes {
     else departuresByUnitLane.set(key, [id]);
   }
 
+  const keptByTarget = new Map<string, string[]>();
+  for (const [id, k] of Object.entries(state.kept)) {
+    const keys = [
+      ...(k.value.checkId !== undefined ? [keptCheckKey(k.value.checkId)] : []),
+      ...(k.value.legacyTarget ? [keptLegacyKey(k.value.legacyTarget.takeId, k.value.legacyTarget.stepId, k.value.legacyTarget.reviewerId)] : [])
+    ];
+    for (const key of keys) {
+      const list = keptByTarget.get(key);
+      if (list) list.push(id);
+      else keptByTarget.set(key, [id]);
+    }
+  }
+
   const activeMembersByRole = new Map<Role, string[]>();
   for (const [id, m] of Object.entries(state.members)) {
     if (m.removed.value) continue;
@@ -98,6 +115,7 @@ export function buildIndexes(state: ProjectState): Indexes {
     assignmentsByUnitLane,
     assignmentsByActor,
     departuresByUnitLane,
+    keptByTarget,
     activeMembersByRole,
     leafUnits,
     containerUnits,

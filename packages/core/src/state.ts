@@ -2,7 +2,7 @@ import type { TakeMetadata } from './audioEdits';
 import type { SavedTextTranslation } from './textTranslations';
 import { emptyObt, type ObtState } from './obt';
 import type { BibleSettings } from './dynamicBible';
-import type { Card, CheckOutcome, DepartureKind, KindProduces, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, CheckOutcome, DepartureKind, KindProduces, LegacyReviewTarget, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -158,6 +158,15 @@ export interface DepartureUndo {
   actorId: string;
 }
 
+/** A `v1.FeedbackKept`: the author kept the version and said why. */
+export interface Kept {
+  checkId?: string;
+  legacyTarget?: LegacyReviewTarget;
+  reason?: string;
+  reasonBlobHash?: string;
+  actorId: string;
+}
+
 export interface ReviewTeam {
   laneId: string;
   name: Register<string>;
@@ -232,6 +241,8 @@ export interface ProjectState {
   departures: Record<string, Register<Departure>>;
   /** departureId -> undoId -> undo (add-wins: an undo may arrive before its departure) */
   departureUndos: Record<string, Record<string, Register<DepartureUndo>>>;
+  /** keptId -> kept feedback (set by id) */
+  kept: Record<string, Register<Kept>>;
   teams: Record<string, ReviewTeam>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
@@ -275,6 +286,7 @@ export function emptyState(): ProjectState {
     checks: {},
     departures: {},
     departureUndos: {},
+    kept: {},
     teams: {},
     responses: {},
     reviewComments: {},

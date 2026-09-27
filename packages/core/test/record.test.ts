@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { encodeHlc } from '../src/hlc';
 import { fold } from '../src/reducer';
+import { deriveInbox } from '../src/inbox';
 import { emptyState } from '../src/state';
 import {
   derivePassageRecord, highlightsFor, languageProgress, recentlyDone, recordHeadline, recordNextAction, waitingOn,
@@ -664,5 +665,90 @@ describe('passage record: departures (set aside, override, undo)', () => {
       const shuffled = [...l.events].sort((a, b) => ((a.id.charCodeAt(3) * seed) % 5) - ((b.id.charCodeAt(3) * seed) % 5) || (a.id < b.id ? 1 : -1));
       expect(rec(shuffled)).toEqual(expected);
     }
+  });
+});
+
+describe('passage record: Keep it, say why (FeedbackKept)', () => {
+  function flow() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/community'], checkpoint: false });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's2', laneId: 'L', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true });
+    const check = (checkId: string, by: string, takeId: string, kindId: string) =>
+      l.add(by, 'v1.CheckRecorded', { checkId, unitId: 'p1', laneId: 'L', takeId, kindId: `kind@1/${kindId}`, outcome: 'needs_changes', comment: 'Slower' });
+    const keep = (keptId: string, target: Partial<EventPayloads['v1.FeedbackKept']>) =>
+      l.add('t1', 'v1.FeedbackKept', { keptId, reason: 'Listeners preferred the current wording', ...target });
+    return { ...l, check, keep };
+  }
+  const rec = (events: AnyEvent[], actor = 't1') => derivePassageRecord(state(events), 'p1', 'L', actor);
+
+  it('kept feedback is answered without a new version, and a non-checkpoint kind reads addressed', () => {
+    // Why (J-REC-4, D5): the translator may keep the take and say why; the
+    // feedback stops asking for a fix and the step moves on.
+    const l = flow();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    const v1 = l.version('t1');
+    l.check('c1', 'r1', v1, 'community');
+    expect(rec(l.events).feedbackIsMine).toBe(true);
+    l.keep('k1', { checkId: 'c1' });
+    const r = rec(l.events);
+    expect(r.openFeedback).toEqual([]);
+    expect(r.feedback[0]).toMatchObject({ checkId: 'c1', answered: true, kept: { keptId: 'k1', by: 't1', reason: 'Listeners preferred the current wording' } });
+    expect(r.steps[0]).toMatchObject({ state: 'complete' });
+    expect(r.steps[0]!.kinds[0]!.state).toBe('addressed');
+    expect(r.turn.kind).not.toBe('answer_feedback');
+    expect(highlightsFor(state(l.events), 't1').filter((h) => h.kind === 'respond')).toEqual([]);
+    expect(r.history[0]).toMatchObject({ kind: 'kept', reviewerId: 'r1', kept: { keptId: 'k1' } });
+  });
+
+  it('keeping never clears a checkpoint: it still needs its own looks good', () => {
+    // Why (ADR-012): a checkpoint certifies the audio. "Keep it" answers the
+    // feedback, but only the checker can clear the stop.
+    const l = flow();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    const v1 = l.version('t1');
+    l.add('lead', 'v1.StepSetAside', { departureId: 'd1', unitId: 'p1', laneId: 'L', stepId: 's1', reason: 'Not needed for this passage' });
+    l.check('c1', 'c1', v1, 'consultant');
+    l.keep('k1', { checkId: 'c1' });
+    const r = rec(l.events);
+    expect(r.steps[1]!.kinds[0]!.state).toBe('addressed');
+    expect(r.steps[1]!.state).not.toBe('complete');
+    expect(r.done).toBe(false);
+  });
+
+  it('a legacy review is kept by take, step and reviewer; another reviewer stays open', () => {
+    // Why (analysis row 12): ReviewSubmitted has no id, so the target names it.
+    const l = log();
+    const v1 = l.version('t1');
+    l.review('r1', v1, 'peer', 'suggest_changes', 'Too fast');
+    l.review('r2', v1, 'peer', 'suggest_changes', 'Unclear');
+    l.add('t1', 'v1.FeedbackKept', { keptId: 'k1', legacyTarget: { takeId: v1, stepId: 'peer', reviewerId: 'r1' }, reason: 'Matches our key terms decision' });
+    let r = rec(l.events);
+    expect(r.openFeedback.map((f) => f.reviewerId)).toEqual(['r2']);
+    expect(r.steps[0]!.kinds[0]!.state).toBe('suggestions');
+    l.add('t1', 'v1.FeedbackKept', { keptId: 'k2', legacyTarget: { takeId: v1, stepId: 'peer', reviewerId: 'r2' }, reasonBlobHash: 'why' });
+    r = rec(l.events);
+    expect(r.openFeedback).toEqual([]);
+    expect(r.steps[0]!.kinds[0]!.state).toBe('addressed');
+  });
+
+  it('the reviewer hears their feedback was kept as is', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('c1', 'r1', v1, 'community');
+    l.keep('k1', { checkId: 'c1' });
+    const inbox = deriveInbox(state(l.events), 'r1');
+    expect(inbox.find((i) => i.id === 'kept:k1')).toMatchObject({ kind: 'decision', unitId: 'p1', title: 'Luke 1:1-4 · Kept as is · Listeners preferred the current wording' });
+    expect(deriveInbox(state(l.events), 'r2').some((i) => i.id === 'kept:k1')).toBe(false);
+  });
+
+  it('kept before its check and in any arrival order derives the same record', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.check('c1', 'r1', v1, 'community');
+    l.keep('k1', { checkId: 'c1' });
+    const expected = rec(l.events);
+    const keptFirst = [...l.events.filter((e) => e.type === 'v1.FeedbackKept'), ...l.events.filter((e) => e.type !== 'v1.FeedbackKept')];
+    expect(rec(keptFirst)).toEqual(expected);
   });
 });

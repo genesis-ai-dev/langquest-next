@@ -358,5 +358,12 @@
     "departureKind": "string",
     "reason?": "string",
     "undoId": "string"
+  },
+  "v1.FeedbackKept": {
+    "checkId?": "string",
+    "keptId": "string",
+    "legacyTarget?": "{reviewerId:string,stepId:string,takeId:string}",
+    "reason?": "string",
+    "reasonBlobHash?": "string"
   }
 }

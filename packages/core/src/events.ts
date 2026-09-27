@@ -201,6 +201,20 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
    * the payload-dependent privilege cannot be dodged by lying about it.
    */
   'v1.DepartureUndone': { undoId: string; departureId: string; departureKind: DepartureKind; reason?: string };
+  /**
+   * The author keeps the version after feedback and says why ("Keep it, say
+   * why"). Names a `CheckRecorded` by `checkId`, or a legacy
+   * `ReviewSubmitted` by (take, step, reviewer). Set by keptId. Answers the
+   * feedback (D5) without a new version; a checkpoint still needs its own approval.
+   */
+  'v1.FeedbackKept': { keptId: string; checkId?: string; legacyTarget?: LegacyReviewTarget; reason?: string; reasonBlobHash?: string };
+}
+
+/** A legacy `v1.ReviewSubmitted`, which has no id of its own. */
+export interface LegacyReviewTarget {
+  takeId: string;
+  stepId: string;
+  reviewerId: string;
 }
 
 export type DepartureKind = 'set_aside' | 'override';

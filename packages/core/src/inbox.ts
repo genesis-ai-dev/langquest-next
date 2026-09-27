@@ -40,6 +40,26 @@ export function deriveInbox(
       }
     }
   }
+  // "{author} kept {passage} as is": the reviewer whose feedback was kept
+  // hears back (J-REC-4). A kept check names its reviewer through the check.
+  const kept = Object.entries(state.kept);
+  if (kept.length > 0) {
+    const checkOf = new Map<string, { takeId: string; reviewerId: string }>();
+    for (const [takeId, byId] of Object.entries(state.checks)) {
+      for (const [id, c] of Object.entries(byId)) checkOf.set(id, { takeId, reviewerId: c.value.actorId });
+    }
+    for (const [keptId, reg] of kept) {
+      const k = reg.value;
+      const target = k.checkId !== undefined ? checkOf.get(k.checkId) : k.legacyTarget;
+      const take = target ? state.takes[target.takeId] : undefined;
+      if (!target || !take || target.reviewerId !== actorId || k.actorId === actorId) continue;
+      rows.push({
+        id: `kept:${keptId}`, kind: 'decision',
+        title: `${state.units[take.unitId]?.label ?? take.unitId} · Kept as is${k.reason ? ` · ${k.reason}` : ''}`,
+        unitId: take.unitId, laneId: take.laneId
+      });
+    }
+  }
   if (['owner', 'coordinator'].includes(actorRole(state, actorId) ?? '')) {
     for (const b of deriveBlockers(state, idx)) {
       rows.push({ id: `blocker:${b.kind}:${b.unitId ?? ''}:${b.laneId ?? ''}:${b.stepId ?? ''}:${b.profileId ?? ''}`,
