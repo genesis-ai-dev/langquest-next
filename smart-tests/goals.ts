@@ -30,3 +30,14 @@ export const askToRecord = (label: string, person: string) =>
 export const searchMap = (query: string) =>
   `Go to the Map. In its search box, type exactly "${query}", then open the first passage that the search shows. ` +
   'Stop when that passage is open.';
+
+export const buildFlow = () =>
+  'You manage review flows for one language. On the Manage tab, open the project, then its only language, and from ' +
+  'that language\'s own page open its review flow (a flow for the whole organization or project cannot be edited). ' +
+  'Edit the flow. Remove any steps already there. Add a first step with Peer Review, and alongside it, in the same step, Back Translation. ' +
+  'Then add a second step with Consultant Check and make that step a checkpoint. Save the flow. Stop when the flow is saved.';
+
+export const checkKindLooksGood = (label: string) =>
+  `You are a reviewer. From My Work, review the version of "${label}" you were asked to review. ` +
+  'Play the recording first. Answer the required question (it is accurate, so rate it high) and leave the optional ones. ' +
+  'It looks good: send it as looking good. Stop when it is sent.';

@@ -6,7 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  applyOrgEvent, emptyOrgState, foldOrg, instantiateQuestionSet, ORG_PARTITION, QUESTION_TEMPLATES, questionSetMaterialId, REDUCER_VERSION, SEED_ROLES,
+  applyOrgEvent, CATALOG_VERSION, emptyOrgState, foldOrg, instantiateFlowV2, instantiateQuestionSet, ORG_PARTITION, QUESTION_TEMPLATES, questionSetMaterialId, REDUCER_VERSION, SEED_ROLES,
   type EventPayloads, type EventType, type OrgState
 } from '@langquest-next/core';
 import { MemoryStore, SupabaseTransport, SyncClient, type Materializer } from '@langquest-next/client';
@@ -44,6 +44,8 @@ export interface World {
 export interface SubmittedWorld extends World {
   reviewer: Person;
   stepId: string;
+  /** With `v2Flow`: the one kind the step holds. */
+  kindId?: string;
   /** Required questions the reviewer must answer or skip, as `${materialId}#${fieldId}`. */
   requiredQuestionIds: string[];
   version1: { takeId: string; hash: string };
@@ -114,7 +116,7 @@ export async function seedTranslatorWorld(options: { reviewer?: boolean; coordin
     ...passages.map((p) => intent('v1.AssignmentMade', { unitId: p.unitId, laneId, profileId: translator.id, role: 'translator' }))
   ], 'project');
 
-  for (const p of [translator, reviewer, coordinator]) if (p) await firstRunDone(p);
+  for (const p of [owner, translator, reviewer, coordinator]) if (p) await firstRunDone(p);
   return { orgId, projectId, laneId, passages, owner, translator, unassigned,
     ...(reviewer ? { reviewer } : {}), ...(coordinator ? { coordinator } : {}) };
 }
@@ -142,12 +144,15 @@ async function firstRunDone(who: Person) {
  * exactly as the app uploads it (so the storage trigger confirms it).
  * With `feedback`, the reviewer has already asked for changes on it.
  */
-export async function seedSubmittedWorld(options: { feedback?: string } = {}): Promise<SubmittedWorld> {
+export async function seedSubmittedWorld(options: { feedback?: string; v2Flow?: boolean } = {}): Promise<SubmittedWorld> {
   const world = await seedTranslatorWorld({ reviewer: true });
   const reviewer = world.reviewer!;
   const { orgId, projectId, laneId, owner, translator } = world;
   const unitId = world.passages[0]!.unitId;
-  const stepId = 'community';
+  // v2Flow: the lane runs the ready-made "One check" flow (one v2 step, Peer Review).
+  const flow = options.v2Flow ? instantiateFlowV2('one_check', laneId) : [];
+  const stepId = flow[0]?.stepId ?? 'community';
+  const kindId = flow[0]?.kindIds[0];
   const questions = instantiateQuestionSet('community_check', laneId);
   const materialId = questionSetMaterialId('community_check');
   const template = QUESTION_TEMPLATES.find((q) => q.id === 'community_check')!;
@@ -155,6 +160,8 @@ export async function seedSubmittedWorld(options: { feedback?: string } = {}): P
   const owners = clientFor(owner, orgId, projectId);
   await owners.load();
   await commit(owners, [
+    ...(options.v2Flow ? [intent('v1.LaneFlowSelected', { laneId, flowId: 'one_check', catalogVersion: CATALOG_VERSION }),
+      ...flow.map((payload) => intent('v2.WorkflowStepSet', payload))] : []),
     ...questions.map((q) => intent(q.type, q.payload)),
     intent('v1.StepQuestionSetLinked', { stepId, materialId }),
     intent('v1.AssignmentMade', { unitId, laneId, profileId: reviewer.id, role: 'reviewer' })
@@ -184,7 +191,7 @@ export async function seedSubmittedWorld(options: { feedback?: string } = {}): P
     await commit(reviewers, [intent('v1.ReviewSubmitted', { takeId, stepId, decision: 'suggest_changes', comment: options.feedback,
       answers: Object.fromEntries(requiredQuestionIds.map((id) => [id, '2'])) })], 'feedback');
   }
-  return { ...world, reviewer, stepId, requiredQuestionIds, version1: { takeId, hash } };
+  return { ...world, reviewer, stepId, ...(kindId ? { kindId } : {}), requiredQuestionIds, version1: { takeId, hash } };
 }
 
 /** Open the app signed in as `who`, on the seeded project, and wait for the device log. */

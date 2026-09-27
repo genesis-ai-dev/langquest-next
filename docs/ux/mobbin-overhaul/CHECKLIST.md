@@ -105,16 +105,16 @@ Proposed in `analysis-event-model.md` §4, in order. Each needs a type, validati
 (core and SQL, in one migration), a reducer case, a privilege, and
 permutation/idempotence fixtures.
 
-- [ ] `v2.WorkflowStepSet {kindIds, checkpoint}` + seed kinds → J-CFG-3/4/5, parallel kinds, checkpoint lock, done rule
-- [ ] `v1.CheckRecorded` → per-kind reviews across versions, feedback answered
+- [~] `v2.WorkflowStepSet {kindIds, checkpoint}` + seed kinds → J-CFG-3/4/5, parallel kinds, checkpoint lock, done rule (core, SQL `20260927000001_flow_kinds.sql`, flow editor and record UI; journey "admin builds a flow" added, see verdict in the 2b-A report)
+- [~] `v1.CheckRecorded` → per-kind reviews (reset per version), feedback answered (core, SQL `20260927000002_check_recorded.sql`, review_capture emits it on v2 steps; journey "reviewer checks a kind" added)
 - [ ] `v1.StepSetAside`, `v1.CheckpointOverridden`, `v1.DepartureUndone` → J-REC-5/6/7, toast Undo
 - [ ] `v1.FeedbackKept` → J-REC-4 "Keep it, say why"
 - [ ] `v1.RequestMade`, `v1.RequestWithdrawn` → J-REC-10 ask someone, precise For you / Waiting on others
 - [ ] `v1.CheckLogged` → J-REC-11 Log what happened
 - [ ] `v1.ContentProduced` → J-BT-1/2 in ordinary lanes, J-REV-1 compare
 - [ ] `v1.ContextItemAdded` → J-STUDY-2/3 notes, tray notes, verse notes, version change note
-- [ ] `v1.ReviewKindDefined` → J-CFG-6, J-REV-3 withholds context
-- [ ] Spoken Oral Method catalog flow (new flow id) → S0–S7
+- [~] `v1.ReviewKindDefined` → J-CFG-6 (project partition; new kinds from the flow editor picker). J-REV-3 withholds context not built
+- [~] Spoken Oral Method catalog flow (`spoken_oral_method`, v2 steps) → S0–S7 journeys not walked
 
 ## Phase 3: server work
 

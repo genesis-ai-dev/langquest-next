@@ -1,5 +1,5 @@
 import {
-  accountForDriver, judgeAsk, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeReview, judgeSavedVersion,
+  accountForDriver, judgeAsk, judgeCheck, judgeFlow, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeReview, judgeSavedVersion,
   type DeviceRow, type LogEvidence, type RecordingEvidence, type ServerRow
 } from './outcome';
 
@@ -309,5 +309,79 @@ describe('map search oracle', () => {
 
   it('is inconclusive when the query was typed but nothing was opened', () => {
     expect(judgeMapSearch(contract, { typed: ['luk 1'], recentBefore: [], recentAfter: [] }).verdict).toBe('inconclusive');
+  });
+});
+
+describe('flow with kinds together and a checkpoint oracle', () => {
+  const contract = { adminId: 'owner', laneId: 'L1' };
+  const step = (id: string, payload: Record<string, unknown>, over: Partial<DeviceRow> = {}, actorId = 'owner') =>
+    row(id, 'v2.WorkflowStepSet', actorId, { stepId: payload['stepId'] ?? id, laneId: 'L1', order: 's00', kindIds: ['kind@1/peer'], checkpoint: false, ...payload }, over);
+  const good = () => [step('a', { kindIds: ['kind@1/peer', 'kind@1/back_translation'] }), step('b', { order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true })];
+
+  it('passes on confirmed steps with two kinds together and a checkpoint', () => {
+    expect(judgeFlow(contract, log(good())).verdict).toBe('passed');
+  });
+
+  it('fails when the kinds were put in separate steps, or no step is a checkpoint', () => {
+    // Why (J-CFG-3): "Together" is the point; two single-kind steps is a different flow.
+    expect(judgeFlow(contract, log([step('a', {}), step('c', { stepId: 'c', kindIds: ['kind@1/back_translation'] }), good()[1]!])).verdict).toBe('product_failure');
+    expect(judgeFlow(contract, log([good()[0]!])).verdict).toBe('product_failure');
+  });
+
+  it('does not count a step later removed, a later edit that splits the kinds, another lane, or someone else', () => {
+    const removed = row('rm', 'v1.WorkflowStepRemoved', 'owner', { stepId: 'a' });
+    expect(judgeFlow(contract, log([...good(), removed])).verdict).toBe('product_failure');
+    expect(judgeFlow(contract, log([...good(), step('a2', { stepId: 'a', kindIds: ['kind@1/peer'] })])).verdict).toBe('product_failure');
+    expect(judgeFlow(contract, log(good().map((r) => ({ ...r, event: { ...r.event, payload: { ...r.event.payload, laneId: 'L2' } } })))).verdict).toBe('inconclusive');
+    expect(judgeFlow(contract, log([step('a', { kindIds: ['kind@1/peer', 'x'] }, {}, 'other'), step('b', { checkpoint: true }, {}, 'other')])).verdict).toBe('inconclusive');
+  });
+
+  it('fails when a step is pending, missing on the server, or anything was rejected', () => {
+    expect(judgeFlow(contract, log([good()[0]!, { ...good()[1]!, status: 'pending' }])).verdict).toBe('product_failure');
+    expect(judgeFlow(contract, { ...log(good()), server: onServer([]) }).verdict).toBe('product_failure');
+    expect(judgeFlow(contract, log([...good(), row('x', 'v1.ReviewKindDefined', 'owner', {}, { status: 'rejected', rejectReason: 'no' })])).verdict).toBe('product_failure');
+  });
+
+  it('is inconclusive when nobody touched the flow', () => {
+    expect(judgeFlow(contract, log([])).verdict).toBe('inconclusive');
+  });
+});
+
+describe('check of a kind oracle', () => {
+  const contract = { reviewerId: 'reviewer', takeId: 't1', kindId: 'kind@1/peer', outcome: 'looks_good' as const, requiredQuestionIds: ['q#meaning'] };
+  const check = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'reviewer') =>
+    row('ck', 'v1.CheckRecorded', actorId, { checkId: 'c1', unitId: 'luke-0', laneId: 'L1', takeId: 't1', kindId: 'kind@1/peer',
+      outcome: 'looks_good', answers: { 'q#meaning': '5' }, ...payload }, over);
+
+  it('passes on a confirmed check of the kind with the required answers', () => {
+    expect(judgeCheck(contract, log([check()])).verdict).toBe('passed');
+    expect(judgeCheck(contract, log([check({ answers: {}, skippedQuestions: [{ questionId: 'q#meaning', reason: 'Not asked here' }] })])).verdict).toBe('passed');
+  });
+
+  it('fails when a v2 step got a legacy ReviewSubmitted instead of a check', () => {
+    // Why: old and new clients read reviews differently; a v2 kind needs CheckRecorded or the record never clears it.
+    const legacy = row('rv', 'v1.ReviewSubmitted', 'reviewer', { takeId: 't1', stepId: 'one_check@1/s1', decision: 'approve' });
+    expect(judgeCheck(contract, log([legacy])).verdict).toBe('product_failure');
+  });
+
+  it('fails on a skipped required question with no reason, or needs changes that says nothing', () => {
+    expect(judgeCheck(contract, log([check({ answers: {} })])).verdict).toBe('product_failure');
+    expect(judgeCheck(contract, log([check({ answers: {}, skippedQuestions: [{ questionId: 'q#meaning', reason: ' ' }] })])).verdict).toBe('product_failure');
+    const needs = { ...contract, outcome: 'needs_changes' as const };
+    expect(judgeCheck(needs, log([check({ outcome: 'needs_changes' })])).verdict).toBe('product_failure');
+    expect(judgeCheck(needs, log([check({ outcome: 'needs_changes', commentBlobHash: 'h' })])).verdict).toBe('passed');
+  });
+
+  it('does not count another take, kind or reviewer, and never passes the other outcome', () => {
+    for (const c of [check({ takeId: 't0' }), check({ kindId: 'kind@1/community' }), check({}, {}, 'owner')]) {
+      expect(judgeCheck(contract, log([c])).verdict).not.toBe('passed');
+    }
+    expect(judgeCheck(contract, log([check({ outcome: 'needs_changes', comment: 'x' })])).verdict).toBe('inconclusive');
+  });
+
+  it('fails when the check is pending, missing on the server, or anything was rejected', () => {
+    expect(judgeCheck(contract, log([check({}, { status: 'pending' })])).verdict).toBe('product_failure');
+    expect(judgeCheck(contract, { ...log([check()]), server: onServer([]) }).verdict).toBe('product_failure');
+    expect(judgeCheck(contract, log([check(), row('x', 'v1.ReviewCommentRecorded', 'reviewer', {}, { status: 'rejected', rejectReason: 'no' })])).verdict).toBe('product_failure');
   });
 });

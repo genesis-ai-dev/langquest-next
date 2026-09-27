@@ -246,6 +246,83 @@ export function judgeAsk(contract: AskContract, evidence: LogEvidence): Outcome 
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
+// ---- Phase 2a journeys: flows of kinds, checks of a kind ------------------
+
+export interface FlowContract { adminId: string; laneId: string }
+
+/**
+ * An admin built a flow with two kinds together in one step and a
+ * checkpoint: after the journey, the lane's v2 steps as the admin last set
+ * them include one with at least two kinds and one marked as a checkpoint,
+ * every such event is confirmed on the server, and nothing was rejected.
+ * Later edits of a step win (register per step), and removed steps do not count.
+ */
+export function judgeFlow(contract: FlowContract, evidence: LogEvidence): Outcome {
+  const sets = evidence.device.filter((r) => r.event.type === 'v2.WorkflowStepSet' && r.event.actorId === contract.adminId
+    && r.event.payload['laneId'] === contract.laneId);
+  const removed = new Set(evidence.device.filter((r) => r.event.type === 'v1.WorkflowStepRemoved')
+    .map((r) => String(r.event.payload['stepId'])));
+  const last = new Map<string, DeviceRow>();
+  for (const r of sets) last.set(String(r.event.payload['stepId']), r); // device log order is append order
+  const live = [...last.values()].filter((r) => !removed.has(String(r.event.payload['stepId'])));
+  const kindsOf = (r: DeviceRow) => (r.event.payload['kindIds'] as unknown[] | undefined) ?? [];
+  const together = live.filter((r) => new Set(kindsOf(r)).size >= 2);
+  const checkpoint = live.filter((r) => r.event.payload['checkpoint'] === true);
+  const checks: Check[] = [
+    { name: 'flow-steps-in-device-log', ok: live.length > 0, detail: `${sets.length} v2 step event(s), ${live.length} live step(s)` },
+    { name: 'flow-has-kinds-together', ok: together.length > 0,
+      detail: live.map((r) => `${String(r.event.payload['stepId'])}: ${kindsOf(r).join(' + ')}`).join('; ') || undefined },
+    { name: 'flow-has-checkpoint', ok: checkpoint.length > 0 },
+    rejectedCheck(evidence.device),
+    { name: 'flow-reached-server', ok: synced([...together, ...checkpoint], evidence.server),
+      detail: `device status: ${live.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = sets.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface CheckContract {
+  reviewerId: string; takeId: string; kindId: string;
+  outcome: 'looks_good' | 'needs_changes';
+  /** Each needs an answer or a skipped-question reason. */
+  requiredQuestionIds: string[];
+}
+
+/**
+ * A reviewer checked one kind on a v2 flow: a CheckRecorded by them for that
+ * take and kind with the outcome asked for (needs changes says what), every
+ * required question answered or skipped with a reason, confirmed on the
+ * server. A legacy ReviewSubmitted is not a check of a kind.
+ */
+export function judgeCheck(contract: CheckContract, evidence: LogEvidence): Outcome {
+  const mine = evidence.device.filter((r) => r.event.type === 'v1.CheckRecorded' && r.event.actorId === contract.reviewerId
+    && r.event.payload['takeId'] === contract.takeId && r.event.payload['kindId'] === contract.kindId);
+  const decided = mine.filter((r) => r.event.payload['outcome'] === contract.outcome);
+  const complete = decided.filter((r) => {
+    const answers = (r.event.payload['answers'] as Record<string, string> | undefined) ?? {};
+    const skipped = ((r.event.payload['skippedQuestions'] as { questionId: string; reason: string }[] | undefined) ?? [])
+      .filter((q) => String(q.reason ?? '').trim() !== '').map((q) => q.questionId);
+    const saysWhat = String(r.event.payload['comment'] ?? '').trim() !== '' || String(r.event.payload['commentBlobHash'] ?? '') !== '';
+    return (contract.outcome === 'looks_good' || saysWhat)
+      && contract.requiredQuestionIds.every((id) => (answers[id] ?? '') !== '' || skipped.includes(id));
+  });
+  const legacy = evidence.device.filter((r) => r.event.type === 'v1.ReviewSubmitted' && r.event.actorId === contract.reviewerId
+    && r.event.payload['takeId'] === contract.takeId);
+  const checks: Check[] = [
+    { name: 'check-in-device-log', ok: decided.length > 0,
+      detail: `${mine.length} check(s): ${mine.map((r) => String(r.event.payload['outcome'])).join(', ') || 'none'}${legacy.length ? `; ${legacy.length} legacy ReviewSubmitted` : ''}` },
+    { name: 'check-answers-required-questions', ok: complete.length > 0,
+      detail: decided.map((r) => `answers=${JSON.stringify(r.event.payload['answers'] ?? {})} skipped=${JSON.stringify(r.event.payload['skippedQuestions'] ?? [])}`).join('; ') || undefined },
+    rejectedCheck(evidence.device),
+    { name: 'check-reached-server', ok: synced(complete, evidence.server), detail: `device status: ${decided.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  // A legacy review on a v2 step is the product emitting the wrong fact.
+  const exercised = decided.length > 0 || legacy.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
 export interface SearchContract {
   /** Exactly what the user types, e.g. "luk 1". */
   query: string;
