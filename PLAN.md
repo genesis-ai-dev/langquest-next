@@ -581,9 +581,10 @@ step or work out of order, and each departure is recorded with a reason
 ("comply or explain"). The only hard stops are steps marked as checkpoints,
 and someone with authority can override one, with the reason logged.
 
-**Levels.** Org › project › language stays for now. Settings live only on
-the project and language, and their screens always name what is being
-edited. The org screen lists projects and members. Research item: can the
+**Levels.** Org › project › language stays for now. Settings (templates,
+reference material, review flows) may be set at any level, and a lower
+level adds to or narrows what it inherits (decided 2026-09-26, following the
+UX reference). Their screens always name the level being edited. The org screen lists projects and members. Research item: can the
 project level be dropped (org › language)?
 
 **Navigation.** Tabs: My Work, Map, Manage (admins only), Inbox, Settings.
@@ -673,8 +674,7 @@ takes together; passage notes are a mic button here). *Reference* (key
 terms, source text, study, other material). *Hand off* (the yellow action).
 Review questions move to the reviewer's check screen.
 
-**Hidden until someone needs them:** review teams, the roles editor, and
-settings rows repeated at the org level.
+**Hidden until someone needs them:** review teams and the roles editor.
 
 ### 16.1 Rules for the new events
 
