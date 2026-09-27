@@ -305,3 +305,140 @@ describe('map passages', () => {
     expect(mapPassages(state(l.events), 'L')[0]).toMatchObject({ done: true, waiting: false, cleared: 2 });
   });
 });
+
+describe('passage record: v2 flows with kinds and checkpoints', () => {
+  /** Replace the v1 steps of lane L with a v2 flow: peer + back translation together, a consultant checkpoint, then a local check. */
+  function v2Log() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer', 'kind@1/back_translation'], checkpoint: false });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's2', laneId: 'L', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's3', laneId: 'L', order: 's02', kindIds: ['kind@1/local'], checkpoint: false });
+    return l;
+  }
+
+  it('a step lists its kinds by catalog name, and an unknown kind reads as its id', () => {
+    // Why (analysis R6): a kind defined elsewhere, or not yet synced, must
+    // render and never throw, or one missing fact blanks the whole record.
+    const l = v2Log();
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's4', laneId: 'L', order: 's03', kindIds: ['not-synced-yet'], checkpoint: false });
+    l.version('t1');
+    const rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps.map((s) => [s.stepId, s.kinds.map((k) => k.name), s.checkpoint])).toEqual([
+      ['s1', ['Peer Review', 'Back Translation'], false],
+      ['s2', ['Consultant Check'], true],
+      ['s3', ['Local Check'], false],
+      ['s4', ['not-synced-yet'], false]
+    ]);
+    expect(rec.steps[0]!.kinds[1]!.produces).toMatchObject({ checkedByKindId: 'kind@1/consultant' });
+    expect(rec.steps[0]!.label).toBe('Peer Review + Back Translation');
+  });
+
+  it('an uncleared checkpoint locks every later step; clearing it unlocks them', () => {
+    // Why (PLAN 16): the checkpoint is the only hard stop. Later steps wait
+    // for it, so the record must not suggest the local check before the consultant.
+    const l = v2Log();
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer'], checkpoint: false });
+    const v1 = l.version('t1');
+    l.review('r1', v1, 's1', 'approve');
+    let rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps.map((s) => [s.state, s.lockedBy])).toEqual([['complete', null], ['current', null], ['locked', 's2']]);
+    expect(rec.next).toEqual({ group: 1, stepIds: ['s2'] });
+    expect(rec.done).toBe(false);
+
+    l.review('c1', v1, 's2', 'approve');
+    rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps.map((s) => s.state)).toEqual(['complete', 'complete', 'current']);
+    l.review('r2', v1, 's3', 'approve');
+    rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.done).toBe(true);
+    expect(rec.steps.every((s) => s.kinds.every((k) => !k.outOfOrder))).toBe(true);
+  });
+
+  it('a check past an uncleared checkpoint is kept and counts, flagged out of order', () => {
+    // Why (PLAN 16.1 rule 6): checkpoints are enforced by derivation, never
+    // refusal. An older client may check a later step; the record stays honest.
+    const l = v2Log();
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer'], checkpoint: false });
+    const v1 = l.version('t1');
+    l.review('r1', v1, 's1', 'approve');
+    l.review('r2', v1, 's3', 'approve');
+    let rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps[2]).toMatchObject({ state: 'complete', lockedBy: null });
+    expect(rec.steps[2]!.kinds[0]).toMatchObject({ state: 'approved', outOfOrder: true });
+    expect(rec.done).toBe(false);
+    // The consultant clears it later: the early local check stays flagged,
+    // because it was made before the checkpoint cleared.
+    l.review('c1', v1, 's2', 'approve');
+    rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.done).toBe(true);
+    expect(rec.steps[2]!.kinds[0]!.outOfOrder).toBe(true);
+  });
+
+  it('a new version resets every kind, checkpoint included', () => {
+    // Why (Ryder, 2026-09-25): a checkpoint certifies the audio that ships.
+    const l = v2Log();
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer'], checkpoint: false });
+    const v1 = l.version('t1');
+    for (const [who, step] of [['r1', 's1'], ['c1', 's2'], ['r2', 's3']] as const) l.review(who, v1, step, 'approve');
+    expect(derivePassageRecord(state(l.events), 'p1', 'L', 't1').done).toBe(true);
+    l.version('t1', 'p1', v1);
+    const rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.done).toBe(false);
+    expect(rec.steps.map((s) => s.state)).toEqual(['current', 'todo', 'locked']);
+  });
+
+  it('language progress counts cleared steps per v2 step, labelled by kind', () => {
+    const l = v2Log();
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/peer'], checkpoint: false });
+    const v1 = l.version('t1');
+    l.review('r1', v1, 's1', 'approve');
+    expect(languageProgress(state(l.events), 'L').steps).toEqual([
+      { stepId: 's1', label: 'Peer Review', cleared: 1 },
+      { stepId: 's2', label: 'Consultant Check', cleared: 0 },
+      { stepId: 's3', label: 'Local Check', cleared: 0 }
+    ]);
+  });
+
+  it('"Collect only" has no steps: a passage is done once recorded, without inheriting project steps', () => {
+    // Why (ADR-004): a lane that chose no reviews must not fall back to the
+    // project's or the default config's steps and wait on a review forever.
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v1.LaneFlowSelected', { laneId: 'L', flowId: 'collect_only', catalogVersion: 1 });
+    expect(derivePassageRecord(state(l.events), 'p1', 'L', 't1').done).toBe(false);
+    l.version('t1');
+    const rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps).toEqual([]);
+    expect(rec.done).toBe(true);
+  });
+
+  it('a v1 step reads as one kind with its quorum kept, and optional steps do not hold up done', () => {
+    // Why (D1): existing lanes keep their meaning; required: false stays optional.
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepSet', { stepId: 'approval', laneId: 'L', order: 'b', label: 'Approval', role: 'coordinator', required: false, rule: 'any' });
+    const v1 = l.version('t1');
+    l.review('r1', v1, 'peer', 'approve');
+    const rec = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(rec.steps.map((s) => [s.kinds.map((k) => [k.kindId, k.name, k.state]), s.legacy, s.required])).toEqual([
+      [[['peer', 'Peer Review', 'approved']], true, true],
+      [[['approval', 'Approval', 'todo']], true, false]
+    ]);
+    expect(rec.done).toBe(true);
+  });
+
+  it('any arrival order derives the same v2 record', () => {
+    const l = v2Log();
+    const v1 = l.version('t1');
+    l.review('r2', v1, 's3', 'approve');
+    l.add('lead', 'v1.ReviewKindDefined', { kindId: 'kind@1/local', name: 'Village listening' });
+    const expected = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(expected.steps[2]!.kinds[0]!.name).toBe('Village listening');
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const shuffled = [...l.events].sort((a, b) => ((a.id.charCodeAt(3) * seed) % 7) - ((b.id.charCodeAt(3) * seed) % 7) || (a.id < b.id ? 1 : -1));
+      expect(derivePassageRecord(state(shuffled), 'p1', 'L', 't1')).toEqual(expected);
+    }
+  });
+});

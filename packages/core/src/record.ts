@@ -1,8 +1,8 @@
-import type { Role, WorkflowStep } from './events';
+import type { KindProduces, Role, WorkflowStep } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import { deriveObt, isObtLane, OBT_LABELS, OBT_STEPS } from './obt';
 import type { Assignment, ProjectState } from './state';
-import { deriveTakeStatus, deriveWorkflow, takesFor, type StepStatus, type TakeOutcome } from './workflow';
+import { deriveFlow, deriveTakeStatus, eligibleReviewers, reviewKind, takesFor, type FlowStep, type StepStatus, type TakeOutcome } from './workflow';
 
 /**
  * The passage record read model (docs/ux/mobbin-overhaul, J-REC-*, J-WORK-*,
@@ -20,8 +20,19 @@ import { deriveTakeStatus, deriveWorkflow, takesFor, type StepStatus, type TakeO
  *   for one step is an ask for every step done by that role (fact F6 is
  *   Phase 2). A `translator` ask is an ask to record.
  * - Parallel steps are steps whose `WorkflowStepSet.order` keys are equal.
- * - Checkpoints, set-aside, overrides, kept feedback and logged reviews need
- *   new facts (Phase 2) and are absent, not faked.
+ *
+ * Phase 2 (analysis-event-model D1, D4, D6, D9-D11, adapted to approvals
+ * resetting per version):
+ * - A step holds one or more review kinds, done in either order. A v1 step
+ *   is one kind (its own id) with its quorum rule kept (`legacy`).
+ * - Kind state on the latest version: the latest check of the kind decides
+ *   (looks good -> approved; needs changes -> suggestions, or addressed once
+ *   answered); else asked; else todo.
+ * - A checkpoint step not complete locks every later step. Checks made on a
+ *   locked step still count and are flagged `outOfOrder` (never refused).
+ * - Done = recorded and every non-optional step complete or overridden.
+ * - Set-aside, overrides and kept feedback arrive with their own facts
+ *   (slice B); `stepOverridden` and `kindSetAside` are their hooks.
  * - OBT lanes keep `deriveObt` (analysis-event-model D13): the record marks
  *   them `obt` and leaves steps and feedback empty.
  */
@@ -45,6 +56,10 @@ export interface RecordVersion {
 export interface RecordReview {
   takeId: string;
   stepId: string;
+  /** The review kind checked. A legacy ReviewSubmitted's kind is its step id. */
+  kindId: string;
+  /** `app` for CheckRecorded; `legacy` for v1.ReviewSubmitted. */
+  via: 'app' | 'legacy';
   reviewerId: string;
   decision: 'approve' | 'suggest_changes';
   comment?: string;
@@ -96,15 +111,50 @@ export interface RecordAsk {
  * - waiting: someone was asked and has not decided on the latest version
  * - current: the suggested next step
  * - todo: later, not blocked
- * - locked: nothing recorded yet, so nothing to review
+ * - locked: nothing recorded yet, or an earlier checkpoint has not cleared (`lockedBy`)
  */
 export type RecordStepState = 'complete' | 'attention' | 'waiting' | 'current' | 'todo' | 'locked';
+
+/**
+ * A review kind's state on the latest version (D4).
+ * - approved: its latest check looks good
+ * - suggestions: its latest check needs changes, not yet answered
+ * - addressed: needs changes, answered (kept feedback, slice B)
+ * - skipped: set aside with a reason (slice B)
+ * - recorded: a producing kind made its content (later slice)
+ * - asked: someone was asked and has not checked it
+ * - todo: nothing yet
+ * - locked: an earlier checkpoint has not cleared, and nobody checked it yet
+ */
+export type RecordKindState = 'approved' | 'suggestions' | 'addressed' | 'skipped' | 'recorded' | 'asked' | 'todo' | 'locked';
+
+export interface RecordKind {
+  kindId: string;
+  name: string;
+  icon?: string;
+  produces?: KindProduces;
+  withholdsContext?: boolean;
+  state: RecordKindState;
+  /** Checks of this kind on the latest version, oldest first. */
+  checks: RecordReview[];
+  /** Checked before an earlier checkpoint cleared (a derived departure, D6). */
+  outOfOrder: boolean;
+}
 
 export interface RecordStep {
   stepId: string;
   label: string;
   role: Role;
+  /** Not optional: counts toward done. */
   required: boolean;
+  /** A hard stop: later steps are locked until it is complete or overridden. */
+  checkpoint: boolean;
+  /** The kinds in this step, in either order ("Together" when more than one). */
+  kinds: RecordKind[];
+  /** The checkpoint step that locks this step, when it is locked by one. */
+  lockedBy: string | null;
+  /** A v1 step: quorum by role, one kind. */
+  legacy: boolean;
   /** Steps with the same group index share an order key: either order. */
   group: number;
   state: RecordStepState;
@@ -183,7 +233,7 @@ function reviewsOf(state: ProjectState, takeId: string): RecordReview[] {
       const r = reg.value;
       const voiceHash = state.reviewComments[takeId]?.[stepId]?.[reviewerId]?.blobHash;
       out.push({
-        takeId, stepId, reviewerId, decision: r.decision, at: reg.hlc, eventId: reg.eventId,
+        takeId, stepId, kindId: stepId, via: 'legacy', reviewerId, decision: r.decision, at: reg.hlc, eventId: reg.eventId,
         ...(r.comment !== undefined ? { comment: r.comment } : {}),
         ...(r.answers !== undefined ? { answers: r.answers } : {}),
         ...(voiceHash !== undefined ? { voiceHash } : {})
@@ -216,16 +266,13 @@ function draftOf(state: ProjectState, unitId: string, laneId: string, idx: Index
   return { takeId: id, authorId: t.actorId, cards: t.cardHashes.length, at: t.hlc };
 }
 
-/** Workflow steps with their order key, so equal keys can form a parallel group. */
-function stepsWithGroups(state: ProjectState, laneId: string): { step: WorkflowStep; group: number }[] {
-  const workflow = deriveWorkflow(state, laneId);
+/** Flow steps with a group index: equal order keys form a parallel group (legacy v1 parallelism). */
+function stepsWithGroups(state: ProjectState, laneId: string): { step: FlowStep; group: number }[] {
   let group = -1;
   let prev: string | undefined;
-  return workflow.map((step, i) => {
-    // Config-document steps have no order key: each is its own group.
-    const order = state.workflowSteps[step.id]?.step.value.order ?? `#${i}`;
-    if (order !== prev) group++;
-    prev = order;
+  return deriveFlow(state, laneId).map((step) => {
+    if (step.order !== prev) group++;
+    prev = step.order;
     return { step, group };
   });
 }
@@ -249,6 +296,45 @@ function asksFor(state: ProjectState, assignments: Assignment[], workflow: Workf
     .sort((x, y) => byClock({ at: x.at, id: x.profileId + x.role }, { at: y.at, id: y.profileId + y.role }));
 }
 
+/** The legacy (role and quorum) view of a flow step, for asks and old callers. */
+function legacyStep(step: FlowStep): WorkflowStep {
+  return step.legacy ?? { id: step.id, role: 'reviewer', required: !step.optional, rule: 'any', ...(step.label !== undefined ? { label: step.label } : {}) };
+}
+
+/**
+ * Hook for slice B (`v1.CheckpointOverridden` + `v1.DepartureUndone`): an
+ * active override of this step on this passage. No such fact exists yet.
+ */
+function stepOverridden(_state: ProjectState, _unitId: string, _laneId: string, _stepId: string): boolean {
+  return false;
+}
+
+/** Hook for slice B (`v1.StepSetAside`): an active set-aside of this kind or step. */
+function kindSetAside(_state: ProjectState, _unitId: string, _laneId: string, _stepId: string, _kindId: string): boolean {
+  return false;
+}
+
+/**
+ * A v2 step's reviewer view for screens that list who may still check it:
+ * eligible = the usual reviewers (an assignment, else the reviewer role;
+ * the privilege `review` is what the server checks); approved / rejected
+ * from checks on the latest version; waiting = eligible without a check.
+ */
+function v2Status(state: ProjectState, unitId: string, laneId: string, step: FlowStep, kinds: RecordKind[], idx: Indexes): StepStatus {
+  const eligible = eligibleReviewers(state, unitId, laneId, legacyStep(step), idx);
+  const checks = kinds.flatMap((k) => k.checks);
+  const latestBy = new Map<string, RecordReview>();
+  for (const c of checks) latestBy.set(c.reviewerId, c);
+  const approved = [...latestBy.values()].filter((c) => c.decision === 'approve').map((c) => c.reviewerId).sort();
+  const rejected = [...latestBy.values()].filter((c) => c.decision === 'suggest_changes').map((c) => c.reviewerId).sort();
+  const complete = kinds.every((k) => k.state === 'approved' || k.state === 'recorded' || k.state === 'addressed' || k.state === 'skipped');
+  return {
+    stepId: step.id, required: !step.optional, eligible, approved, rejected,
+    waitingOn: complete ? [] : eligible.filter((id) => !latestBy.has(id)),
+    outcome: complete ? 'passed' : rejected.length > 0 && approved.length === 0 ? 'failed' : 'pending'
+  };
+}
+
 /**
  * Everything the passage record shows, for one person. `actorId` only
  * changes wording facets (`feedbackIsMine`, `turn.mine`); the facts are the
@@ -267,38 +353,86 @@ export function derivePassageRecord(
   const recorded = latest !== null;
   const draft = draftOf(state, unitId, laneId, idx);
   const grouped = obt ? [] : stepsWithGroups(state, laneId);
-  const workflow = grouped.map((g) => g.step);
+  const workflow = grouped.map((g) => legacyStep(g.step));
   const asks = asksFor(state, idx.assignmentsByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [], workflow, latest, versions);
 
   const status = latest ? deriveTakeStatus(state, latest.takeId, idx) : null;
   const outcome = status?.outcome ?? null;
-  const done = obt ? deriveObt(state, unitId, laneId).stage === 'complete' : outcome === 'approved';
 
+  const answeredOnLatest = !!latest && takesFor(state, unitId, laneId, idx).some((t) => state.responses[t]?.respondsToTakeId === latest.takeId);
   const feedback: RecordFeedback[] = obt || !latest ? [] : latest.reviews
     .filter((r) => r.decision === 'suggest_changes')
-    .map((r) => ({
-      ...r,
-      answered: versions.some((v) => v.at > latest.at) ||
-        takesFor(state, unitId, laneId, idx).some((t) => state.responses[t]?.respondsToTakeId === latest.takeId)
-    }));
+    .map((r) => ({ ...r, answered: versions.some((v) => v.at > latest.at) || answeredOnLatest }));
   const openFeedback = feedback.filter((f) => !f.answered);
   const feedbackIsMine = openFeedback.length > 0 && latest?.authorId === actorId;
 
   const stepStatus = new Map((status?.steps ?? []).map((s) => [s.stepId, s]));
   const openAsks = asks.filter((a) => a.kind === 'review' && !a.satisfied);
+  const latestChecks = latest?.reviews ?? [];
+
+  // D6: walk the steps in order. An uncleared checkpoint locks what follows;
+  // a cleared one still flags later checks made before it cleared.
+  let gate: string | null = null;
+  let clearedAt = '';
   const base = grouped.map(({ step, group }) => {
-    const st = stepStatus.get(step.id) ?? null;
     const askedOf = [...new Set(openAsks.filter((a) => a.stepIds.includes(step.id)).map((a) => a.profileId))].sort();
-    const attention = st?.outcome === 'failed' || openFeedback.some((f) => f.stepId === step.id);
+    const legacy = step.legacy !== undefined;
+    const lockedBy = recorded ? gate : null;
+    const kinds = step.kindIds.map((kindId): RecordKind => {
+      const def = reviewKind(state, kindId, legacy ? step.label : undefined);
+      const checks = latestChecks.filter((c) => legacy
+        ? c.stepId === step.id
+        : c.via === 'app'
+          ? c.kindId === kindId && (c.stepId === step.id || c.stepId === kindId)
+          // A legacy review names a step, not a kind: it counts for a single-kind step.
+          : c.stepId === step.id && step.kindIds.length === 1);
+      const last = checks[checks.length - 1];
+      let kstate: RecordKindState;
+      if (!recorded) kstate = 'todo';
+      else if (legacy) {
+        const st = stepStatus.get(step.id);
+        kstate = st?.outcome === 'passed' ? 'approved'
+          : st?.outcome === 'failed' || openFeedback.some((f) => f.stepId === step.id) ? 'suggestions'
+          : askedOf.length > 0 ? 'asked' : 'todo';
+      } else if (last?.decision === 'approve') kstate = 'approved';
+      else if (last?.decision === 'suggest_changes') kstate = answeredOnLatest ? 'addressed' : 'suggestions';
+      else if (kindSetAside(state, unitId, laneId, step.id, kindId)) kstate = 'skipped';
+      else if (askedOf.length > 0) kstate = 'asked';
+      else kstate = 'todo';
+      const outOfOrder = recorded && checks.length > 0 && (lockedBy !== null || checks.some((c) => c.at < clearedAt));
+      if (lockedBy !== null && checks.length === 0) kstate = 'locked';
+      return {
+        kindId, name: def.name, state: kstate, checks, outOfOrder,
+        ...(def.icon !== undefined ? { icon: def.icon } : {}),
+        ...(def.produces !== undefined ? { produces: def.produces } : {}),
+        ...(def.withholdsContext !== undefined ? { withholdsContext: def.withholdsContext } : {})
+      };
+    });
+    const complete = recorded && kinds.length > 0 && kinds.every((k) => step.checkpoint
+      ? k.state === 'approved' || k.state === 'recorded'
+      : k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded');
+    const touched = kinds.some((k) => k.checks.length > 0);
     const state_: RecordStepState = !recorded ? 'locked'
-      : st?.outcome === 'passed' ? 'complete'
-      : attention ? 'attention'
-      : askedOf.length > 0 ? 'waiting'
+      : complete ? 'complete'
+      : lockedBy !== null && !touched ? 'locked'
+      : kinds.some((k) => k.state === 'suggestions') ? 'attention'
+      : askedOf.length > 0 || kinds.some((k) => k.state === 'asked') ? 'waiting'
       : 'todo';
-    return { stepId: step.id, label: step.label ?? step.id, role: step.role, required: step.required, group, state: state_, status: st, askedOf };
+    if (step.checkpoint && recorded) {
+      if (!complete && !stepOverridden(state, unitId, laneId, step.id)) gate ??= step.id;
+      else if (complete) for (const k of kinds) for (const c of k.checks) if (c.decision === 'approve' && c.at > clearedAt) clearedAt = c.at;
+    }
+    const st = legacy ? stepStatus.get(step.id) ?? null : latest ? v2Status(state, unitId, laneId, step, kinds, idx) : null;
+    return {
+      stepId: step.id, label: step.label ?? (kinds.length === 1 ? kinds[0]!.name : kinds.map((k) => k.name).join(' + ')),
+      role: legacyStep(step).role, required: !step.optional, checkpoint: step.checkpoint, kinds,
+      lockedBy: state_ === 'locked' ? lockedBy : null, legacy, group, state: state_, status: st, askedOf
+    };
   });
-  const nextStep = recorded && !done ? base.find((s) => s.state !== 'complete') : undefined;
-  const next = nextStep ? { group: nextStep.group, stepIds: base.filter((s) => s.group === nextStep.group && s.state !== 'complete').map((s) => s.stepId) } : null;
+  const done = obt ? deriveObt(state, unitId, laneId).stage === 'complete'
+    : recorded && base.every((s) => !s.required || s.state === 'complete' || stepOverridden(state, unitId, laneId, s.stepId));
+  const nextStep = recorded && !done ? base.find((s) => s.state !== 'complete' && s.state !== 'locked') : undefined;
+  const next = nextStep ? { group: nextStep.group, stepIds: base.filter((s) => s.group === nextStep.group && s.state !== 'complete' && s.state !== 'locked').map((s) => s.stepId) } : null;
   const steps: RecordStep[] = base.map((s) => (next?.stepIds.includes(s.stepId) && s.state === 'todo' ? { ...s, state: 'current' } : s));
 
   let turn: RecordTurn;
@@ -574,10 +708,10 @@ export interface LanguageProgress {
 export function languageProgress(state: ProjectState, laneId: string, idx: Indexes = buildIndexes(state)): LanguageProgress {
   const units = laneLeafUnits(state, idx, laneId);
   const obt = isObtLane(state, laneId);
-  const workflow = obt ? [] : deriveWorkflow(state, laneId);
+  const flow = obt ? [] : deriveFlow(state, laneId);
   const steps = obt
     ? OBT_STEPS.map((id) => ({ stepId: id as string, label: OBT_LABELS[id], cleared: 0 }))
-    : workflow.map((s) => ({ stepId: s.id, label: s.label ?? s.id, cleared: 0 }));
+    : flow.map((s) => ({ stepId: s.id, label: s.label ?? s.kindIds.map((k) => reviewKind(state, k).name).join(' + '), cleared: 0 }));
   let recorded = 0;
   let done = 0;
   let waiting = 0;
@@ -593,7 +727,8 @@ export function languageProgress(state: ProjectState, laneId: string, idx: Index
     if (rec.recorded) recorded++;
     if (rec.done) done++;
     if (rec.asks.some((a) => a.kind === 'review' && !a.satisfied)) waiting++;
-    for (const s of steps) if (rec.steps.find((x) => x.stepId === s.stepId)?.state === 'complete') s.cleared++;
+    // D11: a step counts as cleared when complete on the latest version (or overridden, slice B).
+    for (const s of steps) if (rec.recorded && (rec.steps.find((x) => x.stepId === s.stepId)?.state === 'complete' || stepOverridden(state, unitId, laneId, s.stepId))) s.cleared++;
   }
   return { laneId, total: units.length, recorded, done, waiting, steps };
 }

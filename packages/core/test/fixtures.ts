@@ -205,6 +205,15 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.LaneTemplateSelected', { laneId: 'L2', templateId: 'book', catalogVersion: 1 });
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
   emit('dD', 'r2', 'v1.ReviewCommentRecorded', { takeId: 'take2', stepId: 'peer', blobHash: 'c1' });
+  // Phase 2: a v2 step on lane L2 whose kind is defined after it is used,
+  // the kind renamed on another device (LWW), and a v2 step removed on one
+  // device while another edits it (add-wins removal holds either way).
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'l2-s1', laneId: 'L2', order: 's00', kindIds: ['kind@1/peer', 'elder'], checkpoint: false });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'l2-s2', laneId: 'L2', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true, label: 'Consultant' });
+  emit('dA', 'lead', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elder Review' });
+  emit('dE', 'c1', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elders', icon: 'users' });
+  emit('dE', 'c1', 'v1.WorkflowStepRemoved', { stepId: 'l2-s3' });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'l2-s3', laneId: 'L2', order: 's02', kindIds: ['kind@1/local'], checkpoint: false });
 
   // Step 12: materials with per-field registers, a locked org document, the
   // community question set from the catalog linked to the peer step, a

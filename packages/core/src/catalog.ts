@@ -1,5 +1,5 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
-import type { EventPayloads, QuorumRule, Role, UnitKind } from './events';
+import type { EventPayloads, KindProduces, QuorumRule, Role, UnitKind } from './events';
 import type { ProjectState } from './state';
 
 /**
@@ -193,6 +193,109 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
 
 export function flowTemplate(id: string): FlowTemplate | undefined {
   return FLOW_TEMPLATES.find((f) => f.id === id);
+}
+
+// ---- review kinds and v2 flows (PLAN.md section 16; analysis-event-model rows 5-7)
+
+/** A review kind: catalog seed or `v1.ReviewKindDefined`. */
+export interface ReviewKind {
+  id: string;
+  name: string;
+  /** A lucide-style icon name; the UI maps it and falls back to a generic one. */
+  icon?: string;
+  description?: string;
+  withholdsContext?: boolean;
+  produces?: KindProduces;
+}
+
+export const catalogKindId = (id: string): string => `kind@${CATALOG_VERSION}/${id}`;
+
+/**
+ * Seed kinds (the reference's org vocabulary), global reference data with
+ * stable ids like `kind@1/peer`. Never rename an id; add a new one.
+ */
+export const REVIEW_KINDS: ReviewKind[] = [
+  { id: catalogKindId('peer'), name: 'Peer Review', icon: 'users', description: 'Another translator listens for accuracy and natural speech.' },
+  {
+    id: catalogKindId('back_translation'), name: 'Back Translation', icon: 'languages', withholdsContext: true,
+    produces: { what: 'back translation', language: 'eng', checkedByKindId: catalogKindId('consultant') },
+    description: 'A bilingual speaker records the passage back into English, in their own words. The Consultant Check uses it to compare meaning.'
+  },
+  { id: catalogKindId('community'), name: 'Community Check', icon: 'globe', description: 'Play it for people in the community and capture what they understood.' },
+  { id: catalogKindId('consultant'), name: 'Consultant Check', icon: 'badge-check', description: 'A consultant checks meaning against the source, verse by verse.' },
+  { id: catalogKindId('final'), name: 'Final Approval', icon: 'star', description: 'Sign-off that the passage is ready to share.' },
+  { id: catalogKindId('retell'), name: 'Retell Check', icon: 'message-circle', description: 'A listener retells the passage in their own words.' },
+  { id: catalogKindId('local'), name: 'Local Check', icon: 'map-pin', description: 'Local listeners hear the polished recording and say whether it sounds natural and acceptable.' }
+];
+
+export interface FlowStepTemplate {
+  stageId: string;
+  kindIds: string[];
+  checkpoint?: boolean;
+}
+
+export interface FlowTemplateV2 {
+  id: string;
+  name: string;
+  description: string;
+  steps: FlowStepTemplate[];
+}
+
+const k = catalogKindId;
+/**
+ * Ready-made flows that emit `v2.WorkflowStepSet`. Their ids are new, so a
+ * lane on a v1 flow (above) keeps its steps, and `spoken_worldwide` keeps
+ * its OBT chain (isObtLane keys on it).
+ */
+export const READY_FLOWS: FlowTemplateV2[] = [
+  { id: 'collect_only', name: 'Collect only', description: 'No reviews — a passage is done once it is recorded.', steps: [] },
+  { id: 'one_check', name: 'One check', description: 'A peer listens once.', steps: [{ stageId: 's1', kindIds: [k('peer')] }] },
+  {
+    id: 'consultant_checkpoint', name: 'Consultant only', description: 'A consultant must check it before sign-off.',
+    steps: [{ stageId: 's1', kindIds: [k('consultant')], checkpoint: true }, { stageId: 's2', kindIds: [k('final')] }]
+  },
+  {
+    id: 'standard_bible_v2', name: 'Standard Bible Flow',
+    description: 'Peer and back translation together, then the community, then a consultant before sign-off.',
+    steps: [
+      { stageId: 's1', kindIds: [k('peer'), k('back_translation')] },
+      { stageId: 's2', kindIds: [k('community')] },
+      { stageId: 's3', kindIds: [k('consultant')], checkpoint: true },
+      { stageId: 's4', kindIds: [k('final')] }
+    ]
+  },
+  {
+    id: 'oral_review_v2', name: 'Oral Review Path', description: 'Community playback and retelling together, then sign-off.',
+    steps: [{ stageId: 's1', kindIds: [k('community'), k('retell')] }, { stageId: 's2', kindIds: [k('final')], checkpoint: true }]
+  },
+  {
+    id: 'spoken_oral_method', name: 'Spoken Oral Method',
+    description: 'Community check on the first draft, peer review of the second, back translation, consultant sessions until approved, then a local check of the polished recording.',
+    steps: [
+      { stageId: 's1', kindIds: [k('community')] },
+      { stageId: 's2', kindIds: [k('peer')] },
+      { stageId: 's3', kindIds: [k('back_translation')] },
+      { stageId: 's4', kindIds: [k('consultant')], checkpoint: true },
+      { stageId: 's5', kindIds: [k('local')] }
+    ]
+  }
+];
+
+export function readyFlow(id: string): FlowTemplateV2 | undefined {
+  return READY_FLOWS.find((f) => f.id === id);
+}
+
+/** Every v2.WorkflowStepSet a ready-made flow implies, in step order. Ids derive from the flow, so two admins agree. */
+export function instantiateFlowV2(flowId: string, laneId: string, catalogVersion = CATALOG_VERSION): EventPayloads['v2.WorkflowStepSet'][] {
+  const f = readyFlow(flowId);
+  if (!f) throw new Error(`Unknown ready-made flow ${flowId}`);
+  return f.steps.map((s, i) => ({
+    stepId: templateStepId(flowId, catalogVersion, s.stageId),
+    laneId,
+    order: `s${pad(i, 2)}`,
+    kindIds: [...s.kindIds],
+    checkpoint: s.checkpoint === true
+  }));
 }
 
 /** UX spec reference codes (Q7): TMF, Brief, TG, FIA study, question sets. */

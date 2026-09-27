@@ -150,6 +150,32 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
   'v1.ResponseRecorded': { takeId: string; respondsToTakeId: string; note?: string; blobHash?: string };
   /** A reviewer's spoken comment on a take at a step. */
   'v1.ReviewCommentRecorded': { takeId: string; stepId: string; blobHash: string };
+  // ---- Phase 2 (docs/ux/mobbin-overhaul/analysis-event-model.md rows 5, 6, 8)
+  /**
+   * A flow step holding one or more review kinds, done in either order, and
+   * optionally a checkpoint (the only hard stop, enforced by derivation).
+   * Shares the `workflowSteps[stepId]` register with v1, last writer by HLC.
+   * New flows use new step ids, so an old client sees fewer steps, never a
+   * stale v1 definition of an edited step.
+   */
+  'v2.WorkflowStepSet': { stepId: string; laneId?: string; order: string; kindIds: string[]; checkpoint: boolean; label?: string };
+  /**
+   * A review kind in this project's vocabulary (project partition, so every
+   * reference stays inside the partition; catalog kinds are global reference
+   * data with stable ids). Register per kindId.
+   */
+  'v1.ReviewKindDefined': { kindId: string; name: string; icon?: string; withholdsContext?: boolean; produces?: KindProduces };
+}
+
+export type CheckOutcome = 'looks_good' | 'needs_changes';
+
+/** A kind that makes content instead of judging it (back translation). */
+export interface KindProduces {
+  what: string;
+  /** Language of the produced content (a languoid id or name). */
+  language: string;
+  /** The kind that checks the produced content. */
+  checkedByKindId: string;
 }
 
 export type EventType = keyof EventPayloads;

@@ -1,7 +1,63 @@
 import { deriveObt, isObtLane } from './obt';
+import { readyFlow, REVIEW_KINDS, type ReviewKind } from './catalog';
 import type { WorkflowStep } from './events';
 import { buildIndexes, unitLaneKey, type Indexes } from './indexes';
-import { DEFAULT_CONFIG, type ProjectState } from './state';
+import { DEFAULT_CONFIG, type ProjectState, type StepDef, type StepDefV2 } from './state';
+
+/**
+ * One step of the flow in force (analysis-event-model D1). A v1 register
+ * reads as a single-kind step whose kind id is its step id, never a
+ * checkpoint, with its quorum semantics kept in `legacy`. A v1 step with
+ * `required: false` is optional: shown, but not counted toward done.
+ */
+export interface FlowStep {
+  id: string;
+  order: string;
+  kindIds: string[];
+  checkpoint: boolean;
+  optional: boolean;
+  label?: string;
+  legacy?: WorkflowStep;
+}
+
+type LiveDef = StepDef | StepDefV2;
+const isV2 = (d: LiveDef): d is StepDefV2 => (d as StepDefV2).v === 2;
+
+/**
+ * The step registers in force for a lane: the lane's own if any, else the
+ * project-wide ones. A lane on a ready-made v2 flow with no steps
+ * ("Collect only") has none, rather than inheriting. `null` means no
+ * registers at all: the whole-document config applies.
+ */
+function liveDefs(state: ProjectState, laneId?: string): LiveDef[] | null {
+  const live = Object.values(state.workflowSteps).filter((s) => !s.removed && s.step.hlc !== '').map((s) => s.step.value);
+  const lane = laneId !== undefined ? live.filter((d) => d.laneId === laneId) : [];
+  if (lane.length > 0) return sortDefs(lane);
+  const flowId = laneId !== undefined ? state.laneFlows[laneId]?.value.flowId : undefined;
+  if (flowId !== undefined && readyFlow(flowId)?.steps.length === 0) return [];
+  const project = live.filter((d) => d.laneId === undefined);
+  return project.length > 0 ? sortDefs(project) : null;
+}
+
+const sortDefs = (defs: LiveDef[]) =>
+  defs.sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1));
+
+/**
+ * The legacy view of a step for callers that still think in roles and
+ * quorum (tasks, blockers, deriveTakeStatus). A v2 step has no role; it
+ * reads as "any reviewer, required", which is the privilege `review`.
+ */
+function legacyOf(d: LiveDef): WorkflowStep {
+  if (isV2(d)) return { id: d.stepId, role: 'reviewer', required: true, rule: 'any', ...(d.label !== undefined ? { label: d.label } : {}) };
+  return {
+    id: d.stepId,
+    role: d.role,
+    required: d.required,
+    rule: d.rule,
+    ...(d.teamId !== undefined ? { teamId: d.teamId } : {}),
+    ...(d.label !== undefined ? { label: d.label } : {})
+  };
+}
 
 /**
  * The workflow in force for a lane: the lane's own step registers if any,
@@ -10,20 +66,41 @@ import { DEFAULT_CONFIG, type ProjectState } from './state';
  * by their order key; removed steps are gone.
  */
 export function deriveWorkflow(state: ProjectState, laneId?: string): WorkflowStep[] {
-  const live = Object.values(state.workflowSteps).filter((s) => !s.removed && s.step.hlc !== '').map((s) => s.step.value);
-  const pick = (scoped: boolean) => live.filter((d) => (scoped ? d.laneId === laneId : d.laneId === undefined));
-  const chosen = laneId !== undefined && pick(true).length > 0 ? pick(true) : pick(false);
-  if (chosen.length === 0) return (state.config?.value ?? DEFAULT_CONFIG).workflow;
-  return chosen
-    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1))
-    .map((d) => ({
-      id: d.stepId,
-      role: d.role,
-      required: d.required,
-      rule: d.rule,
-      ...(d.teamId !== undefined ? { teamId: d.teamId } : {}),
-      ...(d.label !== undefined ? { label: d.label } : {})
+  const defs = liveDefs(state, laneId);
+  if (defs === null) return (state.config?.value ?? DEFAULT_CONFIG).workflow;
+  return defs.map(legacyOf);
+}
+
+/** The flow in force for a lane, kinds and checkpoints included (D1). */
+export function deriveFlow(state: ProjectState, laneId?: string): FlowStep[] {
+  const defs = liveDefs(state, laneId);
+  if (defs === null) {
+    return (state.config?.value ?? DEFAULT_CONFIG).workflow.map((w, i) => ({
+      id: w.id, order: `#${String(i).padStart(4, '0')}`, kindIds: [w.id], checkpoint: false, optional: !w.required,
+      ...(w.label !== undefined ? { label: w.label } : {}), legacy: w
     }));
+  }
+  return defs.map((d) => isV2(d)
+    ? { id: d.stepId, order: d.order, kindIds: [...d.kindIds], checkpoint: d.checkpoint, optional: false, ...(d.label !== undefined ? { label: d.label } : {}) }
+    : { id: d.stepId, order: d.order, kindIds: [d.stepId], checkpoint: false, optional: d.required === false,
+      ...(d.label !== undefined ? { label: d.label } : {}), legacy: legacyOf(d) });
+}
+
+/**
+ * A kind by id: the project's own definition wins, then the catalog seed.
+ * A missing definition reads as its id, never throws (analysis R6); a v1
+ * step's kind is the step itself, named by the step label.
+ */
+export function reviewKind(state: ProjectState, kindId: string, fallbackName?: string): ReviewKind {
+  const own = state.reviewKinds[kindId]?.value;
+  if (own) return { id: kindId, ...own };
+  return REVIEW_KINDS.find((k) => k.id === kindId) ?? { id: kindId, name: fallbackName ?? kindId };
+}
+
+/** Every kind this project can use: catalog seeds, then its own, by name. */
+export function reviewKinds(state: ProjectState): ReviewKind[] {
+  const own = Object.keys(state.reviewKinds).filter((id) => !REVIEW_KINDS.some((k) => k.id === id)).map((id) => reviewKind(state, id));
+  return [...REVIEW_KINDS.map((k) => reviewKind(state, k.id)), ...own.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))];
 }
 
 /**

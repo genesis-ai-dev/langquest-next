@@ -2,7 +2,7 @@ import type { TakeMetadata } from './audioEdits';
 import type { SavedTextTranslation } from './textTranslations';
 import { emptyObt, type ObtState } from './obt';
 import type { BibleSettings } from './dynamicBible';
-import type { Card, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, KindProduces, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -105,6 +105,24 @@ export interface StepDef {
   rule: QuorumRule;
 }
 
+/** A `v2.WorkflowStepSet` in the shared step register; `v: 2` tells it from a v1 payload. */
+export interface StepDefV2 {
+  v: 2;
+  stepId: string;
+  laneId?: string;
+  order: string;
+  label?: string;
+  kindIds: string[];
+  checkpoint: boolean;
+}
+
+export interface ReviewKindDef {
+  name: string;
+  icon?: string;
+  withholdsContext?: boolean;
+  produces?: KindProduces;
+}
+
 export interface ReviewTeam {
   laneId: string;
   name: Register<string>;
@@ -170,7 +188,9 @@ export interface ProjectState {
   /** laneId -> selected review flow */
   laneFlows: Record<string, Register<{ flowId: string; catalogVersion: number }>>;
   /** stepId -> step register plus add-wins removal */
-  workflowSteps: Record<string, { step: Register<StepDef>; removed: boolean }>;
+  workflowSteps: Record<string, { step: Register<StepDef | StepDefV2>; removed: boolean }>;
+  /** kindId -> project-defined review kind (catalog kinds are not stored). */
+  reviewKinds: Record<string, Register<ReviewKindDef>>;
   teams: Record<string, ReviewTeam>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
@@ -210,6 +230,7 @@ export function emptyState(): ProjectState {
     laneTemplates: {},
     laneFlows: {},
     workflowSteps: {},
+    reviewKinds: {},
     teams: {},
     responses: {},
     reviewComments: {},

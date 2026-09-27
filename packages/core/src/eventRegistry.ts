@@ -221,6 +221,28 @@ export const EVENT_REGISTRY = {
     example: { takeId: 'ex-take', stepId: 'ex-step', blobHash: HASH }
   },
 
+  // ---- Phase 2 flows (SQL 20260927000001_flow_kinds.sql).
+  'v2.WorkflowStepSet': {
+    validate: (p) =>
+      str(p, 'stepId', 'order') ?? optStr(p, 'laneId') ?? optText(p, 'label') ??
+      (Array.isArray(p['kindIds']) && p['kindIds'].length >= 1 && p['kindIds'].length <= 20 &&
+        (p['kindIds'] as unknown[]).every((k) => typeof k === 'string' && k !== '')
+        ? null : 'kindIds must hold 1 to 20 non-empty strings') ??
+      (typeof p['checkpoint'] === 'boolean' ? null : 'checkpoint must be a boolean'),
+    privilege: 'manage_flows', blobHashes: noBlobs, shipped: true,
+    example: { stepId: 'ex-step-v2', laneId: 'ex-lane', order: 's00', kindIds: ['kind@1/peer', 'ex-kind'], checkpoint: true, label: 'Together' }
+  },
+  'v1.ReviewKindDefined': {
+    validate: (p) =>
+      str(p, 'kindId', 'name') ?? ([...String(p['name'])].length <= 200 ? null : 'name is too long') ?? optText(p, 'icon') ??
+      (p['withholdsContext'] === undefined || typeof p['withholdsContext'] === 'boolean' ? null : 'withholdsContext must be a boolean') ??
+      (p['produces'] === undefined ? null
+        : isObject(p['produces']) && str(p['produces'], 'what', 'language', 'checkedByKindId') === null
+          ? null : 'produces needs what, language and checkedByKindId'),
+    privilege: 'manage_flows', blobHashes: noBlobs, shipped: true,
+    example: { kindId: 'ex-kind', name: 'Elder Review', icon: 'chat', withholdsContext: true, produces: { what: 'back translation', language: 'eng', checkedByKindId: 'kind@1/consultant' } }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>
@@ -419,6 +441,14 @@ export function eventBlobHashes(event: { type: string; payload: unknown }): stri
 function str(p: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) if (typeof p[k] !== 'string' || p[k] === '') return `${k} must be a non-empty string`;
   return null;
+}
+/** Absent, or a non-empty string. SQL: `p ? k and not _is_str(p->k)` refuses. */
+function optStr(p: Record<string, unknown>, k: string): string | null {
+  return p[k] === undefined || (typeof p[k] === 'string' && p[k] !== '') ? null : `${k} must be a non-empty string`;
+}
+/** Absent, or a string. SQL: `p ? k and jsonb_typeof(p->k) <> 'string'` refuses. */
+function optText(p: Record<string, unknown>, k: string): string | null {
+  return p[k] === undefined || typeof p[k] === 'string' ? null : `${k} must be a string`;
 }
 function cards(p: Record<string, unknown>, k: string): string | null {
   const v = p[k];

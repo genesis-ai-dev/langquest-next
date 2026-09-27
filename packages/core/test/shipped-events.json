@@ -306,5 +306,20 @@
     "text": "string",
     "translationId": "string",
     "unitId": "string"
+  },
+  "v2.WorkflowStepSet": {
+    "checkpoint": "boolean",
+    "kindIds": "array<string>",
+    "label?": "string",
+    "laneId?": "string",
+    "order": "string",
+    "stepId": "string"
+  },
+  "v1.ReviewKindDefined": {
+    "icon?": "string",
+    "kindId": "string",
+    "name": "string",
+    "produces?": "{checkedByKindId:string,language:string,what:string}",
+    "withholdsContext?": "boolean"
   }
 }

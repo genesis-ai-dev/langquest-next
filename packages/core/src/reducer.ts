@@ -19,8 +19,11 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * ids; InviteIssued scope checked as an object only; SQL trim and length
  * measures). Such events formerly sat in invalidEvents; now they fold under
  * the guards below, so cached folds must be rebuilt.
+ *
+ * 9: v2.WorkflowStepSet shares the step register; v1.ReviewKindDefined
+ * folds into `reviewKinds`. Events formerly ignored as unfamiliar now fold.
  */
-export const REDUCER_VERSION = 8;
+export const REDUCER_VERSION = 9;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -300,6 +303,28 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       const def = event.payload;
       const slot = (state.workflowSteps[def.stepId] ??= { step: { value: def, hlc: '', eventId: '' }, removed: false });
       if (slot.step.hlc === '' || !loses(slot.step, event)) slot.step = { value: def, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
+    case 'v2.WorkflowStepSet': {
+      const { stepId, laneId, order, kindIds, checkpoint, label } = event.payload;
+      const def = {
+        v: 2 as const, stepId, order, kindIds: [...kindIds], checkpoint,
+        ...(laneId !== undefined ? { laneId } : {}), ...(label !== undefined ? { label } : {})
+      };
+      const slot = (state.workflowSteps[stepId] ??= { step: { value: def, hlc: '', eventId: '' }, removed: false });
+      if (slot.step.hlc === '' || !loses(slot.step, event)) slot.step = { value: def, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
+    case 'v1.ReviewKindDefined': {
+      const { kindId, name, icon, withholdsContext, produces } = event.payload;
+      lww(state.reviewKinds, kindId, event, {
+        name,
+        ...(icon !== undefined ? { icon } : {}),
+        ...(withholdsContext !== undefined ? { withholdsContext } : {}),
+        ...(produces !== undefined ? { produces: { ...produces } } : {})
+      });
       break;
     }
 
