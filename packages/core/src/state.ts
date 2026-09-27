@@ -148,6 +148,20 @@ export interface CheckLoggedFrom {
   evidence?: Card[];
 }
 
+/** A `v1.ContentProduced`: what a producing kind made from a version. */
+export interface Produced {
+  unitId: string;
+  laneId: string;
+  fromTakeId: string;
+  kindId: string;
+  language: string;
+  cards: Card[];
+  note?: string;
+  noteBlobHash?: string;
+  requestId?: string;
+  actorId: string;
+}
+
 /** A `v1.StepSetAside` or `v1.CheckpointOverridden` for one passage. */
 export interface Departure {
   kind: DepartureKind;
@@ -261,6 +275,8 @@ export interface ProjectState {
   reviewKinds: Record<string, Register<ReviewKindDef>>;
   /** takeId -> checkId -> check (set by id; the register settles a reused id) */
   checks: Record<string, Record<string, Register<Check>>>;
+  /** contentId -> produced content (set by id) */
+  produced: Record<string, Register<Produced>>;
   /** departureId -> set-aside or override (set by id; the register settles a reused id) */
   departures: Record<string, Register<Departure>>;
   /** departureId -> undoId -> undo (add-wins: an undo may arrive before its departure) */
@@ -312,6 +328,7 @@ export function emptyState(): ProjectState {
     workflowSteps: {},
     reviewKinds: {},
     checks: {},
+    produced: {},
     departures: {},
     departureUndos: {},
     kept: {},

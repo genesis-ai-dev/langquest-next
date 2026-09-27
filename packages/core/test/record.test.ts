@@ -5,6 +5,8 @@ import { fold } from '../src/reducer';
 import { deriveInbox } from '../src/inbox';
 import { emptyState } from '../src/state';
 import { commands } from '../src/commands';
+import { currentTake } from '../src/workflow';
+import { referencedBlobs } from '../src/blobs';
 import {
   checkCredit, derivePassageRecord, highlightsFor, languageProgress, recentlyDone, recordHeadline, recordNextAction, waitingOn,
   type RecordAbilities
@@ -925,5 +927,71 @@ describe('logged checks (CheckLogged, J-REC-11)', () => {
     l.add('c1', 'v1.RequestMade', { requestId: 'rq1', unitId: 'p1', laneId: 'L', what: 'check', kindId: 'kind@1/community', assigneeId: 't1' });
     l.add('t1', 'v1.CheckLogged', { checkId: 'g1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'looks_good', requestId: 'rq1' });
     expect(derivePassageRecord(state(l.events), 'p1', 'L', 'c1').asks[0]!.state).toBe('done');
+  });
+});
+
+describe('produced content (ContentProduced, D4 rule 1)', () => {
+  function flow() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/back_translation'], checkpoint: false });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's2', laneId: 'L', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true });
+    const produce = (by: string, contentId: string, fromTakeId: string, extra: Partial<EventPayloads['v1.ContentProduced']> = {}) =>
+      l.add(by, 'v1.ContentProduced', { contentId, unitId: 'p1', laneId: 'L', fromTakeId, kindId: 'kind@1/back_translation', language: 'eng',
+        cards: [{ hash: `bt-${contentId}`, durationMs: 1000, format: 'm4a' }], ...extra });
+    return { ...l, produce };
+  }
+
+  it('a back translation makes its kind recorded and is never a version of the source lane', () => {
+    // Why (analysis row 21, PLAN 16.1.1): if the back translation were a take
+    // in the lane, an old client's currentTake would show it as the
+    // translator's newest version: a "wrong shown".
+    const l = flow();
+    const v1 = l.version('t1');
+    l.produce('r1', 'bt1', v1, { note: 'Unsure about verse 3' });
+    const s = state(l.events);
+    const r = derivePassageRecord(s, 'p1', 'L', 't1');
+    expect(r.versions.map((v) => v.takeId)).toEqual([v1]);
+    expect(currentTake(s, 'p1', 'L')).toBe(v1);
+    expect(Object.keys(s.takes)).toEqual([v1]);
+    const k = r.steps[0]!.kinds[0]!;
+    expect(k.state).toBe('recorded');
+    expect(k.content).toMatchObject({ contentId: 'bt1', fromTakeId: v1, language: 'eng', stale: false, by: 'r1', note: 'Unsure about verse 3' });
+    expect(r.steps.map((st) => st.state)).toEqual(['complete', 'current']);
+    expect(r.history.find((h) => h.kind === 'content')).toMatchObject({ by: 'r1', content: { contentId: 'bt1' } });
+    // Its cards are referenced blobs, so they upload and download.
+    expect(referencedBlobs(s).get('bt-bt1')).toMatchObject({ unitId: 'p1', format: 'm4a' });
+  });
+
+  it('content made from an older version stays recorded but reads stale', () => {
+    // Why (ADR-015): the consultant must know the back translation is of an
+    // earlier version, but the work is not thrown away.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.produce('r1', 'bt1', v1);
+    l.version('t1', 'p1', v1);
+    const k = derivePassageRecord(state(l.events), 'p1', 'L', 't1').steps[0]!.kinds[0]!;
+    expect(k.state).toBe('recorded');
+    expect(k.content?.stale).toBe(true);
+  });
+
+  it('content naming a request answers it; so does the assignee making it after the ask', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.add('c1', 'v1.RequestMade', { requestId: 'rq1', unitId: 'p1', laneId: 'L', what: 'check', kindId: 'kind@1/back_translation', assigneeId: 'r1' });
+    l.add('c1', 'v1.RequestMade', { requestId: 'rq2', unitId: 'p1', laneId: 'L', what: 'check', kindId: 'kind@1/back_translation', assigneeId: 'r2' });
+    l.produce('r2', 'bt1', v1);
+    l.produce('r1', 'bt2', v1, { requestId: 'rq1' });
+    const asks = derivePassageRecord(state(l.events), 'p1', 'L', 'c1').asks;
+    expect(asks.map((a) => [a.requestId, a.state])).toEqual([['rq1', 'done'], ['rq2', 'done']]);
+  });
+
+  it('is order-independent: content before the version it names still folds the same', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.produce('r1', 'bt1', v1);
+    const reversed = [...l.events].reverse();
+    expect(derivePassageRecord(state(reversed), 'p1', 'L', 't1').steps[0]!.kinds[0]!.state).toBe('recorded');
   });
 });

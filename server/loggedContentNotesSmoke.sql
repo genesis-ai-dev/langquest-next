@@ -53,8 +53,31 @@ begin
       raise exception 'Unexpected CheckLogged append result: %',row_to_json(result);
     end if;
   end loop;
+  -- ContentProduced validation equals core.
+  if public.validate_payload('v1.ContentProduced','{"contentId":"b1","unitId":"u1","laneId":"L","fromTakeId":"t1","kindId":"kind@1/back_translation","language":"eng","cards":[{"hash":"h","durationMs":1000,"format":"m4a"}],"note":"verse 3?","noteBlobHash":"n","requestId":"rq"}') is not null then
+    raise exception 'Valid ContentProduced rejected';
+  end if;
+  foreach payload in array array[
+    '{"contentId":"b","unitId":"u","laneId":"L","fromTakeId":"t","kindId":"k","language":"eng","cards":[]}'::jsonb,
+    '{"contentId":"b","unitId":"u","laneId":"L","fromTakeId":"t","kindId":"k","cards":[{"hash":"h","durationMs":1}]}'::jsonb,
+    '{"contentId":"b","unitId":"u","laneId":"L","fromTakeId":"t","kindId":"k","language":"eng","cards":[{"hash":"h"}]}'::jsonb,
+    '{"contentId":"b","unitId":"u","laneId":"L","fromTakeId":"t","kindId":"k","language":"eng","cards":[{"hash":"h","durationMs":1}],"note":3}'::jsonb
+  ] loop
+    if public.validate_payload('v1.ContentProduced',payload) is null then raise exception 'Invalid ContentProduced accepted: %',payload; end if;
+  end loop;
+  if not public.may_emit('slice-c','P','reviewer','v1.ContentProduced','{"laneId":"L"}')
+    or public.may_emit('slice-c','P','translator','v1.ContentProduced','{"laneId":"L"}') then
+    raise exception 'ContentProduced privileges drifted from core';
+  end if;
+  perform set_config('request.jwt.claims','{"sub":"reviewer","role":"authenticated"}',true);
+  for result in select * from public.append_events('[
+    {"id":"c-content","orgId":"slice-c","projectId":"P","type":"v1.ContentProduced","actorId":"reviewer","deviceId":"new-r","hlc":"000000000000007:000000:new-r","payload":{"contentId":"b1","unitId":"u1","laneId":"L","fromTakeId":"t1","kindId":"kind@1/back_translation","language":"eng","cards":[{"hash":"h","durationMs":1000,"format":"m4a"}]}}
+  ]'::jsonb,0) loop
+    if not result.accepted then raise exception 'ContentProduced append refused: %',row_to_json(result); end if;
+  end loop;
+
   select count(*) into facts from public.pull_events('slice-c','P',0,50,0);
-  if facts <> 4 then raise exception 'Old client did not receive every fact: %',facts; end if;
+  if facts <> 5 then raise exception 'Old client did not receive every fact: %',facts; end if;
   if (select min_client_version from public.server_config) <> 0 then
     raise exception 'Sync must not require an app upgrade';
   end if;

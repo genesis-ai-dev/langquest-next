@@ -8,13 +8,13 @@ import { StyleSheet } from '../theme';
 import {
   assertObtStep, commands, deriveObt, derivePassageRecord, deriveTakeStatus, fiaStudyStatus, isObtLane,
   keyTermLinksFor, materialView, obtCanAct, parseTaskId, questionsOf, questionSetsFor, skippedAnswerKey,
-  tgMaterialId, REFERENCE_KINDS, templateFields, type ObtStep, type QuestionView, type RecordReview
+  tgMaterialId, REFERENCE_KINDS, templateFields, type Card as AudioCard, type ObtStep, type QuestionView, type RecordReview
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { indexesFor } from '../indexes';
 import {
-  ArrowLeftRight, Ban, Check, CheckCircle2, ChevronDown, ChevronUp, Circle, Clock, EarOff, Headphones,
-  KeyRound, ListChecks, MessageSquare, SkipForward, Sparkles, Star, Timer, X
+  AlertTriangle, ArrowLeftRight, Ban, Check, CheckCircle2, ChevronDown, ChevronUp, Circle, Clock, EarOff, Headphones,
+  KeyRound, Languages, ListChecks, Lock, MessageSquare, Mic, RotateCcw, Send, SkipForward, Sparkles, Star, Timer, X
 } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
@@ -26,7 +26,7 @@ import { ActionButton, Card, text } from '../ui';
 import { Byline, usePerson } from '../UserChip';
 import { defineFiaProgress, fiaProgressId, FIA_STAGES } from '@langquest-next/core';
 import { FiaGuidanceRecorder } from '../fia';
-import { ObtHistory } from './obt';
+import { BackTranslation as ObtBackTranslation, ObtHistory } from './obt';
 import { Beads, passageOf } from './translate';
 import { HoldToRecord } from './recordings';
 
@@ -82,7 +82,7 @@ export function ReviewCapture(ctx: Ctx) {
   let stepId = '';
   let stepLabel = '';
   /** Set on a v2 step: the kind this check is of. v1 steps keep ReviewSubmitted (old clients read it). */
-  let kind: { kindId: string; name: string } | null = null;
+  let kind: { kindId: string; name: string; withholdsContext?: boolean } | null = null;
   let n = 0;
   let obtStage: ObtStep | null = null;
   const record = obt ? null : derivePassageRecord(state, unitId, laneId, ctx.session.actorId, idx);
@@ -102,7 +102,7 @@ export function ReviewCapture(ctx: Ctx) {
       const k = recStep.kinds.find((x) => x.kindId === ctx.params['kindId'])
         ?? recStep.kinds.find((x) => x.state !== 'approved' && x.state !== 'recorded' && !x.checks.some((c) => c.reviewerId === me))
         ?? recStep.kinds[0];
-      if (k) { kind = { kindId: k.kindId, name: k.name }; stepLabel = k.name; }
+      if (k) { kind = { kindId: k.kindId, name: k.name, ...(k.withholdsContext ? { withholdsContext: true } : {}) }; stepLabel = k.name; }
     }
   } else if (j) {
     if ((j.stage === 'consultant' || j.stage === 'final_approval') && obtCanAct(state, ctx.session.actorId, laneId, j.stage)) {
@@ -132,6 +132,12 @@ export function ReviewCapture(ctx: Ctx) {
     .filter((r) => !(r.takeId === takeId && r.stepId === stepId && r.reviewerId === ctx.session.actorId)).reverse();
   const versionN = (id: string) => record?.versions.find((v) => v.takeId === id)?.n ?? 0;
   const bt = j?.backTranslationId ? state.takes[j.backTranslationId] : undefined;
+  // J-REV-1: content a producing kind made for this kind to check (ordinary lanes).
+  const toCompare = kind && record ? record.steps.flatMap((s) => s.kinds)
+    .filter((k) => k.produces?.checkedByKindId === kind!.kindId && k.content !== null)
+    .map((k) => ({ what: k.produces!.what, content: k.content! })) : [];
+  // J-REV-3: a kind that withholds context sees only the recording.
+  const withheld = !!kind?.withholdsContext;
   const btStep = j?.steps.back_translation?.value;
   const obtClips = j?.inputId ? Object.entries(state.obt.audio).filter(([id]) => id.startsWith(`${j.inputId}:`)) : [];
 
@@ -245,7 +251,28 @@ export function ReviewCapture(ctx: Ctx) {
         {btStep?.note ? <Text style={text.body} accessibilityLabel={`Back translator's note: ${btStep.note}`}>{btStep.note}</Text> : null}
       </Card> : null}
 
-      {!obt && (termLinks.length || tg) ? <Disclosure icon={KeyRound} label={`From the translator: ${termLinks.length} terms, ${tg ? 1 : 0} notes`}
+      {toCompare.map(({ what, content }) => <Card key={content.contentId} style={{ borderColor: colors.review, borderWidth: 1.5 }}>
+        <View accessible style={styles.row}
+          accessibilityLabel={`${what[0]!.toUpperCase()}${what.slice(1)} to compare, in ${content.language}.${content.stale
+            ? ` Made from Version ${versionN(content.fromTakeId) || 'an older version'}, not the one you are checking. Compare with care, or ask for a new ${what}.`
+            : ' Made from this version: compare its meaning with the source.'}`}>
+          <ArrowLeftRight size={20} color={colors.review} />
+          <Text style={text.small}>{content.language}</Text>
+          {content.stale ? <><AlertTriangle size={16} color={colors.review} /><Text style={text.small}>v{versionN(content.fromTakeId)}</Text></> : null}
+        </View>
+        <AudioClip project={ctx.project} hashes={content.cards.map((c) => c.hash)} label={`Play the ${what}`} seekControls />
+        {content.noteBlobHash ? <AudioClip project={ctx.project} hashes={[content.noteBlobHash]} label={`Hear the note on the ${what}`} hideActions /> : null}
+        {content.note ? <Text style={text.body} accessibilityLabel={`Note: ${content.note}`}>{content.note}</Text> : null}
+      </Card>)}
+
+      {withheld ? <Card style={{ backgroundColor: colors.muted }}>
+        <View accessible style={styles.row}
+          accessibilityLabel={`Notes and earlier reviews are hidden for ${kind!.name}, so only the recording shapes what you say.`}>
+          <Lock size={20} color={colors.mutedForeground} /><MessageSquare size={16} color={colors.mutedForeground} />
+        </View>
+      </Card> : null}
+
+      {!obt && !withheld && (termLinks.length || tg) ? <Disclosure icon={KeyRound} label={`From the translator: ${termLinks.length} terms, ${tg ? 1 : 0} notes`}
         count={termLinks.length + (tg ? 1 : 0)} open={open.includes('translator')} onToggle={() => toggle('translator')}>
         {termLinks.map(({ term, note }) => <Pressable key={term.termId} style={styles.row} accessibilityRole="button"
           accessibilityLabel={`Key term ${term.term}`} onPress={() => ctx.go('key_term_detail', { termId: term.termId, takeId: takeId! })}>
@@ -256,7 +283,7 @@ export function ReviewCapture(ctx: Ctx) {
         {tg?.text ? <Text style={text.body}>{tg.text}</Text> : null}
       </Disclosure> : null}
 
-      {study ? <Disclosure icon={Sparkles} label={`The team's study: FIA, ${study.doneCount} of ${study.steps.length} steps`}
+      {study && !withheld ? <Disclosure icon={Sparkles} label={`The team's study: FIA, ${study.doneCount} of ${study.steps.length} steps`}
         count={study.doneCount} open={open.includes('study')} onToggle={() => toggle('study')}>
         <Beads done={study.steps.map((s) => !!s.done)} />
         {study.steps.map((s) => <Pressable key={s.stage.id} style={styles.row} accessibilityRole="button"
@@ -269,7 +296,7 @@ export function ReviewCapture(ctx: Ctx) {
         <ActionButton icon={Sparkles} variant="outline" accessibilityLabel="Open the study" onPress={() => ctx.go('study_guide', { unitId, laneId })} />
       </Disclosure> : null}
 
-      {earlier.length ? <Disclosure icon={MessageSquare} label={`Earlier reviews: ${earlier.length}`}
+      {earlier.length && !withheld ? <Disclosure icon={MessageSquare} label={`Earlier reviews: ${earlier.length}`}
         count={earlier.length} open={open.includes('earlier')} onToggle={() => toggle('earlier')}>
         {earlier.map((r) => <EarlierReview key={r.eventId} ctx={ctx} review={r} n={versionN(r.takeId)}
           stepLabel={record?.steps.find((s) => s.stepId === r.stepId)?.label ?? r.stepId}
@@ -492,5 +519,101 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 100, backgroundColor: colors.card, color: colors.foreground }
 });
 
+/**
+ * back_translation (J-BT-1, J-BT-2). In an OBT back-translation project it
+ * is the OBT screen (unchanged). In an ordinary lane a producing kind makes
+ * its content here: listen to the version, record it in the kind's
+ * language, add an optional note, save as `v1.ContentProduced`. The audio is
+ * never a TakeComposed in the source lane (an old client would show it as
+ * the translator's newest version). A kind that withholds context shows only
+ * the recording.
+ */
+export function BackTranslate(ctx: Ctx) {
+  const state = ctx.project.state;
+  const { unitId, laneId } = passageOf(ctx);
+  const [cards, setCards] = useState<AudioCard[]>([]);
+  const [note, setNote] = useState('');
+  const [noteVoice, setNoteVoice] = useState<string | undefined>();
+  const [played, setPlayed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  if (state?.obt.workspace || (state && laneId && isObtLane(state, laneId))) return <ObtBackTranslation {...ctx} />;
+  if (!state || !unitId || !laneId || !state.units[unitId]) {
+    return <Screen><Header title="" onBack={ctx.back} /><Note>{state ? 'Passage not found.' : 'Opening passage…'}</Note></Screen>;
+  }
+  const record = derivePassageRecord(state, unitId, laneId, ctx.session.actorId, indexesFor(state));
+  const stepId = ctx.params['stepId'];
+  const kinds = record.steps.filter((s) => !stepId || s.stepId === stepId).flatMap((s) => s.kinds);
+  const kind = kinds.find((k) => k.kindId === ctx.params['kindId'] && k.produces) ?? kinds.find((k) => k.produces);
+  const latest = record.latest;
+  const title = state.units[unitId]!.label;
+  if (!kind?.produces || !latest) {
+    return <Screen><Header title={title} onBack={ctx.back} />
+      <View accessible accessibilityLabel={latest ? 'This flow has no kind that makes a recording.' : 'Nothing is recorded yet.'} style={styles.row}>
+        <Headphones size={28} color={colors.mutedForeground} /><Lock size={20} color={colors.mutedForeground} />
+      </View>
+    </Screen>;
+  }
+  const { what, language } = kind.produces;
+  const mayMake = ctx.session.can('review');
+  const ready = mayMake && played && cards.length > 0 && !busy;
+  async function save() {
+    if (!ready || !latest || !kind) return;
+    setBusy(true); setError('');
+    try {
+      const requestId = record.asks.find((a) => a.kind === 'review' && !a.satisfied && a.profileId === ctx.session.actorId && a.kindId === kind.kindId)?.requestId;
+      await ctx.project.append('v1.ContentProduced', {
+        contentId: Crypto.randomUUID(), unitId: unitId!, laneId: laneId!, fromTakeId: latest.takeId, kindId: kind.kindId, language, cards,
+        ...(note.trim() ? { note: note.trim() } : {}),
+        ...(noteVoice ? { noteBlobHash: noteVoice } : {}),
+        ...(requestId ? { requestId } : {})
+      });
+      ctx.project.triggerUpload();
+      const checker = kind.produces?.checkedByKindId ? record.steps.flatMap((s) => s.kinds).find((k) => k.kindId === kind.produces!.checkedByKindId)?.name : undefined;
+      ctx.toast(`${what[0]!.toUpperCase()}${what.slice(1)} saved${checker ? ` · ready for the ${checker}` : ''}`);
+      ctx.go('passage_record', { unitId: unitId!, laneId: laneId! });
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return <Screen tint={tint.review} footer={<ActionButton icon={Send} accessibilityLabel={`Save ${what}`} disabled={!ready} onPress={() => void save()} />}>
+    <Header title={title} sub={`v${latest.n} · ${language}`} onBack={busy ? undefined : ctx.back} />
+    <View accessible style={styles.row}
+      accessibilityLabel={`You're making new content. Listen to the version, then say what it means in ${language}, in your own words. You're not judging it: the ${what} is what gets checked next.`}>
+      <Headphones size={24} color={colors.review} /><ArrowLeftRight size={16} color={colors.review} /><Mic size={24} color={colors.review} />
+    </View>
+    {!mayMake ? <Note>Only people who can review can record this.</Note> : null}
+    {kind.content ? <View accessible style={styles.row} accessibilityLabel={kind.content.stale
+      ? `A ${what} exists, made from an older version. Saving makes a new one from Version ${latest.n}.`
+      : `A ${what} of this version exists. Saving adds a newer one.`}>
+      <Languages size={18} color={colors.mutedForeground} />{kind.content.stale ? <AlertTriangle size={16} color={colors.review} /> : <CheckCircle2 size={16} color={colors.done} />}
+    </View> : null}
+    <Card>
+      <AudioClip project={ctx.project} hashes={state.takes[latest.takeId]?.cardHashes ?? []} label="Listen to the version" seekControls onPlay={() => setPlayed(true)} />
+      {kind.withholdsContext ? <View accessible accessibilityLabel="Notes and earlier reviews are hidden, so only the recording shapes what you say.">
+        <Lock size={16} color={colors.mutedForeground} />
+      </View> : null}
+    </Card>
+    <Card>
+      <View accessible style={styles.row} accessibilityLabel={`Record the ${what}${cards.length ? `, ${cards.length} ${cards.length === 1 ? 'part' : 'parts'} so far` : ''}`}>
+        <Mic size={20} color={colors.review} />{cards.length ? <Text style={text.small}>{cards.length}</Text> : null}
+      </View>
+      <HoldToRecord accessibilityLabel={`Record the ${what}`} disabled={busy || !played}
+        onCard={(card) => setCards((c) => [...c, { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }])} />
+      {cards.length ? <>
+        <AudioClip project={ctx.project} hashes={cards.map((c) => c.hash)} label={`Listen to your ${what}`} hideActions />
+        <ActionButton icon={RotateCcw} variant="outline" style={styles.small} accessibilityLabel="Start over" disabled={busy} onPress={() => setCards([])} />
+      </> : null}
+    </Card>
+    <Card>
+      <View accessible style={styles.row} accessibilityLabel="Note · optional. Anything the checker should know."><MessageSquare size={18} color={colors.mutedForeground} /></View>
+      <HoldToRecord accessibilityLabel="Say a note" disabled={busy} onCard={(card) => setNoteVoice(card.ref.hash)} />
+      {noteVoice ? <AudioClip project={ctx.project} hashes={[noteVoice]} label="Hear your note" hideActions /> : null}
+      <TextInput style={styles.input} value={note} onChangeText={setNote} placeholder="Or type it" multiline
+        placeholderTextColor={colors.mutedForeground} accessibilityLabel="Or type a note" />
+    </Card>
+    {error ? <Note>{error}</Note> : null}
+  </Screen>;
+}
+
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('review_passage', 'review_capture', 'material_editor');
+export const contracts = contractsFor('review_passage', 'review_capture', 'material_editor', 'back_translation');

@@ -397,5 +397,17 @@
     "stepId?": "string",
     "takeId": "string",
     "unitId": "string"
+  },
+  "v1.ContentProduced": {
+    "cards": "array<{durationMs:number,format:string,hash:string}>",
+    "contentId": "string",
+    "fromTakeId": "string",
+    "kindId": "string",
+    "laneId": "string",
+    "language": "string",
+    "note?": "string",
+    "noteBlobHash?": "string",
+    "requestId?": "string",
+    "unitId": "string"
   }
 }

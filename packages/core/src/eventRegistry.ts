@@ -345,6 +345,19 @@ export const EVENT_REGISTRY = {
     }
   },
 
+  // ---- Phase 2b produced content (SQL 20260927000007_content_produced.sql).
+  'v1.ContentProduced': {
+    validate: (p) =>
+      str(p, 'contentId', 'unitId', 'laneId', 'fromTakeId', 'kindId', 'language') ??
+      optText(p, 'note') ?? optStr(p, 'noteBlobHash') ?? optStr(p, 'requestId') ??
+      cards(p, 'cards') ?? ((p['cards'] as unknown[]).length > 0 ? null : 'cards must hold at least one card'),
+    privilege: 'review', blobHashes: (p) => [...new Set([...cardHashes(p['cards']), ...hashes(p['noteBlobHash'])])], shipped: true,
+    example: {
+      contentId: 'ex-content', unitId: 'ex-unit', laneId: 'ex-lane', fromTakeId: 'ex-take', kindId: 'kind@1/back_translation', language: 'eng',
+      cards: [{ hash: HASH, durationMs: 1000, format: 'm4a' }], note: 'Unsure about verse 3', noteBlobHash: HASH, requestId: 'ex-request'
+    }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>

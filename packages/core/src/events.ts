@@ -252,6 +252,25 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
     evidence?: Card[];
     requestId?: string;
   };
+  /**
+   * Content a producing kind made from a version (a back translation), in a
+   * language. Set by contentId. It carries its cards and is NEVER a
+   * TakeComposed in the source lane: an old client would show that take as
+   * the translator's newest version. Kind state `recorded`; stale when
+   * `fromTakeId` is not the latest version.
+   */
+  'v1.ContentProduced': {
+    contentId: string;
+    unitId: string;
+    laneId: string;
+    fromTakeId: string;
+    kindId: string;
+    language: string;
+    cards: Card[];
+    note?: string;
+    noteBlobHash?: string;
+    requestId?: string;
+  };
 }
 
 export type RequestWhat = 'record' | 'check';

@@ -169,8 +169,11 @@ export function PassageRecord(ctx: Ctx) {
         return canGo(ctx, 'passage_record', 'workspace') ? <ActionButton icon={Mic} accessibilityLabel={rec.draft ? 'Continue recording' : 'Record it'} onPress={() => ctx.go('workspace', params)} /> : null;
       case 'new_version':
         return canGo(ctx, 'passage_record', 'workspace') ? <ActionButton icon={Mic} accessibilityLabel="New version" onPress={() => ctx.go('workspace', params)} /> : null;
-      case 'review':
-        return canGo(ctx, 'passage_record', 'review_capture') ? <ActionButton icon={ListChecks} accessibilityLabel="Review it now" onPress={() => ctx.go('review_capture', { ...params, takeId: action.takeId, stepId: action.stepId, ...(action.kindId ? { kindId: action.kindId } : {}) })} /> : null;
+      case 'review': {
+        // A producing kind (back translation) is made, not judged.
+        const to = action.kindId && state && reviewKind(state, action.kindId).produces ? 'back_translation' : 'review_capture';
+        return canGo(ctx, 'passage_record', to) ? <ActionButton icon={to === 'back_translation' ? Languages : ListChecks} accessibilityLabel={to === 'back_translation' ? 'Back-translate it now' : 'Review it now'} onPress={() => ctx.go(to, { ...params, takeId: action.takeId, stepId: action.stepId, ...(action.kindId ? { kindId: action.kindId } : {}) })} /> : null;
+      }
       case 'ask':
         return canGo(ctx, 'passage_record', 'ask_someone') ? <ActionButton icon={UserPlus} accessibilityLabel="Ask someone" onPress={() => ctx.go('ask_someone', { ...params, stepId: action.stepId })} /> : null;
       case 'none':
@@ -496,7 +499,7 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
             <View key={k.kindId} style={styles.personMark}>
               <Pressable style={[styles.personMark, { flex: 1 }]} accessibilityRole={canReview ? 'button' : undefined} disabled={!canReview || done}
                 accessibilityLabel={`${k.name}: ${said}${k.produces ? ', makes a recording' : ''}${k.outOfOrder ? ', done before the checkpoint cleared' : ''}`}
-                onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId, kindId: k.kindId })}>
+                onPress={() => go(k.produces ? 'back_translation' : 'review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId, kindId: k.kindId })}>
                 <KIcon size={20} color={done ? colors.done : colors.review} />
                 <Text style={[text.body, { flex: 1 }]}>{k.name}</Text>
                 {k.produces ? <Mic size={14} color={colors.mutedForeground} /> : null}
@@ -575,6 +578,10 @@ function entryTitle(e: RecordEntry, rec: Rec): string {
         : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
       return `${what}${e.state === 'withdrawn' ? ' · withdrawn' : e.state === 'done' ? ' · done' : ''}`;
     }
+    case 'content': {
+      const name = rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.content.kindId)?.name ?? e.content.kindId;
+      return `${name} recorded · ${e.content.language}${e.content.stale ? ' · made from an older version' : ''}`;
+    }
     case 'kept': return `Kept Version ${e.n} as is${e.kept.reason ? `: ${e.kept.reason}` : ''}`;
     case 'departure': {
       const d = e.departure;
@@ -591,6 +598,7 @@ function EntryIcon(props: { entry: RecordEntry }) {
   if (e.kind === 'response') return <Reply size={16} color={colors.translate} />;
   if (e.kind === 'ask') return <UserPlus size={16} color={colors.mutedForeground} />;
   if (e.kind === 'kept') return <BookmarkCheck size={16} color={colors.translate} />;
+  if (e.kind === 'content') return <Languages size={16} color={e.content.stale ? colors.mutedForeground : colors.done} />;
   if (e.kind === 'departure') return e.departure.kind === 'override' ? <Octagon size={16} color={colors.review} /> : <SkipForward size={16} color={colors.review} />;
   return e.decision === 'approve' ? <CheckCircle2 size={16} color={colors.done} /> : <MessageSquare size={16} color={colors.review} />;
 }
@@ -641,6 +649,16 @@ function Details(props: {
           ? <ActionButton variant="outline" icon={ClipboardCheck} style={styles.iconBtn} accessibilityLabel="Log what happened"
             onPress={() => ctx.go('add_record', props.params)} /> : null}
         {rec.history.map((e) => {
+          if (e.kind === 'content') {
+            return (
+              <View key={e.id} style={styles.historyRow} accessible={false}>
+                <View accessible accessibilityLabel={`${entryTitle(e, rec)} · ${props.nameOf(e.by)} · ${shortDate(e.at)}`}><EntryIcon entry={e} /></View>
+                <PersonAvatar look={person(e.by)} size={20} />
+                <View style={{ flex: 1 }}><AudioClip project={ctx.project} hashes={e.content.cards.map((c) => c.hash)} label={`Hear the ${entryTitle(e, rec)}`} hideActions /></View>
+                <Text style={text.small}>{shortDate(e.at)}</Text>
+              </View>
+            );
+          }
           if (e.kind === 'departure') {
             const d = e.departure;
             return (
@@ -974,11 +992,14 @@ export function AddRecord(ctx: Ctx) {
   const idx = indexesFor(state);
   const actorId = ctx.session.actorId;
   const mayLog = ctx.session.can('send_to_reviewers');
+  const mayMake = ctx.session.can('review');
   const flowKinds = rec.steps.flatMap((s) => s.kinds.map((k) => ({ id: k.kindId, name: k.name, stepId: s.stepId })));
   const others = reviewKinds(state).filter((k) => !flowKinds.some((f) => f.id === k.id)).map((k) => ({ id: k.id, name: k.name, stepId: undefined }));
-  // Producing kinds are made, not judged: they belong on back_translation.
-  const kinds = [...flowKinds, ...others].filter((k) => !reviewKind(state, k.id).produces);
+  // A producing kind is logged as its content (the reference's "the {what}"),
+  // which needs review; a judged kind needs send_to_reviewers.
+  const kinds = [...flowKinds, ...others].filter((k) => (reviewKind(state, k.id).produces ? mayMake : mayLog));
   const kind = kinds.find((k) => k.id === kindId) ?? null;
+  const produces = kind ? reviewKind(state, kind.id).produces : undefined;
   const group = kind ? GROUP_KINDS.has(kind.id) : false;
   const played = takeId ?? rec.latest?.takeId ?? null;
 
@@ -995,16 +1016,30 @@ export function AddRecord(ctx: Ctx) {
     .filter((p) => p.rec.latest !== null)
     .sort((a, b) => Math.abs(mine.indexOf(a.id) - at) - Math.abs(mine.indexOf(b.id) - at))
     .slice(0, 4);
-  const count = 1 + also.length;
+  const count = produces ? 1 : 1 + also.length;
   const needsWhat = outcome === 'needs_changes' && !comment.trim() && !summary;
-  const ready = mayLog && !!kind && !!played && outcome !== null && !needsWhat;
-  const hint = !kind ? 'Choose the kind of review.' : outcome === null ? 'Choose how it went.'
+  const ready = !!kind && !!played && (produces ? evidence.length > 0 : outcome !== null && !needsWhat);
+  const hint = !kind ? 'Choose the kind of review.' : produces ? (evidence.length ? '' : `Record or attach the ${produces.what}.`)
+    : outcome === null ? 'Choose how it went.'
     : needsWhat ? 'Say what needs to change — record a summary or type it.' : '';
 
   async function save() {
     if (!ready || saving || !kind || !played || !state) return;
     setSaving(true); setError('');
     try {
+      if (produces) {
+        const requestId = rec.asks.find((a) => a.kind === 'review' && !a.satisfied && a.profileId === actorId && a.kindId === kind.id)?.requestId;
+        await ctx.project.append('v1.ContentProduced', {
+          contentId: Crypto.randomUUID(), unitId, laneId, fromTakeId: played, kindId: kind.id, language: produces.language, cards: evidence,
+          ...(comment.trim() ? { note: comment.trim() } : {}),
+          ...(summary ? { noteBlobHash: summary } : {}),
+          ...(requestId ? { requestId } : {})
+        });
+        ctx.project.triggerUpload();
+        ctx.toast(`${kind.name} added to the record`);
+        ctx.go('passage_record', { unitId, laneId });
+        return;
+      }
       const openAsk = (r: Rec) => r.asks.find((a) => a.kind === 'review' && !a.satisfied && a.profileId === actorId && a.kindId === kind.id)?.requestId;
       const targets = [
         { takeId: played, stepId: kind.stepId, requestId: openAsk(rec) },
@@ -1034,7 +1069,7 @@ export function AddRecord(ctx: Ctx) {
   return (
     <Screen footer={<Footer label={count > 1 ? `Save to ${count} passages` : 'Save to the record'} onPress={() => void save()} disabled={!ready || saving} />}>
       <Header title="Log what happened" sub={state.units[unitId]!.label} onBack={saving ? undefined : ctx.back} />
-      {!mayLog ? <Note>Only people who can ask for reviews can log one.</Note> : null}
+      {!mayLog && !mayMake ? <Note>Only people who can ask for reviews can log one.</Note> : null}
       <Section label="Kind of review">
         {kinds.map((k, i) => <Row key={k.id} label={k.name} onPress={() => setKindId(k.id)} last={i === kinds.length - 1} right={tick(kindId === k.id)} />)}
       </Section>
@@ -1044,14 +1079,14 @@ export function AddRecord(ctx: Ctx) {
             onPress={() => setTakeId(v.takeId)} last={i === all.length - 1} right={tick(played === v.takeId)} />
         ))}
       </Section> : null}
-      {nearby.length > 0 ? <Section label="Also covered in this session">
+      {nearby.length > 0 && !produces ? <Section label="Also covered in this session">
         <Text style={text.muted}>The same review is added to each passage you pick.</Text>
         {nearby.map((p, i) => (
           <Row key={p.id} label={state.units[p.id]!.label} sub={`Version ${p.rec.latest!.n}`} last={i === nearby.length - 1}
             onPress={() => setAlso((a) => (a.includes(p.id) ? a.filter((x) => x !== p.id) : [...a, p.id]))} right={tick(also.includes(p.id))} />
         ))}
       </Section> : null}
-      {group ? <Section label="How many listened?">
+      {produces ? null : <>{group ? <Section label="How many listened?">
         <View style={styles.counter}>
           <ActionButton variant="outline" icon={Minus} style={styles.iconBtn} accessibilityLabel="Fewer listeners" disabled={people <= 1} onPress={() => setPeople((n) => Math.max(1, n - 1))} />
           <Text style={text.h4} accessibilityLabel={`${people} listened`}>{people}</Text>
@@ -1064,23 +1099,24 @@ export function AddRecord(ctx: Ctx) {
       <Section label="Where">
         <TextInput value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" placeholderTextColor={colors.mutedForeground}
           style={styles.input} accessibilityLabel="Where" />
-      </Section>
-      <Section label="What happened">
+      </Section></>}
+      <Section label={produces ? 'Note · optional' : 'What happened'}>
         <HoldToRecord accessibilityLabel="Record a summary" disabled={saving} onCard={(card) => setSummary(card.ref.hash)} />
         {summary ? <AudioClip project={ctx.project} hashes={[summary]} label="Hear the summary" hideActions /> : null}
         <TextInput value={comment} onChangeText={setComment} placeholder="Or type what people understood and asked about" multiline
           placeholderTextColor={colors.mutedForeground} style={styles.input} accessibilityLabel="Or type what people understood and asked about" />
       </Section>
-      <Section label="Evidence · optional">
-        <Text style={text.muted}>A retelling or a recorded conversation makes the review easy to trust.</Text>
-        <HoldToRecord accessibilityLabel="Record a retelling" disabled={saving}
+      <Section label={produces ? `The ${produces.what}` : 'Evidence · optional'}>
+        <Text style={text.muted}>{produces ? "It's what gets checked next, so it's the one thing this entry needs."
+          : 'A retelling or a recorded conversation makes the review easy to trust.'}</Text>
+        <HoldToRecord accessibilityLabel={produces ? `Record the ${produces.what}` : 'Record a retelling'} disabled={saving}
           onCard={(card) => setEvidence((e) => [...e, { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }])} />
-        {evidence.length ? <AudioClip project={ctx.project} hashes={evidence.map((e) => e.hash)} label="Hear the evidence" hideActions /> : null}
+        {evidence.length ? <AudioClip project={ctx.project} hashes={evidence.map((e) => e.hash)} label={produces ? `Hear the ${produces.what}` : 'Hear the evidence'} hideActions /> : null}
       </Section>
-      <Section label="How did it go?">
+      {produces ? null : <Section label="How did it go?">
         <Row icon={CheckCircle2} label="Looks good" onPress={() => setOutcome('looks_good')} right={tick(outcome === 'looks_good')} />
         <Row icon={MessageSquare} label="Needs changes" onPress={() => setOutcome('needs_changes')} last right={tick(outcome === 'needs_changes')} />
-      </Section>
+      </Section>}
       {hint ? <Text style={text.muted}>{hint}</Text> : null}
       {error ? <Note>{error}</Note> : null}
     </Screen>

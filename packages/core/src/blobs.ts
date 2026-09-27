@@ -57,6 +57,11 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
       }
     }
   }
+  for (const r of Object.values(state.produced)) {
+    for (const c of r.value.cards) if (!out.has(c.hash)) out.set(c.hash, { hash: c.hash, format: c.format ?? 'm4a', unitId: r.value.unitId });
+    const h = r.value.noteBlobHash;
+    if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: r.value.unitId });
+  }
   const keptVoices = Object.values(state.kept).filter((k) => k.value.reasonBlobHash);
   if (keptVoices.length > 0) {
     const checkUnit = new Map<string, string>();

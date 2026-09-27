@@ -7,7 +7,7 @@ import { StyleSheet } from '../theme';
 // lives in accessibility labels; the only visible words are the header,
 // passage references, language codes, due dates and counts.
 import {
-  decodeHlc, derivePassageRecord, highlightsFor, isObtLane, recentlyDone, recordHeadline, waitingOn,
+  decodeHlc, derivePassageRecord, highlightsFor, isObtLane, recentlyDone, recordHeadline, reviewKind, waitingOn,
   type DoneItem, type Highlight, type RecordAsk, type Task
 } from '@langquest-next/core';
 import type { LucideIcon } from 'lucide-react-native';
@@ -109,7 +109,11 @@ export function MyWork(ctx: Ctx) {
     const { h } = f;
     const params = { unitId: h.unitId, laneId: h.laneId };
     if ((h.kind === 'record' || h.kind === 'draft') && can('workspace')) return ctx.go('workspace', params);
-    if (h.kind === 'review' && can('review_capture')) {
+    const produces = h.kind === 'review' && !!h.kindId && !!state && !!reviewKind(state, h.kindId).produces;
+    if (h.kind === 'review' && produces && can('back_translation')) {
+      return ctx.go('back_translation', { ...params, ...(h.stepId ? { stepId: h.stepId } : {}), kindId: h.kindId! });
+    }
+    if (h.kind === 'review' && !produces && can('review_capture')) {
       return ctx.go('review_capture', { ...params, ...(h.takeId ? { takeId: h.takeId } : {}), ...(h.stepId ? { stepId: h.stepId } : {}), ...(h.kindId ? { kindId: h.kindId } : {}) });
     }
     return openRecord(h.unitId, h.laneId);

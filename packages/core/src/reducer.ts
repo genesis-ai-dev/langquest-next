@@ -34,8 +34,10 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * `requestWithdrawals`.
  *
  * 14: v1.CheckLogged folds into `checks` with its `logged` source.
+ *
+ * 15: v1.ContentProduced folds into `produced`.
  */
-export const REDUCER_VERSION = 14;
+export const REDUCER_VERSION = 15;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -421,6 +423,17 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
           ...(place !== undefined ? { place } : {}),
           ...(evidence !== undefined ? { evidence: evidence.map((c) => ({ ...c })) } : {})
         }
+      });
+      break;
+    }
+
+    case 'v1.ContentProduced': {
+      const { contentId, unitId, laneId, fromTakeId, kindId, language, cards, note, noteBlobHash, requestId } = event.payload;
+      lww(state.produced, contentId, event, {
+        unitId, laneId, fromTakeId, kindId, language, cards: cards.map((c) => ({ ...c })), actorId: event.actorId,
+        ...(note !== undefined ? { note } : {}),
+        ...(noteBlobHash !== undefined ? { noteBlobHash } : {}),
+        ...(requestId !== undefined ? { requestId } : {})
       });
       break;
     }

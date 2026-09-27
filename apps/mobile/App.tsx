@@ -65,7 +65,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   request_access: Entry.RequestAccess, scan_qr: Entry.ScanQr, walkthrough: Entry.Walkthrough,
   my_work: Work.MyWork,
   passage_record: Record.PassageRecord, ask_someone: Record.AskSomeone, add_record: Record.AddRecord,
-  workspace: Translate.Workspace, review_capture: Review.ReviewCapture, back_translation: Obt.BackTranslation,
+  workspace: Translate.Workspace, review_capture: Review.ReviewCapture, back_translation: Review.BackTranslate,
   study_guide: Study.StudyGuide, study_step: Study.StudyStep,
   translate_passage: Translate.TranslatePassage,
   passage_references: PassageSlides.PassageReferences, passage_terms: PassageSlides.PassageTerms,

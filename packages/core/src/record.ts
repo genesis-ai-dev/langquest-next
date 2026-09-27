@@ -1,4 +1,4 @@
-import type { DepartureKind, KindProduces, Role, WorkflowStep } from './events';
+import type { Card, DepartureKind, KindProduces, Role, WorkflowStep } from './events';
 import { buildIndexes, keptCheckKey, keptLegacyKey, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import { deriveObt, isObtLane, OBT_LABELS, OBT_STEPS } from './obt';
 import type { Assignment, CheckLoggedFrom, ProjectState } from './state';
@@ -185,6 +185,22 @@ export interface RecordDeparture {
   undone: { at: string; by: string; reason?: string } | null;
 }
 
+/** Content a producing kind made (`v1.ContentProduced`), e.g. a back translation. */
+export interface RecordContent {
+  contentId: string;
+  kindId: string;
+  fromTakeId: string;
+  language: string;
+  cards: Card[];
+  note?: string;
+  noteBlobHash?: string;
+  requestId?: string;
+  by: string;
+  at: string;
+  /** Made from a version that is no longer the latest (ADR-015 "made from an older version"). */
+  stale: boolean;
+}
+
 export interface RecordKind {
   kindId: string;
   name: string;
@@ -198,6 +214,8 @@ export interface RecordKind {
   outOfOrder: boolean;
   /** The active set-aside that makes this kind `skipped`, when it is shown. */
   setAside: RecordDeparture | null;
+  /** A producing kind's newest content (D4 rule 1: `recorded`), or null. */
+  content: RecordContent | null;
 }
 
 export interface RecordStep {
@@ -240,6 +258,7 @@ export type RecordEntry =
   | { kind: 'response'; at: string; by: string; id: string; takeId: string; n: number; respondsToTakeId: string }
   | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string; kindId?: string; requestId?: string; state: RecordAsk['state'] }
   | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture }
+  | { kind: 'content'; at: string; by: string; id: string; content: RecordContent }
   | { kind: 'kept'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; reviewerId: string; kept: RecordKept };
 
 export interface PassageRecord {
@@ -368,10 +387,30 @@ const mayWithdrawAny = (state: ProjectState, id: string) => {
   return m !== undefined && !m.removed.value && (m.role.value === 'owner' || m.role.value === 'coordinator');
 };
 
+/**
+ * Every `v1.ContentProduced` on this passage, oldest first; `kindId` narrows
+ * it to one kind. Stale when made from a version other than `latestTakeId`.
+ */
+export function producedFor(state: ProjectState, unitId: string, laneId: string, latestTakeId: string | null, kindId?: string): RecordContent[] {
+  const out: RecordContent[] = [];
+  for (const [contentId, reg] of Object.entries(state.produced)) {
+    const c = reg.value;
+    if (c.unitId !== unitId || c.laneId !== laneId || (kindId !== undefined && c.kindId !== kindId)) continue;
+    out.push({
+      contentId, kindId: c.kindId, fromTakeId: c.fromTakeId, language: c.language, cards: c.cards, by: c.actorId, at: reg.hlc,
+      stale: c.fromTakeId !== latestTakeId,
+      ...(c.note !== undefined ? { note: c.note } : {}),
+      ...(c.noteBlobHash !== undefined ? { noteBlobHash: c.noteBlobHash } : {}),
+      ...(c.requestId !== undefined ? { requestId: c.requestId } : {})
+    });
+  }
+  return out.sort((a, b) => byClock({ at: a.at, id: a.contentId }, { at: b.at, id: b.contentId }));
+}
+
 /** D8: every ask on this passage, legacy assignments and requests, oldest first. */
 function asksFor(
   state: ProjectState, unitId: string, laneId: string, idx: Indexes, flow: FlowStep[], workflow: WorkflowStep[],
-  latest: RecordVersion | null, versions: RecordVersion[]
+  latest: RecordVersion | null, versions: RecordVersion[], produced: RecordContent[]
 ): RecordAsk[] {
   const key = unitLaneKey(unitId, laneId);
   const legacy = (idx.assignmentsByUnitLane.get(key) ?? [])
@@ -404,7 +443,9 @@ function asksFor(
       ? versions.some((v) => v.at > reg.hlc)
       : versions.some((v) => v.reviews.some((c) => c.requestId === requestId ||
         (r.assigneeId !== undefined && c.reviewerId === r.assigneeId && c.at > reg.hlc &&
-          (r.kindId !== undefined ? c.kindId === r.kindId : stepIds.includes(c.stepId)))));
+          (r.kindId !== undefined ? c.kindId === r.kindId : stepIds.includes(c.stepId)))))
+      || produced.some((c) => c.requestId === requestId ||
+        (r.assigneeId !== undefined && c.by === r.assigneeId && c.at > reg.hlc && c.kindId === r.kindId));
     const state_: RecordAsk['state'] = withdrawn ? 'withdrawn' : done ? 'done' : 'open';
     return [{
       unitId: r.unitId, laneId: r.laneId, profileId: r.assigneeId ?? '', role, askedBy: r.actorId,
@@ -505,7 +546,8 @@ export function derivePassageRecord(
   const recorded = latest !== null;
   const draft = draftOf(state, unitId, laneId, idx);
   const workflow = grouped.map((g) => legacyStep(g.step));
-  const asks = asksFor(state, unitId, laneId, idx, grouped.map((g) => g.step), workflow, latest, versions);
+  const produced = obt ? [] : producedFor(state, unitId, laneId, latest?.takeId ?? null);
+  const asks = asksFor(state, unitId, laneId, idx, grouped.map((g) => g.step), workflow, latest, versions, produced);
   const departures = obt ? [] : departuresOf(state, unitId, laneId, idx);
   const active = departures.filter((d) => d.undone === null);
 
@@ -546,8 +588,12 @@ export function derivePassageRecord(
           // A legacy review names a step, not a kind: it counts for a single-kind step.
           : c.stepId === step.id && step.kindIds.length === 1);
       const last = checks[checks.length - 1];
+      // D4 rule 1: a producing kind that made its content is `recorded`
+      // (stale when made from an older version), whatever else happened.
+      const content = def.produces ? produced.filter((c) => c.kindId === kindId).pop() ?? null : null;
       let kstate: RecordKindState;
       if (!recorded) kstate = 'todo';
+      else if (content) kstate = 'recorded';
       else if (legacy) {
         const st = stepStatus.get(step.id);
         // Kept feedback answers a v1 step too (D5): every suggestion on it kept -> addressed.
@@ -565,11 +611,11 @@ export function derivePassageRecord(
       // A set-aside is a fact on the step like a check: on a locked step it
       // still counts, flagged out of order (D6), never refused.
       const shownAside = recorded && kstate === 'skipped' ? aside : null;
-      const outOfOrder = recorded && (checks.length > 0 || shownAside !== null) && (lockedBy !== null ||
-        checks.some((c) => c.at < clearedAt) || (shownAside !== null && shownAside.at < clearedAt));
-      if (lockedBy !== null && checks.length === 0 && shownAside === null) kstate = 'locked';
+      const outOfOrder = recorded && (checks.length > 0 || shownAside !== null || content !== null) && (lockedBy !== null ||
+        checks.some((c) => c.at < clearedAt) || (shownAside !== null && shownAside.at < clearedAt) || (content !== null && content.at < clearedAt));
+      if (lockedBy !== null && checks.length === 0 && shownAside === null && content === null) kstate = 'locked';
       return {
-        kindId, name: def.name, state: kstate, checks, outOfOrder, setAside: shownAside,
+        kindId, name: def.name, state: kstate, checks, outOfOrder, setAside: shownAside, content,
         ...(def.icon !== undefined ? { icon: def.icon } : {}),
         ...(def.produces !== undefined ? { produces: def.produces } : {}),
         ...(def.withholdsContext !== undefined ? { withholdsContext: def.withholdsContext } : {})
@@ -578,7 +624,7 @@ export function derivePassageRecord(
     const complete = recorded && kinds.length > 0 && kinds.every((k) => step.checkpoint
       ? k.state === 'approved' || k.state === 'recorded'
       : k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded');
-    const touched = kinds.some((k) => k.checks.length > 0 || k.setAside !== null);
+    const touched = kinds.some((k) => k.checks.length > 0 || k.setAside !== null || k.content !== null);
     const state_: RecordStepState = !recorded ? 'locked'
       : complete ? 'complete'
       : lockedBy !== null && !touched ? 'locked'
@@ -590,7 +636,10 @@ export function derivePassageRecord(
       else {
         // Cleared at its last approval, or at the override if that came first.
         let at = '';
-        if (complete) for (const k of kinds) for (const c of k.checks) if (c.decision === 'approve' && c.at > at) at = c.at;
+        if (complete) for (const k of kinds) {
+          if (k.content && k.content.at > at) at = k.content.at;
+          for (const c of k.checks) if (c.decision === 'approve' && c.at > at) at = c.at;
+        }
         if (override && (at === '' || override.at < at)) at = override.at;
         if (at > clearedAt) clearedAt = at;
       }
@@ -637,6 +686,7 @@ export function derivePassageRecord(
       ...(a.kindId !== undefined ? { kindId: a.kindId } : {}),
       ...(a.requestId !== undefined ? { requestId: a.requestId } : {})
     })),
+    ...produced.map((c): RecordEntry => ({ kind: 'content', at: c.at, by: c.by, id: `content:${c.contentId}`, content: c })),
     ...departures.map((d): RecordEntry => ({ kind: 'departure', at: d.at, by: d.by, id: `departure:${d.departureId}`, departure: d })),
     ...feedback.flatMap((f): RecordEntry[] => f.kept ? [{ kind: 'kept', at: f.kept.at, by: f.kept.by, id: `kept:${f.kept.keptId}`, takeId: f.takeId, n: latest!.n, stepId: f.stepId, kindId: f.kindId, reviewerId: f.reviewerId, kept: f.kept }] : [])
   ].sort((a, b) => -byClock(a, b));
