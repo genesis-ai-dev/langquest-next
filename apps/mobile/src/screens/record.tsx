@@ -4,7 +4,7 @@
 // wired yet (docs/ux/mobbin-overhaul/CHECKLIST.md); later phases build them out.
 import {
   decodeHlc, deriveObt, derivePassageRecord, deriveTakeStatus, keyTermLinksFor, OBT_LABELS, questionsOf, questionSetsFor,
-  recordHeadline, recordNextAction, type DepartureKind, type PassageRecord as Rec, type RecordDeparture, type RecordEntry,
+  checkCredit, commands, recordHeadline, recordNextAction, reviewKind, reviewKinds, type DepartureKind, type PassageRecord as Rec, type RecordDeparture, type RecordEntry,
   type RecordKind, type RecordReview, type RecordStep
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import {
   ArrowUpDown, Ban, BookmarkCheck, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
   Headphones, History, ListChecks, Lock, Languages, MapPin, MessageSquare, Mic, Octagon, Reply, RotateCcw, ShieldCheck,
-  KeyRound, SkipForward, Star, Undo2, UserPlus, UserX, Users, X
+  KeyRound, Minus, Plus, SkipForward, Star, Undo2, UserPlus, UserX, Users, X
 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -26,6 +26,7 @@ import { edgeAllowed } from '../session';
 import { colors, radius, space, StyleSheet, tint } from '../theme';
 import { ActionButton, Card, ProgressRing, StatusIcon, text } from '../ui';
 import { Byline, PersonAvatar, usePerson } from '../UserChip';
+import { HoldToRecord } from './recordings';
 
 /** The passage a screen is about, from `unitId` in its params. */
 export function passageLabel(ctx: Ctx): string {
@@ -447,6 +448,7 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
   // past a checkpoint needs manage_flows (J-REC-7).
   const canSetAside = rec.recorded && !step.checkpoint && step.state !== 'complete' && ctx.session.can('translate');
   const canOverride = rec.recorded && step.checkpoint && step.state !== 'complete' && !step.override && ctx.session.can('manage_flows');
+  const canLog = rec.recorded && !step.legacy && ctx.session.can('send_to_reviewers') && canGo(ctx, 'passage_record', 'add_record');
   const kindDone = (k: RecordKind) => k.state === 'approved' || k.state === 'addressed' || k.state === 'skipped' || k.state === 'recorded';
   return (
     <View style={{ gap: space.md }}>
@@ -458,9 +460,9 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
       </View>
       <View style={styles.sheetPeople}>
         {reviews.map((r) => (
-          <Pressable key={r.reviewerId} onPress={() => go('review_detail', { takeId: r.takeId, round: `${r.stepId}:${r.reviewerId}` })}
-            accessibilityLabel={`${props.nameOf(r.reviewerId)}: ${r.decision === 'approve' ? 'looks good' : 'needs changes'}`} style={styles.personMark}>
-            <PersonAvatar look={person(r.reviewerId)} size={28} />
+          <Pressable key={r.eventId} onPress={() => go('review_detail', { takeId: r.takeId, round: `${r.stepId}:${r.reviewerId}` })}
+            accessibilityLabel={`${r.logged ? checkCredit(r.logged) ?? 'Logged' : props.nameOf(r.reviewerId)}: ${r.decision === 'approve' ? 'looks good' : 'needs changes'}`} style={styles.personMark}>
+            {r.logged ? <Users size={28} color={colors.mutedForeground} /> : <PersonAvatar look={person(r.reviewerId)} size={28} />}
             {r.decision === 'approve' ? <CheckCircle2 size={16} color={colors.done} /> : <MessageSquare size={16} color={colors.review} />}
           </Pressable>
         ))}
@@ -516,6 +518,8 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
           onPress={() => go('ask_someone', { stepId: step.stepId })} /> : null}
         {canSetAside && (step.legacy || step.kinds.length === 0) ? <ActionButton variant="outline" icon={SkipForward} style={styles.iconBtn}
           accessibilityLabel="Set aside" onPress={() => props.onDepart({ kind: 'set_aside', stepId: step.stepId, name: step.label })} /> : null}
+        {canLog ? <ActionButton variant="outline" icon={ClipboardCheck} style={styles.iconBtn} accessibilityLabel="Log what happened"
+          onPress={() => go('add_record', step.kinds[0] ? { kindId: (step.kinds.find((k) => !kindDone(k)) ?? step.kinds[0]).kindId } : {})} /> : null}
         {canOverride ? <ActionButton variant="outline" icon={Octagon} style={styles.iconBtn} accessibilityLabel="Move past this checkpoint…"
           onPress={() => props.onDepart({ kind: 'override', stepId: step.stepId, name: step.label })} /> : null}
       </View>
@@ -633,6 +637,9 @@ function Details(props: {
       <Disclosure icon={History} count={rec.history.length} open={props.open.history}
         label={rec.history.length ? `${rec.history.length} entries since ${shortDate(rec.history[rec.history.length - 1]!.at)}` : 'No entries yet'}
         onToggle={() => props.setOpen((o) => ({ ...o, history: !o.history }))}>
+        {rec.recorded && ctx.session.can('send_to_reviewers') && canGo(ctx, 'passage_record', 'add_record')
+          ? <ActionButton variant="outline" icon={ClipboardCheck} style={styles.iconBtn} accessibilityLabel="Log what happened"
+            onPress={() => ctx.go('add_record', props.params)} /> : null}
         {rec.history.map((e) => {
           if (e.kind === 'departure') {
             const d = e.departure;
@@ -653,12 +660,15 @@ function Details(props: {
           const onPress = e.kind === 'review' ? () => ctx.go('review_detail', { ...props.params, takeId: e.takeId, round: `${e.stepId}:${e.by}` })
             : e.kind === 'version' || e.kind === 'response' ? () => ctx.go('version_detail', { ...props.params, takeId: e.takeId })
             : undefined;
+          // A logged check is credited to who gave it; the typist is "Logged by".
+          const logged = e.kind === 'review' ? e.logged : undefined;
+          const who = logged ? `${checkCredit(logged) ?? 'Outside the app'} · logged by ${e.by === ctx.session.actorId ? 'you' : props.nameOf(e.by)}` : props.nameOf(e.by);
           return (
             <Pressable key={e.id} onPress={onPress} disabled={!onPress} style={styles.historyRow}
               accessibilityRole={onPress ? 'button' : undefined}
-              accessibilityLabel={`${entryTitle(e, rec)} · ${props.nameOf(e.by)} · ${shortDate(e.at)}`}>
+              accessibilityLabel={`${entryTitle(e, rec)} · ${who} · ${shortDate(e.at)}`}>
               <EntryIcon entry={e} />
-              <PersonAvatar look={person(e.by)} size={20} />
+              {logged ? <Users size={20} color={colors.mutedForeground} /> : <PersonAvatar look={person(e.by)} size={20} />}
               {e.kind === 'ask' ? <><ChevronRight size={14} color={colors.mutedForeground} /><PersonAvatar look={person(e.profileId)} size={20} /></> : null}
               {'n' in e ? <Text style={text.small}>v{e.n}</Text> : null}
               <View style={{ flex: 1 }} />
@@ -858,7 +868,11 @@ export function ReviewDetail(ctx: Ctx) {
   const canKeep = open && rec.feedbackIsMine && ctx.session.can('translate');
   return (
     <Screen footer={canFix ? <Footer label="Record a fix" onPress={() => ctx.go('workspace', { ...params, respondsTo: takeId })} /> : undefined}>
-      <Header title={label} sub={<Byline before="by" id={actor} after={`· ${shortDate(review.at)}`} />} onBack={ctx.back} />
+      <Header title={label} sub={review.logged
+        ? `${checkCredit(review.logged) ?? 'Outside the app'} · ${shortDate(review.at)}`
+        : <Byline before="by" id={actor} after={`· ${shortDate(review.at)}`} />} onBack={ctx.back} />
+      {review.logged ? <Byline before="Logged by" id={actor} /> : null}
+      {review.logged?.evidence?.length ? <AudioClip project={ctx.project} hashes={review.logged.evidence.map((e) => e.hash)} label="Hear the evidence" hideActions /> : null}
       <Card style={{ backgroundColor: approved ? tint.done : tint.review }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           {approved ? <CheckCircle2 size={20} color={colors.done} /> : <MessageSquare size={20} color={colors.review} />}
@@ -910,6 +924,7 @@ const styles = StyleSheet.create({
   feedbackHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   nextRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   nextThen: { borderStyle: 'dashed', backgroundColor: colors.muted },
+  counter: { flexDirection: 'row', alignItems: 'center', gap: space.lg, justifyContent: 'center' },
   iconBtn: { minWidth: 48, minHeight: 48, paddingHorizontal: space.sm, paddingVertical: space.sm },
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
   sheet: { padding: space.lg, paddingBottom: space.xl, gap: space.md, backgroundColor: colors.card, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
@@ -927,8 +942,149 @@ const styles = StyleSheet.create({
   input: { minHeight: 72, padding: space.md, color: colors.foreground, textAlignVertical: 'top' }
 });
 
+// ─── add_record: Log what happened (Avatar P, J-REC-11) ─────────────────────
+
+/** Kinds heard by a group: the log counts listeners instead of naming one person. */
+const GROUP_KINDS = new Set(['kind@1/community', 'kind@1/retell']);
+
+/**
+ * A check that happened outside the app, logged afterwards: one
+ * `v1.CheckLogged` per passage covered. Credited to who gave it (or "N
+ * listeners at place"), never the typist. No Undo: the only retraction is
+ * `v1.Redacted`, which needs manage_structure, so a translator could not
+ * undo their own log.
+ */
 export function AddRecord(ctx: Ctx) {
-  return <Placeholder ctx={ctx} id="add_record" />;
+  const loaded = useRecord(ctx);
+  const { state } = ctx.project;
+  const [kindId, setKindId] = useState<string | null>(ctx.params['kindId'] ?? null);
+  const [takeId, setTakeId] = useState<string | null>(null);
+  const [also, setAlso] = useState<string[]>([]);
+  const [people, setPeople] = useState(10);
+  const [givenBy, setGivenBy] = useState('');
+  const [place, setPlace] = useState('');
+  const [comment, setComment] = useState('');
+  const [summary, setSummary] = useState<string | undefined>();
+  const [evidence, setEvidence] = useState<{ hash: string; durationMs: number; format: 'wav' | 'm4a' }[]>([]);
+  const [outcome, setOutcome] = useState<'looks_good' | 'needs_changes' | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  if (!state || !loaded) return <Note>Passage not found.</Note>;
+  const { rec, unitId, laneId } = loaded;
+  const idx = indexesFor(state);
+  const actorId = ctx.session.actorId;
+  const mayLog = ctx.session.can('send_to_reviewers');
+  const flowKinds = rec.steps.flatMap((s) => s.kinds.map((k) => ({ id: k.kindId, name: k.name, stepId: s.stepId })));
+  const others = reviewKinds(state).filter((k) => !flowKinds.some((f) => f.id === k.id)).map((k) => ({ id: k.id, name: k.name, stepId: undefined }));
+  // Producing kinds are made, not judged: they belong on back_translation.
+  const kinds = [...flowKinds, ...others].filter((k) => !reviewKind(state, k.id).produces);
+  const kind = kinds.find((k) => k.id === kindId) ?? null;
+  const group = kind ? GROUP_KINDS.has(kind.id) : false;
+  const played = takeId ?? rec.latest?.takeId ?? null;
+
+  // Also covered: the nearest recorded passages under the same parent.
+  const parent = state.units[unitId]?.parentUnitId ?? null;
+  const siblings = Object.entries(state.units)
+    .filter(([id, u]) => id !== unitId && (u.parentUnitId ?? null) === parent)
+    .sort(([, a], [, b]) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
+  const mine = Object.keys(state.units).filter((id) => (state.units[id]!.parentUnitId ?? null) === parent)
+    .sort((a, b) => (state.units[a]!.order < state.units[b]!.order ? -1 : 1));
+  const at = mine.indexOf(unitId);
+  const nearby = siblings
+    .map(([id]) => ({ id, rec: derivePassageRecord(state, id, laneId, actorId, idx) }))
+    .filter((p) => p.rec.latest !== null)
+    .sort((a, b) => Math.abs(mine.indexOf(a.id) - at) - Math.abs(mine.indexOf(b.id) - at))
+    .slice(0, 4);
+  const count = 1 + also.length;
+  const needsWhat = outcome === 'needs_changes' && !comment.trim() && !summary;
+  const ready = mayLog && !!kind && !!played && outcome !== null && !needsWhat;
+  const hint = !kind ? 'Choose the kind of review.' : outcome === null ? 'Choose how it went.'
+    : needsWhat ? 'Say what needs to change — record a summary or type it.' : '';
+
+  async function save() {
+    if (!ready || saving || !kind || !played || !state) return;
+    setSaving(true); setError('');
+    try {
+      const openAsk = (r: Rec) => r.asks.find((a) => a.kind === 'review' && !a.satisfied && a.profileId === actorId && a.kindId === kind.id)?.requestId;
+      const targets = [
+        { takeId: played, stepId: kind.stepId, requestId: openAsk(rec) },
+        ...also.map((id) => {
+          const r = nearby.find((p) => p.id === id)!.rec;
+          return { takeId: r.latest!.takeId, stepId: r.steps.find((st) => st.kinds.some((k) => k.kindId === kind.id))?.stepId, requestId: openAsk(r) };
+        })
+      ];
+      await ctx.project.run(commands(state, idx).logCheck({
+        commandId: Crypto.randomUUID(), kindId: kind.id, outcome: outcome!,
+        passages: targets.map((t) => ({ checkId: Crypto.randomUUID(), takeId: t.takeId,
+          ...(t.stepId ? { stepId: t.stepId } : {}), ...(t.requestId ? { requestId: t.requestId } : {}) })),
+        ...(comment.trim() ? { comment } : {}),
+        ...(summary ? { commentBlobHash: summary } : {}),
+        ...(group ? { people } : givenBy.trim() ? { givenBy } : {}),
+        ...(place.trim() ? { place } : {}),
+        ...(evidence.length ? { evidence } : {})
+      }));
+      ctx.project.triggerUpload();
+      ctx.toast(count > 1 ? `${kind.name} added to ${count} passages` : `${kind.name} added to the record`);
+      ctx.go('passage_record', { unitId, laneId });
+    } catch (e) { setError((e as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  const tick = (on: boolean) => (on ? <CheckCircle2 size={18} color={colors.translate} /> : <View />);
+  return (
+    <Screen footer={<Footer label={count > 1 ? `Save to ${count} passages` : 'Save to the record'} onPress={() => void save()} disabled={!ready || saving} />}>
+      <Header title="Log what happened" sub={state.units[unitId]!.label} onBack={saving ? undefined : ctx.back} />
+      {!mayLog ? <Note>Only people who can ask for reviews can log one.</Note> : null}
+      <Section label="Kind of review">
+        {kinds.map((k, i) => <Row key={k.id} label={k.name} onPress={() => setKindId(k.id)} last={i === kinds.length - 1} right={tick(kindId === k.id)} />)}
+      </Section>
+      {rec.versions.length > 1 ? <Section label="Which version was played">
+        {[...rec.versions].reverse().map((v, i, all) => (
+          <Row key={v.takeId} label={`Version ${v.n}`} sub={v.takeId === rec.latest?.takeId ? 'Latest' : undefined}
+            onPress={() => setTakeId(v.takeId)} last={i === all.length - 1} right={tick(played === v.takeId)} />
+        ))}
+      </Section> : null}
+      {nearby.length > 0 ? <Section label="Also covered in this session">
+        <Text style={text.muted}>The same review is added to each passage you pick.</Text>
+        {nearby.map((p, i) => (
+          <Row key={p.id} label={state.units[p.id]!.label} sub={`Version ${p.rec.latest!.n}`} last={i === nearby.length - 1}
+            onPress={() => setAlso((a) => (a.includes(p.id) ? a.filter((x) => x !== p.id) : [...a, p.id]))} right={tick(also.includes(p.id))} />
+        ))}
+      </Section> : null}
+      {group ? <Section label="How many listened?">
+        <View style={styles.counter}>
+          <ActionButton variant="outline" icon={Minus} style={styles.iconBtn} accessibilityLabel="Fewer listeners" disabled={people <= 1} onPress={() => setPeople((n) => Math.max(1, n - 1))} />
+          <Text style={text.h4} accessibilityLabel={`${people} listened`}>{people}</Text>
+          <ActionButton variant="outline" icon={Plus} style={styles.iconBtn} accessibilityLabel="More listeners" onPress={() => setPeople((n) => n + 1)} />
+        </View>
+      </Section> : <Section label="Who reviewed it">
+        <TextInput value={givenBy} onChangeText={setGivenBy} placeholder="Who reviewed it — e.g. Peter Lual" placeholderTextColor={colors.mutedForeground}
+          style={styles.input} accessibilityLabel="Who reviewed it" />
+      </Section>}
+      <Section label="Where">
+        <TextInput value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" placeholderTextColor={colors.mutedForeground}
+          style={styles.input} accessibilityLabel="Where" />
+      </Section>
+      <Section label="What happened">
+        <HoldToRecord accessibilityLabel="Record a summary" disabled={saving} onCard={(card) => setSummary(card.ref.hash)} />
+        {summary ? <AudioClip project={ctx.project} hashes={[summary]} label="Hear the summary" hideActions /> : null}
+        <TextInput value={comment} onChangeText={setComment} placeholder="Or type what people understood and asked about" multiline
+          placeholderTextColor={colors.mutedForeground} style={styles.input} accessibilityLabel="Or type what people understood and asked about" />
+      </Section>
+      <Section label="Evidence · optional">
+        <Text style={text.muted}>A retelling or a recorded conversation makes the review easy to trust.</Text>
+        <HoldToRecord accessibilityLabel="Record a retelling" disabled={saving}
+          onCard={(card) => setEvidence((e) => [...e, { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }])} />
+        {evidence.length ? <AudioClip project={ctx.project} hashes={evidence.map((e) => e.hash)} label="Hear the evidence" hideActions /> : null}
+      </Section>
+      <Section label="How did it go?">
+        <Row icon={CheckCircle2} label="Looks good" onPress={() => setOutcome('looks_good')} right={tick(outcome === 'looks_good')} />
+        <Row icon={MessageSquare} label="Needs changes" onPress={() => setOutcome('needs_changes')} last right={tick(outcome === 'needs_changes')} />
+      </Section>
+      {hint ? <Text style={text.muted}>{hint}</Text> : null}
+      {error ? <Note>{error}</Note> : null}
+    </Screen>
+  );
 }
 
 import { contractsFor } from '../screenContracts';

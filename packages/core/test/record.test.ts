@@ -4,8 +4,9 @@ import { encodeHlc } from '../src/hlc';
 import { fold } from '../src/reducer';
 import { deriveInbox } from '../src/inbox';
 import { emptyState } from '../src/state';
+import { commands } from '../src/commands';
 import {
-  derivePassageRecord, highlightsFor, languageProgress, recentlyDone, recordHeadline, recordNextAction, waitingOn,
+  checkCredit, derivePassageRecord, highlightsFor, languageProgress, recentlyDone, recordHeadline, recordNextAction, waitingOn,
   type RecordAbilities
 } from '../src/record';
 
@@ -852,5 +853,77 @@ describe('asks as requests (RequestMade, RequestWithdrawn, D8)', () => {
     l.add('c1', 'v1.AssignmentMade', { unitId: 'p1', laneId: 'L', profileId: 'r2', role: 'reviewer' });
     l.add('r1', 'v1.CheckRecorded', { checkId: 'c1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/peer', outcome: 'looks_good' });
     expect(highlightsFor(state(l.events), 'r2')).toMatchObject([{ kind: 'review', stepId: 's1', kindId: 'kind@1/community' }]);
+  });
+});
+
+describe('logged checks (CheckLogged, J-REC-11)', () => {
+  function flow() {
+    const l = log();
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'peer' });
+    l.add('lead', 'v1.WorkflowStepRemoved', { stepId: 'approval' });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's1', laneId: 'L', order: 's00', kindIds: ['kind@1/community'], checkpoint: true });
+    l.add('lead', 'v2.WorkflowStepSet', { stepId: 's2', laneId: 'L', order: 's01', kindIds: ['kind@1/consultant'], checkpoint: false });
+    return l;
+  }
+
+  it('counts for its kind like an in-app check, credited to who gave it, never the typist', () => {
+    // Why (analysis row 9, principle 5): a translator runs a community check
+    // in a village and logs it; the step must clear, and the record must say
+    // who listened, not that the translator reviewed their own work.
+    const l = flow();
+    const v1 = l.version('t1');
+    l.add('t1', 'v1.CheckLogged', { checkId: 'g1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'looks_good', people: 12, place: 'Bor church' });
+    const r = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(r.steps.map((s) => s.state)).toEqual(['complete', 'current']);
+    const c = r.steps[0]!.kinds[0]!.checks[0]!;
+    expect(c).toMatchObject({ via: 'logged', reviewerId: 't1', logged: { people: 12, place: 'Bor church' } });
+    expect(checkCredit(c.logged!)).toBe('12 listeners at Bor church');
+    // The typist is not listed as an approving reviewer of the step.
+    expect(r.steps[0]!.status?.approved).toEqual([]);
+    expect(r.history.find((h) => h.kind === 'review')).toMatchObject({ logged: { people: 12 } });
+  });
+
+  it('credit reads the giver, the crowd, both, or nothing', () => {
+    expect(checkCredit({ givenBy: 'Elder Deng' })).toBe('Elder Deng');
+    expect(checkCredit({ givenBy: 'Elder Deng', people: 1, place: 'Bor' })).toBe('Elder Deng with 1 listener at Bor');
+    expect(checkCredit({ place: 'Bor' })).toBe('Checked at Bor');
+    expect(checkCredit({})).toBeNull();
+  });
+
+  it('needs changes opens feedback for the author, like any check', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.add('t2', 'v1.CheckLogged', { checkId: 'g1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'needs_changes', comment: 'Heard farmer for shepherd', givenBy: 'Elder Deng' });
+    const r = derivePassageRecord(state(l.events), 'p1', 'L', 't1');
+    expect(r.openFeedback).toHaveLength(1);
+    expect(r.turn).toEqual({ kind: 'answer_feedback', authorId: 't1', mine: true });
+  });
+
+  it('logging for several passages writes one event per passage, each with its own check id', () => {
+    // Why (J-REC-11 "also covered in this session"): one session covers more
+    // than one passage, but each passage's record needs its own fact.
+    const l = flow();
+    const v1 = l.version('t1', 'p1');
+    const v2 = l.version('t1', 'p2');
+    const s = state(l.events);
+    const specs = commands(s).logCheck({
+      commandId: 'cmd', kindId: 'kind@1/community', outcome: 'looks_good', people: 8, place: ' Bor ',
+      passages: [{ checkId: 'g1', takeId: v1 }, { checkId: 'g2', takeId: v2 }]
+    });
+    expect(specs.map((e) => [e.type, e.payload])).toEqual([
+      ['v1.CheckLogged', { checkId: 'g1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'looks_good', people: 8, place: 'Bor' }],
+      ['v1.CheckLogged', { checkId: 'g2', unitId: 'p2', laneId: 'L', takeId: v2, kindId: 'kind@1/community', outcome: 'looks_good', people: 8, place: 'Bor' }]
+    ]);
+    expect(new Set(specs.map((e) => e.id)).size).toBe(2);
+    expect(() => commands(s).logCheck({ commandId: 'x', kindId: 'kind@1/community', outcome: 'needs_changes', passages: [{ checkId: 'g3', takeId: v1 }] }))
+      .toThrow(/Say what to change/);
+  });
+
+  it('a logged check naming a request answers it', () => {
+    const l = flow();
+    const v1 = l.version('t1');
+    l.add('c1', 'v1.RequestMade', { requestId: 'rq1', unitId: 'p1', laneId: 'L', what: 'check', kindId: 'kind@1/community', assigneeId: 't1' });
+    l.add('t1', 'v1.CheckLogged', { checkId: 'g1', unitId: 'p1', laneId: 'L', takeId: v1, kindId: 'kind@1/community', outcome: 'looks_good', requestId: 'rq1' });
+    expect(derivePassageRecord(state(l.events), 'p1', 'L', 'c1').asks[0]!.state).toBe('done');
   });
 });

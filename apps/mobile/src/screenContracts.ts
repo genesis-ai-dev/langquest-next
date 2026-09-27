@@ -61,6 +61,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   review_detail: { emits:['v1.FeedbackKept'],reads:['derivePassageRecord','questionSetsFor'] },
   passage_record: { emits:['v1.StepSetAside','v1.CheckpointOverridden','v1.DepartureUndone','v1.FeedbackKept'],reads:['derivePassageRecord','recordNextAction','deriveObt'] },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassageRecord'] },
+  add_record: { emits:['v1.CheckLogged'],reads:['derivePassageRecord','reviewKinds','checkCredit'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   settings_home: { rpcs:['register_push_token','request_account_deletion','account_deletion_status','restore_account'] },

@@ -52,6 +52,9 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
     for (const c of Object.values(byId)) {
       const h = c.value.commentBlobHash;
       if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: c.value.unitId });
+      for (const e of c.value.logged?.evidence ?? []) {
+        if (!out.has(e.hash)) out.set(e.hash, { hash: e.hash, format: e.format ?? 'm4a', unitId: c.value.unitId });
+      }
     }
   }
   const keptVoices = Object.values(state.kept).filter((k) => k.value.reasonBlobHash);

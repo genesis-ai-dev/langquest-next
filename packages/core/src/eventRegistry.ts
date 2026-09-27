@@ -327,6 +327,24 @@ export const EVENT_REGISTRY = {
     example: { requestId: 'ex-request', reason: 'Asked the wrong person' }
   },
 
+  // ---- Phase 2b logged checks (SQL 20260927000006_check_logged.sql).
+  'v1.CheckLogged': {
+    validate: (p) =>
+      str(p, 'checkId', 'unitId', 'laneId', 'takeId', 'kindId') ?? optStr(p, 'stepId') ?? optStr(p, 'requestId') ??
+      optText(p, 'comment') ?? optStr(p, 'commentBlobHash') ?? optStr(p, 'givenBy') ?? optStr(p, 'place') ??
+      (p['outcome'] === 'looks_good' || p['outcome'] === 'needs_changes' ? null : 'outcome must be looks_good or needs_changes') ??
+      (p['outcome'] === 'needs_changes' && !sqlStr(p, 'comment') && !sqlStr(p, 'commentBlobHash') ? 'needs changes must say what: comment or commentBlobHash' : null) ??
+      (p['people'] === undefined || (typeof p['people'] === 'number' && Number.isInteger(p['people']) && p['people'] >= 1)
+        ? null : 'people must be a whole number of at least 1') ??
+      (p['evidence'] === undefined ? null : cards(p, 'evidence')),
+    privilege: 'send_to_reviewers', blobHashes: (p) => [...new Set([...hashes(p['commentBlobHash']), ...cardHashes(p['evidence'])])], shipped: true,
+    example: {
+      checkId: 'ex-logged', unitId: 'ex-unit', laneId: 'ex-lane', takeId: 'ex-take', kindId: 'kind@1/community', stepId: 'ex-step-v2',
+      outcome: 'needs_changes', comment: 'Listeners heard "shepherd" as "farmer"', commentBlobHash: HASH,
+      givenBy: 'Elder Deng', people: 12, place: 'Bor church', evidence: [{ hash: HASH, durationMs: 1000, format: 'm4a' }], requestId: 'ex-request'
+    }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>

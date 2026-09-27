@@ -229,6 +229,29 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
   };
   /** Withdraws an ask (add-wins). Honoured from the asker, or an owner or coordinator. */
   'v1.RequestWithdrawn': { requestId: string; reason?: string };
+  /**
+   * A check that happened outside the app, logged afterwards (J-REC-11).
+   * Set by checkId, into the same check model as CheckRecorded. The actor is
+   * the person who typed it; the view credits `givenBy` or "`people`
+   * listeners at `place`". Privilege send_to_reviewers, so a translator can
+   * log a check they ran. Logging several passages = one event per passage.
+   */
+  'v1.CheckLogged': {
+    checkId: string;
+    unitId: string;
+    laneId: string;
+    takeId: string;
+    kindId: string;
+    stepId?: string;
+    outcome: CheckOutcome;
+    comment?: string;
+    commentBlobHash?: string;
+    givenBy?: string;
+    people?: number;
+    place?: string;
+    evidence?: Card[];
+    requestId?: string;
+  };
 }
 
 export type RequestWhat = 'record' | 'check';

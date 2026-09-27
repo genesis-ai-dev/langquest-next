@@ -32,8 +32,10 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  *
  * 13: v1.RequestMade and v1.RequestWithdrawn fold into `requests` and
  * `requestWithdrawals`.
+ *
+ * 14: v1.CheckLogged folds into `checks` with its `logged` source.
  */
-export const REDUCER_VERSION = 13;
+export const REDUCER_VERSION = 14;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -402,6 +404,24 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.RequestWithdrawn': {
       const { requestId, reason } = event.payload;
       lww((state.requestWithdrawals[requestId] ??= {}), event.id, event, { actorId: event.actorId, ...(reason !== undefined ? { reason } : {}) });
+      break;
+    }
+
+    case 'v1.CheckLogged': {
+      const { checkId, unitId, laneId, takeId, kindId, stepId, outcome, comment, commentBlobHash, givenBy, people, place, evidence, requestId } = event.payload;
+      lww((state.checks[takeId] ??= {}), checkId, event, {
+        unitId, laneId, kindId, outcome, actorId: event.actorId,
+        ...(stepId !== undefined ? { stepId } : {}),
+        ...(comment !== undefined ? { comment } : {}),
+        ...(commentBlobHash !== undefined ? { commentBlobHash } : {}),
+        ...(requestId !== undefined ? { requestId } : {}),
+        logged: {
+          ...(givenBy !== undefined ? { givenBy } : {}),
+          ...(people !== undefined ? { people } : {}),
+          ...(place !== undefined ? { place } : {}),
+          ...(evidence !== undefined ? { evidence: evidence.map((c) => ({ ...c })) } : {})
+        }
+      });
       break;
     }
 

@@ -381,5 +381,21 @@
   "v1.RequestWithdrawn": {
     "reason?": "string",
     "requestId": "string"
+  },
+  "v1.CheckLogged": {
+    "checkId": "string",
+    "comment?": "string",
+    "commentBlobHash?": "string",
+    "evidence?": "array<{durationMs:number,format:string,hash:string}>",
+    "givenBy?": "string",
+    "kindId": "string",
+    "laneId": "string",
+    "outcome": "string",
+    "people?": "number",
+    "place?": "string",
+    "requestId?": "string",
+    "stepId?": "string",
+    "takeId": "string",
+    "unitId": "string"
   }
 }

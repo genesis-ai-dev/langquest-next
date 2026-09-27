@@ -136,6 +136,16 @@ export interface Check {
   skippedQuestions?: { questionId: string; reason: string }[];
   requestId?: string;
   actorId: string;
+  /** Present for a `v1.CheckLogged`: who gave the check, outside the app. */
+  logged?: CheckLoggedFrom;
+}
+
+/** Where a logged check came from. The actor only typed it. */
+export interface CheckLoggedFrom {
+  givenBy?: string;
+  people?: number;
+  place?: string;
+  evidence?: Card[];
 }
 
 /** A `v1.StepSetAside` or `v1.CheckpointOverridden` for one passage. */

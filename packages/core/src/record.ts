@@ -1,7 +1,7 @@
 import type { DepartureKind, KindProduces, Role, WorkflowStep } from './events';
 import { buildIndexes, keptCheckKey, keptLegacyKey, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import { deriveObt, isObtLane, OBT_LABELS, OBT_STEPS } from './obt';
-import type { Assignment, ProjectState } from './state';
+import type { Assignment, CheckLoggedFrom, ProjectState } from './state';
 import { deriveFlow, deriveTakeStatus, eligibleReviewers, reviewKind, takesFor, type FlowStep, type StepStatus, type TakeOutcome } from './workflow';
 
 /**
@@ -60,8 +60,8 @@ export interface RecordReview {
   stepId: string;
   /** The review kind checked. A legacy ReviewSubmitted's kind is its step id. */
   kindId: string;
-  /** `app` for CheckRecorded; `legacy` for v1.ReviewSubmitted. */
-  via: 'app' | 'legacy';
+  /** `app` for CheckRecorded; `logged` for CheckLogged; `legacy` for v1.ReviewSubmitted. */
+  via: 'app' | 'logged' | 'legacy';
   reviewerId: string;
   decision: 'approve' | 'suggest_changes';
   comment?: string;
@@ -74,6 +74,11 @@ export interface RecordReview {
   requestId?: string;
   /** The CheckRecorded id; absent for a legacy review (named by take, step and reviewer). */
   checkId?: string;
+  /**
+   * A logged check (`via: 'logged'`): who gave it. `reviewerId` is then the
+   * person who typed it; credit goes to `checkCredit`, never to the typist.
+   */
+  logged?: CheckLoggedFrom;
   at: string;
   eventId: string;
 }
@@ -231,7 +236,7 @@ export type RecordTurn =
 
 export type RecordEntry =
   | { kind: 'version'; at: string; by: string; id: string; takeId: string; n: number }
-  | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; decision: 'approve' | 'suggest_changes' }
+  | { kind: 'review'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; decision: 'approve' | 'suggest_changes'; logged?: CheckLoggedFrom }
   | { kind: 'response'; at: string; by: string; id: string; takeId: string; n: number; respondsToTakeId: string }
   | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string; kindId?: string; requestId?: string; state: RecordAsk['state'] }
   | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture }
@@ -297,7 +302,8 @@ function reviewsOf(state: ProjectState, takeId: string, stepOfKind: (kindId: str
   for (const [checkId, reg] of Object.entries(state.checks[takeId] ?? {})) {
     const c = reg.value;
     out.push({
-      takeId, stepId: stepOfKind(c.kindId, c.stepId), kindId: c.kindId, via: 'app', reviewerId: c.actorId, checkId,
+      takeId, stepId: stepOfKind(c.kindId, c.stepId), kindId: c.kindId, via: c.logged ? 'logged' : 'app', reviewerId: c.actorId, checkId,
+      ...(c.logged ? { logged: c.logged } : {}),
       decision: c.outcome === 'looks_good' ? 'approve' : 'suggest_changes', at: reg.hlc, eventId: reg.eventId,
       ...(c.comment !== undefined ? { comment: c.comment } : {}),
       ...(c.answers !== undefined ? { answers: c.answers } : {}),
@@ -468,7 +474,8 @@ function v2Status(state: ProjectState, unitId: string, laneId: string, step: Flo
   const eligible = eligibleReviewers(state, unitId, laneId, legacyStep(step), idx);
   const checks = kinds.flatMap((k) => k.checks);
   const latestBy = new Map<string, RecordReview>();
-  for (const c of checks) latestBy.set(c.reviewerId, c);
+  // A logged check counts for its kind, never as the typist's own review.
+  for (const c of checks) if (c.via !== 'logged') latestBy.set(c.reviewerId, c);
   const approved = [...latestBy.values()].filter((c) => c.decision === 'approve').map((c) => c.reviewerId).sort();
   const rejected = [...latestBy.values()].filter((c) => c.decision === 'suggest_changes').map((c) => c.reviewerId).sort();
   const complete = kinds.every((k) => k.state === 'approved' || k.state === 'recorded' || k.state === 'addressed' || k.state === 'skipped');
@@ -618,7 +625,7 @@ export function derivePassageRecord(
 
   const history: RecordEntry[] = [
     ...versions.map((v): RecordEntry => ({ kind: 'version', at: v.at, by: v.authorId, id: `version:${v.takeId}`, takeId: v.takeId, n: v.n })),
-    ...versions.flatMap((v) => v.reviews.map((r): RecordEntry => ({ kind: 'review', at: r.at, by: r.reviewerId, id: r.eventId, takeId: v.takeId, n: v.n, stepId: r.stepId, kindId: r.kindId, decision: r.decision }))),
+    ...versions.flatMap((v) => v.reviews.map((r): RecordEntry => ({ kind: 'review', at: r.at, by: r.reviewerId, id: r.eventId, takeId: v.takeId, n: v.n, stepId: r.stepId, kindId: r.kindId, decision: r.decision, ...(r.logged ? { logged: r.logged } : {}) }))),
     ...versions.flatMap((v) => {
       const r = state.responses[v.takeId];
       return r ? [{ kind: 'response' as const, at: r.hlc, by: r.actorId, id: `response:${v.takeId}`, takeId: v.takeId, n: v.n, respondsToTakeId: r.respondsToTakeId }] : [];
@@ -639,6 +646,19 @@ export function derivePassageRecord(
     feedback: [...openFeedback, ...feedback.filter((f) => f.answered)], openFeedback, feedbackIsMine,
     asks, turn, history, departures, cleared: steps.filter((s) => s.state === 'complete').length
   };
+}
+
+/**
+ * Who a logged check is credited to (J-REC-11): "Elder Deng", "12 listeners
+ * at Bor church", both, or null when the logger named no one. Never the
+ * person who typed it.
+ */
+export function checkCredit(logged: CheckLoggedFrom): string | null {
+  const crowd = logged.people !== undefined
+    ? `${logged.people} ${logged.people === 1 ? 'listener' : 'listeners'}${logged.place ? ` at ${logged.place}` : ''}`
+    : logged.place ? `at ${logged.place}` : null;
+  if (logged.givenBy && crowd) return `${logged.givenBy} with ${crowd}`;
+  return logged.givenBy ?? (crowd && logged.people !== undefined ? crowd : crowd ? `Checked ${crowd}` : null);
 }
 
 /**
@@ -695,7 +715,7 @@ export function recordNextAction(rec: PassageRecord, actorId: string, can: Recor
   const next = rec.steps.filter((s) => rec.next?.stepIds.includes(s.stepId));
   const mine = next.find((s) => s.status?.waitingOn.includes(actorId));
   if (mine && can.review && rec.latest) {
-    const kind = mine.legacy ? undefined : mine.kinds.find((k) => k.state !== 'approved' && k.state !== 'recorded' && !k.checks.some((c) => c.reviewerId === actorId));
+    const kind = mine.legacy ? undefined : mine.kinds.find((k) => k.state !== 'approved' && k.state !== 'recorded' && !k.checks.some((c) => c.reviewerId === actorId && c.via !== 'logged'));
     return { kind: 'review', stepId: mine.stepId, takeId: rec.latest.takeId, ...(kind ? { kindId: kind.kindId } : {}) };
   }
   const unasked = next.find((s) => s.askedOf.length === 0 && s.role !== 'translator');

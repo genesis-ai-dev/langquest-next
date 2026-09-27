@@ -46,6 +46,15 @@ export interface Commands {
     comment?: string; commentBlobHash?: string; answers?: Record<string, string>;
     skippedQuestions?: { questionId: string; reason: string }[]; requestId?: string;
   }): EventSpec[];
+  /**
+   * A check that happened outside the app (J-REC-11), logged for one or more
+   * passages: one `v1.CheckLogged` per passage version, each with its own
+   * checkId. Needs changes must say what. Idempotent by checkId.
+   */
+  logCheck(c: {
+    commandId: string; passages: { checkId: string; takeId: string; stepId?: string; requestId?: string }[]; kindId: string;
+    outcome: CheckOutcome; comment?: string; commentBlobHash?: string; givenBy?: string; people?: number; place?: string; evidence?: Card[];
+  }): EventSpec[];
   /** Attach a recorded pronunciation to a key term, saving the card too. */
   adjustKeyTerm(c: { commandId: string; unitId: string; laneId: string; termId: string; recordingId: string; adjustmentId: string; card: Card }): EventSpec[];
   /** Set a passage note in the lane's translation guidelines, defining the material on first use. */
@@ -154,6 +163,37 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
           ...(c.requestId ? { requestId: c.requestId } : {})
         }
       }];
+    },
+
+    logCheck(c) {
+      if (c.passages.length === 0) throw new CommandError('Choose a passage.');
+      const comment = c.comment?.trim();
+      if (c.outcome === 'needs_changes' && !comment && !c.commentBlobHash) throw new CommandError('Say what to change, in words or a voice comment.');
+      if (c.people !== undefined && (!Number.isInteger(c.people) || c.people < 1)) throw new CommandError('How many listened must be a whole number.');
+      const givenBy = c.givenBy?.trim();
+      const place = c.place?.trim();
+      const next = ids(c.commandId);
+      return c.passages.flatMap((p): EventSpec[] => {
+        const take = state.takes[p.takeId];
+        if (!take) throw new CommandError('Unknown take.');
+        if (state.submissions[p.takeId] === undefined) throw new CommandError('This take was not handed off.');
+        const id = next();
+        if (state.checks[p.takeId]?.[p.checkId]) return [];
+        return [{
+          id, type: 'v1.CheckLogged',
+          payload: {
+            checkId: p.checkId, unitId: take.unitId, laneId: take.laneId, takeId: p.takeId, kindId: c.kindId, outcome: c.outcome,
+            ...(p.stepId ? { stepId: p.stepId } : {}),
+            ...(comment ? { comment } : {}),
+            ...(c.commentBlobHash ? { commentBlobHash: c.commentBlobHash } : {}),
+            ...(givenBy ? { givenBy } : {}),
+            ...(c.people !== undefined ? { people: c.people } : {}),
+            ...(place ? { place } : {}),
+            ...(c.evidence?.length ? { evidence: c.evidence } : {}),
+            ...(p.requestId ? { requestId: p.requestId } : {})
+          }
+        }];
+      });
     },
 
     adjustKeyTerm(c) {
