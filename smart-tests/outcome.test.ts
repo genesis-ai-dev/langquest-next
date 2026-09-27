@@ -1,5 +1,5 @@
 import {
-  accountForDriver, judgeCheck, judgeFlow, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
+  accountForDriver, judgeBackTranslation, judgeCheck, judgeFlow, judgeLoggedCheck, judgeStudyNote, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
   type DeviceRow, type LogEvidence, type RecordingEvidence, type ServerRow
 } from './outcome';
 
@@ -454,5 +454,105 @@ describe('check of a kind oracle', () => {
     expect(judgeCheck(contract, log([check({}, { status: 'pending' })])).verdict).toBe('product_failure');
     expect(judgeCheck(contract, { ...log([check()]), server: onServer([]) }).verdict).toBe('product_failure');
     expect(judgeCheck(contract, log([check(), row('x', 'v1.ReviewCommentRecorded', 'reviewer', {}, { status: 'rejected', rejectReason: 'no' })])).verdict).toBe('product_failure');
+  });
+});
+
+describe('logged check oracle (J-REC-11)', () => {
+  const contract = { loggerId: 'translator', kindId: 'kind@1/community', outcome: 'looks_good' as const, takeIds: ['t1', 't2'] };
+  const logged = (id: string, takeId: string, payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'translator') =>
+    row(id, 'v1.CheckLogged', actorId, { checkId: `c-${id}`, unitId: 'u', laneId: 'L1', takeId, kindId: 'kind@1/community',
+      outcome: 'looks_good', people: 12, place: 'Bor church', ...payload }, over);
+
+  it('passes on one confirmed, credited check per passage, each with its own id', () => {
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1'), logged('b', 't2', { people: undefined, givenBy: 'Elder Deng' })])).verdict).toBe('passed');
+  });
+
+  it('fails when only one of the two passages got the check', () => {
+    // Why: "also covered in this session" is the point; the second passage's record would stay open.
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1')])).verdict).toBe('product_failure');
+  });
+
+  it('fails when both passages share one check id, or nobody is credited', () => {
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1', { checkId: 'same' }), logged('b', 't2', { checkId: 'same' })])).verdict).toBe('product_failure');
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1', { people: undefined }), logged('b', 't2', { people: undefined })])).verdict).toBe('product_failure');
+  });
+
+  it('fails when the logger wrote an in-app review instead: that credits the typist', () => {
+    const inApp = row('r', 'v1.CheckRecorded', 'translator', { checkId: 'x', takeId: 't1', kindId: 'kind@1/community', outcome: 'looks_good' });
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1'), logged('b', 't2'), inApp])).verdict).toBe('product_failure');
+    expect(judgeLoggedCheck(contract, log([inApp])).verdict).toBe('product_failure');
+  });
+
+  it('does not count another kind, outcome or logger; nothing written is inconclusive', () => {
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1', { kindId: 'kind@1/peer' }), logged('b', 't2', { kindId: 'kind@1/peer' })])).verdict).not.toBe('passed');
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1', { outcome: 'needs_changes', comment: 'x' }), logged('b', 't2', { outcome: 'needs_changes', comment: 'x' })])).verdict).not.toBe('passed');
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1', {}, {}, 'owner'), logged('b', 't2', {}, {}, 'owner')])).verdict).toBe('inconclusive');
+  });
+
+  it('fails when a check is pending or missing on the server', () => {
+    expect(judgeLoggedCheck(contract, log([logged('a', 't1'), logged('b', 't2', {}, { status: 'pending' })])).verdict).toBe('product_failure');
+    expect(judgeLoggedCheck(contract, { ...log([logged('a', 't1'), logged('b', 't2')]), server: onServer([logged('a', 't1')]) }).verdict).toBe('product_failure');
+  });
+});
+
+describe('back translation oracle (J-BT-1)', () => {
+  const contract = { makerId: 'reviewer', unitId: 'luke-0', laneId: 'L1', fromTakeId: 'v1', kindId: 'kind@1/back_translation' };
+  const produced = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}) =>
+    row('p', 'v1.ContentProduced', 'reviewer', { contentId: 'b1', unitId: 'luke-0', laneId: 'L1', fromTakeId: 'v1',
+      kindId: 'kind@1/back_translation', language: 'eng', cards: [{ hash: 'bt', durationMs: 1000 }], ...payload }, over);
+
+  it('passes on confirmed content from the version with its audio on the device', () => {
+    expect(judgeBackTranslation(contract, log([produced()], ['bt'])).verdict).toBe('passed');
+  });
+
+  it('fails when the back translation was also composed as a take in the source lane', () => {
+    // Why (analysis row 21): an old client would show that take as the translator's newest version.
+    const take = row('t', 'v1.TakeComposed', 'reviewer', { takeId: 'x', unitId: 'luke-0', laneId: 'L1', cardHashes: ['bt'], parentTakeId: null });
+    expect(judgeBackTranslation(contract, log([produced(), take], ['bt'])).verdict).toBe('product_failure');
+    expect(judgeBackTranslation(contract, log([take], ['bt'])).verdict).toBe('product_failure');
+  });
+
+  it('fails without its audio on the device, or when made from another version or kind', () => {
+    expect(judgeBackTranslation(contract, log([produced()], [])).verdict).toBe('product_failure');
+    expect(judgeBackTranslation(contract, log([produced({ fromTakeId: 'v0' })], ['bt'])).verdict).toBe('product_failure');
+    expect(judgeBackTranslation(contract, log([produced({ kindId: 'kind@1/peer' })], ['bt'])).verdict).toBe('product_failure');
+  });
+
+  it('fails when pending or rejected; nothing written is inconclusive', () => {
+    expect(judgeBackTranslation(contract, log([produced({}, { status: 'pending' })], ['bt'])).verdict).toBe('product_failure');
+    expect(judgeBackTranslation(contract, log([produced({}, { status: 'rejected', rejectReason: 'privilege' })], ['bt'])).verdict).toBe('product_failure');
+    expect(judgeBackTranslation(contract, log([], ['bt'])).verdict).toBe('inconclusive');
+  });
+});
+
+describe('study note at a moment oracle (J-STUDY-2)', () => {
+  const contract = { authorId: 'translator', unitId: 'luke-0', laneId: 'L1', materialId: 'fia', stepId: 'stage', text: 'Ask who the crowd is' };
+  const note = (anchor: Record<string, unknown> = {}, payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}) =>
+    row('n', 'v1.ContextItemAdded', 'translator', { itemId: 'n1', kind: 'note', home: { level: 'unit', laneId: 'L1', unitId: 'luke-0' },
+      anchors: [{ type: 'study', materialId: 'fia', stepId: 'stage', atMs: 1800, ...anchor }], text: 'Ask who the crowd is', ...payload }, over);
+
+  it('passes on a confirmed note at a whole-ms moment on the step', () => {
+    expect(judgeStudyNote(contract, log([note()])).verdict).toBe('passed');
+  });
+
+  it('fails when the moment is missing, zero, or text like "0:01"', () => {
+    // Why: integer ms is what sorts the notes and seeks the audio back to the moment.
+    for (const atMs of [undefined, 0, '0:01', 1.5]) expect(judgeStudyNote(contract, log([note({ atMs })])).verdict).toBe('product_failure');
+  });
+
+  it('fails when the note lands on another step, passage, or says something else', () => {
+    expect(judgeStudyNote(contract, log([note({ stepId: 'hear' })])).verdict).toBe('product_failure');
+    expect(judgeStudyNote(contract, log([note({}, { home: { level: 'unit', unitId: 'luke-1' } })])).verdict).toBe('product_failure');
+    expect(judgeStudyNote(contract, log([note({}, { text: 'something else' })])).verdict).toBe('product_failure');
+  });
+
+  it('fails when the old one-note guideline field was written instead', () => {
+    const old = row('m', 'v1.MaterialFieldSet', 'translator', { materialId: 'tg:L1', fieldId: 'luke-0', text: 'Ask who the crowd is' });
+    expect(judgeStudyNote(contract, log([old])).verdict).toBe('product_failure');
+  });
+
+  it('fails when pending; nothing written is inconclusive', () => {
+    expect(judgeStudyNote(contract, log([note({}, {}, { status: 'pending' })])).verdict).toBe('product_failure');
+    expect(judgeStudyNote(contract, log([])).verdict).toBe('inconclusive');
   });
 });

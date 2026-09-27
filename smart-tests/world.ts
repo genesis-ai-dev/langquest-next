@@ -49,6 +49,8 @@ export interface SubmittedWorld extends World {
   /** Required questions the reviewer must answer or skip, as `${materialId}#${fieldId}`. */
   requiredQuestionIds: string[];
   version1: { takeId: string; hash: string };
+  /** With `secondVersion`: Version 1 of passages[1], same audio. */
+  version1b?: { takeId: string };
 }
 
 async function person(role: string): Promise<Person> {
@@ -144,13 +146,20 @@ async function firstRunDone(who: Person) {
  * exactly as the app uploads it (so the storage trigger confirms it).
  * With `feedback`, the reviewer has already asked for changes on it.
  */
-export async function seedSubmittedWorld(options: { feedback?: string; v2Flow?: boolean } = {}): Promise<SubmittedWorld> {
+export async function seedSubmittedWorld(options: {
+  feedback?: string; v2Flow?: boolean;
+  /** A ready-made v2 flow other than "One check" (implies v2). */
+  flowId?: string;
+  /** Also submit Version 1 of passages[1] (a session covering two passages). */
+  secondVersion?: boolean;
+} = {}): Promise<SubmittedWorld> {
   const world = await seedTranslatorWorld({ reviewer: true });
   const reviewer = world.reviewer!;
   const { orgId, projectId, laneId, owner, translator } = world;
   const unitId = world.passages[0]!.unitId;
   // v2Flow: the lane runs the ready-made "One check" flow (one v2 step, Peer Review).
-  const flow = options.v2Flow ? instantiateFlowV2('one_check', laneId) : [];
+  const flowId = options.flowId ?? (options.v2Flow ? 'one_check' : undefined);
+  const flow = flowId ? instantiateFlowV2(flowId, laneId) : [];
   const stepId = flow[0]?.stepId ?? 'community';
   const kindId = flow[0]?.kindIds[0];
   const questions = instantiateQuestionSet('community_check', laneId);
@@ -160,7 +169,7 @@ export async function seedSubmittedWorld(options: { feedback?: string; v2Flow?: 
   const owners = clientFor(owner, orgId, projectId);
   await owners.load();
   await commit(owners, [
-    ...(options.v2Flow ? [intent('v1.LaneFlowSelected', { laneId, flowId: 'one_check', catalogVersion: CATALOG_VERSION }),
+    ...(flowId ? [intent('v1.LaneFlowSelected', { laneId, flowId, catalogVersion: CATALOG_VERSION }),
       ...flow.map((payload) => intent('v2.WorkflowStepSet', payload))] : []),
     ...questions.map((q) => intent(q.type, q.payload)),
     intent('v1.StepQuestionSetLinked', { stepId, materialId }),
@@ -183,6 +192,17 @@ export async function seedSubmittedWorld(options: { feedback?: string; v2Flow?: 
     intent('v1.TakeSelected', { takeId, unitId, laneId }),
     intent('v1.TakeSubmitted', { takeId, questionSetIds: [] })
   ], 'version 1');
+  let version1b: { takeId: string } | undefined;
+  if (options.secondVersion) {
+    const second = world.passages[1]!.unitId;
+    version1b = { takeId: `take:seed-${randomUUID()}` };
+    await commit(translators, [
+      intent('v1.RecordingAdded', { recordingId: `rec:${randomUUID()}`, unitId: second, laneId, kind: 'target', cards: [{ hash, durationMs: 4000, format: 'wav' }] }),
+      intent('v1.TakeComposed', { takeId: version1b.takeId, unitId: second, laneId, cardHashes: [hash], parentTakeId: null }),
+      intent('v1.TakeSelected', { takeId: version1b.takeId, unitId: second, laneId }),
+      intent('v1.TakeSubmitted', { takeId: version1b.takeId, questionSetIds: [] })
+    ], 'version 1 of the second passage');
+  }
 
   const requiredQuestionIds = template.questions.filter((q) => q.required).map((q) => `${materialId}#${q.id}`);
   if (options.feedback) {
@@ -191,7 +211,34 @@ export async function seedSubmittedWorld(options: { feedback?: string; v2Flow?: 
     await commit(reviewers, [intent('v1.ReviewSubmitted', { takeId, stepId, decision: 'suggest_changes', comment: options.feedback,
       answers: Object.fromEntries(requiredQuestionIds.map((id) => [id, '2'])) })], 'feedback');
   }
-  return { ...world, reviewer, stepId, ...(kindId ? { kindId } : {}), requiredQuestionIds, version1: { takeId, hash } };
+  return { ...world, reviewer, stepId, ...(kindId ? { kindId } : {}), requiredQuestionIds, version1: { takeId, hash },
+    ...(version1b ? { version1b } : {}) };
+}
+
+/** A translator world whose lane has an FIA study with spoken guidance on "Setting the Stage". */
+export interface StudyWorld extends World { studyMaterialId: string; stepId: 'stage'; audioHash: string }
+
+/**
+ * The translator world plus an FIA study for the lane with step audio on
+ * "Setting the Stage" (the voice fixture, 4 s), stored where the app looks
+ * for a study blob (m4a path; the bytes are WAV, which the browser sniffs).
+ */
+export async function seedStudyWorld(): Promise<StudyWorld> {
+  const world = await seedTranslatorWorld();
+  const { orgId, projectId, laneId, owner } = world;
+  const bytes = readFileSync(VOICE_WAV);
+  const audioHash = createHash('sha256').update(bytes).digest('hex');
+  const { error } = await owner.sb.storage.from('blobs')
+    .upload(`${orgId}/${projectId}/${audioHash}.m4a`, bytes, { contentType: 'audio/wav', upsert: true });
+  if (error) throw new Error(`seed study audio upload: ${error.message}`);
+  const studyMaterialId = `fia-study-seed-${randomUUID()}`;
+  const owners = clientFor(owner, orgId, projectId);
+  await owners.load();
+  await commit(owners, [
+    intent('v1.MaterialDefined', { materialId: studyMaterialId, kind: 'fia_study', title: 'FIA guidance', scope: { laneId } }),
+    intent('v1.MaterialFieldSet', { materialId: studyMaterialId, fieldId: 'stage', text: 'Where does this happen, and who is there?', blobHash: audioHash })
+  ], 'study');
+  return { ...world, studyMaterialId, stepId: 'stage', audioHash };
 }
 
 /** Open the app signed in as `who`, on the seeded project, and wait for the device log. */

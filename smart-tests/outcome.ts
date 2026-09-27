@@ -410,6 +410,111 @@ export function judgeCheck(contract: CheckContract, evidence: LogEvidence): Outc
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
+// ---- Phase 2b slice C: logged checks, produced content, anchored notes -----
+
+export interface LoggedCheckContract {
+  loggerId: string; kindId: string; outcome: 'looks_good' | 'needs_changes';
+  /** Each passage covered, by the version that was played: one CheckLogged per take. */
+  takeIds: string[];
+}
+
+/**
+ * A check that happened outside the app was logged (J-REC-11): one
+ * CheckLogged by the logger per covered version, of the kind and outcome
+ * asked for, each with its own checkId, credited to someone (a head count
+ * or a named giver), all confirmed on the server. An in-app CheckRecorded
+ * or a legacy ReviewSubmitted by the logger is the wrong fact: it would
+ * credit the typist as the reviewer.
+ */
+export function judgeLoggedCheck(contract: LoggedCheckContract, evidence: LogEvidence): Outcome {
+  const mine = evidence.device.filter((r) => r.event.type === 'v1.CheckLogged' && r.event.actorId === contract.loggerId);
+  const right = mine.filter((r) => r.event.payload['kindId'] === contract.kindId && r.event.payload['outcome'] === contract.outcome);
+  const perTake = contract.takeIds.map((t) => right.filter((r) => r.event.payload['takeId'] === t));
+  const credited = right.filter((r) => (typeof r.event.payload['people'] === 'number' && (r.event.payload['people'] as number) >= 1)
+    || String(r.event.payload['givenBy'] ?? '').trim() !== '');
+  const ids = right.map((r) => String(r.event.payload['checkId']));
+  const wrong = evidence.device.filter((r) => (r.event.type === 'v1.CheckRecorded' || r.event.type === 'v1.ReviewSubmitted')
+    && r.event.actorId === contract.loggerId);
+  const chosen = perTake.map((rows) => rows.find((r) => credited.includes(r))).filter((r): r is DeviceRow => r !== undefined);
+  const checks: Check[] = [
+    { name: 'logged-check-per-passage', ok: perTake.every((rows) => rows.length > 0),
+      detail: `${mine.length} CheckLogged: ${mine.map((r) => `${String(r.event.payload['takeId'])} ${String(r.event.payload['kindId'])} ${String(r.event.payload['outcome'])}`).join('; ') || 'none'}` },
+    { name: 'logged-checks-have-own-ids', ok: new Set(ids).size === ids.length },
+    { name: 'logged-check-credits-someone', ok: chosen.length === contract.takeIds.length,
+      detail: right.map((r) => `people=${String(r.event.payload['people'] ?? '-')} givenBy=${String(r.event.payload['givenBy'] ?? '-')}`).join('; ') || undefined },
+    { name: 'not-an-in-app-review', ok: wrong.length === 0, detail: wrong.map((r) => r.event.type).join(', ') || undefined },
+    rejectedCheck(evidence.device),
+    { name: 'logged-checks-reached-server', ok: chosen.length === contract.takeIds.length && synced(chosen, evidence.server),
+      detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = mine.length > 0 || wrong.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface ProducedContract { makerId: string; unitId: string; laneId: string; fromTakeId: string; kindId: string }
+
+/**
+ * A back translation made in an ordinary lane (J-BT-1/2): a ContentProduced
+ * by the maker from the version, of the producing kind, with at least one
+ * card whose audio is on the device, confirmed on the server. The maker must not have composed or recorded anything in the source
+ * lane of that passage: an old client would show that take as the
+ * translator's newest version.
+ */
+export function judgeBackTranslation(contract: ProducedContract, evidence: LogEvidence): Outcome {
+  const mine = evidence.device.filter((r) => r.event.type === 'v1.ContentProduced' && r.event.actorId === contract.makerId);
+  const right = mine.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+    && r.event.payload['fromTakeId'] === contract.fromTakeId && r.event.payload['kindId'] === contract.kindId);
+  const hashesOf = (r: DeviceRow) => ((r.event.payload['cards'] as { hash?: string }[] | undefined) ?? []).map((c) => String(c.hash ?? ''));
+  const withAudio = right.filter((r) => hashesOf(r).length > 0 && hashesOf(r).every((h) => evidence.blobsAfter.includes(h)));
+  const inLane = evidence.device.filter((r) => (r.event.type === 'v1.TakeComposed' || r.event.type === 'v1.RecordingAdded' || r.event.type === 'v1.TakeSubmitted')
+    && r.event.actorId === contract.makerId
+    && (r.event.type === 'v1.TakeSubmitted' || (r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId)));
+  const checks: Check[] = [
+    { name: 'content-in-device-log', ok: right.length > 0,
+      detail: mine.map((r) => `${String(r.event.payload['kindId'])} from ${String(r.event.payload['fromTakeId'])}, ${hashesOf(r).length} card(s)`).join('; ') || 'none' },
+    { name: 'content-audio-on-device', ok: withAudio.length > 0 },
+    { name: 'no-take-in-source-lane', ok: inLane.length === 0, detail: inLane.map((r) => r.event.type).join(', ') || undefined },
+    rejectedCheck(evidence.device),
+    { name: 'content-reached-server', ok: synced(withAudio, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = mine.length > 0 || inLane.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
+export interface StudyNoteContract { authorId: string; unitId: string; laneId: string; materialId: string; stepId: string; text: string }
+
+/**
+ * A note at a moment in the study audio (J-STUDY-2): a ContextItemAdded by
+ * the author homed on the passage, with a study anchor on that material
+ * and step whose atMs is a whole number of ms above 0 (never "3:12"), the
+ * text asked for, confirmed on the server. A note overwriting the lane's
+ * guideline field (MaterialFieldSet) is the old one-note path.
+ */
+export function judgeStudyNote(contract: StudyNoteContract, evidence: LogEvidence): Outcome {
+  const mine = evidence.device.filter((r) => r.event.type === 'v1.ContextItemAdded' && r.event.actorId === contract.authorId);
+  const anchorOf = (r: DeviceRow) => ((r.event.payload['anchors'] as Record<string, unknown>[] | undefined) ?? [])
+    .find((a) => a['type'] === 'study' && a['materialId'] === contract.materialId && a['stepId'] === contract.stepId);
+  const home = (r: DeviceRow) => r.event.payload['home'] as Record<string, unknown> | undefined;
+  const placed = mine.filter((r) => anchorOf(r) !== undefined && home(r)?.['unitId'] === contract.unitId);
+  const timed = placed.filter((r) => { const at = anchorOf(r)!['atMs']; return typeof at === 'number' && Number.isInteger(at) && at > 0; });
+  const said = timed.filter((r) => String(r.event.payload['text'] ?? '').trim().toLowerCase() === contract.text.trim().toLowerCase());
+  const old = evidence.device.filter((r) => r.event.type === 'v1.MaterialFieldSet' && r.event.actorId === contract.authorId
+    && String(r.event.payload['materialId'] ?? '').startsWith('tg:'));
+  const checks: Check[] = [
+    { name: 'note-in-device-log', ok: placed.length > 0,
+      detail: mine.map((r) => JSON.stringify(r.event.payload['anchors'])).join('; ') || (old.length ? `${old.length} guideline field write(s)` : 'none') },
+    { name: 'note-at-a-moment', ok: timed.length > 0, detail: placed.map((r) => String(anchorOf(r)!['atMs'] ?? 'no moment')).join(', ') || undefined },
+    { name: 'note-says-it', ok: said.length > 0, detail: timed.map((r) => JSON.stringify(r.event.payload['text'] ?? null)).join(', ') || undefined },
+    rejectedCheck(evidence.device),
+    { name: 'note-reached-server', ok: synced(said, evidence.server), detail: `device status: ${placed.map((r) => r.status).join(', ') || 'none'}` }
+  ];
+  if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
+  const exercised = mine.length > 0 || old.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
+}
+
 export interface SearchContract {
   /** Exactly what the user types, e.g. "luk 1". */
   query: string;

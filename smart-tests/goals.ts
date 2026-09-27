@@ -56,3 +56,20 @@ export const askForKindCheck = (label: string, person: string) =>
   `You are the translator of "${label}". From My Work, open that passage's page (your Version 1 is saved). ` +
   'On a passage page you tap a step on its path to ask someone to do it. Tap the Peer Review step and ask someone for Peer Review: ' +
   `ask ${person}, due in a week, and send the ask. Stop when the ask is sent.`;
+
+// ---- Phase 2b slice C: logged checks, back translation, study notes ----------
+
+export const logCommunityCheck = (label: string, alsoLabel: string, place: string) =>
+  `You are a translator. Yesterday you played your recordings of "${label}" and "${alsoLabel}" to 12 people at ${place}, ` +
+  `and they understood both well. Open the passage "${label}" and log what happened as a Community Check, ` +
+  `adding it to "${alsoLabel}" too, since both were covered in the same session. Say 12 people listened, at ${place}, ` +
+  'and that it looks good. Stop when it is saved to the record.';
+
+export const backTranslatePassage = (label: string) =>
+  `You are a bilingual speaker asked to make the back translation of "${label}". Open the passage, go to its Back Translation, ` +
+  'listen to the version, then record the back translation in your own words. Your microphone is already hearing you speak: ' +
+  'hold the record button while you speak, then release it. Then save the back translation. Stop when it is saved.';
+
+export const addStudyNoteAtMoment = (label: string, note: string) =>
+  `You are a translator studying "${label}". Open its study and go to the "Setting the Stage" step. Play the step's audio, ` +
+  `pause it after a second or two, and add a note at that moment that says exactly: ${note}. Save the note. Stop when it is saved.`;
