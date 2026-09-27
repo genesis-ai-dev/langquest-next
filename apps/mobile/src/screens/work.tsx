@@ -261,8 +261,8 @@ function Card(props: {
   const Icon = props.icon;
   return (
     <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-      style={({ pressed }) => [styles.card, { backgroundColor: props.background }, pressed && { opacity: 0.85 }]}>
-      <View style={[styles.tile, { backgroundColor: colors.card, borderColor: props.color }, props.dashed && styles.dashed]}>
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+      <View style={[styles.tile, { backgroundColor: props.background, borderColor: props.color }, props.dashed && styles.dashed]}>
         <Icon size={24} color={props.color} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
@@ -341,7 +341,8 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, gap: space.sm, paddingBottom: space.xl },
   sectionMark: { flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingTop: space.md, paddingHorizontal: space.xs },
   cards: { gap: space.sm },
-  card: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
+  card: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.card },
   tile: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
   dashed: { borderStyle: 'dashed' },
   cta: { width: 44, height: 44, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
