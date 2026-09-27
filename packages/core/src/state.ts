@@ -2,7 +2,7 @@ import type { TakeMetadata } from './audioEdits';
 import type { SavedTextTranslation } from './textTranslations';
 import { emptyObt, type ObtState } from './obt';
 import type { BibleSettings } from './dynamicBible';
-import type { Card, CheckOutcome, DepartureKind, KindProduces, LegacyReviewTarget, RequestWhat, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, CheckOutcome, ContextAnchor, ContextHome, DepartureKind, KindProduces, LegacyReviewTarget, RequestWhat, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -162,6 +162,18 @@ export interface Produced {
   actorId: string;
 }
 
+/** A `v1.ContextItemAdded`: an anchored note. */
+export interface ContextItem {
+  kind: string;
+  home: ContextHome;
+  anchors: ContextAnchor[];
+  text?: string;
+  blobHash?: string;
+  photoHash?: string;
+  aboutTakeId?: string;
+  actorId: string;
+}
+
 /** A `v1.StepSetAside` or `v1.CheckpointOverridden` for one passage. */
 export interface Departure {
   kind: DepartureKind;
@@ -277,6 +289,8 @@ export interface ProjectState {
   checks: Record<string, Record<string, Register<Check>>>;
   /** contentId -> produced content (set by id) */
   produced: Record<string, Register<Produced>>;
+  /** itemId -> anchored note (immutable; set by id) */
+  contextItems: Record<string, Register<ContextItem>>;
   /** departureId -> set-aside or override (set by id; the register settles a reused id) */
   departures: Record<string, Register<Departure>>;
   /** departureId -> undoId -> undo (add-wins: an undo may arrive before its departure) */
@@ -329,6 +343,7 @@ export function emptyState(): ProjectState {
     reviewKinds: {},
     checks: {},
     produced: {},
+    contextItems: {},
     departures: {},
     departureUndos: {},
     kept: {},

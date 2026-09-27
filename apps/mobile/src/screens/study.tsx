@@ -8,13 +8,13 @@ import { StyleSheet } from '../theme';
 // show; everything else is an icon with its reference copy as a label.
 // Anchored study notes and answers need a new fact (Phase 2) and are absent.
 import {
-  derivePassageRecord, FIA_STAGES, fiaProgressField, fiaStudyStatus, inlineParts, passageReading,
-  SOURCE_BIBLES, sourceAudioUrl, sourceBibleEnabled, studySections, type FiaStage, type FiaStudyStatus,
+  clockOf, derivePassageRecord, FIA_STAGES, fiaProgressField, fiaStudyStatus, inlineParts, passageReading,
+  SOURCE_BIBLES, sourceAudioUrl, sourceBibleEnabled, studyAnchor, studyNotes, studySections, verseNotes, type ContextAnchor, type ContextNote, type FiaStage, type FiaStudyStatus,
   type StudySection
 } from '@langquest-next/core';
 import {
   ArrowRight, BookOpen, Check, CheckCircle2, Circle, Ear, HelpCircle, Layers, LayoutGrid, MapPin, Mic,
-  Pause, Sparkles, Users
+  MessageSquare, Pause, Sparkles, Users
 } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -25,6 +25,7 @@ import { PassageSourceAudio } from '../passageSourceAudio';
 import { Header, Note, Screen } from '../pui';
 import { colors, radius, space, tint } from '../theme';
 import { ActionButton, Card, text } from '../ui';
+import { NoteRow, NoteSheet } from '../noteSheet';
 import { Byline } from '../UserChip';
 import { passageOf } from './translate';
 
@@ -131,13 +132,19 @@ export function StudyStep(ctx: Ctx) {
   const [passage, setPassage] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // J-STUDY-2: where the step audio was paused, a note being added, and a seek from a note.
+  const [pausedAt, setPausedAt] = useState<{ materialId: string; ms: number } | null>(null);
+  const [adding, setAdding] = useState<{ materialId: string; sectionId?: string; label?: string; atMs?: number } | null>(null);
+  const [seek, setSeek] = useState<{ materialId: string; ms: number; key: number } | null>(null);
   const lock = useRef(false);
-  if (!status) return <NoStudy ctx={ctx} title={title} />;
+  const state = ctx.project.state;
+  if (!status || !state) return <NoStudy ctx={ctx} title={title} />;
   const step = status.steps[index] ?? status.steps[0]!;
   const study = canStudy(ctx, status);
   const nextStep = status.steps[step.index + 1];
   const isLast = step.index === status.steps.length - 1;
   const Icon = ICONS[step.stage.id];
+  const may = ctx.session.can('fill_reference');
 
   async function setDone(stage: FiaStage, done: boolean) {
     await ctx.project.append('v1.MaterialFieldSet', {
@@ -180,10 +187,41 @@ export function StudyStep(ctx: Ctx) {
         <View style={styles.mark}><Icon size={24} color={colors.reference} /></View>
         <Text style={text.h4}>{step.stage.label}</Text>
       </View>
-      {step.content.map((c) => <Card key={c.materialId}>
-        {c.blobHash ? <AudioClip project={ctx.project} hashes={[c.blobHash]} label="Listen to this step" seekControls /> : null}
-        {c.text ? studySections(c.text).map((s) => <SectionView key={s.id} section={s} />) : null}
-      </Card>)}
+      {step.content.map((c) => {
+        const notes = studyNotes(state, c.materialId, step.stage.id);
+        const timed = notes.filter((n) => studyAnchor(n, c.materialId, step.stage.id)?.atMs !== undefined);
+        const untimed = notes.filter((n) => !timed.includes(n));
+        const paused = pausedAt?.materialId === c.materialId ? pausedAt.ms : null;
+        const sectionNotes = (id: string) => untimed.filter((n) => studyAnchor(n, c.materialId, step.stage.id)?.sectionId === id);
+        return <Card key={c.materialId}>
+          {c.blobHash ? <AudioClip project={ctx.project} hashes={[c.blobHash]} label="Listen to this step" seekControls
+            onPlay={() => setPausedAt(null)} onPause={(ms) => setPausedAt(ms > 0 ? { materialId: c.materialId, ms } : null)}
+            {...(seek?.materialId === c.materialId ? { seekTo: { ms: seek.ms, key: seek.key } } : {})} /> : null}
+          {c.blobHash && paused !== null && may ? <ActionButton icon={MessageSquare} variant="outline"
+            accessibilityLabel={`Add a note at ${clockOf(paused)}`} onPress={() => setAdding({ materialId: c.materialId, atMs: paused })} /> : null}
+          {timed.length ? <View style={{ gap: space.xs }}>
+            <Text style={text.small}>Notes on the audio</Text>
+            {timed.map((n) => <NoteRow key={n.itemId} ctx={ctx} note={n}
+              onSeek={c.blobHash ? (ms) => setSeek({ materialId: c.materialId, ms, key: Date.now() }) : undefined} />)}
+          </View> : null}
+          {c.text ? studySections(c.text).map((s) => <View key={s.id} style={{ gap: space.xs }}>
+            <SectionView section={s} />
+            {sectionNotes(s.id).map((n) => <NoteRow key={n.itemId} ctx={ctx} note={n} />)}
+            {s.kind === 'heading' && may ? <ActionButton icon={MessageSquare} variant="outline" style={styles.noteBtn}
+              accessibilityLabel={`Add a note on ${s.text}`} onPress={() => setAdding({ materialId: c.materialId, sectionId: s.id, label: s.text })} /> : null}
+          </View>) : null}
+          {untimed.filter((n) => studyAnchor(n, c.materialId, step.stage.id)?.sectionId === undefined).map((n) => <NoteRow key={n.itemId} ctx={ctx} note={n} />)}
+          {may ? <ActionButton icon={MessageSquare} variant="outline" style={styles.noteBtn}
+            accessibilityLabel={`Add a note on ${step.stage.label}`} onPress={() => setAdding({ materialId: c.materialId })} /> : null}
+        </Card>;
+      })}
+      {adding ? <NoteSheet ctx={ctx} visible onClose={() => setAdding(null)} title={step.stage.label}
+        place={`${step.stage.label}${adding.label ? ` · ${adding.label}` : ''}${adding.atMs !== undefined ? ` · Audio at ${clockOf(adding.atMs)}` : ''}. It stays with the study.`}
+        home={{ level: 'unit', laneId, unitId }}
+        anchors={[{ type: 'study', materialId: adding.materialId, stepId: step.stage.id,
+          ...(adding.sectionId ? { sectionId: adding.sectionId } : {}), ...(adding.atMs !== undefined ? { atMs: adding.atMs } : {}) }]}
+        notes={[]}
+        saved={adding.atMs !== undefined ? `Note added at ${clockOf(adding.atMs)} — it stays with the study` : 'Note added — it stays with the study'} /> : null}
       {!step.content.length ? <View accessible accessibilityLabel={`No ${step.stage.label} study guidance supplied yet`} style={styles.row}>
         <HelpCircle size={24} color={colors.mutedForeground} />
       </View> : null}
@@ -231,7 +269,12 @@ function Beads(props: { steps: boolean[]; current?: number }) {
 export function PassageReader(props: { ctx: Ctx; unitId: string; laneId: string }) {
   const { ctx } = props;
   const [playing, setPlaying] = useState<string | null>(null);
+  const [noting, setNoting] = useState<string | null>(null);
   const reading = passageReading(props.unitId);
+  const state = ctx.project.state;
+  const byVerse = state ? verseNotes(state, props.unitId) : new Map();
+  const may = ctx.session.can('fill_reference');
+  const anchorFor = (verse: string): ContextAnchor => ({ type: 'verse', unitId: props.unitId, verse, translation: 'BSB' });
   const hays = SOURCE_BIBLES.find((b) => b.id === 'berean-bsb-hays')!;
   const timed = !!ctx.org.state && sourceBibleEnabled(ctx.org.state, hays.id, ctx.project.projectId);
   const base = process.env.EXPO_PUBLIC_SOURCE_AUDIO_BASE_URL ?? 'https://pub-e5e8108b319c42069acd1ebf4fd0fb02.r2.dev';
@@ -243,7 +286,8 @@ export function PassageReader(props: { ctx: Ctx; unitId: string; laneId: string 
       <Text style={text.small}>BSB</Text>
       {reading.verses.map((v) => {
         const id = `${v.chapter}:${v.verse}`;
-        return <View key={id} style={[styles.verse, playing === id && { backgroundColor: tint.reference }]}>
+        return <View key={id}>
+          <View style={[styles.verse, playing === id && { backgroundColor: tint.reference }]}>
           <View style={{ flex: 1 }}>
             <Text style={text.body}><Text style={text.small}>{v.verse} </Text>{v.text}</Text>
           </View>
@@ -251,9 +295,17 @@ export function PassageReader(props: { ctx: Ctx; unitId: string; laneId: string 
             uri={sourceAudioUrl(hays, { book: reading.book, chapter: v.chapter, label: '' }, base)}
             startSeconds={v.startSeconds} endSeconds={v.endSeconds} onPlay={() => setPlaying(id)}
             label={`Play verse ${v.chapter}:${v.verse}`} /> : null}
+          {may ? <ActionButton icon={MessageSquare} variant="outline" style={styles.noteBtn}
+            accessibilityLabel={`Add a note on ${id}`} onPress={() => setNoting(id)} /> : null}
+          </View>
+          {(byVerse.get(id) ?? []).map((n: ContextNote) => <NoteRow key={n.itemId} ctx={ctx} note={n} />)}
         </View>;
       })}
+      <Text style={text.small}>Notes on the passage stay with it, like the rest of the study, and reviewers see them with the team's notes.</Text>
     </Card>}
+    {noting ? <NoteSheet ctx={ctx} visible onClose={() => setNoting(null)} title={state?.units[props.unitId]?.label ?? ''}
+      place={`${state?.units[props.unitId]?.label ?? ''} · verse ${noting} · BSB`} home={{ level: 'unit', laneId: props.laneId, unitId: props.unitId }}
+      anchors={[anchorFor(noting)]} notes={byVerse.get(noting) ?? []} saved={`Note added on ${noting} — it follows this passage`} /> : null}
   </View>;
 }
 
@@ -272,6 +324,7 @@ const styles = StyleSheet.create({
   bead: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   action: { flexDirection: 'row', gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: tint.reference },
   link: { color: colors.translate, textDecorationLine: 'underline' },
+  noteBtn: { alignSelf: 'flex-start', minHeight: 40, paddingHorizontal: space.md },
   verse: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: radius.md, padding: space.xs }
 });
 

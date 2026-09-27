@@ -7,7 +7,7 @@ import { StyleSheet } from '../theme';
 // Avatar P: material_editor.
 import {
   assertObtStep, commands, deriveObt, derivePassageRecord, deriveTakeStatus, fiaStudyStatus, isObtLane,
-  keyTermLinksFor, materialView, obtCanAct, parseTaskId, questionsOf, questionSetsFor, skippedAnswerKey,
+  keyTermLinksFor, materialView, obtCanAct, passageNotes, parseTaskId, questionsOf, questionSetsFor, skippedAnswerKey,
   tgMaterialId, REFERENCE_KINDS, templateFields, type Card as AudioCard, type ObtStep, type QuestionView, type RecordReview
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -26,6 +26,7 @@ import { ActionButton, Card, text } from '../ui';
 import { Byline, usePerson } from '../UserChip';
 import { defineFiaProgress, fiaProgressId, FIA_STAGES } from '@langquest-next/core';
 import { FiaGuidanceRecorder } from '../fia';
+import { NoteRow } from '../noteSheet';
 import { BackTranslation as ObtBackTranslation, ObtHistory } from './obt';
 import { Beads, passageOf } from './translate';
 import { HoldToRecord } from './recordings';
@@ -127,7 +128,8 @@ export function ReviewCapture(ctx: Ctx) {
   const response = state.responses[takeId];
   const study = obt ? null : fiaStudyStatus(state, laneId, unitId);
   const termLinks = keyTermLinksFor(state, takeId);
-  const tg = state.materials[tgMaterialId(laneId)]?.fields[unitId]?.value;
+  // Background: every note on the passage (legacy guideline note included).
+  const notes = obt ? [] : passageNotes(state, unitId, laneId);
   const earlier: RecordReview[] = (record?.versions ?? []).flatMap((v) => v.reviews)
     .filter((r) => !(r.takeId === takeId && r.stepId === stepId && r.reviewerId === ctx.session.actorId)).reverse();
   const versionN = (id: string) => record?.versions.find((v) => v.takeId === id)?.n ?? 0;
@@ -272,15 +274,14 @@ export function ReviewCapture(ctx: Ctx) {
         </View>
       </Card> : null}
 
-      {!obt && !withheld && (termLinks.length || tg) ? <Disclosure icon={KeyRound} label={`From the translator: ${termLinks.length} terms, ${tg ? 1 : 0} notes`}
-        count={termLinks.length + (tg ? 1 : 0)} open={open.includes('translator')} onToggle={() => toggle('translator')}>
+      {!obt && !withheld && (termLinks.length || notes.length) ? <Disclosure icon={KeyRound} label={`From the translator: ${termLinks.length} terms, ${notes.length} notes`}
+        count={termLinks.length + notes.length} open={open.includes('translator')} onToggle={() => toggle('translator')}>
         {termLinks.map(({ term, note }) => <Pressable key={term.termId} style={styles.row} accessibilityRole="button"
           accessibilityLabel={`Key term ${term.term}`} onPress={() => ctx.go('key_term_detail', { termId: term.termId, takeId: takeId! })}>
           <KeyRound size={16} color={colors.reference} />
           <Text style={[text.body, { flex: 1 }]}>{term.term}{term.renderings[0] ? ` · ${term.renderings[0].rendering}` : ''}{note ? ` · ${note}` : ''}</Text>
         </Pressable>)}
-        {tg?.blobHash ? <AudioClip project={ctx.project} hashes={[tg.blobHash]} label="Play the translator's note" hideActions /> : null}
-        {tg?.text ? <Text style={text.body}>{tg.text}</Text> : null}
+        {notes.map((n) => <NoteRow key={n.itemId} ctx={ctx} note={n} />)}
       </Disclosure> : null}
 
       {study && !withheld ? <Disclosure icon={Sparkles} label={`The team's study: FIA, ${study.doneCount} of ${study.steps.length} steps`}

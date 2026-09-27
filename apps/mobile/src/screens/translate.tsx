@@ -9,7 +9,7 @@ import { StyleSheet } from '../theme';
 import * as Crypto from 'expo-crypto';
 import {
   commands, deriveTakeStatus, derivePassageRecord, fiaStudyStatus, isObtLane, deriveObt,
-  keyTermLinksFor, keyTermsForUnit, obtCanAct, parseTaskId, passageReading, tgMaterialId,
+  keyTermLinksFor, keyTermsForUnit, obtCanAct, parseTaskId, passageNotes, passageReading, tgMaterialId, versionNotes,
   type KeyTermView, type Task
 } from '@langquest-next/core';
 import {
@@ -29,6 +29,7 @@ import { ActionButton, Card, text } from '../ui';
 import { Byline } from '../UserChip';
 import { useQuery } from '../useQuery';
 import { useRecorder, type RecordedCard } from '../useRecorder';
+import { NoteRow, NoteSheet } from '../noteSheet';
 import { HoldToRecord, PartsList, RecordControls, RecordingTakeover, useRecordingParts } from './recordings';
 
 /**
@@ -81,6 +82,7 @@ export function Workspace(ctx: Ctx) {
   const [tray, setTray] = useState<TrayTab | null>(null);
   const [source, setSource] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [about, setAbout] = useState<{ takeId: string; n: number } | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -118,7 +120,7 @@ export function Workspace(ctx: Ctx) {
   const ready = status?.outcome === 'draft' && !parts.changed && parts.parts.length > 0;
   const blocked = busy || parts.blocked;
   const study = fiaStudyStatus(state, laneId, unitId);
-  const note = state.materials[tgMaterialId(laneId)]?.fields[unitId]?.value;
+  const notes = passageNotes(state, unitId, laneId);
   const terms = keyTermsForUnit(state, laneId, unitId);
   const tied = new Set(parts.takeId ? keyTermLinksFor(state, parts.takeId).map((l) => l.term.termId) : []);
 
@@ -144,7 +146,7 @@ export function Workspace(ctx: Ctx) {
     { id: 'terms', icon: KeyRound, color: colors.reference, count: String(terms.length), label: `Key terms, ${terms.length}` },
     ...(study ? [{ id: 'study' as const, icon: Sparkles, color: colors.reference, count: `${study.doneCount}/${study.steps.length}`,
       label: `FIA study, ${study.doneCount} of ${study.steps.length} steps done` }] : []),
-    { id: 'notes', icon: MessageSquare, color: colors.foreground, count: note?.text || note?.blobHash ? '1' : '0', label: 'Notes' },
+    { id: 'notes', icon: MessageSquare, color: colors.foreground, count: String(notes.length), label: `Notes, ${notes.length}` },
     { id: 'history', icon: History, color: colors.foreground, count: String(record.versions.length),
       label: record.versions.length ? `History, ${record.versions.length} versions` : 'History. This will be the first version.' }
   ];
@@ -172,10 +174,9 @@ export function Workspace(ctx: Ctx) {
           onPress={() => ctx.go('study_guide', { unitId, laneId })} />
       </> : null}
       {tray === 'notes' ? <>
-        {note?.blobHash ? <AudioClip project={ctx.project} hashes={[note.blobHash]} label="Play passage note" /> : null}
-        {note?.text ? <Text style={text.body}>{note.text}</Text> : null}
+        {notes.map((n) => <NoteRow key={n.itemId} ctx={ctx} note={n} />)}
         <ActionButton icon={MessageSquare} variant="outline"
-          accessibilityLabel={note ? 'Change the passage note' : 'Add a note. Notes you leave here follow the passage; reviewers and the next translator will see them.'}
+          accessibilityLabel={notes.length ? 'Add a note' : 'Add a note. Notes you leave here follow the passage — reviewers and the next translator will see them.'}
           disabled={!ctx.session.can('fill_reference')} onPress={() => setNotesOpen(true)} />
       </> : null}
       {tray === 'history' ? <>
@@ -189,6 +190,9 @@ export function Workspace(ctx: Ctx) {
             <AudioClip project={ctx.project} hashes={state.takes[v.takeId]?.cardHashes ?? []} label={`Play version ${v.n}`} hideActions />
             {r?.blobHash ? <AudioClip project={ctx.project} hashes={[r.blobHash]} label={`Hear what changed in version ${v.n}`} hideActions /> : null}
             {r?.note ? <Text style={text.small}>{r.note}</Text> : null}
+            {versionNotes(state, v.takeId).map((n) => <NoteRow key={n.itemId} ctx={ctx} note={n} />)}
+            {ctx.session.can('fill_reference') ? <ActionButton icon={MessageSquare} variant="outline" style={styles.headerButton}
+              accessibilityLabel={`Add a note to Version ${v.n}`} onPress={() => setAbout({ takeId: v.takeId, n: v.n })} /> : null}
           </Card>;
         })}
       </> : null}
@@ -231,6 +235,7 @@ export function Workspace(ctx: Ctx) {
         disabled={parts.rec.busy} onPress={() => void parts.rec.retryFailed()} /> : null}
       <RecordingTakeover parts={parts} />
       <NotesSheet ctx={ctx} unitId={unitId} laneId={laneId} visible={notesOpen} onClose={() => setNotesOpen(false)} />
+      {about ? <NotesSheet ctx={ctx} unitId={unitId} laneId={laneId} visible aboutTakeId={about.takeId} n={about.n} onClose={() => setAbout(null)} /> : null}
       {saveOpen ? <SaveSheet project={ctx.project} n={n} busy={busy} error={error}
         answers={feedback.map((f) => stepLabel(f.stepId)).join(', ')}
         onClose={() => setSaveOpen(false)} onSave={(r) => void save(r)} /> : null}
@@ -314,11 +319,30 @@ function SourceText(props: { ctx: Ctx; unitId: string; terms: KeyTermView[]; tie
 }
 
 /**
- * The passage note (the lane's Translation Guidelines field for this
- * passage): speech first, with the written fallback. One note per passage
- * until anchored notes exist (Phase 2, `ContextItemAdded`).
+ * The notes on a passage (J-REC-2): every note left here, then a new one.
+ * Each is a `v1.ContextItemAdded` homed on the passage in this language;
+ * the old one-note guideline field shows as a note, never overwritten.
+ * `aboutTakeId` makes it a note on one version (J-REC-1).
  */
-export function NotesSheet(props: { ctx: Ctx; unitId: string; laneId: string; visible: boolean; onClose: () => void }) {
+export function NotesSheet(props: { ctx: Ctx; unitId: string; laneId: string; visible: boolean; onClose: () => void; aboutTakeId?: string; n?: number }) {
+  const { ctx, unitId, laneId } = props;
+  const state = ctx.project.state;
+  if (!state) return null;
+  const notes = props.aboutTakeId ? versionNotes(state, props.aboutTakeId) : passageNotes(state, unitId, laneId);
+  return <NoteSheet ctx={ctx} visible={props.visible} onClose={props.onClose}
+    title={props.n ? `v${props.n}` : state.units[unitId]?.label ?? unitId}
+    place={props.aboutTakeId ? `On Version ${props.n ?? ''}. It stays with this version in the record.` : 'Anchored to Whole passage. It follows the passage into reviews and later versions.'}
+    home={{ level: 'unit', laneId, unitId }}
+    anchors={props.aboutTakeId ? [{ type: 'take', takeId: props.aboutTakeId }] : [{ type: 'unit', unitId }]}
+    {...(props.aboutTakeId ? { aboutTakeId: props.aboutTakeId } : {})}
+    notes={notes} saved={props.aboutTakeId ? `Note added to Version ${props.n ?? ''}` : 'Note added — it follows this passage'} />;
+}
+
+/**
+ * OBT lanes keep their path (D13): the one passage note in the lane's
+ * Translation Guidelines field, which older clients on those lanes read.
+ */
+export function GuidelineNoteSheet(props: { ctx: Ctx; unitId: string; laneId: string; visible: boolean; onClose: () => void }) {
   const { ctx, unitId, laneId } = props;
   const { state, run } = ctx.project;
   const materialId = tgMaterialId(laneId);

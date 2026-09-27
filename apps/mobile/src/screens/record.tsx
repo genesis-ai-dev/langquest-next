@@ -4,7 +4,7 @@
 // wired yet (docs/ux/mobbin-overhaul/CHECKLIST.md); later phases build them out.
 import {
   decodeHlc, deriveObt, derivePassageRecord, deriveTakeStatus, keyTermLinksFor, OBT_LABELS, questionsOf, questionSetsFor,
-  checkCredit, commands, recordHeadline, recordNextAction, reviewKind, reviewKinds, type DepartureKind, type PassageRecord as Rec, type RecordDeparture, type RecordEntry,
+  checkCredit, clockOf, commands, recordHeadline, recordNextAction, reviewKind, reviewKinds, type DepartureKind, type PassageRecord as Rec, type RecordDeparture, type RecordEntry,
   type RecordKind, type RecordReview, type RecordStep
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import {
   ArrowUpDown, Ban, BookmarkCheck, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
   Headphones, History, ListChecks, Lock, Languages, MapPin, MessageSquare, Mic, Octagon, Reply, RotateCcw, ShieldCheck,
-  KeyRound, Minus, Plus, SkipForward, Star, Undo2, UserPlus, UserX, Users, X
+  KeyRound, Minus, Plus, SkipForward, StickyNote, Star, Undo2, UserPlus, UserX, Users, X
 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -578,6 +578,12 @@ function entryTitle(e: RecordEntry, rec: Rec): string {
         : `Asked for ${rec.steps.filter((s) => s.role === e.role).map((s) => s.label).join(' and ') || e.role}`;
       return `${what}${e.state === 'withdrawn' ? ' · withdrawn' : e.state === 'done' ? ' · done' : ''}`;
     }
+    case 'note': {
+      const moment = e.note.anchors.map((a) => ('atMs' in a && a.atMs !== undefined ? clockOf(a.atMs) : undefined)).find((x) => x !== undefined);
+      const verse = e.note.anchors.find((a) => a.type === 'verse');
+      const where = verse?.type === 'verse' ? ` on ${verse.verse}` : e.note.aboutTakeId ? ` on Version ${rec.versions.find((v) => v.takeId === e.note.aboutTakeId)?.n ?? '?'}` : '';
+      return `Note${where}${moment ? ` at ${moment}` : ''}${e.note.text ? `: ${e.note.text}` : ''}`;
+    }
     case 'content': {
       const name = rec.steps.flatMap((s) => s.kinds).find((k) => k.kindId === e.content.kindId)?.name ?? e.content.kindId;
       return `${name} recorded · ${e.content.language}${e.content.stale ? ' · made from an older version' : ''}`;
@@ -598,6 +604,7 @@ function EntryIcon(props: { entry: RecordEntry }) {
   if (e.kind === 'response') return <Reply size={16} color={colors.translate} />;
   if (e.kind === 'ask') return <UserPlus size={16} color={colors.mutedForeground} />;
   if (e.kind === 'kept') return <BookmarkCheck size={16} color={colors.translate} />;
+  if (e.kind === 'note') return <StickyNote size={16} color={colors.foreground} />;
   if (e.kind === 'content') return <Languages size={16} color={e.content.stale ? colors.mutedForeground : colors.done} />;
   if (e.kind === 'departure') return e.departure.kind === 'override' ? <Octagon size={16} color={colors.review} /> : <SkipForward size={16} color={colors.review} />;
   return e.decision === 'approve' ? <CheckCircle2 size={16} color={colors.done} /> : <MessageSquare size={16} color={colors.review} />;
@@ -649,6 +656,17 @@ function Details(props: {
           ? <ActionButton variant="outline" icon={ClipboardCheck} style={styles.iconBtn} accessibilityLabel="Log what happened"
             onPress={() => ctx.go('add_record', props.params)} /> : null}
         {rec.history.map((e) => {
+          if (e.kind === 'note') {
+            return (
+              <View key={e.id} style={styles.historyRow}>
+                <View accessible accessibilityLabel={`${entryTitle(e, rec)} · ${props.nameOf(e.by)} · ${shortDate(e.at)}`}><EntryIcon entry={e} /></View>
+                <PersonAvatar look={person(e.by)} size={20} />
+                {e.note.blobHash ? <View style={{ flex: 1 }}><AudioClip project={ctx.project} hashes={[e.note.blobHash]} label="Hear the note" hideActions /></View>
+                  : <Text style={[text.small, { flex: 1 }]} numberOfLines={2}>{e.note.text}</Text>}
+                <Text style={text.small}>{shortDate(e.at)}</Text>
+              </View>
+            );
+          }
           if (e.kind === 'content') {
             return (
               <View key={e.id} style={styles.historyRow} accessible={false}>

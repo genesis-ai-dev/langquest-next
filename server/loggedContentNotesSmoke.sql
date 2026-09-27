@@ -1,4 +1,4 @@
--- Phase 2b slice C: v1.CheckLogged (and, below, ContentProduced and ContextItemAdded).
+-- Phase 2b slice C: v1.CheckLogged, v1.ContentProduced, v1.ContextItemAdded.
 -- Run in a migrated local test database. Every test write rolls back.
 \set ON_ERROR_STOP on
 begin;
@@ -76,8 +76,39 @@ begin
     if not result.accepted then raise exception 'ContentProduced append refused: %',row_to_json(result); end if;
   end loop;
 
+  -- ContextItemAdded validation equals core.
+  if public.validate_payload('v1.ContextItemAdded','{"itemId":"n1","kind":"note","home":{"level":"unit","laneId":"L","unitId":"u1"},"anchors":[{"type":"unit","unitId":"u1"},{"type":"verse","unitId":"u1","verse":"2:18","translation":"WEB","atMs":65000},{"type":"take","takeId":"t1","atMs":0,"endMs":4000},{"type":"study","materialId":"fia","stepId":"stage","sectionId":"s1","atMs":192000},{"type":"term","termId":"k"}],"text":"x","blobHash":"b","photoHash":"p","aboutTakeId":"t1"}') is not null
+    or public.validate_payload('v1.ContextItemAdded','{"itemId":"n2","kind":"note","home":{"level":"project"},"anchors":[],"blobHash":"b"}') is not null then
+    raise exception 'Valid ContextItemAdded rejected';
+  end if;
+  foreach payload in array array[
+    '{"itemId":"n","kind":"note","home":{"level":"unit","unitId":"u"},"anchors":[]}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"lane"},"anchors":[],"text":"x"}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"room"},"anchors":[],"text":"x"}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"project"},"anchors":[{"type":"room"}],"text":"x"}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"project"},"anchors":[{"type":"study","materialId":"m","stepId":"s","atMs":"3:12"}],"text":"x"}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"project"},"anchors":[{"type":"take","takeId":"t","atMs":1.5}],"text":"x"}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"project"},"anchors":[{"type":"verse","unitId":"u"}],"text":"x"}'::jsonb,
+    '{"itemId":"n","kind":"note","home":{"level":"project"},"text":"x"}'::jsonb
+  ] loop
+    if public.validate_payload('v1.ContextItemAdded',payload) is null then raise exception 'Invalid ContextItemAdded accepted: %',payload; end if;
+  end loop;
+  -- Translators hold fill_reference; reviewers and viewers do not.
+  if not public.may_emit('slice-c','P','translator','v1.ContextItemAdded','{"laneId":"L"}')
+    or public.may_emit('slice-c','P','reviewer','v1.ContextItemAdded','{"laneId":"L"}')
+    or public.may_emit('slice-c','P','viewer','v1.ContextItemAdded','{"laneId":"L"}') then
+    raise exception 'ContextItemAdded privileges drifted from core';
+  end if;
+  perform set_config('request.jwt.claims','{"sub":"translator","role":"authenticated"}',true);
+  for result in select * from public.append_events('[
+    {"id":"c-note","orgId":"slice-c","projectId":"P","type":"v1.ContextItemAdded","actorId":"translator","deviceId":"new-t","hlc":"000000000000008:000000:new-t","payload":{"itemId":"n1","kind":"note","home":{"level":"unit","laneId":"L","unitId":"u1"},"anchors":[{"type":"study","materialId":"fia","stepId":"stage","atMs":192000}],"text":"at 3:12"}},
+    {"id":"c-old-note","orgId":"slice-c","projectId":"P","type":"v1.MaterialFieldSet","actorId":"translator","deviceId":"old-t","hlc":"000000000000009:000000:old-t","payload":{"materialId":"tg:L","fieldId":"u1","text":"old note"}}
+  ]'::jsonb,0) loop
+    if not result.accepted then raise exception 'Note append refused: %',row_to_json(result); end if;
+  end loop;
+
   select count(*) into facts from public.pull_events('slice-c','P',0,50,0);
-  if facts <> 5 then raise exception 'Old client did not receive every fact: %',facts; end if;
+  if facts <> 7 then raise exception 'Old client did not receive every fact: %',facts; end if;
   if (select min_client_version from public.server_config) <> 0 then
     raise exception 'Sync must not require an app upgrade';
   end if;

@@ -1,4 +1,5 @@
 import type { Card, DepartureKind, KindProduces, Role, WorkflowStep } from './events';
+import { passageNotes, type ContextNote } from './context';
 import { buildIndexes, keptCheckKey, keptLegacyKey, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import { deriveObt, isObtLane, OBT_LABELS, OBT_STEPS } from './obt';
 import type { Assignment, CheckLoggedFrom, ProjectState } from './state';
@@ -259,6 +260,8 @@ export type RecordEntry =
   | { kind: 'ask'; at: string; by: string; id: string; profileId: string; role: Role; dueDate?: string; kindId?: string; requestId?: string; state: RecordAsk['state'] }
   | { kind: 'departure'; at: string; by: string; id: string; departure: RecordDeparture }
   | { kind: 'content'; at: string; by: string; id: string; content: RecordContent }
+  /** An anchored note on this passage (ContextItemAdded); legacy notes carry no clock and stay out of history. */
+  | { kind: 'note'; at: string; by: string; id: string; note: ContextNote }
   | { kind: 'kept'; at: string; by: string; id: string; takeId: string; n: number; stepId: string; kindId: string; reviewerId: string; kept: RecordKept };
 
 export interface PassageRecord {
@@ -686,6 +689,8 @@ export function derivePassageRecord(
       ...(a.kindId !== undefined ? { kindId: a.kindId } : {}),
       ...(a.requestId !== undefined ? { requestId: a.requestId } : {})
     })),
+    ...(obt ? [] : passageNotes(state, unitId, laneId)).filter((n) => n.legacy === undefined)
+      .map((n): RecordEntry => ({ kind: 'note', at: n.at, by: n.by, id: `note:${n.itemId}`, note: n })),
     ...produced.map((c): RecordEntry => ({ kind: 'content', at: c.at, by: c.by, id: `content:${c.contentId}`, content: c })),
     ...departures.map((d): RecordEntry => ({ kind: 'departure', at: d.at, by: d.by, id: `departure:${d.departureId}`, departure: d })),
     ...feedback.flatMap((f): RecordEntry[] => f.kept ? [{ kind: 'kept', at: f.kept.at, by: f.kept.by, id: `kept:${f.kept.keptId}`, takeId: f.takeId, n: latest!.n, stepId: f.stepId, kindId: f.kindId, reviewerId: f.reviewerId, kept: f.kept }] : [])

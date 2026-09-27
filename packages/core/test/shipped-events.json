@@ -409,5 +409,15 @@
     "noteBlobHash?": "string",
     "requestId?": "string",
     "unitId": "string"
+  },
+  "v1.ContextItemAdded": {
+    "aboutTakeId?": "string",
+    "anchors": "array<{type:string,unitId:string}>",
+    "blobHash?": "string",
+    "home": "{laneId:string,level:string,unitId:string}",
+    "itemId": "string",
+    "kind": "string",
+    "photoHash?": "string",
+    "text?": "string"
   }
 }

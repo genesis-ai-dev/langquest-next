@@ -17,7 +17,7 @@ import { Header, Note, Screen } from '../pui';
 import { ActionButton, Card, text } from '../ui';
 import { Byline } from '../UserChip';
 import { colors, space, tint } from '../theme';
-import { NotesSheet, useTask } from './translate';
+import { GuidelineNoteSheet, useTask } from './translate';
 import { PartsList, RecordControls, RecordingTakeover, useRecordingParts } from './recordings';
 import { handoffState } from '../passageFlow';
 
@@ -148,7 +148,7 @@ export function ObtPassage(ctx: Ctx) {
       <ActionButton icon={Plus} variant="outline" accessibilityLabel="Record another attempt" onPress={() => ctx.go('workspace', params)} />
     </> : null}
     {mode === 'history' ? <ObtHistory ctx={ctx} unitId={unitId} laneId={laneId} /> : null}
-    <NotesSheet ctx={ctx} unitId={unitId} laneId={laneId} visible={notesOpen} onClose={() => setNotesOpen(false)} />
+    <GuidelineNoteSheet ctx={ctx} unitId={unitId} laneId={laneId} visible={notesOpen} onClose={() => setNotesOpen(false)} />
     {error ? <Note>{error}</Note> : null}
     {ctx.project.refused ? <Note>{ctx.project.refused}</Note> : null}
     <Text accessibilityLabel={ctx.project.pending ? 'Hand-off queued on this phone' : 'Events synced; audio may still be uploading'} style={text.small}>

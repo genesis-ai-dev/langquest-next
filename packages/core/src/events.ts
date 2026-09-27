@@ -271,7 +271,39 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, ObtEven
     noteBlobHash?: string;
     requestId?: string;
   };
+  /**
+   * An anchored note (or answer) that follows the work: on a passage, a
+   * verse (optionally in a translation, at a moment), a moment in a take, a
+   * study section or moment in step audio, or a key term. Immutable, set by
+   * itemId. Times are integer ms, never "3:12". `aboutTakeId` names the
+   * version it is about. Privilege fill_reference (translators hold it).
+   * Legacy ReferenceAttached and the passage guideline note fold into the
+   * same read model as unit notes (context.ts).
+   */
+  'v1.ContextItemAdded': {
+    itemId: string;
+    kind: string;
+    home: ContextHome;
+    anchors: ContextAnchor[];
+    text?: string;
+    blobHash?: string;
+    photoHash?: string;
+    aboutTakeId?: string;
+  };
 }
+
+export interface ContextHome {
+  level: 'project' | 'lane' | 'unit';
+  laneId?: string;
+  unitId?: string;
+}
+
+export type ContextAnchor =
+  | { type: 'unit'; unitId: string }
+  | { type: 'verse'; unitId: string; verse: string; translation?: string; atMs?: number }
+  | { type: 'take'; takeId: string; atMs?: number; endMs?: number }
+  | { type: 'study'; materialId: string; stepId: string; sectionId?: string; atMs?: number }
+  | { type: 'term'; termId: string };
 
 export type RequestWhat = 'record' | 'check';
 

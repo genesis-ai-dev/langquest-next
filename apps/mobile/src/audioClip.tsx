@@ -36,6 +36,10 @@ export function AudioClip(props: {
   endSeconds?: number;
   /** Called when the listener starts playback (a review's "played once" rule). */
   onPlay?: () => void;
+  /** Called when the listener pauses, with the moment in ms (single-file clips: J-STUDY-2 "Add a note at m:ss"). */
+  onPause?: (ms: number) => void;
+  /** Change `key` to play from `ms` (a timed note's chip). Single-file clips. */
+  seekTo?: { ms: number; key: number };
 }) {
   const { locked } = usePreferences();
   const [editing, setEditing] = useState(false);
@@ -46,6 +50,7 @@ export function AudioClip(props: {
   const generation = useRef(0);
   const wantsPlayback = useRef(false);
   const signature = `${props.uri ?? props.hashes.join(':')}:${props.startSeconds ?? 0}:${props.endSeconds ?? ''}`;
+  const pendingSeek = useRef<number | null>(null);
   const projectRef = useRef(props.project);
   projectRef.current = props.project;
   useEffect(() => { if (locked) stopAudioPlayback(); }, [locked]);
@@ -94,7 +99,9 @@ export function AudioClip(props: {
     if (props.disabled) return;
     if (wantsPlayback.current) {
       generation.current++; wantsPlayback.current = false;
-      player.current?.pause(); setPlaying(false); return;
+      player.current?.pause(); setPlaying(false);
+      if (player.current) props.onPause?.(Math.round(player.current.currentTime * 1000));
+      return;
     }
     stopAudioPlayback();
     props.onPlay?.();
@@ -105,6 +112,12 @@ export function AudioClip(props: {
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
+      if (player.current?.isLoaded && pendingSeek.current !== null) {
+        const to = pendingSeek.current; pendingSeek.current = null;
+        await player.current.seekTo(to, 0, 0);
+        if (generation.current === run) player.current?.play();
+        return;
+      }
       if (player.current?.isLoaded) {
         if (player.current.currentTime < (props.startSeconds ?? 0) ||
           (player.current.duration > 0 && player.current.currentTime >=
@@ -134,7 +147,9 @@ export function AudioClip(props: {
             if (initialized || !p.isLoaded || player.current !== p ||
                 generation.current !== playbackRun || !wantsPlayback.current) return;
             initialized = true;
-            void p.seekTo(props.startSeconds ?? 0, 0, 0).then(() => {
+            const from = pendingSeek.current ?? props.startSeconds ?? 0;
+            pendingSeek.current = null;
+            void p.seekTo(from, 0, 0).then(() => {
               if (player.current === p && generation.current === playbackRun && wantsPlayback.current) p.play();
             }).catch(() => {
               if (player.current !== p) return;
@@ -173,6 +188,13 @@ export function AudioClip(props: {
       }
     }
   }
+  useEffect(() => {
+    if (!props.seekTo) return;
+    pendingSeek.current = props.seekTo.ms / 1000;
+    if (wantsPlayback.current) { generation.current++; wantsPlayback.current = false; player.current?.pause(); }
+    void toggle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.seekTo?.key]);
   async function seek(delta: number) {
     const p = player.current;
     if (!p || props.disabled) return;

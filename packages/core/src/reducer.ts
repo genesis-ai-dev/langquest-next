@@ -36,8 +36,10 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * 14: v1.CheckLogged folds into `checks` with its `logged` source.
  *
  * 15: v1.ContentProduced folds into `produced`.
+ *
+ * 16: v1.ContextItemAdded folds into `contextItems`.
  */
-export const REDUCER_VERSION = 15;
+export const REDUCER_VERSION = 16;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -434,6 +436,20 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
         ...(note !== undefined ? { note } : {}),
         ...(noteBlobHash !== undefined ? { noteBlobHash } : {}),
         ...(requestId !== undefined ? { requestId } : {})
+      });
+      break;
+    }
+
+    case 'v1.ContextItemAdded': {
+      const { itemId, kind, home, anchors, text, blobHash, photoHash, aboutTakeId } = event.payload;
+      lww(state.contextItems, itemId, event, {
+        kind, actorId: event.actorId,
+        home: { level: home.level, ...(home.laneId !== undefined ? { laneId: home.laneId } : {}), ...(home.unitId !== undefined ? { unitId: home.unitId } : {}) },
+        anchors: anchors.map((a) => ({ ...a })),
+        ...(text !== undefined ? { text } : {}),
+        ...(blobHash !== undefined ? { blobHash } : {}),
+        ...(photoHash !== undefined ? { photoHash } : {}),
+        ...(aboutTakeId !== undefined ? { aboutTakeId } : {})
       });
       break;
     }

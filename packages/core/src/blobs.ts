@@ -62,6 +62,12 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
     const h = r.value.noteBlobHash;
     if (h && !out.has(h)) out.set(h, { hash: h, format: 'm4a', unitId: r.value.unitId });
   }
+  for (const r of Object.values(state.contextItems)) {
+    const c = r.value;
+    const unitId = c.home.unitId ?? c.anchors.map((a) => ('unitId' in a ? a.unitId : undefined)).find((u) => u !== undefined) ?? '';
+    if (c.blobHash && !out.has(c.blobHash)) out.set(c.blobHash, { hash: c.blobHash, format: 'm4a', unitId });
+    if (c.photoHash && !out.has(c.photoHash)) out.set(c.photoHash, { hash: c.photoHash, format: 'jpg', unitId });
+  }
   const keptVoices = Object.values(state.kept).filter((k) => k.value.reasonBlobHash);
   if (keptVoices.length > 0) {
     const checkUnit = new Map<string, string>();
@@ -169,6 +175,13 @@ export function deriveDownloadWork(
         for (const adjustment of Object.values(term.adjustments)) {
           if (adjustment.blobHash) needed.add(adjustment.blobHash);
         }
+      }
+      // Notes on this passage, its book, or its whole language follow it offline.
+      for (const item of Object.values(state.contextItems)) {
+        const h = item.value.home;
+        if (h.unitId ? !ancestors.has(h.unitId) : !laneMatches(h.laneId)) continue;
+        if (item.value.blobHash) needed.add(item.value.blobHash);
+        if (item.value.photoHash) needed.add(item.value.photoHash);
       }
     }
   }

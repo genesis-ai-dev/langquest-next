@@ -358,6 +358,27 @@ export const EVENT_REGISTRY = {
     }
   },
 
+  // ---- Phase 2b anchored notes (SQL 20260927000008_context_items.sql).
+  'v1.ContextItemAdded': {
+    validate: (p) =>
+      str(p, 'itemId', 'kind') ?? optText(p, 'text') ?? optStr(p, 'blobHash') ?? optStr(p, 'photoHash') ?? optStr(p, 'aboutTakeId') ??
+      contextHomeError(p['home']) ??
+      (Array.isArray(p['anchors']) ? (p['anchors'] as unknown[]).map(contextAnchorError).find((e) => e !== null) ?? null : 'anchors must be an array') ??
+      (sqlStr(p, 'text') || sqlStr(p, 'blobHash') || sqlStr(p, 'photoHash') ? null : 'say something: text, blobHash or photoHash'),
+    privilege: 'fill_reference', blobHashes: (p) => [...new Set(hashes(p['blobHash'], p['photoHash']))], shipped: true,
+    example: {
+      itemId: 'ex-item', kind: 'note', home: { level: 'unit', laneId: 'ex-lane', unitId: 'ex-unit' },
+      anchors: [
+        { type: 'unit', unitId: 'ex-unit' },
+        { type: 'verse', unitId: 'ex-unit', verse: '2:18', translation: 'WEB', atMs: 65000 },
+        { type: 'take', takeId: 'ex-take', atMs: 1000, endMs: 4000 },
+        { type: 'study', materialId: 'ex-material', stepId: 'setting', sectionId: 's2', atMs: 192000 },
+        { type: 'term', termId: 'ex-term' }
+      ],
+      text: 'Say "shepherd", not "herder"', blobHash: HASH, photoHash: 'b'.repeat(64), aboutTakeId: 'ex-take'
+    }
+  },
+
   // ---- step 12: materials and key terms (SQL 20260914000011, unchanged since)
   'v1.MaterialDefined': {
     validate: (p) =>
@@ -572,6 +593,32 @@ function optText(p: Record<string, unknown>, k: string): string | null {
 function reasonGiven(p: Record<string, unknown>): string | null {
   return optText(p, 'reason') ?? optStr(p, 'reasonBlobHash') ??
     (sqlStr(p, 'reason') || sqlStr(p, 'reasonBlobHash') ? null : 'say why: reason or reasonBlobHash');
+}
+/** A context item's home. SQL `_context_home_error`: the same. */
+function contextHomeError(v: unknown): string | null {
+  if (!isObject(v)) return 'home must be an object';
+  if (v['level'] !== 'project' && v['level'] !== 'lane' && v['level'] !== 'unit') return 'home.level must be project, lane or unit';
+  if (optStr(v, 'laneId') ?? optStr(v, 'unitId')) return 'home.laneId and home.unitId must be non-empty strings when present';
+  if (v['level'] === 'lane' && v['laneId'] === undefined) return 'a lane home needs laneId';
+  if (v['level'] === 'unit' && v['unitId'] === undefined) return 'a unit home needs unitId';
+  return null;
+}
+/** Absent, or a whole number of ms at least 0. SQL: the same. */
+function optMs(p: Record<string, unknown>, k: string): string | null {
+  const v = p[k];
+  return v === undefined || (typeof v === 'number' && Number.isInteger(v) && v >= 0) ? null : `${k} must be whole milliseconds`;
+}
+/** One anchor. SQL `_context_anchor_error`: the same. */
+function contextAnchorError(a: unknown): string | null {
+  if (!isObject(a)) return 'anchors entries must be objects';
+  switch (a['type']) {
+    case 'unit': return str(a, 'unitId');
+    case 'verse': return str(a, 'unitId', 'verse') ?? optStr(a, 'translation') ?? optMs(a, 'atMs');
+    case 'take': return str(a, 'takeId') ?? optMs(a, 'atMs') ?? optMs(a, 'endMs');
+    case 'study': return str(a, 'materialId', 'stepId') ?? optStr(a, 'sectionId') ?? optMs(a, 'atMs');
+    case 'term': return str(a, 'termId');
+    default: return 'anchor type must be unit, verse, take, study or term';
+  }
 }
 function cards(p: Record<string, unknown>, k: string): string | null {
   const v = p[k];
