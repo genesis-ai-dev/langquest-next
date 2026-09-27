@@ -512,7 +512,7 @@ function StepSheet(props: { ctx: Ctx; rec: Rec; step: RecordStep; params: Record
       <View style={styles.sheetActions}>
         {canReview ? <ActionButton variant="outline" icon={ListChecks} accessibilityLabel="Review it now" style={styles.iconBtn}
           onPress={() => go('review_capture', { takeId: rec.latest!.takeId, stepId: step.stepId })} /> : null}
-        {canAsk && (step.legacy || step.kinds.length <= 1) ? <ActionButton variant="outline" icon={UserPlus} accessibilityLabel="Ask someone" style={styles.iconBtn}
+        {canAsk && (step.legacy || step.kinds.length === 0) ? <ActionButton variant="outline" icon={UserPlus} accessibilityLabel="Ask someone" style={styles.iconBtn}
           onPress={() => go('ask_someone', { stepId: step.stepId })} /> : null}
         {canSetAside && (step.legacy || step.kinds.length === 0) ? <ActionButton variant="outline" icon={SkipForward} style={styles.iconBtn}
           accessibilityLabel="Set aside" onPress={() => props.onDepart({ kind: 'set_aside', stepId: step.stepId, name: step.label })} /> : null}
