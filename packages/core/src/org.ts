@@ -1,7 +1,7 @@
 import type { AnyEvent, EventEnvelope, Role } from './events';
 import type { Hlc } from './hlc';
 import type { Register } from './state';
-import { EVENT_PRIVILEGE } from './eventRegistry';
+import { EVENT_PRIVILEGE, scopeError } from './eventRegistry';
 import { PRIVILEGES, type Privilege } from './privileges';
 import { validateEvent } from './validate';
 
@@ -262,6 +262,10 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
     }
     case 'v1.InviteIssued': {
       const { inviteId, roleId, scope, expiresAt } = event.payload;
+      // SQL checks only that scope is an object. An invite whose scope is not
+      // a membership scope grants nothing we can name, so the fold ignores it;
+      // the raw event is still retained in the log.
+      if (scopeError(scope)) break;
       const slot = (state.invites[inviteId] ??= emptyInvite());
       // Register by clock so a duplicated id cannot make the fold depend on
       // arrival order; only this event's own fields are written.

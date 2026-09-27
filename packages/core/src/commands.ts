@@ -70,7 +70,8 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
         { id: next(), type: 'v1.TakeSelected', payload: { takeId, unitId: c.unitId, laneId: c.laneId } }
       ];
       if (c.metadata) {
-        if (!validTakeMetadata(c.metadata)) throw new CommandError('Invalid recording metadata.');
+        // The trim() check is stricter than the server on purpose: a whitespace-only name is not a name.
+        if (!validTakeMetadata(c.metadata) || !c.metadata.name.trim()) throw new CommandError('Invalid recording metadata.');
         out.push({ id: next(), type: 'v1.TakeMetadataSet', payload: { takeId, unitId: c.unitId, laneId: c.laneId, ...c.metadata } });
       }
       if (previous && !isObtLane(state, c.laneId) && !state.obt.workspace && deriveTakeStatus(state, previous, idx).outcome === 'draft') {

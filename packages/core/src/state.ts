@@ -45,7 +45,8 @@ export interface Reference {
 export interface Recording {
   unitId: string;
   laneId: string;
-  kind: 'source' | 'target';
+  /** Absent when the server accepted a RecordingAdded without a kind (see reducer). */
+  kind?: 'source' | 'target';
   cards: Card[];
   actorId: string;
   hlc: Hlc;

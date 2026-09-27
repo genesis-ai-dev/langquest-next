@@ -1,4 +1,5 @@
 import type { Card, EventPayloads, Role } from './events';
+import { sqlBlank } from './sqlText';
 import type { ProjectState, Register } from './state';
 
 export const OBT_FLOW = 'spoken_worldwide';
@@ -139,10 +140,11 @@ export function deriveObt(state: ProjectState, unitId: string, laneId: string): 
 
 /** Validation shared by commands and the reducer. SQL mirrors these shapes. */
 export function validateObt(type: string, p: Record<string, unknown>): string | null {
-  const need = (keys: string[]) => keys.some(k => typeof p[k] !== 'string' || !(p[k] as string).trim());
-  const strings = (v: unknown) => Array.isArray(v) && v.every(x => typeof x === 'string' && !!x.trim());
+  // Blank means spaces only, as SQL trim() measures it (sqlText.ts).
+  const need = (keys: string[]) => keys.some(k => typeof p[k] !== 'string' || sqlBlank(p[k] as string));
+  const strings = (v: unknown) => Array.isArray(v) && v.every(x => typeof x === 'string' && !sqlBlank(x));
   const identifiers = ['unitId', 'laneId', 'clipId', 'roundId', 'firstDraftId', 'inputTakeId', 'inputId', 'takeId', 'language'];
-  if (identifiers.some(k => k in p && (typeof p[k] !== 'string' || !(p[k] as string).trim()))) return 'OBT identifiers must not be blank';
+  if (identifiers.some(k => k in p && (typeof p[k] !== 'string' || sqlBlank(p[k] as string)))) return 'OBT identifiers must not be blank';
   if (type === 'v1.ObtPolicySet') {
     const roles = ['owner', 'coordinator', 'reviewer'];
     return need(['laneId']) || !roles.includes(p.consultantRole as string) ||

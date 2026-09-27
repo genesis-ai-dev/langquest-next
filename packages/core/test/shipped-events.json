@@ -8,11 +8,11 @@
   },
   "v1.MemberAdded": {
     "profileId": "string",
-    "role": "string"
+    "role?": "string"
   },
   "v1.MemberRoleChanged": {
     "profileId": "string",
-    "role": "string"
+    "role?": "string"
   },
   "v1.MemberRemoved": {
     "profileId": "string"
@@ -25,7 +25,7 @@
     "kind": "string",
     "label": "string",
     "order": "string",
-    "parentUnitId": "null",
+    "parentUnitId?": "null",
     "unitId": "string"
   },
   "v1.ReferenceAttached": {
@@ -37,7 +37,7 @@
   },
   "v1.RecordingAdded": {
     "cards": "array<{durationMs:number,format:string,hash:string}>",
-    "kind": "string",
+    "kind?": "string",
     "laneId": "string",
     "recordingId": "string",
     "unitId": "string"
@@ -45,7 +45,7 @@
   "v1.TakeComposed": {
     "cardHashes": "array<string>",
     "laneId": "string",
-    "parentTakeId": "null",
+    "parentTakeId?": "null",
     "takeId": "string",
     "unitId": "string"
   },
@@ -71,7 +71,7 @@
   "v1.ReviewSubmitted": {
     "answers?": "{q1:string}",
     "comment?": "string",
-    "decision": "string",
+    "decision?": "string",
     "stepId": "string",
     "takeId": "string"
   },
@@ -80,7 +80,7 @@
     "instructions?": "string",
     "laneId": "string",
     "profileId": "string",
-    "role": "string",
+    "role?": "string",
     "unitId": "string"
   },
   "v1.SourceImported": {

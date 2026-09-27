@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { referencedBlobs } from '../src/blobs';
 import { EVENT_REGISTRY, eventBlobHashes, registryEntry, type EventRegistryEntry } from '../src/eventRegistry';
 import type { AnyEvent, EventType } from '../src/events';
-import { EVENT_PRIVILEGE, privilegeFor } from '../src/org';
+import { EVENT_PRIVILEGE, foldOrg, privilegeFor } from '../src/org';
+import { deriveInbox } from '../src/inbox';
+import { buildIndexes } from '../src/indexes';
+import { passageKeys, passageRow } from '../src/readModels';
+import { createTextTranslation } from '../src/textTranslations';
 import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
 import { validateEvent } from '../src/validate';
@@ -106,6 +110,8 @@ describe('b: examples are valid and privileges did not move', () => {
 /** Field name (suffixed `?` when the validator lets it be absent) to JSON shape. */
 type Fingerprint = Record<string, string>;
 const SNAPSHOT = join(here, 'shipped-events.json');
+// Existing entries only ever loosen to match SQL: reducer v8 marked role, kind,
+// decision, parentUnitId and parentTakeId optional because SQL never required them.
 
 /** A structural description of a JSON value: field names and JSON types, recursively. */
 function shapeOf(v: unknown): string {
@@ -343,5 +349,131 @@ describe('core payload rules match SQL for the formerly unchecked types', () => 
     // history the log already holds (invariants 1 and 13).
     expect(validateEvent(envelope('v1.WorkflowStepSet', { stepId: 's', order: 'a', required: false }))).toBeNull();
     expect(validateEvent(envelope('v1.CatalogItemToggled', { itemId: 'i', enabled: true }))).toBeNull();
+  });
+});
+
+// ---- core accepts what SQL accepts: rules that were stricter than the server -----
+
+/**
+ * Before reducer v8 these payloads passed SQL validate_payload (the server
+ * kept them) but core refused them, so every client folded server history as
+ * invalid. Each one must now validate, fold without throwing, and land in the
+ * documented state. `hlc` orders them for the last-writer-wins cases.
+ */
+const accepted = (id: string, type: EventType, payload: Record<string, unknown>, wall = 9000): AnyEvent =>
+  ({ id, type, orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dS', hlc: `${String(wall).padStart(15, '0')}:000000:dS`, payload }) as AnyEvent;
+
+const SERVER_ACCEPTED: AnyEvent[] = [
+  // SQL never checked these optional fields; core ran optStr on them.
+  accepted('sa-ref', 'v1.ReferenceAttached', { unitId: 'u-sa', refId: 'r-sa', kind: 'overview_audio', blobHash: 5, text: { rich: true } }),
+  accepted('sa-review-comment', 'v1.ReviewSubmitted', { takeId: 't-sa', stepId: 's-sa', decision: 'approve', comment: 7 }),
+  accepted('sa-assign-due', 'v1.AssignmentMade', { unitId: 'u-sa', laneId: 'L-sa', profileId: 'p-sa', role: 'translator', dueDate: 3, instructions: null }),
+  accepted('sa-redact', 'v1.Redacted', { eventId: 'sa-never-applied', reason: 3 }),
+  accepted('sa-invalidate', 'v1.BlobInvalidated', { hash: 'c'.repeat(64), reason: null }),
+  // SQL `p->>'k' not in (...)` and `_is_role(NULL)` let an absent enum through.
+  accepted('sa-member', 'v1.MemberAdded', { profileId: 'p-norole' }),
+  accepted('sa-member-change', 'v1.MemberRoleChanged', { profileId: 'p-nullrole', role: null }),
+  accepted('sa-assign-norole', 'v1.AssignmentMade', { unitId: 'u-sa', laneId: 'L-sa', profileId: 'p-sa2' }),
+  accepted('sa-rec', 'v1.RecordingAdded', { recordingId: 'rec-sa', unitId: 'u-sa', laneId: 'L-sa', cards: [{ hash: 'd'.repeat(64), durationMs: 10 }] }),
+  accepted('sa-review-nodecision', 'v1.ReviewSubmitted', { takeId: 't-sa2', stepId: 's-sa' }),
+  // SQL `jsonb_typeof(p->'k') not in ('null', 'string')` lets an absent parent through.
+  accepted('sa-unit', 'v1.UnitAdded', { unitId: 'u-sa', kind: 'passage', label: 'SA 1', order: 'z9' }),
+  accepted('sa-take', 'v1.TakeComposed', { takeId: 't-sa3', unitId: 'u-sa', laneId: 'L-sa', cardHashes: ['d'.repeat(64)] }),
+  // SQL trim() strips spaces only, SQL length() counts characters, and SQL
+  // checks ids of written drafts as non-empty only.
+  accepted('sa-text', 'v1.TextTranslationCreated', { translationId: 'tt-sa', unitId: ' ', laneId: 'L-sa', parentTranslationId: null, text: '\t', origin: 'written' }),
+  accepted('sa-meta', 'v1.TakeMetadataSet', { takeId: 't-sa3', unitId: 'u-sa', laneId: 'L-sa', name: '🙂'.repeat(150), milestones: [] }),
+  accepted('sa-bible', 'v1.BibleSettingsSet', { laneId: '\n', density: 10, sourceId: 'bsb' }),
+  accepted('sa-obt', 'v1.ObtWorkspaceCreated', { unitId: 'u-sa', laneId: 'L-sa', inputTakeId: 't-sa3', language: '\n' })
+];
+
+describe('core accepts every payload SQL validate_payload accepted', () => {
+  it.each(SERVER_ACCEPTED.map((e) => [e.id, e] as const))('%s validates', (_id, event) => {
+    // Why: invariants 1, 11 and 13. The server kept this event; core must fold it.
+    expect(validateEvent(event)).toBeNull();
+  });
+
+  it('SQL refusals that sit next to the loosened rules still refuse', () => {
+    // Why: loosening must not turn into accepting anything. These are the SQL rules themselves.
+    expect(validateEvent(accepted('r1', 'v1.MemberAdded', { profileId: 'p', role: 'boss' }))).not.toBeNull();
+    expect(validateEvent(accepted('r2', 'v1.RecordingAdded', { recordingId: 'r', unitId: 'u', laneId: 'L', kind: 'both', cards: [] }))).not.toBeNull();
+    expect(validateEvent(accepted('r3', 'v1.ReviewSubmitted', { takeId: 't', stepId: 's', decision: 'maybe' }))).not.toBeNull();
+    expect(validateEvent(accepted('r4', 'v1.UnitAdded', { unitId: 'u', kind: 'k', label: 'l', order: 'o', parentUnitId: 5 }))).not.toBeNull();
+    expect(validateEvent(accepted('r5', 'v1.InviteIssued', { inviteId: 'i', roleId: 'r', expiresAt: 'x', scope: 'org' }))).not.toBeNull();
+    expect(validateEvent(accepted('r6', 'v1.TakeMetadataSet', { takeId: 't', unitId: 'u', laneId: 'L', name: '🙂'.repeat(201), milestones: [] }))).not.toBeNull();
+    expect(validateEvent(accepted('r7', 'v1.TakeMetadataSet', { takeId: 't', unitId: 'u', laneId: 'L', name: '   ', milestones: [] }))).not.toBeNull();
+    expect(validateEvent(accepted('r8', 'v1.TextTranslationCreated', { translationId: 't', unitId: 'u', laneId: 'L', parentTranslationId: null, text: '  ', origin: 'written' }))).not.toBeNull();
+  });
+
+  it('folds to the documented state and never lets an odd value into derived state', () => {
+    const state = fold(SERVER_ACCEPTED, emptyState());
+    expect(state.invalidEvents).toEqual({});
+    // Non-string optional text is dropped, never stored as a blob hash or a label.
+    expect(state.references['r-sa']).toEqual({ unitId: 'u-sa', kind: 'overview_audio' });
+    expect(state.reviews['t-sa']?.['s-sa']?.['lead']?.value).toEqual({ decision: 'approve', hlc: expect.any(String) });
+    const assignment = Object.values(state.assignments).find((a) => a.profileId === 'p-sa')!;
+    expect(assignment).not.toHaveProperty('dueDate');
+    expect(assignment).not.toHaveProperty('instructions');
+    expect(state.redactions['sa-never-applied']).toBe(true);
+    expect(state.blobs['c'.repeat(64)]?.stored).toBe(false);
+    // The server stores a NULL role, which grants nothing: core uses the least role.
+    expect(state.members['p-norole']?.role.value).toBe('viewer');
+    expect(state.members['p-norole']?.removed.value).toBe(false);
+    expect(state.members['p-nullrole']?.role.value).toBe('viewer');
+    // Meaningless for the fold: no role to queue by, no decision to count. Ignored.
+    expect(Object.values(state.assignments).some((a) => a.profileId === 'p-sa2')).toBe(false);
+    expect(state.reviews['t-sa2']).toBeUndefined();
+    // A kindless recording is kept (its audio stays referenced) but is neither source nor target.
+    expect(state.recordings['rec-sa']).not.toHaveProperty('kind');
+    expect(referencedBlobs(state).has('d'.repeat(64))).toBe(true);
+    expect(state.units['u-sa']?.parentUnitId).toBeNull();
+    expect(state.takes['t-sa3']?.parentTakeId).toBeNull();
+  });
+
+  it('the member role stays last-writer-wins whichever way the role-less event lands', () => {
+    // Why: invariant 2. A role-less event is a real write in the server's
+    // membership fold, so it must compete by clock, not be skipped.
+    const before = accepted('m1', 'v1.MemberAdded', { profileId: 'p', role: 'translator' }, 100);
+    const after = accepted('m2', 'v1.MemberRoleChanged', { profileId: 'p' }, 200);
+    expect(fold([before, after], emptyState()).members['p']?.role.value).toBe('viewer');
+    expect(fold([after, before], emptyState()).members['p']?.role.value).toBe('viewer');
+    const later = accepted('m3', 'v1.MemberRoleChanged', { profileId: 'p', role: 'reviewer' }, 300);
+    expect(fold([later, after, before], emptyState()).members['p']?.role.value).toBe('reviewer');
+  });
+
+  it('an invite whose scope is an object but not a membership scope is kept raw and ignored by the org fold', () => {
+    const invite = accepted('inv', 'v1.InviteIssued', { inviteId: 'i-sa', roleId: 'r', expiresAt: '2999-01-01T00:00:00Z', scope: { level: 'lane', projectId: 'p1' } });
+    expect(validateEvent(invite)).toBeNull();
+    const org = foldOrg([invite]);
+    expect(org.invalidEvents).toEqual({});
+    expect(org.invites['i-sa']).toBeUndefined();
+  });
+
+  it('derived views over the folded state do not throw', () => {
+    // Why: invariant 11 covers what the app reads, not just the fold.
+    const all = [...buildFixture(), ...SERVER_ACCEPTED];
+    const state = fold(all, emptyState());
+    const idx = buildIndexes(state);
+    expect(() => {
+      for (const key of passageKeys(state, idx)) passageRow(state, key.unitId, key.laneId, idx);
+      passageRow(state, 'u-sa', 'L-sa', idx);
+      for (const actor of ['lead', 't1', 'r1', 'p-norole', 'p-nullrole']) deriveInbox(state, actor, idx);
+      referencedBlobs(state);
+    }).not.toThrow();
+  });
+
+  it('any permutation, with the stories and registry examples, folds to one state (invariants 2 and 3)', () => {
+    const all = [...buildFixture(), ...buildStep11Fixture(), ...buildRegistryExampleFixture(), ...SERVER_ACCEPTED];
+    const canonical = fold(all, emptyState());
+    for (let seed = 1; seed <= 50; seed++) expect(fold(shuffle(all, seed), emptyState())).toEqual(canonical);
+    expect(fold([...all, ...shuffle(SERVER_ACCEPTED, 7)], emptyState())).toEqual(canonical);
+  });
+
+  it('commands stay stricter than the server for whitespace-only user text', () => {
+    // Why: the server accepts "\t" as text, but a person typing only
+    // whitespace has not written a draft. The door and the command differ on purpose.
+    expect(() => createTextTranslation(emptyState(), 'c1', {
+      translationId: 'x', unitId: 'u', laneId: 'L', parentTranslationId: null, text: '\n\t', origin: 'written'
+    })).toThrow('text is required');
   });
 });

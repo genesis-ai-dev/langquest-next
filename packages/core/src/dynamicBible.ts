@@ -3,6 +3,7 @@ import { BIBLE_SECTIONS } from './bibleData/sections';
 import { BSB_VERSES } from './bibleData/text';
 import { BSB_STATISTICS } from './bibleData/statistics';
 import { rankTerms, termsAtDensity, type RankedTerm } from './keyTermScoring';
+import { sqlBlank } from './sqlText';
 import type { ProjectState } from './state';
 
 export const DYNAMIC_BIBLE_TEMPLATE = 'dynamic';
@@ -109,7 +110,7 @@ export function nextBiblePassages(book: string, reserved: BibleRange[]) {
     .sort((a, b) => b.count - a.count || a.end - b.end);
 }
 export function validateBibleEvent(type: string, p: Record<string, unknown>): string | null {
-  if (typeof p.laneId !== 'string' || !p.laneId.trim()) return 'Bible lane required';
+  if (typeof p.laneId !== 'string' || sqlBlank(p.laneId)) return 'Bible lane required';
   if (type === 'v1.BibleSettingsSet') {
     if (p.sourceId !== 'bsb' || typeof p.density !== 'number' ||
       !Number.isInteger(p.density) || p.density < 0 || p.density > 100 ||

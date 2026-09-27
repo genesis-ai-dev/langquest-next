@@ -1,4 +1,4 @@
-import type { AnyEvent, EventEnvelope } from './events';
+import type { AnyEvent, EventEnvelope, Role } from './events';
 import type { Member, ProjectState, Register } from './state';
 import { emptyState } from './state';
 import { validateEvent } from './validate';
@@ -13,8 +13,14 @@ import { bibleBooks, bibleRangeLabel, bibleRankedTerms, bibleTermId, bibleUnitId
  * org events. Events the server refused never reach a fold, but a cached
  * fold may hold a locally pending or pre-validation malformed one that now
  * lands in invalidEvents instead.
+ *
+ * 8: validateEvent no longer refuses what SQL validate_payload accepts
+ * (absent role, kind or decision; non-string optional text; absent parent
+ * ids; InviteIssued scope checked as an object only; SQL trim and length
+ * measures). Such events formerly sat in invalidEvents; now they fold under
+ * the guards below, so cached folds must be rebuilt.
  */
-export const REDUCER_VERSION = 7;
+export const REDUCER_VERSION = 8;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -105,13 +111,13 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
 
     case 'v1.MemberAdded': {
       const m = member(state, event.payload.profileId);
-      lwwRegister(m, 'role', event, event.payload.role);
+      lwwRegister(m, 'role', event, memberRole(event.payload.role));
       lwwRegister(m, 'removed', event, false);
       break;
     }
 
     case 'v1.MemberRoleChanged':
-      lwwRegister(member(state, event.payload.profileId), 'role', event, event.payload.role);
+      lwwRegister(member(state, event.payload.profileId), 'role', event, memberRole(event.payload.role));
       break;
 
     case 'v1.MemberRemoved':
@@ -124,24 +130,35 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
 
     case 'v1.UnitAdded': {
       const { unitId, ...unit } = event.payload;
-      state.units[unitId] ??= unit;
+      // SQL accepts an absent parentUnitId; the unit tree reads it as a root.
+      state.units[unitId] ??= { ...unit, parentUnitId: unit.parentUnitId ?? null };
       break;
     }
 
     case 'v1.ReferenceAttached': {
       const { refId, unitId, kind, blobHash, text } = event.payload;
+      // SQL does not type-check the optional fields. Keep strings only, so a
+      // number never becomes a blob hash and an object never reaches a <Text>.
       state.references[refId] ??= {
         unitId,
         kind,
-        ...(blobHash !== undefined ? { blobHash } : {}),
-        ...(text !== undefined ? { text } : {})
+        ...(typeof blobHash === 'string' ? { blobHash } : {}),
+        ...(typeof text === 'string' ? { text } : {})
       };
       break;
     }
 
     case 'v1.RecordingAdded': {
-      const { recordingId, ...rest } = event.payload;
-      state.recordings[recordingId] ??= { ...rest, actorId: event.actorId, hlc: event.hlc };
+      const { recordingId, kind, ...rest } = event.payload;
+      // SQL accepts an absent kind. The recording is still kept, so its
+      // cards stay playable and its blobs stay referenced; it is neither a
+      // source nor a target recording, so no list that filters by kind shows it.
+      state.recordings[recordingId] ??= {
+        ...rest,
+        ...(kind === 'source' || kind === 'target' ? { kind } : {}),
+        actorId: event.actorId,
+        hlc: event.hlc
+      };
       break;
     }
 
@@ -150,6 +167,8 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       const prior = state.takes[takeId];
       state.takes[takeId] = {
         ...rest,
+        // SQL accepts an absent parentTakeId; it means no parent.
+        parentTakeId: rest.parentTakeId ?? null,
         actorId: event.actorId,
         hlc: event.hlc,
         // Add-wins: an archive that arrived before the compose still sticks.
@@ -204,11 +223,15 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
 
     case 'v1.ReviewSubmitted': {
       const { takeId, stepId, decision, comment, answers } = event.payload;
+      // SQL accepts an absent (or JSON null) decision. A review with no
+      // decision neither approves nor asks for changes, so the fold ignores
+      // it; the raw event is still retained in the log.
+      if (decision !== 'approve' && decision !== 'suggest_changes') break;
       const byStep = (state.reviews[takeId] ??= {});
       const byActor = (byStep[stepId] ??= {});
       lww(byActor, event.actorId, event, {
         decision,
-        ...(comment !== undefined ? { comment } : {}),
+        ...(typeof comment === 'string' ? { comment } : {}),
         ...(answers !== undefined ? { answers } : {}),
         hlc: event.hlc
       });
@@ -217,6 +240,10 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
 
     case 'v1.AssignmentMade': {
       const { unitId, laneId, profileId, role, dueDate, instructions } = event.payload;
+      // SQL accepts an absent (or JSON null) role. Assignments are keyed and
+      // queued by role, so one without a role assigns nothing; the fold
+      // ignores it and the raw event is still retained in the log.
+      if (role === undefined || role === null) break;
       // Latest assignment for the same (unit, lane, person, role) wins, so a
       // due date can be changed by re-assigning.
       const key = `${unitId}:${laneId}:${profileId}:${role}`;
@@ -227,8 +254,8 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
           laneId,
           profileId,
           role,
-          ...(dueDate !== undefined ? { dueDate } : {}),
-          ...(instructions !== undefined ? { instructions } : {}),
+          ...(typeof dueDate === 'string' ? { dueDate } : {}),
+          ...(typeof instructions === 'string' ? { instructions } : {}),
           // The envelope actor rides with the winning register, so the asker
           // is as deterministic as the assignment itself (reducer v6).
           assignedBy: event.actorId,
@@ -428,6 +455,17 @@ function blobVerdict(state: ProjectState, event: EventEnvelope, v: { size: numbe
   const cur = state.blobs[hash];
   if (cur && (cur.hlc > event.hlc || (cur.hlc === event.hlc && cur.eventId > event.id))) return;
   state.blobs[hash] = { ...v, hlc: event.hlc, eventId: event.id };
+}
+
+/**
+ * SQL accepts a member event with no role (`_is_role(NULL)` is NULL, so the
+ * check does not fire), and the server membership fold then stores a NULL
+ * role that grants nothing. Core roles are never null, so the role register
+ * takes 'viewer', the least role, in the same last-writer-wins slot. A stale
+ * higher role must not survive an event the server treats as removing it.
+ */
+function memberRole(role: Role | null | undefined): Role {
+  return role ?? 'viewer';
 }
 
 function member(state: ProjectState, profileId: string): Member {

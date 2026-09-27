@@ -61,12 +61,12 @@ export const EVENT_REGISTRY = {
     }
   },
   'v1.MemberAdded': {
-    validate: (p) => str(p, 'profileId') ?? role(p, 'role'),
+    validate: (p) => str(p, 'profileId') ?? (sqlIn(p, 'role', ROLES) ? null : 'role must be a role'),
     privilege: 'invite_members', blobHashes: noBlobs, shipped: true,
     example: { profileId: 'ex-member', role: 'translator' }
   },
   'v1.MemberRoleChanged': {
-    validate: (p) => str(p, 'profileId') ?? role(p, 'role'),
+    validate: (p) => str(p, 'profileId') ?? (sqlIn(p, 'role', ROLES) ? null : 'role must be a role'),
     privilege: 'invite_members', blobHashes: noBlobs, shipped: true,
     example: { profileId: 'ex-member', role: 'reviewer' }
   },
@@ -83,19 +83,19 @@ export const EVENT_REGISTRY = {
   'v1.UnitAdded': {
     validate: (p) =>
       str(p, 'unitId', 'kind', 'label', 'order') ??
-      (p['parentUnitId'] === null || typeof p['parentUnitId'] === 'string' ? null : 'parentUnitId must be a string or null'),
+      (sqlNullOrStr(p, 'parentUnitId') ? null : 'parentUnitId must be a string or null'),
     privilege: 'manage_templates', blobHashes: noBlobs, shipped: true,
     example: { unitId: 'ex-unit', parentUnitId: null, kind: 'passage', label: 'Example 1:1', order: 'a0' }
   },
   'v1.ReferenceAttached': {
-    validate: (p) => str(p, 'unitId', 'refId', 'kind') ?? optStr(p, 'blobHash', 'text'),
+    validate: (p) => str(p, 'unitId', 'refId', 'kind'),
     privilege: 'fill_reference', blobHashes: (p) => hashes(p['blobHash']), shipped: true,
     example: { unitId: 'ex-unit', refId: 'ex-ref', kind: 'overview_audio', blobHash: HASH, text: 'Overview' }
   },
   'v1.RecordingAdded': {
     validate: (p) =>
       str(p, 'recordingId', 'unitId', 'laneId') ??
-      (p['kind'] === 'source' || p['kind'] === 'target' ? null : 'kind must be source or target') ??
+      (sqlIn(p, 'kind', ['source', 'target']) ? null : 'kind must be source or target') ??
       cards(p, 'cards'),
     privilege: 'translate', blobHashes: (p) => cardHashes(p['cards']), shipped: true,
     example: { recordingId: 'ex-rec', unitId: 'ex-unit', laneId: 'ex-lane', kind: 'target', cards: [{ hash: HASH, durationMs: 1000, format: 'wav' }] }
@@ -104,7 +104,7 @@ export const EVENT_REGISTRY = {
     validate: (p) =>
       str(p, 'takeId', 'unitId', 'laneId') ??
       strArray(p, 'cardHashes') ??
-      (p['parentTakeId'] === null || typeof p['parentTakeId'] === 'string' ? null : 'parentTakeId must be a string or null'),
+      (sqlNullOrStr(p, 'parentTakeId') ? null : 'parentTakeId must be a string or null'),
     // Card hashes point at RecordingAdded cards; the recording is what references the blob.
     privilege: 'translate', blobHashes: noBlobs, shipped: true,
     example: { takeId: 'ex-take', unitId: 'ex-unit', laneId: 'ex-lane', cardHashes: [HASH], parentTakeId: null }
@@ -136,13 +136,12 @@ export const EVENT_REGISTRY = {
   'v1.ReviewSubmitted': {
     validate: (p) =>
       str(p, 'takeId', 'stepId') ??
-      (p['decision'] === 'approve' || p['decision'] === 'suggest_changes' ? null : 'decision must be approve or suggest_changes') ??
-      optStr(p, 'comment'),
+      (sqlIn(p, 'decision', ['approve', 'suggest_changes']) ? null : 'decision must be approve or suggest_changes'),
     privilege: 'review', blobHashes: noBlobs, shipped: true,
     example: { takeId: 'ex-take', stepId: 'ex-step', decision: 'suggest_changes', comment: 'Unclear', answers: { q1: 'yes' } }
   },
   'v1.AssignmentMade': {
-    validate: (p) => str(p, 'unitId', 'laneId', 'profileId') ?? role(p, 'role') ?? optStr(p, 'dueDate', 'instructions'),
+    validate: (p) => str(p, 'unitId', 'laneId', 'profileId') ?? (sqlIn(p, 'role', ROLES) ? null : 'role must be a role'),
     privilege: 'assign_work', blobHashes: noBlobs, shipped: true,
     example: { unitId: 'ex-unit', laneId: 'ex-lane', profileId: 'ex-member', role: 'translator', dueDate: '2026-10-01', instructions: 'Record it' }
   },
@@ -159,12 +158,12 @@ export const EVENT_REGISTRY = {
     example: { hash: HASH, size: 1 }
   },
   'v1.Redacted': {
-    validate: (p) => str(p, 'eventId') ?? optStr(p, 'reason'),
+    validate: (p) => str(p, 'eventId'),
     privilege: 'manage_structure', blobHashes: noBlobs, shipped: true,
     example: { eventId: 'ex-missing-event', reason: 'mistake' }
   },
   'v1.BlobInvalidated': {
-    validate: (p) => str(p, 'hash') ?? optStr(p, 'reason'),
+    validate: (p) => str(p, 'hash'),
     privilege: null, blobHashes: noBlobs, shipped: true,
     example: { hash: HASH, reason: 'hash mismatch' }
   },
@@ -296,12 +295,12 @@ export const EVENT_REGISTRY = {
     example: { roleId: 'ex-role' }
   },
   'v1.OrgMemberAdded': {
-    validate: (p) => (sqlStr(p, 'profileId', 'roleId') ? null : 'profileId and roleId must be non-empty strings') ?? scope(p['scope']),
+    validate: (p) => (sqlStr(p, 'profileId', 'roleId') ? null : 'profileId and roleId must be non-empty strings') ?? scopeError(p['scope']),
     privilege: 'invite_members', blobHashes: noBlobs, shipped: true,
     example: { profileId: 'ex-member', roleId: 'ex-role', scope: { level: 'lane', projectId: 'ex-project', laneId: 'ex-lane' }, displayName: 'Example' }
   },
   'v1.OrgMemberRemoved': {
-    validate: (p) => (sqlStr(p, 'profileId') ? null : 'profileId must be a non-empty string') ?? scope(p['scope']),
+    validate: (p) => (sqlStr(p, 'profileId') ? null : 'profileId must be a non-empty string') ?? scopeError(p['scope']),
     privilege: 'invite_members', blobHashes: noBlobs, shipped: true,
     example: { profileId: 'ex-member', scope: { level: 'project', projectId: 'ex-project' } }
   },
@@ -321,7 +320,8 @@ export const EVENT_REGISTRY = {
     example: { projectId: 'ex-project', name: 'Example project' }
   },
   'v1.InviteIssued': {
-    validate: (p) => str(p, 'inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']),
+    // SQL checks only that scope is an object; the org fold ignores an invite whose scope is not a membership scope.
+    validate: (p) => str(p, 'inviteId', 'roleId', 'expiresAt') ?? (isObject(p['scope']) ? null : 'scope must be an object'),
     privilege: 'invite_members', blobHashes: noBlobs, shipped: true,
     example: { inviteId: 'ex-invite', roleId: 'ex-role', scope: { level: 'org' }, expiresAt: '2026-10-01T00:00:00Z' }
   },
@@ -420,13 +420,6 @@ function str(p: Record<string, unknown>, ...keys: string[]): string | null {
   for (const k of keys) if (typeof p[k] !== 'string' || p[k] === '') return `${k} must be a non-empty string`;
   return null;
 }
-function optStr(p: Record<string, unknown>, ...keys: string[]): string | null {
-  for (const k of keys) if (p[k] !== undefined && typeof p[k] !== 'string') return `${k} must be a string`;
-  return null;
-}
-function role(p: Record<string, unknown>, k: string): string | null {
-  return ROLES.includes(p[k] as Role) ? null : `${k} must be a role`;
-}
 function cards(p: Record<string, unknown>, k: string): string | null {
   const v = p[k];
   if (!Array.isArray(v)) return `${k} must be an array`;
@@ -459,8 +452,18 @@ function sqlIn(p: Record<string, unknown>, k: string, allowed: readonly string[]
   return v === undefined || v === null || (typeof v === 'string' && allowed.includes(v));
 }
 
+/**
+ * SQL `jsonb_typeof(p->'k') not in ('null', 'string')`: an absent key has a
+ * NULL type, the comparison is NULL, and the IF does not fire. So absent,
+ * JSON null and any string pass.
+ */
+function sqlNullOrStr(p: Record<string, unknown>, k: string): boolean {
+  const v = p[k];
+  return v === undefined || v === null || typeof v === 'string';
+}
+
 /** A membership scope: org, or project with projectId, or lane with projectId and laneId. Same as SQL `_scope_error`. */
-function scope(v: unknown): string | null {
+export function scopeError(v: unknown): string | null {
   if (!isObject(v)) return 'scope must be an object';
   const level = v['level'];
   if (level === 'org') return null;
