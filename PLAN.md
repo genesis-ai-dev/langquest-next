@@ -438,7 +438,7 @@ like this. Where the spec forced a model change, it is noted.
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Project › Language | `orgId` › `projectId` › lane (`LaneAdded`) | a lane is one target language of a project |
+| Org › Project (a project is one language) | `orgId` › `projectId`, with exactly one lane (`LaneAdded`) | decision 28: the language is chosen on the new-project screen; `append_events` refuses a second lane |
 | Content template (FIA, OpenBible…) | catalog template selected per lane (`LaneTemplateSelected`); units instantiated with catalog-derived ids | pieces are leaf units; a lane shows its template's units plus hand-added ones |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
@@ -455,7 +455,7 @@ like this. Where the spec forced a model change, it is noted.
 | Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
 | Reference material (TMF, Brief, TG, FIA study), key terms | `MaterialDefined` + `MaterialFieldSet` per field, scoped to lane, unit or step; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
 | Roles with privilege switches | fixed `Role` set for now | custom roles and privileges later; `role_may_emit` is the server gate |
-| Member scope (org / project / language) | membership is per project; org and lane scope later | |
+| Member scope (org / project) | org or project scope; stored lane scopes still fold and act as project scope | decision 28 |
 | Inbox | derived from events addressed to the actor | later |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / project / language) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
@@ -581,11 +581,10 @@ step or work out of order, and each departure is recorded with a reason
 ("comply or explain"). The only hard stops are steps marked as checkpoints,
 and someone with authority can override one, with the reason logged.
 
-**Levels.** Org › project › language stays for now. Settings (templates,
+**Levels.** Org › project, and a project is one language (decided 2026-09-28, docs/decisions.md 28; supersedes "org › project › language stays for now"). Settings (templates,
 reference material, review flows) may be set at any level, and a lower
 level adds to or narrows what it inherits (decided 2026-09-26, following the
-UX reference). Their screens always name the level being edited. The org screen lists projects and members. Research item: can the
-project level be dropped (org › language)?
+UX reference). Their screens always name the level being edited. The org screen lists projects and members; the project home is the language home.
 
 **Navigation.** Tabs: My Work, Map, Manage (admins only), Inbox, Settings.
 Everyone who does or asks for work lands on My Work, admins included. The

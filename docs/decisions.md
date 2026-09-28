@@ -240,3 +240,19 @@ not tested. Reverse if: partner testing changes the rules; then update the
 mock in the same change, or delete it rather than leave it contradicting the
 app.
 
+
+## 28. A project is one target language
+
+Reason: the 2026-09-28 event-log review with Carl and Caleb. The buckets
+that decide who syncs what are org and project; a third level (language
+inside project) added a scope, a home screen and a precedence rule
+(lane > project > org) without adding a sync boundary, because a lane lives
+inside its project's log. Every one of the 391 projects imported from v2
+already had exactly one lane. So a project is one language: the new-project
+screen asks for it, `append_events` refuses a second `LaneAdded` and any new
+lane-scoped `OrgMemberAdded`, and the language home merges into the project
+home. `laneId` stays in every event that has it, so no event changes shape
+and old logs fold as before. Work into several languages is several projects
+in one org, sharing org-level templates and flows. Reverse if: partners need
+one project whose languages share units and assignments; then lanes become
+a level again and scopes regain `lane`.

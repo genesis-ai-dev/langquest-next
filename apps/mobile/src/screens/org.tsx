@@ -6,7 +6,7 @@ import {
   privilegesOfFixedRole, scopeKey
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { BookOpen, Building2, Check, ChevronRight, Clock, FileText, FolderOpen, Globe, ListChecks, Lock, Map as MapIcon, Plus, QrCode, Users, Workflow, X, type LucideIcon } from 'lucide-react-native';
+import { BookOpen, Building2, Check, ChevronRight, Clock, FileText, FolderOpen, ListChecks, Lock, Map as MapIcon, Plus, QrCode, Users, Workflow, X, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Share, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -113,10 +113,14 @@ function canAtOrg(ctx: Ctx, p: Privilege): boolean {
   return viaOrg || (ctx.session.role === 'owner' && ctx.session.can(p));
 }
 
-/** Levels an admin may grant: their own admin level and below (reference assignableScopes). */
+/**
+ * Levels an admin may grant: their own admin level and below (reference
+ * assignableScopes). A project is one language (decision 28), so nothing
+ * is granted below the project.
+ */
 function grantableLevels(ctx: Ctx): ScopeLevel[] {
-  const floor = RANK[ctx.session.adminScope?.level ?? 'lane'];
-  return (['org', 'project', 'lane'] as ScopeLevel[]).filter((l) => RANK[l] >= floor);
+  const floor = RANK[ctx.session.adminScope?.level ?? 'project'];
+  return (['org', 'project'] as ScopeLevel[]).filter((l) => RANK[l] >= floor);
 }
 
 function activeRoles(org: OrgState | null) {
@@ -243,7 +247,7 @@ export function OrgHome(ctx: Ctx) {
       <Header title={orgName(ctx)} sub={`${plural(projects.length, 'project')} · ${plural(total, 'member')}`} />
       <Section label="Manage projects">
         {projects.length === 0
-          ? <Row icon={Building2} label="No projects yet" sub="A project holds the languages you translate into — add one to start." last={!canStructure} /> : null}
+          ? <Row icon={Building2} label="No projects yet" sub="A project is one language you translate into — add one to start." last={!canStructure} /> : null}
         {rowsWithLast(projects, ([id, p], last) => (
           <Row key={id} icon={FolderOpen} label={p.name}
             // Only the open project is folded on this device; others need opening.
@@ -262,53 +266,26 @@ export function OrgHome(ctx: Ctx) {
   );
 }
 
+/**
+ * A project is one language (decision 28): its home is where that language's
+ * passages, setup folders, teams and members live. Older projects with no
+ * lane yet show the setup without a language.
+ */
 export function ProjectHome(ctx: Ctx) {
   const { state } = ctx.project;
-  const lanes = state ? Object.entries(state.lanes) : [];
+  const laneId = Object.keys(state?.lanes ?? {})[0] ?? '';
   const name = projectName(ctx);
-  const perLane = useMemo(() => new Map(state ? Object.keys(state.lanes).map((l) => [l, laneCounts(state, l)] as const) : []), [state]);
-  const counts = sumCounts([...perLane.values()]);
+  const lang = state?.lanes[laneId]?.languoidId;
+  const summary = setupSummary(state, laneId);
+  const counts = useMemo(() => state && laneId ? laneCounts(state, laneId) : null, [state, laneId]);
   const orgAdmin = ctx.session.adminScope?.level === 'org';
-  const canStructure = ctx.session.can('manage_structure');
+  const can = (p: 'manage_templates' | 'manage_reference' | 'manage_flows') => ctx.session.can(p) && !!laneId;
   const here = countPeople(ctx.org.state, (s) => s.level !== 'org' && s.projectId === ctx.project.projectId);
   return (
     <Screen>
-      <Header title={name} sub={plural(lanes.length, 'language')}
+      <Header title={name} sub={lang ? `${lang} · Review flow: ${summary.checks}` : 'No language set'}
         crumbs={[{ label: orgName(ctx), ...(orgAdmin ? { onPress: () => ctx.go('org_home') } : {}) }, { label: name }]} />
-      {counts.total ? <Card><CountBars counts={counts} summary /></Card> : null}
-      <Section label="Manage languages">
-        {lanes.length === 0 ? <Row icon={Globe} label="No languages in this project yet." last={!canStructure} /> : null}
-        {rowsWithLast(lanes, ([laneId, l], last) => {
-          const c = perLane.get(laneId);
-          return <Row key={laneId} icon={Globe} label={l.languoidId}
-            sub={`${flowName(state, laneId)} · ${c ? progressLine(c) : 'No passages yet'}`}
-            onPress={() => ctx.go('language_home', { laneId })} last={last && !canStructure} />;
-        })}
-        {canStructure ? <Row icon={Plus} label="New language" onPress={() => ctx.go('new_language')} last /> : null}
-      </Section>
-      <CatalogRows ctx={ctx} level="project" />
-      <MemberRows ctx={ctx} params={{ level: 'project' }} membersSub={`${here} assigned in this project`} />
-    </Screen>
-  );
-}
-
-export function LanguageHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
-  const name = projectName(ctx);
-  const lang = state?.lanes[laneId]?.languoidId ?? laneId;
-  const summary = setupSummary(state, laneId);
-  const counts = useMemo(() => state && laneId ? laneCounts(state, laneId) : null, [state, laneId]);
-  const level = ctx.session.adminScope?.level;
-  const can = (p: 'manage_templates' | 'manage_reference' | 'manage_flows') => ctx.session.can(p) && !!laneId;
-  const here = countPeople(ctx.org.state, (s) => s.level === 'lane' && s.laneId === laneId && s.projectId === ctx.project.projectId);
-  return (
-    <Screen>
-      <Header title={lang} sub={`Review flow: ${summary.checks}`} crumbs={[
-        { label: orgName(ctx), ...(level === 'org' ? { onPress: () => ctx.go('org_home') } : {}) },
-        { label: name, ...(level === 'org' || level === 'project' ? { onPress: () => ctx.go('project_home') } : {}) },
-        { label: lang }]} />
-      {counts ? <Card><CountBars counts={counts} /></Card> : null}
+      {counts?.total ? <Card><CountBars counts={counts} /></Card> : null}
       <Section label="Passages">
         <Row icon={MapIcon} label="Passage map" sub="Every passage, where it stands, and what's next" onPress={() => ctx.go('map_home', { laneId })} last />
       </Section>
@@ -321,9 +298,9 @@ export function LanguageHome(ctx: Ctx) {
           summary={summary.checks} onPress={can('manage_flows') ? () => ctx.go('flows_home', { laneId }) : undefined} />
       </View>
       <Section label="Manage processes">
-        <Row icon={Users} label="Review teams" sub="Language reviewers grouped into teams" onPress={() => ctx.go('review_teams', { laneId })} last />
+        <Row icon={Users} label="Review teams" sub="Reviewers grouped into teams" onPress={() => ctx.go('review_teams', { laneId })} last />
       </Section>
-      <MemberRows ctx={ctx} params={{ level: 'lane', laneId }} membersSub={`${here} assigned at this language`} />
+      <MemberRows ctx={ctx} params={{ level: 'project' }} membersSub={`${here} assigned in this project`} />
     </Screen>
   );
 }
@@ -460,11 +437,8 @@ function RolePicker(props: { ctx: Ctx; roleId: string; onPick: (id: string) => v
   );
 }
 
-function defaultScope(ctx: Ctx, level: ScopeLevel, laneId?: string): Scope {
-  const projectId = ctx.project.projectId;
-  if (level === 'org') return { level: 'org' };
-  if (level === 'project') return { level: 'project', projectId };
-  return { level: 'lane', projectId, laneId: laneId ?? Object.keys(ctx.project.state?.lanes ?? {})[0] ?? '' };
+function defaultScope(ctx: Ctx, level: ScopeLevel): Scope {
+  return level === 'org' ? { level: 'org' } : { level: 'project', projectId: ctx.project.projectId };
 }
 
 function scopeFromParams(ctx: Ctx): Scope {
@@ -477,16 +451,12 @@ function scopeParams(s: Scope): Record<string, string> {
   return { scopeLevel: s.level, ...(s.projectId ? { projectId: s.projectId } : {}), ...(s.laneId ? { scopeLaneId: s.laneId } : {}) };
 }
 
-/**
- * Organization, project, or language. Languages are listed for the open
- * project only: other projects are not folded on this device.
- */
+/** Organization or project. A project is one language (decision 28). */
 function ScopePicker(props: { ctx: Ctx; scope: Scope; onChange: (s: Scope) => void }) {
   const { ctx, scope, onChange } = props;
   const levels = grantableLevels(ctx);
   const projects = Object.entries(ctx.org.state?.projects ?? {});
   if (!projects.length && ctx.project.state?.project) projects.push([ctx.project.projectId, { name: ctx.project.state.project.value.name }]);
-  const lanes = Object.entries(ctx.project.state?.lanes ?? {});
   const tick = (on: boolean) => on ? <Check size={18} color={colors.translate} accessibilityLabel="Selected" /> : <View />;
   return (
     <>
@@ -500,14 +470,6 @@ function ScopePicker(props: { ctx: Ctx; scope: Scope; onChange: (s: Scope) => vo
         <Section label="Project">
           {rowsWithLast(projects, ([id, p], last) => (
             <Row key={id} icon={FolderOpen} label={p.name} onPress={() => onChange({ level: 'project', projectId: id })} right={tick(scope.projectId === id)} last={last} />
-          ))}
-        </Section>
-      ) : null}
-      {scope.level === 'lane' ? (
-        <Section label={`Language · ${projectName(ctx)}`}>
-          {lanes.length === 0 ? <Row label="No languages in this project yet." last /> : null}
-          {rowsWithLast(lanes, ([id, l], last) => (
-            <Row key={id} icon={Globe} label={l.languoidId} onPress={() => onChange({ level: 'lane', projectId: ctx.project.projectId, laneId: id })} right={tick(scope.laneId === id)} last={last} />
           ))}
         </Section>
       ) : null}
@@ -530,11 +492,11 @@ export function InviteMember(ctx: Ctx) {
   const roles = activeRoles(ctx.org.state);
   const [roleId, setRoleId] = useState(roles[0]?.[0] ?? '');
   const level = (ctx.params['level'] as ScopeLevel | undefined) ?? 'org';
-  const [scope, setScope] = useState<Scope>(() => defaultScope(ctx, grantableLevels(ctx).includes(level) ? level : 'org', ctx.params['laneId']));
+  const [scope, setScope] = useState<Scope>(() => defaultScope(ctx, grantableLevels(ctx).includes(level) ? level : 'org'));
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const complete = !!roleId && (scope.level !== 'lane' || !!scope.laneId);
+  const complete = !!roleId;
   async function send() {
     if (busy || !complete) return;
     setBusy(true);
@@ -731,90 +693,54 @@ export function EditMember(ctx: Ctx) {
 
 // ---- structure ----------------------------------------------------------------
 
-/**
- * A project is registered in the org partition and born in its own
- * partition. A description waits for a fact that stores it (Phase 2).
- */
-export function NewProject(ctx: Ctx) {
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const allowed = canAtOrg(ctx, 'manage_structure');
-  async function create() {
-    const trimmed = name.trim();
-    if (!allowed || busy || !trimmed) return;
-    setBusy(true);
-    setError('');
-    try {
-      const projectId = Crypto.randomUUID();
-      await ctx.org.append('v1.ProjectRegistered', { projectId, name: trimmed });
-      const project = await partitionClient(ctx.session.actorId, ctx.project.orgId, projectId);
-      await project.appendMany([
-        { type: 'v1.ProjectCreated', payload: { name: trimmed, sourceLanguoidId: 'eng' } },
-        { type: 'v1.MemberAdded', payload: { profileId: ctx.session.actorId, role: 'owner' } }
-      ]);
-      // The org first: the registration authorizes the project's first events.
-      // Offline, both stay pending and push later.
-      await ctx.org.sync().then(() => project.sync()).catch(() => {});
-      ctx.toast(`${trimmed} created — add its languages next`);
-      ctx.back();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Screen footer={<Footer label={busy ? 'Creating…' : 'Create project'} onPress={() => void create()} disabled={busy || !allowed || !name.trim()} />}>
-      <Header title="New project" onBack={ctx.back} />
-      <Note>A project groups languages that share templates, reference material, and review flows.</Note>
-      <TextInput accessibilityLabel="Project name" style={styles.input} placeholder="Project name" value={name} onChangeText={setName} maxLength={100} />
-      {!allowed ? <Note>You need Manage Org Structure at the organization level to add a project.</Note> : null}
-      {error ? <Note>{error}</Note> : null}
-    </Screen>
-  );
-}
-
 const DEFAULT_TEMPLATE = 'dynamic';
 const DEFAULT_FLOW = 'standard_bible';
 
 /**
- * A language starts with the default template and review flow, each only
- * when this admin may set it. A display name waits for a fact that stores it
+ * A project is one language (decision 28). It is registered in the org
+ * partition and born in its own partition with its lane, and with the
+ * default template and review flow when this admin may set them. A
+ * description or language display name waits for a fact that stores it
  * (Phase 2), so the language is known by its code.
  */
-export function NewLanguage(ctx: Ctx) {
-  const { state, appendMany } = ctx.project;
+export function NewProject(ctx: Ctx) {
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const project = projectName(ctx);
+  const allowed = canAtOrg(ctx, 'manage_structure');
   const withTemplate = ctx.session.can('manage_templates');
   const withFlow = ctx.session.can('manage_flows');
   const template = contentTemplates().find((t) => t.id === DEFAULT_TEMPLATE)?.name ?? DEFAULT_TEMPLATE;
   const flow = FLOW_TEMPLATES.find((f) => f.id === DEFAULT_FLOW)?.name ?? DEFAULT_FLOW;
   async function create() {
+    const trimmed = name.trim();
     const languoidId = code.trim();
-    const laneId = `L-${languoidId}`;
-    if (busy || !languoidId) return;
-    if (state?.lanes[laneId]) { setError('That language is already in this project.'); return; }
+    if (!allowed || busy || !trimmed || !languoidId) return;
     setBusy(true);
     setError('');
     try {
-      const units = withTemplate ? instantiateTemplate(DEFAULT_TEMPLATE).filter((u) => !state?.units[u.unitId]) : [];
-      await appendMany([
-        { type: 'v1.LaneAdded' as const, payload: { laneId, languoidId } },
+      const projectId = Crypto.randomUUID();
+      const laneId = `L-${languoidId}`;
+      await ctx.org.append('v1.ProjectRegistered', { projectId, name: trimmed });
+      const project = await partitionClient(ctx.session.actorId, ctx.project.orgId, projectId);
+      await project.appendMany([
+        { type: 'v1.ProjectCreated', payload: { name: trimmed, sourceLanguoidId: 'eng' } },
+        { type: 'v1.MemberAdded', payload: { profileId: ctx.session.actorId, role: 'owner' } },
+        { type: 'v1.LaneAdded', payload: { laneId, languoidId } },
         ...(withTemplate ? [
           { type: 'v1.LaneTemplateSelected' as const, payload: { laneId, templateId: DEFAULT_TEMPLATE, catalogVersion: CATALOG_VERSION } },
-          ...units.map((payload) => ({ type: 'v1.UnitAdded' as const, payload }))
+          ...instantiateTemplate(DEFAULT_TEMPLATE).map((payload) => ({ type: 'v1.UnitAdded' as const, payload }))
         ] : []),
         ...(withFlow ? [
           { type: 'v1.LaneFlowSelected' as const, payload: { laneId, flowId: DEFAULT_FLOW, catalogVersion: CATALOG_VERSION } },
-          // Fresh step ids: template ids are shared by every lane on the flow.
           ...instantiateFlow(DEFAULT_FLOW, laneId, CATALOG_VERSION, Crypto.randomUUID().slice(0, 8)).map((payload) => ({ type: 'v1.WorkflowStepSet' as const, payload }))
         ] : [])
       ]);
-      ctx.toast(`${languoidId} added to ${project}`);
+      // The org first: the registration authorizes the project's first events.
+      // Offline, both stay pending and push later.
+      await ctx.org.sync().then(() => project.sync()).catch(() => {});
+      ctx.toast(`${trimmed} created`);
       ctx.back();
     } catch (e) {
       setError((e as Error).message);
@@ -822,15 +748,18 @@ export function NewLanguage(ctx: Ctx) {
       setBusy(false);
     }
   }
+  const ready = !!name.trim() && !!code.trim();
   return (
-    <Screen footer={<Footer label={busy ? 'Creating…' : 'Create language'} onPress={() => void create()} disabled={busy || !code.trim()} />}>
-      <Header title="New language" sub={project} onBack={ctx.back} />
-      <Note>This language is added to the current project. You can invite language admins from Members after it is created.</Note>
+    <Screen footer={<Footer label={busy ? 'Creating…' : 'Create project'} onPress={() => void create()} disabled={busy || !allowed || !ready} />}>
+      <Header title="New project" onBack={ctx.back} />
+      <Note>A project is one language. To translate into another language, create another project.</Note>
+      <TextInput accessibilityLabel="Project name" style={styles.input} placeholder="Project name" value={name} onChangeText={setName} maxLength={100} />
       <TextInput accessibilityLabel="Language code" style={styles.input} placeholder="Language code, e.g. din" autoCapitalize="none" value={code} onChangeText={setCode} maxLength={40} />
       <Section label="It starts with">
-        <Row icon={FileText} label={template} sub={withTemplate ? 'Content template · change it from the language home' : 'Content template · someone with Manage Content Templates picks it'} />
-        <Row icon={Workflow} label={flow} sub={withFlow ? 'Review flow · change it from the language home' : 'Review flow · someone with Manage Review Flows picks it'} last />
+        <Row icon={FileText} label={template} sub={withTemplate ? 'Content template · change it from the project home' : 'Content template · someone with Manage Content Templates picks it'} />
+        <Row icon={Workflow} label={flow} sub={withFlow ? 'Review flow · change it from the project home' : 'Review flow · someone with Manage Review Flows picks it'} last />
       </Section>
+      {!allowed ? <Note>You need Manage Org Structure at the organization level to add a project.</Note> : null}
       {error ? <Note>{error}</Note> : null}
     </Screen>
   );
@@ -955,4 +884,4 @@ const styles = {
 
 
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('org_home', 'project_home', 'language_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member', 'new_project', 'new_language', 'review_teams', 'review_team_editor');
+export const contracts = contractsFor('org_home', 'project_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member', 'new_project', 'review_teams', 'review_team_editor');

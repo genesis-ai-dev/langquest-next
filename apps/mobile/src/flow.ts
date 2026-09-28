@@ -38,7 +38,7 @@ export const SCREEN_IDS = [
   'status_home', 'map_home', 'book_map', 'version_detail', 'review_detail',
   // Org setup
   'org_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member',
-  'new_project', 'project_home', 'new_language', 'language_home',
+  'new_project', 'project_home',
   'review_teams', 'review_team_editor',
   // Org config
   'roles_home', 'role_editor', 'templates_home', 'reference_home', 'material_editor',
@@ -68,7 +68,7 @@ export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
   workspace: 'U', review_capture: 'U', back_translation: 'U', study_guide: 'U', study_step: 'U',
   status_home: 'P', map_home: 'P', book_map: 'P', version_detail: 'P', review_detail: 'P',
   org_home: 'P', members_list: 'P', invite_member: 'P', invite_qr: 'P', edit_member: 'P',
-  new_project: 'P', project_home: 'P', new_language: 'P', language_home: 'P',
+  new_project: 'P', project_home: 'P',
   review_teams: 'P', review_team_editor: 'P',
   roles_home: 'P', role_editor: 'P', templates_home: 'P', reference_home: 'P', material_editor: 'P',
   key_terms: 'P', key_term_detail: 'P', flows_home: 'P', flow_editor: 'P',
@@ -179,7 +179,7 @@ export const EDGES: Edge[] = [
   e('my_work', 'back_translation', undefined, 'reviewer'),
   e('my_work', 'passage_record'),
   e('passage_record', 'my_work', 'back'),
-  e('language_home', 'map_home'),
+  e('project_home', 'map_home'),
   e('map_home', 'passage_record'),
   e('book_map', 'passage_record'),
   e('passage_record', 'book_map', 'back'),
@@ -258,21 +258,11 @@ export const EDGES: Edge[] = [
   e('new_project', 'org_home', 'back'),
   e('project_home', 'members_list'),
   e('project_home', 'roles_home'),
-  e('project_home', 'new_language'),
-  e('project_home', 'language_home'),
   e('project_home', 'org_home', 'popTo'),
   e('project_home', 'templates_home', undefined, 'manageTemplates'),
   e('project_home', 'reference_home', undefined, 'manageReference'),
   e('project_home', 'flows_home', undefined, 'manageFlows'),
-  e('new_language', 'project_home', 'back'),
-  e('language_home', 'members_list'),
-  e('language_home', 'roles_home'),
-  e('language_home', 'review_teams'),
-  e('language_home', 'org_home', 'popTo'),
-  e('language_home', 'project_home', 'popTo'),
-  e('language_home', 'templates_home', undefined, 'manageTemplates'),
-  e('language_home', 'reference_home', undefined, 'manageReference'),
-  e('language_home', 'flows_home', undefined, 'manageFlows'),
+  e('project_home', 'review_teams'),
   e('review_teams', 'review_team_editor'),
   e('review_team_editor', 'review_teams', 'back'),
   e('members_list', 'invite_member'),
@@ -320,7 +310,7 @@ export const EDGES: Edge[] = [
  */
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', 'status_home', 'map_home', 'book_map', 'passage_record', 'version_detail', 'review_detail',
-  'org_home', 'project_home', 'language_home', 'inbox_home', 'settings_home'
+  'org_home', 'project_home', 'inbox_home', 'settings_home'
 ];
 
 export function edgeFor(from: NodeId, to: NodeId): Edge | undefined {
@@ -343,7 +333,7 @@ export const TITLES: Record<ScreenId, string> = {
   version_detail: 'Version', review_detail: 'Review',
   org_home: 'Organization', members_list: 'Members', invite_member: 'Invite', invite_qr: 'Invite by QR',
   edit_member: 'Edit member', new_project: 'New project', project_home: 'Project',
-  new_language: 'New language', language_home: 'Language', review_teams: 'Review teams',
+  review_teams: 'Review teams',
   review_team_editor: 'Review team',
   roles_home: 'Roles', role_editor: 'Edit role', templates_home: 'Content templates',
   reference_home: 'Reference material', material_editor: 'Fill reference', key_terms: 'Key terms',

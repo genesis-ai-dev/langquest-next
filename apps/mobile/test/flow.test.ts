@@ -7,7 +7,7 @@ const SPEC_SCREENS = [
   'my_work', 'status_home', 'map_home', 'book_map', 'passage_record', 'version_detail', 'review_detail',
   'ask_someone', 'add_record',
   'study_guide', 'study_step', 'workspace', 'review_capture', 'back_translation', 'guest_review',
-  'org_home', 'new_project', 'project_home', 'new_language', 'language_home', 'review_teams', 'review_team_editor',
+  'org_home', 'new_project', 'project_home', 'review_teams', 'review_team_editor',
   'members_list', 'invite_member', 'invite_qr', 'edit_member',
   'roles_home', 'role_editor', 'templates_home', 'reference_home', 'material_editor',
   'key_terms', 'key_term_detail', 'flows_home', 'flow_editor',

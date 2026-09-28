@@ -102,7 +102,8 @@ export function homeScreenFor(s: Session): ScreenId {
 export function manageHomeFor(s: Session): ScreenId | null {
   if (s.adminScope?.level === 'org') return 'org_home';
   if (s.adminScope?.level === 'project') return 'project_home';
-  if (s.adminScope?.level === 'lane') return 'language_home';
+  // Decision 28: a stored language-scoped admin manages their project.
+  if (s.adminScope?.level === 'lane') return 'project_home';
   return null;
 }
 
@@ -142,7 +143,7 @@ export interface Tab {
 
 /** Screens that sit under the Map tab (spec `MAP_SCREENS`, plus the record's details). */
 export const MAP_SCREENS: ScreenId[] = ['status_home', 'map_home', 'book_map', 'passage_record', 'version_detail', 'review_detail'];
-export const MANAGE_HOMES: ScreenId[] = ['org_home', 'project_home', 'language_home'];
+export const MANAGE_HOMES: ScreenId[] = ['org_home', 'project_home'];
 
 /**
  * Bottom tabs (UX spec `NAV_ITEMS`): My Work (only when it is home), Map,

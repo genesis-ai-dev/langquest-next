@@ -328,31 +328,49 @@ end $$;
 do $$ declare r record; begin
   for r in select * from public.append_events('[
     {"id":"p2e1","type":"v1.ProjectCreated","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000110:000000:dA","payload":{"name":"Ruth","sourceLanguoidId":"eng"}},
-    {"id":"p2e2","type":"v1.LaneAdded","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000111:000000:dA","payload":{"laneId":"din","languoidId":"din"}},
-    {"id":"p2e3","type":"v1.LaneAdded","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000112:000000:dA","payload":{"laneId":"nus","languoidId":"nus"}}
+    {"id":"p2e2","type":"v1.LaneAdded","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000111:000000:dA","payload":{"laneId":"din","languoidId":"din"}}
   ]'::jsonb) loop
     if not r.accepted then raise exception 'org admin project event % refused: %', r.id, r.reason; end if;
   end loop;
+  -- Decision 28: a project is one language. Why: the project is the sync and
+  -- permission bucket, so a second language must be a second project.
+  select * into r from public.append_events('[
+    {"id":"p2e3","type":"v1.LaneAdded","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000112:000000:dA","payload":{"laneId":"nus","languoidId":"nus"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'a project has one language%' then raise exception 'second language should be refused, got %', r; end if;
+  -- Re-adding the same lane stays harmless.
+  select * into r from public.append_events('[
+    {"id":"p2e3b","type":"v1.LaneAdded","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000112:000001:dA","payload":{"laneId":"din","languoidId":"din"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'same lane again should be accepted: %', r.reason; end if;
 end $$;
 
--- 8c. A lane-scoped team leader may assign in their lane only; a stranger may not touch the org.
-select * from public.append_events('[
-  {"id":"o7","type":"v1.OrgMemberAdded","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000113:000000:dA","payload":{"profileId":"akol","roleId":"lang_lead","scope":{"level":"lane","projectId":"p2","laneId":"din"}}}
-]'::jsonb);
+-- 8c. A project-scoped team leader may assign in their project only; a
+--     language scope is refused (decision 28); a stranger may not touch the org.
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"o7x","type":"v1.OrgMemberAdded","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000113:000000:dA","payload":{"profileId":"akol","roleId":"lang_lead","scope":{"level":"lane","projectId":"p2","laneId":"din"}}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'lane-scoped membership should be refused, got %', r; end if;
+  select * into r from public.append_events('[
+    {"id":"o7","type":"v1.OrgMemberAdded","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000113:000001:dA","payload":{"profileId":"akol","roleId":"lang_lead","scope":{"level":"project","projectId":"p2"}}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'project-scoped membership should be accepted: %', r.reason; end if;
+end $$;
 select set_config('request.jwt.claim.sub', 'akol', false);
 do $$ declare r record; begin
   select * into r from public.append_events('[
     {"id":"p2e4","type":"v1.AssignmentMade","orgId":"org1","projectId":"p2","actorId":"akol","deviceId":"dB","hlc":"000000000000114:000000:dB","payload":{"unitId":"u1","laneId":"din","profileId":"t1","role":"translator"}}
   ]'::jsonb);
-  if not r.accepted then raise exception 'lane admin should assign in own lane: %', r.reason; end if;
+  if not r.accepted then raise exception 'project admin should assign in own project: %', r.reason; end if;
   select * into r from public.append_events('[
-    {"id":"p2e5","type":"v1.AssignmentMade","orgId":"org1","projectId":"p2","actorId":"akol","deviceId":"dB","hlc":"000000000000115:000000:dB","payload":{"unitId":"u1","laneId":"nus","profileId":"t1","role":"translator"}}
+    {"id":"p2e5","type":"v1.AssignmentMade","orgId":"org1","projectId":"p1","actorId":"akol","deviceId":"dB","hlc":"000000000000115:000000:dB","payload":{"unitId":"u1","laneId":"L1","profileId":"t1","role":"translator"}}
   ]'::jsonb);
-  if r.accepted then raise exception 'lane admin must not assign in another lane'; end if;
+  if r.accepted then raise exception 'project admin must not assign in another project'; end if;
   select * into r from public.append_events('[
     {"id":"o8","type":"v1.RoleDefined","orgId":"org1","projectId":"_org","actorId":"akol","deviceId":"dB","hlc":"000000000000116:000000:dB","payload":{"roleId":"sneaky","name":"Sneaky","privileges":["manage_roles"]}}
   ]'::jsonb);
-  if r.accepted then raise exception 'lane admin must not define org roles'; end if;
+  if r.accepted then raise exception 'project admin must not define org roles'; end if;
   perform * from public.pull_events('org1', '_org', 0, 10);
   perform * from public.pull_events('org1', 'p2', 0, 10);
 end $$;

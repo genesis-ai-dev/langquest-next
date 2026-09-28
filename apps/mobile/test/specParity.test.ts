@@ -59,7 +59,9 @@ const APP_ONLY: Record<string, string> = {
   'intent_chooser->sign_out_confirm': 'real auth needs sign-out without tabs; the spec\'s Back to sign_in does not end a session',
   'terms_privacy->sign_out_confirm': 'Back from terms ends the session through the unsynced-work guard; a signed-in session on sign_in is bounced back',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
-  'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen'
+  'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen',
+  'project_home->map_home': 'decision 28: the project home is the language home (spec language_home->map_home)',
+  'project_home->review_teams': 'decision 28: the project home is the language home (spec language_home->review_teams)'
 };
 
 /**
@@ -71,13 +73,26 @@ const SPEC_RETIRED: Record<string, string> = {
   'sign_in->explore_home': 'public discovery is retired; joining uses invitations',
   'intent_chooser->explore_home': 'public discovery is retired; joining uses invitations',
   'explore_home->sign_in': 'public discovery is retired; joining uses invitations',
-  'ask_someone->guest_review': 'review by link needs an outside-reviewer RPC; guest_review is not built yet'
+  'ask_someone->guest_review': 'review by link needs an outside-reviewer RPC; guest_review is not built yet',
+  'project_home->new_language': 'decision 28: a project is one language; the project home is the language home',
+  'project_home->language_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->map_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->members_list': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->roles_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->review_teams': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->org_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->project_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->templates_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->reference_home': 'decision 28: a project is one language; the project home is the language home',
+  'language_home->flows_home': 'decision 28: a project is one language; the project home is the language home'
 };
 
 /** Spec screens the app does not have, and app screens the spec does not have, each with a reason. */
 const SPEC_UNBUILT: Record<string, string> = {
   explore_home: 'public discovery is retired; joining uses invitations',
-  guest_review: 'review by link needs an outside-reviewer RPC; not built yet'
+  guest_review: 'review by link needs an outside-reviewer RPC; not built yet',
+  new_language: 'decision 28: a project is one language, chosen on new_project',
+  language_home: 'decision 28: a project is one language; project_home carries the language home'
 };
 const APP_SCREENS: Record<string, string> = {
   passage_references: 'Spoken Worldwide workflow extension (docs/ux/spoken-worldwide-workflow.md)',
@@ -148,7 +163,8 @@ describe('UX spec parity', () => {
     sessions.push(deriveSession('guest', null, null, true));
     sessions.push(deriveSession('noorg', 'n@x', null, true));
 
-    // A language admin: lane-scoped membership in a role with a manage privilege.
+    // A language admin stored before decision 28: lane-scoped membership in a
+    // role with a manage privilege. Old events still fold; it manages the project.
     let seq = 0;
     const org = foldOrg(
       [
@@ -160,7 +176,7 @@ describe('UX spec parity', () => {
     const langAdmin = deriveSession('akol', 'a@x', null, true, org, 'p1');
     // ADR-017: an admin lands on My Work and reaches their home by the Manage tab.
     expect(homeScreenFor(langAdmin)).toBe('my_work');
-    expect(manageHomeFor(langAdmin)).toBe('language_home');
+    expect(manageHomeFor(langAdmin)).toBe('project_home');
     expect(mapScreenFor(langAdmin)).toBe('status_home');
     sessions.push(langAdmin);
 
@@ -174,7 +190,7 @@ describe('UX spec parity', () => {
     const homes = new Set(sessions.map(homeScreenFor));
     expect([...homes].sort()).toEqual(['intent_chooser', 'my_work', 'status_home']);
     const manageHomes = new Set(sessions.map(manageHomeFor).filter((h) => h !== null));
-    expect([...manageHomes].sort()).toEqual(['language_home', 'org_home', 'project_home']);
+    expect([...manageHomes].sort()).toEqual(['org_home', 'project_home']);
     // A translator's Map is their language; a viewer's is the overview.
     expect(mapScreenFor(sessions[2]!)).toBe('map_home');
     expect(mapScreenFor(sessions[4]!)).toBe('status_home');

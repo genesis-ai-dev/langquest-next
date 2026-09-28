@@ -73,9 +73,9 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   material_editor: Review.MaterialEditor,
   status_home: Status.StatusHome, map_home: MapScreens.MapHome, book_map: MapScreens.BookMap,
   version_detail: Record.VersionDetail, review_detail: Record.ReviewDetail,
-  org_home: Org.OrgHome, project_home: Org.ProjectHome, language_home: Org.LanguageHome,
+  org_home: Org.OrgHome, project_home: Org.ProjectHome,
   members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr, edit_member: Org.EditMember,
-  new_project: Org.NewProject, new_language: Org.NewLanguage, review_teams: Org.ReviewTeams, review_team_editor: Org.ReviewTeamEditor,
+  new_project: Org.NewProject, review_teams: Org.ReviewTeams, review_team_editor: Org.ReviewTeamEditor,
   roles_home: Config.RolesHome, role_editor: Config.RoleEditor, templates_home: Config.TemplatesHome,
   reference_home: Config.ReferenceHome, key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
   flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
@@ -508,7 +508,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
 }
 
 /** Every screen a tab can reset to (tabsFor); a subset of TAB_SCREENS. */
-const TAB_TARGETS: ScreenId[] = ['my_work', 'status_home', 'map_home', 'org_home', 'project_home', 'language_home', 'inbox_home', 'settings_home'];
+const TAB_TARGETS: ScreenId[] = ['my_work', 'status_home', 'map_home', 'org_home', 'project_home', 'inbox_home', 'settings_home'];
 
 const TAB_ICONS: Record<TabId, LucideIcon> = {
   work: ClipboardList, map: MapIcon, manage: Building2, inbox: Inbox, settings: Settings
