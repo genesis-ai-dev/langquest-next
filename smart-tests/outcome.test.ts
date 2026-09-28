@@ -1,5 +1,5 @@
 import {
-  accountForDriver, judgeBackTranslation, judgeCheck, judgeFlow, judgeLoggedCheck, judgeStudyNote, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
+  accountForDriver, judgeBackTranslation, judgeNewProject, judgeCheck, judgeFlow, judgeLoggedCheck, judgeStudyNote, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
   type DeviceRow, type LogEvidence, type RecordingEvidence, type ServerRow
 } from './outcome';
 
@@ -554,5 +554,34 @@ describe('study note at a moment oracle (J-STUDY-2)', () => {
   it('fails when pending; nothing written is inconclusive', () => {
     expect(judgeStudyNote(contract, log([note({}, {}, { status: 'pending' })])).verdict).toBe('product_failure');
     expect(judgeStudyNote(contract, log([])).verdict).toBe('inconclusive');
+  });
+});
+
+describe('new project is one language oracle', () => {
+  const contract = { adminId: 'owner', name: 'Mark in Dinka', languoidId: 'din' };
+  const org = (over: Partial<DeviceRow> = {}) => [row('reg', 'v1.ProjectRegistered', 'owner', { projectId: 'p9', name: 'Mark in Dinka' }, over)];
+  const project = (lanes: [string, string][] = [['L-din', 'din']]) => [
+    row('pc', 'v1.ProjectCreated', 'owner', { name: 'Mark in Dinka', sourceLanguoidId: 'eng' }),
+    ...lanes.map(([laneId, languoidId], i) => row(`lane${i}`, 'v1.LaneAdded', 'owner', { laneId, languoidId }))
+  ];
+  const evidence = (device: DeviceRow[], orgRows = org()) => ({ org: orgRows, device, server: onServer([...orgRows, ...device]) });
+
+  it('passes on a registered project born with its one language, synced', () => {
+    expect(judgeNewProject(contract, evidence(project())).verdict).toBe('passed');
+  });
+  it('fails a project with no language or two languages', () => {
+    // Why: the project is the sync and permission bucket (decision 28).
+    expect(judgeNewProject(contract, evidence(project([]))).verdict).toBe('product_failure');
+    expect(judgeNewProject(contract, evidence(project([['L-din', 'din'], ['L-nus', 'nus']]))).verdict).toBe('product_failure');
+  });
+  it('fails the wrong language, a rejected event, or events that never reached the server', () => {
+    expect(judgeNewProject(contract, evidence(project([['L-nus', 'nus']]))).verdict).toBe('product_failure');
+    const rejected = project(); rejected[1] = { ...rejected[1]!, status: 'rejected', rejectReason: 'a project has one language' };
+    expect(judgeNewProject(contract, evidence(rejected)).verdict).toBe('product_failure');
+    expect(judgeNewProject(contract, { org: org(), device: project(), server: onServer(org()) }).verdict).toBe('product_failure');
+  });
+  it('is inconclusive when no project was registered under that name', () => {
+    expect(judgeNewProject(contract, evidence([], [])).verdict).toBe('inconclusive');
+    expect(judgeNewProject(contract, evidence(project(), org({ event: { id: 'reg', type: 'v1.ProjectRegistered', actorId: 'owner', payload: { projectId: 'p9', name: 'Something else' } } }))).verdict).toBe('inconclusive');
   });
 });

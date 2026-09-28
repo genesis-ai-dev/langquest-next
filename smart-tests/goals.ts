@@ -73,3 +73,9 @@ export const backTranslatePassage = (label: string) =>
 export const addStudyNoteAtMoment = (label: string, note: string) =>
   `You are a translator studying "${label}". Open its study and go to the "Setting the Stage" step. Play the step's audio, ` +
   `pause it after a second or two, and add a note at that moment that says exactly: ${note}. Save the note. Stop when it is saved.`;
+
+// ---- Decision 28: a project is one language -------------------------------
+
+export const createProject = (name: string, languageCode: string) =>
+  `You are an organization admin. Start a new project called "${name}" for translating into the language with code ` +
+  `"${languageCode}". Create it. Stop when the project is created.`;
