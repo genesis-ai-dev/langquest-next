@@ -73,6 +73,16 @@ Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
 
 ## Shipping a change
 
+**Merging to `main` ships to TestFlight** through the EAS workflow in
+`.eas/workflows/deploy-to-testflight.yml`, on Expo's servers: the typecheck
+and unit tests run, then a change whose native fingerprint matches an
+existing production build goes out as an over-the-air update on the
+`production` channel (TestFlight installs take it on next launch), and any
+other change builds a new iOS binary and submits it to TestFlight. It needs
+the GitHub repository connected to the EAS project once, with its base
+directory set to `apps/mobile` (expo.dev, project settings, GitHub). The
+manual commands below remain for other channels and for shipping by hand.
+
 `runtimeVersion` is the `fingerprint` policy and updates point at this EAS
 project, so which changes need a new binary is decided for you rather than
 guessed:
