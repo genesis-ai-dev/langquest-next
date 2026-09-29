@@ -33,7 +33,7 @@ export function VoiceNote(props: {
     ctx.project.triggerUpload();
     onChange(card.ref.hash);
   };
-  const rec = useRecorder(persist, { orgId: props.ctx.project.orgId, projectId: props.ctx.project.projectId, unitId: props.unitId, laneId: props.laneId });
+  const rec = useRecorder(persist, { orgId: props.ctx.project.orgId, projectId: props.ctx.project.projectId, unitId: props.unitId, laneId: props.laneId, kind: 'source' });
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!rec.manualOn) return;
