@@ -31,6 +31,12 @@ export interface Ctx {
   laneId: string | null;
   setLane: (laneId: string) => void;
   /**
+   * Every language the organization has, from its partition (docs/decisions.md
+   * 37), whether or not this phone has it: each is its own partition, and
+   * `project` is the open one. A screen about another language opens it.
+   */
+  languages: { laneId: string; name: string }[];
+  /**
    * Apply a command's events (core `commands()`), then say what changed
    * (CORE-5). With `undo`, the toast offers Undo for about 7 seconds; undo
    * appends the inverse events, never deletes.

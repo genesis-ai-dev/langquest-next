@@ -32,7 +32,7 @@ import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage
 import { noteExpected, reportError } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed } from '../session';
-import { guideFor } from '../study/guides';
+import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress, studySummary, type StudyProgress } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
 import { C, radius, space, TINT, withAlpha } from '../theme';
@@ -150,7 +150,7 @@ export function PassageRecord(ctx: Ctx) {
   const [noting, setNoting] = useState(false);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
-  const guide = useMemo(() => (v ? guideFor(v.state, v.unitId) : null), [v?.state, v?.unitId]);
+  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
@@ -829,6 +829,7 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 /** One version: what changed and why, its takes, the key terms tied to it, its reviews and notes. */
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
+  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
   if (!v) return <Missing ctx={ctx} id="version_detail" />;
   const { p, unitId, laneId } = v;
   const version = p.versions.find((x) => x.takeId === ctx.params['takeId']) ?? p.latest;
@@ -838,7 +839,6 @@ export function VersionDetail(ctx: Ctx) {
   const prompted = p.reviews.filter((r) => r.response?.revisedTakeId === version.takeId);
   const terms = keyTermLinksFor(v.state, version.takeId);
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && (n.onTakeId === version.takeId || (n.anchor.kind === 'version' && n.anchor.takeId === version.takeId)));
-  const guide = guideFor(v.state, unitId);
   const key = (part: string) => `version:${unitId}:${laneId}:${version.takeId}:${part}`;
   const params = { unitId, laneId };
   return (

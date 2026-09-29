@@ -1,5 +1,6 @@
 import type { AnyEvent, EventEnvelope, EventType, Role } from './events';
 import type { Hlc } from './hlc';
+import { applyLibraryEvent, LIBRARY_EVENT_TYPES, type LibraryEvents, type LibraryItemState } from './library';
 import type { Register } from './state';
 import { validateEvent } from './validate';
 
@@ -21,15 +22,15 @@ import { validateEvent } from './validate';
 export const ORG_PARTITION = '_org';
 
 /**
- * The id of the one work partition a new organization gets (decision 34):
- * an organization holds languages directly, with no project level between.
+ * The partition an organization opens while it has no languages yet. Each
+ * language is its own partition (docs/decisions.md 37); organizations from
+ * before that kept all their languages in one partition, often named this.
  */
 export const WORK_PARTITION = 'work';
 
 /**
- * The partition that holds an organization's languages: the earliest one
- * registered, by clock then event id, so every device opens the same one.
- * Before anything is registered it is `WORK_PARTITION`.
+ * Organizations from before decision 37: the one partition that held all
+ * their languages, the earliest registered (by clock, then event id).
  */
 export function workPartitionOf(org: OrgState | null): string {
   let best: { id: string; hlc: string; eventId: string } | null = null;
@@ -37,6 +38,29 @@ export function workPartitionOf(org: OrgState | null): string {
     if (!best || p.hlc < best.hlc || (p.hlc === best.hlc && p.eventId < best.eventId)) best = { id, hlc: p.hlc, eventId: p.eventId };
   }
   return best?.id ?? WORK_PARTITION;
+}
+
+/**
+ * An organization's languages (docs/decisions.md 37). Each one is its own
+ * partition, registered in the org partition (`v1.ProjectRegistered`, with
+ * the language's id as the partition id) so every member can see it exists
+ * without pulling it; a phone pulls only the languages it opens. The name is
+ * the latest `v1.LaneNamed` in the org partition, else the registered one.
+ * Sorted by name, then id.
+ */
+export function orgLanguages(org: OrgState | null): { laneId: string; name: string }[] {
+  return Object.entries(org?.projects ?? {})
+    .map(([laneId, p]) => ({ laneId, name: org?.languageNames[laneId]?.value ?? p.name }))
+    .sort((a, b) => a.name.localeCompare(b.name) || (a.laneId < b.laneId ? -1 : 1));
+}
+
+/**
+ * The partition a language syncs in: its own when it is registered (its id
+ * is the partition id), else the one shared partition of an organization
+ * from before decision 37.
+ */
+export function partitionOfLane(org: OrgState | null, laneId: string): string {
+  return org?.projects[laneId] ? laneId : workPartitionOf(org);
 }
 
 /** The UX spec's privilege catalog (ROLE_PRIVILEGES), as stable ids. */
@@ -74,7 +98,7 @@ export interface Scope {
 
 export type CatalogKind = 'template' | 'reference' | 'flow';
 
-export interface OrgEventPayloads {
+export interface OrgEventPayloads extends LibraryEvents {
   'v1.OrgCreated': { name: string };
   /** A named privilege set. Scope is never on the role; it is on the membership (A38). */
   'v1.RoleDefined': { roleId: string; name: string; privileges: Privilege[] };
@@ -105,7 +129,7 @@ export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.OrgMemberAdded',
   'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.ProjectRegistered',
-  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided'
+  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', ...LIBRARY_EVENT_TYPES
 ];
 
 /**
@@ -173,7 +197,24 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
   'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
   'v1.StudyStepMarked': 'translate',
-  'v1.LaneNamed': 'manage_structure'
+  'v1.LaneNamed': 'manage_structure',
+  'v1.LibraryItemDefined': 'by_kind',
+  'v1.LibraryVersionPublished': 'by_kind',
+  'v1.LibrarySharingSet': 'by_kind',
+  'v1.LibraryItemArchived': 'by_kind',
+  'v1.LibrarySubscribed': 'by_kind',
+  'v1.LibraryPinned': 'by_kind',
+  'v2.LaneTemplateSelected': 'manage_templates',
+  'v1.LaneUnitHidden': ['manage_templates', 'shape_templates'],
+  'v2.LaneFlowSelected': 'manage_flows'
+};
+
+/** The privilege that manages each kind of library item. */
+export const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification', Privilege> = {
+  template: 'manage_templates',
+  versification: 'manage_templates',
+  flow: 'manage_flows',
+  material: 'manage_reference'
 };
 
 const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
@@ -196,6 +237,7 @@ export function privilegeFor(event: AnyEvent): EventPrivilege {
       return ['translate', 'review', 'assign_work'];
     }
     const kind = (event.payload as { kind?: string }).kind;
+    if (event.type.startsWith('v1.Library')) return LIBRARY_PRIVILEGE[kind as keyof typeof LIBRARY_PRIVILEGE] ?? 'manage_structure';
     // Translators may write question sets at submit time (UX spec); every
     // other material is managed reference.
     if (event.type === 'v1.MaterialDefined') return kind === 'questions' ? 'fill_reference' : 'manage_reference';
@@ -302,10 +344,14 @@ export interface OrgState {
   appliedEventIds: Record<string, true>;
   invalidEvents: Record<string, string>;
   redactions: Record<string, true>;
+  /** itemId -> library item (library.ts). */
+  library: Record<string, LibraryItemState>;
+  /** laneId -> its name, when renamed in the org partition (`v1.LaneNamed`, decision 37). */
+  languageNames: Record<string, Register<string>>;
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {} };
 }
 
 export function scopeKey(s: Scope): string {
@@ -414,8 +460,22 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       }
       break;
     }
+    case 'v1.LaneNamed': {
+      // A language's name in the org's list; its own partition holds the same event.
+      const prior = state.languageNames[event.payload.laneId];
+      if (!prior || !loses(prior, event)) state.languageNames[event.payload.laneId] = { value: event.payload.name, hlc: event.hlc, eventId: event.id };
+      break;
+    }
     case 'v1.Redacted':
       state.redactions[event.payload.eventId] = true;
+      break;
+    case 'v1.LibraryItemDefined':
+    case 'v1.LibraryVersionPublished':
+    case 'v1.LibrarySharingSet':
+    case 'v1.LibraryItemArchived':
+    case 'v1.LibrarySubscribed':
+    case 'v1.LibraryPinned':
+      applyLibraryEvent(state.library, event);
       break;
     default:
       // Project events in the org partition, or future types: ignored.

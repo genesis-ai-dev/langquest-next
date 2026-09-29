@@ -66,8 +66,8 @@ rule. This app takes the same shape and extends it to true offline.
 ## 3. The design in one paragraph
 
 Every organization has one **append-only event log** partitioned by
-organization and partition (its `_org` partition and the one work partition
-that holds its languages; the key is still called `projectId`, decision 34). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
+organization and partition (its `_org` partition and one partition per
+language; the key is still called `projectId`, decisions 34 and 37). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
 row mutations, and every event type is **commutative and idempotent** so any
 device applying any subset in any order converges. **Audio is immutable and
 content-addressed**: cards are blobs named by hash, a take is an ordered list
@@ -185,6 +185,13 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.NoteAdded` | noteId, unitId, laneId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
 | `v1.StudyStepMarked` | unitId, laneId, guideId, stepId, done | register per (unit, lane, guide, step) |
 | `v1.LaneNamed` | laneId, name | register per lane |
+| `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification), name, description, copiedFrom? {orgId, orgName, itemId, docHash} | org partition; kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
+| `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock; the document is fetched by hash |
+| `v1.LibrarySharingSet` / `v1.LibraryItemArchived` | itemId, kind, shared, subscribable / archived | register per item; subscribable implies shared |
+| `v1.LibrarySubscribed` / `v1.LibraryPinned` | itemId, kind, sourceOrgId, sourceOrgName, sourceItemId, name, autoUpdate, active / docHash | register per item; the server writes the pin for automatic updates |
+| `v2.LaneTemplateSelected` | laneId, itemId, docHash, unitPrefix, books? | register per lane (shared with v1); the selector emits `UnitAdded` (`<itemId>/GEN.1.1-2.3`) and `LaneUnitHidden` |
+| `v1.LaneUnitHidden` | laneId, unitId, hidden | register per (lane, unit); a part the language's template version no longer has |
+| `v2.LaneFlowSelected` | laneId, flowId, catalogVersion, itemId, docHash, name | register per lane (shared with v1); the selector emits kinds and `v2.WorkflowStepSet` under `<lane>/<itemId>~<hash12>@2/` |
 
 Smells to catch in review:
 
@@ -391,12 +398,12 @@ review steps describe v1 lanes, which still fold and read as kinds.
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Language | `orgId` › its one work partition (`projectId`, `workPartitionOf`) › lane (`LaneAdded`) | no project level in the app (decision 34); the partition key keeps its shape |
-| Content template (FIA, OpenBible…) | catalog template selected per lane (`LaneTemplateSelected`); units instantiated with catalog-derived ids | pieces are leaf units; a lane shows its template's units plus hand-added ones |
+| Org › Language | `orgId` › one partition per language (`projectId` = the language's id, listed by `ProjectRegistered` in `_org`; `orgLanguages`) › lane (`LaneAdded`) | no project level in the app (decision 34); a phone pulls the languages it opens (decision 37) |
+| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used per lane (`v2.LaneTemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`LaneUnitHidden`) | pieces are leaf units; a lane shows its template's units in the books it covers, plus hand-added ones; older lanes keep the v1 catalog ids |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
 | Take (audio) | cards (`RecordingAdded`) referenced by a take | |
-| Review flow, stages A→B→C→D | catalog flow selected per lane (`LaneFlowSelected`) instantiated as `WorkflowStepSet` registers; `config.workflow` remains the fallback | |
+| Review flow, stages A→B→C→D | a library flow's version used per lane (`v2.LaneFlowSelected`) instantiated as `v2.WorkflowStepSet` registers with the kinds it brings; `config.workflow` remains the fallback | |
 | Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`; a step's `teamId` | eligibility: per-unit assignment, else team, else role holders |
 | Stage round: assigned, submitted, reviewed | derived from assignment, submission, and review events | never stored |
 | Verdict approved / suggestions | `ReviewSubmitted.decision` = `approve` or `suggest_changes` | **renamed** from reject: suggestions are advisory (A11) |
@@ -406,11 +413,11 @@ review steps describe v1 lanes, which still fold and read as kinds.
 | To Do / Doing / Done | `Task.status` from `deriveTasks` | todo: nothing; doing: draft exists; done: submitted or decided |
 | Piece work status: unassigned / doing / waiting / done | derived per unit from assignments and take status | P dashboard, step 7 |
 | Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
-| Reference material (TMF, Brief, TG, FIA study), key terms | `MaterialDefined` + `MaterialFieldSet` per field, scoped to lane, unit or step; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
+| Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / language; a project scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
-| Catalog enable at org, narrow at project (A42) | `CatalogItemToggled` in the org partition; `catalogEnabled` | selection per lane is next |
+| Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; `CatalogItemToggled` remains for template suggestions |
 
 ## 14. Blobs: the upload and download design for step 5
 
@@ -503,9 +510,10 @@ The gate is the same run on the slowest partner Android.
 
 - Caleb's workflow demo defines the review model; port its rules into
   `ProjectConfig.workflow` and confirm the quorum semantics with him.
-- Global reference data ships as a static bundle (`catalog.ts`, version 1:
-  content templates, flow templates, reference kinds, question templates);
-  languoids are still open. A catalog bump never rewrites units: a lane
-  stays on the version it selected.
+- Content templates, flows and reference material are library documents in
+  the database (decision 36, docs/library.md); the old static bundle
+  (`catalog.ts`) remains only so lanes set up from it keep reading. The
+  canon (book ids and order) and the versification engine are core
+  reference data. Languoids are still open.
 - Decided for now: local Supabase (Postgres) via colima, never linked to a
   hosted project. Cloudflare Workers plus Neon remains an option; the protocol fits both.

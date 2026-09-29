@@ -1,4 +1,5 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
+import { bookIdOf, libraryUnitRange } from './versification';
 import { catalogEnabled, catalogKey, type OrgState } from './org';
 
 /** Audio editions are explicit opt-ins, unlike the legacy reference catalog. */
@@ -29,6 +30,15 @@ export type SourceChapter = { book: string; chapter: number; label: string };
 
 /** Only resolve known template ids; never guess from a passage's display text. */
 export function sourceChapters(unitId: string): SourceChapter[] {
+  const lib = libraryUnitRange(unitId);
+  if (lib) {
+    // A library template's unit names its book and chapters in its id.
+    const book = BIBLE_BOOKS.find((b) => b.itemId === bookIdOf(lib.book));
+    if (!book) return [];
+    const first = lib.start.chapter;
+    const last = Math.min(lib.end.chapter, book.verses.length);
+    return Array.from({ length: Math.max(0, last - first + 1) }, (_, i) => ({ book: book.itemId, chapter: first + i, label: `${book.label} ${first + i}` }));
+  }
   const match = /^(bible|fia|book)@1\/(.+)$/.exec(unitId);
   if (!match) return [];
   const [, template, item] = match;

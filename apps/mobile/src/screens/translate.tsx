@@ -37,7 +37,7 @@ import { reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
 import { readingsFor, type Reading } from '../scripture';
-import { guideFor } from '../study/guides';
+import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, type as T } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
@@ -183,7 +183,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 
   // ---- the tray (REC-W5) ----
   const [tab, setTab] = useState<TrayTab | null>(null);
-  const guide = useMemo(() => guideFor(state, unitId), [state, unitId]);
+  const guide = useStudyGuide(ctx, unitId, laneId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
 

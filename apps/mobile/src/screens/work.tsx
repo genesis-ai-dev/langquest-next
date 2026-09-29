@@ -148,7 +148,8 @@ function startRows(ctx: Ctx, state: ProjectState): { title: string; promise: str
 
   if (s.isAdmin) {
     const lanes = idx.lanes;
-    const languageDone = lanes.length > 0;
+    // Each language is its own partition (decisions.md 37): the organization's list says whether there is one.
+    const languageDone = ctx.languages.length > 0 || lanes.length > 0;
     const lastLane = lanes.at(-1);
     const flowLane = laneId ?? lastLane;
     const flowLaneName = flowLane ? laneName(state, flowLane) : null;

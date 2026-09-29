@@ -2,7 +2,7 @@
 // a dev build jump to any screen. Personas exist only on a local Supabase
 // (dev.ts `personasAvailable`); seeding is for dev builds on a local server,
 // so it can never write personas into a real organization.
-import { commands } from '@langquest-next/core';
+import { commands, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { Text } from 'react-native';
@@ -10,7 +10,10 @@ import { ensurePersonaAccount, maySeedDemoTeam, PERSONAS, personasAvailable, swi
 import { indexesFor } from './indexes';
 import { SCREEN_IDS, TITLES, type ScreenId } from './flow';
 import { Group, Row, SectionLabel, Sheet, txt } from './kit';
+import { loadDocs } from './library/docStore';
+import { subscribeOps, type SharedItem } from './library/model';
 import { reportError } from './report';
+import { supabase } from './supabase';
 import type { OrgHandle } from './useOrg';
 import type { ProjectHandle } from './useProject';
 
@@ -54,6 +57,27 @@ export function DevMenu(props: {
    * language gets a name and the standard Bible flow, so the Map and the
    * passage record have steps to show.
    */
+  /**
+   * The language follows LangQuest's Standard Bible Flow (docs/library.md):
+   * the flow comes from the library now, so the local server must have been
+   * seeded (`npm run library:seed`).
+   */
+  async function useStandardFlow(laneId: string) {
+    const orgId = props.project.orgId;
+    const { data, error: failed } = await supabase.rpc('library_shared_items', { p_kind: 'flow', p_query: 'Standard Bible Flow', p_limit: 5, p_offset: 0 });
+    if (failed) throw new Error(failed.message);
+    const shared = ((data ?? []) as SharedItem[]).find((r) => r.org_id === 'langquest');
+    if (!shared) throw new Error('LangQuest\'s flows are not on this server yet: run npm run library:seed.');
+    const { error: denied } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: shared.org_id, p_source_item: shared.item_id, p_hash: shared.latest_hash });
+    if (denied) throw new Error(denied.message);
+    const { itemId, ops } = subscribeOps(shared, true);
+    for (const op of ops) await props.org.append(op.type, op.payload as never);
+    const doc = (await loadDocs(orgId, [shared.latest_hash])).get(shared.latest_hash) as FlowDoc | undefined;
+    const state = props.project.state;
+    if (!doc || !state) throw new Error('The flow could not be read.');
+    await props.project.run(selectFlowSpecs(state, { commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, itemId, docHash: shared.latest_hash, doc }));
+  }
+
   async function seed() {
     const { state, append } = props.project;
     if (!state || !maySeedDemoTeam(props.isDev)) return;
@@ -79,9 +103,7 @@ export function DevMenu(props: {
       }
     }
     if (laneId && !state.laneNames[laneId]) await append('v1.LaneNamed', { laneId, name: 'Dinka' });
-    if (laneId && !state.laneFlows[laneId]) {
-      await props.project.run(commands(state, indexesFor(state)).useFlow({ commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, flowId: 'standard_bible' }));
-    }
+    if (laneId && !state.laneFlows[laneId]) await useStandardFlow(laneId);
     await props.project.sync();
     await props.org.sync();
   }

@@ -13,10 +13,10 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   welcome: { emits:['v1.VisionSeen'],rpcs:['record_user_event'] },
-  // A new org's partition (createOrg.ts), its work partition registered
-  // there, and the welcome it skips (markWelcomed). Its languages are set up
-  // afterwards from Getting started (ONB-5); App starts the work partition.
-  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.ProjectRegistered','v1.VisionSeen'],rpcs:['record_user_event'] },
+  // A new org's partition (createOrg.ts) and the welcome it skips
+  // (markWelcomed). Its languages are added afterwards from Getting started
+  // (ONB-5), each its own partition (decisions.md 37).
+  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.VisionSeen'],rpcs:['record_user_event'] },
   request_access: { rpcs:['create_join_request'] },
   scan_qr: { rpcs:['redeem_invite_v2','my_organizations'] },
   explore_home: { reads:['public_projects'] },
@@ -43,18 +43,31 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   edit_member: { emits:['v1.MemberRoleChanged','v1.MemberRemoved','v1.OrgMemberAdded','v1.OrgMemberRemoved'],rpcs:['decide_join_request'] },
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
-  new_language: { emits:['v1.LaneAdded','v1.LaneNamed','v1.LaneTemplateSelected','v1.UnitAdded'] },
+  // Registers the language in the org and starts its own partition (decisions.md 37).
+  new_language: { emits:['v1.ProjectRegistered','v1.ProjectCreated','v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // The public listing is keyed by partition; an org has one (decision 34).
   org_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet'] },
-  templates_home: { emits:['v1.LaneTemplateSelected','v1.UnitAdded','v1.CatalogItemToggled'] },
-  template_picker: { emits:['v1.LaneTemplateSelected','v1.UnitAdded'] },
-  reference_home: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.CatalogItemToggled'],reads:['materialsFor','sourceBibleEnabled'] },
+  // The organization's template library and a language's template (docs/library.md).
+  templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  template_picker: { emits:['v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // Publishes template versions; languages move to them by themselves (library/follow.ts).
+  template_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // Library items (docs/library.md): the organization's, and what others share.
+  reference_home: { emits:['v1.CatalogItemToggled','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['materialsFor','sourceBibleEnabled','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView'] },
-  flows_home: { emits:['v1.WorkflowStepRemoved','v1.LaneFlowSelected','v2.WorkflowStepSet'],reads:['deriveFlow'] },
-  flow_editor: { emits:['v1.WorkflowStepRemoved','v2.WorkflowStepSet','v1.ReviewKindDefined','v1.LaneFlowSelected'],reads:['deriveFlow','deriveKinds'] },
-  material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked'],reads:['materialView'] },
+  // Using a library flow for a language; Undo of an older catalog or custom flow restores it.
+  flows_home: { emits:['v2.LaneFlowSelected','v1.ReviewKindDefined','v2.WorkflowStepSet','v1.LaneFlowSelected','v1.WorkflowStepRemoved',
+    'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['deriveFlow','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // Publishes flow versions; languages move to them by themselves (library/follow.ts).
+  flow_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
+  material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],rpcs:['decide_join_request'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
@@ -73,7 +86,7 @@ export function screenMayEmit(screen: ScreenId, session: Session, event: AnyEven
   if (event.type === 'v1.AssignmentMade' && event.payload.profileId === session.actorId
     && event.payload.role === 'translator' && session.can('translate')) return true;
   const privilege = privilegeFor(event);
-  // Creating a partition: the org by its creator. Its work partition is started by App, not a screen.
-  if (privilege === 'bootstrap') return screen === 'create_org';
+  // Creating a partition: the org by its creator, a language's own by someone who manages structure.
+  if (privilege === 'bootstrap') return screen === 'create_org' || (screen === 'new_language' && session.can('manage_structure'));
   return privilegeAllows(privilege, session.privileges);
 }

@@ -8,11 +8,12 @@
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 34).
-import { CommandError, deriveFlow, keyTermsFor, laneName, languageProgress, materialsFor, contentTemplate, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel } from '@langquest-next/core';
+import { CommandError, deriveFlow, emptyState, partitionOfLane, keyTermsFor, laneName, languageProgress, materialsFor, libraryItemView, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel, type TemplateDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { choiceLine, laneTemplateOf, libraryChoices, STARTER_TEMPLATE } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
@@ -20,14 +21,19 @@ import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row,
   Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt
 } from '../kit';
+import { loadDocs } from '../library/docStore';
+import { sourceLine } from '../library/model';
+import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
-  addLanguage, assignableLevels, changeMembership, editableAt, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
+  addLanguage, assignableLevels, booksInScope, changeMembership, editableAt, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
   membersAbove, membersAt, memberEntries, newLaneId, parseLevel, progressLine, removeMembership, reviewEligible,
   saveTeam, scopeAt, suggestedTemplate, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
 } from '../orgAdmin';
 import { plural, when } from '../passageView';
 import { noteExpected, reportError, failureMessage } from '../report';
+import { languagesToList } from '../languages';
+import { appendToPartition } from '../partitionWriter';
 import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT, withAlpha } from '../theme';
@@ -41,7 +47,12 @@ const failure = failureMessage;
 
 // ---- shared reading ----------------------------------------------------------------------
 
-/** Names and progress for the open organization, derived once per fold. */
+/**
+ * Names and progress for the open organization, derived once per fold.
+ * Every language the organization lists is here (docs/decisions.md 37);
+ * progress is known for the languages in the open partition only, since a
+ * phone pulls just the language it has open.
+ */
 function useOrgView(ctx: Ctx) {
   const state = ctx.project.state;
   const org = ctx.org.state;
@@ -53,16 +64,22 @@ function useOrgView(ctx: Ctx) {
     for (const laneId of Object.keys(state.lanes)) out.set(laneId, languageProgress(state, laneId, idx));
     return out;
   }, [state]);
-  const lanes = useMemo(() => state
-    ? Object.keys(state.lanes).sort((a, b) => laneName(state, a).localeCompare(laneName(state, b))) : [], [state]);
+  const names = useMemo(() => new Map(ctx.languages.map((l) => [l.laneId, l.name])), [ctx.languages]);
+  const laneLabel = (laneId: string) => (state?.lanes[laneId] ? laneName(state, laneId) : names.get(laneId) ?? laneId);
+  const lanes = useMemo(() => {
+    return languagesToList(ctx.languages, state, ctx.project.projectId).sort((a, b) => laneLabel(a).localeCompare(laneLabel(b)));
+    // laneLabel reads state and names.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx.languages, state, names, ctx.project.projectId]);
   const orgName = org?.org?.value.name ?? 'Organization';
-  const laneLabel = (laneId: string) => (state?.lanes[laneId] ? laneName(state, laneId) : laneId);
-  const laneProgress = (laneId: string): HomeProgress => progress.get(laneId) ?? { total: 0, recorded: 0, done: 0 };
-  const orgProgress = sumProgress(lanes.map(laneProgress));
+  /** Progress of a language this phone has open; null for the others. */
+  const laneProgress = (laneId: string): HomeProgress | null => progress.get(laneId) ?? null;
+  const allKnown = lanes.every((l) => progress.has(l));
+  const orgProgress = allKnown ? sumProgress(lanes.map((l) => progress.get(l)!)) : null;
   /** "Dinka", "Wycliffe Associates" or "All languages": where a membership applies. */
   const target = (scope: Scope) => scope.level === 'lane' ? (scope.laneId ? laneLabel(scope.laneId) : 'Language')
     : scope.level === 'project' ? LEVEL_LABEL.project : orgName;
-  return { state, org, projectId, orgName, lanes, laneLabel, laneProgress, orgProgress, target };
+  return { state, org, projectId, orgName, lanes, laneLabel, laneProgress, orgProgress, target, partitionOf: (laneId: string) => partitionOfLane(org, laneId) };
 }
 
 function roleName(ctx: Ctx, roleId: string): string {
@@ -153,10 +170,14 @@ function CatalogRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds
       study: mats.filter((m) => m.kind === 'fia_study').length,
       questions: mats.filter((m) => m.kind === 'questions').length,
       terms: laneIds.reduce((n, l) => n + keyTermsFor(state, l).length, 0),
-      templates: uniq(laneIds.map((l) => contentTemplate(state.laneTemplates[l]?.value.templateId ?? '')?.name ?? 'None')),
-      flows: uniq(laneIds.map((l) => deriveFlow(state, l).name))
+      // Only languages on this phone are known; the others are their own partitions (decisions.md 37).
+      templates: uniq(laneIds.filter((l) => state.lanes[l]).map((l) => {
+        const t = laneTemplateOf(state, l);
+        return !t ? 'None' : t.source === 'legacy' ? t.name : libraryItemView(ctx.org.state?.library ?? {}, t.itemId)?.name ?? 'A template';
+      })),
+      flows: uniq(laneIds.filter((l) => state.lanes[l]).map((l) => deriveFlow(state, l).name))
     };
-  }, [state, laneIds, props.laneId]);
+  }, [state, laneIds, props.laneId, ctx.org.state?.library]);
   const applied = (names: string[]) => props.level === 'lane'
     ? `${names[0] ?? 'None'} applied`
     : laneIds.length === 0 ? 'No languages yet' : `${names.join(', ')} · ${plural(laneIds.length, 'language')}`;
@@ -212,14 +233,13 @@ function Loading(props: { title: string; onBack?: () => void }) {
 
 /**
  * The organization and its languages (demo OrgHome with ProjectHome's
- * language list folded in, decision 34): progress over every language,
- * the languages themselves, what they use, who is assigned, and whether the
- * organization is listed publicly.
+ * language list folded in, decision 34): its languages, what they use and
+ * who is assigned. Each language is its own partition (decision 37), so a
+ * language's progress shows once this phone has it open.
  */
 export function OrgHome(ctx: Ctx) {
   const v = useOrgView(ctx);
   const [shown, setShown] = useState(20);
-  const listing = usePublicListing(ctx);
   if (!v.org || !v.state) return <Loading title="Organization" />;
   const mine = Object.values(v.org.members[ctx.session.actorId] ?? {}).find((m) => m.removed.value === false && m.scope.level === 'org');
   const memberCount = new Set(memberEntries(v.org, v.state, v.projectId).map((e) => e.profileId)).size;
@@ -236,34 +256,31 @@ export function OrgHome(ctx: Ctx) {
             {mine ? <View style={{ flexDirection: 'row' }}><Badge label={roleName(ctx, mine.roleId.value)} tone="brand" /></View> : null}
           </View>
         </View>
-        {v.lanes.length ? <HomeProgressBars p={v.orgProgress} /> : null}
+        {v.lanes.length && v.orgProgress ? <HomeProgressBars p={v.orgProgress} /> : null}
       </Card>
       <HomeSection ctx={ctx} id="org_home:languages" label="Manage Languages"
         add={ctx.session.can('manage_structure') ? { label: 'New language', onPress: () => ctx.go('new_language') } : undefined}>
         {v.lanes.length === 0 ? (
           <View style={{ padding: space.lg }}><Text style={txt.smMuted}>No languages yet. Add the first one your team will record.</Text></View>
-        ) : v.lanes.slice(0, shown).map((laneId) => (
-          <Row key={laneId} icon="globe" label={v.laneLabel(laneId)} onPress={() => ctx.go('language_home', { laneId })}
-            sub={`${deriveFlow(v.state!, laneId).name} · ${progressLine(v.laneProgress(laneId))}`} />
-        ))}
+        ) : v.lanes.slice(0, shown).map((laneId) => {
+          const p = v.laneProgress(laneId);
+          return (
+            <Row key={laneId} icon="globe" label={v.laneLabel(laneId)} onPress={() => ctx.go('language_home', { laneId })}
+              sub={p ? `${deriveFlow(v.state!, laneId).name} · ${progressLine(p)}` : 'Open it to bring it onto this phone'} />
+          );
+        })}
       </HomeSection>
       <ShowMore remaining={v.lanes.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
       <CatalogRows ctx={ctx} from="org_home" level="org" laneIds={v.lanes} />
       <MemberRows ctx={ctx} from="org_home" level="org" />
-      {listing.may ? (
-        <HomeSection ctx={ctx} id="org_home:discovery" label="Discovery">
-          <Row icon="globe" label="List publicly" sub="Share the name, languages and progress only" last
-            right={<Toggle label="List this organization publicly" on={listing.listed} disabled={listing.busy} onToggle={() => void listing.set(!listing.listed)} />} />
-        </HomeSection>
-      ) : null}
-      {listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null}
     </Screen>
   );
 }
 
 /**
- * Whether the organization's work is listed on Explore. The server keys the
- * listing by partition; an organization has one (decision 34).
+ * Whether a language is listed on Explore. The server keys the listing by
+ * partition, and each language is its own (docs/decisions.md 37), so this is
+ * the open language's listing.
  */
 function usePublicListing(ctx: Ctx) {
   const may = ctx.session.can('manage_structure');
@@ -308,6 +325,7 @@ export function LanguageHome(ctx: Ctx) {
       .filter((e) => e.scope.level === 'lane' && e.scope.laneId === laneId && org.roles[e.roleId]?.privileges.value?.includes('translate'))
       .map((e) => e.profileId);
   }, [ctx.org.state, v.state, v.projectId, laneId]);
+  const listing = usePublicListing(ctx);
   if (!v.state) return <Loading title="Language" />;
   if (!v.state.lanes[laneId]) {
     return (
@@ -326,7 +344,7 @@ export function LanguageHome(ctx: Ctx) {
     ]} />}>
       <Card>
         <Text style={txt.xs}>Translator: {who} · Review flow: {deriveFlow(v.state, laneId).name} · Code {v.state.lanes[laneId]!.languoidId.toUpperCase()}</Text>
-        <HomeProgressBars p={v.laneProgress(laneId)} />
+        <HomeProgressBars p={v.laneProgress(laneId) ?? { total: 0, recorded: 0, done: 0 }} />
       </Card>
       <Card style={{ backgroundColor: C.primary, borderColor: C.primary }} accessibilityLabel="Passage map"
         onPress={() => { ctx.setLane(laneId); ctx.go('map_home', { laneId }); }}>
@@ -343,6 +361,13 @@ export function LanguageHome(ctx: Ctx) {
       </Card>
       <CatalogRows ctx={ctx} from="language_home" level="lane" laneIds={[laneId]} laneId={laneId} />
       <MemberRows ctx={ctx} from="language_home" level="lane" laneId={laneId} />
+      {listing.may ? (
+        <HomeSection ctx={ctx} id="language_home:discovery" label="Discovery">
+          <Row icon="globe" label="List publicly" sub="Share its name and progress only" last
+            right={<Toggle label={`List ${name} publicly`} on={listing.listed} disabled={listing.busy} onToggle={() => void listing.set(!listing.listed)} />} />
+        </HomeSection>
+      ) : null}
+      {listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null}
     </Screen>
   );
 }
@@ -396,7 +421,7 @@ export function MembersList(ctx: Ctx) {
     <MemberRow key={e.key} ctx={ctx} e={e} target={v.target(e.scope)} editable={edit(e)} level={level} last={i === list.length - 1} />
   ));
   const group = (by: 'lane', label: string) => {
-    const groups = groupBelow(entries, v.projectId);
+    const groups = groupBelow(entries);
     const count = [...groups.values()].reduce((n, g) => n + g.length, 0);
     const d = ctx.details(`members:${level}:${by}`);
     return (
@@ -486,11 +511,11 @@ function AssignmentForm(props: {
       <SectionLabel label="Assignment scope" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.levels.map((l) => (
-          <Chip key={l} label={LEVEL_LABEL[l]} on={value.level === l} onPress={() => props.onChange({
-            ...value, level: l,
-            projectId: l === 'org' ? '' : v.projectId,
-            laneId: l === 'lane' ? value.laneId || (lanes.length === 1 ? lanes[0]! : '') : ''
-          })} />
+          <Chip key={l} label={LEVEL_LABEL[l]} on={value.level === l} onPress={() => {
+            const laneId = l === 'lane' ? value.laneId || (lanes.length === 1 ? lanes[0]! : '') : '';
+            // A language's role names that language's own partition (decisions.md 37).
+            props.onChange({ ...value, level: l, laneId, projectId: l === 'org' ? '' : laneId ? v.partitionOf(laneId) : v.projectId });
+          }} />
         ))}
       </View>
       <Text style={txt.xs}>Where this person can use the selected role's privileges.</Text>
@@ -499,7 +524,7 @@ function AssignmentForm(props: {
           <SectionLabel label="Language" />
           <Text style={txt.xs}>Which language this assignment applies to.</Text>
           <Choices items={lanes.map((id) => ({ id, label: v.laneLabel(id) }))} value={value.laneId}
-            onChoose={(laneId) => props.onChange({ ...value, laneId, projectId: v.projectId })} empty="No languages yet." />
+            onChoose={(laneId) => props.onChange({ ...value, laneId, projectId: v.partitionOf(laneId) })} empty="No languages yet." />
         </>
       ) : null}
     </>
@@ -521,7 +546,7 @@ export function InviteMember(ctx: Ctx) {
   const [email, setEmail] = useState('');
   const [form, setForm] = useState({
     roleId: '', level: floor ?? 'org' as ScopeLevel,
-    projectId: floor && floor !== 'org' ? ctx.project.projectId : '',
+    projectId: floor === 'lane' ? partitionOfLane(ctx.org.state, laneParam(ctx)) : floor && floor !== 'org' ? ctx.project.projectId : '',
     laneId: floor === 'lane' ? laneParam(ctx) : ''
   });
   const [busy, setBusy] = useState(false);
@@ -712,7 +737,7 @@ const QR_STEPS = ['Role', 'Name', 'QR code'];
 export function InviteQr(ctx: Ctx) {
   const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
   const floor = grantFloor(ctx.session.adminScope, level) ?? level;
-  const scope = scopeAt(floor, ctx.project.projectId, floor === 'lane' ? laneParam(ctx) : undefined);
+  const scope = floor === 'lane' ? scopeAt(floor, partitionOfLane(ctx.org.state, laneParam(ctx)), laneParam(ctx)) : scopeAt(floor, ctx.project.projectId);
   const roles = liveRoles(ctx);
   // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
   const preferred = ctx.params['roleId'];
@@ -796,25 +821,50 @@ export function InviteQr(ctx: Ctx) {
 
 export function NewLanguage(ctx: Ctx) {
   const state = ctx.project.state;
+  const lib = useLibrary(ctx);
+  const library = ctx.org.state?.library;
+  const shared = useSharedItems('template', lib.orgId);
+  // The organization's templates first, then shared ones (LangQuest's starter first).
+  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
+  const suggested = useMemo(() => suggestedTemplate(state, choices), [state, choices]);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [scope, setScope] = useState<LanguageScope>('nt');
+  const [picked, setPicked] = useState<string | null>(null);
+  const [limit, setLimit] = useState(6);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const templateId = useMemo(() => suggestedTemplate(state, ctx.org.state, ctx.project.projectId), [state, ctx.org.state, ctx.project.projectId]);
-  const template = contentTemplate(templateId);
+  const choice = choices.find((c) => c.key === (picked ?? suggested));
+  const docs = useLibraryDocs(lib.orgId, [choice?.hash]);
+  const doc = docs.get<TemplateDoc>(choice?.hash);
   const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
+  const ours = choices.filter((c) => c.source === 'ours');
+  const others = choices.filter((c) => c.source === 'shared');
+  const shown = [...ours, ...others.slice(0, limit)];
   async function create() {
     const title = name.trim();
-    if (!title || busy) return;
+    if (!title || busy || !choice) return;
     setBusy(true);
     setError('');
     try {
       const languoid = code.trim() || title.slice(0, 3);
       const commandId = Crypto.randomUUID();
-      const specs = addLanguage(state, { commandId, laneId: newLaneId(languoid, commandId), code: languoid, name: title, templateId, scope });
-      // ctx.act says "Not saved" and why; stay on the form to try again.
-      try { await ctx.act(specs, `${title} added to ${orgName} · uses ${template?.name ?? templateId}`); } catch { return; }
+      const laneId = newLaneId(languoid, commandId);
+      const template = (await loadDocs(lib.orgId, [choice.hash])).get(choice.hash);
+      if (!template || template.format !== 'template@1') throw new CommandError('Its template is not on this phone yet. Try again when connected.');
+      const books = booksInScope(template, scope);
+      // Another organization's template is followed, with automatic updates, before a language uses it.
+      const itemId = choice.source === 'shared' ? await lib.subscribe(choice.shared, true) : choice.item.itemId;
+      // The language is its own partition (decisions.md 37): listed in the
+      // organization's partition so everyone can see it, and started with
+      // its structure before anyone opens it.
+      const fresh = emptyState();
+      const templateSpecs = await lib.applySpecs(laneId, itemId, { docHash: choice.hash, into: fresh, ...(books ? { books } : {}) });
+      const specs = addLanguage(fresh, { commandId, laneId, code: languoid, name: title, template: templateSpecs });
+      await ctx.org.append('v1.ProjectRegistered', { projectId: laneId, name: title });
+      await appendToPartition({ orgId: ctx.project.orgId, projectId: laneId, actorId: ctx.session.actorId, specs });
+      ctx.toast(`${title} added to ${orgName} · uses ${choice.name}`);
+      ctx.setLane(laneId);
       ctx.back();
     } catch (e) {
       setError(failure('new language', e));
@@ -824,13 +874,29 @@ export function NewLanguage(ctx: Ctx) {
   }
   return (
     <Screen header={<Header title="New Language" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Create Language" disabled={!name.trim() || !state} busy={busy} onPress={() => void create()} />}>
+      footer={<PrimaryBtn label="Create Language" disabled={!name.trim() || !state || !choice} busy={busy} onPress={() => void create()} />}>
       <Text style={txt.xs}>This language is added to {orgName}. You can invite language admins from Members after it is created.</Text>
       <Field label="Language name" value={name} onChangeText={setName} placeholder="Enter language name" autoCapitalize="words" />
       <Field label="Language code" value={code} onChangeText={setCode} placeholder="e.g. DIN" autoCapitalize="none" />
-      <SectionLabel label="Scope" />
-      <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
-      <Text style={txt.xs}>Its passages come from {template?.name ?? 'the suggested template'}, the one {orgName} suggests. It can be changed later under Content Templates.</Text>
+      {doc?.structure !== 'outline' ? (
+        <>
+          <SectionLabel label="Scope" />
+          <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
+        </>
+      ) : null}
+      <SectionLabel label="Template" />
+      {shared.error ? (
+        <Banner icon="cloud" tone="amber" title="Could not refresh the shared templates"
+          body={shared.rows.length ? 'Showing the list this phone saved.' : 'Connect to see the ones other organizations share.'} />
+      ) : null}
+      <Choices items={shown.map((c) => ({ id: c.key, label: c.name, sub: choiceLine(c, sourceLine), ...(c.key === suggested ? { badge: 'Suggested' } : {}) }))}
+        value={choice?.key ?? ''} onChoose={setPicked} empty={shared.loaded ? 'No templates to choose from yet.' : 'Loading…'} />
+      <ShowMore remaining={others.length - limit} step={6} onMore={() => setLimit((l) => l + 6)} />
+      {choice ? (
+        <Text style={txt.xs}>
+          Its passages come from {choice.name}.{choice.source === 'shared' ? ` ${orgName} follows it from ${choice.shared.org_name}, so new versions reach the language by themselves.` : ''} It can be changed later under Content Templates.
+        </Text>
+      ) : null}
       {error ? <Banner icon="flag" tone="amber" title="Not created" body={error} /> : null}
     </Screen>
   );

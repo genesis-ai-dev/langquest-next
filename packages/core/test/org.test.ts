@@ -2,7 +2,7 @@ import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
   adminScopeOf, catalogEnabled, effectiveRole, emptyOrgState, foldOrg, privilegeFor, privilegesFor,
-  privilegesOfFixedRole, SEED_ROLES, EVENT_PRIVILEGE, WORK_PARTITION, workPartitionOf
+  privilegesOfFixedRole, SEED_ROLES, EVENT_PRIVILEGE, WORK_PARTITION, workPartitionOf, orgLanguages, partitionOfLane
 } from '../src/org';
 import { buildFixture, shuffle } from './fixtures';
 
@@ -32,6 +32,9 @@ function orgFixture(): AnyEvent[] {
   emit('v1.RoleRetired', { roleId: 'unused' });
   emit('v1.CatalogItemToggled', { kind: 'flow', itemId: 'quick_check', level: 'org', enabled: false });
   emit('v1.CatalogItemToggled', { kind: 'template', itemId: 'fia', level: 'project', projectId: 'p2', enabled: false });
+  // A language renamed from two devices: the later clock names it in the org's list.
+  emit('v1.LaneNamed', { laneId: 'din', name: 'Dinka' });
+  emit('v1.LaneNamed', { laneId: 'din', name: 'Thuɔŋjäŋ' }, 'dB');
   return out;
 }
 
@@ -59,6 +62,21 @@ describe('org partition fold', () => {
     for (let seed = 1; seed <= 20; seed++) expect(workPartitionOf(foldOrg(shuffle(events, seed)))).toBe('p1');
     expect(workPartitionOf(emptyOrgState())).toBe(WORK_PARTITION);
     expect(workPartitionOf(null)).toBe(WORK_PARTITION);
+  });
+
+  it('lists each language as its own partition, named by the latest rename in the org log (decision 37)', () => {
+    // Why: a phone pulls only the languages it opens, so the org partition
+    // is where everyone learns which languages exist and what they are called.
+    const withLanguages = foldOrg([
+      ...events,
+      { id: 'lang-1', type: 'v1.ProjectRegistered', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_100_000, 0, 'dA'), payload: { projectId: 'L-din-1', name: 'Dinka' } },
+      { id: 'lang-2', type: 'v1.LaneNamed', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_200_000, 0, 'dA'), payload: { laneId: 'L-din-1', name: 'Thuɔŋjäŋ' } },
+      { id: 'lang-3', type: 'v1.LaneNamed', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dB', hlc: encodeHlc(1_700_000_150_000, 0, 'dB'), payload: { laneId: 'L-din-1', name: 'Dinka (older)' } }
+    ] as AnyEvent[]);
+    expect(orgLanguages(withLanguages).find((l) => l.laneId === 'L-din-1')?.name).toBe('Thuɔŋjäŋ');
+    expect(partitionOfLane(withLanguages, 'L-din-1')).toBe('L-din-1');
+    // A language from before decision 37 lives in the org's one shared partition.
+    expect(partitionOfLane(withLanguages, 'din')).toBe('p1');
   });
 
   it('privileges are the union over covering scopes through live roles', () => {

@@ -155,10 +155,17 @@ export interface ProjectState extends RecordState {
   invalidEvents: Record<string, string>;
   /** eventId -> true. Targets of v1.Redacted; never applied. */
   redactions: Record<string, true>;
-  /** laneId -> selected content template */
-  laneTemplates: Record<string, Register<{ templateId: string; catalogVersion: number }>>;
-  /** laneId -> selected review flow */
-  laneFlows: Record<string, Register<{ flowId: string; catalogVersion: number }>>;
+  /**
+   * laneId -> selected content template. From the old in-app catalog,
+   * `templateId@catalogVersion` prefixes its units; from the library
+   * (v2), `itemId` and `docHash` name the version and `templateId` is the
+   * unit prefix with `catalogVersion` 0.
+   */
+  laneTemplates: Record<string, Register<{ templateId: string; catalogVersion: number; itemId?: string; docHash?: string; books?: string[] }>>;
+  /** laneId -> unitId -> hidden (TPL-7): parts the language's template version no longer has. */
+  laneHiddenUnits: Record<string, Record<string, Register<boolean>>>;
+  /** laneId -> selected review flow; library selections (v2) carry the item, version and name. */
+  laneFlows: Record<string, Register<{ flowId: string; catalogVersion: number; itemId?: string; docHash?: string; name?: string }>>;
   /** stepId -> step register plus add-wins removal */
   workflowSteps: Record<string, { step: Register<StepDef>; removed: boolean }>;
   teams: Record<string, ReviewTeam>;
@@ -194,6 +201,7 @@ export function emptyState(): ProjectState {
     invalidEvents: {},
     redactions: {},
     laneTemplates: {},
+    laneHiddenUnits: {},
     laneFlows: {},
     workflowSteps: {},
     teams: {},

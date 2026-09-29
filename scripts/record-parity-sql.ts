@@ -1,18 +1,20 @@
 /**
  * SQL that holds the server's validate_payload and fixed-role privilege
- * table to core's, for every passage-record event in the fixture plus
- * broken variants of each (every field missing, wrong-typed or null). The
- * fitness function for invariant 11; `npm run db:test` runs it.
+ * table to core's, for every passage-record and library event in the
+ * fixtures plus broken variants of each (every field missing, wrong-typed or
+ * null). The fitness function for invariant 11; `npm run db:test` runs it.
  */
 import { writeFileSync } from 'node:fs';
-import { EVENT_PRIVILEGE, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type Role } from '@langquest-next/core';
-import { buildRecordFixture } from '../packages/core/test/fixtures';
+import { EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, privilegeAllows, privilegeFor, privilegesOfFixedRole, validateEvent, type AnyEvent, type Role } from '@langquest-next/core';
+import { buildOrgFixture, buildRecordFixture } from '../packages/core/test/fixtures';
 
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
 // The record's own event types; the fixture also carries a v1 flow selection.
 const RECORD_TYPES = new Set(['v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.ReviewRecorded', 'v1.DepartureRecorded',
   'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed']);
-const events = buildRecordFixture().filter((e) => RECORD_TYPES.has(e.type));
+// The library's: org-partition items and versions, and a language's use of them.
+const LIBRARY_TYPES = new Set<string>([...LIBRARY_EVENT_TYPES, 'v2.LaneTemplateSelected', 'v1.LaneUnitHidden', 'v2.LaneFlowSelected']);
+const events = [...buildRecordFixture(), ...buildOrgFixture()].filter((e) => RECORD_TYPES.has(e.type) || LIBRARY_TYPES.has(e.type));
 void EVENT_PRIVILEGE;
 // Optional fields each payload may carry, so a wrong type is tried even when
 // the fixture leaves the field out.
@@ -22,8 +24,12 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReviewRecorded': ['comment', 'commentBlobHash', 'answers', 'skipped', 'people', 'place', 'givenBy', 'requestId', 'artifacts'],
   'v1.DepartureRecorded': ['kindId', 'stepId', 'reviewId', 'reasonBlobHash'],
   'v1.RequestMade': ['kindId', 'profileId', 'guest', 'dueDate', 'note', 'noteBlobHash', 'questions'],
-  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId']
+  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId'],
+  'v1.LibraryItemDefined': ['copiedFrom'],
+  'v1.LibraryVersionPublished': ['note'],
+  'v2.LaneTemplateSelected': ['books']
 };
+const HASH = 'a'.repeat(64);
 const broken: AnyEvent[] = events.flatMap((e) => {
   const p = e.payload as Record<string, unknown>;
   const variants: Record<string, unknown>[] = [];
@@ -47,11 +53,41 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     variants.push({ ...p, questions: [{ id: 'q', text: 't', type: 'yesno', required: 'yes' }] }, { ...p, questions: [{ id: 'q', text: 't', type: 'essay' }] },
       { ...p, guest: { name: 'n', channel: 'email', contact: 'c' } });
   }
+  if (LIBRARY_TYPES.has(e.type)) {
+    for (const k of ['itemId', 'docHash', 'unitPrefix', 'flowId']) {
+      if (!(k in p)) continue;
+      for (const bad of ['a/b', 'a@b', 'a b', '-a', 'A'.repeat(64), 'a'.repeat(63), 'x'.repeat(122), '']) variants.push({ ...p, [k]: bad });
+    }
+    if ('kind' in p) variants.push({ ...p, kind: 'song' }, { ...p, kind: 'Template' });
+    if ('catalogVersion' in p) variants.push({ ...p, catalogVersion: 1 }, { ...p, catalogVersion: '2' }, { ...p, catalogVersion: 2.5 });
+    if ('description' in p) variants.push({ ...p, description: '' });
+  }
+  if (e.type === 'v1.LibraryItemDefined') {
+    const from = { orgId: 'o', orgName: 'O', itemId: 'i', docHash: HASH };
+    variants.push({ ...p, copiedFrom: from }, { ...p, copiedFrom: 'o' }, { ...p, copiedFrom: [from] });
+    for (const k of Object.keys(from)) {
+      const { [k]: _, ...rest } = from;
+      variants.push({ ...p, copiedFrom: rest }, { ...p, copiedFrom: { ...from, [k]: '' } }, { ...p, copiedFrom: { ...from, [k]: 5 } });
+    }
+    variants.push({ ...p, copiedFrom: { ...from, docHash: 'abc' } });
+  }
+  if (e.type === 'v2.LaneTemplateSelected') {
+    variants.push({ ...p, books: [] }, { ...p, books: ['GEN', '1SA'] }, { ...p, books: ['GEN', 'gen'] }, { ...p, books: ['GENE'] },
+      { ...p, books: [5] }, { ...p, books: 'GEN' }, { ...p, books: ['GEN', null] });
+    const { books: _, ...rest } = p;
+    variants.push(rest);
+  }
   return variants.map((payload) => ({ ...e, payload }) as AnyEvent);
 });
 const rows = [...events, ...broken].map((e) => ({ type: e.type, payload: e.payload, valid: validateEvent(e) === null }));
 const roles: Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'];
-const perms = events.flatMap((e) => roles.map((role) => ({ role, type: e.type, payload: e.payload, allowed: privilegeAllows(privilegeFor(e), privilegesOfFixedRole(role)) })));
+// Library events need the privilege that manages their kind: try every kind, and one core does not know.
+const withKinds = events.flatMap((e) => (LIBRARY_EVENT_TYPES as readonly string[]).includes(e.type)
+  ? ['template', 'flow', 'material', 'versification', 'song'].map((kind) => ({ ...e, payload: { ...e.payload, kind } }) as AnyEvent)
+  : [e]);
+const perms = withKinds.flatMap((e) => roles.map((role) => ({ role, type: e.type, payload: e.payload, allowed: privilegeAllows(privilegeFor(e), privilegesOfFixedRole(role)) })));
+// Each privilege alone, so two that every fixed role holds together are still told apart.
+const single = withKinds.flatMap((e) => PRIVILEGES.map((priv) => ({ priv, type: e.type, payload: e.payload, allowed: privilegeAllows(privilegeFor(e), new Set([priv])) })));
 writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r jsonb; begin
   for r in select * from jsonb_array_elements(${sql(rows)}) loop
     if (public.validate_payload(r->>'type', r->'payload') is null) is distinct from (r->>'valid')::boolean then
@@ -63,6 +99,11 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception 'role_may_emit_event disagrees with core: %', r;
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(single)}) loop
+    if coalesce(string_to_array(public.event_privilege(r->>'type', r->'payload'), ',') && array[r->>'priv'], false) is distinct from (r->>'allowed')::boolean then
+      raise exception 'event_privilege disagrees with core: %', r;
+    end if;
+  end loop;
 end $$;
-select ${rows.length} as payload_checks, ${perms.length} as permission_checks;
+select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks;
 `);

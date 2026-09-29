@@ -16,13 +16,15 @@ from them.
 | `data.ts` `C`, `TINT`, `ui.tsx`, `screens/shared.tsx` | `src/theme.ts`, `src/kit.tsx`, `src/voiceNote.tsx` |
 | `domain/record.ts` (passage state, highlights, progress, timeline, grid, study) | `packages/core/src/passage.ts`, over events in `record.ts` |
 | App state `passages`, `requests`, `notes`, `studyDone`, departures | the event log: takes and `v1.TakeSubmitted` (versions), `v1.ReviewRecorded`, `v1.RequestMade`/`Withdrawn`, `v1.DepartureRecorded`/`Undone`, `v1.NoteAdded`, `v1.StudyStepMarked` |
-| `REVIEW_KINDS`, `REVIEW_FLOWS` | core `DEFAULT_KINDS`, `FLOWS`; `v1.ReviewKindDefined`, `v2.WorkflowStepSet` |
+| `REVIEW_KINDS`, `REVIEW_FLOWS` | library flows (docs/library.md): each `flow@1` document carries its kinds; a language uses one through `v1.ReviewKindDefined`, `v2.WorkflowStepSet`, `v2.LaneFlowSelected` |
+| `content.ts` templates, `RefMaterial`, study guides | library items (docs/library.md): `template@1`, `material@1`, `study@1` / `collection@1` documents, published by an organization, shared, copied or followed; LangQuest's starters seeded from `library/` |
 | a back translation (`ReviewKind.produces`) | `v1.ReviewRecorded` with outcome `recorded` and the cards in `artifacts` |
 | `toast` / `undoable()` | `ctx.act(specs, message, undo)` and `ctx.toast` |
 | `detailsFor(key)` | `ctx.details(key)` |
 | `recentByPerson` | `ctx.recent`, `ctx.openPassage` |
 | `notifications` | `ctx.inbox` (core `updatesFor`) plus server notifications for join requests |
-| `fia.ts`, `bible.ts`, `chapterText.ts`, `studyText.ts` | `src/study/`, `src/scripture.ts` |
+| `fia.ts` | FIA study material in the library through `scripts/fia-adapter.ts`; found per passage by `src/study/guideMatch.ts` |
+| `bible.ts`, `chapterText.ts`, `studyText.ts` | `src/study/`, `src/scripture.ts` |
 
 Demo-only tools are not ported: the guide and scenarios, the screen map,
 partner comments, persona sign-in cards, the Reset button and colour themes.
@@ -119,8 +121,8 @@ Demo-only tools are out of scope (see above). Beyond those:
 **Events built without a core command**
 - Org partition (no core commands exist for it): `v1.OrgCreated`,
   `v1.RoleDefined`, `v1.OrgMemberAdded`/`Removed`, `v1.CatalogItemToggled`,
-  `v1.ProjectRegistered` (`src/createOrg.ts`, and App when it starts an
-  org's work partition with `v1.ProjectCreated`).
+  `v1.ProjectRegistered` (New Language lists the language in the org and
+  starts its own partition with `v1.ProjectCreated`, decision 37).
 - Legacy project roles in Edit Member: `v1.MemberRoleChanged`,
   `v1.MemberRemoved`.
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),

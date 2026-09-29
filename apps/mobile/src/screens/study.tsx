@@ -23,7 +23,8 @@ import { plural, usePassage, when, type PassageView } from '../passageView';
 import { noteExpected } from '../report';
 import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
-import { glossaryEntry, guideFor, type StudyGuide as Guide, type StudyResource } from '../study/guides';
+import { type StudyGuide as Guide, type StudyResource } from '../study/guides';
+import { glossaryEntryOf, useStudyGuide } from '../study/libraryGuides';
 import { studyProgress, type StudyProgress, type StudyStepStatus } from '../study/progress';
 import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections, type StudySection } from '../study/text';
 import {
@@ -43,7 +44,7 @@ function stepBadge(st: StudyStepStatus, isNext: boolean): string | undefined {
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
   const v = usePassage(ctx);
   const state = ctx.project.state;
-  const guide = useMemo(() => (state && v ? guideFor(state, v.unitId) : null), [state, v?.unitId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
   const sp = useMemo(() => (state && v && guide ? studyProgress(state, v.p, guide) : null), [state, v?.p, guide]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!v || !guide || !sp) return { v, guide: null, sp: null };
   return { v, guide, sp };
@@ -269,7 +270,7 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
     return keyTermsFor(state, v.laneId).find((k) => k.term.trim().toLowerCase() === t) ?? null;
   };
   const term = keyTerm(resource);
-  const entry = resource?.kind === 'term' ? glossaryEntry(guide, resource.ref) : null;
+  const entry = resource?.kind === 'term' ? glossaryEntryOf(guide, resource.ref) : null;
   const audioSub = audio.failed ? "Couldn't load the audio — playing a stand-in"
     : !step.audio.url ? 'No recording of this step yet · the clock follows reading pace' : undefined;
 
