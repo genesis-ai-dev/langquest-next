@@ -58,6 +58,9 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect((await s.pending('o', 'p')).map((e) => e.event.id)).toEqual(['a', 'b']);
     expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b', 'c']);
     expect((await s.get('x'))?.rejectReason).toBe('no');
+    // The sync status screen shows this total; it must agree with all()
+    // without loading a 250k-event log into memory to count it.
+    expect(await s.count('o', 'p')).toBe(3);
   });
 
   it('pendingPage walks the outbox in hlc order without materializing it', async () => {

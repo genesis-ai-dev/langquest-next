@@ -211,6 +211,14 @@ export class SqliteStore implements EventStore {
     return Number(rows[0]?.n ?? 0);
   }
 
+  async count(orgId: string, projectId: string): Promise<number> {
+    const rows = await this.db.all<{ n: number }>(
+      `select count(*) as n from events where org_id = ? and project_id = ? and status <> 'rejected'`,
+      [orgId, projectId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
   async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(
       `select * from events where org_id = ? and project_id = ? and status <> 'rejected'

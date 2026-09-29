@@ -381,6 +381,27 @@ export class SyncClient<S = ProjectState> {
 
   /** Roll the confirmed prefix into a local checkpoint and prune it. */
   private async checkpoint(cursor: number): Promise<void> {
+    // With nothing pending, the live state is the confirmed fold up to the
+    // cursor (a rejection or redaction refolds it from the log). Save it as
+    // is: parsing the last checkpoint, cloning it and replaying onto it held
+    // the state four times over. A local append during the await, or one not
+    // yet on disk, would put a pending event in it; then take the slow path.
+    const revision = this.revision;
+    const pending = await this.opts.store.pendingCount(this.opts.orgId, this.opts.projectId);
+    if (pending === 0 && this.writer.size === 0 && revision === this.revision) {
+      const state = { ...this.state };
+      this.m.compact(state);
+      const snap: Snapshot = {
+        orgId: this.opts.orgId, projectId: this.opts.projectId, reducerVersion: this.m.version,
+        serverSeq: cursor, state: state as unknown as ProjectState
+      };
+      const { orgId, projectId } = this.opts;
+      await this.commit({
+        meta: { [this.snapshotKey()]: JSON.stringify(snap) },
+        prune: { orgId, projectId, uptoSeq: cursor }
+      });
+      return;
+    }
     const base = (await this.localSnapshot()) ?? {
       orgId: this.opts.orgId,
       projectId: this.opts.projectId,
@@ -692,8 +713,11 @@ export class SyncClient<S = ProjectState> {
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.load();
+    // Still catching up: skip the checkpoint (it serializes the whole state)
+    // and take one when the tail is reached. Nothing is pruned before the
+    // checkpoint, so a crash mid-catch-up only costs a longer fold on launch.
     const base = (await this.localSnapshot())?.serverSeq ?? 0;
-    if (after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
+    if (!more && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
     // Our membership changed on the server: work refused for membership
     // reasons may be acceptable now. Queue it; the next push decides.
     if (membershipChanged) await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
@@ -763,14 +787,14 @@ export class SyncClient<S = ProjectState> {
   /** The local log as the sync status screen shows it. */
   async inspect(): Promise<SyncInspection> {
     const { orgId, projectId } = this.opts;
-    const [pending, rejected, all, cursor, snap] = await Promise.all([
+    const [pending, rejected, total, cursor, snap] = await Promise.all([
       this.opts.store.pending(orgId, projectId),
       this.opts.store.rejected(orgId, projectId),
-      this.opts.store.all(orgId, projectId),
+      this.opts.store.count(orgId, projectId),
       this.opts.store.cursor(orgId, projectId),
       this.localSnapshot()
     ]);
-    return { pending, rejected, total: all.length, cursor, checkpointSeq: snap?.serverSeq ?? null };
+    return { pending, rejected, total, cursor, checkpointSeq: snap?.serverSeq ?? null };
   }
 
   async pendingCount(): Promise<number> {

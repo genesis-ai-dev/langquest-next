@@ -70,6 +70,8 @@ export interface EventStore {
   pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
   /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
   pendingCount(orgId: string, projectId: string): Promise<number>;
+  /** How many events all() returns, without loading them. */
+  count(orgId: string, projectId: string): Promise<number>;
   /** Every non-rejected event for a partition (confirmed then pending is fine). */
   all(orgId: string, projectId: string): Promise<LocalEvent[]>;
   /** Highest confirmed server_seq seen for a partition, 0 if none. */
