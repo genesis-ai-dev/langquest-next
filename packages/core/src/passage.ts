@@ -676,7 +676,11 @@ export function studyMarksFor(state: ProjectState, unitId: string, laneId: strin
   const out: StudyMark[] = [];
   for (const [key, reg] of Object.entries(state.studyMarks)) {
     if (!key.startsWith(prefix) || !reg.value.done) continue;
-    const [g, stepId] = key.slice(prefix.length).split(':') as [string, string];
+    // Step ids never hold a colon; guide ids may ("fia:luke1").
+    const rest = key.slice(prefix.length);
+    const cut = rest.lastIndexOf(':');
+    const g = rest.slice(0, cut);
+    const stepId = rest.slice(cut + 1);
     if (guideId && g !== guideId) continue;
     out.push({ guideId: g, stepId, by: reg.value.by, hlc: reg.hlc });
   }

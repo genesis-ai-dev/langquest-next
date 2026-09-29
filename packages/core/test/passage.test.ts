@@ -293,3 +293,13 @@ describe('updates for the inbox', () => {
     expect(updatesFor(p.state(), 'ayen').map((u) => u.kind)).toEqual(['revision', 'request']);
   });
 });
+
+describe('study marks', () => {
+  it('read guide ids that contain a colon', () => {
+    const s = fold([...buildFixture(), ...buildRecordFixture()], emptyState());
+    // The fixture's second device un-marks the step later, so nothing is finished.
+    expect(studyMarksFor(s, 'luke1', 'L1', 'fia:luke1')).toEqual([]);
+    const marked = fold([...buildFixture(), ...buildRecordFixture().filter((e) => !(e.type === 'v1.StudyStepMarked' && e.actorId === 't2'))], emptyState());
+    expect(studyMarksFor(marked, 'luke1', 'L1', 'fia:luke1').map((m) => [m.guideId, m.stepId])).toEqual([['fia:luke1', 'hear']]);
+  });
+});

@@ -1,0 +1,149 @@
+import { emptyState, type ProjectState } from '@langquest-next/core';
+import { GUIDES, glossaryEntry, guideFor } from '../src/study/guides';
+import { GENESIS2_GUIDE, JOHN3_GUIDE, LOST_SON_GUIDE } from '../src/study/fia';
+import { overlap, parseRange, versesOf } from '../src/study/range';
+import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections } from '../src/study/text';
+import { readingSeconds, readingsFor, sourceText, verseAt } from '../src/scripture';
+
+function withUnits(units: Record<string, string>): ProjectState {
+  const s = emptyState();
+  for (const [id, label] of Object.entries(units)) s.units[id] = { parentUnitId: null, kind: 'passage', label, order: id };
+  return s;
+}
+
+describe('study text', () => {
+  it('breaks a step into paragraphs, list items, headings and "Stop here" boxes', () => {
+    const md = 'First line\ncontinues here.\n\n1. What do you like?\n2. Who needs it?\n\n- The father\n\n## Scenes\n\n> [!action]\n> Stop here and discuss.\n> Pause this audio here.\n\nLast.';
+    const s = studySections(md);
+    expect(s.map((x) => x.kind)).toEqual(['para', 'item', 'item', 'item', 'heading', 'action', 'para']);
+    expect(s[0]!.text).toBe('First line continues here.');
+    expect(s[1]).toMatchObject({ id: 's1', n: 1 });
+    expect(s[5]!.text).toBe('Stop here and discuss. Pause this audio here.');
+    expect(isQuestion(s[1]!)).toBe(true);
+    expect(isQuestion(s[0]!)).toBe(false);
+  });
+
+  it('keeps bold words and links to pictures, maps and glossary terms', () => {
+    expect(inlineParts('See [heaven](#t63) and __share__ or **this**.')).toEqual([
+      { type: 'text', text: 'See ' }, { type: 'link', text: 'heaven', ref: 't63' }, { type: 'text', text: ' and ' },
+      { type: 'bold', text: 'share' }, { type: 'text', text: ' or ' }, { type: 'bold', text: 'this' }, { type: 'text', text: '.' }
+    ]);
+    expect(sectionLabel({ id: 's0', kind: 'para', text: 'A [very](#m1) long sentence that runs past the limit of the label' }, 20)).toBe('A very long senten…');
+  });
+
+  it('turns seconds into m:ss and back', () => {
+    expect(clock(62.9)).toBe('1:02');
+    expect(clock(-3)).toBe('0:00');
+    expect(secondsOf('1:02')).toBe(62);
+    expect(secondsOf('soon')).toBe(-1);
+  });
+});
+
+describe('verse ranges', () => {
+  it('reads the references units are labelled with', () => {
+    expect(parseRange('luk', '15:11-32')).toEqual({ book: 'luk', start: { chapter: 15, verse: 11 }, end: { chapter: 15, verse: 32 } });
+    expect(parseRange('gen', '1:1–2:3')).toEqual({ book: 'gen', start: { chapter: 1, verse: 1 }, end: { chapter: 2, verse: 3 } });
+    expect(parseRange('luk', '15')).toEqual({ book: 'luk', start: { chapter: 15, verse: 1 }, end: { chapter: 15, verse: null } });
+    expect(parseRange('luk', '14-16')).toEqual({ book: 'luk', start: { chapter: 14, verse: 1 }, end: { chapter: 16, verse: null } });
+    expect(parseRange('luk', 'intro')).toBeNull();
+    expect(parseRange('luk', '15:32-11')).toBeNull();
+  });
+
+  it('measures overlap and lists verses', () => {
+    const a = parseRange('luk', '15:1-10')!;
+    const b = parseRange('luk', '15:11-32')!;
+    expect(overlap(a, b)).toBe(0);
+    expect(overlap(parseRange('luk', '15')!, b)).toBeGreaterThan(0);
+    expect(overlap(parseRange('joh', '15')!, b)).toBe(0);
+    expect(versesOf(parseRange('gen', '1:30-2:2')!, (c) => (c === 1 ? 31 : 25))!.map((v) => `${v.chapter}:${v.verse}`)).toEqual(['1:30', '1:31', '2:1', '2:2']);
+    expect(versesOf(parseRange('gen', '5')!, () => undefined)).toBeNull();
+  });
+});
+
+describe('guides', () => {
+  it('ports the three guides with stable ids that can sit in a study mark key', () => {
+    expect(GUIDES.map((g) => g.guide.id)).toEqual(['fia-gen-p2', 'fia-luk-15-11-32', 'fia-joh-3-1-21']);
+    for (const { guide } of GUIDES) {
+      expect(guide.id).not.toContain(':');
+      expect(guide.steps.map((s) => s.id)).toEqual(['hear', 'stage', 'scenes', 'embody', 'gaps', 'speak']);
+      for (const s of guide.steps) {
+        expect(s.id).not.toContain(':');
+        expect(s.text.length).toBeGreaterThan(20);
+        expect(s.audio.seconds).toBeGreaterThan(0);
+      }
+    }
+    expect(GENESIS2_GUIDE.steps[0]!.title).toBe('Hear and Heart');
+    expect(GENESIS2_GUIDE.steps[1]!.audio.url).toMatch(/^https:/);
+    expect(GENESIS2_GUIDE.resources.map((r) => r.ref).sort()).toEqual(['c47', 'm302', 'm385', 'm386', 'm387', 't173', 't174', 't187', 't63']);
+  });
+
+  it('links in every step resolve to a resource of the guide', () => {
+    for (const { guide } of GUIDES) {
+      const refs = new Set(guide.resources.map((r) => r.ref));
+      for (const s of guide.steps) {
+        for (const sec of studySections(s.text)) {
+          for (const p of inlineParts(sec.text)) if (p.type === 'link') expect(refs, `${guide.id} ${s.id} ${p.ref}`).toContain(p.ref);
+        }
+      }
+    }
+  });
+
+  it('matches a unit by book and verse overlap', () => {
+    const s = withUnits({
+      'fia@1/gen-p2': 'Genesis 2:4-25', 'fia@1/gen-p1': 'Genesis 1:1-2:3', 'bible@1/luk-15': 'Luke 15',
+      sheep: 'Luke 15:1-10', son: 'Luke 15:11–32', 'fia@1/jhn-p5': 'John 3:1-21', 'bible@1/luk': 'Luke', other: 'Welcome'
+    });
+    expect(guideFor(s, 'fia@1/gen-p2')?.id).toBe(GENESIS2_GUIDE.id);
+    expect(guideFor(s, 'fia@1/gen-p1')).toBeNull();
+    expect(guideFor(s, 'bible@1/luk-15')?.id).toBe(LOST_SON_GUIDE.id);
+    expect(guideFor(s, 'sheep')).toBeNull();
+    expect(guideFor(s, 'son')?.id).toBe(LOST_SON_GUIDE.id);
+    expect(guideFor(s, 'fia@1/jhn-p5')?.id).toBe(JOHN3_GUIDE.id);
+    expect(guideFor(s, 'bible@1/luk')).toBeNull();
+    expect(guideFor(s, 'other')).toBeNull();
+    expect(guideFor(s, 'missing')).toBeNull();
+  });
+
+  it('shows the Master Glossary entry for FIA material and the description otherwise', () => {
+    expect(glossaryEntry(GENESIS2_GUIDE, 't63')).toMatchObject({ term: 'heaven', hint: 'the visible sky or the place where God lives' });
+    expect(glossaryEntry(GENESIS2_GUIDE, 't63')!.body).toMatch(/^The word heaven/);
+    expect(glossaryEntry(LOST_SON_GUIDE, 't-kt7')).toEqual({ term: 'heaven', hint: 'the visible sky or the place where God lives' });
+    expect(glossaryEntry(LOST_SON_GUIDE, 'm1')).toBeNull();
+  });
+});
+
+describe('scripture', () => {
+  const s = withUnits({
+    son: 'Luke 15:11-32', 'bible@1/luk-15': 'Luke 15', gen: 'Genesis 1:1-2:3', far: 'Luke 22', john: 'John 3:1-21', book: 'Luke'
+  });
+
+  it('has the guide passages in three translations with simulated timings', () => {
+    const r = readingsFor(s, 'son');
+    expect(r.map((x) => x.code)).toEqual(['BSB', 'WEB', 'KJV']);
+    expect(r[0]!.translation).toBe('Berean Standard Bible');
+    expect(r[0]!.verses.map((v) => v.ref)).toEqual(Array.from({ length: 22 }, (_, i) => `15:${i + 11}`));
+    expect(r[0]!.verses[0]!.start).toBe(0);
+    expect(r[0]!.verses[1]!.start).toBeGreaterThan(0);
+    expect(readingSeconds(r[0]!)).toBeGreaterThan(r[0]!.verses[21]!.start!);
+    expect(verseAt(r[0]!, 0)).toBeUndefined();
+    expect(verseAt(r[0]!, r[0]!.verses[3]!.start! + 0.1)?.ref).toBe('15:14');
+    expect(verseAt(r[0]!, 9999)?.ref).toBe('15:32');
+    expect(readingsFor(s, 'john').map((x) => x.code)).toEqual(['BSB', 'WEB', 'KJV']);
+  });
+
+  it('has whole WEB chapters, across chapter breaks', () => {
+    const chapter = readingsFor(s, 'bible@1/luk-15');
+    expect(chapter.map((x) => x.code)).toEqual(['WEB']);
+    expect(chapter[0]!.verses).toHaveLength(32);
+    const gen = readingsFor(s, 'gen');
+    expect(gen.map((x) => x.code)).toEqual(['WEB']);
+    expect(gen[0]!.verses.map((v) => v.ref).slice(-4)).toEqual(['1:31', '2:1', '2:2', '2:3']);
+  });
+
+  it('has nothing for other passages', () => {
+    expect(readingsFor(s, 'far')).toEqual([]);
+    expect(readingsFor(s, 'book')).toEqual([]);
+    expect(sourceText(s, 'far')).toBeNull();
+    expect(sourceText(s, 'son')).toMatch(/^Jesus continued: “There was a man who had two sons\./);
+  });
+});

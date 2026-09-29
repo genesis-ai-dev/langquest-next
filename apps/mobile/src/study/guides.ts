@@ -6,6 +6,8 @@
 // finished steps) is on the passage's record (core `studyMarksFor`,
 // `v1.NoteAdded` with a study anchor).
 import type { ProjectState } from '@langquest-next/core';
+import { GENESIS2_GLOSSARY, GENESIS2_GUIDE, JOHN3_GUIDE, LOST_SON_GUIDE, type GlossaryEntry } from './fia';
+import { overlap, unitRange, type VerseRange } from './range';
 
 export type StudyMediaKind = 'map' | 'photo' | 'illustration' | 'video';
 
@@ -56,7 +58,36 @@ export interface StudyGuide {
   resources: StudyResource[];
 }
 
-/** The study guide for a passage, if the app has one (matched by book and verses). */
-export function guideFor(_state: ProjectState, _unitId: string): StudyGuide | null {
-  return null;
+/** The guides that ship with the app, and the verses each covers. Ids never contain ':' (they are part of study mark keys). */
+export const GUIDES: { guide: StudyGuide; range: VerseRange }[] = [
+  { guide: GENESIS2_GUIDE, range: { book: 'gen', start: { chapter: 2, verse: 4 }, end: { chapter: 2, verse: 25 } } },
+  { guide: LOST_SON_GUIDE, range: { book: 'luk', start: { chapter: 15, verse: 11 }, end: { chapter: 15, verse: 32 } } },
+  { guide: JOHN3_GUIDE, range: { book: 'joh', start: { chapter: 3, verse: 1 }, end: { chapter: 3, verse: 21 } } }
+];
+
+/**
+ * The study guide for a passage, if the app has one: the guide whose verses
+ * overlap the unit's most (book and chapters from core `unitPlace`, verses
+ * from the unit's label). A whole-book unit has none.
+ */
+export function guideFor(state: ProjectState, unitId: string): StudyGuide | null {
+  const range = unitRange(state, unitId);
+  if (!range) return null;
+  let best: StudyGuide | null = null;
+  let most = 0;
+  for (const g of GUIDES) {
+    const n = overlap(range, g.range);
+    if (n > most) { most = n; best = g.guide; }
+  }
+  return best;
+}
+
+export type { GlossaryEntry };
+
+/** What a glossary link shows: FIA's Master Glossary entry, or the guide's own description of the term. */
+export function glossaryEntry(guide: StudyGuide, ref: string): GlossaryEntry | null {
+  const r = guide.resources.find((x) => x.ref === ref && x.kind === 'term');
+  if (!r) return null;
+  const fia = guide.id === GENESIS2_GUIDE.id ? GENESIS2_GLOSSARY[ref] : undefined;
+  return fia ?? { term: r.title, ...(r.description ? { hint: r.description } : {}) };
 }
