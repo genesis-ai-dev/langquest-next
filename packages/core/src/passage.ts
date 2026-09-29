@@ -248,7 +248,7 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
   const reviewsByTake = new Map<string, KindReview[]>();
-  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  for (const r of Object.values(state.kindReviews ?? {})) push(reviewsByTake, r.takeId, r);
   // v1 reviews read as in-app reviews of the step's kind (outcome from the decision).
   for (const [takeId, bySteps] of Object.entries(state.reviews)) {
     for (const [stepId, byActor] of Object.entries(bySteps)) {
@@ -804,11 +804,11 @@ export function laneName(state: ProjectState, laneId: string): string {
 export function recordAudioHashes(state: ProjectState): Set<string> {
   const out = new Set<string>();
   const add = (h?: string) => { if (h) out.add(h); };
-  for (const n of Object.values(state.notes)) { add(n.blobHash); add(n.photoHash); }
-  for (const r of Object.values(state.kindReviews)) { add(r.commentBlobHash); for (const h of r.artifactHashes ?? []) add(h); }
-  for (const d of Object.values(state.departures)) add(d.reasonBlobHash);
-  for (const r of Object.values(state.requests)) add(r.noteBlobHash);
-  for (const r of Object.values(state.responses)) add(r.blobHash);
-  for (const t of Object.values(state.keyTerms)) for (const a of Object.values(t.adjustments)) add(a.blobHash);
+  for (const n of Object.values(state.notes ?? {})) { add(n.blobHash); add(n.photoHash); }
+  for (const r of Object.values(state.kindReviews ?? {})) { add(r.commentBlobHash); for (const h of r.artifactHashes ?? []) add(h); }
+  for (const d of Object.values(state.departures ?? {})) add(d.reasonBlobHash);
+  for (const r of Object.values(state.requests ?? {})) add(r.noteBlobHash);
+  for (const r of Object.values(state.responses ?? {})) add(r.blobHash);
+  for (const t of Object.values(state.keyTerms ?? {})) for (const a of Object.values(t.adjustments)) add(a.blobHash);
   return out;
 }

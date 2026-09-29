@@ -45,7 +45,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   new_language: { emits:['v1.LaneAdded','v1.LaneTemplateSelected','v1.UnitAdded'] },
   project_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet'] },
-  templates_home: { emits:['v1.LaneTemplateSelected','v1.UnitAdded'] },
+  templates_home: { emits:['v1.LaneTemplateSelected','v1.UnitAdded','v1.CatalogItemToggled'] },
   template_picker: { emits:['v1.LaneTemplateSelected','v1.UnitAdded'] },
   reference_home: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.CatalogItemToggled'],reads:['materialsFor','sourceBibleEnabled'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
