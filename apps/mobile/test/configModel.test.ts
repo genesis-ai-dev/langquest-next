@@ -2,14 +2,15 @@
 // held to the demo's rules against real folds of the event log.
 import { describe, expect, it } from 'vitest';
 import {
-  commands, deriveFlow, fold, foldOrg, formatQuestionField, HlcClock, PRIVILEGES,
-  type AnyEvent, type EventPayloads, type EventSpec, type EventType
+  commands, deriveFlow, deriveKinds, fold, foldOrg, formatQuestionField, HlcClock, isItemId, materialView, PRIVILEGES, questionsForKind, selectFlowSpecs,
+  validateDoc, type AnyEvent, type EventPayloads, type EventSpec, type EventType, type FlowDoc, type MaterialDoc
 } from '@langquest-next/core';
 import { buildOrgFixture } from '../../../packages/core/test/fixtures';
 import {
-  catalogFlowOf, draftChanged, draftFromLane, flowLabel, holdersOf, isFiaTerm, laneFlows, matchesTerm, moveStep, newKindId,
-  nextFieldId, otherLanguageRenderings, PRIVILEGE_INFO, questionCount, questionDrafts, referenceView, roleRows, stepsToSave,
-  termsInPassage, termWords, viewLevelFrom
+  draftChanged, draftFromDoc, draftFromLane, flowDocFrom, flowLabel, flowUndoFor, holdersOf, isFiaTerm, laneFlows, libraryMaterialLine,
+  libraryQuestions, listNames, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId, nextFieldId, otherLanguageRenderings,
+  parseRefLinks, PRIVILEGE_INFO, questionCount, questionDrafts, questionSetToReviews, referenceView, roleRows, termsInPassage, termWords,
+  viewLevelFrom
 } from '../src/screens/configModel';
 
 function project() {
@@ -72,59 +73,81 @@ describe('roles', () => {
 });
 
 describe('review flows', () => {
-  it('knows a catalog flow by its steps, kinds in a step in any order', () => {
-    expect(catalogFlowOf([{ kindIds: ['bt', 'peer'], checkpoint: false }, { kindIds: ['community'], checkpoint: false },
-      { kindIds: ['consultant'], checkpoint: true }, { kindIds: ['final'], checkpoint: false }], null)).toBe('standard_bible');
-    expect(catalogFlowOf([{ kindIds: ['peer'], checkpoint: true }, { kindIds: ['final'], checkpoint: false }], 'quick_check')).toBeNull();
-    expect(catalogFlowOf([], null)).toBeNull();
-    expect(catalogFlowOf([], 'collect_only')).toBe('collect_only');
-  });
+  const H1 = 'a'.repeat(64), H2 = 'b'.repeat(64);
+  const quick: FlowDoc = {
+    format: 'flow@1', name: 'Quick Check', description: 'A peer, then sign-off.', deps: [],
+    kinds: [{ id: 'peer', name: 'Peer Review', description: '', usualReviewer: '' }, { id: 'final', name: 'Final', description: '', usualReviewer: '' }],
+    steps: [{ stepId: 's1', kindIds: ['peer'] }, { stepId: 's2', kindIds: ['final'], checkpoint: true }]
+  };
 
-  it('shows which language uses which flow, and Undo puts the old steps back', () => {
+  it('names each language\'s flow: a library one by its name, a legacy one by the catalog\'s', () => {
     const p = project();
     const s0 = p.state();
     expect(laneFlows(s0).map((l) => flowLabel(l))).toEqual(['No flow chosen yet', 'No flow chosen yet']);
-    p.run(commands(s0).useFlow({ commandId: 'a', laneId: 'L1', flowId: 'quick_check' }));
-    const s1 = p.state();
-    expect(laneFlows(s1).find((l) => l.laneId === 'L1')!.flowId).toBe('quick_check');
-    const before = draftFromLane(s1, 'L1');
-    p.run(commands(s1).useFlow({ commandId: 'b', laneId: 'L1', flowId: 'oral_review' }));
-    const s2 = p.state();
-    expect(laneFlows(s2).find((l) => l.laneId === 'L1')!.flowId).toBe('oral_review');
-    // Undo: the old steps, with fresh ids where the old ones were removed.
-    p.run(commands(s2).saveFlowSteps({ commandId: 'u', laneId: 'L1', steps: stepsToSave(s2, 'L1', before) }));
-    const s3 = p.state();
-    expect(laneFlows(s3).find((l) => l.laneId === 'L1')!.flowId).toBe('quick_check');
-    expect(laneFlows(s3).find((l) => l.laneId === 'L2')!.flowId).toBeNull();
+    p.run(commands(s0).useFlow({ commandId: 'a', laneId: 'L2', flowId: 'oral_review' }));
+    p.run(selectFlowSpecs(p.state(), { commandId: 'b', laneId: 'L1', itemId: 'quick.x1', docHash: H1, doc: quick }));
+    const uses = laneFlows(p.state());
+    expect(uses.map((u) => [u.name, flowLabel(u), u.itemId])).toEqual([['Dinka', 'Quick Check', 'quick.x1'], ['Nuer', 'Oral Review Path', null]]);
+    expect(uses[0]!.steps.map((s) => s.kindIds)).toEqual([['peer'], ['final']]);
   });
 
-  it('edits keep the ids the language owns, drop empty steps and never rewrite a project-wide step', () => {
+  it('Undo re-applies a library flow at its version, and restores a legacy one', () => {
     const p = project();
-    p.add('v2.WorkflowStepSet', { stepId: 'proj/s1', order: 's00', kindIds: ['peer'], checkpoint: false });
-    const s0 = p.state();
-    const shared = draftFromLane(s0, 'L1');
-    expect(shared).toHaveLength(1);
-    expect(shared[0]!.stepId).toBeUndefined();
-    p.run(commands(s0).useFlow({ commandId: 'a', laneId: 'L1', flowId: 'quick_check' }));
-    const s1 = p.state();
-    const draft = draftFromLane(s1, 'L1');
-    expect(draft.every((d) => d.stepId)).toBe(true);
-    const edited = [...moveStep(draft, 0, 1), { key: 'new', kindIds: [], checkpoint: false }];
+    p.run(selectFlowSpecs(p.state(), { commandId: 'a', laneId: 'L1', itemId: 'quick.x1', docHash: H1, doc: quick }));
+    const lib = flowUndoFor(p.state(), 'L1');
+    expect(lib).toEqual({ kind: 'library', itemId: 'quick.x1', docHash: H1 });
+    const other: FlowDoc = { ...quick, name: 'Other', steps: [{ stepId: 's1', kindIds: ['final'] }] };
+    p.run(selectFlowSpecs(p.state(), { commandId: 'b', laneId: 'L1', itemId: 'other.x2', docHash: H2, doc: other }));
+    expect(deriveFlow(p.state(), 'L1').name).toBe('Other');
+    p.run(selectFlowSpecs(p.state(), { commandId: 'u', laneId: 'L1', itemId: 'quick.x1', docHash: H1, doc: quick }));
+    expect(deriveFlow(p.state(), 'L1').steps.map((s) => s.kindIds[0])).toEqual(['peer', 'final']);
+
+    // A language on the old catalog: its steps were never removed, so restoreFlow brings it back.
+    p.run(commands(p.state()).useFlow({ commandId: 'c', laneId: 'L2', flowId: 'oral_review' }));
+    const legacy = flowUndoFor(p.state(), 'L2');
+    expect(legacy?.kind).toBe('legacy');
+    p.run(selectFlowSpecs(p.state(), { commandId: 'd', laneId: 'L2', itemId: 'quick.x1', docHash: H1, doc: quick }));
+    if (legacy?.kind !== 'legacy') throw new Error('legacy');
+    p.run(commands(p.state()).restoreFlow({ commandId: 'e', laneId: 'L2', previous: legacy.previous }));
+    expect(flowLabel(laneFlows(p.state()).find((l) => l.laneId === 'L2')!)).toBe('Oral Review Path');
+    expect(flowUndoFor(project().state(), 'L1')).toBeNull();
+  });
+
+  it('publishes a valid flow document: empty steps dropped, ids kept, kinds carried whole', () => {
+    const draft = draftFromDoc(quick);
+    const edited = [...moveStep(draft, 0, 1), { key: 'n', kindIds: ['elder_review', 'peer'], checkpoint: false }, { key: 'e', kindIds: [], checkpoint: true }];
     expect(draftChanged(draft, edited)).toBe(true);
     expect(draftChanged(draft, draft.map((d) => ({ ...d })))).toBe(false);
-    const toSave = stepsToSave(s1, 'L1', edited);
-    expect(toSave.map((s) => s.kindIds)).toEqual([['final'], ['peer']]);
-    p.run(commands(s1).saveFlowSteps({ commandId: 'e', laneId: 'L1', steps: toSave }));
-    const s2 = p.state();
-    expect(deriveFlow(s2, 'L1').steps.map((s) => s.kindIds[0])).toEqual(['final', 'peer']);
-    expect(deriveFlow(s2, 'L2').steps.map((s) => s.kindIds[0])).toEqual(['peer']);
-    expect(s2.flowSteps['proj/s1']!.value.laneId).toBeUndefined();
+    const elder = { id: 'elder_review', name: 'Elder Review', description: 'Defined by your organization.', usualReviewer: 'Elders' };
+    const doc = flowDocFrom({ name: ' Elders ', description: '', steps: edited, kinds: [...quick.kinds, elder] });
+    expect(validateDoc(doc)).toBeNull();
+    expect(doc.name).toBe('Elders');
+    expect(doc.steps).toEqual([
+      { stepId: 's2', kindIds: ['final'], checkpoint: true }, { stepId: 's1', kindIds: ['peer'] }, { stepId: 'step1', kindIds: ['elder_review', 'peer'] }
+    ]);
+    expect(doc.kinds.map((k) => k.id)).toEqual(['final', 'peer', 'elder_review']);
+    // A language using it gets the new kind and the steps.
+    const p = project();
+    p.run(selectFlowSpecs(p.state(), { commandId: 'a', laneId: 'L1', itemId: 'elders.x1', docHash: H1, doc }));
+    const s = p.state();
+    expect(deriveFlow(s, 'L1').steps.map((x) => x.kindIds)).toEqual([['final'], ['peer'], ['elder_review', 'peer']]);
+    expect(s.reviewKinds['elder_review']?.value.name).toBe('Elder Review');
   });
 
-  it('names a new kind from its words, uniquely', () => {
+  it('starts a new flow from a legacy language\'s steps, with fresh ids', () => {
+    const p = project();
+    p.run(commands(p.state()).useFlow({ commandId: 'a', laneId: 'L1', flowId: 'quick_check' }));
+    const draft = draftFromLane(p.state(), 'L1');
+    expect(draft.map((d) => [d.stepId, d.kindIds])).toEqual([[undefined, ['peer']], [undefined, ['final']]]);
+    expect(flowDocFrom({ name: 'Ours', description: '', steps: draft, kinds: deriveKinds(p.state()) }).steps.map((s) => s.stepId)).toEqual(['step1', 'step2']);
+  });
+
+  it('names a new kind from its words, uniquely, and lists names', () => {
     expect(newKindId('Elder Review', ['peer'])).toBe('elder_review');
     expect(newKindId('Elder Review', ['elder_review'])).toBe('elder_review_2');
     expect(newKindId('  !! ', [])).toBe('kind');
+    expect(listNames(['Dinka'])).toBe('Dinka');
+    expect(listNames(['Dinka', 'Nuer', 'Shilluk'])).toBe('Dinka, Nuer and Shilluk');
   });
 });
 
@@ -149,6 +172,73 @@ describe('reference material', () => {
     expect(questionCount(lang.questionSets[0]!)).toBe(1);
     expect(questionDrafts(lang.questionSets[0]!)).toEqual([{ fieldId: 'q1', text: 'Is it clear?', type: 'yesno', required: true }]);
     expect(nextFieldId(['q1', 'q2'])).toBe('q3');
+  });
+});
+
+describe('reference material in the library', () => {
+  it('publishes an in-app question set as a valid material document, under an id taken from the material', () => {
+    const p = project();
+    p.add('v1.MaterialDefined', { materialId: 'questions-9F3/x', kind: 'questions', title: 'Peer questions', scope: { stepId: 'peer' } });
+    p.add('v1.MaterialFieldSet', { materialId: 'questions-9F3/x', fieldId: 'q1', text: formatQuestionField({ text: 'Is it clear?', type: 'yesno', required: true }) });
+    p.add('v1.MaterialFieldSet', { materialId: 'questions-9F3/x', fieldId: 'q2', text: 'Anything missing?' });
+    p.add('v1.MaterialFieldSet', { materialId: 'questions-9F3/x', fieldId: 'q3', text: '' });
+    const m = materialView(p.state(), 'questions-9F3/x')!;
+    const id = materialItemId(m.materialId);
+    expect(id).toBe('m.questions-9f3-x');
+    expect(isItemId(id)).toBe(true);
+    const doc = materialDocFrom(m, (f) => f.toUpperCase());
+    expect(validateDoc(doc)).toBeNull();
+    expect(doc.reviewKindId).toBe('peer');
+    expect(doc.questions).toEqual([{ id: 'q1', text: 'Is it clear?', type: 'yesno', required: true }, { id: 'q2', text: 'Anything missing?', type: 'text' }]);
+    expect(libraryMaterialLine(doc, null, deriveKinds(p.state()))?.line).toBe('Question set · Peer Review · 2 questions');
+  });
+
+  it('links a material scoped to a template part by that part, and keeps a lone body as the body', () => {
+    const p = project();
+    p.add('v1.MaterialDefined', { materialId: 'tg1', kind: 'tg', title: 'Names', scope: { unitId: 'fia-eng.ab12/LUK.15.11-32' } });
+    p.add('v1.MaterialFieldSet', { materialId: 'tg1', fieldId: 'body', text: 'Say the names slowly.' });
+    const doc = materialDocFrom(materialView(p.state(), 'tg1')!, (f) => f);
+    expect(validateDoc(doc)).toBeNull();
+    expect(doc).toMatchObject({ body: 'Say the names slowly.', links: [{ template: 'fia-eng.ab12', node: 'LUK.15.11-32' }] });
+    expect(doc.fields).toBeUndefined();
+  });
+
+  it('Use in reviews: reviewers of the kind see the questions; again updates the same set; Undo empties it', () => {
+    const p = project();
+    const doc: MaterialDoc = {
+      format: 'material@1', kind: 'questions', title: 'Community questions', reviewKindId: 'community', deps: [],
+      questions: [{ id: 'c1', text: 'Did they understand?', type: 'yesno', required: true }, { id: 'c2', text: 'What did they retell?', type: 'text' }]
+    };
+    const first = questionSetToReviews(p.state(), { commandId: 'a', itemId: 'cq.x1', doc });
+    p.run(first.specs);
+    expect(questionsForKind(p.state(), 'community', 'L1').filter((q) => q.q.id.startsWith('qs.cq.x1#')).map((q) => [q.q.text, q.required]))
+      .toEqual([['Did they understand?', true], ['What did they retell?', false]]);
+    const second = questionSetToReviews(p.state(), { commandId: 'b', itemId: 'cq.x1', doc: { ...doc, questions: [doc.questions![0]!] } });
+    expect(second.materialId).toBe(first.materialId);
+    p.run(second.specs);
+    expect(questionsForKind(p.state(), 'community', 'L1').filter((q) => q.q.id.startsWith('qs.')).map((q) => q.q.text)).toEqual(['Did they understand?']);
+    p.run(second.undo);
+    expect(questionsForKind(p.state(), 'community', 'L1').filter((q) => q.q.id.startsWith('qs.')).map((q) => q.q.text)).toEqual(['Did they understand?', 'What did they retell?']);
+    p.run(first.undo);
+    expect(questionsForKind(p.state(), 'community', 'L1').filter((q) => q.q.id.startsWith('qs.'))).toEqual([]);
+    expect(() => questionSetToReviews(p.state(), { commandId: 'c', itemId: 'x', doc: { ...doc, reviewKindId: undefined } })).toThrow(/kind of review/);
+  });
+
+  it('reads a question set\'s fields as questions when it has no question list', () => {
+    const doc: MaterialDoc = { format: 'material@1', kind: 'questions', title: 'Q', deps: [], fields: [{ id: 'a', text: '[rating] How natural is it?' }] };
+    expect(libraryQuestions(doc)).toEqual([{ id: 'a', text: 'How natural is it?', type: 'rating' }]);
+  });
+
+  it('reads verse links typed one per line, and says which could not be read', () => {
+    expect(parseRefLinks('RUT 1:1-16\nrut 2:1; RUT1:1-16\n\nRuth one')).toEqual({ refs: ['RUT 1:1-16', 'RUT 2:1'], bad: ['Ruth one'] });
+  });
+
+  it('says what a study document is, with its passage count and versification', () => {
+    const hash = 'c'.repeat(64);
+    expect(libraryMaterialLine({ format: 'collection@1', title: 'FIA', description: '', versification: hash, entries: [
+      { ref: 'LUK 15:11-32', title: 'Lost son', doc: hash }, { ref: 'JHN 3:1-21', title: 'Nicodemus', doc: hash }
+    ], deps: [] }, 'English', [])).toEqual({ type: 'study', line: 'Study guides · 2 passages · English' });
+    expect(libraryMaterialLine(null, null, [])).toBeNull();
   });
 });
 

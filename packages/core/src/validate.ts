@@ -38,6 +38,13 @@ export function validateEvent(e: AnyEvent): string | null {
   const strArray = (k: string) =>
     Array.isArray(p[k]) && (p[k] as unknown[]).every((x) => typeof x === 'string') ? null : `${k} must be a string array`;
   const optBool = (k: string) => (p[k] === undefined || typeof p[k] === 'boolean' ? null : `${k} must be a boolean`);
+  const bool = (k: string) => (typeof p[k] === 'boolean' ? null : `${k} must be a boolean`);
+  const hash = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
+  const nonEmpty = (o: unknown, ...keys: string[]) => keys.every((k) => typeof (o as Record<string, unknown>)[k] === 'string' && (o as Record<string, unknown>)[k] !== '');
+  const libraryItem = () =>
+    str('itemId') ??
+    (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p['itemId'] as string) ? null : 'itemId may use letters, digits, . _ and - only') ??
+    oneOf('kind', ['template', 'flow', 'material', 'versification']);
   const oneOf = (k: string, values: string[]) => (values.includes(p[k] as string) ? null : `${k} must be one of ${values.join(', ')}`);
   const optStrRecord = (k: string) =>
     p[k] === undefined || (isObject(p[k]) && Object.values(p[k] as object).every((v) => typeof v === 'string')) ? null : `${k} must map ids to strings`;
@@ -154,6 +161,32 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('inviteId', 'profileId');
     case 'v1.JoinDecided':
       return str('requestId', 'profileId') ?? (typeof p['accepted'] === 'boolean' ? null : 'accepted must be a boolean');
+    // ---- the library (library.ts, docs/decisions.md 36)
+    case 'v1.LibraryItemDefined':
+      return libraryItem() ?? str('name') ?? (typeof p['description'] === 'string' ? null : 'description must be a string') ??
+        (p['copiedFrom'] === undefined || (isObject(p['copiedFrom']) && nonEmpty(p['copiedFrom'], 'orgId', 'orgName', 'itemId') && hash((p['copiedFrom'] as Record<string, unknown>)['docHash']))
+          ? null : 'copiedFrom needs orgId, orgName, itemId and a docHash');
+    case 'v1.LibraryVersionPublished':
+      return libraryItem() ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ?? optStr('note');
+    case 'v1.LibrarySharingSet':
+      return libraryItem() ?? bool('shared') ?? bool('subscribable');
+    case 'v1.LibraryItemArchived':
+      return libraryItem() ?? bool('archived');
+    case 'v1.LibrarySubscribed':
+      return libraryItem() ?? str('sourceOrgId', 'sourceOrgName', 'sourceItemId', 'name') ?? bool('autoUpdate') ?? bool('active');
+    case 'v1.LibraryPinned':
+      return libraryItem() ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');
+    case 'v2.LaneTemplateSelected':
+      return str('laneId', 'itemId', 'unitPrefix') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
+        (/[/\s]/.test(p['unitPrefix'] as string) ? 'unitPrefix may not contain / or spaces' : null) ??
+        (p['books'] === undefined || (Array.isArray(p['books']) && (p['books'] as unknown[]).every((b) => typeof b === 'string' && /^[A-Z0-9]{3}$/.test(b)))
+          ? null : 'books must be USFM book codes');
+    case 'v1.LaneUnitHidden':
+      return str('laneId', 'unitId') ?? bool('hidden');
+    case 'v2.LaneFlowSelected':
+      return str('laneId', 'flowId', 'itemId', 'name') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
+        (typeof p['catalogVersion'] === 'number' && p['catalogVersion'] >= 2 ? null : 'catalogVersion must be 2 or more') ??
+        (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null);
     default:
       return null;
   }

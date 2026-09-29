@@ -8,11 +8,12 @@
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 34).
-import { CommandError, deriveFlow, keyTermsFor, laneName, languageProgress, materialsFor, contentTemplate, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel } from '@langquest-next/core';
+import { CommandError, deriveFlow, keyTermsFor, laneName, languageProgress, materialsFor, libraryItemView, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel, type TemplateDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { choiceLine, laneTemplateOf, libraryChoices, STARTER_TEMPLATE } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
@@ -20,8 +21,11 @@ import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row,
   Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt
 } from '../kit';
+import { loadDocs } from '../library/docStore';
+import { sourceLine } from '../library/model';
+import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
-  addLanguage, assignableLevels, changeMembership, editableAt, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
+  addLanguage, assignableLevels, booksInScope, changeMembership, editableAt, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
   membersAbove, membersAt, memberEntries, newLaneId, parseLevel, progressLine, removeMembership, reviewEligible,
   saveTeam, scopeAt, suggestedTemplate, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
@@ -153,10 +157,13 @@ function CatalogRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds
       study: mats.filter((m) => m.kind === 'fia_study').length,
       questions: mats.filter((m) => m.kind === 'questions').length,
       terms: laneIds.reduce((n, l) => n + keyTermsFor(state, l).length, 0),
-      templates: uniq(laneIds.map((l) => contentTemplate(state.laneTemplates[l]?.value.templateId ?? '')?.name ?? 'None')),
+      templates: uniq(laneIds.map((l) => {
+        const t = laneTemplateOf(state, l);
+        return !t ? 'None' : t.source === 'legacy' ? t.name : libraryItemView(ctx.org.state?.library ?? {}, t.itemId)?.name ?? 'A template';
+      })),
       flows: uniq(laneIds.map((l) => deriveFlow(state, l).name))
     };
-  }, [state, laneIds, props.laneId]);
+  }, [state, laneIds, props.laneId, ctx.org.state?.library]);
   const applied = (names: string[]) => props.level === 'lane'
     ? `${names[0] ?? 'None'} applied`
     : laneIds.length === 0 ? 'No languages yet' : `${names.join(', ')} · ${plural(laneIds.length, 'language')}`;
@@ -796,25 +803,44 @@ export function InviteQr(ctx: Ctx) {
 
 export function NewLanguage(ctx: Ctx) {
   const state = ctx.project.state;
+  const lib = useLibrary(ctx);
+  const library = ctx.org.state?.library;
+  const shared = useSharedItems('template', lib.orgId);
+  // The organization's templates first, then shared ones (LangQuest's starter first).
+  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
+  const suggested = useMemo(() => suggestedTemplate(state, choices), [state, choices]);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [scope, setScope] = useState<LanguageScope>('nt');
+  const [picked, setPicked] = useState<string | null>(null);
+  const [limit, setLimit] = useState(6);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const templateId = useMemo(() => suggestedTemplate(state, ctx.org.state, ctx.project.projectId), [state, ctx.org.state, ctx.project.projectId]);
-  const template = contentTemplate(templateId);
+  const choice = choices.find((c) => c.key === (picked ?? suggested));
+  const docs = useLibraryDocs(lib.orgId, [choice?.hash]);
+  const doc = docs.get<TemplateDoc>(choice?.hash);
   const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
+  const ours = choices.filter((c) => c.source === 'ours');
+  const others = choices.filter((c) => c.source === 'shared');
+  const shown = [...ours, ...others.slice(0, limit)];
   async function create() {
     const title = name.trim();
-    if (!title || busy) return;
+    if (!title || busy || !choice) return;
     setBusy(true);
     setError('');
     try {
       const languoid = code.trim() || title.slice(0, 3);
       const commandId = Crypto.randomUUID();
-      const specs = addLanguage(state, { commandId, laneId: newLaneId(languoid, commandId), code: languoid, name: title, templateId, scope });
+      const laneId = newLaneId(languoid, commandId);
+      const template = (await loadDocs(lib.orgId, [choice.hash])).get(choice.hash);
+      if (!template || template.format !== 'template@1') throw new CommandError('Its template is not on this phone yet. Try again when connected.');
+      const books = booksInScope(template, scope);
+      // Another organization's template is followed, with automatic updates, before a language uses it.
+      const itemId = choice.source === 'shared' ? await lib.subscribe(choice.shared, true) : choice.item.itemId;
+      const templateSpecs = await lib.applySpecs(laneId, itemId, { docHash: choice.hash, ...(books ? { books } : {}) });
+      const specs = addLanguage(state, { commandId, laneId, code: languoid, name: title, template: templateSpecs });
       // ctx.act says "Not saved" and why; stay on the form to try again.
-      try { await ctx.act(specs, `${title} added to ${orgName} · uses ${template?.name ?? templateId}`); } catch { return; }
+      try { await ctx.act(specs, `${title} added to ${orgName} · uses ${choice.name}`); } catch { return; }
       ctx.back();
     } catch (e) {
       setError(failure('new language', e));
@@ -824,13 +850,29 @@ export function NewLanguage(ctx: Ctx) {
   }
   return (
     <Screen header={<Header title="New Language" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Create Language" disabled={!name.trim() || !state} busy={busy} onPress={() => void create()} />}>
+      footer={<PrimaryBtn label="Create Language" disabled={!name.trim() || !state || !choice} busy={busy} onPress={() => void create()} />}>
       <Text style={txt.xs}>This language is added to {orgName}. You can invite language admins from Members after it is created.</Text>
       <Field label="Language name" value={name} onChangeText={setName} placeholder="Enter language name" autoCapitalize="words" />
       <Field label="Language code" value={code} onChangeText={setCode} placeholder="e.g. DIN" autoCapitalize="none" />
-      <SectionLabel label="Scope" />
-      <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
-      <Text style={txt.xs}>Its passages come from {template?.name ?? 'the suggested template'}, the one {orgName} suggests. It can be changed later under Content Templates.</Text>
+      {doc?.structure !== 'outline' ? (
+        <>
+          <SectionLabel label="Scope" />
+          <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
+        </>
+      ) : null}
+      <SectionLabel label="Template" />
+      {shared.error ? (
+        <Banner icon="cloud" tone="amber" title="Could not refresh the shared templates"
+          body={shared.rows.length ? 'Showing the list this phone saved.' : 'Connect to see the ones other organizations share.'} />
+      ) : null}
+      <Choices items={shown.map((c) => ({ id: c.key, label: c.name, sub: choiceLine(c, sourceLine), ...(c.key === suggested ? { badge: 'Suggested' } : {}) }))}
+        value={choice?.key ?? ''} onChoose={setPicked} empty={shared.loaded ? 'No templates to choose from yet.' : 'Loading…'} />
+      <ShowMore remaining={others.length - limit} step={6} onMore={() => setLimit((l) => l + 6)} />
+      {choice ? (
+        <Text style={txt.xs}>
+          Its passages come from {choice.name}.{choice.source === 'shared' ? ` ${orgName} follows it from ${choice.shared.org_name}, so new versions reach the language by themselves.` : ''} It can be changed later under Content Templates.
+        </Text>
+      ) : null}
       {error ? <Banner icon="flag" tone="amber" title="Not created" body={error} /> : null}
     </Screen>
   );

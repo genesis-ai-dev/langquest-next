@@ -44,7 +44,7 @@ describe('screen action contracts', () => {
     // or come from a ctx method known to append it. Events a core command
     // builds are left out: which command a screen calls is not a literal.
     const core = path.resolve('packages/core/src');
-    const commandEvents = new Set(['commands.ts', 'materials.ts'].flatMap((f) =>
+    const commandEvents = new Set(['commands.ts', 'materials.ts', 'libraryApply.ts'].flatMap((f) =>
       [...fs.readFileSync(path.join(core, f), 'utf8').matchAll(/'(v\d\.\w+)'/g)].map((m) => m[1]!)));
     const viaCtx: Record<string, string> = { 'v1.VisionSeen': '.markWelcomed(', 'v1.TermsAccepted': '.acceptTerms(' };
     const src = path.join(root, 'src');

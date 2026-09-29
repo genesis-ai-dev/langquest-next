@@ -8,7 +8,7 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import {
-  contentTemplate, deriveFlow, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
+  contentTemplate, deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
   passageSummary, percent, unitPlace, unitTitle,
   type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
 } from '@langquest-next/core';
@@ -373,7 +373,9 @@ export function MapHome(ctx: Ctx) {
 
   const lane = state && laneId ? laneName(state, laneId) : 'Passage Map';
   const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
-  const templateName = state && laneId ? contentTemplate(state.laneTemplates[laneId]?.value.templateId ?? '')?.name : undefined;
+  const sel = state && laneId ? state.laneTemplates[laneId]?.value : undefined;
+  // A library template by its item's name; one from the old in-app catalog by the catalog's.
+  const templateName = sel?.itemId ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : sel ? contentTemplate(sel.templateId)?.name : undefined;
   const sub = state && laneId
     ? [outline ? 'Own outline' : templateName, flowLabel(state, laneId)].filter(Boolean).join(' · ')
     : undefined;

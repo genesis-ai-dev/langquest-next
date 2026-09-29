@@ -4,13 +4,14 @@
 // new language adds (ORG-2), and review teams (FLOW-5).
 import { describe, expect, it } from 'vitest';
 import {
-  fold, foldOrg, HlcClock, languageProgress, laneName,
-  type AnyEvent, type EventPayloads, type EventSpec, type EventType, type OrgState
+  BIBLE_BOOKS, fold, foldOrg, HlcClock, languageProgress, laneName, selectTemplateSpecs,
+  type AnyEvent, type EventPayloads, type EventSpec, type EventType, type LibraryItemView, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
+import type { LibraryChoice } from '../src/contentTemplates';
 import {
-  addLanguage, assignableLevels, changeMembership, editableAt, grantFloor, groupBelow, memberEntries, membersAbove,
+  addLanguage, assignableLevels, booksInScope, changeMembership, editableAt, grantFloor, groupBelow, memberEntries, membersAbove,
   membersAt, newLaneId, progressLine, removeMembership, reviewEligible, saveTeam, suggestedTemplate, sumProgress,
-  teamMembers, unitsInScope
+  teamMembers
 } from '../src/orgAdmin';
 
 let seq = 0;
@@ -156,31 +157,58 @@ describe('review teams (FLOW-5)', () => {
 });
 
 describe('a new language (ORG-2)', () => {
-  it('covers a testament of the Bible', () => {
-    const nt = unitsInScope('bible', 'nt');
-    expect(nt.filter((u) => u.parentUnitId === null)).toHaveLength(27);
-    expect(nt.filter((u) => u.parentUnitId !== null)).toHaveLength(260);
-    expect(unitsInScope('bible', 'ot').filter((u) => u.parentUnitId === null)).toHaveLength(39);
+  const HASH = 'a'.repeat(64);
+  const V11N = 'b'.repeat(64);
+  const luke = BIBLE_BOOKS.find((b) => b.itemId === 'luk')!;
+  const gen = BIBLE_BOOKS.find((b) => b.itemId === 'gen')!;
+  const v11n: VersificationDoc = { format: 'versification@1', code: 'eng', name: 'English', maxVerses: { GEN: gen.verses, LUK: luke.verses, TOB: [22] }, mappedVerses: {} };
+  const doc: TemplateDoc = {
+    format: 'template@1', name: 'Bible chapters (English)', description: '', structure: 'bible', levels: [{ name: 'Book' }, { name: 'Chapter' }],
+    bible: { versification: V11N, books: [{ book: 'GEN', name: 'Genesis' }, { book: 'LUK', name: 'Luke' }, { book: 'TOB', name: 'Tobit' }], divide: 'chapters' },
+    deps: [V11N]
+  };
+  const templateFor = (state: Parameters<typeof selectTemplateSpecs>[0], laneId: string, books?: string[]) =>
+    selectTemplateSpecs(state, { commandId: `t-${laneId}`, laneId, itemId: 'lq.bible', docHash: HASH, doc, versification: v11n, ...(books ? { books } : {}) });
+
+  it('covers a testament of a Bible template, or all of it', () => {
+    expect(booksInScope(doc, 'nt')).toEqual(['LUK']);
+    expect(booksInScope(doc, 'ot')).toEqual(['GEN']);
+    expect(booksInScope(doc, 'all')).toBeUndefined();
+    expect(booksInScope({ ...doc, structure: 'outline', outline: [] }, 'nt')).toBeUndefined();
   });
 
-  it('adds the lane, its name, its template and the passages the project lacks', () => {
+  it('adds the lane, its name, then its template and the passages the organization lacks', () => {
     const state = projectFixture();
-    const specs = addLanguage(state, { commandId: 'c9', laneId: 'L2', code: 'NUS', name: 'Nuer', templateId: 'bible', scope: 'nt' });
-    expect(specs.slice(0, 3).map((s) => s.type)).toEqual(['v1.LaneAdded', 'v1.LaneNamed', 'v1.LaneTemplateSelected']);
+    const specs = addLanguage(state, { commandId: 'c9', laneId: 'L2', code: 'NUS', name: 'Nuer', template: templateFor(state, 'L2', booksInScope(doc, 'nt')) });
+    expect(specs.slice(0, 3).map((s) => s.type)).toEqual(['v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
     expect(new Set(specs.map((s) => s.id)).size).toBe(specs.length);
     const after = fold(fromSpecs(specs), state);
     expect(laneName(after, 'L2')).toBe('Nuer');
     expect(after.lanes['L2']!.languoidId).toBe('nus');
-    expect(languageProgress(after, 'L2').total).toBe(260);
+    expect(after.laneTemplates['L2']!.value).toMatchObject({ itemId: 'lq.bible', docHash: HASH, books: ['LUK'] });
+    expect(languageProgress(after, 'L2').total).toBe(24);
     // Units are shared across languages: a second one adds none of them again.
-    const again = addLanguage(after, { commandId: 'c10', laneId: 'L3', code: 'shk', name: 'Shilluk', templateId: 'bible', scope: 'nt' });
-    expect(again.map((s) => s.type)).toEqual(['v1.LaneAdded', 'v1.LaneNamed', 'v1.LaneTemplateSelected']);
-    expect(() => addLanguage(after, { commandId: 'c11', laneId: 'L2', code: 'x', name: 'X', templateId: 'bible', scope: 'nt' })).toThrow();
+    const again = addLanguage(after, { commandId: 'c10', laneId: 'L3', code: 'shk', name: 'Shilluk', template: templateFor(after, 'L3', ['LUK']) });
+    expect(again.map((s) => s.type)).toEqual(['v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
+    expect(() => addLanguage(after, { commandId: 'c11', laneId: 'L2', code: 'x', name: 'X', template: [] })).toThrow();
   });
 
-  it('starts from the template the project already uses', () => {
-    expect(suggestedTemplate(projectFixture(), orgFixture(), 'p1')).toBe('bible');
-    expect(suggestedTemplate(fold([]), null, 'p1')).toBe('fia');
+  it('starts from the template most languages use, else the LangQuest starter, else the first', () => {
+    const ours = (itemId: string): LibraryChoice => ({ key: `ours:${itemId}`, source: 'ours', item: { itemId } as LibraryItemView, name: itemId, hash: HASH });
+    const shared = (org: string, name: string): LibraryChoice => ({
+      key: `shared:${org}/${name}`, source: 'shared', name, hash: HASH,
+      shared: { org_id: org, org_name: org, item_id: name, kind: 'template', name, description: '', subscribable: true, version_count: 1, latest_hash: HASH, updated_hlc: '1' }
+    });
+    const starter = shared('langquest', 'FIA passages (English)');
+    const base = projectFixture();
+    const state = fold(fromSpecs([
+      ...templateFor(base, 'L1'),
+      { id: 'l9', type: 'v1.LaneAdded', payload: { laneId: 'L9', languoidId: 'nus' } } as EventSpec
+    ]), base);
+    expect(suggestedTemplate(state, [ours('mine'), ours('lq.bible'), starter])).toBe('ours:lq.bible');
+    expect(suggestedTemplate(projectFixture(), [ours('mine'), shared('wa', 'Acts'), starter])).toBe(starter.key);
+    expect(suggestedTemplate(null, [shared('wa', 'Acts')])).toBe('shared:wa/Acts');
+    expect(suggestedTemplate(null, [])).toBeNull();
     expect(newLaneId('D I N', 'abcdef12-3456')).toBe('L-din-abcdef');
   });
 });

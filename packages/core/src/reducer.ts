@@ -9,7 +9,7 @@ import { studyMarkKey, type Undo } from './record';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 4;
+export const REDUCER_VERSION = 5;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -211,6 +211,29 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       break;
     }
 
+    case 'v2.LaneTemplateSelected': {
+      const { laneId, itemId, docHash, unitPrefix, books } = event.payload;
+      // The unit prefix reads like the v1 catalog's `templateId@version`, so
+      // a library template made to keep an old catalog's units keeps them.
+      const at = unitPrefix.indexOf('@');
+      const templateId = at < 0 ? unitPrefix : unitPrefix.slice(0, at);
+      const catalogVersion = at < 0 ? 0 : Number(unitPrefix.slice(at + 1)) || 0;
+      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion, itemId, docHash, ...(books ? { books: [...books].sort() } : {}) });
+      break;
+    }
+
+    case 'v1.LaneUnitHidden': {
+      const { laneId, unitId, hidden } = event.payload;
+      lww((state.laneHiddenUnits[laneId] ??= {}), unitId, event, hidden);
+      break;
+    }
+
+    case 'v2.LaneFlowSelected': {
+      const { laneId, flowId, catalogVersion, itemId, docHash, name } = event.payload;
+      lww(state.laneFlows, laneId, event, { flowId, catalogVersion, itemId, docHash, name });
+      break;
+    }
+
     case 'v1.WorkflowStepSet': {
       const def = event.payload;
       const slot = (state.workflowSteps[def.stepId] ??= { step: { value: def, hlc: '', eventId: '' }, removed: false });
@@ -402,6 +425,12 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.InviteIssued':
     case 'v1.InviteRedeemed':
     case 'v1.JoinDecided':
+    case 'v1.LibraryItemDefined':
+    case 'v1.LibraryVersionPublished':
+    case 'v1.LibrarySharingSet':
+    case 'v1.LibraryItemArchived':
+    case 'v1.LibrarySubscribed':
+    case 'v1.LibraryPinned':
       // Org partition events (org.ts). Nothing to fold into project state.
       break;
 

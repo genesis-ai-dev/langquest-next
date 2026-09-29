@@ -5,11 +5,11 @@
 // memberIsEditableAt, languageReviewers). Requirements ORG-1, ORG-2, ORG-5,
 // ORG-6, ORG-7, FLOW-5.
 import {
-  catalogEnabled, contentTemplate, contentTemplates, CATALOG_VERSION, instantiateTemplate, privilegesFor,
-  privilegesOfFixedRole, SEED_ROLES,
+  privilegesFor, privilegesOfFixedRole, SEED_ROLES,
   type EventPayloads, type EventSpec, type EventType, type OrgState, type ProjectState, type Role, type Scope,
-  type ScopeLevel
+  type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
+import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from './contentTemplates';
 
 // ---- levels ------------------------------------------------------------------------
 
@@ -244,47 +244,46 @@ export const LANGUAGE_SCOPES: { id: LanguageScope; label: string; sub: string }[
   { id: 'all', label: 'Whole Bible', sub: 'Every book' }
 ];
 
-let canon: Map<string, number> | null = null;
-/** Books of the Protestant canon in order; the first 39 are the Old Testament. */
-function testamentOf(bookId: string): 'ot' | 'nt' | null {
-  canon ??= new Map((contentTemplate('bible')?.items.filter((i) => i.parentItemId === null) ?? []).map((b, i) => [b.itemId, i]));
-  const i = canon.get(bookId);
-  return i === undefined ? null : i < 39 ? 'ot' : 'nt';
+/**
+ * The books of a Bible template a scope covers (USFM codes; the first 39
+ * are the Old Testament, the next 27 the New). Undefined means all of them,
+ * so books a later version adds reach the language too; an outline has no
+ * books.
+ */
+export function booksInScope(doc: TemplateDoc, scope: LanguageScope): string[] | undefined {
+  if (scope === 'all' || doc.structure !== 'bible' || !doc.bible) return undefined;
+  return doc.bible.books.map((b) => b.book).filter((b) => {
+    const i = canonIndex(b);
+    return scope === 'ot' ? i >= 0 && i < 39 : i >= 39 && i < 66;
+  });
 }
 
 /**
  * The template a new language starts from (ORG-2): the one most languages
- * in the organization already use, else the first it has enabled.
+ * here already use, else LangQuest's starter, else the first there is.
+ * Returns a choice's key, or null when there is nothing to choose.
  */
-export function suggestedTemplate(state: ProjectState | null, org: OrgState | null, projectId: string): string {
+export function suggestedTemplate(state: ProjectState | null, choices: LibraryChoice[]): string | null {
   const counts = new Map<string, number>();
-  for (const sel of Object.values(state?.laneTemplates ?? {})) counts.set(sel.value.templateId, (counts.get(sel.value.templateId) ?? 0) + 1);
-  const used = [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0];
-  if (used && contentTemplate(used)) return used;
-  const enabled = contentTemplates().find((t) => !org || catalogEnabled(org, 'template', t.id, projectId));
-  return enabled?.id ?? contentTemplates()[0]!.id;
-}
-
-/** The units a scope covers in a template: its books in that testament and everything under them. */
-export function unitsInScope(templateId: string, scope: LanguageScope): EventPayloads['v1.UnitAdded'][] {
-  const t = contentTemplate(templateId);
-  if (!t) return [];
-  const parent = new Map(t.items.map((i) => [i.itemId, i.parentItemId]));
-  const root = (id: string): string => {
-    let at = id;
-    for (let p = parent.get(at); p; p = parent.get(at)) at = p;
-    return at;
-  };
-  const keep = new Set(t.items.filter((i) => scope === 'all' || testamentOf(root(i.itemId)) === scope).map((i) => i.itemId));
-  return instantiateTemplate(templateId).filter((u) => keep.has(u.unitId.slice(u.unitId.indexOf('/') + 1)));
+  for (const sel of Object.values(state?.laneTemplates ?? {})) {
+    const itemId = sel.value.itemId;
+    if (itemId) counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
+  }
+  const used = choices
+    .filter((c): c is Extract<LibraryChoice, { source: 'ours' }> => c.source === 'ours' && (counts.get(c.item.itemId) ?? 0) > 0)
+    .sort((a, b) => counts.get(b.item.itemId)! - counts.get(a.item.itemId)! || (a.item.itemId < b.item.itemId ? -1 : 1))[0];
+  if (used) return used.key;
+  const starter = choices.find((c) => c.name === STARTER_TEMPLATE.name && (c.source === 'ours' || c.shared.org_id === STARTER_TEMPLATE.orgId));
+  return (starter ?? choices[0])?.key ?? null;
 }
 
 /**
  * Add a language: the lane, its name for people (read everywhere through
- * core `laneName`), the template it uses, and the passages its scope needs
- * that the organization does not have yet (units are shared across languages).
+ * core `laneName`), then its template's events (`applySpecs` from the
+ * library: the selection and the units it needs that are not here yet;
+ * units are shared across languages).
  */
-export function addLanguage(state: ProjectState | null, c: { commandId: string; laneId: string; code: string; name: string; templateId: string; scope: LanguageScope }): EventSpec[] {
+export function addLanguage(state: ProjectState | null, c: { commandId: string; laneId: string; code: string; name: string; template: EventSpec[] }): EventSpec[] {
   const code = c.code.trim().toLowerCase();
   const name = c.name.trim();
   if (!code) throw new Error('Enter a language code.');
@@ -292,9 +291,7 @@ export function addLanguage(state: ProjectState | null, c: { commandId: string; 
   const next = counter(c.commandId);
   const specs: EventSpec[] = [spec(next(), 'v1.LaneAdded', { laneId: c.laneId, languoidId: code })];
   if (name) specs.push(spec(next(), 'v1.LaneNamed', { laneId: c.laneId, name }));
-  specs.push(spec(next(), 'v1.LaneTemplateSelected', { laneId: c.laneId, templateId: c.templateId, catalogVersion: CATALOG_VERSION }));
-  for (const u of unitsInScope(c.templateId, c.scope)) if (!state?.units[u.unitId]) specs.push(spec(next(), 'v1.UnitAdded', u));
-  return specs;
+  return [...specs, ...c.template];
 }
 
 /** A lane id people can read in logs, unique per add: "L-din-3f9a2c". */

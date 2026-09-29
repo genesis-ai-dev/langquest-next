@@ -32,7 +32,8 @@ import {
   RequestBanner, TeamStudy, WithheldNotice
 } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
-import { guideFor } from '../study/guides';
+import { useStudyGuide } from '../study/libraryGuides';
+import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
 import { C, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
@@ -91,8 +92,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
     [v?.p, kindId, actorId, ctx.params, logged]);
   const questions = useMemo(() => v ? questionsForKind(v.state, kindId, v.laneId, request) : [], [v?.state, v?.laneId, kindId, request]);
-  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId) : null,
-    [v?.state, v?.p, kindId, version?.takeId, kind]);
+  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
+  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
+    [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
   const all = useMemo(() => v && logged ? recordedPassages(v.state, v.laneId) : [], [v?.state, v?.laneId, logged]);
 
   const crumbLabel = logged ? 'Already happened' : 'Review it';
@@ -285,7 +287,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 }
 
 /** The background a reviewer may open, or null when the kind withholds it (REV-1, REV-4). */
-function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string) {
+function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study');
@@ -295,7 +297,6 @@ function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string)
     const on = n.onTakeId ? versionN(n.onTakeId) : undefined;
     return n.onTakeId && n.onTakeId !== takeId && on ? versionTitle(on) : undefined;
   };
-  const guide = guideFor(state, p.unitId);
   const study = guide ? studyProgress(state, p, guide) : null;
   const compare = toCompareFor(p, v.kinds, kindId);
   const earlier = earlierReviews(p, v.kinds, kindId);

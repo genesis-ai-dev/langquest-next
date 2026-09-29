@@ -269,6 +269,17 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: false });
   emit('dA', 'lead', 'v1.LaneNamed', { laneId: 'L1', name: 'Dinka' });
   emit('dE', 'lead2', 'v1.LaneNamed', { laneId: 'L1', name: 'Thuɔŋjäŋ' });
+  // The library (decision 36): a language moves from a catalog template to a
+  // library one, hides a part the new version dropped (and another device
+  // brings it back), and follows a library flow.
+  emit('dA', 'lead', 'v1.LaneTemplateSelected', { laneId: 'L2', templateId: 'fia', catalogVersion: 1 });
+  emit('dE', 'lead2', 'v2.LaneTemplateSelected', { laneId: 'L2', itemId: 'langquest.fia-eng', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', unitPrefix: 'langquest.fia-eng', books: ['GEN', 'EXO'] });
+  emit('dA', 'lead', 'v1.UnitAdded', { unitId: 'langquest.fia-eng/GEN', parentUnitId: null, kind: 'book', label: 'Genesis', order: 'b0000' });
+  emit('dA', 'lead', 'v1.UnitAdded', { unitId: 'langquest.fia-eng/GEN.2.4-25', parentUnitId: 'langquest.fia-eng/GEN', kind: 'passage', label: 'Genesis 2:4–25', order: 'b0000p00001' });
+  emit('dA', 'lead', 'v1.LaneUnitHidden', { laneId: 'L2', unitId: 'langquest.fia-eng/GEN.2.4-25', hidden: true });
+  emit('dE', 'lead2', 'v1.LaneUnitHidden', { laneId: 'L2', unitId: 'langquest.fia-eng/GEN.2.4-25', hidden: false });
+  emit('dA', 'lead', 'v2.LaneFlowSelected', { laneId: 'L2', flowId: 'langquest.standard~aaaaaaaaaaaa', catalogVersion: 2, itemId: 'langquest.standard', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'Standard Bible Flow' });
+  emit('dE', 'lead2', 'v1.LaneFlowSelected', { laneId: 'L2', flowId: 'quick_check', catalogVersion: 2 });
 
   // Ties the merge rules must settle without looking at arrival order
   // (event-sourced-sync, "Tests to write"): the same review id from two
@@ -312,6 +323,30 @@ export function buildOrgFixture(): AnyEvent[] {
   emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'project', projectId: 'p1' } });
   emit('v1.CatalogItemToggled', { kind: 'flow', itemId: 'quick_check', level: 'org', enabled: false });
   emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Luke' });
+  // One of each library event (library.ts), with the ties the merge rules settle.
+  emit('v1.LibraryItemDefined', { itemId: 'health', kind: 'template', name: 'Health lessons', description: 'Community health notices.' });
+  emit('v1.LibraryVersionPublished', { itemId: 'health', kind: 'template', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  emit('v1.LibraryVersionPublished', { itemId: 'health', kind: 'template', docHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', note: 'Added HIV awareness.' });
+  emit('v1.LibrarySharingSet', { itemId: 'health', kind: 'template', shared: true, subscribable: true });
+  emit('v1.LibraryItemArchived', { itemId: 'health', kind: 'template', archived: false });
+  emit('v1.LibraryItemDefined', { itemId: 'fia-copy', kind: 'material', name: 'FIA (our copy)', description: '', copiedFrom: { orgId: 'langquest', orgName: 'LangQuest', itemId: 'langquest.fia-eng-study', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' } });
+  emit('v1.LibraryVersionPublished', { itemId: 'fia-copy', kind: 'material', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' });
+  emit('v1.LibrarySubscribed', { itemId: 'sub.langquest.langquest.standard', kind: 'flow', sourceOrgId: 'langquest', sourceOrgName: 'LangQuest', sourceItemId: 'langquest.standard', name: 'Standard Bible Flow', autoUpdate: true, active: true });
+  emit('v1.LibraryPinned', { itemId: 'sub.langquest.langquest.standard', kind: 'flow', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+  const raw = (id: string, deviceId: string, hlc: string, type: EventType, payload: unknown) => {
+    seq += 1;
+    events.push({ id, type, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId, hlc, payload, serverSeq: seq } as AnyEvent);
+  };
+  const tie = '001800000900000:000000:';
+  // The same version published from two devices at the same clock: one version, the lower id.
+  raw('lib-a', 'dB', `${tie}dB`, 'v1.LibraryVersionPublished', { itemId: 'health', kind: 'template', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', note: 'from dB' });
+  raw('lib-b', 'dC', `${tie}dB`, 'v1.LibraryVersionPublished', { itemId: 'health', kind: 'template', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', note: 'from dC' });
+  // The server's automatic pin and a person's manual pin at the same clock.
+  raw('lib-c', 'server', `${tie}dB`, 'v1.LibraryPinned', { itemId: 'sub.langquest.langquest.standard', kind: 'flow', docHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
+  raw('lib-d', 'dB', `${tie}dB`, 'v1.LibraryPinned', { itemId: 'sub.langquest.langquest.standard', kind: 'flow', docHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' });
+  // Sharing turned off, and a pin for an item never defined here.
+  raw('lib-e', 'dB', '001800000950000:000000:dB', 'v1.LibrarySharingSet', { itemId: 'health', kind: 'template', shared: false, subscribable: true });
+  raw('lib-f', 'dB', '001800000960000:000000:dB', 'v1.LibraryPinned', { itemId: 'orphan', kind: 'material', docHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
 
   return events;
 }

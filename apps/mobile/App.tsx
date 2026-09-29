@@ -40,6 +40,7 @@ import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
 import { useOrg, type OrgHandle } from './src/useOrg';
+import { useLibraryFollow } from './src/library/follow';
 import { useProject } from './src/useProject';
 
 // Initial selection, before the account's saved organization is restored.
@@ -299,6 +300,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     () => deriveSession(props.actorId, props.email, project.state, welcomed, org.state, props.projectId),
     [props.actorId, props.email, project.state, welcomed, org.state, props.projectId]
   );
+  // Languages follow the library versions their template and flow are at (docs/library.md).
+  useLibraryFollow(project, org, session);
 
   // ---- the language this person works in (MAP-7) ----
   const laneKey = `lane:${props.actorId}:${props.orgId}:${props.projectId}`;

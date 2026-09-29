@@ -213,10 +213,16 @@ export function templateUnitId(templateId: string, catalogVersion: number, itemI
   return `${templateId}@${catalogVersion}/${itemId}`;
 }
 
-/** The template a unit was instantiated from, or null for a hand-added unit. */
+/**
+ * The template a unit was instantiated from, or null for a hand-added unit.
+ * Catalog units are `templateId@version/item`; library units are
+ * `unitPrefix/node` with version 0 (library.ts, decision 36).
+ */
 export function templateOfUnit(unitId: string): { templateId: string; catalogVersion: number } | null {
   const m = /^([a-z0-9_]+)@(\d+)\//.exec(unitId);
-  return m ? { templateId: m[1]!, catalogVersion: Number(m[2]) } : null;
+  if (m) return { templateId: m[1]!, catalogVersion: Number(m[2]) };
+  const lib = /^([a-z0-9][a-z0-9._-]*)\//i.exec(unitId);
+  return lib ? { templateId: lib[1]!, catalogVersion: 0 } : null;
 }
 
 /**

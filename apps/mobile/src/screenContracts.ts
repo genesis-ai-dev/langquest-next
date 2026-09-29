@@ -43,18 +43,30 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   edit_member: { emits:['v1.MemberRoleChanged','v1.MemberRemoved','v1.OrgMemberAdded','v1.OrgMemberRemoved'],rpcs:['decide_join_request'] },
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
-  new_language: { emits:['v1.LaneAdded','v1.LaneNamed','v1.LaneTemplateSelected','v1.UnitAdded'] },
+  new_language: { emits:['v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // The public listing is keyed by partition; an org has one (decision 34).
   org_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet'] },
-  templates_home: { emits:['v1.LaneTemplateSelected','v1.UnitAdded','v1.CatalogItemToggled'] },
-  template_picker: { emits:['v1.LaneTemplateSelected','v1.UnitAdded'] },
-  reference_home: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.CatalogItemToggled'],reads:['materialsFor','sourceBibleEnabled'] },
+  // The organization's template library and a language's template (docs/library.md).
+  templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  template_picker: { emits:['v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // Publishes template versions; languages move to them by themselves (library/follow.ts).
+  template_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // Library items (docs/library.md): the organization's, and what others share.
+  reference_home: { emits:['v1.CatalogItemToggled','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['materialsFor','sourceBibleEnabled','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView'] },
-  flows_home: { emits:['v1.WorkflowStepRemoved','v1.LaneFlowSelected','v2.WorkflowStepSet'],reads:['deriveFlow'] },
-  flow_editor: { emits:['v1.WorkflowStepRemoved','v2.WorkflowStepSet','v1.ReviewKindDefined','v1.LaneFlowSelected'],reads:['deriveFlow','deriveKinds'] },
-  material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked'],reads:['materialView'] },
+  // Using a library flow for a language; Undo of an older catalog or custom flow restores it.
+  flows_home: { emits:['v2.LaneFlowSelected','v1.ReviewKindDefined','v2.WorkflowStepSet','v1.LaneFlowSelected','v1.WorkflowStepRemoved',
+    'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['deriveFlow','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // Publishes flow versions; languages move to them by themselves (library/follow.ts).
+  flow_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
+  material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],rpcs:['decide_join_request'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },

@@ -95,13 +95,20 @@ export function buildIndexes(state: ProjectState): Indexes {
 
 /**
  * The leaf units a lane works on: with a template selected, that template's
- * units plus any hand-added unit; without one, every leaf unit.
+ * units plus any hand-added unit, less the parts its current version has
+ * hidden (TPL-7); without one, every leaf unit.
  */
 export function laneLeafUnits(state: ProjectState, idx: Indexes, laneId: string): string[] {
   const sel = state.laneTemplates[laneId]?.value;
   if (!sel) return idx.leafUnits;
+  const hidden = state.laneHiddenUnits?.[laneId] ?? {};
+  const books = sel.books ? new Set(sel.books) : null;
   return idx.leafUnits.filter((id) => {
+    if (hidden[id]?.value === true) return false;
     const t = templateOfUnit(id);
-    return t === null || (t.templateId === sel.templateId && t.catalogVersion === sel.catalogVersion);
+    if (t === null) return true;
+    if (t.templateId !== sel.templateId || t.catalogVersion !== sel.catalogVersion) return false;
+    // A language may cover only some books of a Bible template (`books`).
+    return books === null || books.has(id.slice(id.indexOf('/') + 1, id.indexOf('/') + 4));
   });
 }

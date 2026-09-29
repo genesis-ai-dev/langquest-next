@@ -6,7 +6,7 @@
 // BIBLE_BOOKS the units were made from), grouped into the demo's canon
 // sections. The Map's filters and chapter colours (MAP-3, MAP-5; demo
 // screens/map.tsx) sit at the end, so they can be tested without React.
-import { contentTemplate } from '@langquest-next/core';
+import { BIBLE_BOOKS } from '@langquest-next/core';
 
 export type Testament = 'ot' | 'nt';
 
@@ -46,14 +46,13 @@ let books: CanonBook[] | null = null;
 /** The 66 books in canon order. Built once. */
 export function canonBooks(): CanonBook[] {
   if (books) return books;
-  const items = contentTemplate('bible')?.items ?? [];
-  const chapters = new Map<string, number>();
-  for (const it of items) if (it.parentItemId) chapters.set(it.parentItemId, (chapters.get(it.parentItemId) ?? 0) + 1);
-  books = items.filter((it) => it.parentItemId === null).map((it, index) => ({
+  // The canon is reference data in core, not a content template: a language's
+  // own book names come from its template (docs/library.md).
+  books = BIBLE_BOOKS.map((it, index) => ({
     id: it.itemId,
     name: it.label,
     aliases: (ALIASES[it.itemId] ?? []).filter((a) => a !== it.label),
-    chapters: chapters.get(it.itemId) ?? 0,
+    chapters: it.verses.length,
     testament: index < 39 ? 'ot' : 'nt',
     group: [...GROUPS].reverse().find((g) => index >= g.from)!.name,
     index

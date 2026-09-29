@@ -1,4 +1,5 @@
 import type { Hlc } from './hlc';
+import type { LibraryWorkEvents } from './library';
 import type { MaterialEvents } from './materials';
 import type { OrgEventPayloads } from './org';
 import type { RecordEvents } from './record';
@@ -45,7 +46,7 @@ export interface Card {
   format?: 'wav' | 'm4a';
 }
 
-export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents {
+export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents, LibraryWorkEvents {
   'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
   'v1.ProjectConfigChanged': { config: ProjectConfig };
   'v1.MemberAdded': { profileId: string; role: Role };

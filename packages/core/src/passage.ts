@@ -1,4 +1,5 @@
 import { BIBLE_BOOKS } from './catalogData';
+import { libraryUnitRange } from './versification';
 import { flowTemplate, QUESTION_TEMPLATES } from './catalog';
 import type { Hlc } from './hlc';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
@@ -72,6 +73,9 @@ export interface FlowStep {
 export interface LaneFlow {
   /** Catalog flow the lane chose, if any. */
   flowId: string | null;
+  /** The library flow and version it uses, when chosen from the library (decision 36). */
+  itemId: string | null;
+  docHash: string | null;
   name: string;
   steps: FlowStep[];
 }
@@ -95,16 +99,16 @@ export function deriveFlow(state: ProjectState, laneId: string): LaneFlow {
   const projectSteps = live.filter((d) => d.laneId === undefined);
   const v2 = laneSteps.length > 0 || v2Selection ? laneSteps : projectSteps;
   const name = selection && selection.flowId !== CUSTOM_FLOW
-    ? flowTemplateV2(selection.flowId)?.name ?? flowTemplate(selection.flowId)?.name ?? 'Custom flow'
+    ? selection.name ?? flowTemplateV2(selection.flowId)?.name ?? flowTemplate(selection.flowId)?.name ?? 'Custom flow'
     : v2.length > 0 ? 'Custom flow' : 'Review flow';
   if (v2.length > 0 || (selection && selection.catalogVersion >= 2)) {
     const steps = [...v2]
       .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1))
       .map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
-    return { flowId: selection?.flowId ?? null, name, steps };
+    return { flowId: selection?.flowId ?? null, itemId: selection?.itemId ?? null, docHash: selection?.docHash ?? null, name, steps };
   }
   const steps = deriveWorkflow(state, laneId).map((s) => ({ id: s.id, kindIds: [kindOfV1Step(s.id)], checkpoint: false }));
-  return { flowId: selection?.flowId ?? null, name, steps };
+  return { flowId: selection?.flowId ?? null, itemId: selection?.itemId ?? null, docHash: selection?.docHash ?? null, name, steps };
 }
 
 export function stepName(kinds: KindDef[], step: FlowStep): string {
@@ -741,9 +745,11 @@ export function unitPlace(state: ProjectState, unitId: string): UnitPlace {
     }
   }
   const canon = bookId ? BIBLE_BOOKS.findIndex((b) => b.itemId === bookId) : -1;
+  // A library template names its books in the language (its book unit's label).
+  const ownBook = libraryUnitRange(unitId) ? state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
   return {
     bookId,
-    bookLabel: canon >= 0 ? BIBLE_BOOKS[canon]!.label : state.units[state.units[unitId]?.parentUnitId ?? '']?.label ?? 'Other',
+    bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon]!.label : state.units[state.units[unitId]?.parentUnitId ?? '']?.label ?? 'Other'),
     chapters: chapters.map((c) => c.chapter),
     canon: canon >= 0 ? canon : 999,
     testament: canon < 0 ? null : canon < 39 ? 'ot' : 'nt'

@@ -1,0 +1,124 @@
+{
+  "format": "study@1",
+  "title": "John 3:1–21",
+  "pattern": "FIA",
+  "about": "FIA takes the team through six steps for each passage, in audio and text, before anyone drafts: Familiarize, then Internalize, then Articulate. Each step asks you to listen to the passage again. Answers and notes the team adds stay with the passage, so reviewers can see the study behind the draft.",
+  "source": "Written for the demo in FIA's format",
+  "language": "eng",
+  "ref": "JHN 3:1-21",
+  "versification": "eng",
+  "steps": [
+    {
+      "id": "hear",
+      "title": "Hear and Heart",
+      "phase": "Familiarize",
+      "purpose": "Hear the passage in more than one translation, then talk about it together.",
+      "text": "Hear John 3:1–21 and put it in your heart. Listen to the text three times (in three different translations, if possible). Then as a team discuss the following questions:\n\n1. What do you like in this story?\n2. What do you not like or not understand?\n3. What does this story tell us about Jesus?\n4. What does this story tell us about people?\n5. How does this story affect our daily life?\n6. Who do you know who needs to hear this story?",
+      "audio": {
+        "seconds": 38
+      }
+    },
+    {
+      "id": "stage",
+      "title": "Setting the Stage",
+      "phase": "Familiarize",
+      "purpose": "Where the passage sits in the bigger story, and its culture, history and places.",
+      "text": "Listen to an audio version of John 3:1-21 in the easiest-to-understand translation.\n\nNicodemus was a Pharisee and a member of the ruling council, a respected teacher of Israel. He comes to Jesus at night. He may not want to be seen. In John's Gospel, night is also a picture of not yet understanding.\n\n> [!action]\n> Stop here and discuss this question as a group: Who in your community would come to a teacher secretly, at night? Why? Pause this audio here.\n\nJesus tells Nicodemus that he must be born again. The word Jesus uses means both \"again\" and \"from above.\" Nicodemus hears \"again\" and asks how an old man can go back into his mother's womb. Jesus means \"from above,\" from God.\n\nJesus reminds Nicodemus of a story from Numbers 21. Poisonous snakes bit the people of Israel in the wilderness. Moses lifted up a bronze snake on a pole, and whoever looked at it lived. Jesus says the Son of Man will be lifted up in the same way.\n\n> [!action]\n> Stop here and look at a picture of [the bronze snake on a pole](#m1) as a group. Pause this audio here.",
+      "audio": {
+        "seconds": 89
+      }
+    },
+    {
+      "id": "scenes",
+      "title": "Defining the Scenes",
+      "phase": "Internalize",
+      "purpose": "Frame the passage: its scenes, settings and people. Draw or build them.",
+      "text": "Listen to the text once in the easiest-to-understand version.\n\nThis story has 4 scenes.\n\n__First scene:__ At night, in Jerusalem. Nicodemus comes to Jesus and says that Jesus must be a teacher from God.\n\n__Second scene:__ Jesus tells him that no one can see the kingdom of God unless he is born from above. Nicodemus doesn't understand.\n\n__Third scene:__ Nicodemus asks, \"How can this be?\" Jesus answers with the story of the snake in the wilderness.\n\n__Fourth scene:__ God so loved the world. There is no setting here: it is teaching. The text doesn't say whether Jesus is still speaking or John is explaining.\n\nThe characters in this story include:\n\n- Nicodemus\n- Jesus\n\n> [!action]\n> Stop here and discuss this question as a group: Where does Jesus stop speaking and John start explaining? What will you do with that when you tell it?",
+      "audio": {
+        "seconds": 66
+      }
+    },
+    {
+      "id": "embody",
+      "title": "Embodying the Text",
+      "phase": "Internalize",
+      "purpose": "Act the passage out twice: first straight through, then stopping to ask how people feel.",
+      "text": "Listen to the text once again in the easiest-to-understand version.\n\nHave the team act out the conversation twice: first straight through, then stopping at different points.\n\n> [!action]\n> Stop the action: Ask Nicodemus how he feels when Jesus says he must be born again. You may hear, \"Confused\" or \"That's impossible.\"\n\n> [!action]\n> Stop the action: Ask Jesus what he wants Nicodemus to understand.",
+      "audio": {
+        "seconds": 30
+      }
+    },
+    {
+      "id": "gaps",
+      "title": "Filling the Gaps",
+      "phase": "Articulate",
+      "purpose": "The words to choose, with the key terms in FIA's Master Glossary.",
+      "text": "Listen to the text once in the easiest-to-understand version.\n\nThe word for __Spirit__ also means wind and breath. In verse 8 Jesus plays on both meanings. If your language has a word that carries both, this is the place for it. See [Spirit](#t-kt2) in the Master Glossary.\n\n__Flesh__ here means ordinary human life, not something sinful. See [flesh](#t-kt3) in the Master Glossary.\n\n__Perish__ and __eternal life__ are opposites: being destroyed for good, or having the life that doesn't end. See [life](#t-kt4) in the Master Glossary.\n\n> [!action]\n> Stop here and discuss this question as a group: Which words or ideas in this story don't have an easy match in your language?",
+      "audio": {
+        "seconds": 51
+      }
+    },
+    {
+      "id": "speak",
+      "title": "Speaking the Word",
+      "phase": "Articulate",
+      "purpose": "Tell it in your own language, together, until everyone agrees on a version.",
+      "text": "Listen to an audio version of the passage in the easiest-to-understand translation.\n\nIn this session, retell the passage, as a group, in your own language.\n\nFirst, the whole group should practice telling the passage in your own language. Remember to include the things you decided in previous steps, like chronology, words, phrases, emotions, or anything else you discussed.\n\nOne group member should tell a few sentences of the passage and pause. Another group member should tell the next part of the passage and pause. Do this until the group has retold the whole passage. The group members can correct each other in this step.\n\n> [!action]\n> Pause this audio here.\n\nNext, each member of the group should tell the whole passage without interruption at least one time. A group member can use random objects, motions, or their storyboard to help them remember the passage.\n\n> [!action]\n> Pause this audio here.\n\nNext, the group can decide whose version of the passage you like the most. You may decide that you liked the way one group member told one scene but you liked the way a different group member told another scene.\n\n> [!action]\n> Pause this audio here.\n\nFinally, the group can put together a final version of the passage that everyone agrees on. Each group member should practice telling this final version of the passage.",
+      "audio": {
+        "seconds": 103
+      }
+    }
+  ],
+  "resources": [
+    {
+      "ref": "m1",
+      "kind": "media",
+      "title": "The bronze snake on a pole",
+      "description": "Numbers 21:8–9.",
+      "media": [
+        {
+          "id": "m1a",
+          "kind": "illustration",
+          "title": "The bronze snake on a pole",
+          "caption": "Whoever looked at the snake Moses lifted up lived."
+        }
+      ]
+    },
+    {
+      "ref": "t-kt2",
+      "kind": "term",
+      "title": "Spirit",
+      "description": "God's Spirit; also wind or breath"
+    },
+    {
+      "ref": "t-kt3",
+      "kind": "term",
+      "title": "flesh",
+      "description": "the body, or human life"
+    },
+    {
+      "ref": "t-kt4",
+      "kind": "term",
+      "title": "life",
+      "description": "God's kind of life, which doesn't end"
+    }
+  ],
+  "terms": [
+    {
+      "id": "t-kt2",
+      "term": "Spirit",
+      "body": "God's Spirit; also wind or breath"
+    },
+    {
+      "id": "t-kt3",
+      "term": "flesh",
+      "body": "the body, or human life"
+    },
+    {
+      "id": "t-kt4",
+      "term": "life",
+      "body": "God's kind of life, which doesn't end"
+    }
+  ],
+  "deps": []
+}
