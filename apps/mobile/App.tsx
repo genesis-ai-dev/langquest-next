@@ -159,11 +159,20 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   const [selectionRevision, setSelectionRevision] = useState(0);
   useEffect(() => {
     let active = true;
-    void AsyncStorage.getItem(`selection:${props.actorId}`).then((raw) => {
-      if (active && raw) setSelection(JSON.parse(raw));
+    void AsyncStorage.getItem(`selection:${props.actorId}`).then(async (raw) => {
+      if (raw) { if (active) setSelection(JSON.parse(raw)); return; }
+      if (!props.signedIn) return;
+      // Nothing chosen on this device yet: open the first project this
+      // account belongs to, so someone just added to a team lands in it.
+      const { data } = await supabase.rpc('my_organizations');
+      const first = (data as { org_id: string; project_id: string | null }[] | null)?.find((r) => r.project_id);
+      if (!active || !first?.project_id) return;
+      const next = { orgId: first.org_id, projectId: first.project_id };
+      await AsyncStorage.setItem(`selection:${props.actorId}`, JSON.stringify(next));
+      setSelection(next);
     }).catch(() => {});
     return () => { active = false; };
-  }, [props.actorId]);
+  }, [props.actorId, props.signedIn]);
   const openOrganization = useCallback(async (orgId: string, projectId?: string) => {
     if (!projectId) {
       const { data, error } = await supabase.rpc('my_organizations');
@@ -470,6 +479,9 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     <View style={{ flex: 1 }}>
       <PeopleContext.Provider value={people}>
       <CtxContext.Provider value={ctx}>
+        {/* Its own box, so the native stack ends where the tab bar begins
+            rather than drawing screens underneath it. */}
+        <View style={{ flex: 1, overflow: 'hidden' }}>
         <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}>
           <Stack.Navigator
             initialRouteName={nav.initial.screen}
@@ -482,6 +494,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
             ))}
           </Stack.Navigator>
         </NavigationContainer>
+        </View>
       </CtxContext.Provider>
       </PeopleContext.Provider>
       {showTabs ? (

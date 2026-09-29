@@ -52,7 +52,10 @@ export function DevMenu(props: {
     const { state, append } = props.project;
     if (!state) return;
     const laneId = Object.keys(state.lanes)[0];
-    const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null).map(([id]) => id);
+    // A handful of passages, in canon order: enough to show For you and the
+    // Map without flooding a whole Bible with requests.
+    const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null)
+      .sort(([, a], [, b]) => (a.order < b.order ? -1 : 1)).slice(0, 5).map(([id]) => id);
     for (const p of PERSONAS) {
       if (!p.role) continue;
       const id = await ensurePersonaAccount(p);
@@ -63,8 +66,11 @@ export function DevMenu(props: {
       }
       if (state.members[id] && !state.members[id]!.removed.value) continue;
       await append('v1.MemberAdded', { profileId: id, role: p.role });
-      if (laneId && p.role === 'translator') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'translator', dueDate: 'Sep 30' });
-      if (laneId && p.role === 'reviewer') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'reviewer' });
+      if (laneId && p.role === 'translator') {
+        const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+        const c = commands(state, indexesFor(state));
+        for (const unitId of units) await props.project.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, laneId, what: 'record', profileId: id, dueDate: due }));
+      }
     }
     if (laneId && !state.laneNames[laneId]) await append('v1.LaneNamed', { laneId, name: 'Dinka' });
     if (laneId && !state.laneFlows[laneId]) {

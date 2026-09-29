@@ -158,6 +158,8 @@ export interface LaneFlowUse {
   /** The catalog flow its steps are; null when it runs its own steps or has none. */
   flowId: string | null;
   steps: FlowStep[];
+  /** The language chose a flow (or saved its own steps); otherwise it runs the project's default. */
+  chosen?: boolean;
 }
 
 /** Every language and the flow it uses, by name (FLOW-4: "which languages use which"). */
@@ -165,14 +167,15 @@ export function laneFlows(state: ProjectState): LaneFlowUse[] {
   return Object.keys(state.lanes)
     .map((laneId) => {
       const flow = deriveFlow(state, laneId);
-      return { laneId, name: laneName(state, laneId), flowId: catalogFlowOf(flow.steps, flow.flowId), steps: flow.steps };
+      return { laneId, name: laneName(state, laneId), flowId: catalogFlowOf(flow.steps, flow.flowId), steps: flow.steps, chosen: !!state.laneFlows[laneId] };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** What a language's flow is called: the catalog flow it matches, "Collect only"-style empty, or its own steps. */
-export function flowLabel(use: Pick<LaneFlowUse, 'flowId' | 'steps'>): string {
+export function flowLabel(use: Pick<LaneFlowUse, 'flowId' | 'steps' | 'chosen'>): string {
   if (use.flowId) return FLOWS.find((f) => f.id === use.flowId)?.name ?? use.flowId;
+  if (use.chosen === false && use.steps.length) return "The project's default steps";
   return use.steps.length ? 'Its own steps' : 'No flow chosen yet';
 }
 

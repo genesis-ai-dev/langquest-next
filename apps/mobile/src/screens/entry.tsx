@@ -437,6 +437,9 @@ export function CreateOrg(ctx: Ctx) {
         profileId: me, roleId: 'org_admin', scope: { level: 'org' },
         ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {})
       });
+      // The creator needs no "who invited you" welcome; My Work's Getting
+      // started is their first day (ADR-022).
+      await ctx.markWelcomed().catch(() => {});
       ctx.toast(`${orgName} is ready to grow. Next, set up your first project and invite your team.`);
       ctx.go('my_work');
     } catch (e) {
