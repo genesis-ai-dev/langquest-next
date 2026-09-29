@@ -373,6 +373,17 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     [nav, session]
   );
 
+  // A project registered in the org (New project) gets its own log started
+  // the first time someone who may create it opens it: the server accepts
+  // ProjectCreated as a partition's first event from Manage Org Structure.
+  const registered = org.state?.projects[props.projectId];
+  const canCreate = session.can('manage_structure');
+  useEffect(() => {
+    if (!project.state || project.state.project || !registered || !canCreate) return;
+    void rawProject.append('v1.ProjectCreated', { name: registered.name, sourceLanguoidId: 'eng' }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.state?.project, registered?.name, canCreate]);
+
   const openPassage = useCallback((unitId: string, lane: string, extra?: Record<string, string>) => {
     remember(unitId, lane);
     go('passage_record', { unitId, laneId: lane, ...extra });
