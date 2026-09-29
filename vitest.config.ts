@@ -9,6 +9,6 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts']
+    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'smart-tests/**/*.test.ts']
   }
 });
