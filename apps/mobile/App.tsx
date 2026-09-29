@@ -213,9 +213,11 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
   useEffect(() => {
     let active = true;
     void (async () => {
-      const local = await AsyncStorage.getItem(`vision:${props.actorId}`);
-      if (active) { setWelcomed(local === '1'); setOnboardingLoaded(true); }
-      if (!props.signedIn) return;
+      const [local, joined] = await Promise.all([AsyncStorage.getItem(`vision:${props.actorId}`), AsyncStorage.getItem(`joined:${props.actorId}`)]);
+      // Joining by invite always gets the welcome (ADR-022): who invited
+      // you and your role on which team are new even to a returning account.
+      if (active) { setWelcomed(local === '1' && joined !== '1'); setOnboardingLoaded(true); }
+      if (!props.signedIn || joined === '1') return;
       const { data, error } = await supabase.rpc('get_user_state');
       if (!error && data?.visionSeen) {
         await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
@@ -430,10 +432,11 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     inbox: { updates, unread, isRead: (id) => readIds.has(id), markRead },
     markWelcomed: async () => {
       await recordUserEvent(props.actorId, 'v1.VisionSeen');
-      await AsyncStorage.setItem(`vision:${props.actorId}`, '1');
+      await AsyncStorage.multiSet([[`vision:${props.actorId}`, '1'], [`joined:${props.actorId}`, '0']]);
       setWelcomed(true);
     },
-    acceptTerms: () => recordUserEvent(props.actorId, 'v1.TermsAccepted'),
+    acceptTerms: (actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'),
+    markJoined: (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1'),
     rememberInvite: (value) => AsyncStorage.setItem('pending-invite', value),
     openOrganization: props.openOrganization,
     openDev: () => setDevOpen(true),

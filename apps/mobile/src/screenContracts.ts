@@ -53,7 +53,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   flows_home: { emits:['v1.WorkflowStepRemoved','v1.LaneFlowSelected','v2.WorkflowStepSet'],reads:['deriveFlow'] },
   flow_editor: { emits:['v1.WorkflowStepRemoved','v2.WorkflowStepSet','v1.ReviewKindDefined'],reads:['deriveFlow','deriveKinds'] },
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked'],reads:['materialView'] },
-  inbox_home: { reads:['updatesFor','notifications'] },
+  inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],rpcs:['decide_join_request'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   settings_home: { rpcs:['register_push_token'] },

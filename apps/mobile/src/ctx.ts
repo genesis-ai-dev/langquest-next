@@ -51,8 +51,10 @@ export interface Ctx {
 
   /** The first sign-in welcome was seen (ADR-022). */
   markWelcomed: () => Promise<void>;
-  /** Terms accepted by signing in (AUTH-1). */
-  acceptTerms: () => Promise<void>;
+  /** Terms accepted by signing in (AUTH-1); pass the new account's id right after sign-in. */
+  acceptTerms: (actorId?: string) => Promise<void>;
+  /** Someone just joined by invite: they get the welcome even if this account was welcomed before (ADR-022). */
+  markJoined: (actorId: string) => Promise<void>;
   rememberInvite: (value: string) => Promise<void>;
   openOrganization: (orgId: string, projectId?: string) => Promise<void>;
   openDev: () => void;

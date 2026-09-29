@@ -2,9 +2,12 @@
 // a dev build jump to any screen. Shown to dev builds and to the testers named
 // in dev.ts, so the other roles' experience can be walked through in a real
 // build without five phones.
+import { commands } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ensurePersonaAccount, PERSONAS, switchToPersona, type Persona } from './dev';
+import { indexesFor } from './indexes';
 import { SCREEN_IDS, TITLES, type ScreenId } from './flow';
 import type { OrgHandle } from './useOrg';
 import type { ProjectHandle } from './useProject';
@@ -41,7 +44,9 @@ export function DevMenu(props: {
   /**
    * Owner-only: create every persona account, give it its org role (so it
    * sees the org, the project and its own home) and its project membership,
-   * then assign the translator and reviewer some work to look at.
+   * then assign the translator and reviewer some work to look at. The
+   * language gets a name and the standard Bible flow, so the Map and the
+   * passage record have steps to show.
    */
   async function seed() {
     const { state, append } = props.project;
@@ -60,6 +65,10 @@ export function DevMenu(props: {
       await append('v1.MemberAdded', { profileId: id, role: p.role });
       if (laneId && p.role === 'translator') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'translator', dueDate: 'Sep 30' });
       if (laneId && p.role === 'reviewer') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'reviewer' });
+    }
+    if (laneId && !state.laneNames[laneId]) await append('v1.LaneNamed', { laneId, name: 'Dinka' });
+    if (laneId && !state.laneFlows[laneId]) {
+      await props.project.run(commands(state, indexesFor(state)).useFlow({ commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, flowId: 'standard_bible' }));
     }
     await props.project.sync();
     await props.org.sync();
