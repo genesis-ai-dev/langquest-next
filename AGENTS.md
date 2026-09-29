@@ -42,6 +42,27 @@ Rules specific to this folder:
   to EAS. Hosted settings live in repo files, not dashboards
   (`infrastructure-as-code`).
 
+## Decision log (required, whoever you are working for)
+
+`docs/decisions.md` is the team's ADR log. Any agent working in this repo keeps
+it current for every developer, without being asked. The file's header has the
+format.
+
+- Before designing, read the entries that touch the area. If the change
+  contradicts one, say so and ask the developer before going on. Never quietly
+  work around a recorded decision.
+- When a change makes or changes an architecture or design decision (the
+  header lists the triggers), add or amend the entry in the same change. Put
+  the developer driving the session in `By` (`git config user.name` gives
+  their handle; use their full name as the log already does) and today's date
+  in `Date`.
+- If the reason is not clear from the conversation, ask the developer for it.
+  Do not make one up.
+- Never renumber an entry or rewrite its reasoning. Supersede it with a new
+  entry, or append an `Amended (date, name):` paragraph.
+- When you finish, say which entry you added or amended, or that the change
+  needed none.
+
 The parent repository is LangQuest v2. Do not import from it. Its data model is
 what this app replaces; see PLAN.md section 2 for why.
 
