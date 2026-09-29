@@ -228,6 +228,50 @@ export function buildStep11Fixture(): AnyEvent[] {
 }
 
 /**
+ * The passage record (record.ts) on top of the project fixture: lane L1
+ * uses the Standard Bible Flow as v2 steps, a renamed kind, a peer step set
+ * aside and brought back, requests (one withdrawn), a back translation,
+ * logged community feedback kept with a reason, notes, study marks. Two
+ * devices touch the same registers so the permutation test has work to do.
+ */
+export function buildRecordFixture(): AnyEvent[] {
+  const events: AnyEvent[] = [];
+  let seq = 700;
+  let wall = 1_760_000_000_000;
+  const clocks = new Map<string, HlcClock>();
+  const emit = <T extends EventType>(device: string, actorId: string, type: T, payload: EventPayloads[T]) => {
+    const clock = clocks.get(device) ?? new HlcClock(device, () => wall);
+    clocks.set(device, clock);
+    wall += 1000;
+    seq += 1;
+    events.push({ id: `r${seq}`, type, orgId: 'org1', projectId: 'p1', actorId, deviceId: device, hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
+  };
+  emit('dA', 'lead', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elder Review', description: 'Elders listen together.', usualReviewer: 'Village elders' });
+  emit('dE', 'lead2', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elders Review' });
+  emit('dA', 'lead', 'v1.LaneFlowSelected', { laneId: 'L1', flowId: 'standard_bible', catalogVersion: 2 });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s1', laneId: 'L1', order: 's00', kindIds: ['peer', 'bt'], checkpoint: false });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s2', laneId: 'L1', order: 's01', kindIds: ['community'], checkpoint: false });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s3', laneId: 'L1', order: 's02', kindIds: ['consultant'], checkpoint: true });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s4', laneId: 'L1', order: 's03', kindIds: ['final'], checkpoint: false });
+  emit('dE', 'lead2', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s4', laneId: 'L1', order: 's03', kindIds: ['final', 'elder'], checkpoint: false });
+  emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd1', unitId: 'luke1', laneId: 'L1', type: 'skip', kindId: 'peer', reason: 'No peer to ask yet.' });
+  emit('dB', 't1', 'v1.DepartureUndone', { departureId: 'd1' });
+  emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q1', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', profileId: 'r1', dueDate: '2026-10-01', note: 'Sunday service', questions: [{ id: 'x1', text: 'Did they follow it?', type: 'yesno', required: true }] });
+  emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q2', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', guest: { name: 'Pastor Garang', channel: 'whatsapp', contact: '+211 900 000' } });
+  emit('dA', 'lead', 'v1.RequestWithdrawn', { requestId: 'q2' });
+  emit('dF', 'bt1', 'v1.TakeComposed', { takeId: 'content1', unitId: 'luke1', laneId: 'L1', cardHashes: ['b1'], parentTakeId: null });
+  emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', contentTakeId: 'content1', comment: 'Verse 3 was hard to say back.' });
+  emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
+  emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', laneId: 'L1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });
+  emit('dA', 'lead', 'v1.DepartureRecorded', { departureId: 'd3', unitId: 'luke1', laneId: 'L1', type: 'override', stepId: 'standard_bible@2/s3', reason: 'Consultant visit moved to next year.' });
+  emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n1', unitId: 'luke1', laneId: 'L1', anchor: { kind: 'verse', verse: '1:3', translation: 'BSB' }, text: 'Most excellent is a title here.', onTakeId: 'take2' });
+  emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', laneId: 'L1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
+  emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: true });
+  emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: false });
+  return events;
+}
+
+/**
  * One of each org partition event (org.ts). Separate from the project
  * fixture so snapshot tests keep their cut, and appended to it wherever a
  * test must see every catalog type.

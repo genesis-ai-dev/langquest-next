@@ -2,13 +2,14 @@ import type { AnyEvent, EventEnvelope } from './events';
 import type { Member, ProjectState, Register } from './state';
 import { emptyState } from './state';
 import { validateEvent } from './validate';
+import { studyMarkKey, type Undo } from './record';
 
 /**
  * Bump when a materializer changes in a way that alters output for existing
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 2;
+export const REDUCER_VERSION = 3;
 
 /**
  * Apply one event. Must be deterministic, order-independent, and idempotent
@@ -316,6 +317,65 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       break;
     }
 
+    // ---- the passage record (record.ts) --------------------------------
+
+    case 'v1.ReviewKindDefined': {
+      const { kindId, name, description, usualReviewer, withholdsContext, produces } = event.payload;
+      lww(state.reviewKinds, kindId, event, {
+        id: kindId,
+        name,
+        description: description ?? '',
+        usualReviewer: usualReviewer ?? '',
+        ...(withholdsContext !== undefined ? { withholdsContext } : {}),
+        ...(produces !== undefined ? { produces: { ...produces } } : {})
+      });
+      break;
+    }
+
+    case 'v2.WorkflowStepSet': {
+      const { stepId, laneId, order, kindIds, checkpoint } = event.payload;
+      lww(state.flowSteps, stepId, event, { stepId, ...(laneId !== undefined ? { laneId } : {}), order, kindIds: [...kindIds], checkpoint });
+      break;
+    }
+
+    case 'v1.ReviewRecorded': {
+      const { reviewId, ...rest } = event.payload;
+      firstWins(state.kindReviews, reviewId, event, { ...rest, id: reviewId });
+      break;
+    }
+
+    case 'v1.DepartureRecorded': {
+      const { departureId, ...rest } = event.payload;
+      firstWins(state.departures, departureId, event, { ...rest, id: departureId });
+      break;
+    }
+
+    case 'v1.DepartureUndone':
+      earliestUndo(state.undoneDepartures, event.payload.departureId, event);
+      break;
+
+    case 'v1.RequestMade': {
+      const { requestId, ...rest } = event.payload;
+      firstWins(state.requests, requestId, event, { ...rest, id: requestId });
+      break;
+    }
+
+    case 'v1.RequestWithdrawn':
+      earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+
+    case 'v1.NoteAdded': {
+      const { noteId, ...rest } = event.payload;
+      firstWins(state.notes, noteId, event, { ...rest, id: noteId });
+      break;
+    }
+
+    case 'v1.StudyStepMarked': {
+      const { unitId, laneId, guideId, stepId, done } = event.payload;
+      lww(state.studyMarks, studyMarkKey(unitId, laneId, guideId, stepId), event, { done, by: event.actorId });
+      break;
+    }
+
     case 'v1.OrgCreated':
     case 'v1.RoleDefined':
     case 'v1.RoleRetired':
@@ -349,6 +409,29 @@ export function fold(events: Iterable<AnyEvent>, initial: ProjectState = emptySt
   }
   for (const event of rest) state = applyEvent(state, event);
   return state;
+}
+
+/**
+ * Grow-only by id, earliest (clock, then event id) wins. Ids are fresh per
+ * intent, so a collision only happens on a buggy client; the tie-break
+ * keeps the fold order-independent even then.
+ */
+function firstWins<V extends { id: string }>(
+  table: Record<string, V & { by: string; hlc: string; eventId: string }>,
+  key: string,
+  event: EventEnvelope,
+  value: V
+): void {
+  const prior = table[key];
+  if (prior && (prior.hlc < event.hlc || (prior.hlc === event.hlc && prior.eventId <= event.id))) return;
+  table[key] = { ...value, by: event.actorId, hlc: event.hlc, eventId: event.id };
+}
+
+/** An add-wins undo flag that remembers who undid first. */
+function earliestUndo(table: Record<string, Undo>, key: string, event: EventEnvelope): void {
+  const prior = table[key];
+  if (prior && (prior.hlc < event.hlc || (prior.hlc === event.hlc && prior.by <= event.actorId))) return;
+  table[key] = { by: event.actorId, hlc: event.hlc };
 }
 
 /** Latest server verdict on a blob wins; ties by event id. */

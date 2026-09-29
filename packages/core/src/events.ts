@@ -1,6 +1,7 @@
 import type { Hlc } from './hlc';
 import type { MaterialEvents } from './materials';
 import type { OrgEventPayloads } from './org';
+import type { RecordEvents } from './record';
 
 /**
  * Event catalog v1. See PLAN.md section 6.
@@ -44,7 +45,7 @@ export interface Card {
   format?: 'wav' | 'm4a';
 }
 
-export interface EventPayloads extends OrgEventPayloads, MaterialEvents {
+export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents {
   'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
   'v1.ProjectConfigChanged': { config: ProjectConfig };
   'v1.MemberAdded': { profileId: string; role: Role };

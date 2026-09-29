@@ -37,6 +37,10 @@ export function validateEvent(e: AnyEvent): string | null {
   };
   const strArray = (k: string) =>
     Array.isArray(p[k]) && (p[k] as unknown[]).every((x) => typeof x === 'string') ? null : `${k} must be a string array`;
+  const optBool = (k: string) => (p[k] === undefined || typeof p[k] === 'boolean' ? null : `${k} must be a boolean`);
+  const oneOf = (k: string, values: string[]) => (values.includes(p[k] as string) ? null : `${k} must be one of ${values.join(', ')}`);
+  const optStrRecord = (k: string) =>
+    p[k] === undefined || (isObject(p[k]) && Object.values(p[k] as object).every((v) => typeof v === 'string')) ? null : `${k} must map ids to strings`;
 
   switch (e.type) {
     case 'v1.ProjectCreated':
@@ -90,6 +94,58 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('eventId') ?? optStr('reason');
     case 'v1.BlobInvalidated':
       return str('hash') ?? optStr('reason');
+    case 'v1.ReviewKindDefined':
+      return (
+        str('kindId', 'name') ?? optStr('description', 'usualReviewer') ??
+        optBool('withholdsContext') ??
+        (p['produces'] === undefined || produces(p['produces']) ? null : 'produces needs what, into, action, checkedBy')
+      );
+    case 'v2.WorkflowStepSet':
+      return str('stepId', 'order') ?? optStr('laneId') ?? strArray('kindIds') ??
+        (typeof p['checkpoint'] === 'boolean' ? null : 'checkpoint must be a boolean');
+    case 'v1.ReviewRecorded':
+      return (
+        str('reviewId', 'takeId', 'kindId') ??
+        oneOf('outcome', ['looks_good', 'needs_changes', 'recorded']) ??
+        oneOf('via', ['app', 'link', 'logged']) ??
+        optStr('comment', 'commentBlobHash', 'place', 'givenBy', 'requestId', 'contentTakeId') ??
+        optStrRecord('answers') ?? optStrRecord('skipped') ??
+        (p['people'] === undefined || (typeof p['people'] === 'number' && p['people'] >= 0) ? null : 'people must be a number') ??
+        (p['artifactHashes'] === undefined ? null : strArray('artifactHashes')) ??
+        (p['outcome'] === 'recorded' && (typeof p['contentTakeId'] !== 'string' || p['contentTakeId'] === '') ? 'recorded needs contentTakeId' : null)
+      );
+    case 'v1.DepartureRecorded':
+      return (
+        str('departureId', 'unitId', 'laneId', 'reason') ??
+        oneOf('type', ['skip', 'override', 'keep']) ??
+        optStr('kindId', 'stepId', 'reviewId', 'reasonBlobHash') ??
+        (p['type'] === 'skip' && !p['kindId'] ? 'skip needs kindId' : null) ??
+        (p['type'] === 'override' && !p['stepId'] ? 'override needs stepId' : null) ??
+        (p['type'] === 'keep' && !p['reviewId'] ? 'keep needs reviewId' : null)
+      );
+    case 'v1.DepartureUndone':
+      return str('departureId');
+    case 'v1.RequestMade':
+      return (
+        str('requestId', 'unitId', 'laneId') ??
+        oneOf('what', ['record', 'review']) ??
+        optStr('kindId', 'profileId', 'dueDate', 'note', 'noteBlobHash') ??
+        (p['what'] === 'review' && !p['kindId'] ? 'a review request needs kindId' : null) ??
+        (p['profileId'] === undefined && p['guest'] === undefined ? 'profileId or guest required' : null) ??
+        (p['guest'] === undefined || guest(p['guest']) ? null : 'guest needs name, channel, contact') ??
+        (p['questions'] === undefined || questions(p['questions']) ? null : 'questions must be id, text, type')
+      );
+    case 'v1.RequestWithdrawn':
+      return str('requestId');
+    case 'v1.NoteAdded':
+      return (
+        str('noteId', 'unitId', 'laneId') ??
+        optStr('text', 'blobHash', 'photoHash', 'onTakeId') ??
+        anchor(p['anchor']) ??
+        (!p['text'] && !p['blobHash'] && !p['photoHash'] ? 'a note needs text, audio or a photo' : null)
+      );
+    case 'v1.StudyStepMarked':
+      return str('unitId', 'laneId', 'guideId', 'stepId') ?? (typeof p['done'] === 'boolean' ? null : 'done must be a boolean');
     case 'v1.InviteIssued':
       return str('inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']);
     case 'v1.InviteRedeemed':
@@ -110,6 +166,35 @@ function scope(v: unknown): string | null {
   if (level === 'project') return null;
   if (level === 'lane') return typeof v['laneId'] === 'string' && v['laneId'] !== '' ? null : 'scope.laneId required';
   return 'scope.level must be org, project or lane';
+}
+
+const nonEmpty = (v: unknown) => typeof v === 'string' && v !== '';
+
+function produces(v: unknown): boolean {
+  return isObject(v) && ['what', 'into', 'action', 'checkedBy'].every((k) => nonEmpty(v[k]));
+}
+
+function guest(v: unknown): boolean {
+  return isObject(v) && nonEmpty(v['name']) && nonEmpty(v['contact']) && (v['channel'] === 'whatsapp' || v['channel'] === 'sms');
+}
+
+function questions(v: unknown): boolean {
+  return Array.isArray(v) && v.every((q) => isObject(q) && nonEmpty(q['id']) && nonEmpty(q['text']) &&
+    (q['type'] === 'rating' || q['type'] === 'yesno' || q['type'] === 'text') &&
+    (q['required'] === undefined || typeof q['required'] === 'boolean'));
+}
+
+/** A note's anchor (record.ts NoteAnchor). */
+function anchor(v: unknown): string | null {
+  if (!isObject(v)) return 'anchor must be an object';
+  switch (v['kind']) {
+    case 'passage': return null;
+    case 'version': return nonEmpty(v['takeId']) ? null : 'anchor.takeId required';
+    case 'verse': return nonEmpty(v['verse']) ? null : 'anchor.verse required';
+    case 'study': return nonEmpty(v['guideId']) && nonEmpty(v['stepId']) ? null : 'anchor.guideId and stepId required';
+    case 'term': return nonEmpty(v['termId']) ? null : 'anchor.termId required';
+    default: return 'anchor.kind must be passage, version, verse, study or term';
+  }
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

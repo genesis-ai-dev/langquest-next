@@ -19,3 +19,5 @@ export * from './readModels';
 export * from './inbox';
 export * from './orgProject';
 export * from './sourceBibles';
+export * from './record';
+export * from './passage';

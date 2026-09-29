@@ -26,10 +26,12 @@ export const PRIVILEGES = [
   'invite_members',
   'manage_roles',
   'manage_templates',
+  'shape_templates',
   'manage_reference',
   'manage_flows',
   'manage_teams',
   'assign_work',
+  'override_checkpoints',
   'translate',
   'fill_reference',
   'send_to_reviewers',
@@ -41,7 +43,7 @@ export type Privilege = (typeof PRIVILEGES)[number];
 /** Privileges that make a member an admin of their scope (spec MANAGE_PRIVILEGES). */
 export const MANAGE_PRIVILEGES: readonly Privilege[] = [
   'manage_structure', 'invite_members', 'manage_roles', 'manage_templates',
-  'manage_reference', 'manage_flows', 'manage_teams', 'assign_work'
+  'manage_reference', 'manage_flows', 'manage_teams', 'assign_work', 'override_checkpoints'
 ];
 
 export type ScopeLevel = 'org' | 'project' | 'lane';
@@ -89,11 +91,15 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
 
 /**
  * The privilege an event type needs. `null` means server-only (never a
- * client), `'bootstrap'` means the partition's creation rule applies.
- * `v1.CatalogItemToggled` depends on its payload kind: see `privilegeFor`.
+ * client), `'bootstrap'` means the partition's creation rule applies, and a
+ * list means any one of them will do (a translator may log a community
+ * check they ran themselves; so may a reviewer). `v1.CatalogItemToggled`
+ * and a few record events depend on their payload: see `privilegeFor`.
  * The SQL `event_privilege` is this table; keep them identical.
  */
-export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_kind' | null> = {
+export type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
+
+export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ProjectCreated': 'bootstrap',
   'v1.ProjectConfigChanged': 'manage_structure',
   'v1.MemberAdded': 'invite_members',
@@ -138,7 +144,16 @@ export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_ki
   'v1.ProjectRegistered': 'manage_structure',
   'v1.InviteIssued': 'invite_members',
   'v1.InviteRedeemed': null,
-  'v1.JoinDecided': 'invite_members'
+  'v1.JoinDecided': 'invite_members',
+  'v1.ReviewKindDefined': 'manage_flows',
+  'v2.WorkflowStepSet': 'manage_flows',
+  'v1.ReviewRecorded': 'by_kind',
+  'v1.DepartureRecorded': 'by_kind',
+  'v1.DepartureUndone': ['translate', 'review', 'assign_work', 'override_checkpoints'],
+  'v1.RequestMade': ['send_to_reviewers', 'assign_work'],
+  'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
+  'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
+  'v1.StudyStepMarked': 'translate'
 };
 
 const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
@@ -148,9 +163,18 @@ const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
 };
 
 /** The privilege one concrete event needs, resolving payload-dependent cases. */
-export function privilegeFor(event: AnyEvent): Privilege | 'bootstrap' | null {
+export function privilegeFor(event: AnyEvent): EventPrivilege {
   const p = EVENT_PRIVILEGE[event.type];
   if (p === 'by_kind') {
+    if (event.type === 'v1.ReviewRecorded') {
+      // A check that happened outside the app may be logged by whoever ran it.
+      return event.payload.via === 'logged' ? ['review', 'translate'] : 'review';
+    }
+    if (event.type === 'v1.DepartureRecorded') {
+      if (event.payload.type === 'override') return 'override_checkpoints';
+      if (event.payload.type === 'keep') return 'translate';
+      return ['translate', 'review', 'assign_work'];
+    }
     const kind = (event.payload as { kind?: string }).kind;
     // Translators may write question sets at submit time (UX spec); every
     // other material is managed reference.
@@ -158,6 +182,13 @@ export function privilegeFor(event: AnyEvent): Privilege | 'bootstrap' | null {
     return kind && CATALOG_PRIVILEGE[kind as CatalogKind] ? CATALOG_PRIVILEGE[kind as CatalogKind] : 'manage_templates';
   }
   return p;
+}
+
+/** Does a privilege set satisfy what an event needs? Bootstrap and server-only are never satisfied here. */
+export function privilegeAllows(needed: EventPrivilege, privs: ReadonlySet<Privilege>): boolean {
+  if (needed === null || needed === 'bootstrap') return false;
+  if (typeof needed === 'string') return privs.has(needed);
+  return needed.some((p) => privs.has(p));
 }
 
 /**
