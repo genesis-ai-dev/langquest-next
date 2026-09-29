@@ -21,6 +21,7 @@ import {
 import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
+import { languagesToList } from '../languages';
 import {
   Card, Chip, ChipRow, EmptyState, Group, Header, Ico, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn,
   StepMarks, txt
@@ -185,22 +186,28 @@ export function StatusHome(ctx: Ctx) {
   const state = ctx.project.state;
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
+  // Every language the organization has; each is its own partition
+  // (decisions.md 37), so progress is known for the one this phone has open.
   const languages = useMemo(() => {
-    if (!state) return [];
-    const idx = indexesFor(state);
-    return idx.lanes.map((laneId) => ({
-      laneId, name: laneName(state, laneId), code: laneCode(state, laneId), flow: flowLabel(state, laneId),
-      progress: languageProgress(state, laneId, idx)
-    }));
-  }, [state]);
+    const idx = state ? indexesFor(state) : null;
+    const names = new Map(ctx.languages.map((l) => [l.laneId, l.name]));
+    return languagesToList(ctx.languages, state, ctx.project.projectId).map((laneId) => {
+      const here = !!state?.lanes[laneId];
+      return {
+        laneId, name: here ? laneName(state!, laneId) : names.get(laneId) ?? laneId, code: here ? laneCode(state!, laneId) : '',
+        flow: here ? flowLabel(state!, laneId) : '', progress: here ? languageProgress(state!, laneId, idx!) : null
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [state, ctx.languages, ctx.project.projectId]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title="Progress" sub={[orgName, 'All languages'].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title="Loading…" /></Screen>;
 
-  const total = languages.reduce((n, l) => n + l.progress.total, 0);
-  const recorded = languages.reduce((n, l) => n + l.progress.recorded, 0);
-  const done = languages.reduce((n, l) => n + l.progress.done, 0);
-  const waiting = languages.reduce((n, l) => n + l.progress.waiting, 0);
+  const known = languages.flatMap((l) => (l.progress ? [l.progress] : []));
+  const total = known.reduce((n, p) => n + p.total, 0);
+  const recorded = known.reduce((n, p) => n + p.recorded, 0);
+  const done = known.reduce((n, p) => n + p.done, 0);
+  const waiting = known.reduce((n, p) => n + p.waiting, 0);
   const q = query.trim().toLowerCase();
   const shown = q ? languages.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q)) : languages;
   const open = (laneId: string) => {
@@ -214,7 +221,9 @@ export function StatusHome(ctx: Ctx) {
         <EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its progress shows here." />
       ) : (
         <Card>
-          <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>Across {plural(languages.length, 'language')} · {plural(total, 'passage')}</Text>
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>
+            {known.length === languages.length ? `Across ${plural(languages.length, 'language')}` : `${known.length} of ${plural(languages.length, 'language')} on this phone`} · {plural(total, 'passage')}
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl }}>
             <View>
               <Text style={[styles.bigNumber, { color: C.primary }]}>{percent(recorded, total)}%</Text>
@@ -234,7 +243,7 @@ export function StatusHome(ctx: Ctx) {
       )}
       {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder="Find a language" /> : null}
       {shown.length > 0 ? <SectionLabel label="Languages" /> : null}
-      {shown.slice(0, limit).map((l) => (
+      {shown.slice(0, limit).map((l) => l.progress ? (
         <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
@@ -246,6 +255,18 @@ export function StatusHome(ctx: Ctx) {
             <Ico name="right" size={24} color={C.muted} />
           </View>
           <FunnelRows progress={l.progress} />
+        </Card>
+      ) : (
+        // Not on this phone yet: opening it brings it down (decisions.md 37).
+        <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}. Not on this phone yet. Open it.`}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
+              <Text style={txt.smMuted} numberOfLines={1}>Open it to bring it onto this phone</Text>
+            </View>
+            <Ico name="right" size={24} color={C.muted} />
+          </View>
         </Card>
       ))}
       <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((n) => n + PAGE)} />

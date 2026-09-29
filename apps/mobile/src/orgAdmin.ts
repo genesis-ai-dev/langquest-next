@@ -134,11 +134,15 @@ export function membersAbove(entries: MemberEntry[], level: ScopeLevel, projectI
   return entries.filter((e) => e.scope.level === 'org' || (level === 'lane' && e.scope.level === 'project' && e.scope.projectId === projectId));
 }
 
-/** Members assigned at a language of this organization, grouped by language, for "Expand by". */
-export function groupBelow(entries: MemberEntry[], projectId: string): Map<string, MemberEntry[]> {
+/**
+ * Members assigned at a language of this organization, grouped by language,
+ * for "Expand by". Each language is its own partition (decisions.md 37), so
+ * every language counts, not only the open one.
+ */
+export function groupBelow(entries: MemberEntry[]): Map<string, MemberEntry[]> {
   const out = new Map<string, MemberEntry[]>();
   for (const e of entries) {
-    if (e.scope.level !== 'lane' || e.scope.projectId !== projectId || !e.scope.laneId) continue;
+    if (e.scope.level !== 'lane' || !e.scope.laneId) continue;
     out.set(e.scope.laneId, [...(out.get(e.scope.laneId) ?? []), e]);
   }
   return out;
@@ -289,12 +293,23 @@ export function addLanguage(state: ProjectState | null, c: { commandId: string; 
   if (!code) throw new Error('Enter a language code.');
   if (state?.lanes[c.laneId]) throw new Error('That language is already here.');
   const next = counter(c.commandId);
-  const specs: EventSpec[] = [spec(next(), 'v1.LaneAdded', { laneId: c.laneId, languoidId: code })];
+  // The language's own partition starts with it (docs/decisions.md 37); the
+  // server accepts that first event from someone who manages structure.
+  const specs: EventSpec[] = [
+    spec(next(), 'v1.ProjectCreated', { name: name || code, sourceLanguoidId: SOURCE_LANGUOID }),
+    spec(next(), 'v1.LaneAdded', { laneId: c.laneId, languoidId: code })
+  ];
   if (name) specs.push(spec(next(), 'v1.LaneNamed', { laneId: c.laneId, name }));
   return [...specs, ...c.template];
 }
 
-/** A lane id people can read in logs, unique per add: "L-din-3f9a2c". */
+/**
+ * The source text a language translates from: the app ships English
+ * readings (BSB, WEB, KJV), so a new language starts from them.
+ */
+export const SOURCE_LANGUOID = 'eng';
+
+/** A lane id people can read in logs, unique per add: "L-din-3f9a2c". It is also the language's partition id. */
 export function newLaneId(code: string, random: string): string {
   const slug = code.trim().toLowerCase().replace(/[^a-z0-9]+/g, '') || 'lang';
   return `L-${slug}-${random.replace(/-/g, '').slice(0, 6)}`;

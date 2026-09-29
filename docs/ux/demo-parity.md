@@ -121,8 +121,8 @@ Demo-only tools are out of scope (see above). Beyond those:
 **Events built without a core command**
 - Org partition (no core commands exist for it): `v1.OrgCreated`,
   `v1.RoleDefined`, `v1.OrgMemberAdded`/`Removed`, `v1.CatalogItemToggled`,
-  `v1.ProjectRegistered` (`src/createOrg.ts`, and App when it starts an
-  org's work partition with `v1.ProjectCreated`).
+  `v1.ProjectRegistered` (New Language lists the language in the org and
+  starts its own partition with `v1.ProjectCreated`, decision 37).
 - Legacy project roles in Edit Member: `v1.MemberRoleChanged`,
   `v1.MemberRemoved`.
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),

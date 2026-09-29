@@ -1,6 +1,6 @@
 import { orgQueries } from './src/orgQueries';
 import { getStore } from './src/store';
-import { highlightsFor, updatesFor, withOrgMembers, workPartitionOf, type EventSpec } from '@langquest-next/core';
+import { highlightsFor, orgLanguages, updatesFor, withOrgMembers, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
@@ -42,14 +42,10 @@ import { parseInvite } from './src/inviteCode';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useProject } from './src/useProject';
+import { openLanguage } from './src/languages';
 
 // Initial selection, before the account's saved organization is restored.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
-/**
- * The source text every language translates from: the app ships English
- * readings (BSB, WEB, KJV), so a new organization's work starts from them.
- */
-const SOURCE_LANGUOID = 'eng';
 const IS_DEV = __DEV__;
 let initialLinkRead = false;
 
@@ -236,30 +232,48 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 }
 
 /**
- * One organization: its partition, and the work partition it names. Until
+ * One organization: its partition, and the languages it lists there. Until
  * the org fold is read (and, on a device that has never seen this org, until
- * the first sync has had its chance), which partition that is is unknown, so
+ * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
 function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; openOrganization: Ctx['openOrganization'] }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
-  const workId = workPartitionOf(org.state);
-  return <OrgWork key={workId} {...props} org={org} projectId={workId} />;
+  return <OrgWork {...props} org={org} />;
 }
 
+/**
+ * The organization with one language open (docs/decisions.md 37). Each
+ * language is its own partition: this phone syncs the org partition and the
+ * open language's, and a screen about another language opens that one, in
+ * place, without leaving the screen.
+ */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
-  orgId: string; projectId: string; org: OrgHandle; openOrganization: Ctx['openOrganization'] }) {
-  const rawProject = useProject(props.orgId, props.projectId, props.actorId);
+  orgId: string; org: OrgHandle; openOrganization: Ctx['openOrganization'] }) {
   const org = props.org;
+  const nav = useNav({ screen: 'sign_in' });
+  // ---- the language this person works in (MAP-7), and so the partition open ----
+  const laneKey = `lane:${props.actorId}:${props.orgId}`;
+  const [savedLane, setSavedLane] = useState<string | null>(null);
+  useEffect(() => { AsyncStorage.getItem(laneKey).then(setSavedLane).catch(() => {}); }, [laneKey]);
+  const setLane = useCallback((id: string) => { setSavedLane(id); AsyncStorage.setItem(laneKey, id).catch(() => {}); }, [laneKey]);
+  const paramLane = nav.current.params?.['laneId'];
+  const open = useMemo(() => openLanguage(org.state, props.actorId, { param: paramLane, saved: savedLane }),
+    [org.state, props.actorId, paramLane, savedLane]);
+  // A screen about a language makes it the one this person works in.
+  useEffect(() => { if (open.laneId && open.laneId === paramLane && open.laneId !== savedLane) setLane(open.laneId); }, [open.laneId, paramLane, savedLane, setLane]);
+  const projectId = open.partitionId;
+  const languages = useMemo(() => orgLanguages(org.state), [org.state]);
+  const rawProject = useProject(props.orgId, projectId, props.actorId);
   const projectedState = useMemo(() => rawProject.state && org.state
-    ? withOrgMembers(rawProject.state, org.state, props.projectId) : rawProject.state,
-    [rawProject.state, org.state, props.projectId]);
+    ? withOrgMembers(rawProject.state, org.state, projectId) : rawProject.state,
+    [rawProject.state, org.state, projectId]);
   const queries = useMemo(() => rawProject.queries && projectedState && projectedState !== rawProject.state
-    ? orgQueries(rawProject.queries, getStore(), props.orgId, props.projectId, projectedState)
+    ? orgQueries(rawProject.queries, getStore(), props.orgId, projectId, projectedState)
     : rawProject.queries,
-    [rawProject.queries, projectedState, rawProject.state, props.orgId, props.projectId]);
+    [rawProject.queries, projectedState, rawProject.state, props.orgId, projectId]);
   const project = { ...rawProject, state: projectedState, queries };
   useAccountSync(props.actorId);
   const profileNames = useDisplayNames(props.actorId);
@@ -274,7 +288,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const [welcomed, setWelcomed] = useState(false);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
-  const nav = useNav({ screen: 'sign_in' });
 
   // The first sign-in welcome (ADR-022) is shown once per account. The flag
   // is the one the vision screen used to set, so people already past
@@ -297,22 +310,19 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, [props.actorId]);
 
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, project.state, welcomed, org.state, props.projectId),
-    [props.actorId, props.email, project.state, welcomed, org.state, props.projectId]
+    () => deriveSession(props.actorId, props.email, project.state, welcomed, org.state, projectId),
+    [props.actorId, props.email, project.state, welcomed, org.state, projectId]
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(project, org, session);
 
-  // ---- the language this person works in (MAP-7) ----
-  const laneKey = `lane:${props.actorId}:${props.orgId}:${props.projectId}`;
-  const [savedLane, setSavedLane] = useState<string | null>(null);
-  useEffect(() => { AsyncStorage.getItem(laneKey).then(setSavedLane).catch(() => {}); }, [laneKey]);
+  // The open language; an organization from before decision 37 opens its
+  // shared partition, whose own languages are known once it has loaded.
   const lanes = useMemo(() => Object.keys(project.state?.lanes ?? {}).sort(), [project.state?.lanes]);
-  const laneId = savedLane && lanes.includes(savedLane) ? savedLane : lanes[0] ?? null;
-  const setLane = useCallback((id: string) => { setSavedLane(id); AsyncStorage.setItem(laneKey, id).catch(() => {}); }, [laneKey]);
+  const laneId = open.laneId && (project.state?.lanes[open.laneId] || !project.state) ? open.laneId : lanes[0] ?? open.laneId;
 
   // ---- passages opened lately (WORK-2) ----
-  const recentKey = `recent:${props.actorId}:${props.orgId}:${props.projectId}`;
+  const recentKey = `recent:${props.actorId}:${props.orgId}`;
   const [recent, setRecent] = useState<RecentPassage[]>([]);
   useEffect(() => { AsyncStorage.getItem(recentKey).then((v) => setRecent(v ? JSON.parse(v) : [])).catch(() => {}); }, [recentKey]);
   const remember = useCallback((unitId: string, lane: string) => {
@@ -363,7 +373,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     ? highlightsFor(project.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(project.state)).length
     : 0, [project.state, props.actorId, session]);
   const updates = useMemo(() => project.state ? updatesFor(project.state, props.actorId, indexesFor(project.state)) : [], [project.state, props.actorId]);
-  const readKey = `inbox-read:${props.actorId}:${props.orgId}:${props.projectId}`;
+  const readKey = `inbox-read:${props.actorId}:${props.orgId}`;
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);
   const markRead = useCallback((ids: string[]) => {
@@ -389,7 +399,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.
   // A role change is caught below once both folds are in.
-  const homeKey = `home:${props.actorId}:${props.orgId}:${props.projectId}`;
+  const homeKey = `home:${props.actorId}:${props.orgId}`;
   const [cachedHome, setCachedHome] = useState<ScreenId | null | undefined>(undefined);
   useEffect(() => {
     AsyncStorage.getItem(homeKey).then((v) => setCachedHome((v as ScreenId | null) ?? null)).catch(() => setCachedHome(null));
@@ -445,30 +455,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     [nav, session]
   );
 
-  // The org's work partition is started the first time someone who may do
-  // so opens it (decision 34): registered in the org if it is not yet, then
-  // ProjectCreated as its first event, which the server accepts from Manage
-  // Org Structure. Only once both partitions have been read from the server
-  // this session, so a device that has not caught up never starts a second
-  // one beside what someone else already made.
-  const canCreate = session.can('manage_structure');
-  const started = useRef(false);
-  const orgName = org.state?.org?.value.name;
-  useEffect(() => {
-    if (started.current || !canCreate || !orgName || !org.pulled || !rawProject.pulled) return;
-    if (!rawProject.state || rawProject.state.project) return;
-    started.current = true;
-    void (async () => {
-      if (!org.state?.projects[props.projectId]) await org.append('v1.ProjectRegistered', { projectId: props.projectId, name: orgName });
-      await rawProject.append('v1.ProjectCreated', { name: orgName, sourceLanguoidId: SOURCE_LANGUOID });
-    })().catch((e: unknown) => {
-      // Retried on the next open; nobody is waiting on it, so report and move on.
-      started.current = false;
-      reportError('start work partition', e);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canCreate, orgName, org.pulled, rawProject.pulled, rawProject.state?.project]);
-
   const openPassage = useCallback((unitId: string, lane: string, extra?: Record<string, string>) => {
     remember(unitId, lane);
     go('passage_record', { unitId, laneId: lane, ...extra });
@@ -519,6 +505,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     home: () => nav.reset({ screen: homeScreenFor(session) }),
     laneId,
     setLane,
+    languages,
     act,
     toast,
     details,

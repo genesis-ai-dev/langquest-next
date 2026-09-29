@@ -1,5 +1,5 @@
 import { SupabaseTransport, SyncClient, ensureDeviceId } from '@langquest-next/client';
-import { ORG_PARTITION, SEED_ROLES, WORK_PARTITION, type OrgState } from '@langquest-next/core';
+import { ORG_PARTITION, SEED_ROLES, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { getStore } from './store';
 import { supabase } from './supabase';
@@ -7,13 +7,12 @@ import { ORG_MATERIALIZER } from './useOrg';
 
 /**
  * Start a new organization (ONB-6) in its own partition, never the one that
- * happens to be open: a fresh id, the org, the usual roles, its creator as
- * Organization Admin, and its one work partition registered (decision 34).
+ * happens to be open: a fresh id, the org, the usual roles and its creator as
+ * Organization Admin. Its languages each get their own partition when they
+ * are added (docs/decisions.md 37).
  *
  * The events go into this phone's log and sync from there, so it works
- * offline. The work partition's first event is written by App once both
- * partitions have been read from the server, so it cannot race the
- * creator's membership to the server.
+ * offline.
  */
 export async function createOrganization(c: { actorId: string; name: string; displayName?: string }): Promise<string> {
   const orgId = `org-${Crypto.randomUUID()}`;
@@ -36,6 +35,5 @@ export async function createOrganization(c: { actorId: string; name: string; dis
     profileId: c.actorId, roleId: 'org_admin', scope: { level: 'org' },
     ...(c.displayName ? { displayName: c.displayName } : {})
   });
-  await client.append('v1.ProjectRegistered', { projectId: WORK_PARTITION, name: c.name });
   return orgId;
 }

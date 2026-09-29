@@ -179,6 +179,12 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   useEffect(() => {
     let cancelled = false;
     let cleanupBlobs = () => {};
+    // Another language opened (docs/decisions.md 37): nothing from the last
+    // partition may show under this one while it loads.
+    setState(null);
+    setPulled(false);
+    setOnline(null);
+    onlineRef.current = null;
     (async () => {
       const store = await getStore();
       // One random id per install, persisted. Every device must differ or

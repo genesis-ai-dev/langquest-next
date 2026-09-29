@@ -22,15 +22,15 @@ import { validateEvent } from './validate';
 export const ORG_PARTITION = '_org';
 
 /**
- * The id of the one work partition a new organization gets (decision 34):
- * an organization holds languages directly, with no project level between.
+ * The partition an organization opens while it has no languages yet. Each
+ * language is its own partition (docs/decisions.md 37); organizations from
+ * before that kept all their languages in one partition, often named this.
  */
 export const WORK_PARTITION = 'work';
 
 /**
- * The partition that holds an organization's languages: the earliest one
- * registered, by clock then event id, so every device opens the same one.
- * Before anything is registered it is `WORK_PARTITION`.
+ * Organizations from before decision 37: the one partition that held all
+ * their languages, the earliest registered (by clock, then event id).
  */
 export function workPartitionOf(org: OrgState | null): string {
   let best: { id: string; hlc: string; eventId: string } | null = null;
@@ -38,6 +38,29 @@ export function workPartitionOf(org: OrgState | null): string {
     if (!best || p.hlc < best.hlc || (p.hlc === best.hlc && p.eventId < best.eventId)) best = { id, hlc: p.hlc, eventId: p.eventId };
   }
   return best?.id ?? WORK_PARTITION;
+}
+
+/**
+ * An organization's languages (docs/decisions.md 37). Each one is its own
+ * partition, registered in the org partition (`v1.ProjectRegistered`, with
+ * the language's id as the partition id) so every member can see it exists
+ * without pulling it; a phone pulls only the languages it opens. The name is
+ * the latest `v1.LaneNamed` in the org partition, else the registered one.
+ * Sorted by name, then id.
+ */
+export function orgLanguages(org: OrgState | null): { laneId: string; name: string }[] {
+  return Object.entries(org?.projects ?? {})
+    .map(([laneId, p]) => ({ laneId, name: org?.languageNames[laneId]?.value ?? p.name }))
+    .sort((a, b) => a.name.localeCompare(b.name) || (a.laneId < b.laneId ? -1 : 1));
+}
+
+/**
+ * The partition a language syncs in: its own when it is registered (its id
+ * is the partition id), else the one shared partition of an organization
+ * from before decision 37.
+ */
+export function partitionOfLane(org: OrgState | null, laneId: string): string {
+  return org?.projects[laneId] ? laneId : workPartitionOf(org);
 }
 
 /** The UX spec's privilege catalog (ROLE_PRIVILEGES), as stable ids. */
@@ -323,10 +346,12 @@ export interface OrgState {
   redactions: Record<string, true>;
   /** itemId -> library item (library.ts). */
   library: Record<string, LibraryItemState>;
+  /** laneId -> its name, when renamed in the org partition (`v1.LaneNamed`, decision 37). */
+  languageNames: Record<string, Register<string>>;
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {} };
 }
 
 export function scopeKey(s: Scope): string {
@@ -433,6 +458,12 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       if (!prior || event.hlc < prior.hlc || (event.hlc === prior.hlc && event.id < prior.eventId)) {
         state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
       }
+      break;
+    }
+    case 'v1.LaneNamed': {
+      // A language's name in the org's list; its own partition holds the same event.
+      const prior = state.languageNames[event.payload.laneId];
+      if (!prior || !loses(prior, event)) state.languageNames[event.payload.laneId] = { value: event.payload.name, hlc: event.hlc, eventId: event.id };
       break;
     }
     case 'v1.Redacted':

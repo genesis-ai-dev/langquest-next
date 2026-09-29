@@ -58,8 +58,9 @@ self-contained (PLAN.md invariant 6): no live link to the other organization.
 ## Languages
 
 A language uses one version of a template and one of a flow. Applying one
-emits the ordinary events (`libraryApply.ts`), with ids decided by the item,
-so two admins applying offline agree:
+emits the ordinary events into the language's own partition (decision 37)
+(`libraryApply.ts`), with ids decided by the item, so two admins applying
+offline agree:
 
 - Template: `v2.LaneTemplateSelected {laneId, itemId, docHash, unitPrefix}`,
   `v1.UnitAdded` for parts not yet in the log (id `<itemId>/<node>`: `GEN`,

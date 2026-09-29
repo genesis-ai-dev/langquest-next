@@ -13,10 +13,10 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   welcome: { emits:['v1.VisionSeen'],rpcs:['record_user_event'] },
-  // A new org's partition (createOrg.ts), its work partition registered
-  // there, and the welcome it skips (markWelcomed). Its languages are set up
-  // afterwards from Getting started (ONB-5); App starts the work partition.
-  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.ProjectRegistered','v1.VisionSeen'],rpcs:['record_user_event'] },
+  // A new org's partition (createOrg.ts) and the welcome it skips
+  // (markWelcomed). Its languages are added afterwards from Getting started
+  // (ONB-5), each its own partition (decisions.md 37).
+  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.VisionSeen'],rpcs:['record_user_event'] },
   request_access: { rpcs:['create_join_request'] },
   scan_qr: { rpcs:['redeem_invite_v2','my_organizations'] },
   explore_home: { reads:['public_projects'] },
@@ -43,7 +43,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   edit_member: { emits:['v1.MemberRoleChanged','v1.MemberRemoved','v1.OrgMemberAdded','v1.OrgMemberRemoved'],rpcs:['decide_join_request'] },
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
-  new_language: { emits:['v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
+  // Registers the language in the org and starts its own partition (decisions.md 37).
+  new_language: { emits:['v1.ProjectRegistered','v1.ProjectCreated','v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // The public listing is keyed by partition; an org has one (decision 34).
   org_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
@@ -85,7 +86,7 @@ export function screenMayEmit(screen: ScreenId, session: Session, event: AnyEven
   if (event.type === 'v1.AssignmentMade' && event.payload.profileId === session.actorId
     && event.payload.role === 'translator' && session.can('translate')) return true;
   const privilege = privilegeFor(event);
-  // Creating a partition: the org by its creator. Its work partition is started by App, not a screen.
-  if (privilege === 'bootstrap') return screen === 'create_org';
+  // Creating a partition: the org by its creator, a language's own by someone who manages structure.
+  if (privilege === 'bootstrap') return screen === 'create_org' || (screen === 'new_language' && session.can('manage_structure'));
   return privilegeAllows(privilege, session.privileges);
 }

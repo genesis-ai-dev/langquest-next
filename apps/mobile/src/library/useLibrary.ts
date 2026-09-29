@@ -1,6 +1,6 @@
 import {
   CommandError, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
-  type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type TemplateDoc, type VersificationDoc
+  type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type ProjectState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -91,8 +91,9 @@ export function useLibrary(ctx: Ctx) {
   }, [orgId, run]);
 
   /** The events that make a language use an item's current version (template or flow). */
-  const applySpecs = useCallback(async (laneId: string, itemId: string, opts: { books?: string[]; docHash?: string } = {}) => {
-    const state = ctx.project.state;
+  /** `into`: the partition's state when it is not the open one (a new language's, decisions.md 37). */
+  const applySpecs = useCallback(async (laneId: string, itemId: string, opts: { books?: string[]; docHash?: string; into?: ProjectState } = {}) => {
+    const state = opts.into ?? ctx.project.state;
     // With `docHash`, the item may be one this phone has only just followed (not folded yet).
     const hash = opts.docHash ?? libraryItemView(library ?? {}, itemId)?.current;
     if (!state || !hash) throw new CommandError('That item has no version to use yet.');

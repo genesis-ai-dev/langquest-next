@@ -66,8 +66,8 @@ rule. This app takes the same shape and extends it to true offline.
 ## 3. The design in one paragraph
 
 Every organization has one **append-only event log** partitioned by
-organization and partition (its `_org` partition and the one work partition
-that holds its languages; the key is still called `projectId`, decision 34). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
+organization and partition (its `_org` partition and one partition per
+language; the key is still called `projectId`, decisions 34 and 37). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
 row mutations, and every event type is **commutative and idempotent** so any
 device applying any subset in any order converges. **Audio is immutable and
 content-addressed**: cards are blobs named by hash, a take is an ordered list
@@ -398,7 +398,7 @@ review steps describe v1 lanes, which still fold and read as kinds.
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Language | `orgId` › its one work partition (`projectId`, `workPartitionOf`) › lane (`LaneAdded`) | no project level in the app (decision 34); the partition key keeps its shape |
+| Org › Language | `orgId` › one partition per language (`projectId` = the language's id, listed by `ProjectRegistered` in `_org`; `orgLanguages`) › lane (`LaneAdded`) | no project level in the app (decision 34); a phone pulls the languages it opens (decision 37) |
 | Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used per lane (`v2.LaneTemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`LaneUnitHidden`) | pieces are leaf units; a lane shows its template's units in the books it covers, plus hand-added ones; older lanes keep the v1 catalog ids |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |

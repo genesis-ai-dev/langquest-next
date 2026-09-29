@@ -84,9 +84,9 @@ describe('members per level (ORG-5)', () => {
   });
 
   it('groups language members by language', () => {
-    expect([...groupBelow(entries, 'p1').keys()]).toEqual(['L1']);
-    expect(groupBelow(entries, 'p1').get('L1')!.map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
-    expect(groupBelow(entries, 'p2').size).toBe(0);
+    // Every language counts, whichever partition is open (decisions.md 37).
+    expect([...groupBelow(entries).keys()]).toEqual(['L1']);
+    expect(groupBelow(entries).get('L1')!.map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
   });
 
   it('edits only at the home level and below', () => {
@@ -177,19 +177,20 @@ describe('a new language (ORG-2)', () => {
     expect(booksInScope({ ...doc, structure: 'outline', outline: [] }, 'nt')).toBeUndefined();
   });
 
-  it('adds the lane, its name, then its template and the passages the organization lacks', () => {
+  it('starts the language\'s own partition, then adds the lane, its name, its template and its passages', () => {
     const state = projectFixture();
     const specs = addLanguage(state, { commandId: 'c9', laneId: 'L2', code: 'NUS', name: 'Nuer', template: templateFor(state, 'L2', booksInScope(doc, 'nt')) });
-    expect(specs.slice(0, 3).map((s) => s.type)).toEqual(['v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
+    // Each language is its own partition (decisions.md 37), and its first event starts it.
+    expect(specs.slice(0, 4).map((s) => s.type)).toEqual(['v1.ProjectCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
     expect(new Set(specs.map((s) => s.id)).size).toBe(specs.length);
     const after = fold(fromSpecs(specs), state);
     expect(laneName(after, 'L2')).toBe('Nuer');
     expect(after.lanes['L2']!.languoidId).toBe('nus');
     expect(after.laneTemplates['L2']!.value).toMatchObject({ itemId: 'lq.bible', docHash: HASH, books: ['LUK'] });
     expect(languageProgress(after, 'L2').total).toBe(24);
-    // Units are shared across languages: a second one adds none of them again.
+    // Within one partition, units already there are not added again.
     const again = addLanguage(after, { commandId: 'c10', laneId: 'L3', code: 'shk', name: 'Shilluk', template: templateFor(after, 'L3', ['LUK']) });
-    expect(again.map((s) => s.type)).toEqual(['v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
+    expect(again.map((s) => s.type)).toEqual(['v1.ProjectCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
     expect(() => addLanguage(after, { commandId: 'c11', laneId: 'L2', code: 'x', name: 'X', template: [] })).toThrow();
   });
 

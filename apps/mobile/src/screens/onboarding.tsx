@@ -43,10 +43,10 @@ export function Welcome(ctx: Ctx) {
     const state = ctx.project.state;
     const team = teamLabel(scoped?.scope, {
       org: org?.org?.value.name ?? 'your organization',
-      lane: (id) => (state?.lanes[id] ? laneName(state, id) : undefined)
+      lane: (id) => (state?.lanes[id] ? laneName(state, id) : ctx.languages.find((l) => l.laneId === id)?.name)
     });
     return { roleName, invitedBy, inviterId: invite?.issuedBy, displayName, team };
-  }, [org, me, profiles, ctx.project.state, ctx.session.role, ctx.session.email, ctx.name]);
+  }, [org, me, profiles, ctx.project.state, ctx.languages, ctx.session.role, ctx.session.email, ctx.name]);
 
   const role = welcomeRoleFor(ctx.session);
   const points = WELCOME_POINTS[role];
