@@ -3,7 +3,7 @@ import type { Ctx } from '../ctx';
 import { EmptyState, Header, Screen } from '../kit';
 import { TITLES } from '../flow';
 
-export function MyWork(ctx: Ctx) {
-  return <Screen header={<Header title={TITLES.my_work} onBack={ctx.back} />}><EmptyState title="Coming soon" /></Screen>;
+export function Welcome(ctx: Ctx) {
+  return <Screen header={<Header title={TITLES.welcome} onBack={ctx.back} />}><EmptyState title="Coming soon" /></Screen>;
 }
 

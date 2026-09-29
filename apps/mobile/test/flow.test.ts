@@ -1,43 +1,26 @@
-import { AVATAR, EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
-
-/** The spec's Screen union, copied from ng-langquest-ux/src/data.ts. */
-const SPEC_SCREENS = [
-  'sign_in', 'terms_privacy', 'vision', 'intent_chooser', 'create_org',
-  'explore_home', 'request_access', 'create_account', 'scan_qr', 'walkthrough',
-  'assignments_home', 'give_assignment',
-  'translate_passage', 'attach_questions', 'review_passage', 'review_questions', 'done_await',
-  'status_home', 'language_status', 'book_status', 'piece_status', 'piece_assign',
-  'piece_stage', 'piece_version', 'piece_review', 'progress_home', 'assignment_progress_detail',
-  'pickup_home',
-  'org_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member',
-  'new_project', 'project_home', 'new_language', 'language_home', 'review_teams', 'review_team_editor',
-  'roles_home', 'role_editor', 'templates_home', 'reference_home', 'material_editor',
-  'key_terms', 'key_term_detail', 'flows_home', 'flow_editor',
-  'quest_assets', 'add_to_tg', 'inbox_home',
-  'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm'
-];
+import { EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
+import spec from './spec-flow.json';
 
 describe('UX flow coverage', () => {
-  it('every spec screen exists, with a title and an avatar', () => {
-    for (const id of SPEC_SCREENS) {
+  it('every screen of the demo exists, with a title', () => {
+    for (const id of spec.screens) {
       expect(SCREEN_IDS, id).toContain(id);
       expect(TITLES[id as keyof typeof TITLES], id).toBeTruthy();
-      expect(AVATAR[id as keyof typeof AVATAR], id).toMatch(/^[UP]$/);
     }
-    expect(SCREEN_IDS.length).toBe(SPEC_SCREENS.length + 3);
-    for (const id of ['passage_references', 'passage_terms', 'sync_status'] as const) {
-      expect(AVATAR[id]).toBe('U');
-      expect(TITLES[id]).toBeTruthy();
-    }
+    // The one app-only screen: the local log, realtime state and transfers.
+    expect(SCREEN_IDS.length).toBe(spec.screens.length + 1);
+    expect(TITLES.sync_status).toBeTruthy();
   });
 
   it('every screen is reachable from sign_in through declared edges and tabs', () => {
-    // Why: a screen nobody can reach is a screen nobody will test. The spec
+    // Why: a screen nobody can reach is a screen nobody will test. The demo
     // enforces this with a flow machine; we enforce it with this test.
     const adj = new Map<NodeId, Set<NodeId>>();
     const add = (a: NodeId, b: NodeId) => adj.set(a, (adj.get(a) ?? new Set()).add(b));
     for (const edge of EDGES) add(edge.from, edge.to);
     for (const id of SCREEN_IDS) for (const tab of TAB_SCREENS) add(id, tab);
+    // home_hub fans out to every home.
+    for (const edge of EDGES.filter((e) => e.from === 'home_hub')) add('home_hub', edge.to);
 
     const seen = new Set<NodeId>(['sign_in']);
     const queue: NodeId[] = ['sign_in'];

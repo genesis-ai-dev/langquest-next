@@ -42,7 +42,7 @@ export interface Session {
   isWorker: boolean;
   isViewer: boolean;
   hasNoOrg: boolean;
-  /** Has not yet accepted terms and seen the vision steps on this device. */
+  /** Has not been welcomed yet (ADR-022) on this account. */
   isFirstTime: boolean;
   /** Not signed in at all (browsing public projects). */
   isGuest: boolean;
@@ -83,8 +83,8 @@ export function deriveSession(
 }
 
 /**
- * UX spec `relevantFlowFor`: may this session take a gated edge? Each gate
- * is one privilege from the spec's catalog. Ungated edges are open to
+ * Demo `relevantFlowFor`: may this session take a gated edge? Each gate is
+ * a permission, never the method (ADR-006). Ungated edges are open to
  * anyone who can reach the from-screen.
  */
 export function edgeAllowed(edge: Edge, s: Session): boolean {
@@ -93,23 +93,39 @@ export function edgeAllowed(edge: Edge, s: Session): boolean {
     case 'guest': return s.isGuest;
     case 'home': return edge.to === homeScreenFor(s);
     case 'translator': return s.can('translate');
-    case 'fillReference': return s.can('fill_reference');
     case 'reviewer': return s.can('review');
+    case 'contributor': return s.can('translate') || s.can('review');
+    case 'asker': return s.can('send_to_reviewers') || s.can('assign_work');
     case 'assigner': return s.can('assign_work');
     case 'manageTemplates': return s.can('manage_templates');
     case 'manageReference': return s.can('manage_reference');
     case 'manageFlows': return s.can('manage_flows');
+    case 'shapeTemplates': return s.can('shape_templates') || s.can('manage_templates');
   }
 }
 
-/** UX spec `homeScreenFor` (A34): admins land on their scope's Manage home, viewers on Status, workers on My Work. */
+/**
+ * Demo `homeScreenFor` (ADR-017): everyone who does or asks for work lands
+ * on My Work, admins included; viewers on the progress overview; someone
+ * with no organization on "What brings you here?".
+ */
 export function homeScreenFor(s: Session): ScreenId {
   if (s.hasNoOrg) return 'intent_chooser';
+  if (s.isViewer) return 'status_home';
+  return 'my_work';
+}
+
+/** The screen behind the Manage tab: an admin's org, project or language home (demo `manageHomeFor`). */
+export function manageHomeFor(s: Session): ScreenId | null {
   if (s.adminScope?.level === 'org') return 'org_home';
   if (s.adminScope?.level === 'project') return 'project_home';
   if (s.adminScope?.level === 'lane') return 'language_home';
-  if (s.isViewer) return 'status_home';
-  return 'assignments_home';
+  return null;
+}
+
+/** The screen behind the Map tab: workers go straight to their language, everyone else to the overview. */
+export function mapScreenFor(s: Session): ScreenId {
+  return s.isWorker && !s.adminScope ? 'map_home' : 'status_home';
 }
 
 /**
@@ -125,19 +141,30 @@ export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
  * with the guest-gated edges by a test: every `guest` edge's endpoints must
  * appear here, so adding a guest screen without listing it fails.
  */
-export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr'];
+export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy'];
 
-/** UX spec `postSignInScreen`: first-time users see terms, then vision. */
+/** Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to yet. */
 export function postSignInScreen(s: Session): ScreenId {
-  return s.isFirstTime ? 'terms_privacy' : homeScreenFor(s);
+  return s.isFirstTime && !s.hasNoOrg ? 'welcome' : homeScreenFor(s);
 }
 
-/** Bottom tabs for signed-in users (spec: Home or My Work or Status, Status, Inbox, Settings). */
-export function tabsFor(s: Session, inboxCount: number = 0): ScreenId[] {
-  const home = homeScreenFor(s);
-  const tabs: ScreenId[] = [home];
-  if (home !== 'status_home' && !s.hasNoOrg) tabs.push('status_home');
-  if (inboxCount > 0) tabs.push('inbox_home');
-  tabs.push('settings_home');
+export type TabId = 'work' | 'map' | 'manage' | 'inbox' | 'settings';
+
+export interface Tab {
+  id: TabId;
+  screen: ScreenId;
+  label: string;
+  badge?: number;
+}
+
+/** NAV-1: My Work (with its For you count), Map, Manage (admins only), Inbox (unread), Settings. */
+export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }): Tab[] {
+  const tabs: Tab[] = [];
+  if (homeScreenFor(s) === 'my_work') tabs.push({ id: 'work', screen: 'my_work', label: 'My Work', badge: counts.forYou });
+  tabs.push({ id: 'map', screen: mapScreenFor(s), label: 'Map' });
+  const manage = manageHomeFor(s);
+  if (manage) tabs.push({ id: 'manage', screen: manage, label: 'Manage' });
+  tabs.push({ id: 'inbox', screen: 'inbox_home', label: 'Inbox', badge: counts.unread });
+  tabs.push({ id: 'settings', screen: 'settings_home', label: 'Settings' });
   return tabs;
 }

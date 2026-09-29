@@ -1,6 +1,6 @@
 import { EDGES, SCREEN_IDS, type Edge } from '../src/flow';
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen } from '../src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/session';
 import spec from './spec-flow.json';
 
 /**
@@ -16,25 +16,12 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
-  'inbox_home->members_list': 'administrators act on join requests from the inbox',
-  'inbox_home->status_home': 'blocker notifications open status',
+  'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
+  'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen',
   'scan_qr->sign_in': 'save an invite while its recipient signs in',
   'explore_home->request_access': 'request membership from a public project listing',
-  'translate_passage->passage_references': 'one-next-action reference adds an oral reference run',
-  'translate_passage->passage_terms': 'one-next-action reference adds an oral key-term run',
-  'translate_passage->done_await': 'view queued and synced hand-off status from the passage hub',
-  'new_project->project_home': 'guided setup finishes at the configured project',
-  'create_account->terms_privacy': 'a new account is first-time, so it owes terms; the spec sends create_account straight to home_hub and never shows a new account the terms (A30 gap)',
-  'assignments_home->assignment_progress_detail': 'legacy progress detail kept until the spec removes progress_home',
-  'assignment_progress_detail->progress_home': 'legacy progress redirect (spec: progress_home is a legacy redirect)',
-  'project_home->status_home': 'spec org-setup.flow.md project_open_status; missing from spec flow.ts (A40)',
-  'language_home->status_home': 'spec org-setup.flow.md language_open_status; missing from spec flow.ts (A40)',
-  'flows_home->flow_editor': 'stage editing from the catalog; spec opens flow_editor from review_groups only',
-  'review_teams->flow_editor': 'spec org-setup.flow.md review_groups_open_flow (review_teams is the renamed screen)',
-  'inbox_home->translate_passage': 'the inbox lists open tasks; tapping one must open it (spec inbox only reaches edit_member)',
-  'inbox_home->review_passage': 'the inbox lists open review tasks; tapping one must open it',
-  'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
-  'assignments_home->sync_status': 'the cloud chip on My Work opens the sync status screen'
+  'inbox_home->members_list': 'administrators see every pending join request from the inbox',
+  'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -45,8 +32,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set includes the documented oral-workflow extension', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'passage_references', 'passage_terms', 'sync_status'].sort());
+  it('the screen set is the demo screen set plus sync status', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'sync_status'].sort());
   });
 
   it('every spec transition exists in the app with the same nav mode and gate', () => {
@@ -55,9 +42,10 @@ describe('UX spec parity', () => {
     // has walked end to end.
     const missing: string[] = [];
     for (const s of specEdges) {
-      const a = appEdges.find((x) => x.from === s.from && x.to === s.to && (x.mode ?? 'push') === s.mode);
-      if (!a) missing.push(`${key(s)} [${s.mode}] "${s.label}"`);
-      else if ((a.when ?? null) !== s.when) missing.push(`${key(s)} gate spec=${s.when} app=${a.when ?? null}`);
+      // Parallel edges (the same move for different people) are matched by gate too.
+      const same = appEdges.filter((x) => x.from === s.from && x.to === s.to && (x.mode ?? 'push') === s.mode);
+      if (!same.length) missing.push(`${key(s)} [${s.mode}] "${s.label}"`);
+      else if (!same.some((a) => (a.when ?? null) === s.when)) missing.push(`${key(s)} gate spec=${s.when} app=${same.map((a) => a.when ?? null).join('/')}`);
     }
     expect(missing).toEqual([]);
   });
@@ -97,7 +85,10 @@ describe('UX spec parity', () => {
       ].map((e) => ({ ...e, id: `o${++seq}`, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'd', hlc: `00000000000000${seq}:000000:d` }) as AnyEvent)
     );
     const langAdmin = deriveSession('akol', 'a@x', null, true, org, 'p1');
-    expect(homeScreenFor(langAdmin)).toBe('language_home');
+    // Everyone who does or asks for work lands on My Work, admins included;
+    // their scope's home is behind the Manage tab (ADR-017).
+    expect(homeScreenFor(langAdmin)).toBe('my_work');
+    expect(manageHomeFor(langAdmin)).toBe('language_home');
     sessions.push(langAdmin);
 
     const deadGates: string[] = [];
@@ -107,9 +98,11 @@ describe('UX spec parity', () => {
     expect(deadGates).toEqual([]);
 
     const homes = new Set(sessions.map(homeScreenFor));
-    for (const h of ['intent_chooser', 'assignments_home', 'org_home', 'project_home', 'language_home', 'status_home']) {
+    for (const h of ['intent_chooser', 'my_work', 'status_home']) {
       expect(homes.has(h as never), h).toBe(true);
     }
+    const manageHomes = new Set(sessions.map(manageHomeFor));
+    for (const h of ['org_home', 'project_home', 'language_home']) expect(manageHomes.has(h as never), h).toBe(true);
   });
 
   it('every pre-auth screen has a declared way out for every session it can produce', () => {
@@ -128,9 +121,12 @@ describe('UX spec parity', () => {
         null,
         'p1'
       );
-    const firstTime = deriveSession('me', 'me@x', null, false);
-    const sessions = [firstTime, deriveSession('noorg', 'n@x', null, true), ...['owner', 'coordinator', 'translator', 'reviewer', 'viewer'].map(roleSession)];
-    expect(postSignInScreen(firstTime)).toBe('terms_privacy');
+    const firstTime = { ...roleSession('translator'), isFirstTime: true };
+    const firstNoOrg = deriveSession('me', 'me@x', null, false);
+    const sessions = [firstTime, firstNoOrg, deriveSession('noorg', 'n@x', null, true), ...['owner', 'coordinator', 'translator', 'reviewer', 'viewer'].map(roleSession)];
+    // A first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to.
+    expect(postSignInScreen(firstTime)).toBe('welcome');
+    expect(postSignInScreen(firstNoOrg)).toBe('intent_chooser');
 
     const missing: string[] = [];
     for (const from of AUTH_SCREENS) {

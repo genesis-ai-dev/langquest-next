@@ -129,7 +129,7 @@ export function Vision(ctx: Ctx) {
           label={last ? 'Get started' : 'Next'}
           onPress={() => {
             if (last) {
-              void ctx.markVisionSeen().then(ctx.home).catch((e) => setError(e.message));
+              void ctx.markWelcomed().then(ctx.home).catch((e: Error) => setError(e.message));
             } else setStep(step + 1);
           }}
           secondary={step > 0 ? { label: 'Back', onPress: () => setStep(step - 1) } : undefined}
@@ -200,7 +200,7 @@ export function CreateOrg(ctx: Ctx) {
       await append('v1.UnitAdded', { unitId, parentUnitId: 'luke', kind: 'passage', label, order: `a${i}` });
       await append('v1.ReferenceAttached', { unitId, refId: `${unitId}-terms`, kind: 'key_terms', text: 'Theophilus, eyewitnesses, orderly account' });
     }
-    ctx.go('walkthrough');
+    ctx.go('my_work');
   }
   return (
     <Screen footer={<Footer label="Create organization" onPress={() => void create()} />}>
@@ -407,4 +407,4 @@ const styles = StyleSheet.create({
 });
 
 import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr', 'walkthrough');
+export const contracts = contractsFor('sign_in', 'create_account', 'terms_privacy', 'vision', 'intent_chooser', 'create_org', 'explore_home', 'request_access', 'scan_qr');

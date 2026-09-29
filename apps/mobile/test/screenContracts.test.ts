@@ -9,7 +9,7 @@ import { buildFixture } from '../../../packages/core/test/fixtures';
 
 const root = path.resolve('apps/mobile');
 const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
-const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Org|Config|Account|Work|Review|Translate|Status|PassageSlides|Recordings)\.(\w+)/g)]
+const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Content|Account|Work|MapScreens|Passage|Review|Translate|Study)\.(\w+)/g)]
   .map((m) => [m[2]!,m[1]! as ScreenId]));
 
 describe('screen action contracts', () => {
@@ -66,11 +66,23 @@ describe('screen action contracts', () => {
     expect(checked).toBeGreaterThan(40);
   });
 
-  it('permits picking up your own work without permitting assignment to others', () => {
-    const session = deriveSession('t1',null,fold(buildFixture()),true);
-    const event = { type:'v1.AssignmentMade',payload:{ unitId:'u',laneId:'L1',profileId:'t1',role:'translator' } } as AnyEvent;
-    expect(screenMayEmit('pickup_home',session,event)).toBe(true);
-    expect(screenMayEmit('pickup_home',session,{ ...event,payload:{ ...event.payload,profileId:'someone-else' } } as AnyEvent)).toBe(false);
-    expect(screenMayEmit('review_passage',session,event)).toBe(false);
+  it('asking, reviewing and logging follow permissions, never the method', () => {
+    const state = fold(buildFixture());
+    const as = (role: Role) => deriveSession('persona', null, { ...state, members: {
+      ...state.members, persona: { role: { value: role, hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } }
+    } }, true);
+    const ask = { type: 'v1.RequestMade', payload: { requestId: 'q', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'peer', profileId: 'r1' } } as AnyEvent;
+    expect(screenMayEmit('ask_someone', as('translator'), ask)).toBe(true);
+    expect(screenMayEmit('ask_someone', as('viewer'), ask)).toBe(false);
+    const review = { type: 'v1.ReviewRecorded', payload: { reviewId: 'r', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' } } as AnyEvent;
+    expect(screenMayEmit('review_capture', as('reviewer'), review)).toBe(true);
+    // A translator may log a check they ran themselves (design principles 5), not review in the app.
+    expect(screenMayEmit('review_capture', as('translator'), review)).toBe(false);
+    const logged = { ...review, payload: { ...review.payload, via: 'logged' } } as AnyEvent;
+    expect(screenMayEmit('add_record', as('translator'), logged)).toBe(true);
+    // A back translator records source-language cards with only Review.
+    const card = { type: 'v1.RecordingAdded', payload: { recordingId: 'c', unitId: 'luke1', laneId: 'L1', kind: 'source', cards: [{ hash: 'h', durationMs: 1 }] } } as AnyEvent;
+    expect(screenMayEmit('back_translation', as('reviewer'), card)).toBe(true);
+    expect(screenMayEmit('workspace', as('reviewer'), { ...card, payload: { ...card.payload, kind: 'target' } } as AnyEvent)).toBe(false);
   });
 });

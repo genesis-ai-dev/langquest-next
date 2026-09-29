@@ -9,6 +9,7 @@ import {
 import { sourceChapters } from './sourceBibles';
 import type { ProjectState } from './state';
 import { deriveWorkflow } from './workflow';
+import { stateRevision } from './reducer';
 
 /**
  * Reading a passage's record against its language's flow (UX demo
@@ -227,7 +228,12 @@ interface RecordIndexes {
   passages: Map<string, PassageState>;
 }
 
-const cache = new WeakMap<ProjectState, RecordIndexes>();
+/**
+ * One set of indexes per state object and revision. The app publishes a
+ * fresh top-level copy per change; a client's live state is mutated in
+ * place and bumps its revision with every applied event.
+ */
+const cache = new WeakMap<ProjectState, { revision: number; ri: RecordIndexes }>();
 
 function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   const list = m.get(k);
@@ -238,8 +244,9 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
 const byHlc = <T extends { hlc: string }>(a: T, b: T) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : 0);
 
 function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
+  const revision = stateRevision(state);
   const hit = cache.get(state);
-  if (hit) return hit;
+  if (hit && hit.revision === revision) return hit.ri;
   const reviewsByTake = new Map<string, KindReview[]>();
   for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
   // v1 reviews read as in-app reviews of the step's kind (outcome from the decision).
@@ -301,7 +308,7 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
     idx: idx ?? buildIndexes(state), kinds: deriveKinds(state), versions, drafts, reviewsByTake,
     departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map()
   };
-  cache.set(state, out);
+  cache.set(state, { revision, ri: out });
   return out;
 }
 
@@ -696,7 +703,7 @@ export interface UnitPlace {
 /** Book and chapters of a unit, for the Map (MAP-4, MAP-5). */
 export function unitPlace(state: ProjectState, unitId: string): UnitPlace {
   const chapters = sourceChapters(unitId);
-  let bookId = chapters[0]?.book ?? null;
+  let bookId: string | null = chapters[0]?.book ?? null;
   if (!bookId) {
     // A hand-added unit: its parent book unit, or a label like "Luke 15:11-32".
     const label = state.units[unitId]?.label ?? '';
@@ -722,4 +729,62 @@ export function unitPlace(state: ProjectState, unitId: string): UnitPlace {
 /** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3". */
 export function unitTitle(state: ProjectState, unitId: string): string {
   return state.units[unitId]?.label ?? unitId;
+}
+
+// ---- updates for the Inbox -----------------------------------------------------------
+
+export type UpdateKind = 'request' | 'review' | 'revision' | 'kept' | 'request_done';
+
+export interface Update {
+  /** Stable, so read state kept on a device survives a refold. */
+  id: string;
+  kind: UpdateKind;
+  unitId: string;
+  laneId: string;
+  by: string;
+  hlc: Hlc;
+  request?: RequestView;
+  review?: ReviewView;
+  version?: Version;
+}
+
+/**
+ * What happened that concerns this person (INBOX-1, CORE-7): someone asked
+ * them for something, reviewed a version they recorded, answered feedback
+ * they gave, or did what they asked. Never their own acts. Newest first.
+ */
+export function updatesFor(state: ProjectState, actorId: string, idx?: Indexes): Update[] {
+  const ri = recordIndexes(state, idx);
+  const keys = new Set<string>();
+  for (const r of ri.requestsTo.get(actorId) ?? []) keys.add(unitLaneKey(r.unitId, r.laneId));
+  for (const r of ri.requestsBy.get(actorId) ?? []) keys.add(unitLaneKey(r.unitId, r.laneId));
+  for (const [key, takeIds] of ri.versions) {
+    if (takeIds.some((t) => (state.submissions[t]?.actorId ?? state.takes[t]?.actorId) === actorId)) keys.add(key);
+    else if (takeIds.some((t) => (ri.reviewsByTake.get(t) ?? []).some((r) => r.by === actorId))) keys.add(key);
+  }
+  const out: Update[] = [];
+  for (const key of keys) {
+    const sep = key.lastIndexOf(':');
+    const unitId = key.slice(0, sep);
+    const laneId = key.slice(sep + 1);
+    if (!state.units[unitId]) continue;
+    const s = derivePassage(state, unitId, laneId, ri.idx);
+    const base = { unitId, laneId };
+    for (const r of s.requests) {
+      if (r.legacy) continue;
+      if (r.profileId === actorId && r.by !== actorId) out.push({ ...base, id: `request:${r.id}`, kind: 'request', by: r.by, hlc: r.hlc, request: r });
+      if (r.by === actorId && r.status === 'done') {
+        const doneBy = r.what === 'record' ? s.versions.find((v) => v.hlc > r.hlc) : s.reviews.find((x) => x.requestId === r.id || (x.kindId === r.kindId && x.hlc > r.hlc));
+        if (doneBy && doneBy.by !== actorId) out.push({ ...base, id: `done:${r.id}`, kind: 'request_done', by: doneBy.by, hlc: doneBy.hlc, request: r });
+      }
+    }
+    for (const r of s.reviews) {
+      const version = s.versions[r.versionN - 1];
+      if (version?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: 'review', by: r.by, hlc: r.hlc, review: r, version });
+      if (r.by === actorId && r.response && r.response.by !== actorId) {
+        out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === 'revised' ? 'revision' : 'kept', by: r.response.by, hlc: r.response.hlc, review: r });
+      }
+    }
+  }
+  return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0));
 }

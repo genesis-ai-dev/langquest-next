@@ -42,7 +42,6 @@ export function InboxHome(ctx: Ctx) {
     if (row.org_id !== ctx.project.orgId || (row.project_id !== '_org' && row.project_id !== ctx.project.projectId)) {
       await ctx.openOrganization(row.org_id, row.project_id === '_org' ? undefined : row.project_id);
     } else if (row.kind === 'join_request') ctx.go('members_list');
-    else if (row.task_id) ctx.go(row.task_id.startsWith('review:') ? 'review_passage' : 'translate_passage', { taskId: row.task_id });
     else ctx.go('status_home');
   }
   return (
@@ -57,9 +56,7 @@ export function InboxHome(ctx: Ctx) {
       <Section label="Your work">
         {!localItems.length ? <Row label="Nothing waiting" last /> : null}
         {localItems.map((item) => <Row key={item.id} label={item.title}
-          badge={item.kind} onPress={() => item.taskId
-            ? ctx.go(item.taskId.startsWith('review:') ? 'review_passage' : 'translate_passage', { taskId: item.taskId })
-            : ctx.go('status_home')} />)}
+          badge={item.kind} onPress={() => ctx.go('status_home')} />)}
       </Section>
       <Section label="Organization updates">
         {remote.filter((r) => r.kind === 'join_request' || r.org_id !== ctx.project.orgId || r.project_id !== ctx.project.projectId)
@@ -91,7 +88,6 @@ export function SettingsHome(ctx: Ctx) {
         }} />
         {notificationMessage ? <Note>{notificationMessage}</Note> : null}
         <Row icon={Cloud} label="Sync" sub={ctx.project.live ? 'live' : ctx.project.lastSync} onPress={() => ctx.go('sync_status')} />
-        <Row icon={RefreshCw} label="Replay organization walkthrough" onPress={() => ctx.go('walkthrough')} />
         <Row icon={LogOut} label="Sign out" onPress={() => ctx.go('sign_out_confirm')} last />
       </Section>
       {ctx.canSwitchPersona ? (

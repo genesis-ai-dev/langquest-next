@@ -12,6 +12,17 @@ import { studyMarkKey, type Undo } from './record';
 export const REDUCER_VERSION = 3;
 
 /**
+ * How many events have been applied to a state object. Kept outside the
+ * state (so snapshots and the permutation tests never see it) for caches of
+ * derived views: `SyncClient.getState()` returns an object the fold keeps
+ * mutating, so identity alone cannot say whether a cached view is current.
+ */
+const REVISIONS = new WeakMap<object, number>();
+export function stateRevision(state: object): number {
+  return REVISIONS.get(state) ?? 0;
+}
+
+/**
  * Apply one event. Must be deterministic, order-independent, and idempotent
  * (PLAN.md invariants 2 and 3). Mutates and returns `state` for speed; callers
  * that need immutability clone first.
@@ -19,6 +30,7 @@ export const REDUCER_VERSION = 3;
 export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
+  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
 
   const invalid = validateEvent(event);
   if (invalid) {

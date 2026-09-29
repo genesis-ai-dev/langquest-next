@@ -1,35 +1,35 @@
 /**
- * Single authority for navigation, ported from the UX spec's `flow.ts`.
- * Every screen id is the spec's. `go()` refuses undeclared transitions, so
- * the app and the spec flowchart cannot drift. `home_hub` resolves to the
- * session's home screen at runtime (see session.ts).
+ * Single authority for navigation, ported from the UX demo's `flow.ts`
+ * (ng-langquest-ux, vendored as test/spec-flow.json). Every screen id and
+ * every edge below is the demo's, in the demo's order, with its nav mode and
+ * permission gate; `test/specParity.test.ts` holds this file to it edge by
+ * edge. `go()` refuses undeclared transitions, so the app and the demo's
+ * screen map cannot drift. `home_hub` resolves to the session's home at
+ * runtime (session.ts). App-only edges sit at the end, each with a reason in
+ * the parity test's drift log.
  */
 
 export const SCREEN_IDS = [
-  // Entry
-  'sign_in', 'terms_privacy', 'vision', 'intent_chooser', 'create_org',
-  'explore_home', 'request_access', 'create_account', 'scan_qr', 'walkthrough',
-  // Assignments hub
-  'assignments_home', 'give_assignment',
-  // Work
-  'translate_passage', 'attach_questions', 'review_passage', 'review_questions', 'done_await',
-  // Status
-  'status_home', 'language_status', 'book_status', 'piece_status', 'piece_assign',
-  'piece_stage', 'piece_version', 'piece_review', 'progress_home', 'assignment_progress_detail',
-  'pickup_home',
-  // Org setup
-  'org_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member',
-  'new_project', 'project_home', 'new_language', 'language_home',
-  'review_teams', 'review_team_editor',
-  // Org config
-  'roles_home', 'role_editor', 'templates_home', 'reference_home', 'material_editor',
-  'key_terms', 'key_term_detail', 'flows_home', 'flow_editor',
-  // Oral translation
-  'quest_assets', 'add_to_tg', 'passage_references', 'passage_terms',
-  // Notifications
-  'inbox_home',
-  // Settings
-  'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'sync_status'
+  // 1 Getting in
+  'sign_in', 'terms_privacy', 'explore_home', 'create_account', 'scan_qr', 'welcome', 'vision',
+  // 2 No organization yet
+  'intent_chooser', 'create_org', 'request_access',
+  // 3 Home and finding passages
+  'my_work', 'status_home', 'map_home', 'book_map',
+  // 4 A passage
+  'passage_record', 'version_detail', 'review_detail', 'ask_someone', 'guest_review', 'add_record',
+  // 5 Doing the work
+  'study_guide', 'study_step', 'workspace', 'review_capture', 'back_translation', 'key_terms', 'key_term_detail',
+  // 6 Account (Inbox and Settings tabs)
+  'inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm',
+  // 7 Running the organization (Manage tab)
+  'org_home', 'project_home', 'language_home', 'new_project', 'new_language', 'members_list', 'invite_member',
+  'invite_qr', 'edit_member', 'roles_home', 'role_editor', 'review_teams', 'review_team_editor',
+  // 8 Method and content
+  'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
+  'reference_home', 'material_editor',
+  // App only: the local log, realtime state and transfers
+  'sync_status'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -37,40 +37,21 @@ export type NodeId = ScreenId | 'home_hub';
 
 export type Mode = 'push' | 'replace' | 'back' | 'reset' | 'popTo';
 
-/** Which avatar a screen is designed for (PLAN.md section 12). */
-export const AVATAR: Record<ScreenId, 'U' | 'P'> = {
-  sign_in: 'U', terms_privacy: 'U', vision: 'U', intent_chooser: 'U', create_org: 'P',
-  explore_home: 'U', request_access: 'U', create_account: 'U', scan_qr: 'U', walkthrough: 'U',
-  assignments_home: 'U', give_assignment: 'P',
-  translate_passage: 'U', attach_questions: 'U', review_passage: 'U', review_questions: 'U', done_await: 'U',
-  status_home: 'P', language_status: 'P', book_status: 'P', piece_status: 'P', piece_assign: 'P',
-  piece_stage: 'P', piece_version: 'P', piece_review: 'P', progress_home: 'P', assignment_progress_detail: 'P',
-  pickup_home: 'U',
-  org_home: 'P', members_list: 'P', invite_member: 'P', invite_qr: 'P', edit_member: 'P',
-  new_project: 'P', project_home: 'P', new_language: 'P', language_home: 'P',
-  review_teams: 'P', review_team_editor: 'P',
-  roles_home: 'P', role_editor: 'P', templates_home: 'P', reference_home: 'P', material_editor: 'P',
-  key_terms: 'P', key_term_detail: 'P', flows_home: 'P', flow_editor: 'P',
-  quest_assets: 'U', add_to_tg: 'U', passage_references: 'U', passage_terms: 'U',
-  inbox_home: 'P',
-  settings_home: 'P', profile_edit: 'P', org_switcher: 'P', sign_out_confirm: 'U', sync_status: 'U'
-};
-
 /**
- * Who may traverse an edge (UX spec `EdgeGate`). Declared on the edge so the
- * persona-filtered flowchart, the spec parity test, and `go()` all read the
- * same data. Omitted = anyone who can reach the from-screen.
- *  - guest:   only while signed out
- *  - home:    role dispatch; relevant iff `to` is this session's home
- *  - translator / reviewer / fillReference: the matching My Work affordance
- *  - assigner: may assign work (admins)
+ * Who may traverse an edge (demo `EdgeGate`). Gates are permissions (who
+ * MAY act), never the method (ADR-006). Omitted = anyone who can reach the
+ * from-screen. `session.ts` maps each onto privileges (`edgeAllowed`).
+ *  - guest: only while signed out
+ *  - home: role dispatch; relevant iff `to` is this session's home
+ *  - translator: Translate · reviewer: Review · contributor: Translate or Review
+ *  - asker: Ask for Reviews or Assign Work · assigner: Assign Work
  *  - manageTemplates / manageReference / manageFlows: the matching Manage permission
- * `session.ts` maps each gate onto session facets (`edgeAllowed`).
+ *  - shapeTemplates: Shape Content Templates (or Manage Content Templates)
  */
 export type Gate =
   | 'guest' | 'home'
-  | 'translator' | 'reviewer' | 'fillReference' | 'assigner'
-  | 'manageTemplates' | 'manageReference' | 'manageFlows';
+  | 'translator' | 'reviewer' | 'contributor' | 'asker' | 'assigner'
+  | 'manageTemplates' | 'manageReference' | 'manageFlows' | 'shapeTemplates';
 
 export interface Edge {
   from: NodeId;
@@ -87,202 +68,233 @@ const e = (from: NodeId, to: NodeId, mode?: Mode, when?: Gate): Edge => ({
 });
 
 export const EDGES: Edge[] = [
-  // Entry
-  e('sign_in', 'terms_privacy', 'replace'),
-  e('sign_in', 'home_hub', 'replace'),
-  e('sign_in', 'create_account', undefined, 'guest'),
-  e('sign_in', 'explore_home', undefined, 'guest'),
-  e('create_account', 'scan_qr', undefined, 'guest'),
-  e('create_account', 'home_hub', 'replace'),
-  // A brand-new account is always first-time, so it owes terms before home.
-  // The spec sends create_account straight to home_hub and has no screen
-  // that shows terms to a new account; see the drift log in specParity.
-  e('create_account', 'terms_privacy', 'replace'),
-  e('create_account', 'sign_in', 'back', 'guest'),
+  e('sign_in', 'welcome', 'replace'), // Sign In · email contains “first”
+  e('sign_in', 'terms_privacy', undefined, 'guest'), // tap Terms & Privacy
+  e('sign_in', 'home_hub', 'replace'), // Sign In
+  e('sign_in', 'create_account', undefined, 'guest'), // tap Create Account
+  e('sign_in', 'explore_home', undefined, 'guest'), // tap Browse public projects
+  e('create_account', 'scan_qr', undefined, 'guest'), // tap Scan org invite
+  e('create_account', 'welcome', 'replace'), // tap Create Account · with an invite
+  e('create_account', 'home_hub', 'replace'), // tap Create Account
+  e('create_account', 'sign_in', 'back', 'guest'), // tap Back
+  e('scan_qr', 'welcome', 'replace'), // tap Capture
+  e('scan_qr', 'create_account', 'back', 'guest'), // tap Back (from create account)
+  e('scan_qr', 'intent_chooser', 'back'), // tap Back (from intent)
+  e('terms_privacy', 'sign_in', 'back', 'guest'), // tap Back
+  e('welcome', 'passage_record', 'reset', 'contributor'), // tap Show me how · practice passage
+  e('welcome', 'home_hub', 'replace'), // tap Skip for now / Get started
+  e('welcome', 'vision'), // tap What is LangQuest?
+  e('vision', 'welcome', 'back'), // tap Back / Done (from welcome)
+  e('explore_home', 'sign_in', 'reset', 'guest'), // tap Sign In (guest only)
+  e('explore_home', 'sign_in', 'back', 'guest'), // tap Back (from sign-in)
+  e('home_hub', 'intent_chooser', 'replace', 'home'), // route · no-org
+  e('home_hub', 'my_work', 'replace', 'home'), // route · trans / review / admin-*
+  e('home_hub', 'status_home', 'replace', 'home'), // route · view-*
+  e('my_work', 'workspace', undefined, 'translator'), // tap Record / Continue
+  e('my_work', 'review_capture', undefined, 'reviewer'), // tap Review
+  e('my_work', 'back_translation', undefined, 'reviewer'), // tap Start (back translation)
+  e('my_work', 'passage_record'), // tap Respond / waiting / recent passage
+  e('my_work', 'passage_record', undefined, 'contributor'), // tap a practice row (Getting started)
+  e('my_work', 'new_project', undefined, 'assigner'), // tap Create a project (Getting started · admin)
+  e('my_work', 'new_language', undefined, 'assigner'), // tap Add a language (Getting started · admin)
+  e('my_work', 'flows_home', undefined, 'manageFlows'), // tap Choose its review flow (Getting started · admin)
+  e('my_work', 'invite_member', undefined, 'assigner'), // tap Invite your team (Getting started · admin)
+  e('my_work', 'roles_home', undefined, 'assigner'), // tap See the roles (Getting started · admin)
+  e('roles_home', 'my_work', 'back'), // tap Back (from My Work)
+  e('new_project', 'my_work', 'back'), // tap Create Project (from My Work)
+  e('new_language', 'my_work', 'back'), // tap Create Language (from My Work)
+  e('flows_home', 'my_work', 'back'), // tap Back (from My Work)
+  e('invite_member', 'my_work', 'back'), // tap Send invite (from My Work)
+  e('invite_qr', 'my_work', 'popTo'), // tap Done (from My Work)
+  e('passage_record', 'my_work', 'back'), // tap Back (from My Work)
+  e('my_work', 'templates_home', undefined, 'shapeTemplates'), // tap Open on a content template task
+  e('intent_chooser', 'create_org'), // tap Create an organization
+  e('intent_chooser', 'request_access'), // tap Join an existing org
+  e('intent_chooser', 'scan_qr'), // tap Join with QR code
+  e('intent_chooser', 'explore_home'), // tap Explore projects
+  e('intent_chooser', 'sign_in', 'reset'), // tap Back
+  e('create_org', 'my_work', 'replace'), // tap Create Organization → org-admin
+  e('create_org', 'intent_chooser', 'back'), // tap Back
+  e('request_access', 'intent_chooser', 'replace'), // tap Send request · shown sent
+  e('request_access', 'intent_chooser', 'back'), // tap Back
+  e('status_home', 'map_home'), // tap language
+  e('map_home', 'status_home', 'back'), // tap Back
+  e('language_home', 'map_home'), // tap Passage map
+  e('map_home', 'passage_record'), // tap search result
+  e('map_home', 'book_map'), // tap book
+  e('book_map', 'map_home', 'back'), // tap Back
+  e('book_map', 'passage_record'), // tap chapter
+  e('passage_record', 'book_map', 'back'), // tap Back
+  e('passage_record', 'map_home', 'back'), // tap Back
+  e('passage_record', 'workspace', undefined, 'translator'), // tap Record it / Record a fix / New version
+  e('passage_record', 'review_capture', undefined, 'reviewer'), // tap Review it now
+  e('passage_record', 'back_translation', undefined, 'reviewer'), // tap Back-translate it
+  e('passage_record', 'ask_someone', undefined, 'asker'), // tap Ask someone
+  e('passage_record', 'add_record', undefined, 'contributor'), // tap Already happened (on a step)
+  e('passage_record', 'study_guide'), // tap Start / Continue the study
+  e('passage_record', 'study_step'), // tap a study step (Details)
+  e('passage_record', 'version_detail'), // tap version
+  e('passage_record', 'review_detail'), // tap review
+  e('version_detail', 'passage_record', 'popTo'), // tap passage name (top)
+  e('version_detail', 'passage_record', 'back'), // tap Back
+  e('version_detail', 'review_detail'), // tap review of this version
+  e('version_detail', 'key_term_detail'), // tap tied key term
+  e('review_detail', 'passage_record', 'popTo'), // tap passage name (top)
+  e('review_detail', 'passage_record', 'back'), // tap Back
+  e('review_detail', 'version_detail'), // tap reviewed version
+  e('review_detail', 'workspace', undefined, 'translator'), // tap Record a fix
+  e('ask_someone', 'passage_record', 'popTo'), // tap Send request
+  e('ask_someone', 'passage_record', 'back'), // tap Back
+  e('ask_someone', 'guest_review'), // they open the link · no account
+  e('add_record', 'passage_record', 'popTo'), // tap Looks good / Needs changes / Save to the record
+  e('add_record', 'passage_record', 'back'), // tap Back
+  e('add_record', 'key_term_detail'), // tap key term
+  e('add_record', 'study_guide'), // tap Open the study
+  e('add_record', 'study_step'), // tap a study step
+  e('study_guide', 'study_step'), // tap a step / Continue
+  e('study_guide', 'workspace', undefined, 'translator'), // tap Record it
+  e('study_guide', 'passage_record', 'popTo'), // tap passage name (top)
+  e('study_guide', 'passage_record', 'back'), // tap Back (from record)
+  e('study_guide', 'workspace', 'back'), // tap Back (from workspace)
+  e('study_guide', 'review_capture', 'back'), // tap Back (from review)
+  e('study_step', 'study_guide', 'popTo'), // tap Done (last step) / All steps / study name (top)
+  e('study_step', 'passage_record', 'popTo'), // tap passage name (top)
+  e('study_step', 'key_term_detail'), // tap FIA key term
+  e('study_step', 'workspace', undefined, 'translator'), // tap Record the first draft
+  e('study_step', 'study_guide', 'back'), // tap Back
+  e('study_step', 'passage_record', 'back'), // tap Back (from record)
+  e('study_step', 'review_capture', 'back'), // tap Back (from review)
+  e('study_step', 'workspace', 'back'), // tap Back (from workspace)
+  e('key_term_detail', 'study_step', 'back'), // tap Back (from study)
+  e('workspace', 'passage_record', 'popTo'), // tap Publish → confirm
+  e('workspace', 'key_term_detail'), // tap key term
+  e('workspace', 'key_terms'), // tap All key terms
+  e('workspace', 'study_step'), // tap a step in the Study tray
+  e('workspace', 'study_guide'), // tap Open the study
+  e('workspace', 'passage_record', 'back'), // tap Back (from record)
+  e('workspace', 'my_work', 'back'), // tap Back (from My Work)
+  e('workspace', 'review_detail', 'back'), // tap Back (from review)
+  e('review_capture', 'passage_record', 'popTo'), // tap Looks good / Needs changes
+  e('review_capture', 'key_term_detail'), // tap key term
+  e('review_capture', 'study_guide'), // tap Open the study
+  e('review_capture', 'study_step'), // tap a study step
+  e('review_capture', 'passage_record', 'back'), // tap Back (from record)
+  e('review_capture', 'my_work', 'back'), // tap Back (from My Work)
+  e('back_translation', 'passage_record', 'popTo'), // tap Save back translation
+  e('back_translation', 'passage_record', 'back'), // tap Back (from record)
+  e('back_translation', 'my_work', 'back'), // tap Back (from My Work)
+  e('org_home', 'members_list'), // tap Members
+  e('org_home', 'project_home'), // tap project in Manage Projects
+  e('org_home', 'new_project'), // tap New project
+  e('org_home', 'roles_home'), // tap Roles
+  e('org_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
+  e('org_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
+  e('org_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
+  e('new_project', 'org_home', 'back'), // tap Create Project
+  e('project_home', 'members_list'), // tap Members
+  e('project_home', 'roles_home'), // tap Roles
+  e('project_home', 'new_language'), // tap New language
+  e('project_home', 'language_home'), // tap language in Manage Languages
+  e('project_home', 'org_home', 'popTo'), // tap org breadcrumb
+  e('project_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
+  e('project_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
+  e('project_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
+  e('new_language', 'project_home', 'back'), // tap Create Language
+  e('language_home', 'members_list'), // tap Members
+  e('language_home', 'roles_home'), // tap Roles
+  e('language_home', 'review_teams'), // tap Review Teams
+  e('language_home', 'org_home', 'popTo'), // tap org breadcrumb
+  e('language_home', 'project_home', 'popTo'), // tap project breadcrumb
+  e('language_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
+  e('language_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
+  e('language_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
+  e('review_teams', 'review_team_editor'), // tap team / New
+  e('review_team_editor', 'review_teams', 'back'), // tap Save / Back
+  e('members_list', 'invite_member'), // tap Invite
+  e('members_list', 'edit_member'), // tap Edit on an editable member
+  e('edit_member', 'members_list', 'back'), // tap Save Assignment
+  e('inbox_home', 'edit_member', undefined, 'assigner'), // tap Accept join request
+  e('edit_member', 'inbox_home', 'back'), // tap Assign Role · from inbox
+  e('invite_member', 'invite_qr'), // tap Invite by QR code
+  e('invite_qr', 'role_editor'), // tap Create a new role
+  e('invite_qr', 'members_list', 'popTo'), // tap Done
+  e('invite_qr', 'invite_member', 'back'), // tap Back
+  e('roles_home', 'role_editor'), // tap role / New Role
+  e('role_editor', 'invite_qr', undefined, 'assigner'), // tap Invite someone as … (assigner)
+  e('invite_qr', 'role_editor', 'back'), // tap Back (from a role)
+  e('role_editor', 'edit_member', undefined, 'assigner'), // tap member with this role
+  e('templates_home', 'template_picker', undefined, 'manageTemplates'), // tap Change template
+  e('template_picker', 'templates_home', 'popTo'), // tap Use for this language
+  e('template_picker', 'templates_home', 'back'), // tap Back
+  e('templates_home', 'template_editor', undefined, 'manageTemplates'), // tap Edit levels / a template / New template
+  e('template_editor', 'templates_home', 'back'), // tap Save / Back
+  e('templates_home', 'book_structure', undefined, 'shapeTemplates'), // tap a book / Open the outline
+  e('book_structure', 'templates_home', 'back'), // tap Back
+  e('book_map', 'book_structure', undefined, 'shapeTemplates'), // tap Edit passages
+  e('book_structure', 'book_map', 'back'), // tap Back (from the map)
+  e('reference_home', 'material_editor', undefined, 'manageReference'), // tap material
+  e('material_editor', 'reference_home', 'back'), // tap Save / Back
+  e('flows_home', 'flow_editor', undefined, 'manageFlows'), // tap flow / New flow
+  e('flow_editor', 'flows_home', 'back'), // tap Save / Back
+  e('reference_home', 'key_terms'), // tap Key Terms
+  e('key_terms', 'reference_home', 'back'), // tap Back
+  e('key_terms', 'workspace', 'back'), // tap Back (from workspace)
+  e('key_terms', 'key_term_detail'), // tap term
+  e('key_term_detail', 'key_terms', 'back'), // tap Back
+  e('key_term_detail', 'version_detail'), // tap where it's used
+  e('inbox_home', 'passage_record'), // tap update about a passage
+  e('settings_home', 'profile_edit'), // tap Edit Profile
+  e('settings_home', 'org_switcher'), // tap Switch Organization
+  e('settings_home', 'my_work', 'reset'), // tap Getting started
+  e('settings_home', 'vision'), // tap What is LangQuest?
+  e('vision', 'settings_home', 'back'), // tap Back / Done (from Settings)
+  e('settings_home', 'sign_out_confirm'), // tap Sign Out
+  e('sign_out_confirm', 'sign_in', 'reset'), // tap Confirm
+  e('sign_out_confirm', 'settings_home', 'back'), // tap Cancel
+
+  // ---- app only (reasons in test/specParity.test.ts) ----
+  e('settings_home', 'sync_status'),
+  e('my_work', 'sync_status'),
+  e('sync_status', 'settings_home', 'back'),
   e('scan_qr', 'sign_in', 'reset', 'guest'),
   e('explore_home', 'request_access'),
-  e('inbox_home', 'members_list'),
-  e('inbox_home', 'status_home'),
-  e('scan_qr', 'create_account', 'popTo', 'guest'),
-  e('scan_qr', 'home_hub', 'replace'),
-  e('scan_qr', 'intent_chooser', 'back'),
-  e('terms_privacy', 'vision', 'replace'),
-  e('terms_privacy', 'sign_in', 'reset'),
-  e('vision', 'home_hub', 'replace'),
-  e('vision', 'terms_privacy', 'replace'),
-  e('explore_home', 'sign_in', 'reset', 'guest'),
-  // Home hub fan-out
-  e('home_hub', 'intent_chooser', 'replace', 'home'),
-  e('home_hub', 'assignments_home', 'replace', 'home'),
-  e('home_hub', 'org_home', 'replace', 'home'),
-  e('home_hub', 'project_home', 'replace', 'home'),
-  e('home_hub', 'language_home', 'replace', 'home'),
-  e('home_hub', 'status_home', 'replace', 'home'),
-  // No org
-  e('intent_chooser', 'create_org'),
-  e('intent_chooser', 'request_access'),
-  e('intent_chooser', 'scan_qr'),
-  e('intent_chooser', 'explore_home'),
-  e('intent_chooser', 'sign_in', 'reset'),
-  e('create_org', 'walkthrough', 'replace'),
-  e('create_org', 'intent_chooser', 'back'),
-  e('request_access', 'intent_chooser', 'replace'),
-  e('walkthrough', 'home_hub', 'replace'),
-  // My Work
-  e('assignments_home', 'translate_passage', undefined, 'translator'),
-  e('assignments_home', 'review_passage', undefined, 'reviewer'),
-  e('assignments_home', 'material_editor', undefined, 'fillReference'),
-  e('assignments_home', 'pickup_home', undefined, 'translator'),
-  e('assignments_home', 'assignment_progress_detail'),
-  e('assignment_progress_detail', 'progress_home'),
-  e('progress_home', 'status_home', 'replace'),
-  e('pickup_home', 'translate_passage'),
-  e('pickup_home', 'assignments_home', 'back'),
-  // Status
-  e('status_home', 'language_status'),
-  e('status_home', 'give_assignment', undefined, 'assigner'),
-  e('language_status', 'book_status'),
-  e('language_status', 'status_home', 'back'),
-  e('book_status', 'piece_status'),
-  e('book_status', 'language_status', 'back'),
-  e('piece_status', 'piece_assign', undefined, 'assigner'),
-  e('piece_status', 'book_status', 'back'),
-  e('piece_status', 'piece_stage'),
-  e('piece_stage', 'piece_status', 'back'),
-  e('piece_stage', 'piece_version'),
-  e('piece_stage', 'piece_review'),
-  e('piece_version', 'piece_stage', 'back'),
-  e('piece_version', 'piece_review'),
-  e('piece_version', 'key_term_detail'),
-  e('piece_review', 'piece_stage', 'back'),
-  e('piece_review', 'piece_version'),
-  e('piece_assign', 'piece_status', 'back'),
-  e('give_assignment', 'status_home', 'back'),
-  // Translate
-  e('translate_passage', 'quest_assets'),
-  e('translate_passage', 'passage_references'),
-  e('translate_passage', 'passage_terms'),
-  e('passage_references', 'translate_passage', 'back'),
-  e('passage_terms', 'translate_passage', 'back'),
-  e('translate_passage', 'done_await'),
-  e('translate_passage', 'add_to_tg'),
-  e('translate_passage', 'key_terms'),
-  e('translate_passage', 'attach_questions'),
-  e('attach_questions', 'translate_passage', 'back'),
-  e('attach_questions', 'done_await', 'replace'),
-  e('quest_assets', 'translate_passage', 'back'),
-  e('add_to_tg', 'translate_passage', 'back'),
-  // Review
-  e('review_passage', 'review_questions'),
-  e('review_passage', 'key_term_detail'),
-  e('review_questions', 'review_passage', 'back'),
-  e('review_passage', 'done_await', 'replace'),
-  e('done_await', 'assignments_home', 'reset'),
-  e('material_editor', 'assignments_home', 'back'),
-  // Org setup
-  e('org_home', 'members_list'),
-  e('org_home', 'project_home'),
-  e('org_home', 'new_project'),
-  e('org_home', 'roles_home'),
-  e('org_home', 'templates_home', undefined, 'manageTemplates'),
-  e('org_home', 'reference_home', undefined, 'manageReference'),
-  e('org_home', 'flows_home', undefined, 'manageFlows'),
-  e('new_project', 'org_home', 'back'),
-  e('new_project', 'project_home', 'replace'),
-  e('project_home', 'members_list'),
-  e('project_home', 'roles_home'),
-  e('project_home', 'new_language'),
-  e('project_home', 'language_home'),
-  e('project_home', 'org_home', 'popTo'),
-  e('project_home', 'templates_home', undefined, 'manageTemplates'),
-  e('project_home', 'reference_home', undefined, 'manageReference'),
-  e('project_home', 'flows_home', undefined, 'manageFlows'),
-  e('project_home', 'status_home'),
-  e('new_language', 'project_home', 'back'),
-  e('language_home', 'members_list'),
-  e('language_home', 'roles_home'),
-  e('language_home', 'review_teams'),
-  e('language_home', 'org_home', 'popTo'),
-  e('language_home', 'project_home', 'popTo'),
-  e('language_home', 'templates_home', undefined, 'manageTemplates'),
-  e('language_home', 'reference_home', undefined, 'manageReference'),
-  e('language_home', 'flows_home', undefined, 'manageFlows'),
-  e('language_home', 'status_home'),
-  e('review_teams', 'review_team_editor'),
-  e('review_team_editor', 'review_teams', 'back'),
-  e('members_list', 'invite_member'),
-  e('members_list', 'edit_member'),
-  e('edit_member', 'members_list', 'back'),
-  e('inbox_home', 'edit_member', undefined, 'assigner'),
-  e('inbox_home', 'translate_passage', undefined, 'translator'),
-  e('inbox_home', 'review_passage', undefined, 'reviewer'),
-  e('edit_member', 'inbox_home', 'back'),
-  e('invite_member', 'invite_qr'),
-  e('invite_member', 'members_list', 'back'),
-  e('invite_qr', 'role_editor'),
-  e('invite_qr', 'members_list', 'popTo'),
-  e('invite_qr', 'invite_member', 'back'),
-  // Config
-  e('roles_home', 'role_editor'),
-  e('role_editor', 'roles_home', 'back'),
-  e('role_editor', 'edit_member', undefined, 'assigner'),
-  e('reference_home', 'material_editor', undefined, 'manageReference'),
-  e('reference_home', 'key_terms'),
-  e('material_editor', 'reference_home', 'back'),
-  e('key_terms', 'reference_home', 'back'),
-  e('key_terms', 'translate_passage', 'back'),
-  e('key_terms', 'key_term_detail'),
-  e('key_term_detail', 'key_terms', 'back'),
-  e('key_term_detail', 'piece_version'),
-  e('flows_home', 'flow_editor'),
-  e('flow_editor', 'flows_home', 'back'),
-  e('review_teams', 'flow_editor'),
-  // Settings
-  e('settings_home', 'profile_edit'),
-  e('settings_home', 'org_switcher'),
-  e('settings_home', 'walkthrough'),
-  e('settings_home', 'sign_out_confirm'),
-  e('settings_home', 'sync_status'),
-  e('assignments_home', 'sync_status'),
-  e('sync_status', 'settings_home', 'back'),
-  e('profile_edit', 'settings_home', 'back'),
-  e('org_switcher', 'settings_home', 'back'),
-  e('sign_out_confirm', 'sign_in', 'reset'),
-  e('sign_out_confirm', 'settings_home', 'back')
+  e('inbox_home', 'members_list', undefined, 'assigner'),
+  e('create_account', 'terms_privacy', undefined, 'guest')
 ];
 
-/** Tab-bar targets are the documented exception to declared edges. */
+/**
+ * Screens that keep the tab bar. A book and a passage record sit under the
+ * Map tab, and screens you read under a passage keep the bar too; task
+ * screens (recording, reviewing, asking, logging) hide it and close with ✕
+ * (ADR-021, NAV-4, NAV-5).
+ */
+export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
+export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step'];
+export const MANAGE_HOMES: ScreenId[] = ['org_home', 'project_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
-  'assignments_home', 'org_home', 'project_home', 'language_home', 'status_home', 'intent_chooser',
-  'inbox_home', 'settings_home'
+  'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
 ];
 
+/** First forward edge from -> to, falling back to a back edge (demo `findEdge`). */
 export function edgeFor(from: NodeId, to: NodeId): Edge | undefined {
-  return EDGES.find((x) => x.from === from && x.to === to);
+  return EDGES.find((x) => x.from === from && x.to === to && x.mode !== 'back') ?? EDGES.find((x) => x.from === from && x.to === to);
 }
 
 export const TITLES: Record<ScreenId, string> = {
-  sign_in: 'Sign in', terms_privacy: 'Terms & Privacy', vision: 'LangQuest vision',
-  intent_chooser: 'What do you want to do?', create_org: 'Create a new organization',
-  explore_home: 'Explore projects', request_access: 'Request access', create_account: 'Create account',
-  scan_qr: 'Scan QR code', walkthrough: 'Organization walkthrough',
-  assignments_home: 'My Work', give_assignment: 'Give assignment',
-  translate_passage: 'Translate passage', attach_questions: 'Review questions',
-  review_passage: 'Review passage', review_questions: 'Review questions', done_await: 'Done',
-  status_home: 'Status', language_status: 'Language status', book_status: 'Book status',
-  piece_status: 'Piece status', piece_assign: 'Assign piece', piece_stage: 'Stage round',
-  piece_version: 'Version', piece_review: 'Review detail', progress_home: 'Progress',
-  assignment_progress_detail: 'Assignment progress', pickup_home: 'Open work',
-  org_home: 'Organization', members_list: 'Members', invite_member: 'Invite', invite_qr: 'Invite by QR',
-  edit_member: 'Edit member', new_project: 'New project', project_home: 'Project',
-  new_language: 'New language', language_home: 'Language', review_teams: 'Review teams',
-  review_team_editor: 'Review team',
-  roles_home: 'Roles', role_editor: 'Edit role', templates_home: 'Content templates',
-  reference_home: 'Reference library', material_editor: 'Fill reference', key_terms: 'Key terms',
-  key_term_detail: 'Key term', flows_home: 'Review flows', flow_editor: 'Edit stages',
-  quest_assets: 'Recordings', add_to_tg: 'Add to TG',
-  passage_references: 'Listen', passage_terms: 'Record key terms',
-  inbox_home: 'Inbox',
-  settings_home: 'Settings', profile_edit: 'Profile', org_switcher: 'Organizations', sign_out_confirm: 'Sign out',
+  sign_in: 'Sign In', terms_privacy: 'Terms & Privacy', explore_home: 'Explore Projects', create_account: 'Create Account',
+  scan_qr: 'Scan QR Code', welcome: 'Welcome', vision: 'What is LangQuest?',
+  intent_chooser: 'What brings you here?', create_org: 'Create Organization', request_access: 'Request Access',
+  my_work: 'My Work', status_home: 'All Languages', map_home: 'Passage Map', book_map: 'Book Chapters',
+  passage_record: 'Passage Record', version_detail: 'Version', review_detail: 'Review', ask_someone: 'Ask Someone',
+  guest_review: 'Review by Link', add_record: 'Already Happened',
+  study_guide: 'Study Guide', study_step: 'Study Step', workspace: 'Record', review_capture: 'Review It',
+  back_translation: 'Back-translate', key_terms: 'Key Terms', key_term_detail: 'Key Term',
+  inbox_home: 'Inbox', settings_home: 'Settings', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
+  org_home: 'Org Home', project_home: 'Project Home', language_home: 'Language Home', new_project: 'New Project',
+  new_language: 'New Language', members_list: 'Members', invite_member: 'Invite Member', invite_qr: 'Invite by QR',
+  edit_member: 'Edit Member Role', roles_home: 'Roles', role_editor: 'Role Editor', review_teams: 'Review Teams',
+  review_team_editor: 'Edit Review Team',
+  flows_home: 'Review Flows', flow_editor: 'Flow Editor', templates_home: 'Content Templates', template_picker: 'Choose a Template',
+  template_editor: 'Template Outline', book_structure: 'Divide a Book', reference_home: 'Reference Library', material_editor: 'Edit Material',
   sync_status: 'Sync'
 };

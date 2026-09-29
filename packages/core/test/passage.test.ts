@@ -5,7 +5,7 @@ import { fold } from '../src/reducer';
 import { emptyState, type ProjectState } from '../src/state';
 import {
   deriveFlow, deriveKinds, derivePassage, highlightsFor, languageProgress, passageSummary,
-  questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, upNext, waitingOn
+  questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, upNext, updatesFor, waitingOn
 } from '../src/passage';
 import { validateEvent } from '../src/validate';
 import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
@@ -276,5 +276,20 @@ describe('passage record', () => {
     const flow = deriveFlow(s, 'L1');
     expect(flow.steps.map((x) => x.kindIds[0])).toEqual(['peer', 'consultant']);
     expect(flow.steps.every((x) => !x.checkpoint)).toBe(true);
+  });
+});
+
+describe('updates for the inbox', () => {
+  it('tell people what concerns them, never their own acts', () => {
+    const p = project();
+    record(p, ['c1']);
+    p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen' }));
+    const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
+    expect(updatesFor(p.state(), 'ayen').map((u) => u.kind)).toEqual(['request']);
+    expect(updatesFor(p.state(), 'akol')).toEqual([]);
+    p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'x', requestId: 'req:ask' }));
+    expect(updatesFor(p.state(), 'akol').map((u) => u.kind).sort()).toEqual(['request_done', 'review']);
+    record(p, ['c2'], 'Fixed.');
+    expect(updatesFor(p.state(), 'ayen').map((u) => u.kind)).toEqual(['revision', 'request']);
   });
 });

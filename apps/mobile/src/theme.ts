@@ -1,38 +1,96 @@
 /**
- * Palette ported from the LangQuest v2 "task-first" prototype (commit
- * 2fe8e1e5). One yellow action per screen; blue = translate, teal = review,
- * orange = reference material, green = done. Tints are the same hues at 6%
- * so a card or row reads by its shading before its icon.
+ * The UX demo's palette (ng-langquest-ux `C` and `TINT`, ADR-010): one brand
+ * colour on a soft lavender ground, and status colours that never change
+ * with the brand (green looks good, amber needs changes or waiting, red is
+ * danger). Every control is at least 48pt, primary actions 56pt, text at
+ * least 13pt and body 17pt (ADR-008).
  */
-export const colors = {
-  background: '#FAF9F7',
-  foreground: '#252A37',
+export const C = {
+  primary: '#6B48C8',
+  /** Lighter partner of primary, for step bars and gradients. */
+  soft: '#8B6FE8',
+  bg: '#F4F2FA',
+  dark: '#1C1440',
+  muted: '#7D72A8',
+  border: '#E6E2F3',
   card: '#FFFFFF',
-  muted: '#F2F0EC',
-  mutedForeground: '#676D7E',
-  border: '#DDE0E8',
-  action: '#FDC317',
-  actionForeground: '#1D212B',
-  translate: '#0A5ADB',
-  review: '#228FA0',
-  reference: '#F3751B',
-  done: '#29A376',
-  danger: '#D93025',
+  light: '#F0EAFF',
+  /** Placeholder icons and locked marks on white. */
+  faint: '#C4BEDC',
+  green: '#10B981',
+  amber: '#F59E0B',
+  red: '#EF4444',
   white: '#FFFFFF'
 } as const;
 
-export const tint = {
-  translate: 'rgba(10, 90, 219, 0.06)',
-  review: 'rgba(34, 143, 160, 0.06)',
-  translateBadge: 'rgba(10, 90, 219, 0.15)',
-  reviewBadge: 'rgba(34, 143, 160, 0.15)',
-  reviewChip: 'rgba(34, 143, 160, 0.10)',
-  done: 'rgba(41, 163, 118, 0.06)',
-  doneBorder: 'rgba(41, 163, 118, 0.25)',
-  translateBar: 'rgba(10, 90, 219, 0.40)',
-  reviewBar: 'rgba(34, 143, 160, 0.40)',
-  mutedContainer: 'rgba(242, 240, 236, 0.70)'
+/** Status tints: a pale ground and the text colour that reads on it. */
+export const TINT = {
+  green: '#E7F8F1',
+  greenText: '#047857',
+  amber: '#FEF4E2',
+  amberText: '#B45309',
+  red: '#FDECEC',
+  redText: '#B91C1C',
+  gray: '#F1F0F5',
+  grayText: '#6B6785',
+  note: '#FFFBEA',
+  noteBorder: '#F5E6B0'
 } as const;
 
-export const radius = { md: 12, lg: 16, xl: 20, full: 999 } as const;
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
+/**
+ * The previous token names, kept so screens written against them take the
+ * new look without a rewrite. New code uses `C` and `TINT`.
+ */
+export const colors = {
+  background: C.bg,
+  foreground: C.dark,
+  card: C.card,
+  muted: C.bg,
+  mutedForeground: C.muted,
+  border: C.border,
+  action: C.primary,
+  actionForeground: C.white,
+  translate: C.primary,
+  review: C.primary,
+  reference: C.amber,
+  done: C.green,
+  danger: C.red,
+  white: C.white
+} as const;
+
+export const tint = {
+  translate: C.light,
+  review: C.light,
+  translateBadge: C.light,
+  reviewBadge: C.light,
+  reviewChip: C.light,
+  done: TINT.green,
+  doneBorder: 'rgba(16, 185, 129, 0.25)',
+  translateBar: 'rgba(107, 72, 200, 0.35)',
+  reviewBar: 'rgba(107, 72, 200, 0.35)',
+  mutedContainer: 'rgba(244, 242, 250, 0.70)'
+} as const;
+
+export const radius = { sm: 8, md: 12, lg: 16, xl: 20, sheet: 28, full: 999 } as const;
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
+
+/** Type scale for the field (ADR-008): nothing under 13, body 17. */
+export const type = {
+  xs: 13,
+  sm: 15,
+  base: 17,
+  lg: 19,
+  xl: 22,
+  xxl: 26
+} as const;
+
+/** Minimum touch targets. */
+export const target = { min: 48, primary: 56, row: 64 } as const;
+
+export const shadow = {
+  shadowColor: '#111420',
+  shadowOpacity: 0.06,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 2
+} as const;
