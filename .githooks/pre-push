@@ -1,0 +1,12 @@
+#!/bin/bash
+# Before a push leaves this machine: the deterministic sync guardrails
+# (order-independence and idempotence property tests, the event registry's
+# "no shipped event removed" checks, the rest of the unit suite) and the
+# typecheck. About 10 s, no keys, no servers. Jev journeys run in CI
+# (.github/workflows/journeys.yml) and before `npm run ship`.
+# Skip once with `git push --no-verify`; never make that the habit.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+echo "pre-push: typecheck + tests"
+npm run --silent typecheck
+npx vitest run --reporter=dot

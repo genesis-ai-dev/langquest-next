@@ -1,0 +1,71 @@
+# Guardrails on every PR, so nothing depends on a local hook having run.
+#
+# checks:   the pre-push gate again (typecheck + unit and property tests).
+# journeys: Jev walks the avatar journeys (smart-tests/journeys) against the
+#           web build and a local Supabase started here from the migrations.
+#           smart-tests/env.sh reads its URL and keys from `supabase status`,
+#           so no dotenvx key is needed.
+#           Outcome oracles judge the device event log, blob store and server.
+#
+# Repo secret: OPENROUTER_API_KEY. Jev reads it as TYPESAFE_API_KEY and as its
+# text-model key. Missing, the job fails; a journey that could not run is never a pass.
+name: guardrails
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: guardrails-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run
+
+  journeys:
+    # Manual until smart-tests/world.ts seeds main's org > language model
+    # (see smart-tests/README.md); then drop this `if` so every PR runs it.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: checks
+    env:
+      CI: 'true'
+      SMART_PORT: '8091'
+      TYPESAFE_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      UV: uv
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require journey secrets
+        run: |
+          [ -n "$OPENROUTER_API_KEY" ] \
+            || { echo "::error::Set the OPENROUTER_API_KEY repo secret; journeys cannot judge without it."; exit 1; }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: '3.12' }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start Supabase (applies every migration)
+        run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor && npx supabase status
+      - name: Walk the journeys
+        run: smart-tests/run.sh
+      - name: Keep the journey log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey-results
+          path: smart-tests/results
+          if-no-files-found: ignore
