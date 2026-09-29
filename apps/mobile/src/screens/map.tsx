@@ -1,17 +1,717 @@
-// Placeholder while this domain is being built.
+// The Map (ng-langquest-ux src/screens/map.tsx): StatusHomeScreen (the
+// progress overview), MapHomeScreen (a language's passage map, with its
+// OutlineMap) and BookMapScreen (a book's chapter grid). MAP-1..8; ADR-009,
+// ADR-017, ADR-004.
+//
+// A whole Bible is about 1,200 passages. Nothing here renders them as one
+// list: the map is books (grouped, with progress), then a chapter grid per
+// book, plus search and filters that narrow to counts first (ADR-009).
+// Progress is several counts, never one number (ADR-004).
+import {
+  contentTemplate, deriveFlow, deriveKinds, derivePassage, feedbackIsMine, highlightsFor, laneLeafUnits, laneName, languageProgress,
+  passageSummary, percent, unitPlace, unitTitle,
+  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
+} from '@langquest-next/core';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  bookMatches, canonBook, canonBooks, CANON_GROUPS, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
+  placeMatches, type CanonBook, type ChapterTone, type MapFilter, type Testament
+} from '../canon';
 import type { Ctx } from '../ctx';
-import { EmptyState, Header, Screen } from '../kit';
-import { TITLES } from '../flow';
+import { edgeFor, type ScreenId } from '../flow';
+import { indexesFor } from '../indexes';
+import {
+  Badge, Card, Chip, ChipRow, EmptyState, Group, Header, Ico, ProgressBar, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn,
+  StepMarks, txt
+} from '../kit';
+import { plural } from '../passageView';
+import { contractsFor } from '../screenContracts';
+import { edgeAllowed, mapScreenFor } from '../session';
+import { C, radius, space, TINT } from '../theme';
+
+const PAGE = 25;
+const OTHER = 'other';
+
+const fmt = (n: number) => n.toLocaleString('en-US');
+
+function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
+  const edge = edgeFor(from, to);
+  return !!edge && edgeAllowed(edge, ctx.session);
+}
+
+// ---- one language's passages, read once per revision ---------------------------------
+
+interface Entry {
+  unitId: string;
+  place: UnitPlace;
+  s: PassageState;
+}
+
+const laneCache = new WeakMap<ProjectState, Map<string, Entry[]>>();
+
+/** Every passage a language works on, with where it sits and where it stands; shared by the map and its books. */
+function laneEntries(state: ProjectState, laneId: string): Entry[] {
+  let byLane = laneCache.get(state);
+  if (!byLane) { byLane = new Map(); laneCache.set(state, byLane); }
+  const hit = byLane.get(laneId);
+  if (hit) return hit;
+  const idx = indexesFor(state);
+  const out = laneLeafUnits(state, idx, laneId).map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: derivePassage(state, unitId, laneId, idx) }));
+  byLane.set(laneId, out);
+  return out;
+}
+
+/** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). */
+function useForYou(ctx: Ctx, state: ProjectState | null, laneId: string | null): Set<string> {
+  const canRecord = ctx.session.can('translate');
+  const canReview = ctx.session.can('review');
+  return useMemo(() => new Set(state && laneId
+    ? highlightsFor(state, ctx.session.actorId, { canRecord, canReview, laneIds: [laneId] }, indexesFor(state)).map((h) => h.unitId)
+    : []), [state, laneId, ctx.session.actorId, canRecord, canReview]);
+}
+
+function flowLabel(state: ProjectState, laneId: string): string {
+  const flow = deriveFlow(state, laneId);
+  return flow.steps.length ? flow.name : 'No review flow';
+}
+
+function laneCode(state: ProjectState, laneId: string): string {
+  return (state.lanes[laneId]?.languoidId ?? laneId).slice(0, 3).toUpperCase();
+}
+
+// ---- small shared pieces ---------------------------------------------------------------
+
+/** Done in green, recorded in brand, the rest empty: two counts on one bar. */
+function StackBar(props: { done: number; recorded: number; total: number; height?: number; recordedColor?: string }) {
+  const h = props.height ?? 8;
+  return (
+    <View style={{ flexDirection: 'row', height: h, borderRadius: h, overflow: 'hidden', backgroundColor: C.bg }}>
+      <View style={{ width: `${percent(props.done, props.total)}%`, backgroundColor: C.green }} />
+      <View style={{ width: `${percent(props.recorded - props.done, props.total)}%`, backgroundColor: props.recordedColor ?? C.primary }} />
+    </View>
+  );
+}
+
+/** A count with an icon on an amber ground (feedback waiting). */
+function IconCount(props: { icon: 'chat' | 'clock'; n: number; tone: 'amber' | 'brand' }) {
+  const [bg, fg] = props.tone === 'amber' ? [TINT.amber, TINT.amberText] : [C.light, C.primary];
+  return (
+    <View style={[styles.iconCount, { backgroundColor: bg }]}>
+      <Ico name={props.icon} size={14} color={fg} />
+      <Text style={[txt.xsStrong, { color: fg }]}>{fmt(props.n)}</Text>
+    </View>
+  );
+}
+
+/** Where a passage stands as one glyph: not started, recording, in review (steps cleared), done. Never colour alone. */
+function PassageDisc(props: { s: PassageState }) {
+  const s = props.s;
+  if (s.done) return <View style={[styles.disc, { backgroundColor: C.green }]}><Ico name="check" size={22} color={C.white} /></View>;
+  if (!s.recorded) {
+    return (
+      <View style={[styles.disc, { borderWidth: 2, borderStyle: 'dashed', borderColor: s.drafting ? C.primary : C.border }]}>
+        <Ico name="mic" size={18} color={s.drafting ? C.primary : C.faint} />
+      </View>
+    );
+  }
+  const cleared = s.steps.filter((st) => st.complete).length;
+  const feedback = s.awaitingResponse.length > 0;
+  return (
+    <View style={[styles.disc, { borderWidth: 3, borderColor: feedback ? C.amber : C.primary, backgroundColor: feedback ? TINT.amber : C.light }]}>
+      {feedback ? <Ico name="chat" size={18} color={TINT.amberText} /> : <Text style={[txt.xsStrong, { color: C.dark }]}>{cleared}/{s.steps.length}</Text>}
+    </View>
+  );
+}
+
+function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
+  const { e, ctx } = props;
+  const me = ctx.session.actorId;
+  const title = unitTitle(props.state, e.unitId);
+  const summary = passageSummary(e.s, props.kinds, me, (id) => ctx.name(id, true));
+  return (
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}`}
+      style={({ pressed }) => [styles.row, !props.last && styles.rowBorder, props.mine && styles.mine, pressed && styles.pressed]}>
+      <PassageDisc s={e.s} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Text style={[txt.body, { fontWeight: '600', flexShrink: 1 }]} numberOfLines={1}>{title}</Text>
+          {props.mine ? <Badge label="For you" tone="amber" /> : null}
+        </View>
+        <Text style={[txt.smMuted, feedbackIsMine(e.s, me) && { color: TINT.amberText }]} numberOfLines={1}>{summary}</Text>
+      </View>
+      {e.s.recorded && e.s.steps.length > 0
+        ? <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />
+        : null}
+    </Pressable>
+  );
+}
+
+function FilterChips(props: { filter: MapFilter; counts: Record<MapFilter, number>; onFilter: (f: MapFilter) => void }) {
+  return (
+    <ChipRow>
+      {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
+        <Chip key={f.id} label={f.label} on={props.filter === f.id} onPress={() => props.onFilter(f.id)}
+          {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
+      ))}
+    </ChipRow>
+  );
+}
+
+// ---- progress overview (MAP-8) ------------------------------------------------------------
+
+function FunnelRows(props: { progress: LanguageProgress }) {
+  const p = props.progress;
+  const rows = [
+    { label: 'Recorded', n: p.recorded, color: C.primary, checkpoint: false },
+    ...p.steps.map((st) => ({ label: st.name, n: st.cleared, color: C.soft, checkpoint: st.checkpoint })),
+    ...(p.steps.length ? [{ label: 'Done', n: p.done, color: C.green, checkpoint: false }] : [])
+  ];
+  return (
+    <View style={{ gap: space.md }}>
+      {rows.map((r, i) => (
+        <View key={`${r.label}-${i}`} style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {r.checkpoint ? <Ico name="lock" size={14} color={TINT.amberText} /> : null}
+            <Text style={[txt.sm, { flex: 1, fontWeight: '500' }]} numberOfLines={1}>{r.label}{r.checkpoint ? ' · checkpoint' : ''}</Text>
+            <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>{fmt(r.n)} of {fmt(p.total)}</Text>
+          </View>
+          <ProgressBar value={percent(r.n, p.total)} color={r.color} height={10} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export function StatusHome(ctx: Ctx) {
-  return <Screen header={<Header title={TITLES.status_home} onBack={ctx.back} />}><EmptyState title="Coming soon" /></Screen>;
+  const state = ctx.project.state;
+  const [query, setQuery] = useState('');
+  const languages = useMemo(() => {
+    if (!state) return [];
+    const idx = indexesFor(state);
+    return idx.lanes.map((laneId) => ({
+      laneId, name: laneName(state, laneId), code: laneCode(state, laneId), flow: flowLabel(state, laneId),
+      progress: languageProgress(state, laneId, idx)
+    }));
+  }, [state]);
+  const orgName = ctx.org.state?.org?.value.name ?? '';
+  const header = <Header title="Progress" sub={[orgName, 'All languages'].filter(Boolean).join(' · ')} />;
+  if (!state) return <Screen header={header}><EmptyState icon="progress" title="Loading…" /></Screen>;
+
+  const total = languages.reduce((n, l) => n + l.progress.total, 0);
+  const recorded = languages.reduce((n, l) => n + l.progress.recorded, 0);
+  const done = languages.reduce((n, l) => n + l.progress.done, 0);
+  const waiting = languages.reduce((n, l) => n + l.progress.waiting, 0);
+  const q = query.trim().toLowerCase();
+  const shown = q ? languages.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q)) : languages;
+  const open = (laneId: string) => {
+    ctx.setLane(laneId);
+    ctx.go('map_home', { laneId });
+  };
+
+  return (
+    <Screen header={header}>
+      {languages.length === 0 ? (
+        <EmptyState icon="globe" title="No languages yet" sub="Once a language is added to this project, its progress shows here." />
+      ) : (
+        <Card>
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>Across {plural(languages.length, 'language')} · {plural(total, 'passage')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl }}>
+            <View>
+              <Text style={[styles.bigNumber, { color: C.primary }]}>{percent(recorded, total)}%</Text>
+              <Text style={txt.smMuted}>recorded</Text>
+            </View>
+            <View>
+              <Text style={[styles.bigNumber, { color: TINT.greenText }]}>{percent(done, total)}%</Text>
+              <Text style={txt.smMuted}>done</Text>
+            </View>
+            <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
+              <Text style={[txt.h2]}>{fmt(waiting)}</Text>
+              <Text style={txt.smMuted}>with reviewers</Text>
+            </View>
+          </View>
+          <StackBar done={done} recorded={recorded} total={total} height={10} recordedColor={C.soft} />
+        </Card>
+      )}
+      {languages.length > 5 ? <SearchField value={query} onChangeText={setQuery} placeholder="Find a language" /> : null}
+      {shown.length > 0 ? <SectionLabel label={state.project?.value.name ?? 'Languages'} /> : null}
+      {shown.map((l) => (
+        <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
+              <Text style={txt.smMuted} numberOfLines={1}>{plural(l.progress.total, 'passage')} · {l.flow}</Text>
+            </View>
+            {l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
+            <Ico name="right" size={24} color={C.muted} />
+          </View>
+          <FunnelRows progress={l.progress} />
+        </Card>
+      ))}
+      {q && shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>No language matches “{query}”.</Text> : null}
+      {languages.length > 0 ? (
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
+          Each bar counts passages that have cleared that step of the language's review flow. A passage is done when every step is complete — or, with no flow, once it's recorded.
+        </Text>
+      ) : null}
+    </Screen>
+  );
+}
+
+// ---- a language's map (MAP-1..4, MAP-6, MAP-7) ------------------------------------------
+
+interface BookSummary {
+  key: string;
+  book: CanonBook | null;
+  name: string;
+  group: string;
+  total: number;
+  recorded: number;
+  done: number;
+  feedback: number;
+  matching: number;
+  mine: number;
+}
+
+function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>): BookSummary[] {
+  const by = new Map<string, BookSummary>();
+  for (const e of entries) {
+    const book = canonBook(e.place.bookId) ?? null;
+    const key = book?.id ?? OTHER;
+    let row = by.get(key);
+    if (!row) {
+      row = { key, book, name: book?.name ?? 'Other', group: book?.group ?? 'Other', total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 };
+      by.set(key, row);
+    }
+    row.total++;
+    if (e.s.recorded) row.recorded++;
+    if (e.s.done) row.done++;
+    if (e.s.awaitingResponse.length) row.feedback++;
+    if (matchesFilter(e.s, filter)) row.matching++;
+    if (forYou.has(e.unitId)) row.mine++;
+  }
+  return [...canonBooks().flatMap((b) => by.get(b.id) ?? []), ...(by.get(OTHER) ? [by.get(OTHER)!] : [])];
+}
+
+function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPress: () => void }) {
+  const { b, filter } = props;
+  const started = b.recorded > 0;
+  const noun = MAP_FILTERS.find((f) => f.id === filter)?.noun ?? '';
+  const sub = filter !== 'all'
+    ? `${fmt(b.matching)} ${noun} · ${fmt(b.recorded)} of ${fmt(b.total)} recorded`
+    : started
+      ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? ` · ${fmt(b.done)} done` : ''}`
+      : `Not started · ${b.book ? plural(b.book.chapters, 'chapter') : plural(b.total, 'passage')}`;
+  return (
+    <Pressable onPress={props.onPress} accessibilityRole="button"
+      accessibilityLabel={`${b.name}. ${sub}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`}
+      style={({ pressed }) => [styles.row, !props.last && styles.rowBorder, pressed && styles.pressed]}>
+      <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Text style={[txt.body, { fontWeight: '600', flexShrink: 1 }, !started && { color: C.muted }]} numberOfLines={1}>{b.name}</Text>
+          {b.mine > 0 ? <Badge label={`${b.mine} for you`} tone="amber" /> : null}
+        </View>
+        {started ? <StackBar done={b.done} recorded={b.recorded} total={b.total} /> : null}
+        <Text style={txt.smMuted} numberOfLines={1}>{sub}</Text>
+      </View>
+      {b.feedback > 0 && filter === 'all' ? <IconCount icon="chat" n={b.feedback} tone="amber" /> : null}
+      <Ico name="right" size={24} color={C.muted} />
+    </Pressable>
+  );
+}
+
+/** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
+function OutlineMap(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; laneId: string; entries: Entry[]; forYou: Set<string> }) {
+  const [limits, setLimits] = useState<Record<string, number>>({});
+  const sections = useMemo(() => {
+    const by = new Map<string, Entry[]>();
+    for (const e of props.entries) {
+      const list = by.get(e.place.bookLabel);
+      if (list) list.push(e);
+      else by.set(e.place.bookLabel, [e]);
+    }
+    return [...by.entries()];
+  }, [props.entries]);
+  return (
+    <>
+      {sections.map(([name, list]) => {
+        const limit = limits[name] ?? PAGE;
+        const shown = list.slice(0, limit);
+        return (
+          <View key={name} style={{ gap: space.sm }}>
+            <SectionLabel label={name} />
+            <Group>
+              {shown.map((e, i) => (
+                <PassageRow key={e.unitId} ctx={props.ctx} state={props.state} kinds={props.kinds} e={e} mine={props.forYou.has(e.unitId)}
+                  last={i === shown.length - 1} onPress={() => props.ctx.openPassage(e.unitId, props.laneId)} />
+              ))}
+            </Group>
+            <ShowMore remaining={list.length - limit} step={PAGE} onMore={() => setLimits((l) => ({ ...l, [name]: limit + PAGE }))} />
+          </View>
+        );
+      })}
+    </>
+  );
 }
 
 export function MapHome(ctx: Ctx) {
-  return <Screen header={<Header title={TITLES.map_home} onBack={ctx.back} />}><EmptyState title="Coming soon" /></Screen>;
+  const state = ctx.project.state;
+  const [picked, setPicked] = useState<string | null>(null);
+  const lanes = state ? indexesFor(state).lanes : [];
+  const wanted = picked ?? ctx.params['laneId'] ?? ctx.laneId;
+  const laneId = wanted && lanes.includes(wanted) ? wanted : lanes[0] ?? null;
+  const [query, setQuery] = useState('');
+  const [limit, setLimit] = useState(PAGE);
+  const [filter, setFilter] = useState<MapFilter>('all');
+  const [testament, setTestament] = useState<Testament | null>(null);
+  const forYou = useForYou(ctx, state, laneId);
+  const entries = useMemo(() => (state && laneId ? laneEntries(state, laneId) : []), [state, laneId]);
+  const books = useMemo(() => summarizeBooks(entries, filter, forYou), [entries, filter, forYou]);
+  const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
+  const progress = useMemo(() => (state && laneId ? languageProgress(state, laneId, indexesFor(state)) : null), [state, laneId]);
+  const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
+
+  const lane = state && laneId ? laneName(state, laneId) : 'Passage Map';
+  const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
+  const templateName = state && laneId ? contentTemplate(state.laneTemplates[laneId]?.value.templateId ?? '')?.name : undefined;
+  const sub = state && laneId
+    ? [outline ? 'Own outline' : templateName, state.project?.value.name, flowLabel(state, laneId)].filter(Boolean).join(' · ')
+    : undefined;
+  // Workers land here from the Map tab; everyone else came from the overview or a language home.
+  const backable = mapScreenFor(ctx.session) === 'status_home';
+  const header = <Header title={lane} {...(sub ? { sub } : {})} {...(backable ? { onBack: ctx.back } : {})} />;
+
+  if (!state) return <Screen header={header}><EmptyState icon="map" title="Loading…" /></Screen>;
+  if (!laneId || !progress) {
+    return <Screen header={header}><EmptyState icon="globe" title="No languages yet" sub="Once a language is added to this project, its passages show here." /></Screen>;
+  }
+
+  const switchLane = (id: string) => {
+    setPicked(id);
+    ctx.setLane(id);
+    setQuery('');
+    setLimit(PAGE);
+  };
+  const openBook = (key: string) => ctx.go('book_map', { laneId, bookId: key, ...(filter !== 'all' ? { filter } : {}) });
+  const languageChips = lanes.length > 1 ? (
+    <ChipRow>
+      {lanes.map((id) => <Chip key={id} label={laneName(state, id)} on={id === laneId} onPress={() => switchLane(id)} />)}
+    </ChipRow>
+  ) : null;
+
+  if (entries.length === 0) {
+    return (
+      <Screen header={header}>
+        {languageChips}
+        <EmptyState icon="book" title="No passages yet" sub={`Once ${lane} has passages to record, they show here by book and chapter.`} />
+      </Screen>
+    );
+  }
+
+  if (outline) {
+    return (
+      <Screen header={header}>
+        {languageChips}
+        <OutlineMap ctx={ctx} state={state} kinds={kinds} laneId={laneId} entries={entries} forYou={forYou} />
+      </Screen>
+    );
+  }
+
+  const search = parseQuery(query);
+  const searching = query.trim().length > 0;
+  const bookHits = searching && search.chapter === undefined ? books.filter((b) => b.book && bookMatches(b.book, search.book)) : [];
+  const passageHits = searching && search.chapter !== undefined ? entries.filter((e) => placeMatches(e.place, query)) : [];
+
+  const testaments = (['ot', 'nt'] as const).filter((t) => books.some((b) => b.book?.testament === t));
+  const shownTestament = testament && testaments.includes(testament) ? testament : testaments.includes('nt') ? 'nt' : testaments[0];
+  const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0;
+  const visible = books.filter((b) => b.book && b.book.testament === shownTestament && inFilter(b));
+  const other = books.find((b) => !b.book && inFilter(b));
+  const groups = CANON_GROUPS.filter((g) => visible.some((b) => b.group === g));
+
+  return (
+    <Screen header={header}>
+      {languageChips}
+      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder="Find a book or chapter — “John 3”" />
+
+      {searching ? (
+        search.chapter === undefined ? (
+          <>
+            <Text style={[txt.sm, { color: C.muted, fontWeight: '600', paddingHorizontal: space.xs }]}>
+              {bookHits.length ? `${plural(bookHits.length, 'book')} · add a chapter number to jump straight to it` : 'No book by that name in this project'}
+            </Text>
+            {bookHits.length > 0 ? (
+              <Group>
+                {bookHits.map((b, i) => <BookRow key={b.key} b={b} filter="all" last={i === bookHits.length - 1} onPress={() => openBook(b.key)} />)}
+              </Group>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={[txt.sm, { color: C.muted, fontWeight: '600', paddingHorizontal: space.xs }]}>
+              {passageHits.length ? plural(passageHits.length, 'passage') : 'No passage matches — try a book name, then a chapter'}
+            </Text>
+            {passageHits.length > 0 ? (
+              <Group>
+                {passageHits.slice(0, limit).map((e, i, shown) => (
+                  <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1}
+                    onPress={() => ctx.openPassage(e.unitId, laneId)} />
+                ))}
+              </Group>
+            ) : null}
+            <ShowMore remaining={passageHits.length - limit} step={PAGE} onMore={() => setLimit((l) => l + PAGE)} />
+          </>
+        )
+      ) : (
+        <>
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            {[
+              { label: 'Recorded', value: fmt(progress.recorded), of: `of ${fmt(progress.total)}`, color: C.primary },
+              { label: 'Done', value: fmt(progress.done), of: '', color: TINT.greenText },
+              { label: 'With reviewers', value: fmt(progress.waiting), of: '', color: TINT.amberText }
+            ].map((t) => (
+              <View key={t.label} style={styles.stat}>
+                <Text style={[styles.statValue, { color: t.color }]} numberOfLines={1}>
+                  {t.value}{t.of ? <Text style={[txt.xsStrong]}> {t.of}</Text> : null}
+                </Text>
+                <Text style={txt.smMuted} numberOfLines={1}>{t.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          <SectionLabel label="Books" />
+          <FilterChips filter={filter} counts={counts} onFilter={setFilter} />
+          {testaments.length > 1 ? (
+            <ChipRow>
+              {testaments.map((t) => (
+                <Chip key={t} label={t === 'ot' ? 'Old Testament' : 'New Testament'} on={shownTestament === t} onPress={() => setTestament(t)}
+                  count={books.filter((b) => b.book?.testament === t && inFilter(b)).length} />
+              ))}
+            </ChipRow>
+          ) : null}
+
+          {visible.length === 0 && !other ? (
+            <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>
+              {filter === 'all' ? 'No books in this project yet.' : 'Nothing here matches this filter.'}
+            </Text>
+          ) : null}
+          {groups.map((g) => {
+            const list = visible.filter((b) => b.group === g);
+            return (
+              <View key={g} style={{ gap: space.sm }}>
+                <Text style={[txt.sm, { fontWeight: '700', paddingHorizontal: space.xs, paddingTop: space.sm }]}>{g}</Text>
+                <Group>
+                  {list.map((b, i) => <BookRow key={b.key} b={b} filter={filter} last={i === list.length - 1} onPress={() => openBook(b.key)} />)}
+                </Group>
+              </View>
+            );
+          })}
+          {other ? (
+            <View style={{ gap: space.sm }}>
+              <Text style={[txt.sm, { fontWeight: '700', paddingHorizontal: space.xs, paddingTop: space.sm }]}>Other</Text>
+              <Group><BookRow b={other} filter={filter} last onPress={() => openBook(OTHER)} /></Group>
+            </View>
+          ) : null}
+        </>
+      )}
+    </Screen>
+  );
+}
+
+// ---- one book: a grid of chapters (MAP-5) ---------------------------------------------------
+
+const TONES: Record<ChapterTone, { bg: string; fg: string; border: string; dashed: boolean; label: string }> = {
+  done: { bg: C.green, fg: C.white, border: C.green, dashed: false, label: 'Done' },
+  feedback: { bg: TINT.amber, fg: TINT.amberText, border: C.amber, dashed: false, label: 'Feedback waiting' },
+  review: { bg: C.light, fg: C.primary, border: C.light, dashed: false, label: 'Recorded, in review' },
+  drafting: { bg: C.card, fg: C.primary, border: C.primary, dashed: true, label: 'Recording started' },
+  todo: { bg: C.card, fg: C.muted, border: C.border, dashed: true, label: 'Not recorded' },
+  none: { bg: TINT.gray, fg: C.faint, border: TINT.gray, dashed: false, label: 'No passage' }
+};
+
+interface ChapterTile {
+  n: number;
+  list: Entry[];
+  tone: ChapterTone;
+  steps: number;
+  cleared: number;
+  mine: boolean;
+  matches: boolean;
+}
+
+function Tile(props: { c: ChapterTile; onPress: () => void }) {
+  const { c } = props;
+  const t = TONES[c.tone];
+  const parts = c.list.length;
+  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}`;
+  return (
+    <Pressable onPress={props.onPress} disabled={parts === 0} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: parts === 0 }}
+      style={({ pressed }) => [styles.tile, { backgroundColor: t.bg, borderColor: t.border, borderStyle: t.dashed ? 'dashed' : 'solid', opacity: c.matches ? 1 : 0.28 },
+        pressed && { transform: [{ scale: 0.95 }] }]}>
+      <Text style={[styles.tileNumber, { color: t.fg }]}>{c.n}</Text>
+      {parts > 1 ? <Text style={[txt.xsStrong, { color: t.fg }]}>{parts} parts</Text> : null}
+      {c.tone === 'done' && parts <= 1 ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} /> : null}
+      {c.tone === 'drafting' && parts <= 1 ? <Ico name="mic" size={14} color={t.fg} /> : null}
+      {c.tone === 'feedback' ? <View style={styles.tileFoot}><Ico name="chat" size={14} color={t.fg} /></View> : null}
+      {c.tone === 'review' && c.steps > 0 ? (
+        <View style={styles.tileBar}>
+          {Array.from({ length: c.steps }, (_, i) => (
+            <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i < c.cleared ? C.primary : 'rgba(107, 72, 200, 0.18)' }} />
+          ))}
+        </View>
+      ) : null}
+      {c.mine ? <View style={styles.tileDot} /> : null}
+    </Pressable>
+  );
+}
+
+function Legend(props: { none: boolean }) {
+  const tones: ChapterTone[] = ['done', 'review', 'feedback', 'drafting', 'todo', ...(props.none ? ['none' as const] : [])];
+  return (
+    <View style={{ gap: space.sm, paddingHorizontal: space.xs }}>
+      <Text style={txt.smMuted}>The bar on a chapter shows how many review steps it has cleared.</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg, rowGap: space.sm }}>
+        {tones.map((k) => {
+          const t = TONES[k];
+          return (
+            <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+              <View style={{ width: 16, height: 16, borderRadius: 5, backgroundColor: t.bg, borderWidth: 2, borderColor: t.border, borderStyle: t.dashed ? 'dashed' : 'solid' }} />
+              <Text style={txt.smMuted}>{t.label}</Text>
+            </View>
+          );
+        })}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: C.amber }} />
+          <Text style={txt.smMuted}>For you</Text>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export function BookMap(ctx: Ctx) {
-  return <Screen header={<Header title={TITLES.book_map} onBack={ctx.back} />}><EmptyState title="Coming soon" /></Screen>;
+  const state = ctx.project.state;
+  const laneId = ctx.params['laneId'] ?? ctx.laneId;
+  const bookId = ctx.params['bookId'] ?? '';
+  const initial = ctx.params['filter'];
+  const [filter, setFilter] = useState<MapFilter>(isMapFilter(initial) ? initial : 'all');
+  const [openChapter, setOpenChapter] = useState<number | null>(null);
+  const [limit, setLimit] = useState(PAGE);
+  const forYou = useForYou(ctx, state, laneId);
+  const book = canonBook(bookId);
+  const entries = useMemo(() => {
+    if (!state || !laneId || !state.lanes[laneId]) return [];
+    return laneEntries(state, laneId).filter((e) => (bookId === OTHER ? !canonBook(e.place.bookId) : e.place.bookId === bookId));
+  }, [state, laneId, bookId]);
+  const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
+  const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
+  const chapters = useMemo((): ChapterTile[] => {
+    if (!book) return [];
+    const byChapter = new Map<number, Entry[]>();
+    for (const e of entries) for (const n of e.place.chapters) {
+      const list = byChapter.get(n);
+      if (list) list.push(e);
+      else byChapter.set(n, [e]);
+    }
+    return Array.from({ length: book.chapters }, (_, i) => {
+      const n = i + 1;
+      const list = byChapter.get(n) ?? [];
+      const ss = list.map((e) => e.s);
+      const recorded = ss.filter((s) => s.recorded);
+      const steps = recorded[0]?.steps.length ?? 0;
+      const cleared = recorded.length === ss.length && ss.length ? Math.min(...recorded.map((s) => s.steps.filter((st) => st.complete).length)) : 0;
+      return { n, list, tone: chapterTone(ss), steps, cleared, mine: list.some((e) => forYou.has(e.unitId)),
+        matches: filter === 'all' || ss.some((s) => matchesFilter(s, filter)) };
+    });
+  }, [book, entries, forYou, filter]);
+
+  const lane = state && laneId ? laneName(state, laneId) : '';
+  const title = book?.name ?? 'Other';
+  const recordedCount = entries.filter((e) => e.s.recorded).length;
+  const crumbs = [{ label: lane || 'Passage Map', onPress: () => ctx.go('map_home', laneId ? { laneId } : undefined) }, { label: title }];
+  const canEdit = !!book && canGo(ctx, 'book_map', 'book_structure');
+  const header = (
+    <Header title={title} crumbs={crumbs} onBack={ctx.back}
+      sub={`${lane ? `${lane} · ` : ''}${fmt(recordedCount)} of ${fmt(entries.length)} recorded`}
+      action={canEdit ? <SmallBtn icon="cut" label="Edit passages" onPress={() => ctx.go('book_structure', { laneId: laneId ?? '', bookId })} /> : undefined} />
+  );
+  if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
+  if (!laneId || (!book && bookId !== OTHER)) {
+    return <Screen header={header}><EmptyState icon="book" title="This book isn't in the project" sub="Go back to the map to pick another." /></Screen>;
+  }
+
+  const open = (e: Entry) => ctx.openPassage(e.unitId, laneId);
+  const sheet = openChapter ? chapters[openChapter - 1] : undefined;
+
+  // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
+  if (!book) {
+    const shown = entries.filter((e) => filter === 'all' || matchesFilter(e.s, filter));
+    return (
+      <Screen header={header}>
+        <FilterChips filter={filter} counts={counts} onFilter={(f) => { setFilter(f); setLimit(PAGE); }} />
+        {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>Nothing here matches this filter.</Text> : (
+          <Group>
+            {shown.slice(0, limit).map((e, i, list) => (
+              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} />
+            ))}
+          </Group>
+        )}
+        <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((l) => l + PAGE)} />
+      </Screen>
+    );
+  }
+
+  const rows: ChapterTile[][] = [];
+  for (let i = 0; i < chapters.length; i += 5) rows.push(chapters.slice(i, i + 5));
+
+  return (
+    <Screen header={header}>
+      <FilterChips filter={filter} counts={counts} onFilter={setFilter} />
+      <View style={{ gap: space.sm }}>
+        {rows.map((row, r) => (
+          <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
+            {row.map((c) => (
+              <Tile key={c.n} c={c} onPress={() => {
+                if (c.list.length === 1) open(c.list[0]!);
+                else if (c.list.length > 1) setOpenChapter(c.n);
+              }} />
+            ))}
+            {Array.from({ length: 5 - row.length }, (_, i) => <View key={`pad-${i}`} style={{ flex: 1 }} />)}
+          </View>
+        ))}
+      </View>
+      <Legend none={chapters.some((c) => c.tone === 'none')} />
+      <Sheet visible={!!sheet} title={sheet ? `${book.name} ${sheet.n}` : ''} sub={sheet ? `${sheet.list.length} parts — pick one` : ''} onClose={() => setOpenChapter(null)}>
+        {sheet ? (
+          <Group>
+            {sheet.list.map((e, i) => (
+              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1}
+                onPress={() => { setOpenChapter(null); open(e); }} />
+            ))}
+          </Group>
+        ) : null}
+      </Sheet>
+    </Screen>
+  );
 }
 
+const styles = StyleSheet.create({
+  pressed: { opacity: 0.7 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 72, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  mine: { borderLeftWidth: 4, borderLeftColor: C.amber, paddingLeft: space.lg - 4 },
+  disc: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  iconCount: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
+  bigNumber: { fontSize: 30, fontWeight: '700' },
+  code: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  stat: { flex: 1, backgroundColor: C.card, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.md },
+  statValue: { fontSize: 22, fontWeight: '700' },
+  tile: { flex: 1, aspectRatio: 1, minHeight: 48, borderRadius: radius.lg, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tileNumber: { fontSize: 22, fontWeight: '700' },
+  tileFoot: { position: 'absolute', bottom: 5 },
+  tileBar: { position: 'absolute', bottom: 7, left: 8, right: 8, flexDirection: 'row', gap: 2 },
+  tileDot: { position: 'absolute', top: 5, right: 5, width: 12, height: 12, borderRadius: 6, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white }
+});
+
+export const contracts = contractsFor('status_home', 'map_home', 'book_map');
