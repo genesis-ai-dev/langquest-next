@@ -5,7 +5,7 @@ from (values
   ('public.issue_invite(text,text,text,text,jsonb,timestamptz)'),
   ('public.redeem_invite_v2(text)'),
   ('public.create_join_request(text,text,text)'),
-  ('public.decide_join_request(text,boolean,text)'),
+  ('public.decide_join_request(text,boolean,text,jsonb)'),
   ('public.save_profile(text)'),
   ('public.record_user_event(text,text,jsonb)'),
   ('public.get_user_state()'),

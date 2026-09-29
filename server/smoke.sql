@@ -567,4 +567,108 @@ begin
   if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
+-- Scope rank: nobody may grant membership above the scope they administer.
+-- The mobile invite screens only narrow choices on the device, so a
+-- project or lane admin with a modified client must be refused here.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"rk1","type":"v1.RoleDefined","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000501:000000:dA","payload":{"roleId":"inviter","name":"Inviter","privileges":["invite_members","view_status"]}},
+    {"id":"rk2","type":"v1.OrgMemberAdded","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000502:000000:dA","payload":{"profileId":"padmin","roleId":"inviter","scope":{"level":"project","projectId":"p2"}}},
+    {"id":"rk3","type":"v1.OrgMemberAdded","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000503:000000:dA","payload":{"profileId":"ladmin","roleId":"inviter","scope":{"level":"lane","projectId":"p2","laneId":"din"}}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'scope rank setup % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
+
+select set_config('request.jwt.claim.sub', 'padmin', false);
+do $$
+declare v_scope jsonb; v_i int := 0;
+begin
+  -- A project admin may not mint org-wide membership: that is the escalation.
+  begin
+    perform public.issue_invite('org1', 'rk-inv-org', repeat('1', 64), 'inviter', '{"level":"org"}', now() + interval '1 day');
+    raise exception 'project admin issued an org-scoped invite';
+  exception when sqlstate '42501' then null;
+  end;
+  -- Nor reach into a project they do not administer.
+  begin
+    perform public.issue_invite('org1', 'rk-inv-p1', repeat('2', 64), 'inviter', '{"level":"project","projectId":"p1"}', now() + interval '1 day');
+    raise exception 'project admin issued an invite for another project';
+  exception when sqlstate '42501' then null;
+  end;
+  -- Their own project, and any lane in it, is theirs to grant.
+  foreach v_scope in array array['{"level":"project","projectId":"p2"}'::jsonb, '{"level":"lane","projectId":"p2","laneId":"nus"}'::jsonb] loop
+    v_i := v_i + 1;
+    perform public.issue_invite('org1', 'rk-inv-ok' || v_i, repeat(v_i::text, 63) || 'a', 'inviter', v_scope, now() + interval '1 day');
+    if (select scope from public.invites where id = 'rk-inv-ok' || v_i) <> v_scope then raise exception 'invite scope not stored as issued'; end if;
+  end loop;
+end $$;
+
+select set_config('request.jwt.claim.sub', 'ladmin', false);
+do $$
+begin
+  -- A lane admin may not widen to the whole project, nor cross to a sibling lane.
+  begin
+    perform public.issue_invite('org1', 'rk-inv-lp', repeat('3', 64), 'inviter', '{"level":"project","projectId":"p2"}', now() + interval '1 day');
+    raise exception 'lane admin issued a project-scoped invite';
+  exception when sqlstate '42501' then null;
+  end;
+  begin
+    perform public.issue_invite('org1', 'rk-inv-ln', repeat('4', 64), 'inviter', '{"level":"lane","projectId":"p2","laneId":"nus"}', now() + interval '1 day');
+    raise exception 'lane admin issued an invite for a sibling lane';
+  exception when sqlstate '42501' then null;
+  end;
+  perform public.issue_invite('org1', 'rk-inv-ll', repeat('5', 64), 'inviter', '{"level":"lane","projectId":"p2","laneId":"din"}', now() + interval '1 day');
+end $$;
+
+-- Join requests carry the same rank rule, and may now admit below org scope.
+select set_config('request.jwt.claim.sub', 'asker2', false);
+select public.create_join_request('org1', 'rk-req2', 'project please');
+select set_config('request.jwt.claim.sub', 'asker3', false);
+select public.create_join_request('org1', 'rk-req3', 'lane please');
+
+select set_config('request.jwt.claim.sub', 'padmin', false);
+do $$
+declare n int;
+begin
+  -- The legacy three-argument call still means org scope, which a project admin may not grant.
+  begin
+    perform public.decide_join_request('rk-req2', true, 'inviter');
+    raise exception 'project admin admitted someone at org scope';
+  exception when sqlstate '42501' then null;
+  end;
+  -- Refusal must leave no trace: the request stays open and nothing reaches the log.
+  select count(*) into n from public.events where id in ('joindecided:rk-req2', 'joinmember:rk-req2');
+  if n <> 0 then raise exception 'a refused decision wrote to the log'; end if;
+  perform public.decide_join_request('rk-req2', true, 'inviter', '{"level":"project","projectId":"p2"}');
+  select count(*) into n from public.org_memberships
+    where org_id = 'org1' and profile_id = 'asker2' and not removed and scope_key = 'project:p2';
+  if n <> 1 then raise exception 'asker2 not admitted at project scope'; end if;
+  select count(*) into n from public.org_memberships where org_id = 'org1' and profile_id = 'asker2' and scope_key = 'org';
+  if n <> 0 then raise exception 'asker2 admitted at org scope'; end if;
+  -- A retry of the same decision is still a no-op, not an error.
+  perform public.decide_join_request('rk-req2', true, 'inviter', '{"level":"project","projectId":"p2"}');
+end $$;
+
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$
+declare n int;
+begin
+  -- A malformed scope is refused, not stored.
+  begin
+    perform public.decide_join_request('rk-req3', true, 'inviter', '{"level":"lane","projectId":"p2"}');
+    raise exception 'a lane scope with no laneId was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+  -- An org admin may admit at any narrower scope, and the grant is exactly that scope.
+  perform public.decide_join_request('rk-req3', true, 'inviter', '{"level":"lane","projectId":"p2","laneId":"din"}');
+  select count(*) into n from public.org_memberships
+    where org_id = 'org1' and profile_id = 'asker3' and not removed and scope_key = 'lane:p2/din';
+  if n <> 1 then raise exception 'asker3 not admitted at lane scope'; end if;
+  select count(*) into n from public.events
+    where id = 'joinmember:rk-req3' and payload->'scope' = '{"level":"lane","projectId":"p2","laneId":"din"}'::jsonb;
+  if n <> 1 then raise exception 'OrgMemberAdded does not carry the decided scope'; end if;
+end $$;
+
 select 'smoke ok' as result;
