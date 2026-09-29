@@ -49,7 +49,7 @@ export function DevMenu(props: {
 
   /**
    * Owner-only: create every persona account, give it its org role (so it
-   * sees the org, the project and its own home) and its project membership,
+   * sees the org and its own home) and its membership of the org's work,
    * then assign the translator and reviewer some work to look at. The
    * language gets a name and the standard Bible flow, so the Map and the
    * passage record have steps to show.
@@ -102,7 +102,7 @@ export function DevMenu(props: {
       </Group>
       {canSeed ? (
         <Group>
-          <Row icon="people" label="Seed demo team into this project" sub={busy === 'seed' ? 'Seeding…' : 'Local server, owner only'}
+          <Row icon="people" label="Seed demo team into this organization" sub={busy === 'seed' ? 'Seeding…' : 'Local server, owner only'}
             onPress={busy ? undefined : () => void run('seed', seed)} last />
         </Group>
       ) : null}

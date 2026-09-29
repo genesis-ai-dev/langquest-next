@@ -2,7 +2,7 @@ import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
   adminScopeOf, catalogEnabled, effectiveRole, emptyOrgState, foldOrg, privilegeFor, privilegesFor,
-  privilegesOfFixedRole, SEED_ROLES, EVENT_PRIVILEGE
+  privilegesOfFixedRole, SEED_ROLES, EVENT_PRIVILEGE, WORK_PARTITION, workPartitionOf
 } from '../src/org';
 import { buildFixture, shuffle } from './fixtures';
 
@@ -18,6 +18,8 @@ function orgFixture(): AnyEvent[] {
   emit('v1.RoleDefined', { roleId: 'lang_lead', name: 'Translation Team Leader', privileges: ['assign_work', 'manage_teams', 'translate', 'review', 'view_status'] });
   emit('v1.ProjectRegistered', { projectId: 'p1', name: 'East Africa NT' });
   emit('v1.ProjectRegistered', { projectId: 'p2', name: 'SE Asia Gospels' });
+  // Registered again from another device, later: the first name stands.
+  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Renamed later' }, 'dB');
   emit('v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' }, displayName: 'Lead' });
   emit('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'project_coordinator', scope: { level: 'project', projectId: 'p1' } });
   emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'lane', projectId: 'p1', laneId: 'din' } });
@@ -47,6 +49,16 @@ describe('org partition fold', () => {
     const strip = (s: typeof mixed) => ({ ...s, appliedEventIds: {}, invalidEvents: {}, redactions: {} });
     expect(strip(mixed)).toEqual(strip(canonical));
     expect(Object.keys(mixed.projects)).toEqual(['p1', 'p2']);
+  });
+
+  it('an org opens one work partition, the earliest registered, whatever the arrival order (decision 34)', () => {
+    // Why: an organization holds languages directly. Orgs from before that
+    // may have several registered projects; every device must open the same.
+    expect(canonical.projects['p1']?.name).toBe('East Africa NT');
+    expect(workPartitionOf(canonical)).toBe('p1');
+    for (let seed = 1; seed <= 20; seed++) expect(workPartitionOf(foldOrg(shuffle(events, seed)))).toBe('p1');
+    expect(workPartitionOf(emptyOrgState())).toBe(WORK_PARTITION);
+    expect(workPartitionOf(null)).toBe(WORK_PARTITION);
   });
 
   it('privileges are the union over covering scopes through live roles', () => {

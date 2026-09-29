@@ -7,7 +7,7 @@
 // ADR-022 (terms are a line under Sign In; three Vision cards), ADR-023
 // (creating an org is celebrated), ADR-028 (the invite says who it is for;
 // here only what the phone knows, since a link's claims are unchecked).
-import { CommandError, SEED_ROLES } from '@langquest-next/core';
+import { CommandError } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -21,6 +21,7 @@ import {
   Segments, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
 import { noteExpected, reportError, failureMessage } from '../report';
+import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, type as T, withAlpha } from '../theme';
@@ -102,7 +103,7 @@ export function SignIn(ctx: Ctx) {
           <LinkBtn label="Create Account" onPress={() => ctx.go('create_account')} />
         </View>
       </Card>
-      <GhostBtn label="Browse public projects" icon="globe" onPress={() => ctx.go('explore_home')} />
+      <GhostBtn label="Browse public work" icon="globe" onPress={() => ctx.go('explore_home')} />
       {ctx.canSwitchPersona ? (
         <LinkBtn label="Switch persona" color={C.muted} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
       ) : null}
@@ -125,7 +126,7 @@ export function TermsPrivacy(ctx: Ctx) {
       <Card>
         <Text style={txt.h3}>Privacy Policy</Text>
         <Text style={txt.bodyMuted}>
-          We store the account, assignment, and progress data needed to run your team's work. Recordings belong to your organization. Public explore views show only published project information.
+          We store the account, assignment, and progress data needed to run your team's work. Recordings belong to your organization. Public explore views show only what an organization chose to list.
         </Text>
       </Card>
     </Screen>
@@ -159,14 +160,14 @@ export function Vision(ctx: Ctx) {
   );
 }
 
-// ---- Explore Projects (AUTH-6) --------------------------------------------------------------------
+// ---- Explore (AUTH-6) --------------------------------------------------------------------
 
 const EXPLORE_STEP = 25;
 
-/** Public projects without an account: name, languages, progress. */
+/** Organizations that list their work publicly, without an account: name, languages, progress. */
 export function ExploreHome(ctx: Ctx) {
   const [projects, setProjects] = useState<PublicProject[]>([]);
-  const [message, setMessage] = useState('Loading projects…');
+  const [message, setMessage] = useState('Loading…');
   const [shown, setShown] = useState(EXPLORE_STEP);
   useEffect(() => {
     let active = true;
@@ -179,22 +180,22 @@ export function ExploreHome(ctx: Ctx) {
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
         noteExpected('explore refresh', e);
-        if (active) setMessage('Unable to refresh. Showing saved projects when available.');
+        if (active) setMessage('Unable to refresh. Showing what was saved on this phone.');
       }
     })();
     return () => { active = false; };
   }, []);
   const guest = ctx.session.isGuest;
   return (
-    <Screen header={<Header title="Explore Projects" onBack={ctx.back}
+    <Screen header={<Header title="Explore" onBack={ctx.back}
       action={guest ? <SmallBtn label="Sign In" tone="primary" onPress={() => ctx.go('sign_in')} /> : undefined} />}>
       {message ? <Banner icon="cloud" title={message} /> : null}
-      {projects.length ? <SectionLabel label="Public projects" /> : null}
+      {projects.length ? <SectionLabel label="Listed publicly" /> : null}
       {projects.slice(0, shown).map((p) => {
         const pct = Math.round(p.translated_pct);
         return (
           <Card key={`${p.org_id}:${p.project_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
-            onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, projectName: p.name })}>
+            onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
             <View style={{ gap: 2 }}>
               <Text style={txt.h3}>{p.name}</Text>
               {p.languages.length ? <Text style={txt.smMuted} numberOfLines={2}>{p.languages.join(', ')}</Text> : null}
@@ -208,7 +209,7 @@ export function ExploreHome(ctx: Ctx) {
         );
       })}
       <ShowMore remaining={projects.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-      {!projects.length && !message ? <EmptyState icon="globe" title="No public projects yet" sub="Projects appear here when their team makes them public." /> : null}
+      {!projects.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
     </Screen>
   );
 }
@@ -406,7 +407,7 @@ const INTENTS: { to: 'create_org' | 'request_access' | 'scan_qr' | 'explore_home
   { to: 'create_org', icon: 'building', label: 'Create an organization', sub: 'Start a new translation org' },
   { to: 'request_access', icon: 'people', label: 'Join an existing org', sub: 'Accept an invitation or request access' },
   { to: 'scan_qr', icon: 'qr', label: 'Join with QR code', sub: 'Scan an invite — keeps your email and name' },
-  { to: 'explore_home', icon: 'globe', label: 'Explore projects', sub: 'Browse public translation projects' }
+  { to: 'explore_home', icon: 'globe', label: 'Explore', sub: 'Browse translation work listed publicly' }
 ];
 
 /**
@@ -464,11 +465,11 @@ export function IntentChooser(ctx: Ctx) {
 // ---- Create Organization (ONB-6, ADR-023) ----------------------------------------------------------------
 
 /**
- * Creating an organization writes the org partition: the org, the seed
- * roles with their privilege sets, and you as Organization Admin at org
- * scope. The first project, its languages and how passages get checked are
- * set up next from My Work's Getting started (ONB-5), so nothing here is
- * sample content.
+ * Creating an organization starts a new one under a fresh id
+ * (`createOrganization`): the org, the seed roles with their privilege sets,
+ * you as Organization Admin at org scope, and its one work partition
+ * (decision 34). Its languages and how passages get checked are set up next
+ * from My Work's Getting started (ONB-5), so nothing here is sample content.
  */
 export function CreateOrg(ctx: Ctx) {
   const [name, setName] = useState('');
@@ -480,13 +481,8 @@ export function CreateOrg(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const me = ctx.session.actorId;
-      if (!ctx.org.state?.org) await ctx.org.append('v1.OrgCreated', { name: orgName });
-      for (const r of SEED_ROLES) {
-        if (!ctx.org.state?.roles[r.roleId]) await ctx.org.append('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
-      }
-      await ctx.org.append('v1.OrgMemberAdded', {
-        profileId: me, roleId: 'org_admin', scope: { level: 'org' },
+      const orgId = await createOrganization({
+        actorId: ctx.session.actorId, name: orgName,
         ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {})
       });
       // The creator needs no "who invited you" welcome; My Work's Getting
@@ -494,8 +490,9 @@ export function CreateOrg(ctx: Ctx) {
       // The org exists by now, so a failure here is reported, not shown as
       // "not created"; the worst case is seeing the welcome once more.
       await ctx.markWelcomed().catch((e: unknown) => { reportError('create org welcomed', e); });
-      ctx.toast(`${orgName} is ready to grow. Next, set up your first project and invite your team.`);
-      ctx.go('my_work');
+      ctx.toast(`${orgName} is ready to grow. Next, add your first language and invite your team.`);
+      // Opening it replaces this screen with the new organization's home.
+      await ctx.openOrganization(orgId);
     } catch (e) {
       setError(failure('create org', e));
     } finally {
@@ -516,7 +513,7 @@ export function CreateOrg(ctx: Ctx) {
       </View>
       <Field label="What's it called?" value={name} onChangeText={setName} placeholder="Enter organization name" autoCapitalize="words" />
       <Banner icon="sparkle" title="Ready to use"
-        body="You'll get the usual roles and a standard way to check passages. Next, we'll set up your first project and team together." />
+        body="You'll get the usual roles and a standard way to check passages. Next, we'll add your first language and team together." />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -531,9 +528,8 @@ export function CreateOrg(ctx: Ctx) {
  */
 export function RequestAccess(ctx: Ctx) {
   const [orgId, setOrgId] = useState(ctx.params['orgId'] ?? '');
-  const projectName = ctx.params['projectName'];
-  // Explore knows the project, not the organization's name.
-  const orgName = projectName ? `the ${projectName} team` : undefined;
+  // The name the organization listed its work under on Explore.
+  const orgName = ctx.params['orgName'] || undefined;
   const [message, setMessage] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
   const actions = useAccountActions(ctx.session.actorId);

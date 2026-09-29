@@ -6,12 +6,12 @@ import { supabase } from './supabase';
  * Dev-only personas. Each is a real user on a local Supabase so every event
  * it emits passes the server's actor check. "Seed demo team" (run by the owner)
  * creates the accounts and appends their memberships and assignments to the
- * open project; switching persona is a real sign-in as that user.
+ * open organization; switching persona is a real sign-in as that user.
  */
 export interface Persona {
   id: string;
   label: string;
-  /** Membership role seeded into the project; null = not a member. */
+  /** Membership role seeded into the org's work partition; null = not a member. */
   role: Role | null;
   /** Org role id seeded into the org partition (core SEED_ROLES). */
   roleId: string | null;
@@ -22,7 +22,7 @@ const DOMAIN = 'example.test';
 
 export const PERSONAS: Persona[] = [
   { id: 'owner', label: 'Org admin', role: 'owner', roleId: 'org_admin', email: `lq-owner@${DOMAIN}` },
-  { id: 'coordinator', label: 'Project admin', role: 'coordinator', roleId: 'project_coordinator', email: `lq-coordinator@${DOMAIN}` },
+  { id: 'coordinator', label: 'Coordinator', role: 'coordinator', roleId: 'project_coordinator', email: `lq-coordinator@${DOMAIN}` },
   { id: 'translator', label: 'Translator', role: 'translator', roleId: 'translator', email: `lq-translator@${DOMAIN}` },
   { id: 'reviewer', label: 'Reviewer', role: 'reviewer', roleId: 'reviewer', email: `lq-reviewer@${DOMAIN}` },
   { id: 'viewer', label: 'Viewer', role: 'viewer', roleId: 'viewer', email: `lq-viewer@${DOMAIN}` },

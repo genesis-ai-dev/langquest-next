@@ -1,6 +1,6 @@
 import { orgQueries } from './src/orgQueries';
 import { getStore } from './src/store';
-import { highlightsFor, updatesFor, withOrgMembers, type EventSpec } from '@langquest-next/core';
+import { highlightsFor, updatesFor, withOrgMembers, workPartitionOf, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
@@ -17,7 +17,7 @@ import { maySwitchPersona } from './src/dev';
 import { edgeFor, MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
 import { indexesFor } from './src/indexes';
 import { GhostBtn, Ico, ToastView, txt, type IconName, type ToastSpec } from './src/kit';
-import { installGlobalHandlers, reportError } from './src/report';
+import { installGlobalHandlers, noteExpected, reportError } from './src/report';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
@@ -39,12 +39,16 @@ import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
-import { useOrg } from './src/useOrg';
+import { useOrg, type OrgHandle } from './src/useOrg';
 import { useProject } from './src/useProject';
 
 // Initial selection, before the account's saved organization is restored.
 const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
-const PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID ?? 'luke-demo-4';
+/**
+ * The source text every language translates from: the app ships English
+ * readings (BSB, WEB, KJV), so a new organization's work starts from them.
+ */
+const SOURCE_LANGUOID = 'eng';
 const IS_DEV = __DEV__;
 let initialLinkRead = false;
 
@@ -62,7 +66,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, sync_status: Account.SyncStatus,
-  org_home: Org.OrgHome, project_home: Org.ProjectHome, language_home: Org.LanguageHome, new_project: Org.NewProject,
+  org_home: Org.OrgHome, language_home: Org.LanguageHome,
   new_language: Org.NewLanguage, members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr,
   edit_member: Org.EditMember, review_teams: Org.ReviewTeams, review_team_editor: Org.ReviewTeamEditor,
   roles_home: Config.RolesHome, role_editor: Config.RoleEditor, reference_home: Config.ReferenceHome, material_editor: Config.MaterialEditor,
@@ -193,45 +197,61 @@ export default function App() {
   );
 }
 
+/**
+ * Which organization is open. An organization is the unit people switch
+ * between and the unit that syncs: its own partition plus the one work
+ * partition that holds its languages (decision 34).
+ */
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
-  const [selection, setSelection] = useState({ orgId: ORG_ID, projectId: PROJECT_ID });
+  const [orgId, setOrgId] = useState(ORG_ID);
   const [selectionRevision, setSelectionRevision] = useState(0);
+  const key = `selection:${props.actorId}`;
   useEffect(() => {
     let active = true;
-    void AsyncStorage.getItem(`selection:${props.actorId}`).then(async (raw) => {
-      if (raw) { if (active) setSelection(JSON.parse(raw)); return; }
+    void (async () => {
+      const raw = await AsyncStorage.getItem(key);
+      // Saved before decision 34 as { orgId, projectId }: the org is what counts.
+      const saved = raw ? (JSON.parse(raw) as { orgId?: string }).orgId : undefined;
+      if (saved) { if (active) setOrgId(saved); return; }
       if (!props.signedIn) return;
-      // Nothing chosen on this device yet: open the first project this
+      // Nothing chosen on this device yet: open the first organization this
       // account belongs to, so someone just added to a team lands in it.
-      const { data } = await supabase.rpc('my_organizations');
-      const first = (data as { org_id: string; project_id: string | null }[] | null)?.find((r) => r.project_id);
-      if (!active || !first?.project_id) return;
-      const next = { orgId: first.org_id, projectId: first.project_id };
-      await AsyncStorage.setItem(`selection:${props.actorId}`, JSON.stringify(next));
-      setSelection(next);
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [props.actorId, props.signedIn]);
-  const openOrganization = useCallback(async (orgId: string, projectId?: string) => {
-    if (!projectId) {
       const { data, error } = await supabase.rpc('my_organizations');
-      if (error) throw new Error(error.message);
-      projectId = data?.find((r: { org_id: string }) => r.org_id === orgId)?.project_id ?? 'unselected';
-    }
-    const next = { orgId, projectId: projectId! };
-    await AsyncStorage.setItem(`selection:${props.actorId}`, JSON.stringify(next));
+      if (error) { noteExpected('restore organization', error); return; }
+      const first = (data as { org_id: string }[] | null)?.[0];
+      if (!active || !first) return;
+      await AsyncStorage.setItem(key, JSON.stringify({ orgId: first.org_id }));
+      setOrgId(first.org_id);
+    })().catch((e: unknown) => { reportError('restore organization', e); });
+    return () => { active = false; };
+  }, [key, props.signedIn]);
+  const openOrganization = useCallback(async (next: string) => {
+    await AsyncStorage.setItem(key, JSON.stringify({ orgId: next }));
     await AsyncStorage.removeItem('pending-invite');
-    setSelection(next);
+    setOrgId(next);
     setSelectionRevision((revision) => revision + 1);
-  }, [props.actorId]);
-  return <Workspace key={`${selection.orgId}:${selection.projectId}:${selectionRevision}`} {...props}
-    {...selection} openOrganization={openOrganization} />;
+  }, [key]);
+  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} openOrganization={openOrganization} />;
 }
 
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean;
-  orgId: string; projectId: string; openOrganization: Ctx['openOrganization'] }) {
-  const rawProject = useProject(props.orgId, props.projectId, props.actorId);
+/**
+ * One organization: its partition, and the work partition it names. Until
+ * the org fold is read (and, on a device that has never seen this org, until
+ * the first sync has had its chance), which partition that is is unknown, so
+ * nothing is opened yet.
+ */
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; openOrganization: Ctx['openOrganization'] }) {
   const org = useOrg(props.orgId, props.actorId);
+  const known = org.state !== null && (org.state.org !== null || org.settled);
+  if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
+  const workId = workPartitionOf(org.state);
+  return <OrgWork key={workId} {...props} org={org} projectId={workId} />;
+}
+
+function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
+  orgId: string; projectId: string; org: OrgHandle; openOrganization: Ctx['openOrganization'] }) {
+  const rawProject = useProject(props.orgId, props.projectId, props.actorId);
+  const org = props.org;
   const projectedState = useMemo(() => rawProject.state && org.state
     ? withOrgMembers(rawProject.state, org.state, props.projectId) : rawProject.state,
     [rawProject.state, org.state, props.projectId]);
@@ -422,16 +442,29 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
     [nav, session]
   );
 
-  // A project registered in the org (New project) gets its own log started
-  // the first time someone who may create it opens it: the server accepts
-  // ProjectCreated as a partition's first event from Manage Org Structure.
-  const registered = org.state?.projects[props.projectId];
+  // The org's work partition is started the first time someone who may do
+  // so opens it (decision 34): registered in the org if it is not yet, then
+  // ProjectCreated as its first event, which the server accepts from Manage
+  // Org Structure. Only once both partitions have been read from the server
+  // this session, so a device that has not caught up never starts a second
+  // one beside what someone else already made.
   const canCreate = session.can('manage_structure');
+  const started = useRef(false);
+  const orgName = org.state?.org?.value.name;
   useEffect(() => {
-    if (!project.state || project.state.project || !registered || !canCreate) return;
-    void rawProject.append('v1.ProjectCreated', { name: registered.name, sourceLanguoidId: 'eng' }).catch(() => {});
+    if (started.current || !canCreate || !orgName || !org.pulled || !rawProject.pulled) return;
+    if (!rawProject.state || rawProject.state.project) return;
+    started.current = true;
+    void (async () => {
+      if (!org.state?.projects[props.projectId]) await org.append('v1.ProjectRegistered', { projectId: props.projectId, name: orgName });
+      await rawProject.append('v1.ProjectCreated', { name: orgName, sourceLanguoidId: SOURCE_LANGUOID });
+    })().catch((e: unknown) => {
+      // Retried on the next open; nobody is waiting on it, so report and move on.
+      started.current = false;
+      reportError('start work partition', e);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.state?.project, registered?.name, canCreate]);
+  }, [canCreate, orgName, org.pulled, rawProject.pulled, rawProject.state?.project]);
 
   const openPassage = useCallback((unitId: string, lane: string, extra?: Record<string, string>) => {
     remember(unitId, lane);

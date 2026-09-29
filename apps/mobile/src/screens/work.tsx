@@ -127,7 +127,7 @@ function useFirstDay(actorId: string, show: boolean): { hidden: boolean; hide: (
   return { hidden: hidden !== false, hide };
 }
 
-/** Everyone the organization or project has, not counting removed members. */
+/** Everyone the organization has, not counting removed members. */
 function memberCount(ctx: Ctx, state: ProjectState): number {
   const ids = new Set<string>();
   for (const [id, m] of Object.entries(state.members)) if (!m.removed.value) ids.add(id);
@@ -147,8 +147,6 @@ function startRows(ctx: Ctx, state: ProjectState): { title: string; promise: str
     canGo(ctx, to) ? { label, onPress: () => ctx.go(to, params) } : undefined;
 
   if (s.isAdmin) {
-    const projectName = state.project?.value.name ?? Object.values(ctx.org.state?.projects ?? {}).at(-1)?.name ?? null;
-    const projectDone = !!projectName;
     const lanes = idx.lanes;
     const languageDone = lanes.length > 0;
     const lastLane = lanes.at(-1);
@@ -162,15 +160,9 @@ function startRows(ctx: Ctx, state: ProjectState): { title: string; promise: str
       rows: [
         { id: 'org', icon: 'building', label: 'Name your organization', sub: orgName, body: '', done: true },
         {
-          id: 'project', icon: 'folder', label: 'Create a project', done: projectDone,
-          sub: projectName ?? 'A home for your languages',
-          body: 'A project holds the languages your teams translate into — say, one country or one Bible. About a minute.',
-          action: open('new_project', 'Create a project')
-        },
-        {
-          id: 'language', icon: 'globe', label: 'Add a language', done: languageDone, disabled: !projectDone,
+          id: 'language', icon: 'globe', label: 'Add a language', done: languageDone,
           sub: lastLane ? laneName(state, lastLane) : 'The language your team speaks',
-          body: `Which language will your first team record? It goes in ${projectName ?? 'your project'}, with every passage ready to record.`,
+          body: `Which language will your first team record? It goes in ${orgName}, with every passage ready to record.`,
           action: open('new_language', 'Add a language')
         },
         {
@@ -448,7 +440,7 @@ export function MyWork(ctx: Ctx) {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[txt.body, { fontWeight: '600' }]}>Nothing is waiting on you</Text>
             <Text style={[txt.smMuted, { marginTop: 2 }]}>
-              {ctx.session.isAdmin ? 'Set up people, projects and review flows under Manage, or find any passage on the Map.' : 'Find any passage on the Map to keep going.'}
+              {ctx.session.isAdmin ? 'Set up people, languages and review flows under Manage, or find any passage on the Map.' : 'Find any passage on the Map to keep going.'}
             </Text>
           </View>
         </Card>

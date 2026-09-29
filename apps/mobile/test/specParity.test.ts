@@ -1,4 +1,4 @@
-import { EDGES, SCREEN_IDS, type Edge } from '../src/flow';
+import { DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/flow';
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/session';
 import spec from './spec-flow.json';
@@ -16,6 +16,8 @@ import spec from './spec-flow.json';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'org_home->new_language': 'no project level (decision 34): languages are added from the organization',
+  'org_home->language_home': 'no project level (decision 34): the organization lists its languages',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
   'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen',
   'scan_qr->sign_in': 'save an invite while its recipient signs in',
@@ -28,12 +30,15 @@ type SpecEdge = { from: string; to: string; mode: string; when: string | null; l
 const key = (e: { from: string; to: string; mode?: string }) => `${e.from}->${e.to}`;
 const machine = (e: { mode?: string }) => (e.mode ?? 'push') !== 'back';
 
-const specEdges = (spec.edges as SpecEdge[]).filter(machine);
+const kept = (e: { from: string; to: string }) => !(e.from in DROPPED) && !(e.to in DROPPED);
+const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens, 'sync_status'].sort());
+  it('the screen set is the demo screen set plus sync status, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status'].sort());
+    // The drop list names only screens the spec has.
+    expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });
 
   it('every spec transition exists in the app with the same nav mode and gate', () => {
@@ -102,7 +107,7 @@ describe('UX spec parity', () => {
       expect(homes.has(h as never), h).toBe(true);
     }
     const manageHomes = new Set(sessions.map(manageHomeFor));
-    for (const h of ['org_home', 'project_home', 'language_home']) expect(manageHomes.has(h as never), h).toBe(true);
+    for (const h of ['org_home', 'language_home']) expect(manageHomes.has(h as never), h).toBe(true);
   });
 
   it('every pre-auth screen has a declared way out for every session it can produce', () => {

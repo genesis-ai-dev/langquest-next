@@ -10,7 +10,7 @@
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
 // Pure reading lives in configModel.ts.
 import {
-  catalogKey, CommandError, commands, deriveKinds, derivePassage, FLOWS, formatQuestionField, keyTermsFor, keyTermView, laneName,
+  CommandError, commands, deriveKinds, derivePassage, FLOWS, formatQuestionField, keyTermsFor, keyTermView, laneName,
   materialView, parseQuestionField, privilegesFor, PRIVILEGES, QUESTION_TEMPLATES, REFERENCE_KINDS, SOURCE_BIBLES,
   sourceBibleEnabled, takesLinkingTerm, templateFields, unitTitle, V1_STAGE_KINDS,
   type EventSpec, type FlowStep, type KeyTermView, type KindDef, type MaterialView,
@@ -110,8 +110,9 @@ function ToggleRow(props: { label: string; desc: string; on: boolean; disabled?:
   );
 }
 
-function projectName(ctx: Ctx): string {
-  return ctx.project.state?.project?.value.name ?? 'Project';
+/** What a view without a language covers: the organization, which holds its languages directly (decision 34). */
+function orgName(ctx: Ctx): string {
+  return ctx.org.state?.org?.value.name ?? 'Organization';
 }
 
 // ─── Roles (ORG-3, ORG-4) ──────────────────────────────────────────────────────────
@@ -214,7 +215,7 @@ export function RoleEditor(ctx: Ctx) {
           <SectionLabel label="Members with this role" />
           {canAssign ? <GhostBtn label={`Invite someone as ${label || 'this role'}`} icon="qr" onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
           <Capped items={holders} empty="No members have this role yet." render={(h, last) => (
-            <Row key={`${h.profileId}-${h.scope ? JSON.stringify(h.scope) : 'project'}`} icon="user"
+            <Row key={`${h.profileId}-${h.scope ? JSON.stringify(h.scope) : 'legacy'}`} icon="user"
               label={h.profileId === ctx.session.actorId ? 'You' : h.displayName ?? ctx.name(h.profileId)}
               sub={scopeName(h.scope, org, state, ctx.project.projectId)}
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
@@ -224,7 +225,7 @@ export function RoleEditor(ctx: Ctx) {
       <Card style={{ backgroundColor: C.light }}>
         <Text style={txt.sm}>
           {isNew
-            ? 'Scope is not set here: choose organization, project, or language when inviting or editing a member.'
+            ? 'Scope is not set here: choose the organization or a language when inviting or editing a member.'
             : 'Scope is assigned per member when this role is given.'}
         </Text>
       </Card>
@@ -300,11 +301,11 @@ export function FlowsHome(ctx: Ctx) {
   }
 
   return (
-    <Screen header={<Header title="Review Flows" sub={fixedLane && state ? laneName(state, fixedLane) : projectName(ctx)} onBack={ctx.back} />}>
+    <Screen header={<Header title="Review Flows" sub={fixedLane && state ? laneName(state, fixedLane) : orgName(ctx)} onBack={ctx.back} />}>
       <Intro>
         {fixedLane
           ? 'The flow is advice: it suggests what should happen next. Steps can be done in any order or set aside with a reason; only checkpoints are required.'
-          : `Each language runs one review flow. This view covers the ${plural(uses.length, 'language')} in this project. Flows are advice; checkpoints are the only hard stops.`}
+          : `Each language runs one review flow. This view covers the ${plural(uses.length, 'language')} in ${orgName(ctx)}. Flows are advice; checkpoints are the only hard stops.`}
       </Intro>
       {!state ? <EmptyState icon="flow" title="Loading…" /> : uses.length === 0 ? (
         <EmptyState icon="globe" title="No languages yet" sub="Add a language, then choose how its passages get checked." />
@@ -514,7 +515,7 @@ const referenceKindName = (kind: string) => REFERENCE_KINDS.find((k) => k.id ===
 function materialScopeName(state: ProjectState, m: Pick<MaterialView, 'scope'>): string {
   if (m.scope.unitId) return unitTitle(state, m.scope.unitId);
   if (m.scope.laneId) return `${laneName(state, m.scope.laneId)} team`;
-  return 'Whole project';
+  return 'All languages';
 }
 
 /** The shipped question sets, which every reviewer of their kind sees (core `questionsForKind`). */
@@ -532,7 +533,7 @@ export function ReferenceHome(ctx: Ctx) {
   const bibles = ctx.details('reference:source-bibles');
   if (!state || !view) return <Screen header={<Header title="Reference Material" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
 
-  const levelName = laneId ? laneName(state, laneId) : projectName(ctx);
+  const levelName = laneId ? laneName(state, laneId) : orgName(ctx);
   const open = (m: MaterialView) => (canManage ? () => ctx.go('material_editor', { materialId: m.materialId, ...(laneId ? { laneId } : {}) }) : undefined);
   const generalRow = (m: MaterialView, last: boolean) => (
     <Row key={m.materialId} icon="book" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
@@ -574,7 +575,7 @@ export function ReferenceHome(ctx: Ctx) {
         <Row key={item.t!.id} icon="chat" label={item.t!.name} last={last}
           sub={`${kindNameOf(item.t!.kindId)} · ${questionCountLabel(item.t!.questions.length)} · Organization`} />
       )} />
-      <Intro>Question sets for the same kind add up: a reviewer sees the organization's, the project's, and the language team's together, labelled by source.</Intro>
+      <Intro>Question sets for the same kind add up: a reviewer sees the organization's and the language team's together, labelled by source.</Intro>
 
       <SectionLabel label={`General · ${levelName} · ${view.atLevel.length}`} />
       <Capped items={view.atLevel} empty="No general materials at this level yet." render={generalRow} />
@@ -598,22 +599,21 @@ export function ReferenceHome(ctx: Ctx) {
   );
 }
 
-/** Source Bibles the organization adds and a project may leave out (the settings the old library held). */
+/** Source Bibles the organization adds (the settings the old library held). */
 function SourceBibles(props: { ctx: Ctx; open: boolean; onToggle: () => void }) {
   const { ctx } = props;
   const org = ctx.org.state;
   const [busy, setBusy] = useState(false);
   if (!org) return null;
   const canOrg = privilegesFor(org, ctx.session.actorId, {}).has('manage_reference');
-  const canProject = ctx.session.can('manage_reference');
   const added = SOURCE_BIBLES.filter((b) => sourceBibleEnabled(org, b.id));
-  async function toggle(id: string, name: string, enabled: boolean, level: 'org' | 'project') {
+  async function toggle(id: string, name: string, enabled: boolean) {
     if (busy) return;
-    const payload = { kind: 'reference' as const, itemId: id, level, ...(level === 'project' ? { projectId: ctx.project.projectId } : {}) };
+    const payload = { kind: 'reference' as const, itemId: id, level: 'org' as const };
     setBusy(true);
     try {
       await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled });
-      ctx.toast(`${name} ${enabled ? 'added' : 'turned off'}${level === 'project' ? ' for this project' : ''}.`, async () => {
+      ctx.toast(`${name} ${enabled ? 'added' : 'turned off'}.`, async () => {
         try { await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled: !enabled }); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${failure('undo source bible', e)}`); }
       });
     } catch (e) {
@@ -626,16 +626,9 @@ function SourceBibles(props: { ctx: Ctx; open: boolean; onToggle: () => void }) 
     <Disclosure icon="sound" title="Source Bibles" summary={added.length ? added.map((b) => b.code).join(' · ') : 'None added yet'} open={props.open} onToggle={props.onToggle}>
       {SOURCE_BIBLES.map((b, i) => (
         <ToggleRow key={b.id} label={b.name} desc={`For the organization · English · ${b.narrator} · chapter audio · CC0`}
-          on={sourceBibleEnabled(org, b.id)} disabled={busy || !canOrg} onToggle={() => void toggle(b.id, b.name, !sourceBibleEnabled(org, b.id), 'org')}
-          last={i === SOURCE_BIBLES.length - 1 && added.length === 0} />
+          on={sourceBibleEnabled(org, b.id)} disabled={busy || !canOrg} onToggle={() => void toggle(b.id, b.name, !sourceBibleEnabled(org, b.id))}
+          last={i === SOURCE_BIBLES.length - 1} />
       ))}
-      {added.map((b, i) => {
-        const on = org.catalog[catalogKey('reference', b.id, 'project', ctx.project.projectId)]?.value ?? true;
-        return (
-          <ToggleRow key={`p-${b.id}`} label={`${b.name} in this project`} desc="Turn off to leave it out of this project."
-            on={on} disabled={busy || !canProject} onToggle={() => void toggle(b.id, b.name, !on, 'project')} last={i === added.length - 1} />
-        );
-      })}
     </Disclosure>
   );
 }
@@ -746,7 +739,7 @@ export function MaterialEditor(ctx: Ctx) {
 
   return (
     <Screen
-      header={<Header title={existing?.title ?? 'New material'} sub={existing ? materialScopeName(state, existing) : laneParam ? laneName(state, laneParam) : projectName(ctx)} onBack={ctx.back}
+      header={<Header title={existing?.title ?? 'New material'} sub={existing ? materialScopeName(state, existing) : laneParam ? laneName(state, laneParam) : orgName(ctx)} onBack={ctx.back}
         action={existing && canManage ? <SmallBtn label={locked ? 'Locked' : 'Unlocked'} icon="lock" tone={locked ? 'dark' : undefined} onPress={toggleLock} />
           : existing && locked ? <Badge label="Locked" tone="red" /> : undefined} />}
       footer={canFill ? <PrimaryBtn label={isNew ? 'Add material' : 'Save Changes'} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
@@ -774,7 +767,7 @@ export function MaterialEditor(ctx: Ctx) {
               <SectionLabel label="Where it applies" />
               <ChipRow>
                 <Chip label={laneName(state, laneParam)} icon="globe" on={forLane} onPress={() => setForLane(true)} />
-                <Chip label="Whole project" icon="folder" on={!forLane} onPress={() => setForLane(false)} />
+                <Chip label="All languages" icon="folder" on={!forLane} onPress={() => setForLane(false)} />
               </ChipRow>
             </>
           ) : null}
@@ -929,9 +922,9 @@ export function KeyTerms(ctx: Ctx) {
           <Capped items={rest} empty={q ? `Nothing matches “${q}”.` : 'No other terms.'} render={(t, last) => <TermRow key={t.termId} t={t} lane={lane} onPress={() => open(t)} last={last} />} />
         </>
       )}
-      <Intro>Concepts come from your organization's list (like FIA key terms) or your project. Each language keeps its own renderings and the reasons behind them.</Intro>
+      <Intro>Concepts come from your organization's list (like FIA key terms) or your own. Each language keeps its own renderings and the reasons behind them.</Intro>
 
-      <Sheet visible={adding} title="New key term" sub="Added to your project's list. Other languages can add their own renderings." onClose={() => setAdding(false)}
+      <Sheet visible={adding} title="New key term" sub="Added to your organization's list. Other languages can add their own renderings." onClose={() => setAdding(false)}
         footer={<PrimaryBtn label="Add Term" onPress={() => void add()} disabled={!draft.term.trim() || !draft.rendering.trim()} busy={busy} />}>
         <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder="Source term, e.g. grace (charis)" />
         <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder="Meaning, briefly" autoCapitalize="sentences" />
@@ -1015,7 +1008,7 @@ export function KeyTermDetail(ctx: Ctx) {
 
   const scopeTitles = t.unitScope.map((u) => unitTitle(state, u));
   return (
-    <Screen header={<Header title={t.term} sub={isFiaTerm(t) ? 'FIA key term · shared across the organization' : `${lane} · project term`} onBack={ctx.back} />}>
+    <Screen header={<Header title={t.term} sub={isFiaTerm(t) ? 'FIA key term · shared across the organization' : `${lane} · organization term`} onBack={ctx.back} />}>
       <Card style={{ backgroundColor: C.light }}>
         <Text style={txt.body}>{t.gloss || 'No meaning written yet.'}</Text>
         <Text style={[txt.xsStrong, { color: C.primary }]}>{scopeTitles.length ? `Appears in ${scopeTitles.join(', ')}` : 'Applies to every passage'}</Text>

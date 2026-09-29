@@ -1,6 +1,6 @@
 // Content templates: the structure each language records against. Ports the
 // UX demo's src/screens/content.tsx: ContentTemplatesScreen (templates_home,
-// org/project library and a language's own template), TemplatePickerScreen
+// the organization's library and a language's own template), TemplatePickerScreen
 // (template_picker), TemplateEditorScreen (template_editor) and
 // BookStructureScreen (book_structure). Requirements TPL-1..9; ADR-025
 // (a language owns its copy, suggestions are advice), ADR-026 (a whole book
@@ -11,7 +11,9 @@
 // tasks and library editing need events that do not exist yet, so those
 // screens read the structure and say editing is coming.
 //
-// templates_home params: `level` ('org' | 'project' | 'language') and/or
+// There is no project level (docs/decisions.md 34): the organization
+// suggests, each language chooses. templates_home params: `level` ('org' |
+// 'language'; an old 'project' reads as 'org') and/or
 // `laneId`. template_editor: `templateId` (a library template) or `laneId`
 // (a language's copy). book_structure: `laneId`, `bookId`.
 import { CommandError, contentTemplate, contentTemplates, derivePassage, languageProgress, laneName, privilegesFor, type ContentTemplate } from '@langquest-next/core';
@@ -43,26 +45,21 @@ const failure = failureMessage;
 
 const lower = (s: string) => s.toLowerCase();
 
-type Level = 'org' | 'project' | 'language';
+type Level = 'org' | 'language';
 
 /** Which view of templates this is: the level from params, else the viewer's own scope (ADR-017). */
 function levelOf(ctx: Ctx): { level: Level; laneId: string | null } {
   const level = ctx.params['level'];
   const laneParam = ctx.params['laneId'];
-  if (level === 'org' || level === 'project') return { level, laneId: null };
-  if (level === 'language' || laneParam) return { level: 'language', laneId: laneParam ?? ctx.laneId };
+  if (level === 'org' || level === 'project') return { level: 'org', laneId: null };
+  if (level === 'language' || level === 'lane' || laneParam) return { level: 'language', laneId: laneParam ?? ctx.laneId };
   const scope = ctx.session.adminScope;
-  if (scope?.level === 'org') return { level: 'org', laneId: null };
-  if (scope?.level === 'project') return { level: 'project', laneId: null };
+  if (scope?.level === 'org' || scope?.level === 'project') return { level: 'org', laneId: null };
   return { level: 'language', laneId: scope?.laneId ?? ctx.laneId };
 }
 
 function orgName(ctx: Ctx): string {
   return ctx.org.state?.org?.value.name ?? 'Your organization';
-}
-
-function projectName(ctx: Ctx): string {
-  return ctx.project.state?.project?.value.name ?? 'This project';
 }
 
 /** Book › Chapter › Passage: folders, then what's recorded (TPL-2). */
@@ -83,7 +80,7 @@ function LevelsLine(props: { levels: string[] }) {
 function Loading(props: { title: string; onBack: () => void }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.onBack} />}>
-      <EmptyState icon="template" title="Getting the project ready…" />
+      <EmptyState icon="template" title="Getting your organization ready…" />
     </Screen>
   );
 }
@@ -93,11 +90,12 @@ function Loading(props: { title: string; onBack: () => void }) {
 export function TemplatesHome(ctx: Ctx) {
   const { level, laneId } = levelOf(ctx);
   if (level === 'language') return <LanguageTemplateView ctx={ctx} laneId={laneId} />;
-  return <TemplateLibraryView ctx={ctx} level={level} />;
+  return <TemplateLibraryView ctx={ctx} />;
 }
 
-/** Org or project: the library, what's suggested here, and what each language uses (TPL-1). */
-function TemplateLibraryView({ ctx, level }: { ctx: Ctx; level: 'org' | 'project' }) {
+/** The organization: the library, what it suggests, and what each language uses (TPL-1). */
+function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
+  const level = 'org' as const;
   const state = ctx.project.state;
   const org = ctx.org.state;
   const projectId = ctx.project.projectId;
@@ -105,24 +103,21 @@ function TemplateLibraryView({ ctx, level }: { ctx: Ctx; level: 'org' | 'project
   const [limit, setLimit] = useState(8);
   const library = contentTemplates();
   const usage = useMemo(() => (state ? templateUsage(state) : []), [state]);
-  const scopeName = level === 'org' ? orgName(ctx) : projectName(ctx);
-  // Suggesting at the org level needs the permission there, not only in this project.
-  const canManage = level === 'org'
-    ? !!org && privilegesFor(org, ctx.session.actorId, {}).has('manage_templates')
-    : ctx.session.can('manage_templates');
+  const scopeName = orgName(ctx);
+  // Suggesting at the org level needs the permission there, not only over its languages.
+  const canManage = !!org && privilegesFor(org, ctx.session.actorId, {}).has('manage_templates');
   const canOpen = ctx.session.can('manage_templates');
 
-  const inheritedBy = (id: string) => (level === 'project' && suggestedAt(org, id, 'org') ? orgName(ctx) : null);
   const suggested = (id: string) => suggestedAt(org, id, level, projectId);
   const sorted = [...library].sort((a, b) => {
-    const rank = (t: ContentTemplate) => (suggested(t.id) || inheritedBy(t.id) ? 0 : 1);
+    const rank = (t: ContentTemplate) => (suggested(t.id) ? 0 : 1);
     return rank(a) - rank(b);
   });
 
   async function toggle(t: ContentTemplate) {
     if (busy || !canManage) return;
     const on = !suggested(t.id);
-    const payload = (enabled: boolean) => ({ kind: 'template' as const, itemId: t.id, level, enabled, ...(level === 'project' ? { projectId } : {}) });
+    const payload = (enabled: boolean) => ({ kind: 'template' as const, itemId: t.id, level, enabled });
     setBusy(true);
     try {
       await ctx.org.append('v1.CatalogItemToggled', payload(on));
@@ -150,7 +145,6 @@ function TemplateLibraryView({ ctx, level }: { ctx: Ctx; level: 'org' | 'project
       {sorted.map((t) => {
         const users = usage.filter((u) => u.templateId === t.id).map((u) => (state ? laneName(state, u.laneId) : u.laneId));
         const on = suggested(t.id);
-        const by = inheritedBy(t.id);
         return (
           <Card key={t.id}>
             <View style={styles.head}>
@@ -162,7 +156,7 @@ function TemplateLibraryView({ ctx, level }: { ctx: Ctx; level: 'org' | 'project
             </View>
             <LevelsLine levels={templateLevels(t)} />
             <Text style={[txt.sm, { fontWeight: '600', color: users.length ? C.primary : C.muted }]}>
-              {users.length ? `Used by ${users.join(', ')}` : 'Not used here yet'}{by ? ` · suggested by ${by}` : ''}
+              {users.length ? `Used by ${users.join(', ')}` : 'Not used here yet'}
             </Text>
             <View style={styles.cardActions}>
               {canManage ? (
@@ -176,7 +170,7 @@ function TemplateLibraryView({ ctx, level }: { ctx: Ctx; level: 'org' | 'project
           </Card>
         );
       })}
-      <SectionLabel label={level === 'org' ? `By language · ${projectName(ctx)}` : 'By language'} />
+      <SectionLabel label="By language" />
       {usage.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No languages here yet.</Text>
       ) : (
@@ -316,7 +310,7 @@ export function TemplatePicker(ctx: Ctx) {
   const suggestions = suggestionsFor(ctx.org.state, ctx.project.projectId, library);
   const suggested = suggestions.flatMap((s) => {
     const t = library.find((x) => x.id === s.templateId);
-    return t ? [{ t, by: s.by === 'org' ? orgName(ctx) : projectName(ctx) }] : [];
+    return t ? [{ t, by: orgName(ctx) }] : [];
   });
   const others = library.filter((t) => !suggestions.some((s) => s.templateId === t.id));
   const pick = library.find((t) => t.id === picked);

@@ -11,7 +11,7 @@ import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { accountOutbox, queueAccountAction } from '../accountData';
-import { groupByRead, joinRequestIdOf, updateText } from '../accountText';
+import { groupByRead, updateText } from '../accountText';
 import type { Ctx } from '../ctx';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
@@ -66,7 +66,7 @@ function useAccountLine(ctx: Ctx) {
  * What happened that concerns you, grouped Unread / Earlier (INBOX-1): one
  * about a passage opens its record and is marked read. Join requests offer
  * Assign role & accept, or Decline (INBOX-2). Updates from another
- * organization or project open it.
+ * organization open it.
  */
 export function InboxHome(ctx: Ctx) {
   const { state } = ctx.project;
@@ -93,7 +93,7 @@ export function InboxHome(ctx: Ctx) {
   const [openRequest, setOpenRequest] = useState<PendingRequest | null>(null);
   const [declining, setDeclining] = useState(false);
 
-  // Server notifications about other organizations and projects (and join requests when the list above is unavailable).
+  // Server notifications about other organizations (and join requests when the list above is unavailable).
   const [remote, setRemote] = useState<RemoteNotification[]>([]);
   const [remoteRead, setRemoteRead] = useState<string[]>([]);
   useEffect(() => {
@@ -114,8 +114,8 @@ export function InboxHome(ctx: Ctx) {
     setRemoteRead(next);
     // Losing the read mark costs only a dot shown again: report it, carry on.
     await AsyncStorage.setItem(`inbox-read:${me}`, JSON.stringify(next)).catch((e: unknown) => { reportError('inbox mark read', e); });
-    if (row.org_id !== orgId || (row.project_id !== '_org' && row.project_id !== ctx.project.projectId)) {
-      await ctx.openOrganization(row.org_id, row.project_id === '_org' ? undefined : row.project_id)
+    if (row.org_id !== orgId) {
+      await ctx.openOrganization(row.org_id)
         .catch((e: unknown) => ctx.toast(failure('inbox open organization', e)));
     } else if (row.kind === 'join_request') ctx.go('members_list');
   }
@@ -153,13 +153,13 @@ export function InboxHome(ctx: Ctx) {
   }
   const seen = new Set(remoteRead);
   for (const row of remote) {
-    const here = row.org_id === orgId && (row.project_id === '_org' || row.project_id === ctx.project.projectId);
-    // This project's updates are derived above, and this org's join requests too once they are listed.
+    const here = row.org_id === orgId;
+    // This organization's updates are derived above, and its join requests too once they are listed.
     if (here && (row.kind !== 'join_request' || requests !== null)) continue;
     if (here && !(canAdmit && ctx.session.can('assign_work'))) continue;
     items.push({
       id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : 'notif', title: row.title,
-      body: here ? 'Open Members to assign a role.' : joinRequestIdOf(row.id) ? 'In another organization. Opening it switches to it.' : 'In another project. Opening it switches to it.',
+      body: here ? 'Open Members to assign a role.' : 'In another organization. Opening it switches to it.',
       read: seen.has(row.id), onPress: () => void openRemote(row)
     });
   }
@@ -269,7 +269,7 @@ export function SettingsHome(ctx: Ctx) {
   const { roleName, orgName, memberName } = useAccountLine(ctx);
   const name = names[s.actorId] ?? memberName ?? s.email?.split('@')[0] ?? 'You';
   const p = ctx.project;
-  const syncSub = p.refused ? 'This account cannot sync this project'
+  const syncSub = p.refused ? 'This account cannot sync this organization'
     : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
     : p.live ? 'Live: changes arrive as they happen'
     : p.online === false ? 'Offline: work is kept on this phone'
@@ -361,12 +361,8 @@ export function ProfileEdit(ctx: Ctx) {
 // ---- Switch Organization (AUTH-8) --------------------------------------------------------------------------
 
 export function OrgSwitcher(ctx: Ctx) {
-  const [rows, setRows] = useState<{ org_id: string; project_id: string | null; name: string }[]>([]);
+  const [rows, setRows] = useState<{ org_id: string; name: string }[]>([]);
   const [error, setError] = useState('');
-  // The server lists project ids only; a name is known for the open org's
-  // projects. Anything else gets a neutral phrase, never the id.
-  const projectLabel = (orgId: string, projectId: string) =>
-    (orgId === ctx.project.orgId ? ctx.org.state?.projects[projectId]?.name : undefined) ?? 'A project in this organization';
   useEffect(() => {
     let active = true;
     const key = `organizations:${ctx.session.actorId}`;
@@ -375,8 +371,10 @@ export function OrgSwitcher(ctx: Ctx) {
       if (active) setRows(cached);
       const { data, error } = await supabase.rpc('my_organizations');
       if (error) { if (active) setError('Unable to refresh. Saved organizations remain available.'); return; }
-      await AsyncStorage.setItem(key, JSON.stringify(data));
-      if (active) setRows(data ?? []);
+      // One row per organization: the server lists a row per registered partition.
+      const orgs = [...new Map(((data ?? []) as { org_id: string; name: string }[]).map((r) => [r.org_id, { org_id: r.org_id, name: r.name }])).values()];
+      await AsyncStorage.setItem(key, JSON.stringify(orgs));
+      if (active) setRows(orgs);
     })().catch((e: unknown) => { if (active) setError(failure('org switcher', e)); });
     return () => { active = false; };
   }, [ctx.session.actorId]);
@@ -384,15 +382,14 @@ export function OrgSwitcher(ctx: Ctx) {
     <Screen header={<Header title="Switch Organization" onBack={ctx.back} />}>
       {error ? <Banner icon="cloud" tone="amber" title={error} /> : null}
       {rows.map((r) => {
-        const active = r.org_id === ctx.project.orgId && (!r.project_id || r.project_id === ctx.project.projectId);
+        const active = r.org_id === ctx.project.orgId;
         return (
-          <Card key={`${r.org_id}:${r.project_id}`} accessibilityLabel={active ? `${r.name}, active` : r.name}
-            onPress={() => void ctx.openOrganization(r.org_id, r.project_id ?? 'unselected').catch((e: unknown) => setError(failure('switch organization', e)))}>
+          <Card key={r.org_id} accessibilityLabel={active ? `${r.name}, active` : r.name}
+            onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
             <View style={styles.profile}>
               <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{r.name}</Text>
-                {r.project_id ? <Text style={txt.xs} numberOfLines={1}>{projectLabel(r.org_id, r.project_id)}</Text> : null}
               </View>
               {active ? <View style={styles.check}><Ico name="check" size={16} color={C.white} strokeWidth={3} /></View> : null}
             </View>
@@ -409,10 +406,10 @@ export function OrgSwitcher(ctx: Ctx) {
 /**
  * One rule, and the screen says it: signing out is refused only while this
  * device holds something this session can still deliver (PLAN.md invariant
- * 1: no event is ever lost): project events, organization events, audio
+ * 1: no event is ever lost): work events, organization events, audio
  * waiting to upload, or saved account changes (terms, profile, a request to
  * join). Offline with nothing queued is fine, and so is a server refusal of
- * the project: those events can never go out under this session, so they
+ * the organization: those events can never go out under this session, so they
  * stay in the local log and go out if this account signs in again here with
  * membership. An account change the server already turned down (shown in
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
@@ -440,7 +437,7 @@ export function SignOutConfirm(ctx: Ctx) {
   const why = blocked
     ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
     : refused
-      ? 'This account cannot sync this project: the server refused it. Signing out is safe; anything queued stays on this phone.'
+      ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this phone.'
       : 'You can sign back in anytime.';
   return (
     <Screen bodyStyle={styles.centered}

@@ -13,9 +13,10 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   welcome: { emits:['v1.VisionSeen'],rpcs:['record_user_event'] },
-  // The org partition only, and the welcome it skips (markWelcomed). The
-  // first project is set up afterwards from Getting started (ONB-5).
-  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.VisionSeen'],rpcs:['record_user_event'] },
+  // A new org's partition (createOrg.ts), its work partition registered
+  // there, and the welcome it skips (markWelcomed). Its languages are set up
+  // afterwards from Getting started (ONB-5); App starts the work partition.
+  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.ProjectRegistered','v1.VisionSeen'],rpcs:['record_user_event'] },
   request_access: { rpcs:['create_join_request'] },
   scan_qr: { rpcs:['redeem_invite_v2','my_organizations'] },
   explore_home: { reads:['public_projects'] },
@@ -42,10 +43,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   edit_member: { emits:['v1.MemberRoleChanged','v1.MemberRemoved','v1.OrgMemberAdded','v1.OrgMemberRemoved'],rpcs:['decide_join_request'] },
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
-  // Registers the project in the org; App creates its partition when it opens.
-  new_project: { emits:['v1.ProjectRegistered'] },
   new_language: { emits:['v1.LaneAdded','v1.LaneNamed','v1.LaneTemplateSelected','v1.UnitAdded'] },
-  project_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
+  // The public listing is keyed by partition; an org has one (decision 34).
+  org_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet'] },
   templates_home: { emits:['v1.LaneTemplateSelected','v1.UnitAdded','v1.CatalogItemToggled'] },
   template_picker: { emits:['v1.LaneTemplateSelected','v1.UnitAdded'] },
@@ -73,7 +73,7 @@ export function screenMayEmit(screen: ScreenId, session: Session, event: AnyEven
   if (event.type === 'v1.AssignmentMade' && event.payload.profileId === session.actorId
     && event.payload.role === 'translator' && session.can('translate')) return true;
   const privilege = privilegeFor(event);
-  // Creating a partition: the org by its creator. A new project's partition is made by App, not a screen.
+  // Creating a partition: the org by its creator. Its work partition is started by App, not a screen.
   if (privilege === 'bootstrap') return screen === 'create_org';
   return privilegeAllows(privilege, session.privileges);
 }

@@ -78,10 +78,11 @@ describe('welcome', () => {
   });
 
   it('names the team at the membership scope', () => {
-    const names = { org: 'Wycliffe Associates', project: (id: string) => (id === 'p1' ? 'Luke' : undefined), lane: (id: string) => (id === 'L1' ? 'Dinka' : undefined) };
+    const names = { org: 'Wycliffe Associates', lane: (id: string) => (id === 'L1' ? 'Dinka' : undefined) };
     expect(teamLabel({ level: 'lane', projectId: 'p1', laneId: 'L1' }, names)).toBe('the Dinka team at Wycliffe Associates');
-    expect(teamLabel({ level: 'lane', projectId: 'p1', laneId: 'L9' }, names)).toBe('the Luke project at Wycliffe Associates');
-    expect(teamLabel({ level: 'project', projectId: 'p1' }, names)).toBe('the Luke project at Wycliffe Associates');
+    // An unknown language, or all of them: the organization, never a project (decision 34).
+    expect(teamLabel({ level: 'lane', projectId: 'p1', laneId: 'L9' }, names)).toBe('Wycliffe Associates');
+    expect(teamLabel({ level: 'project', projectId: 'p1' }, names)).toBe('Wycliffe Associates');
     expect(teamLabel({ level: 'org' }, names)).toBe('Wycliffe Associates');
     expect(teamLabel(undefined, names)).toBe('Wycliffe Associates');
   });

@@ -321,7 +321,7 @@ export function answeredQuestions(questions: SourcedQuestion[], answers: Record<
 // ---- asking someone (ASK-2, ASK-4) -------------------------------------------------
 
 const ROLE_LABEL: Record<Role, string> = {
-  owner: 'Organization Admin', coordinator: 'Project Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
+  owner: 'Organization Admin', coordinator: 'Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
 };
 
 export interface AskCandidate {

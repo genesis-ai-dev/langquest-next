@@ -6,10 +6,10 @@ import type { Edge, ScreenId } from './flow';
 
 /**
  * Session facets derived from the folds (UX spec `domain/session.ts`), not
- * stored anywhere. Who you are is the union of your project membership (the
- * fixed role, kept for compatibility) and your org memberships whose scope
- * covers the open project (core `org.ts`). Screens ask `can(privilege)`;
- * the rest are conveniences derived from it.
+ * stored anywhere. Who you are is the union of your membership in the
+ * org's work partition (the fixed role, kept for compatibility) and your org
+ * memberships whose scope covers it (core `org.ts`). Screens ask
+ * `can(privilege)`; the rest are conveniences derived from it.
  */
 export interface Session {
   actorId: string;
@@ -27,7 +27,7 @@ export interface Session {
   hasNoOrg: boolean;
   /** Has not been welcomed yet (ADR-022) on this account. */
   isFirstTime: boolean;
-  /** Not signed in at all (browsing public projects). */
+  /** Not signed in at all (browsing public listings). */
   isGuest: boolean;
 }
 
@@ -98,10 +98,14 @@ export function homeScreenFor(s: Session): ScreenId {
   return 'my_work';
 }
 
-/** The screen behind the Manage tab: an admin's org, project or language home (demo `manageHomeFor`). */
+/**
+ * The screen behind the Manage tab: an admin's org or language home (demo
+ * `manageHomeFor`). There is no project level (decision 34); a membership
+ * scoped to the org's one work partition covers every language, so it opens
+ * the organization.
+ */
 export function manageHomeFor(s: Session): ScreenId | null {
-  if (s.adminScope?.level === 'org') return 'org_home';
-  if (s.adminScope?.level === 'project') return 'project_home';
+  if (s.adminScope?.level === 'org' || s.adminScope?.level === 'project') return 'org_home';
   if (s.adminScope?.level === 'lane') return 'language_home';
   return null;
 }

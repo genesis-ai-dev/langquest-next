@@ -1,14 +1,15 @@
-import { EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
+import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
 import spec from './spec-flow.json';
 
 describe('UX flow coverage', () => {
-  it('every screen of the demo exists, with a title', () => {
-    for (const id of spec.screens) {
+  it('every screen of the demo exists, with a title, except the ones dropped with a reason', () => {
+    const kept = spec.screens.filter((id) => !(id in DROPPED_SCREENS));
+    for (const id of kept) {
       expect(SCREEN_IDS, id).toContain(id);
       expect(TITLES[id as keyof typeof TITLES], id).toBeTruthy();
     }
     // The one app-only screen: the local log, realtime state and transfers.
-    expect(SCREEN_IDS.length).toBe(spec.screens.length + 1);
+    expect(SCREEN_IDS.length).toBe(kept.length + 1);
     expect(TITLES.sync_status).toBeTruthy();
   });
 

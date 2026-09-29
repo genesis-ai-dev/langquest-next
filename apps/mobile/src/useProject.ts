@@ -29,6 +29,12 @@ export interface ProjectHandle {
    * membership change or a different account will.
    */
   refused: string | null;
+  /**
+   * This session has read the partition up to date from the server at least
+   * once. Writes that must not race what others already wrote (starting a
+   * partition) wait for it.
+   */
+  pulled: boolean;
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
   /** The realtime channel is up: appends elsewhere reach this phone in seconds. */
   live: boolean;
@@ -96,6 +102,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [online, setOnline] = useState<boolean | null>(null);
   const [tooOld, setTooOld] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  const [pulled, setPulled] = useState(false);
   const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
   const keptRef = useRef<ReadonlySet<string>>(new Set());
   const keepKey = `keep:${orgId}/${projectId}`;
@@ -138,6 +145,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
       setTooOld(r.tooOld);
       setRefused(r.refused);
+      if (!r.offline && !r.refused && !r.more) setPulled(true);
       // Online is exactly "the server answered". A refusal is an answer, so a
       // device whose membership is missing is online and says so; it must not
       // be shown, or treated, as offline.
@@ -376,7 +384,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
   const verifyRows = useCallback(() => clientRef.current?.verifyRows() ?? Promise.resolve({ rows: 0, mismatches: ['not loaded'] }), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer and credit its bytes to the meter once it succeeds. */

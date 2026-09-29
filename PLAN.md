@@ -20,8 +20,9 @@ Core workflows, in priority order:
    translator speaks the target live.
 2. **Review and approve.** Configurable review steps: who reviews, how many
    steps, optional or required, any / majority / unanimous.
-3. **Organize.** Organizations, projects, target languages (lanes), and a
-   customizable project structure (books, pericopes, passages) with
+3. **Organize.** Organizations and the target languages (lanes) they hold
+   directly (no project level: docs/decisions.md 34), and a customizable
+   structure (books, pericopes, passages) with
    configurable reference material per unit (audio overviews, text, key terms).
 4. **See status.** Translators see their passages and what is pending.
    Coordinators see the whole org.
@@ -64,8 +65,9 @@ rule. This app takes the same shape and extends it to true offline.
 
 ## 3. The design in one paragraph
 
-Every project has one **append-only event log** partitioned by organization
-and project. Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
+Every organization has one **append-only event log** partitioned by
+organization and partition (its `_org` partition and the one work partition
+that holds its languages; the key is still called `projectId`, decision 34). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
 row mutations, and every event type is **commutative and idempotent** so any
 device applying any subset in any order converges. **Audio is immutable and
 content-addressed**: cards are blobs named by hash, a take is an ordered list
@@ -389,7 +391,7 @@ review steps describe v1 lanes, which still fold and read as kinds.
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Project › Language | `orgId` › `projectId` › lane (`LaneAdded`) | a lane is one target language of a project |
+| Org › Language | `orgId` › its one work partition (`projectId`, `workPartitionOf`) › lane (`LaneAdded`) | no project level in the app (decision 34); the partition key keeps its shape |
 | Content template (FIA, OpenBible…) | catalog template selected per lane (`LaneTemplateSelected`); units instantiated with catalog-derived ids | pieces are leaf units; a lane shows its template's units plus hand-added ones |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
@@ -407,7 +409,7 @@ review steps describe v1 lanes, which still fold and read as kinds.
 | Reference material (TMF, Brief, TG, FIA study), key terms | `MaterialDefined` + `MaterialFieldSet` per field, scoped to lane, unit or step; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
-| Roles with privilege switches, member scope (org / project / language) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
+| Roles with privilege switches, member scope (org / language; a project scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
 | Catalog enable at org, narrow at project (A42) | `CatalogItemToggled` in the org partition; `catalogEnabled` | selection per lane is next |
 
 ## 14. Blobs: the upload and download design for step 5

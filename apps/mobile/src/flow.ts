@@ -6,7 +6,9 @@
  * edge. `go()` refuses undeclared transitions, so the app and the demo's
  * screen map cannot drift. `home_hub` resolves to the session's home at
  * runtime (session.ts). App-only edges sit at the end, each with a reason in
- * the parity test's drift log.
+ * the parity test's drift log. The demo's project level (Project Home, New
+ * Project) is not here: an organization holds languages directly
+ * (docs/decisions.md 34), and the parity test lists what that drops.
  */
 
 export const SCREEN_IDS = [
@@ -23,7 +25,7 @@ export const SCREEN_IDS = [
   // 6 Account (Inbox and Settings tabs)
   'inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm',
   // 7 Running the organization (Manage tab)
-  'org_home', 'project_home', 'language_home', 'new_project', 'new_language', 'members_list', 'invite_member',
+  'org_home', 'language_home', 'new_language', 'members_list', 'invite_member',
   'invite_qr', 'edit_member', 'roles_home', 'role_editor', 'review_teams', 'review_team_editor',
   // 8 Method and content
   'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
@@ -33,6 +35,15 @@ export const SCREEN_IDS = [
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
+
+/**
+ * Demo screens the app leaves out on purpose, with the reason. Every demo
+ * edge to or from one of them goes with it; the parity tests hold the rest.
+ */
+export const DROPPED_SCREENS: Record<string, string> = {
+  project_home: 'no project level (docs/decisions.md 34): an organization holds languages directly',
+  new_project: 'no project level (docs/decisions.md 34): an organization gets its one work partition when it is created'
+};
 export type NodeId = ScreenId | 'home_hub';
 
 export type Mode = 'push' | 'replace' | 'back' | 'reset' | 'popTo';
@@ -95,13 +106,11 @@ export const EDGES: Edge[] = [
   e('my_work', 'back_translation', undefined, 'reviewer'), // tap Start (back translation)
   e('my_work', 'passage_record'), // tap Respond / waiting / recent passage
   e('my_work', 'passage_record', undefined, 'contributor'), // tap a practice row (Getting started)
-  e('my_work', 'new_project', undefined, 'assigner'), // tap Create a project (Getting started · admin)
   e('my_work', 'new_language', undefined, 'assigner'), // tap Add a language (Getting started · admin)
   e('my_work', 'flows_home', undefined, 'manageFlows'), // tap Choose its review flow (Getting started · admin)
   e('my_work', 'invite_member', undefined, 'assigner'), // tap Invite your team (Getting started · admin)
   e('my_work', 'roles_home', undefined, 'assigner'), // tap See the roles (Getting started · admin)
   e('roles_home', 'my_work', 'back'), // tap Back (from My Work)
-  e('new_project', 'my_work', 'back'), // tap Create Project (from My Work)
   e('new_language', 'my_work', 'back'), // tap Create Language (from My Work)
   e('flows_home', 'my_work', 'back'), // tap Back (from My Work)
   e('invite_member', 'my_work', 'back'), // tap Send invite (from My Work)
@@ -184,27 +193,14 @@ export const EDGES: Edge[] = [
   e('back_translation', 'passage_record', 'back'), // tap Back (from record)
   e('back_translation', 'my_work', 'back'), // tap Back (from My Work)
   e('org_home', 'members_list'), // tap Members
-  e('org_home', 'project_home'), // tap project in Manage Projects
-  e('org_home', 'new_project'), // tap New project
   e('org_home', 'roles_home'), // tap Roles
   e('org_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
   e('org_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
   e('org_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
-  e('new_project', 'org_home', 'back'), // tap Create Project
-  e('project_home', 'members_list'), // tap Members
-  e('project_home', 'roles_home'), // tap Roles
-  e('project_home', 'new_language'), // tap New language
-  e('project_home', 'language_home'), // tap language in Manage Languages
-  e('project_home', 'org_home', 'popTo'), // tap org breadcrumb
-  e('project_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
-  e('project_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
-  e('project_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
-  e('new_language', 'project_home', 'back'), // tap Create Language
   e('language_home', 'members_list'), // tap Members
   e('language_home', 'roles_home'), // tap Roles
   e('language_home', 'review_teams'), // tap Review Teams
   e('language_home', 'org_home', 'popTo'), // tap org breadcrumb
-  e('language_home', 'project_home', 'popTo'), // tap project breadcrumb
   e('language_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
   e('language_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
   e('language_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
@@ -259,7 +255,10 @@ export const EDGES: Edge[] = [
   e('scan_qr', 'sign_in', 'reset', 'guest'),
   e('explore_home', 'request_access'),
   e('inbox_home', 'members_list', undefined, 'assigner'),
-  e('create_account', 'terms_privacy', undefined, 'guest')
+  e('create_account', 'terms_privacy', undefined, 'guest'),
+  e('org_home', 'new_language'),
+  e('org_home', 'language_home'),
+  e('new_language', 'org_home', 'back')
 ];
 
 /**
@@ -270,7 +269,7 @@ export const EDGES: Edge[] = [
  */
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
 export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step'];
-export const MANAGE_HOMES: ScreenId[] = ['org_home', 'project_home', 'language_home'];
+export const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
 ];
@@ -281,7 +280,7 @@ export function edgeFor(from: NodeId, to: NodeId): Edge | undefined {
 }
 
 export const TITLES: Record<ScreenId, string> = {
-  sign_in: 'Sign In', terms_privacy: 'Terms & Privacy', explore_home: 'Explore Projects', create_account: 'Create Account',
+  sign_in: 'Sign In', terms_privacy: 'Terms & Privacy', explore_home: 'Explore', create_account: 'Create Account',
   scan_qr: 'Scan QR Code', welcome: 'Welcome', vision: 'What is LangQuest?',
   intent_chooser: 'What brings you here?', create_org: 'Create Organization', request_access: 'Request Access',
   my_work: 'My Work', status_home: 'All Languages', map_home: 'Passage Map', book_map: 'Book Chapters',
@@ -290,7 +289,7 @@ export const TITLES: Record<ScreenId, string> = {
   study_guide: 'Study Guide', study_step: 'Study Step', workspace: 'Record', review_capture: 'Review It',
   back_translation: 'Back-translate', key_terms: 'Key Terms', key_term_detail: 'Key Term',
   inbox_home: 'Inbox', settings_home: 'Settings', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
-  org_home: 'Org Home', project_home: 'Project Home', language_home: 'Language Home', new_project: 'New Project',
+  org_home: 'Org Home', language_home: 'Language Home',
   new_language: 'New Language', members_list: 'Members', invite_member: 'Invite Member', invite_qr: 'Invite by QR',
   edit_member: 'Edit Member Role', roles_home: 'Roles', role_editor: 'Role Editor', review_teams: 'Review Teams',
   review_team_editor: 'Edit Review Team',

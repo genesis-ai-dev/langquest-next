@@ -5,10 +5,13 @@ Expo 57 app, run as a development build (the native recorder module does not loa
 1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/client`. The store logic itself lives in the client
    package and is contract-tested there against node:sqlite.
-2. `src/useProject.ts`: one `SyncClient` per open project with
-   `SupabaseTransport`, sync on open and every 15 s, a pending count.
-   `src/useOrg.ts`: the same client on the org partition (`_org`) with the
-   org materializer; `src/session.ts` derives privileges from both folds
+2. `src/useProject.ts`: one `SyncClient` on the open organization's work
+   partition with `SupabaseTransport`, sync on open and every 15 s, a
+   pending count. `src/useOrg.ts`: the same client on the org partition
+   (`_org`) with the org materializer. An organization holds its languages
+   directly and is what you switch between (docs/decisions.md 34): App opens
+   the org, then the work partition it names (`workPartitionOf`), and
+   `src/createOrg.ts` starts a new one; `src/session.ts` derives privileges from both folds
    (`can(privilege)`, `adminScope`), and Home follows the admin scope.
 3. Screens, one file per UX demo domain under `src/screens/`, every demo
    screen id present (`src/flow.ts` is the registry, generated from the
@@ -21,7 +24,7 @@ Expo 57 app, run as a development build (the native recorder module does not loa
    - `translate.tsx`: the recording workspace and back translation
      (`src/recording/`). `review.tsx`: review it, already happened, review by link.
    - `study.tsx`: study guide and step (`src/study/`, `src/scripture.ts`).
-   - `org.tsx`: org, project, language homes; members; invites; teams.
+   - `org.tsx`: org and language homes; members; invites; teams.
    - `config.tsx`: roles, reference, key terms, review flows.
      `content.tsx`: content templates and dividing a book.
    - `account.tsx`: inbox, settings, profile, org switcher, sign out, sync.

@@ -63,9 +63,10 @@ describe('roles', () => {
   });
 
   it('reads the level the roles are seen from', () => {
-    expect(viewLevelFrom({ level: 'project' }, { level: 'org' })).toBe('project');
+    // No project level (decision 34): a project reads as the organization.
+    expect(viewLevelFrom({ level: 'project' }, { level: 'org' })).toBe('org');
     expect(viewLevelFrom({ laneId: 'L1' }, { level: 'org' })).toBe('lane');
-    expect(viewLevelFrom({}, { level: 'project', projectId: 'p' })).toBe('project');
+    expect(viewLevelFrom({}, { level: 'project', projectId: 'p' })).toBe('org');
     expect(viewLevelFrom({}, null)).toBe('org');
   });
 });

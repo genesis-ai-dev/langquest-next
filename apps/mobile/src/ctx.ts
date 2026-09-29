@@ -14,7 +14,7 @@ export interface RecentPassage {
 /** Everything a screen gets. Screens never own shared state or navigate directly. */
 export interface Ctx {
   project: ProjectHandle;
-  /** The organization partition: roles, memberships, catalog, projects. */
+  /** The organization partition: roles, memberships, catalog, its work partition. */
   org: OrgHandle;
   session: Session;
   params: Record<string, string>;
@@ -56,7 +56,8 @@ export interface Ctx {
   /** Someone just joined by invite: they get the welcome even if this account was welcomed before (ADR-022). */
   markJoined: (actorId: string) => Promise<void>;
   rememberInvite: (value: string) => Promise<void>;
-  openOrganization: (orgId: string, projectId?: string) => Promise<void>;
+  /** Switch to another organization: its partition and its one work partition (decision 34). */
+  openOrganization: (orgId: string) => Promise<void>;
   openDev: () => void;
   isDev: boolean;
   /** May this session switch persona? Dev builds, or a named tester (dev.ts). */

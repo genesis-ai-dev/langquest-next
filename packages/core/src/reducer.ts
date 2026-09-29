@@ -9,7 +9,7 @@ import { studyMarkKey, type Undo } from './record';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 3;
+export const REDUCER_VERSION = 4;
 
 /**
  * How many events have been applied to a state object. Kept outside the

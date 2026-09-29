@@ -20,6 +20,25 @@ import { validateEvent } from './validate';
  */
 export const ORG_PARTITION = '_org';
 
+/**
+ * The id of the one work partition a new organization gets (decision 34):
+ * an organization holds languages directly, with no project level between.
+ */
+export const WORK_PARTITION = 'work';
+
+/**
+ * The partition that holds an organization's languages: the earliest one
+ * registered, by clock then event id, so every device opens the same one.
+ * Before anything is registered it is `WORK_PARTITION`.
+ */
+export function workPartitionOf(org: OrgState | null): string {
+  let best: { id: string; hlc: string; eventId: string } | null = null;
+  for (const [id, p] of Object.entries(org?.projects ?? {})) {
+    if (!best || p.hlc < best.hlc || (p.hlc === best.hlc && p.eventId < best.eventId)) best = { id, hlc: p.hlc, eventId: p.eventId };
+  }
+  return best?.id ?? WORK_PARTITION;
+}
+
 /** The UX spec's privilege catalog (ROLE_PRIVILEGES), as stable ids. */
 export const PRIVILEGES = [
   'manage_structure',
@@ -200,7 +219,7 @@ export function privilegeAllows(needed: EventPrivilege, privs: ReadonlySet<Privi
 export const SEED_ROLES: { roleId: string; name: string; privileges: Privilege[]; fixed: Role }[] = [
   { roleId: 'org_admin', name: 'Organization Admin', privileges: [...PRIVILEGES], fixed: 'owner' },
   {
-    roleId: 'project_coordinator', name: 'Project Coordinator', fixed: 'coordinator',
+    roleId: 'project_coordinator', name: 'Coordinator', fixed: 'coordinator',
     privileges: PRIVILEGES.filter((p) => p !== 'manage_roles')
   },
   { roleId: 'translator', name: 'Translator', fixed: 'translator', privileges: ['translate', 'fill_reference', 'send_to_reviewers', 'view_status'] },
@@ -270,7 +289,12 @@ export interface OrgState {
   members: Record<string, Record<string, OrgMembership>>;
   /** `${kind}:${itemId}:${level}:${projectId ?? ''}` -> enabled */
   catalog: Record<string, Register<boolean>>;
-  projects: Record<string, { name: string }>;
+  /**
+   * Registered work partitions. The app runs one per org (decision 34);
+   * orgs from before that may have several, and the earliest is the one
+   * that is opened (`workPartitionOf`).
+   */
+  projects: Record<string, { name: string; hlc: Hlc; eventId: string }>;
   /** inviteId -> invite. */
   invites: Record<string, OrgInvite>;
   /** requestId -> the verdict a coordinator recorded. */
@@ -382,9 +406,14 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       break;
     }
 
-    case 'v1.ProjectRegistered':
-      state.projects[event.payload.projectId] ??= { name: event.payload.name };
+    case 'v1.ProjectRegistered': {
+      // Earliest registration wins, so the name does not depend on arrival order.
+      const prior = state.projects[event.payload.projectId];
+      if (!prior || event.hlc < prior.hlc || (event.hlc === prior.hlc && event.id < prior.eventId)) {
+        state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
+      }
       break;
+    }
     case 'v1.Redacted':
       state.redactions[event.payload.eventId] = true;
       break;

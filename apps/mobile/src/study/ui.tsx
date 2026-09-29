@@ -363,7 +363,7 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; has
       {e.hint ? <Text style={[txt.body, { fontWeight: '600' }]}>{e.hint}</Text> : null}
       {e.audioUrl ? <AudioBar audio={audio} label={`Listen: ${e.term}`} {...(audio.failed ? { sub: "Couldn't load the audio — playing a stand-in" } : {})} /> : null}
       {e.body ? e.body.split(/\n{2,}/).map((para, i) => <Text key={i} style={txt.body}>{para.trim()}</Text>) : null}
-      {!props.hasKeyTerm ? <Text style={txt.xs}>This term isn't in your project's key terms yet.</Text> : null}
+      {!props.hasKeyTerm ? <Text style={txt.xs}>This term isn't in your organization's key terms yet.</Text> : null}
     </Sheet>
   );
 }

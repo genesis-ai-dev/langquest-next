@@ -87,7 +87,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latestCtx.current;
     const s = current.project.state;
-    if (!s) throw new Error('The project is still loading.');
+    if (!s) throw new Error('Your organization is still loading.');
     await current.project.run(commands(s, indexesFor(s)).addRecording({
       commandId: card.id, recordingId: card.id, unitId, laneId, kind: 'target',
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }

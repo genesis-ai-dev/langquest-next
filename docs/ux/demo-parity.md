@@ -17,7 +17,7 @@ from them.
 | `domain/record.ts` (passage state, highlights, progress, timeline, grid, study) | `packages/core/src/passage.ts`, over events in `record.ts` |
 | App state `passages`, `requests`, `notes`, `studyDone`, departures | the event log: takes and `v1.TakeSubmitted` (versions), `v1.ReviewRecorded`, `v1.RequestMade`/`Withdrawn`, `v1.DepartureRecorded`/`Undone`, `v1.NoteAdded`, `v1.StudyStepMarked` |
 | `REVIEW_KINDS`, `REVIEW_FLOWS` | core `DEFAULT_KINDS`, `FLOWS`; `v1.ReviewKindDefined`, `v2.WorkflowStepSet` |
-| a back translation (`ReviewKind.produces`) | `v1.ReviewRecorded` with outcome `recorded` and the cards in `artifactHashes` |
+| a back translation (`ReviewKind.produces`) | `v1.ReviewRecorded` with outcome `recorded` and the cards in `artifacts` |
 | `toast` / `undoable()` | `ctx.act(specs, message, undo)` and `ctx.toast` |
 | `detailsFor(key)` | `ctx.details(key)` |
 | `recentByPerson` | `ctx.recent`, `ctx.openPassage` |
@@ -26,6 +26,9 @@ from them.
 
 Demo-only tools are not ported: the guide and scenarios, the screen map,
 partner comments, persona sign-in cards, the Reset button and colour themes.
+Nor is the demo's project level: Project Home and New Project are left out
+and an organization holds its languages directly (docs/decisions.md 34;
+`DROPPED_SCREENS` in `src/flow.ts`, which both parity tests read).
 The dev menu (`src/DevMenu.tsx`) is the app's way to switch persona.
 
 The per-domain briefs the port was done from are in git history
@@ -69,10 +72,10 @@ The per-domain briefs the port was done from are in git history
 
 ## Status
 
-Every screen of the demo exists and follows its flow, look and wording
-(`specParity.test.ts` holds the 183 edges). Walked end to end in the iOS
-simulator on a local Supabase: sign in, create an organization, a project
-and a language, choose a flow, seed a team; as the translator, My Work, the
+Every screen of the demo exists and follows its flow, look and wording,
+except the dropped project screens (`specParity.test.ts` holds the edges).
+Walked end to end in the iOS simulator on a local Supabase: sign in, create
+an organization and a language, choose a flow, seed a team; as the translator, My Work, the
 Map, a passage record, the workspace and the FIA study; as the reviewer,
 Review it, the record updating, set aside with a reason, the Inbox. All
 events were accepted by the server's validation and permission rules.
@@ -88,11 +91,11 @@ Demo-only tools are out of scope (see above). Beyond those:
 - Template tasks (TPL-8), custom library templates and outline editing (TPL-9).
 - Review by link (REV-7): the link is never sent and a guest cannot submit;
   `guest_review` is a preview.
-- Undo for a review, a note, a new project or language, a sent invite, a new
+- Undo for a review, a note, a new language, a sent invite, a new
   role or material (these events are grow-only or have no inverse yet).
 - A spoken reason for a skipped question (`ReviewRecorded.skipped` is text).
-- A review team's kind (FLOW-5), deleting a team, a project description,
-  roles defined below the organization, the organization's region.
+- A review team's kind (FLOW-5), deleting a team, roles defined below the
+  organization, the organization's region.
 - Joining by QR without an email account (AUTH-3). The scan screen names the
   organization only when the phone already knows it; showing who it's for,
   the role and the inviter needs a server lookup by token (links carry only
@@ -116,7 +119,8 @@ Demo-only tools are out of scope (see above). Beyond those:
 **Events built without a core command**
 - Org partition (no core commands exist for it): `v1.OrgCreated`,
   `v1.RoleDefined`, `v1.OrgMemberAdded`/`Removed`, `v1.CatalogItemToggled`,
-  `v1.ProjectRegistered`.
+  `v1.ProjectRegistered` (`src/createOrg.ts`, and App when it starts an
+  org's work partition with `v1.ProjectCreated`).
 - Legacy project roles in Edit Member: `v1.MemberRoleChanged`,
   `v1.MemberRemoved`.
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),
@@ -124,8 +128,10 @@ Demo-only tools are out of scope (see above). Beyond those:
   seed.
 
 **Known rough edges**
-- Opening a newly created project remounts the workspace under a screen that
-  then calls Back; React Navigation logs a dev-only warning.
+- An organization that already has several projects shows only the earliest
+  (decision 34); folding the others' languages in needs a server migration.
+- On a device that has never seen an organization with an older project, the
+  first sync can switch the open partition once, which resets navigation.
 - A local native build needs an Xcode whose Swift accepts `weak let`
   (`expo-modules-jsi` in Expo 57); Xcode 26.0.1 does not. EAS builds are
   unaffected.

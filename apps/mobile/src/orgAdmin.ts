@@ -13,18 +13,23 @@ import {
 
 // ---- levels ------------------------------------------------------------------------
 
-export const LEVELS: readonly ScopeLevel[] = ['org', 'project', 'lane'];
+/**
+ * The levels anyone can grant at: the organization and a language
+ * (decision 34). `project` remains a scope in the event shape; a membership
+ * at it covers the org's one work partition, so it reads as every language.
+ */
+export const LEVELS: readonly ScopeLevel[] = ['org', 'lane'];
 /** The demo's SCOPE_LABEL: a lane is a "Language" to people. */
-export const LEVEL_LABEL: Record<ScopeLevel, string> = { org: 'Organization', project: 'Project', lane: 'Language' };
+export const LEVEL_LABEL: Record<ScopeLevel, string> = { org: 'Organization', project: 'All languages', lane: 'Language' };
 const RANK: Record<ScopeLevel, number> = { org: 0, project: 1, lane: 2 };
 
 export function levelRank(level: ScopeLevel): number {
   return RANK[level];
 }
 
-/** A `level` param back to a level; anything else reads as the organization. */
+/** A `level` param back to a level; anything else (a project, from before decision 34) reads as the organization. */
 export function parseLevel(value: string | undefined): ScopeLevel {
-  return value === 'project' || value === 'lane' ? value : 'org';
+  return value === 'lane' ? value : 'org';
 }
 
 /**
@@ -113,9 +118,14 @@ export function memberEntries(org: OrgState | null, project: ProjectState | null
   return out;
 }
 
-/** Members assigned exactly at a home's level (ORG-5). */
+/**
+ * Members assigned exactly at a home's level (ORG-5). At the organization
+ * that includes anyone assigned to all of its languages (a project-level
+ * membership of its work partition, from before decision 34).
+ */
 export function membersAt(entries: MemberEntry[], level: ScopeLevel, projectId: string, laneId?: string): MemberEntry[] {
-  return entries.filter((e) => sameScope(e.scope, scopeAt(level, projectId, laneId)));
+  return entries.filter((e) => sameScope(e.scope, scopeAt(level, projectId, laneId))
+    || (level === 'org' && e.scope.level === 'project' && e.scope.projectId === projectId));
 }
 
 /** Members from the levels above a home, shown view-only there (ORG-5). */
@@ -124,14 +134,12 @@ export function membersAbove(entries: MemberEntry[], level: ScopeLevel, projectI
   return entries.filter((e) => e.scope.level === 'org' || (level === 'lane' && e.scope.level === 'project' && e.scope.projectId === projectId));
 }
 
-/** Members below a home, grouped by project or language, for "Expand by". */
-export function groupBelow(entries: MemberEntry[], by: 'project' | 'lane', projectId: string, level: ScopeLevel): Map<string, MemberEntry[]> {
+/** Members assigned at a language of this organization, grouped by language, for "Expand by". */
+export function groupBelow(entries: MemberEntry[], projectId: string): Map<string, MemberEntry[]> {
   const out = new Map<string, MemberEntry[]>();
   for (const e of entries) {
-    if (e.scope.level !== by) continue;
-    if (level === 'project' && e.scope.projectId !== projectId) continue;
-    const key = by === 'project' ? e.scope.projectId ?? '' : `${e.scope.projectId ?? ''}/${e.scope.laneId ?? ''}`;
-    out.set(key, [...(out.get(key) ?? []), e]);
+    if (e.scope.level !== 'lane' || e.scope.projectId !== projectId || !e.scope.laneId) continue;
+    out.set(e.scope.laneId, [...(out.get(e.scope.laneId) ?? []), e]);
   }
   return out;
 }
@@ -246,7 +254,7 @@ function testamentOf(bookId: string): 'ot' | 'nt' | null {
 
 /**
  * The template a new language starts from (ORG-2): the one most languages
- * in this project already use, else the first the organization has enabled.
+ * in the organization already use, else the first it has enabled.
  */
 export function suggestedTemplate(state: ProjectState | null, org: OrgState | null, projectId: string): string {
   const counts = new Map<string, number>();
@@ -274,13 +282,13 @@ export function unitsInScope(templateId: string, scope: LanguageScope): EventPay
 /**
  * Add a language: the lane, its name for people (read everywhere through
  * core `laneName`), the template it uses, and the passages its scope needs
- * that the project does not have yet (units are shared across languages).
+ * that the organization does not have yet (units are shared across languages).
  */
 export function addLanguage(state: ProjectState | null, c: { commandId: string; laneId: string; code: string; name: string; templateId: string; scope: LanguageScope }): EventSpec[] {
   const code = c.code.trim().toLowerCase();
   const name = c.name.trim();
   if (!code) throw new Error('Enter a language code.');
-  if (state?.lanes[c.laneId]) throw new Error('That language is already in the project.');
+  if (state?.lanes[c.laneId]) throw new Error('That language is already here.');
   const next = counter(c.commandId);
   const specs: EventSpec[] = [spec(next(), 'v1.LaneAdded', { laneId: c.laneId, languoidId: code })];
   if (name) specs.push(spec(next(), 'v1.LaneNamed', { laneId: c.laneId, name }));

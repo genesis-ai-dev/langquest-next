@@ -13,7 +13,7 @@ import {
 
 /** The demo's permission names and what each one lets someone do (data.ts PRIVILEGE_DESC). */
 export const PRIVILEGE_INFO: Record<Privilege, { label: string; desc: string }> = {
-  manage_structure: { label: 'Manage Org Structure', desc: 'Change org structures in their scope (projects, languages)' },
+  manage_structure: { label: 'Manage Org Structure', desc: 'Change org structures in their scope (languages)' },
   invite_members: { label: 'Invite Members', desc: 'Invite people in their scope' },
   manage_roles: { label: 'Manage Roles', desc: 'Create and edit roles in their scope' },
   manage_templates: { label: 'Manage Content Templates', desc: 'Make and edit content templates in their scope' },
@@ -31,7 +31,8 @@ export const PRIVILEGE_INFO: Record<Privilege, { label: string; desc: string }> 
 };
 
 export type ViewLevel = Scope['level'];
-export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', project: 'Project', lane: 'Language' };
+/** No project level (decision 34): a membership scoped to the work partition covers every language. */
+export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', project: 'All languages', lane: 'Language' };
 
 /**
  * Which home the roles screens are seen from (demo `roleViewLevel`): an
@@ -40,9 +41,10 @@ export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', pro
  */
 export function viewLevelFrom(params: Record<string, string>, adminScope: Scope | null): ViewLevel {
   const level = params['level'];
-  if (level === 'org' || level === 'project' || level === 'lane') return level;
+  if (level === 'lane') return level;
+  if (level === 'org' || level === 'project') return 'org';
   if (params['laneId']) return 'lane';
-  return adminScope?.level ?? 'org';
+  return adminScope?.level === 'lane' ? 'lane' : 'org';
 }
 
 export interface RoleRow {
@@ -62,12 +64,12 @@ export interface RoleRow {
 
 export interface RoleHolder {
   profileId: string;
-  /** Null for someone added to the project the old way (a fixed project role). */
+  /** Null for someone added the old way (a fixed role in the work partition). */
   scope: Scope | null;
   displayName?: string;
 }
 
-/** Everyone holding a role: org memberships at any scope, plus project members whose fixed role it is. */
+/** Everyone holding a role: org memberships at any scope, plus work-partition members whose fixed role it is. */
 export function holdersOf(org: OrgState | null, project: ProjectState | null, roleId: string): RoleHolder[] {
   const out: RoleHolder[] = [];
   const seen = new Set<string>();
@@ -108,11 +110,10 @@ export function roleRows(org: OrgState | null, project: ProjectState | null, lev
     });
 }
 
-/** "Organization", the project's name, or the language's name. */
+/** The organization's name, "All languages", or the language's name. */
 export function scopeName(scope: Scope | null, org: OrgState | null, project: ProjectState | null, projectId: string): string {
-  if (!scope) return 'This project';
+  if (!scope || scope.level === 'project') return 'All languages';
   if (scope.level === 'org') return org?.org?.value.name ?? 'Organization';
-  if (scope.level === 'project') return org?.projects[scope.projectId ?? '']?.name ?? (scope.projectId === projectId ? project?.project?.value.name : undefined) ?? 'Project';
   return project && scope.projectId === projectId && scope.laneId ? laneName(project, scope.laneId) : 'Language';
 }
 
@@ -158,7 +159,7 @@ export interface LaneFlowUse {
   /** The catalog flow its steps are; null when it runs its own steps or has none. */
   flowId: string | null;
   steps: FlowStep[];
-  /** The language chose a flow (or saved its own steps); otherwise it runs the project's default. */
+  /** The language chose a flow (or saved its own steps); otherwise it runs the default. */
   chosen?: boolean;
 }
 
@@ -175,7 +176,7 @@ export function laneFlows(state: ProjectState): LaneFlowUse[] {
 /** What a language's flow is called: the catalog flow it matches, "Collect only"-style empty, or its own steps. */
 export function flowLabel(use: Pick<LaneFlowUse, 'flowId' | 'steps' | 'chosen'>): string {
   if (use.flowId) return FLOWS.find((f) => f.id === use.flowId)?.name ?? use.flowId;
-  if (use.chosen === false && use.steps.length) return "The project's default steps";
+  if (use.chosen === false && use.steps.length) return 'The default steps';
   return use.steps.length ? 'Its own steps' : 'No flow chosen yet';
 }
 
@@ -239,6 +240,7 @@ export function newKindId(name: string, taken: Iterable<string>): string {
 
 // ---- reference material (ORG-8) -----------------------------------------------------
 
+/** `project` is material shared by every language of the organization (decision 34 kept the id). */
 export type MaterialLevel = 'project' | 'language';
 
 export interface ReferenceView {
@@ -247,15 +249,15 @@ export interface ReferenceView {
   questionSets: MaterialView[];
   /** General material written at the level being viewed. */
   atLevel: MaterialView[];
-  /** Language view: the project's general material, available here. */
+  /** Language view: the organization's general material, available here. */
   higher: MaterialView[];
-  /** Project view: each language's own general material. */
+  /** Organization view: each language's own general material. */
   byLanguage: { laneId: string; items: MaterialView[] }[];
 }
 
 const isStudy = (m: MaterialView) => m.kind === 'fia_study' || m.templateRef === 'fia_study';
 
-/** Material a view sees: the project's, plus one language's when viewed from it. Levels add up (ORG-8). */
+/** Material a view sees: the organization's, plus one language's when viewed from it. Levels add up (ORG-8). */
 export function referenceView(state: ProjectState, laneId: string | null): ReferenceView {
   const all = Object.keys(state.materials)
     .map((id) => materialView(state, id))
@@ -359,7 +361,7 @@ export function termsInPassage(state: ProjectState, terms: KeyTermView[], unitId
   return out;
 }
 
-/** The same concept's renderings in the project's other languages (TERM-3 "Other languages"). */
+/** The same concept's renderings in the organization's other languages (TERM-3 "Other languages"). */
 export function otherLanguageRenderings(state: ProjectState, term: KeyTermView): { laneId: string; lane: string; rendering: string; context: string }[] {
   const key = term.term.trim().toLowerCase();
   const out: { laneId: string; lane: string; rendering: string; context: string }[] = [];
@@ -370,7 +372,7 @@ export function otherLanguageRenderings(state: ProjectState, term: KeyTermView):
   return out.sort((a, b) => a.lane.localeCompare(b.lane));
 }
 
-/** Kinds known to the project, for the flow editor's picker. */
+/** Kinds known to the organization, for the flow editor's picker. */
 export function allKinds(state: ProjectState): KindDef[] {
   return deriveKinds(state);
 }

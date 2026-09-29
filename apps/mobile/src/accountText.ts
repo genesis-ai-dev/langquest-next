@@ -113,7 +113,7 @@ export const WELCOME_POINTS: Record<WelcomeRole, { icon: 'mic' | 'people' | 'wor
     { icon: 'work', text: 'My Work shows who is waiting on you.' }
   ],
   admin: [
-    { icon: 'building', text: 'Set up projects and languages.' },
+    { icon: 'building', text: 'Add the languages your teams record.' },
     { icon: 'flow', text: 'Choose how passages get checked.' },
     { icon: 'people', text: 'Invite your team.' }
   ],
@@ -123,15 +123,11 @@ export const WELCOME_POINTS: Record<WelcomeRole, { icon: 'mic' | 'people' | 'wor
   ]
 };
 
-/** "the Dinka team at Wycliffe Associates", "the Luke project at …", "Wycliffe Associates". */
-export function teamLabel(scope: Scope | undefined, names: { org: string; project?: (projectId: string) => string | undefined; lane?: (laneId: string) => string | undefined }): string {
+/** "the Dinka team at Wycliffe Associates", or "Wycliffe Associates" (no project level: decision 34). */
+export function teamLabel(scope: Scope | undefined, names: { org: string; lane?: (laneId: string) => string | undefined }): string {
   if (scope?.level === 'lane' && scope.laneId) {
     const lane = names.lane?.(scope.laneId);
     if (lane) return `the ${lane} team at ${names.org}`;
-  }
-  if ((scope?.level === 'lane' || scope?.level === 'project') && scope.projectId) {
-    const project = names.project?.(scope.projectId);
-    if (project) return `the ${project} project at ${names.org}`;
   }
   return names.org;
 }

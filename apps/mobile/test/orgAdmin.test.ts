@@ -51,11 +51,12 @@ function projectFixture() {
 }
 
 describe('what an admin may grant (ORG-6)', () => {
-  it('is the home level and below, never above your own scope', () => {
-    expect(assignableLevels({ level: 'org' }, 'org')).toEqual(['org', 'project', 'lane']);
-    expect(assignableLevels({ level: 'org' }, 'project')).toEqual(['project', 'lane']);
-    expect(assignableLevels({ level: 'project', projectId: 'p1' }, 'org')).toEqual(['project', 'lane']);
-    expect(assignableLevels({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'project')).toEqual(['lane']);
+  it('is the home level and below, never above your own scope, and never a project (decision 34)', () => {
+    expect(assignableLevels({ level: 'org' }, 'org')).toEqual(['org', 'lane']);
+    expect(assignableLevels({ level: 'org' }, 'lane')).toEqual(['lane']);
+    // Someone assigned to all languages the old way grants at a language.
+    expect(assignableLevels({ level: 'project', projectId: 'p1' }, 'org')).toEqual(['lane']);
+    expect(assignableLevels({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'org')).toEqual(['lane']);
     expect(assignableLevels(null, 'org')).toEqual([]);
     expect(grantFloor({ level: 'project', projectId: 'p1' }, 'lane')).toBe('lane');
   });
@@ -74,24 +75,23 @@ describe('members per level (ORG-5)', () => {
   });
 
   it('puts each person at their own level, higher levels above as view only', () => {
-    expect(membersAt(entries, 'org', 'p1').map((e) => e.profileId)).toEqual(['admin']);
-    expect(membersAt(entries, 'project', 'p1').map((e) => e.profileId).sort()).toEqual(['old', 'pat']);
+    // All languages of this organization's work partition read as the organization; p2 is not open.
+    expect(membersAt(entries, 'org', 'p1').map((e) => e.profileId).sort()).toEqual(['admin', 'old', 'pat']);
     expect(membersAt(entries, 'lane', 'p1', 'L1').map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
     expect(membersAbove(entries, 'org', 'p1')).toEqual([]);
-    expect(membersAbove(entries, 'project', 'p1').map((e) => e.profileId)).toEqual(['admin']);
     expect(membersAbove(entries, 'lane', 'p1').map((e) => e.profileId).sort()).toEqual(['admin', 'old', 'pat']);
   });
 
-  it('groups lower levels by project or language', () => {
-    const byProject = groupBelow(entries, 'project', 'p1', 'org');
-    expect([...byProject.keys()].sort()).toEqual(['p1', 'p2']);
-    expect(groupBelow(entries, 'project', 'p1', 'project').size).toBe(1);
-    expect([...groupBelow(entries, 'lane', 'p1', 'project').keys()]).toEqual(['p1/L1']);
+  it('groups language members by language', () => {
+    expect([...groupBelow(entries, 'p1').keys()]).toEqual(['L1']);
+    expect(groupBelow(entries, 'p1').get('L1')!.map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
+    expect(groupBelow(entries, 'p2').size).toBe(0);
   });
 
   it('edits only at the home level and below', () => {
-    expect(editableAt({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'project')).toBe(true);
-    expect(editableAt({ level: 'org' }, 'project')).toBe(false);
+    expect(editableAt({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'org')).toBe(true);
+    expect(editableAt({ level: 'project', projectId: 'p1' }, 'org')).toBe(true);
+    expect(editableAt({ level: 'org' }, 'lane')).toBe(false);
   });
 });
 

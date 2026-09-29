@@ -129,7 +129,7 @@ export function templateOutline(t: ContentTemplate): { folder: TemplateItem; ite
   return roots.sort(byOrder).map((folder) => ({ folder, items: (children.get(folder.itemId) ?? []).sort(byOrder) }));
 }
 
-/** Which template each language in the project uses. */
+/** Which template each language uses. */
 export function templateUsage(state: ProjectState): { laneId: string; templateId: string | null }[] {
   return Object.keys(state.lanes).sort().map((laneId) => ({ laneId, templateId: state.laneTemplates[laneId]?.value.templateId ?? null }));
 }
@@ -167,9 +167,10 @@ export function suggestedAt(org: OrgState | null, templateId: string, level: 'or
 }
 
 /**
- * What the languages of a project are advised to start from, and who said
- * so: the project's own suggestions, then the organization's unless the
- * project turned one off.
+ * What the organization's languages are advised to start from, and who said
+ * so. The app suggests only at the organization (decision 34); a toggle on
+ * the work partition from before that still counts, and can still turn an
+ * organization suggestion off.
  */
 export function suggestionsFor(org: OrgState | null, projectId: string, library: ContentTemplate[]): { templateId: string; by: 'org' | 'project' }[] {
   if (!org) return [];

@@ -211,7 +211,7 @@ export function StatusHome(ctx: Ctx) {
   return (
     <Screen header={header}>
       {languages.length === 0 ? (
-        <EmptyState icon="globe" title="No languages yet" sub="Once a language is added to this project, its progress shows here." />
+        <EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its progress shows here." />
       ) : (
         <Card>
           <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>Across {plural(languages.length, 'language')} · {plural(total, 'passage')}</Text>
@@ -233,7 +233,7 @@ export function StatusHome(ctx: Ctx) {
         </Card>
       )}
       {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder="Find a language" /> : null}
-      {shown.length > 0 ? <SectionLabel label={state.project?.value.name ?? 'Languages'} /> : null}
+      {shown.length > 0 ? <SectionLabel label="Languages" /> : null}
       {shown.slice(0, limit).map((l) => (
         <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
@@ -375,7 +375,7 @@ export function MapHome(ctx: Ctx) {
   const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
   const templateName = state && laneId ? contentTemplate(state.laneTemplates[laneId]?.value.templateId ?? '')?.name : undefined;
   const sub = state && laneId
-    ? [outline ? 'Own outline' : templateName, state.project?.value.name, flowLabel(state, laneId)].filter(Boolean).join(' · ')
+    ? [outline ? 'Own outline' : templateName, flowLabel(state, laneId)].filter(Boolean).join(' · ')
     : undefined;
   // Workers land here from the Map tab; everyone else came from the overview or a language home.
   const backable = mapScreenFor(ctx.session) === 'status_home';
@@ -383,7 +383,7 @@ export function MapHome(ctx: Ctx) {
 
   if (!state) return <Screen header={header}><EmptyState icon="map" title="Loading…" /></Screen>;
   if (!laneId || !progress) {
-    return <Screen header={header}><EmptyState icon="globe" title="No languages yet" sub="Once a language is added to this project, its passages show here." /></Screen>;
+    return <Screen header={header}><EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its passages show here." /></Screen>;
   }
 
   const switchLane = (id: string) => {
@@ -438,7 +438,7 @@ export function MapHome(ctx: Ctx) {
         search.chapter === undefined ? (
           <>
             <Text style={[txt.sm, { color: C.muted, fontWeight: '600', paddingHorizontal: space.xs }]}>
-              {bookHits.length ? `${plural(bookHits.length, 'book')} · add a chapter number to jump straight to it` : 'No book by that name in this project'}
+              {bookHits.length ? `${plural(bookHits.length, 'book')} · add a chapter number to jump straight to it` : 'No book by that name in this language'}
             </Text>
             {bookHits.length > 0 ? (
               <Group>
@@ -492,7 +492,7 @@ export function MapHome(ctx: Ctx) {
 
           {visible.length === 0 && !other ? (
             <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>
-              {filter === 'all' ? 'No books in this project yet.' : 'Nothing here matches this filter.'}
+              {filter === 'all' ? 'No books in this language yet.' : 'Nothing here matches this filter.'}
             </Text>
           ) : null}
           {groups.map((g) => {
@@ -643,7 +643,7 @@ export function BookMap(ctx: Ctx) {
   );
   if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
   if (!laneId || (!book && bookId !== OTHER)) {
-    return <Screen header={header}><EmptyState icon="book" title="This book isn't in the project" sub="Go back to the map to pick another." /></Screen>;
+    return <Screen header={header}><EmptyState icon="book" title="This book isn't in this language" sub="Go back to the map to pick another." /></Screen>;
   }
 
   const open = (e: Entry) => ctx.openPassage(e.unitId, laneId);

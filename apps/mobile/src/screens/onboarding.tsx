@@ -21,7 +21,7 @@ import { C, space, type as T } from '../theme';
 import { useDisplayNames } from '../useAccount';
 
 const ROLE_WORDS: Record<string, string> = {
-  owner: 'Organization Admin', coordinator: 'Project Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
+  owner: 'Organization Admin', coordinator: 'Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
 };
 
 export function Welcome(ctx: Ctx) {
@@ -43,11 +43,10 @@ export function Welcome(ctx: Ctx) {
     const state = ctx.project.state;
     const team = teamLabel(scoped?.scope, {
       org: org?.org?.value.name ?? 'your organization',
-      project: (id) => org?.projects[id]?.name ?? (id === ctx.project.projectId ? state?.project?.value.name : undefined),
       lane: (id) => (state?.lanes[id] ? laneName(state, id) : undefined)
     });
     return { roleName, invitedBy, inviterId: invite?.issuedBy, displayName, team };
-  }, [org, me, profiles, ctx.project.state, ctx.project.projectId, ctx.session.role, ctx.session.email, ctx.name]);
+  }, [org, me, profiles, ctx.project.state, ctx.session.role, ctx.session.email, ctx.name]);
 
   const role = welcomeRoleFor(ctx.session);
   const points = WELCOME_POINTS[role];
