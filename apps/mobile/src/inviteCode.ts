@@ -8,6 +8,10 @@
  * is an invite most of these users cannot accept.
  */
 export function inviteUri(orgId: string, token: string): string {
+  // Only the org and the token: anything else a link carried (a name, a
+  // role, who sent it) would be shown on the scan screen as if it were true,
+  // and anyone can edit a link. What the invite grants is the server's, read
+  // when it is redeemed.
   return `langquestnext://invite?org=${encodeURIComponent(orgId)}&token=${encodeURIComponent(token)}`;
 }
 

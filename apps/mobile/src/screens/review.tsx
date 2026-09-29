@@ -1,251 +1,397 @@
-// Avatar U. Review passage, review questions, done. Material editor is Avatar P.
-import { commands, isStored, deriveTakeStatus, keyTermLinksFor, materialView, questionsOf, questionSetsFor, REFERENCE_KINDS, templateFields } from '@langquest-next/core';
+// Reviewing: the UX demo's ReviewCaptureScreen ("Review it", and in logged
+// mode "Already happened") and GuestReviewScreen ("Review by link"), from
+// ng-langquest-ux src/screens/review.tsx and the AlsoCoveredPicker in
+// screens/shared.tsx. Requirements REV-1..8; ADR-005 (reviews attach to the
+// version they heard), ADR-015 (a kind that makes content records it rather
+// than judging), ADR-028 (Already happened is per step and looks like
+// reviewing it now).
+//
+// Everything is read from the record (core derivePassage, questionsForKind,
+// keyTermLinksFor) and written with core recordReview / produceContent. A
+// review is grow-only, so sending it offers no Undo.
+import {
+  commands, derivePassage, keyTermLinksFor, questionsForKind,
+  type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
+} from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { indexesFor } from '../indexes';
-import { BookOpen, Check, CloudAlert, CloudCheck, CloudOff, Clock, KeyRound, MessageSquare, Play, RotateCcw, Users } from 'lucide-react-native';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
-import { handoffState } from '../passageFlow';
 import type { Ctx } from '../ctx';
-import { Footer, Header, Note, Row, Screen, Section } from '../pui';
-import { colors, radius, space, tint } from '../theme';
-import { ActionButton, BackButton, Card, StatusIcon, text } from '../ui';
-import { useTask } from './translate';
+import { TITLES } from '../flow';
+import { indexesFor } from '../indexes';
+import {
+  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Header, Ico, PrimaryBtn, ReasonSheet, Screen, SectionLabel, txt
+} from '../kit';
+import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passageView';
+import { problemText } from '../recording/parts';
+import { cleanAnswers, cleanSkips, CANT_ANSWER, earlierReviews, footHint, isGroupKind, loggedTargets, noteAnchorText, readiness,
+  recordedPassages, requestFor, toCompareFor, versionFor, type Answers, type Skips } from '../reviewing/capture';
+import {
+  AlsoCoveredPicker, AnswerInput, Block, CompareCard, EarlierReviews, FromTranslator, ListenCard, PeopleCounter, QuestionList,
+  RequestBanner, TeamStudy, WithheldNotice
+} from '../reviewing/parts';
+import { contractsFor } from '../screenContracts';
+import { guideFor } from '../study/guides';
+import { studyProgress } from '../study/progress';
+import { C, space, TINT } from '../theme';
+import { VoiceNote } from '../voiceNote';
 
-/** Answers live here between review_questions and review_passage (screen-local, not synced). */
-const draftAnswers = new Map<string, Record<string, string>>();
-
-export function ReviewPassage(ctx: Ctx) {
-  const { state, run } = ctx.project;
-  const { task, ready } = useTask(ctx);
-  const [changing, setChanging] = useState(false);
-  if (!state || !task || !task.takeId) return ready ? <Note>Task not found.</Note> : <></>;
-  const takeId = task.takeId;
-  const take = state.takes[takeId];
-  const idx = indexesFor(state);
-  const status = deriveTakeStatus(state, takeId, idx);
-  const stepId = task.id.split(':')[3]!;
-  const step = status.steps.find((s) => s.stepId === stepId);
-  const mine = state.reviews[takeId]?.[stepId]?.[ctx.session.actorId]?.value;
-  const questionSets = questionSetsFor(state, takeId, stepId);
-  const termsUsed = keyTermLinksFor(state, takeId);
-  const answered = questionSets.length === 0 || draftAnswers.has(takeId);
-  const showButtons = !mine || changing;
-
-  async function decide(decision: 'approve' | 'suggest_changes') {
-    const answers = draftAnswers.get(takeId);
-    await run(commands(state!, idx).reviewTake({ commandId: Crypto.randomUUID(), takeId, stepId, decision, ...(answers ? { answers } : {}) }));
-    draftAnswers.delete(takeId);
-    setChanging(false);
-    ctx.go('done_await', { takeId });
-  }
-
-  return (
-    <View style={[styles.screen, { backgroundColor: tint.review }]}>
-      <View style={styles.content}>
-        <BackButton onPress={ctx.back} />
-        <View style={styles.titleRow}>
-          <BookOpen size={22} color={colors.review} />
-          <Text style={[text.h3, { flex: 1 }]}>{state.units[task.unitId]?.label}</Text>
-        </View>
-
-        <Card>
-          <AudioClip project={ctx.project} hashes={take?.cardHashes ?? []} label="Play translation" />
-          <View style={styles.chips}>
-            <View style={styles.chip} accessibilityLabel={`waiting on ${step?.waitingOn.length ?? 0}`}>
-              <Users size={14} color={colors.mutedForeground} />
-              <Text style={text.small}>{step?.waitingOn.length ?? 0}</Text>
-            </View>
-            <View style={styles.chip} accessibilityLabel={`status ${status.outcome}`}>
-              <StatusIcon outcome={status.outcome} size={16} />
-              {mine ? mine.decision === 'approve' ? <Check size={14} color={colors.done} /> : <MessageSquare size={14} color={colors.review} /> : null}
-            </View>
-          </View>
-        </Card>
-
-        {termsUsed.length > 0 ? (
-          <Card style={{ backgroundColor: tint.translate }}>
-            {termsUsed.map(({ term, note }) => (
-              <Pressable key={term.termId} onPress={() => ctx.go('key_term_detail', { termId: term.termId })} style={styles.titleRow} accessibilityLabel={`key term ${term.term}`}>
-                <KeyRound size={16} color={colors.reference} />
-                <Text style={[text.body, { flex: 1 }]}>{term.term}{note ? ` · ${note}` : ''}</Text>
-              </Pressable>
-            ))}
-          </Card>
-        ) : null}
-
-        {questionSets.length > 0 ? (
-          <ActionButton
-            icon={answered ? Check : MessageSquare}
-            accessibilityLabel={answered ? 'Edit answers' : 'Answer questions'}
-            variant={answered ? 'outline' : 'action'}
-            onPress={() => ctx.go('review_questions', { taskId: task.id })}
-          />
-        ) : null}
-
-        {showButtons ? (
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            <ActionButton icon={MessageSquare} accessibilityLabel="Suggest changes" variant="outline" onPress={() => void decide('suggest_changes')} disabled={!answered} style={{ flex: 1 }} />
-            <ActionButton icon={Check} accessibilityLabel="Approve" onPress={() => void decide('approve')} disabled={!answered} style={{ flex: 1 }} />
-          </View>
-        ) : (
-          <ActionButton icon={RotateCcw} accessibilityLabel="Change decision" variant="outline" onPress={() => setChanging(true)} />
-        )}
-      </View>
-    </View>
-  );
+/**
+ * A voice note as a card for a review's artifacts, with the length and
+ * format the recorder reported. A card VoiceNote did not describe is m4a
+ * (what it records) of unknown length.
+ */
+function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm4a' }): AudioCard {
+  return { hash, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' };
 }
 
-export function ReviewQuestions(ctx: Ctx) {
-  const { state } = ctx.project;
-  const { task, ready } = useTask(ctx);
-  const takeId = task?.takeId ?? '';
-  const [answers, setAnswers] = useState<Record<string, string>>(draftAnswers.get(takeId) ?? {});
-  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
-  const stepId = task.id.split(':')[3] ?? '';
-  const questions = questionsOf(questionSetsFor(state, takeId, stepId));
+// ---- Review it (review_capture) ----------------------------------------------------------
 
-  function save() {
-    draftAnswers.set(takeId, answers);
-    ctx.back();
+/** Listen, see the background (unless the kind withholds it), answer, give feedback, send (REV-1..4). */
+export function ReviewCapture(ctx: Ctx) {
+  return <Capture ctx={ctx} logged={false} />;
+}
+
+// ---- Already happened (add_record) ---------------------------------------------------------
+
+/**
+ * A review that happened outside the app goes on the record through the
+ * same screen, plus who gave it, where, which version was played and other
+ * passages the session covered; a kind that makes content asks for its
+ * recording instead of an outcome (REV-6, ADR-028).
+ */
+export function AddRecord(ctx: Ctx) {
+  return <Capture ctx={ctx} logged />;
+}
+
+function Capture(props: { ctx: Ctx; logged: boolean }) {
+  const { ctx, logged } = props;
+  const v = usePassage(ctx);
+  const actorId = ctx.session.actorId;
+  const kindId = ctx.params['kindId'] ?? (v ? v.p.next?.step.kindIds[0] ?? v.p.flow.steps[0]?.kindIds[0] ?? 'peer' : 'peer');
+  const kind = v?.kind(kindId);
+  const makes = logged ? kind?.produces : undefined;
+
+  const [takeId, setTakeId] = useState<string | undefined>(ctx.params['takeId']);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [skipped, setSkipped] = useState<Skips>({});
+  const [skipFor, setSkipFor] = useState<string | null>(null);
+  const [comment, setComment] = useState('');
+  const [commentHash, setCommentHash] = useState<string | null>(null);
+  const [also, setAlso] = useState<string[]>([]);
+  const [people, setPeople] = useState(0);
+  const [givenBy, setGivenBy] = useState('');
+  const [place, setPlace] = useState('');
+  const [evidence, setEvidence] = useState<AudioCard | null>(null);
+  const [made, setMade] = useState<AudioCard[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const version = v ? versionFor(v.p, takeId) : undefined;
+  const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
+    [v?.p, kindId, actorId, ctx.params, logged]);
+  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, v.laneId, request) : [], [v?.state, v?.laneId, kindId, request]);
+  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId) : null,
+    [v?.state, v?.p, kindId, version?.takeId, kind]);
+  const all = useMemo(() => v && logged ? recordedPassages(v.state, v.laneId) : [], [v?.state, v?.laneId, logged]);
+
+  const crumbLabel = logged ? 'Already happened' : 'Review it';
+  if (!v || !kind) {
+    return (
+      <Screen header={<Header title={logged ? TITLES.add_record : TITLES.review_capture} onBack={ctx.back} close />}>
+        <EmptyState icon="book" title={ctx.project.state ? "This passage isn't in the project" : 'Loading…'} />
+      </Screen>
+    );
+  }
+  const header = (sub: string) => <Header title={kind.name} sub={sub} crumbs={passageCrumbs(ctx, v, crumbLabel)} onBack={ctx.back} close />;
+  if (!version) {
+    return <Screen header={header(v.lane)}><EmptyState icon="mic" title="There's no recording to review yet." sub="Once a version is published, it can be reviewed here." /></Screen>;
+  }
+  if (!logged && kind.produces) {
+    return (
+      <Screen header={header(`${v.lane} · ${versionTitle(version.n)}`)}>
+        <EmptyState icon="swap" title={`${kind.name} makes a recording`} sub={`It isn't a verdict, so it isn't reviewed here. Use ${kind.produces.action} on the passage's record.`} />
+      </Screen>
+    );
   }
 
+  const r = readiness(questions, answers, skipped, comment, commentHash);
+  const hint = footHint(r, makes ? { what: makes.what, has: made.length > 0 } : undefined);
+  const group = isGroupKind(kind.id);
+  const here = all.find((p) => p.unitId === v.unitId);
+  const detailKey = (part: string) => `${logged ? 'logged' : 'capture'}:${v.unitId}:${v.laneId}:${kind.id}:${part}`;
+  const asker = request?.by ? ctx.name(request.by) : undefined;
+
+  async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
+    const state = ctx.project.state;
+    if (!state || !v || !version || !kind || busy) return;
+    const cmd = Crypto.randomUUID();
+    const c = commands(state, indexesFor(state));
+    const text = comment.trim();
+    const cleanA = cleanAnswers(questions, answers);
+    const cleanS = cleanSkips(questions, answers, skipped);
+    let specs: EventSpec[] = [];
+    let message: string;
+    try {
+      if (!logged) {
+        specs = c.recordReview({
+          commandId: cmd, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'app',
+          ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}),
+          ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}), ...(request ? { requestId: request.id } : {})
+        });
+        const sentTo = version.by === actorId ? 'on the record' : `sent to ${ctx.name(version.by)}`;
+        message = outcome === 'looks_good' ? `Looks good · ${sentTo}` : `Feedback ${sentTo}`;
+      } else {
+        const targets = loggedTargets(state, v.laneId, { unitId: v.unitId, takeId: version.takeId }, also);
+        const who = !group && givenBy.trim() ? { givenBy: givenBy.trim() } : {};
+        const shared = {
+          ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}),
+          ...who, ...(group && people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {})
+        };
+        targets.forEach((t, i) => {
+          const tp = t.unitId === v.unitId ? v.p : derivePassage(state, t.unitId, v.laneId, indexesFor(state));
+          const req = requestFor(tp, kind.id, actorId, { mineOnly: true });
+          const commandId = `${cmd}:${i}`;
+          specs.push(...(makes
+            ? c.produceContent({
+              commandId, fromTakeId: t.takeId, kindId: kind.id, cards: made, via: 'logged',
+              ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
+            })
+            : c.recordReview({
+              commandId, takeIds: [t.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
+              ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
+              ...(evidence ? { artifacts: [evidence] } : {}), ...(req ? { requestId: req.id } : {})
+            })));
+        });
+        message = targets.length > 1 ? `${kind.name} added to ${targets.length} passages` : `${kind.name} added to the record`;
+      }
+    } catch (e) {
+      ctx.toast(`Not saved: ${problemText(logged ? 'add record: save' : 'review: send', e)}`);
+      return;
+    }
+    setBusy(true);
+    try {
+      await ctx.act(specs, message);
+    } catch {
+      setBusy(false);
+      return;
+    }
+    ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId });
+  }
+
+  const footer = (
+    <>
+      {hint ? <Text style={[txt.xs, styles.center]}>{hint}</Text> : null}
+      {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>Saves to {also.length + 1} passages</Text> : null}
+      {makes ? (
+        <PrimaryBtn label="Save to the record" icon="check" disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
+      ) : (
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <View style={{ flex: 1 }}><GhostBtn label="Needs changes" icon="chat" tone="amber" disabled={!r.ready || !r.saysWhat || busy} onPress={() => void save('needs_changes')} /></View>
+          <View style={{ flex: 1 }}><PrimaryBtn label="Looks good" tone="green" icon="check" disabled={!r.ready} busy={busy} onPress={() => void save('looks_good')} /></View>
+        </View>
+      )}
+    </>
+  );
+
   return (
-    <Screen footer={<Footer label="Save answers" onPress={save} />}>
-      <Header title="Review questions" onBack={ctx.back} />
-      {questions.length === 0 ? <Note>The attached sets have no questions.</Note> : null}
-      {questions.map((q) => (
-        <Card key={q.id}>
-          <Text style={text.body}>{q.text}</Text>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {['Yes', 'Partly', 'No'].map((v) => (
-              <Pressable
-                key={v}
-                onPress={() => setAnswers((a) => ({ ...a, [q.id]: v }))}
-                style={[styles.opt, answers[q.id] === v && { backgroundColor: colors.translate }]}
-              >
-                <Text style={[text.small, answers[q.id] === v && { color: colors.white }]}>{v}</Text>
-              </Pressable>
+    <Screen header={header(`${logged ? 'Already happened · ' : ''}${v.lane} · ${versionTitle(version.n)}`)} footer={footer}>
+      {logged ? (
+        <>
+          <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
+            For a {kind.name.toLowerCase()} that happened outside the app — in person, on a call, at church. It goes on the record credited to whoever gave it.
+          </Text>
+          {group ? <PeopleCounter value={people} onChange={setPeople} /> : (
+            <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? 'Who made it — e.g. Okello Joseph' : 'Who reviewed it — e.g. Peter Lual'} />
+          )}
+          <Field value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" />
+          {v.p.versions.length > 1 ? (
+            <Block label="Which version was played">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+                {[...v.p.versions].reverse().map((x) => (
+                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} onPress={() => setTakeId(x.takeId)} />
+                ))}
+              </View>
+            </Block>
+          ) : null}
+          {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
+        </>
+      ) : null}
+
+      {request ? <RequestBanner ctx={ctx} request={request} /> : null}
+
+      <ListenCard ctx={ctx} version={version} />
+
+      {context === null ? <WithheldNotice kind={kind} /> : (
+        <>
+          {context.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
+          {context.any ? <SectionLabel label="Background" /> : null}
+          <FromTranslator ctx={ctx} detailsKey={detailKey('translator')} terms={context.terms} notes={context.notes}
+            anchor={context.anchor} olderVersion={context.olderVersion}
+            onOpenTerm={(termId) => ctx.go('key_term_detail', { termId, unitId: v.unitId, laneId: v.laneId })} />
+          {context.study ? (
+            <TeamStudy ctx={ctx} detailsKey={detailKey('study')} study={context.study}
+              onOpenStep={(stepId) => ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId })}
+              onOpenStudy={() => ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId })} />
+          ) : null}
+          <EarlierReviews ctx={ctx} detailsKey={detailKey('earlier')} reviews={context.earlier} kind={v.kind} />
+        </>
+      )}
+
+      <QuestionList questions={questions} answers={answers} skipped={skipped} {...(asker ? { asker } : {})}
+        onAnswer={(id, val) => setAnswers((a) => ({ ...a, [id]: val }))}
+        onSkip={setSkipFor}
+        onUnskip={(id) => setSkipped((s) => { const { [id]: _gone, ...rest } = s; return rest; })} />
+
+      {makes ? (
+        <>
+          <Block label={`The ${makes.what}`} hint="It's what gets checked next, so it's the one thing this entry needs.">
+            {made.map((c, i) => (
+              <VoiceNote key={c.hash} ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={`Part ${i + 1}`} hash={c.hash}
+                onChange={(next, card) => setMade((m) => next ? m.map((x) => (x.hash === c.hash ? voiceCard(next, card) : x)) : m.filter((x) => x.hash !== c.hash))} />
             ))}
-          </View>
-        </Card>
-      ))}
+            <VoiceNote key={`new-${made.length}`} ctx={ctx} unitId={v.unitId} laneId={v.laneId}
+              label={made.length ? 'Record another part' : `Record the ${makes.what}`} hash={null}
+              onChange={(h, card) => { if (h) setMade((m) => (m.some((x) => x.hash === h) ? m : [...m, voiceCard(h, card)])); }} />
+          </Block>
+          <Block label="What happened" hint="Optional — what was hard to say back.">
+            <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a summary" hash={commentHash} onChange={setCommentHash} />
+            <Field value={comment} onChangeText={setComment} placeholder="Or type what was hard to say back" multiline />
+          </Block>
+        </>
+      ) : (
+        <Block label={logged ? 'What happened' : 'Your feedback'}>
+          <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={logged ? 'Record a summary' : 'Record voice feedback'} hash={commentHash} onChange={setCommentHash} />
+          <Field value={comment} onChangeText={setComment} multiline
+            placeholder={logged ? 'Or type what people understood and asked about' : "Or type it — what worked, what didn't"} />
+        </Block>
+      )}
+
+      {logged && !makes ? (
+        <Block label="Evidence · optional" hint="A retelling or a recorded conversation makes the review easy to trust.">
+          <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a retelling" hash={evidence?.hash ?? null}
+            onChange={(h, card) => setEvidence(h ? voiceCard(h, card) : null)} />
+        </Block>
+      ) : null}
+
+      <ReasonSheet visible={skipFor !== null} title="Leave this question unanswered?"
+        sub="Required questions can be skipped — the reason is saved with your review."
+        quickReasons={CANT_ANSWER} confirmLabel="Skip question"
+        footnote="The reason is saved with your review."
+        onClose={() => setSkipFor(null)}
+        onConfirm={({ reason }) => { if (skipFor) setSkipped((s) => ({ ...s, [skipFor]: reason })); setSkipFor(null); }} />
     </Screen>
   );
 }
 
-export function DoneAwait(ctx: Ctx) {
-  const state = ctx.project.state;
-  const takeId = ctx.params['takeId'];
-  const take = takeId && state ? state.takes[takeId] : undefined;
-  const delivery = handoffState({
-    pending: ctx.project.pending,
-    online: ctx.project.online,
-    refused: ctx.project.refused,
-    tooOld: ctx.project.tooOld,
-    audioStored: !take || take.cardHashes.every((hash) => !!state && isStored(state, hash))
-  });
-  const Icon = delivery === 'blocked' ? CloudAlert : delivery === 'queued' ? CloudOff : CloudCheck;
-  const label = delivery === 'blocked' ? 'Saved locally. Sync needs attention.'
-    : delivery === 'queued' ? 'Saved on this phone. Waiting to sync.'
-    : 'Synced. Review status is separate.';
-  return (
-    <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]}>
-      <View style={styles.doneMark} accessible accessibilityLabel={label}>
-        <Icon size={44} color={delivery === 'sent' ? colors.done : colors.mutedForeground} />
-      </View>
-      {delivery !== 'sent' ? <Clock size={28} color={colors.mutedForeground} /> : null}
-      {takeId && state?.takes[takeId] ? <StatusIcon outcome={deriveTakeStatus(state, takeId, indexesFor(state)).outcome} size={32} /> : null}
-      {delivery === 'blocked' ? <Note>{ctx.project.refused ?? 'Update the app to sync this work.'}</Note> : null}
-      <ActionButton icon={Check} accessibilityLabel="Back to my work" onPress={() => ctx.go('assignments_home')} style={{ alignSelf: 'stretch' }} />
-    </View>
-  );
+/** The background a reviewer may open, or null when the kind withholds it (REV-1, REV-4). */
+function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string) {
+  const { state, p } = v;
+  const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
+  const notes = p.notes.filter((n) => n.anchor.kind !== 'study');
+  const versionN = (id: string) => p.versions.find((x) => x.takeId === id)?.n;
+  const anchor = (n: PassageNote) => noteAnchorText(n.anchor, { term: (id) => state.keyTerms[id]?.term, versionN });
+  const olderVersion = (n: PassageNote) => {
+    const on = n.onTakeId ? versionN(n.onTakeId) : undefined;
+    return n.onTakeId && n.onTakeId !== takeId && on ? versionTitle(on) : undefined;
+  };
+  const guide = guideFor(state, p.unitId);
+  const study = guide ? studyProgress(state, p, guide) : null;
+  const compare = toCompareFor(p, v.kinds, kindId);
+  const earlier = earlierReviews(p, v.kinds, kindId);
+  return {
+    terms, notes, anchor, olderVersion, study, compare, earlier,
+    any: terms.length > 0 || notes.length > 0 || !!study || earlier.length > 0
+  };
 }
 
-/** Avatar P. Fill the blanks of a material (each field is its own register), or define a new one. Lock restricts editing, never hides (A7). */
-export function MaterialEditor(ctx: Ctx) {
-  const { state, append, appendMany } = ctx.project;
-  const materialId = ctx.params['materialId'];
-  const laneId = ctx.params['laneId'] ?? '';
-  const unitId = ctx.params['unitId'];
-  const existing = materialId && state ? materialView(state, materialId) : null;
-  const [kind, setKind] = useState(existing?.kind ?? 'tg');
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const expected = templateFields(existing?.templateRef);
-  const fieldIds = [...new Set([...expected, ...(existing?.fields.map((f) => f.fieldId) ?? [])])];
-  const [fields, setFields] = useState<Record<string, string>>(Object.fromEntries((existing?.fields ?? []).map((f) => [f.fieldId, f.text ?? ''])));
-  const [newField, setNewField] = useState('');
-  const canManage = ctx.session.can('manage_reference');
-  const canFill = canManage || (ctx.session.can('fill_reference') && !existing?.locked);
-  const isNew = !existing;
-  async function save() {
-    const id = existing?.materialId ?? `${kind}-${Date.now()}`;
-    const events: Parameters<typeof appendMany>[0] = [];
-    if (isNew) events.push({ type: 'v1.MaterialDefined', payload: { materialId: id, kind, title: title.trim() || kind, scope: { ...(laneId ? { laneId } : {}), ...(unitId ? { unitId } : {}) } } });
-    for (const [fieldId, value] of Object.entries(fields)) {
-      const before = existing?.fields.find((f) => f.fieldId === fieldId)?.text ?? '';
-      if (value.trim() !== before) events.push({ type: 'v1.MaterialFieldSet', payload: { materialId: id, fieldId, text: value.trim() } });
-    }
-    await appendMany(events);
-    ctx.back();
-  }
-  const allFieldIds = [...new Set([...fieldIds, ...Object.keys(fields)])];
+// ---- Review by link (guest_review), as a preview ------------------------------------------------------
+
+/**
+ * What someone without the app sees after tapping the WhatsApp or SMS link
+ * (REV-7): who asked and their note, the recording, up to three questions,
+ * a voice or text reply, then Understood it well / Some parts unclear.
+ * Replies by link need a server endpoint that does not exist yet, so this is
+ * a labelled preview: answers can be tried, nothing is sent or recorded.
+ */
+export function GuestReview(ctx: Ctx) {
+  const state = ctx.project.state;
+  const requestId = ctx.params['requestId'];
+  const named = requestId && state ? state.requests[requestId] : undefined;
+  const unitId = named?.unitId ?? ctx.params['unitId'];
+  const laneId = named?.laneId ?? ctx.params['laneId'] ?? ctx.laneId ?? undefined;
+  const v = useMemo(() => state && unitId && laneId && state.units[unitId] ? passageViewOf(state, unitId, laneId) : null, [state, unitId, laneId]);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [comment, setComment] = useState('');
+  const request = v ? (requestId ? v.p.requests.find((r) => r.id === requestId) : undefined)
+    ?? [...v.p.openRequests].reverse().find((r) => r.what === 'review' && !!r.guest) : undefined;
+  const kindId = request?.kindId ?? 'community';
+  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, v.laneId, request).slice(0, 3) : [], [v, kindId, request]);
+
+  const header = <Header title={TITLES.guest_review} sub="Preview · what someone without the app sees" onBack={ctx.back} close />;
+  if (!v) return <Screen header={header}><EmptyState icon="link" title={state ? 'No link to preview' : 'Loading…'} sub="Ask someone without the app from a passage to see what they get." /></Screen>;
+
+  const kind: KindDef = v.kind(kindId);
+  const version = v.p.latest;
+  const mine = request?.by === ctx.session.actorId;
+  const guest = request?.guest?.name ?? 'friend';
+  const asker = request?.by ? ctx.name(request.by) : 'The translation team';
+  const headline = mine ? `You asked ${guest} to listen to ${v.title}` : `${asker} asked you to listen to ${v.title}`;
+
+  const footer = (
+    <>
+      <Text style={[txt.xs, styles.center]}>Preview only: replies by link need a server endpoint that isn't built yet, so nothing is sent.</Text>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1 }}><GhostBtn label="Some parts unclear" disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label="Understood it well" tone="green" disabled onPress={() => undefined} /></View>
+      </View>
+    </>
+  );
+
   return (
-    <Screen footer={canFill ? <Footer label="Save changes" onPress={() => void save()} disabled={isNew && !title.trim() && !Object.values(fields).some((v) => v.trim())} /> : undefined}>
-      <Header title={existing?.title ?? 'New material'} sub={existing ? `${REFERENCE_KINDS.find((k) => k.id === existing.kind)?.name ?? existing.kind}${existing.locked ? ' · locked' : ''}` : undefined} onBack={ctx.back} />
-      {isNew ? (
-        <Section label="Kind">
-          {REFERENCE_KINDS.filter((k) => k.id !== 'key_terms').map((k, i, a) => (
-            <Row key={k.id} label={k.name} sub={k.code} onPress={() => setKind(k.id)} right={kind === k.id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />
-          ))}
-        </Section>
-      ) : null}
-      {isNew ? <TextInput style={styles.input} placeholder="Title" value={title} onChangeText={setTitle} /> : null}
-      {existing && canManage ? (
-        <Section label="Editing">
-          <Row label={existing.locked ? 'Locked: only managers edit' : 'Open: anyone with Fill Reference edits'} onPress={() => void append('v1.MaterialLocked', { materialId: existing.materialId, locked: !existing.locked })} right={existing.locked ? <Check size={18} color={colors.review} /> : <View />} last />
-        </Section>
-      ) : null}
-      <Section label={existing?.kind === 'questions' || kind === 'questions' ? 'Questions' : 'Fields'}>
-        {allFieldIds.map((fieldId) => (
-          <Card key={fieldId}>
-            <Text style={text.small}>{fieldId}</Text>
-            <TextInput style={styles.input} editable={canFill} placeholder="Empty" value={fields[fieldId] ?? ''} onChangeText={(v) => setFields((f) => ({ ...f, [fieldId]: v }))} multiline />
-          </Card>
-        ))}
-        {canFill ? (
-          <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-            <TextInput style={[styles.input, { flex: 1, minHeight: 44 }]} placeholder={existing?.kind === 'questions' || kind === 'questions' ? 'New question id (e.g. q3)' : 'New field (e.g. body)'} autoCapitalize="none" value={newField} onChangeText={setNewField} />
-            <Pressable
-              onPress={() => {
-                const id = newField.trim();
-                if (id && !(id in fields)) setFields((f) => ({ ...f, [id]: '' }));
-                setNewField('');
-              }}
-              accessibilityLabel="Add field"
-            >
-              <Check size={22} color={colors.translate} />
-            </Pressable>
-          </View>
-        ) : null}
-      </Section>
+    <Screen header={header} footer={footer}>
+      <Banner icon="link" title="Preview" body={`The page ${mine ? guest : 'they'} open${mine ? 's' : ''} from the link. You can try it; nothing here is saved.`} />
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <View style={styles.brand}><Ico name="globe" size={18} color={C.white} /></View>
+          <Text style={[txt.sm, { fontWeight: '800', flex: 1 }]}>LangQuest</Text>
+          <Badge label="No account needed" />
+        </View>
+        <Text style={txt.title}>{headline}</Text>
+        <Text style={txt.xs}>{v.lane} · {kind.name}</Text>
+      </Card>
+      {request?.note ? <Card style={{ backgroundColor: C.light }}><Text style={txt.body}>“{request.note}”</Text></Card> : null}
+      {request?.noteBlobHash ? <AudioClip project={ctx.project} hashes={[request.noteBlobHash]} label="Play their directions" /> : null}
+      {version ? (
+        <Card>
+          <Text style={txt.h3}>Listen</Text>
+          <AudioClip project={ctx.project} hashes={version.cardHashes} label={`Play ${v.title}`} />
+        </Card>
+      ) : <EmptyState icon="mic" title="There's no recording to listen to yet." />}
+      {questions.map((q) => (
+        <Card key={q.q.id}>
+          <Text style={[txt.body, { fontWeight: '600' }]}>{q.q.text}</Text>
+          <AnswerInput type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
+        </Card>
+      ))}
+      <Block label="Tell us what you understood">
+        {/* A voice reply would be saved to the project's record; a preview must not write, so it is shown, not live. */}
+        <View style={styles.voiceOff} accessibilityState={{ disabled: true }}>
+          <View style={styles.micDot}><Ico name="mic" size={18} color={C.white} /></View>
+          <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>Tap to reply by voice</Text>
+        </View>
+        <Field value={comment} onChangeText={setComment} placeholder="Or type it" multiline />
+      </Block>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.xl },
-  content: { gap: space.lg, padding: space.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, borderRadius: radius.full, backgroundColor: tint.reviewChip, paddingVertical: 6, paddingLeft: 6, paddingRight: space.md },
-  chipPlay: { width: 28, height: 28, borderRadius: radius.full, backgroundColor: colors.review, alignItems: 'center', justifyContent: 'center' },
-  doneMark: { width: 96, height: 96, borderRadius: 20, backgroundColor: 'rgba(41, 163, 118, 0.12)', alignItems: 'center', justifyContent: 'center' },
-  opt: { flex: 1, alignItems: 'center', paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: colors.muted },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, minHeight: 140, backgroundColor: colors.card, color: colors.foreground }
+  center: { textAlign: 'center' },
+  brand: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  voiceOff: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm,
+    borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: TINT.gray, opacity: 0.7 },
+  micDot: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.faint }
 });
 
-import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('review_passage', 'review_questions', 'done_await', 'material_editor');
+export const contracts = contractsFor('review_capture', 'add_record', 'guest_review');

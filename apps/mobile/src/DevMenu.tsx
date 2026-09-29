@@ -1,15 +1,18 @@
 // Persona sheet: switch persona (a real sign-in), seed the demo team, and in
-// a dev build jump to any screen. Shown to dev builds and to the testers named
-// in dev.ts, so the other roles' experience can be walked through in a real
-// build without five phones.
+// a dev build jump to any screen. Personas exist only on a local Supabase
+// (dev.ts `personasAvailable`); seeding is for dev builds on a local server,
+// so it can never write personas into a real organization.
+import { commands } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ensurePersonaAccount, PERSONAS, switchToPersona, type Persona } from './dev';
+import { Text } from 'react-native';
+import { ensurePersonaAccount, maySeedDemoTeam, PERSONAS, personasAvailable, switchToPersona, type Persona } from './dev';
+import { indexesFor } from './indexes';
 import { SCREEN_IDS, TITLES, type ScreenId } from './flow';
+import { Group, Row, SectionLabel, Sheet, txt } from './kit';
+import { reportError } from './report';
 import type { OrgHandle } from './useOrg';
 import type { ProjectHandle } from './useProject';
-import { colors, radius, space } from './theme';
-import { text } from './ui';
 
 export function DevMenu(props: {
   open: boolean;
@@ -25,6 +28,9 @@ export function DevMenu(props: {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
 
+  const personas = personasAvailable();
+  const canSeed = props.isOwner && maySeedDemoTeam(props.isDev);
+
   async function run(label: string, fn: () => Promise<void>) {
     setBusy(label);
     setError('');
@@ -32,7 +38,10 @@ export function DevMenu(props: {
       await fn();
       props.onClose();
     } catch (e) {
-      setError((e as Error).message);
+      // A developer tool: the message is the Supabase or persona error, which
+      // is what the person using this sheet needs to fix their setup.
+      reportError(`dev menu ${label}`, e);
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setBusy('');
     }
@@ -40,14 +49,19 @@ export function DevMenu(props: {
 
   /**
    * Owner-only: create every persona account, give it its org role (so it
-   * sees the org, the project and its own home) and its project membership,
-   * then assign the translator and reviewer some work to look at.
+   * sees the org and its own home) and its membership of the org's work,
+   * then assign the translator and reviewer some work to look at. The
+   * language gets a name and the standard Bible flow, so the Map and the
+   * passage record have steps to show.
    */
   async function seed() {
     const { state, append } = props.project;
-    if (!state) return;
+    if (!state || !maySeedDemoTeam(props.isDev)) return;
     const laneId = Object.keys(state.lanes)[0];
-    const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null).map(([id]) => id);
+    // A handful of passages, in canon order: enough to show For you and the
+    // Map without flooding a whole Bible with requests.
+    const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null)
+      .sort(([, a], [, b]) => (a.order < b.order ? -1 : 1)).slice(0, 5).map(([id]) => id);
     for (const p of PERSONAS) {
       if (!p.role) continue;
       const id = await ensurePersonaAccount(p);
@@ -58,61 +72,50 @@ export function DevMenu(props: {
       }
       if (state.members[id] && !state.members[id]!.removed.value) continue;
       await append('v1.MemberAdded', { profileId: id, role: p.role });
-      if (laneId && p.role === 'translator') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'translator', dueDate: 'Sep 30' });
-      if (laneId && p.role === 'reviewer') for (const unitId of units) await append('v1.AssignmentMade', { unitId, laneId, profileId: id, role: 'reviewer' });
+      if (laneId && p.role === 'translator') {
+        const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+        const c = commands(state, indexesFor(state));
+        for (const unitId of units) await props.project.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, laneId, what: 'record', profileId: id, dueDate: due }));
+      }
+    }
+    if (laneId && !state.laneNames[laneId]) await append('v1.LaneNamed', { laneId, name: 'Dinka' });
+    if (laneId && !state.laneFlows[laneId]) {
+      await props.project.run(commands(state, indexesFor(state)).useFlow({ commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, flowId: 'standard_bible' }));
     }
     await props.project.sync();
     await props.org.sync();
   }
 
   return (
-    <Modal visible={props.open} animationType="slide" transparent onRequestClose={props.onClose}>
-      <Pressable style={styles.backdrop} onPress={props.onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
-        <Text style={text.h4}>{props.isDev ? 'Developer' : 'Testing'}</Text>
-        {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
-        <ScrollView contentContainerStyle={{ gap: space.md }} showsVerticalScrollIndicator={false}>
-          <Text style={styles.label}>PERSONAS (real sign-in)</Text>
-          <View style={styles.group}>
-            {PERSONAS.map((p: Persona) => (
-              <Pressable key={p.id} onPress={() => void run(p.id, () => switchToPersona(p))} disabled={!!busy} style={[styles.row, props.currentEmail === p.email && styles.rowActive]}>
-                <Text style={text.body}>{p.label}</Text>
-                <Text style={text.small}>{busy === p.id ? '…' : p.role ?? 'none'}</Text>
-              </Pressable>
+    <Sheet visible={props.open} title={props.isDev ? 'Developer' : 'Testing'} onClose={props.onClose}>
+      {error ? <Text style={txt.error}>{error}</Text> : null}
+      <SectionLabel label="Personas (real sign-in)" />
+      {personas.ok ? null : <Text style={txt.smMuted}>{personas.reason}</Text>}
+      <Group>
+        {PERSONAS.map((p: Persona, i) => (
+          <Row key={p.id} label={p.label} sub={busy === p.id ? 'Signing in…' : p.role ?? 'No organization'}
+            role="radio" selected={props.currentEmail === p.email} muted={!personas.ok}
+            onPress={personas.ok && !busy ? () => void run(p.id, () => switchToPersona(p)) : undefined}
+            right={props.currentEmail === p.email ? <Text style={txt.xsStrong}>Current</Text> : undefined}
+            last={i === PERSONAS.length - 1} />
+        ))}
+      </Group>
+      {canSeed ? (
+        <Group>
+          <Row icon="people" label="Seed demo team into this organization" sub={busy === 'seed' ? 'Seeding…' : 'Local server, owner only'}
+            onPress={busy ? undefined : () => void run('seed', seed)} last />
+        </Group>
+      ) : null}
+      {props.isDev ? (
+        <>
+          <SectionLabel label="Jump to screen (bypasses flow)" />
+          <Group>
+            {SCREEN_IDS.map((s, i) => (
+              <Row key={s} label={TITLES[s]} sub={s} onPress={() => { props.jump(s); props.onClose(); }} last={i === SCREEN_IDS.length - 1} />
             ))}
-          </View>
-          {props.isOwner ? (
-            <Pressable onPress={() => void run('seed', seed)} disabled={!!busy} style={[styles.row, styles.group]}>
-              <Text style={text.body}>Seed demo team into this project</Text>
-              <Text style={text.small}>{busy === 'seed' ? '…' : 'owner'}</Text>
-            </Pressable>
-          ) : null}
-          {props.isDev ? (
-            <>
-              <Text style={styles.label}>JUMP TO SCREEN (bypasses flow)</Text>
-              <View style={styles.group}>
-                {SCREEN_IDS.map((s) => (
-                  <Pressable key={s} onPress={() => { props.jump(s); props.onClose(); }} style={styles.row}>
-                    <Text style={text.body}>{TITLES[s]}</Text>
-                    <Text style={text.small}>{s}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </>
-          ) : null}
-        </ScrollView>
-      </View>
-    </Modal>
+          </Group>
+        </>
+      ) : null}
+    </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { maxHeight: '80%', backgroundColor: colors.background, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: space.lg, gap: space.md },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border },
-  label: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: colors.mutedForeground },
-  group: { backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, overflow: 'hidden' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  rowActive: { backgroundColor: 'rgba(253, 195, 23, 0.25)' }
-});

@@ -12,6 +12,12 @@ apps/mobile/android/
 supabase/.branches/
 supabase/.temp/
 
+# .easignore replaces .gitignore for uploads, so secrets are listed again.
+# Builds get their variables from EAS environments (npm run env:push:eas),
+# not from these files; Expo would otherwise read the encrypted values.
+.env*
+!.env.example
+
 # npm-style packing drops lockfiles by default; EAS runs `npm ci` at the
 # monorepo root, so the lockfile must be in the archive.
 !package-lock.json

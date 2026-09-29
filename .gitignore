@@ -1,7 +1,9 @@
 node_modules/
+# Env files are committed encrypted with dotenvx (npm run env:check guards it).
+# Private keys and personal overrides never are.
 .env
-.env.*
-!.env.example
+.env.keys
+.env*.local
 supabase/.branches
 supabase/.temp
 .DS_Store

@@ -1,257 +1,505 @@
-// Avatar U. Passage hub, question slides and notes. One yellow next action.
-import * as Crypto from 'expo-crypto';
-import { useRecorder, type RecordedCard } from '../useRecorder';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Doing the work: recording (demo `screens/translate.tsx` WorkspaceScreen,
+// flow nodes `workspace` and `back_translation`). REC-W1..6, REV-5, TERM-4;
+// ADR-015 (a back translation makes content, it isn't a verdict), ADR-028
+// (Publish confirms; the big red record button).
+//
+// Workspace: the source with key terms, your takes (each change kept as the
+// draft on the record, so nothing is lost if you leave), the red record
+// button that opens the voice-detected session, the tray, and Publish.
+// Back translation: the same tools, but you listen to the latest version and
+// what you save is content for the next check, not a version.
 import {
-  commands, currentTake, deriveTakeStatus, materialsFor, tgMaterialId,
-  type Task
+  commands, keyTermsForUnit,
+  type EventSpec, type KindDef, type PassageNote, type ReviewView, type Version
 } from '@langquest-next/core';
-import {
-  ArrowRight, BookOpen, Check, CheckCircle2, Circle, Clock, Headphones,
-  HelpCircle, KeyRound, MessageSquare, Mic, MicOff, Send
-} from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import type { Ctx } from '../ctx';
+import * as Crypto from 'expo-crypto';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
-import { passageProgress, type PassageAction } from '../passageFlow';
-import { getReferenceSlides, referenceRunSignature } from '../passageResources';
+import type { Ctx } from '../ctx';
+import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
-import { useQuery } from '../useQuery';
-import { Footer, Header, Note, Screen } from '../pui';
-import { colors, radius, space, tint } from '../theme';
-import { ActionButton, Card, ProgressRing, text } from '../ui';
+import {
+  Banner, Card, Disclosure, EmptyState, Field, Header, PrimaryBtn, Screen, SectionLabel, Sheet, txt
+} from '../kit';
+import { PassageSourceAudio } from '../passageSourceAudio';
+import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
+import { useBackTranslationDraft } from '../recording/backTranslationDraft';
+import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { VadTakeover } from '../recording/VadTakeover';
+import {
+  backTranslationDraftKey, canPublish, cardDurations, cardLabels, markTerms, removeCardSpecs, sameCards,
+  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
+} from '../recording/workspaceModel';
+import { TrayBody, TrayTabs, type TrayTab } from '../recording/WorkspaceTray';
+import { pendingPassageCards } from '../recordingFlow';
+import { reportError } from '../report';
+import { RequestBanner } from '../reviewing/parts';
+import { contractsFor } from '../screenContracts';
+import { readingsFor, type Reading } from '../scripture';
+import { guideFor } from '../study/guides';
+import { studyProgress } from '../study/progress';
+import { C, radius, space, TINT, type as T } from '../theme';
+import { useRecorder, type RecordedCard } from '../useRecorder';
+import { VoiceNote } from '../voiceNote';
+
+// ---- Workspace ---------------------------------------------------------------------
+
+export function Workspace(ctx: Ctx) {
+  const v = usePassage(ctx);
+  if (!v) return <Missing ctx={ctx} title={TITLES.workspace} />;
+  return <WorkspaceBody key={`${v.unitId}:${v.laneId}`} ctx={ctx} v={v} />;
+}
+
+function Missing(props: { ctx: Ctx; title: string; text?: string }) {
+  return (
+    <Screen header={<Header title={props.title} onBack={props.ctx.back} close />}>
+      <EmptyState icon="mic" title={props.text ?? "This passage isn't on this phone yet."} sub={props.text ? undefined : 'It may still be loading.'} />
+    </Screen>
+  );
+}
+
+function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
+  const { state, unitId, laneId, p } = v;
+  const me = ctx.session.actorId;
+  const idx = indexesFor(state);
+  const latest = p.latest;
+  const nextN = p.versions.length + 1;
+  const isFirst = !latest;
+
+  // ---- the list of takes (REC-W2) ----
+  const pendingCards = useMemo(() => pendingPassageCards(state, unitId, laneId, me), [state, unitId, laneId, me]);
+  const pending = useMemo(() => pendingCards.map((c) => c.hash), [pendingCards]);
+  const durations = useMemo(() => cardDurations(state, unitId, laneId), [state, unitId, laneId]);
+  const draftCards = p.draftTakeId ? state.takes[p.draftTakeId]?.cardHashes : undefined;
+  const [cleared, setCleared] = useState(false);
+  const list = useMemo(() => workingCards({
+    ...(draftCards ? { draftCards } : {}), ...(latest ? { latestCards: latest.cardHashes } : {}), pending, cleared
+  }), [draftCards, latest, pending, cleared]);
+  const labels = cardLabels(list, latest?.cardHashes);
+  const changed = canPublish(list, latest?.cardHashes);
+
+  // Cards arrive from the recorder already saved (addRecording, id chosen
+  // before any save step, journaled against this passage). The latest
+  // render's context is used so a card is never saved against stale state.
+  const latestCtx = useRef(ctx);
+  latestCtx.current = ctx;
+  const persist = useCallback(async (card: RecordedCard) => {
+    const current = latestCtx.current;
+    const s = current.project.state;
+    if (!s) throw new Error('Your organization is still loading.');
+    await current.project.run(commands(s, indexesFor(s)).addRecording({
+      commandId: card.id, recordingId: card.id, unitId, laneId, kind: 'target',
+      card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
+    }));
+    current.project.triggerUpload();
+  }, [unitId, laneId]);
+  const rec = useRecorder(persist, { orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId, laneId });
+  const recording = rec.vadOn || rec.manualOn;
+
+  // Every change persists (REC-W2): saved cards not yet in a take are
+  // composed into the draft as soon as they land, so the list on the record
+  // is always what is on screen.
+  const [composing, setComposing] = useState(false);
+  const [composeError, setComposeError] = useState('');
+  const composeLock = useRef(false);
+  useEffect(() => {
+    if (pending.length === 0 || composeLock.current || composeError) return;
+    composeLock.current = true;
+    setComposing(true);
+    let specs: EventSpec[];
+    try {
+      specs = commands(state, idx).keepTake({ commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: list });
+    } catch (e) {
+      composeLock.current = false;
+      setComposing(false);
+      setComposeError(problemText('workspace: compose draft', e));
+      return;
+    }
+    ctx.project.run(specs)
+      .catch((e: unknown) => setComposeError(`Your takes are saved on this phone but not yet in your draft. ${problemText('workspace: save draft', e)}`))
+      .finally(() => { composeLock.current = false; setComposing(false); });
+    // `composing` is a dependency so a card that landed mid-compose is composed next.
+  }, [state, pending, list, composing, composeError, ctx.project, idx, unitId, laneId]);
+
+  // ---- deleting a take ----
+  const [working, setWorking] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const saving = rec.busy || composing || working;
+  const blocked = saving || recording;
+  async function remove(hash: string) {
+    if (blocked) return;
+    const at = list.indexOf(hash);
+    const label = labels[at] ?? 'Take';
+    const before = list;
+    const { specs, cleared: nowCleared } = removeCardSpecs(state, idx, {
+      commandId: Crypto.randomUUID(), unitId, laneId, list, hash, pending: new Set(pending),
+      ...(p.draftTakeId ? { draftTakeId: p.draftTakeId } : {}), ...(latest ? { latestCards: latest.cardHashes } : {})
+    });
+    const wasCleared = cleared;
+    setWorking(true);
+    // Set first so the list does not flash back to the latest version's takes.
+    setCleared(nowCleared);
+    try {
+      await ctx.act(specs, `${label} deleted.`, () => {
+        setCleared(false);
+        if (latest && sameCards(before, latest.cardHashes)) return [];
+        const s = stateRef.current;
+        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: before });
+      });
+    } catch {
+      setCleared(wasCleared); // ctx.act said what went wrong
+    } finally { setWorking(false); }
+  }
+
+  // ---- context: feedback being answered, or a request (REC-W6) ----
+  const reviseId = ctx.params['reviewId'];
+  const revising = reviseId ? p.reviews.find((r) => r.id === reviseId) : undefined;
+  const requestId = ctx.params['requestId'];
+  const request = (requestId ? p.requests.find((r) => r.id === requestId) : undefined)
+    ?? p.openRequests.find((r) => r.what === 'record' && (!r.profileId || r.profileId === me));
+  // Publishing answers every open feedback on the latest version (REC-W4).
+  const answers = useMemo(() => {
+    const out = [...p.awaitingResponse];
+    if (revising && !out.some((r) => r.id === revising.id) && !revising.response) out.unshift(revising);
+    return out;
+  }, [p.awaitingResponse, revising]);
+
+  // ---- source and key terms (REC-W1) ----
+  const readings = useMemo(() => readingsFor(state, unitId), [state, unitId]);
+  const reading = readings[0];
+  const unitTerms = useMemo(() => keyTermsForUnit(state, laneId, unitId), [state, laneId, unitId]);
+  const sourceWords = useMemo(() => reading?.verses.map((x) => x.text).join(' ') ?? '', [reading]);
+  const tied = useMemo(() => tiedTermIds(state, p.draftTakeId ?? latest?.takeId), [state, p.draftTakeId, latest?.takeId]);
+  // Tying a term is reference work (KeyTermLinked needs fill_reference), so
+  // only someone who may tie carries ties onto the version they publish.
+  const canTie = ctx.session.can('fill_reference');
+  const trayTerms = useMemo(() => {
+    const shown = reading ? termsInText(sourceWords, unitTerms) : unitTerms;
+    const extra = unitTerms.filter((t) => tied.has(t.termId) && !shown.includes(t));
+    return [...shown, ...extra];
+  }, [reading, sourceWords, unitTerms, tied]);
+
+  // ---- the tray (REC-W5) ----
+  const [tab, setTab] = useState<TrayTab | null>(null);
+  const guide = useMemo(() => guideFor(state, unitId), [state, unitId]);
+  const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
+  const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
+
+  // ---- publishing (REC-W3, REC-W4) ----
+  const [confirming, setConfirming] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  async function publish(note: string, noteBlobHash: string | null) {
+    const commandId = Crypto.randomUUID();
+    let specs: EventSpec[];
+    try {
+      specs = commands(state, idx).publishVersion({
+        commandId, unitId, laneId, cardHashes: list, actorId: me,
+        ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
+      });
+      if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
+    } catch (e) {
+      ctx.toast(`Not published: ${problemText('workspace: publish', e)}`);
+      return;
+    }
+    setPublishing(true);
+    try {
+      await ctx.act(specs, `${versionTitle(nextN)} published.`);
+      setConfirming(false);
+      ctx.go('passage_record', { unitId, laneId });
+    } catch { /* ctx.act said what went wrong */ }
+    finally { setPublishing(false); }
+  }
+
+  const cards: ListedCard[] = list.map((hash, i) => ({ hash, label: labels[i] ?? `Take ${i + 1}`, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
+  const problem = rec.failureCount > 0
+    ? <SaveProblem message={rec.error || 'A take did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+    : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
+    : rec.error ? <SaveProblem message={rec.error} /> : null;
+
+  return (
+    <Screen
+      header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.lane} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close />}
+      footer={
+        <View style={{ gap: space.sm }}>
+          <TrayTabs tab={tab} onTab={setTab} terms={trayTerms.length} study={study} notes={notes.length} versions={p.versions.length} />
+          {tab ? (
+            <TrayBody ctx={ctx} v={v} tab={tab} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId} canTie={canTie} study={study} notes={notes} disabled={blocked} />
+          ) : null}
+          {!isFirst && !changed && !recording && list.length > 0 ? (
+            <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s takes. Record a new take or delete one to publish a new version.</Text>
+          ) : null}
+          <View style={styles.actions}>
+            <RecordButton recording={recording} disabled={saving || rec.failureCount > 0} onPress={() => void rec.toggleVad()} />
+            <View style={{ flex: 1 }}>
+              <PrimaryBtn label="Publish" tone="dark" disabled={!changed || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
+            </View>
+          </View>
+        </View>
+      }>
+      {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
+        : request ? <RequestBanner ctx={ctx} request={request} /> : null}
+
+      <Card>
+        <View style={styles.labelRow}>
+          <Text style={[txt.label, { flex: 1 }]}>Source{reading ? ` · ${reading.code}` : ''}</Text>
+          {reading && trayTerms.length > 0 ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
+        </View>
+        {reading && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
+        {reading ? <SourceText reading={reading} terms={unitTerms} tied={tied} onTerm={(termId) => ctx.go('key_term_detail', { unitId, laneId, termId })} />
+          : <Text style={txt.smMuted}>There's no source text for this passage in the app yet. Listen to the source below, then record.</Text>}
+      </Card>
+      {reading ? (
+        <Disclosure icon="listen" title="Listen to the source" summary="Chapter audio and the passage's reference recordings" {...ctx.details(`workspace:source:${unitId}`)}>
+          <View style={{ padding: space.md }}><PassageSourceAudio ctx={ctx} unitId={unitId} laneId={laneId} disabled={recording} /></View>
+        </Disclosure>
+      ) : <PassageSourceAudio ctx={ctx} unitId={unitId} laneId={laneId} disabled={recording} />}
+
+      <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
+      <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h)}
+        empty={isFirst ? 'No takes yet — tap the red button below to start.' : 'No takes yet — tap the red button below to record this version.'} />
+      {problem}
+
+      <VadTakeover rec={rec} count={list.length} />
+      {confirming ? (
+        <PublishSheet ctx={ctx} v={v} n={nextN} first={isFirst} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
+          {...(revising ? { revisingKind: v.kind(revising.kindId).name } : {})}
+          onClose={() => setConfirming(false)} onPublish={(note, hash) => void publish(note, hash)} />
+      ) : null}
+    </Screen>
+  );
+}
 
 /**
- * The task this screen was opened for: one persisted row, never the
- * project. `task` is undefined until the row is read (`ready` false) and
- * when there is no such task (`ready` true).
+ * Verses with their numbers inline; key-term words underlined (REC-W1). A
+ * term tied to the draft is green with a solid underline and a ✓, and says
+ * "tied" to a screen reader, so the tie never rests on colour alone.
  */
-export function useTask(ctx: Ctx): { task: Task | undefined; ready: boolean } {
-  const taskId = ctx.params['taskId'] ?? '';
-  const actorId = ctx.session.actorId;
-  const r = useQuery(ctx.project, (q) => q.getTask(taskId, actorId), [taskId, actorId], undefined as Task | undefined);
-  return { task: r.data, ready: r.ready };
-}
-
-const ACTION = {
-  reference: { icon: Headphones, label: 'Listen to reference material' },
-  terms: { icon: KeyRound, label: 'Record remaining key terms' },
-  record: { icon: Mic, label: 'Record the passage' },
-  submit: { icon: Send, label: 'Prepare hand-off for review' },
-  done: { icon: Clock, label: 'View hand-off status' }
-};
-
-export function TranslatePassage(ctx: Ctx) {
-  const { state } = ctx.project;
-  const { task, ready } = useTask(ctx);
-  const [listened, setListened] = useState<string | null>(null);
-  const items = state && task ? getReferenceSlides(state, task.laneId, task.unitId) : [];
-  const signature = referenceRunSignature(items);
-  const key = `reference-run:${ctx.project.orgId}:${ctx.project.projectId}:${ctx.session.actorId}:${task?.laneId ?? ''}:${task?.unitId ?? ''}`;
-  useEffect(() => {
-    let mounted = true;
-    AsyncStorage.getItem(key).then((value) => { if (mounted) setListened(value ?? ''); })
-      .catch(() => { if (mounted) setListened(''); });
-    return () => { mounted = false; };
-  }, [key]);
-  if (!state || !task) return <Screen><Header title="" onBack={ctx.back} />{ready ? <Note>Task not found.</Note> : <></>}</Screen>;
-  const progress = passageProgress(state, task.laneId, task.unitId, !!items.length && listened !== signature);
-  const questions = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
-    .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
-  const note = state.materials[tgMaterialId(task.laneId)]?.fields[task.unitId];
-  const takeId = progress.takeId;
-  const suggestions = takeId ? Object.values(state.reviews[takeId] ?? {}).flatMap((byActor) =>
-    Object.values(byActor).filter((r) => r.value.decision === 'suggest_changes').map((r) => r.value.comment).filter(Boolean)) : [];
-  const params = { taskId: task.id, unitId: task.unitId, laneId: task.laneId };
-  function advance(action: PassageAction) {
-    if (action === 'reference') ctx.go('passage_references', params);
-    if (action === 'terms') ctx.go('passage_terms', params);
-    if (action === 'record') ctx.go('quest_assets', params);
-    if (action === 'submit') ctx.go('attach_questions', params);
-    if (action === 'done') ctx.go('done_await', { ...params, ...(takeId ? { takeId } : {}) });
-  }
-  const next = ACTION[progress.next];
+function SourceText(props: { reading: Reading; terms: { termId: string; term: string }[]; tied: ReadonlySet<string>; onTerm: (termId: string) => void }) {
+  const verses = useMemo(() => props.reading.verses.map((x) => ({ verse: x, parts: markTerms(x.text, props.terms) })), [props.reading, props.terms]);
   return (
-    <Screen footer={<ActionButton icon={next.icon} accessibilityLabel={next.label}
-      onPress={() => advance(progress.next)} disabled={listened === null} />}>
-      <Header title={state.units[task.unitId]?.label ?? task.unitId} onBack={ctx.back} />
-      <View style={styles.grid}>
-        <TaskTile icon={Headphones} label="Reference material" color={colors.reference}
-          done={!!items.length && listened === signature} onPress={() => advance('reference')} />
-        <TaskTile icon={KeyRound} label={`Key terms: ${progress.recordedTerms} of ${progress.totalTerms} recorded`}
-          color={colors.reference} done={progress.terms.length > 0 && !progress.remainingTerms.length}
-          onPress={() => advance('terms')}
-          extra={<ProgressRing completed={progress.recordedTerms} total={progress.totalTerms} size={30} />} />
-        <TaskTile icon={Mic} label="Recordings" color={colors.translate}
-          done={!!takeId && (state.takes[takeId]?.cardHashes.length ?? 0) > 0} onPress={() => advance('record')} />
-        <TaskTile icon={Send} label={progress.canSubmit ? 'Hand off for review' : progress.status?.submitted ? 'View hand-off status' : 'Hand-off needs a recording'}
-          color={colors.review} blocked={!progress.canSubmit && !progress.status?.submitted}
-          onPress={() => advance(progress.canSubmit ? 'submit' : 'done')} />
-        <TaskTile icon={HelpCircle} label={`Review question sets: ${questions.length}`} color={colors.review}
-          onPress={() => ctx.go('attach_questions', { ...params, mode: 'questions' })} />
-        <TaskTile icon={MessageSquare} label="Passage notes" color={colors.foreground}
-          done={!!note} onPress={() => ctx.go('add_to_tg', params)} />
-      </View>
-      {suggestions.map((comment, i) => <Card key={i}><MessageSquare color={colors.review} size={24} /><Text style={text.body}>{comment}</Text></Card>)}
-      {task.instructions ? <Card><BookOpen color={colors.reference} size={24} /><Text style={text.body}>{task.instructions}</Text></Card> : null}
-    </Screen>
+    <Text style={styles.source}>
+      {verses.map(({ verse, parts }) => (
+        <Text key={verse.ref}>
+          <Text style={styles.verseNum}>{verse.verse} </Text>
+          {parts.map((part, i) => {
+            if (!part.termId) return <Text key={i}>{part.text}</Text>;
+            const tied = props.tied.has(part.termId);
+            return (
+              <Text key={i} onPress={() => props.onTerm(part.termId!)} accessibilityRole="link"
+                accessibilityLabel={`${part.text}, key term${tied ? ', tied to your draft' : ''}`}
+                style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
+            );
+          })}
+          {' '}
+        </Text>
+      ))}
+    </Text>
   );
 }
 
-function TaskTile(props: {
-  icon: typeof Mic; label: string; color: string; done?: boolean;
-  blocked?: boolean; onPress: () => void; extra?: React.ReactNode;
+function FeedbackBanner(props: { ctx: Ctx; review: ReviewView; kind: KindDef }) {
+  const r = props.review;
+  return (
+    <View style={{ gap: space.sm }}>
+      <Banner icon="chat" tone="amber" title={`Revising after ${props.kind.name} feedback`}
+        body={`${r.comment ? `“${r.comment}”\n` : ''}${feedbackSource(r, props.ctx.name)}`} />
+      {r.commentBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
+    </View>
+  );
+}
+
+/**
+ * Publishing is a real step, so it always confirms (REC-W3, ADR-028): the
+ * team can hear it and review it. A later version says what changed.
+ */
+function PublishSheet(props: {
+  ctx: Ctx; v: PassageView; n: number; first: boolean; busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
+  onClose: () => void; onPublish: (note: string, hash: string | null) => void;
 }) {
-  const Icon = props.icon;
+  const [text, setText] = useState(props.revisingKind ? `Revised after the ${props.revisingKind} feedback.` : '');
+  const [hash, setHash] = useState<string | null>(null);
+  const needsNote = !props.first;
+  const title = versionTitle(props.n);
   return (
-    <Pressable onPress={props.onPress} disabled={props.blocked}
-      accessibilityRole="button" accessibilityLabel={props.label}
-      accessibilityState={{ disabled: !!props.blocked }}
-      style={({ pressed }) => [styles.tile, { backgroundColor: `${props.color}0F` },
-        props.done && styles.done, props.blocked && styles.blocked, pressed && { opacity: 0.8 }]}>
-      <Icon size={40} color={props.blocked ? colors.mutedForeground : props.color} />
-      {props.done ? <View style={styles.corner}><CheckCircle2 size={18} color={colors.done} /></View> : null}
-      {props.blocked ? <View style={styles.corner}><MicOff size={18} color={colors.mutedForeground} /></View> : null}
-      {props.blocked ? <View style={styles.strike} /> : null}
-      {props.extra ? <View style={styles.ring}>{props.extra}</View> : null}
-    </Pressable>
+    <Sheet visible title={`Publish ${title}?`}
+      sub="Your team will be able to hear it and review it. It goes on this passage's record, and you can always record a new version later."
+      onClose={props.onClose}
+      footer={<PrimaryBtn label={`Publish ${title}`} tone="dark" busy={props.busy} disabled={needsNote && !text.trim() && !hash}
+        onPress={() => props.onPublish(text, hash)} />}>
+      <Text style={[txt.sm, { fontWeight: '700' }]}>
+        {needsNote ? 'What changed?' : 'Anything reviewers should know?'}{needsNote ? '' : <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}> · optional</Text>}
+      </Text>
+      <VoiceNote ctx={props.ctx} unitId={props.v.unitId} laneId={props.v.laneId} label={needsNote ? 'Say what changed' : 'Say it'} hash={hash} onChange={setHash} />
+      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
+      {props.answers.length > 0 || props.tied > 0 ? (
+        <View style={styles.checks}>
+          {props.answers.map((r) => (
+            <Text key={r.id} style={txt.sm}>✓ Answers the {props.v.kind(r.kindId).name} feedback from {feedbackSource(r, props.ctx.name)}</Text>
+          ))}
+          {props.tied > 0 ? <Text style={txt.sm}>✓ {props.tied} key term{props.tied === 1 ? '' : 's'} tied to this version</Text> : null}
+        </View>
+      ) : null}
+    </Sheet>
   );
 }
 
-/** One question set per slide, followed by an explicit hand-off. */
-export function AttachQuestions(ctx: Ctx) {
-  const { state, run } = ctx.project;
-  const { task, ready } = useTask(ctx);
-  const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState<string[]>([]);
-  const [response, setResponse] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const saving = useRef(false);
-  if (!state || !task) return ready ? <Note>Task not found.</Note> : <></>;
-  const sets = materialsFor(state, { laneId: task.laneId, unitId: task.unitId })
-    .filter((m) => m.kind === 'questions' && (!m.scope.laneId || m.scope.laneId === task.laneId));
-  const idx = indexesFor(state);
-  const takeId = currentTake(state, task.unitId, task.laneId, idx);
-  const take = takeId ? state.takes[takeId] : undefined;
-  const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
-  const respondsTo = take?.parentTakeId;
-  const isResponse = !!respondsTo && !!state.submissions[respondsTo];
-  const canSubmit = !!takeId && !!take?.cardHashes.length && status?.outcome === 'draft';
-  const browsing = ctx.params['mode'] === 'questions';
-  const set = sets[index];
+// ---- Back translation --------------------------------------------------------------
 
-  async function submit() {
-    if (!takeId || !canSubmit || saving.current) return;
-    saving.current = true; setBusy(true); setError('');
+export function BackTranslation(ctx: Ctx) {
+  const v = usePassage(ctx);
+  const kindId = ctx.params['kindId'] ?? '';
+  if (!v) return <Missing ctx={ctx} title={TITLES.back_translation} />;
+  const kind = v.kind(kindId);
+  if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={TITLES.back_translation} text="There's no recording to back-translate yet." />;
+  return <BackTranslationBody key={`${v.unitId}:${v.laneId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
+}
+
+/**
+ * The parts are kept on this phone until Save (decision 30): recorded cards
+ * go to a local draft, not the record, so a deleted part is gone for good
+ * and the saved review names exactly the parts on screen.
+ */
+function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
+  const { state, unitId, laneId, p } = v;
+  const produces = kind.produces!;
+  const me = ctx.session.actorId;
+  const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
+  const drafts = useBackTranslationDraft(
+    backTranslationDraftKey({ projectId: ctx.project.projectId, actorId: me, unitId, laneId, kindId: kind.id }), of.takeId);
+  const parts = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
+  const madeFrom = drafts.draft && parts.length > 0 && drafts.draft.fromTakeId !== of.takeId
+    ? p.versions.find((x) => x.takeId === drafts.draft!.fromTakeId) : undefined;
+  const requestId = ctx.params['requestId'];
+  const request = (requestId ? p.requests.find((r) => r.id === requestId) : undefined)
+    ?? p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === me);
+
+  // No journal target: the card is on disk before this runs, and it is
+  // named only by the draft until Save. Resolving after the draft is written
+  // keeps the recorder holding the file until then.
+  const add = drafts.add;
+  const persist = useCallback(async (card: RecordedCard) => {
+    await add({ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format });
+  }, [add]);
+  const rec = useRecorder(persist);
+  const recording = rec.vadOn || rec.manualOn;
+  const [working, setWorking] = useState(false);
+  const blocked = recording || rec.busy || working || !drafts.loaded || !!drafts.problem;
+
+  async function remove(hash: string, label: string) {
+    if (blocked) return;
+    const at = parts.findIndex((c) => c.hash === hash);
+    const card = parts[at];
+    if (!card) return;
+    setWorking(true);
     try {
-      await run(commands(state!, idx).submitTake({
-        commandId: Crypto.randomUUID(), unitId: task!.unitId, laneId: task!.laneId,
-        questionSetIds: picked.filter((id) => sets.some((s) => s.materialId === id)),
-        ...(isResponse ? { responseNote: response } : {})
-      }));
-      ctx.go('done_await', { takeId });
-    } catch (e) { setError((e as Error).message); }
-    finally { saving.current = false; setBusy(false); }
+      await drafts.remove(hash);
+      ctx.toast(`${label} deleted.`, async () => {
+        try { await drafts.add(card, at); } catch (e) { ctx.toast(`Not restored: ${problemText('back translation: restore part', e)}`); }
+      });
+    } catch (e) {
+      ctx.toast(`Not deleted: ${problemText('back translation: delete part', e)}`);
+    } finally { setWorking(false); }
   }
+
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+  async function save(note: string) {
+    let specs: EventSpec[];
+    try {
+      specs = commands(state, indexesFor(state)).produceContent({
+        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: parts,
+        ...(note.trim() ? { note: note.trim() } : {}), ...(request && !request.legacy ? { requestId: request.id } : {})
+      });
+    } catch (e) {
+      ctx.toast(`Not saved: ${problemText('back translation: save', e)}`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await ctx.act(specs, `${capitalize(produces.what)} saved.`);
+    } catch {
+      setSaving(false); // ctx.act said what went wrong
+      return;
+    }
+    // On the record now; a draft left behind is harmless (saved parts are never offered again).
+    await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
+    setSaving(false);
+    setConfirming(false);
+    ctx.go('passage_record', { unitId, laneId });
+  }
+
+  const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));
   return (
-    <Screen footer={set ? <ActionButton icon={ArrowRight} accessibilityLabel="Next question set" onPress={() => setIndex(index + 1)} />
-      : browsing ? <ActionButton icon={Check} accessibilityLabel="Back to passage" onPress={ctx.back} />
-      : <ActionButton icon={Send} accessibilityLabel={canSubmit ? 'Queue hand-off for review' : 'Record a take before handing off'} onPress={() => void submit()} disabled={busy || !canSubmit} />}>
-      <Header title={state.units[task.unitId]?.label ?? task.unitId}
-        onBack={index > 0 ? () => setIndex(index - 1) : ctx.back} />
-      {set ? <Card>
-        <HelpCircle size={36} color={colors.review} />
-        <Text style={text.small} accessibilityLabel={`Question set ${index + 1} of ${sets.length}`}>{index + 1} / {sets.length}</Text>
-        {set.fields.map((f) => <View key={f.fieldId} style={{ gap: space.sm }}>
-          {f.blobHash ? <AudioClip project={ctx.project} hashes={[f.blobHash]} label="Play question" /> : null}
-          {f.text ? <Text style={text.body}>{f.text}</Text> : null}
-        </View>)}
-        {!browsing ? <ActionButton icon={picked.includes(set.materialId) ? CheckCircle2 : Circle}
-          variant="outline" accessibilityLabel={picked.includes(set.materialId) ? 'Remove this question set' : 'Include this question set'}
-          onPress={() => setPicked((p) => p.includes(set.materialId) ? p.filter((id) => id !== set.materialId) : [...p, set.materialId])} /> : null}
-      </Card> : <Card style={{ alignItems: 'center' }}>
-        {browsing ? <CheckCircle2 size={48} color={colors.done} /> : canSubmit ? <><Mic size={36} color={colors.translate} /><CheckCircle2 size={32} color={colors.done} /></> : <MicOff size={48} color={colors.mutedForeground} />}
-      </Card>}
-      {!set && isResponse && !browsing ? <TextInput style={styles.input} accessibilityLabel="Optional response to review suggestions" placeholder="Optional response" value={response} onChangeText={setResponse} multiline /> : null}
-      {error ? <Text style={text.muted} accessibilityRole="alert">{error}</Text> : null}
+    <Screen
+      header={<Header title={capitalize(produces.what)} sub={`${v.lane} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
+      footer={
+        <View style={styles.actions}>
+          <RecordButton recording={recording} disabled={blocked || rec.failureCount > 0} onPress={() => void rec.toggleVad()} />
+          <View style={{ flex: 1 }}>
+            <PrimaryBtn label={`Save ${produces.what}`} tone="dark" disabled={cards.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
+          </View>
+        </View>
+      }>
+      <Banner icon="swap" title="You're making new content"
+        body={`Listen to ${versionTitle(of.n)}, then say what it means in ${produces.into}, in your own words. You're not judging it — ${checkedBy ? `the ${checkedBy} compares your ${produces.what} with the source` : `the next check compares your ${produces.what} with the source`}.`} />
+      {request ? <RequestBanner ctx={ctx} request={request} /> : null}
+      {madeFrom ? (
+        <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
+          body={`${versionTitle(of.n)} is out now, and saving puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
+      ) : null}
+
+      <SectionLabel label={`Listen · ${v.lane} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
+      <Card>
+        <View style={styles.listenRow}>
+          <AudioClip project={ctx.project} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} disabled={recording} seekControls />
+        </View>
+        <Text style={txt.xs}>Notes, key terms and earlier reviews are hidden on purpose, so only the recording shapes what you say.</Text>
+      </Card>
+
+      <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
+      <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
+        empty={drafts.loaded ? 'No parts yet — listen to a part, then tap the red button and say it in your own words.' : 'Loading your parts…'} />
+      {drafts.problem ? <SaveProblem message={drafts.problem} />
+        : rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+        : rec.error ? <SaveProblem message={rec.error} /> : null}
+
+      <VadTakeover rec={rec} count={cards.length} />
+      {confirming ? (
+        <BackTranslationSheet what={produces.what} into={produces.into} of={of} checkedBy={checkedBy} busy={saving}
+          onClose={() => setConfirming(false)} onSave={(note) => void save(note)} />
+      ) : null}
     </Screen>
   );
 }
 
-/** Passage notes accept speech and preserve the existing written fallback. */
-export function AddToTg(ctx: Ctx) {
-  const { state, run } = ctx.project;
-  const unitId = ctx.params['unitId'] ?? '';
-  const laneId = ctx.params['laneId'] ?? '';
-  const materialId = tgMaterialId(laneId);
-  const field = state?.materials[materialId]?.fields[unitId]?.value;
-  const [note, setNote] = useState(field?.text ?? '');
-  const [busy, setBusy] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [error, setError] = useState('');
-  const saveLock = useRef(false);
-  async function saveCard(card: RecordedCard) {
-    if (!state) return;
-    await run(commands(state, indexesFor(state)).savePassageNote({
-      commandId: Crypto.randomUUID(), materialId, laneId, unitId, text: note,
-      recordingId: Crypto.randomUUID(),
-      card: { hash: card.ref.hash, format: card.ref.format, durationMs: card.durationMs }
-    }));
-    ctx.project.triggerUpload();
-  }
-  const rec = useRecorder(saveCard);
-  async function save() {
-    if (saveLock.current || rec.busy || rec.manualOn || rec.failureCount || recording) return;
-    saveLock.current = true; setBusy(true); setError('');
-    try {
-      if (!state) return;
-      await run(commands(state, indexesFor(state)).savePassageNote({
-        commandId: Crypto.randomUUID(), materialId, laneId, unitId, text: note,
-        ...(field?.blobHash ? { blobHash: field.blobHash } : {})
-      }));
-      ctx.back();
-    } catch (e) { setError((e as Error).message); }
-    finally { saveLock.current = false; setBusy(false); }
-  }
-  return <Screen footer={field?.blobHash || note.trim() ? <ActionButton icon={Check}
-    accessibilityLabel="Save passage note" onPress={() => void save()}
-    disabled={busy || rec.busy || rec.manualOn || !!rec.failureCount || recording || !laneId || !unitId} /> : undefined}>
-    <Header title={state?.units[unitId]?.label ?? unitId}
-      onBack={rec.busy || recording || busy ? undefined : ctx.back} />
-    {field?.blobHash && !recording ? <AudioClip project={ctx.project} hashes={[field.blobHash]} label="Play passage note" /> : null}
-    <Pressable accessibilityRole="button" accessibilityLabel="Hold to record passage note"
-      onPressIn={() => { if (rec.busy || rec.failureCount || busy) return; setRecording(true); void rec.manualDown(); }}
-      onPressOut={() => { void rec.manualUp().finally(() => setRecording(false)); }}
-      style={{ alignSelf: 'center', alignItems: 'center', justifyContent: 'center',
-        width: 82, height: 82, borderRadius: 41,
-        backgroundColor: rec.manualOn ? '#A8120A' : field?.blobHash || note.trim() ? colors.muted : colors.action }}>
-      <Mic size={32} color={rec.manualOn ? 'white' : colors.foreground} />
-    </Pressable>
-    <TextInput style={styles.input} accessibilityLabel="Optional written note"
-      placeholder="Optional written note" value={note} onChangeText={setNote} multiline />
-    {rec.failureCount ? <ActionButton icon={ArrowRight} accessibilityLabel="Retry saving audio note"
-      variant="outline" onPress={() => void rec.retryFailed()} disabled={rec.busy} /> : null}
-    {error || rec.error ? <Note>{error || rec.error}</Note> : null}
-  </Screen>;
+function BackTranslationSheet(props: { what: string; into: string; of: Version; checkedBy: string | undefined; busy: boolean; onClose: () => void; onSave: (note: string) => void }) {
+  const [text, setText] = useState('');
+  return (
+    <Sheet visible title={`Save ${props.what}`}
+      sub={`Of ${versionTitle(props.of.n)}. ${props.checkedBy ? `The ${props.checkedBy} will listen to it next.` : 'It goes on the passage record.'}`}
+      onClose={props.onClose}
+      footer={<PrimaryBtn label={`Save ${props.what}`} tone="dark" busy={props.busy} onPress={() => props.onSave(text)} />}>
+      <Text style={[txt.sm, { fontWeight: '700' }]}>Anything that was hard to say back? <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}>Optional</Text></Text>
+      <Field value={text} onChangeText={setText} placeholder={`Type it — e.g. a word with no ${props.into} match`} multiline />
+    </Sheet>
+  );
+}
+
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
-  tile: { width: '47%', flexGrow: 1, height: 124, borderWidth: 1,
-    borderColor: colors.border, borderRadius: radius.lg,
-    alignItems: 'center', justifyContent: 'center' },
-  done: { backgroundColor: tint.done, borderColor: tint.doneBorder },
-  blocked: { borderStyle: 'dashed', backgroundColor: colors.muted },
-  corner: { position: 'absolute', right: 10, top: 10 },
-  ring: { position: 'absolute', right: 10, bottom: 10 },
-  strike: { position: 'absolute', width: 65, height: 2,
-    backgroundColor: colors.mutedForeground, transform: [{ rotate: '-35deg' }] },
-  input: { borderWidth: 1, borderColor: colors.border,
-    borderRadius: 10, padding: 12, minHeight: 100,
-    backgroundColor: colors.card, color: colors.foreground }
+  actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  source: { fontSize: T.base, lineHeight: 28, color: C.dark },
+  verseNum: { fontSize: T.xs, fontWeight: '700', color: C.primary },
+  term: { fontWeight: '600', color: C.primary, backgroundColor: C.light, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
+  termTied: { color: TINT.greenText, backgroundColor: TINT.green, textDecorationStyle: 'solid' },
+  checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
+  listenRow: { flexDirection: 'row', alignItems: 'center' }
 });
 
-import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('translate_passage', 'attach_questions', 'add_to_tg');
+export const contracts = contractsFor('workspace', 'back_translation');

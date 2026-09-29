@@ -1,594 +1,942 @@
-// Avatar P. Org, project, and language homes; members; invites; review teams.
-import type { Role } from '@langquest-next/core';
-import { CATALOG_VERSION, contentTemplates, derivePieces, deriveWorkflow, instantiateTemplate } from '@langquest-next/core';
-import { Building2, Check, FileText, Globe, Headphones, ListChecks, Plus, QrCode, Users, Workflow, X } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, Share, Switch, Text, TextInput, View } from 'react-native';
+// Running the organization (Manage tab). Ports the demo's src/screens/org.tsx:
+// OrgHomeScreen, LanguageHomeScreen (with HomeSection, HomeCatalogRows,
+// HomeMemberRows, HomeProgressBars), MembersListScreen, InviteMemberScreen
+// (invite and edit), InviteQrScreen, ReviewTeamsScreen,
+// ReviewTeamEditorScreen and NewStructureItemScreen (new language).
+// Requirements ORG-1, ORG-2, ORG-5, ORG-6, ORG-7, NAV-6, FLOW-5; ADR-017
+// (admins reach these homes through Manage), ADR-025 (a language owns its
+// template, starting from the one its organization suggests). The demo's
+// Project Home and New Project are not ported: an organization holds its
+// languages directly (docs/decisions.md 34).
+import { CommandError, deriveFlow, keyTermsFor, laneName, languageProgress, materialsFor, contentTemplate, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Pressable, Share, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import type { Ctx } from '../ctx';
-import { Badge, Footer, Header, Note, Row, Screen, Section } from '../pui';
-import { colors, space } from '../theme';
-import { Card, text } from '../ui';
+import { indexesFor } from '../indexes';
+import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
+import {
+  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row,
+  Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt
+} from '../kit';
+import {
+  addLanguage, assignableLevels, changeMembership, editableAt, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
+  membersAbove, membersAt, memberEntries, newLaneId, parseLevel, progressLine, removeMembership, reviewEligible,
+  saveTeam, scopeAt, suggestedTemplate, sumProgress, teamMembers,
+  type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
+} from '../orgAdmin';
+import { plural, when } from '../passageView';
+import { noteExpected, reportError, failureMessage } from '../report';
+import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
-import { templateSubtree } from '../setupFlow';
+import { C, radius, space, tile, TINT, withAlpha } from '../theme';
+import { PersonAvatar, usePerson } from '../UserChip';
 
-// One org for now, the same constant App.tsx opens with.
-const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
+/**
+ * What to say when something fails (error-tracking): a command's own reason,
+ * or, for a fault, a code a tester can read out, having reported it.
+ */
+const failure = failureMessage;
 
-const ROLES: Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'];
+// ---- shared reading ----------------------------------------------------------------------
 
-function catalogRows(ctx: Ctx) {
+/** Names and progress for the open organization, derived once per fold. */
+function useOrgView(ctx: Ctx) {
+  const state = ctx.project.state;
+  const org = ctx.org.state;
+  const projectId = ctx.project.projectId;
+  const progress = useMemo(() => {
+    const out = new Map<string, LanguageProgress>();
+    if (!state) return out;
+    const idx = indexesFor(state);
+    for (const laneId of Object.keys(state.lanes)) out.set(laneId, languageProgress(state, laneId, idx));
+    return out;
+  }, [state]);
+  const lanes = useMemo(() => state
+    ? Object.keys(state.lanes).sort((a, b) => laneName(state, a).localeCompare(laneName(state, b))) : [], [state]);
+  const orgName = org?.org?.value.name ?? 'Organization';
+  const laneLabel = (laneId: string) => (state?.lanes[laneId] ? laneName(state, laneId) : laneId);
+  const laneProgress = (laneId: string): HomeProgress => progress.get(laneId) ?? { total: 0, recorded: 0, done: 0 };
+  const orgProgress = sumProgress(lanes.map(laneProgress));
+  /** "Dinka", "Wycliffe Associates" or "All languages": where a membership applies. */
+  const target = (scope: Scope) => scope.level === 'lane' ? (scope.laneId ? laneLabel(scope.laneId) : 'Language')
+    : scope.level === 'project' ? LEVEL_LABEL.project : orgName;
+  return { state, org, projectId, orgName, lanes, laneLabel, laneProgress, orgProgress, target };
+}
+
+function roleName(ctx: Ctx, roleId: string): string {
+  return ctx.org.state?.roles[roleId]?.name.value || SEED_ROLES.find((r) => r.roleId === roleId)?.name || roleId;
+}
+
+function liveRoles(ctx: Ctx): { id: string; name: string; privileges: number }[] {
+  return Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired)
+    .map(([id, r]) => ({ id, name: r.name.value || id, privileges: r.privileges.value?.length ?? 0 }))
+    .sort((a, b) => b.privileges - a.privileges || a.name.localeCompare(b.name));
+}
+
+/** The lane a screen is about: its param, else the language this person works in. */
+function laneParam(ctx: Ctx): string {
+  const state = ctx.project.state;
+  const id = ctx.params['laneId'];
+  if (id && (!state || state.lanes[id])) return id;
+  return ctx.laneId ?? Object.keys(state?.lanes ?? {})[0] ?? '';
+}
+
+// ---- level home building blocks ----------------------------------------------------------------
+
+/** A home section: label, a card of rows, and an add row. Open unless hidden (kept across Back). */
+function HomeSection(props: { ctx: Ctx; id: string; label: string; add?: { label: string; onPress: () => void }; children?: ReactNode }) {
+  const hidden = props.ctx.details(`home:${props.id}`);
+  return (
+    <View>
+      <SectionLabel label={props.label} action={<SectionToggle section={props.label} expanded={!hidden.open} onToggle={hidden.onToggle} />} />
+      {hidden.open ? null : (
+        <Group>
+          {props.children}
+          {props.add ? <Row icon="plus" label={props.add.label} onPress={props.add.onPress} last /> : null}
+        </Group>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Show / Hide beside a section label. A screen reader hears the section's
+ * name and whether it is expanded, not a bare "Show". (kit's LinkBtn takes
+ * no accessibility label or state yet; swap to it once it does.)
+ */
+function SectionToggle(props: { section: string; expanded: boolean; onToggle: () => void }) {
+  return (
+    <Pressable onPress={props.onToggle} hitSlop={8} accessibilityRole="button" accessibilityState={{ expanded: props.expanded }}
+      accessibilityLabel={props.section} accessibilityHint={props.expanded ? 'Hides this section' : 'Shows this section'}
+      style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+      <Text style={txt.link}>{props.expanded ? 'Hide' : 'Show'}</Text>
+    </Pressable>
+  );
+}
+
+/** Demo HomeProgressBars: recorded and done, each with its count. */
+function HomeProgressBars(props: { p: HomeProgress }) {
+  const pct = (n: number) => (props.p.total === 0 ? 0 : Math.round((n / props.p.total) * 100));
+  return (
+    <View style={{ gap: space.sm }}>
+      {([['Recorded', props.p.recorded, C.primary], ['Done', props.p.done, C.green]] as const).map(([label, n, color]) => (
+        <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Text style={[txt.xsStrong, { width: 72 }]}>{label}</Text>
+          <View style={{ flex: 1 }}><ProgressBar value={pct(n)} color={color} /></View>
+          <Text style={[txt.xsStrong, { color: C.dark, minWidth: 72, textAlign: 'right' }]}>
+            {n.toLocaleString('en-US')}/{props.p.total.toLocaleString('en-US')}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+type HomeId = 'org_home' | 'language_home';
+
+/**
+ * Manage Content and Manage Processes (ORG-1): only the rows this person may
+ * open, each saying what the languages under this home use.
+ */
+function CatalogRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds: string[]; laneId?: string }) {
+  const { ctx, laneIds } = props;
+  const state = ctx.project.state;
+  const can = ctx.session.can;
+  const params = { level: props.level, ...(props.laneId ? { laneId: props.laneId } : {}) };
+  const counts = useMemo(() => {
+    if (!state) return { study: 0, questions: 0, terms: 0, templates: [] as string[], flows: [] as string[] };
+    const mats = props.laneId ? materialsFor(state, { laneId: props.laneId }) : materialsFor(state);
+    const uniq = (xs: string[]) => [...new Set(xs)];
+    return {
+      study: mats.filter((m) => m.kind === 'fia_study').length,
+      questions: mats.filter((m) => m.kind === 'questions').length,
+      terms: laneIds.reduce((n, l) => n + keyTermsFor(state, l).length, 0),
+      templates: uniq(laneIds.map((l) => contentTemplate(state.laneTemplates[l]?.value.templateId ?? '')?.name ?? 'None')),
+      flows: uniq(laneIds.map((l) => deriveFlow(state, l).name))
+    };
+  }, [state, laneIds, props.laneId]);
+  const applied = (names: string[]) => props.level === 'lane'
+    ? `${names[0] ?? 'None'} applied`
+    : laneIds.length === 0 ? 'No languages yet' : `${names.join(', ')} · ${plural(laneIds.length, 'language')}`;
+  const templates = can('manage_templates');
+  const reference = can('manage_reference');
+  const flows = can('manage_flows');
+  const teams = props.from === 'language_home';
   return (
     <>
-      <Section label="Manage content">
-        <Row icon={FileText} label="Content templates" onPress={() => ctx.go('templates_home')} />
-        <Row icon={FileText} label="Reference material" onPress={() => ctx.go('reference_home')} last />
-      </Section>
-      <Section label="Manage processes">
-        <Row icon={Workflow} label="Review flows" onPress={() => ctx.go('flows_home')} last />
-      </Section>
+      {templates || reference ? (
+        <HomeSection ctx={ctx} id={`${props.from}:content`} label="Manage Content">
+          {templates ? <Row icon="template" label="Content Templates" sub={applied(counts.templates)} onPress={() => ctx.go('templates_home', params)} last={!reference} /> : null}
+          {reference ? <Row icon="book" label="Reference Material" onPress={() => ctx.go('reference_home', params)} last
+            sub={`${counts.study} study · ${counts.questions} question sets · ${counts.terms} key terms`} /> : null}
+        </HomeSection>
+      ) : null}
+      {flows || teams ? (
+        <HomeSection ctx={ctx} id={`${props.from}:process`} label="Manage Processes">
+          {flows ? <Row icon="flow" label="Review Flows" sub={applied(counts.flows)} onPress={() => ctx.go('flows_home', params)} last={!teams} /> : null}
+          {teams ? <Row icon="people" label="Review Teams" sub="Language reviewers grouped into teams" last
+            onPress={() => ctx.go('review_teams', { laneId: props.laneId ?? '' })} /> : null}
+        </HomeSection>
+      ) : null}
     </>
   );
 }
 
-function memberRows(ctx: Ctx) {
-  const n = ctx.project.state ? Object.values(ctx.project.state.members).filter((m) => !m.removed.value).length : 0;
+/** Manage Members: roles visible here and who is assigned. */
+function MemberRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneId?: string }) {
+  const { ctx } = props;
+  const entries = useMemo(() => memberEntries(ctx.org.state, ctx.project.state, ctx.project.projectId), [ctx.org.state, ctx.project.state, ctx.project.projectId]);
+  const here = membersAt(entries, props.level, ctx.project.projectId, props.laneId).length;
+  const people = new Set(entries.map((e) => e.profileId)).size;
+  const sub = props.level === 'lane' ? `${here} assigned at this language` : `${here} at org level · ${people} total`;
+  const params = { level: props.level, ...(props.laneId ? { laneId: props.laneId } : {}) };
   return (
-    <Section label="Manage members">
-      <Row icon={ListChecks} label="Roles" sub={`${ROLES.length} roles`} onPress={() => ctx.go('roles_home')} />
-      <Row icon={Users} label="Members" sub={`${n} members`} onPress={() => ctx.go('members_list')} last />
-    </Section>
+    <HomeSection ctx={ctx} id={`${props.from}:members`} label="Manage Members">
+      <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} at this level and above`} onPress={() => ctx.go('roles_home', params)} />
+      <Row icon="people" label="Members" sub={sub} onPress={() => ctx.go('members_list', params)} last />
+    </HomeSection>
   );
 }
 
+function Loading(props: { title: string; onBack?: () => void }) {
+  return (
+    <Screen header={<Header title={props.title} onBack={props.onBack} />}>
+      <EmptyState icon="cloud" title="Loading" sub="Reading this organization from the phone." />
+    </Screen>
+  );
+}
+
+// ---- Org Home -----------------------------------------------------------------------------------
+
+/**
+ * The organization and its languages (demo OrgHome with ProjectHome's
+ * language list folded in, decision 34): progress over every language,
+ * the languages themselves, what they use, who is assigned, and whether the
+ * organization is listed publicly.
+ */
 export function OrgHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const name = state?.project?.value.name ?? 'Project';
+  const v = useOrgView(ctx);
+  const [shown, setShown] = useState(20);
+  const listing = usePublicListing(ctx);
+  if (!v.org || !v.state) return <Loading title="Organization" />;
+  const mine = Object.values(v.org.members[ctx.session.actorId] ?? {}).find((m) => m.removed.value === false && m.scope.level === 'org');
+  const memberCount = new Set(memberEntries(v.org, v.state, v.projectId).map((e) => e.profileId)).size;
   return (
-    <Screen>
-      <Header title={ctx.org.state?.org?.value.name ?? 'Organization'} />
-      <Section label="Manage projects">
-        {Object.entries(ctx.org.state?.projects ?? {}).map(([id, p]) => <Row key={id}
-          icon={Building2} label={p.name} onPress={() => {
-            if (id === ctx.project.projectId) ctx.go('project_home');
-            else void ctx.openOrganization(ctx.project.orgId, id);
-          }} />)}
-        {!Object.keys(ctx.org.state?.projects ?? {}).length && state?.project
-          ? <Row icon={Building2} label={name} onPress={() => ctx.go('project_home')} /> : null}
-        {ctx.session.isAdmin ? <Row icon={Plus} label={state?.project ? "Set up project" : "New project"} onPress={() => ctx.go('new_project')} last /> : <Row label="" last />}
-      </Section>
-      {catalogRows(ctx)}
-      {memberRows(ctx)}
+    <Screen header={<Header title={v.orgName} />}>
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <View style={{ width: tile.lg, height: tile.lg, borderRadius: radius.lg, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
+            <Ico name="building" size={28} color={C.primary} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={txt.h3}>{v.orgName}</Text>
+            <Text style={txt.xs}>{plural(v.lanes.length, 'language')} · {plural(memberCount, 'member')}</Text>
+            {mine ? <View style={{ flexDirection: 'row' }}><Badge label={roleName(ctx, mine.roleId.value)} tone="brand" /></View> : null}
+          </View>
+        </View>
+        {v.lanes.length ? <HomeProgressBars p={v.orgProgress} /> : null}
+      </Card>
+      <HomeSection ctx={ctx} id="org_home:languages" label="Manage Languages"
+        add={ctx.session.can('manage_structure') ? { label: 'New language', onPress: () => ctx.go('new_language') } : undefined}>
+        {v.lanes.length === 0 ? (
+          <View style={{ padding: space.lg }}><Text style={txt.smMuted}>No languages yet. Add the first one your team will record.</Text></View>
+        ) : v.lanes.slice(0, shown).map((laneId) => (
+          <Row key={laneId} icon="globe" label={v.laneLabel(laneId)} onPress={() => ctx.go('language_home', { laneId })}
+            sub={`${deriveFlow(v.state!, laneId).name} · ${progressLine(v.laneProgress(laneId))}`} />
+        ))}
+      </HomeSection>
+      <ShowMore remaining={v.lanes.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
+      <CatalogRows ctx={ctx} from="org_home" level="org" laneIds={v.lanes} />
+      <MemberRows ctx={ctx} from="org_home" level="org" />
+      {listing.may ? (
+        <HomeSection ctx={ctx} id="org_home:discovery" label="Discovery">
+          <Row icon="globe" label="List publicly" sub="Share the name, languages and progress only" last
+            right={<Toggle label="List this organization publicly" on={listing.listed} disabled={listing.busy} onToggle={() => void listing.set(!listing.listed)} />} />
+        </HomeSection>
+      ) : null}
+      {listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null}
     </Screen>
   );
 }
 
-export function ProjectHome(ctx: Ctx) {
+/**
+ * Whether the organization's work is listed on Explore. The server keys the
+ * listing by partition; an organization has one (decision 34).
+ */
+function usePublicListing(ctx: Ctx) {
+  const may = ctx.session.can('manage_structure');
+  const { orgId, projectId } = ctx.project;
   const [listed, setListed] = useState(false);
-  const [visibilityError, setVisibilityError] = useState('');
-  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    void supabase.from('project_visibility').select('listed')
-      .eq('org_id', ctx.project.orgId).eq('project_id', ctx.project.projectId)
-      .maybeSingle().then(({ data, error }) => {
-        if (error) setVisibilityError(error.message);
-        else setListed(data?.listed ?? false);
+    if (!may) return;
+    let active = true;
+    void supabase.from('project_visibility').select('listed').eq('org_id', orgId).eq('project_id', projectId).maybeSingle()
+      .then(({ data, error: failed }) => {
+        if (!active) return;
+        // Offline or refused: say so rather than showing "not listed".
+        if (failed) { noteExpected('read listing', failed); setError(failed.message); } else setListed(data?.listed ?? false);
       });
-  }, [ctx.project.orgId, ctx.project.projectId]);
-  async function setVisibility(value: boolean) {
-    setVisibilityBusy(true);
-    const { error } = await supabase.rpc('set_project_visibility', {
-      p_org: ctx.project.orgId, p_project: ctx.project.projectId, p_listed: value
-    });
-    if (error) setVisibilityError(error.message);
-    else { setListed(value); setVisibilityError(''); }
-    setVisibilityBusy(false);
+    return () => { active = false; };
+  }, [may, orgId, projectId]);
+  async function set(value: boolean) {
+    setBusy(true);
+    try {
+      const { error: failed } = await supabase.rpc('set_project_visibility', { p_org: orgId, p_project: projectId, p_listed: value });
+      if (failed) { noteExpected('change listing', failed); setError(failed.message); } else { setListed(value); setError(''); }
+    } catch (e) {
+      setError(failure('change listing', e));
+    } finally {
+      setBusy(false);
+    }
   }
-  const { state } = ctx.project;
-  const lanes = state ? Object.entries(state.lanes) : [];
-  const name = state?.project?.value.name ?? 'Project';
-  return (
-    <Screen>
-      <Header title={name} crumbs={[{ label: 'org1', onPress: () => ctx.go('org_home') }, { label: name }]} />
-      {ctx.session.can('manage_structure') ? <Section label="Discovery">
-        <Row label="List this project publicly" sub="Share its name, languages, and progress only"
-          right={<Switch accessibilityLabel="List this project publicly" value={listed}
-            disabled={visibilityBusy} onValueChange={(value) => void setVisibility(value)} />} last />
-        {visibilityError ? <Note>{visibilityError}</Note> : null}
-      </Section> : null}
-      <Section label="Manage languages">
-        {lanes.map(([laneId, l]) => (
-          <Row key={laneId} icon={Globe} label={l.languoidId} onPress={() => ctx.go('language_home', { laneId })} />
-        ))}
-        {ctx.session.isAdmin ? <Row icon={Plus} label="New language" onPress={() => ctx.go('new_language')} last /> : <Row label="" last />}
-      </Section>
-      {catalogRows(ctx)}
-      {memberRows(ctx)}
-      <Section label="Status">
-        <Row label="Open status" onPress={() => ctx.go('status_home')} last />
-      </Section>
-    </Screen>
-  );
+  return { may, listed, error, busy, set };
 }
+
+// ---- Language Home ----------------------------------------------------------------------------------
 
 export function LanguageHome(ctx: Ctx) {
-  const { state } = ctx.project;
-  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
-  const name = state?.project?.value.name ?? 'Project';
-  const lang = state?.lanes[laneId]?.languoidId ?? laneId;
+  const v = useOrgView(ctx);
+  const laneId = laneParam(ctx);
+  const translators = useMemo(() => {
+    const org = ctx.org.state;
+    if (!org) return [];
+    return memberEntries(org, v.state, v.projectId)
+      .filter((e) => e.scope.level === 'lane' && e.scope.laneId === laneId && org.roles[e.roleId]?.privileges.value?.includes('translate'))
+      .map((e) => e.profileId);
+  }, [ctx.org.state, v.state, v.projectId, laneId]);
+  if (!v.state) return <Loading title="Language" />;
+  if (!v.state.lanes[laneId]) {
+    return (
+      <Screen header={<Header title="Language" onBack={ctx.back} />}>
+        <EmptyState icon="globe" title="No languages yet" sub="Add a language from the organization home first." />
+      </Screen>
+    );
+  }
+  const name = v.laneLabel(laneId);
+  const atRoot = ctx.session.adminScope?.level === 'lane';
+  const who = translators.length ? translators.map((id) => ctx.name(id)).join(', ') : 'Unassigned';
   return (
-    <Screen>
-      <Header title={lang} crumbs={[{ label: 'org1', onPress: () => ctx.go('org_home') }, { label: name, onPress: () => ctx.go('project_home') }, { label: lang }]} />
-      {catalogRows(ctx)}
-      <Section label="Review">
-        <Row icon={Users} label="Review teams" onPress={() => ctx.go('review_teams', { laneId })} last />
-      </Section>
-      {memberRows(ctx)}
-      <Section label="Status">
-        <Row label="Open status" onPress={() => ctx.go('language_status', { laneId })} last />
-      </Section>
+    <Screen header={<Header title={name} onBack={atRoot ? undefined : ctx.back} crumbs={[
+      { label: v.orgName, onPress: () => ctx.go('org_home') },
+      { label: name }
+    ]} />}>
+      <Card>
+        <Text style={txt.xs}>Translator: {who} · Review flow: {deriveFlow(v.state, laneId).name} · Code {v.state.lanes[laneId]!.languoidId.toUpperCase()}</Text>
+        <HomeProgressBars p={v.laneProgress(laneId)} />
+      </Card>
+      <Card style={{ backgroundColor: C.primary, borderColor: C.primary }} accessibilityLabel="Passage map"
+        onPress={() => { ctx.setLane(laneId); ctx.go('map_home', { laneId }); }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: withAlpha(C.white, 0.18), alignItems: 'center', justifyContent: 'center' }}>
+            <Ico name="map" size={22} color={C.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[txt.body, { color: C.white, fontWeight: '700' }]}>Passage map</Text>
+            <Text style={[txt.xs, { color: withAlpha(C.white, 0.85) }]}>Every passage, where it stands, and what's next</Text>
+          </View>
+          <Ico name="right" size={22} color={C.white} />
+        </View>
+      </Card>
+      <CatalogRows ctx={ctx} from="language_home" level="lane" laneIds={[laneId]} laneId={laneId} />
+      <MemberRows ctx={ctx} from="language_home" level="lane" laneId={laneId} />
     </Screen>
+  );
+}
+
+// ---- Members ----------------------------------------------------------------------------------
+
+function Avatar(props: { id: string; size?: number }) {
+  const person = usePerson();
+  return <PersonAvatar look={person(props.id)} size={props.size ?? 40} />;
+}
+
+/** One member: role badge and edit, or view only with a lock (demo MemberRows). */
+function MemberRow(props: { ctx: Ctx; e: MemberEntry; target: string; editable: boolean; level: ScopeLevel; last?: boolean }) {
+  const { ctx, e } = props;
+  return (
+    <Row leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
+      sub={`${props.target}${e.since ? ` · joined ${when(e.since)}` : ''}`}
+      onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined}
+      right={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+          <Badge label={roleName(ctx, e.roleId)} tone={props.editable ? 'brand' : 'default'} />
+          {props.editable ? <Ico name="right" size={22} color={C.muted} /> : <Ico name="lock" size={18} color={C.faint} />}
+        </View>
+      } />
   );
 }
 
 export function MembersList(ctx: Ctx) {
-  const { state } = ctx.project;
-  const orgId = ctx.project.orgId;
-  const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const mayAdmit = ctx.session.can('invite_members');
-  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
+  const v = useOrgView(ctx);
+  const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
+  const laneId = level === 'lane' ? laneParam(ctx) : undefined;
+  const mayInvite = ctx.session.can('invite_members');
+  const entries = useMemo(() => memberEntries(v.org, v.state, v.projectId), [v.org, v.state, v.projectId]);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
-  const [error, setError] = useState('');
-
+  const [shown, setShown] = useState(30);
   const refresh = useCallback(async () => {
-    if (!mayAdmit) return;
-    try {
-      setRequests(await pendingRequests(orgId));
-    } catch {
+    if (!mayInvite) return;
+    try { setRequests(await pendingRequests(ctx.project.orgId)); } catch (e) {
       // Offline: the list is a server read with no local mirror, so it stays
       // empty rather than claiming nobody asked.
+      noteExpected('members join requests', e);
     }
-  }, [mayAdmit, orgId]);
+  }, [mayInvite, ctx.project.orgId]);
   useEffect(() => void refresh(), [refresh]);
 
-  async function decide(id: string, accepted: boolean) {
-    setError('');
-    try {
-      await decideRequest(id, accepted, roles.find(([r]) => r === 'translator')?.[0] ?? roles[0]?.[0]);
-      await refresh();
-      await ctx.org.sync();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
+  const current = membersAt(entries, level, v.projectId, laneId);
+  const higher = membersAbove(entries, level, v.projectId);
+  const params = { level, ...(laneId ? { laneId } : {}) };
+  const edit = (e: MemberEntry) => mayInvite && editableAt(e.scope, level);
+  const rows = (list: MemberEntry[]) => list.map((e, i) => (
+    <MemberRow key={e.key} ctx={ctx} e={e} target={v.target(e.scope)} editable={edit(e)} level={level} last={i === list.length - 1} />
+  ));
+  const group = (by: 'lane', label: string) => {
+    const groups = groupBelow(entries, v.projectId);
+    const count = [...groups.values()].reduce((n, g) => n + g.length, 0);
+    const d = ctx.details(`members:${level}:${by}`);
+    return (
+      <View style={{ gap: space.sm }}>
+        <Row icon="globe" label={label} sub={plural(count, 'member')} last
+          onPress={d.onToggle} expanded={d.open} right={<Ico name={d.open ? 'up' : 'down'} size={22} color={C.primary} />} />
+        {d.open ? [...groups].map(([key, list]) => (
+          <View key={key} style={{ gap: space.xs }}>
+            <Text style={[txt.label, { paddingHorizontal: space.xs }]}>
+              {v.laneLabel(key)} · {list.length}
+            </Text>
+            <Group>{rows(list)}</Group>
+          </View>
+        )) : null}
+      </View>
+    );
+  };
+  if (!v.org) return <Loading title="Members" onBack={ctx.back} />;
   return (
-    <Screen>
-      <Header title="Members" onBack={ctx.back} action={ctx.session.isAdmin ? <Badge label="Invite" color={colors.translate} /> : undefined} />
-      {requests.length > 0 ? (
-        <Section label={`Asking to join · ${requests.length}`}>
-          {requests.map((r, i) => (
-            <Row
-              key={r.id}
-              personId={r.profileId}
-              sub={r.message || 'No message'}
-              right={
-                <View style={{ flexDirection: 'row', gap: space.md }}>
-                  <Pressable onPress={() => void decide(r.id, true)} hitSlop={8} accessibilityLabel="Accept">
-                    <Check size={20} color={colors.translate} />
-                  </Pressable>
-                  <Pressable onPress={() => void decide(r.id, false)} hitSlop={8} accessibilityLabel="Decline">
-                    <X size={20} color={colors.mutedForeground} />
-                  </Pressable>
-                </View>
-              }
-              last={i === requests.length - 1}
-            />
-          ))}
-        </Section>
-      ) : null}
-      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
-      <Section label={`Project members · ${members.length}`}>
-        {members.map(([id, m], i) => (
-          <Row key={id} personId={id} label={id === ctx.session.actorId ? 'You' : undefined} sub={id} badge={m.role.value} onPress={ctx.session.isAdmin ? () => ctx.go('edit_member', { memberId: id }) : undefined} last={i === members.length - 1} />
+    <Screen header={<Header title="Members" onBack={ctx.back}
+      action={mayInvite ? <SmallBtn label="Invite" icon="plus" tone="primary" onPress={() => ctx.go('invite_member', params)} /> : undefined} />}>
+      <Text style={txt.xs}>
+        Members assigned at {LEVEL_LABEL[level].toLowerCase()} scope{level !== 'org' ? ' for this view' : ''}. Expand the groups below for the other levels.
+      </Text>
+      <SectionLabel label={`${LEVEL_LABEL[level]} members · ${current.length + requests.length}`} />
+      <Group>
+        {requests.map((r) => (
+          <Row key={r.id} leading={<Avatar id={r.profileId} />} label={ctx.name(r.profileId)} sub={r.message || 'Asked to join'}
+            onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level })}
+            right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}><Badge label="Pending" tone="amber" /><Ico name="right" size={22} color={C.muted} /></View>} />
         ))}
-      </Section>
-      {ctx.session.isAdmin ? <Footer label="Invite" onPress={() => ctx.go('invite_member')} /> : null}
+        {rows(current.slice(0, shown))}
+        {current.length === 0 && requests.length === 0 ? (
+          <View style={{ padding: space.lg }}><Text style={txt.smMuted}>No members assigned at this level yet.</Text></View>
+        ) : null}
+      </Group>
+      <ShowMore remaining={current.length - shown} step={30} onMore={() => setShown((n) => n + 30)} />
+      {level !== 'lane' ? (
+        <>
+          <SectionLabel label="Expand by" />
+          {group('lane', 'By language')}
+        </>
+      ) : null}
+      {higher.length > 0 ? (
+        <>
+          <SectionLabel label="Higher levels · view only" />
+          <Group>{higher.map((e, i) => <MemberRow key={e.key} ctx={ctx} e={e} target={v.target(e.scope)} editable={false} level={level} last={i === higher.length - 1} />)}</Group>
+        </>
+      ) : null}
     </Screen>
   );
+}
+
+// ---- Invite, and editing a member (one form, as in the demo) ------------------------------------
+
+/** A list of choices on one card, the chosen one ticked; a screen reader hears radio buttons and which is selected. */
+function Choices(props: { items: { id: string; label: string; sub?: string; badge?: string }[]; value: string; onChoose: (id: string) => void; empty?: string }) {
+  if (props.items.length === 0) return <Text style={txt.smMuted}>{props.empty ?? 'Nothing to choose from.'}</Text>;
+  return (
+    <Group>
+      {props.items.map((it, i) => (
+        <Row key={it.id} label={it.label} sub={it.sub} badge={it.badge} onPress={() => props.onChoose(it.id)} last={i === props.items.length - 1}
+          role="radio" selected={props.value === it.id}
+          right={props.value === it.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+      ))}
+    </Group>
+  );
+}
+
+/** Role, assignment scope, and the language it applies to (ORG-6, ORG-7). */
+function AssignmentForm(props: {
+  ctx: Ctx;
+  roles: { id: string; name: string; sub?: string }[];
+  levels: ScopeLevel[];
+  value: { roleId: string; level: ScopeLevel; projectId: string; laneId: string };
+  onChange: (v: { roleId: string; level: ScopeLevel; projectId: string; laneId: string }) => void;
+}) {
+  const { ctx, value } = props;
+  const v = useOrgView(ctx);
+  const admin = ctx.session.adminScope;
+  const lanes = admin?.level === 'lane' && admin.laneId ? [admin.laneId] : v.lanes;
+  return (
+    <>
+      <SectionLabel label="Role" />
+      <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub }))} value={value.roleId}
+        onChoose={(roleId) => props.onChange({ ...value, roleId })} empty="No roles available here." />
+      <SectionLabel label="Assignment scope" />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        {props.levels.map((l) => (
+          <Chip key={l} label={LEVEL_LABEL[l]} on={value.level === l} onPress={() => props.onChange({
+            ...value, level: l,
+            projectId: l === 'org' ? '' : v.projectId,
+            laneId: l === 'lane' ? value.laneId || (lanes.length === 1 ? lanes[0]! : '') : ''
+          })} />
+        ))}
+      </View>
+      <Text style={txt.xs}>Where this person can use the selected role's privileges.</Text>
+      {value.level === 'lane' ? (
+        <>
+          <SectionLabel label="Language" />
+          <Text style={txt.xs}>Which language this assignment applies to.</Text>
+          <Choices items={lanes.map((id) => ({ id, label: v.laneLabel(id) }))} value={value.laneId}
+            onChoose={(laneId) => props.onChange({ ...value, laneId, projectId: v.projectId })} empty="No languages yet." />
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function scopeOf(value: { level: ScopeLevel; projectId: string; laneId: string }): Scope | null {
+  if (value.level === 'org') return { level: 'org' };
+  if (!value.projectId) return null;
+  if (value.level === 'project') return { level: 'project', projectId: value.projectId };
+  return value.laneId ? { level: 'lane', projectId: value.projectId, laneId: value.laneId } : null;
 }
 
 export function InviteMember(ctx: Ctx) {
-  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
-  const [roleId, setRoleId] = useState(roles[0]?.[0] ?? '');
-
+  const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
+  const floor = grantFloor(ctx.session.adminScope, level);
+  const levels = assignableLevels(ctx.session.adminScope, level);
+  const roles = liveRoles(ctx);
+  const [email, setEmail] = useState('');
+  const [form, setForm] = useState({
+    roleId: '', level: floor ?? 'org' as ScopeLevel,
+    projectId: floor && floor !== 'org' ? ctx.project.projectId : '',
+    laneId: floor === 'lane' ? laneParam(ctx) : ''
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const scope = scopeOf(form);
+  const ready = /\S+@\S+\.\S+/.test(email.trim()) && !!form.roleId && !!scope && !!floor;
+  async function send() {
+    if (!ready || !scope) return;
+    setBusy(true);
+    setError('');
+    try {
+      const invite = await issueInvite(ctx.project.orgId, form.roleId, scope);
+      const { error: failed } = await supabase.functions.invoke('send-invite', { body: { inviteId: invite.inviteId, token: invite.token, email: email.trim() } });
+      if (failed) {
+        const details = failed.context instanceof Response ? await failed.context.json().catch(() => null) : null;
+        throw new Error(details?.error ?? failed.message);
+      }
+      ctx.toast(`Invite sent to ${email.trim()} as ${roleName(ctx, form.roleId)}`);
+      ctx.back();
+    } catch (e) {
+      // Offline or the server said no: its words say which.
+      noteExpected('send invite', e);
+      setError(e instanceof Error ? e.message : 'Try again when connected.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const params = { level, ...(ctx.params['laneId'] ? { laneId: ctx.params['laneId'] } : {}) };
   return (
-    <Screen footer={<Footer label="Next" onPress={() => ctx.go('invite_qr', { roleId })} disabled={!roleId} />}>
-      <Header title="Invite" onBack={ctx.back} />
-      <Note>Pick what they join as. The next screen makes the code, which is shown once.</Note>
-      <Section label="They join as">
-        {roles.map(([id, r], i) => (
-          <Row key={id} label={r.name.value || id} onPress={() => setRoleId(id)} right={roleId === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === roles.length - 1} />
-        ))}
-      </Section>
+    <Screen header={<Header title="Invite Member" onBack={ctx.back} />}
+      footer={<PrimaryBtn label="Send Invite" icon="share" disabled={!ready} busy={busy} onPress={() => void send()} />}>
+      <Text style={txt.xs}>{floor
+        ? 'Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.'
+        : 'Sign in as an admin to invite members.'}</Text>
+      <Card onPress={() => ctx.go('invite_qr', params)} accessibilityLabel="Invite by QR code">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
+            <Ico name="qr" size={22} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[txt.body, { fontWeight: '600' }]}>Invite by QR code</Text>
+            <Text style={txt.xs}>For people without email — they scan to join</Text>
+          </View>
+          <Ico name="right" size={22} color={C.muted} />
+        </View>
+      </Card>
+      <Field label="Email address" value={email} onChangeText={setEmail} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" />
+      <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
+      {error ? <Banner icon="flag" tone="amber" title="The invite was not sent" body={error} /> : null}
     </Screen>
   );
 }
 
-/** Confirm the previously selected role and create one redeemable QR. */
-export function InviteQr(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
-  const roles = Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired);
-  const roleId = ctx.params['roleId'] ?? '';
-  const roleName = roles.find(([id]) => id === roleId)?.[1].name.value;
-  const [invite, setInvite] = useState<NewInvite | null>(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [email, setEmail] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
-  async function sendEmail() {
-    if (!invite) return;
-    setBusy(true);
-    setError('');
-    try {
-      const { error } = await supabase.functions.invoke('send-invite', {
-        body: { inviteId: invite.inviteId, token: invite.token, email }
-      });
-      if (error) {
-        const details = error.context instanceof Response ? await error.context.json() : null;
-        throw new Error(details?.error ?? error.message);
-      }
-      setEmailSent(true);
-    } catch (e) { setError((e as Error).message); }
-    finally { setBusy(false); }
-  }
-
-  async function generate() {
-    setBusy(true);
-    setError('');
-    try {
-      setInvite(await issueInvite(orgId, roleId, { level: 'org' }));
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    setBusy(false);
-  }
-
-  return (
-    <Screen footer={invite ? <Footer label="Done" onPress={() => ctx.go('members_list')} /> : <Footer label="Create invite" onPress={() => void generate()} disabled={busy || !roleName} />}>
-      <Header title="Invite by QR" onBack={ctx.back} />
-      {invite ? (
-        <>
-          <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
-            <QRCode value={inviteUri(orgId, invite.token)} size={200} backgroundColor="white" />
-          </View>
-          <Card>
-            <Text style={text.small}>Or type this code</Text>
-            <Text selectable style={[text.body, { fontFamily: 'Courier' }]}>{invite.token}</Text>
-          </Card>
-          <Note>Shown once. Leaving this screen loses the code, and you make a new invite instead. It expires {new Date(invite.expiresAt).toDateString()}.</Note>
-          <TextInput accessibilityLabel="Invitation email" placeholder="Email address"
-            value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address"
-            editable={!emailSent && !busy} style={{ padding: space.md, backgroundColor: colors.card }} />
-          <Row label={emailSent ? 'Email sent' : busy ? 'Sending…' : 'Send invite by email'}
-            onPress={!busy && !emailSent && email.includes('@') ? () => void sendEmail() : undefined} />
-          <Row label="Share invite" onPress={() => void Share.share({ message: inviteUri(orgId, invite.token) })} last />
-        </>
-      ) : (
-        <>
-          <View style={{ alignItems: 'center', paddingVertical: space.xl }}>
-            <QrCode size={160} color={colors.mutedForeground} />
-          </View>
-          <Note>{roleName ? `They join as ${roleName}. This invite can be used once.` : 'Go back and choose a role first.'}</Note>
-          <Row label="Change role" onPress={ctx.back} last />
-        </>
-      )}
-      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
-    </Screen>
-  );
+/** A failure ctx.act has already shown. */
+class AlreadySaid extends Error {
+  override name = 'AlreadySaid';
 }
 
 export function EditMember(ctx: Ctx) {
+  const v = useOrgView(ctx);
   const memberId = ctx.params['memberId'] ?? '';
-  const memberships = Object.entries(ctx.org.state?.members[memberId] ?? {})
-    .filter(([, m]) => !m.removed.value);
-  const [scopeKey, setScopeKey] = useState(memberships[0]?.[0] ?? '');
-  const membership = memberships.find(([key]) => key === scopeKey)?.[1];
-  const current = membership?.roleId.value ?? ctx.project.state?.members[memberId]?.role.value ?? 'viewer';
-  const [chosen, setChosen] = useState<string | null>(null);
-  const role = chosen ?? current;
-  const roles = membership ? Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired)
-    .map(([id,r]) => ({ id,name:r.name.value })) : ROLES.map((id) => ({ id,name:id }));
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const allowed = ctx.session.can('invite_members');
-  async function update(remove: boolean) {
-    if (!allowed || busy) return;
-    setBusy(true);
-    try {
-      if (membership) {
-        if (remove) await ctx.org.append('v1.OrgMemberRemoved', { profileId: memberId, scope: membership.scope });
-        else if (role !== current) await ctx.org.append('v1.OrgMemberAdded', { profileId: memberId, roleId: role, scope: membership.scope });
-      } else if (remove) await ctx.project.append('v1.MemberRemoved', { profileId: memberId });
-      else if (role !== current) await ctx.project.append('v1.MemberRoleChanged', { profileId: memberId, role: role as Role });
-      ctx.back();
-    } catch (e) { setError((e as Error).message); }
-    finally { setBusy(false); }
-  }
-  return (
-    <Screen footer={allowed ? <Footer label="Save member" onPress={() => void update(false)} disabled={busy}
-      secondary={{ label: 'Remove from this scope', onPress: () => void update(true) }} /> : undefined}>
-      <Header title="Edit member" onBack={ctx.back} />
-      {memberships.length > 1 ? <Section label="Scope">
-        {memberships.map(([key]) => <Row key={key} label={key}
-          badge={key === scopeKey ? 'selected' : undefined}
-          onPress={() => { setScopeKey(key); setChosen(null); }} />)}
-      </Section> : null}
-      <Section label="Role">
-        {roles.map((r) => <Row key={r.id} label={r.name}
-          onPress={allowed ? () => setChosen(r.id) : undefined}
-          right={role === r.id ? <Check size={18} color={colors.translate} /> : <View />} />)}
-      </Section>
-      {error ? <Note>{error}</Note> : null}
-    </Screen>
-  );
-}
-
-export function NewProject(ctx: Ctx) {
-  const { state, appendMany } = ctx.project;
-  const laneEntries = state ? Object.entries(state.lanes) : [];
-  const laneId = laneEntries[0]?.[0] ?? `lane-${ctx.project.projectId}`;
-  const [step, setStep] = useState(0);
-  const [templateId, setTemplateId] = useState(state?.laneTemplates[laneId]?.value.templateId ?? 'bible');
-  const [rootItemId, setRootItemId] = useState('');
-  const [language, setLanguage] = useState(laneEntries[0]?.[1].languoidId ?? 'und');
-  const [reference, setReference] = useState('');
-  const [referenceAudioHash, setReferenceAudioHash] = useState('');
-  const [assignee, setAssignee] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [projectName, setProjectName] = useState(state?.project?.value.name ?? '');
-  const canStructure = ctx.session.can('manage_templates') && (laneEntries.length > 0 || ctx.session.can('manage_structure'));
-  const canReference = ctx.session.can('manage_reference');
-  const canAssign = ctx.session.can('assign_work');
-  const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const template = contentTemplates().find((t) => t.id === templateId);
-  const rootUnitId = rootItemId ? `${templateId}@${CATALOG_VERSION}/${rootItemId}` : '';
-  const pieces = state ? derivePieces(state, laneId) : [];
-  const targetPiece = pieces.find((piece) => {
-    let id: string | null = piece.unitId;
-    const seen = new Set<string>();
-    while (id && !seen.has(id)) {
-      if (id === rootUnitId) return true;
-      seen.add(id); id = state?.units[id]?.parentUnitId ?? null;
-    }
-    return false;
+  const requestId = ctx.params['requestId'];
+  const viewLevel = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
+  const entries = useMemo(() => memberEntries(v.org, v.state, v.projectId).filter((e) => e.profileId === memberId), [v.org, v.state, v.projectId, memberId]);
+  const entry = entries.find((e) => e.key === ctx.params['entry']) ?? entries[0];
+  const legacy = entry?.legacyRole !== undefined;
+  const pending = !!requestId;
+  const roles = legacy
+    ? SEED_ROLES.map((r) => ({ id: r.roleId, name: r.name }))
+    : liveRoles(ctx);
+  const levels: ScopeLevel[] = pending ? ['org'] : legacy ? ['project'] : [...new Set([...(entry ? [entry.scope.level] : []), ...assignableLevels(ctx.session.adminScope, viewLevel)])];
+  const [form, setForm] = useState({
+    roleId: entry?.roleId ?? '',
+    level: (pending ? 'org' : entry?.scope.level ?? 'org') as ScopeLevel,
+    projectId: entry?.scope.projectId ?? '',
+    laneId: entry?.scope.laneId ?? ''
   });
-  const sourceRecordings = state
-    ? Object.entries(state.recordings).filter(([, r]) => {
-        if (r.kind !== 'source' || r.laneId !== laneId || !r.cards[0]) return false;
-        if (!rootUnitId) return false;
-        let id: string | null = r.unitId;
-        const seen = new Set<string>();
-        while (id && !seen.has(id)) {
-          seen.add(id);
-          if (id === rootUnitId) return true;
-          id = state.units[id]?.parentUnitId ?? null;
-        }
-        return false;
-      })
-    : [];
-  const assigned = !!targetPiece && !!state && Object.values(state.assignments).some((a) => a.laneId === laneId && a.unitId === targetPiece.unitId && a.role === 'translator');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const allowed = ctx.session.can('invite_members');
+  const scope = scopeOf(form);
+  const who = ctx.name(memberId);
 
-  function setupUnits(templateId: string) {
-    const t = contentTemplates().find((candidate) => candidate.id === templateId);
-    if (!t) return [];
-    const root = rootItemId;
-    if (!root) return [];
-    const ids = templateSubtree(t, root);
-    return instantiateTemplate(templateId).filter((unit) => ids.has(unit.unitId.split('/').pop() ?? ''));
+  async function runOrg(ops: OrgOp[]) {
+    for (const op of ops) await ctx.org.append(op.type, op.payload as never);
   }
-
-  async function saveStructure() {
-    if (!canStructure || busy || !template) return;
-    setBusy(true);
-    setError('');
+  /** Undo from the toast: the screen may be gone by then, so the outcome is a toast too. */
+  async function undoOrg(ops: OrgOp[], where: string) {
     try {
-      const events: Parameters<typeof appendMany>[0] = [];
-      if (!state?.project) {
-        const name = projectName.trim();
-        if (!name) throw new Error('Enter a project name first.');
-        await ctx.org.append('v1.ProjectRegistered', { projectId: ctx.project.projectId, name });
-        await ctx.project.append('v1.ProjectCreated', { name, sourceLanguoidId: 'eng' });
-        await ctx.project.append('v1.MemberAdded', { profileId: ctx.session.actorId, role: 'owner' });
-      }
-      if (!state?.lanes[laneId]) events.push({ type: 'v1.LaneAdded', payload: { laneId, languoidId: language.trim() || 'und' } });
-      const selected = state?.laneTemplates[laneId]?.value;
-      if (selected?.templateId !== templateId) {
-        events.push({ type: 'v1.LaneTemplateSelected', payload: { laneId, templateId, catalogVersion: CATALOG_VERSION } });
-      }
-      const existing = state?.units ?? {};
-      events.push(...setupUnits(templateId).filter((u) => !existing[u.unitId]).map((payload) => ({ type: 'v1.UnitAdded' as const, payload })));
-      if (events.length) await appendMany(events);
-      setStep(1);
+      await runOrg(ops);
+      ctx.toast('Put back.');
     } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
+      ctx.toast(`Not put back. ${failure(where, e)}`);
     }
   }
-
-  async function saveReference() {
-    if (!canReference || busy || (!reference.trim() && !referenceAudioHash)) return;
+  /** ctx.act says "Not saved" and why itself; this only keeps the screen open without a second message. */
+  const act: Ctx['act'] = (...args) => ctx.act(...args).catch(() => { throw new AlreadySaid(); });
+  async function attempt(work: () => Promise<void>) {
+    if (busy) return;
     setBusy(true);
     setError('');
-    try {
-      const materialId = `setup-brief:${ctx.project.projectId}:${laneId}:${rootUnitId}`;
-      const events: Parameters<typeof appendMany>[0] = [];
-      if (!state?.materials[materialId]) events.push({ type: 'v1.MaterialDefined', payload: { materialId, kind: 'fia_study', title: 'Reference walkthrough', scope: { laneId, ...(rootUnitId ? { unitId: rootUnitId } : {}) }, templateRef: 'fia_study' } });
-      events.push({ type: 'v1.MaterialFieldSet', payload: { materialId, fieldId: 'summary', ...(reference.trim() ? { text: reference.trim() } : {}), ...(referenceAudioHash ? { blobHash: referenceAudioHash } : {}) } });
-      await appendMany(events);
-      setStep(2);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    try { await work(); ctx.back(); } catch (e) {
+      if (!(e instanceof AlreadySaid)) setError(failure('edit member', e));
+    } finally { setBusy(false); }
   }
-
-  async function saveAssignment() {
-    if (busy || assigned) {
-      if (assigned) ctx.go('project_home');
+  const save = () => attempt(async () => {
+    if (!scope || !form.roleId) return;
+    const role = roleName(ctx, form.roleId);
+    if (pending) {
+      await decideRequest(requestId!, true, form.roleId);
+      await ctx.org.sync();
+      ctx.toast(`${who} is now ${role}`);
       return;
     }
-    if (!canAssign || !assignee || !targetPiece) return;
+    if (!entry) return;
+    if (legacy) {
+      const next = SEED_ROLES.find((r) => r.roleId === form.roleId)?.fixed;
+      const was = entry.legacyRole!;
+      if (!next || next === was) return;
+      const id = Crypto.randomUUID();
+      const change = (r: Role, n: string) => [{ id: `${id}:${n}`, type: 'v1.MemberRoleChanged' as const, payload: { profileId: memberId, role: r } }];
+      await act(change(next, 'do'), `${who} is now ${role}`, () => change(was, 'undo'));
+      return;
+    }
+    const plan = changeMembership(entry, { roleId: form.roleId, scope });
+    if (plan.apply.length === 0) return;
+    await runOrg(plan.apply);
+    ctx.toast(`${who} is now ${role}`, () => undoOrg(plan.undo, 'undo role change'));
+  });
+  const remove = () => attempt(async () => {
+    if (!entry) return;
+    const where = LEVEL_LABEL[entry.scope.level].toLowerCase();
+    if (legacy) {
+      const id = Crypto.randomUUID();
+      await act([{ id: `${id}:0`, type: 'v1.MemberRemoved', payload: { profileId: memberId } }], `${who} removed`,
+        () => [{ id: `${id}:1`, type: 'v1.MemberRoleChanged', payload: { profileId: memberId, role: entry.legacyRole! } }]);
+      return;
+    }
+    const plan = removeMembership(entry);
+    await runOrg(plan.apply);
+    ctx.toast(`${who} removed at ${where} level`, () => undoOrg(plan.undo, 'undo remove member'));
+  });
+  const decline = () => attempt(async () => {
+    await decideRequest(requestId!, false);
+    await ctx.org.sync();
+    ctx.toast(`Declined ${who}'s request`);
+  });
+
+  if (!entry && !pending) {
+    return (
+      <Screen header={<Header title="Edit Member" onBack={ctx.back} />}>
+        <EmptyState icon="user" title="Not a member here" sub="This person has no role in this organization any more." />
+      </Screen>
+    );
+  }
+  const sub = pending ? (ctx.params['message'] || 'Awaiting approval') : `${roleName(ctx, entry!.roleId)} · ${v.target(entry!.scope)}`;
+  const ready = allowed && !!form.roleId && !!scope;
+  return (
+    <Screen header={<Header title={pending ? 'Assign Role' : who} sub={sub} onBack={ctx.back} />}
+      footer={allowed ? (
+        <>
+          <PrimaryBtn label={pending ? 'Assign Role' : 'Save Assignment'} disabled={!ready} busy={busy} onPress={() => void save()} />
+          {pending ? <GhostBtn label="Decline" tone="red" onPress={() => void decline()} disabled={busy} /> : null}
+        </>
+      ) : undefined}>
+      <Row leading={<Avatar id={memberId} size={48} />} label={who} sub={pending ? 'Asked to join' : v.target(entry!.scope)} />
+      <Text style={txt.xs}>{pending
+        ? 'This person created an account and asked to join. Assign a role to give them access; they join at organization scope, and you can narrow it here afterwards.'
+        : legacy ? 'Added before organization roles. Their role applies to every language.'
+        : 'Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.'}</Text>
+      {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
+        : <Banner icon="lock" title="View only" body="Only people who can invite members change roles." />}
+      {error ? <Banner icon="flag" tone="amber" title="Not saved" body={error} /> : null}
+      {allowed && !pending ? (
+        // The demo has no Remove here; kept as a quiet link below the form,
+        // away from Save, and it offers Undo.
+        <LinkBtn label={`Remove from ${LEVEL_LABEL[entry!.scope.level].toLowerCase()}`} color={TINT.redText}
+          onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
+      ) : null}
+    </Screen>
+  );
+}
+
+// ---- Invite by QR -------------------------------------------------------------------------------------
+
+const QR_STEPS = ['Role', 'Name', 'QR code'];
+
+export function InviteQr(ctx: Ctx) {
+  const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
+  const floor = grantFloor(ctx.session.adminScope, level) ?? level;
+  const scope = scopeAt(floor, ctx.project.projectId, floor === 'lane' ? laneParam(ctx) : undefined);
+  const roles = liveRoles(ctx);
+  // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
+  const preferred = ctx.params['roleId'];
+  const [step, setStep] = useState(preferred && roles.some((r) => r.id === preferred) ? 1 : 0);
+  const [roleId, setRoleId] = useState(preferred ?? '');
+  const [name, setName] = useState('');
+  const [invite, setInvite] = useState<NewInvite | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const role = roles.find((r) => r.id === roleId) ?? null;
+  const canAdvance = step === 0 ? !!role : step === 1 ? name.trim().length > 0 : true;
+  async function next() {
+    if (step === 0) return setStep(1);
     setBusy(true);
     setError('');
     try {
-      await ctx.project.append('v1.AssignmentMade', { unitId: targetPiece.unitId, laneId, profileId: assignee, role: 'translator' });
-      ctx.go('project_home');
+      setInvite(await issueInvite(ctx.project.orgId, roleId, scope));
+      setStep(2);
     } catch (e) {
-      setError((e as Error).message);
+      // Offline or refused by the server: its words say which.
+      noteExpected('issue invite', e);
+      setError(e instanceof Error ? e.message : 'Try again when connected.');
     } finally {
       setBusy(false);
     }
   }
-
-  const footer = step === 0
-    ? <Footer label="Use structure" onPress={() => void saveStructure()} disabled={busy || !canStructure || !template || !rootItemId} />
-    : step === 1
-      ? <Footer label="Save reference material" onPress={() => void saveReference()} disabled={busy || !canReference || (!reference.trim() && !referenceAudioHash)} secondary={{ label: 'Skip for now', onPress: () => setStep(2) }} />
-    : <Footer label={assigned ? 'Open project' : 'Send assignment'} onPress={() => void saveAssignment()} disabled={busy || (!assigned && (!canAssign || !assignee || !targetPiece))} />;
-
+  const params = { level, ...(ctx.params['laneId'] ? { laneId: ctx.params['laneId'] } : {}) };
+  // The link carries the org and the token only: a scanner shows nothing a
+  // forwarded link could have altered. The name stays on this screen.
+  const uri = invite ? inviteUri(ctx.project.orgId, invite.token) : '';
   return (
-    <Screen footer={footer}>
-      <Header title="Set up project" sub={`Step ${step + 1} of 3`} onBack={() => (step > 0 ? setStep(step - 1) : ctx.back())} />
+    <Screen header={<Header title="Invite by QR" sub={role ? role.name : 'Role and name only'}
+      onBack={step === 1 && !invite ? () => setStep(0) : ctx.back} />}
+      footer={step < 2
+        ? <PrimaryBtn label="Continue" disabled={!canAdvance} busy={busy} onPress={() => void next()} />
+        : <PrimaryBtn label="Done" icon="check" onPress={() => ctx.go('members_list', params)} />}>
+      <View style={{ gap: space.xs }}>
+        <Segments total={QR_STEPS.length} current={step} done={(i) => i < step} />
+        <Text style={[txt.xs, { textAlign: 'center' }]}>Step {step + 1} of {QR_STEPS.length} — {QR_STEPS[step]}</Text>
+      </View>
       {step === 0 ? (
         <>
-          <Note>Choose a known structure. It creates ordinary project units that translators can receive.</Note>
-          {!state?.project ? <TextInput style={styles.input} placeholder="Project name" value={projectName} onChangeText={setProjectName} /> : null}
-          {laneEntries.length === 0 ? <TextInput style={styles.input} placeholder="Target language code" autoCapitalize="none" value={language} onChangeText={setLanguage} /> : null}
-          <Section label="Structure">
-            {contentTemplates().map((t, i, a) => <Row key={t.id} icon={FileText} label={t.name} sub={t.description} onPress={() => { setTemplateId(t.id); setRootItemId(''); setReferenceAudioHash(''); }} right={templateId === t.id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
-          </Section>
-          {template ? <Section label="Known book or collection">
-            {template.items.filter((item) => item.parentItemId === null).map((item, i, a) => <Row key={item.itemId} bookId={item.itemId} label={item.label} onPress={() => { setRootItemId(item.itemId); setReferenceAudioHash(''); }} right={rootItemId === item.itemId ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
-          </Section> : null}
+          <Text style={txt.xs}>Pick the role this person should have. You don't need their email.</Text>
+          <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: plural(r.privileges, 'privilege') }))} value={roleId} onChoose={setRoleId}
+            empty="No roles yet." />
+          {ctx.session.can('manage_roles') ? (
+            <GhostBtn label="Create a new role" icon="plus" onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+          ) : null}
         </>
-      ) : step === 1 ? (
+      ) : null}
+      {step === 1 ? (
         <>
-          <Note>Give the team one shared brief or reference note before work starts.</Note>
-          <TextInput style={[styles.input, { minHeight: 110 }]} placeholder="Reference note (optional with audio)" multiline value={reference} onChangeText={setReference} />
-          {sourceRecordings.map(([id, r], i, a) => <Row key={id} icon={Headphones} label={state?.units[r.unitId]?.label ?? r.unitId} sub="Source audio" onPress={() => setReferenceAudioHash((hash) => hash === r.cards[0]!.hash ? '' : r.cards[0]!.hash)} right={referenceAudioHash === r.cards[0]!.hash ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
-          {referenceAudioHash ? <Note>Selected audio is shared with this language’s reference slides.</Note> : null}
-          {state?.materials[`setup-brief:${ctx.project.projectId}:${laneId}:${rootUnitId}`] ? <Note>Project brief is already attached.</Note> : null}
+          <Text style={txt.xs}>A name so you can tell whose code this is. It stays on this phone; they choose their own name when they join.</Text>
+          <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Nyibol Deng" autoCapitalize="words" />
         </>
-      ) : (
+      ) : null}
+      {step === 2 && invite && role ? (
         <>
-          <Note>Send the first passage to a translator. You can assign the remaining passages from project status.</Note>
-          <Section label="First passage">
-            <Row icon={FileText} label={targetPiece?.label ?? 'Choose a structure first'} sub={targetPiece ? `${pieces.length} passages ready` : 'No passages yet'} last />
-          </Section>
-          <Section label="Translator">
-            {members.map(([id, m], i, a) => <Row key={id} personId={id} label={id === ctx.session.actorId ? 'You' : undefined} sub={m.role.value} onPress={() => setAssignee(id)} right={assignee === id ? <Check size={18} color={colors.translate} /> : <View />} last={i === a.length - 1} />)}
-            {members.length === 0 ? <Row label="No members yet" last /> : null}
-          </Section>
-          {assigned ? <Note>The first passage already has an assignment.</Note> : null}
+          <Card style={{ alignItems: 'center' }}>
+            <QRCode value={uri} size={220} backgroundColor={C.white} color={C.dark} />
+            <View style={{ alignItems: 'center', gap: 2 }}>
+              <Text style={txt.h3}>{name.trim()}</Text>
+              <Text style={txt.smMuted}>{role.name} · {LEVEL_LABEL[floor]}</Text>
+            </View>
+            <Text style={[txt.xs, { textAlign: 'center' }]}>Hold this up for them to scan. Tap Done when it has been scanned.</Text>
+          </Card>
+          <Card>
+            <Text style={txt.xsStrong}>Or type this code</Text>
+            <Text selectable style={[txt.sm, { fontFamily: 'Courier' }]}>{invite.token}</Text>
+            <Text style={txt.xs}>Shown once: leaving this screen loses the code. It can be used once, until {new Date(invite.expiresAt).toDateString()}.</Text>
+            <SmallBtn label="Share invite" icon="share" onPress={() => void Share.share({ message: uri })} />
+          </Card>
         </>
-      )}
-      {error ? <Text style={{ color: colors.reference }}>{error}</Text> : null}
+      ) : null}
+      {error ? <Banner icon="flag" tone="amber" title="No code was made" body={error} /> : null}
     </Screen>
   );
 }
+
+// ---- New language --------------------------------------------------------------------------
 
 export function NewLanguage(ctx: Ctx) {
-  const { append } = ctx.project;
+  const state = ctx.project.state;
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [scope, setScope] = useState<LanguageScope>('nt');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const templateId = useMemo(() => suggestedTemplate(state, ctx.org.state, ctx.project.projectId), [state, ctx.org.state, ctx.project.projectId]);
+  const template = contentTemplate(templateId);
+  const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
   async function create() {
-    await append('v1.LaneAdded', { laneId: `L-${code.trim()}`, languoidId: code.trim() });
-    ctx.back();
+    const title = name.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const languoid = code.trim() || title.slice(0, 3);
+      const commandId = Crypto.randomUUID();
+      const specs = addLanguage(state, { commandId, laneId: newLaneId(languoid, commandId), code: languoid, name: title, templateId, scope });
+      // ctx.act says "Not saved" and why; stay on the form to try again.
+      try { await ctx.act(specs, `${title} added to ${orgName} · uses ${template?.name ?? templateId}`); } catch { return; }
+      ctx.back();
+    } catch (e) {
+      setError(failure('new language', e));
+    } finally {
+      setBusy(false);
+    }
   }
   return (
-    <Screen footer={<Footer label="Create language" onPress={() => void create()} disabled={!code.trim()} />}>
-      <Header title="New language" onBack={ctx.back} />
-      <TextInput style={styles.input} placeholder="Language code (e.g. din)" autoCapitalize="none" value={code} onChangeText={setCode} />
+    <Screen header={<Header title="New Language" onBack={ctx.back} />}
+      footer={<PrimaryBtn label="Create Language" disabled={!name.trim() || !state} busy={busy} onPress={() => void create()} />}>
+      <Text style={txt.xs}>This language is added to {orgName}. You can invite language admins from Members after it is created.</Text>
+      <Field label="Language name" value={name} onChangeText={setName} placeholder="Enter language name" autoCapitalize="words" />
+      <Field label="Language code" value={code} onChangeText={setCode} placeholder="e.g. DIN" autoCapitalize="none" />
+      <SectionLabel label="Scope" />
+      <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
+      <Text style={txt.xs}>Its passages come from {template?.name ?? 'the suggested template'}, the one {orgName} suggests. It can be changed later under Content Templates.</Text>
+      {error ? <Banner icon="flag" tone="amber" title="Not created" body={error} /> : null}
     </Screen>
   );
 }
 
-/** UX spec review teams: named groups of reviewers per language, owning that language's reviewer stages (audit 5.F). */
+// ---- Review Teams (FLOW-5) --------------------------------------------------------------------------------
+
 export function ReviewTeams(ctx: Ctx) {
-  const { state } = ctx.project;
-  const laneId = ctx.params['laneId'] ?? Object.keys(state?.lanes ?? {})[0] ?? '';
-  const teams = Object.entries(state?.teams ?? {}).filter(([, t]) => t.laneId === laneId);
+  const state = ctx.project.state;
+  const laneId = laneParam(ctx);
   const canManage = ctx.session.can('manage_teams');
+  const teams = useMemo(() => Object.entries(state?.teams ?? {})
+    .filter(([, t]) => t.laneId === laneId)
+    .sort(([, a], [, b]) => a.name.value.localeCompare(b.name.value)), [state, laneId]);
+  const language = state && state.lanes[laneId] ? laneName(state, laneId) : 'this language';
   return (
-    <Screen footer={canManage ? <Footer label={teams.length ? 'Edit team' : 'New team'} onPress={() => ctx.go('review_team_editor', { laneId, ...(teams[0] ? { teamId: teams[0][0] } : {}) })} /> : undefined}>
-      <Header title="Review teams" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
-      {teams.map(([teamId, t]) => {
-        const members = Object.entries(t.members).filter(([, m]) => m.value).map(([id]) => id);
+    <Screen header={<Header title="Review Teams" onBack={ctx.back}
+      action={canManage ? <SmallBtn label="Team" icon="plus" tone="primary" onPress={() => ctx.go('review_team_editor', { laneId })} /> : undefined} />}>
+      <Text style={txt.xs}>Teams for {language}. Members must have the Review privilege for this language.</Text>
+      {teams.length === 0 ? (
+        <EmptyState icon="people" title="No review teams" sub={canManage ? 'Create a team to group language reviewers.' : 'No teams have been set up yet.'} />
+      ) : teams.map(([teamId, t]) => {
+        const people = state ? teamMembers(state, teamId) : [];
         return (
-          <Section key={teamId} label={`${t.name.value || teamId} · ${members.length}`}>
-            {members.map((id, i) => (
-              <Row key={id} personId={id} last={i === members.length - 1} />
-            ))}
-            {members.length === 0 ? <Row label="Nobody yet" last /> : null}
-          </Section>
+          <Card key={teamId} accessibilityLabel={t.name.value}
+            onPress={canManage ? () => ctx.go('review_team_editor', { laneId, teamId }) : undefined}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
+              <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
+                <Ico name="people" size={22} color={C.primary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[txt.body, { fontWeight: '600' }]}>{t.name.value || 'Review team'}</Text>
+                <Text style={txt.xs}>{plural(people.length, 'member')}</Text>
+                {people.length > 0 ? <Text style={txt.sm}>{people.map((id) => ctx.name(id)).join(', ')}</Text> : null}
+              </View>
+              {canManage ? <Ico name="right" size={22} color={C.muted} /> : null}
+            </View>
+          </Card>
         );
       })}
-      {teams.length === 0 ? <Note>No review team for this language yet. Reviewer stages fall back to everyone holding the reviewer role.</Note> : null}
-      <Section label="Stages">
-        <Row icon={Workflow} label="Edit stages" onPress={() => ctx.go('flow_editor', { laneId })} last />
-      </Section>
     </Screen>
   );
 }
 
-/** Toggle members in the language's team; the team then owns every reviewer stage of that language. */
 export function ReviewTeamEditor(ctx: Ctx) {
-  const { state, appendMany } = ctx.project;
-  const laneId = ctx.params['laneId'] ?? '';
-  const teamId = ctx.params['teamId'] ?? `team-${laneId}`;
+  const state = ctx.project.state;
+  const laneId = laneParam(ctx);
+  const [newId] = useState(() => `team:${Crypto.randomUUID()}`);
+  const teamId = ctx.params['teamId'] ?? newId;
   const team = state?.teams[teamId];
-  const members = state ? Object.entries(state.members).filter(([, m]) => !m.removed.value) : [];
-  const current = new Set(Object.entries(team?.members ?? {}).filter(([, m]) => m.value).map(([id]) => id));
-  const [chosen, setChosen] = useState<Set<string>>(current);
-  const [name, setName] = useState(team?.name.value ?? 'Community reviewers');
+  const before = useMemo(() => (state && team ? teamMembers(state, teamId) : []), [state, team, teamId]);
+  const [name, setName] = useState(team?.name.value ?? '');
+  const [chosen, setChosen] = useState<string[]>(before);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const eligible = useMemo(() => {
+    const ids = new Set([...reviewEligible(ctx.org.state, state, ctx.project.projectId, laneId), ...before]);
+    return [...ids].sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
+    // ctx.name reads the same people map for the whole visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx.org.state, state, ctx.project.projectId, laneId, before]);
+  const toggle = (id: string) => setChosen((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   async function save() {
-    if (!state) return;
-    const events: Parameters<typeof appendMany>[0] = [];
-    if (!team || team.name.value !== name.trim()) events.push({ type: 'v1.ReviewTeamDefined', payload: { teamId, laneId, name: name.trim() || 'Review team' } });
-    for (const id of chosen) if (!current.has(id)) events.push({ type: 'v1.ReviewTeamMemberSet', payload: { teamId, profileId: id, member: true } });
-    for (const id of current) if (!chosen.has(id)) events.push({ type: 'v1.ReviewTeamMemberSet', payload: { teamId, profileId: id, member: false } });
-    // The team owns the language's reviewer stages.
-    deriveWorkflow(state, laneId).forEach((s, i) => {
-      if (s.role !== 'reviewer' || s.teamId === teamId) return;
-      events.push({
-        type: 'v1.WorkflowStepSet',
-        payload: { stepId: s.id, laneId, order: `s${String(i).padStart(2, '0')}`, role: s.role, teamId, required: s.required, rule: s.rule, ...(s.label !== undefined ? { label: s.label } : {}) }
-      });
-    });
-    await appendMany(events);
-    ctx.back();
+    const title = name.trim();
+    if (!state || !title || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const plan = saveTeam(state, { commandId: Crypto.randomUUID(), teamId, laneId, name: title, members: chosen });
+      // ctx.act says "Not saved" and why; stay on the form to try again.
+      try { await ctx.act(plan.specs, `${title} saved · ${plural(chosen.length, 'person', 'people')}`, plan.undo ?? undefined); } catch { return; }
+      ctx.back();
+    } catch (e) {
+      setError(failure('save review team', e));
+    } finally {
+      setBusy(false);
+    }
   }
   return (
-    <Screen footer={<Footer label="Save team" onPress={() => void save()} />}>
-      <Header title="Review team" sub={state?.lanes[laneId]?.languoidId} onBack={ctx.back} />
-      <TextInput style={styles.input} placeholder="Team name" value={name} onChangeText={setName} />
-      <Section label="Members">
-        {members.map(([id, m], i) => (
-          <Row key={id} personId={id} sub={m.role.value} onPress={() => setChosen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; })} right={chosen.has(id) ? <Check size={18} color={colors.done} /> : <View />} last={i === members.length - 1} />
-        ))}
-      </Section>
-      <View>{void text}</View>
+    <Screen header={<Header title={name.trim() || (team ? team.name.value : 'New Review Team')} sub={team ? 'Review team' : 'New review team'} onBack={ctx.back} />}
+      footer={<PrimaryBtn label="Save Team" disabled={!name.trim() || !ctx.session.can('manage_teams')} busy={busy} onPress={() => void save()} />}>
+      <Field label="Team name" value={name} onChangeText={setName} placeholder="Team name" autoCapitalize="words" />
+      <SectionLabel label={`Members · ${chosen.length}`} />
+      <Text style={txt.xs}>Only members with Review privilege at this language can be added.</Text>
+      {eligible.length === 0 ? (
+        <Banner icon="people" title="No eligible reviewers" body="Invite members with a Review role scoped to this language first." />
+      ) : (
+        <Group>
+          {eligible.map((id, i) => {
+            const on = chosen.includes(id);
+            return (
+              <Row key={id} leading={<Avatar id={id} size={36} />} label={ctx.name(id)} onPress={() => toggle(id)} last={i === eligible.length - 1}
+                right={
+                  <View accessibilityLabel={on ? 'In the team' : 'Not in the team'} style={{ width: 28, height: 28, borderRadius: 8, borderWidth: 2,
+                    borderColor: on ? C.primary : C.border, backgroundColor: on ? C.primary : C.card, alignItems: 'center', justifyContent: 'center' }}>
+                    {on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}
+                  </View>
+                } />
+            );
+          })}
+        </Group>
+      )}
+      {error ? <Banner icon="flag" tone="amber" title="Not saved" body={error} /> : null}
     </Screen>
   );
 }
 
-const styles = {
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, backgroundColor: colors.card, color: colors.foreground }
-};
-
-import { contractsFor } from '../screenContracts';
-export const contracts = contractsFor('org_home', 'project_home', 'language_home', 'members_list', 'invite_member', 'invite_qr', 'edit_member', 'new_project', 'new_language', 'review_teams', 'review_team_editor');
+export const contracts = contractsFor('org_home', 'language_home', 'members_list', 'invite_member', 'invite_qr',
+  'edit_member', 'new_language', 'review_teams', 'review_team_editor');

@@ -20,16 +20,37 @@ import { validateEvent } from './validate';
  */
 export const ORG_PARTITION = '_org';
 
+/**
+ * The id of the one work partition a new organization gets (decision 34):
+ * an organization holds languages directly, with no project level between.
+ */
+export const WORK_PARTITION = 'work';
+
+/**
+ * The partition that holds an organization's languages: the earliest one
+ * registered, by clock then event id, so every device opens the same one.
+ * Before anything is registered it is `WORK_PARTITION`.
+ */
+export function workPartitionOf(org: OrgState | null): string {
+  let best: { id: string; hlc: string; eventId: string } | null = null;
+  for (const [id, p] of Object.entries(org?.projects ?? {})) {
+    if (!best || p.hlc < best.hlc || (p.hlc === best.hlc && p.eventId < best.eventId)) best = { id, hlc: p.hlc, eventId: p.eventId };
+  }
+  return best?.id ?? WORK_PARTITION;
+}
+
 /** The UX spec's privilege catalog (ROLE_PRIVILEGES), as stable ids. */
 export const PRIVILEGES = [
   'manage_structure',
   'invite_members',
   'manage_roles',
   'manage_templates',
+  'shape_templates',
   'manage_reference',
   'manage_flows',
   'manage_teams',
   'assign_work',
+  'override_checkpoints',
   'translate',
   'fill_reference',
   'send_to_reviewers',
@@ -41,7 +62,7 @@ export type Privilege = (typeof PRIVILEGES)[number];
 /** Privileges that make a member an admin of their scope (spec MANAGE_PRIVILEGES). */
 export const MANAGE_PRIVILEGES: readonly Privilege[] = [
   'manage_structure', 'invite_members', 'manage_roles', 'manage_templates',
-  'manage_reference', 'manage_flows', 'manage_teams', 'assign_work'
+  'manage_reference', 'manage_flows', 'manage_teams', 'assign_work', 'override_checkpoints'
 ];
 
 export type ScopeLevel = 'org' | 'project' | 'lane';
@@ -89,11 +110,15 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
 
 /**
  * The privilege an event type needs. `null` means server-only (never a
- * client), `'bootstrap'` means the partition's creation rule applies.
- * `v1.CatalogItemToggled` depends on its payload kind: see `privilegeFor`.
+ * client), `'bootstrap'` means the partition's creation rule applies, and a
+ * list means any one of them will do (a translator may log a community
+ * check they ran themselves; so may a reviewer). `v1.CatalogItemToggled`
+ * and a few record events depend on their payload: see `privilegeFor`.
  * The SQL `event_privilege` is this table; keep them identical.
  */
-export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_kind' | null> = {
+export type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
+
+export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ProjectCreated': 'bootstrap',
   'v1.ProjectConfigChanged': 'manage_structure',
   'v1.MemberAdded': 'invite_members',
@@ -138,7 +163,17 @@ export const EVENT_PRIVILEGE: Record<EventType, Privilege | 'bootstrap' | 'by_ki
   'v1.ProjectRegistered': 'manage_structure',
   'v1.InviteIssued': 'invite_members',
   'v1.InviteRedeemed': null,
-  'v1.JoinDecided': 'invite_members'
+  'v1.JoinDecided': 'invite_members',
+  'v1.ReviewKindDefined': 'manage_flows',
+  'v2.WorkflowStepSet': 'manage_flows',
+  'v1.ReviewRecorded': 'by_kind',
+  'v1.DepartureRecorded': 'by_kind',
+  'v1.DepartureUndone': ['translate', 'review', 'assign_work', 'override_checkpoints'],
+  'v1.RequestMade': ['send_to_reviewers', 'assign_work'],
+  'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
+  'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
+  'v1.StudyStepMarked': 'translate',
+  'v1.LaneNamed': 'manage_structure'
 };
 
 const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
@@ -148,9 +183,18 @@ const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {
 };
 
 /** The privilege one concrete event needs, resolving payload-dependent cases. */
-export function privilegeFor(event: AnyEvent): Privilege | 'bootstrap' | null {
+export function privilegeFor(event: AnyEvent): EventPrivilege {
   const p = EVENT_PRIVILEGE[event.type];
   if (p === 'by_kind') {
+    if (event.type === 'v1.ReviewRecorded') {
+      // A check that happened outside the app may be logged by whoever ran it.
+      return event.payload.via === 'logged' ? ['review', 'translate'] : 'review';
+    }
+    if (event.type === 'v1.DepartureRecorded') {
+      if (event.payload.type === 'override') return 'override_checkpoints';
+      if (event.payload.type === 'keep') return 'translate';
+      return ['translate', 'review', 'assign_work'];
+    }
     const kind = (event.payload as { kind?: string }).kind;
     // Translators may write question sets at submit time (UX spec); every
     // other material is managed reference.
@@ -158,6 +202,13 @@ export function privilegeFor(event: AnyEvent): Privilege | 'bootstrap' | null {
     return kind && CATALOG_PRIVILEGE[kind as CatalogKind] ? CATALOG_PRIVILEGE[kind as CatalogKind] : 'manage_templates';
   }
   return p;
+}
+
+/** Does a privilege set satisfy what an event needs? Bootstrap and server-only are never satisfied here. */
+export function privilegeAllows(needed: EventPrivilege, privs: ReadonlySet<Privilege>): boolean {
+  if (needed === null || needed === 'bootstrap') return false;
+  if (typeof needed === 'string') return privs.has(needed);
+  return needed.some((p) => privs.has(p));
 }
 
 /**
@@ -168,7 +219,7 @@ export function privilegeFor(event: AnyEvent): Privilege | 'bootstrap' | null {
 export const SEED_ROLES: { roleId: string; name: string; privileges: Privilege[]; fixed: Role }[] = [
   { roleId: 'org_admin', name: 'Organization Admin', privileges: [...PRIVILEGES], fixed: 'owner' },
   {
-    roleId: 'project_coordinator', name: 'Project Coordinator', fixed: 'coordinator',
+    roleId: 'project_coordinator', name: 'Coordinator', fixed: 'coordinator',
     privileges: PRIVILEGES.filter((p) => p !== 'manage_roles')
   },
   { roleId: 'translator', name: 'Translator', fixed: 'translator', privileges: ['translate', 'fill_reference', 'send_to_reviewers', 'view_status'] },
@@ -238,7 +289,12 @@ export interface OrgState {
   members: Record<string, Record<string, OrgMembership>>;
   /** `${kind}:${itemId}:${level}:${projectId ?? ''}` -> enabled */
   catalog: Record<string, Register<boolean>>;
-  projects: Record<string, { name: string }>;
+  /**
+   * Registered work partitions. The app runs one per org (decision 34);
+   * orgs from before that may have several, and the earliest is the one
+   * that is opened (`workPartitionOf`).
+   */
+  projects: Record<string, { name: string; hlc: Hlc; eventId: string }>;
   /** inviteId -> invite. */
   invites: Record<string, OrgInvite>;
   /** requestId -> the verdict a coordinator recorded. */
@@ -350,9 +406,14 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       break;
     }
 
-    case 'v1.ProjectRegistered':
-      state.projects[event.payload.projectId] ??= { name: event.payload.name };
+    case 'v1.ProjectRegistered': {
+      // Earliest registration wins, so the name does not depend on arrival order.
+      const prior = state.projects[event.payload.projectId];
+      if (!prior || event.hlc < prior.hlc || (event.hlc === prior.hlc && event.id < prior.eventId)) {
+        state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
+      }
       break;
+    }
     case 'v1.Redacted':
       state.redactions[event.payload.eventId] = true;
       break;

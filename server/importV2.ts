@@ -43,7 +43,7 @@ if (!v2.anonKey) {
   console.error('V2_SUPABASE_ANON_KEY is required');
   process.exit(1);
 }
-const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54321';
+const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
 if (!key) {
   console.error('SUPABASE_SERVICE_ROLE_KEY is required');

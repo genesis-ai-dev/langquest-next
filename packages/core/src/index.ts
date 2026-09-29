@@ -19,3 +19,6 @@ export * from './readModels';
 export * from './inbox';
 export * from './orgProject';
 export * from './sourceBibles';
+export * from './record';
+export * from './passage';
+export { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook, type FiaPericope } from './catalogData';

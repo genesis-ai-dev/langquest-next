@@ -1,5 +1,10 @@
 # UX reference mocks
 
+**History.** The screens now follow the partner demo in `ng-langquest-ux`
+(docs/decisions.md 28, `docs/ux/demo-parity.md`). The mocks below record the
+earlier one-next-action design; they are kept for the reasoning they hold
+(the VAD takeover is still the recorder's full-screen mode), not as rules.
+
 Interactive mocks that pin down how a screen should behave, for cases where
 prose in PLAN.md is not enough. They are reference, not shipping code: nothing
 here is imported into the mobile app. Open the HTML file in a browser.

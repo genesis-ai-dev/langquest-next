@@ -47,6 +47,20 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
       for (const c of Object.values(byActor)) if (!out.has(c.blobHash)) out.set(c.blobHash, { hash: c.blobHash, format: 'm4a', unitId });
     }
   }
+  // The record's own audio (decision 30): voice notes, spoken feedback and
+  // reasons, directions, and what a producing kind made. Named only by the
+  // event that uses it; voice notes are m4a, artifacts carry their format.
+  const add = (hash: string | undefined, unitId: string, format: BlobRef['format'] = 'm4a') => {
+    if (hash && !out.has(hash)) out.set(hash, { hash, format, unitId });
+  };
+  for (const n of Object.values(state.notes ?? {})) add(n.blobHash, n.unitId);
+  for (const d of Object.values(state.departures ?? {})) add(d.reasonBlobHash, d.unitId);
+  for (const r of Object.values(state.requests ?? {})) add(r.noteBlobHash, r.unitId);
+  for (const r of Object.values(state.kindReviews ?? {})) {
+    const unitId = state.takes[r.takeId]?.unitId ?? '';
+    add(r.commentBlobHash, unitId);
+    for (const c of r.artifacts ?? []) add(c.hash, unitId, c.format ?? 'wav');
+  }
   return out;
 }
 

@@ -1,0 +1,5 @@
+# Never index or send these to AI features: dotenvx private keys and
+# personal env overrides.
+.env.keys
+**/.env.keys
+**/.env*.local

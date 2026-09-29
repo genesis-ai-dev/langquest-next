@@ -3,7 +3,7 @@ import { fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { derivePieces } from '../src/status';
 import { emptyState } from '../src/state';
-import { buildFixture, buildOrgFixture, buildStep11Fixture, shuffle } from './fixtures';
+import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture, shuffle } from './fixtures';
 
 const CATALOG: EventType[] = [
   'v1.ProjectCreated',
@@ -47,11 +47,21 @@ const CATALOG: EventType[] = [
   'v1.KeyTermDefined',
   'v1.KeyTermRenderingAdded',
   'v1.KeyTermAdjusted',
-  'v1.KeyTermLinked'
+  'v1.KeyTermLinked',
+  'v1.ReviewKindDefined',
+  'v2.WorkflowStepSet',
+  'v1.ReviewRecorded',
+  'v1.DepartureRecorded',
+  'v1.DepartureUndone',
+  'v1.RequestMade',
+  'v1.RequestWithdrawn',
+  'v1.NoteAdded',
+  'v1.StudyStepMarked',
+  'v1.LaneNamed'
 ];
 
 describe('reducer invariants (PLAN.md section 4)', () => {
-  const events = [...buildFixture(), ...buildStep11Fixture(), ...buildOrgFixture()];
+  const events = [...buildFixture(), ...buildStep11Fixture(), ...buildRecordFixture(), ...buildOrgFixture()];
   const canonical = fold(events, emptyState());
 
   it('fixture exercises every event type in the catalog', () => {

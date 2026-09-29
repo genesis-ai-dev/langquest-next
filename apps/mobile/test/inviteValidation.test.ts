@@ -3,6 +3,12 @@ import { inviteUri, parseInvite } from '../src/inviteCode';
 describe('invite codes', () => {
   const token = 'a'.repeat(48);
 
+  it('puts only the org and the token in the link', () => {
+    // Why: the scan screen would show anything else a link carried as fact,
+    // and a link can be edited by whoever forwards it.
+    expect(inviteUri('org1', token)).toBe(`langquestnext://invite?org=org1&token=${token}`);
+  });
+
   it('round-trips the link it renders into the QR', () => {
     const parsed = parseInvite(inviteUri('org1', token));
     expect(parsed).toEqual({ orgId: 'org1', token });

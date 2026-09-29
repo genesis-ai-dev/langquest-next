@@ -1,5 +1,6 @@
 import type { Card, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
+import { emptyRecordState, type RecordState } from './record';
 
 /**
  * Projected state of one project partition. Plain JSON so it can be
@@ -126,7 +127,7 @@ export interface KeyTerm {
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
 
-export interface ProjectState {
+export interface ProjectState extends RecordState {
   project: Register<{ name: string; sourceLanguoidId: string }> | null;
   config: Register<ProjectConfig> | null;
   members: Record<string, Member>;
@@ -201,7 +202,8 @@ export function emptyState(): ProjectState {
     materials: {},
     stepQuestionSets: {},
     keyTerms: {},
-    keyTermLinks: {}
+    keyTermLinks: {},
+    ...emptyRecordState()
   };
 }
 

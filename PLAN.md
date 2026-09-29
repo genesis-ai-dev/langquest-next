@@ -20,8 +20,9 @@ Core workflows, in priority order:
    translator speaks the target live.
 2. **Review and approve.** Configurable review steps: who reviews, how many
    steps, optional or required, any / majority / unanimous.
-3. **Organize.** Organizations, projects, target languages (lanes), and a
-   customizable project structure (books, pericopes, passages) with
+3. **Organize.** Organizations and the target languages (lanes) they hold
+   directly (no project level: docs/decisions.md 34), and a customizable
+   structure (books, pericopes, passages) with
    configurable reference material per unit (audio overviews, text, key terms).
 4. **See status.** Translators see their passages and what is pending.
    Coordinators see the whole org.
@@ -64,8 +65,9 @@ rule. This app takes the same shape and extends it to true offline.
 
 ## 3. The design in one paragraph
 
-Every project has one **append-only event log** partitioned by organization
-and project. Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
+Every organization has one **append-only event log** partitioned by
+organization and partition (its `_org` partition and the one work partition
+that holds its languages; the key is still called `projectId`, decision 34). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
 row mutations, and every event type is **commutative and idempotent** so any
 device applying any subset in any order converges. **Audio is immutable and
 content-addressed**: cards are blobs named by hash, a take is an ordered list
@@ -175,6 +177,14 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.MaterialLocked` | materialId, locked | register per material |
 | `v1.StepQuestionSetLinked` | stepId, materialId | register per step |
 | `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, laneId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
+| `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |
+| `v2.WorkflowStepSet` | stepId, laneId?, order, kindIds[], checkpoint | register per step; shares ids and `v1.WorkflowStepRemoved` with v1; kinds in one step run in parallel, a checkpoint is the only gate |
+| `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins); a producing kind (back translation) records its cards as artifacts with outcome `recorded` |
+| `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, laneId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo; comply or explain |
+| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, laneId, what (record, review), kindId?, profileId? or guest, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
+| `v1.NoteAdded` | noteId, unitId, laneId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
+| `v1.StudyStepMarked` | unitId, laneId, guideId, stepId, done | register per (unit, lane, guide, step) |
+| `v1.LaneNamed` | laneId, name | register per lane |
 
 Smells to catch in review:
 
@@ -267,7 +277,7 @@ langquest-next/
 3. **Done.** `packages/client`: `SyncClient` with fold-on-append, outbox push
    that keeps rejected events, paged pull, offline no-op. Verified by
    `npm run test:integration` with two real users.
-4. **Done.** `apps/mobile`: Expo 57 shell in Expo Go, `SqliteStore` on
+4. **Done.** `apps/mobile`: Expo 57 shell, `SqliteStore` on
    expo-sqlite (contract-tested against `MemoryStore` via node:sqlite),
    Supabase auth, auto-sync every 15 s. Every UX spec screen exists
    (`src/flow.ts` registry, `test/flow.test.ts` proves existence and
@@ -287,7 +297,7 @@ langquest-next/
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
    run on `TransferWorker` (packages/client) per section 14, with the server
    storage trigger appending `BlobStored` as the only confirmation. Needs a
-   dev client (`npx expo run:ios`); Expo Go cannot load the native module.
+   dev client (`npm run ios`, which decrypts the env file); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
@@ -333,75 +343,55 @@ langquest-next/
     `ReferenceAttached` remains as legacy passage notes. Next: requests,
     invites, public projection, notifications, profiles
     (`docs/flow-coverage-audit.md` sections 5 and 6).
+13. **Done:** the passage record and the UX demo's flow (`docs/ux/demo-parity.md`).
+    Core `record.ts` and `passage.ts` port the demo's record model: review
+    kinds, flows of parallel kinds with checkpoints, reviews by kind in the
+    app, by link or logged, back translations as review artifacts,
+    departures with a reason, requests, anchored notes, study marks
+    (migration 20260928000001, `scripts/record-parity-sql.ts`). The mobile
+    app's flow machine, tokens and screens are the demo's.
 
-## 12. Design language and the two avatars
+## 12. Design language
 
-Ported from the LangQuest v2 task-first prototype (commit 2fe8e1e5) and kept
-as a rule set. Every screen declares its avatar in a comment at the top of
-its file, and follows that avatar's constraints. `docs/ux/one-next-action.html`
-is the interactive reference for these rules: the slideshow workflow, the
-passage hub, and the VAD recording takeover, in the real tokens and icons.
+The app follows the partner demo in `ng-langquest-ux` (its flow, look and
+capabilities; `docs/ux/demo-parity.md` maps it onto this repository). The
+demo's `docs/design-principles.md`, `docs/requirements.md` (REC-3 and so on)
+and `docs/decisions.md` (ADR-nnn) are the specification for screens. In
+short:
 
-**Avatar U: the user (translator, reviewer).** Often non-literate, working
-orally, on a phone, offline. Constraints:
+- **A record with advice, not a pipeline with gates.** Each passage builds
+  up a record; the language's review flow advises what should be in it.
+  People may skip a step, work out of order, or keep a version despite
+  feedback, and each departure is recorded with a reason ("comply or
+  explain"). Checkpoints are the only hard stops, and someone with Override
+  Checkpoints can move past one, with the reason logged.
+- **Permissions and method are separate.** Permissions (edge gates, the
+  server's `may_emit`) say who may act; the flow never does.
+- **One place for what's next.** Everyone who does or asks for work lands
+  on My Work; the Map finds any passage at whole-Bible scale; the passage
+  record is where every loop closes, with a toast (and Undo) after every
+  action.
+- **Simple on the surface, deep in the record.** One next step and one main
+  button; background and history behind one-line summaries.
+- **Built for the field.** 48pt targets, 56pt primary actions, 13pt minimum
+  text, status colours that never change and never carry meaning alone.
 
-- One screen, one task, one main action. The next action is always the same
-  colour (`colors.action`, yellow). Nothing else on the screen is yellow.
-- Icons carry meaning; words are optional. Every action, status, and role has
-  an icon (`Mic` record, `ListChecks` review, `Check` approve, `X` reject,
-  `RotateCcw` redo, `Clock` waiting, `CheckCircle2` done). Text that remains
-  is a passage reference or reference material, never an instruction.
-- Colour is never the only signal (colourblind-safe): translate is blue
-  **and** a mic; review is teal **and** a checklist. Tints at 6% shade a
-  card, row, or whole screen so its kind reads before its icon.
-- White cards on a warm off-white ground; one dark foreground; a muted grey
-  for secondary marks. No other hues besides the four task colours.
-- The dashboard is a to-do list. Done items stay visible, struck through,
-  so a returning user sees where they left off.
-
-**Avatar P: the project manager or coordinator.** Literate, configuring and
-monitoring, usually on a larger screen and online. Constraints:
-
-- Text is fine and expected. Labels, tables, counts, names, timestamps.
-- All options at their fingertips: workflow steps, quorum rules, unit kinds,
-  reference material, members and roles, assignments, export.
-- The same tokens and components, so the two halves feel like one product,
-  but density and wording are unconstrained.
-
-**Screen inventory.** Screen ids are the UX spec's (`ng-langquest-ux`,
-`src/imports/*.flow.md`). U screens follow the design language above; P
-screens follow the spec's layouts (breadcrumb header, sections of rows, one
-pinned footer action) with our tokens.
-
-| Spec screen | Avatar | Main action | Status |
-| --- | --- | --- | --- |
-| `sign_in` | U (text fallback) | sign in | built |
-| `assignments_home` (My Work: To Do / Doing / Done, task cards) | U | open a task | built |
-| `translate_passage` (instructions, recordings, key terms, reference, submit) | U | record, then submit | built, placeholder take |
-| `quest_assets` (takes: play, delete, hold-to-record, VAD) | U | record | step 5 |
-| `review_passage` (listen, questions, suggest changes or approve) | U | approve | built, no questions yet |
-| `review_questions` | U | save answers | later |
-| `done_await` | U | back to My Work | built |
-| `pickup_home` (claim open work) | U | claim | later |
-| `intent_chooser`, `create_org`, `request_access`, `walkthrough` | U | one per screen | later |
-| `status_home` → `language_status` → `book_status` → `piece_status` | P | assign | step 7 (headless fold) |
-| `piece_assign`, `give_assignment` | P | send assignment | later |
-| `org_home`, `project_home`, `language_home` | P | none (hub) | later |
-| `members_list`, `invite_member`, `edit_member`, `invite_qr` | P | invite | later |
-| `roles_home`, `role_editor` | P | save role | later |
-| `templates_home`, `flows_home`, `flow_editor` | P | apply / save | later |
-| `reference_home`, `material_editor`, `key_terms`, `key_term_detail` | P | save | later |
-| `review_teams`, `review_team_editor` | P | save team | later |
-| `inbox_home`, `settings_home`, `profile_edit`, `org_switcher` | P | varies | later |
+Tokens are `apps/mobile/src/theme.ts` (the demo's `C` and `TINT`);
+primitives are `apps/mobile/src/kit.tsx`. `docs/ux/one-next-action.html`
+records the earlier task-first design (the VAD takeover it describes is
+still the recorder's full-screen mode).
 
 ## 13. UX spec to event model
 
 The spec's domain (`ng-langquest-ux/src/data.ts`) maps onto the event log
-like this. Where the spec forced a model change, it is noted.
+like this. Where the spec forced a model change, it is noted. The record
+model (kinds, flows, reviews by kind, departures, requests, notes, study) is
+in `docs/ux/demo-parity.md`; rows below about quorum rules and fixed-role
+review steps describe v1 lanes, which still fold and read as kinds.
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Project › Language | `orgId` › `projectId` › lane (`LaneAdded`) | a lane is one target language of a project |
+| Org › Language | `orgId` › its one work partition (`projectId`, `workPartitionOf`) › lane (`LaneAdded`) | no project level in the app (decision 34); the partition key keeps its shape |
 | Content template (FIA, OpenBible…) | catalog template selected per lane (`LaneTemplateSelected`); units instantiated with catalog-derived ids | pieces are leaf units; a lane shows its template's units plus hand-added ones |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
@@ -417,17 +407,10 @@ like this. Where the spec forced a model change, it is noted.
 | Piece work status: unassigned / doing / waiting / done | derived per unit from assignments and take status | P dashboard, step 7 |
 | Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
 | Reference material (TMF, Brief, TG, FIA study), key terms | `MaterialDefined` + `MaterialFieldSet` per field, scoped to lane, unit or step; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
-| Roles with privilege switches | fixed `Role` set for now | custom roles and privileges later; `role_may_emit` is the server gate |
-| Member scope (org / project / language) | membership is per project; org and lane scope later | |
-| Inbox | derived from events addressed to the actor | later |
+| Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
-| Roles with privilege switches, member scope (org / project / language) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
+| Roles with privilege switches, member scope (org / language; a project scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
 | Catalog enable at org, narrow at project (A42) | `CatalogItemToggled` in the org partition; `catalogEnabled` | selection per lane is next |
-
-Kept from the design language, on purpose: the spec prototype is purple and
-text-first. We keep its screens and flows but render U screens with the
-yellow single action, icon-encoded status, and 6% tints. P screens may use
-the spec's text density.
 
 ## 14. Blobs: the upload and download design for step 5
 

@@ -1,6 +1,10 @@
 # Mobile workflow implementation
 
-The mobile app implements the connected journey from `one-next-action.html`.
+**History.** This describes the one-next-action journey the app implemented
+before it followed the partner demo (docs/decisions.md 28); see
+`docs/ux/demo-parity.md` for the current screens.
+
+The mobile app implemented the connected journey from `one-next-action.html`.
 The HTML remains an isolated design reference. Mobile screens derive progress
 from project events and use the existing local store and sync queue.
 

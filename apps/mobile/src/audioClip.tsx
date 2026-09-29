@@ -1,11 +1,12 @@
 // Avatar U. Local and remote playback, paused before recording starts.
 import type { BlobRef, ProjectState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
-import { CloudDownload, Pause, Play, RotateCcw, RotateCw } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { ProjectHandle } from './useProject';
-import { ActionButton, text } from './ui';
+import { IconBtn, txt } from './kit';
+import { reportError } from './report';
+import { C, target } from './theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 
 export function audioFormat(state: ProjectState, hash: string): BlobRef['format'] {
@@ -14,6 +15,11 @@ export function audioFormat(state: ProjectState, hash: string): BlobRef['format'
     if (card) return card.format ?? 'wav';
   }
   return 'm4a';
+}
+
+/** A player failure is a fault (native audio): report it and say so without its message. */
+function playbackFailed(where: string, err: unknown): string {
+  return `Audio could not play (code ${reportError(where, err)}).`;
 }
 
 export function AudioClip(props: {
@@ -112,7 +118,7 @@ export function AudioClip(props: {
         } catch (err) {
           wantsPlayback.current = false;
           player.current?.remove(); player.current = null;
-          setPlaying(false); setError((err as Error).message);
+          setPlaying(false); setError(playbackFailed('audio clip create player', err));
         }
       };
       next(0);
@@ -120,7 +126,7 @@ export function AudioClip(props: {
       if (generation.current === run) {
         wantsPlayback.current = false;
         player.current?.remove(); player.current = null;
-        setPlaying(false); setError((err as Error).message);
+        setPlaying(false); setError(playbackFailed('audio clip play', err));
       }
     }
   }
@@ -128,22 +134,20 @@ export function AudioClip(props: {
     const p = player.current;
     if (!p || props.disabled) return;
     try { await p.seekTo(Math.max(0, Math.min(p.duration, p.currentTime + delta))); }
-    catch (err) { setError((err as Error).message); }
+    catch (err) { setError(playbackFailed('audio clip seek', err)); }
   }
   return (
     <View style={{ gap: 8 }}>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-      {props.seekControls ? <ActionButton icon={RotateCcw} variant="outline"
-        accessibilityLabel="Rewind source 10 seconds" disabled={props.disabled || !available}
-        onPress={() => void seek(-10)} /> : null}
-      <ActionButton icon={available ? playing ? Pause : Play : CloudDownload}
-        accessibilityLabel={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this phone yet'}
-        variant="outline" disabled={!available || props.disabled} onPress={() => void toggle()} />
-      {props.seekControls ? <ActionButton icon={RotateCw} variant="outline"
-        accessibilityLabel="Forward source 10 seconds" disabled={props.disabled || !available}
-        onPress={() => void seek(10)} /> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {props.seekControls ? <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
+          bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
+        <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
+          label={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this phone yet'}
+          disabled={!available || props.disabled} onPress={() => void toggle()} />
+        {props.seekControls ? <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
+          bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}
       </View>
-      {error ? <Text accessibilityRole="alert" style={text.muted}>{error}</Text> : null}
+      {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}
     </View>
   );
 }

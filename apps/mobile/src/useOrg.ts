@@ -12,9 +12,13 @@ export interface OrgHandle {
   sync: () => Promise<void>;
   live: boolean;
   inspect: () => Promise<SyncInspection | null>;
+  /** Read up to date from the server at least once this session. */
+  pulled: boolean;
+  /** The first sync attempt has finished, reached or not: the local fold is as good as it will get offline. */
+  settled: boolean;
 }
 
-const ORG_MATERIALIZER: Materializer<OrgState> = {
+export const ORG_MATERIALIZER: Materializer<OrgState> = {
   empty: emptyOrgState,
   apply: applyOrgEvent,
   fold: foldOrg,
@@ -34,6 +38,8 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   const [state, setState] = useState<OrgState | null>(null);
   const [pending, setPending] = useState(0);
   const [live, setLive] = useState(false);
+  const [pulled, setPulled] = useState(false);
+  const [settled, setSettled] = useState(false);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const onlineRef = useRef<boolean | null>(null);
 
@@ -52,11 +58,13 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
     try {
       const r = await c.sync();
       onlineRef.current = !r.offline;
+      if (!r.offline && !r.refused && !r.more) setPulled(true);
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
     } catch {
       // Offline or refused: state is whatever the local log says. Honest and quiet.
     }
     if (changed) await refresh();
+    setSettled(true);
   }, [refresh]);
 
   useEffect(() => {
@@ -113,5 +121,5 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   );
 
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
-  return { state, pending, append, sync, live, inspect };
+  return { state, pending, append, sync, live, inspect, pulled, settled };
 }

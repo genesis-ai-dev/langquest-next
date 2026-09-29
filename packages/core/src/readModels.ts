@@ -172,6 +172,17 @@ export function affectedPassages(event: AnyEvent, state: ProjectState): 'all' | 
     case 'v1.KeyTermLinked':
     case 'v1.ReviewCommentRecorded':
     case 'v1.ResponseRecorded':
+    // The passage record (passage.ts) is derived from the fold, not these rows.
+    case 'v1.ReviewKindDefined':
+    case 'v2.WorkflowStepSet':
+    case 'v1.ReviewRecorded':
+    case 'v1.DepartureRecorded':
+    case 'v1.DepartureUndone':
+    case 'v1.RequestMade':
+    case 'v1.RequestWithdrawn':
+    case 'v1.NoteAdded':
+    case 'v1.StudyStepMarked':
+    case 'v1.LaneNamed':
       return [];
     case 'v1.TakeComposed':
     case 'v1.TakeSelected':
