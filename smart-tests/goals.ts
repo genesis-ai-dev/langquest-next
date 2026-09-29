@@ -32,8 +32,8 @@ export const searchMap = (query: string) =>
   'Stop when that passage is open.';
 
 export const buildFlow = () =>
-  'You manage review flows for one language. On the Manage tab, open the project, then its only language, and from ' +
-  'that language\'s own page open its review flow (a flow for the whole organization or project cannot be edited). ' +
+  'You manage review flows for one language, and a project is one language. On the Manage tab, open the project, and from ' +
+  'the project\'s own page open how its passages are checked (its review flow; the organization-wide flow list cannot be edited). ' +
   'Edit the flow. Remove any steps already there. Add a first step with Peer Review, and alongside it, in the same step, Back Translation. ' +
   'Then add a second step with Consultant Check and make that step a checkpoint. Save the flow. Stop when the flow is saved.';
 
