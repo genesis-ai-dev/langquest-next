@@ -2,13 +2,14 @@
 
 ## Org structure (read before touching orgs, projects or languages)
 
-An organization holds its target languages directly and is the one unit
-that syncs: its `_org` partition plus one work partition
-(`workPartitionOf`). There is no project level in the app; see
-`docs/decisions.md` 34. PR #5 (`project-is-one-language`) took the other
-route (a project is one language, no language level). Per its own note,
-this branch already solves the same problem, so PR #5 is to be closed
-rather than integrated. Delete this section once it is closed.
+An organization holds its target languages directly; there is no project
+level in the app (`docs/decisions.md` 34). Each language is its own synced
+partition, listed in the org's `_org` partition, and a phone pulls only the
+languages it opens (decision 37: `orgLanguages`, `partitionOfLane`).
+Templates, flows and reference material are library documents in the
+database, not app code (decision 36, `docs/library.md`). PR #5
+(`project-is-one-language`) took another route and is to be closed rather
+than integrated. Delete this section once it is closed.
 
 Read `PLAN.md` before doing anything. Section 4 lists invariants; every change
 must keep them true. Section 6 is the event catalog; never change a shipped
