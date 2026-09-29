@@ -68,8 +68,9 @@ export type RecordEvents = {
    * A review of one version for one kind (ADR-005): in the app, by a link
    * with no account, or logged afterwards by whoever ran it (`givenBy`,
    * `people`, `place` credit the source, never the typist). A kind that
-   * makes content records it as `contentTakeId` with outcome `recorded`.
-   * Grow-only by reviewId.
+   * makes content (a back translation) records its cards as
+   * `artifactHashes` with outcome `recorded`: content, not a verdict, and
+   * never a version of the passage. Grow-only by reviewId.
    */
   'v1.ReviewRecorded': {
     reviewId: string;
@@ -87,7 +88,7 @@ export type RecordEvents = {
     place?: string;
     givenBy?: string;
     requestId?: string;
-    contentTakeId?: string;
+    /** Evidence (a retelling, a session recording) or, for outcome `recorded`, the content itself. */
     artifactHashes?: string[];
   };
   /** Comply or explain (CORE-2): a step set aside, a checkpoint moved past, a version kept despite feedback. */

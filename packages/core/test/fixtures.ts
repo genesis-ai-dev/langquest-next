@@ -259,8 +259,8 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q1', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', profileId: 'r1', dueDate: '2026-10-01', note: 'Sunday service', questions: [{ id: 'x1', text: 'Did they follow it?', type: 'yesno', required: true }] });
   emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q2', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', guest: { name: 'Pastor Garang', channel: 'whatsapp', contact: '+211 900 000' } });
   emit('dA', 'lead', 'v1.RequestWithdrawn', { requestId: 'q2' });
-  emit('dF', 'bt1', 'v1.TakeComposed', { takeId: 'content1', unitId: 'luke1', laneId: 'L1', cardHashes: ['b1'], parentTakeId: null });
-  emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', contentTakeId: 'content1', comment: 'Verse 3 was hard to say back.' });
+  emit('dF', 'bt1', 'v1.RecordingAdded', { recordingId: 'btRec', unitId: 'luke1', laneId: 'L1', kind: 'source', cards: [{ hash: 'b1', durationMs: 4000 }] });
+  emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifactHashes: ['b1'], comment: 'Verse 3 was hard to say back.' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', laneId: 'L1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });
   emit('dA', 'lead', 'v1.DepartureRecorded', { departureId: 'd3', unitId: 'luke1', laneId: 'L1', type: 'override', stepId: 'standard_bible@2/s3', reason: 'Consultant visit moved to next year.' });

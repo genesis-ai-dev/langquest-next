@@ -210,12 +210,10 @@ export interface PassageState {
 interface RecordIndexes {
   idx: Indexes;
   kinds: KindDef[];
-  /** unit:lane -> submitted, non-produced takes, oldest first */
+  /** unit:lane -> submitted takes, oldest first */
   versions: Map<string, string[]>;
-  /** unit:lane -> unsubmitted, unarchived, non-produced takes, newest first */
+  /** unit:lane -> unsubmitted, unarchived takes, newest first */
   drafts: Map<string, string[]>;
-  /** takeId -> content-producing review id */
-  produced: Map<string, string>;
   /** takeId -> reviews of it (v1 + v1.ReviewRecorded) */
   reviewsByTake: Map<string, KindReview[]>;
   departures: Map<string, Departure[]>;
@@ -242,12 +240,8 @@ const byHlc = <T extends { hlc: string }>(a: T, b: T) => (a.hlc < b.hlc ? -1 : a
 function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
   const hit = cache.get(state);
   if (hit) return hit;
-  const produced = new Map<string, string>();
   const reviewsByTake = new Map<string, KindReview[]>();
-  for (const r of Object.values(state.kindReviews)) {
-    if (r.contentTakeId) produced.set(r.contentTakeId, r.id);
-    push(reviewsByTake, r.takeId, r);
-  }
+  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
   // v1 reviews read as in-app reviews of the step's kind (outcome from the decision).
   for (const [takeId, bySteps] of Object.entries(state.reviews)) {
     for (const [stepId, byActor] of Object.entries(bySteps)) {
@@ -265,7 +259,7 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
   }
   const versions = new Map<string, string[]>();
   const drafts = new Map<string, string[]>();
-  const takes = Object.entries(state.takes).filter(([id, t]) => t.unitId && !produced.has(id));
+  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
   const submittedAt = (id: string) => state.submissions[id]?.hlc ?? '';
   for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : 1))) {
     push(versions, unitLaneKey(t.unitId, t.laneId), id);
@@ -304,16 +298,11 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
     push(notes, unitLaneKey(n.unitId, n.laneId), n);
   }
   const out: RecordIndexes = {
-    idx: idx ?? buildIndexes(state), kinds: deriveKinds(state), versions, drafts, produced, reviewsByTake,
+    idx: idx ?? buildIndexes(state), kinds: deriveKinds(state), versions, drafts, reviewsByTake,
     departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map()
   };
   cache.set(state, out);
   return out;
-}
-
-/** Is this take a kind's content (a back translation) rather than a version of the passage? */
-export function isProducedTake(state: ProjectState, takeId: string): boolean {
-  return recordIndexes(state).produced.has(takeId);
 }
 
 // ---- the passage -----------------------------------------------------------------

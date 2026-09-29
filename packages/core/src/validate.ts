@@ -108,11 +108,11 @@ export function validateEvent(e: AnyEvent): string | null {
         str('reviewId', 'takeId', 'kindId') ??
         oneOf('outcome', ['looks_good', 'needs_changes', 'recorded']) ??
         oneOf('via', ['app', 'link', 'logged']) ??
-        optStr('comment', 'commentBlobHash', 'place', 'givenBy', 'requestId', 'contentTakeId') ??
+        optStr('comment', 'commentBlobHash', 'place', 'givenBy', 'requestId') ??
         optStrRecord('answers') ?? optStrRecord('skipped') ??
         (p['people'] === undefined || (typeof p['people'] === 'number' && p['people'] >= 0) ? null : 'people must be a number') ??
         (p['artifactHashes'] === undefined ? null : strArray('artifactHashes')) ??
-        (p['outcome'] === 'recorded' && (typeof p['contentTakeId'] !== 'string' || p['contentTakeId'] === '') ? 'recorded needs contentTakeId' : null)
+        (p['outcome'] === 'recorded' && (!Array.isArray(p['artifactHashes']) || p['artifactHashes'].length === 0) ? 'recorded needs artifactHashes' : null)
       );
     case 'v1.DepartureRecorded':
       return (

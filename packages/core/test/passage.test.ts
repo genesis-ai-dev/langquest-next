@@ -115,7 +115,7 @@ describe('passage record', () => {
     const bt = s.steps[0]!.kinds.find((k) => k.kindId === 'bt')!;
     expect(bt.state).toBe('approved');
     expect(bt.review?.outcome).toBe('recorded');
-    expect(bt.review?.contentTakeId).toBe('content:bt');
+    expect(bt.review?.artifactHashes).toEqual(['b1']);
   });
 
   it('feedback waits on the latest version’s author; a new version answers all of it', () => {

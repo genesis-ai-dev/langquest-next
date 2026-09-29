@@ -56,7 +56,11 @@ export interface Commands {
     comment?: string; commentBlobHash?: string; answers?: Record<string, string>; skipped?: Record<string, string>;
     people?: number; place?: string; givenBy?: string; requestId?: string; artifactHashes?: string[];
   }): EventSpec[];
-  /** Save what a producing kind made (a back translation, REV-5): a take of its own, recorded against the version it came from. */
+  /**
+   * Save what a producing kind made (a back translation, REV-5): its cards
+   * (already saved with addRecording, kind `source`) recorded against the
+   * version they came from. Content, not a verdict, and never a version.
+   */
   produceContent(c: { commandId: string; fromTakeId: string; kindId: string; cardHashes: string[]; via?: ReviewVia; note?: string; givenBy?: string; requestId?: string }): EventSpec[];
   /** Comply or explain: set a step aside, move past a checkpoint, keep a version despite feedback. */
   depart(c: { commandId: string; unitId: string; laneId: string; type: DepartureType; kindId?: string; stepId?: string; reviewId?: string; reason: string; reasonBlobHash?: string }): EventSpec[];
@@ -206,18 +210,15 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
 
     produceContent(c) {
       if (c.cardHashes.length === 0) throw new CommandError('Record something before saving.');
-      const from = state.takes[c.fromTakeId];
-      if (!from || !state.submissions[c.fromTakeId]) throw new CommandError('Only a published version can be back-translated.');
-      const next = ids(c.commandId);
-      const contentTakeId = `content:${c.commandId}`;
+      if (!state.submissions[c.fromTakeId]) throw new CommandError('Only a published version can be back-translated.');
       const note = c.note?.trim();
-      return [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId: contentTakeId, unitId: from.unitId, laneId: from.laneId, cardHashes: [...c.cardHashes], parentTakeId: null } },
-        { id: next(), type: 'v1.ReviewRecorded', payload: {
-          reviewId: `review:${c.commandId}`, takeId: c.fromTakeId, kindId: c.kindId, outcome: 'recorded', via: c.via ?? 'app', contentTakeId,
+      return [{
+        id: ids(c.commandId)(), type: 'v1.ReviewRecorded', payload: {
+          reviewId: `review:${c.commandId}`, takeId: c.fromTakeId, kindId: c.kindId, outcome: 'recorded', via: c.via ?? 'app',
+          artifactHashes: [...c.cardHashes],
           ...(note ? { comment: note } : {}), ...(c.givenBy ? { givenBy: c.givenBy } : {}), ...(c.requestId ? { requestId: c.requestId } : {})
-        } }
-      ];
+        }
+      }];
     },
 
     depart(c) {

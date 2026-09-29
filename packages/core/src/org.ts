@@ -108,7 +108,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.LaneAdded': 'manage_structure',
   'v1.UnitAdded': 'manage_templates',
   'v1.ReferenceAttached': 'fill_reference',
-  'v1.RecordingAdded': 'translate',
+  'v1.RecordingAdded': 'by_kind',
   'v1.TakeComposed': 'translate',
   'v1.TakeArchived': 'translate',
   'v1.TakeSelected': 'translate',
@@ -169,6 +169,11 @@ export function privilegeFor(event: AnyEvent): EventPrivilege {
     if (event.type === 'v1.ReviewRecorded') {
       // A check that happened outside the app may be logged by whoever ran it.
       return event.payload.via === 'logged' ? ['review', 'translate'] : 'review';
+    }
+    if (event.type === 'v1.RecordingAdded') {
+      // Source-language audio (a back translation, a key-term pronunciation,
+      // a voice note) is not a draft of the passage.
+      return event.payload.kind === 'target' ? 'translate' : ['translate', 'review', 'fill_reference'];
     }
     if (event.type === 'v1.DepartureRecorded') {
       if (event.payload.type === 'override') return 'override_checkpoints';
