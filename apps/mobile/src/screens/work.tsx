@@ -21,7 +21,7 @@ import {
 } from '../kit';
 import { dueText, feedbackSource, plural, when } from '../passageView';
 import { contractsFor } from '../screenContracts';
-import { edgeAllowed } from '../session';
+import { edgeAllowed, mapScreenFor } from '../session';
 import { C, radius, space, TINT } from '../theme';
 
 const FOR_YOU_CAP = 5;
@@ -198,7 +198,8 @@ function startRows(ctx: Ctx, state: ProjectState): { title: string; promise: str
   const rows: StartRow[] = [{
     id: 'map', icon: 'map', label: 'Find your passages on the Map', done: ctx.recent.length > 0,
     sub: lane ? `Every passage in ${lane}` : 'Every passage, and how far it has come',
-    body: `Every passage in ${lane ?? 'your language'}, and how far each one has come.${canRecord ? ' Anyone can start one — no need to be asked.' : ''} Tap Map at the bottom of the screen.`
+    body: `Every passage in ${lane ?? 'your language'}, and how far each one has come.${canRecord ? ' Anyone can start one — no need to be asked.' : ''}`,
+    action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(s)) }
   }];
   if (canRecord) {
     const mine = Object.values(state.submissions).some((x) => x.actorId === s.actorId);
@@ -404,7 +405,8 @@ export function MyWork(ctx: Ctx) {
         suggestions.push({ id: 'first', icon: 'mic', title: `Get ${lane} started`, sub: `Ask someone to record ${title} — or let your team pick any passage.`,
           action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, laneId) } });
       }
-      suggestions.push({ id: 'map', icon: 'progress', title: 'See how every language is doing', sub: 'Recorded, checked, done — for each language, as your teams work. Tap Map at the bottom of the screen.' });
+      suggestions.push({ id: 'map', icon: 'progress', title: 'See how every language is doing', sub: 'Recorded, checked, done — for each language, as your teams work.',
+        action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(ctx.session)) } });
     } else {
       const next = upNext(state, laneId, { canRecord, canReview }, idx);
       if (next) {
@@ -417,7 +419,8 @@ export function MyWork(ctx: Ctx) {
           suggestions.push({ id: 'listen', icon: 'play', title: `Listen to ${title}`, sub: `${by ? ctx.name(by) : 'Someone'} recorded it, and nobody has checked it yet.`, action: open });
         }
       }
-      suggestions.push({ id: 'map', icon: 'map', title: `Everything in ${lane}`, sub: "Every passage, and how far it's come. Tap Map at the bottom of the screen." });
+      suggestions.push({ id: 'map', icon: 'map', title: `Everything in ${lane}`, sub: "Every passage, and how far it's come.",
+        action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(ctx.session)) } });
     }
   }
 
