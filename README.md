@@ -9,7 +9,7 @@ Requires Docker via colima (`colima start`) and Node 22.
 
 ```bash
 npm install
-npm run db:start      # local Supabase on http://127.0.0.1:54321, Postgres on 54322
+npm run db:start      # local Supabase on http://127.0.0.1:54421, Postgres on 54422
 npm test              # core + client unit tests (integration test skips if db is down)
 npm run db:test       # applies migrations to a fresh db and exercises the append/pull RPCs
 npm run test:integration  # two real users syncing through local Supabase

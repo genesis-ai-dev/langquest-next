@@ -7,7 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { runBlobReconciler } from '@langquest-next/client';
 
-const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54321';
+const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
 if (!key) {
   console.error('SUPABASE_SERVICE_ROLE_KEY is required');

@@ -26,6 +26,9 @@ Rules specific to this folder:
 - No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
+- Env files are committed encrypted with dotenvx; set values with
+  `npm run env:set`, never commit `.env.keys` or a plaintext value, and change
+  hosted settings in repo files, not dashboards (`infrastructure-as-code`).
 
 The parent repository is LangQuest v2. Do not import from it. Its data model is
 what this app replaces; see PLAN.md section 2 for why.

@@ -13,7 +13,7 @@ const ORG = `org-${Date.now()}`;
  * Runs against the local Supabase started by `npm run db:start`. Skipped when
  * it is not reachable so `npm test` stays green without Docker.
  */
-const URL = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54321';
+const URL = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const ANON = process.env['SUPABASE_ANON_KEY'] ?? '';
 const SERVICE = process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? '';
 

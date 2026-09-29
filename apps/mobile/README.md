@@ -48,10 +48,14 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
 No business logic and no sync logic live here. Screens read `state` and call
 `deriveTasks`, `deriveTakeStatus`, `deriveProgress`.
 
-Run: copy `.env.example` to `.env`, fill the anon key from
-`npx supabase status`, then build the dev client once with
-`LANG=en_US.UTF-8 npx expo run:ios` (the native `modules/microphone-energy`
-module cannot run in Expo Go) and afterwards `npx expo start --dev-client`.
+Run: get `.env.keys` from a teammate once (password manager, never chat or
+email) and put it at the repository root. The env files are committed
+encrypted with dotenvx, so there is nothing else to copy. Then build the dev
+client once with `LANG=en_US.UTF-8 npm run ios` (the native
+`modules/microphone-energy` module cannot run in Expo Go) and afterwards
+`npm start -- --dev-client`. Use the npm scripts, not `npx expo` directly:
+they decrypt `.env.development` and turn off Expo's own `.env` loading. Your
+own dev login goes in `.env.development.local` (git ignores it).
 Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
 `src/blobs.ts` (content-addressed store), `src/blobTransport.ts` (Supabase
 Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
@@ -84,5 +88,10 @@ All of them run from `apps/mobile`; the repository root forwards `ship`,
 `ship:native` and `ship:check` for when you are already there.
 
 Build profiles map to channels of the same name: `development`, `preview`,
-`production` (`eas.json`). `EXPO_PUBLIC_*` values are inlined into the bundle
-at publish time, so changing one ships as an ordinary update.
+`production` (`eas.json`), and each profile and `ship` script names the EAS
+environment of the same name. `EXPO_PUBLIC_*` values are inlined into the
+bundle at publish time, so changing one ships as an ordinary update: set it in
+the encrypted file (`npm run env:set -- KEY value -f apps/mobile/.env.preview`),
+commit, then `npm run env:push:eas -- preview` copies the file to EAS, where
+builds and updates read it. Change values in the file, never in the EAS
+dashboard; the next push overwrites dashboard edits.
