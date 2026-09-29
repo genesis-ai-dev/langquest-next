@@ -1,0 +1,58 @@
+# Every merge to main reaches the TestFlight app (runs on Expo's servers,
+# not GitHub Actions). If the native fingerprint matches an existing
+# production build, the change ships as an over-the-air update on the
+# production channel, which TestFlight installs take on next launch.
+# Otherwise it builds a new iOS binary and submits it to TestFlight.
+# The typecheck and unit tests (the same as the pre-push hook) run first.
+name: Deploy to TestFlight
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  checks:
+    name: Typecheck and tests
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Typecheck and tests
+        run: |
+          cd ../..
+          npm run --silent typecheck
+          npx vitest run --reporter=dot
+  fingerprint:
+    name: Fingerprint
+    needs: [checks]
+    type: fingerprint
+    environment: production
+  get_ios_build:
+    name: Check for an existing iOS build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: production
+  build_ios:
+    name: Build iOS
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+  submit_ios:
+    name: Submit to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+  publish_ios_update:
+    name: Publish over-the-air update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    params:
+      branch: production
+      platform: ios
