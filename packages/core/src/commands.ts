@@ -3,7 +3,7 @@ import { buildIndexes, type Indexes } from './indexes';
 import type { ProjectState } from './state';
 import { currentTake, deriveTakeStatus } from './workflow';
 import { derivePassage } from './passage';
-import { FLOW_CATALOG_VERSION, instantiateFlowV2, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
+import { CUSTOM_FLOW, FLOW_CATALOG_VERSION, flowStepId, flowStepPrefix, flowTemplateV2, instantiateFlowV2, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
  * Commands: the business operations a screen may ask for, each turned into
@@ -76,8 +76,14 @@ export interface Commands {
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Use a catalog flow for a lane (FLOW-4): the lane's old steps go, the flow's steps come. */
   useFlow(c: { commandId: string; laneId: string; flowId: string }): EventSpec[];
-  /** Save a lane's steps from the flow editor (FLOW-3). */
+  /** Save a lane's steps from the flow editor (FLOW-3). The lane then owns its steps, as a custom flow. */
   saveFlowSteps(c: { commandId: string; laneId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[] }): EventSpec[];
+  /**
+   * Put a lane's flow back as it was (the Undo of useFlow or saveFlowSteps):
+   * the catalog flow it used when its steps still match it, else its steps
+   * as a custom flow.
+   */
+  restoreFlow(c: { commandId: string; laneId: string; previous: { flowId: string | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 }
 
 export type { QuestionSpec };
@@ -276,20 +282,22 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
     },
 
     useFlow(c) {
+      // Catalog steps are namespaced by lane and flow and never removed:
+      // choosing another flow only changes the selection (see flowStepPrefix).
       const next = ids(c.commandId);
-      const steps = instantiateFlowV2(c.flowId, c.laneId);
-      const keep = new Set(steps.map((s) => s.stepId));
       return [
-        ...laneStepIds(state, c.laneId).filter((id) => !keep.has(id)).map((stepId) => ({ id: next(), type: 'v1.WorkflowStepRemoved' as const, payload: { stepId } })),
         { id: next(), type: 'v1.LaneFlowSelected', payload: { laneId: c.laneId, flowId: c.flowId, catalogVersion: FLOW_CATALOG_VERSION } },
-        ...steps.map((payload) => ({ id: next(), type: 'v2.WorkflowStepSet' as const, payload }))
+        ...instantiateFlowV2(c.flowId, c.laneId).map((payload) => ({ id: next(), type: 'v2.WorkflowStepSet' as const, payload }))
       ];
     },
 
     saveFlowSteps(c) {
       const next = ids(c.commandId);
+      const prefix = flowStepPrefix(c.laneId, CUSTOM_FLOW);
+      // Steps already under this lane's custom prefix keep their ids (and
+      // what the record says about them); anything else becomes a new step.
       const steps = c.steps.map((s, i) => ({
-        stepId: s.stepId ?? `step:${c.commandId}:${i}`,
+        stepId: s.stepId?.startsWith(prefix) ? s.stepId : flowStepId(c.laneId, CUSTOM_FLOW, `${c.commandId}-${i}`),
         laneId: c.laneId,
         order: `s${String(i).padStart(2, '0')}`,
         kindIds: [...s.kindIds],
@@ -297,10 +305,20 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       }));
       if (steps.some((s) => s.kindIds.length === 0)) throw new CommandError('Every step needs a kind of review.');
       const keep = new Set(steps.map((s) => s.stepId));
+      const dropped = Object.entries(state.flowSteps)
+        .filter(([id, reg]) => id.startsWith(prefix) && reg.value.laneId === c.laneId && !state.workflowSteps[id]?.removed && !keep.has(id))
+        .map(([id]) => id);
       return [
-        ...laneStepIds(state, c.laneId).filter((id) => !keep.has(id)).map((stepId) => ({ id: next(), type: 'v1.WorkflowStepRemoved' as const, payload: { stepId } })),
+        ...dropped.map((stepId) => ({ id: next(), type: 'v1.WorkflowStepRemoved' as const, payload: { stepId } })),
+        { id: next(), type: 'v1.LaneFlowSelected', payload: { laneId: c.laneId, flowId: CUSTOM_FLOW, catalogVersion: FLOW_CATALOG_VERSION } },
         ...steps.map((payload) => ({ id: next(), type: 'v2.WorkflowStepSet' as const, payload }))
       ];
+    },
+
+    restoreFlow(c) {
+      const { flowId, steps } = c.previous;
+      if (flowId && flowId !== CUSTOM_FLOW && flowTemplateV2(flowId)) return this.useFlow({ commandId: c.commandId, laneId: c.laneId, flowId });
+      return this.saveFlowSteps({ commandId: c.commandId, laneId: c.laneId, steps: steps.map((s) => ({ stepId: s.id, kindIds: s.kindIds, checkpoint: s.checkpoint })) });
     }
   };
 }
@@ -314,10 +332,3 @@ function clean<T extends object>(o: T): T {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== '')) as T;
 }
 
-/** Every live step (v1 or v2) scoped to a lane, so choosing a flow replaces them. */
-function laneStepIds(state: ProjectState, laneId: string): string[] {
-  const out = new Set<string>();
-  for (const [id, slot] of Object.entries(state.workflowSteps)) if (!slot.removed && slot.step.hlc !== '' && slot.step.value.laneId === laneId) out.add(id);
-  for (const [id, reg] of Object.entries(state.flowSteps)) if (!state.workflowSteps[id]?.removed && reg.value.laneId === laneId) out.add(id);
-  return [...out];
-}

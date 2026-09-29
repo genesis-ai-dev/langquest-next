@@ -51,7 +51,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded',...REC],reads:['keyTermView'] },
   flows_home: { emits:['v1.WorkflowStepRemoved','v1.LaneFlowSelected','v2.WorkflowStepSet'],reads:['deriveFlow'] },
-  flow_editor: { emits:['v1.WorkflowStepRemoved','v2.WorkflowStepSet','v1.ReviewKindDefined'],reads:['deriveFlow','deriveKinds'] },
+  flow_editor: { emits:['v1.WorkflowStepRemoved','v2.WorkflowStepSet','v1.ReviewKindDefined','v1.LaneFlowSelected'],reads:['deriveFlow','deriveKinds'] },
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked'],reads:['materialView'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],rpcs:['decide_join_request'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },

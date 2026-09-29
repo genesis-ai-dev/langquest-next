@@ -299,8 +299,22 @@ export function flowTemplateV2(id: string): FlowTemplateV2 | undefined {
   return FLOWS.find((f) => f.id === id);
 }
 
-export function flowStepId(flowId: string, stepId: string, catalogVersion = FLOW_CATALOG_VERSION): string {
-  return `${flowId}@${catalogVersion}/${stepId}`;
+/** The flow id a lane's hand-edited steps are selected under. */
+export const CUSTOM_FLOW = 'custom';
+
+/**
+ * Where a lane's steps for one selection live. Catalog steps are namespaced
+ * by lane and flow and never removed, so two lanes choosing the same flow
+ * never share a register, and switching back to a flow brings back the same
+ * steps (and anything the record says about them, such as a checkpoint
+ * moved past). Hand-edited steps live under the lane's `custom` prefix.
+ */
+export function flowStepPrefix(laneId: string, flowId: string, catalogVersion = FLOW_CATALOG_VERSION): string {
+  return flowId === CUSTOM_FLOW ? `${laneId}/${CUSTOM_FLOW}/` : `${laneId}/${flowId}@${catalogVersion}/`;
+}
+
+export function flowStepId(laneId: string, flowId: string, stepId: string, catalogVersion = FLOW_CATALOG_VERSION): string {
+  return `${flowStepPrefix(laneId, flowId, catalogVersion)}${stepId}`;
 }
 
 /**
@@ -311,7 +325,7 @@ export function instantiateFlowV2(flowId: string, laneId: string, catalogVersion
   const f = flowTemplateV2(flowId);
   if (!f) throw new Error(`Unknown flow ${flowId}`);
   return f.steps.map((s, i) => ({
-    stepId: flowStepId(flowId, s.stepId, catalogVersion),
+    stepId: flowStepId(laneId, flowId, s.stepId, catalogVersion),
     laneId,
     order: `s${String(i).padStart(2, '0')}`,
     kindIds: [...s.kindIds],

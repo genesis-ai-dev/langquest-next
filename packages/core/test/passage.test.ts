@@ -303,3 +303,44 @@ describe('study marks', () => {
     expect(studyMarksFor(marked, 'luke1', 'L1', 'fia:luke1').map((m) => [m.guideId, m.stepId])).toEqual([['fia:luke1', 'hear']]);
   });
 });
+
+describe('flows per language', () => {
+  it('two languages choosing the same flow keep their own steps', () => {
+    const p = project();
+    p.emit('lead', 'v1.LaneAdded', { laneId: 'nus', languoidId: 'nus' });
+    p.run('lead', (c) => c.useFlow({ commandId: 'f2', laneId: 'nus', flowId: 'standard_bible' }));
+    p.run('lead', (c) => c.useFlow({ commandId: 'f3', laneId: 'din', flowId: 'quick_check' }));
+    expect(deriveFlow(p.state(), 'nus').steps).toHaveLength(4);
+    expect(deriveFlow(p.state(), 'din').steps.map((s) => s.kindIds)).toEqual([['peer'], ['final']]);
+  });
+
+  it('switching back to a flow brings its steps back, and what the record says about them', () => {
+    const p = project();
+    record(p, ['c1']);
+    const checkpoint = derivePassage(p.state(), 'john3', 'din').steps[2]!.step.id;
+    p.run('lead', (c) => c.depart({ commandId: 'ovr', unitId: 'john3', laneId: 'din', type: 'override', stepId: checkpoint, reason: 'Visit next year.' }));
+    const before = deriveFlow(p.state(), 'din');
+    p.run('lead', (c) => c.useFlow({ commandId: 'q', laneId: 'din', flowId: 'quick_check' }));
+    expect(deriveFlow(p.state(), 'din').name).toBe('Quick Check');
+    p.run('lead', (c) => c.restoreFlow({ commandId: 'undo', laneId: 'din', previous: before }));
+    const after = deriveFlow(p.state(), 'din');
+    expect(after).toEqual(before);
+    expect(derivePassage(p.state(), 'john3', 'din').steps[2]!.override?.reason).toBe('Visit next year.');
+  });
+
+  it('a hand-edited flow is the language’s own, and Collect only means none', () => {
+    const p = project();
+    p.emit('lead', 'v2.WorkflowStepSet', { stepId: 'proj/s1', order: 's00', kindIds: ['community'], checkpoint: false });
+    p.run('lead', (c) => c.saveFlowSteps({ commandId: 'edit', laneId: 'din', steps: [{ kindIds: ['peer', 'retell'], checkpoint: true }] }));
+    let flow = deriveFlow(p.state(), 'din');
+    expect(flow.name).toBe('Custom flow');
+    expect(flow.steps.map((s) => [s.kindIds, s.checkpoint])).toEqual([[['peer', 'retell'], true]]);
+    const kept = flow.steps[0]!.id;
+    p.run('lead', (c) => c.saveFlowSteps({ commandId: 'edit2', laneId: 'din', steps: [{ stepId: kept, kindIds: ['peer'], checkpoint: true }, { kindIds: ['final'], checkpoint: false }] }));
+    flow = deriveFlow(p.state(), 'din');
+    expect(flow.steps[0]!.id).toBe(kept);
+    expect(flow.steps).toHaveLength(2);
+    p.run('lead', (c) => c.saveFlowSteps({ commandId: 'none', laneId: 'din', steps: [] }));
+    expect(deriveFlow(p.state(), 'din').steps).toEqual([]);
+  });
+});

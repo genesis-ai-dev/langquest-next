@@ -249,11 +249,11 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elder Review', description: 'Elders listen together.', usualReviewer: 'Village elders' });
   emit('dE', 'lead2', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elders Review' });
   emit('dA', 'lead', 'v1.LaneFlowSelected', { laneId: 'L1', flowId: 'standard_bible', catalogVersion: 2 });
-  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s1', laneId: 'L1', order: 's00', kindIds: ['peer', 'bt'], checkpoint: false });
-  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s2', laneId: 'L1', order: 's01', kindIds: ['community'], checkpoint: false });
-  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s3', laneId: 'L1', order: 's02', kindIds: ['consultant'], checkpoint: true });
-  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s4', laneId: 'L1', order: 's03', kindIds: ['final'], checkpoint: false });
-  emit('dE', 'lead2', 'v2.WorkflowStepSet', { stepId: 'standard_bible@2/s4', laneId: 'L1', order: 's03', kindIds: ['final', 'elder'], checkpoint: false });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'L1/standard_bible@2/s1', laneId: 'L1', order: 's00', kindIds: ['peer', 'bt'], checkpoint: false });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'L1/standard_bible@2/s2', laneId: 'L1', order: 's01', kindIds: ['community'], checkpoint: false });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'L1/standard_bible@2/s3', laneId: 'L1', order: 's02', kindIds: ['consultant'], checkpoint: true });
+  emit('dA', 'lead', 'v2.WorkflowStepSet', { stepId: 'L1/standard_bible@2/s4', laneId: 'L1', order: 's03', kindIds: ['final'], checkpoint: false });
+  emit('dE', 'lead2', 'v2.WorkflowStepSet', { stepId: 'L1/standard_bible@2/s4', laneId: 'L1', order: 's03', kindIds: ['final', 'elder'], checkpoint: false });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd1', unitId: 'luke1', laneId: 'L1', type: 'skip', kindId: 'peer', reason: 'No peer to ask yet.' });
   emit('dB', 't1', 'v1.DepartureUndone', { departureId: 'd1' });
   emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q1', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', profileId: 'r1', dueDate: '2026-10-01', note: 'Sunday service', questions: [{ id: 'x1', text: 'Did they follow it?', type: 'yesno', required: true }] });
@@ -263,7 +263,7 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifactHashes: ['b1'], comment: 'Verse 3 was hard to say back.' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', laneId: 'L1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });
-  emit('dA', 'lead', 'v1.DepartureRecorded', { departureId: 'd3', unitId: 'luke1', laneId: 'L1', type: 'override', stepId: 'standard_bible@2/s3', reason: 'Consultant visit moved to next year.' });
+  emit('dA', 'lead', 'v1.DepartureRecorded', { departureId: 'd3', unitId: 'luke1', laneId: 'L1', type: 'override', stepId: 'L1/standard_bible@2/s3', reason: 'Consultant visit moved to next year.' });
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n1', unitId: 'luke1', laneId: 'L1', anchor: { kind: 'verse', verse: '1:3', translation: 'BSB' }, text: 'Most excellent is a title here.', onTakeId: 'take2' });
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', laneId: 'L1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
   emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: true });

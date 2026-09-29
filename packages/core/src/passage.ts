@@ -3,7 +3,7 @@ import { flowTemplate, QUESTION_TEMPLATES } from './catalog';
 import type { Hlc } from './hlc';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
 import {
-  DEFAULT_KINDS, flowTemplateV2, V1_STAGE_KINDS,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplateV2, V1_STAGE_KINDS,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
 import { sourceChapters } from './sourceBibles';
@@ -84,10 +84,15 @@ export function deriveFlow(state: ProjectState, laneId: string): LaneFlow {
   const live = Object.values(state.flowSteps)
     .map((r) => r.value)
     .filter((d) => !state.workflowSteps[d.stepId]?.removed);
-  const laneSteps = live.filter((d) => d.laneId === laneId);
+  const v2Selection = selection !== null && selection.catalogVersion >= 2;
+  // A lane that chose (or saved) its own v2 flow shows exactly that
+  // selection's steps, even none: "Collect only" must not fall back to the
+  // project's steps, and a flow chosen before stays out of sight.
+  const prefix = v2Selection ? flowStepPrefix(laneId, selection.flowId, selection.catalogVersion) : null;
+  const laneSteps = live.filter((d) => d.laneId === laneId && (prefix === null || d.stepId.startsWith(prefix)));
   const projectSteps = live.filter((d) => d.laneId === undefined);
-  const v2 = laneSteps.length > 0 ? laneSteps : projectSteps;
-  const name = selection
+  const v2 = laneSteps.length > 0 || v2Selection ? laneSteps : projectSteps;
+  const name = selection && selection.flowId !== CUSTOM_FLOW
     ? flowTemplateV2(selection.flowId)?.name ?? flowTemplate(selection.flowId)?.name ?? 'Custom flow'
     : v2.length > 0 ? 'Custom flow' : 'Review flow';
   if (v2.length > 0 || (selection && selection.catalogVersion >= 2)) {
