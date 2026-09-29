@@ -1,9 +1,43 @@
 # Decisions
 
-Short records of choices that are easy to second-guess later. Each has the
-reason and what would change our mind.
+The architecture decision record (ADR) log for this app. It is the only one:
+every architecture or design decision, from any developer or agent, is recorded
+here as it is made, so the log reads as the history of how the design got to
+where it is. Each entry has the reason and what would change our mind.
+
+## How to write an entry
+
+Write one when a change is hard to reverse, would surprise a reader without
+context, and came from a real trade-off. Typical triggers: a new merge shape,
+partition, deployable, worker, queue or storage table; a dependency that
+carries lock-in; a change to authorization, sync, or what the app keeps
+offline; a deliberate departure from PLAN.md, the partner demo or an earlier
+entry. A bug fix, a refactor that keeps behaviour, or a new event that fits an
+existing merge shape does not need one.
+
+```md
+## 35. The decision, stated as a sentence
+
+Date: YYYY-MM-DD · By: Full Name · Status: accepted
+
+Reason: the context, what was chosen and why, naming the code that holds it.
+Reverse if: the evidence that would change our mind.
+```
+
+- Number entries in order and never renumber; code and docs cite them by
+  number ("decisions.md 34").
+- `By` is the developer who made the decision, not the agent that typed it.
+- `Status` is `accepted`, `superseded by N` or `partly superseded by N`.
+- Never rewrite a past entry's reasoning. If a decision changes, add a new
+  entry that says "Supersedes N" and set N's status. If it only narrows or
+  extends, append a dated paragraph to it:
+  `Amended (YYYY-MM-DD, Full Name): what changed and why.`
+- Land the entry in the same commit or PR as the change it explains.
+  `scripts/decisions.test.ts` checks the format.
 
 ## 1. Event log over state replication
+
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
 
 Reason: every recurring failure in LangQuest v2 and Codex traces to merging
 mutable state. See PLAN.md section 2. Reverse if: a use case appears that needs
@@ -12,6 +46,8 @@ artifact only.
 
 ## 2. Intent events with per-type merge rules, not a CRDT library
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+
 Reason: the domain's writes are per-actor appends and a few registers. Two
 merge shapes cover everything. A library adds a dependency and a mental model
 for no gain. Reverse if: more than a handful of event types need non-trivial
@@ -19,16 +55,22 @@ merge behaviour.
 
 ## 3. Clients materialize alone; server folds are optional and async
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+
 Reason: translators must see their own work instantly and offline. Server
 folds serve coordinators and cold start only. Reverse if: never; this is the
 property that keeps support cost down.
 
 ## 4. Content-addressed immutable audio
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+
 Reason: makes audio conflict-free and uploads idempotent by construction.
 The v2 app already never mutates audio in place; this makes it a rule.
 
 ## 5. Hand-rolled sync before LiveStore
+
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
 
 Reason: the core is a reducer, a SQLite cache, and two endpoints. LiveStore is
 pre-1.0 and its one-log-per-store model only fits now that the partition is
@@ -37,6 +79,8 @@ becomes a real cost, once LiveStore is stable.
 
 ## 6. Scale rules from day one (Swarnendu De)
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+
 Reason: the advice matched what we had already chosen (read/write separation,
 async processing, business logic apart from infrastructure) and exposed two
 gaps we then closed: tenant keys and an index plan on every event from the
@@ -44,6 +88,8 @@ start, and per-org rate limits and bounded pull pages instead of assuming
 "we'll add them later".
 
 ## 7. Design language first, then the UX spec's screens
+
+Date: 2026-09-14 · By: Ryder Wishart · Status: superseded by 28
 
 Reason: the UX spec prototype (`ng-langquest-ux`) defines the screen
 breakdown and flows, but its purple, text-first styling is a Figma Make
@@ -55,12 +101,16 @@ users need labels after all; then add labels beside icons, never instead.
 
 ## 8. Every screen names its avatar
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: superseded by 28
+
 Reason: user and project-manager screens have opposite constraints (icons
 versus text, one action versus all options). A comment at the top of each
 screen file names the avatar so nobody applies the wrong rules. See
 PLAN.md section 12.
 
 ## 9. Submission is an explicit event
+
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
 
 Reason: UX spec A30. Recordings save the moment they are made; review starts
 only when the translator hands the take off. Without `TakeSubmitted`, a
@@ -69,6 +119,8 @@ a clean definition: nothing, draft, handed off.
 
 ## 10. Reviews suggest, they do not reject
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: partly superseded by 29
+
 Reason: UX spec A11 and the review screens. A reviewer's "suggest changes"
 is advisory and returns the passage to the translator as a respond task.
 The quorum rule still treats it as a non-approval, so a required step with
@@ -76,6 +128,8 @@ enough suggestions leaves the take in `changes_requested` until a new take
 is submitted.
 
 ## 11. Personas are real users, and a shared device pushes only its actor's events
+
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
 
 Reason: a dev persona that only fakes session facets would emit events the
 server rejects (actorId must match the caller). So switching persona is a
@@ -87,18 +141,22 @@ work is refused under someone else's session.
 
 ## 12. No accidental sign-out offline
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+
 Reason: queued events belong to the signed-in user and cannot be sent under
 anyone else. Sign-out lives behind a confirmation screen that refuses while
 anything is queued or the device is offline, and shows why with icons
 rather than words. The old header sign-out icon became the menu.
 
-Amended (2026-09-28): being offline alone no longer refuses sign-out, and a
+Amended (2026-09-28, Caleb Koster): being offline alone no longer refuses sign-out, and a
 server refusal of this actor never traps them (PLAN.md section 11 step 4).
 What refuses is work this session could still deliver: queued project and
 org events, account changes and audio not yet uploaded. The screen says
 which.
 
 ## 13. Two recorders, on purpose
+
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
 
 Reason: expo-audio allows one recording at a time and exposes no PCM. v2
 solved this with a custom Expo module (`microphone-energy`) that taps raw
@@ -110,6 +168,8 @@ a dev client build is required.
 
 ## 14. Confirmation is an event, not a column
 
+Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
+
 Reason: v2 stamped `audio_uploaded_at` on rows and needed guard triggers to
 stop clients echoing it back. Here the storage trigger appends
 `v1.BlobStored` to the project log under the service actor, `append_events`
@@ -117,6 +177,8 @@ refuses the type from any client, and devices learn of it through the pull
 they already do. Same guarantee, no extra column, no extra sync path.
 
 ## 15. Device identity and clocks are persisted
+
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
 
 Reason: the fold's last-writer-wins registers depend on HLCs being unique
 across devices and monotonic on each one. The first mobile build used the
@@ -128,6 +190,8 @@ future id collision cannot make state order-dependent.
 
 ## 16. Removal is an event, and validation is the door
 
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+
 Reason: the log refuses UPDATE and DELETE, so a malformed or unwanted event
 is permanent. `validate_payload` (SQL) and `validateEvent` (core) share one
 rule set, the fold skips and counts anything invalid instead of throwing,
@@ -135,6 +199,8 @@ and `v1.Redacted` excludes a target from every fold. Reverse if: never; an
 append-only log without these is a liability, not a guarantee.
 
 ## 17. Bytes are verified on both ends, and the bucket is reconciled
+
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
 
 Reason: content addressing only helps if someone checks the content. The
 downloader hashes before trusting a file. The confirmation carries the size
@@ -146,12 +212,16 @@ invalidates anything; only bytes that were read and hash wrong do.
 
 ## 18. Snapshots travel in pieces
 
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+
 Reason: a Bible-scale snapshot is around 13 MB of JSON. One response on a
 weak link fails and restarts. 256 KB pieces, each persisted before the next
 is requested, make cold start resumable. The same helper feeds the worker
 and the reconciler.
 
 ## 19. Read indexes are views, never state
+
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
 
 Reason: `deriveTasks` at Bible scale took 27 s because every derivation
 rescanned all takes and assignments per unit and lane. The fix is one pass
@@ -164,6 +234,8 @@ trigger-maintained rollup PLAN.md section 2 warns against.
 
 ## 20. The spec's flow machine is held to by a test, not a review
 
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+
 Reason: the UX spec declares `flow.ts` its single authority; the app copies
 it by hand. `scripts/extractSpecFlow.ts` vendors the spec's screens, edges,
 modes and gates into `apps/mobile/test/spec-flow.json` and
@@ -175,6 +247,8 @@ import it instead of vendoring.
 
 ## 21. Blockers are derived, like status
 
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+
 Reason: reachability proves a screen exists, not that the work can finish.
 A required step with no eligible reviewer, or an assignee who was removed,
 leaves a passage waiting forever with nothing on screen saying why. These
@@ -182,6 +256,8 @@ are properties of the fold, so `deriveBlockers` computes them and the status
 screen can show the one action that clears each. Reverse if: never.
 
 ## 22. One sync client, two folds
+
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
 
 Reason: the org partition (roles, memberships, catalog, projects) needs the
 same log, outbox, cursor, checkpoint and snapshot handling as a project, and
@@ -191,6 +267,8 @@ core `org.ts`. Reverse if: never; a second sync path is the kind of surface
 PLAN.md section 2 exists to avoid.
 
 ## 23. Authorization is a privilege, scope is on the membership
+
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
 
 Reason: UX spec A38. Roles are named privilege sets; a membership grants a
 role at org, project or lane scope; an event needs one privilege
@@ -203,6 +281,8 @@ any one of several privileges: 31.)
 
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+
 Reason: audit L1. A month of work refused because a role changed offline is
 not lost (invariant 1) but was stuck. The server authorizes as of the
 event's own clock within a window, and the client re-queues membership
@@ -211,6 +291,8 @@ refusals re-stamp the clock and keep the event ids. Invalid payloads never
 retry.
 
 ## 25. Templates instantiate with derived ids, and per-lane settings layer over project settings
+
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
 
 Reason: the UX spec applies content templates and review flows per language
 (A42) while units and workflow live in the project partition. Deriving
@@ -224,6 +306,8 @@ units already coexist, and a per-lane unit-set event is the next step.
 
 ## 26. Reference material is fields, and a question is a field
 
+Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+
 Reason: audit 5.E. One material with one text register would make two
 people filling different blanks of the same document a conflict; per-field
 registers make it a merge. Treating a question set as a material whose
@@ -235,6 +319,8 @@ recorded adjustment, a link. Reverse if: partners need to edit a rendering
 in place; then renderings become registers, and nothing else changes.
 
 ## 27. The slideshow mock is the reference for user screens
+
+Date: 2026-09-16 · By: Ryder Wishart · Status: superseded by 28
 
 Reason: "one screen, one task, one main action" is easy to agree with in prose
 and easy to drift from in code — the rules that actually bite are the ones
@@ -249,6 +335,8 @@ app.
 
 ## 28. The partner demo is the reference for screens
 
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
+
 Reason: partners test the demo in `ng-langquest-ux` and the app must match
 what they approved: its flow, look and wording (Caleb, 2026-09-28). Its
 design principles ("a record with advice, not a pipeline with gates") also
@@ -261,6 +349,8 @@ kept as history only. Reverse if: the demo stops being maintained; then
 this repo's screens become the reference and the parity test is retired.
 
 ## 29. A passage's record is read against its language's flow, as advice
+
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
 
 Reason: the demo's method is advice with a few hard stops (its ADR-001,
 -004, -005, -016). A flow is steps of review kinds that may happen in either
@@ -285,6 +375,8 @@ checkpoints can cover more steps without new events.
 
 ## 30. The record's own audio is named by the event that uses it
 
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
+
 Reason: a back translator usually holds only Review, and a take (or a
 `RecordingAdded`) needs Translate. More generally, a voice note, spoken
 feedback, a reason or what a producing kind made belongs to the record,
@@ -301,6 +393,8 @@ then give them their own take-like event.
 
 ## 31. An event may need any one of several privileges
 
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
+
 Reason: the demo lets whoever ran a community check log it, translator or
 reviewer (its design principle 5), and lets any contributor set a step
 aside. One privilege per event type cannot say that. `EVENT_PRIVILEGE` may
@@ -310,6 +404,8 @@ together. Reverse if: roles become fine-grained enough that each such act
 has its own privilege.
 
 ## 32. Flow steps belong to a language's selection and are never removed on a switch
+
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
 
 Reason: removal is add-wins, so a step id removed once can never come back.
 Catalog steps are therefore namespaced by language and flow
@@ -322,6 +418,8 @@ languages; then key overrides and skips by kind instead of step.
 
 ## 33. Derived views are cached per state object and revision, outside the state
 
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
+
 Reason: the Map and My Work derive every passage in a language at
 whole-Bible scale, so `passage.ts` indexes the record once per state. The
 app publishes a new top-level state object per change, but a client's
@@ -331,8 +429,9 @@ both. Both live outside the state, so snapshots and the permutation tests
 never see them, and the fold stays deterministic. Reverse if: the fold
 moves to immutable states; then identity alone is enough.
 
-
 ## 34. An organization holds its languages directly, and is the one unit that syncs
+
+Date: 2026-09-28 · By: Caleb Koster · Status: accepted
 
 Reason: partners think in organizations and languages; the project level
 between them was a grouping nobody asked for, and every screen paid for it
@@ -356,3 +455,18 @@ Not done: an org that already has several projects keeps only the earliest
 visible; moving the others' lanes into it needs a server migration. Reverse
 if: one organization needs two separately synced bodies of work; then a
 second work partition is a registry entry, not a new event.
+
+## 35. This file is the one ADR log, and agents keep it for every developer
+
+Date: 2026-09-29 · By: Caleb Koster · Status: accepted
+
+Reason: several developers, each working through their own agent sessions,
+were making design decisions, and only some of them reached this file. So
+every entry now says when it was made, by whom and whether it still holds,
+backfilled from git history for 1 to 34. The rule that keeps the file current
+lives in AGENTS.md, which every agent reads whoever is driving it. The format
+is checked by `scripts/decisions.test.ts`, not just described. We kept one
+numbered file rather than a `docs/adr/` folder because code and docs already
+cite entries by number, and one file reads as a history. Reverse if: the file
+grows too long to scan; then split it into one file per entry and keep the
+numbers.

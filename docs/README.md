@@ -1,6 +1,6 @@
 # Documentation
 
-- [decisions.md](./decisions.md) — Design decisions with reasoning and reversal conditions
+- [decisions.md](./decisions.md) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
 - [ux/demo-parity.md](./ux/demo-parity.md) — How the app follows the partner demo, and what is not ported yet
 - [ux/](./ux/) — Earlier interactive mocks (slideshow workflow, one yellow action, VAD takeover), kept as history

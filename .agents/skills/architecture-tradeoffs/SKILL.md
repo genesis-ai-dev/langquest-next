@@ -119,7 +119,9 @@ rows, sagas) may be wrong for commutative, order-independent events. The
 ## Step 5: record it
 
 Record decisions in `docs/decisions.md`, **not** a new `docs/adr/` folder. Match its
-format: a numbered heading, `Reason:`, and `Reverse if:`. Write one only when the
+format (see its header): a numbered heading, a `Date: · By: · Status:` line,
+`Reason:`, and `Reverse if:`. `By` is the developer, not the agent. Supersede or
+amend past entries; never rewrite them. Write one only when the
 choice is hard to reverse, surprising without context, and the result of a real
 trade-off. When code and PLAN.md disagree, fix the code, then update PLAN.md in
 the same change.
