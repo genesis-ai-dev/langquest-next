@@ -76,15 +76,36 @@ or change a value with the public key. Only holders of the private key can read 
 | `apps/mobile/.env.development.local` | a person's own dev login | `npm start`; ignored by git |
 | `apps/mobile/.env.example` | names only | people |
 
-- **Set a value** from the repository root: `npm run env:set -- KEY value -f <file>`. It
-  encrypts, and keeps new private keys in `.env.keys` rather than the OS
-  keychain, so they can be shared. Never paste secrets into a definition
-  file, a doc, a commit message or a chat.
-- **Read a value**: `npm run env:get -- KEY -f <file>`.
-- **Guard**: `npm run env:check`, which `npm test` also runs, fails if a
-  committable env file holds a plaintext value.
-- **EAS is a copy.** Change a value in the file, commit it, then push it. A value
-  edited in the EAS dashboard is overwritten by the next push.
+Commands, all from the repository root:
+
+| Task | Command | What it does |
+| --- | --- | --- |
+| Change a value | `npm run env:update -- <env> KEY` | Asks for the value (hidden), encrypts it, commits that file alone, then shows the EAS diff and asks before pushing (preview and production) |
+| Check EAS for drift | `npm run env:diff:eas -- <env>` | Names keys that differ between the committed file and EAS; exits 1 on any difference |
+| Push the file to EAS | `npm run env:push:eas -- <env>` | Refuses an uncommitted file, shows the diff, asks, pushes |
+| Check a machine | `npm run env:doctor` | Key file present, private and ignored; which environments this machine can read |
+| Run the app | `npm run app` | `npm start -- --dev-client` in `apps/mobile` |
+| Low level | `npm run env:set`, `env:get`, `env:check` | Set without committing, read one value, plaintext guard (`npm test` runs it too) |
+
+- **EAS is a copy.** The committed file is the truth. A value edited in the
+  EAS dashboard shows up as drift in `env:diff:eas` and is overwritten by the
+  next push. Keys that exist only in EAS are reported, never deleted.
+- New private keys go to `.env.keys` (not the OS keychain), so they can be
+  shared. Never paste secrets into a definition file, a doc, a commit
+  message or a chat.
+
+**Rules for agents:**
+
+- Never read, print, copy or edit `.env.keys` or `*.local` env files.
+  `.claude/settings.json` and `.cursorignore` block it; do not work around it
+  with shell commands.
+- Never print decrypted values. To check one, show its hostname, length or
+  whether it is set.
+- Never hand-edit an encrypted env file or an EAS variable. Use `env:update`.
+- `env:update` for preview or production, and `env:push:eas`, change hosted
+  systems. Ask before running them unless the user already said to, and let
+  the user type secret values at the hidden prompt rather than passing them
+  as arguments.
 - **Bootstrap from existing EAS values** (once per environment):
   `cd apps/mobile && npx eas env:pull preview --path .env.preview`, then
   `DOTENVX_NO_NATIVE=true npx dotenvx encrypt -f .env.preview -fk ../../.env.keys`.

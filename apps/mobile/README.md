@@ -91,7 +91,7 @@ Build profiles map to channels of the same name: `development`, `preview`,
 `production` (`eas.json`), and each profile and `ship` script names the EAS
 environment of the same name. `EXPO_PUBLIC_*` values are inlined into the
 bundle at publish time, so changing one ships as an ordinary update: set it in
-the encrypted file (`npm run env:set -- KEY value -f apps/mobile/.env.preview`),
-commit, then `npm run env:push:eas -- preview` copies the file to EAS, where
-builds and updates read it. Change values in the file, never in the EAS
-dashboard; the next push overwrites dashboard edits.
+the encrypted file with `npm run env:update -- preview KEY` from the repository
+root. It asks for the value, commits the file, and copies it to EAS, where
+builds and updates read it. Change values this way, never in the EAS
+dashboard; `npm run env:diff:eas -- preview` shows any drift.
