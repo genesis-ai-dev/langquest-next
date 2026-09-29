@@ -66,12 +66,51 @@ The dev menu (`src/DevMenu.tsx`) is the app's way to switch persona.
 
 ## Status
 
-Tracked in the section below as domains land.
-
-### Done
-
-- Core record model, server migration, flow machine, session, tokens, kit, shell.
+Every screen of the demo exists and follows its flow, look and wording
+(`specParity.test.ts` holds the 183 edges). Walked end to end in the iOS
+simulator on a local Supabase: sign in, create an organization, a project
+and a language, choose a flow, seed a team; as the translator, My Work, the
+Map, a passage record, the workspace and the FIA study; as the reviewer,
+Review it, the record updating, set aside with a reason, the Inbox. All
+events were accepted by the server's validation and permission rules.
 
 ### Not ported yet
 
-See the end of this page once the domains are in.
+Demo-only tools are out of scope (see above). Beyond those:
+
+**Needs new events or a server endpoint**
+- Dividing a book into passages (TPL-4..7): starting, joining and naming
+  passages, FIA's breaks applied, drafts, Review & publish, published
+  versions, moving recordings to a changed part. `book_structure` is read-only.
+- Template tasks (TPL-8), custom library templates and outline editing (TPL-9).
+- Review by link (REV-7): the link is never sent and a guest cannot submit;
+  `guest_review` is a preview.
+- Undo for a review, a note, a new project or language, a sent invite, a new
+  role or material (these events are grow-only or have no inverse yet).
+- A spoken reason for a skipped question (`ReviewRecorded.skipped` is text).
+- A review team's kind (FLOW-5), deleting a team, a project description,
+  roles defined below the organization, the organization's region.
+- Joining by QR without an email account (AUTH-3); the invite summary on the
+  scan screen reads only what the link carries.
+- Linking an email, changing email, photo, bio (AUTH-7).
+
+**Needs data the app does not have**
+- Recorded prompts for Listen (ONB-1, ONB-2): no Listen buttons.
+- Glossary entries on key terms outside a study guide; an FIA marker on key
+  terms (the app recognises a `fia:` term id prefix).
+- Audio for the BSB/WEB/KJV readings and the Luke 15 and John 3 study steps
+  (the reader follows a simulated clock, and says so); passage text beyond
+  Genesis 1-3, Luke 14-16, John 2-4 and the guide passages.
+- Photos on study notes (no image picker); video in study media.
+
+**Deliberately left out for now**
+- Practice passages, coach-mark tours and celebrations (ONB-3, ONB-4, ONB-6
+  beyond creating an organization): the Getting started card is built.
+- A native date picker when asking someone (chips plus a typed date).
+
+**Known rough edges**
+- Opening a newly created project remounts the workspace under a screen that
+  then calls Back; React Navigation logs a dev-only warning.
+- A local native build needs an Xcode whose Swift accepts `weak let`
+  (`expo-modules-jsi` in Expo 57); Xcode 26.0.1 does not. EAS builds are
+  unaffected.
