@@ -9,6 +9,15 @@ name: Deploy to TestFlight
 on:
   push:
     branches: ['main']
+    # Only changes that can reach the app: its code, the packages it builds
+    # from, and dependencies. Docs and this workflow alone ship nothing.
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '!apps/mobile/.eas/**'
+      - '!**/*.md'
 
 jobs:
   checks:
