@@ -256,3 +256,17 @@ and old logs fold as before. Work into several languages is several projects
 in one org, sharing org-level templates and flows. Reverse if: partners need
 one project whose languages share units and assignments; then lanes become
 a level again and scopes regain `lane`.
+
+## 29. Org structure stays in the event log
+
+Reason: the 2026-09-28 calls. Carl proposed moving orgs, projects and
+memberships to server tables changed only online, partly because every org
+member pulls the whole `_org` partition: someone on project B can see, in
+the raw log, that a user joined project A. Caleb and Ryder judged that
+acceptable. It is visible only inside one's own organization, the UI shows
+a project's members only in that project (org-wide lists are behind the
+org-admin Manage tab), and reading the raw log takes developer tools on the
+device. Keeping one mechanism means org changes work offline and sync like
+everything else. Reverse if: a partner needs membership of one project kept
+from members of another in the same org; then split membership into
+per-project partitions or server state, and keep the UI filter either way.

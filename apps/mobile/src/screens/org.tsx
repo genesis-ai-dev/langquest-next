@@ -280,7 +280,9 @@ export function ProjectHome(ctx: Ctx) {
   const counts = useMemo(() => state && laneId ? laneCounts(state, laneId) : null, [state, laneId]);
   const orgAdmin = ctx.session.adminScope?.level === 'org';
   const can = (p: 'manage_templates' | 'manage_reference' | 'manage_flows') => ctx.session.can(p) && !!laneId;
-  const here = countPeople(ctx.org.state, (s) => s.level !== 'org' && s.projectId === ctx.project.projectId);
+  // Legacy v1.MemberAdded rows with no org membership count too, as on the members list (PLAN 16.1 rule 5).
+  const legacy = Object.entries(state?.members ?? {}).filter(([id, m]) => !m.removed.value && !ctx.org.state?.members[id]).length;
+  const here = countPeople(ctx.org.state, (s) => s.level !== 'org' && s.projectId === ctx.project.projectId) + legacy;
   return (
     <Screen>
       <Header title={name} sub={lang ? `${lang} · Review flow: ${summary.checks}` : 'No language set'}
