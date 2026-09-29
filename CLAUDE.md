@@ -11,16 +11,19 @@ Rules specific to this folder:
 - `packages/client` owns sync. It talks to storage and the server only through
   the `EventStore` and `Transport` interfaces. Platform code (SQLite, Expo)
   implements those interfaces in `apps/mobile`; it never reimplements sync.
-- Every new event type needs: a type in `events.ts`, a case in `reducer.ts`,
-  and coverage in the order-independence and idempotence tests. The tests
-  generate permutations, so adding the event to the fixture list is enough.
-- User-facing screens follow PLAN.md section 12 and the mock in
-  `docs/ux/one-next-action.html` (see `docs/ux/README.md` for the rules it
-  encodes). Read it before changing an avatar U screen, the passage hub, or
-  the VAD recording takeover. It is reference, not shipping code — improve it
-  when a rule changes rather than letting it drift.
+- Every new event type needs: a type in `events.ts` (or `record.ts`), a case
+  in `reducer.ts`, a case in `validate.ts` and in the SQL `validate_payload`
+  and `event_privilege` (a new migration), and coverage in the
+  order-independence and idempotence tests. The tests generate permutations,
+  so adding the event to the fixture list is enough;
+  `scripts/record-parity-sql.ts` checks SQL against core.
+- User-facing screens follow the partner demo in `ng-langquest-ux` (its
+  flow, look and capabilities). Read PLAN.md section 12 and
+  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/flow.ts`
+  is generated from the demo's flow (`test/spec-flow.json`); the parity test
+  holds it edge by edge.
 
-- No `status` columns. Status comes from `workflow.ts`.
+- No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
 

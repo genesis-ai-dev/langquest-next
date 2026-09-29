@@ -10,23 +10,23 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
    `src/useOrg.ts`: the same client on the org partition (`_org`) with the
    org materializer; `src/session.ts` derives privileges from both folds
    (`can(privilege)`, `adminScope`), and Home follows the admin scope.
-3. Screens, one file per UX spec domain under `src/screens/`, every spec
-   screen id present (`src/flow.ts` is the registry; `test/flow.test.ts`
-   proves every screen exists and is reachable from `sign_in`):
-   - `entry.tsx` (U): sign in, create account, terms, vision, intent chooser,
-     create org, explore, request access, scan QR, walkthrough.
-   - `work.tsx`: My Work and Open Work (U); give assignment, progress (P).
-   - `translate.tsx` (U): translate passage, recordings, attach questions,
-     add to TG.
-   - `review.tsx` (U): review passage, review questions, done; material
-     editor (P).
-   - `status.tsx` (P): status → language → book → piece → assign / stage /
-     version / review.
-   - `org.tsx` (P): org, project, language homes; members; invite; QR; edit
-     member; new project / language; review teams.
-   - `config.tsx` (P): roles, templates, reference library, key terms, flows.
-   - `account.tsx`: inbox, settings, profile, org switcher (P); sign-out
-     confirm (U, refused while anything is queued or the device is offline).
+3. Screens, one file per UX demo domain under `src/screens/`, every demo
+   screen id present (`src/flow.ts` is the registry, generated from the
+   demo's flow; `test/flow.test.ts` proves every screen exists and is
+   reachable from `sign_in`):
+   - `entry.tsx`: sign in, create account, terms, vision, intent chooser,
+     create org, explore, request access, scan QR. `onboarding.tsx`: welcome.
+   - `work.tsx`: My Work. `map.tsx`: all languages, passage map, book chapters.
+   - `passage.tsx`: passage record, version, review, ask someone.
+   - `translate.tsx`: the recording workspace and back translation
+     (`src/recording/`). `review.tsx`: review it, already happened, review by link.
+   - `study.tsx`: study guide and step (`src/study/`, `src/scripture.ts`).
+   - `org.tsx`: org, project, language homes; members; invites; teams.
+   - `config.tsx`: roles, reference, key terms, review flows.
+     `content.tsx`: content templates and dividing a book.
+   - `account.tsx`: inbox, settings, profile, org switcher, sign out, sync.
+   Shared: `src/kit.tsx` (the demo's UI primitives), `src/theme.ts`,
+   `src/passageView.ts`, `src/voiceNote.tsx`; `docs/ux/demo-parity.md`.
    Navigation is `src/nav.ts` (stack) driven by `ctx.go`, which only follows
    edges declared in `src/flow.ts`; undeclared transitions log `[flow] BLOCKED`,
    and so do gated edges the session's role cannot take (`edgeAllowed`).
@@ -54,7 +54,7 @@ Run: copy `.env.example` to `.env`, fill the anon key from
 module cannot run in Expo Go) and afterwards `npx expo start --dev-client`.
 Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
 `src/blobs.ts` (content-addressed store), `src/blobTransport.ts` (Supabase
-Storage), and `src/screens/recordings.tsx`. `EXPO_PUBLIC_DEV_EMAIL`
+Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DEV_EMAIL`
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
 
