@@ -268,6 +268,8 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', laneId: 'L1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
   emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: true });
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: false });
+  emit('dA', 'lead', 'v1.LaneNamed', { laneId: 'L1', name: 'Dinka' });
+  emit('dE', 'lead2', 'v1.LaneNamed', { laneId: 'L1', name: 'Thuɔŋjäŋ' });
   return events;
 }
 

@@ -146,6 +146,8 @@ export function validateEvent(e: AnyEvent): string | null {
       );
     case 'v1.StudyStepMarked':
       return str('unitId', 'laneId', 'guideId', 'stepId') ?? (typeof p['done'] === 'boolean' ? null : 'done must be a boolean');
+    case 'v1.LaneNamed':
+      return str('laneId', 'name');
     case 'v1.InviteIssued':
       return str('inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']);
     case 'v1.InviteRedeemed':

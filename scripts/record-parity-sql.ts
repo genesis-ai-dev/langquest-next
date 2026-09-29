@@ -11,7 +11,7 @@ import { buildRecordFixture } from '../packages/core/test/fixtures';
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
 // The record's own event types; the fixture also carries a v1 flow selection.
 const RECORD_TYPES = new Set(['v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.ReviewRecorded', 'v1.DepartureRecorded',
-  'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.RecordingAdded']);
+  'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.RecordingAdded', 'v1.LaneNamed']);
 const events = buildRecordFixture().filter((e) => RECORD_TYPES.has(e.type));
 void EVENT_PRIVILEGE;
 const broken: AnyEvent[] = events.flatMap((e) => {

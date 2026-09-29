@@ -788,3 +788,27 @@ export function updatesFor(state: ProjectState, actorId: string, idx?: Indexes):
   }
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0));
 }
+
+/** A language's name for people: its given name, else its code. */
+export function laneName(state: ProjectState, laneId: string): string {
+  return state.laneNames[laneId]?.value ?? state.lanes[laneId]?.languoidId?.toUpperCase() ?? laneId;
+}
+
+/**
+ * Audio that belongs to the record rather than to the passage's reference
+ * material: voice notes, spoken feedback and reasons, what-changed notes,
+ * directions, and what a producing kind made (a back translation). These
+ * are source-language cards like reference audio, so lists of "source
+ * audio" must leave them out.
+ */
+export function recordAudioHashes(state: ProjectState): Set<string> {
+  const out = new Set<string>();
+  const add = (h?: string) => { if (h) out.add(h); };
+  for (const n of Object.values(state.notes)) { add(n.blobHash); add(n.photoHash); }
+  for (const r of Object.values(state.kindReviews)) { add(r.commentBlobHash); for (const h of r.artifactHashes ?? []) add(h); }
+  for (const d of Object.values(state.departures)) add(d.reasonBlobHash);
+  for (const r of Object.values(state.requests)) add(r.noteBlobHash);
+  for (const r of Object.values(state.responses)) add(r.blobHash);
+  for (const t of Object.values(state.keyTerms)) for (const a of Object.values(t.adjustments)) add(a.blobHash);
+  return out;
+}

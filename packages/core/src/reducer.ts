@@ -388,6 +388,10 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       break;
     }
 
+    case 'v1.LaneNamed':
+      lww(state.laneNames, event.payload.laneId, event, event.payload.name);
+      break;
+
     case 'v1.OrgCreated':
     case 'v1.RoleDefined':
     case 'v1.RoleRetired':

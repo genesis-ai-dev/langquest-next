@@ -153,7 +153,8 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RequestMade': ['send_to_reviewers', 'assign_work'],
   'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
   'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
-  'v1.StudyStepMarked': 'translate'
+  'v1.StudyStepMarked': 'translate',
+  'v1.LaneNamed': 'manage_structure'
 };
 
 const CATALOG_PRIVILEGE: Record<CatalogKind, Privilege> = {

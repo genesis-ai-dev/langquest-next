@@ -56,7 +56,8 @@ const CATALOG: EventType[] = [
   'v1.RequestMade',
   'v1.RequestWithdrawn',
   'v1.NoteAdded',
-  'v1.StudyStepMarked'
+  'v1.StudyStepMarked',
+  'v1.LaneNamed'
 ];
 
 describe('reducer invariants (PLAN.md section 4)', () => {

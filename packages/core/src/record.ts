@@ -137,6 +137,8 @@ export type RecordEvents = {
   };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, lane, guide, step). */
   'v1.StudyStepMarked': { unitId: string; laneId: string; guideId: string; stepId: string; done: boolean };
+  /** A language's display name ("Dinka") beside its code (ORG-2). Register per lane. */
+  'v1.LaneNamed': { laneId: string; name: string };
 };
 
 export type RecordEventType = keyof RecordEvents;
@@ -207,6 +209,8 @@ export interface RecordState {
   notes: Record<string, PassageNote>;
   /** `${unitId}:${laneId}:${guideId}:${stepId}` -> done register */
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
+  /** laneId -> display name register */
+  laneNames: Record<string, { value: string; hlc: Hlc; eventId: string }>;
 }
 
 export function emptyRecordState(): RecordState {
@@ -219,7 +223,8 @@ export function emptyRecordState(): RecordState {
     requests: {},
     withdrawnRequests: {},
     notes: {},
-    studyMarks: {}
+    studyMarks: {},
+    laneNames: {}
   };
 }
 

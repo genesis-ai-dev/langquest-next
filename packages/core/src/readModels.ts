@@ -182,6 +182,7 @@ export function affectedPassages(event: AnyEvent, state: ProjectState): 'all' | 
     case 'v1.RequestWithdrawn':
     case 'v1.NoteAdded':
     case 'v1.StudyStepMarked':
+    case 'v1.LaneNamed':
       return [];
     case 'v1.TakeComposed':
     case 'v1.TakeSelected':

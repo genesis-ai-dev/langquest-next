@@ -1,10 +1,10 @@
 -- The passage record (packages/core record.ts, passage.ts; PLAN.md sections 6 and 13).
 --
--- Nine new event types: review kinds, v2 flow steps (parallel kinds and
+-- Ten new event types: review kinds, v2 flow steps (parallel kinds and
 -- checkpoints), reviews of a version for a kind (in the app, by link, or
 -- logged afterwards; a back translation is a review whose artifacts are the
 -- content), departures with a reason and their undo, requests and their
--- withdrawal, anchored notes, and study-step marks.
+-- withdrawal, anchored notes, study-step marks, and a language's name.
 --
 -- Two new privileges from the UX spec: override_checkpoints and
 -- shape_templates. Some events may be emitted under any one of several
@@ -92,6 +92,7 @@ returns text language sql immutable as $$
     when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
     when 'v1.NoteAdded' then 'translate,review,fill_reference'
     when 'v1.StudyStepMarked' then 'translate'
+    when 'v1.LaneNamed' then 'manage_structure'
     else null
   end;
 $$;
@@ -207,6 +208,8 @@ begin
         return 'unitId, laneId, guideId, stepId must be non-empty strings';
       end if;
       if jsonb_typeof(p->'done') is distinct from 'boolean' then return 'done must be a boolean'; end if;
+    when 'v1.LaneNamed' then
+      if not (public._is_str(p->'laneId') and public._is_str(p->'name')) then return 'laneId, name must be non-empty strings'; end if;
     else null;
   end case;
   return null;
@@ -344,7 +347,7 @@ begin
       if not (public._is_str(p->'requestId') and public._is_str(p->'profileId')) then return 'requestId, profileId must be non-empty strings'; end if;
       if jsonb_typeof(p->'accepted') is distinct from 'boolean' then return 'accepted must be a boolean'; end if;
     when 'v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.ReviewRecorded', 'v1.DepartureRecorded', 'v1.DepartureUndone',
-         'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked' then
+         'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed' then
       return public._record_payload_error(p_type, p);
     else null;
   end case;
