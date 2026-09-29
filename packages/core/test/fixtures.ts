@@ -259,8 +259,7 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q1', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', profileId: 'r1', dueDate: '2026-10-01', note: 'Sunday service', questions: [{ id: 'x1', text: 'Did they follow it?', type: 'yesno', required: true }] });
   emit('dA', 'lead', 'v1.RequestMade', { requestId: 'q2', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'community', guest: { name: 'Pastor Garang', channel: 'whatsapp', contact: '+211 900 000' } });
   emit('dA', 'lead', 'v1.RequestWithdrawn', { requestId: 'q2' });
-  emit('dF', 'bt1', 'v1.RecordingAdded', { recordingId: 'btRec', unitId: 'luke1', laneId: 'L1', kind: 'source', cards: [{ hash: 'b1', durationMs: 4000 }] });
-  emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifactHashes: ['b1'], comment: 'Verse 3 was hard to say back.' });
+  emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifacts: [{ hash: 'b1', durationMs: 4000, format: 'wav' }], comment: 'Verse 3 was hard to say back.' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', laneId: 'L1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });
   emit('dA', 'lead', 'v1.DepartureRecorded', { departureId: 'd3', unitId: 'luke1', laneId: 'L1', type: 'override', stepId: 'L1/standard_bible@2/s3', reason: 'Consultant visit moved to next year.' });
@@ -270,6 +269,22 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', laneId: 'L1', guideId: 'fia:luke1', stepId: 'hear', done: false });
   emit('dA', 'lead', 'v1.LaneNamed', { laneId: 'L1', name: 'Dinka' });
   emit('dE', 'lead2', 'v1.LaneNamed', { laneId: 'L1', name: 'Thuɔŋjäŋ' });
+
+  // Ties the merge rules must settle without looking at arrival order
+  // (event-sourced-sync, "Tests to write"): the same review id from two
+  // devices, once at the same clock; two people undoing the same departure,
+  // once at the same clock; an undo that arrives for a departure never seen.
+  const raw = (id: string, actorId: string, deviceId: string, hlc: string, type: EventType, payload: unknown) => {
+    seq += 1;
+    events.push({ id, type, orgId: 'org1', projectId: 'p1', actorId, deviceId, hlc, payload, serverSeq: seq } as AnyEvent);
+  };
+  const tie = '001760000900000:000000:';
+  raw('tie-a', 'r1', 'dC', `${tie}dC`, 'v1.ReviewRecorded', { reviewId: 'rvTie', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+  raw('tie-b', 'r2', 'dC', `${tie}dC`, 'v1.ReviewRecorded', { reviewId: 'rvTie', takeId: 'take2', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Same clock, other device state.' });
+  raw('tie-c', 'r2', 'dD', '001760000950000:000000:dD', 'v1.ReviewRecorded', { reviewId: 'rvTie', takeId: 'take2', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Later clock loses.' });
+  raw('tie-d', 't1', 'dB', `${tie}dB`, 'v1.DepartureUndone', { departureId: 'd3' });
+  raw('tie-e', 'lead', 'dB', `${tie}dB`, 'v1.DepartureUndone', { departureId: 'd3' });
+  raw('tie-f', 'lead', 'dA', '001760000800000:000000:dA', 'v1.DepartureUndone', { departureId: 'never-recorded' });
   return events;
 }
 

@@ -1,3 +1,4 @@
+import type { Card } from './events';
 import type { Hlc } from './hlc';
 
 /**
@@ -68,9 +69,11 @@ export type RecordEvents = {
    * A review of one version for one kind (ADR-005): in the app, by a link
    * with no account, or logged afterwards by whoever ran it (`givenBy`,
    * `people`, `place` credit the source, never the typist). A kind that
-   * makes content (a back translation) records its cards as
-   * `artifactHashes` with outcome `recorded`: content, not a verdict, and
-   * never a version of the passage. Grow-only by reviewId.
+   * makes content (a back translation) records its cards as `artifacts`
+   * with outcome `recorded`: content, not a verdict, and never a version of
+   * the passage. Its audio is referenced here and nowhere else (no
+   * `RecordingAdded`), like every other voice note on the record.
+   * Grow-only by reviewId.
    */
   'v1.ReviewRecorded': {
     reviewId: string;
@@ -89,7 +92,7 @@ export type RecordEvents = {
     givenBy?: string;
     requestId?: string;
     /** Evidence (a retelling, a session recording) or, for outcome `recorded`, the content itself. */
-    artifactHashes?: string[];
+    artifacts?: Card[];
   };
   /** Comply or explain (CORE-2): a step set aside, a checkpoint moved past, a version kept despite feedback. */
   'v1.DepartureRecorded': {

@@ -92,6 +92,12 @@ anyone else. Sign-out lives behind a confirmation screen that refuses while
 anything is queued or the device is offline, and shows why with icons
 rather than words. The old header sign-out icon became the menu.
 
+Amended (2026-09-28): being offline alone no longer refuses sign-out, and a
+server refusal of this actor never traps them (PLAN.md section 11 step 4).
+What refuses is work this session could still deliver: queued project and
+org events, account changes and audio not yet uploaded. The screen says
+which.
+
 ## 13. Two recorders, on purpose
 
 Reason: expo-audio allows one recording at a time and exposes no PCM. v2
@@ -239,4 +245,76 @@ than by re-reading section 12. It is reference only: not imported, not built,
 not tested. Reverse if: partner testing changes the rules; then update the
 mock in the same change, or delete it rather than leave it contradicting the
 app.
+
+## 28. The partner demo is the reference for screens
+
+Reason: partners test the demo in `ng-langquest-ux` and the app must match
+what they approved: its flow, look and wording (Caleb, 2026-09-28). Its
+design principles ("a record with advice, not a pipeline with gates") also
+replace the one-next-action model, so the app follows the demo rather than
+restyling it. Supersedes 7, 8 and 27: screens name the demo screens and
+requirement IDs they port instead of an avatar, tokens are the demo's
+(`theme.ts`, `kit.tsx`), and `flow.ts` is generated from the demo's flow
+and held to it by `specParity.test.ts`. `docs/ux/one-next-action.html` is
+kept as history only. Reverse if: the demo stops being maintained; then
+this repo's screens become the reference and the parity test is retired.
+
+## 29. A passage's record is read against its language's flow, as advice
+
+Reason: the demo's method is advice with a few hard stops (its ADR-001,
+-004, -005, -016). A flow is steps of review kinds that may happen in either
+order; a checkpoint is the only gate. So kinds are organization vocabulary
+(`v1.ReviewKindDefined`), steps are `v2.WorkflowStepSet` (kinds and a
+checkpoint flag instead of v1's role and quorum), reviews attach to a
+version for a kind (`v1.ReviewRecorded`: in the app, by link, or logged
+afterwards with who gave it), and departing from the method is recorded
+with a reason (`v1.DepartureRecorded`, undone by `v1.DepartureUndone`).
+Requests, notes and study marks are records too. Status is still derived
+(`passage.ts`), and v1 steps and reviews read as kinds, so older lanes keep
+working. Merge shapes are the existing ones: grow-only with earliest wins,
+registers, and an add-wins undo. Reverse if: partners want gates back; then
+checkpoints can cover more steps without new events.
+
+## 30. A back translation is the review's artifacts, not a take
+
+Reason: a back translator usually holds only Review, and a take needs
+Translate. Its cards are recorded as source-language audio
+(`RecordingAdded` kind `source`, allowed to Review) and named in the
+`v1.ReviewRecorded` that records it (outcome `recorded`, `artifactHashes`).
+So a back translation can never be mistaken for a version of the passage,
+and the kind's step completes by the recording existing. Reverse if: back
+translations need editing by cards like versions; then give them their own
+take-like event.
+
+## 31. An event may need any one of several privileges
+
+Reason: the demo lets whoever ran a community check log it, translator or
+reviewer (its design principle 5), and lets any contributor set a step
+aside. One privilege per event type cannot say that. `EVENT_PRIVILEGE` may
+name a list, and SQL `event_privilege` returns it comma-separated for
+`may_emit` to test by overlap; `scripts/record-parity-sql.ts` holds the two
+together. Reverse if: roles become fine-grained enough that each such act
+has its own privilege.
+
+## 32. Flow steps belong to a language's selection and are never removed on a switch
+
+Reason: removal is add-wins, so a step id removed once can never come back.
+Catalog steps are therefore namespaced by language and flow
+(`lane/flow@2/s1`) and choosing another flow only changes the selection;
+`deriveFlow` shows the selected flow's steps. Switching back restores the
+same steps, and what the record says about them (a checkpoint moved past)
+still applies. Hand-edited steps live under the language's `custom` prefix
+and new ones get fresh ids. Reverse if: step ids must be shared across
+languages; then key overrides and skips by kind instead of step.
+
+## 33. Derived views are cached per state object and revision, outside the state
+
+Reason: the Map and My Work derive every passage in a language at
+whole-Bible scale, so `passage.ts` indexes the record once per state. The
+app publishes a new top-level state object per change, but a client's
+live state is mutated in place, so the reducer counts applied events per
+object in a module-level WeakMap (`stateRevision`) and the cache keys on
+both. Both live outside the state, so snapshots and the permutation tests
+never see them, and the fold stays deterministic. Reverse if: the fold
+moves to immutable states; then identity alone is enough.
 

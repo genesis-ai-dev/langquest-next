@@ -41,14 +41,16 @@ export function kindOfV1Step(stepId: string): string {
  */
 export function deriveKinds(state: ProjectState): KindDef[] {
   const out = new Map<string, KindDef>(DEFAULT_KINDS.map((k) => [k.id, k]));
-  for (const slot of Object.values(state.workflowSteps)) {
+  for (const slot of Object.entries(state.workflowSteps).sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v)) {
     if (slot.removed || slot.step.hlc === '') continue;
     const kindId = kindOfV1Step(slot.step.value.stepId);
     if (!out.has(kindId)) {
       out.set(kindId, { id: kindId, name: slot.step.value.label ?? humanize(stageOf(kindId)), description: '', usualReviewer: '' });
     }
   }
-  for (const [id, reg] of Object.entries(state.reviewKinds)) out.set(id, reg.value);
+  // Shipped kinds keep their order; the organization's own follow by id, so
+  // the list never depends on the order events arrived in.
+  for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id]!.value);
   return [...out.values()];
 }
 
@@ -246,7 +248,9 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   else m.set(k, [v]);
 }
 
-const byHlc = <T extends { hlc: string }>(a: T, b: T) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : 0);
+/** Clock order, then id, so equal clocks never leave the order to arrival. */
+const byHlc = <T extends { hlc: string; id?: string }>(a: T, b: T) =>
+  a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? '') < (b.id ?? '') ? -1 : (a.id ?? '') > (b.id ?? '') ? 1 : 0;
 
 function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
   const revision = stateRevision(state);
@@ -273,10 +277,10 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
   const drafts = new Map<string, string[]>();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
   const submittedAt = (id: string) => state.submissions[id]?.hlc ?? '';
-  for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : 1))) {
+  for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
     push(versions, unitLaneKey(t.unitId, t.laneId), id);
   }
-  for (const [id, t] of takes.filter(([id, t]) => !state.submissions[id] && !t.archived && t.cardHashes.length > 0).sort(([, a], [, b]) => (a.hlc < b.hlc ? 1 : -1))) {
+  for (const [id, t] of takes.filter(([id, t]) => !state.submissions[id] && !t.archived && t.cardHashes.length > 0).sort(([ia, a], [ib, b]) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1))) {
     push(drafts, unitLaneKey(t.unitId, t.laneId), id);
   }
   const departures = new Map<string, Departure[]>();
@@ -380,7 +384,13 @@ export function derivePassage(state: ProjectState, unitId: string, laneId: strin
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
     const base = { kindId, ...(review ? { review } : {}) };
-    if (review && review.outcome !== 'needs_changes') return { ...base, state: 'approved', ...(request ? { request } : {}) };
+    // "Recorded" completes only a kind that makes content; anywhere else it
+    // is not a verdict, so it reads as not done yet.
+    const producing = !!ri.kinds.find((k) => k.id === kindId)?.produces;
+    if (review && (review.outcome === 'looks_good' || (review.outcome === 'recorded' && producing))) {
+      return { ...base, state: 'approved', ...(request ? { request } : {}) };
+    }
+    if (review?.outcome === 'recorded') return request ? { kindId, state: 'asked', request } : { kindId, state: 'todo' };
     if (request) return { ...base, state: 'asked', request };
     if (review) return { ...base, state: review.response ? 'addressed' : 'suggestions' };
     if (departure) return { kindId, state: 'skipped', departure };
@@ -394,9 +404,13 @@ export function derivePassage(state: ProjectState, unitId: string, laneId: strin
     const override = active((d) => d.type === 'override' && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => (s.state === 'todo' ? { ...s, state: 'locked' as const } : s)) : statuses;
-    // A checkpoint is a hard stop: only approval clears it. Answering its
-    // feedback sends it back to the reviewer; it does not pass it.
-    const complete = statuses.every((s) => (step.checkpoint ? s.state === 'approved' : isCompleteState(s.state)));
+    // A checkpoint is a hard stop: only approval clears it, given in the app
+    // or by link. Answering its feedback sends it back to the reviewer, and a
+    // check logged afterwards (which a translator may do) completes ordinary
+    // steps but never a checkpoint: moving past one without its reviewer is
+    // an override, which needs its own permission (decision 29).
+    const clears = (s: KindStatus) => s.state === 'approved' && s.review?.via !== 'logged';
+    const complete = statuses.every((s) => (step.checkpoint ? clears(s) : isCompleteState(s.state)));
     steps.push({ step, index, kinds: kindsShown, complete, ...(lockedBy ? { lockedBy } : {}), ...(override ? { override } : {}) });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
   });
@@ -603,7 +617,8 @@ export function questionsForKind(state: ProjectState, kindId: string, laneId: st
     if (!t.stageId || (V1_STAGE_KINDS[t.stageId] ?? t.stageId) !== kindId) continue;
     for (const q of t.questions) out.push({ q: { id: `${t.id}#${q.id}`, text: q.text, type: q.type }, source: 'org', required: false });
   }
-  const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId);
+  const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
+    .sort(([a], [b]) => (a < b ? -1 : 1));
   for (const level of ['project', 'language'] as const) {
     for (const [id, m] of sets) {
       if ((level === 'language') !== (m.scope.laneId !== undefined)) continue;
@@ -814,7 +829,7 @@ export function recordAudioHashes(state: ProjectState): Set<string> {
   const out = new Set<string>();
   const add = (h?: string) => { if (h) out.add(h); };
   for (const n of Object.values(state.notes ?? {})) { add(n.blobHash); add(n.photoHash); }
-  for (const r of Object.values(state.kindReviews ?? {})) { add(r.commentBlobHash); for (const h of r.artifactHashes ?? []) add(h); }
+  for (const r of Object.values(state.kindReviews ?? {})) { add(r.commentBlobHash); for (const c of r.artifacts ?? []) add(c.hash); }
   for (const d of Object.values(state.departures ?? {})) add(d.reasonBlobHash);
   for (const r of Object.values(state.requests ?? {})) add(r.noteBlobHash);
   for (const r of Object.values(state.responses ?? {})) add(r.blobHash);

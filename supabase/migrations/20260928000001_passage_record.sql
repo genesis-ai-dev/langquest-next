@@ -6,6 +6,10 @@
 -- content), departures with a reason and their undo, requests and their
 -- withdrawal, anchored notes, study-step marks, and a language's name.
 --
+-- The record's own audio (voice notes, spoken feedback, a back translation)
+-- is named only by the event that uses it, never appended as a recording
+-- (docs/decisions.md 30).
+--
 -- Two new privileges from the UX spec: override_checkpoints and
 -- shape_templates. Some events may be emitted under any one of several
 -- privileges (a translator or a reviewer may log a community check they
@@ -45,8 +49,7 @@ returns text language sql immutable as $$
     when 'v1.LaneAdded' then 'manage_structure'
     when 'v1.UnitAdded' then 'manage_templates'
     when 'v1.ReferenceAttached' then 'fill_reference'
-    -- Source-language audio (a back translation, a key-term pronunciation) is not a draft.
-    when 'v1.RecordingAdded' then case when p->>'kind' = 'target' then 'translate' else 'translate,review,fill_reference' end
+    when 'v1.RecordingAdded' then 'translate'
     when 'v1.TakeComposed' then 'translate'
     when 'v1.TakeArchived' then 'translate'
     when 'v1.TakeSelected' then 'translate'
@@ -103,7 +106,7 @@ returns boolean language sql immutable as $$
 $$;
 
 create or replace function public.may_emit(p_org text, p_project text, p_profile text, p_type text, p jsonb)
-returns boolean language plpgsql stable security definer set search_path = public as $$
+returns boolean language plpgsql stable security definer set search_path = '' as $$
 declare
   v_priv text := public.event_privilege(p_type, p);
   v_role text;
@@ -124,6 +127,10 @@ begin
   return string_to_array(v_priv, ',') && public.org_privileges(p_org, p_profile, p_project, p->>'laneId');
 end $$;
 
+-- Only the append path calls it. Anyone else could probe another profile's
+-- privileges with it.
+revoke all on function public.may_emit(text, text, text, text, jsonb) from public, anon;
+
 -- Shape helpers for the record's payloads (core validate.ts).
 create or replace function public._is_opt_str(v jsonb) returns boolean language sql immutable as $$
   select v is null or jsonb_typeof(v) = 'string';
@@ -136,7 +143,7 @@ $$;
 
 create or replace function public._record_payload_error(p_type text, p jsonb)
 returns text language plpgsql immutable as $$
-declare q jsonb;
+declare q jsonb; c jsonb;
 begin
   case p_type
     when 'v1.ReviewKindDefined' then
@@ -154,21 +161,31 @@ begin
       if jsonb_typeof(p->'checkpoint') is distinct from 'boolean' then return 'checkpoint must be a boolean'; end if;
     when 'v1.ReviewRecorded' then
       if not (public._is_str(p->'reviewId') and public._is_str(p->'takeId') and public._is_str(p->'kindId')) then return 'reviewId, takeId, kindId must be non-empty strings'; end if;
-      if p->>'outcome' is null or p->>'outcome' not in ('looks_good', 'needs_changes', 'recorded') then return 'outcome must be one of looks_good, needs_changes, recorded'; end if;
-      if p->>'via' is null or p->>'via' not in ('app', 'link', 'logged') then return 'via must be one of app, link, logged'; end if;
+      if coalesce(p->>'outcome', '') not in ('looks_good', 'needs_changes', 'recorded') then return 'outcome must be one of looks_good, needs_changes, recorded'; end if;
+      if coalesce(p->>'via', '') not in ('app', 'link', 'logged') then return 'via must be one of app, link, logged'; end if;
       if not (public._is_opt_str(p->'comment') and public._is_opt_str(p->'commentBlobHash') and public._is_opt_str(p->'place')
         and public._is_opt_str(p->'givenBy') and public._is_opt_str(p->'requestId')) then return 'comment, commentBlobHash, place, givenBy, requestId must be strings'; end if;
       if not (public._is_str_map(p->'answers') and public._is_str_map(p->'skipped')) then return 'answers and skipped must map ids to strings'; end if;
       if p ? 'people' and not (jsonb_typeof(p->'people') = 'number' and (p->>'people')::numeric >= 0) then return 'people must be a number'; end if;
-      if p ? 'artifactHashes' and not public._is_str_array(p->'artifactHashes') then return 'artifactHashes must be a string array'; end if;
-      if p->>'outcome' = 'recorded' and (jsonb_typeof(p->'artifactHashes') is distinct from 'array' or jsonb_array_length(p->'artifactHashes') = 0) then
-        return 'recorded needs artifactHashes';
+      if p ? 'artifacts' then
+        if jsonb_typeof(p->'artifacts') <> 'array' then return 'artifacts must be an array'; end if;
+        for c in select * from jsonb_array_elements(p->'artifacts') loop
+          if jsonb_typeof(c) <> 'object' or not public._is_str(c->'hash') or jsonb_typeof(c->'durationMs') is distinct from 'number' then
+            return 'artifacts entries need a hash and durationMs';
+          end if;
+        end loop;
+      end if;
+      if p->>'outcome' = 'recorded' and (jsonb_typeof(p->'artifacts') is distinct from 'array' or jsonb_array_length(p->'artifacts') = 0) then
+        return 'recorded needs artifacts';
       end if;
     when 'v1.DepartureRecorded' then
       if not (public._is_str(p->'departureId') and public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'reason')) then
         return 'departureId, unitId, laneId, reason must be non-empty strings';
       end if;
-      if p->>'type' is null or p->>'type' not in ('skip', 'override', 'keep') then return 'type must be one of skip, override, keep'; end if;
+      if coalesce(p->>'type', '') not in ('skip', 'override', 'keep') then return 'type must be one of skip, override, keep'; end if;
+      if not (public._is_opt_str(p->'kindId') and public._is_opt_str(p->'stepId') and public._is_opt_str(p->'reviewId') and public._is_opt_str(p->'reasonBlobHash')) then
+        return 'kindId, stepId, reviewId, reasonBlobHash must be strings';
+      end if;
       if p->>'type' = 'skip' and not public._is_str(p->'kindId') then return 'skip needs kindId'; end if;
       if p->>'type' = 'override' and not public._is_str(p->'stepId') then return 'override needs stepId'; end if;
       if p->>'type' = 'keep' and not public._is_str(p->'reviewId') then return 'keep needs reviewId'; end if;
@@ -176,18 +193,23 @@ begin
       if not public._is_str(p->'departureId') then return 'departureId must be a non-empty string'; end if;
     when 'v1.RequestMade' then
       if not (public._is_str(p->'requestId') and public._is_str(p->'unitId') and public._is_str(p->'laneId')) then return 'requestId, unitId, laneId must be non-empty strings'; end if;
-      if p->>'what' is null or p->>'what' not in ('record', 'review') then return 'what must be one of record, review'; end if;
+      if coalesce(p->>'what', '') not in ('record', 'review') then return 'what must be one of record, review'; end if;
+      if not (public._is_opt_str(p->'kindId') and public._is_opt_str(p->'profileId') and public._is_opt_str(p->'dueDate')
+        and public._is_opt_str(p->'note') and public._is_opt_str(p->'noteBlobHash')) then
+        return 'kindId, profileId, dueDate, note, noteBlobHash must be strings';
+      end if;
       if p->>'what' = 'review' and not public._is_str(p->'kindId') then return 'a review request needs kindId'; end if;
       if not (p ? 'profileId' or p ? 'guest') then return 'profileId or guest required'; end if;
       if p ? 'guest' and not (jsonb_typeof(p->'guest') = 'object' and public._is_str(p->'guest'->'name')
-        and public._is_str(p->'guest'->'contact') and p->'guest'->>'channel' in ('whatsapp', 'sms')) then
+        and public._is_str(p->'guest'->'contact') and coalesce(p->'guest'->>'channel', '') in ('whatsapp', 'sms')) then
         return 'guest needs name, channel, contact';
       end if;
       if p ? 'questions' then
         if jsonb_typeof(p->'questions') <> 'array' then return 'questions must be id, text, type'; end if;
         for q in select * from jsonb_array_elements(p->'questions') loop
           if jsonb_typeof(q) <> 'object' or not public._is_str(q->'id') or not public._is_str(q->'text')
-            or coalesce(q->>'type', '') not in ('rating', 'yesno', 'text') then
+            or coalesce(q->>'type', '') not in ('rating', 'yesno', 'text')
+            or (q ? 'required' and jsonb_typeof(q->'required') <> 'boolean') then
             return 'questions must be id, text, type';
           end if;
         end loop;
@@ -196,10 +218,18 @@ begin
       if not public._is_str(p->'requestId') then return 'requestId must be a non-empty string'; end if;
     when 'v1.NoteAdded' then
       if not (public._is_str(p->'noteId') and public._is_str(p->'unitId') and public._is_str(p->'laneId')) then return 'noteId, unitId, laneId must be non-empty strings'; end if;
-      if jsonb_typeof(p->'anchor') is distinct from 'object' then return 'anchor must be an object'; end if;
-      if coalesce(p->'anchor'->>'kind', '') not in ('passage', 'version', 'verse', 'study', 'term') then
-        return 'anchor.kind must be passage, version, verse, study or term';
+      if not (public._is_opt_str(p->'text') and public._is_opt_str(p->'blobHash') and public._is_opt_str(p->'photoHash') and public._is_opt_str(p->'onTakeId')) then
+        return 'text, blobHash, photoHash, onTakeId must be strings';
       end if;
+      if jsonb_typeof(p->'anchor') is distinct from 'object' then return 'anchor must be an object'; end if;
+      case p->'anchor'->>'kind'
+        when 'passage' then null;
+        when 'version' then if not public._is_str(p->'anchor'->'takeId') then return 'anchor.takeId required'; end if;
+        when 'verse' then if not public._is_str(p->'anchor'->'verse') then return 'anchor.verse required'; end if;
+        when 'study' then if not (public._is_str(p->'anchor'->'guideId') and public._is_str(p->'anchor'->'stepId')) then return 'anchor.guideId and stepId required'; end if;
+        when 'term' then if not public._is_str(p->'anchor'->'termId') then return 'anchor.termId required'; end if;
+        else return 'anchor.kind must be passage, version, verse, study or term';
+      end case;
       if not (public._is_str(p->'text') or public._is_str(p->'blobHash') or public._is_str(p->'photoHash')) then
         return 'a note needs text, audio or a photo';
       end if;

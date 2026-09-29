@@ -1,7 +1,8 @@
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
 import { commands } from '../src/commands';
-import { fold } from '../src/reducer';
+import { applyEvent, fold } from '../src/reducer';
+import { referencedBlobs } from '../src/blobs';
 import { emptyState, type ProjectState } from '../src/state';
 import {
   deriveFlow, deriveKinds, derivePassage, highlightsFor, languageProgress, passageSummary,
@@ -108,14 +109,14 @@ describe('passage record', () => {
     const p = project();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
-    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cardHashes: ['b1'], note: 'Verse 5 was hard.' }));
+    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 4000, format: 'wav' }], note: 'Verse 5 was hard.' }));
     const s = derivePassage(p.state(), 'john3', 'din');
     expect(s.versions).toHaveLength(1);
     expect(s.drafting).toBe(false);
     const bt = s.steps[0]!.kinds.find((k) => k.kindId === 'bt')!;
     expect(bt.state).toBe('approved');
     expect(bt.review?.outcome).toBe('recorded');
-    expect(bt.review?.artifactHashes).toEqual(['b1']);
+    expect(bt.review?.artifacts?.map((c) => c.hash)).toEqual(['b1']);
   });
 
   it('feedback waits on the latest version’s author; a new version answers all of it', () => {
@@ -158,7 +159,7 @@ describe('passage record', () => {
     for (const kindId of ['peer', 'community']) {
       p.run('ayen', (c) => c.recordReview({ commandId: kindId, takeIds: [v1], kindId, outcome: 'looks_good', via: 'app' }));
     }
-    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cardHashes: ['b1'] }));
+    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 4000, format: 'wav' }] }));
     let s = derivePassage(p.state(), 'john3', 'din');
     expect(s.next?.step.kindIds).toEqual(['consultant']);
     expect(s.steps[3]!.lockedBy).toBe('Consultant Check');
@@ -224,7 +225,7 @@ describe('passage record', () => {
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cardHashes: ['b1'] }));
+    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 4000, format: 'wav' }] }));
     const progress = languageProgress(p.state(), 'din');
     expect(progress).toMatchObject({ total: 2, recorded: 1, done: 0 });
     expect(progress.steps.map((x) => x.cleared)).toEqual([1, 0, 0, 0]);
@@ -342,5 +343,67 @@ describe('flows per language', () => {
     expect(flow.steps).toHaveLength(2);
     p.run('lead', (c) => c.saveFlowSteps({ commandId: 'none', laneId: 'din', steps: [] }));
     expect(deriveFlow(p.state(), 'din').steps).toEqual([]);
+  });
+});
+
+describe('audit follow-ups', () => {
+  it('a check logged afterwards completes an ordinary step but never a checkpoint', () => {
+    const p = project();
+    record(p, ['c1']);
+    const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
+    p.run('akol', (c) => c.recordReview({ commandId: 'logged', takeIds: [v1], kindId: 'consultant', outcome: 'looks_good', via: 'logged', givenBy: 'Peter' }));
+    p.run('akol', (c) => c.recordReview({ commandId: 'logged2', takeIds: [v1], kindId: 'community', outcome: 'looks_good', via: 'logged', people: 9 }));
+    let s = derivePassage(p.state(), 'john3', 'din');
+    expect(s.steps[1]!.complete).toBe(true);
+    expect(s.steps[2]!.complete).toBe(false);
+    expect(s.steps[3]!.lockedBy).toBe('Consultant Check');
+    p.run('lead', (c) => c.recordReview({ commandId: 'inapp', takeIds: [v1], kindId: 'consultant', outcome: 'looks_good', via: 'app' }));
+    s = derivePassage(p.state(), 'john3', 'din');
+    expect(s.steps[2]!.complete).toBe(true);
+  });
+
+  it('"recorded" completes only a kind that makes content', () => {
+    const p = project();
+    record(p, ['c1']);
+    const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
+    p.run('ayen', (c) => c.produceContent({ commandId: 'odd', fromTakeId: v1, kindId: 'peer', cards: [{ hash: 'x', durationMs: 1 }] }));
+    expect(derivePassage(p.state(), 'john3', 'din').steps[0]!.kinds.find((k) => k.kindId === 'peer')!.state).toBe('todo');
+  });
+
+  it('publishing replaces only the publisher\'s own draft', () => {
+    const p = project();
+    p.run('ayen', (c) => c.keepTake({ commandId: 'theirs', unitId: 'john3', laneId: 'din', cardHashes: ['o1'] }));
+    const specs = commands(p.state()).publishVersion({ commandId: 'mine', unitId: 'john3', laneId: 'din', cardHashes: ['m1'], actorId: 'akol' });
+    expect(specs.some((x) => x.type === 'v1.TakeArchived')).toBe(false);
+  });
+
+  it('record audio is uploaded because the record names it, not because it was a recording', () => {
+    const p = project();
+    record(p, ['c1']);
+    const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
+    p.run('akol', (c) => c.addNote({ commandId: 'vn', unitId: 'john3', laneId: 'din', anchor: { kind: 'passage' }, blobHash: 'voice1' }));
+    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'bt1', durationMs: 5, format: 'wav' }] }));
+    const refs = referencedBlobs(p.state());
+    expect(refs.get('voice1')).toMatchObject({ format: 'm4a', unitId: 'john3' });
+    expect(refs.get('bt1')).toMatchObject({ format: 'wav', unitId: 'john3' });
+  });
+
+  it('derived views stay current on a state the fold keeps mutating', () => {
+    const p = project();
+    const live = emptyState();
+    for (const e of p.events) applyEvent(live, e);
+    expect(derivePassage(live, 'john3', 'din').recorded).toBe(false);
+    record(p, ['c1']);
+    for (const e of p.events) applyEvent(live, e);
+    expect(derivePassage(live, 'john3', 'din')).toEqual(derivePassage(fold(p.events, emptyState()), 'john3', 'din'));
+  });
+
+  it('kinds read the same whatever order their definitions arrived in', () => {
+    const p = project();
+    p.emit('lead', 'v1.ReviewKindDefined', { kindId: 'zeta', name: 'Zeta' });
+    p.emit('lead', 'v1.ReviewKindDefined', { kindId: 'alpha', name: 'Alpha' });
+    const forward = deriveKinds(fold(p.events, emptyState())).map((k) => k.id);
+    const backward = deriveKinds(fold([...p.events].reverse(), emptyState())).map((k) => k.id);
+    expect(backward).toEqual(forward);
   });
 });

@@ -49,20 +49,22 @@ export interface Commands {
    * select and submit the take, and say what changed. A version exists only
    * when content changes, so the same cards as the latest version refuse.
    */
-  publishVersion(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[]; note?: string; noteBlobHash?: string }): EventSpec[];
+  publishVersion(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[]; note?: string; noteBlobHash?: string;
+    /** The publisher: only their own draft is replaced, never a teammate's (archiving is add-wins). */
+    actorId?: string }): EventSpec[];
   /** A review of a version for one kind; one per passage when a session covered several (REV-6). */
   recordReview(c: {
     commandId: string; takeIds: string[]; kindId: string; outcome: Exclude<ReviewOutcome, 'recorded'>; via: ReviewVia;
     comment?: string; commentBlobHash?: string; answers?: Record<string, string>; skipped?: Record<string, string>;
-    people?: number; place?: string; givenBy?: string; requestId?: string; artifactHashes?: string[];
+    people?: number; place?: string; givenBy?: string; requestId?: string; artifacts?: Card[];
   }): EventSpec[];
   /**
-   * Save what a producing kind made (a back translation, REV-5): its cards
-   * (already saved with addRecording, kind `source`) recorded against the
-   * version they came from. Content, not a verdict, and never a version.
+   * Save what a producing kind made (a back translation, REV-5): its cards,
+   * in the blob store and named only here (decision 30), recorded against
+   * the version they came from. Content, not a verdict, and never a version.
    */
   produceContent(c: {
-    commandId: string; fromTakeId: string; kindId: string; cardHashes: string[]; via?: ReviewVia; note?: string; noteBlobHash?: string;
+    commandId: string; fromTakeId: string; kindId: string; cards: Card[]; via?: ReviewVia; note?: string; noteBlobHash?: string;
     givenBy?: string; people?: number; place?: string; answers?: Record<string, string>; skipped?: Record<string, string>; requestId?: string;
   }): EventSpec[];
   /** Comply or explain: set a step aside, move past a checkpoint, keep a version despite feedback. */
@@ -76,6 +78,20 @@ export interface Commands {
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Use a catalog flow for a lane (FLOW-4): the lane's old steps go, the flow's steps come. */
   useFlow(c: { commandId: string; laneId: string; flowId: string }): EventSpec[];
+  /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
+  linkKeyTerms(c: { commandId: string; takeId: string; termIds: string[]; note?: string; adjustmentId?: string }): EventSpec[];
+  /** A new term (TERM-6): the term, its first rendering, and why, as its first adjustment. */
+  defineKeyTerm(c: { commandId: string; termId: string; laneId: string; term: string; gloss: string; unitScope: string[];
+    rendering?: string; context?: string; note: string; blobHash?: string; duringTakeId?: string }): EventSpec[];
+  /** Adjust a term or add a rendering (TERM-5): a why is required; the rendering is optional; ties to the draft when given. */
+  adjustKeyTermRendering(c: { commandId: string; termId: string; rendering?: string; context?: string; note: string; blobHash?: string;
+    duringTakeId?: string; tieToTakeId?: string }): EventSpec[];
+  /** A new reference material with its first fields. */
+  defineMaterial(c: { commandId: string; materialId: string; kind: string; title: string; scope: { laneId?: string; unitId?: string; stepId?: string };
+    templateRef?: string; fields?: { fieldId: string; text: string }[] }): EventSpec[];
+  /** Set fields of a material (each field is its own register, decision 26). */
+  setMaterialFields(c: { commandId: string; materialId: string; fields: { fieldId: string; text?: string; blobHash?: string }[] }): EventSpec[];
+  lockMaterial(c: { commandId: string; materialId: string; locked: boolean }): EventSpec[];
   /** Save a lane's steps from the flow editor (FLOW-3). The lane then owns its steps, as a custom flow. */
   saveFlowSteps(c: { commandId: string; laneId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[] }): EventSpec[];
   /**
@@ -190,11 +206,12 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       if (latest && !note && !c.noteBlobHash) throw new CommandError('Say what changed.');
       const next = ids(c.commandId);
       const takeId = `take:${c.commandId}`;
+      const draft = passage.draftTakeId && (c.actorId === undefined || passage.draftBy === c.actorId) ? passage.draftTakeId : undefined;
       const out: EventSpec[] = [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, laneId: c.laneId, cardHashes: [...c.cardHashes], parentTakeId: passage.draftTakeId ?? latest?.takeId ?? null } },
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, laneId: c.laneId, cardHashes: [...c.cardHashes], parentTakeId: draft ?? latest?.takeId ?? null } },
         { id: next(), type: 'v1.TakeSelected', payload: { takeId, unitId: c.unitId, laneId: c.laneId } }
       ];
-      if (passage.draftTakeId) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: passage.draftTakeId } });
+      if (draft) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: draft } });
       out.push({ id: next(), type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: [] } });
       if (latest) {
         out.push({ id: next(), type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: latest.takeId, ...(note ? { note } : {}), ...(c.noteBlobHash ? { blobHash: c.noteBlobHash } : {}) } });
@@ -218,13 +235,13 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
     },
 
     produceContent(c) {
-      if (c.cardHashes.length === 0) throw new CommandError('Record something before saving.');
+      if (c.cards.length === 0) throw new CommandError('Record something before saving.');
       if (!state.submissions[c.fromTakeId]) throw new CommandError('Only a published version can be back-translated.');
       const note = c.note?.trim();
       return [{
         id: ids(c.commandId)(), type: 'v1.ReviewRecorded', payload: {
           reviewId: `review:${c.commandId}`, takeId: c.fromTakeId, kindId: c.kindId, outcome: 'recorded', via: c.via ?? 'app',
-          artifactHashes: [...c.cardHashes],
+          artifacts: c.cards.map((x) => ({ hash: x.hash, durationMs: x.durationMs, ...(x.format ? { format: x.format } : {}) })),
           ...(note ? { comment: note } : {}), ...(c.noteBlobHash ? { commentBlobHash: c.noteBlobHash } : {}),
           ...clean({ givenBy: c.givenBy, people: c.people, place: c.place, answers: c.answers, skipped: c.skipped, requestId: c.requestId })
         }
@@ -282,6 +299,7 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
     },
 
     useFlow(c) {
+      if (!flowTemplateV2(c.flowId)) throw new CommandError('That review flow is not in this version of the app.');
       // Catalog steps are namespaced by lane and flow and never removed:
       // choosing another flow only changes the selection (see flowStepPrefix).
       const next = ids(c.commandId);
@@ -313,6 +331,64 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
         { id: next(), type: 'v1.LaneFlowSelected', payload: { laneId: c.laneId, flowId: CUSTOM_FLOW, catalogVersion: FLOW_CATALOG_VERSION } },
         ...steps.map((payload) => ({ id: next(), type: 'v2.WorkflowStepSet' as const, payload }))
       ];
+    },
+
+    linkKeyTerms(c) {
+      const next = ids(c.commandId);
+      return c.termIds.filter((termId) => !state.keyTermLinks[c.takeId]?.[termId]).map((termId) => ({
+        id: next(), type: 'v1.KeyTermLinked' as const,
+        payload: { takeId: c.takeId, termId, ...(c.note?.trim() ? { note: c.note.trim() } : {}), ...(c.adjustmentId ? { adjustmentId: c.adjustmentId } : {}) }
+      }));
+    },
+
+    defineKeyTerm(c) {
+      if (!c.term.trim()) throw new CommandError('Name the term.');
+      if (!c.note.trim() && !c.blobHash) throw new CommandError('Say why.');
+      const next = ids(c.commandId);
+      const out: EventSpec[] = [{ id: next(), type: 'v1.KeyTermDefined', payload: { termId: c.termId, laneId: c.laneId, term: c.term.trim(), gloss: c.gloss.trim(), unitScope: [...c.unitScope] } }];
+      if (c.rendering?.trim()) out.push({ id: next(), type: 'v1.KeyTermRenderingAdded', payload: { termId: c.termId, renderingId: `rendering:${c.commandId}`, rendering: c.rendering.trim(), context: c.context?.trim() ?? '' } });
+      out.push({ id: next(), type: 'v1.KeyTermAdjusted', payload: {
+        termId: c.termId, adjustmentId: `adjustment:${c.commandId}`, note: c.note.trim(),
+        ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(c.duringTakeId ? { duringTakeId: c.duringTakeId } : {})
+      } });
+      return out;
+    },
+
+    adjustKeyTermRendering(c) {
+      if (!c.note.trim() && !c.blobHash) throw new CommandError('Say why.');
+      const next = ids(c.commandId);
+      const adjustmentId = `adjustment:${c.commandId}`;
+      const out: EventSpec[] = [];
+      if (c.rendering?.trim()) out.push({ id: next(), type: 'v1.KeyTermRenderingAdded', payload: { termId: c.termId, renderingId: `rendering:${c.commandId}`, rendering: c.rendering.trim(), context: c.context?.trim() ?? '' } });
+      out.push({ id: next(), type: 'v1.KeyTermAdjusted', payload: {
+        termId: c.termId, adjustmentId, note: c.note.trim() || 'Explained in a voice note.',
+        ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(c.duringTakeId ? { duringTakeId: c.duringTakeId } : {})
+      } });
+      if (c.tieToTakeId && !state.keyTermLinks[c.tieToTakeId]?.[c.termId]) {
+        out.push({ id: next(), type: 'v1.KeyTermLinked', payload: { takeId: c.tieToTakeId, termId: c.termId, adjustmentId } });
+      }
+      return out;
+    },
+
+    defineMaterial(c) {
+      if (!c.title.trim()) throw new CommandError('Give it a title.');
+      const next = ids(c.commandId);
+      return [
+        { id: next(), type: 'v1.MaterialDefined', payload: { materialId: c.materialId, kind: c.kind, title: c.title.trim(), scope: { ...c.scope }, ...(c.templateRef ? { templateRef: c.templateRef } : {}) } },
+        ...(c.fields ?? []).filter((f) => f.text.trim()).map((f) => ({ id: next(), type: 'v1.MaterialFieldSet' as const, payload: { materialId: c.materialId, fieldId: f.fieldId, text: f.text.trim() } }))
+      ];
+    },
+
+    setMaterialFields(c) {
+      const next = ids(c.commandId);
+      return c.fields.map((f) => ({
+        id: next(), type: 'v1.MaterialFieldSet' as const,
+        payload: { materialId: c.materialId, fieldId: f.fieldId, ...(f.text !== undefined ? { text: f.text } : {}), ...(f.blobHash ? { blobHash: f.blobHash } : {}) }
+      }));
+    },
+
+    lockMaterial(c) {
+      return [{ id: ids(c.commandId)(), type: 'v1.MaterialLocked', payload: { materialId: c.materialId, locked: c.locked } }];
     },
 
     restoreFlow(c) {

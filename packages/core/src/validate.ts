@@ -111,8 +111,8 @@ export function validateEvent(e: AnyEvent): string | null {
         optStr('comment', 'commentBlobHash', 'place', 'givenBy', 'requestId') ??
         optStrRecord('answers') ?? optStrRecord('skipped') ??
         (p['people'] === undefined || (typeof p['people'] === 'number' && p['people'] >= 0) ? null : 'people must be a number') ??
-        (p['artifactHashes'] === undefined ? null : strArray('artifactHashes')) ??
-        (p['outcome'] === 'recorded' && (!Array.isArray(p['artifactHashes']) || p['artifactHashes'].length === 0) ? 'recorded needs artifactHashes' : null)
+        (p['artifacts'] === undefined ? null : cards('artifacts')) ??
+        (p['outcome'] === 'recorded' && (!Array.isArray(p['artifacts']) || p['artifacts'].length === 0) ? 'recorded needs artifacts' : null)
       );
     case 'v1.DepartureRecorded':
       return (
