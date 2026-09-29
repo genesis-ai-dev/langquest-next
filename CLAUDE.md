@@ -1,5 +1,19 @@
 # Agent instructions for langquest-next
 
+## Open work on other branches (read before touching orgs, projects or languages)
+
+PR #5 (`project-is-one-language`, stacked on `ux/spoken-mobbin-overhaul`)
+drops "language" as a level: org and project are the only buckets, and a
+project is exactly one target language. `append_events` refuses a second
+`LaneAdded` and new lane-scoped memberships; no event changes shape; the
+language home merges into the project home. It also records that org
+structure stays in the `_org` event log. See its `docs/decisions.md`
+sections 28 and 29.
+
+If your branch already solves this, drop PR #5 and keep yours. Otherwise,
+integrate its simplification rather than reintroducing a language level.
+Delete this section once PR #5 is merged or closed.
+
 Read `PLAN.md` before doing anything. Section 4 lists invariants; every change
 must keep them true. Section 6 is the event catalog; never change a shipped
 event's shape, add a new versioned event instead.
