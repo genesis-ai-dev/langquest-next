@@ -2,7 +2,8 @@ import { CloudOff } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, space } from './theme';
+import { noteExpected } from './report';
+import { C, onColor, radius, space, type as T } from './theme';
 import { updateStatus } from './updateStatus';
 
 /**
@@ -31,14 +32,15 @@ export function UpdateBanner() {
       if (state !== 'active') return;
       // Nothing to look for once a bundle is already waiting to be launched.
       if (pending) return;
-      void check().catch(() => {});
+      // Offline or the update server is away: expected, and the banner shows it.
+      void check().catch((e: unknown) => noteExpected('update check', e));
     });
     return () => sub.remove();
   }, [check, pending]);
 
   const onPress = useCallback(() => {
-    if (status?.action === 'restart') void Updates.reloadAsync().catch(() => {});
-    if (status?.action === 'retry') void check().catch(() => {});
+    if (status?.action === 'restart') void Updates.reloadAsync().catch((e: unknown) => noteExpected('update reload', e));
+    if (status?.action === 'retry') void check().catch((e: unknown) => noteExpected('update check', e));
   }, [status?.action, check]);
 
   if (!status) return null;
@@ -48,12 +50,12 @@ export function UpdateBanner() {
   // the device simply cannot reach the server, and spelling that out as an
   // update failure reads as though the app itself broke.
   const body = offline ? (
-    <View style={[styles.banner, styles.offline]}>
-      <CloudOff size={18} color={colors.white} />
+    <View style={[styles.banner, styles.offline]} accessible accessibilityLabel="Offline: updates cannot be checked">
+      <CloudOff size={18} color={C.white} />
     </View>
   ) : (
     <View style={[styles.banner, ready ? styles.ready : styles.quiet]}>
-      {status.kind === 'busy' ? <ActivityIndicator size="small" color={colors.mutedForeground} /> : null}
+      {status.kind === 'busy' ? <ActivityIndicator size="small" color={C.muted} /> : null}
       <Text style={[styles.text, ready && styles.readyText]} numberOfLines={2}>
         {status.text}
       </Text>
@@ -77,11 +79,11 @@ const styles = StyleSheet.create({
     margin: space.sm,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border
+    borderColor: C.border
   },
-  quiet: { backgroundColor: colors.muted },
-  offline: { backgroundColor: colors.danger, borderColor: colors.danger, justifyContent: 'center' },
-  ready: { backgroundColor: colors.action, borderColor: colors.action },
-  text: { flex: 1, fontSize: 13, color: colors.mutedForeground },
-  readyText: { color: colors.actionForeground, fontWeight: '600' }
+  quiet: { backgroundColor: C.bg },
+  offline: { backgroundColor: onColor.red, borderColor: onColor.red, justifyContent: 'center' },
+  ready: { backgroundColor: C.primary, borderColor: C.primary },
+  text: { flex: 1, fontSize: T.xs, color: C.muted },
+  readyText: { color: C.white, fontWeight: '600' }
 });

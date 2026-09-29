@@ -10,7 +10,7 @@
 // what you save is content for the next check, not a version.
 import {
   commands, keyTermsForUnit,
-  type EventSpec, type KindDef, type PassageNote, type RequestView, type ReviewView, type Version
+  type EventSpec, type KindDef, type PassageNote, type ReviewView, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -23,20 +23,23 @@ import {
   Banner, Card, Disclosure, EmptyState, Field, Header, PrimaryBtn, Screen, SectionLabel, Sheet, txt
 } from '../kit';
 import { PassageSourceAudio } from '../passageSourceAudio';
-import { dueText, feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
-import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
+import { useBackTranslationDraft } from '../recording/backTranslationDraft';
+import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
 import { VadTakeover } from '../recording/VadTakeover';
 import {
-  canPublish, cardDurations, cardLabels, markTerms, pendingBackTranslationCards, removeCardSpecs, sameCards,
-  termsInText, tiedTermIds, tieTermsSpecs, workingCards
+  backTranslationDraftKey, canPublish, cardDurations, cardLabels, markTerms, removeCardSpecs, sameCards,
+  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { TrayBody, TrayTabs, type TrayTab } from '../recording/WorkspaceTray';
 import { pendingPassageCards } from '../recordingFlow';
+import { reportError } from '../report';
+import { RequestBanner } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
 import { readingsFor, type Reading } from '../scripture';
 import { guideFor } from '../study/guides';
 import { studyProgress } from '../study/progress';
-import { C, radius, space, TINT } from '../theme';
+import { C, radius, space, TINT, type as T } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
 
@@ -110,11 +113,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     } catch (e) {
       composeLock.current = false;
       setComposing(false);
-      setComposeError((e as Error).message);
+      setComposeError(problemText('workspace: compose draft', e));
       return;
     }
     ctx.project.run(specs)
-      .catch((e: unknown) => setComposeError(`Your takes are saved on this phone but not yet in your draft: ${(e as Error).message}`))
+      .catch((e: unknown) => setComposeError(`Your takes are saved on this phone but not yet in your draft. ${problemText('workspace: save draft', e)}`))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
   }, [state, pending, list, composing, composeError, ctx.project, idx, unitId, laneId]);
@@ -169,6 +172,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const unitTerms = useMemo(() => keyTermsForUnit(state, laneId, unitId), [state, laneId, unitId]);
   const sourceWords = useMemo(() => reading?.verses.map((x) => x.text).join(' ') ?? '', [reading]);
   const tied = useMemo(() => tiedTermIds(state, p.draftTakeId ?? latest?.takeId), [state, p.draftTakeId, latest?.takeId]);
+  // Tying a term is reference work (KeyTermLinked needs fill_reference), so
+  // only someone who may tie carries ties onto the version they publish.
+  const canTie = ctx.session.can('fill_reference');
   const trayTerms = useMemo(() => {
     const shown = reading ? termsInText(sourceWords, unitTerms) : unitTerms;
     const extra = unitTerms.filter((t) => tied.has(t.termId) && !shown.includes(t));
@@ -189,16 +195,17 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     let specs: EventSpec[];
     try {
       specs = commands(state, idx).publishVersion({
-        commandId, unitId, laneId, cardHashes: list,
+        commandId, unitId, laneId, cardHashes: list, actorId: me,
         ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
       });
+      if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
     } catch (e) {
-      ctx.toast(`Not published: ${(e as Error).message}`);
+      ctx.toast(`Not published: ${problemText('workspace: publish', e)}`);
       return;
     }
     setPublishing(true);
     try {
-      await ctx.act([...specs, ...tieTermsSpecs(specs, tied, commandId)], `${versionTitle(nextN)} published.`);
+      await ctx.act(specs, `${versionTitle(nextN)} published.`);
       setConfirming(false);
       ctx.go('passage_record', { unitId, laneId });
     } catch { /* ctx.act said what went wrong */ }
@@ -218,7 +225,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         <View style={{ gap: space.sm }}>
           <TrayTabs tab={tab} onTab={setTab} terms={trayTerms.length} study={study} notes={notes.length} versions={p.versions.length} />
           {tab ? (
-            <TrayBody ctx={ctx} v={v} tab={tab} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId} study={study} notes={notes} disabled={blocked} />
+            <TrayBody ctx={ctx} v={v} tab={tab} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId} canTie={canTie} study={study} notes={notes} disabled={blocked} />
           ) : null}
           {!isFirst && !changed && !recording && list.length > 0 ? (
             <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s takes. Record a new take or delete one to publish a new version.</Text>
@@ -239,6 +246,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           <Text style={[txt.label, { flex: 1 }]}>Source{reading ? ` · ${reading.code}` : ''}</Text>
           {reading && trayTerms.length > 0 ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
         </View>
+        {reading && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
         {reading ? <SourceText reading={reading} terms={unitTerms} tied={tied} onTerm={(termId) => ctx.go('key_term_detail', { unitId, laneId, termId })} />
           : <Text style={txt.smMuted}>There's no source text for this passage in the app yet. Listen to the source below, then record.</Text>}
       </Card>
@@ -255,7 +263,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 
       <VadTakeover rec={rec} count={list.length} />
       {confirming ? (
-        <PublishSheet ctx={ctx} v={v} n={nextN} first={isFirst} busy={publishing} answers={answers} tied={tied.size}
+        <PublishSheet ctx={ctx} v={v} n={nextN} first={isFirst} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
           {...(revising ? { revisingKind: v.kind(revising.kindId).name } : {})}
           onClose={() => setConfirming(false)} onPublish={(note, hash) => void publish(note, hash)} />
       ) : null}
@@ -263,7 +271,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   );
 }
 
-/** Verses with their numbers inline; key-term words underlined, green when tied to the draft (REC-W1). */
+/**
+ * Verses with their numbers inline; key-term words underlined (REC-W1). A
+ * term tied to the draft is green with a solid underline and a ✓, and says
+ * "tied" to a screen reader, so the tie never rests on colour alone.
+ */
 function SourceText(props: { reading: Reading; terms: { termId: string; term: string }[]; tied: ReadonlySet<string>; onTerm: (termId: string) => void }) {
   const verses = useMemo(() => props.reading.verses.map((x) => ({ verse: x, parts: markTerms(x.text, props.terms) })), [props.reading, props.terms]);
   return (
@@ -271,10 +283,15 @@ function SourceText(props: { reading: Reading; terms: { termId: string; term: st
       {verses.map(({ verse, parts }) => (
         <Text key={verse.ref}>
           <Text style={styles.verseNum}>{verse.verse} </Text>
-          {parts.map((part, i) => part.termId ? (
-            <Text key={i} onPress={() => props.onTerm(part.termId!)} accessibilityRole="link"
-              style={[styles.term, props.tied.has(part.termId) ? { color: TINT.greenText, backgroundColor: TINT.green } : null]}>{part.text}</Text>
-          ) : <Text key={i}>{part.text}</Text>)}
+          {parts.map((part, i) => {
+            if (!part.termId) return <Text key={i}>{part.text}</Text>;
+            const tied = props.tied.has(part.termId);
+            return (
+              <Text key={i} onPress={() => props.onTerm(part.termId!)} accessibilityRole="link"
+                accessibilityLabel={`${part.text}, key term${tied ? ', tied to your draft' : ''}`}
+                style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
+            );
+          })}
           {' '}
         </Text>
       ))}
@@ -289,17 +306,6 @@ function FeedbackBanner(props: { ctx: Ctx; review: ReviewView; kind: KindDef }) 
       <Banner icon="chat" tone="amber" title={`Revising after ${props.kind.name} feedback`}
         body={`${r.comment ? `“${r.comment}”\n` : ''}${feedbackSource(r, props.ctx.name)}`} />
       {r.commentBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
-    </View>
-  );
-}
-
-function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
-  const r = props.request;
-  const who = r.by ? props.ctx.name(r.by) : 'Your team';
-  return (
-    <View style={{ gap: space.sm }}>
-      <Banner icon="assign" title={`${who} asked${r.dueDate ? ` · ${dueText(r.dueDate)}` : ''}`} {...(r.note ? { body: r.note } : {})} />
-      {r.noteBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.noteBlobHash]} label="Play the directions" /> : null}
     </View>
   );
 }
@@ -341,9 +347,6 @@ function PublishSheet(props: {
 
 // ---- Back translation --------------------------------------------------------------
 
-/** Parts deleted this session (no event sets a source card aside), by passage. */
-const hiddenParts = new Map<string, Set<string>>();
-
 export function BackTranslation(ctx: Ctx) {
   const v = usePassage(ctx);
   const kindId = ctx.params['kindId'] ?? '';
@@ -353,47 +356,51 @@ export function BackTranslation(ctx: Ctx) {
   return <BackTranslationBody key={`${v.unitId}:${v.laneId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
 }
 
+/**
+ * The parts are kept on this phone until Save (decision 30): recorded cards
+ * go to a local draft, not the record, so a deleted part is gone for good
+ * and the saved review names exactly the parts on screen.
+ */
 function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, laneId, p } = v;
   const produces = kind.produces!;
   const me = ctx.session.actorId;
   const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
-  const key = `${unitId}:${laneId}`;
-  const [hiddenRev, setHiddenRev] = useState(0);
-  // `hiddenRev` bumps when a part is deleted or restored, so the copy is taken afresh.
-  const hidden = useMemo(() => new Set(hiddenParts.get(key) ?? []), [key, hiddenRev]);
-  const parts = useMemo(() => pendingBackTranslationCards(state, unitId, laneId, me, of.hlc, hidden),
-    [state, unitId, laneId, me, of.hlc, hidden]);
+  const drafts = useBackTranslationDraft(
+    backTranslationDraftKey({ projectId: ctx.project.projectId, actorId: me, unitId, laneId, kindId: kind.id }), of.takeId);
+  const parts = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
+  const madeFrom = drafts.draft && parts.length > 0 && drafts.draft.fromTakeId !== of.takeId
+    ? p.versions.find((x) => x.takeId === drafts.draft!.fromTakeId) : undefined;
   const requestId = ctx.params['requestId'];
   const request = (requestId ? p.requests.find((r) => r.id === requestId) : undefined)
     ?? p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === me);
 
-  const latestCtx = useRef(ctx);
-  latestCtx.current = ctx;
+  // No journal target: the card is on disk before this runs, and it is
+  // named only by the draft until Save. Resolving after the draft is written
+  // keeps the recorder holding the file until then.
+  const add = drafts.add;
   const persist = useCallback(async (card: RecordedCard) => {
-    const current = latestCtx.current;
-    const s = current.project.state;
-    if (!s) throw new Error('The project is still loading.');
-    // Source-language audio: what the back translator says, never a draft of the translation.
-    await current.project.run(commands(s, indexesFor(s)).addRecording({
-      commandId: card.id, recordingId: card.id, unitId, laneId, kind: 'source',
-      card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
-    }));
-    current.project.triggerUpload();
-  }, [unitId, laneId]);
-  // The journal target says these are source-language cards, so a save a
-  // crash interrupted resumes as a back-translation part, never as a take.
-  const rec = useRecorder(persist, { orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId, laneId, kind: 'source' });
+    await add({ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format });
+  }, [add]);
+  const rec = useRecorder(persist);
   const recording = rec.vadOn || rec.manualOn;
-  const blocked = recording || rec.busy;
+  const [working, setWorking] = useState(false);
+  const blocked = recording || rec.busy || working || !drafts.loaded || !!drafts.problem;
 
-  function remove(hash: string, label: string) {
+  async function remove(hash: string, label: string) {
     if (blocked) return;
-    const set = hiddenParts.get(key) ?? new Set<string>();
-    set.add(hash);
-    hiddenParts.set(key, set);
-    setHiddenRev((n) => n + 1);
-    ctx.toast(`${label} deleted.`, () => { hiddenParts.get(key)?.delete(hash); setHiddenRev((n) => n + 1); });
+    const at = parts.findIndex((c) => c.hash === hash);
+    const card = parts[at];
+    if (!card) return;
+    setWorking(true);
+    try {
+      await drafts.remove(hash);
+      ctx.toast(`${label} deleted.`, async () => {
+        try { await drafts.add(card, at); } catch (e) { ctx.toast(`Not restored: ${problemText('back translation: restore part', e)}`); }
+      });
+    } catch (e) {
+      ctx.toast(`Not deleted: ${problemText('back translation: delete part', e)}`);
+    } finally { setWorking(false); }
   }
 
   const [confirming, setConfirming] = useState(false);
@@ -402,21 +409,25 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     let specs: EventSpec[];
     try {
       specs = commands(state, indexesFor(state)).produceContent({
-        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cardHashes: parts.map((c) => c.hash),
+        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: parts,
         ...(note.trim() ? { note: note.trim() } : {}), ...(request && !request.legacy ? { requestId: request.id } : {})
       });
     } catch (e) {
-      ctx.toast(`Not saved: ${(e as Error).message}`);
+      ctx.toast(`Not saved: ${problemText('back translation: save', e)}`);
       return;
     }
     setSaving(true);
     try {
       await ctx.act(specs, `${capitalize(produces.what)} saved.`);
-      hiddenParts.delete(key);
-      setConfirming(false);
-      ctx.go('passage_record', { unitId, laneId });
-    } catch { /* ctx.act said what went wrong */ }
-    finally { setSaving(false); }
+    } catch {
+      setSaving(false); // ctx.act said what went wrong
+      return;
+    }
+    // On the record now; a draft left behind is harmless (saved parts are never offered again).
+    await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
+    setSaving(false);
+    setConfirming(false);
+    ctx.go('passage_record', { unitId, laneId });
   }
 
   const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));
@@ -425,7 +436,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
       header={<Header title={capitalize(produces.what)} sub={`${v.lane} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
       footer={
         <View style={styles.actions}>
-          <RecordButton recording={recording} disabled={rec.busy || rec.failureCount > 0} onPress={() => void rec.toggleVad()} />
+          <RecordButton recording={recording} disabled={blocked || rec.failureCount > 0} onPress={() => void rec.toggleVad()} />
           <View style={{ flex: 1 }}>
             <PrimaryBtn label={`Save ${produces.what}`} tone="dark" disabled={cards.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
           </View>
@@ -434,6 +445,10 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
       <Banner icon="swap" title="You're making new content"
         body={`Listen to ${versionTitle(of.n)}, then say what it means in ${produces.into}, in your own words. You're not judging it — ${checkedBy ? `the ${checkedBy} compares your ${produces.what} with the source` : `the next check compares your ${produces.what} with the source`}.`} />
       {request ? <RequestBanner ctx={ctx} request={request} /> : null}
+      {madeFrom ? (
+        <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
+          body={`${versionTitle(of.n)} is out now, and saving puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
+      ) : null}
 
       <SectionLabel label={`Listen · ${v.lane} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
       <Card>
@@ -444,9 +459,10 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
       </Card>
 
       <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
-      <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
-        empty="No parts yet — listen to a part, then tap the red button and say it in your own words." />
-      {rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+      <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
+        empty={drafts.loaded ? 'No parts yet — listen to a part, then tap the red button and say it in your own words.' : 'Loading your parts…'} />
+      {drafts.problem ? <SaveProblem message={drafts.problem} />
+        : rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
         : rec.error ? <SaveProblem message={rec.error} /> : null}
 
       <VadTakeover rec={rec} count={cards.length} />
@@ -478,9 +494,10 @@ function capitalize(s: string): string {
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  source: { fontSize: 17, lineHeight: 28, color: C.dark },
-  verseNum: { fontSize: 13, fontWeight: '700', color: C.primary },
+  source: { fontSize: T.base, lineHeight: 28, color: C.dark },
+  verseNum: { fontSize: T.xs, fontWeight: '700', color: C.primary },
   term: { fontWeight: '600', color: C.primary, backgroundColor: C.light, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
+  termTied: { color: TINT.greenText, backgroundColor: TINT.green, textDecorationStyle: 'solid' },
   checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
   listenRow: { flexDirection: 'row', alignItems: 'center' }
 });

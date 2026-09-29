@@ -15,12 +15,6 @@ export interface JournalTarget {
   projectId: string;
   unitId: string;
   laneId: string;
-  /**
-   * What the card is: a draft of the passage (target, the default for
-   * entries written before this field) or source-language audio (a voice
-   * note, a back translation), so a resumed save lands as the same kind.
-   */
-  kind?: 'source' | 'target';
 }
 
 export interface JournalEntry {

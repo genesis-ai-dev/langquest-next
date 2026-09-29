@@ -275,7 +275,7 @@ langquest-next/
 3. **Done.** `packages/client`: `SyncClient` with fold-on-append, outbox push
    that keeps rejected events, paged pull, offline no-op. Verified by
    `npm run test:integration` with two real users.
-4. **Done.** `apps/mobile`: Expo 57 shell in Expo Go, `SqliteStore` on
+4. **Done.** `apps/mobile`: Expo 57 shell, `SqliteStore` on
    expo-sqlite (contract-tested against `MemoryStore` via node:sqlite),
    Supabase auth, auto-sync every 15 s. Every UX spec screen exists
    (`src/flow.ts` registry, `test/flow.test.ts` proves existence and
@@ -295,7 +295,7 @@ langquest-next/
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
    run on `TransferWorker` (packages/client) per section 14, with the server
    storage trigger appending `BlobStored` as the only confirmation. Needs a
-   dev client (`npx expo run:ios`); Expo Go cannot load the native module.
+   dev client (`npm run ios`, which decrypts the env file); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
@@ -405,17 +405,10 @@ review steps describe v1 lanes, which still fold and read as kinds.
 | Piece work status: unassigned / doing / waiting / done | derived per unit from assignments and take status | P dashboard, step 7 |
 | Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
 | Reference material (TMF, Brief, TG, FIA study), key terms | `MaterialDefined` + `MaterialFieldSet` per field, scoped to lane, unit or step; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
-| Roles with privilege switches | fixed `Role` set for now | custom roles and privileges later; `role_may_emit` is the server gate |
-| Member scope (org / project / language) | membership is per project; org and lane scope later | |
-| Inbox | derived from events addressed to the actor | later |
+| Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / project / language) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
 | Catalog enable at org, narrow at project (A42) | `CatalogItemToggled` in the org partition; `catalogEnabled` | selection per lane is next |
-
-Kept from the design language, on purpose: the spec prototype is purple and
-text-first. We keep its screens and flows but render U screens with the
-yellow single action, icon-encoded status, and 6% tints. P screens may use
-the spec's text density.
 
 ## 14. Blobs: the upload and download design for step 5
 

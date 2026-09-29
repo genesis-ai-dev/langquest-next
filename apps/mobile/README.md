@@ -1,6 +1,6 @@
 # apps/mobile
 
-Expo 57 app, runs in Expo Go. Owns exactly three things:
+Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
 
 1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/client`. The store logic itself lives in the client
@@ -36,17 +36,22 @@ Expo 57 app, runs in Expo Go. Owns exactly three things:
    Session facets and the home screen per role come from `src/session.ts`.
    `src/DevMenu.tsx` (from Settings or the sign-in screen) switches persona by
    really signing in as a seeded account, seeds the demo team as owner, and in
-   a dev build can jump to any screen. It is shown to dev builds and to the
-   testers named in `src/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS` overrides the
-   list), because walking the translator's and reviewer's experience is how
-   this gets tested and a release build has no dev menu.
-   `src/invites.ts` holds the two writes a non-member may make: `issue_invite`
-   / `redeem_invite` and the `join_requests` table (migration 12, docs 5.B).
-   Both end in the ordinary `v1.OrgMemberAdded`; neither is an event of its
-   own.
+   a dev build can jump to any screen. Personas work only against a local
+   Supabase and only when `EXPO_PUBLIC_DEV_PASSWORD` is set (there is no
+   built-in password: `EXPO_PUBLIC_*` values are public); seeding also needs a
+   dev build. The testers named in `src/dev.ts` (`EXPO_PUBLIC_PERSONA_EMAILS`)
+   may use it in a release build pointed at a local server.
+   `src/invites.ts` holds the writes a non-member may make: `issue_invite`,
+   `redeem_invite_v2` and the `join_requests` table (migration
+   20260915120000). They end in the ordinary `v1.OrgMemberAdded`, recorded
+   alongside `v1.InviteIssued`, `v1.InviteRedeemed` and `v1.JoinDecided`.
 
-No business logic and no sync logic live here. Screens read `state` and call
-`deriveTasks`, `deriveTakeStatus`, `deriveProgress`.
+No sync logic lives here. Screens read `state` through core derivations
+(`derivePassage`, `highlightsFor`, `languageProgress` and the rest in
+`packages/core/src/passage.ts`) and write through core `commands()`. A few
+screen models build org-partition events core has no commands for
+(`src/orgAdmin.ts`, `src/screens/configModel.ts`, `src/contentTemplates.ts`);
+they are listed in `docs/ux/demo-parity.md`.
 
 Run: get `.env.keys` from a teammate once (password manager, never chat or
 email) and put it at the repository root. The env files are committed

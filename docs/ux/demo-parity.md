@@ -28,6 +28,9 @@ Demo-only tools are not ported: the guide and scenarios, the screen map,
 partner comments, persona sign-in cards, the Reset button and colour themes.
 The dev menu (`src/DevMenu.tsx`) is the app's way to switch persona.
 
+The per-domain briefs the port was done from are in git history
+(`docs/ux/port-briefs/`, removed after the port).
+
 ## Conventions every screen keeps
 
 - **Files.** One file per domain under `src/screens/`, as in the demo. Each
@@ -90,8 +93,10 @@ Demo-only tools are out of scope (see above). Beyond those:
 - A spoken reason for a skipped question (`ReviewRecorded.skipped` is text).
 - A review team's kind (FLOW-5), deleting a team, a project description,
   roles defined below the organization, the organization's region.
-- Joining by QR without an email account (AUTH-3); the invite summary on the
-  scan screen reads only what the link carries.
+- Joining by QR without an email account (AUTH-3). The scan screen names the
+  organization only when the phone already knows it; showing who it's for,
+  the role and the inviter needs a server lookup by token (links carry only
+  the org and token, so they can't be spoofed or leak names).
 - Linking an email, changing email, photo, bio (AUTH-7).
 
 **Needs data the app does not have**
@@ -107,6 +112,16 @@ Demo-only tools are out of scope (see above). Beyond those:
 - Practice passages, coach-mark tours and celebrations (ONB-3, ONB-4, ONB-6
   beyond creating an organization): the Getting started card is built.
 - A native date picker when asking someone (chips plus a typed date).
+
+**Events built without a core command**
+- Org partition (no core commands exist for it): `v1.OrgCreated`,
+  `v1.RoleDefined`, `v1.OrgMemberAdded`/`Removed`, `v1.CatalogItemToggled`,
+  `v1.ProjectRegistered`.
+- Legacy project roles in Edit Member: `v1.MemberRoleChanged`,
+  `v1.MemberRemoved`.
+- Structure: `src/orgAdmin.ts` (review teams, adding a language),
+  `src/contentTemplates.ts` (template selection and its units), and the dev
+  seed.
 
 **Known rough edges**
 - Opening a newly created project remounts the workspace under a screen that

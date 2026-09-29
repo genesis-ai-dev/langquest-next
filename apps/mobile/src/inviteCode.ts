@@ -7,12 +7,12 @@
  * message rather than scanning, and an invite that only works from a camera
  * is an invite most of these users cannot accept.
  */
-export function inviteUri(orgId: string, token: string, about: { name?: string; role?: string; orgName?: string; from?: string } = {}): string {
-  // Who it is for, the role, the org and the inviter ride along so the
-  // scanner can say "Invite for Ana · Translator · Wycliffe · from Sarah"
-  // before redeeming (AUTH-3). parseInvite ignores them.
-  const extra = Object.entries(about).filter(([, v]) => v).map(([k, v]) => `&${k}=${encodeURIComponent(v!)}`).join('');
-  return `langquestnext://invite?org=${encodeURIComponent(orgId)}&token=${encodeURIComponent(token)}${extra}`;
+export function inviteUri(orgId: string, token: string): string {
+  // Only the org and the token: anything else a link carried (a name, a
+  // role, who sent it) would be shown on the scan screen as if it were true,
+  // and anyone can edit a link. What the invite grants is the server's, read
+  // when it is redeemed.
+  return `langquestnext://invite?org=${encodeURIComponent(orgId)}&token=${encodeURIComponent(token)}`;
 }
 
 export function parseInvite(input: string): { orgId?: string; token: string } | null {

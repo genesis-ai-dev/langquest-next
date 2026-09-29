@@ -6,10 +6,10 @@
 // white stop button ends it. Ported from the recorder removed on this
 // branch (main: screens/recordings.tsx).
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ico } from '../kit';
-import { C, radius, space, TINT, type as T } from '../theme';
+import { C, onColor, radius, space, TINT, type as T, withAlpha } from '../theme';
 import { useEnergyHistory, type useRecorder } from '../useRecorder';
 
 type Recorder = ReturnType<typeof useRecorder>;
@@ -25,17 +25,32 @@ function EnergyBars(props: { captured: boolean }) {
       height: `${Math.max(1, Math.pow(Math.min(1, Math.max(0, bar.energy)), bar.captured ? 0.6 : 2.5) * 100)}%` }]} />)}</>;
 }
 
+/** The reduce-motion setting, kept current (A11Y-8). */
+function useReduceMotion(): boolean {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((on) => { if (live) setReduce(on); }, () => undefined);
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
+    return () => { live = false; sub.remove(); };
+  }, []);
+  return reduce;
+}
+
+/** Pulses while capturing; with reduce motion on, it is simply bright. */
 function PulsingDot(props: { on: boolean }) {
   const pulse = useRef(new Animated.Value(1)).current;
+  const still = useReduceMotion();
   useEffect(() => {
     if (!props.on) { pulse.setValue(0.4); return; }
+    if (still) { pulse.setValue(1); return; }
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 0.35, duration: 500, useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 1, duration: 500, useNativeDriver: true })
     ]));
     loop.start();
     return () => loop.stop();
-  }, [props.on, pulse]);
+  }, [props.on, pulse, still]);
   return <Animated.View style={[styles.dot, { opacity: pulse }]} />;
 }
 
@@ -127,10 +142,11 @@ const styles = StyleSheet.create({
   bar: { flex: 1, backgroundColor: C.white, borderRadius: 2 },
   cutoff: { position: 'absolute', left: 0, right: 0, borderTopWidth: 2, borderStyle: 'dashed', borderColor: C.white },
   pauses: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
-  pause: { minWidth: 64, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: `${C.white}99`,
+  pause: { minWidth: 64, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: withAlpha(C.white, 0.6),
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
   pauseDot: { width: 6, height: 6, borderRadius: 3 },
-  error: { color: C.white, fontSize: T.sm, textAlign: 'center' },
+  // On a deeper red than the capturing ground, so the words hold 4.5:1 whichever red is behind.
+  error: { color: C.white, fontSize: T.sm, textAlign: 'center', backgroundColor: onColor.red, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm, overflow: 'hidden' },
   stop: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: C.white, alignSelf: 'center' },
   stopSquare: { width: 34, height: 34, borderRadius: 6, backgroundColor: IDLE }
 });

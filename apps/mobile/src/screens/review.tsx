@@ -11,7 +11,7 @@
 // review is grow-only, so sending it offers no Undo.
 import {
   commands, derivePassage, keyTermLinksFor, questionsForKind,
-  type EventSpec, type KindDef, type PassageNote
+  type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
@@ -24,6 +24,7 @@ import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Header, Ico, PrimaryBtn, ReasonSheet, Screen, SectionLabel, txt
 } from '../kit';
 import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passageView';
+import { problemText } from '../recording/parts';
 import { cleanAnswers, cleanSkips, CANT_ANSWER, earlierReviews, footHint, isGroupKind, loggedTargets, noteAnchorText, readiness,
   recordedPassages, requestFor, toCompareFor, versionFor, type Answers, type Skips } from '../reviewing/capture';
 import {
@@ -35,6 +36,15 @@ import { guideFor } from '../study/guides';
 import { studyProgress } from '../study/progress';
 import { C, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
+
+/**
+ * A voice note as a card for a review's artifacts, with the length and
+ * format the recorder reported. A card VoiceNote did not describe is m4a
+ * (what it records) of unknown length.
+ */
+function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm4a' }): AudioCard {
+  return { hash, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' };
+}
 
 // ---- Review it (review_capture) ----------------------------------------------------------
 
@@ -73,8 +83,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [people, setPeople] = useState(0);
   const [givenBy, setGivenBy] = useState('');
   const [place, setPlace] = useState('');
-  const [evidence, setEvidence] = useState<string | null>(null);
-  const [made, setMade] = useState<string[]>([]);
+  const [evidence, setEvidence] = useState<AudioCard | null>(null);
+  const [made, setMade] = useState<AudioCard[]>([]);
   const [busy, setBusy] = useState(false);
 
   const version = v ? versionFor(v.p, takeId) : undefined;
@@ -144,19 +154,19 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           const commandId = `${cmd}:${i}`;
           specs.push(...(makes
             ? c.produceContent({
-              commandId, fromTakeId: t.takeId, kindId: kind.id, cardHashes: made, via: 'logged',
+              commandId, fromTakeId: t.takeId, kindId: kind.id, cards: made, via: 'logged',
               ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
             })
             : c.recordReview({
               commandId, takeIds: [t.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
               ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
-              ...(evidence ? { artifactHashes: [evidence] } : {}), ...(req ? { requestId: req.id } : {})
+              ...(evidence ? { artifacts: [evidence] } : {}), ...(req ? { requestId: req.id } : {})
             })));
         });
         message = targets.length > 1 ? `${kind.name} added to ${targets.length} passages` : `${kind.name} added to the record`;
       }
     } catch (e) {
-      ctx.toast(`Not saved: ${(e as Error).message}`);
+      ctx.toast(`Not saved: ${problemText(logged ? 'add record: save' : 'review: send', e)}`);
       return;
     }
     setBusy(true);
@@ -236,13 +246,13 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {makes ? (
         <>
           <Block label={`The ${makes.what}`} hint="It's what gets checked next, so it's the one thing this entry needs.">
-            {made.map((h, i) => (
-              <VoiceNote key={h} ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={`Part ${i + 1}`} hash={h}
-                onChange={(next) => setMade((m) => next ? m.map((x) => (x === h ? next : x)) : m.filter((x) => x !== h))} />
+            {made.map((c, i) => (
+              <VoiceNote key={c.hash} ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={`Part ${i + 1}`} hash={c.hash}
+                onChange={(next, card) => setMade((m) => next ? m.map((x) => (x.hash === c.hash ? voiceCard(next, card) : x)) : m.filter((x) => x.hash !== c.hash))} />
             ))}
             <VoiceNote key={`new-${made.length}`} ctx={ctx} unitId={v.unitId} laneId={v.laneId}
               label={made.length ? 'Record another part' : `Record the ${makes.what}`} hash={null}
-              onChange={(h) => { if (h) setMade((m) => [...m, h]); }} />
+              onChange={(h, card) => { if (h) setMade((m) => (m.some((x) => x.hash === h) ? m : [...m, voiceCard(h, card)])); }} />
           </Block>
           <Block label="What happened" hint="Optional — what was hard to say back.">
             <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a summary" hash={commentHash} onChange={setCommentHash} />
@@ -259,7 +269,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 
       {logged && !makes ? (
         <Block label="Evidence · optional" hint="A retelling or a recorded conversation makes the review easy to trust.">
-          <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a retelling" hash={evidence} onChange={setEvidence} />
+          <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a retelling" hash={evidence?.hash ?? null}
+            onChange={(h, card) => setEvidence(h ? voiceCard(h, card) : null)} />
         </Block>
       ) : null}
 

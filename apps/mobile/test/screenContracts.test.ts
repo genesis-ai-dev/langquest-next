@@ -37,6 +37,49 @@ describe('screen action contracts', () => {
     expect([...seen].sort()).toEqual([...SCREEN_IDS].sort());
   });
 
+  it('every declared event is one its screen can emit', () => {
+    // The reverse of the test above, for what can be checked from source: an
+    // event no core command builds must be named by the screen's code (its
+    // own function, the file's helpers, or an app module the file imports)
+    // or come from a ctx method known to append it. Events a core command
+    // builds are left out: which command a screen calls is not a literal.
+    const core = path.resolve('packages/core/src');
+    const commandEvents = new Set(['commands.ts', 'materials.ts'].flatMap((f) =>
+      [...fs.readFileSync(path.join(core, f), 'utf8').matchAll(/'(v\d\.\w+)'/g)].map((m) => m[1]!)));
+    const viaCtx: Record<string, string> = { 'v1.VisionSeen': '.markWelcomed(', 'v1.TermsAccepted': '.acceptTerms(' };
+    const src = path.join(root, 'src');
+    const skip = new Set(['screenContracts.ts', 'flow.ts']);
+    const imported = (file: ts.SourceFile, dir: string) => file.statements.flatMap((stmt) => {
+      if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) return [];
+      const spec = stmt.moduleSpecifier.text;
+      if (!spec.startsWith('.')) return [];
+      const base = path.resolve(dir, spec);
+      const hit = ['.ts', '.tsx'].map((ext) => base + ext).find((f) => fs.existsSync(f));
+      return hit && hit.startsWith(src) && !skip.has(path.basename(hit)) ? [fs.readFileSync(hit, 'utf8')] : [];
+    });
+    let checked = 0;
+    for (const filename of fs.readdirSync(path.join(root, 'src/screens'))) {
+      if (!filename.endsWith('.tsx')) continue;
+      const source = fs.readFileSync(path.join(root, 'src/screens', filename), 'utf8');
+      const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+      const screens = file.statements.filter((s): s is ts.FunctionDeclaration =>
+        ts.isFunctionDeclaration(s) && !!s.name && componentScreen.has(s.name.text));
+      const shared = file.statements.filter((s) => !screens.includes(s as ts.FunctionDeclaration) && !ts.isImportDeclaration(s))
+        .map((s) => s.getText(file)).join('\n') + imported(file, path.join(root, 'src/screens')).join('\n');
+      for (const fn of screens) {
+        const screen = componentScreen.get(fn.name!.text)!;
+        const scope = `${fn.getText(file)}\n${shared}`;
+        for (const event of SCREEN_CONTRACTS[screen].emits) {
+          if (commandEvents.has(event)) continue;
+          const named = scope.includes(`'${event}'`) || (viaCtx[event] !== undefined && fn.getText(file).includes(viaCtx[event]!));
+          expect(named, `${filename}:${screen} declares ${event} but never emits it`).toBe(true);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(10);
+  });
+
   it('walks every persona through allowed edges and checks emitted fixture actions', () => {
     const fixture = buildFixture();
     const project = fold(fixture);
@@ -63,7 +106,8 @@ describe('screen action contracts', () => {
         }
       }
     }
-    expect(checked).toBeGreaterThan(40);
+    // Contracts name only what screens emit, so this counts real pairs, not padding.
+    expect(checked).toBeGreaterThan(30);
   });
 
   it('asking, reviewing and logging follow permissions, never the method', () => {
@@ -80,9 +124,5 @@ describe('screen action contracts', () => {
     expect(screenMayEmit('review_capture', as('translator'), review)).toBe(false);
     const logged = { ...review, payload: { ...review.payload, via: 'logged' } } as AnyEvent;
     expect(screenMayEmit('add_record', as('translator'), logged)).toBe(true);
-    // A back translator records source-language cards with only Review.
-    const card = { type: 'v1.RecordingAdded', payload: { recordingId: 'c', unitId: 'luke1', laneId: 'L1', kind: 'source', cards: [{ hash: 'h', durationMs: 1 }] } } as AnyEvent;
-    expect(screenMayEmit('back_translation', as('reviewer'), card)).toBe(true);
-    expect(screenMayEmit('workspace', as('reviewer'), { ...card, payload: { ...card.payload, kind: 'target' } } as AnyEvent)).toBe(false);
   });
 });

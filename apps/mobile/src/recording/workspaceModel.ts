@@ -3,8 +3,8 @@
 // called, which key terms are tied, and the events a change to the list
 // means. No React, no I/O, so the rules are tested in test/workspace.test.ts.
 import {
-  commands, recordAudioHashes,
-  type EventSpec, type Indexes, type KeyTermView, type ProjectState
+  commands,
+  type Card, type EventSpec, type Indexes, type KeyTermView, type ProjectState
 } from '@langquest-next/core';
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {
@@ -147,7 +147,9 @@ export function removeCardSpecs(state: ProjectState, idx: Indexes, c: {
   const specs: EventSpec[] = [];
   const backToLatest = next.length === 0 || (!!c.latestCards && sameCards(next, c.latestCards));
   if (backToLatest) {
-    // No core command sets a whole draft aside yet; see the port report.
+    // Setting a whole draft aside has no core command (keepTake needs cards,
+    // discardCards makes a new take), so this one event is written here and
+    // declared in the workspace's screen contract.
     if (c.draftTakeId) specs.push({ id: `${c.commandId}:archive`, type: 'v1.TakeArchived', payload: { takeId: c.draftTakeId } });
   } else {
     specs.push(...cmd.keepTake({ commandId: c.commandId, unitId: c.unitId, laneId: c.laneId, cardHashes: next }));
@@ -160,31 +162,77 @@ export function removeCardSpecs(state: ProjectState, idx: Indexes, c: {
 
 /**
  * Carry the tied key terms onto the version being published, so the
- * version's detail and its reviewers see them (REC-9, TERM-4).
+ * version's detail and its reviewers see them (REC-9, TERM-4). Uses core
+ * `linkKeyTerms` under its own command id, so its event ids never collide
+ * with the publish's.
  */
-export function tieTermsSpecs(publishSpecs: readonly EventSpec[], termIds: Iterable<string>, commandId: string): EventSpec[] {
+export function tieTermsSpecs(state: ProjectState, publishSpecs: readonly EventSpec[], termIds: Iterable<string>, commandId: string): EventSpec[] {
   const submitted = publishSpecs.find((s) => s.type === 'v1.TakeSubmitted');
   const takeId = submitted ? (submitted.payload as { takeId: string }).takeId : undefined;
-  if (!takeId) return [];
-  return [...termIds].map((termId) => ({ id: `${commandId}:tie:${termId}`, type: 'v1.KeyTermLinked', payload: { takeId, termId } }));
+  const ids = [...termIds];
+  if (!takeId || ids.length === 0) return [];
+  return commands(state).linkKeyTerms({ commandId: `${commandId}:tie`, takeId, termIds: ids });
+}
+
+// ---- a back translation in progress (REV-5, decision 30) ----------------------------
+
+/**
+ * The parts of a back translation not yet saved. They live only on this
+ * phone (the cards are in the blob store, named by nothing on the record)
+ * until Save names them in one `produceContent`, so a part deleted here is
+ * gone for good and never reaches the grow-only review.
+ */
+export interface BackTranslationDraft {
+  /** The version the parts were made from. */
+  fromTakeId: string;
+  cards: Card[];
+}
+
+/** Where a draft is kept: per project, person, passage, language and kind. */
+export function backTranslationDraftKey(k: { projectId: string; actorId: string; unitId: string; laneId: string; kindId: string }): string {
+  return `bt-draft:v1:${k.projectId}:${k.actorId}:${k.unitId}:${k.laneId}:${k.kindId}`;
+}
+
+const isCard = (x: unknown): x is Card => {
+  if (typeof x !== 'object' || x === null) return false;
+  const c = x as Record<string, unknown>;
+  return typeof c['hash'] === 'string' && c['hash'] !== '' && typeof c['durationMs'] === 'number'
+    && (c['format'] === undefined || c['format'] === 'wav' || c['format'] === 'm4a');
+};
+
+/** A stored draft, or null when there is none or it cannot be read as one. */
+export function parseBackTranslationDraft(raw: string | null): BackTranslationDraft | null {
+  if (!raw) return null;
+  try {
+    const d = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof d['fromTakeId'] !== 'string' || !Array.isArray(d['cards'])) return null;
+    return { fromTakeId: d['fromTakeId'], cards: d['cards'].filter(isCard) };
+  } catch {
+    return null; // not JSON: treated as no draft, as a missing one is
+  }
+}
+
+/** Add a recorded part at the end (or at `at`, for Undo); a part already there is not added twice. */
+export function withPart(d: BackTranslationDraft | null, fromTakeId: string, card: Card, at?: number): BackTranslationDraft {
+  const cards = d?.cards ?? [];
+  if (cards.some((c) => c.hash === card.hash)) return d ?? { fromTakeId, cards };
+  const i = at === undefined ? cards.length : Math.max(0, Math.min(at, cards.length));
+  return { fromTakeId: d?.fromTakeId ?? fromTakeId, cards: [...cards.slice(0, i), card, ...cards.slice(i)] };
+}
+
+export function withoutPart(d: BackTranslationDraft | null, hash: string): BackTranslationDraft | null {
+  if (!d) return null;
+  return { ...d, cards: d.cards.filter((c) => c.hash !== hash) };
 }
 
 /**
- * A back translation in progress (REV-5): the source-language cards you
- * recorded on this passage since its latest version that nothing on the
- * record uses yet, oldest first. `hidden` holds cards deleted this session.
+ * The parts still to save: the draft's cards minus any a review on the
+ * record already names (a save whose draft could not be cleared afterwards
+ * never offers the same parts twice).
  */
-export function pendingBackTranslationCards(
-  state: ProjectState, unitId: string, laneId: string, actorId: string, sinceHlc: string, hidden: ReadonlySet<string>
-): { hash: string; durationMs: number }[] {
-  const used = recordAudioHashes(state);
-  for (const m of Object.values(state.materials)) {
-    for (const f of Object.values(m.fields)) if (f.value.blobHash) used.add(f.value.blobHash);
-  }
-  return Object.values(state.recordings)
-    .filter((r) => r.unitId === unitId && r.laneId === laneId && r.actorId === actorId && r.kind === 'source' && r.hlc > sinceHlc)
-    .sort((a, b) => a.hlc.localeCompare(b.hlc))
-    .flatMap((r) => r.cards)
-    .filter((c) => !used.has(c.hash) && !hidden.has(c.hash))
-    .map((c) => ({ hash: c.hash, durationMs: c.durationMs }));
+export function unsavedParts(state: ProjectState, d: BackTranslationDraft | null): Card[] {
+  if (!d) return [];
+  const named = new Set<string>();
+  for (const r of Object.values(state.kindReviews ?? {})) for (const c of r.artifacts ?? []) named.add(c.hash);
+  return d.cards.filter((c) => !named.has(c.hash));
 }

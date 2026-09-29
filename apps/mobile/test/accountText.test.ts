@@ -98,14 +98,16 @@ describe('welcome', () => {
 });
 
 describe('invite summary (ADR-028)', () => {
-  it('reads what the link carries and leaves the rest out', () => {
+  it('reads only the org from a link and ignores claims it cannot check', () => {
     const full = 'langquestnext://invite?org=org1&token=abc&name=Akol%20Deng&role=Translator&orgName=Wycliffe%20Associates&from=Sarah';
-    const s = inviteSummary(full);
-    expect(s).toEqual({ orgId: 'org1', name: 'Akol Deng', role: 'Translator', org: 'Wycliffe Associates', from: 'Sarah' });
-    expect(inviteLine(s)).toBe('Translator · Wycliffe Associates · from Sarah');
-    const bare = inviteSummary('langquestnext://invite?org=org1&token=abc');
-    expect(bare).toEqual({ orgId: 'org1' });
-    expect(inviteLine(bare)).toBe('org1');
+    expect(inviteSummary(full)).toEqual({ orgId: 'org1' });
+    expect(inviteSummary('langquestnext://invite?org=org1&token=abc')).toEqual({ orgId: 'org1' });
+    expect(inviteSummary('langquestnext://invite?token=abc&org=%E0%A4%A')).toEqual({});
     expect(inviteSummary('a'.repeat(64))).toEqual({});
+  });
+
+  it('names an org only when the phone knows it, never by id', () => {
+    expect(inviteLine('Wycliffe Associates')).toBe('Invitation to join Wycliffe Associates');
+    expect(inviteLine()).toBe('Invitation to join an organization');
   });
 });

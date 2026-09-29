@@ -14,17 +14,22 @@ import {
   Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt
 } from '../kit';
 import { dueText, feedbackSource, outcomeText, plural, versionTitle, when } from '../passageView';
-import type { StudyProgress, StudyStepStatus } from '../study/progress';
+import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
-import { C, radius, space, target, TINT } from '../theme';
+import { StepMark, stepLine } from '../study/ui';
+import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { questionSource, searchPassages, nearbyPassages, type Answers, type PassageChoice, type Skips } from './capture';
 
 // ---- answers --------------------------------------------------------------------------
 
-/** One 56pt choice in a row of equal choices (Yes/No, 1–5). */
+/**
+ * One 56pt choice in a row of equal choices (Yes/No, 1–5). No kit primitive
+ * is an equal-width 56pt segment (Chip is a 48pt pill sized to its label),
+ * so this stays; a screen reader hears it as one radio of the set.
+ */
 function Choice(props: { label: string; on: boolean; onPress: () => void; big?: boolean }) {
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={props.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.on ? { backgroundColor: C.primary } : null, pressed && { opacity: 0.7 }]}>
       <Text style={[props.big ? styles.choiceBig : styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
     </Pressable>
@@ -34,14 +39,14 @@ function Choice(props: { label: string; on: boolean; onPress: () => void; big?: 
 export function AnswerInput(props: { type: SourcedQuestion['q']['type']; value?: string; onChange: (v: string) => void }) {
   if (props.type === 'rating') {
     return (
-      <View style={styles.choices}>
+      <View style={styles.choices} accessibilityRole="radiogroup">
         {['1', '2', '3', '4', '5'].map((n) => <Choice key={n} label={n} big on={props.value === n} onPress={() => props.onChange(n)} />)}
       </View>
     );
   }
   if (props.type === 'yesno') {
     return (
-      <View style={styles.choices}>
+      <View style={styles.choices} accessibilityRole="radiogroup">
         {['Yes', 'No'].map((v) => <Choice key={v} label={v} on={props.value === v} onPress={() => props.onChange(v)} />)}
       </View>
     );
@@ -70,7 +75,7 @@ export function QuestionList(props: {
         const unanswered = !(answers[id] ?? '').trim();
         const waiting = sq.required && unanswered && skip === undefined;
         return (
-          <Card key={id} style={waiting ? { borderColor: `${C.primary}80`, borderWidth: 1.5 } : null}>
+          <Card key={id} style={waiting ? { borderColor: withAlpha(C.primary, 0.5), borderWidth: 1.5 } : null}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <Text style={txt.label}>{questionSource(sq, props.asker)}</Text>
               {sq.required ? <Badge label="Required" tone="brand" /> : null}
@@ -134,9 +139,9 @@ export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
 export function CompareCard(props: { ctx: Ctx; review: ReviewView; kind: KindDef; version: Version }) {
   const r = props.review;
   const k = props.kind;
-  const recordings = r.artifactHashes ?? [];
+  const recordings = (r.artifacts ?? []).map((c) => c.hash);
   return (
-    <Card style={{ borderColor: `${C.primary}66`, borderWidth: 1.5 }}>
+    <Card style={{ borderColor: withAlpha(C.primary, 0.4), borderWidth: 1.5 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <Ico name="swap" size={18} color={C.primary} />
         <Text style={[txt.label, { color: C.primary }]}>{k.name} to compare</Text>
@@ -179,14 +184,14 @@ function EarlierReview(props: { ctx: Ctx; review: ReviewView; kind: KindDef | un
   const [open, setOpen] = useState(false);
   const r = props.review;
   const good = r.outcome !== 'needs_changes';
-  const recordings = [...(r.artifactHashes ?? []), ...(r.commentBlobHash ? [r.commentBlobHash] : [])];
+  const recordings = [...(r.artifacts ?? []).map((c) => c.hash), ...(r.commentBlobHash ? [r.commentBlobHash] : [])];
   const sub = `${feedbackSource(r, props.ctx.name)} · ${versionTitle(r.versionN)} · ${when(r.hlc)}${recordings.length ? ` · ${plural(recordings.length, 'recording')}` : ''}`;
   return (
     <View style={!props.last ? styles.divider : null}>
       <Row
         leading={<View style={[styles.mark, { backgroundColor: good ? TINT.green : TINT.amber }]}><Ico name={good ? 'check' : 'chat'} size={18} color={good ? TINT.greenText : TINT.amberText} /></View>}
         label={`${props.kind?.name ?? 'Review'} · ${outcomeText(props.kind, r.outcome)}`} sub={sub} last
-        right={<Ico name={open ? 'up' : 'down'} size={20} color={C.muted} />} onPress={() => setOpen((o) => !o)} />
+        right={<Ico name={open ? 'up' : 'down'} size={20} color={C.muted} />} onPress={() => setOpen((o) => !o)} expanded={open} />
       {open ? (
         <View style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm }}>
           {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
@@ -262,12 +267,6 @@ export function FromTranslator(props: {
   );
 }
 
-function studyStepLine(s: StudyStepStatus, name: Ctx['name']): string {
-  const notes = s.notes.length ? ` · ${plural(s.notes.length, 'note')}` : '';
-  if (s.done) return `Done by ${name(s.done.by, true)} · ${when(s.done.hlc)}${notes}`;
-  return s.notes.length ? plural(s.notes.length, 'note') : 'Not started';
-}
-
 /** The team's study of the passage (FIA): evidence it was studied before drafting (ADR-018). */
 export function TeamStudy(props: { ctx: Ctx; detailsKey: string; study: StudyProgress; onOpenStep: (stepId: string) => void; onOpenStudy: () => void }) {
   const d = props.ctx.details(props.detailsKey);
@@ -279,24 +278,20 @@ export function TeamStudy(props: { ctx: Ctx; detailsKey: string; study: StudyPro
         What the team worked through before drafting, and what they said. Tap a step to see their answers and notes in place.
       </Text>
       {s.steps.map((st) => (
-        <Row key={st.step.id} leading={<StudyMark done={!!st.done} />} label={st.step.title} sub={studyStepLine(st, props.ctx.name)} onPress={() => props.onOpenStep(st.step.id)} />
+        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpenStep(st.step.id)} />
       ))}
       <Row icon="sparkle" label="Open the study" onPress={props.onOpenStudy} last />
     </Disclosure>
   );
 }
 
-function StudyMark(props: { done: boolean }) {
-  return (
-    <View style={[styles.mark, { backgroundColor: props.done ? C.green : C.card, borderWidth: props.done ? 0 : 1.5, borderColor: C.border }]}>
-      {props.done ? <Ico name="check" size={16} color={C.white} strokeWidth={3} /> : null}
-    </View>
-  );
-}
-
 // ---- a session that already happened (REV-6) ----------------------------------------------------------
 
-/** How many listened: − and + around the count (a group kind). */
+/**
+ * How many listened: − and + around the count (a group kind). Kit has no
+ * minus icon and SmallBtn takes no spoken label, so these are 56pt
+ * Pressables that say "One fewer person" / "One more person".
+ */
 export function PeopleCounter(props: { value: number; onChange: (n: number) => void }) {
   const n = props.value;
   return (
@@ -338,13 +333,7 @@ export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoi
       <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>The same review is added to each passage you pick.</Text>
       {pickedChoices.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {pickedChoices.map((p) => (
-            <Pressable key={p.unitId} onPress={() => toggle(p.unitId)} accessibilityRole="button" accessibilityLabel={`Remove ${p.title}`}
-              style={({ pressed }) => [styles.pickedPill, pressed && { opacity: 0.7 }]}>
-              <Text style={[txt.sm, { color: C.white, fontWeight: '700' }]}>{p.title}</Text>
-              <View style={styles.pillX}><Ico name="close" size={18} color={C.white} /></View>
-            </Pressable>
-          ))}
+          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on accessibilityLabel={`Remove ${p.title}`} onPress={() => toggle(p.unitId)} />)}
         </View>
       ) : null}
       <SearchField value={query} onChangeText={setQuery} placeholder="Find another — “Mark 2”" />
@@ -354,7 +343,7 @@ export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoi
           {list.map((p, i) => {
             const on = picked.includes(p.unitId);
             return (
-              <Row key={p.unitId} last={i === list.length - 1} label={p.title} onPress={() => toggle(p.unitId)}
+              <Row key={p.unitId} last={i === list.length - 1} label={p.title} onPress={() => toggle(p.unitId)} role="checkbox" checked={on}
                 leading={<View style={[styles.box, on ? { backgroundColor: C.primary, borderColor: C.primary } : null]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>}
                 right={<View />} />
             );
@@ -380,17 +369,15 @@ export function Block(props: { label: string; hint?: string; children: ReactNode
 const styles = StyleSheet.create({
   choices: { flexDirection: 'row', gap: space.sm },
   choice: { flex: 1, minHeight: target.primary, borderRadius: radius.md, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  choiceLabel: { fontSize: 17, fontWeight: '600' },
-  choiceBig: { fontSize: 19, fontWeight: '700' },
+  choiceLabel: { fontSize: T.base, fontWeight: '600' },
+  choiceBig: { fontSize: T.lg, fontWeight: '700' },
   inset: { backgroundColor: C.bg, borderRadius: radius.md, padding: space.md, gap: space.xs },
   withheld: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.lg, borderRadius: radius.lg, backgroundColor: TINT.gray },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   mark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   counter: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
   counterBtn: { width: target.primary, height: target.primary, borderRadius: radius.md, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  counterSign: { fontSize: 26, fontWeight: '600', color: C.dark },
-  pickedPill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.min, paddingLeft: space.lg, paddingRight: space.xs, borderRadius: radius.full, backgroundColor: C.primary },
-  pillX: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  counterSign: { fontSize: T.xxl, fontWeight: '600', color: C.dark },
   pickList: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
   box: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' }
 });

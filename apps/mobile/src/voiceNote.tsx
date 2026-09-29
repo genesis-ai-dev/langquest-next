@@ -1,13 +1,12 @@
 // A voice note anywhere text is optional (a reason, feedback, directions,
-// what changed): tap to record, tap to stop. The audio is a real card in the
-// content-addressed store, saved against the passage as source-language
-// audio (not a draft of the translation), and uploaded like any other card.
-import { commands } from '@langquest-next/core';
+// what changed): tap to record, tap to stop. The audio lands in the
+// content-addressed store and is named only by the note, review or reason
+// that uses it (docs/decisions.md 30); that event is what uploads it. A
+// voice note someone records and then abandons never reaches the log.
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from './audioClip';
 import type { Ctx } from './ctx';
-import { indexesFor } from './indexes';
 import { Ico, IconBtn, txt } from './kit';
 import { C, radius, space, TINT } from './theme';
 import { useRecorder, type RecordedCard } from './useRecorder';
@@ -18,22 +17,16 @@ export function VoiceNote(props: {
   laneId: string;
   label: string;
   hash: string | null;
-  onChange: (hash: string | null) => void;
+  /** The hash, and the card's length and format for events that keep them (review artifacts). */
+  onChange: (hash: string | null, card?: { durationMs: number; format: 'wav' | 'm4a' }) => void;
 }) {
   const latest = useRef(props);
   latest.current = props;
-  const persist = async (card: RecordedCard) => {
-    const { ctx, unitId, laneId, onChange } = latest.current;
-    const state = ctx.project.state;
-    if (!state) throw new Error('The project is still loading.');
-    await ctx.project.run(commands(state, indexesFor(state)).addRecording({
-      commandId: card.id, recordingId: card.id, unitId, laneId, kind: 'source',
-      card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
-    }));
-    ctx.project.triggerUpload();
-    onChange(card.ref.hash);
-  };
-  const rec = useRecorder(persist, { orgId: props.ctx.project.orgId, projectId: props.ctx.project.projectId, unitId: props.unitId, laneId: props.laneId, kind: 'source' });
+  // The recorder has already put the file in the blob store; the hash is
+  // all the note needs. No journal target: nothing is appended until the
+  // note itself is saved.
+  const persist = (card: RecordedCard) => { latest.current.onChange(card.ref.hash, { durationMs: card.durationMs, format: card.ref.format }); };
+  const rec = useRecorder(persist);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!rec.manualOn) return;

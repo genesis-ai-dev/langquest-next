@@ -4,8 +4,9 @@ import {
 } from '@langquest-next/core';
 import {
   cleanAnswers, cleanSkips, earlierReviews, footHint, isGroupKind, loggedTargets, matchesQuery, nearbyPassages, noteAnchorText,
-  openRequired, parseQuery, questionSource, readiness, recordedPassages, requestFor, searchPassages, toCompareFor, versionFor
+  openRequired, questionSource, readiness, recordedPassages, requestFor, searchPassages, toCompareFor, versionFor
 } from '../src/reviewing/capture';
+import { parseQuery } from '../src/canon';
 
 /** A small project: one language on the Standard Bible Flow and a few passages of John. */
 function project() {
@@ -70,11 +71,11 @@ describe('what a review hears and answers', () => {
     p.publish('john3', ['a']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('peter', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    p.run('peter', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cardHashes: ['bt1'] }));
+    p.run('peter', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'bt1', durationMs: 3000 }] }));
     const state = p.state();
     const s = derivePassage(state, 'john3', 'din');
     const kinds = deriveKinds(state);
-    expect(toCompareFor(s, kinds, 'consultant')?.artifactHashes).toEqual(['bt1']);
+    expect(toCompareFor(s, kinds, 'consultant')?.artifacts?.map((c) => c.hash)).toEqual(['bt1']);
     expect(earlierReviews(s, kinds, 'consultant').map((r) => r.kindId)).toEqual(['peer']);
     // Other kinds have nothing to compare; the back translation is ordinary background for them.
     expect(toCompareFor(s, kinds, 'community')).toBeUndefined();
@@ -144,7 +145,12 @@ describe('a session that already happened (REV-6)', () => {
     expect(searchPassages(all, 'john', 'john3')).toHaveLength(5);
     expect(searchPassages(all, '', 'john3')).toEqual([]);
     expect(parseQuery('1 Cor 13:4')).toEqual({ book: '1 cor', chapter: 13 });
+    expect(parseQuery('1 cor 13:4-6')).toEqual({ book: '1 cor', chapter: 13 });
     expect(matchesQuery(here, 'luke')).toBe(false);
+    // Same parsing as the Map: a verse range still finds the chapter, and a bare number is a book prefix.
+    expect(searchPassages(all, 'john 9:1-5', 'john3').map((x) => x.unitId)).toEqual(['john9']);
+    expect(searchPassages(all, '1', 'john3')).toEqual([]);
+    expect(matchesQuery(here, 'jn')).toBe(false);
   });
 
   it('leaves out passages with no version, and caches the list per state', () => {

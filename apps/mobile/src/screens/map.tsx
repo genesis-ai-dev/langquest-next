@@ -8,7 +8,7 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import {
-  contentTemplate, deriveFlow, deriveKinds, derivePassage, feedbackIsMine, highlightsFor, laneLeafUnits, laneName, languageProgress,
+  contentTemplate, deriveFlow, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
   passageSummary, percent, unitPlace, unitTitle,
   type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
 } from '@langquest-next/core';
@@ -22,13 +22,13 @@ import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Badge, Card, Chip, ChipRow, EmptyState, Group, Header, Ico, ProgressBar, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn,
+  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn,
   StepMarks, txt
 } from '../kit';
 import { plural } from '../passageView';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
-import { C, radius, space, TINT } from '../theme';
+import { C, onColor, radius, space, TINT, type as T, withAlpha } from '../theme';
 
 const PAGE = 25;
 const OTHER = 'other';
@@ -107,7 +107,7 @@ function IconCount(props: { icon: 'chat' | 'clock'; n: number; tone: 'amber' | '
 /** Where a passage stands as one glyph: not started, recording, in review (steps cleared), done. Never colour alone. */
 function PassageDisc(props: { s: PassageState }) {
   const s = props.s;
-  if (s.done) return <View style={[styles.disc, { backgroundColor: C.green }]}><Ico name="check" size={22} color={C.white} /></View>;
+  if (s.done) return <View style={[styles.disc, { backgroundColor: onColor.green }]}><Ico name="check" size={22} color={C.white} /></View>;
   if (!s.recorded) {
     return (
       <View style={[styles.disc, { borderWidth: 2, borderStyle: 'dashed', borderColor: s.drafting ? C.primary : C.border }]}>
@@ -130,20 +130,18 @@ function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e:
   const title = unitTitle(props.state, e.unitId);
   const summary = passageSummary(e.s, props.kinds, me, (id) => ctx.name(id, true));
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}`}
-      style={({ pressed }) => [styles.row, !props.last && styles.rowBorder, props.mine && styles.mine, pressed && styles.pressed]}>
-      <PassageDisc s={e.s} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.body, { fontWeight: '600', flexShrink: 1 }]} numberOfLines={1}>{title}</Text>
-          {props.mine ? <Badge label="For you" tone="amber" /> : null}
+    <Row label={title} sub={summary} last={props.last} onPress={props.onPress}
+      accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}`}
+      {...(props.mine ? { badge: 'For you', badgeTone: 'amber' as const } : {})}
+      leading={(
+        <View>
+          <PassageDisc s={e.s} />
+          {props.mine ? <View style={styles.discDot} /> : null}
         </View>
-        <Text style={[txt.smMuted, feedbackIsMine(e.s, me) && { color: TINT.amberText }]} numberOfLines={1}>{summary}</Text>
-      </View>
-      {e.s.recorded && e.s.steps.length > 0
-        ? <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />
-        : null}
-    </Pressable>
+      )}
+      {...(e.s.recorded && e.s.steps.length > 0
+        ? { right: <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> }
+        : {})} />
   );
 }
 
@@ -186,6 +184,7 @@ function FunnelRows(props: { progress: LanguageProgress }) {
 export function StatusHome(ctx: Ctx) {
   const state = ctx.project.state;
   const [query, setQuery] = useState('');
+  const [limit, setLimit] = useState(PAGE);
   const languages = useMemo(() => {
     if (!state) return [];
     const idx = indexesFor(state);
@@ -233,9 +232,9 @@ export function StatusHome(ctx: Ctx) {
           <StackBar done={done} recorded={recorded} total={total} height={10} recordedColor={C.soft} />
         </Card>
       )}
-      {languages.length > 5 ? <SearchField value={query} onChangeText={setQuery} placeholder="Find a language" /> : null}
+      {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder="Find a language" /> : null}
       {shown.length > 0 ? <SectionLabel label={state.project?.value.name ?? 'Languages'} /> : null}
-      {shown.map((l) => (
+      {shown.slice(0, limit).map((l) => (
         <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
@@ -249,6 +248,7 @@ export function StatusHome(ctx: Ctx) {
           <FunnelRows progress={l.progress} />
         </Card>
       ))}
+      <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((n) => n + PAGE)} />
       {q && shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>No language matches “{query}”.</Text> : null}
       {languages.length > 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
@@ -303,21 +303,20 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
     : started
       ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? ` · ${fmt(b.done)} done` : ''}`
       : `Not started · ${b.book ? plural(b.book.chapters, 'chapter') : plural(b.total, 'passage')}`;
+  const feedback = b.feedback > 0 && filter === 'all';
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button"
+    <Row label={b.name} sub={sub} muted={!started} last={props.last} onPress={props.onPress}
       accessibilityLabel={`${b.name}. ${sub}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`}
-      style={({ pressed }) => [styles.row, !props.last && styles.rowBorder, pressed && styles.pressed]}>
-      <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.body, { fontWeight: '600', flexShrink: 1 }, !started && { color: C.muted }]} numberOfLines={1}>{b.name}</Text>
-          {b.mine > 0 ? <Badge label={`${b.mine} for you`} tone="amber" /> : null}
-        </View>
-        {started ? <StackBar done={b.done} recorded={b.recorded} total={b.total} /> : null}
-        <Text style={txt.smMuted} numberOfLines={1}>{sub}</Text>
-      </View>
-      {b.feedback > 0 && filter === 'all' ? <IconCount icon="chat" n={b.feedback} tone="amber" /> : null}
-      <Ico name="right" size={24} color={C.muted} />
-    </Pressable>
+      {...(b.mine > 0 ? { badge: `${b.mine} for you`, badgeTone: 'amber' as const } : {})}
+      {...(started ? { below: <StackBar done={b.done} recorded={b.recorded} total={b.total} /> } : {})}
+      {...(feedback ? {
+        right: (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <IconCount icon="chat" n={b.feedback} tone="amber" />
+            <Ico name="right" size={22} color={C.muted} />
+          </View>
+        )
+      } : {})} />
   );
 }
 
@@ -522,7 +521,7 @@ export function MapHome(ctx: Ctx) {
 // ---- one book: a grid of chapters (MAP-5) ---------------------------------------------------
 
 const TONES: Record<ChapterTone, { bg: string; fg: string; border: string; dashed: boolean; label: string }> = {
-  done: { bg: C.green, fg: C.white, border: C.green, dashed: false, label: 'Done' },
+  done: { bg: onColor.green, fg: C.white, border: onColor.green, dashed: false, label: 'Done' },
   feedback: { bg: TINT.amber, fg: TINT.amberText, border: C.amber, dashed: false, label: 'Feedback waiting' },
   review: { bg: C.light, fg: C.primary, border: C.light, dashed: false, label: 'Recorded, in review' },
   drafting: { bg: C.card, fg: C.primary, border: C.primary, dashed: true, label: 'Recording started' },
@@ -544,20 +543,26 @@ function Tile(props: { c: ChapterTile; onPress: () => void }) {
   const { c } = props;
   const t = TONES[c.tone];
   const parts = c.list.length;
-  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}`;
+  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${c.matches ? '' : ', outside the filter'}`;
+  // The tone's icon goes with its colour, even beside "N parts" (never colour alone).
+  const toneIcon = c.tone === 'done' ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} />
+    : c.tone === 'drafting' ? <Ico name="mic" size={14} color={t.fg} /> : null;
   return (
     <Pressable onPress={props.onPress} disabled={parts === 0} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: parts === 0 }}
       style={({ pressed }) => [styles.tile, { backgroundColor: t.bg, borderColor: t.border, borderStyle: t.dashed ? 'dashed' : 'solid', opacity: c.matches ? 1 : 0.28 },
         pressed && { transform: [{ scale: 0.95 }] }]}>
       <Text style={[styles.tileNumber, { color: t.fg }]}>{c.n}</Text>
-      {parts > 1 ? <Text style={[txt.xsStrong, { color: t.fg }]}>{parts} parts</Text> : null}
-      {c.tone === 'done' && parts <= 1 ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} /> : null}
-      {c.tone === 'drafting' && parts <= 1 ? <Ico name="mic" size={14} color={t.fg} /> : null}
+      {parts > 1 ? (
+        <View style={styles.tileParts}>
+          {toneIcon}
+          <Text style={[txt.xsStrong, { color: t.fg }]}>{parts} parts</Text>
+        </View>
+      ) : toneIcon}
       {c.tone === 'feedback' ? <View style={styles.tileFoot}><Ico name="chat" size={14} color={t.fg} /></View> : null}
       {c.tone === 'review' && c.steps > 0 ? (
         <View style={styles.tileBar}>
           {Array.from({ length: c.steps }, (_, i) => (
-            <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i < c.cleared ? C.primary : 'rgba(107, 72, 200, 0.18)' }} />
+            <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i < c.cleared ? C.primary : withAlpha(C.primary, 0.18) }} />
           ))}
         </View>
       ) : null}
@@ -697,18 +702,16 @@ export function BookMap(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
-  pressed: { opacity: 0.7 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 72, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  mine: { borderLeftWidth: 4, borderLeftColor: C.amber, paddingLeft: space.lg - 4 },
   disc: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  discDot: { position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white },
   iconCount: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  bigNumber: { fontSize: 30, fontWeight: '700' },
+  bigNumber: { fontSize: T.display, fontWeight: '700' },
   code: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.md },
-  statValue: { fontSize: 22, fontWeight: '700' },
+  statValue: { fontSize: T.xl, fontWeight: '700' },
   tile: { flex: 1, aspectRatio: 1, minHeight: 48, borderRadius: radius.lg, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tileNumber: { fontSize: 22, fontWeight: '700' },
+  tileNumber: { fontSize: T.xl, fontWeight: '700' },
+  tileParts: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   tileFoot: { position: 'absolute', bottom: 5 },
   tileBar: { position: 'absolute', bottom: 7, left: 8, right: 8, flexDirection: 'row', gap: 2 },
   tileDot: { position: 'absolute', top: 5, right: 5, width: 12, height: 12, borderRadius: 6, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white }

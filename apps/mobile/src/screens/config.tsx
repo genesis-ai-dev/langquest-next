@@ -10,10 +10,10 @@
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
 // Pure reading lives in configModel.ts.
 import {
-  catalogKey, commands, deriveKinds, derivePassage, FLOWS, formatQuestionField, keyTermsFor, keyTermView, laneName,
+  catalogKey, CommandError, commands, deriveKinds, derivePassage, FLOWS, formatQuestionField, keyTermsFor, keyTermView, laneName,
   materialView, parseQuestionField, privilegesFor, PRIVILEGES, QUESTION_TEMPLATES, REFERENCE_KINDS, SOURCE_BIBLES,
   sourceBibleEnabled, takesLinkingTerm, templateFields, unitTitle, V1_STAGE_KINDS,
-  type EventPayloads, type EventSpec, type EventType, type FlowStep, type KeyTermView, type KindDef, type MaterialView,
+  type EventSpec, type FlowStep, type KeyTermView, type KindDef, type MaterialView,
   type Privilege, type ProjectState, type QuestionSpec, deriveFlow
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -27,6 +27,7 @@ import {
   PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt
 } from '../kit';
 import { when } from '../passageView';
+import { reportError, failureMessage } from '../report';
 import { contractsFor } from '../screenContracts';
 import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
@@ -41,9 +42,32 @@ import {
 /** Long lists grow 25 at a time (ADR-009). */
 const STEP = 25;
 
-/** An event for `ctx.act` where core has no command for it yet (see the report on missing commands). */
-function spec<T extends EventType>(type: T, payload: EventPayloads[T]): EventSpec {
-  return { id: Crypto.randomUUID(), type, payload } as EventSpec;
+/**
+ * What to say when something fails (error-tracking): a command's own reason,
+ * or, for a fault, a code a tester can read out, having reported it.
+ */
+const failure = failureMessage;
+
+/**
+ * Build a core command's events and hand them to `ctx.act`. A command that
+ * refuses (CommandError) is said in a toast; ctx.act says "Not saved" and
+ * why by itself, so nothing is said twice. True when it was saved.
+ */
+async function actCommand(ctx: Ctx, where: string, build: () => EventSpec[], message: string, undo?: () => EventSpec[]): Promise<boolean> {
+  let specs: EventSpec[];
+  try {
+    specs = build();
+  } catch (e) {
+    ctx.toast(failure(where, e));
+    return false;
+  }
+  try {
+    await ctx.act(specs, message, undo);
+    return true;
+  } catch {
+    // ctx.act has already said "Not saved" and why.
+    return false;
+  }
 }
 
 /** The latest value, for an Undo that runs after the screen has re-rendered with the change. */
@@ -168,11 +192,11 @@ export function RoleEditor(ctx: Ctx) {
     try {
       await ctx.org.append('v1.RoleDefined', next);
       ctx.toast(isNew ? `${next.name} created.` : `${next.name} saved.`, prev ? async () => {
-        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Could not undo: ${(e as Error).message}`); }
+        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${failure('undo role', e)}`); }
       } : undefined);
       ctx.back();
     } catch (e) {
-      ctx.toast(`Not saved: ${(e as Error).message}`);
+      ctx.toast(`Not saved. ${failure('save role', e)}`);
       setBusy(false);
     }
   }
@@ -265,16 +289,14 @@ export function FlowsHome(ctx: Ctx) {
     const previous = deriveFlow(state, lane);
     const flowName = FLOWS.find((f) => f.id === flowId)?.name ?? flowId;
     setBusy(true);
-    try {
-      // Undo selects the previous flow again; its steps were never removed.
-      await ctx.act(commands(state, indexesFor(state)).useFlow({ commandId: Crypto.randomUUID(), laneId: lane, flowId }),
-        `${current.name} now uses ${flowName}.`,
-        () => {
-          const s = live.current.project.state;
-          return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), laneId: lane, previous }) : [];
-        });
-    } catch { /* ctx.act said why */ }
-    finally { setBusy(false); }
+    // Undo selects the previous flow again; its steps were never removed.
+    await actCommand(ctx, 'use flow', () => commands(state, indexesFor(state)).useFlow({ commandId: Crypto.randomUUID(), laneId: lane, flowId }),
+      `${current.name} now uses ${flowName}.`,
+      () => {
+        const s = live.current.project.state;
+        return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), laneId: lane, previous }) : [];
+      });
+    setBusy(false);
   }
 
   return (
@@ -380,19 +402,15 @@ export function FlowEditor(ctx: Ctx) {
     const c = commands(s, indexesFor(s));
     const previous = deriveFlow(s, laneId);
     setBusy(true);
-    try {
-      const specs = [
-        ...added.flatMap((k) => c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer })),
-        ...c.saveFlowSteps({ commandId: Crypto.randomUUID(), laneId, steps: stepsToSave(s, laneId, steps) })
-      ];
-      await ctx.act(specs, `${lane}'s review flow saved.`, () => {
-        const now = live.current.project.state;
-        return now ? commands(now, indexesFor(now)).restoreFlow({ commandId: Crypto.randomUUID(), laneId, previous }) : [];
-      });
-      ctx.back();
-    } catch {
-      setBusy(false);
-    }
+    const saved = await actCommand(ctx, 'save flow', () => [
+      ...added.flatMap((k) => c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer })),
+      ...c.saveFlowSteps({ commandId: Crypto.randomUUID(), laneId, steps: stepsToSave(s, laneId, steps) })
+    ], `${lane}'s review flow saved.`, () => {
+      const now = live.current.project.state;
+      return now ? commands(now, indexesFor(now)).restoreFlow({ commandId: Crypto.randomUUID(), laneId, previous }) : [];
+    });
+    if (saved) ctx.back();
+    else setBusy(false);
   }
 
   const picking = pickFor !== null ? steps[pickFor] : undefined;
@@ -596,10 +614,10 @@ function SourceBibles(props: { ctx: Ctx; open: boolean; onToggle: () => void }) 
     try {
       await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled });
       ctx.toast(`${name} ${enabled ? 'added' : 'turned off'}${level === 'project' ? ' for this project' : ''}.`, async () => {
-        try { await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled: !enabled }); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Could not undo: ${(e as Error).message}`); }
+        try { await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled: !enabled }); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${failure('undo source bible', e)}`); }
       });
     } catch (e) {
-      ctx.toast(`Not saved: ${(e as Error).message}`);
+      ctx.toast(`Not saved. ${failure('toggle source bible', e)}`);
     } finally {
       setBusy(false);
     }
@@ -695,31 +713,31 @@ export function MaterialEditor(ctx: Ctx) {
 
   async function save() {
     if (!canFill || busy || !ready) return;
+    const s = state!;
     const id = existing?.materialId ?? `${materialKind}-${Crypto.randomUUID()}`;
-    const specs: EventSpec[] = [];
-    if (isNew) {
-      specs.push(spec('v1.MaterialDefined', {
-        materialId: id, kind: materialKind, title: title.trim(), ...(newTemplateRef ? { templateRef: newTemplateRef } : {}),
-        scope: { ...(forLane && laneParam ? { laneId: laneParam } : {}), ...(isQuestions ? { stepId: reviewKind } : {}) }
-      }));
-    }
-    for (const c of changes) specs.push(spec('v1.MaterialFieldSet', { materialId: id, fieldId: c.fieldId, text: c.text }));
+    const c = commands(s, indexesFor(s));
+    const fields = changes.map((f) => ({ fieldId: f.fieldId, text: f.text }));
     setBusy(true);
-    try {
-      await ctx.act(specs, isNew ? `${title.trim()} added.` : 'Saved.',
-        isNew ? undefined : () => changes.map((c) => spec('v1.MaterialFieldSet', { materialId: id, fieldId: c.fieldId, text: c.before })));
-      ctx.back();
-    } catch {
-      setBusy(false);
-    }
+    const saved = await actCommand(ctx, 'save material', () => (isNew
+      ? c.defineMaterial({
+        commandId: Crypto.randomUUID(), materialId: id, kind: materialKind, title: title.trim(), fields,
+        ...(newTemplateRef ? { templateRef: newTemplateRef } : {}),
+        scope: { ...(forLane && laneParam ? { laneId: laneParam } : {}), ...(isQuestions ? { stepId: reviewKind } : {}) }
+      })
+      : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
+    isNew ? `${title.trim()} added.` : 'Saved.',
+    isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.before })) }));
+    if (saved) ctx.back();
+    else setBusy(false);
   }
 
   function toggleLock() {
     if (!existing || !canManage) return;
     const to = !locked;
-    void ctx.act([spec('v1.MaterialLocked', { materialId: existing.materialId, locked: to })],
+    const c = commands(state!, indexesFor(state!));
+    void actCommand(ctx, 'lock material', () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: to }),
       to ? 'Locked. Only people who manage reference material can edit it.' : 'Unlocked. Anyone who fills reference content can edit it.',
-      () => [spec('v1.MaterialLocked', { materialId: existing.materialId, locked: !to })]).catch(() => {});
+      () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: !to }));
   }
 
   const setQuestion = (i: number, p: Partial<QuestionDraft>) => setQuestions(qs.map((q, j) => (j === i ? { ...q, ...p } : q)));
@@ -746,6 +764,7 @@ export function MaterialEditor(ctx: Ctx) {
           <Group>
             {REFERENCE_KINDS.filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
               <Row key={k.id} label={k.name} sub={k.code} onPress={() => setKind(k.id)} last={i === a.length - 1}
+                role="radio" selected={kind === k.id}
                 right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
             ))}
           </Group>
@@ -765,6 +784,7 @@ export function MaterialEditor(ctx: Ctx) {
               <Group>
                 {kinds.map((k, i) => (
                   <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} onPress={() => setReviewKind(k.id)} last={i === kinds.length - 1}
+                    role="radio" selected={reviewKind === k.id}
                     right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
                 ))}
               </Group>
@@ -878,17 +898,17 @@ export function KeyTerms(ctx: Ctx) {
     const during = unitId ? derivePassage(state, unitId, laneId, indexesFor(state)) : null;
     const duringTakeId = during?.draftTakeId ?? during?.latest?.takeId;
     setBusy(true);
-    try {
-      // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
-      await ctx.act([
-        spec('v1.KeyTermDefined', { termId, laneId, term: draft.term.trim(), gloss: draft.gloss.trim(), unitScope: book ? [book] : [] }),
-        spec('v1.KeyTermRenderingAdded', { termId, renderingId: Crypto.randomUUID(), rendering: draft.rendering.trim(), context: draft.context.trim() }),
-        spec('v1.KeyTermAdjusted', { termId, adjustmentId: Crypto.randomUUID(), note: draft.context.trim() || `First rendering: ${draft.rendering.trim()}.`, ...(duringTakeId ? { duringTakeId } : {}) })
-      ], `${draft.term.trim()} added.`);
+    // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
+    const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm({
+      commandId: Crypto.randomUUID(), termId, laneId, term: draft.term, gloss: draft.gloss, unitScope: book ? [book] : [],
+      rendering: draft.rendering, context: draft.context,
+      note: draft.context.trim() || `First rendering: ${draft.rendering.trim()}.`, ...(duringTakeId ? { duringTakeId } : {})
+    }), `${draft.term.trim()} added.`);
+    if (saved) {
       setDraft({ term: '', gloss: '', rendering: '', context: '' });
       setAdding(false);
-    } catch { /* ctx.act said why */ }
-    finally { setBusy(false); }
+    }
+    setBusy(false);
   }
 
   return (
@@ -974,25 +994,23 @@ export function KeyTermDetail(ctx: Ctx) {
   async function tie() {
     if (!draftTakeId || isLinked || busy) return;
     setBusy(true);
-    try { await ctx.act([spec('v1.KeyTermLinked', { takeId: draftTakeId, termId })], `Tied ${t!.term} to your draft.`); } catch { /* said */ }
-    finally { setBusy(false); }
+    await actCommand(ctx, 'tie key term', () => commands(state!, indexesFor(state!)).linkKeyTerms({ commandId: Crypto.randomUUID(), takeId: draftTakeId, termIds: [termId] }),
+      `Tied ${t!.term} to your draft.`);
+    setBusy(false);
   }
 
   async function saveAdjustment() {
     if (!canEdit || busy || (!note.trim() && !hash)) return;
-    const adjustmentId = Crypto.randomUUID();
     const duringTakeId = draftTakeId ?? passage?.latest?.takeId;
-    const specs: EventSpec[] = [];
-    if (rendering.trim()) specs.push(spec('v1.KeyTermRenderingAdded', { termId, renderingId: Crypto.randomUUID(), rendering: rendering.trim(), context: context.trim() }));
-    specs.push(spec('v1.KeyTermAdjusted', { termId, adjustmentId, note: note.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}) }));
-    // TERM-5: an adjustment made while drafting ties the term to the draft.
-    if (canTie && !isLinked) specs.push(spec('v1.KeyTermLinked', { takeId: draftTakeId!, termId, adjustmentId }));
     setBusy(true);
-    try {
-      await ctx.act(specs, rendering.trim() ? `Added “${rendering.trim()}”.` : 'Change recorded.');
-      setAdjusting(false); setRendering(''); setContext(''); setNote(''); setHash(null);
-    } catch { /* said */ }
-    finally { setBusy(false); }
+    const saved = await actCommand(ctx, 'adjust key term', () => commands(state!, indexesFor(state!)).adjustKeyTermRendering({
+      commandId: Crypto.randomUUID(), termId, rendering, context, note,
+      ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
+      // TERM-5: an adjustment made while drafting ties the term to the draft.
+      ...(canTie && !isLinked && draftTakeId ? { tieToTakeId: draftTakeId } : {})
+    }), rendering.trim() ? `Added “${rendering.trim()}”.` : 'Change recorded.');
+    if (saved) { setAdjusting(false); setRendering(''); setContext(''); setNote(''); setHash(null); }
+    setBusy(false);
   }
 
   const scopeTitles = t.unitScope.map((u) => unitTitle(state, u));

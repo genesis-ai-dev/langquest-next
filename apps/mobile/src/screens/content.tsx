@@ -14,7 +14,7 @@
 // templates_home params: `level` ('org' | 'project' | 'language') and/or
 // `laneId`. template_editor: `templateId` (a library template) or `laneId`
 // (a language's copy). book_structure: `laneId`, `bookId`.
-import { contentTemplate, contentTemplates, derivePassage, languageProgress, laneName, privilegesFor, type ContentTemplate } from '@langquest-next/core';
+import { CommandError, contentTemplate, contentTemplates, derivePassage, languageProgress, laneName, privilegesFor, type ContentTemplate } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -30,9 +30,16 @@ import {
   SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt
 } from '../kit';
 import { plural } from '../passageView';
+import { reportError, failureMessage } from '../report';
 import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
-import { C, radius, space, target, TINT } from '../theme';
+import { C, radius, space, target, tile, TINT, type as T } from '../theme';
+
+/**
+ * What to say when something fails (error-tracking): a command's own reason,
+ * or, for a fault, a code a tester can read out, having reported it.
+ */
+const failure = failureMessage;
 
 const lower = (s: string) => s.toLowerCase();
 
@@ -124,11 +131,11 @@ function TemplateLibraryView({ ctx, level }: { ctx: Ctx; level: 'org' | 'project
           await ctx.org.append('v1.CatalogItemToggled', payload(!on));
           ctx.toast('Undone.');
         } catch (e) {
-          ctx.toast(`Could not undo: ${(e as Error).message}`);
+          ctx.toast(`Not undone. ${failure('undo template suggestion', e)}`);
         }
       });
     } catch (e) {
-      ctx.toast(`Not saved: ${(e as Error).message}`);
+      ctx.toast(`Not saved. ${failure('template suggestion', e)}`);
     } finally {
       setBusy(false);
     }
@@ -321,11 +328,14 @@ export function TemplatePicker(ctx: Ctx) {
     try {
       const specs = templateSelectionSpecs(state, laneId, t.id, Crypto.randomUUID());
       const previous = current;
-      await ctx.act(specs, `${lane} now records against ${t.name}.`,
-        previous ? () => templateRestoreSpecs(laneId, previous, Crypto.randomUUID()) : undefined);
+      // ctx.act says "Not saved" and why itself; stay here to try again.
+      try {
+        await ctx.act(specs, `${lane} now records against ${t.name}.`,
+          previous ? () => templateRestoreSpecs(laneId, previous, Crypto.randomUUID()) : undefined);
+      } catch { return; }
       ctx.go('templates_home', { laneId });
-    } catch {
-      // ctx.act already said it was not saved.
+    } catch (e) {
+      ctx.toast(failure('use template', e));
     } finally {
       setBusy(false);
     }
@@ -659,7 +669,7 @@ const styles = StyleSheet.create({
   levels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.xs },
   level: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
-  tile: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  tile: { width: tile.sm, height: tile.sm, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   toggle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.min },
   pair: { flexDirection: 'row', gap: space.sm },
@@ -675,8 +685,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md, borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.border
   },
   gap: { marginTop: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.md, backgroundColor: TINT.gray, color: TINT.grayText },
-  para: { fontSize: 17, lineHeight: 30, color: C.dark, paddingLeft: space.md, paddingVertical: space.xs, borderLeftWidth: 3 },
-  verseNo: { fontSize: 13, fontWeight: '700', color: C.primary },
+  para: { fontSize: T.base, lineHeight: 30, color: C.dark, paddingLeft: space.md, paddingVertical: space.xs, borderLeftWidth: 3 },
+  verseNo: { fontSize: T.xs, fontWeight: '700', color: C.primary },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chapterTile: {
     width: target.primary, height: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,

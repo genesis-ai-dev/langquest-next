@@ -12,14 +12,14 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
 } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
-  KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  AccessibilityInfo, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { C, radius, shadow, space, target, TINT, type as T } from './theme';
+import { C, onColor, radius, shadow, space, target, TINT, type as T } from './theme';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -60,7 +60,8 @@ export const txt = StyleSheet.create({
   xs: { fontSize: T.xs, color: C.muted, lineHeight: 18 },
   xsStrong: { fontSize: T.xs, fontWeight: '700', color: C.muted },
   label: { fontSize: T.xs, fontWeight: '800', letterSpacing: 0.8, color: C.muted, textTransform: 'uppercase' },
-  link: { fontSize: T.sm, fontWeight: '700', color: C.primary }
+  link: { fontSize: T.sm, fontWeight: '700', color: C.primary },
+  error: { fontSize: T.sm, color: TINT.redText, lineHeight: 21 }
 });
 
 // ---- layout ----------------------------------------------------------------------------
@@ -77,7 +78,6 @@ export function Screen(props: {
   fixed?: boolean;
   bodyStyle?: StyleProp<ViewStyle>;
 }) {
-  const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {props.header}
@@ -88,7 +88,7 @@ export function Screen(props: {
           {props.children}
         </ScrollView>
       )}
-      {props.footer ? <View style={[styles.footer, { paddingBottom: Math.max(space.md, insets.bottom > 0 ? space.sm : space.md) }]}>{props.footer}</View> : null}
+      {props.footer ? <View style={[styles.footer, { paddingBottom: space.md }]}>{props.footer}</View> : null}
     </KeyboardAvoidingView>
   );
 }
@@ -174,11 +174,25 @@ export function Row(props: {
   label: string;
   sub?: string;
   badge?: string;
+  badgeTone?: 'default' | 'green' | 'amber' | 'red' | 'brand';
+  /** Content under the label and sub, such as a progress bar. */
+  below?: ReactNode;
   right?: ReactNode;
   onPress?: () => void;
   last?: boolean;
   muted?: boolean;
+  /** How a screen reader should treat it: a choice among several is a radio, a pick-many a checkbox. */
+  role?: 'button' | 'radio' | 'checkbox' | 'link';
+  selected?: boolean;
+  checked?: boolean;
+  expanded?: boolean;
+  accessibilityLabel?: string;
 }) {
+  const state = {
+    ...(props.selected !== undefined ? { selected: props.selected } : {}),
+    ...(props.checked !== undefined ? { checked: props.checked } : {}),
+    ...(props.expanded !== undefined ? { expanded: props.expanded } : {})
+  };
   const body = (
     <>
       {props.leading ?? (props.icon ? (
@@ -189,15 +203,17 @@ export function Row(props: {
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.body, { fontWeight: '600' }, props.muted && { color: C.muted }]} numberOfLines={2}>{props.label}</Text>
         {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.below ? <View style={{ marginTop: space.sm }}>{props.below}</View> : null}
       </View>
-      {props.badge ? <Badge label={props.badge} /> : null}
+      {props.badge ? <Badge label={props.badge} {...(props.badgeTone ? { tone: props.badgeTone } : {})} /> : null}
       {props.right ?? (props.onPress ? <Ico name="right" size={22} color={C.muted} /> : null)}
     </>
   );
   const style = [styles.row, !props.last && styles.rowBorder];
   if (!props.onPress) return <View style={style}>{body}</View>;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" style={({ pressed }) => [...style, pressed && styles.pressed]}>
+    <Pressable onPress={props.onPress} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+      style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
     </Pressable>
   );
@@ -212,6 +228,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
   return (
     <View style={styles.disclosure}>
       <Pressable onPress={props.onToggle} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+        accessibilityLabel={`${props.title}. ${props.summary}`} accessibilityHint={props.open ? 'Hides the details' : 'Shows the details'}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -229,7 +246,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
 // ---- buttons ---------------------------------------------------------------------------
 
 export type Tone = 'primary' | 'dark' | 'amber' | 'red' | 'green';
-const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: C.amber, red: C.red, green: C.green };
+const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: onColor.amber, red: onColor.red, green: onColor.green };
 
 /** The one main button: 56pt, filled, full width by default. */
 export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
@@ -251,6 +268,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
   const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
   return (
     <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+      accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.ghost, { backgroundColor: bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
@@ -265,6 +283,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
   const bg = props.tone === 'dark' ? C.dark : C.primary;
   return (
     <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+      accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]} numberOfLines={1}>{props.label}</Text>
@@ -273,28 +292,32 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
 }
 
 /** A plain text action (Show all, Undo). Still 48pt tall. */
-export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle> }) {
+export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; expanded?: boolean }) {
   return (
-    <Pressable onPress={props.onPress} hitSlop={8} accessibilityRole="button" style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
+    <Pressable onPress={props.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+      accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
+      style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
       <Text style={[txt.link, props.color ? { color: props.color } : null]}>{props.label}</Text>
     </Pressable>
   );
 }
 
-export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number }) {
+export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
   const size = props.size ?? 48;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.label} hitSlop={4}
-      style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg }, pressed && styles.pressed]}>
+    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+      accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
+      style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
+        props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
       <Ico name={props.name} size={Math.round(size * 0.46)} color={props.color ?? C.dark} />
     </Pressable>
   );
 }
 
 /** A selectable pill. */
-export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number }) {
+export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number; accessibilityLabel?: string }) {
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.label}{props.count !== undefined ? ` · ${props.count.toLocaleString('en-US')}` : ''}</Text>
@@ -331,6 +354,7 @@ export function Field(props: {
     <View style={{ gap: space.xs }}>
       {props.label ? <Text style={txt.xsStrong}>{props.label}</Text> : null}
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
+        accessibilityLabel={props.label ?? props.placeholder}
         multiline={props.multiline} secureTextEntry={props.secure} keyboardType={props.keyboardType} autoCapitalize={props.autoCapitalize}
         style={[styles.field, props.multiline && { minHeight: 88, textAlignVertical: 'top', paddingTop: 14 }, props.style]} />
     </View>
@@ -420,7 +444,7 @@ export function StateMark(props: { state: KindState; size?: number }) {
   const s = stateStyle(props.state);
   const size = props.size ?? 18;
   return (
-    <View accessibilityLabel={props.state} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: s.bg, alignItems: 'center', justifyContent: 'center',
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: s.bg, alignItems: 'center', justifyContent: 'center',
       borderWidth: s.ring ? 1.5 : 0, borderColor: s.ring }}>
       {s.icon ? <Ico name={s.icon} size={Math.round(size * 0.6)} color={s.fg} strokeWidth={3} /> : null}
     </View>
@@ -555,21 +579,32 @@ export interface ToastSpec {
   undo?: () => void | Promise<void>;
 }
 
-/** What changed, and Undo when it can be. Tapping it dismisses it. */
+/**
+ * What changed, and Undo when it can be (CORE-5). The message and Undo are
+ * separate elements so a screen reader can reach Undo, and the message is
+ * announced as it appears. Tapping the message dismisses it.
+ */
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
-  if (!props.toast) return null;
   const t = props.toast;
+  useEffect(() => {
+    if (t) AccessibilityInfo.announceForAccessibility(t.undo ? `${t.message} Undo available.` : t.message);
+  }, [t?.id]);
+  if (!t) return null;
   return (
     <View pointerEvents="box-none" style={[styles.toastWrap, { bottom: props.bottom }]}>
-      <Pressable onPress={props.onDismiss} accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.toast}>
-        <Ico name="check" size={20} color={C.green} />
-        <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{t.message}</Text>
+      <View style={styles.toast}>
+        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={`${t.message} Dismiss`}
+          accessibilityLiveRegion="polite" style={styles.toastMessage}>
+          <Ico name="check" size={20} color={C.green} />
+          <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{t.message}</Text>
+        </Pressable>
         {t.undo ? (
-          <Pressable onPress={() => { void t.undo?.(); props.onDismiss(); }} hitSlop={10} accessibilityRole="button" style={styles.toastUndo}>
-            <Text style={[txt.sm, { color: '#C9B8FF', fontWeight: '800' }]}>Undo</Text>
+          <Pressable onPress={() => { void Promise.resolve(t.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
+            accessibilityRole="button" accessibilityLabel="Undo" style={styles.toastUndo}>
+            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>Undo</Text>
           </Pressable>
         ) : null}
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -616,8 +651,9 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, maxHeight: '88%', paddingTop: space.sm, gap: space.sm },
   sheetGrip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.sm },
-  quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: 44, justifyContent: 'center' },
+  quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center' },
   toastWrap: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.sm, minHeight: 56, width: '100%', ...shadow, shadowOpacity: 0.25 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.sm, minHeight: 56, width: '100%', ...shadow, shadowOpacity: 0.25 },
+  toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56 },
   toastUndo: { minHeight: 48, minWidth: 64, alignItems: 'center', justifyContent: 'center' }
 });

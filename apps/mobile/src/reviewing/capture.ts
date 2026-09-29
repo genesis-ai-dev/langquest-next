@@ -9,6 +9,7 @@ import {
   type KindDef, type NoteAnchor, type PassageState, type ProjectState,
   type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
+import { bookMatches, canonBook, parseQuery } from '../canon';
 
 /** The demo's quick reasons for leaving a required question unanswered (REV-2). */
 export const CANT_ANSWER = [
@@ -191,20 +192,18 @@ export function nearbyPassages(all: PassageChoice[], here: PassageChoice, n = 4)
     .sort((a, b) => a.order - b.order);
 }
 
-/** "1 cor 13:4" -> book "1 cor", chapter 13 (demo canon.ts parseQuery). */
-export function parseQuery(query: string): { book: string; chapter?: number } {
-  const q = query.trim().toLowerCase().replace(/\s+/g, ' ');
-  const m = /^(.*?)\s*(\d+)?(?::\d*)?$/.exec(q);
-  const book = (m?.[1] ?? q).trim();
-  return m?.[2] ? { book, chapter: Number(m[2]) } : { book };
-}
-
-/** "joh 3", "ps 23", "cor" (both Corinthians), "Mark 2" find their passages. */
+/**
+ * "joh 3", "ps 23", "cor" (both Corinthians), "Mark 2", "1 cor 13:4-6" find
+ * their passages; "1" is a book prefix (1 Samuel, 1 Kings, ...), not every
+ * chapter 1. Parsing and book names are the Map's (canon.ts), so the two
+ * searches agree; a passage outside the canon matches by its own title.
+ */
 export function matchesQuery(p: PassageChoice, query: string): boolean {
   if (!query.trim()) return false;
   const { book, chapter } = parseQuery(query);
-  const names = [p.bookLabel, p.bookId ?? ''].map((n) => n.toLowerCase()).filter(Boolean);
-  const bookOk = !book || names.some((n) => n.startsWith(book) || n.replace(/^\d /, '').startsWith(book)) || p.title.toLowerCase().startsWith(book);
+  const canon = canonBook(p.bookId);
+  const bookOk = canon ? bookMatches(canon, book)
+    : !book || [p.bookLabel, p.title].some((n) => n.toLowerCase().startsWith(book));
   if (!bookOk) return false;
   return chapter === undefined || p.chapters.includes(chapter);
 }

@@ -153,42 +153,29 @@ export const VISION_STEPS: { title: string; icon: 'globe' | 'book' | 'people'; b
 
 export interface InviteSummary {
   orgId?: string;
-  /** The name the inviter typed. */
-  name?: string;
-  role?: string;
-  org?: string;
-  from?: string;
 }
 
 /**
- * What an invite link says about itself before it is redeemed. The link
- * always carries the org and the token; it may also carry the invitee's
- * name, the role, the org's name and who sent it, so the scanner can say
- * "Invite for {name} · {role} · {org} · from {inviter}" once the code is in
- * frame. Absent fields are left out rather than guessed.
+ * What an invite link says about itself before it is redeemed: only the org
+ * it is for. Links carry the org and the token and nothing else; any other
+ * parameter (older links carried a name, a role and an inviter) is ignored,
+ * because the scan screen must not show claims nobody has checked.
  */
 export function inviteSummary(input: string): InviteSummary {
   const raw = input.trim();
-  const out: InviteSummary = {};
-  if (!/^langquestnext:\/\/invite\?/.test(raw)) return out;
-  const query = raw.slice(raw.indexOf('?') + 1);
-  for (const pair of query.split('&')) {
-    const eq = pair.indexOf('=');
-    if (eq < 0) continue;
-    const key = pair.slice(0, eq);
-    let value: string;
-    try { value = decodeURIComponent(pair.slice(eq + 1).replace(/\+/g, ' ')).trim(); } catch { continue; }
-    if (!value) continue;
-    if (key === 'org') out.orgId = value;
-    else if (key === 'name') out.name = value;
-    else if (key === 'role') out.role = value;
-    else if (key === 'orgName') out.org = value;
-    else if (key === 'from') out.from = value;
+  if (!/^langquestnext:\/\/invite\?/.test(raw)) return {};
+  const m = /[?&]org=([^&\s]+)/.exec(raw);
+  if (!m?.[1]) return {};
+  try {
+    const orgId = decodeURIComponent(m[1].replace(/\+/g, ' ')).trim();
+    return orgId ? { orgId } : {};
+  } catch {
+    // A malformed escape: the link says nothing we can read about its org.
+    return {};
   }
-  return out;
 }
 
-/** "Translator · Wycliffe Associates · from Sarah", with whatever is known. */
-export function inviteLine(s: InviteSummary): string {
-  return [s.role, s.org ?? s.orgId, s.from ? `from ${s.from}` : undefined].filter(Boolean).join(' · ');
+/** The scan screen's line: the org's name when this phone already knows it, else a neutral phrase (never an id). */
+export function inviteLine(knownOrgName?: string): string {
+  return knownOrgName ? `Invitation to join ${knownOrgName}` : 'Invitation to join an organization';
 }

@@ -17,9 +17,10 @@ import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Card, GhostBtn, Group, Header, Ico, Row, Screen, SectionLabel, Segments, SmallBtn, StepMarks, txt, type IconName
+  Card, GhostBtn, Group, Header, Ico, Row, Screen, SectionLabel, Segments, ShowMore, SmallBtn, StepMarks, txt, type IconName
 } from '../kit';
 import { dueText, feedbackSource, plural, when } from '../passageView';
+import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
 import { C, radius, space, TINT } from '../theme';
@@ -27,6 +28,8 @@ import { C, radius, space, TINT } from '../theme';
 const FOR_YOU_CAP = 5;
 const WAITING_CAP = 3;
 const RECENT_CAP = 5;
+/** How many more a "Show more" adds (ADR-009). */
+const MORE_STEP = 10;
 
 /** May My Work take this edge for this session? A screen never offers what it cannot do. */
 function canGo(ctx: Ctx, to: ScreenId): boolean {
@@ -104,19 +107,21 @@ function useFirstDay(actorId: string, show: boolean): { hidden: boolean; hide: (
   const [hidden, setHidden] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
+    // The flag is a convenience on this device: if storage fails, the card shows
+    // (it can be hidden again), and nothing on the record is affected.
     if (show) {
       setHidden(false);
-      AsyncStorage.removeItem(key).catch(() => {});
+      AsyncStorage.removeItem(key).catch((e: unknown) => noteExpected('my work: clear getting-started flag', e));
       return;
     }
     AsyncStorage.getItem(key)
       .then((v) => { if (live) setHidden(v === '1'); })
-      .catch(() => { if (live) setHidden(false); });
+      .catch((e: unknown) => { noteExpected('my work: read getting-started flag', e); if (live) setHidden(false); });
     return () => { live = false; };
   }, [key, show]);
   const hide = useCallback(() => {
     setHidden(true);
-    AsyncStorage.setItem(key, '1').catch(() => {});
+    AsyncStorage.setItem(key, '1').catch((e: unknown) => noteExpected('my work: save getting-started flag', e));
   }, [key]);
   // Hidden until the flag is read, so the card never flashes.
   return { hidden: hidden !== false, hide };
@@ -295,7 +300,7 @@ function GettingStartedCard(props: { title: string; promise: string; rows: Start
             {body}
           </Pressable>
         ) : (
-          <View key={r.id} style={[styles.startRow, styles.startRowCompact]} accessibilityLabel={`${r.label}${r.done ? ', done' : ''}`}>{body}</View>
+          <View key={r.id} accessible accessibilityLabel={`${r.label}${r.done ? ', done' : ''}. ${r.sub}`} style={[styles.startRow, styles.startRowCompact]}>{body}</View>
         );
       })}
       <Pressable onPress={props.onHide} accessibilityRole="button" style={({ pressed }) => [styles.hide, pressed && { opacity: 0.6 }]}>
@@ -352,8 +357,8 @@ export function MyWork(ctx: Ctx) {
   const actorId = ctx.session.actorId;
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
-  const [allForYou, setAllForYou] = useState(false);
-  const [allWaiting, setAllWaiting] = useState(false);
+  const [forYouShown, setForYouShown] = useState(FOR_YOU_CAP);
+  const [waitingShown, setWaitingShown] = useState(WAITING_CAP);
   const firstDay = useFirstDay(actorId, ctx.params['showGettingStarted'] === '1');
 
   const lists = useMemo(() => {
@@ -424,8 +429,8 @@ export function MyWork(ctx: Ctx) {
     }
   }
 
-  const shownForYou = allForYou ? forYou : forYou.slice(0, FOR_YOU_CAP);
-  const shownWaiting = allWaiting ? waiting : waiting.slice(0, WAITING_CAP);
+  const shownForYou = forYou.slice(0, forYouShown);
+  const shownWaiting = waiting.slice(0, waitingShown);
 
   return (
     <Screen header={header}>
@@ -452,7 +457,7 @@ export function MyWork(ctx: Ctx) {
         const t = highlightText(state, kinds, h, ctx.name);
         return <AskCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={withLanguage(h.laneId, t.sub)} onPress={() => openHighlight(h)} />;
       })}
-      {forYou.length > FOR_YOU_CAP ? <GhostBtn label={allForYou ? 'Show fewer' : `Show all ${forYou.length}`} onPress={() => setAllForYou((a) => !a)} /> : null}
+      <ShowMore remaining={forYou.length - forYouShown} step={MORE_STEP} onMore={() => setForYouShown((n) => n + MORE_STEP)} />
 
       {recent.length > 0 ? (
         <>
@@ -483,7 +488,7 @@ export function MyWork(ctx: Ctx) {
               );
             })}
           </Group>
-          {waiting.length > WAITING_CAP ? <GhostBtn label={allWaiting ? 'Show fewer' : `Show all ${waiting.length}`} onPress={() => setAllWaiting((a) => !a)} /> : null}
+          <ShowMore remaining={waiting.length - waitingShown} step={MORE_STEP} onMore={() => setWaitingShown((n) => n + MORE_STEP)} />
         </>
       ) : null}
     </Screen>

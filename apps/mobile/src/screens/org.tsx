@@ -6,10 +6,10 @@
 // language). Requirements ORG-1, ORG-2, ORG-5, ORG-6, ORG-7, NAV-6, FLOW-5;
 // ADR-017 (admins reach these homes through Manage), ADR-025 (a language
 // owns its template, starting from the one its project suggests).
-import { deriveFlow, keyTermsFor, laneName, languageProgress, materialsFor, contentTemplate, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel } from '@langquest-next/core';
+import { CommandError, deriveFlow, keyTermsFor, laneName, languageProgress, materialsFor, contentTemplate, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Share, Text, View } from 'react-native';
+import { Pressable, Share, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
@@ -25,10 +25,17 @@ import {
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
 } from '../orgAdmin';
 import { plural, when } from '../passageView';
+import { noteExpected, reportError, failureMessage } from '../report';
 import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
-import { C, radius, space } from '../theme';
+import { C, radius, space, tile, TINT, withAlpha } from '../theme';
 import { PersonAvatar, usePerson } from '../UserChip';
+
+/**
+ * What to say when something fails (error-tracking): a command's own reason,
+ * or, for a fault, a code a tester can read out, having reported it.
+ */
+const failure = failureMessage;
 
 // ---- shared reading ----------------------------------------------------------------------
 
@@ -91,7 +98,7 @@ function HomeSection(props: { ctx: Ctx; id: string; label: string; add?: { label
   const hidden = props.ctx.details(`home:${props.id}`);
   return (
     <View>
-      <SectionLabel label={props.label} action={<LinkBtn label={hidden.open ? 'Show' : 'Hide'} onPress={hidden.onToggle} />} />
+      <SectionLabel label={props.label} action={<SectionToggle section={props.label} expanded={!hidden.open} onToggle={hidden.onToggle} />} />
       {hidden.open ? null : (
         <Group>
           {props.children}
@@ -99,6 +106,21 @@ function HomeSection(props: { ctx: Ctx; id: string; label: string; add?: { label
         </Group>
       )}
     </View>
+  );
+}
+
+/**
+ * Show / Hide beside a section label. A screen reader hears the section's
+ * name and whether it is expanded, not a bare "Show". (kit's LinkBtn takes
+ * no accessibility label or state yet; swap to it once it does.)
+ */
+function SectionToggle(props: { section: string; expanded: boolean; onToggle: () => void }) {
+  return (
+    <Pressable onPress={props.onToggle} hitSlop={8} accessibilityRole="button" accessibilityState={{ expanded: props.expanded }}
+      accessibilityLabel={props.section} accessibilityHint={props.expanded ? 'Hides this section' : 'Shows this section'}
+      style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+      <Text style={txt.link}>{props.expanded ? 'Hide' : 'Show'}</Text>
+    </Pressable>
   );
 }
 
@@ -205,13 +227,13 @@ export function OrgHome(ctx: Ctx) {
   const memberCount = new Set(memberEntries(v.org, v.state, v.projectId).map((e) => e.profileId)).size;
   const open = (id: string) => {
     if (id === v.projectId) ctx.go('project_home');
-    else void ctx.openOrganization(ctx.project.orgId, id).catch((e: Error) => ctx.toast(`Could not open it: ${e.message}`));
+    else void ctx.openOrganization(ctx.project.orgId, id).catch((e: unknown) => ctx.toast(failure('open project', e)));
   };
   return (
     <Screen header={<Header title={v.orgName} />}>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <View style={{ width: 56, height: 56, borderRadius: radius.lg, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: tile.lg, height: tile.lg, borderRadius: radius.lg, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
             <Ico name="building" size={28} color={C.primary} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
@@ -334,12 +356,12 @@ export function LanguageHome(ctx: Ctx) {
       <Card style={{ backgroundColor: C.primary, borderColor: C.primary }} accessibilityLabel="Passage map"
         onPress={() => { ctx.setLane(laneId); ctx.go('map_home', { laneId }); }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <View style={{ width: 44, height: 44, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: withAlpha(C.white, 0.18), alignItems: 'center', justifyContent: 'center' }}>
             <Ico name="map" size={22} color={C.white} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[txt.body, { color: C.white, fontWeight: '700' }]}>Passage map</Text>
-            <Text style={[txt.xs, { color: 'rgba(255,255,255,0.85)' }]}>Every passage, where it stands, and what's next</Text>
+            <Text style={[txt.xs, { color: withAlpha(C.white, 0.85) }]}>Every passage, where it stands, and what's next</Text>
           </View>
           <Ico name="right" size={22} color={C.white} />
         </View>
@@ -383,9 +405,10 @@ export function MembersList(ctx: Ctx) {
   const [shown, setShown] = useState(30);
   const refresh = useCallback(async () => {
     if (!mayInvite) return;
-    try { setRequests(await pendingRequests(ctx.project.orgId)); } catch {
+    try { setRequests(await pendingRequests(ctx.project.orgId)); } catch (e) {
       // Offline: the list is a server read with no local mirror, so it stays
       // empty rather than claiming nobody asked.
+      noteExpected('members join requests', e);
     }
   }, [mayInvite, ctx.project.orgId]);
   useEffect(() => void refresh(), [refresh]);
@@ -404,7 +427,7 @@ export function MembersList(ctx: Ctx) {
     return (
       <View style={{ gap: space.sm }}>
         <Row icon={by === 'project' ? 'folder' : 'globe'} label={label} sub={plural(count, 'member')} last
-          onPress={d.onToggle} right={<Ico name={d.open ? 'up' : 'down'} size={22} color={C.primary} />} />
+          onPress={d.onToggle} expanded={d.open} right={<Ico name={d.open ? 'up' : 'down'} size={22} color={C.primary} />} />
         {d.open ? [...groups].map(([key, list]) => (
           <View key={key} style={{ gap: space.xs }}>
             <Text style={[txt.label, { paddingHorizontal: space.xs }]}>
@@ -455,13 +478,14 @@ export function MembersList(ctx: Ctx) {
 
 // ---- Invite, and editing a member (one form, as in the demo) ------------------------------------
 
-/** A list of choices on one card, the chosen one ticked. */
+/** A list of choices on one card, the chosen one ticked; a screen reader hears radio buttons and which is selected. */
 function Choices(props: { items: { id: string; label: string; sub?: string; badge?: string }[]; value: string; onChoose: (id: string) => void; empty?: string }) {
   if (props.items.length === 0) return <Text style={txt.smMuted}>{props.empty ?? 'Nothing to choose from.'}</Text>;
   return (
     <Group>
       {props.items.map((it, i) => (
         <Row key={it.id} label={it.label} sub={it.sub} badge={it.badge} onPress={() => props.onChoose(it.id)} last={i === props.items.length - 1}
+          role="radio" selected={props.value === it.id}
           right={props.value === it.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
       ))}
     </Group>
@@ -553,7 +577,9 @@ export function InviteMember(ctx: Ctx) {
       ctx.toast(`Invite sent to ${email.trim()} as ${roleName(ctx, form.roleId)}`);
       ctx.back();
     } catch (e) {
-      setError((e as Error).message);
+      // Offline or the server said no: its words say which.
+      noteExpected('send invite', e);
+      setError(e instanceof Error ? e.message : 'Try again when connected.');
     } finally {
       setBusy(false);
     }
@@ -567,7 +593,7 @@ export function InviteMember(ctx: Ctx) {
         : 'Sign in as an admin to invite members.'}</Text>
       <Card onPress={() => ctx.go('invite_qr', params)} accessibilityLabel="Invite by QR code">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <View style={{ width: 44, height: 44, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
             <Ico name="qr" size={22} color={C.primary} />
           </View>
           <View style={{ flex: 1 }}>
@@ -582,6 +608,11 @@ export function InviteMember(ctx: Ctx) {
       {error ? <Banner icon="flag" tone="amber" title="The invite was not sent" body={error} /> : null}
     </Screen>
   );
+}
+
+/** A failure ctx.act has already shown. */
+class AlreadySaid extends Error {
+  override name = 'AlreadySaid';
 }
 
 export function EditMember(ctx: Ctx) {
@@ -612,11 +643,24 @@ export function EditMember(ctx: Ctx) {
   async function runOrg(ops: OrgOp[]) {
     for (const op of ops) await ctx.org.append(op.type, op.payload as never);
   }
+  /** Undo from the toast: the screen may be gone by then, so the outcome is a toast too. */
+  async function undoOrg(ops: OrgOp[], where: string) {
+    try {
+      await runOrg(ops);
+      ctx.toast('Put back.');
+    } catch (e) {
+      ctx.toast(`Not put back. ${failure(where, e)}`);
+    }
+  }
+  /** ctx.act says "Not saved" and why itself; this only keeps the screen open without a second message. */
+  const act: Ctx['act'] = (...args) => ctx.act(...args).catch(() => { throw new AlreadySaid(); });
   async function attempt(work: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
     setError('');
-    try { await work(); ctx.back(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    try { await work(); ctx.back(); } catch (e) {
+      if (!(e instanceof AlreadySaid)) setError(failure('edit member', e));
+    } finally { setBusy(false); }
   }
   const save = () => attempt(async () => {
     if (!scope || !form.roleId) return;
@@ -634,26 +678,26 @@ export function EditMember(ctx: Ctx) {
       if (!next || next === was) return;
       const id = Crypto.randomUUID();
       const change = (r: Role, n: string) => [{ id: `${id}:${n}`, type: 'v1.MemberRoleChanged' as const, payload: { profileId: memberId, role: r } }];
-      await ctx.act(change(next, 'do'), `${who} is now ${role}`, () => change(was, 'undo'));
+      await act(change(next, 'do'), `${who} is now ${role}`, () => change(was, 'undo'));
       return;
     }
     const plan = changeMembership(entry, { roleId: form.roleId, scope });
     if (plan.apply.length === 0) return;
     await runOrg(plan.apply);
-    ctx.toast(`${who} is now ${role}`, async () => { await runOrg(plan.undo); ctx.toast('Put back.'); });
+    ctx.toast(`${who} is now ${role}`, () => undoOrg(plan.undo, 'undo role change'));
   });
   const remove = () => attempt(async () => {
     if (!entry) return;
     const where = LEVEL_LABEL[entry.scope.level].toLowerCase();
     if (legacy) {
       const id = Crypto.randomUUID();
-      await ctx.act([{ id: `${id}:0`, type: 'v1.MemberRemoved', payload: { profileId: memberId } }], `${who} removed from this project`,
+      await act([{ id: `${id}:0`, type: 'v1.MemberRemoved', payload: { profileId: memberId } }], `${who} removed from this project`,
         () => [{ id: `${id}:1`, type: 'v1.MemberRoleChanged', payload: { profileId: memberId, role: entry.legacyRole! } }]);
       return;
     }
     const plan = removeMembership(entry);
     await runOrg(plan.apply);
-    ctx.toast(`${who} removed at ${where} level`, async () => { await runOrg(plan.undo); ctx.toast('Put back.'); });
+    ctx.toast(`${who} removed at ${where} level`, () => undoOrg(plan.undo, 'undo remove member'));
   });
   const decline = () => attempt(async () => {
     await decideRequest(requestId!, false);
@@ -675,8 +719,7 @@ export function EditMember(ctx: Ctx) {
       footer={allowed ? (
         <>
           <PrimaryBtn label={pending ? 'Assign Role' : 'Save Assignment'} disabled={!ready} busy={busy} onPress={() => void save()} />
-          {pending ? <GhostBtn label="Decline" tone="red" onPress={() => void decline()} disabled={busy} />
-            : <GhostBtn label={`Remove from ${LEVEL_LABEL[entry!.scope.level].toLowerCase()}`} tone="red" onPress={() => void remove()} disabled={busy} />}
+          {pending ? <GhostBtn label="Decline" tone="red" onPress={() => void decline()} disabled={busy} /> : null}
         </>
       ) : undefined}>
       <Row leading={<Avatar id={memberId} size={48} />} label={who} sub={pending ? 'Asked to join' : v.target(entry!.scope)} />
@@ -687,6 +730,12 @@ export function EditMember(ctx: Ctx) {
       {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
         : <Banner icon="lock" title="View only" body="Only people who can invite members change roles." />}
       {error ? <Banner icon="flag" tone="amber" title="Not saved" body={error} /> : null}
+      {allowed && !pending ? (
+        // The demo has no Remove here; kept as a quiet link below the form,
+        // away from Save, and it offers Undo.
+        <LinkBtn label={`Remove from ${LEVEL_LABEL[entry!.scope.level].toLowerCase()}`} color={TINT.redText}
+          onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
+      ) : null}
     </Screen>
   );
 }
@@ -718,19 +767,17 @@ export function InviteQr(ctx: Ctx) {
       setInvite(await issueInvite(ctx.project.orgId, roleId, scope));
       setStep(2);
     } catch (e) {
-      setError((e as Error).message);
+      // Offline or refused by the server: its words say which.
+      noteExpected('issue invite', e);
+      setError(e instanceof Error ? e.message : 'Try again when connected.');
     } finally {
       setBusy(false);
     }
   }
   const params = { level, ...(ctx.params['laneId'] ? { laneId: ctx.params['laneId'] } : {}) };
-  // The scanner shows who it is for, the role, the org and who invited them
-  // before redeeming (AUTH-3). "From" is your name as others see it, never "You".
-  const me = usePerson()(ctx.session.actorId);
-  const myName = Object.values(ctx.org.state?.members[ctx.session.actorId] ?? {}).find((m) => m.displayName)?.displayName ?? me.name;
-  const uri = invite ? inviteUri(ctx.project.orgId, invite.token, {
-    name: name.trim(), role: role?.name, orgName: ctx.org.state?.org?.value.name, from: myName
-  }) : '';
+  // The link carries the org and the token only: a scanner shows nothing a
+  // forwarded link could have altered. The name stays on this screen.
+  const uri = invite ? inviteUri(ctx.project.orgId, invite.token) : '';
   return (
     <Screen header={<Header title="Invite by QR" sub={role ? role.name : 'Role and name only'}
       onBack={step === 1 && !invite ? () => setStep(0) : ctx.back} />}
@@ -753,7 +800,7 @@ export function InviteQr(ctx: Ctx) {
       ) : null}
       {step === 1 ? (
         <>
-          <Text style={txt.xs}>A name so you can recognize them. If they already have an account, their name replaces this when they scan.</Text>
+          <Text style={txt.xs}>A name so you can tell whose code this is. It stays on this phone; they choose their own name when they join.</Text>
           <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Nyibol Deng" autoCapitalize="words" />
         </>
       ) : null}
@@ -803,7 +850,7 @@ export function NewProject(ctx: Ctx) {
       }
       ctx.back();
     } catch (e) {
-      setError((e as Error).message);
+      setError(failure('new project', e));
     } finally {
       setBusy(false);
     }
@@ -837,10 +884,11 @@ export function NewLanguage(ctx: Ctx) {
       const languoid = code.trim() || title.slice(0, 3);
       const commandId = Crypto.randomUUID();
       const specs = addLanguage(state, { commandId, laneId: newLaneId(languoid, commandId), code: languoid, name: title, templateId, scope });
-      await ctx.act(specs, `${title} added to ${project} · uses ${template?.name ?? templateId}`);
+      // ctx.act says "Not saved" and why; stay on the form to try again.
+      try { await ctx.act(specs, `${title} added to ${project} · uses ${template?.name ?? templateId}`); } catch { return; }
       ctx.back();
     } catch (e) {
-      setError((e as Error).message);
+      setError(failure('new language', e));
     } finally {
       setBusy(false);
     }
@@ -881,7 +929,7 @@ export function ReviewTeams(ctx: Ctx) {
           <Card key={teamId} accessibilityLabel={t.name.value}
             onPress={canManage ? () => ctx.go('review_team_editor', { laneId, teamId }) : undefined}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
-              <View style={{ width: 44, height: 44, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
                 <Ico name="people" size={22} color={C.primary} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
@@ -923,10 +971,11 @@ export function ReviewTeamEditor(ctx: Ctx) {
     setError('');
     try {
       const plan = saveTeam(state, { commandId: Crypto.randomUUID(), teamId, laneId, name: title, members: chosen });
-      await ctx.act(plan.specs, `${title} saved · ${plural(chosen.length, 'person', 'people')}`, plan.undo ?? undefined);
+      // ctx.act says "Not saved" and why; stay on the form to try again.
+      try { await ctx.act(plan.specs, `${title} saved · ${plural(chosen.length, 'person', 'people')}`, plan.undo ?? undefined); } catch { return; }
       ctx.back();
     } catch (e) {
-      setError((e as Error).message);
+      setError(failure('save review team', e));
     } finally {
       setBusy(false);
     }

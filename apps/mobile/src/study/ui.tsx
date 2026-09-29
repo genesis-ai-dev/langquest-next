@@ -3,7 +3,7 @@
 // study.tsx's `ViewSwitch`, `PassageReader`, `ContributeSheet`). STUDY-3,
 // STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
 // player stops every other, and playback sets the session to play mode.
-import { commands, CommandError, type NoteAnchor, type PassageNote } from '@langquest-next/core';
+import { commands, CommandError, type EventSpec, type NoteAnchor, type PassageNote } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -13,9 +13,10 @@ import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../aud
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { Chip, ChipRow, EmptyState, Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../kit';
-import { when, type PassageView } from '../passageView';
+import { plural, when, type PassageView } from '../passageView';
+import { noteExpected, reportError } from '../report';
 import { readingSeconds, verseAt, type Reading } from '../scripture';
-import { C, radius, shadow, space, TINT } from '../theme';
+import { C, onColor, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
 import type { StudyStepStatus } from './progress';
@@ -76,10 +77,11 @@ export function useStudyAudio(url: string | undefined, estimate: number): StudyA
     return () => clearInterval(tick);
   }, [playing, simulated]);
 
-  const fallBack = () => {
+  /** The file could not load or play: the simulated clock carries on from `from`. */
+  const fallBack = (from = now.current.time) => {
     player.current?.remove();
     player.current = null;
-    base.current = { at: Date.now(), from: now.current.time };
+    base.current = { at: Date.now(), from };
     setFailed(true);
   };
 
@@ -112,7 +114,9 @@ export function useStudyAudio(url: string | undefined, estimate: number): StudyA
         await p.seekTo(0);
       }
       p.play();
-    } catch {
+    } catch (e) {
+      // Offline or a bad file: expected in the field, and the bar says so.
+      noteExpected('study audio: play', e);
       fallBack();
     }
   }
@@ -124,7 +128,13 @@ export function useStudyAudio(url: string | undefined, estimate: number): StudyA
     const v = Math.max(0, Math.min(seconds, now.current.duration));
     setTime(v);
     base.current = { at: Date.now(), from: v };
-    if (player.current && !simulated) player.current.seekTo(v).catch(() => {});
+    if (player.current && !simulated) {
+      player.current.seekTo(v).catch((e: unknown) => {
+        // The player lost its place: keep the bar where it was moved to, on the stand-in clock.
+        noteExpected('study audio: seek', e);
+        fallBack(v);
+      });
+    }
   }
   return { playing, time, duration, simulated, failed, play: () => void play(), pause, toggle: () => (playing ? pause() : void play()), seek };
 }
@@ -213,10 +223,10 @@ export function StepMark(props: { status: StudyStepStatus; size?: number }) {
   );
 }
 
-/** "Done by you · Sep 2", "2 notes", "Not started". */
+/** "Done by you · Sep 2 · 2 notes", "2 notes", "Not started". */
 export function stepLine(ctx: Ctx, s: StudyStepStatus): string {
-  if (s.done) return `Done by ${ctx.name(s.done.by, true)} · ${when(s.done.hlc)}`;
-  if (s.notes.length) return `${s.notes.length} note${s.notes.length === 1 ? '' : 's'}`;
+  if (s.done) return `Done by ${ctx.name(s.done.by, true)} · ${when(s.done.hlc)}${s.notes.length ? ` · ${plural(s.notes.length, 'note')}` : ''}`;
+  if (s.notes.length) return plural(s.notes.length, 'note');
   return 'Not started';
 }
 
@@ -233,19 +243,30 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
 
 // ---- writing notes -------------------------------------------------------------------
 
-/** Add a note to the passage's record (STUDY-7); returns whether it was saved. */
+/**
+ * Add a note to the passage's record (STUDY-7); returns whether it was saved.
+ * A note the record refuses says why; anything else is reported with an id.
+ * A failed write was already shown by ctx.act.
+ */
 export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId' | 'laneId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string): Promise<boolean> {
   const state = ctx.project.state;
   if (!state) return false;
+  let specs: EventSpec[];
   try {
-    const specs = commands(state, indexesFor(state)).addNote({
+    specs = commands(state, indexesFor(state)).addNote({
       commandId: Crypto.randomUUID(), unitId: v.unitId, laneId: v.laneId, anchor,
       ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {})
     });
+  } catch (e) {
+    if (e instanceof CommandError) ctx.toast(e.message);
+    else ctx.toast(`Something went wrong (code ${reportError('study: build note', e)}). Nothing was lost.`);
+    return false;
+  }
+  try {
     await ctx.act(specs, message);
     return true;
   } catch (e) {
-    if (e instanceof CommandError) ctx.toast(e.message);
+    noteExpected('study: save note', e);
     return false;
   }
 }
@@ -460,10 +481,10 @@ export const styles = StyleSheet.create({
     borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.md, ...shadow },
   playBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   backBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 1 },
-  scrubber: { height: 36, justifyContent: 'center' },
+  scrubber: { height: target.min, justifyContent: 'center' },
   track: { height: 6, borderRadius: 3, backgroundColor: C.border, overflow: 'hidden' },
   trackFill: { height: 6, borderRadius: 3, backgroundColor: C.primary },
-  thumb: { position: 'absolute', top: 9, width: 18, height: 18, borderRadius: 9, backgroundColor: C.primary, borderWidth: 2, borderColor: C.white },
+  thumb: { position: 'absolute', top: (target.min - 18) / 2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.primary, borderWidth: 2, borderColor: C.white },
   momentBtn: { minHeight: 48, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border, paddingHorizontal: space.md },
   switchWrap: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
@@ -472,13 +493,13 @@ export const styles = StyleSheet.create({
   switchOn: { backgroundColor: C.card, ...shadow },
   textCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingVertical: space.sm },
   verse: { flexDirection: 'row', gap: space.sm, borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: 6, minHeight: 48 },
-  verseRef: { width: 36, textAlign: 'right', paddingTop: 3, fontSize: 13, fontWeight: '700', color: C.muted, fontVariant: ['tabular-nums'] },
-  readingText: { fontSize: 16, lineHeight: 27, color: C.dark },
-  selected: { backgroundColor: `${C.primary}12`, borderWidth: 1.5, borderColor: `${C.primary}60` },
-  count: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: C.amber, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
-  countText: { fontSize: 13, fontWeight: '800', color: C.white },
-  addBtn: { alignSelf: 'flex-start', minHeight: 48, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm,
-    paddingHorizontal: space.lg, marginTop: space.xs, marginBottom: space.xs, backgroundColor: C.amber },
+  verseRef: { width: 36, textAlign: 'right', paddingTop: 3, fontSize: T.xs, fontWeight: '700', color: C.muted, fontVariant: ['tabular-nums'] },
+  readingText: { fontSize: T.base, lineHeight: 28, color: C.dark },
+  selected: { backgroundColor: withAlpha(C.primary, 0.07), borderWidth: 1.5, borderColor: withAlpha(C.primary, 0.38) },
+  count: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: onColor.amber, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
+  countText: { fontSize: T.xs, fontWeight: '800', color: C.white },
+  addBtn: { alignSelf: 'flex-start', minHeight: target.min, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm,
+    paddingHorizontal: space.lg, marginTop: space.xs, marginBottom: space.xs, backgroundColor: onColor.amber },
   where: { backgroundColor: C.card, borderLeftWidth: 3, borderColor: C.primary, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
   imageWrap: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: TINT.gray },
   image: { width: '100%', aspectRatio: 4 / 3, backgroundColor: TINT.gray },

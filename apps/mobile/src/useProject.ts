@@ -295,7 +295,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         hasRecording: (id) => !!client.getState().recordings[id],
         append: async (e) => {
           await client.append('v1.RecordingAdded', {
-            recordingId: e.id, unitId: e.target.unitId, laneId: e.target.laneId, kind: e.target.kind ?? 'target',
+            recordingId: e.id, unitId: e.target.unitId, laneId: e.target.laneId, kind: 'target',
             cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
           });
         }

@@ -96,7 +96,7 @@ describe('the step path', () => {
     expect(pathState(s.steps[0]!, true)).toBe('attention');
     expect(laneState(s.steps[0]!.kinds[0]!, s.steps[0]!, true)).toBe('attention');
     record(p, 'v2', ['c2'], 'Clearer verse 3');
-    p.run('deng', (c) => c.produceContent({ commandId: 'bt1', fromTakeId: p.passage().latest!.takeId, kindId: 'bt', cardHashes: ['b1'] }));
+    p.run('deng', (c) => c.produceContent({ commandId: 'bt1', fromTakeId: p.passage().latest!.takeId, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 1000 }] }));
     s = p.passage();
     expect(laneState(s.steps[0]!.kinds[0]!, s.steps[0]!, false)).toBe('answered');
     expect(laneState(s.steps[0]!.kinds[1]!, s.steps[0]!, false)).toBe('complete');

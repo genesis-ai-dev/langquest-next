@@ -29,11 +29,13 @@ import {
   type RowAction
 } from '../passage/record';
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
+import { noteExpected, reportError } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed } from '../session';
 import { guideFor } from '../study/guides';
-import { studyProgress, studySummary, type StudyProgress, type StudyStepStatus } from '../study/progress';
-import { C, radius, space, TINT } from '../theme';
+import { studyProgress, studySummary, type StudyProgress } from '../study/progress';
+import { StepMark, stepLine } from '../study/ui';
+import { C, radius, space, TINT, withAlpha } from '../theme';
 import { PersonAvatar, usePerson } from '../UserChip';
 import { VoiceNote, voiceFor } from '../voiceNote';
 
@@ -58,9 +60,10 @@ function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
 
 /**
  * Build a command's events against the fold and apply them. A command the
- * fold refuses says why in a toast instead of throwing; a failed write was
- * already reported by ctx.act. `undo` builds the inverse from the specs
- * that were applied (their ids).
+ * fold refuses says why in a toast instead of throwing; anything else is a
+ * fault, reported with an id the person can read out. A failed write was
+ * already shown by ctx.act. `undo` builds the inverse from the specs that
+ * were applied (their ids).
  */
 async function perform(
   ctx: Ctx,
@@ -74,7 +77,8 @@ async function perform(
   try {
     specs = build(commands(state, indexesFor(state)));
   } catch (e) {
-    ctx.toast(e instanceof CommandError ? e.message : `Not saved: ${(e as Error).message}`);
+    if (e instanceof CommandError) ctx.toast(e.message);
+    else ctx.toast(`Something went wrong (code ${reportError('passage: build command', e)}). Nothing was lost.`);
     return false;
   }
   try {
@@ -83,7 +87,9 @@ async function perform(
       return undo(specs)(commands(now, indexesFor(now)));
     } : undefined);
     return true;
-  } catch {
+  } catch (e) {
+    // ctx.act already said "Not saved"; only the caller's busy state is left to reset.
+    noteExpected('passage: write', e);
     return false;
   }
 }
@@ -274,7 +280,7 @@ export function PassageRecord(ctx: Ctx) {
             if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
               trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
             }
-            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} first={i === 0} trailing={trailing} {...(onPress ? { onPress } : {})} />;
+            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
           })}
           <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
             <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
@@ -451,7 +457,7 @@ function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean
   const bg = state === 'complete' ? C.green : state === 'locked' ? TINT.gray : state === 'attention' ? TINT.amber : C.card;
   const ring = state === 'current' || state === 'waiting' ? C.primary : state === 'attention' ? C.amber : state === 'answered' ? C.green
     : state === 'todo' ? C.border : checkpoint && state !== 'complete' ? C.amber : 'transparent';
-  const halo = checkpoint ? (state === 'complete' ? `${C.green}40` : `${C.amber}50`) : 'transparent';
+  const halo = checkpoint ? (state === 'complete' ? withAlpha(C.green, 0.25) : withAlpha(C.amber, 0.31)) : 'transparent';
   let mark: ReactNode = null;
   if (state === 'complete') mark = <Ico name={override ? 'flag' : 'check'} size={px(18)} color={C.white} strokeWidth={3} />;
   if (state === 'answered') mark = <Ico name="check" size={px(18)} color={C.green} strokeWidth={3} />;
@@ -717,27 +723,11 @@ function FeedbackToAnswer(props: { ctx: Ctx; v: PassageView; review: ReviewView;
 
 // ---- details (REC-8) ---------------------------------------------------------------
 
-function studyLine(ctx: Ctx, st: StudyStepStatus): string {
-  if (st.done) return `Done by ${ctx.name(st.done.by, true)} · ${when(st.done.hlc)}${st.notes.length ? ` · ${plural(st.notes.length, 'note')}` : ''}`;
-  if (st.notes.length) return plural(st.notes.length, 'note');
-  return 'Not started';
-}
-
-function StudyMark(props: { st: StudyStepStatus }) {
-  const { st } = props;
-  const started = !st.done && st.notes.length > 0;
-  return (
-    <View style={[styles.studyMark, st.done ? { backgroundColor: C.green, borderColor: C.green } : started ? { backgroundColor: C.light, borderColor: C.primary } : null]}>
-      {st.done ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{st.index + 1}</Text>}
-    </View>
-  );
-}
-
 function StudyRows(props: { ctx: Ctx; study: StudyProgress; onOpen: (stepId: string) => void }) {
   return (
     <>
       {props.study.steps.map((st) => (
-        <Row key={st.step.id} leading={<StudyMark st={st} />} label={st.step.title} sub={studyLine(props.ctx, st)} onPress={() => props.onOpen(st.step.id)} />
+        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpen(st.step.id)} />
       ))}
     </>
   );
@@ -820,26 +810,17 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   );
 }
 
-function HistoryRow(props: { text: EntryText; when: string; first: boolean; trailing: ReactNode; onPress?: () => void }) {
+/** One entry of the passage's history: who and when first, so a long reason never hides them. */
+function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; onPress?: () => void }) {
   const { text } = props;
-  const body = (
-    <>
-      <View style={[styles.historyIcon, { backgroundColor: `${text.color}1A` }]}>
-        <Ico name={text.icon} size={16} color={text.color} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.sm, { fontWeight: '700' }]}>{text.title}</Text>
-        {text.sub ? <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={2}>{text.sub}</Text> : null}
-        <Text style={[txt.xs, { marginTop: 4, fontWeight: '600' }]}>{text.who} · {props.when}</Text>
-      </View>
-      {props.trailing}
-      {props.onPress && !props.trailing ? <Ico name="right" size={18} color={C.muted} /> : null}
-    </>
-  );
-  const style = [styles.historyRow, !props.first && styles.topBorder];
-  if (!props.onPress) return <View style={style}>{body}</View>;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" style={({ pressed }) => [...style, pressed && { opacity: 0.7 }]}>{body}</Pressable>
+    <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}`} last={props.last}
+      leading={(
+        <View style={[styles.historyIcon, { backgroundColor: withAlpha(text.color, 0.1) }]}>
+          <Ico name={text.icon} size={16} color={text.color} />
+        </View>
+      )}
+      {...(props.trailing ? { right: props.trailing } : {})} {...(props.onPress ? { onPress: props.onPress } : {})} />
   );
 }
 
@@ -951,10 +932,10 @@ export function ReviewDetail(ctx: Ctx) {
   const tint = makes ? { bg: C.light, fg: C.primary } : good ? { bg: TINT.green, fg: TINT.greenText } : { bg: TINT.amber, fg: TINT.amberText };
   const answerable = ctx.session.can('translate') && canGo(ctx, 'review_detail', 'workspace') && review.outcome === 'needs_changes'
     && !review.response && review.versionN === p.latest?.n && p.latest?.by === me;
-  const artifacts = review.artifactHashes && review.artifactHashes.length > 0 ? (
+  const artifacts = review.artifacts && review.artifacts.length > 0 ? (
     <Card>
       <Text style={[txt.sm, { fontWeight: '700' }]}>{makes ? `The ${makes.what} (${makes.into})` : 'What was captured'}</Text>
-      <PlayRow ctx={ctx} hashes={review.artifactHashes} label={makes ? `Play the ${makes.what}` : 'Play the recording'} sub={plural(review.artifactHashes.length, 'part')} />
+      <PlayRow ctx={ctx} hashes={review.artifacts.map((c) => c.hash)} label={makes ? `Play the ${makes.what}` : 'Play the recording'} sub={plural(review.artifacts.length, 'part')} />
     </Card>
   ) : null;
   const outcome = makes ? `${makes.what.charAt(0).toUpperCase()}${makes.what.slice(1)} recorded` : good ? 'Looks good' : 'Needs changes';
@@ -1114,7 +1095,7 @@ export function AskSomeone(ctx: Ctx) {
     const on = who === c.profileId;
     return (
       <Row key={c.profileId} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
-        onPress={() => setWho(c.profileId)} last={last}
+        onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
         right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
     );
   };
@@ -1215,8 +1196,6 @@ export function AskSomeone(ctx: Ctx) {
   );
 }
 
-export const contracts = contractsFor('passage_record', 'version_detail', 'review_detail', 'ask_someone');
-
 const styles = StyleSheet.create({
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   btnRow: { flexDirection: 'row', gap: space.sm },
@@ -1232,7 +1211,6 @@ const styles = StyleSheet.create({
   kindRow: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md, backgroundColor: C.card },
   topBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   roundTile: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  studyMark: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   gridRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.sm },
   gridCol: { flex: 1, minWidth: 56, alignItems: 'center', justifyContent: 'center', gap: 2 },
   gridVersion: { width: 76, minHeight: 48, justifyContent: 'center', paddingHorizontal: 4 },
@@ -1241,7 +1219,6 @@ const styles = StyleSheet.create({
   producedMark: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   countBadge: { position: 'absolute', top: 2, right: 0, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, backgroundColor: C.dark, alignItems: 'center', justifyContent: 'center' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md, rowGap: 6, padding: space.md, backgroundColor: C.bg, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, minHeight: 64, backgroundColor: C.card },
   historyIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   playRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   inlineLink: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48 },
@@ -1250,5 +1227,7 @@ const styles = StyleSheet.create({
   answer: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: 2 },
   groupHead: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.xs },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  preview: { backgroundColor: TINT.green, borderRadius: radius.lg, padding: space.md, gap: 6, borderWidth: 1, borderColor: `${C.green}33` }
+  preview: { backgroundColor: TINT.green, borderRadius: radius.lg, padding: space.md, gap: 6, borderWidth: 1, borderColor: withAlpha(C.green, 0.2) }
 });
+
+export const contracts = contractsFor('passage_record', 'version_detail', 'review_detail', 'ask_someone');

@@ -3,8 +3,8 @@ import {
   type AnyEvent, type EventPayloads, type EventSpec, type EventType
 } from '@langquest-next/core';
 import {
-  canPublish, cardDurations, cardLabels, markTerms, mmss, pendingBackTranslationCards, removeCardSpecs,
-  termsInText, tiedTermIds, tieTermsSpecs, workingCards
+  backTranslationDraftKey, canPublish, cardDurations, cardLabels, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
+  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards
 } from '../src/recording/workspaceModel';
 import { pendingPassageCards } from '../src/recordingFlow';
 
@@ -158,29 +158,68 @@ describe('key terms', () => {
     expect([...tied].sort()).toEqual(['grace', 'lord']);
     expect([...tiedTermIds(s, v1)]).toEqual(['lord']);
 
-    const publish = h.cmd().publishVersion({ commandId: 'v2', unitId: 'passage', laneId: 'lane', cardHashes: ['a', 'b', 'c'], note: 'Added the ending.' });
-    h.run([...publish, ...tieTermsSpecs(publish, tied, 'v2')]);
+    const publish = h.cmd().publishVersion({ commandId: 'v2', unitId: 'passage', laneId: 'lane', cardHashes: ['a', 'b', 'c'], note: 'Added the ending.', actorId: 'me' });
+    const ties = tieTermsSpecs(h.state(), publish, tied, 'v2');
+    expect(ties.every((t) => t.type === 'v1.KeyTermLinked')).toBe(true);
+    // Its own command id: no event id is shared with the publish.
+    expect(ties.some((t) => publish.some((p) => p.id === t.id))).toBe(false);
+    h.run([...publish, ...ties]);
     const v2 = passage(h.state()).latest!;
     expect(v2.n).toBe(2);
     expect(keyTermLinksFor(h.state(), v2.takeId).map((l) => l.term.termId).sort()).toEqual(['grace', 'lord']);
+    expect(tieTermsSpecs(h.state(), publish, [], 'v2')).toEqual([]);
   });
 });
 
-describe('back translation parts', () => {
-  it('are your source cards since the version that nothing on the record uses, minus deleted ones', () => {
+describe('a back translation in progress', () => {
+  const card = (hash: string) => ({ hash, durationMs: 4000, format: 'wav' as const });
+
+  it('is kept per project, person, passage, language and kind', () => {
+    const k = { projectId: 'p', actorId: 'me', unitId: 'u', laneId: 'l', kindId: 'bt' };
+    expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, actorId: 'you' }));
+    expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, projectId: 'q' }));
+    expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, kindId: 'retell' }));
+  });
+
+  it('adds parts in order, once each, and a deleted part is gone for good', () => {
+    let d = withPart(null, 'v1', card('a'));
+    d = withPart(d, 'v2', card('b'));
+    d = withPart(d, 'v1', card('a'));
+    expect(d).toEqual({ fromTakeId: 'v1', cards: [card('a'), card('b')] });
+    const after = withoutPart(d, 'a');
+    expect(after?.cards.map((c) => c.hash)).toEqual(['b']);
+    // Undo puts it back where it was.
+    expect(withPart(after, 'v1', card('a'), 0).cards.map((c) => c.hash)).toEqual(['a', 'b']);
+    expect(withoutPart(null, 'a')).toBeNull();
+  });
+
+  it('reads back what it stored, and treats anything else as no draft', () => {
+    const d = withPart(withPart(null, 'v1', card('a')), 'v1', card('b'));
+    expect(parseBackTranslationDraft(JSON.stringify(d))).toEqual(d);
+    expect(parseBackTranslationDraft(null)).toBeNull();
+    expect(parseBackTranslationDraft('not json')).toBeNull();
+    expect(parseBackTranslationDraft('{"cards":[]}')).toBeNull();
+    expect(parseBackTranslationDraft('{"fromTakeId":"v1","cards":[{"hash":"a","durationMs":1},{"hash":""},{"hash":"b"}]}'))
+      .toEqual({ fromTakeId: 'v1', cards: [{ hash: 'a', durationMs: 1 }] });
+  });
+
+  it('saves only the parts on screen, and never offers saved parts again', () => {
     const h = history();
     h.record('a');
     h.run(h.cmd().publishVersion({ commandId: 'v1', unitId: 'passage', laneId: 'lane', cardHashes: ['a'] }));
-    const since = passage(h.state()).latest!.hlc;
-    h.record('bt1', 'source');
-    h.record('bt2', 'source');
-    h.record('theirs', 'source', 'someone');
-    h.record('note', 'source');
-    h.run(h.cmd().addNote({ commandId: 'n1', unitId: 'passage', laneId: 'lane', anchor: { kind: 'passage' }, blobHash: 'note' }));
+    const v1 = passage(h.state()).latest!.takeId;
+    let d = withPart(withPart(withPart(null, v1, card('bt1')), v1, card('gone')), v1, card('bt2'));
+    d = withoutPart(d, 'gone');
+    expect(unsavedParts(h.state(), d).map((c) => c.hash)).toEqual(['bt1', 'bt2']);
+    h.run(h.cmd().produceContent({ commandId: 'p1', fromTakeId: v1, kindId: 'bt', cards: unsavedParts(h.state(), d) }), 'reviewer');
     const s = h.state();
-    expect(pendingBackTranslationCards(s, 'passage', 'lane', 'me', since, new Set()).map((c) => c.hash)).toEqual(['bt1', 'bt2']);
-    expect(pendingBackTranslationCards(s, 'passage', 'lane', 'me', since, new Set(['bt1'])).map((c) => c.hash)).toEqual(['bt2']);
-    h.run(h.cmd().produceContent({ commandId: 'p1', fromTakeId: passage(s).latest!.takeId, kindId: 'bt', cardHashes: ['bt1', 'bt2'] }));
-    expect(pendingBackTranslationCards(h.state(), 'passage', 'lane', 'me', since, new Set())).toEqual([]);
+    const review = Object.values(s.kindReviews).find((r) => r.kindId === 'bt')!;
+    expect(review.artifacts?.map((c) => c.hash)).toEqual(['bt1', 'bt2']);
+    // Nothing of the draft reached the log as a recording, and the deleted part is nowhere.
+    expect(Object.values(s.recordings).flatMap((r) => r.cards.map((c) => c.hash))).toEqual(['a']);
+    expect(JSON.stringify(s)).not.toContain('gone');
+    // A draft the save could not clear offers nothing twice.
+    expect(unsavedParts(s, d)).toEqual([]);
+    expect(unsavedParts(s, null)).toEqual([]);
   });
 });

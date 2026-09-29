@@ -16,10 +16,11 @@ import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Badge, EmptyState, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Screen, SectionLabel, Segments, SmallBtn, txt
+  Badge, EmptyState, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Segments, SmallBtn, txt
 } from '../kit';
 import { AudioClip } from '../audioClip';
-import { usePassage, when, type PassageView } from '../passageView';
+import { plural, usePassage, when, type PassageView } from '../passageView';
+import { noteExpected } from '../report';
 import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
 import { glossaryEntry, guideFor, type StudyGuide as Guide, type StudyResource } from '../study/guides';
@@ -29,9 +30,14 @@ import {
   AudioBar, ContributeSheet, GlossarySheet, MediaSheet, PassageReader, resourceIcon, saveNote, StepMark, stepLine, StudyNote,
   styles as su, useStudyAudio, ViewSwitch
 } from '../study/ui';
-import { C, radius, space, TINT } from '../theme';
+import { C, radius, space, TINT, type as T } from '../theme';
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+/** A step's state in a word or two, beside its title; the full line is read to screen readers. */
+function stepBadge(st: StudyStepStatus, isNext: boolean): string | undefined {
+  if (st.done) return 'Done';
+  if (st.notes.length) return plural(st.notes.length, 'note');
+  return isNext ? 'Next' : undefined;
+}
 
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
@@ -125,23 +131,13 @@ export function StudyGuide(ctx: Ctx) {
           <View key={phase} style={{ gap: space.sm }}>
             {phase ? <SectionLabel label={phase} /> : null}
             <Group>
-              {sp.steps.filter((st) => (st.step.phase ?? '') === phase).map((st, i) => {
-                const isNext = sp.next?.step.id === st.step.id;
+              {sp.steps.filter((st) => (st.step.phase ?? '') === phase).map((st, i, list) => {
+                const isNext = canStudy && sp.next?.step.id === st.step.id;
+                const badge = stepBadge(st, isNext);
                 return (
-                  <Pressable key={st.step.id} onPress={() => openStep(st.step.id)} accessibilityRole="button"
-                    accessibilityLabel={`${st.step.title}. ${stepLine(ctx, st)}`}
-                    style={({ pressed }) => [s.stepRow, i > 0 && s.rowBorder, isNext && canStudy && { backgroundColor: C.light }, pressed && su.pressed]}>
-                    <StepMark status={st} size={36} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[txt.body, { fontWeight: '600' }]}>{st.step.title}</Text>
-                      <Text style={[txt.xs, { marginTop: 2 }]}>{st.step.purpose}</Text>
-                      <Text style={[txt.xsStrong, { marginTop: 4, color: st.done ? TINT.greenText : isNext ? C.primary : C.muted }]}>
-                        {isNext && !st.notes.length && canStudy ? 'Next' : stepLine(ctx, st)}
-                        {st.done && st.notes.length ? ` · ${plural(st.notes.length, 'note')}` : ''}
-                      </Text>
-                    </View>
-                    <Ico name="right" size={22} color={C.muted} />
-                  </Pressable>
+                  <Row key={st.step.id} leading={<StepMark status={st} size={36} />} label={st.step.title} sub={st.step.purpose}
+                    {...(badge ? { badge, badgeTone: st.done ? 'green' as const : isNext ? 'brand' as const : 'default' as const } : {})} last={i === list.length - 1} onPress={() => openStep(st.step.id)}
+                    accessibilityLabel={`${st.step.title}. ${isNext && !st.notes.length ? 'Next' : stepLine(ctx, st)}. ${st.step.purpose}`} />
                 );
               })}
             </Group>
@@ -187,7 +183,9 @@ export function StudyStep(ctx: Ctx) {
       await ctx.act(mark(true),
         next ? `${status.step.title} done · ${sp.doneCount + 1} of ${sp.steps.length}` : `Every ${guide.pattern} step is done`,
         () => mark(false));
-    } catch {
+    } catch (e) {
+      // ctx.act already said "Not saved"; stay on this step.
+      noteExpected('study: mark step', e);
       return;
     }
     if (next) setStepId(next.step.id);
@@ -395,6 +393,8 @@ function SectionView(props: {
   const sec = props.section;
   const question = isQuestion(sec);
   const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' ? [p] : []));
+  // Anyone can select a section to reach its pictures, maps and glossary terms; only contributors can note it.
+  const selectable = props.canContribute || links.length > 0;
   const inline = <Inline text={sec.text} onOpenRef={props.onOpenRef} />;
   let body: ReactNode;
   if (sec.kind === 'action') {
@@ -418,7 +418,7 @@ function SectionView(props: {
   }
   return (
     <View style={{ paddingHorizontal: space.sm }}>
-      <Pressable disabled={!props.canContribute} onPress={props.onSelect} accessibilityRole={props.canContribute ? 'button' : undefined}
+      <Pressable disabled={!selectable} onPress={props.onSelect} accessibilityRole={selectable ? 'button' : undefined}
         accessibilityState={{ selected: props.selected }} style={[s.section, props.selected && su.selected]}>
         {body}
         {props.notes.length > 0 && !props.selected ? (
@@ -452,13 +452,11 @@ function SectionView(props: {
 
 const s = StyleSheet.create({
   summary: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.lg, gap: space.md },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, minHeight: 80, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
-  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   strip: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: C.card,
     borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   momentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, minHeight: 48, paddingHorizontal: space.lg, paddingVertical: space.sm },
   timeTag: { backgroundColor: C.dark, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
-  stepText: { fontSize: 15, lineHeight: 26, color: C.dark },
+  stepText: { fontSize: T.sm, lineHeight: 26, color: C.dark },
   itemMark: { width: 24, textAlign: 'right', fontWeight: '700', color: C.primary },
   action: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start', backgroundColor: C.light, borderLeftWidth: 4, borderColor: C.primary,
     borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.md },

@@ -8,7 +8,7 @@
  */
 import type { ImageSourcePropType } from 'react-native';
 import { Image } from 'react-native';
-import { colors } from './theme';
+import { C } from './theme';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BOOK_ICONS: Record<string, ImageSourcePropType> = {
@@ -93,7 +93,7 @@ export function BookIcon(props: { bookId: string; size?: number; color?: string 
   return (
     <Image
       source={source}
-      style={{ width: size, height: size, tintColor: props.color ?? colors.translate }}
+      style={{ width: size, height: size, tintColor: props.color ?? C.primary }}
       resizeMode="contain"
     />
   );

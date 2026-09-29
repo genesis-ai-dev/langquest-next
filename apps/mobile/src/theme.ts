@@ -81,11 +81,29 @@ export const type = {
   base: 17,
   lg: 19,
   xl: 22,
-  xxl: 26
+  xxl: 26,
+  /** Welcome and entry headlines. */
+  display: 30
 } as const;
 
 /** Minimum touch targets. */
 export const target = { min: 48, primary: 56, row: 64 } as const;
+
+/** Sizes of the icon tile beside a row or card title. */
+export const tile = { sm: 44, md: 48, lg: 56 } as const;
+
+/**
+ * Filled buttons in a status colour carry white text, which the bright
+ * status colours cannot hold at 4.5:1; these deeper shades can. The hue (and
+ * its meaning) stays the same.
+ */
+export const onColor = { green: '#047857', amber: '#B45309', red: '#B91C1C' } as const;
+
+/** A token colour at an opacity, instead of pasting hex alpha onto it. */
+export function withAlpha(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
 
 export const shadow = {
   shadowColor: '#111420',

@@ -2,13 +2,12 @@
 import {
   SOURCE_BIBLES, sourceAudioUrl, sourceBibleEnabled, sourceChapters
 } from '@langquest-next/core';
-import { Headphones } from 'lucide-react-native';
 import { Text, View } from 'react-native';
 import type { Ctx } from './ctx';
 import { AudioClip } from './audioClip';
 import { getReferenceSlides } from './passageResources';
-import { Card, text } from './ui';
-import { colors, space } from './theme';
+import { Card, Ico, txt } from './kit';
+import { space, TINT } from './theme';
 
 export function PassageSourceAudio({ ctx, unitId, laneId, disabled }: {
   ctx: Ctx; unitId: string; laneId: string; disabled: boolean;
@@ -21,9 +20,13 @@ export function PassageSourceAudio({ ctx, unitId, laneId, disabled }: {
   return <View style={{ gap: space.md }}>
     {bibles.flatMap((bible) => chapters.map((chapter) =>
       <Card key={`${bible.id}:${chapter.book}:${chapter.chapter}`}>
-        <Headphones color={colors.reference} />
-        <Text style={text.body}>{chapter.label} · {bible.code}</Text>
-        <Text style={text.small}>Full chapter</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Ico name="listen" size={22} color={TINT.amberText} />
+          <View style={{ flex: 1 }}>
+            <Text style={txt.body}>{chapter.label} · {bible.code}</Text>
+            <Text style={txt.xs}>Full chapter</Text>
+          </View>
+        </View>
         <AudioClip project={ctx.project} hashes={[]} disabled={disabled}
           uri={sourceAudioUrl(bible, chapter,
             process.env.EXPO_PUBLIC_SOURCE_AUDIO_BASE_URL ??
@@ -32,8 +35,10 @@ export function PassageSourceAudio({ ctx, unitId, laneId, disabled }: {
           seekControls />
       </Card>))}
     {references.map((item) => <Card key={item.id}>
-      <Headphones color={colors.reference} />
-      <Text style={text.small}>{item.label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Ico name="listen" size={22} color={TINT.amberText} />
+        <Text style={[txt.sm, { flex: 1 }]}>{item.label}</Text>
+      </View>
       <AudioClip project={ctx.project} hashes={[item.hash]}
         label={`Play ${item.label}`} disabled={disabled} seekControls />
     </Card>)}

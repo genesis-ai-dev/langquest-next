@@ -5,24 +5,32 @@
 // CreateOrgScreen, RequestAccessScreen).
 // Requirements AUTH-1..6, ONB-2, ONB-6 (creating an organization), NAV-2.
 // ADR-022 (terms are a line under Sign In; three Vision cards), ADR-023
-// (creating an org is celebrated), ADR-028 (the invite says who it is for).
-import { SEED_ROLES } from '@langquest-next/core';
+// (creating an org is celebrated), ADR-028 (the invite says who it is for;
+// here only what the phone knows, since a link's claims are unchecked).
+import { CommandError, SEED_ROLES } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { cachedPublicProjects, publicProjects, queueAccountAction, recordUserEvent, type PublicProject } from '../accountData';
+import { cachedPublicProjects, publicProjects, queueAccountAction, type PublicProject } from '../accountData';
 import { inviteLine, inviteSummary, VISION_STEPS } from '../accountText';
 import type { Ctx } from '../ctx';
-import { DEV_PASSWORD, ensurePersonaAccount } from '../dev';
+import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
 import { parseInvite, redeemInvite } from '../invites';
 import {
   Banner, Card, EmptyState, Field, GhostBtn, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Screen, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
+import { noteExpected, reportError, failureMessage } from '../report';
 import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
-import { C, radius, space, TINT } from '../theme';
+import { C, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions } from '../useAccount';
+
+/**
+ * What to say when something fails (error-tracking): a command's own reason,
+ * or, for a fault, a code a tester can read out, having reported it.
+ */
+const failure = failureMessage;
 
 // ---- Sign In (AUTH-1) ----------------------------------------------------------------------
 
@@ -40,20 +48,35 @@ export function SignIn(ctx: Ctx) {
   async function signIn() {
     setBusy(true);
     setError('');
-    let { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    // Dev: `npm run db:test` resets the local database and wipes auth users.
-    // Recreate the dev account instead of stranding the developer at sign-in.
-    if (error && ctx.isDev && email.trim() === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
-      await ensurePersonaAccount({ id: 'dev', email: email.trim() });
-      ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
+    try {
+      let { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      // Dev on a local server: `npm run db:test` wipes auth users. Recreate
+      // the dev account instead of stranding the developer at sign-in.
+      if (error && ctx.isDev && personasAvailable().ok && email.trim() === process.env.EXPO_PUBLIC_DEV_EMAIL && password === DEV_PASSWORD) {
+        await ensurePersonaAccount({ id: 'dev', email: email.trim() });
+        ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }));
+      }
+      // A wrong password or no connection: the server's words are the answer.
+      if (error) { noteExpected('sign in', error); setError(error.message); return; }
+      // Signing in accepts the terms (AUTH-1). The session this screen was
+      // given belongs to the guest, so record it for the account that just
+      // signed in; the account outbox delivers (and retries) it once the new
+      // session is up.
+      if (data.user) await recordTerms(data.user.id);
+    } catch (e) {
+      setError(failure('sign in', e));
+    } finally {
+      setBusy(false);
     }
-    if (error) { setError(error.message); setBusy(false); return; }
-    // Signing in accepts the terms (AUTH-1). The session this screen was
-    // given belongs to the guest, so record it for the account that just
-    // signed in; the outbox delivers it once the new session is up.
-    const userId = data.user?.id;
-    await ctx.acceptTerms(userId ?? undefined).catch(() => {});
-    setBusy(false);
+  }
+
+  /** Queue the terms for this account; a failure to queue is a fault, reported, never a reason to block sign-in. */
+  async function recordTerms(userId: string) {
+    try {
+      await ctx.acceptTerms(userId);
+    } catch (e) {
+      ctx.toast(failure('accept terms', e));
+    }
   }
 
   const ready = email.trim().includes('@') && password.length > 0;
@@ -67,7 +90,7 @@ export function SignIn(ctx: Ctx) {
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
         <Field value={password} onChangeText={setPassword} placeholder="Password" secure autoCapitalize="none" />
-        {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+        {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
         <PrimaryBtn label={busy ? 'Signing in…' : 'Sign In'} onPress={() => void signIn()} disabled={!ready || busy} />
         <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
           <Text style={[txt.xs, { textAlign: 'center' }]}>
@@ -148,12 +171,14 @@ export function ExploreHome(ctx: Ctx) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const cached = await cachedPublicProjects();
+      const cached = await cachedPublicProjects().catch((e: unknown) => { reportError('explore cache', e); return []; });
       if (active) setProjects(cached);
       try {
         const rows = await publicProjects();
         if (active) { setProjects(rows); setMessage(''); }
-      } catch {
+      } catch (e) {
+        // Offline or the server is away: expected, and said on screen.
+        noteExpected('explore refresh', e);
         if (active) setMessage('Unable to refresh. Showing saved projects when available.');
       }
     })();
@@ -203,12 +228,27 @@ export function CreateAccount(ctx: Ctx) {
   async function create() {
     setBusy(true);
     setError('');
-    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
-    setBusy(false);
-    if (error) { setError(error.message); return; }
-    // With a session the app routes on by itself; without one the address
-    // has to be confirmed first.
-    if (!data.session) setCheckEmail(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (error) { noteExpected('sign up', error); setError(error.message); return; }
+      // Creating the account accepts the terms (AUTH-1). With a session they
+      // are recorded now (the account outbox retries until delivered) and the
+      // app routes on by itself; without one the address has to be confirmed
+      // first, and signing in records them.
+      if (data.session && data.user) {
+        try {
+          await ctx.acceptTerms(data.user.id);
+        } catch (e) {
+          ctx.toast(failure('accept terms', e));
+        }
+      } else {
+        setCheckEmail(true);
+      }
+    } catch (e) {
+      setError(failure('sign up', e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (checkEmail) {
@@ -230,8 +270,8 @@ export function CreateAccount(ctx: Ctx) {
       <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
       <Field label="Password" value={password} onChangeText={setPassword} placeholder="Choose a password (6 or more characters)" secure autoCapitalize="none" />
       <Field label="Confirm password" value={confirm} onChangeText={setConfirm} placeholder="Re-enter password" secure autoCapitalize="none" />
-      {confirm.length > 0 && password !== confirm ? <Text style={styles.error}>Passwords do not match.</Text> : null}
-      {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+      {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>Passwords do not match.</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <Card onPress={() => ctx.go('scan_qr')} accessibilityLabel="Scan org invite">
         <View style={styles.optionRow}>
           <View style={styles.tile}><Ico name="qr" size={24} color={C.primary} /></View>
@@ -244,7 +284,7 @@ export function CreateAccount(ctx: Ctx) {
       </Card>
       <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
         <Text style={[txt.xs, { textAlign: 'center' }]}>
-          Signing in accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
+          Creating an account accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
         </Text>
       </Pressable>
     </Screen>
@@ -256,7 +296,9 @@ export function CreateAccount(ctx: Ctx) {
 /**
  * Camera and pasted invites use the same redemption contract, which appends
  * the membership and lands this session on its new home. Once a code is read
- * the screen says who it is for, with whatever the link carries.
+ * the screen says only what this phone knows: the org's name if it has it,
+ * else "Invitation to join an organization". A link can be edited by anyone
+ * who forwards it, so nothing it claims is shown as fact.
  */
 export function ScanQr(ctx: Ctx) {
   const [code, setCode] = useState(ctx.params['invite'] ?? '');
@@ -269,7 +311,7 @@ export function ScanQr(ctx: Ctx) {
   const parsed = parseInvite(code);
   const summary = useMemo(() => inviteSummary(code), [code]);
   const knownOrg = summary.orgId && summary.orgId === ctx.project.orgId ? ctx.org.state?.org?.value.name : undefined;
-  const line = inviteLine({ ...summary, ...(knownOrg && !summary.org ? { org: knownOrg } : {}) });
+  const line = inviteLine(knownOrg);
   const guest = ctx.session.isGuest;
 
   async function join() {
@@ -282,13 +324,22 @@ export function ScanQr(ctx: Ctx) {
         ctx.go('sign_in');
         return;
       }
-      const joined = await redeemInvite(parsed.token);
+      let joined: { orgId: string };
+      try {
+        joined = await redeemInvite(parsed.token);
+      } catch (e) {
+        // Used, expired or offline: expected, and the server says which.
+        noteExpected('redeem invite', e);
+        setError(e instanceof Error ? e.message : 'The invite could not be used.');
+        return;
+      }
       await ctx.markJoined(ctx.session.actorId);
       await ctx.openOrganization(joined.orgId);
     } catch (e) {
-      setError((e as Error).message);
+      setError(failure('join by invite', e));
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   function toggleCamera() {
@@ -336,15 +387,15 @@ export function ScanQr(ctx: Ctx) {
           <View style={styles.optionRow}>
             <View style={styles.tile}><Ico name="people" size={24} color={C.primary} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={[txt.body, { fontWeight: '700' }]}>{summary.name ? `Invite for ${summary.name}` : 'Invite read'}</Text>
-              <Text style={txt.smMuted}>{line || 'The organization and role show once you join.'}</Text>
+              <Text style={[txt.body, { fontWeight: '700' }]}>{line}</Text>
+              <Text style={txt.smMuted}>Your role shows once you join.</Text>
             </View>
           </View>
         </Card>
       ) : null}
       <GhostBtn label={scanning ? 'Stop camera' : parsed ? 'Scan a different invite' : 'Scan QR code'} icon="camera" onPress={toggleCamera} />
       <Field label="Or paste the invite code or link" value={code} onChangeText={(v) => { setCode(v); setError(''); }} placeholder="Invite code" autoCapitalize="none" />
-      {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
 }
@@ -366,7 +417,8 @@ const INTENTS: { to: 'create_org' | 'request_access' | 'scan_qr' | 'explore_home
 export function IntentChooser(ctx: Ctx) {
   const actions = useAccountActions(ctx.session.actorId);
   const waiting = actions.filter((a) => a.kind === 'join_request' && a.status !== 'failed').at(-1);
-  const waitingFor = waiting ? String(waiting.payload.orgName ?? waiting.payload.orgId ?? '') : '';
+  // The name Explore knew, else a neutral phrase: never the org's id.
+  const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : 'the organization';
   const [error, setError] = useState('');
   async function signOut() {
     const { error } = await supabase.auth.signOut();
@@ -403,7 +455,7 @@ export function IntentChooser(ctx: Ctx) {
           </View>
         </Card>
       ))}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {!ctx.session.isGuest ? <LinkBtn label="Sign out" color={C.muted} onPress={() => void signOut()} style={{ alignSelf: 'center' }} /> : null}
     </Screen>
   );
@@ -439,11 +491,13 @@ export function CreateOrg(ctx: Ctx) {
       });
       // The creator needs no "who invited you" welcome; My Work's Getting
       // started is their first day (ADR-022).
-      await ctx.markWelcomed().catch(() => {});
+      // The org exists by now, so a failure here is reported, not shown as
+      // "not created"; the worst case is seeing the welcome once more.
+      await ctx.markWelcomed().catch((e: unknown) => { reportError('create org welcomed', e); });
       ctx.toast(`${orgName} is ready to grow. Next, set up your first project and invite your team.`);
       ctx.go('my_work');
     } catch (e) {
-      setError((e as Error).message);
+      setError(failure('create org', e));
     } finally {
       setBusy(false);
     }
@@ -463,7 +517,7 @@ export function CreateOrg(ctx: Ctx) {
       <Field label="What's it called?" value={name} onChangeText={setName} placeholder="Enter organization name" autoCapitalize="words" />
       <Banner icon="sparkle" title="Ready to use"
         body="You'll get the usual roles and a standard way to check passages. Next, we'll set up your first project and team together." />
-      {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
 }
@@ -496,9 +550,10 @@ export function RequestAccess(ctx: Ctx) {
         orgId: orgId.trim(), message: message.trim(), ...(orgName ? { orgName } : {})
       }));
     } catch (e) {
-      setError((e as Error).message);
+      setError(failure('request access', e));
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   if (requestId) {
@@ -535,7 +590,7 @@ export function RequestAccess(ctx: Ctx) {
         <Field label="Organization code" value={orgId} onChangeText={setOrgId} placeholder="Ask the organization for its code" autoCapitalize="none" />
       )}
       <Field label="Message" value={message} onChangeText={setMessage} placeholder="Why you want to join" multiline />
-      {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
 }
@@ -545,20 +600,19 @@ const styles = StyleSheet.create({
   brand: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
   logo: { width: 64, height: 64, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
     shadowColor: C.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
-  wordmark: { fontSize: 30, fontWeight: '800', color: C.dark, letterSpacing: -0.5 },
+  wordmark: { fontSize: T.display, fontWeight: '800', color: C.dark, letterSpacing: -0.5 },
   termsLine: { minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm },
   termsLink: { fontWeight: '700', textDecorationLine: 'underline', color: C.muted },
   inline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs, flexWrap: 'wrap' },
-  error: { fontSize: 15, color: TINT.redText, lineHeight: 21 },
   between: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  tile: { width: 48, height: 48, borderRadius: 16, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  tile: { width: tile.md, height: tile.md, borderRadius: 16, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   visionBody: { flexGrow: 1 },
   visionCard: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.lg, paddingHorizontal: space.lg, paddingVertical: space.xxl },
   visionIcon: { width: 96, height: 96, borderRadius: 32, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   viewfinder: { height: 280, borderRadius: radius.sheet, backgroundColor: C.dark, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   corner: { position: 'absolute', width: 32, height: 32 },
-  viewfinderHint: { position: 'absolute', bottom: 18, left: 0, right: 0, textAlign: 'center', fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+  viewfinderHint: { position: 'absolute', bottom: 18, left: 0, right: 0, textAlign: 'center', fontSize: T.xs, fontWeight: '600', color: withAlpha(C.white, 0.75) },
   waiting: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1.5, borderColor: C.primary, padding: space.lg, gap: space.sm },
   hero: { alignItems: 'center', gap: space.md, paddingVertical: space.md },
   heroTile: { width: 64, height: 64, borderRadius: 24 }

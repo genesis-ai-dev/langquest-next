@@ -14,9 +14,10 @@ import { GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../
 import { laneName } from '@langquest-next/core';
 import { PersonAvatar } from '../UserChip';
 import { personLook } from '../people';
+import { reportError } from '../report';
 import { contractsFor } from '../screenContracts';
 import { homeScreenFor } from '../session';
-import { C, space } from '../theme';
+import { C, space, type as T } from '../theme';
 import { useDisplayNames } from '../useAccount';
 
 const ROLE_WORDS: Record<string, string> = {
@@ -58,7 +59,8 @@ export function Welcome(ctx: Ctx) {
     if (busy) return;
     setBusy(true);
     try { await ctx.markWelcomed(); }
-    catch (e) { ctx.toast(`Not saved: ${(e as Error).message}`); }
+    // Saved to the account outbox, which retries; a failure to queue is a fault.
+    catch (e) { ctx.toast(`Something went wrong (code ${reportError('welcome seen', e)}). Nothing was lost.`); }
     setBusy(false);
     // Along the home_hub edge: My Work for everyone who does or asks for work, the overview for viewers.
     ctx.go(home, showGettingStarted && hasGettingStarted ? { showGettingStarted: '1' } : undefined);
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: space.xl, paddingTop: space.xxl, gap: space.xl },
   hero: { alignItems: 'center', gap: space.md },
   logo: { width: 72, height: 72, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: '800', color: C.dark, textAlign: 'center' }
+  title: { fontSize: T.display, fontWeight: '800', color: C.dark, textAlign: 'center' }
 });
 
 export const contracts = contractsFor('welcome');

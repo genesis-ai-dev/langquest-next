@@ -198,7 +198,8 @@ role at org, project or lane scope; an event needs one privilege
 are seeded as roles with the spec's privilege sets and `effectiveRole` maps
 any privilege set back onto them, so workflow steps, eligibility and storage
 policies keep speaking `Role`. Reverse if: partners never define a custom
-role; then the seed roles are simply all there is.
+role; then the seed roles are simply all there is. (An event may now need
+any one of several privileges: 31.)
 
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
@@ -271,20 +272,32 @@ afterwards with who gave it), and departing from the method is recorded
 with a reason (`v1.DepartureRecorded`, undone by `v1.DepartureUndone`).
 Requests, notes and study marks are records too. Status is still derived
 (`passage.ts`), and v1 steps and reviews read as kinds, so older lanes keep
-working. Merge shapes are the existing ones: grow-only with earliest wins,
+working; for v2 lanes this replaces the quorum rules of 10. A checkpoint
+clears only by a review given in the app or by link, or by an override:
+a check logged afterwards (which a translator may do) completes ordinary
+steps but never a checkpoint, because moving past one without its reviewer
+is an override and needs Override Checkpoints. Whether a lane reads v2 steps
+is decided by its `v1.LaneFlowSelected` having `catalogVersion` 2 or more
+(the v2 flow catalog, `FLOW_CATALOG_VERSION`), so the v1 content catalog
+must not reach version 2 without revisiting this. Merge shapes are the existing ones: grow-only with earliest wins,
 registers, and an add-wins undo. Reverse if: partners want gates back; then
 checkpoints can cover more steps without new events.
 
-## 30. A back translation is the review's artifacts, not a take
+## 30. The record's own audio is named by the event that uses it
 
-Reason: a back translator usually holds only Review, and a take needs
-Translate. Its cards are recorded as source-language audio
-(`RecordingAdded` kind `source`, allowed to Review) and named in the
-`v1.ReviewRecorded` that records it (outcome `recorded`, `artifactHashes`).
-So a back translation can never be mistaken for a version of the passage,
-and the kind's step completes by the recording existing. Reverse if: back
-translations need editing by cards like versions; then give them their own
-take-like event.
+Reason: a back translator usually holds only Review, and a take (or a
+`RecordingAdded`) needs Translate. More generally, a voice note, spoken
+feedback, a reason or what a producing kind made belongs to the record,
+not to the passage's recordings. So that audio is never appended as a
+`RecordingAdded`: it waits in the blob store (and, for back-translation
+parts, a local draft on the phone) until the event that uses it names it,
+and that reference is what uploads it, like the older response and review
+comment audio. A back translation is a `v1.ReviewRecorded` with outcome
+`recorded` and its parts as `artifacts` (cards with length and format), so
+it can never be mistaken for a version, and the kind's step completes by
+the recording existing. A voice note someone abandons never reaches the
+log. Reverse if: back translations need editing by cards like versions;
+then give them their own take-like event.
 
 ## 31. An event may need any one of several privileges
 

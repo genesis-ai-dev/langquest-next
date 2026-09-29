@@ -8,7 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx, RecentPassage } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
@@ -16,7 +16,8 @@ import { UpdateBanner } from './src/UpdateBanner';
 import { maySwitchPersona } from './src/dev';
 import { edgeFor, MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
 import { indexesFor } from './src/indexes';
-import { Ico, ToastView, type IconName, type ToastSpec } from './src/kit';
+import { GhostBtn, Ico, ToastView, txt, type IconName, type ToastSpec } from './src/kit';
+import { installGlobalHandlers, reportError } from './src/report';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
 import * as Account from './src/screens/account';
@@ -85,7 +86,13 @@ function hostFor(id: ScreenId) {
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
     if (!ctx) return null;
-    return <Screen {...ctx} params={props.route.params ?? {}} />;
+    // One boundary per screen (error-tracking): a crash in a study guide
+    // never takes the recorder, or the rest of the app, down with it.
+    return (
+      <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}>
+        <Screen {...ctx} params={props.route.params ?? {}} />
+      </ScreenBoundary>
+    );
   }
   Host.displayName = `Host(${id})`;
   return Host;
@@ -100,37 +107,69 @@ for (const id of SCREEN_IDS) HOSTS[id] = hostFor(id);
  * moments: `supabaseConfigError` for a build that was assembled without its
  * configuration, and this boundary for anything thrown while rendering.
  */
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  override state: { error: Error | null } = { error: null };
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; id: string }> {
+  override state: { error: Error | null; id: string } = { error: null, id: '' };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[app] unhandled render error', error, info.componentStack);
+    this.setState({ id: reportError('app render', error) });
+    void info;
   }
 
   override render() {
     if (!this.state.error) return this.props.children;
-    return <Fatal title="Something went wrong" detail={`${this.state.error.message}\n\n${this.state.error.stack ?? ''}`} />;
+    return <Fatal title="Something went wrong" id={this.state.id} detail={this.state.error.stack ?? this.state.error.name} />;
+  }
+}
+
+/**
+ * A screen that failed to draw. Says what was kept before what went wrong,
+ * gives an id to read to support, and offers a way out (error-tracking §3).
+ */
+class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; onHome: () => void; children: ReactNode }, { error: Error | null; id: string }> {
+  override state: { error: Error | null; id: string } = { error: null, id: '' };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  override componentDidCatch(error: Error) {
+    this.setState({ id: reportError(`screen ${this.props.screen}`, error) });
+  }
+
+  override render() {
+    if (!this.state.error) return this.props.children;
+    const reset = (then: () => void) => () => { this.setState({ error: null, id: '' }); then(); };
+    return (
+      <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md, backgroundColor: C.bg, flexGrow: 1 }}>
+        <Text style={txt.h2} accessibilityRole="header">This screen could not open</Text>
+        <Text style={txt.body}>Your recordings and everything you saved are safe on this phone.</Text>
+        <Text style={txt.smMuted} selectable>If it keeps happening, tell your team this code: {this.state.id}</Text>
+        <GhostBtn label="Go back" icon="left" onPress={reset(this.props.onBack)} />
+        <GhostBtn label="Go to My Work" icon="home" onPress={reset(this.props.onHome)} />
+      </ScrollView>
+    );
   }
 }
 
 /** A message a tester can read out over a call, and a developer can act on. */
-function Fatal(props: { title: string; detail: string }) {
+function Fatal(props: { title: string; detail: string; id?: string }) {
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md }}>
-      <Text style={{ fontSize: 17, fontWeight: '600', color: colors.foreground }}>{props.title}</Text>
-      <Text style={{ fontSize: 13, color: colors.mutedForeground }} selectable>
-        {props.detail}
-      </Text>
+      <Text style={txt.h3}>{props.title}</Text>
+      <Text style={txt.body}>Your recordings and everything you saved are safe on this phone.</Text>
+      {props.id ? <Text style={txt.smMuted} selectable>Code for your team: {props.id}</Text> : null}
+      <Text style={txt.xs} selectable>{props.detail}</Text>
     </ScrollView>
   );
 }
 
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
+  useEffect(() => { installGlobalHandlers(); }, []);
   useEffect(() => {
     if (supabaseConfigError) return;
     supabase.auth.getSession().then(({ data }) => setAuth(data.session));
@@ -269,13 +308,12 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
   }), [openDetails]);
 
   // ---- toasts (CORE-5) ----
-  const [toastSpec, setToastSpec] = useState<ToastSpec | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Toasts live in their own component, so showing one never re-renders
+  // the screens on the stack; `toast` only hands the message over.
+  const showToast = useRef<(spec: ToastSpec) => void>(() => {});
   const toast = useCallback((message: string, undo?: () => void | Promise<void>) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
     const spec: ToastSpec = { id: Date.now(), message, ...(undo ? { undo } : {}) };
-    setToastSpec(spec);
-    toastTimer.current = setTimeout(() => setToastSpec((t) => (t?.id === spec.id ? null : t)), undo ? 7000 : 3500);
+    showToast.current(spec);
   }, []);
   const projectRef = useRef(project);
   projectRef.current = project;
@@ -362,13 +400,15 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
       const route: Route = params ? { screen: to, params } : { screen: to };
       if (!edge) {
         if (TAB_SCREENS.includes(to)) return nav.reset(route);
-        console.error(`[flow] BLOCKED ${from} -> ${to}: declare the edge in flow.ts`);
+        reportError(`flow blocked ${from} -> ${to}: no edge`, new Error('undeclared transition'));
+        toast("That can't be opened from here.");
         return;
       }
       // Gates are permissions (who MAY act), part of the machine: a screen
       // must not offer an affordance the session cannot take.
       if (!edgeAllowed(edge, session)) {
-        console.error(`[flow] BLOCKED ${from} -> ${to}: gate "${edge.when}" not met`);
+        reportError(`flow blocked ${from} -> ${to}: gate ${edge.when}`, new Error('gate not met'));
+        toast("You don't have permission to open that.");
         return;
       }
       switch (edge.mode ?? 'push') {
@@ -523,7 +563,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
           })}
         </View>
       ) : null}
-      <ToastView toast={toastSpec} onDismiss={() => setToastSpec(null)} bottom={showTabs ? 96 : 24} />
+      <ToastHost register={(show) => { showToast.current = show; }} bottom={showTabs ? 96 : 24} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
@@ -538,5 +578,30 @@ const styles = StyleSheet.create({
   tabPill: { paddingHorizontal: 18, paddingVertical: 4, borderRadius: 99 },
   tabLabel: { fontSize: 13, fontWeight: '600' },
   tabBadge: { position: 'absolute', top: -4, right: 6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
-  tabBadgeText: { color: C.white, fontSize: 12, fontWeight: '800' }
+  tabBadgeText: { color: C.white, fontSize: 13, fontWeight: '800' }
 });
+
+/**
+ * Shows one toast at a time for about 7 s with Undo, 3.5 s without, and
+ * twice as long while a screen reader is on, so Undo can be reached.
+ */
+function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
+  const [spec, setSpec] = useState<ToastSpec | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reader = useRef(false);
+  useEffect(() => {
+    void AccessibilityInfo.isScreenReaderEnabled().then((on) => { reader.current = on; }, () => undefined);
+    const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => { reader.current = on; });
+    return () => sub.remove();
+  }, []);
+  useEffect(() => {
+    props.register((next) => {
+      if (timer.current) clearTimeout(timer.current);
+      setSpec(next);
+      const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
+    });
+  }, [props.register]);
+  return <ToastView toast={spec} onDismiss={() => setSpec(null)} bottom={props.bottom} />;
+}
+

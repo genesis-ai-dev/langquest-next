@@ -1,12 +1,23 @@
 // Pieces the workspace and back translation share (demo translate.tsx):
 // the big red record button (REC-W2, ADR-028), the list of takes with play
 // and delete, and the line that says a save failed with a way to retry.
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CommandError } from '@langquest-next/core';
+import { useEffect } from 'react';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { GhostBtn, Ico, IconBtn, txt } from '../kit';
-import { C, radius, space, TINT } from '../theme';
+import { reportError } from '../report';
+import { C, radius, space, target, TINT, withAlpha } from '../theme';
 import { mmss } from './workspaceModel';
+
+/**
+ * What to say when a save failed (error-tracking): a refusal from core in
+ * its own words; anything else is a fault, reported, and shown as a code
+ * someone can read to support. Never the raw message, which can carry
+ * content.
+ */
+export { failureMessage as problemText } from '../report';
 
 /** 80pt, always red whatever the theme, a stop square while recording (ADR-028). */
 export function RecordButton(props: { recording: boolean; disabled?: boolean; onPress: () => void }) {
@@ -17,7 +28,7 @@ export function RecordButton(props: { recording: boolean; disabled?: boolean; on
       accessibilityHint={props.recording ? undefined : 'Speak, pausing between parts. Tap stop when you finish.'}
       accessibilityState={{ disabled: !!off }}
       style={({ pressed }) => [styles.record, off && { opacity: 0.45 },
-        props.recording ? { borderWidth: 8, borderColor: `${C.red}55` } : null,
+        props.recording ? { borderWidth: 8, borderColor: withAlpha(C.red, 0.33) } : null,
         pressed && { transform: [{ scale: 0.95 }] }]}>
       <Ico name={props.recording ? 'stop' : 'mic'} size={props.recording ? 30 : 36} color={C.white} />
     </Pressable>
@@ -50,8 +61,8 @@ export function CardList(props: {
             <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{c.label}</Text>
             <Text style={txt.xs}>{mmss(c.durationMs)}</Text>
           </View>
-          <IconBtn name="trash" label={`Delete ${c.label}`} bg="transparent" color={props.disabled ? C.faint : C.muted}
-            onPress={() => { if (!props.disabled) props.onDelete(c.hash); }} />
+          <IconBtn name="trash" label={`Delete ${c.label}`} bg="transparent" color={C.muted} disabled={props.disabled}
+            onPress={() => props.onDelete(c.hash)} />
         </View>
       ))}
     </View>
@@ -60,8 +71,10 @@ export function CardList(props: {
 
 /** A card that did not save, or a change that did not reach the record: say so, offer to try again. */
 export function SaveProblem(props: { message: string; retryLabel?: string; onRetry?: () => void; busy?: boolean }) {
+  // Said as it appears (A11Y-6): a failed save must not wait to be found.
+  useEffect(() => { AccessibilityInfo.announceForAccessibility(props.message); }, [props.message]);
   return (
-    <View style={styles.problem}>
+    <View style={styles.problem} accessibilityLiveRegion="assertive">
       <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>
         <Ico name="flag" size={18} color={TINT.redText} />
         <Text style={[txt.sm, { flex: 1, color: TINT.redText }]} accessibilityRole="alert">{props.message}</Text>
@@ -76,7 +89,7 @@ const styles = StyleSheet.create({
     shadowColor: C.red, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   list: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
   empty: { paddingHorizontal: space.lg, paddingVertical: space.xl, textAlign: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: 64 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.row },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   problem: { backgroundColor: TINT.red, borderRadius: radius.lg, padding: space.md, gap: space.sm }
 });
