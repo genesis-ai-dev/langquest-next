@@ -246,11 +246,12 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
 }
 
 /** A secondary action: tinted, same size as the main button. */
-export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' }) {
-  const fg = props.tone === 'red' ? TINT.redText : C.primary;
+export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber' }) {
+  const fg = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : C.primary;
+  const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
   return (
     <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
-      style={({ pressed }) => [styles.ghost, { backgroundColor: props.tone === 'red' ? TINT.red : C.light }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
+      style={({ pressed }) => [styles.ghost, { backgroundColor: bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
       <Text style={[styles.ghostLabel, { color: fg }]}>{props.label}</Text>

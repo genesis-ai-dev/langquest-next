@@ -61,7 +61,10 @@ export interface Commands {
    * (already saved with addRecording, kind `source`) recorded against the
    * version they came from. Content, not a verdict, and never a version.
    */
-  produceContent(c: { commandId: string; fromTakeId: string; kindId: string; cardHashes: string[]; via?: ReviewVia; note?: string; givenBy?: string; requestId?: string }): EventSpec[];
+  produceContent(c: {
+    commandId: string; fromTakeId: string; kindId: string; cardHashes: string[]; via?: ReviewVia; note?: string; noteBlobHash?: string;
+    givenBy?: string; people?: number; place?: string; answers?: Record<string, string>; skipped?: Record<string, string>; requestId?: string;
+  }): EventSpec[];
   /** Comply or explain: set a step aside, move past a checkpoint, keep a version despite feedback. */
   depart(c: { commandId: string; unitId: string; laneId: string; type: DepartureType; kindId?: string; stepId?: string; reviewId?: string; reason: string; reasonBlobHash?: string }): EventSpec[];
   undoDeparture(c: { commandId: string; departureId: string }): EventSpec[];
@@ -216,7 +219,8 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
         id: ids(c.commandId)(), type: 'v1.ReviewRecorded', payload: {
           reviewId: `review:${c.commandId}`, takeId: c.fromTakeId, kindId: c.kindId, outcome: 'recorded', via: c.via ?? 'app',
           artifactHashes: [...c.cardHashes],
-          ...(note ? { comment: note } : {}), ...(c.givenBy ? { givenBy: c.givenBy } : {}), ...(c.requestId ? { requestId: c.requestId } : {})
+          ...(note ? { comment: note } : {}), ...(c.noteBlobHash ? { commentBlobHash: c.noteBlobHash } : {}),
+          ...clean({ givenBy: c.givenBy, people: c.people, place: c.place, answers: c.answers, skipped: c.skipped, requestId: c.requestId })
         }
       }];
     },
