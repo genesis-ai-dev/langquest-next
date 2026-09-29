@@ -1,0 +1,115 @@
+---
+name: infrastructure-as-code
+description: 'Infrastructure as code (IaC) and config-as-code for this repo: hosted environments (Supabase, Cloudflare Workers, EAS / Expo, storage, cron, secrets) are defined by files in the repo and applied by commands, never configured by clicking in a dashboard. Use when changing Supabase config.toml, migrations, extensions, cron jobs, Vault or function secrets, storage buckets, auth settings, edge functions; wrangler.jsonc or Worker secrets; eas.json, app.json, EAS environment variables or update channels; env files or dotenvx; or when a task says "enable X in the dashboard", "set this secret", or a runbook lists manual steps.'
+license: MIT
+---
+
+# Infrastructure as code
+
+**The repo is the source of truth for every environment.** A hosted setting
+exists because a file in git says so, and it gets there through a command
+that anyone on the team can re-run. Dashboards are for reading: logs,
+metrics, and checking that reality matches the files.
+
+Why it matters here: the team is small and distributed, environments
+(local, preview, production) must match, and PLAN.md section 2 records what
+happens when versions and schemas drift apart. A setting made by clicking cannot be
+reviewed, reproduced, rolled back, or noticed when it drifts.
+
+## Rules
+
+1. **Declarative first.** Describe the desired state in a file (`config.toml`,
+   `wrangler.jsonc`, `eas.json`, migrations). Use imperative commands only
+   to apply that state.
+2. **Every change is a reviewed commit.** The change and the command that
+   applies it land in the same commit, or in a `package.json` script.
+3. **Idempotent apply.** Running the apply step twice is safe (`create
+   extension if not exists`, `cron.unschedule` before `cron.schedule`,
+   `on conflict do nothing`, `wrangler deploy`).
+4. **Secrets are referenced, never written.** Definition files name a
+   secret (`env(OPENAI_API_KEY)` in `config.toml`, `secrets.required` in
+   `wrangler.jsonc`). Its value lives in an encrypted env file (dotenvx, see
+   below) and is pushed by a script.
+5. **Detect drift.** There is a command that compares live state with the
+   files and fails on difference (`npm run db:check`). Run it before and
+   after applying.
+6. **Break-glass changes get written back.** If someone changes a dashboard
+   setting in an emergency, the same change is committed within the day, or it is
+   reverted. Record it in the commit message.
+7. **Runbooks shrink to scripts.** A doc step that says "enable", "set" or
+   "click" is a to-do: turn it into a migration, a config entry, or an npm
+   script, and make the doc point at the script.
+
+## Where each thing is defined
+
+| Platform | Defined in | Applied with | Drift check |
+| --- | --- | --- | --- |
+| Postgres schema, RPCs, RLS, grants | `supabase/migrations/*.sql` (forward-only, never edit a shipped file) | `npm run db:apply` (`supabase db push --linked`) | `npm run db:check` (`--diff` for live schema) |
+| Extensions (`pg_cron`, `pg_net`) | a migration: `create extension if not exists ...` | same | same |
+| Cron jobs | a migration or `server/*.sql` script that unschedules then schedules by name | `db:apply` or a script | `select * from cron.job` in the check |
+| Auth, API, storage settings, buckets | `supabase/config.toml` (`[auth]`, `[api]`, `[storage.buckets.*]`); per-environment overrides in `[remotes.<name>]` | `supabase config diff`, review, then `supabase config push`. Run non-interactively (as agents do), push skips the prompt and applies everything, including template defaults such as the local `site_url`, so hosted values belong in `[remotes.<name>]` first | `supabase config diff` shows nothing |
+| Edge functions and their config | `supabase/functions/*`, `[functions.*]` in `config.toml` | `supabase functions deploy <name>` | deployed version in `supabase functions list` |
+| Edge function secrets | encrypted `supabase/.env.<environment>` | decrypt, then `supabase secrets set --env-file` | `supabase secrets list` (digests) |
+| Vault secrets | encrypted env file; a script calls `vault.create_secret` / `vault.update_secret` | script | the check lists expected names |
+| Cloudflare Worker | `apps/invite-email/wrangler.jsonc` (vars, bindings, routes, DO migrations) | `npm run email:deploy` | `wrangler deploy --dry-run` |
+| Worker secrets | encrypted env file; names listed in `secrets.required` | `wrangler secret bulk` from the decrypted values | deploy fails if a required secret is missing |
+| Mobile build profiles, channels | `apps/mobile/eas.json`, `apps/mobile/app.json` (`runtimeVersion` policy, plugins, permissions) | `npm run ship:native` / `ship` | `npm run ship:check` (fingerprint) |
+| Mobile public config (`EXPO_PUBLIC_*`) | encrypted `apps/mobile/.env.<environment>` | `npm run env:push:eas -- <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |
+| EAS environment variables (builds and updates) | the same encrypted env files; `environment` on each `eas.json` profile | `npm run env:push:eas -- <env>` | `eas env:list --environment <env>` |
+
+When something is not on this list (DNS, a new Cloudflare product, push
+credentials), look for its CLI or API first. If none exists, record the manual
+setting and its exact values in `docs/` and say so in the task summary.
+
+## Secrets with dotenvx
+
+Env files are committed **encrypted** with [dotenvx](https://dotenvx.com), so
+nobody passes `.env` files around. Each file carries its public key; the matching
+private key (`DOTENV_PRIVATE_KEY_<ENV>`) sits in the one untracked `.env.keys`
+at the repository root, shared once through a password manager. Anyone can add
+or change a value with the public key. Only holders of the private key can read it.
+
+| File | Holds | Read by |
+| --- | --- | --- |
+| `apps/mobile/.env.development` | local Supabase URL and key | `npm start`, `ios`, `android`, `web` (through `dotenvx run`, with Expo's own loader off) |
+| `apps/mobile/.env.preview`, `.env.production` | hosted config | `npm run env:push:eas -- <env>` copies it to the EAS environment, which EAS Build and `ship` read |
+| `apps/mobile/.env.development.local` | a person's own dev login | `npm start`; ignored by git |
+| `apps/mobile/.env.example` | names only | people |
+
+- **Set a value** from the repository root: `npm run env:set -- KEY value -f <file>`. It
+  encrypts, and keeps new private keys in `.env.keys` rather than the OS
+  keychain, so they can be shared. Never paste secrets into a definition
+  file, a doc, a commit message or a chat.
+- **Read a value**: `npm run env:get -- KEY -f <file>`.
+- **Guard**: `npm run env:check`, which `npm test` also runs, fails if a
+  committable env file holds a plaintext value.
+- **EAS is a copy.** Change a value in the file, commit it, then push it. A value
+  edited in the EAS dashboard is overwritten by the next push.
+- **Bootstrap from existing EAS values** (once per environment):
+  `cd apps/mobile && npx eas env:pull preview --path .env.preview`, then
+  `DOTENVX_NO_NATIVE=true npx dotenvx encrypt -f .env.preview -fk ../../.env.keys`.
+  Values with EAS "secret" visibility cannot be pulled; set those with
+  `env:set`.
+- **Rotate after a leak**: decrypt the file, delete its `DOTENV_PUBLIC_KEY_*`
+  line and the matching private key, encrypt again (a new pair is made), share
+  the new key, and rotate the leaked secrets at their providers. Git history
+  still holds the old ciphertext, which the old key can read.
+- Do not run `dotenvx protect`; it edits the global git config.
+- `EXPO_PUBLIC_*` values are inlined into the app bundle, so they are public.
+  Encrypting them keeps the files uniform; it does not make them secret. Real
+  secrets (service-role key, relay and worker secrets) never go in
+  `apps/mobile`. Server secrets follow the same pattern in
+  `supabase/.env.<environment>` when they are moved into the repo.
+
+## When asked to "just set it in the dashboard"
+
+Do the file change and the apply command instead, and show the diff. If
+the platform truly has no API for it, do the manual step only with the user's
+go-ahead, then write it down (rule 7).
+
+## Hosted changes need a go-ahead
+
+Applying to a hosted project (`db:apply`, `config push`, `secrets set`,
+`functions deploy`, `wrangler deploy`, `eas update`) changes shared,
+user-facing systems. Prepare the change and the dry run, then ask before
+applying unless the user has already said to.
