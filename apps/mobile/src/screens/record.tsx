@@ -10,7 +10,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  ArrowUpDown, Ban, BookmarkCheck, CalendarClock, CheckCircle2, ChevronDown, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
+  ArrowUpDown, Ban, BookmarkCheck, CalendarClock, CheckCircle2, ChevronDown, Circle, ChevronRight, ClipboardCheck, Clock, CopyCheck, Globe, Grid3x3,
   Headphones, History, ListChecks, Lock, Languages, MapPin, MessageSquare, Mic, Octagon, Reply, RotateCcw, ShieldCheck,
   KeyRound, Minus, Plus, SkipForward, StickyNote, Star, Undo2, UserPlus, UserX, Users, X
 } from 'lucide-react-native';
@@ -1101,7 +1101,11 @@ export function AddRecord(ctx: Ctx) {
         <Text style={text.muted}>The same review is added to each passage you pick.</Text>
         {nearby.map((p, i) => (
           <Row key={p.id} label={state.units[p.id]!.label} sub={`Version ${p.rec.latest!.n}`} last={i === nearby.length - 1}
-            onPress={() => setAlso((a) => (a.includes(p.id) ? a.filter((x) => x !== p.id) : [...a, p.id]))} right={tick(also.includes(p.id))} />
+            checked={also.includes(p.id)}
+            accessibilityLabel={`Also add to ${state.units[p.id]!.label} (Version ${p.rec.latest!.n})`}
+            onPress={() => setAlso((a) => (a.includes(p.id) ? a.filter((x) => x !== p.id) : [...a, p.id]))}
+            // An empty circle when not picked: a choice must look like one before it is made.
+            right={also.includes(p.id) ? tick(true) : <Circle size={18} color={colors.mutedForeground} />} />
         ))}
       </Section> : null}
       {produces ? null : <>{group ? <Section label="How many listened?">

@@ -82,6 +82,10 @@ export function Row(props: {
   badge?: string;
   right?: ReactNode;
   onPress?: () => void;
+  /** A pick-any-number choice: announced as a checkbox with its state, not as a button. */
+  checked?: boolean;
+  /** What pressing does, when the visible label alone does not say it (e.g. a checkbox under a section heading). */
+  accessibilityLabel?: string;
   last?: boolean;
 }) {
   const Icon = props.icon;
@@ -91,7 +95,9 @@ export function Row(props: {
     <Pressable
       onPress={props.onPress}
       disabled={!props.onPress}
-      accessibilityRole={props.onPress ? 'button' : undefined}
+      accessibilityRole={props.checked !== undefined ? 'checkbox' : props.onPress ? 'button' : undefined}
+      accessibilityState={props.checked !== undefined ? { checked: props.checked } : undefined}
+      accessibilityLabel={props.accessibilityLabel}
       style={[styles.row, !props.last && styles.rowBorder]}
     >
       {props.personId ? (
