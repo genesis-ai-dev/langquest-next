@@ -56,12 +56,12 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
   forgotten after 180 days without a delivery;
 - readable only by the `diag_reader` role and the database owner, never by
   the app's API roles;
-- the person can turn it off (`setDiagnosticsEnabled(false)` in
-  `apps/mobile/src/diagnostics.ts`), which stops recording and sending and
-  deletes what is waiting.
+- the person can turn it off in Settings › App › Send diagnostics
+  (`setDiagnosticsEnabled(false)` in `apps/mobile/src/diagnostics.ts`),
+  which stops recording and sending and deletes what is waiting. The choice
+  is kept on the phone (`diag:off`) and survives a restart.
 
-Before launch: the privacy notice must describe this, and the settings
-screen needs the switch (see "Not built yet").
+Before launch: the privacy notice must describe this (see "Not built yet").
 
 ## Delivery
 
@@ -142,9 +142,9 @@ the install's timeline to pick the time window.
 
 ## Not built yet
 
-- **The switch and the disclosure** in the app's settings, following the
-  partner demo (PLAN.md section 12). The code path exists
-  (`setDiagnosticsEnabled`); the screen does not.
+- **The privacy notice** describing diagnostics. The switch is built
+  (Settings › App › Send diagnostics); its one line says what is sent and
+  what never is, but it is not the notice.
 - **A phone that never reaches the server** delivers nothing. A "send
   diagnostics" action that exports the waiting records as a file for the
   share sheet (WhatsApp, email) would cover it; it needs `expo-sharing`,

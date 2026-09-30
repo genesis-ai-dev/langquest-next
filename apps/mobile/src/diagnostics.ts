@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { Paths } from 'expo-file-system';
 import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
+import { applyDiagnosticsOn, readDiagnosticsOn, saveDiagnosticsOn } from './diagnosticsSetting';
 import { getDiagStore, getStore } from './store';
 import { supabase } from './supabase';
 
@@ -13,7 +14,6 @@ import { supabase } from './supabase';
 // is out of the way. Nothing recorded is content (packages/client
 // diagnostics.ts holds the allowlist).
 
-const OFF_KEY = 'diag:off';
 /** At most one delivery attempt this often; weeks of records drain over a few syncs. */
 const FLUSH_EVERY_MS = 10 * 60_000;
 
@@ -27,38 +27,23 @@ const lazyStore: DiagStore = {
 
 export const diagnostics = new Diagnostics({ store: lazyStore, newId: () => Crypto.randomUUID() });
 
-async function dropWaiting(): Promise<void> {
-  const diag = await getDiagStore();
-  for (;;) {
-    const batch = await diag.diagBatch(500);
-    if (batch.length === 0) break;
-    await diag.removeDiag(batch.map((r) => r.id));
-  }
-}
-
 // The person's choice outlives a restart. Until it is read nothing is sent
 // (flush waits for it), and anything recorded in that moment is dropped if
 // the answer is off.
 const setting = getStore()
-  .then(async (store) => {
-    const on = (await store.meta(OFF_KEY)) !== '1';
-    diagnostics.setEnabled(on);
-    if (!on) {
-      await diagnostics.settle();
-      await dropWaiting();
-    }
-  })
+  .then(async (store) => applyDiagnosticsOn(diagnostics, lazyStore, await readDiagnosticsOn(store)))
   .catch(() => {});
 
-/** For a settings screen: off stops recording and sending, and drops what is waiting. */
+/** For Settings: whether diagnostics are on, as saved on this phone. */
+export async function diagnosticsEnabled(): Promise<boolean> {
+  await setting;
+  return diagnostics.isEnabled;
+}
+
+/** For Settings: off stops recording and sending, and drops what is waiting. */
 export async function setDiagnosticsEnabled(on: boolean): Promise<void> {
-  diagnostics.setEnabled(on);
-  const store = await getStore();
-  await store.setMeta(OFF_KEY, on ? '' : '1');
-  if (!on) {
-    await diagnostics.settle();
-    await dropWaiting();
-  }
+  await setting;
+  await saveDiagnosticsOn(await getStore(), diagnostics, lazyStore, on);
 }
 
 /** The phone and build, as the allowlist permits. The install id is the event envelope's deviceId. */
