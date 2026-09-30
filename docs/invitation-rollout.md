@@ -35,7 +35,7 @@ only before the QR screen. The QR screen confirms the chosen role.
    `server/schedule-projections.sql`. This installs one job every five minutes.
    Avoid overlapping manual projection runs. Check function logs and
    `net._http_response` after the first scheduled request.
-6. Deploy the Cloudflare email Worker using `npm run email:deploy`.
+6. Merging an `apps/invite-email` change to `main` deploys the Cloudflare email Worker (`.github/workflows/deploy-cloudflare.yml`). `npm run email:deploy` still deploys it by hand.
    Its configuration restricts sending to `invites@frontierrnd.com`.
    Set the same random `INVITE_RELAY_SECRET` in the Worker and Supabase,
    plus `INVITE_RELAY_URL` in Supabase pointing to the Worker `/send-invite`
