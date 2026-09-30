@@ -36,7 +36,7 @@ import {
   subscriptionItemId, type EventSpec, type FlowDoc, type LibraryDoc, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
-import { addHistory, dashboardLogin } from './sample-history';
+import { addHistory } from './sample-history';
 
 export const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
 const ADMIN_EMAIL = 'sample-admin@langquest.invalid';
@@ -182,11 +182,6 @@ async function main(argv: string[]) {
   if (history) {
     const service = createClient(url, supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url), { auth: { persistSession: false, autoRefreshToken: false } });
     await addHistory({ sb, service, orgId: SAMPLE_ORG.id, actorId: userId, laneIds: languages.map((l) => l.laneId) });
-    const login = await dashboardLogin({
-      url, anon: supabaseKey('SUPABASE_ANON_KEY', url), service, sb, orgId: SAMPLE_ORG.id,
-      isMember: (id) => Object.values(orgState().members[id] ?? {}).some((m) => !m.removed.value)
-    });
-    console.log(`\nWeb dashboard (npm run web:dev): sign in as ${login.email} with ${login.password} (a Coordinator; the password changes on every run).`);
   }
 
   // 5. Invite codes: each joins one teammate to the sample, once, for 30 days.

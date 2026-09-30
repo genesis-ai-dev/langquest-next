@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/client';
 import {
   applyEvent, buildIndexes, commands, deriveFlow, deriveKinds, derivePassage, encodeHlc, laneLeafUnits, unitPlace,
@@ -51,43 +51,6 @@ function localDbContainer(): string {
 function psql(sql: string) {
   const r = spawnSync('docker', ['exec', '-i', localDbContainer(), 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q'], { input: sql, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`psql: ${r.stderr || r.error?.message || 'failed'} (is the local Supabase running? npm run db:start)`);
-}
-
-const DASHBOARD_EMAIL = 'sample-dashboard@langquest.invalid';
-
-/**
- * A login for the web dashboard on the local database, which has no way to
- * redeem an invite itself: a Coordinator (so the language settings can be
- * tried), joined through an ordinary invite. The password is new each run
- * and printed once; the account only ever exists where --history may run.
- */
-export async function dashboardLogin(c: { url: string; anon: string; service: SupabaseClient; sb: SupabaseClient; orgId: string; isMember: (profileId: string) => boolean }): Promise<{ email: string; password: string }> {
-  const password = randomBytes(12).toString('base64url');
-  const { data: list, error: listError } = await c.service.auth.admin.listUsers({ perPage: 1000 });
-  if (listError) throw new Error(listError.message);
-  let id = list.users.find((u) => u.email === DASHBOARD_EMAIL)?.id;
-  if (id) {
-    const { error } = await c.service.auth.admin.updateUserById(id, { password });
-    if (error) throw new Error(error.message);
-  } else {
-    const { data, error } = await c.service.auth.admin.createUser({ email: DASHBOARD_EMAIL, password, email_confirm: true });
-    if (error || !data.user) throw new Error(error?.message ?? 'could not create the dashboard login');
-    id = data.user.id;
-  }
-  if (!c.isMember(id)) {
-    const token = randomBytes(32).toString('hex');
-    const { error: issueError } = await c.sb.rpc('issue_invite', {
-      p_org: c.orgId, p_invite_id: randomUUID(), p_token_hash: createHash('sha256').update(token).digest('hex'),
-      p_role_id: 'project_coordinator', p_scope: { level: 'org' }, p_expires_at: new Date(Date.now() + 86_400_000).toISOString()
-    });
-    if (issueError) throw new Error(`issue_invite: ${issueError.message}`);
-    const viewer = createClient(c.url, c.anon, { auth: { persistSession: false } });
-    const { error: signInError } = await viewer.auth.signInWithPassword({ email: DASHBOARD_EMAIL, password });
-    if (signInError) throw new Error(`sign in: ${signInError.message}`);
-    const { error } = await viewer.rpc('redeem_invite_v2', { p_token: token });
-    if (error) throw new Error(`redeem_invite_v2: ${error.message}`);
-  }
-  return { email: DASHBOARD_EMAIL, password };
 }
 
 export async function addHistory(c: Ctx): Promise<void> {
