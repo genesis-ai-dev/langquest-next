@@ -596,6 +596,10 @@ organization or a privacy review requires consent before any collection
 large share of field problems (then add a native crash reporter with the
 same allowlist, as its own entry); or the volume outgrows Postgres.
 
+Amended (2026-09-29, Caleb Koster): the switch is built, a "Send diagnostics"
+row in Settings, on by default as decided; only the privacy notice text is
+still to be written.
+
 ## 40. Merging to main deploys the hosted database and Edge Functions
 
 Date: 2026-09-29 · By: Caleb Koster · Status: accepted
