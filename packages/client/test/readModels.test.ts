@@ -50,6 +50,76 @@ async function seed(a: { client: SyncClient }) {
 }
 
 describe('read models on the client', () => {
+  it('a device catching up rebuilds every row once, at the tail, not on every page that adds a unit', async () => {
+    // Why: each unit added is a project-wide input, so a page holding one
+    // rebuilt every row. A project that adds 36k units rebuilt a growing row
+    // set on nearly every page: 1.8M row writes for 150k events, minutes on a
+    // laptop. Rows may lag during catch-up; they must be exact at the tail,
+    // and a crash mid-catch-up must not leave stale rows marked current.
+    const server = new FakeServer();
+    const w = device(server, 'dW', 'lead', { t: 0 });
+    await w.client.load();
+    await seed(w);
+    for (let i = 6; i <= 40; i++) {
+      await w.client.append('v1.UnitAdded', { unitId: `luke${i}`, parentUnitId: 'luke', kind: 'passage', label: `Luke ${i}`, order: `a${i}` });
+      if (i % 7 === 0) {
+        await w.client.appendMany([
+          { type: 'v1.TakeComposed', payload: { takeId: `t${i}`, unitId: `luke${i}`, laneId: 'L1', cardHashes: ['c'], parentTakeId: null } },
+          { type: 'v1.TakeSelected', payload: { takeId: `t${i}`, unitId: `luke${i}`, laneId: 'L1' } }
+        ]);
+      }
+    }
+    await w.client.sync();
+
+    const store = new MemoryStore();
+    let rebuilds = 0;
+    const commit = store.commit.bind(store);
+    store.commit = async (batch) => {
+      if (batch.rows?.clear) rebuilds += 1;
+      return commit(batch);
+    };
+    const mk = () => new SyncClient({
+      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dR', store,
+      transport: server.transportFor(), pullPageSize: 5
+    });
+    const r = mk();
+    await r.load();
+    rebuilds = 0;
+    await r.pullSlice(0);
+    await r.pullSlice(0); // then the app is killed, mid-catch-up
+
+    const again = mk();
+    await again.load(); // rows were left behind: the restart must rebuild them
+    expect((await again.verifyRows()).mismatches).toEqual([]);
+    rebuilds = 0;
+    let slices = 0;
+    for (;;) {
+      slices += 1;
+      if (!(await again.pullSlice(0)).more) break;
+    }
+    expect(slices).toBeGreaterThan(3);
+    expect(rebuilds).toBe(1);
+    expect(await again.verifyRows()).toEqual({ rows: 40, mismatches: [] });
+
+    // A fresh device from empty: one rebuild for the whole catch-up.
+    const fresh = new MemoryStore();
+    let freshRebuilds = 0;
+    const freshCommit = fresh.commit.bind(fresh);
+    fresh.commit = async (batch) => {
+      if (batch.rows?.clear) freshRebuilds += 1;
+      return freshCommit(batch);
+    };
+    const f = new SyncClient({
+      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dF', store: fresh,
+      transport: server.transportFor(), pullPageSize: 5
+    });
+    await f.load();
+    freshRebuilds = 0;
+    for (;;) if (!(await f.pullSlice(0)).more) break;
+    expect(freshRebuilds).toBe(1);
+    expect(await f.verifyRows()).toEqual({ rows: 40, mismatches: [] });
+  });
+
   it('rows follow local appends: one passage per take, every passage per member change', async () => {
     const server = new FakeServer();
     const a = device(server, 'dA', 'lead', { t: 0 });

@@ -137,6 +137,8 @@ export class SyncClient<S = ProjectState> {
   private readonly writer = new WriteQueue();
   /** Rows are maintained only for the project materializer. */
   private readonly projectRows: boolean;
+  /** A catch-up deferred a full row rebuild; until one lands, no rows batch may mark rows current. */
+  private rowsOwed = false;
   private revision = 0;
   private indexes: ProjectIndexes | undefined;
   /** Bump when persisted passage/task/count semantics change. */
@@ -195,6 +197,8 @@ export class SyncClient<S = ProjectState> {
     if (batch.rows && batch.events?.some((l) => l.event.type === 'v1.Redacted')) {
       delete batch.rows.version;
     }
+    if (batch.rows?.clear) this.rowsOwed = false;
+    else if (this.rowsOwed && batch.rows) delete batch.rows.version;
     if (!batch.rows?.version && !batch.rows?.clear && !batch.rows?.put?.length && !batch.rows?.delete?.length) delete batch.rows;
     if (batch.meta && Object.keys(batch.meta).length === 0) delete batch.meta;
     if (batch.events?.length === 0) delete batch.events;
@@ -267,13 +271,20 @@ export class SyncClient<S = ProjectState> {
    * The rows these just-applied events changed. One passage's events cost
    * one row; a project-wide input (membership, workflow, units) costs a
    * rebuild, which is still one pass over the passages, not one per event.
+   * `deferAll` (a catch-up page with more to come) owes that rebuild to the
+   * tail instead: a project that adds a unit on most pages would otherwise
+   * rebuild a growing row set on every page.
    */
-  private rowsFor(events: AnyEvent[]): NonNullable<WriteBatch['rows']> | undefined {
+  private rowsFor(events: AnyEvent[], deferAll = false): NonNullable<WriteBatch['rows']> | undefined {
     if (!this.projectRows || events.length === 0) return undefined;
     const state = this.state as unknown as ProjectState;
     const keys = new Map<string, PassageKey>();
     for (const e of events) {
       const hit = affectedPassages(e, state);
+      if (hit === 'all' && deferAll) {
+        this.rowsOwed = true;
+        return undefined;
+      }
       if (hit === 'all') return this.allRows();
       for (const k of hit) keys.set(passageRowKey(k), k);
     }
@@ -685,11 +696,13 @@ export class SyncClient<S = ProjectState> {
       // page changed. A crash between them cannot leave the cursor ahead of
       // the log or the rows behind it.
       if (folded.length > 0) this.revision += 1;
+      const rows = this.rowsFor(folded, page.length >= this.pullPageSize);
       await this.commit({
         events: writes,
         cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: after },
-        meta: this.clockMeta(),
-        rows: this.rowsFor(folded)
+        // Owed rows are not current: a restart before the tail must rebuild them.
+        meta: { ...this.clockMeta(), ...(this.rowsOwed ? { [this.projectionKey()]: '' } : {}) },
+        rows
       });
       this.opts.onPullProgress?.(total);
       if (page.length < this.pullPageSize) break;
@@ -713,6 +726,7 @@ export class SyncClient<S = ProjectState> {
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.load();
+    if (this.rowsOwed && !more) await this.commit({ rows: this.allRows() });
     // Still catching up: skip the checkpoint (it serializes the whole state)
     // and take one when the tail is reached. Nothing is pruned before the
     // checkpoint, so a crash mid-catch-up only costs a longer fold on launch.
