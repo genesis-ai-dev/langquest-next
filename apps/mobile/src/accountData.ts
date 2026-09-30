@@ -53,10 +53,14 @@ export async function recordUserEvent(actorId: string, type: UserEventType) {
 export interface PublicProject {
   org_id: string; project_id: string; name: string;
   languages: string[]; translated_pct: number; updated_at: string;
+  /** Absent from servers before the license migration, and from older caches. */
+  license?: string;
 }
 export async function publicProjects(): Promise<PublicProject[]> {
+  // `*` rather than a column list, so a server without the license column
+  // (migration 20260929120000) still answers.
   const { data, error } = await supabase.from('public_projects')
-    .select('org_id,project_id,name,languages,translated_pct,updated_at')
+    .select('*')
     .order('name').limit(100);
   if (error) throw new Error(error.message);
   await AsyncStorage.setItem('public-projects', JSON.stringify(data));

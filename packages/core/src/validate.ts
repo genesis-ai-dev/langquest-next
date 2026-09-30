@@ -1,5 +1,6 @@
 import type { AnyEvent, Role } from './events';
 import { PRIVILEGES } from './org';
+import { isLicense, LICENSES } from './license';
 
 /**
  * Shape checks for envelopes and known payloads. The server runs the same
@@ -161,6 +162,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('inviteId', 'profileId');
     case 'v1.JoinDecided':
       return str('requestId', 'profileId') ?? (typeof p['accepted'] === 'boolean' ? null : 'accepted must be a boolean');
+    case 'v1.OrgLicenseSet':
+      return isLicense(p['license']) ? null : `license must be one of ${LICENSES.join(', ')}`;
     // ---- the library (library.ts, docs/decisions.md 36)
     case 'v1.LibraryItemDefined':
       return libraryItem() ?? str('name') ?? (typeof p['description'] === 'string' ? null : 'description must be a string') ??

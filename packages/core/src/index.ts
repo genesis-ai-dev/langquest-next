@@ -11,6 +11,7 @@ export * from './validate';
 export * from './indexes';
 export * from './blockers';
 export * from './org';
+export * from './license';
 export * from './catalog';
 export * from './materials';
 export * from './version';

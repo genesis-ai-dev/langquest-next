@@ -9,7 +9,7 @@ import { studyMarkKey, type Undo } from './record';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 6;
+export const REDUCER_VERSION = 7;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -425,6 +425,7 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.InviteIssued':
     case 'v1.InviteRedeemed':
     case 'v1.JoinDecided':
+    case 'v1.OrgLicenseSet':
     case 'v1.LibraryItemDefined':
     case 'v1.LibraryVersionPublished':
     case 'v1.LibrarySharingSet':

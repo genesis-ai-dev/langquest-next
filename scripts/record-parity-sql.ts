@@ -14,7 +14,9 @@ const RECORD_TYPES = new Set(['v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.
   'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed']);
 // The library's: org-partition items and versions, and a language's use of them.
 const LIBRARY_TYPES = new Set<string>([...LIBRARY_EVENT_TYPES, 'v2.LaneTemplateSelected', 'v1.LaneUnitHidden', 'v2.LaneFlowSelected']);
-const events = [...buildRecordFixture(), ...buildOrgFixture()].filter((e) => RECORD_TYPES.has(e.type) || LIBRARY_TYPES.has(e.type));
+// The organization's license (license.ts).
+const LICENSE_TYPES = new Set(['v1.OrgLicenseSet']);
+const events = [...buildRecordFixture(), ...buildOrgFixture()].filter((e) => RECORD_TYPES.has(e.type) || LIBRARY_TYPES.has(e.type) || LICENSE_TYPES.has(e.type));
 void EVENT_PRIVILEGE;
 // Optional fields each payload may carry, so a wrong type is tried even when
 // the fixture leaves the field out.
@@ -61,6 +63,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     if ('kind' in p) variants.push({ ...p, kind: 'song' }, { ...p, kind: 'Template' });
     if ('catalogVersion' in p) variants.push({ ...p, catalogVersion: 1 }, { ...p, catalogVersion: '2' }, { ...p, catalogVersion: 2.5 });
     if ('description' in p) variants.push({ ...p, description: '' });
+  }
+  if (e.type === 'v1.OrgLicenseSet') {
+    for (const bad of ['MIT', 'cc0-1.0', 'CC-BY-ND-4.0', 'All rights reserved', '', ['CC0-1.0'], true]) variants.push({ ...p, license: bad });
   }
   if (e.type === 'v1.LibraryItemDefined') {
     const from = { orgId: 'o', orgName: 'O', itemId: 'i', docHash: HASH };

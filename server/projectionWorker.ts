@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildIndexes, deriveInbox, deriveProgress, foldOrg, privilegesFor,
+import { buildIndexes, deriveInbox, deriveProgress, foldOrg, orgLicense, privilegesFor,
   withOrgMembers, type AnyEvent, type OrgState } from '@langquest-next/core';
 import { runSnapshotWorker } from '../packages/client/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/client/src/supabaseTransport';
@@ -56,6 +56,8 @@ export async function runProjections(service: SupabaseClient) {
         languages: Object.values(state.lanes).map((lane) => lane.languoidId),
         translated_pct: percentages.length
           ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
+        // What someone browsing may do with the work (docs/licensing.md).
+        license: orgLicense(org),
         updated_at: new Date().toISOString()
       }));
     }

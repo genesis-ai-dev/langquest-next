@@ -387,6 +387,29 @@ do $$ declare r record; begin
   if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'lane scope without laneId should be refused, got %', r; end if;
 end $$;
 
+-- 8e. The organization's license (docs/licensing.md): only the owner sets it,
+--     only known licenses, and a later "closing" is accepted but folds to nothing.
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"lic1","type":"v1.OrgLicenseSet","orgId":"org1","projectId":"_org","actorId":"akol","deviceId":"dB","hlc":"000000000000120:000000:dB","payload":{"license":"CC0-1.0"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a lane admin must not open the organization''s license'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"lic2","type":"v1.OrgLicenseSet","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000121:000000:dA","payload":{"license":"MIT"}}
+  ]'::jsonb);
+  if r.accepted or r.reason not like 'invalid payload:%' then raise exception 'an unknown license should be refused, got %', r; end if;
+  for r in select * from public.append_events('[
+    {"id":"lic3","type":"v1.OrgLicenseSet","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000122:000000:dA","payload":{"license":"CC-BY-SA-4.0"}},
+    {"id":"lic4","type":"v1.OrgLicenseSet","orgId":"org1","projectId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000123:000000:dA","payload":{"license":"all-rights-reserved"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'org admin license event % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
+
 -- 9. Step 11: catalog selection, step registers, teams, respond loop.
 select set_config('request.jwt.claim.sub', 'lead', false);
 do $$ declare r record; begin
