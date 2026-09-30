@@ -1,6 +1,7 @@
 import type { AnyEvent, EventEnvelope, EventType, Role } from './events';
 import type { Hlc } from './hlc';
 import { applyLibraryEvent, LIBRARY_EVENT_TYPES, type LibraryEvents, type LibraryItemState } from './library';
+import { DEFAULT_LICENSE, licenseRank, type License } from './license';
 import type { Register } from './state';
 import { validateEvent } from './validate';
 
@@ -124,12 +125,18 @@ export interface OrgEventPayloads extends LibraryEvents {
   'v1.InviteRedeemed': { inviteId: string; profileId: string };
   /** A coordinator's verdict on a join request (audit 5.B). */
   'v1.JoinDecided': { requestId: string; profileId: string; accepted: boolean };
+  /**
+   * The license the organization's work is under (license.ts). Only ever
+   * opens: the fold keeps the most open one set, so an older, more closed
+   * choice arriving late changes nothing (docs/decisions.md 38).
+   */
+  'v1.OrgLicenseSet': { license: License };
 }
 export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.OrgMemberAdded',
   'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.ProjectRegistered',
-  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', ...LIBRARY_EVENT_TYPES
+  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.OrgLicenseSet', ...LIBRARY_EVENT_TYPES
 ];
 
 /**
@@ -188,6 +195,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.InviteIssued': 'invite_members',
   'v1.InviteRedeemed': null,
   'v1.JoinDecided': 'invite_members',
+  // The owner's decision, and it cannot be taken back: only Organization
+  // Admin holds manage_roles among the seed roles.
+  'v1.OrgLicenseSet': 'manage_roles',
   'v1.ReviewKindDefined': 'manage_flows',
   'v2.WorkflowStepSet': 'manage_flows',
   'v1.ReviewRecorded': 'by_kind',
@@ -348,10 +358,16 @@ export interface OrgState {
   library: Record<string, LibraryItemState>;
   /** laneId -> its name, when renamed in the org partition (`v1.LaneNamed`, decision 37). */
   languageNames: Record<string, Register<string>>;
+  /**
+   * The most open license ever set, and the earliest event that set it
+   * (`v1.OrgLicenseSet`). Null until one is set: the work is then all rights
+   * reserved (`orgLicense`).
+   */
+  license: Register<License> | null;
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null };
 }
 
 export function scopeKey(s: Scope): string {
@@ -466,6 +482,18 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       if (!prior || !loses(prior, event)) state.languageNames[event.payload.laneId] = { value: event.payload.name, hlc: event.hlc, eventId: event.id };
       break;
     }
+    case 'v1.OrgLicenseSet': {
+      // A ratchet: the most open license wins, and among events setting the
+      // same one, the earliest (clock, then id), so the result is the same
+      // in any order and says when the organization first opened that far.
+      const prior = state.license;
+      const next = licenseRank(event.payload.license);
+      const was = prior ? licenseRank(prior.value) : -1;
+      if (!prior || next > was || (next === was && (event.hlc < prior.hlc || (event.hlc === prior.hlc && event.id < prior.eventId)))) {
+        state.license = { value: event.payload.license, hlc: event.hlc, eventId: event.id };
+      }
+      break;
+    }
     case 'v1.Redacted':
       state.redactions[event.payload.eventId] = true;
       break;
@@ -554,6 +582,20 @@ export function catalogEnabled(state: OrgState, kind: CatalogKind, itemId: strin
   if (!org) return false;
   if (projectId === undefined) return true;
   return state.catalog[catalogKey(kind, itemId, 'project', projectId)]?.value ?? true;
+}
+
+/** The license the organization's work is under; all rights reserved until one is set (license.ts). */
+export function orgLicense(state: OrgState | null): License {
+  // A state folded before licenses existed has no field at all.
+  return state?.license?.value ?? DEFAULT_LICENSE;
+}
+
+/**
+ * May this person change the organization's license? It needs manage_roles
+ * held at organization scope, as the server's check for the org partition does.
+ */
+export function mayChangeLicense(state: OrgState | null, profileId: string): boolean {
+  return !!state && privilegesFor(state, profileId, { projectId: ORG_PARTITION }).has('manage_roles');
 }
 
 /** Register a payload's clock type for callers that need it. */

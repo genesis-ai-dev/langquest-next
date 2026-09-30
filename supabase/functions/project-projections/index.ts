@@ -20762,6 +20762,23 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
+// packages/core/src/record.ts
+function emptyRecordState() {
+  return {
+    reviewKinds: {},
+    flowSteps: {},
+    kindReviews: {},
+    departures: {},
+    undoneDepartures: {},
+    requests: {},
+    withdrawnRequests: {},
+    notes: {},
+    studyMarks: {},
+    laneNames: {}
+  };
+}
+var studyMarkKey = (unitId, laneId, guideId, stepId) => `${unitId}:${laneId}:${guideId}:${stepId}`;
+
 // packages/core/src/state.ts
 function emptyState() {
   return {
@@ -20783,6 +20800,7 @@ function emptyState() {
     invalidEvents: {},
     redactions: {},
     laneTemplates: {},
+    laneHiddenUnits: {},
     laneFlows: {},
     workflowSteps: {},
     teams: {},
@@ -20791,7 +20809,8 @@ function emptyState() {
     materials: {},
     stepQuestionSets: {},
     keyTerms: {},
-    keyTermLinks: {}
+    keyTermLinks: {},
+    ...emptyRecordState()
   };
 }
 var DEFAULT_CONFIG = {
@@ -20801,6 +20820,23 @@ var DEFAULT_CONFIG = {
   ],
   workflow: [{ id: "community", role: "reviewer", required: true, rule: "majority" }]
 };
+
+// packages/core/src/license.ts
+var LICENSES = [
+  "all-rights-reserved",
+  "CC-BY-NC-ND-4.0",
+  "CC-BY-NC-SA-4.0",
+  "CC-BY-SA-4.0",
+  "CC-BY-4.0",
+  "CC0-1.0"
+];
+var DEFAULT_LICENSE = "all-rights-reserved";
+function isLicense(v) {
+  return typeof v === "string" && LICENSES.includes(v);
+}
+function licenseRank(license) {
+  return LICENSES.indexOf(license);
+}
 
 // packages/core/src/validate.ts
 var ROLES = ["owner", "coordinator", "translator", "reviewer", "viewer"];
@@ -20830,6 +20866,13 @@ function validateEvent(e) {
     return null;
   };
   const strArray = (k) => Array.isArray(p[k]) && p[k].every((x) => typeof x === "string") ? null : `${k} must be a string array`;
+  const optBool = (k) => p[k] === void 0 || typeof p[k] === "boolean" ? null : `${k} must be a boolean`;
+  const bool = (k) => typeof p[k] === "boolean" ? null : `${k} must be a boolean`;
+  const hash = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+  const nonEmpty2 = (o, ...keys) => keys.every((k) => typeof o[k] === "string" && o[k] !== "");
+  const libraryItem = () => str("itemId") ?? (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p["itemId"]) ? null : "itemId may use letters, digits, . _ and - only") ?? oneOf("kind", ["template", "flow", "material", "versification"]);
+  const oneOf = (k, values) => values.includes(p[k]) ? null : `${k} must be one of ${values.join(", ")}`;
+  const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
   switch (e.type) {
     case "v1.ProjectCreated":
       return str("name", "sourceLanguoidId");
@@ -20867,12 +20910,53 @@ function validateEvent(e) {
       return str("eventId") ?? optStr("reason");
     case "v1.BlobInvalidated":
       return str("hash") ?? optStr("reason");
+    case "v1.ReviewKindDefined":
+      return str("kindId", "name") ?? optStr("description", "usualReviewer") ?? optBool("withholdsContext") ?? (p["produces"] === void 0 || produces(p["produces"]) ? null : "produces needs what, into, action, checkedBy");
+    case "v2.WorkflowStepSet":
+      return str("stepId", "order") ?? optStr("laneId") ?? strArray("kindIds") ?? (typeof p["checkpoint"] === "boolean" ? null : "checkpoint must be a boolean");
+    case "v1.ReviewRecorded":
+      return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
+    case "v1.DepartureRecorded":
+      return str("departureId", "unitId", "laneId", "reason") ?? oneOf("type", ["skip", "override", "keep"]) ?? optStr("kindId", "stepId", "reviewId", "reasonBlobHash") ?? (p["type"] === "skip" && !p["kindId"] ? "skip needs kindId" : null) ?? (p["type"] === "override" && !p["stepId"] ? "override needs stepId" : null) ?? (p["type"] === "keep" && !p["reviewId"] ? "keep needs reviewId" : null);
+    case "v1.DepartureUndone":
+      return str("departureId");
+    case "v1.RequestMade":
+      return str("requestId", "unitId", "laneId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["profileId"] === void 0 && p["guest"] === void 0 ? "profileId or guest required" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type");
+    case "v1.RequestWithdrawn":
+      return str("requestId");
+    case "v1.NoteAdded":
+      return str("noteId", "unitId", "laneId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
+    case "v1.StudyStepMarked":
+      return str("unitId", "laneId", "guideId", "stepId") ?? (typeof p["done"] === "boolean" ? null : "done must be a boolean");
+    case "v1.LaneNamed":
+      return str("laneId", "name");
     case "v1.InviteIssued":
       return str("inviteId", "roleId", "expiresAt") ?? scope(p["scope"]);
     case "v1.InviteRedeemed":
       return str("inviteId", "profileId");
     case "v1.JoinDecided":
       return str("requestId", "profileId") ?? (typeof p["accepted"] === "boolean" ? null : "accepted must be a boolean");
+    case "v1.OrgLicenseSet":
+      return isLicense(p["license"]) ? null : `license must be one of ${LICENSES.join(", ")}`;
+    // ---- the library (library.ts, docs/decisions.md 36)
+    case "v1.LibraryItemDefined":
+      return libraryItem() ?? str("name") ?? (typeof p["description"] === "string" ? null : "description must be a string") ?? (p["copiedFrom"] === void 0 || isObject(p["copiedFrom"]) && nonEmpty2(p["copiedFrom"], "orgId", "orgName", "itemId") && hash(p["copiedFrom"]["docHash"]) ? null : "copiedFrom needs orgId, orgName, itemId and a docHash");
+    case "v1.LibraryVersionPublished":
+      return libraryItem() ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? optStr("note");
+    case "v1.LibrarySharingSet":
+      return libraryItem() ?? bool("shared") ?? bool("subscribable");
+    case "v1.LibraryItemArchived":
+      return libraryItem() ?? bool("archived");
+    case "v1.LibrarySubscribed":
+      return libraryItem() ?? str("sourceOrgId", "sourceOrgName", "sourceItemId", "name") ?? bool("autoUpdate") ?? bool("active");
+    case "v1.LibraryPinned":
+      return libraryItem() ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest");
+    case "v2.LaneTemplateSelected":
+      return str("laneId", "itemId", "unitPrefix") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (/[/\s]/.test(p["unitPrefix"]) ? "unitPrefix may not contain / or spaces" : null) ?? (p["books"] === void 0 || Array.isArray(p["books"]) && p["books"].every((b) => typeof b === "string" && /^[A-Z0-9]{3}$/.test(b)) ? null : "books must be USFM book codes");
+    case "v1.LaneUnitHidden":
+      return str("laneId", "unitId") ?? bool("hidden");
+    case "v2.LaneFlowSelected":
+      return str("laneId", "flowId", "itemId", "name") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (typeof p["catalogVersion"] === "number" && p["catalogVersion"] >= 2 ? null : "catalogVersion must be 2 or more") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null);
     default:
       return null;
   }
@@ -20886,15 +20970,44 @@ function scope(v) {
   if (level === "lane") return typeof v["laneId"] === "string" && v["laneId"] !== "" ? null : "scope.laneId required";
   return "scope.level must be org, project or lane";
 }
+var nonEmpty = (v) => typeof v === "string" && v !== "";
+function produces(v) {
+  return isObject(v) && ["what", "into", "action", "checkedBy"].every((k) => nonEmpty(v[k]));
+}
+function guest(v) {
+  return isObject(v) && nonEmpty(v["name"]) && nonEmpty(v["contact"]) && (v["channel"] === "whatsapp" || v["channel"] === "sms");
+}
+function questions(v) {
+  return Array.isArray(v) && v.every((q) => isObject(q) && nonEmpty(q["id"]) && nonEmpty(q["text"]) && (q["type"] === "rating" || q["type"] === "yesno" || q["type"] === "text") && (q["required"] === void 0 || typeof q["required"] === "boolean"));
+}
+function anchor(v) {
+  if (!isObject(v)) return "anchor must be an object";
+  switch (v["kind"]) {
+    case "passage":
+      return null;
+    case "version":
+      return nonEmpty(v["takeId"]) ? null : "anchor.takeId required";
+    case "verse":
+      return nonEmpty(v["verse"]) ? null : "anchor.verse required";
+    case "study":
+      return nonEmpty(v["guideId"]) && nonEmpty(v["stepId"]) ? null : "anchor.guideId and stepId required";
+    case "term":
+      return nonEmpty(v["termId"]) ? null : "anchor.termId required";
+    default:
+      return "anchor.kind must be passage, version, verse, study or term";
+  }
+}
 function isObject(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 2;
+var REDUCER_VERSION = 7;
+var REVISIONS = /* @__PURE__ */ new WeakMap();
 function applyEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
+  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
   const invalid = validateEvent(event);
   if (invalid) {
     state.invalidEvents[event.id] = invalid;
@@ -20929,8 +21042,8 @@ function applyEvent(state, event) {
       break;
     }
     case "v1.ReferenceAttached": {
-      const { refId, unitId, kind, blobHash, text } = event.payload;
-      state.references[refId] ??= {
+      const { refId: refId2, unitId, kind, blobHash, text } = event.payload;
+      state.references[refId2] ??= {
         unitId,
         kind,
         ...blobHash !== void 0 ? { blobHash } : {},
@@ -21042,6 +21155,24 @@ function applyEvent(state, event) {
     case "v1.LaneFlowSelected": {
       const { laneId, flowId, catalogVersion } = event.payload;
       lww(state.laneFlows, laneId, event, { flowId, catalogVersion });
+      break;
+    }
+    case "v2.LaneTemplateSelected": {
+      const { laneId, itemId, docHash, unitPrefix, books } = event.payload;
+      const at = unitPrefix.indexOf("@");
+      const templateId = at < 0 ? unitPrefix : unitPrefix.slice(0, at);
+      const catalogVersion = at < 0 ? 0 : Number(unitPrefix.slice(at + 1)) || 0;
+      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion, itemId, docHash, ...books ? { books: [...books].sort() } : {} });
+      break;
+    }
+    case "v1.LaneUnitHidden": {
+      const { laneId, unitId, hidden } = event.payload;
+      lww(state.laneHiddenUnits[laneId] ??= {}, unitId, event, hidden);
+      break;
+    }
+    case "v2.LaneFlowSelected": {
+      const { laneId, flowId, catalogVersion, itemId, docHash, name } = event.payload;
+      lww(state.laneFlows, laneId, event, { flowId, catalogVersion, itemId, docHash, name });
       break;
     }
     case "v1.WorkflowStepSet": {
@@ -21163,6 +21294,58 @@ function applyEvent(state, event) {
       byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
       break;
     }
+    // ---- the passage record (record.ts) --------------------------------
+    case "v1.ReviewKindDefined": {
+      const { kindId, name, description, usualReviewer, withholdsContext, produces: produces2 } = event.payload;
+      lww(state.reviewKinds, kindId, event, {
+        id: kindId,
+        name,
+        description: description ?? "",
+        usualReviewer: usualReviewer ?? "",
+        ...withholdsContext !== void 0 ? { withholdsContext } : {},
+        ...produces2 !== void 0 ? { produces: { ...produces2 } } : {}
+      });
+      break;
+    }
+    case "v2.WorkflowStepSet": {
+      const { stepId, laneId, order, kindIds, checkpoint } = event.payload;
+      lww(state.flowSteps, stepId, event, { stepId, ...laneId !== void 0 ? { laneId } : {}, order, kindIds: [...kindIds], checkpoint });
+      break;
+    }
+    case "v1.ReviewRecorded": {
+      const { reviewId, ...rest } = event.payload;
+      firstWins(state.kindReviews, reviewId, event, { ...rest, id: reviewId });
+      break;
+    }
+    case "v1.DepartureRecorded": {
+      const { departureId, ...rest } = event.payload;
+      firstWins(state.departures, departureId, event, { ...rest, id: departureId });
+      break;
+    }
+    case "v1.DepartureUndone":
+      earliestUndo(state.undoneDepartures, event.payload.departureId, event);
+      break;
+    case "v1.RequestMade": {
+      const { requestId, ...rest } = event.payload;
+      firstWins(state.requests, requestId, event, { ...rest, id: requestId });
+      break;
+    }
+    case "v1.RequestWithdrawn":
+      earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+    case "v1.NoteAdded": {
+      const { noteId, ...rest } = event.payload;
+      firstWins(state.notes, noteId, event, { ...rest, id: noteId });
+      break;
+    }
+    case "v1.StudyStepMarked": {
+      const { unitId, laneId, guideId, stepId, done } = event.payload;
+      lww(state.studyMarks, studyMarkKey(unitId, laneId, guideId, stepId), event, { done, by: event.actorId });
+      break;
+    }
+    case "v1.LaneNamed":
+      lww(state.laneNames, event.payload.laneId, event, event.payload.name);
+      break;
     case "v1.OrgCreated":
     case "v1.RoleDefined":
     case "v1.RoleRetired":
@@ -21173,6 +21356,13 @@ function applyEvent(state, event) {
     case "v1.InviteIssued":
     case "v1.InviteRedeemed":
     case "v1.JoinDecided":
+    case "v1.OrgLicenseSet":
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
       break;
     default: {
       const _exhaustive = event;
@@ -21190,6 +21380,16 @@ function fold(events, initial = emptyState()) {
   }
   for (const event of rest) state = applyEvent(state, event);
   return state;
+}
+function firstWins(table, key, event, value) {
+  const prior = table[key];
+  if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.eventId <= event.id)) return;
+  table[key] = { ...value, by: event.actorId, hlc: event.hlc, eventId: event.id };
+}
+function earliestUndo(table, key, event) {
+  const prior = table[key];
+  if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.by <= event.actorId)) return;
+  table[key] = { by: event.actorId, hlc: event.hlc };
 }
 function blobVerdict(state, event, v) {
   const hash = event.payload.hash;
@@ -21292,7 +21492,9 @@ function contentTemplate(id) {
 }
 function templateOfUnit(unitId) {
   const m = /^([a-z0-9_]+)@(\d+)\//.exec(unitId);
-  return m ? { templateId: m[1], catalogVersion: Number(m[2]) } : null;
+  if (m) return { templateId: m[1], catalogVersion: Number(m[2]) };
+  const lib = /^([a-z0-9][a-z0-9._-]*)\//i.exec(unitId);
+  return lib ? { templateId: lib[1], catalogVersion: 0 } : null;
 }
 function effectiveUnitKinds(state, base) {
   const out = new Map(base.map((k) => [k.id, k]));
@@ -21356,9 +21558,14 @@ function buildIndexes(state) {
 function laneLeafUnits(state, idx, laneId) {
   const sel = state.laneTemplates[laneId]?.value;
   if (!sel) return idx.leafUnits;
+  const hidden = state.laneHiddenUnits?.[laneId] ?? {};
+  const books = sel.books ? new Set(sel.books) : null;
   return idx.leafUnits.filter((id) => {
+    if (hidden[id]?.value === true) return false;
     const t = templateOfUnit(id);
-    return t === null || t.templateId === sel.templateId && t.catalogVersion === sel.catalogVersion;
+    if (t === null) return true;
+    if (t.templateId !== sel.templateId || t.catalogVersion !== sel.catalogVersion) return false;
+    return books === null || books.has(id.slice(id.indexOf("/") + 1, id.indexOf("/") + 4));
   });
 }
 
@@ -21598,27 +21805,110 @@ function deriveBlockers(state, idx = buildIndexes(state)) {
   return out;
 }
 
+// packages/core/src/library.ts
+var blank = { value: void 0, hlc: "", eventId: "" };
+function newItem() {
+  return {
+    kind: blank,
+    name: blank,
+    description: blank,
+    copiedFrom: { value: null, hlc: "", eventId: "" },
+    versions: {},
+    sharing: { value: { shared: false, subscribable: false }, hlc: "", eventId: "" },
+    archived: { value: false, hlc: "", eventId: "" },
+    subscription: { value: null, hlc: "", eventId: "" },
+    pinned: { value: null, hlc: "", eventId: "" }
+  };
+}
+var later = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
+var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
+var LIBRARY_EVENT_TYPES = [
+  "v1.LibraryItemDefined",
+  "v1.LibraryVersionPublished",
+  "v1.LibrarySharingSet",
+  "v1.LibraryItemArchived",
+  "v1.LibrarySubscribed",
+  "v1.LibraryPinned"
+];
+function applyLibraryEvent(library, e) {
+  const p = e.payload;
+  const item = library[p.itemId] ??= newItem();
+  if (earlier(item.kind, e)) item.kind = reg(p.kind, e);
+  switch (e.type) {
+    case "v1.LibraryItemDefined": {
+      const d = p;
+      if (later(item.name, e)) item.name = reg(d.name, e);
+      if (later(item.description, e)) item.description = reg(d.description, e);
+      if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
+      break;
+    }
+    case "v1.LibraryVersionPublished": {
+      const d = p;
+      const prior = item.versions[d.docHash];
+      if (!prior || e.hlc < prior.hlc || e.hlc === prior.hlc && e.id < prior.eventId) {
+        item.versions[d.docHash] = { docHash: d.docHash, hlc: e.hlc, eventId: e.id, actorId: e.actorId, ...d.note ? { note: d.note } : {} };
+      }
+      break;
+    }
+    case "v1.LibrarySharingSet": {
+      const d = p;
+      if (later(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
+      break;
+    }
+    case "v1.LibraryItemArchived":
+      if (later(item.archived, e)) item.archived = reg(p.archived, e);
+      break;
+    case "v1.LibrarySubscribed": {
+      const d = p;
+      if (later(item.subscription, e)) {
+        item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
+      }
+      break;
+    }
+    case "v1.LibraryPinned":
+      if (later(item.pinned, e)) item.pinned = reg(p.docHash, e);
+      break;
+  }
+}
+
 // packages/core/src/org.ts
 var PRIVILEGES = [
   "manage_structure",
   "invite_members",
   "manage_roles",
   "manage_templates",
+  "shape_templates",
   "manage_reference",
   "manage_flows",
   "manage_teams",
   "assign_work",
+  "override_checkpoints",
   "translate",
   "fill_reference",
   "send_to_reviewers",
   "review",
   "view_status"
 ];
+var ORG_EVENT_TYPES = [
+  "v1.OrgCreated",
+  "v1.RoleDefined",
+  "v1.RoleRetired",
+  "v1.OrgMemberAdded",
+  "v1.OrgMemberRemoved",
+  "v1.CatalogItemToggled",
+  "v1.ProjectRegistered",
+  "v1.InviteIssued",
+  "v1.InviteRedeemed",
+  "v1.JoinDecided",
+  "v1.OrgLicenseSet",
+  ...LIBRARY_EVENT_TYPES
+];
 var SEED_ROLES = [
   { roleId: "org_admin", name: "Organization Admin", privileges: [...PRIVILEGES], fixed: "owner" },
   {
     roleId: "project_coordinator",
-    name: "Project Coordinator",
+    name: "Coordinator",
     fixed: "coordinator",
     privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
   },
@@ -21635,7 +21925,7 @@ function effectiveRole(privs) {
   return null;
 }
 function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null };
 }
 function scopeKey(s) {
   return s.level === "org" ? "org" : s.level === "project" ? `project:${s.projectId}` : `lane:${s.projectId}/${s.laneId}`;
@@ -21722,11 +22012,37 @@ function applyOrgEvent(state, event) {
       }
       break;
     }
-    case "v1.ProjectRegistered":
-      state.projects[event.payload.projectId] ??= { name: event.payload.name };
+    case "v1.ProjectRegistered": {
+      const prior = state.projects[event.payload.projectId];
+      if (!prior || event.hlc < prior.hlc || event.hlc === prior.hlc && event.id < prior.eventId) {
+        state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
+      }
       break;
+    }
+    case "v1.LaneNamed": {
+      const prior = state.languageNames[event.payload.laneId];
+      if (!prior || !loses2(prior, event)) state.languageNames[event.payload.laneId] = { value: event.payload.name, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+    case "v1.OrgLicenseSet": {
+      const prior = state.license;
+      const next = licenseRank(event.payload.license);
+      const was = prior ? licenseRank(prior.value) : -1;
+      if (!prior || next > was || next === was && (event.hlc < prior.hlc || event.hlc === prior.hlc && event.id < prior.eventId)) {
+        state.license = { value: event.payload.license, hlc: event.hlc, eventId: event.id };
+      }
+      break;
+    }
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;
+      break;
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
+      applyLibraryEvent(state.library, event);
       break;
     default:
       break;
@@ -21763,9 +22079,130 @@ function privilegesFor(state, profileId, target = {}) {
   }
   return out;
 }
+function orgLicense(state) {
+  return state?.license?.value ?? DEFAULT_LICENSE;
+}
 
 // packages/core/src/version.ts
 var CLIENT_PROTOCOL_VERSION = 1;
+
+// packages/core/src/versification.ts
+var USFM_BOOKS = [
+  "GEN",
+  "EXO",
+  "LEV",
+  "NUM",
+  "DEU",
+  "JOS",
+  "JDG",
+  "RUT",
+  "1SA",
+  "2SA",
+  "1KI",
+  "2KI",
+  "1CH",
+  "2CH",
+  "EZR",
+  "NEH",
+  "EST",
+  "JOB",
+  "PSA",
+  "PRO",
+  "ECC",
+  "SNG",
+  "ISA",
+  "JER",
+  "LAM",
+  "EZK",
+  "DAN",
+  "HOS",
+  "JOL",
+  "AMO",
+  "OBA",
+  "JON",
+  "MIC",
+  "NAM",
+  "HAB",
+  "ZEP",
+  "HAG",
+  "ZEC",
+  "MAL",
+  "MAT",
+  "MRK",
+  "LUK",
+  "JHN",
+  "ACT",
+  "ROM",
+  "1CO",
+  "2CO",
+  "GAL",
+  "EPH",
+  "PHP",
+  "COL",
+  "1TH",
+  "2TH",
+  "1TI",
+  "2TI",
+  "TIT",
+  "PHM",
+  "HEB",
+  "JAS",
+  "1PE",
+  "2PE",
+  "1JN",
+  "2JN",
+  "3JN",
+  "JUD",
+  "REV",
+  "TOB",
+  "JDT",
+  "ESG",
+  "WIS",
+  "SIR",
+  "BAR",
+  "LJE",
+  "S3Y",
+  "SUS",
+  "BEL",
+  "1MA",
+  "2MA",
+  "3MA",
+  "4MA",
+  "1ES",
+  "2ES",
+  "MAN",
+  "PS2",
+  "ODA",
+  "PSS",
+  "EZA",
+  "5EZ",
+  "6EZ",
+  "DAG",
+  "PS3",
+  "2BA",
+  "LBA",
+  "JUB",
+  "ENO",
+  "1MQ",
+  "2MQ",
+  "3MQ",
+  "REP",
+  "4BA",
+  "LAO",
+  // Paratext's alternate Greek texts, which the standard versifications list.
+  "JSA",
+  "JDB",
+  "TBS",
+  "SST",
+  "DNT",
+  "BLT"
+];
+var BOOK_ORDER = new Map(USFM_BOOKS.map((b, i) => [b, i]));
+var LEGACY_BOOK_IDS = { joe: "JOL", nah: "NAM", mar: "MRK", joh: "JHN", phi: "PHP" };
+var TO_LEGACY = Object.fromEntries(Object.entries(LEGACY_BOOK_IDS).map(([k, v]) => [v, k]));
+
+// packages/core/src/sourceBibles.ts
+var AUDIO_BOOKS = "Gen Exo Lev Num Deu Jos Jdg Rut 1Sa 2Sa 1Ki 2Ki 1Ch 2Ch Ezr Neh Est Job Psa Pro Ecc Sng Isa Jer Lam Ezk Dan Hos Jol Amo Oba Jon Mic Nam Hab Zep Hag Zec Mal Mat Mrk Luk Jhn Act Rom 1Co 2Co Gal Eph Php Col 1Th 2Th 1Ti 2Ti Tts Phm Heb Jas 1Pe 2Pe 1Jn 2Jn 3Jn Jud Rev".split(" ");
 
 // packages/core/src/inbox.ts
 function deriveInbox(state, actorId, idx = buildIndexes(state)) {
@@ -22054,6 +22491,8 @@ async function runProjections(service) {
         name: state.project.value.name,
         languages: Object.values(state.lanes).map((lane) => lane.languoidId),
         translated_pct: percentages.length ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
+        // What someone browsing may do with the work (docs/licensing.md).
+        license: orgLicense(org),
         updated_at: (/* @__PURE__ */ new Date()).toISOString()
       }));
     }

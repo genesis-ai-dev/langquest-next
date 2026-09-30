@@ -8,7 +8,7 @@
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 34).
-import { CommandError, deriveFlow, emptyState, partitionOfLane, keyTermsFor, laneName, languageProgress, materialsFor, libraryItemView, SEED_ROLES, type LanguageProgress, type Role, type Scope, type ScopeLevel, type TemplateDoc } from '@langquest-next/core';
+import { CommandError, deriveFlow, emptyState, partitionOfLane, isMoreOpen, keyTermsFor, laneName, languageProgress, LICENSE_INFO, materialsFor, mayChangeLicense, libraryItemView, orgLicense, SEED_ROLES, type LanguageProgress, type License, type Role, type Scope, type ScopeLevel, type TemplateDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
@@ -33,6 +33,7 @@ import {
 import { plural, when } from '../passageView';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { languagesToList } from '../languages';
+import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToPartition } from '../partitionWriter';
 import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
@@ -273,7 +274,44 @@ export function OrgHome(ctx: Ctx) {
       <ShowMore remaining={v.lanes.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
       <CatalogRows ctx={ctx} from="org_home" level="org" laneIds={v.lanes} />
       <MemberRows ctx={ctx} from="org_home" level="org" />
+      <LicenseSection ctx={ctx} />
     </Screen>
+  );
+}
+
+/**
+ * The license the organization's work is under (docs/licensing.md). Every
+ * member sees it, since it is their recordings; an Organization Admin may
+ * open it further, never close it. Not in the partner demo (decision 38).
+ */
+function LicenseSection(props: { ctx: Ctx }) {
+  const { ctx } = props;
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const current = orgLicense(ctx.org.state);
+  const may = mayChangeLicense(ctx.org.state, ctx.session.actorId);
+  async function openTo(license: License) {
+    // Someone else may have opened it further while the sheet was up.
+    if (!isMoreOpen(license, orgLicense(ctx.org.state))) { setOpen(false); return; }
+    setBusy(true);
+    try {
+      await ctx.org.append('v1.OrgLicenseSet', { license });
+      setOpen(false);
+      ctx.toast(`Your work is now under ${LICENSE_INFO[license].name}.`);
+    } catch (e) {
+      ctx.toast(failure('open license', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <HomeSection ctx={ctx} id="org_home:license" label="Who may use your work">
+        <LicenseRow license={current} onPress={() => setOpen(true)} last />
+      </HomeSection>
+      <LicenseSheet visible={open} mode={may ? 'open' : 'view'} current={current} busy={busy}
+        onClose={() => setOpen(false)} onConfirm={(l) => void openTo(l)} />
+    </>
   );
 }
 

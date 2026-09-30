@@ -7,7 +7,7 @@
 // ADR-022 (terms are a line under Sign In; three Vision cards), ADR-023
 // (creating an org is celebrated), ADR-028 (the invite says who it is for;
 // here only what the phone knows, since a link's claims are unchecked).
-import { CommandError } from '@langquest-next/core';
+import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -17,9 +17,10 @@ import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
 import { parseInvite, redeemInvite } from '../invites';
 import {
-  Banner, Card, EmptyState, Field, GhostBtn, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Screen, SectionLabel,
+  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Screen, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
+import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
@@ -193,6 +194,8 @@ export function ExploreHome(ctx: Ctx) {
       {projects.length ? <SectionLabel label="Listed publicly" /> : null}
       {projects.slice(0, shown).map((p) => {
         const pct = Math.round(p.translated_pct);
+        // A license this build does not know yet is simply not shown.
+        const license = isLicense(p.license) ? LICENSE_INFO[p.license] : null;
         return (
           <Card key={`${p.org_id}:${p.project_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
             onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
@@ -200,6 +203,7 @@ export function ExploreHome(ctx: Ctx) {
               <Text style={txt.h3}>{p.name}</Text>
               {p.languages.length ? <Text style={txt.smMuted} numberOfLines={2}>{p.languages.join(', ')}</Text> : null}
             </View>
+            {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
             <ProgressBar value={pct} />
             <View style={styles.between}>
               <Text style={txt.xs}>{p.languages.length} {p.languages.length === 1 ? 'language' : 'languages'}</Text>
@@ -473,6 +477,9 @@ export function IntentChooser(ctx: Ctx) {
  */
 export function CreateOrg(ctx: Ctx) {
   const [name, setName] = useState('');
+  // Closed until the creator chooses otherwise; it can only open later (docs/licensing.md).
+  const [license, setLicense] = useState<License>(DEFAULT_LICENSE);
+  const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function create() {
@@ -482,7 +489,7 @@ export function CreateOrg(ctx: Ctx) {
     setError('');
     try {
       const orgId = await createOrganization({
-        actorId: ctx.session.actorId, name: orgName,
+        actorId: ctx.session.actorId, name: orgName, license,
         ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {})
       });
       // The creator needs no "who invited you" welcome; My Work's Getting
@@ -512,6 +519,12 @@ export function CreateOrg(ctx: Ctx) {
         </Text>
       </View>
       <Field label="What's it called?" value={name} onChangeText={setName} placeholder="Enter organization name" autoCapitalize="words" />
+      <View>
+        <SectionLabel label="Who may use your work" />
+        <Group><LicenseRow license={license} onPress={() => setChoosing(true)} last /></Group>
+      </View>
+      <LicenseSheet visible={choosing} mode="choose" current={license} onClose={() => setChoosing(false)}
+        onConfirm={(l) => { setLicense(l); setChoosing(false); }} />
       <Banner icon="sparkle" title="Ready to use"
         body="You'll get the usual roles and a standard way to check passages. Next, we'll add your first language and team together." />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}

@@ -347,6 +347,13 @@ export function buildOrgFixture(): AnyEvent[] {
   // Sharing turned off, and a pin for an item never defined here.
   raw('lib-e', 'dB', '001800000950000:000000:dB', 'v1.LibrarySharingSet', { itemId: 'health', kind: 'template', shared: false, subscribable: true });
   raw('lib-f', 'dB', '001800000960000:000000:dB', 'v1.LibraryPinned', { itemId: 'orphan', kind: 'material', docHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
+  // The license only opens (license.ts): a later, more closed choice from
+  // an admin who was offline changes nothing, and two devices opening to the
+  // same license at the same clock settle on the lower id.
+  emit('v1.OrgLicenseSet', { license: 'CC-BY-NC-ND-4.0' });
+  raw('lic-a', 'dB', '001800000970000:000000:dB', 'v1.OrgLicenseSet', { license: 'CC-BY-SA-4.0' });
+  raw('lic-b', 'dC', '001800000970000:000000:dB', 'v1.OrgLicenseSet', { license: 'CC-BY-SA-4.0' });
+  raw('lic-c', 'dB', '001800000980000:000000:dB', 'v1.OrgLicenseSet', { license: 'all-rights-reserved' });
 
   return events;
 }

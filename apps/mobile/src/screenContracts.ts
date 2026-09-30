@@ -16,7 +16,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // A new org's partition (createOrg.ts) and the welcome it skips
   // (markWelcomed). Its languages are added afterwards from Getting started
   // (ONB-5), each its own partition (decisions.md 37).
-  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.VisionSeen'],rpcs:['record_user_event'] },
+  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.OrgLicenseSet','v1.VisionSeen'],rpcs:['record_user_event'] },
   request_access: { rpcs:['create_join_request'] },
   scan_qr: { rpcs:['redeem_invite_v2','my_organizations'] },
   explore_home: { reads:['public_projects'] },
@@ -47,7 +47,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   new_language: { emits:['v1.ProjectRegistered','v1.ProjectCreated','v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // The public listing is keyed by partition; an org has one (decision 34).
-  org_home: { rpcs:['set_project_visibility'],reads:['project_visibility'] },
+  // Opening the organization's license (docs/licensing.md).
+  org_home: { emits:['v1.OrgLicenseSet'],rpcs:['set_project_visibility'],reads:['project_visibility','orgLicense'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },

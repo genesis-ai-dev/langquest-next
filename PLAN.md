@@ -192,6 +192,7 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v2.LaneTemplateSelected` | laneId, itemId, docHash, unitPrefix, books? | register per lane (shared with v1); the selector emits `UnitAdded` (`<itemId>/GEN.1.1-2.3`) and `LaneUnitHidden` |
 | `v1.LaneUnitHidden` | laneId, unitId, hidden | register per (lane, unit); a part the language's template version no longer has |
 | `v2.LaneFlowSelected` | laneId, flowId, catalogVersion, itemId, docHash, name | register per lane (shared with v1); the selector emits kinds and `v2.WorkflowStepSet` under `<lane>/<itemId>~<hash12>@2/` |
+| `v1.OrgLicenseSet` | license (all-rights-reserved, CC-BY-NC-ND-4.0, CC-BY-NC-SA-4.0, CC-BY-SA-4.0, CC-BY-4.0, CC0-1.0) | org partition; ratchet: the most open license ever set wins, earliest event among equals (docs/licensing.md, decision 38) |
 
 Smells to catch in review:
 
@@ -418,6 +419,7 @@ review steps describe v1 lanes, which still fold and read as kinds.
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / language; a project scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
 | Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; `CatalogItemToggled` remains for template suggestions |
+| Who may use an organization's work, and what outsiders see | `v1.OrgLicenseSet` in `_org` (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
 
 ## 14. Blobs: the upload and download design for step 5
 
