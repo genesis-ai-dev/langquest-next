@@ -51,7 +51,8 @@ reviewed, reproduced, rolled back, or noticed when it drifts.
 | Edge functions and their config | `supabase/functions/*`, `[functions.*]` in `config.toml` | `supabase functions deploy <name>` | deployed version in `supabase functions list` |
 | Edge function secrets | encrypted `supabase/.env.<environment>` | decrypt, then `supabase secrets set --env-file` | `supabase secrets list` (digests) |
 | Vault secrets | encrypted env file; a script calls `vault.create_secret` / `vault.update_secret` | script | the check lists expected names |
-| Cloudflare Worker | `apps/invite-email/wrangler.jsonc` (vars, bindings, routes, DO migrations) | `npm run email:deploy` | `wrangler deploy --dry-run` |
+| Cloudflare invite-email Worker | `apps/invite-email/wrangler.jsonc` (vars, bindings, routes, DO migrations) | merge to `main` runs `npm run email:deploy` when `apps/invite-email/**` changes (`.github/workflows/deploy-cloudflare.yml`, decisions.md 43). The same command still deploys it by hand | `wrangler deploy --dry-run` |
+| Cloudflare dashboard | `apps/web/wrangler.jsonc` | the same workflow runs `npm run web:deploy` when `apps/web/**`, `packages/core/**`, `packages/client/**`, or `package-lock.json` changes | `wrangler deploy --dry-run` |
 | Worker secrets | encrypted env file; names listed in `secrets.required` | `wrangler secret bulk` from the decrypted values | deploy fails if a required secret is missing |
 | Mobile build profiles, channels | `apps/mobile/eas.json`, `apps/mobile/app.json` (`runtimeVersion` policy, plugins, permissions) | `npm run ship:native` / `ship` | `npm run ship:check` (fingerprint) |
 | Mobile public config (`EXPO_PUBLIC_*`) | encrypted `apps/mobile/.env.<environment>` | `npm run env:push:eas -- <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |

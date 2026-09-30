@@ -692,3 +692,24 @@ and nothing expires. Its settings live in the dashboard and are recorded in
 guardrails `checks` job. Unconfirmed: that it applies migrations before it
 deploys functions; the worker must keep tolerating a migration that has not
 landed yet.
+
+## 43. Merging to main deploys the Cloudflare workers
+
+Date: 2026-09-30 · By: Carl Sauder · Status: accepted
+
+Reason: the invite-email worker and the dashboard reached Cloudflare only
+when someone ran `npm run email:deploy` or `npm run web:deploy`. The app
+already ships on merge to TestFlight, and the database ships through
+Supabase's GitHub integration (decisions.md 42).
+`.github/workflows/deploy-cloudflare.yml` runs the pre-push typecheck and
+tests, then those two commands, and only the worker whose inputs changed:
+invite email for `apps/invite-email/**`, the dashboard for `apps/web/**`,
+`packages/core/**`, `packages/client/**` and the lockfile. The workflow has
+its own concurrency group and does not cancel an in-progress run, so a
+second merge waits instead of stopping a deploy halfway. It authenticates
+with a Cloudflare API token repository secret. The dashboard build also
+needs `DOTENV_PRIVATE_KEY_PRODUCTION` to decrypt the production env file.
+Reverse if: a token-free Cloudflare integration can split those two workers
+by path and queue a later push behind one already deploying (a token expires
+and belongs to one person, the same problem as the Supabase workflow in 42),
+or a staging worker is added and production should follow a release.

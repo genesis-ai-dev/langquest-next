@@ -1,0 +1,98 @@
+# Merging to main deploys the Cloudflare workers (decisions.md 43).
+# checks is the pre-push gate. Then one job per worker, and only when its
+# inputs changed: an invite-email change does not build the dashboard, and
+# a dashboard change does not deploy email.
+#
+# This workflow has its own concurrency group. A newer push to main waits;
+# cancel-in-progress is off so a second merge does not stop a deploy
+# halfway through.
+#
+# Repo secrets. Missing, the job fails rather than skipping:
+# CLOUDFLARE_API_TOKEN — Workers Scripts Edit, plus Email Sending Edit for
+#   the invite worker. Wrangler uses it instead of the local langquest-email
+#   profile (npm run email:deploy still passes --profile).
+# DOTENV_PRIVATE_KEY_PRODUCTION — the dashboard job only, so the build can
+#   decrypt apps/mobile/.env.production. The keys file is not on the runner.
+name: deploy-cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/invite-email/**'
+      - 'apps/web/**'
+      - 'packages/core/**'
+      - 'packages/client/**'
+      - 'package-lock.json'
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      email: ${{ steps.paths.outputs.email }}
+      web: ${{ steps.paths.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: Which workers changed
+        id: paths
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::No previous commit; refusing to guess which worker changed"
+            exit 1
+          fi
+          git cat-file -e "$BEFORE^{commit}" \
+            || { echo "::error::Previous commit is not in this checkout"; exit 1; }
+          git diff --name-only "$BEFORE" "$GITHUB_SHA" | node scripts/cloudflare-deploy-paths.mjs >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run
+
+  email:
+    name: Deploy invite email
+    needs: [checks]
+    if: needs.checks.outputs.email == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Token is set
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run email:deploy
+
+  web:
+    name: Deploy dashboard
+    needs: [checks]
+    if: needs.checks.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DOTENV_PRIVATE_KEY_PRODUCTION: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION }}
+    steps:
+      - name: Token and production key are set
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret"; exit 1; }
+          test -n "$DOTENV_PRIVATE_KEY_PRODUCTION" || { echo "::error::Add the DOTENV_PRIVATE_KEY_PRODUCTION repository secret"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run web:deploy
