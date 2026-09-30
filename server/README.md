@@ -84,3 +84,27 @@ the dashboard can hide edits the server would refuse.
 
 Still deferred: profile photos, and the remaining content/audio gaps in
 the flow audit.
+
+## Deploying
+
+Merging to `main` deploys the hosted project through Supabase's GitHub
+integration (decisions.md 42). No token is stored in GitHub. It applies new
+migrations and deploys the functions and storage buckets declared in
+`supabase/config.toml`; auth, API and seed settings are not pushed by it.
+The guardrails `checks` job refuses a worker bundle behind its source, since
+the bundle is what gets deployed.
+
+The integration's settings live in the Supabase dashboard (Project Settings,
+Integrations, GitHub), so they are recorded here. Change them there and here
+together:
+
+| Setting | Value |
+| --- | --- |
+| Repository | `genesis-ai-dev/langquest-next` |
+| Working directory | `.` |
+| Deploy to production | on, branch `main` |
+| Automatic branching | on, limit 3, Supabase changes only (preview branch compute is billed outside the spend cap) |
+
+`npm run db:check` shows whether the hosted migrations match `main`;
+`npm run db:apply` still applies them by hand.
+

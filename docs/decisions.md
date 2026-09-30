@@ -681,3 +681,14 @@ production builds point at the same hosted project, so there is one target.
 Reverse if: a separate staging project is added (then merges deploy there
 and production follows a release), or a migration needs a manual step or
 cannot be applied while the app is live.
+
+Amended (2026-09-30, Caleb Koster): Supabase's GitHub integration now does the
+deploy, and `.github/workflows/deploy-supabase.yml` is gone. The workflow
+needed a personal access token, which expires within a year, belongs to one
+person, and on first use lacked database write access. The integration
+authenticates through Supabase's GitHub app, so nothing is stored in GitHub
+and nothing expires. Its settings live in the dashboard and are recorded in
+`server/README.md` (Deploying). The worker bundle check moved into the
+guardrails `checks` job. Unconfirmed: that it applies migrations before it
+deploys functions; the worker must keep tolerating a migration that has not
+landed yet.
