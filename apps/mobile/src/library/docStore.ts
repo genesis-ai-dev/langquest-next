@@ -2,6 +2,7 @@ import { canonicalJson, validateDoc, withDeps, type LibraryDoc } from '@langques
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 import { supabase } from '../supabase';
 
 /**
@@ -14,13 +15,14 @@ import { supabase } from '../supabase';
  * document arrives.
  */
 
-const DIR = new Directory(Paths.document, 'library');
+// expo-file-system does not exist on web; there documents live in memory only.
+const DIR = Platform.OS === 'web' ? null : new Directory(Paths.document, 'library');
 const memory = new Map<string, LibraryDoc>();
 const listeners = new Set<() => void>();
 const outboxKey = (orgId: string) => `library-outbox:${orgId}`;
 
 function ensureDir() {
-  if (!DIR.exists) DIR.create({ intermediates: true, idempotent: true });
+  if (DIR && !DIR.exists) DIR.create({ intermediates: true, idempotent: true });
 }
 
 /** SHA-256 hex of a document's canonical text. */
@@ -53,6 +55,7 @@ export function cachedDoc(hash: string | null | undefined): LibraryDoc | null {
 }
 
 async function fromDisk(hash: string): Promise<LibraryDoc | null> {
+  if (!DIR) return null;
   ensureDir();
   const file = new File(DIR, `${hash}.json`);
   if (!file.exists) return null;
@@ -63,6 +66,7 @@ async function fromDisk(hash: string): Promise<LibraryDoc | null> {
 }
 
 function toDisk(hash: string, text: string) {
+  if (!DIR) return;
   ensureDir();
   const file = new File(DIR, `${hash}.json`);
   if (!file.exists) file.write(text);
