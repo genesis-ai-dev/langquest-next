@@ -14,6 +14,7 @@
     "expo-audio": "~57.0.5",
     "expo-camera": "~57.0.5",
     "expo-crypto": "~57.0.3",
+    "expo-dev-client": "~57.0.19",
     "expo-file-system": "~57.0.7",
     "expo-notifications": "~57.0.19",
     "expo-sqlite": "~57.0.3",
@@ -36,6 +37,9 @@
   },
   "scripts": {
     "start": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo start",
+    "start:remote": "dotenvx run -f .env.preview -fk ../../.env.keys --strict -e EXPO_NO_DOTENV=1 -- expo start --dev-client",
+    "sim:build": "eas build --profile simulator --platform ios",
+    "sim:install": "eas build:run --profile simulator --platform ios --latest",
     "android": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo run:android",
     "ios": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo run:ios",
     "web": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo start --web",
