@@ -1,7 +1,8 @@
 // The Inbox and Settings tabs. Ports the demo's src/screens/account.tsx
 // (InboxHomeScreen, SettingsHomeScreen, ProfileEditScreen,
 // OrgSwitcherScreen, SignOutConfirmScreen); SyncStatus is app only (the
-// local log, realtime state and transfers).
+// local log, realtime state and transfers), as is the Send diagnostics
+// switch in Settings (docs/diagnostics.md).
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 and ONB-5 (the
 // Settings rows back to them), CORE-12 (sign-out never strands work).
 import { CommandError, decodeHlc, deriveKinds, kindOf, laneName, unitTitle, type Update } from '@langquest-next/core';
@@ -13,6 +14,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { groupByRead, updateText } from '../accountText';
 import type { Ctx } from '../ctx';
+import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
@@ -264,6 +266,7 @@ export function InboxHome(ctx: Ctx) {
 /** Account and app rows only; everything about running the org lives under Manage. */
 export function SettingsHome(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
+  const diag = useDiagnosticsSwitch(ctx);
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
   const { roleName, orgName, memberName } = useAccountLine(ctx);
@@ -300,7 +303,10 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="notif" label="Notification Settings" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
           void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
         }} />
-        <Row icon="cloud" label="Sync" sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} last />
+        <Row icon="cloud" label="Sync" sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        {/* Added, not in the demo (docs/diagnostics.md, decisions.md 39): on by default, off here. */}
+        <Row icon="progress" label="Send diagnostics" sub="Sends speed and error reports, never recordings, what you type or names."
+          role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last />
       </Group>
       {ctx.canSwitchPersona ? (
         <>
@@ -315,6 +321,26 @@ export function SettingsHome(ctx: Ctx) {
       </View>
     </Screen>
   );
+}
+
+/** The diagnostics switch: the saved choice once read (null until then), flipped at once and put back if saving fails. */
+function useDiagnosticsSwitch(ctx: Ctx): { on: boolean | null; toggle: () => void } {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    void diagnosticsEnabled().then((v) => { if (active) setOn(v); });
+    return () => { active = false; };
+  }, []);
+  function toggle() {
+    if (on === null) return;
+    const next = !on;
+    setOn(next);
+    void setDiagnosticsEnabled(next).catch((e: unknown) => {
+      setOn(!next);
+      ctx.toast(failure('diagnostics setting', e));
+    });
+  }
+  return { on, toggle };
 }
 
 // ---- Edit Profile (AUTH-7) ------------------------------------------------------------------------------

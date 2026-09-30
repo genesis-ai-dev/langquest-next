@@ -181,18 +181,30 @@ export function Row(props: {
   onPress?: () => void;
   last?: boolean;
   muted?: boolean;
-  /** How a screen reader should treat it: a choice among several is a radio, a pick-many a checkbox. */
-  role?: 'button' | 'radio' | 'checkbox' | 'link';
+  /**
+   * How a screen reader should treat it: a choice among several is a radio, a pick-many a checkbox.
+   * A switch is the whole row (a 48pt target, not just the thumb) showing `checked` as a switch;
+   * its sub says what the setting does, so it wraps in full.
+   */
+  role?: 'button' | 'radio' | 'checkbox' | 'link' | 'switch';
   selected?: boolean;
   checked?: boolean;
   expanded?: boolean;
+  disabled?: boolean;
   accessibilityLabel?: string;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : {}),
     ...(props.checked !== undefined ? { checked: props.checked } : {}),
-    ...(props.expanded !== undefined ? { expanded: props.expanded } : {})
+    ...(props.expanded !== undefined ? { expanded: props.expanded } : {}),
+    ...(props.disabled ? { disabled: true } : {})
   };
+  const right = props.right ?? (props.role === 'switch' ? (
+    // Drawn only: the row takes the tap and speaks as the switch.
+    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Toggle on={props.checked === true} disabled={props.disabled} label={props.label} onToggle={() => {}} />
+    </View>
+  ) : props.onPress ? <Ico name="right" size={22} color={C.muted} /> : null);
   const body = (
     <>
       {props.leading ?? (props.icon ? (
@@ -202,17 +214,17 @@ export function Row(props: {
       ) : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.body, { fontWeight: '600' }, props.muted && { color: C.muted }]} numberOfLines={2}>{props.label}</Text>
-        {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={props.role === 'switch' ? undefined : 2}>{props.sub}</Text> : null}
         {props.below ? <View style={{ marginTop: space.sm }}>{props.below}</View> : null}
       </View>
       {props.badge ? <Badge label={props.badge} {...(props.badgeTone ? { tone: props.badgeTone } : {})} /> : null}
-      {props.right ?? (props.onPress ? <Ico name="right" size={22} color={C.muted} /> : null)}
+      {right}
     </>
   );
   const style = [styles.row, !props.last && styles.rowBorder];
   if (!props.onPress) return <View style={style}>{body}</View>;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
     </Pressable>
