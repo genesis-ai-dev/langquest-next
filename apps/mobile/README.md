@@ -105,7 +105,7 @@ manual commands below remain for other channels and for shipping by hand.
 
 The hosted database and Edge Functions follow the same merge: the GitHub
 workflow `.github/workflows/deploy-supabase.yml` applies new migrations and
-then deploys the functions (decisions.md 40). `npm run db:apply` remains for
+then deploys the functions (decisions.md 42). `npm run db:apply` remains for
 applying by hand.
 
 `runtimeVersion` is the `fingerprint` policy and updates point at this EAS

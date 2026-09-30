@@ -280,6 +280,10 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dE', 'lead2', 'v1.LaneUnitHidden', { laneId: 'L2', unitId: 'langquest.fia-eng/GEN.2.4-25', hidden: false });
   emit('dA', 'lead', 'v2.LaneFlowSelected', { laneId: 'L2', flowId: 'langquest.standard~aaaaaaaaaaaa', catalogVersion: 2, itemId: 'langquest.standard', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'Standard Bible Flow' });
   emit('dE', 'lead2', 'v1.LaneFlowSelected', { laneId: 'L2', flowId: 'quick_check', catalogVersion: 2 });
+  emit('dA', 'lead', 'v1.LaneCountrySet', { laneId: 'L1', country: 'SS' });
+  emit('dE', 'lead2', 'v1.LaneCountrySet', { laneId: 'L1', country: 'SD' });
+  emit('dA', 'lead', 'v1.LaneTargetSet', { laneId: 'L1', scope: 'nt', startDate: '2026-01-01', targetDate: '2027-07-01' });
+  emit('dE', 'lead2', 'v1.LaneTargetSet', { laneId: 'L1', scope: 'gospels', startDate: '2026-01-01', targetDate: '2026-12-31' });
 
   // Ties the merge rules must settle without looking at arrival order
   // (event-sourced-sync, "Tests to write"): the same review id from two

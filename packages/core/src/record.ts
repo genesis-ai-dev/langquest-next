@@ -142,7 +142,18 @@ export type RecordEvents = {
   'v1.StudyStepMarked': { unitId: string; laneId: string; guideId: string; stepId: string; done: boolean };
   /** A language's display name ("Dinka") beside its code (ORG-2). Register per lane. */
   'v1.LaneNamed': { laneId: string; name: string };
+  /** Where a language's work happens, as an ISO 3166-1 alpha-2 code ("SS"), for the dashboard's geography. Register per lane. */
+  'v1.LaneCountrySet': { laneId: string; country: string };
+  /**
+   * What a language aims to record, from when and by when (`YYYY-MM-DD`),
+   * for the dashboard's pace (decision 41). Register per lane.
+   */
+  'v1.LaneTargetSet': { laneId: string; scope: TargetScope; startDate: string; targetDate: string };
 };
+
+/** A share of the canon a language plans to record. */
+export type TargetScope = 'gospels' | 'nt' | 'ot' | 'bible';
+export const TARGET_SCOPES: readonly TargetScope[] = ['gospels', 'nt', 'ot', 'bible'];
 
 export type RecordEventType = keyof RecordEvents;
 
@@ -214,6 +225,10 @@ export interface RecordState {
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
   /** laneId -> display name register */
   laneNames: Record<string, { value: string; hlc: Hlc; eventId: string }>;
+  /** laneId -> country register */
+  laneCountries: Record<string, { value: string; hlc: Hlc; eventId: string }>;
+  /** laneId -> target register */
+  laneTargets: Record<string, { value: Omit<RecordEvents['v1.LaneTargetSet'], 'laneId'>; hlc: Hlc; eventId: string }>;
 }
 
 export function emptyRecordState(): RecordState {
@@ -227,7 +242,9 @@ export function emptyRecordState(): RecordState {
     withdrawnRequests: {},
     notes: {},
     studyMarks: {},
-    laneNames: {}
+    laneNames: {},
+    laneCountries: {},
+    laneTargets: {}
   };
 }
 

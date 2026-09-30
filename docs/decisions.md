@@ -600,9 +600,70 @@ Amended (2026-09-29, Caleb Koster): the switch is built, a "Send diagnostics"
 row in Settings, on by default as decided; only the privacy notice text is
 still to be written.
 
-## 40. Merging to main deploys the hosted database and Edge Functions
+## 40. Dashboards read server projections of the shared reducer; organization totals are summed from visible language rows
 
-Date: 2026-09-29 · By: Caleb Koster · Status: accepted
+Date: 2026-09-29 · By: Carl Sauder · Status: accepted
+
+Reason: coordinators want progress across an organization in a browser,
+and the browser should neither sync nor fold a whole Bible per language.
+The projection worker already folds every partition off the write path (one
+per language since decision 37), so it also writes one report per language (core `laneReports`, built on
+`derivePassage` and `languageProgress`, the same derivations as the phone's
+Status screen) into `lane_reports`, plus a daily point in
+`lane_report_days`. Both are read models: rebuildable, never written by a
+user, tagged with `REPORT_VERSION`, and refolded when the partition, the
+version or the day changes. Row-level security (`may_view_lane`, the
+`view_status` privilege at org, partition or that language's scope) decides
+which rows a person reads, and `apps/web` sums those rows itself instead of
+reading a stored organization total, so a member scoped to one language
+never learns another language's numbers. The web build reads the mobile
+app's encrypted env files (only `EXPO_PUBLIC_SUPABASE_URL` and
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` reach the bundle), so there is one place to
+change the server a build talks to. Figures lag by one projection pass,
+and the page says how old they are. Supersedes the deferred
+`project_summaries`. Reverse if: someone needs a figure that must be
+current to the second; then fold that one partition in the browser from a
+snapshot, the way the phone does.
+
+## 41. The portfolio dashboard reads server truth, and a language's country and target are events
+
+Date: 2026-09-30 · By: Carl Sauder · Status: accepted
+
+Reason: a partner built their own reporting tool on LangQuest v2 (upload
+recency, coverage of the Gospels and Testaments, a monthly chapter ledger,
+pace against a plan, alerts). Rebuilt here on the event log, per
+organization (decision 40's row-level security still decides what anyone
+sees):
+
+- Uploads are timed by the server's `BlobStored` clock, never a phone's
+  (PLAN.md 14.12): a recording counts on the day it reached the cloud.
+  Coverage is timed by a passage's first published version and weighted
+  by verses of the whole canon (core `coverage.ts`), shown recorded and
+  done side by side. A chapter counts in the ledger once, in the month its
+  first audio arrived; a month settles five days after it ends.
+- Recency bands keep the partner's thresholds (14, 21, 28, 35, 45 days) in
+  neutral words; pace compares recorded coverage of a target's scope with a
+  straight line from its start to its target date (on pace from 5 points
+  behind to 10 ahead; behind languages whose last eight weeks still finish
+  in time are "behind", the rest "stalled"). Both are read at view time
+  from the stored report, so they never go stale between passes.
+- Country and target are registers per lane (`v1.LaneCountrySet`,
+  `v1.LaneTargetSet`, `manage_structure`), not columns, so they sync,
+  merge and audit like everything else. The web app writes them with a
+  `SyncClient` over a memory store and waits for the server: it has no
+  offline use, so instead of an outbox it says "not saved" and keeps the
+  form (invariant 1 is about the phone's log; nothing here is dropped
+  silently). `REDUCER_VERSION` is 8 because an older build ignored these
+  events and its snapshots would hide them.
+- The partner's weekly field updates and Airtable intake stay out: they
+  are not LangQuest data.
+
+Reverse if: a partner needs figures across organizations; then add an
+observer grant and a policy, not a second data path.
+
+## 42. Merging to main deploys the hosted database and Edge Functions
+
+Date: 2026-09-30 · By: Caleb Koster · Status: accepted
 
 Reason: merges to `main` already ship the app to TestFlight, but migrations
 and the projection worker only reached the hosted project when someone ran

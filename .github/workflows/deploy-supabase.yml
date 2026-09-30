@@ -1,4 +1,4 @@
-# Merging to main deploys the hosted Supabase project (decisions.md 40):
+# Merging to main deploys the hosted Supabase project (decisions.md 42):
 # migrations first, then the Edge Functions, so an updated worker never
 # writes to a column its migration has not made yet. The app side ships
 # through apps/mobile/.eas/workflows/deploy-to-testflight.yml.

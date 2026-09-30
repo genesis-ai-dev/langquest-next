@@ -22,6 +22,8 @@ export * from './orgProject';
 export * from './sourceBibles';
 export * from './record';
 export * from './passage';
+export * from './coverage';
+export * from './reports';
 export { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook, type FiaPericope } from './catalogData';
 export * from './versification';
 export * from './libraryDocs';
