@@ -103,6 +103,11 @@ the GitHub repository connected to the EAS project once, with its base
 directory set to `apps/mobile` (expo.dev, project settings, GitHub). The
 manual commands below remain for other channels and for shipping by hand.
 
+The hosted database and Edge Functions follow the same merge: the GitHub
+workflow `.github/workflows/deploy-supabase.yml` applies new migrations and
+then deploys the functions (decisions.md 40). `npm run db:apply` remains for
+applying by hand.
+
 `runtimeVersion` is the `fingerprint` policy and updates point at this EAS
 project, so which changes need a new binary is decided for you rather than
 guessed:

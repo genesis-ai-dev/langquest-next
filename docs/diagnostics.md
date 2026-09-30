@@ -104,14 +104,15 @@ npm run diag -- error E-7K2Q01                     # the code a person read out
 npm run diag -- timeline <installId> --days 3      # one phone, in order
 ```
 
-Without `DIAG_DATABASE_URL` it reads the local database. For a hosted
-database, once:
-
-1. An owner gives the role a login:
-   `alter role diag_reader with login password '<generated>';`
-2. The connection string (Supavisor, user `diag_reader.<project-ref>`) goes
-   in an encrypted env file with dotenvx, never in plain text. It is a
-   support credential, so not in `apps/mobile/.env.*`, which EAS receives.
+Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
+database, someone with access to the linked project runs `npm run
+diag:access` once, after this migration is deployed. It gives the role a
+generated password and encrypts the connection string (Supavisor, user
+`diag_reader.<project-ref>`) into `supabase/.env.production` with dotenvx,
+printing nothing secret. It is a support credential, so never in
+`apps/mobile/.env.*`, which EAS receives. Then `npm run diag:hosted --
+report …` reads the hosted records; running `diag:access` again rotates
+the password.
 
 `diag_reader` can read the diag tables and run the report functions. It
 cannot read the event log, profiles, storage or anything else, and cannot
