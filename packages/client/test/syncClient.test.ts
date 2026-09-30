@@ -1,4 +1,4 @@
-import { HlcClock, applyOrgEvent, deriveTakeStatus, emptyOrgState, foldOrg, REDUCER_VERSION, type OrgState } from '@langquest-next/core';
+import { HlcClock, applyOrgEvent, deriveTakeStatus, emptyOrgState, foldOrg, REDUCER_VERSION, type OrgState, type ProjectState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
 import { FakeServer } from './fakeServer';
@@ -398,6 +398,57 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     await again.load();
     expect(Object.keys(again.getState().units).length).toBe(12);
     expect(await again.pendingCount()).toBe(0);
+  });
+
+  it('a device catching up on a big project checkpoints once, when caught up, and the checkpoint equals the full fold', async () => {
+    // Why: every checkpoint serializes the whole state. Taking one per 2000
+    // events while a new device pulls a 268k-event project ran it out of
+    // memory at 512 MB and made the pull quadratic. Checkpoints are only a
+    // cache, so the catch-up can skip them; the one it writes must still be
+    // exactly what folding the raw log gives.
+    const server = new FakeServer();
+    const writer = new SyncClient({
+      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dW', store: new MemoryStore(),
+      transport: server.transportFor(), newId: (() => { let k = 0; return () => `w${++k}`; })()
+    });
+    await writer.load();
+    for (let i = 0; i < 30; i++) {
+      await writer.append('v1.UnitAdded', { unitId: `u${i}`, parentUnitId: null, kind: 'passage', label: `P${i}`, order: `a${i}` });
+    }
+    await writer.sync();
+
+    const store = new MemoryStore();
+    const saves: string[] = [];
+    const commit = store.commit.bind(store);
+    store.commit = async (batch) => {
+      const snap = batch.meta?.['snapshot:org1/p1'];
+      if (snap) saves.push(snap);
+      return commit(batch);
+    };
+    const reader = new SyncClient({
+      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dR', store,
+      transport: server.transportFor(), checkpointEvery: 5, pullPageSize: 5
+    });
+    await reader.load();
+    let slices = 0;
+    for (;;) {
+      slices += 1;
+      const r = await reader.pullSlice(0); // the budget ends each slice after one page
+      if (!r.more) break;
+    }
+    expect(slices).toBeGreaterThan(2);
+    expect(saves.length).toBe(1);
+
+    const again = new SyncClient({
+      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dR', store,
+      transport: server.transportFor()
+    });
+    await again.load();
+    // The checkpoint pruned the local log here, so compare with the device that wrote it all.
+    expect(again.getState().units).toEqual(writer.getState().units);
+    expect(Object.keys(again.getState().units).length).toBe(30);
+    // The live state keeps its duplicate guard; only the saved copy is compacted.
+    expect(Object.keys((reader.getState() as ProjectState).appliedEventIds).length).toBe(30);
   });
 
   it('redacting an event that lives inside the snapshot refetches from the server', async () => {
