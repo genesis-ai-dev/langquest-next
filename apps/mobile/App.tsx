@@ -32,7 +32,7 @@ import * as Review from './src/screens/review';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
 import { C, colors, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
@@ -202,6 +202,7 @@ export default function App() {
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
   const [orgId, setOrgId] = useState(ORG_ID);
   const [selectionRevision, setSelectionRevision] = useState(0);
+  const [noOrganizations, setNoOrganizations] = useState(false);
   const key = `selection:${props.actorId}`;
   useEffect(() => {
     let active = true;
@@ -216,7 +217,10 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       const { data, error } = await supabase.rpc('my_organizations');
       if (error) { noteExpected('restore organization', error); return; }
       const first = (data as { org_id: string }[] | null)?.[0];
-      if (!active || !first) return;
+      if (!active) return;
+      // The server's own list is empty: a new account, in no organization yet.
+      setNoOrganizations(!first);
+      if (!first) return;
       await AsyncStorage.setItem(key, JSON.stringify({ orgId: first.org_id }));
       setOrgId(first.org_id);
     })().catch((e: unknown) => { reportError('restore organization', e); });
@@ -225,10 +229,11 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   const openOrganization = useCallback(async (next: string) => {
     await AsyncStorage.setItem(key, JSON.stringify({ orgId: next }));
     await AsyncStorage.removeItem('pending-invite');
+    setNoOrganizations(false);
     setOrgId(next);
     setSelectionRevision((revision) => revision + 1);
   }, [key]);
-  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} openOrganization={openOrganization} />;
+  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} />;
 }
 
 /**
@@ -237,7 +242,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; openOrganization: Ctx['openOrganization'] }) {
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; noOrganizations: boolean; openOrganization: Ctx['openOrganization'] }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
@@ -251,7 +256,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  * place, without leaving the screen.
  */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
-  orgId: string; org: OrgHandle; openOrganization: Ctx['openOrganization'] }) {
+  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization'] }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
   // ---- the language this person works in (MAP-7), and so the partition open ----
@@ -394,7 +399,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   //
   // Both folds must be loaded first: postSignInScreen reads the role out of
   // them, and routing early sends an admin to the wrong home.
-  const loaded = project.state !== null && org.state !== null;
+  const loaded = foldsSettled(org.state !== null, project.state !== null, props.noOrganizations);
   // Rendering must not wait on the log fold. The home screen for this
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.

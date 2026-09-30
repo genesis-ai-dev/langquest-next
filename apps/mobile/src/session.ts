@@ -130,6 +130,16 @@ export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
  */
 export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy'];
 
+/**
+ * Has enough arrived to route a signed-in person? The org fold must be in.
+ * The language partition must be in too, unless the server lists no
+ * organization for this person: they have no partition to sync, nothing more
+ * will come, and waiting would keep them on Sign In for ever.
+ */
+export function foldsSettled(orgLoaded: boolean, projectLoaded: boolean, noOrganizations: boolean): boolean {
+  return orgLoaded && (projectLoaded || noOrganizations);
+}
+
 /** Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to yet. */
 export function postSignInScreen(s: Session): ScreenId {
   return s.isFirstTime && !s.hasNoOrg ? 'welcome' : homeScreenFor(s);
