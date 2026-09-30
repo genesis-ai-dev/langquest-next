@@ -17,13 +17,15 @@
  *
  * Publishing goes through the service-role RPCs `library_seed_document`
  * (dependencies first) and `library_seed_events`, at SUPABASE_URL (local by
- * default) with SUPABASE_SERVICE_ROLE_KEY. A non-local URL needs `--hosted`,
+ * default, its key from `supabase status`) with SUPABASE_SERVICE_ROLE_KEY. A
+ * non-local URL needs `--hosted`,
  * and the owner's go-ahead (library/README.md).
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
   bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_PARTITION, parseRef,
   QUESTION_TEMPLATES, usfmOf, validateDoc, withDeps,
@@ -287,12 +289,11 @@ async function main(argv: string[]) {
   console.log(summary(build, events));
   if (argv.includes('--dry-run')) return;
 
-  const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
-  const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required (for local: npx supabase status -o env)');
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url) && !argv.includes('--hosted')) {
+  const url = process.env['SUPABASE_URL'] ?? LOCAL_URL;
+  if (!isLocalUrl(url) && !argv.includes('--hosted')) {
     throw new Error(`${url} is not local; seeding a hosted project needs --hosted and the owner's go-ahead`);
   }
+  const key = supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url);
   const { createClient } = await import('@supabase/supabase-js');
   const db = createClient(url, key, { auth: { persistSession: false } });
 

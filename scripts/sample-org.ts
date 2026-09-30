@@ -4,7 +4,8 @@
  *
  *   npm run sample:org -- [--invites 10] [--role org_admin] [--hosted] [--history]
  *
- * with SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY set.
+ * against the local Supabase by default (keys from `supabase status`), or
+ * SUPABASE_URL with SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY set.
  * The library must be seeded first (`npm run library:seed`).
  *
  * It signs in as a sample admin account (made with the service role; its
@@ -34,6 +35,7 @@ import {
   applyOrgEvent, emptyOrgState, emptyState, foldOrg, ORG_PARTITION, REDUCER_VERSION, SEED_ROLES, selectFlowSpecs, selectTemplateSpecs,
   subscriptionItemId, type EventSpec, type FlowDoc, type LibraryDoc, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
+import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import { addHistory, dashboardLogin } from './sample-history';
 
 export const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
@@ -60,12 +62,6 @@ const orgMaterializer = {
   empty: emptyOrgState, apply: applyOrgEvent, fold: foldOrg,
   compact: (s: OrgState) => { s.appliedEventIds = {}; }, version: REDUCER_VERSION
 };
-
-function need(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
-  return v;
-}
 
 async function rpc<T>(sb: SupabaseClient, fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await sb.rpc(fn, args);
@@ -95,8 +91,8 @@ async function signIn(url: string, anon: string, service: string): Promise<{ sb:
 
 async function main(argv: string[]) {
   const value = (name: string, fallback: string) => { const i = argv.indexOf(`--${name}`); return i >= 0 && argv[i + 1] ? argv[i + 1]! : fallback; };
-  const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
-  const local = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url);
+  const url = process.env['SUPABASE_URL'] ?? LOCAL_URL;
+  const local = isLocalUrl(url);
   if (!local && !argv.includes('--hosted')) {
     throw new Error(`${url} is not local; a hosted project needs --hosted and the owner's go-ahead`);
   }
@@ -104,7 +100,7 @@ async function main(argv: string[]) {
   if (history && !local) {
     throw new Error('--history back-dates upload confirmations in the database directly, which only a local database allows; run it against the local Supabase');
   }
-  const { sb, userId } = await signIn(url, need('SUPABASE_ANON_KEY'), need('SUPABASE_SERVICE_ROLE_KEY'));
+  const { sb, userId } = await signIn(url, supabaseKey('SUPABASE_ANON_KEY', url), supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url));
   const transport = new SupabaseTransport(sb);
   const client = <S>(projectId: string, materializer?: typeof orgMaterializer) => new SyncClient<S>({
     orgId: SAMPLE_ORG.id, projectId, actorId: userId, deviceId: 'sample-script', store: new MemoryStore(), transport,
@@ -184,10 +180,10 @@ async function main(argv: string[]) {
 
   // 4. Months of work behind each language, for the web dashboard.
   if (history) {
-    const service = createClient(url, need('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
+    const service = createClient(url, supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url), { auth: { persistSession: false, autoRefreshToken: false } });
     await addHistory({ sb, service, orgId: SAMPLE_ORG.id, actorId: userId, laneIds: languages.map((l) => l.laneId) });
     const login = await dashboardLogin({
-      url, anon: need('SUPABASE_ANON_KEY'), service, sb, orgId: SAMPLE_ORG.id,
+      url, anon: supabaseKey('SUPABASE_ANON_KEY', url), service, sb, orgId: SAMPLE_ORG.id,
       isMember: (id) => Object.values(orgState().members[id] ?? {}).some((m) => !m.removed.value)
     });
     console.log(`\nWeb dashboard (npm run web:dev): sign in as ${login.email} with ${login.password} (a Coordinator; the password changes on every run).`);
