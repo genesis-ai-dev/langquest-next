@@ -65,15 +65,14 @@ Field diagnostics (`*_field_diagnostics.sql`, docs/diagnostics.md): schema
 `diag_ingest`; support reads them as `diag_reader` with `npm run diag`.
 `diag-smoke.sql` covers it in `npm run db:test`.
 
-Dashboard reports (migration 20260930000000, decision 40): each projection
-pass also writes `lane_reports` (one core `laneReports` row per language,
-skipped when the partition, `REPORT_VERSION` and day are unchanged) and
-today's `lane_report_days` point. Authenticated members read the rows
-`may_view_lane` allows (`view_status` at org, partition or that language);
-only the service role writes. `apps/web` reads them. For local demo data,
-`npm run sample:org -- --history` adds months of back-dated work to the
-sample org (local database only). Join it in the dev app with one of the
-invite codes it prints, and sign in to the dashboard with the same account.
+Dashboard reports (decision 44) are not stored here. The dashboard's own
+Worker (`apps/web/worker`) reads the server snapshots this worker writes and
+the tail through `pull_events` with the service role, and computes the
+reports itself; migration 20260930120000 drops the `lane_reports` tables of
+decision 40. For local demo data, `npm run sample:org -- --history` adds
+months of back-dated work to the sample org (local database only). Join it
+in the dev app with one of the invite codes it prints, and sign in to the
+dashboard (`npm run web:dev`) with the same account.
 
 A language's country and target (migration 20260930000001, decision 41):
 `v1.LaneCountrySet` and `v1.LaneTargetSet` need `manage_structure`;

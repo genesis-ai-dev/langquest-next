@@ -26,6 +26,11 @@ export function supabaseKey(name: 'SUPABASE_ANON_KEY' | 'SUPABASE_SERVICE_ROLE_K
   const set = process.env[name];
   if (set) return set;
   if (!isLocalUrl(url)) throw new Error(`${name} is not set; a hosted project needs its keys in the environment`);
+  return localKey(name);
+}
+
+/** A key of the local Supabase, whatever the environment holds. */
+export function localKey(name: 'SUPABASE_ANON_KEY' | 'SUPABASE_SERVICE_ROLE_KEY'): string {
   status ??= localStatus();
   const key = status[name === 'SUPABASE_ANON_KEY' ? 'ANON_KEY' : 'SERVICE_ROLE_KEY'];
   if (!key) throw new Error(`supabase status did not report ${name}`);

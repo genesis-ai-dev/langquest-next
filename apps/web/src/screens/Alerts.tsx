@@ -16,8 +16,8 @@ export function Alerts(props: { query: Record<string, string> }) {
   return (
     <OrgPage title="Alerts" section="alerts" query={props.query}>
       {(rows) => {
-        const pending = ctx.reports.status === 'ready' ? ctx.reports.data.pending : 0;
-        const alerts = alertsFor(rows, pending, ctx.now);
+        const asOf = ctx.reports.status === 'ready' ? ctx.reports.data.asOf : new Date(ctx.now).toISOString();
+        const alerts = alertsFor(rows, asOf, ctx.now);
         const count = (l: AlertLevel) => alerts.filter((a) => a.level === l).length;
         return (
           <>

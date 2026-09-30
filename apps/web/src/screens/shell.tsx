@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { alertsFor } from '../aggregate';
 import { signOut } from '../auth';
 import { countryName } from '../countries';
@@ -15,7 +15,8 @@ export interface OrgCtx {
   orgName: string;
   actorId: string;
   email: string;
-  reports: Loaded<OrgReports> & { reload: () => void };
+  /** `refresh` asks the server to catch up first, and keeps the page up meanwhile (after a save). */
+  reports: Loaded<OrgReports> & { reload: () => void; refresh: () => void };
   now: number;
 }
 
@@ -41,12 +42,18 @@ const NAV: { section: Section; label: string }[] = [
 /** One organization's pages: the sidebar, and its reports loaded once for every page. */
 export function OrgShell(props: { orgId: string; active: Section | null; actorId: string; email: string; orgs: Loaded<Organization[]>; children: ReactNode }) {
   const { orgId } = props;
-  const reports = useLoad(() => fetchOrgReports(orgId), orgId);
+  const fresh = useRef(false);
+  const loaded = useLoad(() => {
+    const f = fresh.current;
+    fresh.current = false;
+    return fetchOrgReports(orgId, f);
+  }, orgId);
+  const reports = { ...loaded, refresh: () => { fresh.current = true; loaded.reload(); } };
   const orgName = props.orgs.status === 'ready' ? props.orgs.data.find((o) => o.orgId === orgId)?.name ?? orgId : '';
   const now = Date.now();
   const ctx: OrgCtx = { orgId, orgName, actorId: props.actorId, email: props.email, reports, now };
   const open = reports.status === 'ready'
-    ? alertsFor(reports.data.rows, reports.data.pending, now).filter((a) => a.level !== 'fyi').length : 0;
+    ? alertsFor(reports.data.rows, reports.data.asOf, now).filter((a) => a.level !== 'fyi').length : 0;
   const theme = useTheme();
   return (
     <div className="shell">
@@ -110,7 +117,7 @@ export function OrgPage(props: {
       ) : undefined}>
       {reports.status === 'loading' ? <Loading what="reports" /> : null}
       {reports.status === 'error' ? <LoadFailed error={reports.error} retry={reports.reload} /> : null}
-      {reports.status === 'ready' && all.length === 0 ? <NoReports reports={reports.data} what="languages" /> : null}
+      {reports.status === 'ready' && all.length === 0 ? <NoReports what="languages" /> : null}
       {all.length ? props.children(rows, all) : null}
     </Page>
   );

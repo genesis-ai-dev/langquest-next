@@ -4,7 +4,9 @@ import { commands } from '../src/commands';
 import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
 import { derivePassage } from '../src/passage';
-import { laneReport, laneReports, paceOf, recencyOf, REPORT_WEEKS, weekStartOf } from '../src/reports';
+import { encodeHlc } from '../src/hlc';
+import { foldOrg, SEED_ROLES } from '../src/org';
+import { laneReport, laneReports, mayViewLane, paceOf, PROGRESS_DAYS, recencyOf, REPORT_WEEKS, weekStartOf } from '../src/reports';
 import { SCOPE_VERSES } from '../src/coverage';
 import { buildFixture, buildRecordFixture, buildStep11Fixture, shuffle } from './fixtures';
 
@@ -215,6 +217,30 @@ describe('coverage, uploads and the ledger', () => {
     expect(r.alerts.stuckSince?.slice(0, 10)).toBe('2026-09-10');
   });
 
+  it('draws the progress line from when passages were first published and when they were finished', () => {
+    const p = project();
+    const now = Date.UTC(2026, 8, 30, 12);
+    p.at(now - 200 * DAY);
+    publish(p, 'luke15', ['old']);
+    p.at(Date.UTC(2026, 8, 10, 9));
+    publish(p, 'john3', ['a']);
+    p.at(Date.UTC(2026, 8, 15, 9));
+    const takeId = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'rv', takeIds: [takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
+    p.at(Date.UTC(2026, 8, 20, 9));
+    publish(p, 'john4', ['b']);
+    const before = laneReport(p.state(), 'din', now);
+    expect(before.progressDaily.at(-1)).toEqual({ day: '2026-09-30', recorded: 3, done: 0 });
+    // With no steps left, each passage is done as of its last review, or its first version when it had none.
+    p.run('lead', (c) => c.useFlow({ commandId: 'collect', laneId: 'din', flowId: 'collect_only' }));
+    const r = laneReport(p.state(), 'din', now);
+    expect(r.progressDaily).toHaveLength(PROGRESS_DAYS);
+    expect(r.progressDaily[0]).toEqual({ day: '2026-07-03', recorded: 1, done: 1 });
+    expect(r.progressDaily.find((d) => d.day === '2026-09-10')).toEqual({ day: '2026-09-10', recorded: 2, done: 1 });
+    expect(r.progressDaily.find((d) => d.day === '2026-09-15')).toEqual({ day: '2026-09-15', recorded: 2, done: 2 });
+    expect(r.progressDaily.at(-1)).toEqual({ day: '2026-09-30', recorded: 3, done: 3 });
+  });
+
   it('carries the country and target an admin set', () => {
     const p = project();
     p.emit('lead', 'v1.LaneCountrySet', { laneId: 'din', country: 'SS' });
@@ -266,5 +292,51 @@ describe('weekStartOf', () => {
     expect(weekStartOf(Date.UTC(2026, 8, 28))).toBe(Date.UTC(2026, 8, 28));
     expect(weekStartOf(Date.UTC(2026, 8, 30, 18))).toBe(Date.UTC(2026, 8, 28));
     expect(weekStartOf(Date.UTC(2026, 9, 4, 23, 59))).toBe(Date.UTC(2026, 8, 28));
+  });
+});
+
+describe('mayViewLane', () => {
+  const org = (() => {
+    let seq = 0;
+    const ev = (type: string, payload: unknown) => {
+      seq += 1;
+      return { id: `o${seq}`, type, orgId: 'o', projectId: '_org', actorId: 'lead', deviceId: 'd', hlc: encodeHlc(1_700_000_000_000 + seq, 0, 'd'), payload } as AnyEvent;
+    };
+    return foldOrg([
+      ev('v1.OrgCreated', { name: 'Org' }),
+      ...SEED_ROLES.map((r) => ev('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
+      ev('v1.RoleDefined', { roleId: 'recorder', name: 'Recorder', privileges: ['translate'] }),
+      ev('v1.OrgMemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } }),
+      ev('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'project_coordinator', scope: { level: 'project', projectId: 'p' } }),
+      ev('v1.OrgMemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'lane', projectId: 'p', laneId: 'din' } }),
+      ev('v1.OrgMemberAdded', { profileId: 'recorder', roleId: 'recorder', scope: { level: 'org' } }),
+      ev('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'viewer', scope: { level: 'org' } }),
+      ev('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'org' } })
+    ]);
+  })();
+  const partition = project().state();
+
+  it('lets org and partition members see every language in the partition', () => {
+    for (const id of ['admin', 'coord']) {
+      expect(mayViewLane(org, partition, id, 'p', 'din')).toBe(true);
+      expect(mayViewLane(org, partition, id, 'p', 'nus')).toBe(true);
+    }
+    expect(mayViewLane(org, partition, 'coord', 'q', 'din')).toBe(false);
+  });
+
+  it('shows a member scoped to one language only that language', () => {
+    expect(mayViewLane(org, partition, 'dinka', 'p', 'din')).toBe(true);
+    expect(mayViewLane(org, partition, 'dinka', 'p', 'nus')).toBe(false);
+  });
+
+  it('counts a role in the partition member list, the older way of joining', () => {
+    expect(mayViewLane(org, partition, 'ayen', 'p', 'din')).toBe(true);
+    const p = project();
+    p.emit('lead', 'v1.MemberRemoved', { profileId: 'ayen' });
+    expect(mayViewLane(org, p.state(), 'ayen', 'p', 'din')).toBe(false);
+  });
+
+  it('refuses a stranger, a removed member and a role without view_status', () => {
+    for (const id of ['stranger', 'gone', 'recorder']) expect(mayViewLane(org, partition, id, 'p', 'din')).toBe(false);
   });
 });

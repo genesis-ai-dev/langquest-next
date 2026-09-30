@@ -8,9 +8,9 @@ import { hrefFor, parseRoute, type Route } from '../src/routes';
 import type { LaneRow } from '../src/types';
 
 /**
- * Organization figures are summed in the browser from the rows row-level
- * security returned (decision 40), so these sums are the whole of what a
- * coordinator reads as "the organization".
+ * Organization figures are summed in the browser from the rows the
+ * dashboard's server returned for this person (decision 44), so these sums
+ * are the whole of what a coordinator reads as "the organization".
  */
 
 const DAY = 86_400_000;
@@ -29,6 +29,7 @@ function report(over: Partial<LaneReport> & { name: string }): LaneReport {
     books: [], activity: [], lastActivity: null,
     coverage: { recorded: cov(), done: cov(), weekly: [] },
     milestones: [],
+    progressDaily: [],
     uploads: { cards: 0, chapters: 0, firstAt: null, lastAt: null, daily: [], log: [] },
     ledger: [],
     alerts: { stuckCards: 0, stuckPassages: 0, stuckSince: null, invalidCards: 0 },
@@ -164,9 +165,9 @@ describe('alerts', () => {
   it('raises stuck audio, stale figures and missing settings, the serious first', () => {
     const stuck = report({ name: 'Berom', country: 'NG', target: { scope: 'nt', startDate: '2026-01-01', targetDate: '2027-01-01' },
       alerts: { stuckCards: 400, stuckPassages: 30, stuckSince: '2026-08-01T00:00:00.000Z', invalidCards: 0 } });
-    const alerts = alertsFor([row(stuck, '2026-09-29T00:00:00Z'), row(report({ name: 'Nuer' }))], 2, NOW);
-    expect(alerts.map((a) => [a.id, a.level])).toEqual([['stuck', 'attention'], ['stale', 'look'], ['pending', 'fyi'], ['country', 'fyi'], ['target', 'fyi']]);
-    expect(alertsFor([row(report({ name: 'Ok', country: 'SS', target: { scope: 'nt', startDate: '2026-01-01', targetDate: '2027-01-01' } }))], 0, NOW)).toEqual([]);
+    const alerts = alertsFor([row(stuck), row(report({ name: 'Nuer' }))], '2026-09-30T11:00:00Z', NOW);
+    expect(alerts.map((a) => [a.id, a.level])).toEqual([['stuck', 'attention'], ['stale', 'look'], ['country', 'fyi'], ['target', 'fyi']]);
+    expect(alertsFor([row(report({ name: 'Ok', country: 'SS', target: { scope: 'nt', startDate: '2026-01-01', targetDate: '2027-01-01' } }))], '2026-09-30T11:50:00Z', NOW)).toEqual([]);
   });
 });
 
@@ -202,7 +203,9 @@ describe('CSV', () => {
 
 describe('dayPercents and timeAgo', () => {
   it('reads an empty day as zero, and says how old figures are in words', () => {
-    expect(dayPercents([{ day: '2026-09-28', total: 0, recorded: 0, done: 0 }])).toEqual([{ day: '2026-09-28', recorded: 0, done: 0 }]);
+    expect(dayPercents(report({ name: 'Empty', progress: { total: 0, recorded: 0, done: 0, steps: [], waiting: 0, feedback: 0 }, progressDaily: [{ day: '2026-09-28', recorded: 0, done: 0 }] })))
+      .toEqual([{ day: '2026-09-28', recorded: 0, done: 0 }]);
+    expect(dayPercents(report({ name: 'Half', progressDaily: [{ day: '2026-09-29', recorded: 5, done: 1 }] }))).toEqual([{ day: '2026-09-29', recorded: 50, done: 10 }]);
     expect(timeAgo('2026-09-30T11:59:30Z', NOW)).toBe('just now');
     expect(timeAgo('2026-09-30T09:00:00Z', NOW)).toBe('3 hours ago');
   });

@@ -2,7 +2,6 @@ import { percent, recencyOf, type Coverage, type LaneReport } from '@langquest-n
 import { Fragment } from 'react';
 import { SCOPE_LABEL, timeAgo } from '../aggregate';
 import { RECENCY_LABEL, RECENCY_TONE } from '../charts';
-import type { OrgReports } from '../data';
 import { Badge, Bar, Card, Notice, Stat, num, pctText, type Tone } from '../ui';
 
 /** Recorded and done as two labelled bars with counts. */
@@ -99,12 +98,9 @@ export function AttentionCard(props: { attention: LaneReport['attention'] }) {
 }
 
 /** Why a page with no numbers has none. */
-export function NoReports(props: { reports: OrgReports; what: string }) {
-  if (props.reports.pending > 0) {
-    return <Notice tone="gray" title="Reports are being updated" body="The server is refreshing these reports for this version of the dashboard. Check back in a few minutes." />;
-  }
+export function NoReports(props: { what: string }) {
   return <Notice tone="gray" title={`No ${props.what} to show yet`}
-    body="Reports appear after the server's next pass over new work. If you expected languages here, ask an administrator whether your role includes viewing status." />;
+    body="Languages appear here once the organization has one and your role lets you view its status. If you expected some, ask an administrator which languages your role covers." />;
 }
 
 export function Freshness(props: { updatedAt: string | null; now: number }) {
@@ -112,7 +108,7 @@ export function Freshness(props: { updatedAt: string | null; now: number }) {
   return (
     <p className="muted small" style={{ margin: 0 }}>
       Figures as of {new Date(props.updatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} ({timeAgo(props.updatedAt, props.now)}).
-      Work recorded offline appears after the phone syncs and the server's next pass.
+      Work recorded offline appears after the phone syncs.
     </p>
   );
 }

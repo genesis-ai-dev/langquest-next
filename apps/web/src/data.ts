@@ -1,8 +1,8 @@
 import { MemoryStore, OfflineError, SupabaseTransport, SyncClient } from '@langquest-next/client';
-import { REPORT_VERSION, type EventPayloads, type LaneReport, type Privilege } from '@langquest-next/core';
-import { useCallback, useEffect, useState } from 'react';
+import type { EventPayloads, Privilege } from '@langquest-next/core';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
-import type { LaneDay, LaneRow, Organization } from './types';
+import type { LaneRow, Organization, OrgReportsResponse } from './types';
 
 /** A read failed in a way the person should hear about in words, not a stack. */
 export class LoadError extends Error {
@@ -32,35 +32,31 @@ export async function fetchOrganizations(): Promise<Organization[]> {
 
 export interface OrgReports {
   rows: LaneRow[];
-  /** Rows the server has not yet refolded at this app's report version. */
-  pending: number;
+  /** When the dashboard's server last caught up with the log, ISO. */
+  asOf: string;
 }
 
-/** Every language report this person may read in one organization. */
-export async function fetchOrgReports(orgId: string): Promise<OrgReports> {
-  const { data, error } = await supabase.from('lane_reports')
-    .select('org_id,project_id,lane_id,report_version,updated_at,report')
-    .eq('org_id', orgId);
-  if (error) fail('Reports', error);
-  const rows: LaneRow[] = [];
-  let pending = 0;
-  for (const r of (data ?? []) as { org_id: string; project_id: string; lane_id: string; report_version: number; updated_at: string; report: LaneReport }[]) {
-    if (r.report_version !== REPORT_VERSION) { pending += 1; continue; }
-    rows.push({ orgId: r.org_id, projectId: r.project_id, laneId: r.lane_id, updatedAt: r.updated_at, report: r.report });
+/**
+ * Every language report this person may read in one organization, from the
+ * dashboard's own server (decision 44), which answers with only those rows.
+ * `fresh` makes it catch up first rather than answer from the last minute.
+ */
+export async function fetchOrgReports(orgId: string, fresh = false): Promise<OrgReports> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new LoadError('Your session has ended. Sign in again.');
+  let res: Response;
+  try {
+    res = await fetch(`/api/orgs/${encodeURIComponent(orgId)}/reports${fresh ? '?fresh=1' : ''}`, { headers: { authorization: `Bearer ${token}` } });
+  } catch (e) {
+    fail('Reports', e instanceof Error ? e : null);
   }
-  return { rows, pending };
-}
-
-/** A language's daily points, oldest first, for the last year. */
-export async function fetchLaneDays(orgId: string, projectId: string, laneId: string, now = Date.now()): Promise<LaneDay[]> {
-  const since = new Date(now - 366 * 86_400_000).toISOString().slice(0, 10);
-  const { data, error } = await supabase.from('lane_report_days')
-    .select('day,total,recorded,done')
-    .eq('org_id', orgId).eq('project_id', projectId).eq('lane_id', laneId)
-    .gte('day', since)
-    .order('day', { ascending: true });
-  if (error) fail('Progress over time', error);
-  return (data ?? []) as LaneDay[];
+  const body = await res.json().catch(() => null) as (OrgReportsResponse & { error?: string }) | null;
+  if (!res.ok || !body?.rows) fail('Reports', { message: body?.error ?? `the server answered ${res.status}` });
+  return {
+    asOf: body.asOf,
+    rows: body.rows.map((r) => ({ orgId, projectId: r.projectId, laneId: r.laneId, updatedAt: body.asOf, report: r.report }))
+  };
 }
 
 /** This person's privileges over a partition (optionally one language), to decide which edits to offer. */
@@ -114,13 +110,20 @@ export type Loaded<T> =
   | { status: 'ready'; data: T }
   | { status: 'error'; error: LoadError };
 
-/** Load once per key; `reload` asks again. Stale answers from an earlier key are dropped. */
+/**
+ * Load once per key; `reload` asks again. Stale answers from an earlier key
+ * are dropped. A reload of the same key keeps showing what it has until the
+ * new answer comes, so a page does not blank while it refreshes.
+ */
 export function useLoad<T>(load: () => Promise<T>, key: string): Loaded<T> & { reload: () => void } {
   const [state, setState] = useState<Loaded<T>>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const loadedKey = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
-    setState({ status: 'loading' });
+    const sameKey = loadedKey.current === key;
+    loadedKey.current = key;
+    setState((s) => (sameKey && s.status === 'ready' ? s : { status: 'loading' }));
     load().then(
       (data) => { if (active) setState({ status: 'ready', data }); },
       (e: unknown) => {

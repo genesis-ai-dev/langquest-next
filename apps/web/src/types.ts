@@ -5,20 +5,19 @@ export interface Organization {
   name: string;
 }
 
-/** One language's stored report, as row-level security lets this person read it. */
+/** What `GET /api/orgs/:org/reports` returns: the languages this person may see. */
+export interface OrgReportsResponse {
+  rows: { projectId: string; laneId: string; report: LaneReport }[];
+  /** When the dashboard's server last caught up with the log, ISO. */
+  asOf: string;
+}
+
+/** One language's report, as the page holds it. */
 export interface LaneRow {
   orgId: string;
   projectId: string;
   laneId: string;
-  /** When the server last folded it. */
+  /** When the server last caught up with the log (the response's `asOf`). */
   updatedAt: string;
   report: LaneReport;
-}
-
-/** One day's point on a language's progress line. */
-export interface LaneDay {
-  day: string;
-  total: number;
-  recorded: number;
-  done: number;
 }

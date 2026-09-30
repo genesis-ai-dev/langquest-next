@@ -1,14 +1,27 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // Static assets only: the dashboard talks to Supabase directly with the
-  // signed-in person's session, and row-level security decides what it sees.
   "name": "langquest-dashboard",
+  "main": "worker/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-29",
+  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "observability": { "enabled": true },
+  // The built page; only /api/* reaches the Worker first.
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Local development overrides both from .dev.vars (npm run web:dev writes it).
+  "vars": { "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co" },
+  // Encrypted in apps/web/.env.production; npm run web:secrets pushes it.
+  "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
+  // One per organization (decision 44), holding its folded state in memory.
+  "durable_objects": {
+    "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }]
 }

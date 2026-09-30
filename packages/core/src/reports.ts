@@ -4,6 +4,7 @@ import {
   deriveFlow, deriveKinds, derivePassage, laneName, languageProgress, stepName, unitPlace,
   type LanguageProgress, type PassageState
 } from './passage';
+import { privilegesFor, privilegesOfFixedRole, type OrgState } from './org';
 import { TARGET_SCOPES, type TargetScope } from './record';
 import type { ProjectState } from './state';
 
@@ -11,8 +12,9 @@ import type { ProjectState } from './state';
  * Progress reports for the web dashboard: one per language, read from the
  * passage record the app shows (`derivePassage`, `languageProgress`), so a
  * coordinator's report and the phone's Status screen never disagree. A pure
- * function of the fold and a date; the projection worker stores the result
- * as a rebuildable read model (decision 40), nothing here is authoritative.
+ * function of the fold and a date; the dashboard's server computes it from
+ * its snapshot of the organization (decision 44), and nothing here is
+ * authoritative.
  *
  * Uploads are timed by the server's `BlobStored` confirmation, never the
  * phone's clock (PLAN.md section 14, "measure from server truth"): a card
@@ -20,13 +22,15 @@ import type { ProjectState } from './state';
  * passage's first version was published.
  */
 
-/** Bump when the report's shape or meaning changes; stored rows at another version are rewritten. */
-export const REPORT_VERSION = 2;
+/** Bump when the report's shape or meaning changes. */
+export const REPORT_VERSION = 3;
 
 /** Weeks of activity and coverage history a report carries, ending with the week that holds `now`. */
 export const REPORT_WEEKS = 53;
 /** Days of daily upload counts. */
 export const REPORT_DAYS = 35;
+/** Days of the progress line. */
+export const PROGRESS_DAYS = 90;
 /** Days of the chapter log. */
 export const LOG_DAYS = 14;
 /** Months of the ledger, ending with the month that holds `now`. */
@@ -93,6 +97,13 @@ export interface LogEntry {
 /** Share of a scope's verses, in percent with one decimal. */
 export type Coverage = Record<TargetScope, number>;
 
+/** Passages recorded and done as of the end of a day. */
+export interface ProgressDay {
+  day: string;
+  recorded: number;
+  done: number;
+}
+
 export interface CoverageWeek {
   /** Sunday that ends the week, UTC. */
   weekEnd: string;
@@ -150,6 +161,8 @@ export interface LaneReport {
   /** Coverage of the canon by verses: passages with a published version, and passages done through the flow. */
   coverage: { recorded: Coverage; done: Coverage; weekly: CoverageWeek[] };
   milestones: Milestone[];
+  /** One point per day for the last PROGRESS_DAYS, ending today; out of `progress.total`. */
+  progressDaily: ProgressDay[];
   uploads: {
     /** Cards on the server, all time. */
     cards: number;
@@ -228,6 +241,9 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
   // Verse index -> when a passage covering it was first published; and verses in done passages.
   const recordedAt = new Map<number, number>();
   const doneVerses = new Set<number>();
+  // Per passage: when its first version was published, and when the review or departure that finished it landed.
+  const passageRecorded: number[] = [];
+  const passageDone: number[] = [];
 
   for (const s of passages) {
     const w = passageWork(s);
@@ -255,6 +271,8 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
     const first = s.versions[0];
     if (first) {
       const at = wallOf(first.hlc);
+      passageRecorded.push(at);
+      if (s.done) passageDone.push(Math.max(at, ...s.reviews.map((r) => wallOf(r.hlc)), ...s.departures.map((d) => wallOf(d.hlc))));
       for (const v of unitVerses(state, s.unitId)) {
         const prior = recordedAt.get(v);
         if (prior === undefined || at < prior) recordedAt.set(v, at);
@@ -293,6 +311,17 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
     }
   }
   milestones.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+
+  passageRecorded.sort((a, b) => a - b);
+  passageDone.sort((a, b) => a - b);
+  const progressStart = Math.floor(now / DAY_MS) * DAY_MS - (PROGRESS_DAYS - 1) * DAY_MS;
+  let ri = 0, di = 0;
+  const progressDaily: ProgressDay[] = Array.from({ length: PROGRESS_DAYS }, (_, i) => {
+    const end = progressStart + (i + 1) * DAY_MS - 1;
+    while (ri < passageRecorded.length && passageRecorded[ri]! <= end) ri += 1;
+    while (di < passageDone.length && passageDone[di]! <= end) di += 1;
+    return { day: isoDay(progressStart + i * DAY_MS), recorded: ri, done: di };
+  });
 
   // ---- uploads, ledger, alerts --------------------------------------------
   const firstDay = Math.floor(now / DAY_MS) * DAY_MS - (REPORT_DAYS - 1) * DAY_MS;
@@ -392,6 +421,7 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
       })
     },
     milestones,
+    progressDaily,
     uploads: {
       cards: cardsOnServer,
       chapters: chapterFirst.size,
@@ -408,6 +438,18 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
       invalidCards: stuck.invalidCards
     }
   };
+}
+
+/**
+ * May this person see a language's report? `view_status` from an org,
+ * partition or that language's membership, or from a role in the
+ * partition's own member list (the older way of joining). A member scoped to
+ * one language sees only that language.
+ */
+export function mayViewLane(org: OrgState, project: ProjectState, profileId: string, projectId: string, laneId: string): boolean {
+  if (privilegesFor(org, profileId, { projectId, laneId }).has('view_status')) return true;
+  const member = project.members[profileId];
+  return !!member && !member.removed.value && privilegesOfFixedRole(member.role.value).has('view_status');
 }
 
 /** Every language in the partition, by lane id. */

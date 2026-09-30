@@ -4,11 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "dotenvx run -f ../mobile/.env.development.local -f ../mobile/.env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -- vite",
-    "build": "tsc --noEmit && dotenvx run -f ../mobile/.env.production -fk ../../.env.keys --strict -- vite build",
-    "build:preview": "tsc --noEmit && dotenvx run -f ../mobile/.env.preview -fk ../../.env.keys --strict -- vite build",
-    "deploy": "npm run build && wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "dev": "tsx ../../scripts/web-dev-vars.ts && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.development.local -f ../mobile/.env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -- vite",
+    "build": "tsc --noEmit && tsc -p worker && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.production -fk ../../.env.keys --strict -- vite build",
+    "build:preview": "tsc --noEmit && tsc -p worker && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.preview -fk ../../.env.keys --strict -- vite build",
+    "deploy": "npm run build && wrangler deploy --profile langquest-email",
+    "typecheck": "tsc --noEmit && tsc -p worker"
   },
   "dependencies": {
     "@langquest-next/client": "*",
@@ -22,6 +22,8 @@
     "world-atlas": "^2.0.2"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.62.3",
+    "@cloudflare/workers-types": "^5.20260930.2",
     "@types/d3-geo": "^3.1.1",
     "@types/react": "~19.2.2",
     "@types/react-dom": "~19.2.2",

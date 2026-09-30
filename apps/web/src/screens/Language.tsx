@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { dayPercents, laneCsv, milestoneText, SCOPE_LABEL } from '../aggregate';
 import { ActivityChart, DayBars, PACE_ADVICE, PACE_LABEL, PACE_TONE, ProgressLine, RECENCY_ADVICE, RECENCY_LABEL, RECENCY_TONE, shortDate, WorkBar } from '../charts';
 import { COUNTRY_CODES, countryName } from '../countries';
-import { fetchLaneDays, fetchPrivileges, LoadError, saveLaneSetting, useLoad } from '../data';
+import { fetchPrivileges, LoadError, saveLaneSetting, useLoad } from '../data';
 import { orgRoute } from '../routes';
 import type { LaneRow } from '../types';
 import { Badge, Bar, Card, download, fileName, LoadFailed, Loading, Notice, num, Page, pctText } from '../ui';
@@ -28,9 +28,9 @@ export function LanguageScreen(props: { projectId: string; laneId: string }) {
       {reports.status === 'loading' ? <Loading what="the report" /> : null}
       {reports.status === 'error' ? <LoadFailed error={reports.error} retry={reports.reload} /> : null}
       {reports.status === 'ready' && !row ? (
-        reports.data.rows.length === 0 ? <NoReports reports={reports.data} what="report for this language" /> : (
+        reports.data.rows.length === 0 ? <NoReports what="report for this language" /> : (
           <Notice tone="gray" title="This language has no report you can see"
-            body="It may be new (reports appear after the server's next pass), or your role may not include this language." />
+            body="Your role may not include this language, or it was added after this page loaded (reload to check)." />
         )
       ) : null}
       {row ? <LanguageBody row={row} /> : null}
@@ -41,7 +41,6 @@ export function LanguageScreen(props: { projectId: string; laneId: string }) {
 function LanguageBody(props: { row: LaneRow }) {
   const ctx = useOrgCtx();
   const { report: r, orgId, projectId, laneId } = { ...props.row, orgId: ctx.orgId };
-  const days = useLoad(() => fetchLaneDays(orgId, projectId, laneId), `${orgId}/${projectId}/${laneId}`);
   const privileges = useLoad(() => fetchPrivileges(orgId, projectId, laneId), `${orgId}/${projectId}/${laneId}/privileges`);
   const recency = recencyOf(r, ctx.now);
   const pace = paceOf(r, ctx.now);
@@ -101,10 +100,8 @@ function LanguageBody(props: { row: LaneRow }) {
         <Card title="Activity" sub="By week.">
           <ActivityChart weeks={r.activity.slice(-12)} withCards />
         </Card>
-        <Card title="Progress over time" sub="Share of passages recorded and done, one point per day.">
-          {days.status === 'loading' ? <Loading what="progress over time" /> : null}
-          {days.status === 'error' ? <LoadFailed error={days.error} retry={days.reload} /> : null}
-          {days.status === 'ready' ? <ProgressLine points={dayPercents(days.data)} /> : null}
+        <Card title="Progress over time" sub="Share of passages recorded and done, one point per day for the last 90 days.">
+          <ProgressLine points={dayPercents(r)} />
         </Card>
       </div>
       <BooksCard report={r} />
@@ -205,7 +202,8 @@ function SettingsCard(props: { row: LaneRow }) {
     try {
       if (what === 'country') await saveLaneSetting(who, 'v1.LaneCountrySet', { laneId: r.laneId, country });
       else await saveLaneSetting(who, 'v1.LaneTargetSet', { laneId: r.laneId, scope, startDate: start, targetDate: end });
-      setStatus({ tone: 'green', text: 'Saved. The figures show it after the server\u2019s next pass, usually within minutes.' });
+      setStatus({ tone: 'green', text: 'Saved.' });
+      ctx.reports.refresh();
     } catch (err) {
       setStatus({ tone: err instanceof LoadError && err.offline ? 'amber' : 'red', text: err instanceof Error ? err.message : 'Not saved.' });
     } finally {
