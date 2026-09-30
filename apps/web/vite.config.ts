@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { cloudflare } from '@cloudflare/vite-plugin';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
-  plugins: [react()],
+  // The Worker (worker/index.ts) and its Durable Object run inside Vite in
+  // development, and are built beside the page for `wrangler deploy`.
+  plugins: [react(), cloudflare()],
   // The dashboard reads the same Supabase project as the phones, from the
   // mobile app's encrypted env files. Only these two names reach the bundle;
   // anything else in those files (dev logins) stays out.

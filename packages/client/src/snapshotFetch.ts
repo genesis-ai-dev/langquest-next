@@ -8,7 +8,7 @@ import type { Transport } from './types';
  * to `onChunk` before the next is requested.
  */
 export async function fetchSnapshot(
-  transport: Transport,
+  transport: Pick<Transport, 'snapshotMeta' | 'snapshotChunk'>,
   orgId: string,
   projectId: string,
   reducerVersion: number,

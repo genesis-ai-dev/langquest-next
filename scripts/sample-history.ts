@@ -7,13 +7,12 @@ import {
   applyEvent, buildIndexes, commands, deriveFlow, deriveKinds, derivePassage, encodeHlc, laneLeafUnits, unitPlace,
   type AnyEvent, type EventSpec, type ProjectState
 } from '@langquest-next/core';
-import { runProjections } from '../server/projectionWorker';
 import { HISTORY_PROFILES, planHistory, seeded, silentWav, uploadedAt } from './sample-history-plan';
 
 /**
  * `npm run sample:org -- --history`: months of recording and review behind
  * each sample language, so every page of the web dashboard has something to
- * show (decisions 40 and 41). Local only, and for one reason: a real upload
+ * show (decisions 41 and 43). Local only, and for one reason: a real upload
  * is confirmed by the storage trigger at the moment it lands, and the
  * dashboard needs uploads from weeks ago. So the script writes each
  * `v1.BlobStored` itself, back-dated, straight into the local database
@@ -57,7 +56,6 @@ export async function addHistory(c: Ctx): Promise<void> {
   const now = c.now ?? Date.now();
   const transport = new SupabaseTransport(c.sb);
   const blobs: Blob[] = [];
-  const backfill: { projectId: string; state: ProjectState }[] = [];
 
   for (const laneId of c.laneIds) {
     const profile = HISTORY_PROFILES[laneId];
@@ -152,7 +150,6 @@ export async function addHistory(c: Ctx): Promise<void> {
       if (specs.length) await append(specs, a.at);
     }
     await flush();
-    backfill.push({ projectId, state });
     console.log(`${laneId}: ${plan.filter((a) => a.kind === 'record').length} passages, ${recordings} recordings`);
   }
 
@@ -185,30 +182,4 @@ end $$;`);
     }
     console.log(`${blobs.length} recordings uploaded, confirmed as of when they were made`);
   }
-
-  if (!backfill.length) return;
-  await runProjections(c.service);
-  // The worker writes one point per day from now on; the days before come from the same events.
-  const days: Record<string, unknown>[] = [];
-  for (const { projectId, state } of backfill) {
-    for (const laneId of Object.keys(state.lanes)) {
-      const passages = laneLeafUnits(state, buildIndexes(state), laneId).map((u) => derivePassage(state, u, laneId));
-      const wallOf = (hlc: string) => Number(hlc.slice(0, hlc.indexOf(':')));
-      const recordedAt = passages.map((p) => (p.versions[0] ? wallOf(p.versions[0].hlc) : Infinity));
-      // Done when the last review or departure that finished it landed.
-      const doneAt = passages.map((p) => (p.done ? Math.max(...[...p.reviews, ...p.departures].map((x) => wallOf(x.hlc)), recordedAt[passages.indexOf(p)]!) : Infinity));
-      for (let d = 90; d >= 1; d--) {
-        const end = Math.floor((now - d * DAY) / DAY) * DAY + DAY - 1;
-        days.push({
-          org_id: c.orgId, project_id: projectId, lane_id: laneId, day: new Date(end).toISOString().slice(0, 10), total: passages.length,
-          recorded: recordedAt.filter((t) => t <= end).length, done: doneAt.filter((t) => t <= end).length
-        });
-      }
-    }
-  }
-  for (let i = 0; i < days.length; i += 500) {
-    const { error } = await c.service.from('lane_report_days').upsert(days.slice(i, i + 500));
-    if (error) throw new Error(`lane_report_days: ${error.message}`);
-  }
-  console.log('Dashboard reports written.');
 }

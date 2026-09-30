@@ -3,11 +3,11 @@ import {
   type ActivityWeek, type LaneReport, type LogEntry, type Milestone, type Pace, type PaceBand, type PassageWork,
   type Portfolio, type RecencyBand, type TargetScope
 } from '@langquest-next/core';
-import type { LaneDay, LaneRow } from './types';
+import type { LaneRow } from './types';
 
 /**
  * Organization figures, summed in the browser from the language rows this
- * person may read (decision 40). Nothing here is stored: a member scoped to
+ * person may read (decision 44). Nothing here is stored: a member scoped to
  * one language gets figures for that language only. Everything takes `now`
  * so a page reads "check in" or "overdue" as of the moment it is looked at.
  */
@@ -465,23 +465,21 @@ export interface Alert {
   rows: LaneRow[];
 }
 
-/** Checks on the data itself, in plain language. Stale figures come first because they make every other page wrong. */
-export function alertsFor(rows: LaneRow[], pending: number, now: number): Alert[] {
+/** Figures older than this were read long before the page was looked at. */
+export const STALE_AFTER_MS = 15 * 60_000;
+
+/**
+ * Checks on the data itself, in plain language. `asOf` is when the
+ * dashboard's server last caught up with the log; it catches up on every
+ * load, so old figures mean the page has been open a while.
+ */
+export function alertsFor(rows: LaneRow[], asOf: string, now: number): Alert[] {
   const out: Alert[] = [];
-  const oldest = rows.reduce<string | null>((a, r) => earlier(a, r.updatedAt), null);
-  if (oldest && now - Date.parse(oldest) > 6 * 3600_000) {
-    const stale = rows.filter((r) => now - Date.parse(r.updatedAt) > 6 * 3600_000);
+  if (now - Date.parse(asOf) > STALE_AFTER_MS) {
     out.push({
-      id: 'stale', level: 'look', title: 'Some figures are more than six hours old',
-      body: `${plural(stale.length, 'language report')} ${verb(stale.length, 'was', 'were')} last refreshed ${timeAgo(oldest, now)}. The server refreshes reports on a schedule; a long gap means the projection job is not running.`,
-      action: 'Check the project-projections job and its logs.', rows: stale
-    });
-  }
-  if (pending > 0) {
-    out.push({
-      id: 'pending', level: 'fyi', title: 'Reports are being rebuilt for a new version',
-      body: `${plural(pending, 'language report')} ${verb(pending, 'is', 'are')} from an older version and ${verb(pending, 'is', 'are')} hidden until the next pass rebuilds them.`,
-      action: 'Nothing to do; they reappear after the next pass.', rows: []
+      id: 'stale', level: 'look', title: 'These figures are not current',
+      body: `They were read ${timeAgo(asOf, now)}. Work synced since then is not in them.`,
+      action: 'Reload the page to catch up.', rows: []
     });
   }
   const stuck = rows.filter((r) => r.report.alerts.stuckCards > 0).sort((a, b) => b.report.alerts.stuckCards - a.report.alerts.stuckCards);
@@ -554,9 +552,10 @@ export function sortLanes(rows: LaneRow[], key: LaneSortKey, dir: SortDir): Lane
   });
 }
 
-/** Recorded and done as shares of the day's passages, for the progress line. */
-export function dayPercents(days: LaneDay[]): { day: string; recorded: number; done: number }[] {
-  return days.map((d) => ({ day: d.day, recorded: percent(d.recorded, d.total), done: percent(d.done, d.total) }));
+/** Recorded and done as shares of the language's passages today, one point per day, for the progress line. */
+export function dayPercents(r: LaneReport): { day: string; recorded: number; done: number }[] {
+  const total = r.progress.total;
+  return r.progressDaily.map((d) => ({ day: d.day, recorded: percent(d.recorded, total), done: percent(d.done, total) }));
 }
 
 // ---- CSV ---------------------------------------------------------------------------

@@ -602,7 +602,7 @@ still to be written.
 
 ## 40. Dashboards read server projections of the shared reducer; organization totals are summed from visible language rows
 
-Date: 2026-09-29 · By: Carl Sauder · Status: accepted
+Date: 2026-09-29 · By: Carl Sauder · Status: superseded by 44
 
 Reason: coordinators want progress across an organization in a browser,
 and the browser should neither sync nor fold a whole Bible per language.
@@ -661,6 +661,12 @@ sees):
 Reverse if: a partner needs figures across organizations; then add an
 observer grant and a policy, not a second data path.
 
+Amended (2026-09-30, Carl Sauder): the reports no longer come from stored
+rows. The dashboard's own server folds each organization and computes them
+on request (decision 44), and `mayViewLane` in core, the same rule as the
+row-level security it replaces, decides what anyone sees. A report now also
+carries its last 90 days of progress (`progressDaily`, `REPORT_VERSION` 3).
+
 ## 42. Merging to main deploys the hosted database and Edge Functions
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -713,3 +719,41 @@ Reverse if: a token-free Cloudflare integration can split those two workers
 by path and queue a later push behind one already deploying (a token expires
 and belongs to one person, the same problem as the Supabase workflow in 42),
 or a staging worker is added and production should follow a release.
+
+## 44. Dashboards read a per-organization snapshot folded by the dashboard's own server
+
+Date: 2026-09-30 · By: Carl Sauder · Status: accepted
+
+Reason: decision 40 had the projection worker write every language's report
+into tables (`lane_reports`, `lane_report_days`) for the browser to read
+under row-level security. That put a second read model, a schema and a
+backfill on the projection worker for one consumer, and made every change
+to a report a migration plus a refold on the worker's schedule. Instead the
+dashboard's Cloudflare Worker (`apps/web/worker`) gets an API,
+`GET /api/orgs/:org/reports`, backed by one Durable Object per organization
+(`OrgSnapshot`, named by the org id, so every request for an organization
+reaches the same memory). It folds the org partition and each language
+partition with the reducer the phones run (`OrgFolder`), starting from the
+server snapshots the projection worker already writes (`fetchSnapshot`) and
+then the tail through `pull_events` with the service role, the way a phone
+starts. Those snapshots are the durable cache, so the object stores nothing
+and an eviction only costs a cold start. A request catches up from each
+partition's cursor when the state is older than a minute, or at once with
+`?fresh=1`, which the page sends after saving a country or target; requests
+together share one pass, and a redaction of something already folded
+refolds that partition. Reports (core `laneReports`) are cached per
+partition by its cursor and the day. The Worker checks the caller's
+Supabase access token (`auth.getUser`), and the object returns only the
+languages `mayViewLane` allows (`view_status` from an org, partition or
+language membership, or a role in the partition's own member list), so a
+member scoped to one language still never receives another's numbers; raw
+state never leaves the object. The browser loads an organization's reports
+once and still sums totals and applies every filter itself, so filters stay
+instant. The service-role key lives only in the Worker, encrypted in
+`apps/web/.env.production` and pushed by `npm run web:secrets`; the page
+keeps reading the mobile app's public env. The report tables and
+`may_view_lane` are dropped. Supersedes 40.
+Reverse if: one organization's state outgrows a Durable Object's memory or
+CPU (then shard it by language, one object per partition), or figures must
+be shared across organizations or read without the Worker (then stored rows
+again, with a policy).

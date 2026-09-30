@@ -273,9 +273,11 @@ langquest-next/
                      SupabaseTransport; unit tests on a fake server plus an
                      integration test against local Supabase
   apps/mobile/       Expo app; SQLite EventStore, blob store, screens
-  apps/web/          progress dashboard (Vite + React); reads lane_reports
-                     through row-level security, never folds; writes only
-                     a language's country and target, online, via SyncClient
+  apps/web/          progress dashboard (Vite + React) and its Cloudflare
+                     Worker: one Durable Object per org folds its partitions
+                     and serves the reports each person may view; the page
+                     never folds, and writes only a language's country and
+                     target, online, via SyncClient
   server/            supabase migrations (events, snapshots, RPCs), smoke.sql
   docs/              decisions
 ```
@@ -314,7 +316,7 @@ langquest-next/
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
-   dashboard: step 14, from server projections rather than a headless client.
+   dashboard: step 14, folded by the dashboard's own server (decision 44).
 8. **Done.** Import path from LangQuest v2 rows into v1 events:
    `server/importV2.ts` (`npm run import:v2`) reads v2 anonymously, copies
    audio by content hash into the blobs bucket, and appends deterministic
@@ -363,19 +365,22 @@ langquest-next/
     departures with a reason, requests, anchored notes, study marks
     (migration 20260928000001, `scripts/record-parity-sql.ts`). The mobile
     app's flow machine, tokens and screens are the demo's.
-14. **Done:** web progress dashboard (`apps/web`, decision 40). Core
-    `reports.ts` derives one report per language from the passage record;
-    the projection worker stores it in `lane_reports` with a daily point in
-    `lane_report_days` (migration 20260930000000, smoke section 11); the
-    web app sums what row-level security lets the person read into
-    organization totals, with CSV export and print. `npm run web:dev`.
+14. **Done:** web progress dashboard (`apps/web`, decisions 40 and 43). Core
+    `reports.ts` derives one report per language from the passage record,
+    with 90 days of progress. The dashboard's Worker keeps one Durable
+    Object per organization (`apps/web/worker`) that starts from the server
+    snapshots, catches up from the log's tail, and returns the reports
+    `mayViewLane` allows; the page sums them into organization totals, with
+    CSV export and print. `npm run web:dev` runs both against the local
+    database. (The first version stored reports in `lane_reports`; migration
+    20260930120000 drops them.)
 15. **Done:** portfolio dashboard (decision 41), after a partner's own
     reporting tool. Report version 2 adds verse-weighted coverage of the
     Gospels, New Testament and Old Testament (core `coverage.ts`),
     uploads timed by the server's `BlobStored`, a day-by-day log, a
     chapter ledger by month, milestones and stuck-audio alerts. Two new
     events, `LaneCountrySet` and `LaneTargetSet` (migration
-    20260930000001, smoke section 12), are set from the web app, which
+    20260930000001, smoke section 11), are set from the web app, which
     now has Overview, Recent activity, Languages (recency bands and a
     watch list), Geography, Field report, Monthly ledger, Pace and Alerts,
     a sidebar and a dark mode.
