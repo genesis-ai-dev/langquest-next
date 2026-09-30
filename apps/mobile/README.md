@@ -71,6 +71,26 @@ Storage), and `src/screens/translate.tsx` with `src/recording/`. `EXPO_PUBLIC_DE
 and `EXPO_PUBLIC_DEV_PASSWORD` prefill the auth screen in dev builds only.
 Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
 
+## A full build on an Android phone
+
+A release build with the JavaScript bundled in, pointed at the hosted
+database (the `preview` env), so it runs without Metro or a local Supabase.
+Two ways, both from `apps/mobile`:
+
+- **On EAS** (a shareable APK): `npm run android:build`. The `preview`
+  profile builds an APK rather than a Play Store bundle. The first run asks
+  EAS to generate the Android keystore; say yes, EAS keeps it. When it
+  finishes, open the link or scan the QR code on the phone and allow installs
+  from the browser. With the phone plugged in over USB (USB debugging on),
+  `npm run android:install` installs the latest one instead. The build is on
+  the `preview` channel, so `npm run ship` updates it over the air until the
+  native fingerprint changes.
+- **On this machine** (no EAS build, needs Android Studio's SDK and JDK 17):
+  plug the phone in with USB debugging on, then `npm run android:release`.
+  It prebuilds `android/` (git ignores it), signs with the debug keystore and
+  installs. It has no update channel, so it runs only the bundle it was built
+  with; rebuild to pick up changes.
+
 ## Shipping a change
 
 **Merging to `main` ships to TestFlight** through the EAS workflow in

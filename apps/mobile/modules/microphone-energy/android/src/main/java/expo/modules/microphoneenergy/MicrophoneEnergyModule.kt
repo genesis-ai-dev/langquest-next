@@ -160,7 +160,7 @@ class MicrophoneEnergyModule : Module() {
     if (!isRecordingSegment) { done(); return }
     val p = object : Promise {
       override fun resolve(value: Any?) { done() }
-      override fun reject(code: String, message: String?, cause: Throwable?) {
+      override fun reject(code: String?, message: String?, cause: Throwable?) {
         sendEvent("onError", mapOf("message" to (message ?: "Failed to save recording")))
         done()
       }
@@ -233,7 +233,7 @@ class MicrophoneEnergyModule : Module() {
     activeAudioTime = 0; lastFrameTime = now  // Reset active audio tracking
     sendEvent("onSegmentStart", emptyMap<String, Any>())
     val prerollMs = (now - lockedOnsetTime).toInt()
-    val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String, message: String?, cause: Throwable?) {} }
+    val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String?, message: String?, cause: Throwable?) {} }
     startSegment(mapOf("prerollMs" to prerollMs), p)
   }
   
