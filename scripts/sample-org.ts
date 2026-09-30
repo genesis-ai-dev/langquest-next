@@ -2,7 +2,7 @@
  * A sample organization the whole team can join, built from what the
  * LangQuest organization shares (docs/library.md):
  *
- *   npm run sample:org -- [--invites 10] [--role org_admin] [--hosted]
+ *   npm run sample:org -- [--invites 10] [--role org_admin] [--hosted] [--history]
  *
  * with SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY set.
  * The library must be seeded first (`npm run library:seed`).
@@ -20,6 +20,10 @@
  *   each language its own partition (docs/decisions.md 37);
  * - invite codes for teammates, printed at the end.
  *
+ * With --history (local database only), four more languages and months of
+ * back-dated recording, review and upload behind all six, for the web
+ * dashboard: see scripts/sample-history.ts.
+ *
  * Running it again changes nothing but the invite codes it prints.
  */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -30,6 +34,7 @@ import {
   applyOrgEvent, emptyOrgState, emptyState, foldOrg, ORG_PARTITION, REDUCER_VERSION, SEED_ROLES, selectFlowSpecs, selectTemplateSpecs,
   subscriptionItemId, type EventSpec, type FlowDoc, type LibraryDoc, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
+import { addHistory, dashboardLogin } from './sample-history';
 
 export const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
 const ADMIN_EMAIL = 'sample-admin@langquest.invalid';
@@ -38,6 +43,14 @@ const ADMIN_EMAIL = 'sample-admin@langquest.invalid';
 export const SAMPLE_LANGUAGES = [
   { laneId: 'L-din-sample', code: 'din', name: 'Dinka', template: 'FIA passages (English)' },
   { laneId: 'L-nus-sample', code: 'nus', name: 'Nuer', template: 'Bible chapters (Original)' }
+] as const;
+
+/** The languages --history adds, so the dashboard has a quiet one, a stuck one and an inactive one to show. */
+export const HISTORY_LANGUAGES = [
+  { laneId: 'L-bfa-sample', code: 'bfa', name: 'Bari', template: 'FIA passages (English)' },
+  { laneId: 'L-kcg-sample', code: 'kcg', name: 'Tyap', template: 'Bible chapters (Original)' },
+  { laneId: 'L-bom-sample', code: 'bom', name: 'Berom', template: 'FIA passages (English)' },
+  { laneId: 'L-hlb-sample', code: 'hlb', name: 'Halbi', template: 'Bible chapters (Original)' }
 ] as const;
 const SAMPLE_FLOW = 'Standard Bible Flow';
 
@@ -83,8 +96,13 @@ async function signIn(url: string, anon: string, service: string): Promise<{ sb:
 async function main(argv: string[]) {
   const value = (name: string, fallback: string) => { const i = argv.indexOf(`--${name}`); return i >= 0 && argv[i + 1] ? argv[i + 1]! : fallback; };
   const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url) && !argv.includes('--hosted')) {
+  const local = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(url);
+  if (!local && !argv.includes('--hosted')) {
     throw new Error(`${url} is not local; a hosted project needs --hosted and the owner's go-ahead`);
+  }
+  const history = argv.includes('--history');
+  if (history && !local) {
+    throw new Error('--history back-dates upload confirmations in the database directly, which only a local database allows; run it against the local Supabase');
   }
   const { sb, userId } = await signIn(url, need('SUPABASE_ANON_KEY'), need('SUPABASE_SERVICE_ROLE_KEY'));
   const transport = new SupabaseTransport(sb);
@@ -134,7 +152,8 @@ async function main(argv: string[]) {
   await load([flow.hash]);
 
   // 3. Each language: listed in the org, its own partition started with its template and flow.
-  for (const lang of SAMPLE_LANGUAGES) {
+  const languages = history ? [...SAMPLE_LANGUAGES, ...HISTORY_LANGUAGES] : SAMPLE_LANGUAGES;
+  for (const lang of languages) {
     if (orgState().projects[lang.laneId]) continue;
     const template = await follow(find('template', lang.template));
     await load([template.hash]);
@@ -163,7 +182,18 @@ async function main(argv: string[]) {
   }
   await org.sync();
 
-  // 4. Invite codes: each joins one teammate to the sample, once, for 30 days.
+  // 4. Months of work behind each language, for the web dashboard.
+  if (history) {
+    const service = createClient(url, need('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
+    await addHistory({ sb, service, orgId: SAMPLE_ORG.id, actorId: userId, laneIds: languages.map((l) => l.laneId) });
+    const login = await dashboardLogin({
+      url, anon: need('SUPABASE_ANON_KEY'), service, sb, orgId: SAMPLE_ORG.id,
+      isMember: (id) => Object.values(orgState().members[id] ?? {}).some((m) => !m.removed.value)
+    });
+    console.log(`\nWeb dashboard (npm run web:dev): sign in as ${login.email} with ${login.password} (a Coordinator; the password changes on every run).`);
+  }
+
+  // 5. Invite codes: each joins one teammate to the sample, once, for 30 days.
   const role = value('role', 'org_admin');
   const count = Number(value('invites', '10'));
   const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();

@@ -70,7 +70,9 @@ pass also writes `lane_reports` (one core `laneReports` row per language,
 skipped when the partition, `REPORT_VERSION` and day are unchanged) and
 today's `lane_report_days` point. Authenticated members read the rows
 `may_view_lane` allows (`view_status` at org, partition or that language);
-only the service role writes. `apps/web` reads them.
+only the service role writes. `apps/web` reads them. For local demo data,
+`npm run sample:org -- --history` adds months of back-dated work to the
+sample org and prints a dashboard login (local database only).
 
 A language's country and target (migration 20260930000001, decision 41):
 `v1.LaneCountrySet` and `v1.LaneTargetSet` need `manage_structure`;
