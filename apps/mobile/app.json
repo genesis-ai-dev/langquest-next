@@ -34,9 +34,7 @@
       "package": "com.frontierrnd.langquestnext",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -47,7 +45,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "LangQuest records your voice to translate passages."
+          "microphonePermission": "LangQuest records your voice to translate passages.",
+          "enableBackgroundPlayback": false
         }
       ],
       [

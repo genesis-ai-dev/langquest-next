@@ -93,15 +93,47 @@ Two ways, both from `apps/mobile`:
 
 ## Shipping a change
 
-**Merging to `main` ships to TestFlight** through the EAS workflow in
-`.eas/workflows/deploy-to-testflight.yml`, on Expo's servers: the typecheck
-and unit tests run, then a change whose native fingerprint matches an
-existing production build goes out as an over-the-air update on the
-`production` channel (TestFlight installs take it on next launch), and any
-other change builds a new iOS binary and submits it to TestFlight. It needs
-the GitHub repository connected to the EAS project once, with its base
-directory set to `apps/mobile` (expo.dev, project settings, GitHub). The
-manual commands below remain for other channels and for shipping by hand.
+**Merging to `main` ships to testers** on both platforms, TestFlight on iOS
+and Google Play's internal testing track on Android (decisions.md 45),
+through the EAS workflow in `.eas/workflows/deploy-to-testers.yml`, on
+Expo's servers: the typecheck and unit tests run, then, per platform, a
+change whose native fingerprint matches an existing production build goes
+out as an over-the-air update on the `production` channel (installed builds
+take it on next launch), and any other change builds a new binary and
+submits it. It needs the GitHub repository connected to the EAS project
+once, with its base directory set to `apps/mobile` (expo.dev, project
+settings, GitHub). The manual commands below remain for other channels and
+for shipping by hand.
+
+### Google Play, once
+
+The app is published from the organization's Play developer account (the
+one LangQuest v2 uses), so Play's 12-testers-for-14-days rule for new
+personal accounts does not apply. Internal testing takes up to 100 testers
+by email, has no review, and is invisible to everyone else; the listing
+stays unpublished until someone promotes a release to production in Play
+Console.
+
+1. In Play Console, create the app with package
+   `com.frontierrnd.langquestnext` and fill in the App content
+   declarations (privacy policy URL, app access with a reviewer sign-in,
+   ads, content rating, target audience, data safety). Play asks for them
+   before it takes a release on any track.
+2. Give EAS a Google service account key with release permission on this
+   app: expo.dev, project, Credentials, Android,
+   `com.frontierrnd.langquestnext`, Service Credentials. The key lives in
+   EAS, never in this repository. The account v2 submits with can be
+   granted access to this app too.
+3. The next merge to `main` builds the production AAB and submits it to
+   internal testing; `npm run android:play` does the same by hand. If Play refuses it because the app is still a draft,
+   upload that one AAB by hand in Play Console (Testing, Internal testing,
+   Create release) and roll it out; every later release goes through EAS.
+4. In Internal testing, Testers: add an email list or Google Group, then
+   share the opt-in link. Testers open it on the phone signed in to that
+   Google account, accept, and install from Play.
+
+The upload key is the keystore EAS keeps for this package (the one
+`android:build` made); Play App Signing holds the key the store signs with.
 
 The hosted database and Edge Functions follow the same merge: Supabase's
 GitHub integration applies new migrations and deploys the functions
