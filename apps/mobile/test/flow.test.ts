@@ -8,9 +8,11 @@ describe('UX flow coverage', () => {
       expect(SCREEN_IDS, id).toContain(id);
       expect(TITLES[id as keyof typeof TITLES], id).toBeTruthy();
     }
-    // The one app-only screen: the local log, realtime state and transfers.
-    expect(SCREEN_IDS.length).toBe(kept.length + 1);
+    // The app-only screens: the local log, realtime state and transfers; and
+    // account deletion, which the app stores require (decisions.md 46).
+    expect(SCREEN_IDS.length).toBe(kept.length + 2);
     expect(TITLES.sync_status).toBeTruthy();
+    expect(TITLES.delete_account).toBeTruthy();
   });
 
   it('every screen is reachable from sign_in through declared edges and tabs', () => {

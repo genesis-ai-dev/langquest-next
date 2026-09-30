@@ -23,7 +23,10 @@ const APP_ONLY: Record<string, string> = {
   'scan_qr->sign_in': 'save an invite while its recipient signs in',
   'explore_home->request_access': 'request membership from a public project listing',
   'inbox_home->members_list': 'administrators see every pending join request from the inbox',
-  'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In'
+  'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In',
+  'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
+  'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
+  'delete_account->sign_in': 'a deleted account is signed out'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -35,8 +38,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status'].sort());
+  it('the screen set is the demo screen set plus sync status and account deletion, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

@@ -110,7 +110,8 @@ Agents: treat each of these as a test you must not break.
 11. **Every event is validated at the door, and the fold never throws.**
     `validate_payload` (SQL) and `validateEvent` (core) are the same rules. A
     malformed event that slips through is counted in `state.invalidEvents`
-    and skipped. Removal is `v1.Redacted`, never an edit.
+    and skipped. Removal is `v1.Redacted`, never an edit, with one exception:
+    erasing a deleted person's name (decisions.md 47).
 12. **Small requests.** The client pushes in pages of 200; the server refuses
     batches over 500. One oversized request can never become a retry loop.
 

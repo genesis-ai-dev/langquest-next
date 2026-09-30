@@ -11,6 +11,7 @@ from (values
   ('public.get_user_state()'),
   ('public.my_organizations()'),
   ('public.set_project_visibility(text,text,boolean)'),
-  ('public.register_push_token(text)')
+  ('public.register_push_token(text)'),
+  ('public.delete_my_account()')
 ) expected(signature)
 where to_regprocedure(signature) is null;

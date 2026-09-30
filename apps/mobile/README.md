@@ -114,21 +114,38 @@ by email, has no review, and is invisible to everyone else; the listing
 stays unpublished until someone promotes a release to production in Play
 Console.
 
-1. In Play Console, create the app with package
+1. The privacy policy and the account deletion request page are on the
+   LangQuest v2 website, langquest.org (langquest-website repository,
+   `src/app/[locale]/next/`): `https://langquest.org/en/next/privacy` and
+   `https://langquest.org/en/next/delete-account` (`src/legal.ts`;
+   decisions.md 46). They must be live before Play review.
+2. In Play Console, create the app with package
    `com.frontierrnd.langquestnext` and fill in the App content
-   declarations (privacy policy URL, app access with a reviewer sign-in,
-   ads, content rating, target audience, data safety). Play asks for them
-   before it takes a release on any track.
-2. Give EAS a Google service account key with release permission on this
+   declarations: the privacy policy URL above, app access with a reviewer
+   sign-in, ads (none), content rating, target audience, and data safety.
+   Play asks for them before it takes a release on any track. For data
+   safety, from the privacy policy: collected are email, name, voice
+   recordings, other user content (reviews, notes, typed contacts of guest
+   reviewers), app interactions and diagnostics (crash logs, performance),
+   and device or other IDs (a random install id, the push token); none is
+   shared with third parties as Play defines it (service providers are not
+   sharing), none is for ads or tracking, all is encrypted in transit, and
+   people can delete their account in the app, or request it at the
+   delete-account address above. Staff answer an emailed request with
+   `select public.delete_account_for_email('…');` in the Supabase SQL
+   editor.
+3. Give EAS a Google service account key with release permission on this
    app: expo.dev, project, Credentials, Android,
    `com.frontierrnd.langquestnext`, Service Credentials. The key lives in
-   EAS, never in this repository. The account v2 submits with can be
-   granted access to this app too.
-3. The next merge to `main` builds the production AAB and submits it to
-   internal testing; `npm run android:play` does the same by hand. If Play refuses it because the app is still a draft,
-   upload that one AAB by hand in Play Console (Testing, Internal testing,
-   Create release) and roll it out; every later release goes through EAS.
-4. In Internal testing, Testers: add an email list or Google Group, then
+   EAS, never in this repository. If LangQuest v2's EAS project already
+   has one, that Google service account can be given access to this app
+   too (Play Console, Users and permissions).
+4. The next merge to `main` builds the production AAB and submits it to
+   internal testing; `npm run android:play` does the same by hand. If Play
+   refuses it because the app is still a draft, upload that one AAB by hand
+   in Play Console (Testing, Internal testing, Create release) and roll it
+   out; every later release goes through EAS.
+5. In Internal testing, Testers: add an email list or Google Group, then
    share the opt-in link. Testers open it on the phone signed in to that
    Google account, accept, and install from Play.
 

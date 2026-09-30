@@ -104,7 +104,11 @@ export interface OrgEventPayloads extends LibraryEvents {
   /** A named privilege set. Scope is never on the role; it is on the membership (A38). */
   'v1.RoleDefined': { roleId: string; name: string; privileges: Privilege[] };
   'v1.RoleRetired': { roleId: string };
-  /** Grants roleId to profileId at a scope. Register per (profile, scope). */
+  /**
+   * Grants roleId to profileId at a scope. Register per (profile, scope).
+   * displayName is no longer written (decisions.md 47): names live in
+   * profiles, which account deletion removes. Old events still fold.
+   */
   'v1.OrgMemberAdded': { profileId: string; roleId: string; scope: Scope; displayName?: string };
   'v1.OrgMemberRemoved': { profileId: string; scope: Scope };
   /** Org enables from the system catalog; a project narrows what the org enabled (A42). */
