@@ -32,6 +32,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npx vitest run
+      # Supabase deploys the committed worker bundle on merge (server/README.md,
+      # Deploying); refuse one that is behind its source.
+      - name: Worker bundle matches its source
+        run: npm run worker:build && git diff --exit-code -- supabase/functions
 
   journeys:
     # Manual until smart-tests/world.ts seeds main's org > language model

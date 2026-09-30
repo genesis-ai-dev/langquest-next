@@ -25,7 +25,7 @@ only before the QR screen. The QR screen confirms the chosen role.
    The repair preserves the legacy invitation overload. The new app uses
    `redeem_invite_v2`, leaving the old return shape available to old clients.
 2. Run `npm run db:check`. Every required API contract must exist.
-3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `project-projections` and `send-invite` (`.github/workflows/deploy-supabase.yml`).
+3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `project-projections` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
    Both validate authorization inside their handlers. Their function config
    disables the gateway's legacy JWT verification.
 4. Set a random `PROJECTION_WORKER_SECRET` as an Edge Function secret.
