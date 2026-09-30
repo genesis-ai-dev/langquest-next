@@ -65,5 +65,19 @@ Field diagnostics (`*_field_diagnostics.sql`, docs/diagnostics.md): schema
 `diag_ingest`; support reads them as `diag_reader` with `npm run diag`.
 `diag-smoke.sql` covers it in `npm run db:test`.
 
-Still deferred: org dashboard summaries (`project_summaries`), profile
-photos, and the remaining content/audio gaps in the flow audit.
+Dashboard reports (migration 20260930000000, decision 40): each projection
+pass also writes `lane_reports` (one core `laneReports` row per language,
+skipped when the partition, `REPORT_VERSION` and day are unchanged) and
+today's `lane_report_days` point. Authenticated members read the rows
+`may_view_lane` allows (`view_status` at org, partition or that language);
+only the service role writes. `apps/web` reads them.
+
+A language's country and target (migration 20260930000001, decision 41):
+`v1.LaneCountrySet` and `v1.LaneTargetSet` need `manage_structure`;
+`validate_payload` and `event_privilege` wrap the versions before it
+(kept as `_validate_payload_before_20260930`, `_event_privilege_before_20260930`).
+`my_privileges(org, project, lane)` returns the caller's own privileges so
+the dashboard can hide edits the server would refuse.
+
+Still deferred: profile photos, and the remaining content/audio gaps in
+the flow audit.

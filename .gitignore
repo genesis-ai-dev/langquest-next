@@ -11,6 +11,7 @@ supabase/.temp
 .dev.vars
 .dev.vars.*
 apps/invite-email/worker-configuration.d.ts
+apps/web/dist/
 
 # Glance memory shards
 .glance/

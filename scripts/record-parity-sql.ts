@@ -11,7 +11,8 @@ import { buildOrgFixture, buildRecordFixture } from '../packages/core/test/fixtu
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
 // The record's own event types; the fixture also carries a v1 flow selection.
 const RECORD_TYPES = new Set(['v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.ReviewRecorded', 'v1.DepartureRecorded',
-  'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed']);
+  'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed',
+  'v1.LaneCountrySet', 'v1.LaneTargetSet']);
 // The library's: org-partition items and versions, and a language's use of them.
 const LIBRARY_TYPES = new Set<string>([...LIBRARY_EVENT_TYPES, 'v2.LaneTemplateSelected', 'v1.LaneUnitHidden', 'v2.LaneFlowSelected']);
 // The organization's license (license.ts).
@@ -50,6 +51,13 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   }
   if (e.type === 'v1.ReviewRecorded') {
     variants.push({ ...p, outcome: 'recorded', artifacts: [] }, { ...p, artifacts: [{ hash: 'x' }] }, { ...p, artifacts: ['x'] });
+  }
+  if (e.type === 'v1.LaneCountrySet') {
+    variants.push({ ...p, country: 'ss' }, { ...p, country: 'SSD' }, { ...p, country: '' });
+  }
+  if (e.type === 'v1.LaneTargetSet') {
+    variants.push({ ...p, scope: 'psalms' }, { ...p, startDate: '2026-1-1' }, { ...p, targetDate: p['startDate'] },
+      { ...p, startDate: '2027-01-01', targetDate: '2026-01-01' }, { ...p, targetDate: 'soon' });
   }
   if (e.type === 'v1.RequestMade') {
     variants.push({ ...p, questions: [{ id: 'q', text: 't', type: 'yesno', required: 'yes' }] }, { ...p, questions: [{ id: 'q', text: 't', type: 'essay' }] },

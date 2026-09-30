@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Static assets only: the dashboard talks to Supabase directly with the
+  // signed-in person's session, and row-level security decides what it sees.
+  "name": "langquest-dashboard",
+  "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
+  "compatibility_date": "2026-09-29",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

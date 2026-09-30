@@ -66,7 +66,9 @@ const CATALOG: EventType[] = [
   'v1.LibraryPinned',
   'v2.LaneTemplateSelected',
   'v1.LaneUnitHidden',
-  'v2.LaneFlowSelected'
+  'v2.LaneFlowSelected',
+  'v1.LaneCountrySet',
+  'v1.LaneTargetSet'
 ];
 
 describe('reducer invariants (PLAN.md section 4)', () => {

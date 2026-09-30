@@ -595,4 +595,99 @@ begin
   if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- 11. Dashboard reports (decision 40): the worker writes, members read the
+-- languages they may see, nobody else reads, and no client writes.
+-- ---------------------------------------------------------------------------
+select set_config('request.jwt.claim.sub', '', false);
+insert into public.lane_reports (org_id, project_id, lane_id, report_version, server_seq, report) values
+  ('org1', 'p2', 'din', 1, 3, '{"laneId":"din"}'),
+  ('org1', 'p2', 'nus', 1, 3, '{"laneId":"nus"}'),
+  ('org1', 'p1', 'L1', 1, 5, '{"laneId":"L1"}');
+insert into public.lane_report_days (org_id, project_id, lane_id, day, total, recorded, done) values
+  ('org1', 'p2', 'din', '2026-09-29', 10, 4, 1),
+  ('org1', 'p2', 'nus', '2026-09-29', 10, 0, 0);
+
+set role authenticated;
+-- An org admin sees every language in the org.
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
+  if (select count(*) from public.lane_reports where org_id = 'org1') <> 3 then raise exception 'org admin should see all reports'; end if;
+  if (select count(*) from public.lane_report_days where org_id = 'org1') <> 2 then raise exception 'org admin should see all report days'; end if;
+end $$;
+-- A member scoped to one language sees only that language, in both tables.
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ declare lanes text; begin
+  select string_agg(lane_id, ',' order by lane_id) into lanes from public.lane_reports where project_id = 'p2';
+  if lanes is distinct from 'din' then raise exception 'lane member should see only din, got %', lanes; end if;
+  select string_agg(lane_id, ',' order by lane_id) into lanes from public.lane_report_days where project_id = 'p2';
+  if lanes is distinct from 'din' then raise exception 'lane member should see only din days, got %', lanes; end if;
+end $$;
+-- A partition member the older way (memberships row) reads that partition's reports.
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ begin
+  if (select count(*) from public.lane_reports where project_id = 'p1') <> 1 then raise exception 'p1 member should see p1 report'; end if;
+end $$;
+-- A stranger sees nothing, and no member can write.
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  if (select count(*) from public.lane_reports) <> 0 then raise exception 'stranger must not see reports'; end if;
+  if (select count(*) from public.lane_report_days) <> 0 then raise exception 'stranger must not see report days'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
+  begin
+    insert into public.lane_reports (org_id, project_id, lane_id, report_version, server_seq, report) values ('org1', 'p2', 'x', 1, 1, '{}');
+    raise exception 'members must not write reports';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.lane_report_days set done = 10 where lane_id = 'din';
+    raise exception 'members must not edit report days';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  begin
+    perform * from public.lane_reports;
+    raise exception 'anon must not read reports';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 12. A language's country and target (decision 41): admins set them, a
+-- lane leader without manage_structure may not, and my_privileges says so.
+-- ---------------------------------------------------------------------------
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"p2c1","type":"v1.LaneCountrySet","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000200:000000:dA","payload":{"laneId":"din","country":"SS"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'org admin should set a country: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"p2c2","type":"v1.LaneTargetSet","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000201:000000:dA","payload":{"laneId":"din","scope":"nt","startDate":"2026-01-01","targetDate":"2027-07-01"}}
+  ]'::jsonb);
+  if not r.accepted then raise exception 'org admin should set a target: %', r.reason; end if;
+  select * into r from public.append_events('[
+    {"id":"p2c3","type":"v1.LaneTargetSet","orgId":"org1","projectId":"p2","actorId":"lead","deviceId":"dA","hlc":"000000000000202:000000:dA","payload":{"laneId":"din","scope":"nt","startDate":"2027-01-01","targetDate":"2026-01-01"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a target ending before it starts must be refused'; end if;
+  if not ('manage_structure' = any(public.my_privileges('org1', 'p2', 'din'))) then raise exception 'org admin privileges wrong: %', public.my_privileges('org1', 'p2', 'din'); end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'akol', false);
+do $$ declare r record; begin
+  select * into r from public.append_events('[
+    {"id":"p2c4","type":"v1.LaneCountrySet","orgId":"org1","projectId":"p2","actorId":"akol","deviceId":"dB","hlc":"000000000000203:000000:dB","payload":{"laneId":"din","country":"SD"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a lane leader must not set the country'; end if;
+  if 'manage_structure' = any(public.my_privileges('org1', 'p2', 'din')) then raise exception 'lane leader must not read as manage_structure'; end if;
+  if not ('assign_work' = any(public.my_privileges('org1', 'p2', 'din'))) then raise exception 'lane leader privileges missing in own lane'; end if;
+  if 'assign_work' = any(public.my_privileges('org1', 'p2', 'nus')) then raise exception 'lane leader privileges leaked to another lane'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+
 select 'smoke ok' as result;

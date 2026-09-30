@@ -216,7 +216,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.LibraryPinned': 'by_kind',
   'v2.LaneTemplateSelected': 'manage_templates',
   'v1.LaneUnitHidden': ['manage_templates', 'shape_templates'],
-  'v2.LaneFlowSelected': 'manage_flows'
+  'v2.LaneFlowSelected': 'manage_flows',
+  'v1.LaneCountrySet': 'manage_structure',
+  'v1.LaneTargetSet': 'manage_structure'
 };
 
 /** The privilege that manages each kind of library item. */

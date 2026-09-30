@@ -8,5 +8,6 @@
   "dependencies": {
     "@langquest-next/core": "*",
     "@supabase/supabase-js": "^2.53.0"
-  }
+  },
+  "sideEffects": false
 }

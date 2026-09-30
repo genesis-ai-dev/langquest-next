@@ -9,7 +9,7 @@ import { studyMarkKey, type Undo } from './record';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 7;
+export const REDUCER_VERSION = 8;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -414,6 +414,16 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.LaneNamed':
       lww(state.laneNames, event.payload.laneId, event, event.payload.name);
       break;
+
+    case 'v1.LaneCountrySet':
+      lww(state.laneCountries, event.payload.laneId, event, event.payload.country);
+      break;
+
+    case 'v1.LaneTargetSet': {
+      const { laneId, scope, startDate, targetDate } = event.payload;
+      lww(state.laneTargets, laneId, event, { scope, startDate, targetDate });
+      break;
+    }
 
     case 'v1.OrgCreated':
     case 'v1.RoleDefined':
