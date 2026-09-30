@@ -596,6 +596,10 @@ organization or a privacy review requires consent before any collection
 large share of field problems (then add a native crash reporter with the
 same allowlist, as its own entry); or the volume outgrows Postgres.
 
+Amended (2026-09-29, Caleb Koster): the switch is built, a "Send diagnostics"
+row in Settings, on by default as decided; only the privacy notice text is
+still to be written.
+
 ## 40. Dashboards read server projections of the shared reducer; organization totals are summed from visible language rows
 
 Date: 2026-09-29 · By: Carl Sauder · Status: accepted
@@ -656,3 +660,24 @@ sees):
 
 Reverse if: a partner needs figures across organizations; then add an
 observer grant and a policy, not a second data path.
+
+## 42. Merging to main deploys the hosted database and Edge Functions
+
+Date: 2026-09-30 · By: Caleb Koster · Status: accepted
+
+Reason: merges to `main` already ship the app to TestFlight, but migrations
+and the projection worker only reached the hosted project when someone ran
+`npm run db:apply` and deployed the functions by hand. The license and
+diagnostics migrations sat merged but unapplied, while the app and a rebuilt
+worker bundle that expect them were on their way out. Now
+`.github/workflows/deploy-supabase.yml` runs on every merge that touches the
+database, the functions or the core the worker bundles: the typecheck and
+tests, a check that the committed worker bundle matches its source, then
+`supabase db push` and only after it `supabase functions deploy`, so a worker
+never writes to a column its migration has not made. It authenticates with
+one personal access token as a repository secret; the CLI pushes through a
+temporary login role, so no database password is stored. Preview and
+production builds point at the same hosted project, so there is one target.
+Reverse if: a separate staging project is added (then merges deploy there
+and production follows a release), or a migration needs a manual step or
+cannot be applied while the app is live.

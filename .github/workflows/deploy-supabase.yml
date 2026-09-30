@@ -1,0 +1,56 @@
+# Merging to main deploys the hosted Supabase project (decisions.md 42):
+# migrations first, then the Edge Functions, so an updated worker never
+# writes to a column its migration has not made yet. The app side ships
+# through apps/mobile/.eas/workflows/deploy-to-testflight.yml.
+#
+# Repo secret: SUPABASE_ACCESS_TOKEN (a personal access token of someone with
+# access to the project; supabase.com/dashboard/account/tokens). The CLI uses
+# it to push migrations through a temporary login role, so no database
+# password is stored here. Missing, the job fails rather than skipping.
+name: deploy-supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - 'server/projectionWorker.ts'
+      - 'server/projectionEdge.ts'
+      - 'packages/core/src/**'
+      - '.github/workflows/deploy-supabase.yml'
+  workflow_dispatch:
+
+# One deploy at a time, in merge order; never cancel one halfway.
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: xymxnebdwtbkfxlbylch
+    steps:
+      - name: Token is set
+        run: test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Add the SUPABASE_ACCESS_TOKEN repository secret"; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # The same gate as guardrails, so a red main never reaches the database.
+      - run: npm run typecheck
+      - run: npx vitest run
+      # The deployed worker is the committed bundle; refuse one behind its source.
+      - name: Worker bundle matches its source
+        run: npm run worker:build && git diff --exit-code -- supabase/functions
+      - uses: supabase/setup-cli@v1
+        with: { version: 2.117.0 }
+      - run: supabase link --project-ref "$PROJECT_REF"
+      - name: Migrations
+        run: supabase db push --linked
+      - name: Edge Functions
+        run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api

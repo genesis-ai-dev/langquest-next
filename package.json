@@ -46,7 +46,9 @@
     "env:doctor": "scripts/env-doctor.sh",
     "smart": "smart-tests/run.sh",
     "bench": "tsx scripts/bench/bootstrap.ts",
-    "diag": "tsx scripts/diag.ts"
+    "diag": "tsx scripts/diag.ts",
+    "diag:hosted": "dotenvx run -f supabase/.env.production -fk .env.keys --strict -- tsx scripts/diag.ts",
+    "diag:access": "scripts/diag-access.sh"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.31.1",

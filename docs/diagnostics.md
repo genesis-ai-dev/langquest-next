@@ -56,12 +56,12 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
   forgotten after 180 days without a delivery;
 - readable only by the `diag_reader` role and the database owner, never by
   the app's API roles;
-- the person can turn it off (`setDiagnosticsEnabled(false)` in
-  `apps/mobile/src/diagnostics.ts`), which stops recording and sending and
-  deletes what is waiting.
+- the person can turn it off in Settings › App › Send diagnostics
+  (`setDiagnosticsEnabled(false)` in `apps/mobile/src/diagnostics.ts`),
+  which stops recording and sending and deletes what is waiting. The choice
+  is kept on the phone (`diag:off`) and survives a restart.
 
-Before launch: the privacy notice must describe this, and the settings
-screen needs the switch (see "Not built yet").
+Before launch: the privacy notice must describe this (see "Not built yet").
 
 ## Delivery
 
@@ -104,14 +104,15 @@ npm run diag -- error E-7K2Q01                     # the code a person read out
 npm run diag -- timeline <installId> --days 3      # one phone, in order
 ```
 
-Without `DIAG_DATABASE_URL` it reads the local database. For a hosted
-database, once:
-
-1. An owner gives the role a login:
-   `alter role diag_reader with login password '<generated>';`
-2. The connection string (Supavisor, user `diag_reader.<project-ref>`) goes
-   in an encrypted env file with dotenvx, never in plain text. It is a
-   support credential, so not in `apps/mobile/.env.*`, which EAS receives.
+Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
+database, someone with access to the linked project runs `npm run
+diag:access` once, after this migration is deployed. It gives the role a
+generated password and encrypts the connection string (Supavisor, user
+`diag_reader.<project-ref>`) into `supabase/.env.production` with dotenvx,
+printing nothing secret. It is a support credential, so never in
+`apps/mobile/.env.*`, which EAS receives. Then `npm run diag:hosted --
+report …` reads the hosted records; running `diag:access` again rotates
+the password.
 
 `diag_reader` can read the diag tables and run the report functions. It
 cannot read the event log, profiles, storage or anything else, and cannot
@@ -141,9 +142,9 @@ the install's timeline to pick the time window.
 
 ## Not built yet
 
-- **The switch and the disclosure** in the app's settings, following the
-  partner demo (PLAN.md section 12). The code path exists
-  (`setDiagnosticsEnabled`); the screen does not.
+- **The privacy notice** describing diagnostics. The switch is built
+  (Settings › App › Send diagnostics); its one line says what is sent and
+  what never is, but it is not the notice.
 - **A phone that never reaches the server** delivers nothing. A "send
   diagnostics" action that exports the waiting records as a file for the
   share sheet (WhatsApp, email) would cover it; it needs `expo-sharing`,
