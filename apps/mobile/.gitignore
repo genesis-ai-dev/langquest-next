@@ -41,3 +41,7 @@ yarn-error.*
 /android
 
 .env
+
+# Gradle output of local native modules
+/modules/*/android/build
+/modules/*/android/.cxx
