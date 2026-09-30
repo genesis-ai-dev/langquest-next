@@ -5019,7 +5019,7 @@ var Channel = class {
    * Destroys and stops related timers.
    */
   teardown() {
-    this.pushBuffer.forEach((push) => push.destroy());
+    this.pushBuffer.forEach((push2) => push2.destroy());
     this.pushBuffer = [];
     this.rejoinTimer.reset();
     this.joinPush.destroy();
@@ -6731,9 +6731,9 @@ var ChannelAdapter = class {
     return this.channel.onError(callback);
   }
   push(event, payload, timeout) {
-    let push;
+    let push2;
     try {
-      push = this.channel.push(event, payload, timeout);
+      push2 = this.channel.push(event, payload, timeout);
     } catch (error) {
       throw new Error(`tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`);
     }
@@ -6742,7 +6742,7 @@ var ChannelAdapter = class {
       removedPush.cancelTimeout();
       this.socket.log("channel", `discarded push due to buffer overflow: ${removedPush.event}`, removedPush.payload());
     }
-    return push;
+    return push2;
   }
   updateJoinPayload(payload) {
     const oldPayload = this.channel.joinPush.payload();
@@ -7435,13 +7435,13 @@ var RealtimeChannel = class _RealtimeChannel {
     } else {
       return new Promise((resolve) => {
         var _a2, _b2, _c;
-        const push = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
+        const push2 = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
         if (args.type === "broadcast" && !((_c = (_b2 = (_a2 = this.params) === null || _a2 === void 0 ? void 0 : _a2.config) === null || _b2 === void 0 ? void 0 : _b2.broadcast) === null || _c === void 0 ? void 0 : _c.ack)) {
           resolve("ok");
         }
-        push.receive("ok", () => resolve("ok"));
-        push.receive("error", () => resolve("error"));
-        push.receive("timeout", () => resolve("timed out"));
+        push2.receive("ok", () => resolve("ok"));
+        push2.receive("error", () => resolve("error"));
+        push2.receive("timeout", () => resolve("timed out"));
       });
     }
   }
@@ -13201,7 +13201,7 @@ var GoTrueAdminApi = class {
       if (response.error)
         throw response.error;
       const users = await response.json();
-      const total = (_e = response.headers.get("x-total-count")) !== null && _e !== void 0 ? _e : 0;
+      const total2 = (_e = response.headers.get("x-total-count")) !== null && _e !== void 0 ? _e : 0;
       const links = (_g = (_f = response.headers.get("link")) === null || _f === void 0 ? void 0 : _f.split(",")) !== null && _g !== void 0 ? _g : [];
       if (links.length > 0) {
         links.forEach((link) => {
@@ -13209,7 +13209,7 @@ var GoTrueAdminApi = class {
           const rel = JSON.parse(link.split(";")[1].split("=")[1]);
           pagination[`${rel}Page`] = page;
         });
-        pagination.total = parseInt(total);
+        pagination.total = parseInt(total2);
       }
       return { data: Object.assign(Object.assign({}, users), pagination), error: null };
     } catch (error) {
@@ -13557,7 +13557,7 @@ var GoTrueAdminApi = class {
       if (response.error)
         throw response.error;
       const clients = await response.json();
-      const total = (_e = response.headers.get("x-total-count")) !== null && _e !== void 0 ? _e : 0;
+      const total2 = (_e = response.headers.get("x-total-count")) !== null && _e !== void 0 ? _e : 0;
       const links = (_g = (_f = response.headers.get("link")) === null || _f === void 0 ? void 0 : _f.split(",")) !== null && _g !== void 0 ? _g : [];
       if (links.length > 0) {
         links.forEach((link) => {
@@ -13565,7 +13565,7 @@ var GoTrueAdminApi = class {
           const rel = JSON.parse(link.split(";")[1].split("=")[1]);
           pagination[`${rel}Page`] = page;
         });
-        pagination.total = parseInt(total);
+        pagination.total = parseInt(total2);
       }
       return { data: Object.assign(Object.assign({}, clients), pagination), error: null };
     } catch (error) {
@@ -20763,6 +20763,7 @@ function shouldShowDeprecationWarning() {
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
 // packages/core/src/record.ts
+var TARGET_SCOPES = ["gospels", "nt", "ot", "bible"];
 function emptyRecordState() {
   return {
     reviewKinds: {},
@@ -20774,10 +20775,128 @@ function emptyRecordState() {
     withdrawnRequests: {},
     notes: {},
     studyMarks: {},
-    laneNames: {}
+    laneNames: {},
+    laneCountries: {},
+    laneTargets: {}
   };
 }
 var studyMarkKey = (unitId, laneId, guideId, stepId) => `${unitId}:${laneId}:${guideId}:${stepId}`;
+var DEFAULT_KINDS = [
+  {
+    id: "peer",
+    name: "Peer Review",
+    usualReviewer: "Another translator",
+    description: "Another translator listens for accuracy and natural speech."
+  },
+  {
+    id: "bt",
+    name: "Back Translation",
+    usualReviewer: "A bilingual speaker",
+    withholdsContext: true,
+    produces: { what: "back translation", into: "English", action: "Back-translate it", checkedBy: "consultant" },
+    description: "A bilingual speaker records the passage back into English, in their own words. It's new content, not a verdict: the Consultant Check uses it to compare meaning."
+  },
+  {
+    id: "community",
+    name: "Community Check",
+    usualReviewer: "Community members",
+    description: "Play it for people in the community and capture what they understood."
+  },
+  {
+    id: "consultant",
+    name: "Consultant Check",
+    usualReviewer: "A translation consultant",
+    description: "A consultant checks meaning against the source, verse by verse."
+  },
+  {
+    id: "final",
+    name: "Final Approval",
+    usualReviewer: "The project coordinator",
+    description: "Sign-off that the passage is ready to share."
+  },
+  {
+    id: "retell",
+    name: "Retell Check",
+    usualReviewer: "A listener",
+    description: "A listener retells the passage in their own words."
+  },
+  {
+    id: "local",
+    name: "Local Check",
+    usualReviewer: "Local listeners",
+    description: "Local listeners hear the polished recording and say whether it sounds natural and acceptable."
+  }
+];
+var FLOW_CATALOG_VERSION = 2;
+var FLOWS = [
+  {
+    id: "standard_bible",
+    name: "Standard Bible Flow",
+    description: "Peer and back translation together, then the community, then a consultant before sign-off.",
+    steps: [
+      { stepId: "s1", kindIds: ["peer", "bt"] },
+      { stepId: "s2", kindIds: ["community"] },
+      { stepId: "s3", kindIds: ["consultant"], checkpoint: true },
+      { stepId: "s4", kindIds: ["final"] }
+    ]
+  },
+  {
+    id: "quick_check",
+    name: "Quick Check",
+    description: "A peer listens, then the coordinator signs off.",
+    steps: [{ stepId: "s1", kindIds: ["peer"] }, { stepId: "s2", kindIds: ["final"] }]
+  },
+  {
+    id: "oral_review",
+    name: "Oral Review Path",
+    description: "Community playback and retelling together, then sign-off.",
+    steps: [{ stepId: "s1", kindIds: ["community", "retell"] }, { stepId: "s2", kindIds: ["final"], checkpoint: true }]
+  },
+  {
+    id: "consultant_only",
+    name: "Consultant-only",
+    description: "A consultant must check it before sign-off.",
+    steps: [{ stepId: "s1", kindIds: ["consultant"], checkpoint: true }, { stepId: "s2", kindIds: ["final"] }]
+  },
+  {
+    id: "collect_only",
+    name: "Collect only",
+    description: "No reviews: a passage is done once it is recorded.",
+    steps: []
+  },
+  {
+    id: "spoken_oral",
+    name: "Spoken Oral Method",
+    description: "Community check on the first draft, peer review of the second, back translation, consultant sessions until approved, then a local check of the polished recording.",
+    steps: [
+      { stepId: "s1", kindIds: ["community"] },
+      { stepId: "s2", kindIds: ["peer"] },
+      { stepId: "s3", kindIds: ["bt"] },
+      { stepId: "s4", kindIds: ["consultant"], checkpoint: true },
+      { stepId: "s5", kindIds: ["local"] }
+    ]
+  }
+];
+function flowTemplateV2(id) {
+  return FLOWS.find((f) => f.id === id);
+}
+var CUSTOM_FLOW = "custom";
+function flowStepPrefix(laneId, flowId, catalogVersion = FLOW_CATALOG_VERSION) {
+  return flowId === CUSTOM_FLOW ? `${laneId}/${CUSTOM_FLOW}/` : `${laneId}/${flowId}@${catalogVersion}/`;
+}
+var V1_STAGE_KINDS = {
+  back_translation: "bt",
+  community_check: "community",
+  community_playback: "community",
+  community: "community",
+  consultant_check: "consultant",
+  consultant: "consultant",
+  final_approval: "final",
+  approval: "final",
+  peer_review: "peer",
+  peer: "peer",
+  retell_check: "retell"
+};
 
 // packages/core/src/state.ts
 function emptyState() {
@@ -20872,6 +20991,7 @@ function validateEvent(e) {
   const nonEmpty2 = (o, ...keys) => keys.every((k) => typeof o[k] === "string" && o[k] !== "");
   const libraryItem = () => str("itemId") ?? (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p["itemId"]) ? null : "itemId may use letters, digits, . _ and - only") ?? oneOf("kind", ["template", "flow", "material", "versification"]);
   const oneOf = (k, values) => values.includes(p[k]) ? null : `${k} must be one of ${values.join(", ")}`;
+  const date = (k) => typeof p[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`;
   const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
   switch (e.type) {
     case "v1.ProjectCreated":
@@ -20930,6 +21050,10 @@ function validateEvent(e) {
       return str("unitId", "laneId", "guideId", "stepId") ?? (typeof p["done"] === "boolean" ? null : "done must be a boolean");
     case "v1.LaneNamed":
       return str("laneId", "name");
+    case "v1.LaneCountrySet":
+      return str("laneId") ?? (typeof p["country"] === "string" && /^[A-Z]{2}$/.test(p["country"]) ? null : "country must be an ISO 3166 alpha-2 code");
+    case "v1.LaneTargetSet":
+      return str("laneId") ?? oneOf("scope", ["gospels", "nt", "ot", "bible"]) ?? date("startDate") ?? date("targetDate") ?? (p["targetDate"] > p["startDate"] ? null : "targetDate must be after startDate");
     case "v1.InviteIssued":
       return str("inviteId", "roleId", "expiresAt") ?? scope(p["scope"]);
     case "v1.InviteRedeemed":
@@ -21002,8 +21126,11 @@ function isObject(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 7;
+var REDUCER_VERSION = 8;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
+function stateRevision(state) {
+  return REVISIONS.get(state) ?? 0;
+}
 function applyEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
@@ -21042,8 +21169,8 @@ function applyEvent(state, event) {
       break;
     }
     case "v1.ReferenceAttached": {
-      const { refId: refId2, unitId, kind, blobHash, text } = event.payload;
-      state.references[refId2] ??= {
+      const { refId, unitId, kind, blobHash, text } = event.payload;
+      state.references[refId] ??= {
         unitId,
         kind,
         ...blobHash !== void 0 ? { blobHash } : {},
@@ -21346,6 +21473,14 @@ function applyEvent(state, event) {
     case "v1.LaneNamed":
       lww(state.laneNames, event.payload.laneId, event, event.payload.name);
       break;
+    case "v1.LaneCountrySet":
+      lww(state.laneCountries, event.payload.laneId, event, event.payload.country);
+      break;
+    case "v1.LaneTargetSet": {
+      const { laneId, scope: scope2, startDate, targetDate } = event.payload;
+      lww(state.laneTargets, laneId, event, { scope: scope2, startDate, targetDate });
+      break;
+    }
     case "v1.OrgCreated":
     case "v1.RoleDefined":
     case "v1.RoleRetired":
@@ -21489,6 +21624,46 @@ function contentTemplates() {
 }
 function contentTemplate(id) {
   return contentTemplates().find((t) => t.id === id);
+}
+var FLOW_TEMPLATES = [
+  {
+    id: "standard_bible",
+    name: "Standard Bible Flow",
+    stages: [
+      { stageId: "back_translation", label: "Back Translation", role: "translator", required: false, rule: "any" },
+      { stageId: "community_check", label: "Community Check", role: "reviewer", required: true, rule: "majority" },
+      { stageId: "consultant_check", label: "Consultant Check", role: "coordinator", required: true, rule: "any" },
+      { stageId: "final_approval", label: "Final Approval", role: "owner", required: true, rule: "any" }
+    ]
+  },
+  {
+    id: "quick_check",
+    name: "Quick Check",
+    stages: [
+      { stageId: "peer_review", label: "Peer Review", role: "reviewer", required: true, rule: "any" },
+      { stageId: "approval", label: "Approval", role: "coordinator", required: true, rule: "any" }
+    ]
+  },
+  {
+    id: "oral_review",
+    name: "Oral Review Path",
+    stages: [
+      { stageId: "community_playback", label: "Community Playback", role: "reviewer", required: true, rule: "majority" },
+      { stageId: "retell_check", label: "Retell Check", role: "reviewer", required: true, rule: "any" },
+      { stageId: "approval", label: "Approval", role: "coordinator", required: true, rule: "any" }
+    ]
+  },
+  {
+    id: "consultant_only",
+    name: "Consultant-only",
+    stages: [
+      { stageId: "consultant_check", label: "Consultant Check", role: "coordinator", required: true, rule: "any" },
+      { stageId: "final_approval", label: "Final Approval", role: "owner", required: true, rule: "any" }
+    ]
+  }
+];
+function flowTemplate(id) {
+  return FLOW_TEMPLATES.find((f) => f.id === id);
 }
 function templateOfUnit(unitId) {
   const m = /^([a-z0-9_]+)@(\d+)\//.exec(unitId);
@@ -22200,9 +22375,368 @@ var USFM_BOOKS = [
 var BOOK_ORDER = new Map(USFM_BOOKS.map((b, i) => [b, i]));
 var LEGACY_BOOK_IDS = { joe: "JOL", nah: "NAM", mar: "MRK", joh: "JHN", phi: "PHP" };
 var TO_LEGACY = Object.fromEntries(Object.entries(LEGACY_BOOK_IDS).map(([k, v]) => [v, k]));
+function bookIdOf(usfm) {
+  return TO_LEGACY[usfm] ?? usfm.toLowerCase();
+}
+function libraryUnitRange(unitId, versesIn) {
+  const slash = unitId.indexOf("/");
+  if (slash < 0 || unitId.slice(0, slash).includes("@")) return null;
+  const node = unitId.slice(slash + 1);
+  return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
+}
+var REF = /^([A-Z0-9]{3})(?:[ .](\d+)(?:[:.](\d+)[a-z]?)?(?:-(?:(\d+)[:.])?(\d+)[a-z]?)?)?$/;
+function parseRef(text, versesIn) {
+  const m = REF.exec(text.trim());
+  if (!m) return null;
+  const book = m[1];
+  const last = (c) => versesIn?.(book, c) ?? 999;
+  if (m[2] === void 0) {
+    return { book, start: { chapter: 1, verse: 1 }, end: { chapter: 999, verse: 999 } };
+  }
+  const c1 = Number(m[2]);
+  if (m[3] === void 0) {
+    const c22 = m[5] !== void 0 && m[4] === void 0 ? Number(m[5]) : c1;
+    return { book, start: { chapter: c1, verse: 1 }, end: { chapter: c22, verse: last(c22) } };
+  }
+  const v1 = Number(m[3]);
+  if (m[5] === void 0) return { book, start: { chapter: c1, verse: v1 }, end: { chapter: c1, verse: v1 } };
+  const c2 = m[4] !== void 0 ? Number(m[4]) : c1;
+  return { book, start: { chapter: c1, verse: v1 }, end: { chapter: c2, verse: Number(m[5]) } };
+}
 
 // packages/core/src/sourceBibles.ts
 var AUDIO_BOOKS = "Gen Exo Lev Num Deu Jos Jdg Rut 1Sa 2Sa 1Ki 2Ki 1Ch 2Ch Ezr Neh Est Job Psa Pro Ecc Sng Isa Jer Lam Ezk Dan Hos Jol Amo Oba Jon Mic Nam Hab Zep Hag Zec Mal Mat Mrk Luk Jhn Act Rom 1Co 2Co Gal Eph Php Col 1Th 2Th 1Ti 2Ti Tts Phm Heb Jas 1Pe 2Pe 1Jn 2Jn 3Jn Jud Rev".split(" ");
+function sourceChapters(unitId) {
+  const lib = libraryUnitRange(unitId);
+  if (lib) {
+    const book2 = BIBLE_BOOKS.find((b) => b.itemId === bookIdOf(lib.book));
+    if (!book2) return [];
+    const first2 = lib.start.chapter;
+    const last2 = Math.min(lib.end.chapter, book2.verses.length);
+    return Array.from({ length: Math.max(0, last2 - first2 + 1) }, (_, i) => ({ book: book2.itemId, chapter: first2 + i, label: `${book2.label} ${first2 + i}` }));
+  }
+  const match = /^(bible|fia|book)@1\/(.+)$/.exec(unitId);
+  if (!match) return [];
+  const [, template, item] = match;
+  const passage = template === "fia" ? FIA_PERICOPES.find((p) => p.itemId === item) : void 0;
+  const chapterItem = template === "bible" ? /^(.+)-(\d+)$/.exec(item) : null;
+  const rawBookId = passage?.book ?? chapterItem?.[1] ?? item;
+  const bookId2 = rawBookId === "mrk" ? "mar" : rawBookId === "jhn" ? "joh" : rawBookId;
+  const book = BIBLE_BOOKS.find((b) => b.itemId === bookId2);
+  if (!book) return [];
+  let first = chapterItem ? Number(chapterItem[2]) : 1;
+  let last = chapterItem ? first : book.verses.length;
+  if (template === "fia") {
+    if (!passage) return [];
+    const range = /^(\d+):[^–-]+(?:[–-](?:(\d+):)?.+)?$/.exec(passage.verseRange);
+    if (!range) return [];
+    first = Number(range[1]);
+    last = range[2] ? Number(range[2]) : first;
+  }
+  if (first < 1 || last < first || last > book.verses.length) return [];
+  return Array.from({ length: last - first + 1 }, (_, i) => ({
+    book: book.itemId,
+    chapter: first + i,
+    label: `${book.label} ${first + i}`
+  }));
+}
+
+// packages/core/src/passage.ts
+var stageOf = (stepId) => stepId.slice(stepId.lastIndexOf("/") + 1);
+function kindOfV1Step(stepId) {
+  return V1_STAGE_KINDS[stageOf(stepId)] ?? stepId;
+}
+function deriveKinds(state) {
+  const out = new Map(DEFAULT_KINDS.map((k) => [k.id, k]));
+  for (const slot of Object.entries(state.workflowSteps).sort(([a], [b]) => a < b ? -1 : 1).map(([, v]) => v)) {
+    if (slot.removed || slot.step.hlc === "") continue;
+    const kindId = kindOfV1Step(slot.step.value.stepId);
+    if (!out.has(kindId)) {
+      out.set(kindId, { id: kindId, name: slot.step.value.label ?? humanize(stageOf(kindId)), description: "", usualReviewer: "" });
+    }
+  }
+  for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id].value);
+  return [...out.values()];
+}
+function humanize(id) {
+  const s = id.replace(/[_-]+/g, " ").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : id;
+}
+function deriveFlow(state, laneId) {
+  const selection = state.laneFlows[laneId]?.value ?? null;
+  const live = Object.values(state.flowSteps).map((r) => r.value).filter((d) => !state.workflowSteps[d.stepId]?.removed);
+  const v2Selection = selection !== null && selection.catalogVersion >= 2;
+  const prefix = v2Selection ? flowStepPrefix(laneId, selection.flowId, selection.catalogVersion) : null;
+  const laneSteps = live.filter((d) => d.laneId === laneId && (prefix === null || d.stepId.startsWith(prefix)));
+  const projectSteps = live.filter((d) => d.laneId === void 0);
+  const v2 = laneSteps.length > 0 || v2Selection ? laneSteps : projectSteps;
+  const name = selection && selection.flowId !== CUSTOM_FLOW ? selection.name ?? flowTemplateV2(selection.flowId)?.name ?? flowTemplate(selection.flowId)?.name ?? "Custom flow" : v2.length > 0 ? "Custom flow" : "Review flow";
+  if (v2.length > 0 || selection && selection.catalogVersion >= 2) {
+    const steps2 = [...v2].sort((a, b) => a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1).map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
+    return { flowId: selection?.flowId ?? null, itemId: selection?.itemId ?? null, docHash: selection?.docHash ?? null, name, steps: steps2 };
+  }
+  const steps = deriveWorkflow(state, laneId).map((s) => ({ id: s.id, kindIds: [kindOfV1Step(s.id)], checkpoint: false }));
+  return { flowId: selection?.flowId ?? null, itemId: selection?.itemId ?? null, docHash: selection?.docHash ?? null, name, steps };
+}
+function stepName(kinds, step) {
+  return step.kindIds.map((id) => kinds.find((k) => k.id === id)?.name ?? humanize(id)).join(" + ");
+}
+var COMPLETE = ["approved", "addressed", "skipped"];
+var isCompleteState = (s) => COMPLETE.includes(s);
+var cache = /* @__PURE__ */ new WeakMap();
+function push(m, k, v) {
+  const list = m.get(k);
+  if (list) list.push(v);
+  else m.set(k, [v]);
+}
+var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
+function recordIndexes(state, idx) {
+  const revision = stateRevision(state);
+  const hit = cache.get(state);
+  if (hit && hit.revision === revision) return hit.ri;
+  const reviewsByTake = /* @__PURE__ */ new Map();
+  for (const r of Object.values(state.kindReviews ?? {})) push(reviewsByTake, r.takeId, r);
+  for (const [takeId, bySteps] of Object.entries(state.reviews)) {
+    for (const [stepId, byActor] of Object.entries(bySteps)) {
+      for (const [actorId, reg2] of Object.entries(byActor)) {
+        const v = reg2.value;
+        push(reviewsByTake, takeId, {
+          id: `v1:${takeId}:${stepId}:${actorId}`,
+          takeId,
+          kindId: kindOfV1Step(stepId),
+          outcome: v.decision === "approve" ? "looks_good" : "needs_changes",
+          via: "app",
+          ...v.comment !== void 0 ? { comment: v.comment } : {},
+          ...v.answers !== void 0 ? { answers: v.answers } : {},
+          by: actorId,
+          hlc: reg2.hlc,
+          eventId: reg2.eventId
+        });
+      }
+    }
+  }
+  const versions = /* @__PURE__ */ new Map();
+  const drafts = /* @__PURE__ */ new Map();
+  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
+  const submittedAt = (id) => state.submissions[id]?.hlc ?? "";
+  for (const [id, t] of takes.filter(([id2]) => state.submissions[id2]).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
+    push(versions, unitLaneKey(t.unitId, t.laneId), id);
+  }
+  for (const [id, t] of takes.filter(([id2, t2]) => !state.submissions[id2] && !t2.archived && t2.cardHashes.length > 0).sort(([ia, a], [ib, b]) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1)) {
+    push(drafts, unitLaneKey(t.unitId, t.laneId), id);
+  }
+  const departures = /* @__PURE__ */ new Map();
+  for (const d of Object.values(state.departures).sort(byHlc)) push(departures, unitLaneKey(d.unitId, d.laneId), d);
+  const requests = /* @__PURE__ */ new Map();
+  const requestsTo = /* @__PURE__ */ new Map();
+  const requestsBy = /* @__PURE__ */ new Map();
+  const allRequests = [...Object.values(state.requests)];
+  for (const [key, a] of Object.entries(state.assignments)) {
+    if (a.role === "reviewer" || a.role === "viewer") continue;
+    allRequests.push({
+      id: `assignment:${key}`,
+      unitId: a.unitId,
+      laneId: a.laneId,
+      what: "record",
+      profileId: a.profileId,
+      ...a.dueDate !== void 0 ? { dueDate: a.dueDate } : {},
+      ...a.instructions !== void 0 ? { note: a.instructions } : {},
+      by: "",
+      hlc: a.hlc,
+      eventId: key
+    });
+  }
+  for (const r of allRequests.sort(byHlc)) {
+    push(requests, unitLaneKey(r.unitId, r.laneId), r);
+    if (r.profileId) push(requestsTo, r.profileId, r);
+    if (r.by) push(requestsBy, r.by, r);
+  }
+  const notes = /* @__PURE__ */ new Map();
+  const changeNotes = /* @__PURE__ */ new Map();
+  for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (n.anchor.kind === "version" && n.anchor.role === "change") {
+      if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
+      continue;
+    }
+    push(notes, unitLaneKey(n.unitId, n.laneId), n);
+  }
+  const out = {
+    idx: idx ?? buildIndexes(state),
+    kinds: deriveKinds(state),
+    versions,
+    drafts,
+    reviewsByTake,
+    departures,
+    requests,
+    requestsTo,
+    requestsBy,
+    notes,
+    changeNotes,
+    passages: /* @__PURE__ */ new Map()
+  };
+  cache.set(state, { revision, ri: out });
+  return out;
+}
+function derivePassage(state, unitId, laneId, idx) {
+  const ri = recordIndexes(state, idx);
+  const key = unitLaneKey(unitId, laneId);
+  const hit = ri.passages.get(key);
+  if (hit) return hit;
+  const flow = deriveFlow(state, laneId);
+  const versions = (ri.versions.get(key) ?? []).map((takeId, i) => {
+    const t = state.takes[takeId];
+    const response = state.responses[takeId];
+    const change = ri.changeNotes.get(takeId);
+    const note = response?.note ?? change?.text;
+    const blob = response?.blobHash ?? change?.blobHash;
+    return {
+      takeId,
+      n: i + 1,
+      by: state.submissions[takeId]?.actorId ?? t.actorId,
+      hlc: state.submissions[takeId].hlc,
+      cardHashes: t.cardHashes,
+      parentTakeId: t.parentTakeId,
+      ...note ? { changeNote: note } : {},
+      ...blob ? { changeBlobHash: blob } : {}
+    };
+  });
+  const versionOf = new Map(versions.map((v) => [v.takeId, v]));
+  const departures = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
+    const undone = state.undoneDepartures[d.id];
+    return undone ? { ...d, undone } : d;
+  });
+  const active = (match) => [...departures].reverse().find((d) => match(d) && !d.undone);
+  const reviews = versions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n, ...r.id.startsWith("v1:") ? { legacy: true } : {} }))).sort(byHlc).map((r) => {
+    if (r.outcome !== "needs_changes") return r;
+    const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
+    const revised = versions.find((v) => v.n > r.versionN);
+    const keptResponse = kept && {
+      decision: "kept",
+      by: kept.by,
+      hlc: kept.hlc,
+      note: kept.reason,
+      departureId: kept.id,
+      ...kept.reasonBlobHash ? { blobHash: kept.reasonBlobHash } : {}
+    };
+    const revisedResponse = revised && {
+      decision: "revised",
+      by: revised.by,
+      hlc: revised.hlc,
+      revisedTakeId: revised.takeId,
+      ...revised.changeNote ? { note: revised.changeNote } : {},
+      ...revised.changeBlobHash ? { blobHash: revised.changeBlobHash } : {}
+    };
+    const response = keptResponse && revisedResponse ? keptResponse.hlc < revisedResponse.hlc ? keptResponse : revisedResponse : keptResponse ?? revisedResponse;
+    return response ? { ...r, response } : r;
+  });
+  const requests = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
+    const legacy = r.id.startsWith("assignment:");
+    let status = "open";
+    if (state.withdrawnRequests[r.id]) status = "withdrawn";
+    else if (r.what === "record" && versions.some((v) => v.hlc > r.hlc)) status = "done";
+    else if (r.what === "review" && reviews.some((x) => x.requestId === r.id || x.kindId === r.kindId && x.hlc > r.hlc)) status = "done";
+    return { ...r, status, ...legacy ? { legacy } : {} };
+  });
+  const openRequests = requests.filter((r) => r.status === "open");
+  const kindStatus = (kindId) => {
+    const review = [...reviews].reverse().find((r) => r.kindId === kindId);
+    const request = openRequests.find((r) => r.what === "review" && r.kindId === kindId);
+    const departure = active((d) => d.type === "skip" && d.kindId === kindId);
+    const base = { kindId, ...review ? { review } : {} };
+    const producing = !!ri.kinds.find((k) => k.id === kindId)?.produces;
+    if (review && (review.outcome === "looks_good" || review.outcome === "recorded" && producing)) {
+      return { ...base, state: "approved", ...request ? { request } : {} };
+    }
+    if (review?.outcome === "recorded") return request ? { kindId, state: "asked", request } : { kindId, state: "todo" };
+    if (request) return { ...base, state: "asked", request };
+    if (review) return { ...base, state: review.response ? "addressed" : "suggestions" };
+    if (departure) return { kindId, state: "skipped", departure };
+    return { kindId, state: "todo" };
+  };
+  const steps = [];
+  let gate;
+  flow.steps.forEach((step, index) => {
+    const statuses = step.kindIds.map(kindStatus);
+    const override = active((d) => d.type === "override" && d.stepId === step.id);
+    const lockedBy = gate;
+    const kindsShown = lockedBy ? statuses.map((s) => s.state === "todo" ? { ...s, state: "locked" } : s) : statuses;
+    const clears = (s) => s.state === "approved" && s.review?.via !== "logged";
+    const complete = statuses.every((s) => step.checkpoint ? clears(s) : isCompleteState(s.state));
+    steps.push({ step, index, kinds: kindsShown, complete, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
+    if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
+  });
+  const recorded = versions.length > 0;
+  const open = steps.filter((s) => !s.complete && !s.lockedBy);
+  const latest = versions.at(-1);
+  const draftTakeId = ri.drafts.get(key)?.[0];
+  const next = recorded ? open.find((s) => !s.override) ?? open[0] : void 0;
+  const result = {
+    unitId,
+    laneId,
+    flow,
+    versions,
+    recorded,
+    departures,
+    reviews,
+    requests,
+    openRequests,
+    steps,
+    drafting: draftTakeId !== void 0,
+    done: recorded && steps.every((s) => s.complete),
+    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
+    notes: ri.notes.get(key) ?? [],
+    ...latest ? { latest } : {},
+    ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
+    ...next ? { next } : {}
+  };
+  void versionOf;
+  ri.passages.set(key, result);
+  return result;
+}
+function languageProgress(state, laneId, idx) {
+  const ri = recordIndexes(state, idx);
+  const flow = deriveFlow(state, laneId);
+  const states = laneLeafUnits(state, ri.idx, laneId).map((u) => derivePassage(state, u, laneId, ri.idx));
+  return {
+    total: states.length,
+    recorded: states.filter((s) => s.recorded).length,
+    done: states.filter((s) => s.done).length,
+    steps: flow.steps.map((step, i) => ({
+      name: stepName(ri.kinds, step),
+      cleared: states.filter((s) => s.recorded && s.steps[i]?.complete).length,
+      checkpoint: step.checkpoint
+    })),
+    waiting: states.filter((s) => s.openRequests.some((r) => r.what === "review")).length,
+    feedback: states.filter((s) => s.awaitingResponse.length > 0).length
+  };
+}
+function unitPlace(state, unitId) {
+  const chapters = sourceChapters(unitId);
+  let bookId2 = chapters[0]?.book ?? null;
+  if (!bookId2) {
+    const label = state.units[unitId]?.label ?? "";
+    const book = BIBLE_BOOKS.find((b) => label === b.label || label.startsWith(`${b.label} `));
+    bookId2 = book?.itemId ?? null;
+    const m = book ? /^(\d+)(?::\d+)?(?:[–-](?:(\d+):)?\d+)?/.exec(label.slice(book.label.length + 1)) : null;
+    if (m) {
+      const first = Number(m[1]);
+      const last = m[2] ? Number(m[2]) : first;
+      for (let c = first; c <= last; c++) chapters.push({ book: book.itemId, chapter: c, label: `${book.label} ${c}` });
+    }
+  }
+  const canon = bookId2 ? BIBLE_BOOKS.findIndex((b) => b.itemId === bookId2) : -1;
+  const ownBook = libraryUnitRange(unitId) ? state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : void 0;
+  return {
+    bookId: bookId2,
+    bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon].label : state.units[state.units[unitId]?.parentUnitId ?? ""]?.label ?? "Other"),
+    chapters: chapters.map((c) => c.chapter),
+    canon: canon >= 0 ? canon : 999,
+    testament: canon < 0 ? null : canon < 39 ? "ot" : "nt"
+  };
+}
+function laneName(state, laneId) {
+  return state.laneNames[laneId]?.value ?? state.lanes[laneId]?.languoidId?.toUpperCase() ?? laneId;
+}
 
 // packages/core/src/inbox.ts
 function deriveInbox(state, actorId, idx = buildIndexes(state)) {
@@ -22264,6 +22798,347 @@ function withOrgMembers(project, org, projectId) {
     };
   }
   return changed ? { ...project, members } : project;
+}
+
+// packages/core/src/coverage.ts
+var OFFSETS = [];
+var VERSE_BOOK = [];
+var VERSE_CHAPTER = [];
+var total = 0;
+BIBLE_BOOKS.forEach((b, bi) => {
+  OFFSETS[bi] = b.verses.map((n, ci) => {
+    const start = total;
+    for (let v = 0; v < n; v++) {
+      VERSE_BOOK.push(bi);
+      VERSE_CHAPTER.push(ci + 1);
+    }
+    total += n;
+    return start;
+  });
+});
+var BOOK_INDEX = new Map(BIBLE_BOOKS.map((b, i) => [b.itemId, i]));
+BOOK_INDEX.set("mrk", BOOK_INDEX.get("mar"));
+BOOK_INDEX.set("jhn", BOOK_INDEX.get("joh"));
+var FIA = new Map(FIA_PERICOPES.map((p) => [p.itemId, p]));
+var FIRST_NT = BOOK_INDEX.get("mat");
+var LAST_GOSPEL = BOOK_INDEX.get("joh");
+function inScope(scope2, bookIndex) {
+  switch (scope2) {
+    case "gospels":
+      return bookIndex >= FIRST_NT && bookIndex <= LAST_GOSPEL;
+    case "nt":
+      return bookIndex >= FIRST_NT;
+    case "ot":
+      return bookIndex < FIRST_NT;
+    case "bible":
+      return true;
+  }
+}
+var SCOPE_VERSES = (() => {
+  const out = { gospels: 0, nt: 0, ot: 0, bible: 0 };
+  for (const bi of VERSE_BOOK) for (const s of ["gospels", "nt", "ot", "bible"]) if (inScope(s, bi)) out[s] += 1;
+  return out;
+})();
+var bookOfVerse = (v) => VERSE_BOOK[v];
+var chapterOfVerse = (v) => VERSE_BOOK[v] * 1e3 + VERSE_CHAPTER[v];
+var bookOfChapter = (chapterId) => Math.floor(chapterId / 1e3);
+var bookLabel = (bookIndex) => BIBLE_BOOKS[bookIndex]?.label ?? "";
+var bookId = (bookIndex) => BIBLE_BOOKS[bookIndex]?.itemId ?? "";
+function span(bi, c1, v1, c2, v2) {
+  const chapters = BIBLE_BOOKS[bi].verses;
+  const out = [];
+  for (let c = Math.max(1, c1); c <= Math.min(c2, chapters.length); c++) {
+    const n = chapters[c - 1];
+    const from = c === c1 ? Math.max(1, v1) : 1;
+    const to = c === c2 ? Math.min(v2, n) : n;
+    for (let v = from; v <= to; v++) out.push(OFFSETS[bi][c - 1] + v - 1);
+  }
+  return out;
+}
+function parseRange(bi, range) {
+  const verse = /^(\d+):(\d+)[a-z]?(?:\s*[–-]\s*(?:(\d+):)?(\d+)[a-z]?)?$/.exec(range.trim());
+  if (verse) {
+    const c1 = Number(verse[1]), v1 = Number(verse[2]);
+    const c2 = verse[3] ? Number(verse[3]) : c1;
+    const v2 = verse[4] ? Number(verse[4]) : v1;
+    return span(bi, c1, v1, c2, v2);
+  }
+  const chapters = /^(\d+)(?:\s*[–-]\s*(\d+))?$/.exec(range.trim());
+  if (chapters) {
+    const c1 = Number(chapters[1]);
+    const c2 = chapters[2] ? Number(chapters[2]) : c1;
+    return span(bi, c1, 1, c2, Number.MAX_SAFE_INTEGER);
+  }
+  return [];
+}
+var cache2 = /* @__PURE__ */ new Map();
+function unitVerses(state, unitId) {
+  const label = state.units[unitId]?.label ?? "";
+  const key = `${unitId}\0${label}`;
+  const hit = cache2.get(key);
+  if (hit) return hit;
+  let out = [];
+  const m = /^(bible|fia|book)@\d+\/(.+)$/.exec(unitId);
+  if (m?.[1] === "bible") {
+    const c = /^(.+)-(\d+)$/.exec(m[2]);
+    const bi = c ? BOOK_INDEX.get(c[1]) : void 0;
+    if (bi !== void 0) out = span(bi, Number(c[2]), 1, Number(c[2]), Number.MAX_SAFE_INTEGER);
+  } else if (m?.[1] === "fia") {
+    const p = FIA.get(m[2]);
+    const bi = p ? BOOK_INDEX.get(p.book) : void 0;
+    if (p && bi !== void 0) out = parseRange(bi, p.verseRange);
+  } else if (!m) {
+    const bi = BIBLE_BOOKS.findIndex((b) => label.startsWith(`${b.label} `));
+    if (bi >= 0) out = parseRange(bi, label.slice(BIBLE_BOOKS[bi].label.length + 1));
+  }
+  cache2.set(key, out);
+  return out;
+}
+function unitChapters(state, unitId) {
+  return [...new Set(unitVerses(state, unitId).map(chapterOfVerse))];
+}
+
+// packages/core/src/reports.ts
+var REPORT_VERSION = 2;
+var REPORT_WEEKS = 53;
+var REPORT_DAYS = 35;
+var LOG_DAYS = 14;
+var LEDGER_MONTHS = 13;
+var STUCK_AFTER_DAYS = 14;
+var MILESTONES = [25, 50, 75, 100];
+var DAY_MS = 864e5;
+var WEEK_MS = 7 * DAY_MS;
+var LOG_LIMIT = 120;
+var PASSAGE_WORK = ["not_started", "drafting", "in_review", "feedback", "done"];
+function passageWork(s) {
+  if (s.done) return "done";
+  if (!s.recorded) return s.drafting ? "drafting" : "not_started";
+  return s.awaitingResponse.length > 0 ? "feedback" : "in_review";
+}
+var wallOf = (hlc) => Number(hlc.slice(0, hlc.indexOf(":")));
+var isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+var isoMonth = (ms) => new Date(ms).toISOString().slice(0, 7);
+var pct = (n, total2) => total2 === 0 ? 0 : Math.round(1e3 * n / total2) / 10;
+function weekStartOf(ms) {
+  const day = Math.floor(ms / DAY_MS) * DAY_MS;
+  const weekday = (new Date(day).getUTCDay() + 6) % 7;
+  return day - weekday * DAY_MS;
+}
+function monthsEndingAt(now, n) {
+  const d = new Date(now);
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) out.push(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1)).toISOString().slice(0, 7));
+  return out;
+}
+function laneReport(state, laneId, now, idx = buildIndexes(state)) {
+  const flow = deriveFlow(state, laneId);
+  const kinds = deriveKinds(state);
+  const passages = laneLeafUnits(state, idx, laneId).map((unitId) => derivePassage(state, unitId, laneId, idx));
+  const today = isoDay(now);
+  const work = Object.fromEntries(PASSAGE_WORK.map((w) => [w, 0]));
+  const atStep = /* @__PURE__ */ new Map();
+  const attention = { feedback: 0, openRequests: 0, overdueRequests: 0, atCheckpoint: 0 };
+  const books = /* @__PURE__ */ new Map();
+  const firstWeek = weekStartOf(now) - (REPORT_WEEKS - 1) * WEEK_MS;
+  const weeks = Array.from({ length: REPORT_WEEKS }, (_, i) => ({
+    weekStart: isoDay(firstWeek + i * WEEK_MS),
+    cards: 0,
+    versions: 0,
+    reviews: 0,
+    requests: 0
+  }));
+  let last = 0;
+  const week = (ms) => {
+    const i = Math.floor((ms - firstWeek) / WEEK_MS);
+    return i >= 0 && i < REPORT_WEEKS ? weeks[i] : null;
+  };
+  const count = (hlc, field) => {
+    const ms = wallOf(hlc);
+    if (ms > last) last = ms;
+    const w = week(ms);
+    if (w) w[field] += 1;
+  };
+  const recordedAt = /* @__PURE__ */ new Map();
+  const doneVerses = /* @__PURE__ */ new Set();
+  for (const s of passages) {
+    const w = passageWork(s);
+    work[w] += 1;
+    if (w === "feedback") attention.feedback += 1;
+    if (!s.done && s.next) {
+      atStep.set(s.next.step.id, (atStep.get(s.next.step.id) ?? 0) + 1);
+      if (s.next.step.checkpoint) attention.atCheckpoint += 1;
+    }
+    attention.openRequests += s.openRequests.length;
+    attention.overdueRequests += s.openRequests.filter((r) => r.dueDate !== void 0 && r.dueDate < today).length;
+    const place = unitPlace(state, s.unitId);
+    const key = place.bookId ?? `label:${place.bookLabel}`;
+    const book = books.get(key) ?? { bookId: place.bookId, label: place.bookLabel, total: 0, recorded: 0, done: 0, canon: place.canon };
+    book.total += 1;
+    if (s.recorded) book.recorded += 1;
+    if (s.done) book.done += 1;
+    books.set(key, book);
+    for (const v of s.versions) count(v.hlc, "versions");
+    for (const r of s.reviews) count(r.hlc, "reviews");
+    for (const r of s.requests) if (!r.legacy) count(r.hlc, "requests");
+    const first = s.versions[0];
+    if (first) {
+      const at = wallOf(first.hlc);
+      for (const v of unitVerses(state, s.unitId)) {
+        const prior = recordedAt.get(v);
+        if (prior === void 0 || at < prior) recordedAt.set(v, at);
+        if (s.done) doneVerses.add(v);
+      }
+    }
+  }
+  const stages = flow.steps.map((step) => ({
+    stepId: step.id,
+    name: stepName(kinds, step),
+    checkpoint: step.checkpoint,
+    passages: atStep.get(step.id) ?? 0
+  }));
+  const top = stages.reduce((best, s) => s.passages > (best?.passages ?? 0) ? s : best, null);
+  const timesByScope = Object.fromEntries(TARGET_SCOPES.map((s) => [s, []]));
+  for (const [v, at] of recordedAt) for (const s of TARGET_SCOPES) if (inScope(s, bookOfVerse(v))) timesByScope[s].push(at);
+  for (const s of TARGET_SCOPES) timesByScope[s].sort((a, b) => a - b);
+  const coverageAt = (t) => Object.fromEntries(TARGET_SCOPES.map((s) => {
+    const times = timesByScope[s];
+    let lo = 0, hi = times.length;
+    while (lo < hi) {
+      const mid = lo + hi >> 1;
+      if (times[mid] <= t) lo = mid + 1;
+      else hi = mid;
+    }
+    return [s, pct(lo, SCOPE_VERSES[s])];
+  }));
+  const doneCoverage = Object.fromEntries(TARGET_SCOPES.map((s) => {
+    let n = 0;
+    for (const v of doneVerses) if (inScope(s, bookOfVerse(v))) n += 1;
+    return [s, pct(n, SCOPE_VERSES[s])];
+  }));
+  const milestones = [];
+  for (const scope2 of ["gospels", "nt", "ot"]) {
+    for (const threshold of MILESTONES) {
+      const needed = Math.ceil(threshold / 100 * SCOPE_VERSES[scope2]);
+      const at = timesByScope[scope2][needed - 1];
+      if (at !== void 0) milestones.push({ scope: scope2, threshold, at: new Date(at).toISOString() });
+    }
+  }
+  milestones.sort((a, b) => a.at < b.at ? -1 : a.at > b.at ? 1 : 0);
+  const firstDay = Math.floor(now / DAY_MS) * DAY_MS - (REPORT_DAYS - 1) * DAY_MS;
+  const daily = Array.from({ length: REPORT_DAYS }, (_, i) => ({ day: isoDay(firstDay + i * DAY_MS), cards: 0, chapters: /* @__PURE__ */ new Set() }));
+  const logStart = Math.floor(now / DAY_MS) * DAY_MS - (LOG_DAYS - 1) * DAY_MS;
+  const log = /* @__PURE__ */ new Map();
+  const unitFirstUpload = /* @__PURE__ */ new Map();
+  const stuck = { stuckCards: 0, stuckPassages: /* @__PURE__ */ new Set(), stuckSince: Infinity, invalidCards: 0 };
+  let cardsOnServer = 0, firstAt = Infinity, lastAt = 0;
+  const stuckBefore = now - STUCK_AFTER_DAYS * DAY_MS;
+  for (const rec of Object.values(state.recordings)) {
+    if (rec.laneId !== laneId || rec.kind !== "target") continue;
+    for (const card of rec.cards) {
+      const blob = state.blobs[card.hash];
+      if (!blob?.stored) {
+        if (blob && !blob.stored) stuck.invalidCards += 1;
+        const recorded = wallOf(rec.hlc);
+        if (recorded < stuckBefore) {
+          stuck.stuckCards += 1;
+          stuck.stuckPassages.add(rec.unitId);
+          stuck.stuckSince = Math.min(stuck.stuckSince, recorded);
+        }
+        continue;
+      }
+      const at = wallOf(blob.hlc);
+      cardsOnServer += 1;
+      firstAt = Math.min(firstAt, at);
+      lastAt = Math.max(lastAt, at);
+      const w = week(at);
+      if (w) w.cards += 1;
+      unitFirstUpload.set(rec.unitId, Math.min(unitFirstUpload.get(rec.unitId) ?? Infinity, at));
+      const d = Math.floor((at - firstDay) / DAY_MS);
+      if (d >= 0 && d < REPORT_DAYS) {
+        daily[d].cards += 1;
+        for (const c of unitChapters(state, rec.unitId)) daily[d].chapters.add(c);
+      }
+      if (at >= logStart) {
+        const day = isoDay(at);
+        const key = `${day}\0${rec.unitId}`;
+        const entry = log.get(key) ?? {
+          day,
+          at: new Date(at).toISOString(),
+          unitId: rec.unitId,
+          label: state.units[rec.unitId]?.label ?? rec.unitId,
+          book: unitPlace(state, rec.unitId).bookLabel,
+          cards: 0,
+          verses: unitVerses(state, rec.unitId).length
+        };
+        entry.cards += 1;
+        if (new Date(at).toISOString() > entry.at) entry.at = new Date(at).toISOString();
+        log.set(key, entry);
+      }
+    }
+  }
+  const chapterFirst = /* @__PURE__ */ new Map();
+  for (const [unitId, at] of unitFirstUpload) {
+    for (const c of unitChapters(state, unitId)) chapterFirst.set(c, Math.min(chapterFirst.get(c) ?? Infinity, at));
+  }
+  const months = monthsEndingAt(now, LEDGER_MONTHS);
+  const byMonth = new Map(months.map((m) => [m, /* @__PURE__ */ new Map()]));
+  for (const [c, at] of chapterFirst) {
+    const books2 = byMonth.get(isoMonth(at));
+    if (!books2) continue;
+    books2.set(bookOfChapter(c), (books2.get(bookOfChapter(c)) ?? 0) + 1);
+  }
+  const ledger = months.map((month) => {
+    const perBook = [...byMonth.get(month)].sort(([a], [b]) => a - b);
+    return {
+      month,
+      chapters: perBook.reduce((n, [, k]) => n + k, 0),
+      books: perBook.map(([bi, chapters]) => ({ bookId: bookId(bi), label: bookLabel(bi), chapters }))
+    };
+  });
+  const target = state.laneTargets?.[laneId]?.value ?? null;
+  return {
+    laneId,
+    name: laneName(state, laneId),
+    languoidId: state.lanes[laneId]?.languoidId ?? "",
+    country: state.laneCountries?.[laneId]?.value ?? null,
+    flowName: flow.name,
+    target: target ? { ...target } : null,
+    progress: languageProgress(state, laneId, idx),
+    work,
+    stages,
+    bottleneck: top ? `${top.passages} in ${top.name}` : null,
+    attention,
+    books: [...books.values()].sort((a, b) => a.canon - b.canon || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0)).map(({ canon: _c, ...b }) => b),
+    activity: weeks,
+    lastActivity: last > 0 ? new Date(last).toISOString() : null,
+    coverage: {
+      recorded: coverageAt(Infinity),
+      done: doneCoverage,
+      weekly: weeks.map((w) => {
+        const end = Date.parse(`${w.weekStart}T00:00:00Z`) + WEEK_MS - 1;
+        return { weekEnd: isoDay(end), recorded: coverageAt(end) };
+      })
+    },
+    milestones,
+    uploads: {
+      cards: cardsOnServer,
+      chapters: chapterFirst.size,
+      firstAt: Number.isFinite(firstAt) ? new Date(firstAt).toISOString() : null,
+      lastAt: lastAt > 0 ? new Date(lastAt).toISOString() : null,
+      daily: daily.map((d) => ({ day: d.day, cards: d.cards, chapters: d.chapters.size })),
+      log: [...log.values()].sort((a, b) => a.at < b.at ? 1 : a.at > b.at ? -1 : a.unitId < b.unitId ? -1 : 1).slice(0, LOG_LIMIT)
+    },
+    ledger,
+    alerts: {
+      stuckCards: stuck.stuckCards,
+      stuckPassages: stuck.stuckPassages.size,
+      stuckSince: Number.isFinite(stuck.stuckSince) ? new Date(stuck.stuckSince).toISOString() : null,
+      invalidCards: stuck.invalidCards
+    }
+  };
+}
+function laneReports(state, now, idx = buildIndexes(state)) {
+  return Object.keys(state.lanes).sort().map((laneId) => laneReport(state, laneId, now, idx));
 }
 
 // packages/client/src/types.ts
@@ -22480,6 +23355,7 @@ async function runProjections(service) {
       p_project: snapshot.projectId,
       p_rows: notifications
     }));
+    await writeLaneReports(service, snapshot, state, idx);
     const visibility = await service.from("project_visibility").select("listed").eq("org_id", snapshot.orgId).eq("project_id", snapshot.projectId).maybeSingle();
     check(visibility);
     if (visibility.data?.listed && state.project) {
@@ -22490,7 +23366,7 @@ async function runProjections(service) {
         project_id: snapshot.projectId,
         name: state.project.value.name,
         languages: Object.values(state.lanes).map((lane) => lane.languoidId),
-        translated_pct: percentages.length ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
+        translated_pct: percentages.length ? percentages.reduce((sum, pct2) => sum + pct2, 0) / percentages.length : 0,
         // What someone browsing may do with the work (docs/licensing.md).
         license: orgLicense(org),
         updated_at: (/* @__PURE__ */ new Date()).toISOString()
@@ -22513,6 +23389,39 @@ async function runProjections(service) {
       p_rows: rows
     }));
   }
+}
+async function writeLaneReports(service, snapshot, state, idx, now = Date.now()) {
+  const lanes = Object.keys(state.lanes);
+  if (lanes.length === 0) return;
+  const today = new Date(now).toISOString().slice(0, 10);
+  const key = { org_id: snapshot.orgId, project_id: snapshot.projectId };
+  const existing = await service.from("lane_reports").select("lane_id,report_version,server_seq,updated_at,progress:report->progress").eq("org_id", snapshot.orgId).eq("project_id", snapshot.projectId);
+  check(existing);
+  const stored = new Map((existing.data ?? []).map((r) => [r.lane_id, r]));
+  const fresh = (laneId) => {
+    const r = stored.get(laneId);
+    return !!r && r.report_version === REPORT_VERSION && Number(r.server_seq) === snapshot.serverSeq && r.updated_at.slice(0, 10) === today && r.progress !== null;
+  };
+  const progress = /* @__PURE__ */ new Map();
+  if (lanes.every(fresh)) {
+    for (const laneId of lanes) progress.set(laneId, stored.get(laneId).progress);
+  } else {
+    const reports = laneReports(state, now, idx);
+    const stale = reports.filter((r) => !fresh(r.laneId));
+    check(await service.from("lane_reports").upsert(stale.map((r) => ({
+      ...key,
+      lane_id: r.laneId,
+      report_version: REPORT_VERSION,
+      server_seq: snapshot.serverSeq,
+      report: r,
+      updated_at: new Date(now).toISOString()
+    }))));
+    for (const r of reports) progress.set(r.laneId, r.progress);
+  }
+  check(await service.from("lane_report_days").upsert(lanes.map((laneId) => {
+    const p = progress.get(laneId);
+    return { ...key, lane_id: laneId, day: today, total: p.total, recorded: p.recorded, done: p.done };
+  })));
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");

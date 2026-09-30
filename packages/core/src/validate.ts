@@ -47,6 +47,7 @@ export function validateEvent(e: AnyEvent): string | null {
     (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p['itemId'] as string) ? null : 'itemId may use letters, digits, . _ and - only') ??
     oneOf('kind', ['template', 'flow', 'material', 'versification']);
   const oneOf = (k: string, values: string[]) => (values.includes(p[k] as string) ? null : `${k} must be one of ${values.join(', ')}`);
+  const date = (k: string) => (typeof p[k] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`);
   const optStrRecord = (k: string) =>
     p[k] === undefined || (isObject(p[k]) && Object.values(p[k] as object).every((v) => typeof v === 'string')) ? null : `${k} must map ids to strings`;
 
@@ -156,6 +157,13 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('unitId', 'laneId', 'guideId', 'stepId') ?? (typeof p['done'] === 'boolean' ? null : 'done must be a boolean');
     case 'v1.LaneNamed':
       return str('laneId', 'name');
+    case 'v1.LaneCountrySet':
+      return str('laneId') ?? (typeof p['country'] === 'string' && /^[A-Z]{2}$/.test(p['country']) ? null : 'country must be an ISO 3166 alpha-2 code');
+    case 'v1.LaneTargetSet':
+      return (
+        str('laneId') ?? oneOf('scope', ['gospels', 'nt', 'ot', 'bible']) ?? date('startDate') ?? date('targetDate') ??
+        ((p['targetDate'] as string) > (p['startDate'] as string) ? null : 'targetDate must be after startDate')
+      );
     case 'v1.InviteIssued':
       return str('inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']);
     case 'v1.InviteRedeemed':

@@ -1,0 +1,33 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "dotenvx run -f ../mobile/.env.development.local -f ../mobile/.env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -- vite",
+    "build": "tsc --noEmit && dotenvx run -f ../mobile/.env.production -fk ../../.env.keys --strict -- vite build",
+    "build:preview": "tsc --noEmit && dotenvx run -f ../mobile/.env.preview -fk ../../.env.keys --strict -- vite build",
+    "deploy": "npm run build && wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@langquest-next/client": "*",
+    "@langquest-next/core": "*",
+    "@supabase/supabase-js": "^2.116.0",
+    "d3-geo": "^3.1.1",
+    "i18n-iso-countries": "^7.14.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "~19.2.2",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-specification": "^1.0.5",
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.3.6"
+  }
+}

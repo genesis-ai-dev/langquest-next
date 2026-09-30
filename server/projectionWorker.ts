@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildIndexes, deriveInbox, deriveProgress, foldOrg, orgLicense, privilegesFor,
-  withOrgMembers, type AnyEvent, type OrgState } from '@langquest-next/core';
+import { buildIndexes, deriveInbox, deriveProgress, foldOrg, laneReports, orgLicense, privilegesFor,
+  REPORT_VERSION, withOrgMembers, type AnyEvent, type Indexes, type OrgState, type ProjectState,
+  type Snapshot } from '@langquest-next/core';
 import { runSnapshotWorker } from '../packages/client/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/client/src/supabaseTransport';
 
@@ -44,6 +45,7 @@ export async function runProjections(service: SupabaseClient) {
     check(await service.rpc('reconcile_notifications', {
       p_org: snapshot.orgId, p_project: snapshot.projectId, p_rows: notifications
     }));
+    await writeLaneReports(service, snapshot, state, idx);
     const visibility = await service.from('project_visibility').select('listed')
       .eq('org_id', snapshot.orgId).eq('project_id', snapshot.projectId).maybeSingle();
     check(visibility);
@@ -76,6 +78,53 @@ export async function runProjections(service: SupabaseClient) {
       p_org: orgId, p_project: '_org', p_rows: rows
     }));
   }
+}
+
+interface StoredReport {
+  lane_id: string;
+  report_version: number;
+  server_seq: number | string;
+  updated_at: string;
+  progress: { total: number; recorded: number; done: number } | null;
+}
+
+/**
+ * The web dashboard's rows (decision 40): one report per language, and
+ * today's point on its progress line. A report is refolded only when the
+ * partition moved, the report shape changed, or the day turned (overdue
+ * requests and the activity window depend on the date).
+ */
+export async function writeLaneReports(service: SupabaseClient, snapshot: Snapshot, state: ProjectState, idx: Indexes, now = Date.now()) {
+  const lanes = Object.keys(state.lanes);
+  if (lanes.length === 0) return;
+  const today = new Date(now).toISOString().slice(0, 10);
+  const key = { org_id: snapshot.orgId, project_id: snapshot.projectId };
+  const existing = await service.from('lane_reports')
+    .select('lane_id,report_version,server_seq,updated_at,progress:report->progress')
+    .eq('org_id', snapshot.orgId).eq('project_id', snapshot.projectId);
+  check(existing);
+  const stored = new Map((existing.data as StoredReport[] | null ?? []).map((r) => [r.lane_id, r]));
+  const fresh = (laneId: string) => {
+    const r = stored.get(laneId);
+    return !!r && r.report_version === REPORT_VERSION && Number(r.server_seq) === snapshot.serverSeq
+      && r.updated_at.slice(0, 10) === today && r.progress !== null;
+  };
+  const progress = new Map<string, { total: number; recorded: number; done: number }>();
+  if (lanes.every(fresh)) {
+    for (const laneId of lanes) progress.set(laneId, stored.get(laneId)!.progress!);
+  } else {
+    const reports = laneReports(state, now, idx);
+    const stale = reports.filter((r) => !fresh(r.laneId));
+    check(await service.from('lane_reports').upsert(stale.map((r) => ({
+      ...key, lane_id: r.laneId, report_version: REPORT_VERSION, server_seq: snapshot.serverSeq,
+      report: r, updated_at: new Date(now).toISOString()
+    }))));
+    for (const r of reports) progress.set(r.laneId, r.progress);
+  }
+  check(await service.from('lane_report_days').upsert(lanes.map((laneId) => {
+    const p = progress.get(laneId)!;
+    return { ...key, lane_id: laneId, day: today, total: p.total, recorded: p.recorded, done: p.done };
+  })));
 }
 
 /** Push contains no project title or personal content on the lock screen. */
