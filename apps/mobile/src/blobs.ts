@@ -1,6 +1,6 @@
 import type { BlobRef } from '@langquest-next/core';
-import * as Crypto from 'expo-crypto';
-import { Directory, File, Paths } from 'expo-file-system';
+import { Directory, File, FileMode, Paths } from 'expo-file-system';
+import { hashChunks } from './sha256';
 
 /**
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
@@ -66,12 +66,18 @@ export class BlobStore {
     return total;
   }
 
-  /** SHA-256 hex of bytes: the name a file must have to be trusted. */
-  static async hashOf(bytes: Uint8Array): Promise<string> {
-    // expo-crypto wants a plain ArrayBuffer-backed view.
-    const view = new Uint8Array(bytes.byteLength);
-    view.set(bytes);
-    return Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, view).then(toHex);
+  /**
+   * SHA-256 hex of a file's bytes (the name it must have to be trusted) and
+   * its size. Read in bounded chunks, so the file never sits whole in the JS
+   * heap; peak memory is one chunk whatever the file's size.
+   */
+  static async hashFile(file: File): Promise<{ hash: string; size: number }> {
+    const handle = file.open(FileMode.ReadOnly);
+    try {
+      return await hashChunks((max) => handle.readBytes(max));
+    } finally {
+      handle.close();
+    }
   }
 
   has(hash: string): boolean {
@@ -140,15 +146,14 @@ export class BlobStore {
    */
   async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
     const src = new File(sourceUri);
-    const bytes = await src.bytes();
-    const hash = await BlobStore.hashOf(bytes);
+    const { hash, size } = await BlobStore.hashFile(src);
     const ref: BlobFile = { hash, format };
     const dest = this.fileFor(ref);
-    await beforeMove?.(ref, bytes.byteLength);
+    await beforeMove?.(ref, size);
     if (!dest.exists) src.move(dest);
     else src.delete();
-    this.markPresent(hash, bytes.byteLength);
-    return { ref, size: bytes.byteLength };
+    this.markPresent(hash, size);
+    return { ref, size };
   }
 
   /** Called by the downloader once a file is on disk and verified. */
@@ -163,12 +168,6 @@ export class BlobStore {
     this.listeners.add(l);
     return () => this.listeners.delete(l);
   }
-}
-
-function toHex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
 }
 
 let store: BlobStore | undefined;

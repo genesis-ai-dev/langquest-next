@@ -44,6 +44,10 @@ export async function uploadBlob(orgId: string, projectId: string, ref: BlobRef,
  * `timings` splits the time for field diagnostics: signing the URL, the
  * network fetch, and reading plus hashing on the phone, which on a slow
  * phone can outweigh the network.
+ *
+ * Native code writes the response straight to a staging file, and the hash
+ * is taken by reading that file back in bounded chunks, so no whole file is
+ * ever held in the JS heap.
  */
 export async function downloadBlob(orgId: string, projectId: string, ref: BlobRef, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
   let mark = Date.now();
@@ -56,12 +60,22 @@ export async function downloadBlob(orgId: string, projectId: string, ref: BlobRe
   if (staged.exists) staged.delete();
   await File.downloadFileAsync(data.signedUrl, staged);
   timings.fetchMs = lap();
-  const bytes = await staged.bytes();
-  const actual = await BlobStore.hashOf(bytes);
-  timings.verifyMs = lap();
-  if (actual !== ref.hash) {
-    staged.delete();
-    throw new Error(`hash mismatch for ${ref.hash}: got ${actual}`);
+  let verified: { hash: string; size: number };
+  try {
+    verified = await BlobStore.hashFile(staged);
+  } catch (e) {
+    discard(staged);
+    throw e;
   }
-  store.commitStaged(ref, bytes.byteLength);
+  timings.verifyMs = lap();
+  if (verified.hash !== ref.hash) {
+    discard(staged);
+    throw new Error(`hash mismatch for ${ref.hash}: got ${verified.hash}`);
+  }
+  store.commitStaged(ref, verified.size);
+}
+
+/** Remove an unverified staging file; startup sweeps any that survive. */
+function discard(staged: File): void {
+  try { staged.delete(); } catch { /* removed at next launch */ }
 }
