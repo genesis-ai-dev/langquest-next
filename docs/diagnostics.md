@@ -61,7 +61,10 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
   which stops recording and sending and deletes what is waiting. The choice
   is kept on the phone (`diag:off`) and survives a restart.
 
-Before launch: the privacy notice must describe this (see "Not built yet").
+The privacy policy (on langquest.org, `https://langquest.org/en/next/privacy`,
+from the langquest-website repository; decisions.md 46) describes this: what
+is sent, that it can be turned off, and the 90 and 180 day retention. Change
+it with any change to what is recorded or how long it is kept.
 
 ## Delivery
 
@@ -142,9 +145,6 @@ the install's timeline to pick the time window.
 
 ## Not built yet
 
-- **The privacy notice** describing diagnostics. The switch is built
-  (Settings › App › Send diagnostics); its one line says what is sent and
-  what never is, but it is not the notice.
 - **A phone that never reaches the server** delivers nothing. A "send
   diagnostics" action that exports the waiting records as a file for the
   share sheet (WhatsApp, email) would cover it; it needs `expo-sharing`,

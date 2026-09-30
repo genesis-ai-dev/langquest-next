@@ -1,8 +1,9 @@
 // The Inbox and Settings tabs. Ports the demo's src/screens/account.tsx
 // (InboxHomeScreen, SettingsHomeScreen, ProfileEditScreen,
 // OrgSwitcherScreen, SignOutConfirmScreen); SyncStatus is app only (the
-// local log, realtime state and transfers), as is the Send diagnostics
-// switch in Settings (docs/diagnostics.md).
+// local log, realtime state and transfers), as are the Send diagnostics
+// switch in Settings (docs/diagnostics.md) and Delete Account (store
+// rules, decisions.md 46).
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 and ONB-5 (the
 // Settings rows back to them), CORE-12 (sign-out never strands work).
 import { CommandError, decodeHlc, deriveKinds, kindOf, laneName, unitTitle, type Update } from '@langquest-next/core';
@@ -12,12 +13,13 @@ import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { accountOutbox, queueAccountAction } from '../accountData';
+import { deleteAccount } from '../accountDeletion';
 import { groupByRead, updateText } from '../accountText';
 import type { Ctx } from '../ctx';
 import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
-  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
+  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, txt, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
@@ -318,6 +320,7 @@ export function SettingsHome(ctx: Ctx) {
       ) : null}
       <View style={{ paddingTop: space.md }}>
         <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
+        <LinkBtn label="Delete account" color={C.muted} onPress={() => ctx.go('delete_account')} style={{ alignSelf: 'center' }} />
       </View>
     </Screen>
   );
@@ -441,8 +444,8 @@ export function OrgSwitcher(ctx: Ctx) {
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
  */
 export function SignOutConfirm(ctx: Ctx) {
-  const { pending, online, refused } = ctx.project;
-  const accountQueued = useAccountActions(ctx.session.actorId).filter((a) => a.status === 'queued').length;
+  const { online, refused } = ctx.project;
+  const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function signOut() {
@@ -453,12 +456,6 @@ export function SignOutConfirm(ctx: Ctx) {
       if (result.error) throw result.error;
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
-  const waiting = [
-    !refused && pending > 0 ? plural(pending, 'change') : null,
-    ctx.org.pending > 0 ? plural(ctx.org.pending, 'organization change') : null,
-    !refused && ctx.project.blobs.pendingUp > 0 ? plural(ctx.project.blobs.pendingUp, 'recording') : null,
-    accountQueued > 0 ? plural(accountQueued, 'account change') : null
-  ].filter((w): w is string => w !== null);
   const blocked = waiting.length > 0;
   const why = blocked
     ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
@@ -479,6 +476,68 @@ export function SignOutConfirm(ctx: Ctx) {
       <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? 'Not yet' : 'Sign out?'}</Text>
       <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+    </Screen>
+  );
+}
+
+/** What this session could still deliver from this phone; sign-out and deletion wait for it. */
+function useUnsent(ctx: Ctx): string[] {
+  const { pending, refused } = ctx.project;
+  const accountQueued = useAccountActions(ctx.session.actorId).filter((a) => a.status === 'queued').length;
+  return [
+    !refused && pending > 0 ? plural(pending, 'change') : null,
+    ctx.org.pending > 0 ? plural(ctx.org.pending, 'organization change') : null,
+    !refused && ctx.project.blobs.pendingUp > 0 ? plural(ctx.project.blobs.pendingUp, 'recording') : null,
+    accountQueued > 0 ? plural(accountQueued, 'account change') : null
+  ].filter((w): w is string => w !== null);
+}
+
+// ---- Delete Account (app only: store rules; decisions.md 46) -------------------------------------------------
+
+/**
+ * Deletes the sign-in and everything that names the person, and takes them
+ * out of every organization. The work they recorded stays with the
+ * organization, no longer linked to them. It waits for unsent work, as
+ * sign-out does, so the organization gets it first, and it needs the
+ * server, so it says so offline.
+ */
+export function DeleteAccount(ctx: Ctx) {
+  const waiting = useUnsent(ctx);
+  const offline = ctx.project.online === false;
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function remove() {
+    setBusy(true);
+    try {
+      await deleteAccount(ctx.session.actorId, {
+        deleteOnServer: async () => (await supabase.rpc('delete_my_account')).error?.message ?? null,
+        storage: AsyncStorage,
+        signOutHere: async () => { await supabase.auth.signOut({ scope: 'local' }); }
+      });
+    } catch (e) { setError(failure('delete account', e)); setBusy(false); }
+  }
+  const blocked = waiting.length > 0 || offline;
+  return (
+    <Screen header={<Header title="Delete Account" onBack={ctx.back} />}
+      footer={
+        <>
+          <PrimaryBtn label={busy ? 'Deleting…' : 'Delete My Account'} tone="red" onPress={() => void remove()} disabled={blocked || busy} />
+          <GhostBtn label="Cancel" onPress={ctx.back} />
+        </>
+      }>
+      {waiting.length > 0 ? (
+        <Banner icon="cloud" tone="amber" title="Send your work first"
+          body={`Still to send: ${waiting.join(', ')}. Delete your account once they have synced, so your organization gets them.`} />
+      ) : offline ? (
+        <Banner icon="cloud" tone="amber" title="You're offline" body="Connect to the internet to delete your account." />
+      ) : null}
+      <Text style={txt.h2} accessibilityRole="header">Delete your account?</Text>
+      <Group>
+        <Row icon="user" label="Deleted" sub="Your sign-in, email, name, notifications and diagnostics. You leave every organization." />
+        <Row icon="people" label="Kept by your organization" sub="Recordings, reviews and notes you made stay part of its work, without your name." last />
+      </Group>
+      <Text style={txt.bodyMuted}>This cannot be undone. To use LangQuest again you would create a new account.</Text>
+      {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
 }
@@ -619,4 +678,4 @@ const styles = StyleSheet.create({
   statValue: { fontSize: T.xl, fontWeight: '700' }
 });
 
-export const contracts = contractsFor('inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'sync_status');
+export const contracts = contractsFor('inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'delete_account', 'sync_status');

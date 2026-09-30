@@ -10,7 +10,7 @@
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { cachedPublicProjects, publicProjects, queueAccountAction, type PublicProject } from '../accountData';
 import { inviteLine, inviteSummary, VISION_STEPS } from '../accountText';
 import type { Ctx } from '../ctx';
@@ -20,13 +20,14 @@ import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Screen, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
+import { PRIVACY_URL } from '../legal';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, type as T, withAlpha } from '../theme';
-import { useAccountActions } from '../useAccount';
+import { useAccountActions, useDisplayNames } from '../useAccount';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -127,8 +128,9 @@ export function TermsPrivacy(ctx: Ctx) {
       <Card>
         <Text style={txt.h3}>Privacy Policy</Text>
         <Text style={txt.bodyMuted}>
-          We store the account, assignment, and progress data needed to run your team's work. Recordings belong to your organization. Public explore views show only what an organization chose to list.
+          LangQuest keeps your email, your name and the work you do, so your team can work together, even offline. Your organization's members see your work; the public sees only what your organization chooses to share. No ads and no tracking. Speed and error reports can be turned off in Settings, and you can delete your account there. Recordings you made stay with your organization.
         </Text>
+        <LinkBtn label="Read the full privacy policy" onPress={() => void Linking.openURL(PRIVACY_URL)} />
       </Card>
     </Screen>
   );
@@ -461,7 +463,12 @@ export function IntentChooser(ctx: Ctx) {
         </Card>
       ))}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      {!ctx.session.isGuest ? <LinkBtn label="Sign out" color={C.muted} onPress={() => void signOut()} style={{ alignSelf: 'center' }} /> : null}
+      {!ctx.session.isGuest ? (
+        <>
+          <LinkBtn label="Sign out" color={C.muted} onPress={() => void signOut()} style={{ alignSelf: 'center' }} />
+          <LinkBtn label="Delete account" color={C.muted} onPress={() => ctx.go('delete_account')} style={{ alignSelf: 'center' }} />
+        </>
+      ) : null}
     </Screen>
   );
 }
@@ -477,6 +484,7 @@ export function IntentChooser(ctx: Ctx) {
  */
 export function CreateOrg(ctx: Ctx) {
   const [name, setName] = useState('');
+  const names = useDisplayNames(ctx.session.actorId);
   // Closed until the creator chooses otherwise; it can only open later (docs/licensing.md).
   const [license, setLicense] = useState<License>(DEFAULT_LICENSE);
   const [choosing, setChoosing] = useState(false);
@@ -488,10 +496,13 @@ export function CreateOrg(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const orgId = await createOrganization({
-        actorId: ctx.session.actorId, name: orgName, license,
-        ...(ctx.session.email ? { displayName: ctx.session.email.split('@')[0]! } : {})
-      });
+      const orgId = await createOrganization({ actorId: ctx.session.actorId, name: orgName, license });
+      // Members see the creator by their profile name; give them one if they
+      // have none yet, from their email, as the log used to (decisions.md 47).
+      if (!names[ctx.session.actorId] && ctx.session.email) {
+        await queueAccountAction(ctx.session.actorId, 'profile', { displayName: ctx.session.email.split('@')[0]! })
+          .catch((e: unknown) => { reportError('create org profile', e); });
+      }
       // The creator needs no "who invited you" welcome; My Work's Getting
       // started is their first day (ADR-022).
       // The org exists by now, so a failure here is reported, not shown as

@@ -30,8 +30,8 @@ export const SCREEN_IDS = [
   // 8 Method and content
   'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
   'reference_home', 'material_editor',
-  // App only: the local log, realtime state and transfers
-  'sync_status'
+  // App only: the local log, realtime state and transfers; account deletion (store rules)
+  'sync_status', 'delete_account'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -258,7 +258,12 @@ export const EDGES: Edge[] = [
   e('create_account', 'terms_privacy', undefined, 'guest'),
   e('org_home', 'new_language'),
   e('org_home', 'language_home'),
-  e('new_language', 'org_home', 'back')
+  e('new_language', 'org_home', 'back'),
+  e('settings_home', 'delete_account'),
+  e('intent_chooser', 'delete_account'),
+  e('delete_account', 'sign_in', 'reset'),
+  e('delete_account', 'settings_home', 'back'),
+  e('delete_account', 'intent_chooser', 'back')
 ];
 
 /**
@@ -295,5 +300,5 @@ export const TITLES: Record<ScreenId, string> = {
   review_team_editor: 'Edit Review Team',
   flows_home: 'Review Flows', flow_editor: 'Flow Editor', templates_home: 'Content Templates', template_picker: 'Choose a Template',
   template_editor: 'Template Outline', book_structure: 'Divide a Book', reference_home: 'Reference Library', material_editor: 'Edit Material',
-  sync_status: 'Sync'
+  sync_status: 'Sync', delete_account: 'Delete Account'
 };

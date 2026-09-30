@@ -43,6 +43,7 @@
     "android": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo run:android",
     "android:build": "eas build --profile preview --platform android",
     "android:install": "eas build:run --profile preview --platform android --latest",
+    "android:play": "eas build --profile production --platform android --auto-submit",
     "android:release": "dotenvx run -f .env.preview -fk ../../.env.keys --strict -e EXPO_NO_DOTENV=1 -- expo run:android --variant release --device",
     "ios": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo run:ios",
     "web": "dotenvx run -f .env.development.local -f .env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo start --web",

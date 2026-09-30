@@ -190,13 +190,17 @@ future id collision cannot make state order-dependent.
 
 ## 16. Removal is an event, and validation is the door
 
-Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+Date: 2026-09-15 · By: Ryder Wishart · Status: partly superseded by 47
 
 Reason: the log refuses UPDATE and DELETE, so a malformed or unwanted event
 is permanent. `validate_payload` (SQL) and `validateEvent` (core) share one
 rule set, the fold skips and counts anything invalid instead of throwing,
 and `v1.Redacted` excludes a target from every fold. Reverse if: never; an
 append-only log without these is a liability, not a guarantee.
+
+Amended (2026-09-30, Caleb Koster): one edit is now allowed, erasing a
+deleted person's name from the event that holds it (decision 47). Everything
+else here stands.
 
 ## 17. Bytes are verified on both ends, and the bucket is reconciled
 
@@ -600,6 +604,9 @@ Amended (2026-09-29, Caleb Koster): the switch is built, a "Send diagnostics"
 row in Settings, on by default as decided; only the privacy notice text is
 still to be written.
 
+Amended (2026-09-30, Caleb Koster): the privacy notice is written, as part of
+the privacy policy (decision 46).
+
 ## 40. Dashboards read server projections of the shared reducer; organization totals are summed from visible language rows
 
 Date: 2026-09-29 · By: Carl Sauder · Status: superseded by 44
@@ -757,3 +764,89 @@ Reverse if: one organization's state outgrows a Durable Object's memory or
 CPU (then shard it by language, one object per partition), or figures must
 be shared across organizations or read without the Worker (then stored rows
 again, with a policy).
+
+## 45. Merging to main ships Android to Google Play's internal testing track
+
+Date: 2026-09-30 · By: Caleb Koster · Status: accepted
+
+Reason: Android testers should get the app from Google Play, as iOS testers
+get it from TestFlight, without the listing being public. It is published
+from the organization's Play developer account that distributes LangQuest
+v2, so Play's closed-test period for new personal accounts does not apply.
+`.eas/workflows/deploy-to-testers.yml` (renamed from
+`deploy-to-testflight.yml`) now handles each platform on its own: a matching
+native fingerprint ships an over-the-air update on `production`, otherwise it
+builds and submits, to the `internal` track named in `eas.json`
+(`submit.production.android`). Internal testing takes up to 100 testers by
+email with no Play review, so a merge reaches them within minutes. The same
+change turns off expo-audio's background playback (`app.json`): nothing played
+in the background, recording stops when the app leaves the foreground, and
+the foreground-service permission it added makes Play ask for a declaration
+and a demo video. The Play service account key lives in EAS credentials, not
+in the repo; the one-time Play Console steps are in `apps/mobile/README.md`
+(Google Play, once).
+Reverse if: testers outgrow 100 or need a group Play manages (move the track
+to closed testing, `alpha`), or a feature needs audio to keep playing or
+recording in the background (turn the plugin option back on and make the
+declaration).
+
+## 46. Deleting an account removes the person and keeps the organization's work
+
+Date: 2026-09-30 · By: Caleb Koster · Status: accepted
+
+Reason: Google Play and the App Store require that anyone who can create an
+account in the app can delete it, from inside the app and by a request from
+the web, and Play requires a privacy policy at a public address.
+`_delete_account` (migration `20260930200000_delete_account.sql`) deletes the
+sign-in and everything that names the person: `auth.users`, the profile
+name, push tokens and receipts, inbox rows, join requests, the email on
+invites, field diagnostics (decision 39) and the uploader mark on stored
+audio. It ends every membership with the same `v1.OrgMemberRemoved` and
+`v1.MemberRemoved` events an administrator would append, so every phone's
+fold drops them, and erases the one name the log held (decision 47). The
+events they authored and the audio those name are kept: recordings are the
+organization's work under its license (decision 38), and without the
+account the actor id on them is a random id that leads to no one. LangQuest
+v2 kept contributions on deletion too. The person deletes from the app
+(`delete_my_account`; Settings, and the screen for someone with no
+organization yet), which waits for unsent work as sign-out does (decision
+12). From the web they email a request, and staff run
+`delete_account_for_email` in the Supabase SQL editor; the app cannot call
+it. The app's Delete Account screen is app-only, beside the demo's
+(`test/specParity.test.ts` drift log). The privacy policy and the request
+page live on the LangQuest v2 website (langquest-website repository,
+`/en/next/privacy` and `/en/next/delete-account`) beside v2's own, because
+this repository's web app is not ready to be published; the app links there
+(`apps/mobile/src/legal.ts`), and the text must change with what the code
+keeps.
+Reverse if: a partner, a privacy review or a regulator requires erasing a
+person's recordings or words (then the log needs payload erasure beyond
+names); or this repository's web app is published (then the policy and a
+signed-in deletion page move there, and `legal.ts` and the store listings
+follow).
+
+## 47. A deleted person's name is erased from the log, the one edit the log allows
+
+Date: 2026-09-30 · By: Caleb Koster · Status: accepted
+
+Reason: creating an organization wrote the creator's name (their email's
+local part) into `v1.OrgMemberAdded.displayName`, so deleting the account
+could hide the name (a `v1.Redacted`) but not remove it, and the privacy
+policy says the name is deleted. Two changes, chosen over disclosing that
+the name stays. Names stop entering the log: Create Organization saves the
+creator's profile name instead (`profiles`, which deletion removes), and
+`createOrganization` no longer takes one; the field stays in the event type
+so old events fold. And the one name already in the log can be erased:
+`events_immutable` now lets through a single kind of update, removing
+`displayName` from an `OrgMemberAdded` whose `profileId` is the person
+being deleted, only while `_delete_account` has set
+`langquest.erase_profile` to them, and only if nothing else in the row
+changes. Every other update and every delete is still refused
+(`server/delete-account-smoke.sql`). The event is also redacted, so phones
+that already hold it stop showing the name, and that organization's
+snapshots are dropped to be rebuilt from the log. Copies on phones keep the
+bytes until the app is removed; the fold never shows them. Partly supersedes
+16.
+Reverse if: event integrity comes to depend on payload bytes (a hash chain
+or signatures), which would need erasure designed in (for example,
+encrypting personal fields with a per-person key and deleting the key).

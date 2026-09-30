@@ -15,7 +15,7 @@ import { ORG_MATERIALIZER } from './useOrg';
  * The events go into this phone's log and sync from there, so it works
  * offline.
  */
-export async function createOrganization(c: { actorId: string; name: string; displayName?: string; license?: License }): Promise<string> {
+export async function createOrganization(c: { actorId: string; name: string; license?: License }): Promise<string> {
   const orgId = `org-${Crypto.randomUUID()}`;
   const store = await getStore();
   const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
@@ -32,10 +32,9 @@ export async function createOrganization(c: { actorId: string; name: string; dis
   await client.load();
   await client.append('v1.OrgCreated', { name: c.name });
   for (const r of SEED_ROLES) await client.append('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
-  await client.append('v1.OrgMemberAdded', {
-    profileId: c.actorId, roleId: 'org_admin', scope: { level: 'org' },
-    ...(c.displayName ? { displayName: c.displayName } : {})
-  });
+  // No displayName: a name in the log outlives the account (decisions.md 47).
+  // Members see the creator by their profile name, which deletion removes.
+  await client.append('v1.OrgMemberAdded', { profileId: c.actorId, roleId: 'org_admin', scope: { level: 'org' } });
   // Recorded even when it is the default, so the log says what was chosen.
   // After the membership: the server lets only an Organization Admin set it.
   await client.append('v1.OrgLicenseSet', { license: c.license ?? DEFAULT_LICENSE });

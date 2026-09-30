@@ -93,15 +93,64 @@ Two ways, both from `apps/mobile`:
 
 ## Shipping a change
 
-**Merging to `main` ships to TestFlight** through the EAS workflow in
-`.eas/workflows/deploy-to-testflight.yml`, on Expo's servers: the typecheck
-and unit tests run, then a change whose native fingerprint matches an
-existing production build goes out as an over-the-air update on the
-`production` channel (TestFlight installs take it on next launch), and any
-other change builds a new iOS binary and submits it to TestFlight. It needs
-the GitHub repository connected to the EAS project once, with its base
-directory set to `apps/mobile` (expo.dev, project settings, GitHub). The
-manual commands below remain for other channels and for shipping by hand.
+**Merging to `main` ships to testers** on both platforms, TestFlight on iOS
+and Google Play's internal testing track on Android (decisions.md 45),
+through the EAS workflow in `.eas/workflows/deploy-to-testers.yml`, on
+Expo's servers: the typecheck and unit tests run, then, per platform, a
+change whose native fingerprint matches an existing production build goes
+out as an over-the-air update on the `production` channel (installed builds
+take it on next launch), and any other change builds a new binary and
+submits it. It needs the GitHub repository connected to the EAS project
+once, with its base directory set to `apps/mobile` (expo.dev, project
+settings, GitHub). The manual commands below remain for other channels and
+for shipping by hand.
+
+### Google Play, once
+
+The app is published from the organization's Play developer account (the
+one LangQuest v2 uses), so Play's 12-testers-for-14-days rule for new
+personal accounts does not apply. Internal testing takes up to 100 testers
+by email, has no review, and is invisible to everyone else; the listing
+stays unpublished until someone promotes a release to production in Play
+Console.
+
+1. The privacy policy and the account deletion request page are on the
+   LangQuest v2 website, langquest.org (langquest-website repository,
+   `src/app/[locale]/next/`): `https://langquest.org/en/next/privacy` and
+   `https://langquest.org/en/next/delete-account` (`src/legal.ts`;
+   decisions.md 46). They must be live before Play review.
+2. In Play Console, create the app with package
+   `com.frontierrnd.langquestnext` and fill in the App content
+   declarations: the privacy policy URL above, app access with a reviewer
+   sign-in, ads (none), content rating, target audience, and data safety.
+   Play asks for them before it takes a release on any track. For data
+   safety, from the privacy policy: collected are email, name, voice
+   recordings, other user content (reviews, notes, typed contacts of guest
+   reviewers), app interactions and diagnostics (crash logs, performance),
+   and device or other IDs (a random install id, the push token); none is
+   shared with third parties as Play defines it (service providers are not
+   sharing), none is for ads or tracking, all is encrypted in transit, and
+   people can delete their account in the app, or request it at the
+   delete-account address above. Staff answer an emailed request with
+   `select public.delete_account_for_email('…');` in the Supabase SQL
+   editor.
+3. Give EAS a Google service account key with release permission on this
+   app: expo.dev, project, Credentials, Android,
+   `com.frontierrnd.langquestnext`, Service Credentials. The key lives in
+   EAS, never in this repository. If LangQuest v2's EAS project already
+   has one, that Google service account can be given access to this app
+   too (Play Console, Users and permissions).
+4. The next merge to `main` builds the production AAB and submits it to
+   internal testing; `npm run android:play` does the same by hand. If Play
+   refuses it because the app is still a draft, upload that one AAB by hand
+   in Play Console (Testing, Internal testing, Create release) and roll it
+   out; every later release goes through EAS.
+5. In Internal testing, Testers: add an email list or Google Group, then
+   share the opt-in link. Testers open it on the phone signed in to that
+   Google account, accept, and install from Play.
+
+The upload key is the keystore EAS keeps for this package (the one
+`android:build` made); Play App Signing holds the key the store signs with.
 
 The hosted database and Edge Functions follow the same merge: Supabase's
 GitHub integration applies new migrations and deploys the functions

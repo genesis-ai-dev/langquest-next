@@ -16,7 +16,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // A new org's partition (createOrg.ts) and the welcome it skips
   // (markWelcomed). Its languages are added afterwards from Getting started
   // (ONB-5), each its own partition (decisions.md 37).
-  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.OrgLicenseSet','v1.VisionSeen'],rpcs:['record_user_event'] },
+  create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.OrgLicenseSet','v1.VisionSeen'],rpcs:['record_user_event','save_profile'],reads:['profiles'] },
   request_access: { rpcs:['create_join_request'] },
   scan_qr: { rpcs:['redeem_invite_v2','my_organizations'] },
   explore_home: { reads:['public_projects'] },
@@ -73,7 +73,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   settings_home: { rpcs:['register_push_token'] },
-  sign_out_confirm: { rpcs:['unregister_push_token'] }
+  sign_out_confirm: { rpcs:['unregister_push_token'] },
+  delete_account: { rpcs:['delete_my_account'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

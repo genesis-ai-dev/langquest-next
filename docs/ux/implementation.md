@@ -56,7 +56,7 @@ is missing. The current key-term model has no separate source-prompt audio
 field, so term prompts display the term text.
 
 The iOS simulator build passes. Type checks and workflow regression tests pass.
-The Android native module has not been compiled in this environment. Real
+The Android native module compiles and the app builds for Android. Real
 microphone timing and audio routing still need device testing.
 
 Use this device walkthrough before release:
