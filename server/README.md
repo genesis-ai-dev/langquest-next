@@ -60,5 +60,10 @@ its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
 per invitation prevents concurrent and confirmed-delivery retries from
 sending duplicates. Neither service logs invitation tokens.
 
+Field diagnostics (`*_field_diagnostics.sql`, docs/diagnostics.md): schema
+`diag`, not exposed by the API. Phones deliver content-free records through
+`diag_ingest`; support reads them as `diag_reader` with `npm run diag`.
+`diag-smoke.sql` covers it in `npm run db:test`.
+
 Still deferred: org dashboard summaries (`project_summaries`), profile
 photos, and the remaining content/audio gaps in the flow audit.

@@ -1,4 +1,4 @@
-import { SqliteStore, type SqlDriver } from '@langquest-next/client';
+import { SqliteDiagStore, SqliteStore, type SqlDriver } from '@langquest-next/client';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 
@@ -53,6 +53,16 @@ function expoDriver(db: SQLite.SQLiteDatabase): SqlDriver {
 }
 
 let storePromise: Promise<SqliteStore> | undefined;
+let diagPromise: Promise<SqliteDiagStore> | undefined;
+
+/**
+ * Field diagnostics waiting for delivery (diagnostics.ts). Their own file:
+ * a diagnostics write must never hold a lock an event commit is waiting for.
+ */
+export function getDiagStore(): Promise<SqliteDiagStore> {
+  diagPromise ??= SQLite.openDatabaseAsync('langquest-diagnostics.db').then((db) => SqliteDiagStore.open(expoDriver(db)));
+  return diagPromise;
+}
 
 /** One local event log per device, shared by every open project. */
 export function getStore(): Promise<SqliteStore> {

@@ -22,6 +22,7 @@ import { WriteQueue } from './writeQueue';
 import { queriesFor, type ProjectQueries } from './queries';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
 import { fetchSnapshot } from './snapshotFetch';
+import type { Diagnostics } from './diagnostics';
 
 /**
  * How a partition's events become state. The project materializer is the
@@ -103,7 +104,17 @@ export interface SyncClientOptions<S = ProjectState> {
   deferCheckpoint?: () => boolean;
   /** Progress per pulled page: events so far this pull. */
   onPullProgress?: (pulled: number) => void;
+  /**
+   * Field diagnostics (docs/diagnostics.md): timings of load, snapshot and
+   * sync, split into waiting on the network and working on the phone.
+   */
+  diag?: Diagnostics;
 }
+
+/** A sync that moved nothing is recorded only when it took at least this long. */
+const SLOW_SYNC_MS = 2_000;
+/** A repeated non-ok outcome (offline, refused) is recorded at most this often. */
+const REPEAT_OUTCOME_MS = 60 * 60 * 1000;
 
 /**
  * One partition (project) on one device.
@@ -138,6 +149,12 @@ export class SyncClient<S = ProjectState> {
   /** Rows are maintained only for the project materializer. */
   private readonly projectRows: boolean;
   private revision = 0;
+  /** Elapsed-time clock for diagnostics; unlike `wall`, never shifted by a clock-ahead offset. */
+  private readonly elapsed: () => number;
+  /** Network waits in the current `sync()`, for diagnostics. */
+  private net = { push: 0, pull: 0, pages: 0 };
+  private lastOutcome: { outcome: string; at: number } | null = null;
+  private offlineSince: number | null = null;
   private indexes: ProjectIndexes | undefined;
   /** Bump when persisted passage/task/count semantics change. */
   private projectionVersion(): string { return `3:${this.m.version}`; }
@@ -150,6 +167,7 @@ export class SyncClient<S = ProjectState> {
     this.state = this.m.empty();
     this.writer.onChange(() => this.publish());
     const base = opts.now ?? (() => Date.now());
+    this.elapsed = base;
     this.wall = () => base() + this.clockOffsetMs;
     this.clock = opts.clock ?? new HlcClock(opts.deviceId, this.wall);
     this.newId = opts.newId ?? (() => crypto.randomUUID());
@@ -162,6 +180,7 @@ export class SyncClient<S = ProjectState> {
 
   /** Rebuild the fold from the local log. Called once, and after a rejection. */
   async load(): Promise<S> {
+    const started = this.elapsed();
     const refold = this.loaded;
     if (!this.opts.clock && !this.loaded) {
       const seed = await this.opts.store.meta(this.clockKey());
@@ -174,6 +193,10 @@ export class SyncClient<S = ProjectState> {
     const snapshot = await this.localSnapshot();
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     this.loaded = true;
+    this.opts.diag?.record('load', {
+      ...this.partition(),
+      n: { ms: this.elapsed() - started, events: events.length, fromSnapshot: snapshot ? 1 : 0 }
+    });
     if (this.projectRows) {
       this.indexes = new ProjectIndexes(this.state as unknown as ProjectState);
       const marker = await this.opts.store.meta(this.projectionKey());
@@ -338,9 +361,14 @@ export class SyncClient<S = ProjectState> {
    * linear in snapshot size, not quadratic in piece count.
    */
   private async adoptServerSnapshot(): Promise<number> {
+    const started = this.elapsed();
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
     const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.projectId, this.m.version);
-    if (!meta) return 0;
+    if (!meta) {
+      // A cold device with no snapshot for its reducer folds the whole log: the first thing to check when a first download is slow.
+      this.opts.diag?.record('snapshot', { ...this.partition(), n: { ms: this.elapsed() - started }, t: { outcome: 'none' } });
+      return 0;
+    }
     const savedMap = new Map<number, string>();
     let index: { seq: number; chunks: number } = { seq: 0, chunks: 0 };
     try {
@@ -365,7 +393,14 @@ export class SyncClient<S = ProjectState> {
         await this.commit({ meta: { [this.chunkPieceKey(serverSeq, i)]: text } });
       }
     });
-    if (!snap || snap.serverSeq < minSeq) return 0;
+    // Fetching pieces is waiting on the network; saving and folding them after this is the phone's work (a `load` record).
+    this.net.pull += this.elapsed() - started;
+    const fetched = { ...this.partition(), n: { ms: this.elapsed() - started, chunks: meta.chunks, resumedChunks: savedMap.size, bytes: meta.bytes, seq: meta.serverSeq } };
+    if (!snap || snap.serverSeq < minSeq) {
+      this.opts.diag?.record('snapshot', { ...fetched, t: { outcome: 'stale' } });
+      return 0;
+    }
+    this.opts.diag?.record('snapshot', { ...fetched, t: { outcome: 'ok' } });
     await this.clearChunks(index);
     await this.commit({ meta: { [this.chunkKey()]: '' } });
     await this.saveSnapshot(snap);
@@ -533,7 +568,9 @@ export class SyncClient<S = ProjectState> {
         batches += 1;
         // One bounded request per batch. Each batch's results are persisted
         // before the next is sent, so a dropped link keeps what got through.
+        const sent = this.elapsed();
         const results = await this.opts.transport.append(batch.map((p) => p.event));
+        this.net.push += this.elapsed() - sent;
         const writes: LocalEvent[] = [];
         for (const r of results) {
           const local = batch.find((p) => p.event.id === r.id);
@@ -629,12 +666,15 @@ export class SyncClient<S = ProjectState> {
     let redactedInsideCheckpoint = false;
     let membershipChanged = false;
     for (;;) {
+      const asked = this.elapsed();
       const page = await this.opts.transport.pull(
         this.opts.orgId,
         this.opts.projectId,
         after,
         this.pullPageSize
       );
+      this.net.pull += this.elapsed() - asked;
+      this.net.pages += 1;
       const writes: LocalEvent[] = [];
       const folded: AnyEvent[] = [];
       for (const event of page) {
@@ -748,16 +788,69 @@ export class SyncClient<S = ProjectState> {
    */
   async sync(): Promise<SyncResult> {
     const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false };
+    const started = this.elapsed();
+    this.net = { push: 0, pull: 0, pages: 0 };
+    let result: SyncResult;
     try {
       const { accepted, rejected, more: morePush } = await this.push();
       const { pulled, more: morePull } = await this.pullSlice();
-      return { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull };
+      result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull };
     } catch (err) {
-      if (err instanceof OfflineError) return { ...idle, offline: true };
-      if (err instanceof ClientTooOldError) return { ...idle, tooOld: true };
-      if (err instanceof NotAuthorizedError) return { ...idle, refused: err.message };
-      throw err;
+      if (err instanceof OfflineError) result = { ...idle, offline: true };
+      else if (err instanceof ClientTooOldError) result = { ...idle, tooOld: true };
+      else if (err instanceof NotAuthorizedError) result = { ...idle, refused: err.message };
+      else {
+        await this.recordSync(started, idle, 'error', err instanceof Error ? err.name : 'non-error');
+        throw err;
+      }
     }
+    const outcome = result.offline ? 'offline' : result.tooOld ? 'too_old' : result.refused !== null ? 'refused' : 'ok';
+    await this.recordSync(started, result, outcome);
+    return result;
+  }
+
+  /**
+   * One record per sync worth knowing about: it moved something, it was
+   * slow, it ended a quiet spell, or its outcome changed. A phone polling a
+   * dead radio every few minutes for a month writes one record an hour, not
+   * thousands. Never throws: a diagnostics failure must not fail a sync.
+   */
+  private async recordSync(started: number, r: SyncResult, outcome: string, error?: string): Promise<void> {
+    const diag = this.opts.diag;
+    if (!diag?.isEnabled) return;
+    try {
+      const now = this.elapsed();
+      const ms = now - started;
+      const repeat = this.lastOutcome?.outcome === outcome && now - this.lastOutcome.at < REPEAT_OUTCOME_MS;
+      const offlineMs = outcome !== 'offline' && this.offlineSince !== null ? now - this.offlineSince : undefined;
+      if (outcome === 'offline') this.offlineSince ??= started;
+      else this.offlineSince = null;
+      const moved = r.pushed + r.pulled + r.rejected > 0;
+      const worth = outcome === 'ok' ? moved || ms >= SLOW_SYNC_MS || offlineMs !== undefined || this.lastOutcome?.outcome !== 'ok' : !repeat;
+      if (!worth) return;
+      this.lastOutcome = { outcome, at: now };
+      const netMs = this.net.push + this.net.pull;
+      diag.record('sync', {
+        ...this.partition(),
+        n: {
+          ms,
+          pushNetMs: this.net.push,
+          pullNetMs: this.net.pull,
+          applyMs: Math.max(0, ms - netMs),
+          pushed: r.pushed,
+          rejected: r.rejected,
+          pulled: r.pulled,
+          pages: this.net.pages,
+          pending: await this.pendingCount(),
+          ...(offlineMs !== undefined ? { offlineMs } : {})
+        },
+        t: { outcome, ...(error ? { error } : {}) }
+      });
+    } catch { /* diagnostics never fail a sync */ }
+  }
+
+  private partition(): { orgId: string; projectId: string } {
+    return { orgId: this.opts.orgId, projectId: this.opts.projectId };
   }
 
   /** The local log as the sync status screen shows it. */
