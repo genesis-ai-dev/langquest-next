@@ -1,0 +1,142 @@
+import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore } from '@langquest-next/client';
+import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION } from '@langquest-next/core';
+import * as Crypto from 'expo-crypto';
+import { Paths } from 'expo-file-system';
+import * as Updates from 'expo-updates';
+import { Platform } from 'react-native';
+import { getDiagStore, getStore } from './store';
+import { supabase } from './supabase';
+
+// Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
+// the app: the sync clients, the transfer workers and report.ts write to
+// it; `flushDiagnostics` delivers what it holds once the phone's own work
+// is out of the way. Nothing recorded is content (packages/client
+// diagnostics.ts holds the allowlist).
+
+const OFF_KEY = 'diag:off';
+/** At most one delivery attempt this often; weeks of records drain over a few syncs. */
+const FLUSH_EVERY_MS = 10 * 60_000;
+
+/** The store opens lazily, so recording can start before the database is ready. */
+const lazyStore: DiagStore = {
+  addDiag: async (r, max) => (await getDiagStore()).addDiag(r, max),
+  diagBatch: async (limit) => (await getDiagStore()).diagBatch(limit),
+  removeDiag: async (ids) => (await getDiagStore()).removeDiag(ids),
+  diagCount: async () => (await getDiagStore()).diagCount()
+};
+
+export const diagnostics = new Diagnostics({ store: lazyStore, newId: () => Crypto.randomUUID() });
+
+async function dropWaiting(): Promise<void> {
+  const diag = await getDiagStore();
+  for (;;) {
+    const batch = await diag.diagBatch(500);
+    if (batch.length === 0) break;
+    await diag.removeDiag(batch.map((r) => r.id));
+  }
+}
+
+// The person's choice outlives a restart. Until it is read nothing is sent
+// (flush waits for it), and anything recorded in that moment is dropped if
+// the answer is off.
+const setting = getStore()
+  .then(async (store) => {
+    const on = (await store.meta(OFF_KEY)) !== '1';
+    diagnostics.setEnabled(on);
+    if (!on) {
+      await diagnostics.settle();
+      await dropWaiting();
+    }
+  })
+  .catch(() => {});
+
+/** For a settings screen: off stops recording and sending, and drops what is waiting. */
+export async function setDiagnosticsEnabled(on: boolean): Promise<void> {
+  diagnostics.setEnabled(on);
+  const store = await getStore();
+  await store.setMeta(OFF_KEY, on ? '' : '1');
+  if (!on) {
+    await diagnostics.settle();
+    await dropWaiting();
+  }
+}
+
+/** The phone and build, as the allowlist permits. The install id is the event envelope's deviceId. */
+async function context(): Promise<DiagContext> {
+  const installId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
+  const c = Platform.constants as { Model?: string; Release?: string; osVersion?: string };
+  return sanitizeContext({
+    installId,
+    os: Platform.OS,
+    osVersion: c.Release ?? c.osVersion ?? String(Platform.Version),
+    model: c.Model,
+    runtimeVersion: Updates.runtimeVersion,
+    updateId: Updates.updateId,
+    channel: Updates.channel,
+    embedded: Updates.isEmbeddedLaunch ? 'yes' : 'no',
+    reducerVersion: String(REDUCER_VERSION),
+    protocolVersion: String(CLIENT_PROTOCOL_VERSION)
+  });
+}
+
+const mb = (bytes: number) => Math.round(bytes / (1024 * 1024));
+
+let lastAttempt = 0;
+let flushing = false;
+
+/**
+ * Deliver waiting records. Call only when the phone's own work is done: the
+ * outbox is empty and uploads are idle (docs/diagnostics.md, "Delivery").
+ * Downloads are not waited for, because a stuck download is exactly what
+ * support needs to hear about. Never throws; what is not delivered stays.
+ */
+export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsWanted?: number } = {}): Promise<void> {
+  await setting;
+  if (!diagnostics.isEnabled || flushing || Date.now() - lastAttempt < FLUSH_EVERY_MS) return;
+  flushing = true;
+  lastAttempt = Date.now();
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    const n: Record<string, number> = {};
+    try {
+      n.freeDiskMb = mb(Paths.availableDiskSpace);
+      n.totalDiskMb = mb(Paths.totalDiskSpace);
+    } catch { /* not every platform reports disk */ }
+    if (device.blobCacheBytes !== undefined) n.blobCacheMb = mb(device.blobCacheBytes);
+    if (device.blobsWanted !== undefined) n.blobsWanted = device.blobsWanted;
+    diagnostics.record('device', { n });
+    const ctx = await context();
+    await diagnostics.flush(async (records) => {
+      const { error } = await supabase.rpc('diag_ingest', { p_context: ctx, p_records: records });
+      if (error) throw new Error(error.message);
+    });
+  } catch {
+    // Offline, or a server without the diagnostics migration: try again later.
+  } finally {
+    flushing = false;
+  }
+}
+
+export interface TransferTimings {
+  signMs?: number;
+  fetchMs?: number;
+  verifyMs?: number;
+}
+
+/** Time one blob transfer and tally it, failure or not. Rethrows so the worker's backoff still applies. */
+export async function timedTransfer(
+  dir: 'up' | 'down',
+  where: { orgId: string; projectId: string },
+  run: (timings: TransferTimings) => Promise<number>
+): Promise<void> {
+  const started = Date.now();
+  const timings: TransferTimings = {};
+  try {
+    const bytes = await run(timings);
+    diagnostics.transfer(dir, { ...where, ...timings, bytes, ms: Date.now() - started });
+  } catch (e) {
+    diagnostics.transfer(dir, { ...where, ...timings, bytes: 0, ms: Date.now() - started, failure: classifyTransferFailure(e) });
+    throw e;
+  }
+}

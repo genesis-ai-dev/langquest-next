@@ -34,6 +34,7 @@ without contradicting PLAN.md.
 | `event-sourced-sync` | Published event-sourcing skills prescribe expected-version checks and ordered projections, which break commutative offline events. This one encodes PLAN.md and lists the advice to reject. |
 | `architecture-tradeoffs` | Mark Richards and Neal Ford have published no skill, and community versions reproduce their book's rating tables without the right to. Written from their public material, applied to this app's quanta and fitness functions. |
 | `error-tracking` | Vendor skills are setup wizards that default to sending PII. This one is vendor-neutral: classification, boundaries, scrubbing, weeks-long offline delivery, EAS Update source maps. |
+| `field-diagnosis` | Written for this app's own diagnostics (decisions.md 39): the steps from "a translator in this language is slow" to a cause, reading only the content-free `diag` records. No published skill knows this data. |
 | `infrastructure-as-code` | Published IaC and GitOps skills target Terraform and Kubernetes. This one covers the tools used here: Supabase CLI (`config.toml`, migrations, secrets), Wrangler, EAS, and dotenvx for encrypted env files. |
 | `laws-of-ux` | No reputable Laws of UX skill exists; the ones found are web and Tailwind oriented. Written for field use and deferring to the partner demo. |
 

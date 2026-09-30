@@ -80,6 +80,7 @@ Project skills, written for this app (use these first):
 - `event-sourced-sync`: events, reducer, validation, sync, storage.
 - `architecture-tradeoffs`: style, quanta, trade-offs, decisions, fitness functions.
 - `error-tracking`: error classes, boundaries, crash reporting, privacy, offline delivery.
+- `field-diagnosis`: a field report ("slow downloads in this language", an error code) to its cause, from `npm run diag`.
 - `laws-of-ux`: Fitts, Hick, Jakob and the rest, tuned for field use.
 - `infrastructure-as-code`: hosted settings, secrets and env files live in the repo, never only in a dashboard.
 

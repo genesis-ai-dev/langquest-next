@@ -2,6 +2,7 @@ import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, Sy
 import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type ProjectState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
+import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
 import { getRecordingJournal } from './recordingJournal';
 import { isRecording } from './useRecorder';
 import * as Crypto from 'expo-crypto';
@@ -122,6 +123,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const downRef = useRef<TransferWorker | null>(null);
   const onlineRef = useRef<boolean | null>(null);
   const pullingRef = useRef(false);
+  const pendingUpRef = useRef(0);
+  const pendingDownRef = useRef(0);
 
   const refresh = useCallback(async () => {
     const c = clientRef.current;
@@ -146,6 +149,12 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       setTooOld(r.tooOld);
       setRefused(r.refused);
       if (!r.offline && !r.refused && !r.more) setPulled(true);
+      // Diagnostics go only after this phone's own work: outbox empty, uploads idle.
+      if (!r.offline && !r.more && pendingUpRef.current === 0) {
+        void c.pendingCount()
+          .then((n) => (n === 0 ? flushDiagnostics({ blobCacheBytes: storeRef.current?.totalBytes(), blobsWanted: pendingDownRef.current }) : undefined))
+          .catch(() => {});
+      }
       // Online is exactly "the server answered". A refusal is an answer, so a
       // device whose membership is missing is online and says so; it must not
       // be shown, or treated, as offline.
@@ -206,7 +215,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         // A long catch-up shares the thread with taps and the meter, and the
         // whole-state clone a checkpoint takes waits until recording is over.
         yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
-        deferCheckpoint: isRecording
+        deferCheckpoint: isRecording,
+        diag: diagnostics
       });
       await client.load();
       const blobStore = await getBlobStore();
@@ -252,8 +262,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         ...common,
         // Size from the confirmation versus the file here: a mismatch reopens the upload.
         work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
-        transfer: (ref) => metered(upMeter.current, blobStore, ref, () => uploadBlob(orgId, projectId, ref, blobStore)),
-        onChange: (n) => { setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
+        transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, projectId }, (t) => uploadBlob(orgId, projectId, ref, blobStore, t)),
+        onChange: (n) => { pendingUpRef.current = n; setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       const down = new TransferWorker({
         ...DOWNLOAD_DEFAULTS,
@@ -261,8 +271,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         // Rule 10: by scope, never the whole project. Scope is the actor's
         // own units plus what they explicitly chose to keep offline.
         work: () => deriveDownloadWork(client.getState(), blobStore.snapshot(), scopeNow()),
-        transfer: (ref) => metered(downMeter.current, blobStore, ref, () => downloadBlob(orgId, projectId, ref, blobStore)),
-        onChange: (n) => { setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
+        transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, projectId }, (t) => downloadBlob(orgId, projectId, ref, blobStore, t)),
+        onChange: (n) => { pendingDownRef.current = n; setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       upRef.current = up;
       downRef.current = down;
@@ -393,8 +403,19 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
-/** Time one transfer and credit its bytes to the meter once it succeeds. */
-async function metered(meter: RateMeter, store: BlobStore, ref: BlobRef, run: () => Promise<void>): Promise<void> {
-  await run();
-  meter.add(store.sizes().get(ref.hash) ?? 0);
+/** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */
+async function metered(
+  meter: RateMeter,
+  store: BlobStore,
+  ref: BlobRef,
+  dir: 'up' | 'down',
+  where: { orgId: string; projectId: string },
+  run: (timings: TransferTimings) => Promise<void>
+): Promise<void> {
+  await timedTransfer(dir, where, async (timings) => {
+    await run(timings);
+    const bytes = store.sizes().get(ref.hash) ?? 0;
+    meter.add(bytes);
+    return bytes;
+  });
 }

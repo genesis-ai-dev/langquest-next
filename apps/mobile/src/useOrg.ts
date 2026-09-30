@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getStore } from './store';
 import { supabase } from './supabase';
+import { diagnostics } from './diagnostics';
 
 export interface OrgHandle {
   state: OrgState | null;
@@ -82,7 +83,8 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
         deviceId,
         store,
         transport,
-        newId: () => Crypto.randomUUID()
+        newId: () => Crypto.randomUUID(),
+        diag: diagnostics
       });
       await client.load();
       if (cancelled) return;

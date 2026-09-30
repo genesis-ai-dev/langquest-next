@@ -1,10 +1,13 @@
 import { CommandError } from '@langquest-next/core';
+import { diagnostics } from './diagnostics';
 
-// The one place faults are reported (error-tracking skill). No tracker is
-// chosen yet (a docs/decisions.md entry when one is), so this logs a
-// content-free line and hands back a short id the user can read to support.
-// Never pass user content in `where`; the error's message is not logged,
-// only its type and stack, because messages can carry what people typed.
+// The one place faults are reported (error-tracking skill). There is no
+// third-party tracker (decisions.md 39): this logs a content-free line,
+// keeps an `error` record for field diagnostics, and hands back a short id
+// the user can read to support, who finds it with `npm run diag -- error`.
+// Never pass user content in `where`; the error's message is neither logged
+// nor recorded, only its type and stack frames, because messages can carry
+// what people typed.
 
 let counter = 0;
 
@@ -16,10 +19,11 @@ function errorId(): string {
 }
 
 /** Report a fault; returns the id shown to the user. */
-export function reportError(where: string, error: unknown): string {
+export function reportError(where: string, error: unknown, fatal = false): string {
   const id = errorId();
   const e = error instanceof Error ? error : new Error('non-error thrown');
   console.error(`[error ${id}] ${where}: ${e.name}`, e.stack ?? '');
+  diagnostics.record('error', { t: { name: e.name, where, errorId: id, fatal: fatal ? 'yes' : 'no' }, ...(e.stack ? { stack: e.stack } : {}) });
   return id;
 }
 
@@ -44,7 +48,7 @@ export function installGlobalHandlers(): void {
   };
   const previous = g.ErrorUtils?.getGlobalHandler();
   g.ErrorUtils?.setGlobalHandler((e, fatal) => {
-    reportError(fatal ? 'global (fatal)' : 'global', e);
+    reportError(fatal ? 'global (fatal)' : 'global', e, !!fatal);
     previous?.(e, fatal);
   });
   g.addEventListener?.('unhandledrejection', (event) => { reportError('unhandled promise', event.reason); });
