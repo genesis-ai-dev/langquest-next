@@ -411,7 +411,7 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
             const blocked = ctx.blocks.has(id);
             return (
               <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
-                {...(blocked ? {} : { sub: 'Unblocked. What they add shows again.' })} last={i === all.length - 1}
+                {...(blocked ? {} : { sub: 'Unblocked' })} last={i === all.length - 1}
                 right={blocked
                   ? <SmallBtn label="Unblock" onPress={() => void set(id, false)} />
                   : <SmallBtn label="Block again" tone="plain" onPress={() => void set(id, true)} />} />
