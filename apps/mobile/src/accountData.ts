@@ -12,19 +12,25 @@ export function accountOutbox(actorId: string): DurableOutbox {
       if (data.session?.user.id !== actorId) {
         throw new DeliveryError('Sign in again to send your saved changes.', true);
       }
+      const p = action.payload;
       const { error } = action.kind === 'join_request'
         ? await supabase.rpc('create_join_request', {
-          p_request_id: action.id, p_org: action.payload.orgId,
-          p_message: action.payload.message
+          p_request_id: action.id, p_org: p.orgId, p_message: p.message
         })
         : action.kind === 'profile'
-          ? await supabase.rpc('save_profile', {
-            p_display_name: action.payload.displayName
-          })
-          : await supabase.rpc('record_user_event', {
-            p_id: action.id, p_type: action.payload.type,
-            p_payload: action.payload.payload
-          });
+          ? await supabase.rpc('save_profile', { p_display_name: p.displayName })
+          : action.kind === 'report'
+            // Reports and blocks (decisions.md 48): rows on the server, never events.
+            ? await supabase.rpc('report_content', {
+              p_id: action.id, p_org: p.orgId, p_partition: p.partitionId, p_kind: p.kind,
+              p_target: p.targetId, p_profile: p.profileId, p_reason: p.reason,
+              p_details: p.details ?? null, p_unit: p.unitId ?? null, p_lane: p.laneId ?? null
+            })
+            : action.kind === 'block'
+              ? await supabase.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
+              : await supabase.rpc('record_user_event', {
+                p_id: action.id, p_type: p.type, p_payload: p.payload
+              });
       if (error) {
         const permanent = ['22023', '42501', '23514'].includes(error.code);
         throw new DeliveryError(error.message, !permanent);
@@ -42,7 +48,7 @@ export async function queueAccountAction(
   await outbox.enqueue({ id, kind, payload });
   return id;
 }
-export const TERMS_VERSION = '2026-09-17';
+export const TERMS_VERSION = '2026-09-30';
 export type UserEventType = 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
 export async function recordUserEvent(actorId: string, type: UserEventType) {
   const payload = type === 'v1.TermsAccepted' ? { version: TERMS_VERSION } : {};

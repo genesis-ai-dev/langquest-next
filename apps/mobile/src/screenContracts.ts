@@ -9,6 +9,12 @@ export interface ScreenContract {
   /** Writes outside the member-only event log have an explicit RPC contract. */
   rpcs: readonly string[];
 }
+/**
+ * The flag on someone else's note, version, review or request (reportSheet.tsx,
+ * decisions.md 48): a report or block goes through the account outbox, and a
+ * moderator's removal straight to the server.
+ */
+const REPORTS = ['report_content', 'set_blocked', 'remove_content'] as const;
 const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
   create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
@@ -25,18 +31,18 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
   book_map: { reads:['derivePassage','unitPlace'] },
   passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestWithdrawn','v1.NoteAdded'],
-    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'] },
-  version_detail: { reads:['derivePassage','keyTermLinksFor'] },
-  review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'] },
+    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'],rpcs:REPORTS },
+  version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
+  review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
-  review_capture: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'] },
+  review_capture: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   add_record: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'] },
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeSelected','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked'],reads:['derivePassage','keyTermsForUnit'] },
+    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked'],reads:['derivePassage','keyTermsForUnit'],rpcs:REPORTS },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'] },
-  study_guide: { reads:['studyMarksFor'] },
-  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'] },
+  back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
+  study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
+  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'],rpcs:REPORTS },
   invite_qr: { rpcs:['issue_invite'],reads:['org.roles'] },
   invite_member: { rpcs:['issue_invite'],reads:['org.roles'] },
   members_list: { rpcs:['decide_join_request'],reads:['org.members','join_requests','profiles'] },
@@ -69,10 +75,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
-  inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],rpcs:['decide_join_request'] },
+  inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],
+    rpcs:['decide_join_request','org_content_reports','remove_content','dismiss_reports'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
-  settings_home: { rpcs:['register_push_token'] },
+  settings_home: { rpcs:['register_push_token','set_blocked'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   delete_account: { rpcs:['delete_my_account'] }
 };

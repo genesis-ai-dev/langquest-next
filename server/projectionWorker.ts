@@ -72,10 +72,44 @@ export async function runProjections(service: SupabaseClient) {
       id: JSON.stringify([orgId,'join',profileId,request.id]),
       profile_id: profileId, kind: 'join_request', title: 'A person requested access'
     })));
+    rows.push(...await reportNotifications(service, orgId, org));
     check(await service.rpc('reconcile_notifications', {
       p_org: orgId, p_project: '_org', p_rows: rows
     }));
   }
+}
+
+/**
+ * One Inbox row per reported thing for each person who may act on it
+ * (decisions.md 48), as `org_content_reports` decides: content for whoever
+ * manages its language, a person for whoever admits members organization-
+ * wide, never someone about themselves. The title names nothing; the app
+ * reads the report itself. A database without the reports table yet
+ * (decisions.md 42: the worker may deploy first) has none.
+ */
+async function reportNotifications(service: SupabaseClient, orgId: string, org: OrgState) {
+  const open = await service.from('content_reports')
+    .select('partition_id,target_kind,target_id,reported_profile')
+    .eq('org_id', orgId).is('resolved_at', null).limit(500);
+  if (open.error) {
+    if (['42P01', 'PGRST205'].includes(open.error.code)) return [];
+    throw new Error(open.error.message);
+  }
+  const seen = new Set<string>();
+  const out: { id: string; profile_id: string; kind: string; title: string }[] = [];
+  for (const r of open.data ?? []) {
+    const person = r.target_kind === 'person';
+    const target = person ? { projectId: '_org' } : { projectId: r.partition_id as string };
+    for (const profileId of Object.keys(org.members)) {
+      if (profileId === r.reported_profile) continue;
+      if (!privilegesFor(org, profileId, target).has(person ? 'invite_members' : 'manage_structure')) continue;
+      const id = JSON.stringify([orgId, 'report', profileId, r.partition_id, r.target_kind, r.target_id]);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, profile_id: profileId, kind: 'content_report', title: 'Something was reported' });
+    }
+  }
+  return out;
 }
 
 /** Push contains no project title or personal content on the lock screen. */

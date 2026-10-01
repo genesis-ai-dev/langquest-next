@@ -52,8 +52,11 @@ See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
 Run it locally, not against production without explicit authorization.
 
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `project-projections` Edge Function. Schedule only one projection job.
-`schedule-projections.sql` reads its URL and worker credential from Vault.
+the `project-projections` Edge Function. Migration 20261001000000 schedules
+it every five minutes wherever the Vault secrets `langquest_project_url` and
+`langquest_projection_worker_secret` exist (production), and nowhere else;
+it replaces the hand-run `schedule-projections.sql`. `select * from cron.job`
+shows the one job, `net._http_response` its answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
@@ -80,6 +83,21 @@ A language's country and target (migration 20260930000001, decision 41):
 (kept as `_validate_payload_before_20260930`, `_event_privilege_before_20260930`).
 `my_privileges(org, project, lane)` returns the caller's own privileges so
 the dashboard can hide edits the server would refuse.
+
+Reports and blocks (migration 20260930220000, decision 48) are rows, not
+events. Phones send them through the account outbox: `report_content` into
+`content_reports`, `set_blocked` into `user_blocks` (each person reads only
+their own). An organization's moderators list open reports with
+`org_content_reports` (never who reported) and act with `remove_content`,
+which appends `v1.Redacted` as them for every event holding the content, or
+`dismiss_reports`; the projection worker puts a "Something was reported"
+row in their Inbox. Staff see every report, with the reporter, through
+`npm run moderation` (`--hosted` for the hosted project, through the
+Supabase CLI login): `remove <id>` and `dismiss <id>` call
+`staff_resolve_report`, and `suspend <profileId>` sets `banned_until` on the
+sign-in. Check the queue at least daily; the terms promise action within 24
+hours. Removed audio stays in the bucket (PLAN.md section 14, known gap).
+`moderation-smoke.sql` covers it in `npm run db:test`.
 
 Still deferred: profile photos, and the remaining content/audio gaps in
 the flow audit.

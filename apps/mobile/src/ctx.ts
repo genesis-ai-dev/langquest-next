@@ -1,5 +1,6 @@
 import type { EventSpec, Update } from '@langquest-next/core';
 import type { ScreenId } from './flow';
+import type { Blocks } from './moderationData';
 import type { Session } from './session';
 import type { OrgHandle } from './useOrg';
 import type { ProjectHandle } from './useProject';
@@ -52,6 +53,11 @@ export interface Ctx {
   openPassage: (unitId: string, laneId: string, extra?: Record<string, string>) => void;
   /** A person's display name; the signed-in person is always "You" (CORE-6). */
   name: (profileId: string, lower?: boolean) => string;
+  /**
+   * People this account blocked (decisions.md 48). What they add is hidden
+   * behind "Show" on this account's phones; their work still counts.
+   */
+  blocks: Blocks;
   /** Record-derived updates for the Inbox and which of them this device has shown. */
   inbox: { updates: Update[]; unread: number; isRead: (id: string) => boolean; markRead: (ids: string[]) => void };
 

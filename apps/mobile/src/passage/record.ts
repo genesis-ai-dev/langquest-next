@@ -11,6 +11,7 @@ import {
   type Privilege, type ProjectState, type QuestionSpec, type RecordEntry, type ReviewView, type Role, type SourcedQuestion
 } from '@langquest-next/core';
 import type { IconName } from '../kit';
+import { HIDDEN_TEXT } from '../moderation';
 import { dueText, feedbackSource, outcomeText, plural, viaText, when } from '../passageView';
 import type { StudyGuide } from '../study/guides';
 import { C, TINT } from '../theme';
@@ -205,12 +206,17 @@ export function anchorLabel(note: Pick<PassageNote, 'anchor'>, o: { state: Proje
   }
 }
 
-export function describeEntry(e: RecordEntry, o: { p: PassageState; kinds: KindDef[]; name: NameFn; anchor: (n: PassageNote) => string; guide?: StudyGuide | null }): EntryText {
+export function describeEntry(e: RecordEntry, o: {
+  p: PassageState; kinds: KindDef[]; name: NameFn; anchor: (n: PassageNote) => string; guide?: StudyGuide | null;
+  /** Someone this person blocked: their words stay out of the line (decisions.md 48). */
+  hidden?: (profileId: string) => boolean;
+}): EntryText {
   const { kinds, name } = o;
   const who = name(e.by);
+  const said = (text: string) => (o.hidden?.(e.by) ? HIDDEN_TEXT : text);
   switch (e.type) {
     case 'version':
-      return { icon: 'mic', color: C.primary, title: `Version ${e.version.n} published`, sub: e.version.changeNote ?? (e.version.n === 1 ? 'First recording.' : ''), who };
+      return { icon: 'mic', color: C.primary, title: `Version ${e.version.n} published`, sub: said(e.version.changeNote ?? (e.version.n === 1 ? 'First recording.' : '')), who };
     case 'review': {
       const r = e.review;
       const k = kinds.find((x) => x.id === r.kindId);
@@ -224,7 +230,7 @@ export function describeEntry(e: RecordEntry, o: { p: PassageState; kinds: KindD
       };
     }
     case 'response':
-      return { icon: 'edit', color: C.primary, title: `Revised after ${kindName(kinds, e.review.kindId)}`, sub: e.response.note ?? '', who };
+      return { icon: 'edit', color: C.primary, title: `Revised after ${kindName(kinds, e.review.kindId)}`, sub: said(e.response.note ?? ''), who };
     case 'request': {
       const r = e.request;
       const status = r.status === 'open' ? (r.dueDate ? dueText(r.dueDate) : 'open') : r.status;
@@ -238,13 +244,13 @@ export function describeEntry(e: RecordEntry, o: { p: PassageState; kinds: KindD
     case 'departure': {
       const d = e.departure;
       const back = d.undone ? ` · brought back ${when(d.undone.hlc).toLowerCase()}` : '';
-      if (d.type === 'override') return { icon: 'flag', color: C.red, title: 'Moved past a checkpoint', sub: d.reason + back, who };
-      if (d.type === 'keep') return { icon: 'chat', color: C.primary, title: keptTitle(o.p, kinds, d.reviewId), sub: d.reason + back, who };
-      return { icon: 'skip', color: C.muted, title: `${kindName(kinds, d.kindId)} set aside`, sub: d.reason + back, who };
+      if (d.type === 'override') return { icon: 'flag', color: C.red, title: 'Moved past a checkpoint', sub: said(d.reason) + back, who };
+      if (d.type === 'keep') return { icon: 'chat', color: C.primary, title: keptTitle(o.p, kinds, d.reviewId), sub: said(d.reason) + back, who };
+      return { icon: 'skip', color: C.muted, title: `${kindName(kinds, d.kindId)} set aside`, sub: said(d.reason) + back, who };
     }
     case 'note': {
       const n = e.note;
-      return { icon: 'note', color: TINT.amberText, title: `Note · ${o.anchor(n)}`, sub: n.text ?? (n.blobHash ? 'Voice note' : n.photoHash ? 'Photo' : ''), who };
+      return { icon: 'note', color: TINT.amberText, title: `Note · ${o.anchor(n)}`, sub: said(n.text ?? (n.blobHash ? 'Voice note' : n.photoHash ? 'Photo' : '')), who };
     }
     case 'study': {
       const i = o.guide?.id === e.guideId ? o.guide.steps.findIndex((s) => s.id === e.stepId) : -1;

@@ -3,7 +3,7 @@
 The answers given in Play Console for LangQuest Next, Android package
 `com.frontierrnd.langquestnext`, so the next person does not have to
 reconstruct them, and so a change to the app that makes one of them untrue is
-noticed (decisions.md 48).
+noticed (decisions.md 49).
 
 **When the app changes what it collects, sends, asks permission for, shows or
 who it is for, update this file and the matching Play Console answer in the
@@ -71,6 +71,7 @@ access to all features": **ticked** (Organization Admin; no paid content).
 | Violence | Yes, mildest options: scripture narrates violence (Judges, the crucifixion), text and audio only, not graphic, no visual depiction |
 | Sexual content | Nudity or explicit content: No. Sexual references: Yes, mild, text and audio only (Song of Songs, Genesis 19) |
 | Users interact or exchange content | Yes (recordings, reviews and comments within an organization) |
+| Reporting and blocking | In the app: anyone can report a version, review, note, join request or person, and block a person; moderators and LangQuest staff act on reports, and the Terms of Use forbid objectionable content (decisions.md 48) |
 | Interactions limited to invited people | Yes: only members an organization's admin invited or approved. Anyone with an account can send an organization a join request with a short message, seen only by its admins |
 | Online content not in the download | Yes: source Bible audio, library templates, flows and reference material, and each team's synced work. No AI-generated content, news, film, music or shopping |
 | Everything else (drugs, gambling, crude language, purchases, location sharing) | No |
@@ -100,7 +101,7 @@ every type.
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |
 | Messages | Other in-app messages (review comments, join request messages) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
-| App activity | Other user-generated content (reviews, notes, answers) | Yes | No | Required | App functionality |
+| App activity | Other user-generated content (reviews, notes, answers, reports of content or people, blocked people) | Yes | No | Required | App functionality |
 | App info and performance | Crash logs | Yes | No | Optional (Settings switch) | App functionality, Analytics |
 | App info and performance | Diagnostics | Yes | No | Optional (Settings switch) | App functionality, Analytics |
 | Device or other IDs | Device or other IDs (random install ID, push token) | Yes | No | Required | App functionality |

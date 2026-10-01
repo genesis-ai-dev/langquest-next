@@ -30,6 +30,7 @@ import {
 } from '../passage/record';
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
+import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed } from '../session';
 import { useStudyGuide } from '../study/libraryGuides';
@@ -177,7 +178,7 @@ export function PassageRecord(ctx: Ctx) {
   const fbNames = feedbackNames(p, kinds);
   const openStep = openStepId ? p.steps.find((st) => st.step.id === openStepId) : undefined;
   const anchor = (n: PassageNote) => anchorLabel(n, { state: v.state, p, guide });
-  const describe = (e: (typeof timeline)[number]) => describeEntry(e, { p, kinds, name: ctx.name, anchor, guide });
+  const describe = (e: (typeof timeline)[number]) => describeEntry(e, { p, kinds, name: ctx.name, anchor, guide, hidden: (id) => id !== me && ctx.blocks.has(id) });
 
   /** Close the step sheet first; a second sheet waits until it has gone. */
   const afterSheet = (fn: () => void) => {
@@ -238,7 +239,7 @@ export function PassageRecord(ctx: Ctx) {
                 Waiting on {p.latest ? ctx.name(p.latest.by, true) : 'the translator'} to answer the {v.kind(r.kindId).name}
               </Text>
               <Text style={[txt.xs, { color: TINT.amberText, marginTop: 2 }]} numberOfLines={2}>
-                {feedbackSource(r, ctx.name)} asked for changes{r.comment ? `: ${r.comment}` : '.'}
+                {feedbackSource(r, ctx.name)} asked for changes{r.comment ? `: ${authoredText(ctx, r.by, r.comment)}` : '.'}
               </Text>
             </View>
             <Ico name="right" size={18} color={TINT.amberText} />
@@ -279,6 +280,14 @@ export function PassageRecord(ctx: Ctx) {
             }
             if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
               trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
+            }
+            // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
+            // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
+            if (!trailing && e.type === 'note') {
+              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId, laneId)} size={36} />;
+            }
+            if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
+              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId, laneId)} size={36} />;
             }
             return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
           })}
@@ -706,7 +715,7 @@ function FeedbackToAnswer(props: { ctx: Ctx; v: PassageView; review: ReviewView;
         )}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{source}</Text>
-          {review.comment ? <Text style={txt.sm} numberOfLines={3}>{review.comment}</Text> : null}
+          {review.comment ? <Text style={txt.sm} numberOfLines={3}>{authoredText(ctx, review.by, review.comment)}</Text> : null}
           {review.via === 'logged' ? <Text style={txt.xs}>Logged by {ctx.name(review.by, true)} · {when(review.hlc)}</Text> : null}
         </View>
         <Ico name="right" size={18} color={C.muted} />
@@ -842,11 +851,14 @@ export function VersionDetail(ctx: Ctx) {
   const key = (part: string) => `version:${unitId}:${laneId}:${version.takeId}:${part}`;
   const params = { unitId, laneId };
   return (
-    <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back} />}>
+    <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
+      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId, laneId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? 'Note' : 'What changed'} />
-        <Text style={txt.body}>{version.changeNote ?? (version.n === 1 ? 'First recording.' : 'No note on what changed.')}</Text>
-        {version.changeBlobHash ? <PlayRow ctx={ctx} hashes={[version.changeBlobHash]} label="What changed, said aloud" /> : null}
+        <Authored ctx={ctx} by={version.by}>
+          <Text style={txt.body}>{version.changeNote ?? (version.n === 1 ? 'First recording.' : 'No note on what changed.')}</Text>
+          {version.changeBlobHash ? <PlayRow ctx={ctx} hashes={[version.changeBlobHash]} label="What changed, said aloud" /> : null}
+        </Authored>
         {prompted.map((r) => (
           <Pressable key={r.id} onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} accessibilityRole="link"
             style={({ pressed }) => [styles.inlineLink, pressed && { opacity: 0.6 }]}>
@@ -857,12 +869,14 @@ export function VersionDetail(ctx: Ctx) {
       </Card>
 
       <SectionLabel label="Recording" />
-      <Card>
-        <PlayRow ctx={ctx} hashes={version.cardHashes} label={`Play ${title}`} sub={plural(version.cardHashes.length, 'take')} />
-        {version.cardHashes.length > 1 ? version.cardHashes.map((h, i) => (
-          <PlayRow key={`${h}-${i}`} ctx={ctx} hashes={[h]} label={`Take ${i + 1}`} />
-        )) : null}
-      </Card>
+      <Authored ctx={ctx} by={version.by}>
+        <Card>
+          <PlayRow ctx={ctx} hashes={version.cardHashes} label={`Play ${title}`} sub={plural(version.cardHashes.length, 'take')} />
+          {version.cardHashes.length > 1 ? version.cardHashes.map((h, i) => (
+            <PlayRow key={`${h}-${i}`} ctx={ctx} hashes={[h]} label={`Take ${i + 1}`} />
+          )) : null}
+        </Card>
+      </Authored>
 
       {terms.length > 0 || reviews.length > 0 || notes.length > 0 ? <SectionLabel label="Details" /> : null}
       {terms.length > 0 ? (
@@ -893,12 +907,15 @@ export function VersionDetail(ctx: Ctx) {
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No reviews of this version yet.</Text>
       )}
       {notes.length > 0 ? (
-        <Disclosure icon="note" title="Notes" summary={`${plural(notes.length, 'note')} · ${notes[0]?.text ?? 'Voice note'}`} {...ctx.details(key('notes'))}>
+        <Disclosure icon="note" title="Notes" summary={`${plural(notes.length, 'note')} · ${authoredText(ctx, notes[0]?.by, notes[0]?.text ?? 'Voice note')}`} {...ctx.details(key('notes'))}>
           <View style={{ padding: space.md, gap: space.sm }}>
             {notes.map((n) => (
-              <NoteCard key={n.id} anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
-                {...(n.text ? { text: n.text } : {})}
-                {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label="Voice note" /> } : {})} />
+              <Authored key={n.id} ctx={ctx} by={n.by}>
+                <NoteCard anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
+                  {...(n.text ? { text: n.text } : {})}
+                  {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label="Voice note" /> } : {})}
+                  action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId, laneId)} size={36} />} />
+              </Authored>
             ))}
           </View>
         </Disclosure>
@@ -941,7 +958,8 @@ export function ReviewDetail(ctx: Ctx) {
   const outcome = makes ? `${makes.what.charAt(0).toUpperCase()}${makes.what.slice(1)} recorded` : good ? 'Looks good' : 'Needs changes';
 
   return (
-    <Screen header={<Header title={kind.name} crumbs={passageCrumbs(ctx, v, kind.name)} sub={when(review.hlc)} onBack={ctx.back} />}
+    <Screen header={<Header title={kind.name} crumbs={passageCrumbs(ctx, v, kind.name)} sub={when(review.hlc)} onBack={ctx.back}
+      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId, laneId)} />} />}
       footer={answerable ? (
         <View style={styles.btnRow}>
           <View style={{ width: '44%' }}><GhostBtn label="Keep it" onPress={() => setKeeping(true)} /></View>
@@ -962,7 +980,7 @@ export function ReviewDetail(ctx: Ctx) {
           New content made from the version, not a verdict on it.{checkedBy ? ` The ${checkedBy} compares it with the source.` : ''}
         </Text>
       ) : null}
-      {makes ? artifacts : null}
+      {makes && artifacts ? <Authored ctx={ctx} by={review.by}>{artifacts}</Authored> : null}
       {review.people || review.place || request ? (
         <View style={styles.badges}>
           {review.people ? <Badge label={`${review.people} people`} /> : null}
@@ -979,35 +997,41 @@ export function ReviewDetail(ctx: Ctx) {
       {review.comment || review.commentBlobHash ? (
         <Card>
           <Label text={makes ? 'Note from the back translator' : 'Feedback'} />
-          {review.commentBlobHash ? <PlayRow ctx={ctx} hashes={[review.commentBlobHash]} label="Voice feedback" /> : null}
-          {review.comment ? <Text style={txt.body}>{review.comment}</Text> : null}
+          <Authored ctx={ctx} by={review.by}>
+            {review.commentBlobHash ? <PlayRow ctx={ctx} hashes={[review.commentBlobHash]} label="Voice feedback" /> : null}
+            {review.comment ? <Text style={txt.body}>{review.comment}</Text> : null}
+          </Authored>
         </Card>
       ) : null}
-      {!makes ? artifacts : null}
+      {!makes && artifacts ? <Authored ctx={ctx} by={review.by}>{artifacts}</Authored> : null}
       {answers.length > 0 || skipped.length > 0 ? (
         <Disclosure icon="help" title="Answers to the questions"
           summary={`${plural(answers.length, 'answer')}${skipped.length ? ` · ${skipped.length} left unanswered` : ''}`}
           {...ctx.details(`review:${unitId}:${laneId}:${review.id}:questions`)}>
-          {answers.map((a, i) => (
-            <View key={a.id} style={[styles.answer, i > 0 && styles.topBorder]}>
-              {a.source ? <Label text={a.source} /> : null}
-              <Text style={txt.xs}>{a.label}</Text>
-              <Text style={[txt.body, { fontWeight: '700' }]}>{a.answer}</Text>
-            </View>
-          ))}
-          {skipped.map(([qid, reason], i) => (
-            <View key={qid} style={[styles.answer, (answers.length > 0 || i > 0) && styles.topBorder]}>
-              <Text style={txt.xs}>{questions.find((q) => q.q.id === qid)?.q.text ?? 'Question'}</Text>
-              <Text style={txt.sm}><Text style={{ fontWeight: '700', color: C.muted }}>Left unanswered: </Text>{reason}</Text>
-            </View>
-          ))}
+          <Authored ctx={ctx} by={review.by}>
+            {answers.map((a, i) => (
+              <View key={a.id} style={[styles.answer, i > 0 && styles.topBorder]}>
+                {a.source ? <Label text={a.source} /> : null}
+                <Text style={txt.xs}>{a.label}</Text>
+                <Text style={[txt.body, { fontWeight: '700' }]}>{a.answer}</Text>
+              </View>
+            ))}
+            {skipped.map(([qid, reason], i) => (
+              <View key={qid} style={[styles.answer, (answers.length > 0 || i > 0) && styles.topBorder]}>
+                <Text style={txt.xs}>{questions.find((q) => q.q.id === qid)?.q.text ?? 'Question'}</Text>
+                <Text style={txt.sm}><Text style={{ fontWeight: '700', color: C.muted }}>Left unanswered: </Text>{reason}</Text>
+              </View>
+            ))}
+          </Authored>
         </Disclosure>
       ) : null}
       {review.response ? (
         <Card style={{ backgroundColor: C.light, borderColor: C.light }}>
           <Label color={C.primary} text={`${ctx.name(review.response.by)} ${review.response.decision === 'revised' ? 'revised it' : 'kept it'} · ${when(review.response.hlc)}`} />
-          {review.response.note ? <Text style={txt.body}>{review.response.note}</Text> : null}
-          {review.response.blobHash ? <PlayRow ctx={ctx} hashes={[review.response.blobHash]} label="Their answer, said aloud" /> : null}
+          <Authored ctx={ctx} by={review.response.by}>
+            {review.response.note ? <Text style={txt.body}>{review.response.note}</Text> : null}
+            {review.response.blobHash ? <PlayRow ctx={ctx} hashes={[review.response.blobHash]} label="Their answer, said aloud" /> : null}
+          </Authored>
           {review.response.revisedTakeId ? (() => {
             const revised = p.versions.find((x) => x.takeId === review.response?.revisedTakeId);
             return revised ? (

@@ -15,6 +15,7 @@ import { indexesFor } from '../indexes';
 import { Chip, ChipRow, EmptyState, Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../kit';
 import { plural, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
+import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { readingSeconds, verseAt, type Reading } from '../scripture';
 import { C, onColor, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
 import { VoiceNote } from '../voiceNote';
@@ -235,9 +236,12 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
   const n = props.note;
   const anchor = props.label ?? (n.blobHash && !n.text ? 'Voice note' : 'Note');
   return (
-    <NoteCard anchor={n.photoHash ? `${anchor} · photo` : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
-      icon={n.blobHash ? 'mic' : 'note'}
-      audio={n.blobHash ? <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play voice note" /> : undefined} />
+    <Authored ctx={props.ctx} by={n.by}>
+      <NoteCard anchor={n.photoHash ? `${anchor} · photo` : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
+        icon={n.blobHash ? 'mic' : 'note'}
+        audio={n.blobHash ? <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play voice note" /> : undefined}
+        action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+    </Authored>
   );
 }
 

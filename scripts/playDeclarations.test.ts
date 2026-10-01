@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { DIAG_CONTEXT, DIAG_SCHEMA } from '../packages/client/src/diagnostics';
 
 /**
- * What we told Google Play (docs/play-store-declarations.md, decisions.md 48)
+ * What we told Google Play (docs/play-store-declarations.md, decisions.md 49)
  * must stay true. The inputs that decide what the Android app asks
  * permission for, which SDKs it ships and what diagnostics it sends are held
  * to the facts block in that file; a change to any of them fails here until
