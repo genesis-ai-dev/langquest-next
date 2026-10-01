@@ -22,6 +22,7 @@ import {
 } from '../kit';
 import { PRIVACY_URL } from '../legal';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
+import { Logo } from '../logo';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
@@ -86,7 +87,7 @@ export function SignIn(ctx: Ctx) {
   return (
     <Screen bodyStyle={styles.signInBody}>
       <View style={styles.brand}>
-        <View style={styles.logo}><Ico name="book" size={32} color={C.white} /></View>
+        <View style={styles.logo}><Logo size={64} /></View>
         <Text style={styles.wordmark} accessibilityRole="header">LangQuest</Text>
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>Coordinating Bible translation — draft to approval</Text>
       </View>
@@ -659,8 +660,7 @@ const styles = StyleSheet.create({
   rule: { flexDirection: 'row', gap: space.sm },
   signInBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   brand: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
-  logo: { width: 64, height: 64, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+  logo: { borderRadius: 19, backgroundColor: C.primary, shadowColor: C.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   wordmark: { fontSize: T.display, fontWeight: '800', color: C.dark, letterSpacing: -0.5 },
   termsLine: { minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm },
   termsLink: { fontWeight: '700', textDecorationLine: 'underline', color: C.muted },

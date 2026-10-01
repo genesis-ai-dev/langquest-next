@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- The check cuts a thin gap through the tallest bar, so it reads as lying over it. -->
+    <mask id="gap" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+      <rect width="100" height="100" fill="white"/>
+      <path d="M57 60 L67 70 L87 36" fill="none" stroke="black" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <g transform="translate(1 -6)">
+    <g fill="#fff" mask="url(#gap)">
+      <rect x="15" y="68" width="14" height="22" rx="7"/>
+      <rect x="35" y="54" width="14" height="36" rx="7"/>
+      <rect x="55" y="38" width="14" height="52" rx="7"/>
+    </g>
+    <path d="M57 60 L67 70 L87 36" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

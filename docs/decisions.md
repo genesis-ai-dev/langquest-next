@@ -912,3 +912,20 @@ which now runs every five minutes in production (decision 42). When it is
 built, the worker is the sender's natural home: it already reads open
 reports each pass and runs where the email relay's secret lives. It needs a
 staff address and a sender address chosen first.
+
+## 49. The brand is black and white, not the demo's purple
+
+Date: 2026-10-01 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb chose a new app icon (three rising bars with a check lying over
+the tallest) in black and white, and asked for the purple background and
+theming to go with it (Caleb, 2026-10-01). This narrows 28 for colour only:
+screens keep the demo's flow, layout and wording, but the demo's purple brand
+(`#6B48C8` and its lavender ground) becomes black on white. `C.primary` and
+`--primary` are black in light mode and white in the dashboard's dark mode,
+the grounds and borders are neutral greys, and status colours (green, amber,
+red) keep their meaning. The icon's source is `apps/mobile/assets/logo.svg`;
+`apps/mobile/scripts/render-icons.mjs` renders every icon from it, and
+`Logo` (`apps/mobile/src/logo.tsx`) draws the same mark in the app.
+Reverse if: partners find black primary actions hard to tell from body text
+in the field; then pick a single accent colour and keep the black icon.
