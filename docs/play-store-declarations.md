@@ -28,6 +28,12 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 | Developer account | The organization account (D-U-N-S) that publishes LangQuest v2; not subject to the 12-tester rule for new personal accounts |
 | Track | Internal testing only; every merge to `main` uploads new native builds (decisions.md 45) |
 | Managed publishing | Off |
+| Category | Productivity (a work tool for translation teams) |
+| Tags | Up to five that fit from Google's list (team collaboration, voice recorder, translation, Bible) |
+| Store contact email | admin@frontierrnd.com (public) |
+| Store contact phone | None |
+| Website | https://langquest.org |
+| External marketing | Off until the app is public |
 | Upload key | EAS keeps it; Play App Signing holds the store's signing key |
 | Upload robot | `play-console-service-account@langquest-458501.iam.gserviceaccount.com` (LangQuest v2's), key stored in EAS credentials |
 
