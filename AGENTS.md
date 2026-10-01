@@ -37,6 +37,9 @@ Rules specific to this folder:
 - No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
+- Put the Linear issue ID (`LAN-12`) in the commit message of work that comes
+  from an issue. The pipeline moves that issue to Deploying, then Live or
+  Outage (`scripts/linear-sync.mjs`, decisions.md 53). No ID, no status change.
 - Secrets are committed encrypted with dotenvx in the root `.env.<env>`;
   public settings are plain (`docs/environments.md`). Change either with
   `npm run env:update -- <env> KEY`, never by hand or in a dashboard, and

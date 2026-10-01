@@ -32,6 +32,12 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npx vitest run
+      - name: Tell Linear (checks failed on main)
+        if: failure() && github.event_name == 'push'
+        continue-on-error: true
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
       # Supabase deploys the committed worker bundle on merge (server/README.md,
       # Deploying); refuse one that is behind its source.
       - name: Worker bundle matches its source

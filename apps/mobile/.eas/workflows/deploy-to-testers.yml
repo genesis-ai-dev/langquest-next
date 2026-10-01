@@ -5,6 +5,10 @@
 # over-the-air update on the production channel, which installed builds take
 # on next launch. Otherwise it builds a new binary and submits it (the track
 # is in eas.json, submit.production).
+# Each platform's last job tells Linear its lane is out (scripts/linear-sync.mjs,
+# decisions.md 53); LINEAR_API_KEY is an EAS variable on `production`. A failed
+# job reports nothing: the deploy watchdog routine finds the issue left in
+# Deploying.
 # The typecheck and unit tests (the same as the pre-push hook) run first.
 name: Deploy to testers
 
@@ -98,3 +102,47 @@ jobs:
     params:
       branch: production
       platform: android
+
+  linear_ios_update:
+    name: Tell Linear (ios update)
+    needs: [publish_ios_update]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Report the ios lane
+        run: |
+          cd ../..
+          node scripts/linear-sync.mjs lane --name ios --status ok --sha "$(git rev-parse HEAD)"
+
+  linear_ios_submit:
+    name: Tell Linear (ios submit)
+    needs: [submit_ios]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Report the ios lane
+        run: |
+          cd ../..
+          node scripts/linear-sync.mjs lane --name ios --status ok --sha "$(git rev-parse HEAD)"
+
+  linear_android_update:
+    name: Tell Linear (android update)
+    needs: [publish_android_update]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Report the android lane
+        run: |
+          cd ../..
+          node scripts/linear-sync.mjs lane --name android --status ok --sha "$(git rev-parse HEAD)"
+
+  linear_android_submit:
+    name: Tell Linear (android submit)
+    needs: [submit_android]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Report the android lane
+        run: |
+          cd ../..
+          node scripts/linear-sync.mjs lane --name android --status ok --sha "$(git rev-parse HEAD)"
