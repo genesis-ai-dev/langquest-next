@@ -81,6 +81,21 @@ A language's country and target (migration 20260930000001, decision 41):
 `my_privileges(org, project, lane)` returns the caller's own privileges so
 the dashboard can hide edits the server would refuse.
 
+Reports and blocks (migration 20260930220000, decision 48) are rows, not
+events. Phones send them through the account outbox: `report_content` into
+`content_reports`, `set_blocked` into `user_blocks` (each person reads only
+their own). An organization's moderators list open reports with
+`org_content_reports` (never who reported) and act with `remove_content`,
+which appends `v1.Redacted` as them for every event holding the content, or
+`dismiss_reports`; the projection worker puts a "Something was reported"
+row in their Inbox. Staff see every report, with the reporter, through
+`npm run moderation` (`--hosted` for the hosted project, through the
+Supabase CLI login): `remove <id>` and `dismiss <id>` call
+`staff_resolve_report`, and `suspend <profileId>` sets `banned_until` on the
+sign-in. Check the queue at least daily; the terms promise action within 24
+hours. Removed audio stays in the bucket (PLAN.md section 14, known gap).
+`moderation-smoke.sql` covers it in `npm run db:test`.
+
 Still deferred: profile photos, and the remaining content/audio gaps in
 the flow audit.
 

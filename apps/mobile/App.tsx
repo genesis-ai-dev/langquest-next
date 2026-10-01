@@ -37,6 +37,7 @@ import { supabase, supabaseConfigError } from './src/supabase';
 import { C, colors, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
+import { useBlocks } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
 import { useOrg, type OrgHandle } from './src/useOrg';
@@ -281,6 +282,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     [rawProject.queries, projectedState, rawProject.state, props.orgId, projectId]);
   const project = { ...rawProject, state: projectedState, queries };
   useAccountSync(props.actorId);
+  const blocks = useBlocks(props.actorId);
   const profileNames = useDisplayNames(props.actorId);
   const people = useMemo(() => {
     const out: Record<string, string> = {};
@@ -377,7 +379,10 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const forYou = useMemo(() => project.state
     ? highlightsFor(project.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(project.state)).length
     : 0, [project.state, props.actorId, session]);
-  const updates = useMemo(() => project.state ? updatesFor(project.state, props.actorId, indexesFor(project.state)) : [], [project.state, props.actorId]);
+  // Nothing from someone this person blocked reaches their Inbox (decisions.md 48).
+  const updates = useMemo(() => project.state
+    ? updatesFor(project.state, props.actorId, indexesFor(project.state)).filter((u) => !blocks.has(u.by))
+    : [], [project.state, props.actorId, blocks]);
   const readKey = `inbox-read:${props.actorId}:${props.orgId}`;
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);
@@ -517,6 +522,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     recent,
     openPassage,
     name,
+    blocks,
     inbox: { updates, unread, isRead: (id) => readIds.has(id), markRead },
     markWelcomed: async () => {
       await recordUserEvent(props.actorId, 'v1.VisionSeen');

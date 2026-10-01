@@ -6,6 +6,7 @@ import {
   addDays, answeredQuestions, askCandidates, describeEntry, dueError, feedbackNames, gridKindIds, heroHeadline, historySummary,
   kindRowActions, kindRowSub, laneState, nextQuestionType, pathState, stepSheetSub
 } from '../src/passage/record';
+import { HIDDEN_TEXT } from '../src/moderation';
 
 /**
  * The passage record's words and button rules (demo screens/passage.tsx),
@@ -38,7 +39,7 @@ function project() {
   run('lead', (c) => c.useFlow({ commandId: 'flow', laneId: 'din', flowId: 'standard_bible' }));
   const passage = () => derivePassage(state(), 'john3', 'din');
   const kinds = () => deriveKinds(state());
-  return { emit, run, state, passage, kinds };
+  return { emit, run, state, passage, kinds, events };
 }
 
 /** ctx.name as seen by `me`: the viewer is always "you". */
@@ -180,6 +181,39 @@ describe('the record’s details', () => {
     expect(describeEntry(t[2]!, o).sub).toBe('First recording.');
     expect(historySummary(t, Date.now())).toMatch(/^3 entries since /);
     expect(gridKindIds(s)).toEqual(['peer', 'bt', 'community', 'consultant', 'final']);
+  });
+
+  it('keeps a blocked person\'s words out of the record\'s lines, and nothing else (decisions.md 48)', () => {
+    const p = project();
+    record(p, 'v1', ['c1']);
+    p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', laneId: 'din', type: 'skip', kindId: 'bt', reason: 'You are useless' }));
+    const s = p.passage();
+    const t = recordTimeline(p.state(), s);
+    const o = { p: s, kinds: p.kinds(), name, anchor: () => 'Whole passage', hidden: (id: string) => id === 'ayen' };
+    expect(describeEntry(t[0]!, o).title).toBe('Back Translation set aside');
+    expect(describeEntry(t[0]!, o).sub).toBe(HIDDEN_TEXT);
+    expect(describeEntry(t[0]!, o).who).toBe('Ayen');
+    expect(describeEntry(t[1]!, o).sub).toBe('First recording.');
+  });
+
+  it('drops a version a moderator removed, from the events remove_content redacts for it (decisions.md 48)', () => {
+    const p = project();
+    record(p, 'v1', ['c1'], 'First try');
+    record(p, 'v2', ['c2'], 'Clearer in verse 3');
+    const [gone, kept] = p.passage().versions;
+    // What the server's _content_events picks for a version (migration 20260930220000).
+    const holds = p.events.filter((e) => {
+      const pl = e.payload as { takeId?: string; anchor?: { kind?: string; role?: string; takeId?: string } };
+      return (['v1.TakeComposed', 'v1.TakeSubmitted', 'v1.ResponseRecorded'].includes(e.type) && pl.takeId === gone!.takeId)
+        || (e.type === 'v1.NoteAdded' && pl.anchor?.kind === 'version' && pl.anchor.role === 'change' && pl.anchor.takeId === gone!.takeId);
+    });
+    expect(holds.map((e) => e.type)).toEqual(expect.arrayContaining(['v1.TakeComposed', 'v1.TakeSubmitted', 'v1.NoteAdded']));
+    for (const e of holds) p.emit('lead', 'v1.Redacted', { eventId: e.id, reason: 'Removed by a moderator' });
+    const s = p.passage();
+    expect(s.versions.map((v) => v.takeId)).toEqual([kept!.takeId]);
+    expect(s.latest?.changeNote).toBe('Clearer in verse 3');
+    expect(s.drafting).toBe(false);
+    expect(() => recordTimeline(p.state(), s).map((e) => describeEntry(e, { p: s, kinds: p.kinds(), name, anchor: () => '' }))).not.toThrow();
   });
 
   it('pairs answers with their questions and keeps answers whose question is gone', () => {
