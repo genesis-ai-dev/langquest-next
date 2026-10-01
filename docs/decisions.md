@@ -727,6 +727,19 @@ by path and queue a later push behind one already deploying (a token expires
 and belongs to one person, the same problem as the Supabase workflow in 42),
 or a staging worker is added and production should follow a release.
 
+Amended (2026-09-30, Carl Sauder): Cloudflare Workers Builds deploys both
+workers, and `.github/workflows/deploy-cloudflare.yml` is gone. Cloudflare
+generates the build token, so nothing is stored in GitHub. Runtime settings
+live in encrypted env files (`apps/invite-email/.env.production`,
+`apps/web/.env.production`) that share the production public key with
+`apps/mobile/.env.production`. The only secret on each Worker's build is
+`DOTENV_PRIVATE_KEY_PRODUCTION`. `npm run email:deploy` and `npm run web:deploy`
+decrypt that file and upload every key as a Worker secret with the deploy,
+public ones too, so no value is printed in the build log; each key is listed
+in the wrangler file's `secrets.required`. Watch paths, so an
+email change does not build the dashboard, are recorded in `docs/cloudflare.md`.
+Guardrails still runs the typecheck and tests; the build does not wait for it.
+
 ## 44. Dashboards read a per-organization snapshot folded by the dashboard's own server
 
 Date: 2026-09-30 · By: Carl Sauder · Status: accepted

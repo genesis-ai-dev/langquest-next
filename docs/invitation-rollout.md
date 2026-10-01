@@ -35,7 +35,7 @@ only before the QR screen. The QR screen confirms the chosen role.
    `server/schedule-projections.sql`. This installs one job every five minutes.
    Avoid overlapping manual projection runs. Check function logs and
    `net._http_response` after the first scheduled request.
-6. Merging an `apps/invite-email` change to `main` deploys the Cloudflare email Worker (`.github/workflows/deploy-cloudflare.yml`). `npm run email:deploy` still deploys it by hand.
+6. Merging an `apps/invite-email` change to `main` deploys the Cloudflare email Worker (Workers Builds, `docs/cloudflare.md`). `npm run email:deploy` still deploys it by hand.
    Its configuration restricts sending to `invites@frontierrnd.com`.
    Set the same random `INVITE_RELAY_SECRET` in the Worker and Supabase,
    plus `INVITE_RELAY_URL` in Supabase pointing to the Worker `/send-invite`
@@ -55,7 +55,7 @@ are removed after verification.
 - Sender: `LangQuest <invites@frontierrnd.com>`.
 - Worker: `langquest-invite-email` in the Frontier R&D account.
 - Endpoint: `https://langquest-invite-email.blue-darkness-7674.workers.dev/send-invite`.
-- Wrangler profile: `langquest-email`, with email and Worker permissions.
+- Wrangler profile for a deploy from a laptop: `langquest-email`. Workers Builds uses its own token and does not use the profile.
 - Sending DNS: Cloudflare manages `cf-bounce.frontierrnd.com` and DKIM.
   Public DNS resolves these records. Existing Google inbound MX and DMARC
   policy remain intact. No incoming routing rule or catch-all was changed.

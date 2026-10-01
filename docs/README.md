@@ -1,6 +1,7 @@
 # Documentation
 
 - [decisions.md](./decisions.md) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions
+- [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to main deploys, and the one Cloudflare secret
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
 - [licensing.md](./licensing.md) — An organization's license, why it only opens, and the plan for what outsiders can see
