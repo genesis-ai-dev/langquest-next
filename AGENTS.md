@@ -43,6 +43,24 @@ Rules specific to this folder:
   to EAS. Hosted settings live in repo files, not dashboards
   (`infrastructure-as-code`).
 
+## Store declarations (required, whoever you are working for)
+
+`docs/play-store-declarations.md` records every answer given to Google Play
+for this app: data safety, content rating, target audience, permissions, app
+access, the store listing. Google holds us to those answers.
+
+- A change that alters any of these makes an answer untrue: what the app
+  collects, stores or sends; an Android permission or Expo plugin; an SDK in
+  `apps/mobile`; diagnostics; a third-party service; ads; sign-in or account
+  deletion; the kind of content it shows; who it is for.
+- For such a change, update that file in the same change, and say in your
+  reply which Play Console answers the developer must change, and where
+  (for example: "Data safety → Data types: add Location → Approximate").
+- `scripts/playDeclarations.test.ts` catches the mechanical cases
+  (permissions, plugins, mobile dependencies, the diagnostics allowlist);
+  the rest rely on you. Never update its facts block without checking the
+  Play Console answers it stands for.
+
 ## Decision log (required, whoever you are working for)
 
 `docs/decisions.md` is the team's ADR log. Any agent working in this repo keeps
