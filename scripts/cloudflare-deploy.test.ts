@@ -4,10 +4,12 @@ import { deployArgs, envKeyNames, requiredSecretNames, secretsFor } from './clou
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 
-const WORKERS = [
-  { config: 'apps/invite-email/wrangler.jsonc', env: 'apps/invite-email/.env.production' },
-  { config: 'apps/web/wrangler.jsonc', env: 'apps/web/.env.production' }
-];
+const WORKERS = ['apps/invite-email', 'apps/web'].flatMap((dir) =>
+  (['production', 'preview'] as const).map((environment) => ({
+    config: `${dir}/wrangler.jsonc`,
+    env: `${dir}/.env.${environment}`,
+    environment
+  })));
 
 describe('cloudflare deploy', () => {
   it('reads required secret names from a wrangler file that has comments', () => {
@@ -17,6 +19,15 @@ describe('cloudflare deploy', () => {
       "secrets": { "required": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] }
     }`;
     expect(requiredSecretNames(text)).toEqual(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+  });
+
+  it('reads a named environment\'s own secrets, which wrangler does not inherit', () => {
+    const text = `{
+      "secrets": { "required": ["A"] },
+      "env": { "preview": { "secrets": { "required": ["B"] } } }
+    }`;
+    expect(requiredSecretNames(text, 'production')).toEqual(['A']);
+    expect(requiredSecretNames(text, 'preview')).toEqual(['B']);
   });
 
   it('uploads every declared key as a secret', () => {
@@ -45,23 +56,29 @@ describe('cloudflare deploy', () => {
     expect(args).toEqual(['deploy', '-c', 'apps/web/wrangler.jsonc', '--secrets-file', '/tmp/secrets.json', '--profile', 'langquest-email']);
   });
 
+  it('deploys a preview env file to the -preview Worker', () => {
+    const args = deployArgs({ config: 'apps/web/wrangler.jsonc', secretsFile: '/tmp/s.json', workersCi: true, environment: 'preview' });
+    expect(args).toEqual(['deploy', '-c', 'apps/web/wrangler.jsonc', '--secrets-file', '/tmp/s.json', '--env', 'preview']);
+    expect(deployArgs({ config: 'c', secretsFile: 's', workersCi: true, environment: 'production' })).not.toContain('--env');
+  });
+
   it('uses Cloudflare\'s build token instead of a local profile on Workers Builds', () => {
     const args = deployArgs({ config: 'apps/invite-email/wrangler.jsonc', secretsFile: '/tmp/secrets.json', workersCi: true });
     expect(args).not.toContain('--profile');
   });
 
   it('declares every key each worker env file holds, so the deploy and wrangler types agree', () => {
-    for (const { config, env } of WORKERS) {
-      const declared = requiredSecretNames(read(config));
+    for (const { config, env, environment } of WORKERS) {
+      const declared = requiredSecretNames(read(config), environment);
       for (const key of envKeyNames(read(env))) expect(declared, `${env}: ${key}`).toContain(key);
     }
   });
 
-  it('uses the mobile production key for both worker env files', () => {
-    const key = (file: string) => /^DOTENV_PUBLIC_KEY_PRODUCTION="([0-9a-f]+)"/m.exec(read(file))?.[1];
-    const mobile = key('apps/mobile/.env.production');
-    expect(mobile).toBeTruthy();
-    for (const { env } of WORKERS) expect(key(env)).toBe(mobile);
+  it('gives the preview Worker the same settings as production', () => {
+    for (const dir of ['apps/invite-email', 'apps/web']) {
+      const text = read(`${dir}/wrangler.jsonc`);
+      expect(requiredSecretNames(text, 'preview'), dir).toEqual(requiredSecretNames(text, 'production'));
+    }
   });
 
   it('does not hardcode the hosted project url in either worker config', () => {

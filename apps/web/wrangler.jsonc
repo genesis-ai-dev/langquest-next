@@ -22,5 +22,16 @@
   "durable_objects": {
     "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
+  // The preview stack (docs/environments.md): langquest-dashboard-preview,
+  // deployed from develop with apps/web/.env.preview. Secrets and bindings
+  // are not inherited, so they are repeated here.
+  "env": {
+    "preview": {
+      "secrets": { "required": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] },
+      "durable_objects": {
+        "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+      }
+    }
+  }
 }

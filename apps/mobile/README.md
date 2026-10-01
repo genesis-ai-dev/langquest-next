@@ -73,8 +73,9 @@ Event ids come from expo-crypto because Hermes has no `crypto.randomUUID`.
 
 ## A full build on an Android phone
 
-A release build with the JavaScript bundled in, pointed at the hosted
-database (the `preview` env), so it runs without Metro or a local Supabase.
+A release build with the JavaScript bundled in, pointed at the preview
+database (the `preview` env, `docs/environments.md`), so it runs without
+Metro or a local Supabase.
 Two ways, both from `apps/mobile`:
 
 - **On EAS** (a shareable APK): `npm run android:build`. The `preview`
@@ -187,4 +188,6 @@ bundle at publish time, so changing one ships as an ordinary update: set it in
 the encrypted file with `npm run env:update -- preview KEY` from the repository
 root. It asks for the value, commits the file, and copies it to EAS, where
 builds and updates read it. Change values this way, never in the EAS
-dashboard; `npm run env:diff:eas -- preview` shows any drift.
+dashboard; `npm run env:diff:eas -- preview` shows any drift. Merging to
+`develop` ships to the preview channel (`.eas/workflows/deploy-preview.yml`),
+merging to `main` to testers.

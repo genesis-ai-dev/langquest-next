@@ -117,8 +117,15 @@ together:
 | Repository | `genesis-ai-dev/langquest-next` |
 | Working directory | `.` |
 | Deploy to production | on, branch `main` |
+| Persistent branch | `develop`, following git branch `develop`: the preview environment (`docs/environments.md`, decisions.md 49) |
 | Automatic branching | on, limit 3, Supabase changes only (preview branch compute is billed outside the spend cap) |
 
 `npm run db:check` shows whether the hosted migrations match `main`;
 `npm run db:apply` still applies them by hand.
+
+The integration does not set secrets. `npm run supabase:secrets -- <preview|production>`
+sets the Edge Function secrets and the Vault secrets from
+`supabase/.env.<environment>` and schedules the projection job; run it after
+changing that file, and with `--check` to compare digests without changing
+anything.
 

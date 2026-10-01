@@ -706,6 +706,12 @@ guardrails `checks` job. Unconfirmed: that it applies migrations before it
 deploys functions; the worker must keep tolerating a migration that has not
 landed yet.
 
+Amended (2026-10-01, Carl Sauder): there are now two targets. Merging to
+`main` still deploys production; merging to `develop` deploys a persistent
+Supabase branch `develop`, the preview environment (decisions.md 49). Secrets
+are not part of the integration's deploy: `npm run supabase:secrets` sets
+the Edge Function and Vault secrets from `supabase/.env.<environment>`.
+
 ## 43. Merging to main deploys the Cloudflare workers
 
 Date: 2026-09-30 · By: Carl Sauder · Status: accepted
@@ -739,6 +745,12 @@ public ones too, so no value is printed in the build log; each key is listed
 in the wrangler file's `secrets.required`. Watch paths, so an
 email change does not build the dashboard, are recorded in `docs/cloudflare.md`.
 Guardrails still runs the typecheck and tests; the build does not wait for it.
+
+Amended (2026-10-01, Carl Sauder): each Worker has a `-preview` copy
+(`env.preview` in its wrangler file) that Workers Builds deploys from
+`develop` with `apps/<worker>/.env.preview` and `DOTENV_PRIVATE_KEY_PREVIEW`
+as its only build secret (decisions.md 49). Branch builds stay off on all
+four Workers, because a Worker's build secret reaches every branch it builds.
 
 ## 44. Dashboards read a per-organization snapshot folded by the dashboard's own server
 
@@ -908,3 +920,48 @@ work, reviewing their recordings) rather than hide what they add, which
 puts blocks on the server's write path; moderators need to know who
 reported, which needs the reporter's consent; or report volume outgrows a
 script, which calls for a staff screen.
+
+## 49. Three environments, one git branch and one dotenvx key each; preview is a persistent stack fed by `develop`
+
+Date: 2026-10-01 · By: Carl Sauder · Status: accepted
+
+Reason: the team needs development, preview and production, and until now
+preview builds and the dashboard pointed at the production project. Preview
+cannot be per pull request. Supabase's automatic branches get a new URL for
+each pull request, which neither an installed preview build nor the dashboard
+can follow, and Cloudflare makes no version URLs for Workers that hold a
+Durable Object, which both of ours do. So preview is a persistent stack fed
+by a `develop` branch. Pull requests merge to `develop`, and a release pull
+request from `develop` to `main` deploys production, as 42 and 43 anticipated.
+Each platform's own git integration does the deploying, so GitHub still
+holds no token. Supabase has a persistent branch `develop`. Workers Builds
+has `langquest-dashboard-preview` and `langquest-invite-email-preview`, the
+`env.preview` of each wrangler file. EAS has
+`.eas/workflows/deploy-preview.yml` on the `preview` channel. Secrets use one
+dotenvx key pair per environment, shared by every file of that environment,
+because dotenvx names the private key after the file's suffix. Per-target
+keys would add little: the dashboard Worker already holds the service-role
+key at run time. Each deploy target keeps its own file
+(`apps/mobile`, `apps/web`, `apps/invite-email`, `supabase`), so a platform
+receives only its own keys. That matters most for EAS, whose values end up
+in the app bundle. `scripts/env-files.test.ts` refuses a file encrypted with
+another key. The production key lives only with maintainers and on the two
+production Workers, and the preview key only with developers and the two
+preview Workers. A Workers Builds secret reaches every branch the Worker
+builds, so branch builds stay off. Supabase gets its secrets from
+`npm run supabase:secrets`, which pushes Edge Function secrets, writes the
+Vault secrets and schedules the projection job, comparing digests. We do not
+use Supabase's own dotenvx support, for three reasons: it would need a
+private key stored as a project secret, where every Edge Function can read
+it; it is documented for preview branches only; and encrypted values on
+persistent branches have a reported bug (supabase/cli#3742). `pg_cron` and
+`pg_net` moved into a migration, since the preview branch is built from
+migrations alone. The setup and the commands are in
+`docs/environments.md`.
+Reverse if: releasing through `develop` delays fixes more than preview
+catches problems (then go back to merging straight to `main`, with preview
+following it); Supabase deploys dotenvx secrets reliably for persistent
+branches and production (then declare them in `config.toml`
+`[edge_runtime.secrets]` and `[db.vault]` and drop the script); or Workers
+Builds gets per-branch secrets (then a single Worker could serve both
+environments).

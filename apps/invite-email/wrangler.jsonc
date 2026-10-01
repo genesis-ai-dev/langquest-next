@@ -17,5 +17,20 @@
   "durable_objects": {
     "bindings": [{ "name": "DELIVERIES", "class_name": "InviteDelivery" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }],
+  // The preview stack (docs/environments.md): langquest-invite-email-preview,
+  // deployed from develop with apps/invite-email/.env.preview. Secrets and
+  // bindings are not inherited, so they are repeated here.
+  "env": {
+    "preview": {
+      "secrets": { "required": ["INVITE_FROM", "INVITE_RELAY_SECRET"] },
+      "send_email": [{
+        "name": "EMAIL",
+        "allowed_sender_addresses": ["invites@frontierrnd.com"]
+      }],
+      "durable_objects": {
+        "bindings": [{ "name": "DELIVERIES", "class_name": "InviteDelivery" }]
+      }
+    }
+  }
 }
