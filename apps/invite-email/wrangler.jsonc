@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "langquest-invite-email",
+  "name": "langquest-next-invite-email",
   "main": "src/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-17",
@@ -20,7 +20,7 @@
     "bindings": [{ "name": "DELIVERIES", "class_name": "InviteDelivery" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }],
-  // The preview stack (docs/environments.md): langquest-invite-email-preview,
+  // The preview stack (docs/environments.md): langquest-next-invite-email-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
   // they are repeated here.
   "env": {

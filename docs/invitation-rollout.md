@@ -56,8 +56,8 @@ are removed after verification.
 ## Cloudflare email deployment
 
 - Sender: `LangQuest <invites@frontierrnd.com>`.
-- Worker: `langquest-invite-email` in the Frontier R&D account.
-- Endpoint: `https://langquest-invite-email.blue-darkness-7674.workers.dev/send-invite`.
+- Worker: `langquest-next-invite-email` in the Frontier R&D account (`langquest-invite-email` until 2026-10-01).
+- Endpoint: `https://langquest-next-invite-email.blue-darkness-7674.workers.dev/send-invite`.
 - Wrangler profile for a deploy from a laptop: `langquest-email`. Workers Builds uses its own token and does not use the profile.
 - Sending DNS: Cloudflare manages `cf-bounce.frontierrnd.com` and DKIM.
   Public DNS resolves these records. Existing Google inbound MX and DMARC

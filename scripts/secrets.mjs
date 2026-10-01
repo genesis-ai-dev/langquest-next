@@ -23,7 +23,7 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
 import { authArgs, targetArgs } from './cloudflare-deploy.mjs';
-import { HOSTED, decrypt, envKeyNames, projectRef, root, secretsPath } from './env-files.mjs';
+import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath } from './env-files.mjs';
 
 /** Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag:hosted), never pushed. */
 export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL'];
@@ -36,8 +36,9 @@ export const WORKERS = {
 
 /** The account's workers.dev subdomain, where the invite-email Workers answer. */
 export const WORKERS_SUBDOMAIN = 'blue-darkness-7674';
+const inviteEmailName = parseJsonc(readFileSync(join(root, WORKERS['invite-email']), 'utf8')).name;
 export const relayUrl = (environment) =>
-  `https://langquest-invite-email${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
+  `https://${inviteEmailName}${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
 
 export const CRON_JOB = 'langquest-project-projections';
 

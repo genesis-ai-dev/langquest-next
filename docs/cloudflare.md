@@ -10,7 +10,7 @@ secrets `npm run secrets` set on it (decisions.md 50).
 
 | | Invite email | Dashboard | Invite email preview | Dashboard preview |
 | --- | --- | --- | --- | --- |
-| Worker name | `langquest-invite-email` | `langquest-dashboard` | `langquest-invite-email-preview` | `langquest-dashboard-preview` |
+| Worker name | `langquest-next-invite-email` | `langquest-next-dashboard` | `langquest-next-invite-email-preview` | `langquest-next-dashboard-preview` |
 | Root directory | repository root | repository root | repository root | repository root |
 | Production branch | `main` | `main` | `develop` | `develop` |
 | Non-production branch builds | off | off | off | off |
@@ -27,7 +27,7 @@ The preview Workers are the `env.preview` section of each wrangler file
 repeated there). `npm run secrets -- preview` creates each one if it does not
 exist yet, so its first deploy finds its secrets. If Workers Builds refuses
 a deploy because the wrangler file's top-level `name` is not the connected
-Worker's, add `"name": "langquest-dashboard-preview"` (or the invite-email
+Worker's, add `"name": "langquest-next-dashboard-preview"` (or the invite-email
 one) to `env.preview`; it is the name `--env=preview` already deploys.
 
 The token Cloudflare creates has Workers Scripts edit but no email

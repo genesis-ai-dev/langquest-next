@@ -971,6 +971,12 @@ branches and production (then declare them in `config.toml`
 Builds gets per-branch secrets (then a single Worker could serve both
 environments).
 
+Amended (2026-10-01, Carl Sauder): the Workers are named after this app,
+`langquest-next-dashboard` and `langquest-next-invite-email` (and their
+`-preview` copies), so they cannot be taken for LangQuest v2's in the same
+Cloudflare account. The dashboard had never been deployed; the invite-email
+Worker moved to the new name and the relay URL with it.
+
 ## 50. Secrets are applied by a person when they change, never by a deploy; public settings are plain
 
 Date: 2026-10-01 · By: Carl Sauder · Status: accepted

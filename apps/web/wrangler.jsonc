@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "langquest-dashboard",
+  "name": "langquest-next-dashboard",
   "main": "worker/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-29",
@@ -29,7 +29,7 @@
     "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
-  // The preview stack (docs/environments.md): langquest-dashboard-preview,
+  // The preview stack (docs/environments.md): langquest-next-dashboard-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
   // they are repeated here. Add "vars": { "SUPABASE_URL": ... } with the
   // preview branch's ref once [remotes.preview] names it.
