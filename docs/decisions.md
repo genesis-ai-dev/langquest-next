@@ -706,6 +706,14 @@ guardrails `checks` job. Unconfirmed: that it applies migrations before it
 deploys functions; the worker must keep tolerating a migration that has not
 landed yet.
 
+Amended (2026-10-01, Caleb Koster): the projection worker's schedule is now a
+migration (`20261001000000_schedule_projections.sql`), so merging schedules
+it too. It had been a script someone ran by hand, and production never got
+it: no snapshots and no server Inbox rows or pushes until it was run on
+2026-10-01. The migration enables `pg_cron` and `pg_net` and schedules the
+job only where the Vault secrets exist, so local databases and preview
+branches stay unscheduled.
+
 ## 43. Merging to main deploys the Cloudflare workers
 
 Date: 2026-09-30 · By: Carl Sauder · Status: accepted
