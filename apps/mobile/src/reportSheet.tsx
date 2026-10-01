@@ -10,7 +10,7 @@ import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet, 
 import {
   HIDDEN_TEXT, personTarget, REPORT_REASONS, thingLabel, type ReportKind, type ReportReason, type ReportTarget
 } from './moderation';
-import { dismissReports, queueReport, removeContent } from './moderationData';
+import { dismissReports, queueReport, removeContent, reportsChanged } from './moderationData';
 import { failureMessage, noteExpected } from './report';
 import { C, radius, space, TINT } from './theme';
 
@@ -89,6 +89,7 @@ export function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: ()
     setBusy(true);
     try {
       await removeContent(target, 'Removed by a moderator');
+      reportsChanged();
       ctx.toast('Removed from the record. Phones stop showing it when they next sync.');
       props.onClose();
     } catch (e) {
@@ -180,6 +181,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
     try {
       if (what === 'remove') await removeContent(target, 'Removed after a report');
       else await dismissReports(target);
+      reportsChanged();
       ctx.toast(what === 'remove' ? 'Removed from the record. Phones stop showing it when they next sync.' : 'Kept. The report is closed.');
       props.onDone();
     } catch (e) {

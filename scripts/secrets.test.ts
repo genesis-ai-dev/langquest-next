@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, REQUIRED_KEYS, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  FILE_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -27,9 +27,9 @@ describe('secrets', () => {
   });
 
   it('writes the Vault names the projection cron job reads', () => {
-    const sql = read('server/schedule-projections.sql');
+    const sql = read(SCHEDULE_MIGRATION);
     const { vault } = destinations('preview', values, 'abc', 'k');
-    for (const name of Object.keys(vault)) expect(sql).toContain(`name='${name}'`);
+    for (const name of Object.keys(vault)) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
     expect(vault.langquest_project_url).toBe('https://abc.supabase.co');
   });
 

@@ -706,11 +706,19 @@ guardrails `checks` job. Unconfirmed: that it applies migrations before it
 deploys functions; the worker must keep tolerating a migration that has not
 landed yet.
 
+Amended (2026-10-01, Caleb Koster): the projection worker's schedule is now a
+migration (`20261001000000_schedule_projections.sql`), so merging schedules
+it too. It had been a script someone ran by hand, and production never got
+it: no snapshots and no server Inbox rows or pushes until it was run on
+2026-10-01. The migration enables `pg_cron` and `pg_net` and schedules the
+job only where the Vault secrets exist, so local databases and preview
+branches stay unscheduled.
+
 Amended (2026-10-01, Carl Sauder): there are now two targets. Merging to
 `main` still deploys production; merging to `develop` deploys a persistent
-Supabase branch `develop`, the preview environment (decisions.md 49). Secrets
+Supabase branch `develop`, the preview environment (decisions.md 50). Secrets
 are not part of the integration's deploy: `npm run secrets` sets the Edge
-Function and Vault secrets (decisions.md 50).
+Function and Vault secrets (decisions.md 51).
 
 ## 43. Merging to main deploys the Cloudflare workers
 
@@ -749,13 +757,13 @@ Guardrails still runs the typecheck and tests; the build does not wait for it.
 Amended (2026-10-01, Carl Sauder): each Worker has a `-preview` copy
 (`env.preview` in its wrangler file) that Workers Builds deploys from
 `develop` with `apps/<worker>/.env.preview` and `DOTENV_PRIVATE_KEY_PREVIEW`
-as its only build secret (decisions.md 49). Branch builds stay off on all
+as its only build secret (decisions.md 50). Branch builds stay off on all
 four Workers, because a Worker's build secret reaches every branch it builds.
 
 Amended (2026-10-01, Carl Sauder): deploys no longer upload secrets and no
 Worker build holds a key. Public settings are wrangler `vars`, and
 `npm run secrets` sets each Worker's secrets, which stay across deploys
-(decisions.md 50).
+(decisions.md 51).
 
 ## 44. Dashboards read a per-organization snapshot folded by the dashboard's own server
 
@@ -926,9 +934,39 @@ puts blocks on the server's write path; moderators need to know who
 reported, which needs the reporter's consent; or report volume outgrows a
 script, which calls for a staff screen.
 
-## 49. Three environments, one git branch and one dotenvx key each; preview is a persistent stack fed by `develop`
+Amended (2026-10-01, Caleb Koster): emailing staff when something is
+reported is deferred, not dropped. Until it exists, staff keep the terms'
+24-hour promise by checking `npm run moderation -- --hosted` daily, and an
+organization's moderators get a server Inbox row from the projection worker,
+which now runs every five minutes in production (decision 42). When it is
+built, the worker is the sender's natural home: it already reads open
+reports each pass and runs where the email relay's secret lives. It needs a
+staff address and a sender address chosen first.
 
-Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 50
+## 49. What we told the app stores is kept in the repository and held to the code
+
+Date: 2026-09-30 · By: Caleb Koster · Status: accepted
+
+Reason: Google Play's data safety form, content rating, target audience and
+app access answers are commitments Google enforces, and they were entered
+by hand in Play Console, where nobody working on the code sees them. A
+change that adds a permission, an SDK or a field to diagnostics could make
+them untrue without anyone noticing. `docs/play-store-declarations.md`
+records every answer and why; `scripts/playDeclarations.test.ts` fails when
+the Android permissions, Expo plugins, mobile dependencies or diagnostics
+allowlist change without that file's facts block being updated; AGENTS.md
+("Store declarations") tells agents to update the file in the same change
+and tell the developer which Play Console answers to change. The test
+cannot see everything (a new event field with personal data, a new kind of
+content), so the instruction to agents carries the rest.
+Reverse if: Google offers an API for these declarations (then apply them
+from the file, as infrastructure as code), or the guard fails so often on
+dependency changes that it is ignored (then narrow it to SDKs that can
+collect data).
+
+## 50. Three environments, one git branch and one dotenvx key each; preview is a persistent stack fed by `develop`
+
+Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 51
 
 Reason: the team needs development, preview and production, and until now
 preview builds and the dashboard pointed at the production project. Preview
@@ -959,9 +997,10 @@ Vault secrets and schedules the projection job, comparing digests. We do not
 use Supabase's own dotenvx support, for three reasons: it would need a
 private key stored as a project secret, where every Edge Function can read
 it; it is documented for preview branches only; and encrypted values on
-persistent branches have a reported bug (supabase/cli#3742). `pg_cron` and
-`pg_net` moved into a migration, since the preview branch is built from
-migrations alone. The setup and the commands are in
+persistent branches have a reported bug (supabase/cli#3742). The preview
+branch is built from migrations alone, and the scheduling migration
+(decision 42) skips a database without the Vault secrets, so
+`npm run secrets` runs that migration's body again after writing them. The setup and the commands are in
 `docs/environments.md`.
 Reverse if: releasing through `develop` delays fixes more than preview
 catches problems (then go back to merging straight to `main`, with preview
@@ -977,7 +1016,7 @@ Amended (2026-10-01, Carl Sauder): the Workers are named after this app,
 Cloudflare account. The dashboard had never been deployed; the invite-email
 Worker moved to the new name and the relay URL with it.
 
-## 50. Secrets are applied by a person when they change, never by a deploy; public settings are plain
+## 51. Secrets are applied by a person when they change, never by a deploy; public settings are plain
 
 Date: 2026-10-01 · By: Carl Sauder · Status: accepted
 
@@ -1007,8 +1046,8 @@ deploy while one in `secrets.required` is missing, so a deploy carries code
 and vars only. No build system, CI or platform holds a dotenvx key. There is
 no development key, since development has no secrets. `env:check` refuses a
 plain secret, a secret in the app's files and a public setting in the
-secrets file. This supersedes 49's file per target and the keys on Worker
-builds; 49's environments and branches stand. The cost is that a changed
+secrets file. This supersedes 50's file per target and the keys on Worker
+builds; 50's environments and branches stand. The cost is that a changed
 secret takes effect only when someone runs `npm run secrets`. That is rare,
 and Supabase secrets already worked this way. Worker secrets cannot be read
 back, so the drift check only confirms they exist.

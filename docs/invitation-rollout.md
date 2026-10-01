@@ -32,11 +32,13 @@ only before the QR screen. The QR screen confirms the chosen role.
    (`npm run env:update -- <environment> PROJECTION_WORKER_SECRET "$(openssl rand -hex 32)"`).
 5. Run `npm run secrets -- <environment>`. It sets that secret as an
    Edge Function secret and in Vault as `langquest_projection_worker_secret`,
-   stores the project URL in Vault as `langquest_project_url`, and runs
-   `server/schedule-projections.sql` (one job every five minutes; `pg_cron`
-   and `pg_net` come from a migration). Avoid overlapping manual projection
-   runs. Check function logs and `net._http_response` after the first
-   scheduled request.
+   stores the project URL in Vault as `langquest_project_url`, and runs the
+   body of migration `20261001000000_schedule_projections.sql` again. That
+   migration (applied on merge) enables `pg_cron` and `pg_net` and installs
+   one job every five minutes, but only in a database whose Vault secrets
+   already exist, so a new project gets its job from this step.
+   Avoid overlapping manual projection runs. Check function logs and
+   `net._http_response` after the first scheduled request.
 6. Merging an `apps/invite-email` change to `main` deploys the Cloudflare email Worker (Workers Builds, `docs/cloudflare.md`). `npm run email:deploy` still deploys it by hand.
    Its configuration restricts sending to `invites@frontierrnd.com`.
    Set a random `INVITE_RELAY_SECRET` in the root `.env.<environment>` and

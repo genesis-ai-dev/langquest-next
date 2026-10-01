@@ -45,6 +45,24 @@ Rules specific to this folder:
   to EAS. Hosted settings live in repo files, not dashboards
   (`infrastructure-as-code`).
 
+## Store declarations (required, whoever you are working for)
+
+`docs/play-store-declarations.md` records every answer given to Google Play
+for this app: data safety, content rating, target audience, permissions, app
+access, the store listing. Google holds us to those answers.
+
+- A change that alters any of these makes an answer untrue: what the app
+  collects, stores or sends; an Android permission or Expo plugin; an SDK in
+  `apps/mobile`; diagnostics; a third-party service; ads; sign-in or account
+  deletion; the kind of content it shows; who it is for.
+- For such a change, update that file in the same change, and say in your
+  reply which Play Console answers the developer must change, and where
+  (for example: "Data safety → Data types: add Location → Approximate").
+- `scripts/playDeclarations.test.ts` catches the mechanical cases
+  (permissions, plugins, mobile dependencies, the diagnostics allowlist);
+  the rest rely on you. Never update its facts block without checking the
+  Play Console answers it stands for.
+
 ## Decision log (required, whoever you are working for)
 
 `docs/decisions.md` is the team's ADR log. Any agent working in this repo keeps
@@ -83,6 +101,7 @@ Project skills, written for this app (use these first):
 - `architecture-tradeoffs`: style, quanta, trade-offs, decisions, fitness functions.
 - `error-tracking`: error classes, boundaries, crash reporting, privacy, offline delivery.
 - `field-diagnosis`: a field report ("slow downloads in this language", an error code) to its cause, from `npm run diag`.
+- `run-app`: the app on the iOS simulator and Android emulator, two accounts, Maestro, and the quirks that cost time.
 - `laws-of-ux`: Fitts, Hick, Jakob and the rest, tuned for field use.
 - `infrastructure-as-code`: hosted settings, secrets and env files live in the repo, never only in a dashboard.
 

@@ -2,11 +2,11 @@
 
 Cloudflare Workers Builds deploys the invite-email Worker and the dashboard
 (decisions.md 43): merging to `main` deploys the production Workers, and
-merging to `develop` deploys their `-preview` copies (decisions.md 49,
+merging to `develop` deploys their `-preview` copies (decisions.md 50,
 `docs/environments.md`). There is no GitHub Actions workflow and no API token
 in GitHub. Cloudflare generates the build token. Builds have no secrets at
 all: a deploy carries code and public `vars`, and the Worker keeps the
-secrets `npm run secrets` set on it (decisions.md 50).
+secrets `npm run secrets` set on it (decisions.md 51).
 
 | | Invite email | Dashboard | Invite email preview | Dashboard preview |
 | --- | --- | --- | --- | --- |

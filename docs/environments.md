@@ -1,10 +1,10 @@
 # Environments
 
-Three environments, one git branch each (decisions.md 49). Public settings are
+Three environments, one git branch each (decisions.md 50). Public settings are
 plain, in each platform's own file. Secrets are encrypted in one file per
 hosted environment, and a person applies them with one command when they
 change; deploys never carry them, so no build system holds a key
-(decisions.md 50).
+(decisions.md 51).
 
 | Environment | Git branch | Supabase | Cloudflare Workers | App (EAS) |
 | --- | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ is used, as `scripts/secrets.mjs` declares:
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret` |
-| pg_cron | the projection job (`server/schedule-projections.sql`) |
+| pg_cron | the projection job: its migration (`20261001000000_schedule_projections.sql`) schedules it only where Vault already has the secrets, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a
 deploy while one in `secrets.required` is missing, so a forgotten secret

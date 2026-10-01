@@ -52,10 +52,10 @@ reviewed, reproduced, rolled back, or noticed when it drifts.
 | Hosted project refs | `[remotes.<env>] project_id` in `supabase/config.toml` (plain) | read by scripts | a test holds the dashboard's `SUPABASE_URL` var to it |
 | Edge function secrets | encrypted root `.env.<environment>`; where each goes is `destinations` in `scripts/secrets.mjs` | `npm run secrets -- <env>` | `npm run secrets -- <env> --check` (digests) |
 | Vault secrets | derived by `scripts/secrets.mjs` (`vault.create_secret` / `vault.update_secret`) | the same command | the same check |
-| Cloudflare invite-email Worker | `apps/invite-email/wrangler.jsonc` (`env.preview` is the `-preview` Worker) | Workers Builds: `main` runs `npm run email:deploy`, `develop` runs `email:deploy:preview` (`docs/cloudflare.md`, decisions.md 43 and 49). The same commands deploy by hand | `wrangler deploy --dry-run --env=[preview]` |
+| Cloudflare invite-email Worker | `apps/invite-email/wrangler.jsonc` (`env.preview` is the `-preview` Worker) | Workers Builds: `main` runs `npm run email:deploy`, `develop` runs `email:deploy:preview` (`docs/cloudflare.md`, decisions.md 43 and 50). The same commands deploy by hand | `wrangler deploy --dry-run --env=[preview]` |
 | Cloudflare dashboard | `apps/web/wrangler.jsonc` (`env.preview` likewise); the page reads `apps/mobile/.env.<environment>` | the same, `npm run web:deploy` / `web:deploy:preview` | the same |
 | Worker public settings | `vars` in the wrangler file, per environment | every deploy | `wrangler deploy --dry-run` lists them |
-| Worker secrets | encrypted root `.env.<environment>` (or read from Supabase: the service-role key); names in each environment's `secrets.required` | `npm run secrets -- <env>`, never a deploy; builds hold no key (decisions.md 50) | a deploy fails while one is missing; `npm run secrets -- <env> --check` |
+| Worker secrets | encrypted root `.env.<environment>` (or read from Supabase: the service-role key); names in each environment's `secrets.required` | `npm run secrets -- <env>`, never a deploy; builds hold no key (decisions.md 51) | a deploy fails while one is missing; `npm run secrets -- <env> --check` |
 | Mobile build profiles, channels | `apps/mobile/eas.json`, `apps/mobile/app.json` (`runtimeVersion` policy, plugins, permissions) | `npm run ship:native` / `ship` | `npm run ship:check` (fingerprint) |
 | Mobile public config (`EXPO_PUBLIC_*`) | plain `apps/mobile/.env.<environment>` | `npm run env:push:eas -- <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |
 | EAS environment variables (builds and updates) | the same plain env files; `environment` on each `eas.json` profile | `npm run env:push:eas -- <env>` | `eas env:list --environment <env>` |
@@ -71,7 +71,7 @@ Public settings are plain, in the platform's own file (`EXPO_PUBLIC_*` in
 are committed **encrypted** with [dotenvx](https://dotenvx.com) in one file
 per hosted environment, `.env.preview` and `.env.production` at the
 repository root, so nobody passes `.env` files around (`docs/environments.md`,
-decisions.md 50). Each carries its public key; the matching private key
+decisions.md 51). Each carries its public key; the matching private key
 (`DOTENV_PRIVATE_KEY_PREVIEW` or `_PRODUCTION`) sits in the one untracked
 `.env.keys` at the repository root, shared once through a password manager.
 Anyone can add or change a secret with the public key. Only holders of the

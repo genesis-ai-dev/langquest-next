@@ -10,7 +10,8 @@
 // in supabase/config.toml [remotes.<env>], and the project's service-role key,
 // read from Supabase each time rather than stored. Destinations: each
 // Worker's secrets, the Edge Function secrets, the two Vault secrets the
-// projection cron job reads, and that job itself. Every step is idempotent.
+// projection cron job reads, and that job itself (by running its
+// scheduling migration again). Every step is idempotent.
 // Supabase values are compared by SHA-256 digest; Worker secrets cannot be
 // read back, so only their presence is compared and apply always sets them.
 // Nothing is printed but names.
@@ -41,6 +42,8 @@ export const relayUrl = (environment) =>
   `https://${inviteEmailName}${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
 
 export const CRON_JOB = 'langquest-project-projections';
+/** Schedules CRON_JOB where the Vault secrets exist; safe to run again (decision 42). */
+export const SCHEDULE_MIGRATION = 'supabase/migrations/20261001000000_schedule_projections.sql';
 
 /** Every secret, by where it goes. */
 export function destinations(environment, values, ref, serviceRoleKey) {
@@ -56,7 +59,7 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET,
       PROJECTION_WORKER_SECRET: values.PROJECTION_WORKER_SECRET
     },
-    // Read by server/schedule-projections.sql.
+    // Read by the projection job (SCHEDULE_MIGRATION).
     vault: {
       langquest_project_url: `https://${ref}.supabase.co`,
       langquest_projection_worker_secret: values.PROJECTION_WORKER_SECRET
@@ -255,8 +258,9 @@ async function main() {
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
     (f) => run('supabase', ['secrets', 'set', '--project-ref', ref, '--env-file', f]));
   query(ref, vaultSql(wanted.vault));
-  // cron.schedule replaces a job of the same name, so this is safe to repeat.
-  query(ref, readFileSync(join(root, 'server/schedule-projections.sql'), 'utf8'));
+  // The migration ran before Vault had these on a new project, so it
+  // scheduled nothing; it unschedules by name first, so running it again is safe.
+  query(ref, readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'));
 
   const after = summarize(hostedState(environment, ref, wanted));
   if (after.behind) {

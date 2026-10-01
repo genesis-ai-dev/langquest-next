@@ -386,25 +386,37 @@ export function SettingsHome(ctx: Ctx) {
   );
 }
 
-/** Who this account blocked, each with Unblock. Blocking happens from the flag on something they made. */
+/**
+ * Who this account blocked, each with Unblock. Blocking happens from the
+ * flag on something they made. Someone unblocked here stays listed, with
+ * Block again, until the sheet closes: a toast would sit behind the sheet.
+ */
 function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
   const { ctx } = props;
-  async function unblock(id: string) {
+  // The list as the sheet opened, so a row keeps its place when its button is used.
+  const [listed] = useState(() => ctx.blocks.ids);
+  async function set(id: string, blocked: boolean) {
     try {
-      await ctx.blocks.set(id, false);
-      ctx.toast(`Unblocked ${ctx.name(id)}.`, async () => { await ctx.blocks.set(id, true); });
+      await ctx.blocks.set(id, blocked);
     } catch (e) {
-      ctx.toast(failure('unblock person', e));
+      ctx.toast(failure(blocked ? 'block person' : 'unblock person', e));
     }
   }
+  const shown = [...listed, ...ctx.blocks.ids.filter((id) => !listed.includes(id))];
   return (
     <Sheet visible title="Blocked people" sub="What they add is hidden for you. They aren't told." onClose={props.onClose}>
-      {ctx.blocks.ids.length ? (
+      {shown.length ? (
         <Group>
-          {ctx.blocks.ids.map((id, i, all) => (
-            <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)} last={i === all.length - 1}
-              right={<SmallBtn label="Unblock" onPress={() => void unblock(id)} />} />
-          ))}
+          {shown.map((id, i, all) => {
+            const blocked = ctx.blocks.has(id);
+            return (
+              <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
+                {...(blocked ? {} : { sub: 'Unblocked' })} last={i === all.length - 1}
+                right={blocked
+                  ? <SmallBtn label="Unblock" onPress={() => void set(id, false)} />
+                  : <SmallBtn label="Block again" tone="plain" onPress={() => void set(id, true)} />} />
+            );
+          })}
         </Group>
       ) : (
         <EmptyState icon="block" title="Nobody blocked" sub="To block someone, tap the flag on a note, version or review they made." />

@@ -179,7 +179,11 @@ do $$ begin
   perform public.staff_resolve_report('rep-4','dismiss');
   if (select resolution from public.content_reports where id = 'rep-4') <> 'dismissed' then raise exception 'staff could not dismiss'; end if;
   if not public.suspend_account('e0000000-0000-0000-0000-00000000000b') then raise exception 'suspend found nobody'; end if;
-  if (select banned_until from auth.users where id::text = 'e0000000-0000-0000-0000-00000000000b') <> 'infinity' then raise exception 'not suspended'; end if;
+  -- A real date: the auth server cannot read 'infinity' and fails the sign-in with a schema error.
+  if not coalesce((select banned_until > now() + interval '99 years' and banned_until <> 'infinity'
+                   from auth.users where id::text = 'e0000000-0000-0000-0000-00000000000b'), false) then
+    raise exception 'not suspended with a readable date';
+  end if;
   perform public.suspend_account('e0000000-0000-0000-0000-00000000000b', false);
   if (select banned_until from auth.users where id::text = 'e0000000-0000-0000-0000-00000000000b') is not null then raise exception 'not let back'; end if;
 end $$;

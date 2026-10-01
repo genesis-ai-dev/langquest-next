@@ -52,8 +52,12 @@ See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
 Run it locally, not against production without explicit authorization.
 
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `project-projections` Edge Function. Schedule only one projection job.
-`schedule-projections.sql` reads its URL and worker credential from Vault.
+the `project-projections` Edge Function. Migration 20261001000000 schedules
+it every five minutes wherever the Vault secrets `langquest_project_url` and
+`langquest_projection_worker_secret` exist (production), and nowhere else;
+it replaces the hand-run `schedule-projections.sql`. `npm run secrets` runs it
+again after setting them, which is how preview gets its job. `select * from cron.job`
+shows the one job, `net._http_response` its answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
@@ -117,7 +121,7 @@ together:
 | Repository | `genesis-ai-dev/langquest-next` |
 | Working directory | `.` |
 | Deploy to production | on, branch `main` |
-| Persistent branch | `develop`, following git branch `develop`: the preview environment (`docs/environments.md`, decisions.md 49) |
+| Persistent branch | `develop`, following git branch `develop`: the preview environment (`docs/environments.md`, decisions.md 50) |
 | Automatic branching | on, limit 3, Supabase changes only (preview branch compute is billed outside the spend cap) |
 
 `npm run db:check` shows whether the hosted migrations match `main`;
