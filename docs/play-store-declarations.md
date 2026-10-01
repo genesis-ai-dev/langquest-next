@@ -118,9 +118,11 @@ personal info.
   (community checks, back translations); passage status and per-language
   progress; offline with sync; invites by link or QR code; roles (translator,
   reviewer, coordinator).
-- Icon and feature graphic: LangQuest v2's icon, for now. The app itself
-  still has Expo's placeholder icon.
-- Screenshots: My Work and the Map, from the test account.
+- Icon and feature graphic: the app's own icon (white bars and check on
+  black, `apps/mobile/assets/logo.svg`, decisions.md 52), on a black ground.
+- Screenshots: six framed phone screens on black (record, study, chapters,
+  next step, checks, reviews) from the test account, showing the app's own
+  purple theme unaltered.
 
 ## Facts the check holds
 
