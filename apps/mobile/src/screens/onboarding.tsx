@@ -10,9 +10,8 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { firstName, teamLabel, welcomeRoleFor, WELCOME_POINTS, withArticle } from '../accountText';
 import type { Ctx } from '../ctx';
-import { GhostBtn, Group, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
+import { GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
 import { laneName } from '@langquest-next/core';
-import { Logo } from '../logo';
 import { PersonAvatar } from '../UserChip';
 import { personLook } from '../people';
 import { reportError } from '../report';
@@ -81,7 +80,7 @@ export function Welcome(ctx: Ctx) {
         {who.inviterId ? (
           <PersonAvatar look={personLook(who.inviterId, who.invitedBy)} size={72} />
         ) : (
-          <Logo size={72} />
+          <View style={styles.logo}><Ico name="book" size={36} color={C.white} /></View>
         )}
         {who.invitedBy ? <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>{who.invitedBy} invited you</Text> : null}
         <Text style={styles.title} accessibilityRole="header">{first ? `Welcome, ${first}` : 'Welcome'}</Text>
@@ -100,6 +99,7 @@ export function Welcome(ctx: Ctx) {
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.xl, paddingTop: space.xxl, gap: space.xl },
   hero: { alignItems: 'center', gap: space.md },
+  logo: { width: 72, height: 72, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: T.display, fontWeight: '800', color: C.dark, textAlign: 'center' }
 });
 

@@ -1056,19 +1056,17 @@ Reverse if: secrets change often enough that a manual apply is forgotten
 platform gains a way to read secrets from the repo at deploy without holding
 a key.
 
-## 52. The brand is black and white, not the demo's purple
+## 52. The app icon is black and white; the app keeps the demo's purple
 
 Date: 2026-10-01 · By: Caleb Koster · Status: accepted
 
-Reason: Caleb chose a new app icon (three rising bars with a check lying over
-the tallest) in black and white, and asked for the purple background and
-theming to go with it (Caleb, 2026-10-01). This narrows 28 for colour only:
-screens keep the demo's flow, layout and wording, but the demo's purple brand
-(`#6B48C8` and its lavender ground) becomes black on white. `C.primary` and
-`--primary` are black in light mode and white in the dashboard's dark mode,
-the grounds and borders are neutral greys, and status colours (green, amber,
-red) keep their meaning. The icon's source is `apps/mobile/assets/logo.svg`;
-`apps/mobile/scripts/render-icons.mjs` renders every icon from it, and
-`Logo` (`apps/mobile/src/logo.tsx`) draws the same mark in the app.
-Reverse if: partners find black primary actions hard to tell from body text
-in the field; then pick a single accent colour and keep the black icon.
+Reason: Caleb chose a new app icon, three rising bars with a check lying over
+the tallest, in white on black, and asked that only the icon change while the
+app keeps its theme (Caleb, 2026-10-01). So the icon departs from the demo's
+purple brand but the screens do not: `theme.ts`, `theme.css` and the book
+tile on the sign-in and welcome screens are unchanged, and 28 still holds for
+colour. The icon's source is `apps/mobile/assets/logo.svg`;
+`apps/mobile/scripts/render-icons.mjs` renders the app icon, Android adaptive
+and monochrome layers, splash image and favicon from it, and the dashboard
+uses it as its favicon. Reverse if: the brand is redone across the app; then
+redraw the icon to match it.

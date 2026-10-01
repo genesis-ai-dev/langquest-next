@@ -121,8 +121,8 @@ personal info.
 - Icon and feature graphic: the app's own icon (white bars and check on
   black, `apps/mobile/assets/logo.svg`, decisions.md 52), on a black ground.
 - Screenshots: six framed phone screens on black (record, study, chapters,
-  next step, checks, reviews), captured from the test account before the
-  black and white theme, so the app inside them still shows purple accents.
+  next step, checks, reviews) from the test account, showing the app's own
+  purple theme unaltered.
 
 ## Facts the check holds
 

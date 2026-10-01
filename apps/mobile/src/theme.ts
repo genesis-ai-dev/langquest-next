@@ -1,23 +1,22 @@
 /**
- * The UX demo's palette (ng-langquest-ux `C` and `TINT`, ADR-010) with its
- * purple brand replaced by black on white (decisions.md 52): black is the
- * one brand colour on a neutral grey ground, and status colours never change
+ * The UX demo's palette (ng-langquest-ux `C` and `TINT`, ADR-010): one brand
+ * colour on a soft lavender ground, and status colours that never change
  * with the brand (green looks good, amber needs changes or waiting, red is
  * danger). Every control is at least 48pt, primary actions 56pt, text at
  * least 13pt and body 17pt (ADR-008).
  */
 export const C = {
-  primary: '#000000',
+  primary: '#6B48C8',
   /** Lighter partner of primary, for step bars and gradients. */
-  soft: '#8A8A8A',
-  bg: '#F5F5F5',
-  dark: '#0A0A0A',
-  muted: '#6B6B6B',
-  border: '#E5E5E5',
+  soft: '#8B6FE8',
+  bg: '#F4F2FA',
+  dark: '#1C1440',
+  muted: '#7D72A8',
+  border: '#E6E2F3',
   card: '#FFFFFF',
-  light: '#EDEDED',
+  light: '#F0EAFF',
   /** Placeholder icons and locked marks on white. */
-  faint: '#C4C4C4',
+  faint: '#C4BEDC',
   green: '#10B981',
   amber: '#F59E0B',
   red: '#EF4444',
@@ -32,8 +31,8 @@ export const TINT = {
   amberText: '#B45309',
   red: '#FDECEC',
   redText: '#B91C1C',
-  gray: '#F2F2F2',
-  grayText: '#5C5C5C',
+  gray: '#F1F0F5',
+  grayText: '#6B6785',
   note: '#FFFBEA',
   noteBorder: '#F5E6B0'
 } as const;
@@ -67,9 +66,9 @@ export const tint = {
   reviewChip: C.light,
   done: TINT.green,
   doneBorder: 'rgba(16, 185, 129, 0.25)',
-  translateBar: 'rgba(0, 0, 0, 0.35)',
-  reviewBar: 'rgba(0, 0, 0, 0.35)',
-  mutedContainer: 'rgba(245, 245, 245, 0.70)'
+  translateBar: 'rgba(107, 72, 200, 0.35)',
+  reviewBar: 'rgba(107, 72, 200, 0.35)',
+  mutedContainer: 'rgba(244, 242, 250, 0.70)'
 } as const;
 
 export const radius = { sm: 8, md: 12, lg: 16, xl: 20, sheet: 28, full: 999 } as const;
@@ -107,7 +106,7 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 export const shadow = {
-  shadowColor: '#000000',
+  shadowColor: '#111420',
   shadowOpacity: 0.06,
   shadowRadius: 10,
   shadowOffset: { width: 0, height: 3 },

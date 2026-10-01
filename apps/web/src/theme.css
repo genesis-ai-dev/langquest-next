@@ -1,47 +1,47 @@
 /* Tokens mirror apps/mobile/src/theme.ts (C, TINT, space, radius). Change them there first.
    The dark theme keeps the same hues, lifted for contrast on a dark ground; status colours keep their meaning. */
 :root {
-  --primary: #000000;
-  --soft: #8A8A8A;
-  --bg: #F5F5F5;
-  --dark: #0A0A0A;
-  --muted: #6B6B6B;
-  --border: #E5E5E5;
+  --primary: #6B48C8;
+  --soft: #8B6FE8;
+  --bg: #F4F2FA;
+  --dark: #1C1440;
+  --muted: #7D72A8;
+  --border: #E6E2F3;
   --card: #FFFFFF;
-  --light: #EDEDED;
-  --faint: #C4C4C4;
+  --light: #F0EAFF;
+  --faint: #C4BEDC;
   --green: #10B981;
   --amber: #F59E0B;
   --red: #EF4444;
   --tint-green: #E7F8F1; --tint-green-text: #047857;
   --tint-amber: #FEF4E2; --tint-amber-text: #B45309;
   --tint-red: #FDECEC; --tint-red-text: #B91C1C;
-  --tint-gray: #F2F2F2; --tint-gray-text: #5C5C5C;
+  --tint-gray: #F1F0F5; --tint-gray-text: #6B6785;
   --on-primary: #FFFFFF;
-  --shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+  --shadow: 0 3px 10px rgba(17, 20, 32, 0.06);
   --space-xs: 4px; --space-sm: 8px; --space-md: 12px; --space-lg: 16px; --space-xl: 24px; --space-xxl: 32px;
   --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-full: 999px;
   --target: 48px;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --primary: #FFFFFF;
-  --soft: #8A8A8A;
-  --bg: #0A0A0A;
-  --dark: #F5F5F5;
-  --muted: #A3A3A3;
-  --border: #2B2B2B;
-  --card: #171717;
-  --light: #262626;
-  --faint: #525252;
+  --primary: #A48BF5;
+  --soft: #8B6FE8;
+  --bg: #120E24;
+  --dark: #EDEAFB;
+  --muted: #A89FD2;
+  --border: #2D2650;
+  --card: #1B1633;
+  --light: #2A2250;
+  --faint: #4A4278;
   --green: #34D399;
   --amber: #FBBF24;
   --red: #F87171;
   --tint-green: #0E2E25; --tint-green-text: #6EE7B7;
   --tint-amber: #35270B; --tint-amber-text: #FCD34D;
   --tint-red: #3A1519; --tint-red-text: #FCA5A5;
-  --tint-gray: #1F1F1F; --tint-gray-text: #BDBDBD;
-  --on-primary: #0A0A0A;
+  --tint-gray: #231E3E; --tint-gray-text: #BAB3DA;
+  --on-primary: #120E24;
   --shadow: none;
   color-scheme: dark;
 }
@@ -253,8 +253,8 @@ input { min-height: var(--target); border: 1px solid var(--border); border-radiu
 
 @media print {
   :root, :root[data-theme='dark'] {
-    --bg: #fff; --card: #fff; --dark: #000; --muted: #555; --border: #D4D4D4; --primary: #000; --light: #EDEDED;
-    --tint-gray: #F2F2F2; --faint: #C4C4C4; --shadow: none; color-scheme: light;
+    --bg: #fff; --card: #fff; --dark: #1C1440; --muted: #5E5585; --border: #D9D4EC; --primary: #6B48C8; --light: #F0EAFF;
+    --tint-gray: #F1F0F5; --faint: #C4BEDC; --shadow: none; color-scheme: light;
   }
   body { background: #fff; font-size: 12pt; }
   .no-print, .sidebar { display: none !important; }
