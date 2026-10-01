@@ -104,9 +104,19 @@ export function drift(wanted, hostedDigests) {
   }));
 }
 
+/** The useful part of a failed command's output: npm's notices dropped, a JSON error's message pulled out. */
+export function failure(stdout, stderr) {
+  const lines = `${stderr ?? ''}\n${stdout ?? ''}`.split('\n')
+    .filter((line) => line.trim() && !line.startsWith('npm notice'));
+  const messages = lines.map((line) => {
+    try { return JSON.parse(line)?.error?.message ?? line; } catch { return line; }
+  });
+  return messages.join('\n').trim();
+}
+
 function run(cmd, args) {
   const result = spawnSync('npx', [cmd, ...args], { cwd: root, encoding: 'utf8' });
-  if (result.status !== 0) throw new Error((result.stderr || result.stdout || '').trim() || `${cmd} ${args[0]} failed`);
+  if (result.status !== 0) throw new Error(failure(result.stdout, result.stderr) || `${cmd} ${args[0]} failed`);
   return result.stdout;
 }
 
@@ -122,8 +132,10 @@ function withTempFile(name, content, fn) {
   }
 }
 
+// `db query` reaches a hosted project only as the linked one; main() checks
+// the link is the target before anything runs.
 const query = (ref, sql) => withTempFile('q.sql', sql, (file) =>
-  JSON.parse(run('supabase', ['db', 'query', '--project-ref', ref, '--output-format', 'json', '-f', file])).rows ?? []);
+  JSON.parse(run('supabase', ['db', 'query', '--linked', '--project-ref', ref, '--output-format', 'json', '-f', file])).rows ?? []);
 
 function workerSecretNames(config, environment) {
   try {
@@ -199,6 +211,12 @@ async function main() {
   const ref = projectRef(readFileSync(join(root, 'supabase/config.toml'), 'utf8'), environment);
   if (!ref) {
     console.error(`x supabase/config.toml has no [remotes.${environment}] project_id.`);
+    process.exit(1);
+  }
+  let linked = null;
+  try { linked = readFileSync(join(root, 'supabase/.temp/project-ref'), 'utf8').trim(); } catch { /* not linked */ }
+  if (linked !== ref) {
+    console.error(`x the linked Supabase project is ${linked ?? 'none'}, not ${environment}'s ${ref}. Run: npx supabase link --project-ref ${ref}`);
     process.exit(1);
   }
   const keys = JSON.parse(run('supabase', ['projects', 'api-keys', '--project-ref', ref, '-o', 'json']));

@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, REQUIRED_KEYS, WORKERS, destinations, digest, drift, relayUrl, summarize, unknownKeys, vaultSql
+  FILE_KEYS, REQUIRED_KEYS, WORKERS, destinations, digest, drift, failure, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -60,6 +60,12 @@ describe('secrets', () => {
     expect(summarize(ok).behind).toBe(false);
     expect(summarize({ ...ok, workers: { dashboard: { K: 'missing' } } }).behind).toBe(true);
     expect(summarize({ ...ok, scheduled: false }).behind).toBe(true);
+  });
+
+  it('shows the command\'s own error, not npm\'s notices', () => {
+    const stdout = '{"_tag":"Error","error":{"code":"X","message":"--project-ref only applies with --linked"}}\n';
+    expect(failure(stdout, 'npm notice run langquest-next@0.0.1 npx\nnpm notice run supabase db query\n'))
+      .toBe('--project-ref only applies with --linked');
   });
 
   it('quotes Vault values so a quote cannot end the literal', () => {
