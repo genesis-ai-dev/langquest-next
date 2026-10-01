@@ -903,3 +903,12 @@ work, reviewing their recordings) rather than hide what they add, which
 puts blocks on the server's write path; moderators need to know who
 reported, which needs the reporter's consent; or report volume outgrows a
 script, which calls for a staff screen.
+
+Amended (2026-10-01, Caleb Koster): emailing staff when something is
+reported is deferred, not dropped. Until it exists, staff keep the terms'
+24-hour promise by checking `npm run moderation -- --hosted` daily, and an
+organization's moderators get a server Inbox row from the projection worker,
+which now runs every five minutes in production (decision 42). When it is
+built, the worker is the sender's natural home: it already reads open
+reports each pass and runs where the email relay's secret lives. It needs a
+staff address and a sender address chosen first.
