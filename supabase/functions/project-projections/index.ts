@@ -22404,12 +22404,35 @@ async function runProjections(service) {
       kind: "join_request",
       title: "A person requested access"
     })));
+    rows.push(...await reportNotifications(service, orgId, org));
     check(await service.rpc("reconcile_notifications", {
       p_org: orgId,
       p_project: "_org",
       p_rows: rows
     }));
   }
+}
+async function reportNotifications(service, orgId, org) {
+  const open = await service.from("content_reports").select("partition_id,target_kind,target_id,reported_profile").eq("org_id", orgId).is("resolved_at", null).limit(500);
+  if (open.error) {
+    if (["42P01", "PGRST205"].includes(open.error.code)) return [];
+    throw new Error(open.error.message);
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const r of open.data ?? []) {
+    const person = r.target_kind === "person";
+    const target = person ? { projectId: "_org" } : { projectId: r.partition_id };
+    for (const profileId of Object.keys(org.members)) {
+      if (profileId === r.reported_profile) continue;
+      if (!privilegesFor(org, profileId, target).has(person ? "invite_members" : "manage_structure")) continue;
+      const id = JSON.stringify([orgId, "report", profileId, r.partition_id, r.target_kind, r.target_id]);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, profile_id: profileId, kind: "content_report", title: "Something was reported" });
+    }
+  }
+  return out;
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");

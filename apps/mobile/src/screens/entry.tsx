@@ -11,7 +11,7 @@ import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { cachedPublicProjects, publicProjects, queueAccountAction, type PublicProject } from '../accountData';
+import { cachedPublicProjects, publicProjects, queueAccountAction, TERMS_VERSION, type PublicProject } from '../accountData';
 import { inviteLine, inviteSummary, VISION_STEPS } from '../accountText';
 import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
@@ -115,14 +115,54 @@ export function SignIn(ctx: Ctx) {
 
 // ---- Terms & Privacy (AUTH-1) ----------------------------------------------------------------
 
+/**
+ * What is not allowed, as the terms list it. Google Play asks that terms
+ * forbid objectionable content and are accepted before anyone posts
+ * (decisions.md 48); signing in accepts them (TERMS_VERSION).
+ */
+const NOT_ALLOWED = [
+  'Hate: attacking people for their ethnicity, nationality, religion, disability, sex, gender or sexual orientation.',
+  'Harassment, bullying, threats or intimidation.',
+  'Sexual content or nudity. Anything sexual involving a child is never allowed, and we report it to the authorities.',
+  'Content that encourages violence, self-harm or terrorism.',
+  'Anything illegal, or that uses someone else\'s work without the right to.',
+  'Someone else\'s private information, such as their address or phone number, without their permission.',
+  'Pretending to be someone else.',
+  'Spam, advertising, or anything unrelated to translation work.',
+  'Trying to break into LangQuest or another person\'s account, or harm the service.'
+];
+
 /** A page to read; accepting is the line under Sign In (ADR-022). */
 export function TermsPrivacy(ctx: Ctx) {
   return (
     <Screen header={<Header title="Terms & Privacy" onBack={ctx.back} />}>
       <Card>
         <Text style={txt.h3}>Terms of Use</Text>
+        <Text style={txt.xs}>Updated {TERMS_VERSION}</Text>
         <Text style={txt.bodyMuted}>
-          LangQuest is a coordination tool for translation teams. Use it in line with your organization's policies. Do not share credentials or private translation drafts outside your assigned scope.
+          LangQuest is for translation teams to record, review and organize their work. By creating an account or signing in, you agree to these terms. You must be 18 or older. Use your own account and keep your password private.
+        </Text>
+        <Text style={txt.bodyMuted}>
+          What you record and write is part of your organization's work, shared under its license. Your organization's members can see it.
+        </Text>
+      </Card>
+      <Card>
+        <Text style={txt.h3}>Not allowed</Text>
+        <Text style={txt.bodyMuted}>Do not record, write or share:</Text>
+        {NOT_ALLOWED.map((rule) => (
+          <View key={rule} style={styles.rule}>
+            <Text style={txt.bodyMuted}>{'\u2022'}</Text>
+            <Text style={[txt.bodyMuted, { flex: 1 }]}>{rule}</Text>
+          </View>
+        ))}
+      </Card>
+      <Card>
+        <Text style={txt.h3}>Reporting and blocking</Text>
+        <Text style={txt.bodyMuted}>
+          Tap the flag on a note, recording or review to report it, or to report or block the person who made it. Blocking hides what they add, for you only, and they are not told. Your organization's admins and the LangQuest team see reports. We act on them within 24 hours.
+        </Text>
+        <Text style={txt.bodyMuted}>
+          Content that breaks these terms is removed. People who break them may be removed from their organization, and their account suspended or deleted. Questions or reports by email: admin@frontierrnd.com.
         </Text>
       </Card>
       <Card>
@@ -616,6 +656,7 @@ export function RequestAccess(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
+  rule: { flexDirection: 'row', gap: space.sm },
   signInBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   brand: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
   logo: { width: 64, height: 64, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',

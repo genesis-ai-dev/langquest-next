@@ -5,7 +5,7 @@ export interface OutboxStorage {
 }
 export interface AccountAction {
   id: string;
-  kind: 'join_request' | 'profile' | 'user_event';
+  kind: 'join_request' | 'profile' | 'user_event' | 'report' | 'block';
   payload: Record<string, unknown>;
   status: 'queued' | 'sent' | 'failed';
   error?: string;

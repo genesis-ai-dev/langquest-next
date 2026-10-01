@@ -2,8 +2,9 @@
 // (InboxHomeScreen, SettingsHomeScreen, ProfileEditScreen,
 // OrgSwitcherScreen, SignOutConfirmScreen); SyncStatus is app only (the
 // local log, realtime state and transfers), as are the Send diagnostics
-// switch in Settings (docs/diagnostics.md) and Delete Account (store
-// rules, decisions.md 46).
+// switch in Settings (docs/diagnostics.md), Delete Account (store
+// rules, decisions.md 46), and reports in the Inbox and Blocked people in
+// Settings (store rules, decisions.md 48).
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 and ONB-5 (the
 // Settings rows back to them), CORE-12 (sign-out never strands work).
 import { CommandError, decodeHlc, deriveKinds, kindOf, laneName, unitTitle, type Update } from '@langquest-next/core';
@@ -17,15 +18,18 @@ import { deleteAccount } from '../accountDeletion';
 import { groupByRead, updateText } from '../accountText';
 import type { Ctx } from '../ctx';
 import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
+import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
+import { openReports } from '../moderationData';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen,
-  SectionLabel, Sheet, ShowMore, txt, type IconName
+  SectionLabel, Sheet, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { dueText, plural, when } from '../passageView';
 import { personLook } from '../people';
 import { noteExpected, reportError, failureMessage } from '../report';
+import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { homeScreenFor } from '../session';
 import { supabase } from '../supabase';
@@ -97,6 +101,23 @@ export function InboxHome(ctx: Ctx) {
   const [openRequest, setOpenRequest] = useState<PendingRequest | null>(null);
   const [declining, setDeclining] = useState(false);
 
+  // Open reports for those who act on them (decisions.md 48): content for
+  // whoever manages the language, people for whoever admits members.
+  // Needs the server; offline, the server notifications below stand in.
+  const canModerate = ctx.session.can('manage_structure') || canAdmit;
+  const [reports, setReports] = useState<ReportGroup[] | null>(null);
+  const [reportsTick, setReportsTick] = useState(0);
+  useEffect(() => {
+    if (!canModerate) return;
+    let active = true;
+    openReports(orgId).then((rows) => { if (active) setReports(groupReports(orgId, rows)); }).catch((e: unknown) => {
+      noteExpected('inbox reports', e);
+      if (active) setReports(null);
+    });
+    return () => { active = false; };
+  }, [canModerate, orgId, reportsTick]);
+  const [openReport, setOpenReport] = useState<ReportGroup | null>(null);
+
   // Server notifications about other organizations (and join requests when the list above is unavailable).
   const [remote, setRemote] = useState<RemoteNotification[]>([]);
   const [remoteRead, setRemoteRead] = useState<string[]>([]);
@@ -122,6 +143,7 @@ export function InboxHome(ctx: Ctx) {
       await ctx.openOrganization(row.org_id)
         .catch((e: unknown) => ctx.toast(failure('inbox open organization', e)));
     } else if (row.kind === 'join_request') ctx.go('members_list');
+    else if (row.kind === 'content_report') ctx.toast('Connect to the internet to see what was reported.');
   }
 
   // The words for each record-derived update, memoized on the fold.
@@ -146,6 +168,14 @@ export function InboxHome(ctx: Ctx) {
       time: new Date(r.createdAt).toLocaleDateString(), onPress: () => setOpenRequest(r)
     });
   }
+  for (const g of reports ?? []) {
+    const t = g.target;
+    const where = t.unitId && state?.units[t.unitId] ? ` · ${unitTitle(state, t.unitId)}` : '';
+    items.push({
+      id: `report:${g.key}`, icon: 'flag', title: reportTitle(t, ctx.name), read: false,
+      body: `${reportSummary(g)}${where}`, time: new Date(g.latest).toLocaleDateString(), onPress: () => setOpenReport(g)
+    });
+  }
   if (words) {
     for (const u of ctx.inbox.updates) {
       const w = words(u);
@@ -158,12 +188,14 @@ export function InboxHome(ctx: Ctx) {
   const seen = new Set(remoteRead);
   for (const row of remote) {
     const here = row.org_id === orgId;
-    // This organization's updates are derived above, and its join requests too once they are listed.
-    if (here && (row.kind !== 'join_request' || requests !== null)) continue;
-    if (here && !(canAdmit && ctx.session.can('assign_work'))) continue;
+    // This organization's updates are derived above, and its join requests and reports too once they are listed.
+    if (here && row.kind === 'join_request' && (requests !== null || !(canAdmit && ctx.session.can('assign_work')))) continue;
+    if (here && row.kind === 'content_report' && (reports !== null || !canModerate)) continue;
+    if (here && row.kind !== 'join_request' && row.kind !== 'content_report') continue;
     items.push({
-      id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : 'notif', title: row.title,
-      body: here ? 'Open Members to assign a role.' : 'In another organization. Opening it switches to it.',
+      id: `remote:${row.id}`, icon: row.kind === 'join_request' ? 'people' : row.kind === 'content_report' ? 'flag' : 'notif', title: row.title,
+      body: !here ? 'In another organization. Opening it switches to it.'
+        : row.kind === 'content_report' ? 'Connect to see what was reported.' : 'Open Members to assign a role.',
       read: seen.has(row.id), onPress: () => void openRemote(row)
     });
   }
@@ -212,7 +244,8 @@ export function InboxHome(ctx: Ctx) {
           <Group>
             {accountActions.map((a, i, all) => (
               <Row key={a.id} icon={a.status === 'failed' ? 'flag' : 'cloud'} iconColor={a.status === 'failed' ? TINT.redText : C.primary}
-                label={a.kind === 'join_request' ? 'Access request' : a.kind === 'profile' ? 'Profile' : 'Onboarding'}
+                label={a.kind === 'join_request' ? 'Access request' : a.kind === 'profile' ? 'Profile' : a.kind === 'report' ? 'Report'
+                  : a.kind === 'block' ? (a.payload.blocked ? 'Block' : 'Unblock') : 'Onboarding'}
                 sub={a.status === 'failed' ? `${a.error ?? 'Not accepted'} · Tap to try again` : 'Waiting to send'}
                 badge={a.status === 'failed' ? 'Not sent' : 'Saved'} last={i === all.length - 1}
                 onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id).catch((e: unknown) => ctx.toast(failure('account retry', e))); } : undefined} />
@@ -236,6 +269,28 @@ export function InboxHome(ctx: Ctx) {
       ) : null}
       {!items.length ? <EmptyState icon="inbox" title="Nothing yet" sub="Requests and feedback about your passages show up here." /> : null}
 
+      {openReport ? (
+        <Sheet visible title={reportTitle(openReport.target, ctx.name)} sub={`${reportSummary(openReport)} · ${new Date(openReport.latest).toLocaleDateString()}`}
+          onClose={() => setOpenReport(null)}
+          footer={<ReportActions ctx={ctx} target={openReport.target}
+            onDone={() => { setOpenReport(null); setReportsTick((t) => t + 1); }}
+            onOpen={() => {
+              const t = openReport.target;
+              setOpenReport(null);
+              if (t.kind === 'person') ctx.go('members_list');
+              else if (t.unitId && t.laneId) ctx.openPassage(t.unitId, t.laneId);
+            }} />}>
+          <View style={styles.requestBody}>
+            <Text style={txt.body}>
+              {openReport.target.kind === 'person'
+                ? `Someone reported ${ctx.name(openReport.target.profileId)} for ${openReport.reasons.map((r) => reasonLabel(r).toLowerCase()).join(', ')}. You can remove them from the organization under Members.`
+                : `Someone reported this for ${openReport.reasons.map((r) => reasonLabel(r).toLowerCase()).join(', ')}. It was made by ${ctx.name(openReport.target.profileId)}. Look at it, then remove it from the record or keep it.`}
+            </Text>
+            {openReport.details.slice(0, 5).map((d, i) => <Text key={i} style={[txt.sm, { fontStyle: 'italic' }]}>"{d}"</Text>)}
+          </View>
+          <Text style={txt.xs}>Reports never say who sent them. The LangQuest team sees every report too.</Text>
+        </Sheet>
+      ) : null}
       <Sheet visible={!!openRequest} title="Join request" sub={openRequest ? new Date(openRequest.createdAt).toLocaleString() : undefined}
         onClose={() => setOpenRequest(null)}
         footer={openRequest ? (
@@ -268,6 +323,7 @@ export function InboxHome(ctx: Ctx) {
 /** Account and app rows only; everything about running the org lives under Manage. */
 export function SettingsHome(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [blockedOpen, setBlockedOpen] = useState(false);
   const diag = useDiagnosticsSwitch(ctx);
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
@@ -294,7 +350,10 @@ export function SettingsHome(ctx: Ctx) {
       <SectionLabel label="Account" />
       <Group>
         <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
-        <Row icon="building" label="Switch Organization" sub={`${orgName} (active)`} onPress={() => ctx.go('org_switcher')} last />
+        <Row icon="building" label="Switch Organization" sub={`${orgName} (active)`} onPress={() => ctx.go('org_switcher')} />
+        {/* Added, not in the demo (store rules, decisions.md 48). */}
+        <Row icon="block" label="Blocked people" sub={ctx.blocks.ids.length ? plural(ctx.blocks.ids.length, 'person', 'people') : 'Nobody'}
+          onPress={() => setBlockedOpen(true)} last />
       </Group>
       <SectionLabel label="App" />
       <Group>
@@ -322,7 +381,35 @@ export function SettingsHome(ctx: Ctx) {
         <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
         <LinkBtn label="Delete account" color={C.muted} onPress={() => ctx.go('delete_account')} style={{ alignSelf: 'center' }} />
       </View>
+      {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
+  );
+}
+
+/** Who this account blocked, each with Unblock. Blocking happens from the flag on something they made. */
+function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
+  const { ctx } = props;
+  async function unblock(id: string) {
+    try {
+      await ctx.blocks.set(id, false);
+      ctx.toast(`Unblocked ${ctx.name(id)}.`, async () => { await ctx.blocks.set(id, true); });
+    } catch (e) {
+      ctx.toast(failure('unblock person', e));
+    }
+  }
+  return (
+    <Sheet visible title="Blocked people" sub="What they add is hidden for you. They aren't told." onClose={props.onClose}>
+      {ctx.blocks.ids.length ? (
+        <Group>
+          {ctx.blocks.ids.map((id, i, all) => (
+            <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)} last={i === all.length - 1}
+              right={<SmallBtn label="Unblock" onPress={() => void unblock(id)} />} />
+          ))}
+        </Group>
+      ) : (
+        <EmptyState icon="block" title="Nobody blocked" sub="To block someone, tap the flag on a note, version or review they made." />
+      )}
+    </Sheet>
   );
 }
 
@@ -533,7 +620,7 @@ export function DeleteAccount(ctx: Ctx) {
       ) : null}
       <Text style={txt.h2} accessibilityRole="header">Delete your account?</Text>
       <Group>
-        <Row icon="user" label="Deleted" sub="Your sign-in, email, name, notifications and diagnostics. You leave every organization." />
+        <Row icon="user" label="Deleted" sub="Your sign-in, email, name, notifications, blocks and diagnostics. You leave every organization." />
         <Row icon="people" label="Kept by your organization" sub="Recordings, reviews and notes you made stay part of its work, without your name." last />
       </Group>
       <Text style={txt.bodyMuted}>This cannot be undone. To use LangQuest again you would create a new account.</Text>

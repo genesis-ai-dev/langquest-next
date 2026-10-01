@@ -6,7 +6,7 @@
 // colours with an icon (ADR-010), and field-sized targets (ADR-008).
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  ArrowLeftRight, ArrowRight, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
+  ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, Download, Filter, Flag, Folder, Globe, History,
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
@@ -25,7 +25,7 @@ import { C, onColor, radius, shadow, space, target, TINT, type as T } from './th
 
 /** The demo's icon names, drawn with lucide. */
 export const ICONS = {
-  arrowR: ArrowRight, assign: ClipboardList, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
+  arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
   chatDots: MessageSquareText, check: Check, clock: Clock, close: X, cloud: Cloud, cut: Scissors, down: ChevronDown,
   download: Download, edit: Pencil, filter: Filter, flag: Flag, flow: Workflow, folder: Folder, globe: Globe,
   help: CircleHelp, history: History, home: House, left: ChevronLeft, link: Link, lock: Lock, map: MapIcon, media: Image,
@@ -486,7 +486,8 @@ export function KindIcon(props: { kindId: string; size?: number }) {
 }
 
 /** A note shown where it is relevant; notes on older versions stay, marked (design principles 9). */
-export function NoteCard(props: { anchor: string; text?: string; by: string; when: string; olderVersion?: string; audio?: ReactNode; icon?: IconName }) {
+/** A note; `action` sits at the end of its by-line (report or block someone else's: reportSheet.tsx). */
+export function NoteCard(props: { anchor: string; text?: string; by: string; when: string; olderVersion?: string; audio?: ReactNode; icon?: IconName; action?: ReactNode }) {
   return (
     <View style={styles.note}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -496,7 +497,10 @@ export function NoteCard(props: { anchor: string; text?: string; by: string; whe
       </View>
       {props.text ? <Text style={[txt.sm, { marginTop: 6 }]}>{props.text}</Text> : null}
       {props.audio ? <View style={{ marginTop: 6 }}>{props.audio}</View> : null}
-      <Text style={[txt.xs, { marginTop: 6 }]}>{props.by} · {props.when}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: space.sm }}>
+        <Text style={[txt.xs, { flex: 1 }]}>{props.by} · {props.when}</Text>
+        {props.action}
+      </View>
     </View>
   );
 }

@@ -14,6 +14,7 @@ import {
   Badge, Chip, ChipRow, Field, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn, txt
 } from '../kit';
 import { versionTitle, when, type PassageView } from '../passageView';
+import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
@@ -169,9 +170,12 @@ function NotesTab(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disab
       {newest.slice(0, shown).map((n) => {
         const older = n.onTakeId && n.onTakeId !== latestId ? versionN.get(n.onTakeId) : undefined;
         return (
-          <NoteCard key={n.id} anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
-            {...(older ? { olderVersion: versionTitle(older) } : {})}
-            {...(n.blobHash ? { audio: <AudioClip project={ctx.project} hashes={[n.blobHash]} label="Play voice note" /> } : {})} />
+          <Authored key={n.id} ctx={ctx} by={n.by}>
+            <NoteCard anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
+              {...(older ? { olderVersion: versionTitle(older) } : {})}
+              {...(n.blobHash ? { audio: <AudioClip project={ctx.project} hashes={[n.blobHash]} label="Play voice note" /> } : {})}
+              action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+          </Authored>
         );
       })}
       <ShowMore remaining={newest.length - shown} step={NOTE_STEP} onMore={() => setShown((x) => x + NOTE_STEP)} />

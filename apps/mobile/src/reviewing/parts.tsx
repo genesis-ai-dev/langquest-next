@@ -14,6 +14,7 @@ import {
   Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt
 } from '../kit';
 import { dueText, feedbackSource, outcomeText, plural, versionTitle, when } from '../passageView';
+import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
@@ -125,8 +126,17 @@ export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
   const who = r.by ? props.ctx.name(r.by) : 'Someone';
   return (
     <View style={{ gap: space.sm }}>
-      <Banner icon={r.guest ? 'link' : 'assign'} title={`${who} asked${r.dueDate ? ` · ${dueText(r.dueDate)}` : ''}`} {...(r.note ? { body: r.note } : {})} />
-      {r.noteBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.noteBlobHash]} label="Play their directions" /> : null}
+      <Banner icon={r.guest ? 'link' : 'assign'} title={`${who} asked${r.dueDate ? ` · ${dueText(r.dueDate)}` : ''}`} {...(r.note ? { body: authoredText(props.ctx, r.by, r.note) } : {})} />
+      {r.noteBlobHash ? (
+        <Authored ctx={props.ctx} by={r.by}>
+          <AudioClip project={props.ctx.project} hashes={[r.noteBlobHash]} label="Play their directions" />
+        </Authored>
+      ) : null}
+      {r.by && (r.note || r.noteBlobHash) ? (
+        <View style={{ alignSelf: 'flex-end' }}>
+          <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'request', r.id, r.by, r.unitId, r.laneId)} size={36} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -153,14 +163,16 @@ export function CompareCard(props: { ctx: Ctx; review: ReviewView; kind: KindDef
       {r.versionN !== props.version.n ? (
         <Banner icon="history" tone="amber" title={`Made from ${versionTitle(r.versionN)} — you're reviewing ${versionTitle(props.version.n)}. Check what changed.`} />
       ) : null}
-      {recordings.length ? <AudioClip project={props.ctx.project} hashes={recordings} label={`Play the ${k.produces?.what ?? 'recording'}`} /> : <Text style={txt.xs}>No recording attached.</Text>}
-      {r.comment || r.commentBlobHash ? (
-        <View style={styles.inset}>
-          <Text style={txt.xsStrong}>{k.produces?.what === 'back translation' ? "Back translator's note" : 'Their note'}</Text>
-          {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
-          {r.commentBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.commentBlobHash]} label="Play their note" /> : null}
-        </View>
-      ) : null}
+      <Authored ctx={props.ctx} by={r.by}>
+        {recordings.length ? <AudioClip project={props.ctx.project} hashes={recordings} label={`Play the ${k.produces?.what ?? 'recording'}`} /> : <Text style={txt.xs}>No recording attached.</Text>}
+        {r.comment || r.commentBlobHash ? (
+          <View style={styles.inset}>
+            <Text style={txt.xsStrong}>{k.produces?.what === 'back translation' ? "Back translator's note" : 'Their note'}</Text>
+            {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
+            {r.commentBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.commentBlobHash]} label="Play their note" /> : null}
+          </View>
+        ) : null}
+      </Authored>
     </Card>
   );
 }
@@ -194,11 +206,13 @@ function EarlierReview(props: { ctx: Ctx; review: ReviewView; kind: KindDef | un
         right={<Ico name={open ? 'up' : 'down'} size={20} color={C.muted} />} onPress={() => setOpen((o) => !o)} expanded={open} />
       {open ? (
         <View style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm }}>
-          {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
-          {recordings.length ? <AudioClip project={props.ctx.project} hashes={recordings} label="Play what they recorded" /> : null}
+          <Authored ctx={props.ctx} by={r.by}>
+            {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
+            {recordings.length ? <AudioClip project={props.ctx.project} hashes={recordings} label="Play what they recorded" /> : null}
+          </Authored>
           {r.response ? (
             <Text style={txt.smMuted}>
-              <Text style={{ fontWeight: '700', color: C.dark }}>{r.response.decision === 'revised' ? 'Revised' : 'Kept'}:</Text> {r.response.note ?? (r.response.decision === 'revised' ? 'A new version answered it.' : 'Kept as it is.')}
+              <Text style={{ fontWeight: '700', color: C.dark }}>{r.response.decision === 'revised' ? 'Revised' : 'Kept'}:</Text> {r.response.note ? authoredText(props.ctx, r.response.by, r.response.note) : (r.response.decision === 'revised' ? 'A new version answered it.' : 'Kept as it is.')}
             </Text>
           ) : null}
           {!r.comment && !recordings.length && !r.response ? <Text style={txt.xs}>Nothing else was said.</Text> : null}
@@ -256,9 +270,12 @@ export function FromTranslator(props: {
         {notes.map((n) => {
           const older = props.olderVersion(n);
           return (
-            <NoteCard key={n.id} anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
-              {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-              {...(n.blobHash ? { audio: <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play note" /> } : {})} />
+            <Authored key={n.id} ctx={props.ctx} by={n.by}>
+              <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
+                {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
+                {...(n.blobHash ? { audio: <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play note" /> } : {})}
+                action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+            </Authored>
           );
         })}
         {props.notes.length > shown ? <ShowMore remaining={props.notes.length - shown} step={EARLIER_STEP} onMore={() => setShown((x) => x + EARLIER_STEP)} /> : null}
