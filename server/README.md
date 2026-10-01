@@ -55,7 +55,8 @@ Run it locally, not against production without explicit authorization.
 the `project-projections` Edge Function. Migration 20261001000000 schedules
 it every five minutes wherever the Vault secrets `langquest_project_url` and
 `langquest_projection_worker_secret` exist (production), and nowhere else;
-it replaces the hand-run `schedule-projections.sql`. `select * from cron.job`
+it replaces the hand-run `schedule-projections.sql`. `npm run secrets` runs it
+again after setting them, which is how preview gets its job. `select * from cron.job`
 shows the one job, `net._http_response` its answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
@@ -120,8 +121,15 @@ together:
 | Repository | `genesis-ai-dev/langquest-next` |
 | Working directory | `.` |
 | Deploy to production | on, branch `main` |
+| Persistent branch | `develop`, following git branch `develop`: the preview environment (`docs/environments.md`, decisions.md 50) |
 | Automatic branching | on, limit 3, Supabase changes only (preview branch compute is billed outside the spend cap) |
 
 `npm run db:check` shows whether the hosted migrations match `main`;
 `npm run db:apply` still applies them by hand.
+
+The integration does not set secrets. `npm run secrets -- <preview|production>`
+sets the Edge Function secrets and the Vault secrets from the root
+`.env.<environment>` and schedules the projection job (`docs/environments.md`);
+run it after changing that file, and with `--check` to compare digests
+without changing anything.
 

@@ -1,6 +1,6 @@
 /**
  * The UX demo's palette (ng-langquest-ux `C` and `TINT`, ADR-010) with its
- * purple brand replaced by black on white (decisions.md 50): black is the
+ * purple brand replaced by black on white (decisions.md 52): black is the
  * one brand colour on a neutral grey ground, and status colours never change
  * with the brand (green looks good, amber needs changes or waiting, red is
  * danger). Every control is at least 48pt, primary actions 56pt, text at

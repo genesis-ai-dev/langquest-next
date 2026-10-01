@@ -1,0 +1,87 @@
+# Every merge to develop reaches the preview build, which talks to the
+# preview stack (docs/environments.md): the preview Supabase branch, read from
+# the EAS "preview" environment (apps/mobile/.env.preview). Like
+# deploy-to-testers.yml, each platform is decided on its own: a matching
+# native fingerprint ships an over-the-air update on the preview channel,
+# otherwise it builds a new internal-distribution binary (eas.json, preview).
+# Nothing is submitted to a store. The typecheck and unit tests run first.
+name: Deploy to preview
+
+on:
+  push:
+    branches: ['develop']
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '!apps/mobile/.eas/**'
+      - '!**/*.md'
+
+jobs:
+  checks:
+    name: Typecheck and tests
+    environment: preview
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Typecheck and tests
+        run: |
+          cd ../..
+          npm run --silent typecheck
+          npx vitest run --reporter=dot
+  fingerprint:
+    name: Fingerprint
+    needs: [checks]
+    type: fingerprint
+    environment: preview
+
+  get_ios_build:
+    name: Check for an existing iOS build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: preview
+  build_ios:
+    name: Build iOS
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: preview
+  publish_ios_update:
+    name: Publish iOS over-the-air update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    environment: preview
+    params:
+      branch: preview
+      platform: ios
+
+  get_android_build:
+    name: Check for an existing Android build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      profile: preview
+  build_android:
+    name: Build Android
+    needs: [get_android_build]
+    if: ${{ !needs.get_android_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+  publish_android_update:
+    name: Publish Android over-the-air update
+    needs: [get_android_build]
+    if: ${{ needs.get_android_build.outputs.build_id }}
+    type: update
+    environment: preview
+    params:
+      branch: preview
+      platform: android

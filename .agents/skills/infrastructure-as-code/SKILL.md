@@ -46,17 +46,19 @@ reviewed, reproduced, rolled back, or noticed when it drifts.
 | --- | --- | --- | --- |
 | Postgres schema, RPCs, RLS, grants | `supabase/migrations/*.sql` (forward-only, never edit a shipped file) | `npm run db:apply` (`supabase db push --linked`) | `npm run db:check` (`--diff` for live schema) |
 | Extensions (`pg_cron`, `pg_net`) | a migration: `create extension if not exists ...` | same | same |
-| Cron jobs | a migration or `server/*.sql` script that unschedules then schedules by name | `db:apply` or a script | `select * from cron.job` in the check |
+| Cron jobs | a migration or `server/*.sql` script that unschedules then schedules by name | `db:apply` or a script (`npm run secrets` schedules the projection job) | `select * from cron.job` in the check |
 | Auth, API, storage settings, buckets | `supabase/config.toml` (`[auth]`, `[api]`, `[storage.buckets.*]`); per-environment overrides in `[remotes.<name>]` | `supabase config diff`, review, then `supabase config push`. Run non-interactively (as agents do), push skips the prompt and applies everything, including template defaults such as the local `site_url`, so hosted values belong in `[remotes.<name>]` first | `supabase config diff` shows nothing |
 | Edge functions and their config | `supabase/functions/*`, `[functions.*]` in `config.toml` | `supabase functions deploy <name>` | deployed version in `supabase functions list` |
-| Edge function secrets | encrypted `supabase/.env.<environment>` | decrypt, then `supabase secrets set --env-file` | `supabase secrets list` (digests) |
-| Vault secrets | encrypted env file; a script calls `vault.create_secret` / `vault.update_secret` | script | the check lists expected names |
-| Cloudflare invite-email Worker | `apps/invite-email/wrangler.jsonc` (vars, bindings, routes, DO migrations) | merge to `main` runs `npm run email:deploy` when `apps/invite-email/**` changes (`.github/workflows/deploy-cloudflare.yml`, decisions.md 43). The same command still deploys it by hand | `wrangler deploy --dry-run` |
-| Cloudflare dashboard | `apps/web/wrangler.jsonc` | the same workflow runs `npm run web:deploy` when `apps/web/**`, `packages/core/**`, `packages/client/**`, or `package-lock.json` changes | `wrangler deploy --dry-run` |
-| Worker secrets | encrypted env file; names listed in `secrets.required` | `wrangler secret bulk` from the decrypted values | deploy fails if a required secret is missing |
+| Hosted project refs | `[remotes.<env>] project_id` in `supabase/config.toml` (plain) | read by scripts | a test holds the dashboard's `SUPABASE_URL` var to it |
+| Edge function secrets | encrypted root `.env.<environment>`; where each goes is `destinations` in `scripts/secrets.mjs` | `npm run secrets -- <env>` | `npm run secrets -- <env> --check` (digests) |
+| Vault secrets | derived by `scripts/secrets.mjs` (`vault.create_secret` / `vault.update_secret`) | the same command | the same check |
+| Cloudflare invite-email Worker | `apps/invite-email/wrangler.jsonc` (`env.preview` is the `-preview` Worker) | Workers Builds: `main` runs `npm run email:deploy`, `develop` runs `email:deploy:preview` (`docs/cloudflare.md`, decisions.md 43 and 50). The same commands deploy by hand | `wrangler deploy --dry-run --env=[preview]` |
+| Cloudflare dashboard | `apps/web/wrangler.jsonc` (`env.preview` likewise); the page reads `apps/mobile/.env.<environment>` | the same, `npm run web:deploy` / `web:deploy:preview` | the same |
+| Worker public settings | `vars` in the wrangler file, per environment | every deploy | `wrangler deploy --dry-run` lists them |
+| Worker secrets | encrypted root `.env.<environment>` (or read from Supabase: the service-role key); names in each environment's `secrets.required` | `npm run secrets -- <env>`, never a deploy; builds hold no key (decisions.md 51) | a deploy fails while one is missing; `npm run secrets -- <env> --check` |
 | Mobile build profiles, channels | `apps/mobile/eas.json`, `apps/mobile/app.json` (`runtimeVersion` policy, plugins, permissions) | `npm run ship:native` / `ship` | `npm run ship:check` (fingerprint) |
-| Mobile public config (`EXPO_PUBLIC_*`) | encrypted `apps/mobile/.env.<environment>` | `npm run env:push:eas -- <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |
-| EAS environment variables (builds and updates) | the same encrypted env files; `environment` on each `eas.json` profile | `npm run env:push:eas -- <env>` | `eas env:list --environment <env>` |
+| Mobile public config (`EXPO_PUBLIC_*`) | plain `apps/mobile/.env.<environment>` | `npm run env:push:eas -- <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |
+| EAS environment variables (builds and updates) | the same plain env files; `environment` on each `eas.json` profile | `npm run env:push:eas -- <env>` | `eas env:list --environment <env>` |
 
 When something is not on this list (DNS, a new Cloudflare product, push
 credentials), look for its CLI or API first. If none exists, record the manual
@@ -64,29 +66,37 @@ setting and its exact values in `docs/` and say so in the task summary.
 
 ## Secrets with dotenvx
 
-Env files are committed **encrypted** with [dotenvx](https://dotenvx.com), so
-nobody passes `.env` files around. Each file carries its public key; the matching
-private key (`DOTENV_PRIVATE_KEY_<ENV>`) sits in the one untracked `.env.keys`
-at the repository root, shared once through a password manager. Anyone can add
-or change a value with the public key. Only holders of the private key can read it.
+Public settings are plain, in the platform's own file (`EXPO_PUBLIC_*` in
+`apps/mobile/.env.<env>`, wrangler `vars`, `config.toml` remotes). Secrets
+are committed **encrypted** with [dotenvx](https://dotenvx.com) in one file
+per hosted environment, `.env.preview` and `.env.production` at the
+repository root, so nobody passes `.env` files around (`docs/environments.md`,
+decisions.md 51). Each carries its public key; the matching private key
+(`DOTENV_PRIVATE_KEY_PREVIEW` or `_PRODUCTION`) sits in the one untracked
+`.env.keys` at the repository root, shared once through a password manager.
+Anyone can add or change a secret with the public key. Only holders of the
+private key can read it. No build system holds a key: `npm run secrets`
+applies secrets, and deploys never carry them.
 
 | File | Holds | Read by |
 | --- | --- | --- |
-| `apps/mobile/.env.development` | local Supabase URL and key | `npm start`, `ios`, `android`, `web` (through `dotenvx run`, with Expo's own loader off) |
-| `apps/mobile/.env.preview`, `.env.production` | hosted config | `npm run env:push:eas -- <env>` copies it to the EAS environment, which EAS Build and `ship` read |
+| `apps/mobile/.env.development` | local Supabase URL and key, plain | `npm start`, `ios`, `android`, `web` (through `dotenvx run`, with Expo's own loader off) |
+| `apps/mobile/.env.preview`, `.env.production` | the app's hosted config, plain | `npm run env:push:eas -- <env>` copies it to the EAS environment, which EAS Build and `ship` read; the dashboard page's build |
 | `apps/mobile/.env.development.local` | a person's own dev login | `npm start`; ignored by git |
+| `.env.preview`, `.env.production` | secrets, encrypted | `npm run secrets -- <env>`; `npm run diag:hosted` |
 | `apps/mobile/.env.example` | names only | people |
 
 Commands, all from the repository root:
 
 | Task | Command | What it does |
 | --- | --- | --- |
-| Change a value | `npm run env:update -- <env> KEY` | Asks for the value (hidden), encrypts it, commits that file alone, then shows the EAS diff and asks before pushing (preview and production) |
+| Change a value | `npm run env:update -- <env> KEY ['value']` | The name picks the file: `EXPO_PUBLIC_*` goes plain into the app's file, then it shows the EAS diff and asks before pushing (preview and production); anything else is encrypted into `.env.<env>` (asks for the value, hidden, when it is left out). Commits that file alone |
+| Apply secrets | `npm run secrets -- <env> [--check]` | Sets Worker, Edge Function and Vault secrets and the projection job; compares first and asks |
 | Check EAS for drift | `npm run env:diff:eas -- <env>` | Names keys that differ between the committed file and EAS; exits 1 on any difference |
 | Push the file to EAS | `npm run env:push:eas -- <env>` | Refuses an uncommitted file, shows the diff, asks, pushes |
-| Check a machine | `npm run env:doctor` | Key file present, private and ignored; which environments this machine can read |
+| Check a machine | `npm run env:doctor` | The app's files are plain; key file private and ignored; which secrets files this machine can read |
 | Run the app | `npm run app` | `npm start -- --dev-client` in `apps/mobile` |
-| Low level | `npm run env:set`, `env:get`, `env:check` | Set without committing, read one value, plaintext guard (`npm test` runs it too) |
+| Low level | `npm run env:set`, `env:get`, `env:check` | Set without committing, read one value, the guard against a plain or misplaced secret (`npm test` runs it too) |
 
 - **EAS is a copy.** The committed file is the truth. A value edited in the
   EAS dashboard shows up as drift in `env:diff:eas` and is overwritten by the
@@ -103,25 +113,17 @@ Commands, all from the repository root:
 - Never print decrypted values. To check one, show its hostname, length or
   whether it is set.
 - Never hand-edit an encrypted env file or an EAS variable. Use `env:update`.
-- `env:update` for preview or production, and `env:push:eas`, change hosted
-  systems. Ask before running them unless the user already said to, and let
+- `env:update` of an app setting for preview or production, `env:push:eas`
+  and `npm run secrets` change hosted systems. Ask before running them unless the user already said to, and let
   the user type secret values at the hidden prompt rather than passing them
   as arguments.
-- **Bootstrap from existing EAS values** (once per environment):
-  `cd apps/mobile && npx eas env:pull preview --path .env.preview`, then
-  `DOTENVX_NO_NATIVE=true npx dotenvx encrypt -f .env.preview -fk ../../.env.keys`.
-  Values with EAS "secret" visibility cannot be pulled; set those with
-  `env:set`.
-- **Rotate after a leak**: decrypt the file, delete its `DOTENV_PUBLIC_KEY_*`
-  line and the matching private key, encrypt again (a new pair is made), share
-  the new key, and rotate the leaked secrets at their providers. Git history
+- **Rotate after a leak**: see `docs/environments.md` (Rotating). Git history
   still holds the old ciphertext, which the old key can read.
 - Do not run `dotenvx protect`; it edits the global git config.
-- `EXPO_PUBLIC_*` values are inlined into the app bundle, so they are public.
-  Encrypting them keeps the files uniform; it does not make them secret. Real
-  secrets (service-role key, relay and worker secrets) never go in
-  `apps/mobile`. Server secrets follow the same pattern in
-  `supabase/.env.<environment>` when they are moved into the repo.
+- `EXPO_PUBLIC_*` values are inlined into the app bundle, so they are public
+  and kept plain. Real secrets (service-role key, relay and worker secrets)
+  never go in `apps/mobile` or in wrangler `vars`; `env:check` refuses them
+  there.
 
 ## When asked to "just set it in the dashboard"
 
