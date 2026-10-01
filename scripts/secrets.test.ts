@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, REQUIRED_KEYS, WORKERS, destinations, digest, drift, failure, relayUrl, summarize, unknownKeys, vaultSql
+  FILE_KEYS, REQUIRED_KEYS, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -60,6 +60,11 @@ describe('secrets', () => {
     expect(summarize(ok).behind).toBe(false);
     expect(summarize({ ...ok, workers: { dashboard: { K: 'missing' } } }).behind).toBe(true);
     expect(summarize({ ...ok, scheduled: false }).behind).toBe(true);
+  });
+
+  it('reads query rows in either shape the Supabase CLI prints', () => {
+    expect(queryRows([{ a: 1 }])).toEqual([{ a: 1 }]);
+    expect(queryRows({ boundary: 'x', rows: [{ a: 1 }] })).toEqual([{ a: 1 }]);
   });
 
   it('shows the command\'s own error, not npm\'s notices', () => {

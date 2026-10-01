@@ -132,10 +132,14 @@ function withTempFile(name, content, fn) {
   }
 }
 
+/** Rows from `db query` JSON: a plain array, or `{ rows }` when the CLI thinks an agent is running it. */
+export const queryRows = (output) => (Array.isArray(output) ? output : output?.rows ?? []);
+
 // `db query` reaches a hosted project only as the linked one; main() checks
-// the link is the target before anything runs.
-const query = (ref, sql) => withTempFile('q.sql', sql, (file) =>
-  JSON.parse(run('supabase', ['db', 'query', '--linked', '--project-ref', ref, '--output-format', 'json', '-f', file])).rows ?? []);
+// the link is the target before anything runs. `--agent no` keeps its output
+// the same whoever runs it.
+const query = (ref, sql) => withTempFile('q.sql', sql, (file) => queryRows(JSON.parse(
+  run('supabase', ['db', 'query', '--linked', '--project-ref', ref, '--output-format', 'json', '--agent', 'no', '-f', file]))));
 
 function workerSecretNames(config, environment) {
   try {
