@@ -17,8 +17,8 @@ function svg({ size, scale = 1, bg, radius = 0, fill = '#fff' }) {
     `<g transform="translate(${off} ${off}) scale(${scale})" style="color:${fill}">${inner.replaceAll('#fff', fill)}</g></svg>`;
 }
 
-// Android's adaptive mask keeps a 66/108 circle; 64% of the canvas keeps the check's tip inside it.
-const ADAPTIVE = 0.64;
+// Android's adaptive mask keeps a 66/108 circle; 78% of the canvas keeps the mark inside it.
+const ADAPTIVE = 0.78;
 const outputs = [
   ['icon.png', svg({ size: 1024, bg: '#000' })],
   ['android-icon-foreground.png', svg({ size: 512, scale: ADAPTIVE })],
