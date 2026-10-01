@@ -32,7 +32,7 @@ You work one LangQuest Next (team LAN) issue in Todo, start to Verifying.
 Limits: one issue per run; at most 8 pushes to main per day across runs; if
 the last two issues you shipped both went to Outage, stop and tell the owner.
 
-User-facing changes after the prototype phase need a flag (decisions.md 48).
+User-facing changes after the prototype phase need a flag (decisions.md 53).
 Until a flag exists, say in the issue that none was used.
 
 Before finishing, say which decisions.md entry you added or amended, or that

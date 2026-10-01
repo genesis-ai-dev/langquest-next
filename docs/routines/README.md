@@ -5,7 +5,7 @@ loop. Each file is the prompt a routine runs, plus when it runs and what it may
 and may not do. They live here so they are reviewed and versioned like code;
 the routine in Claude is a copy of the file (change the file first).
 
-They work through Linear statuses (decisions.md 48) and never talk to each
+They work through Linear statuses (decisions.md 53) and never talk to each
 other directly: the executor ends at Verifying, the pipeline moves an issue to
 Deploying and Live, the smoke routine judges Live, the watchdog finds what is
 stuck.
