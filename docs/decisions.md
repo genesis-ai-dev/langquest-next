@@ -714,6 +714,12 @@ it: no snapshots and no server Inbox rows or pushes until it was run on
 job only where the Vault secrets exist, so local databases and preview
 branches stay unscheduled.
 
+Amended (2026-10-01, Carl Sauder): there are now two targets. Merging to
+`main` still deploys production; merging to `develop` deploys a persistent
+Supabase branch `develop`, the preview environment (decisions.md 50). Secrets
+are not part of the integration's deploy: `npm run secrets` sets the Edge
+Function and Vault secrets (decisions.md 51).
+
 ## 43. Merging to main deploys the Cloudflare workers
 
 Date: 2026-09-30 · By: Carl Sauder · Status: accepted
@@ -734,6 +740,30 @@ Reverse if: a token-free Cloudflare integration can split those two workers
 by path and queue a later push behind one already deploying (a token expires
 and belongs to one person, the same problem as the Supabase workflow in 42),
 or a staging worker is added and production should follow a release.
+
+Amended (2026-09-30, Carl Sauder): Cloudflare Workers Builds deploys both
+workers, and `.github/workflows/deploy-cloudflare.yml` is gone. Cloudflare
+generates the build token, so nothing is stored in GitHub. Runtime settings
+live in encrypted env files (`apps/invite-email/.env.production`,
+`apps/web/.env.production`) that share the production public key with
+`apps/mobile/.env.production`. The only secret on each Worker's build is
+`DOTENV_PRIVATE_KEY_PRODUCTION`. `npm run email:deploy` and `npm run web:deploy`
+decrypt that file and upload every key as a Worker secret with the deploy,
+public ones too, so no value is printed in the build log; each key is listed
+in the wrangler file's `secrets.required`. Watch paths, so an
+email change does not build the dashboard, are recorded in `docs/cloudflare.md`.
+Guardrails still runs the typecheck and tests; the build does not wait for it.
+
+Amended (2026-10-01, Carl Sauder): each Worker has a `-preview` copy
+(`env.preview` in its wrangler file) that Workers Builds deploys from
+`develop` with `apps/<worker>/.env.preview` and `DOTENV_PRIVATE_KEY_PREVIEW`
+as its only build secret (decisions.md 50). Branch builds stay off on all
+four Workers, because a Worker's build secret reaches every branch it builds.
+
+Amended (2026-10-01, Carl Sauder): deploys no longer upload secrets and no
+Worker build holds a key. Public settings are wrangler `vars`, and
+`npm run secrets` sets each Worker's secrets, which stay across deploys
+(decisions.md 51).
 
 ## 44. Dashboards read a per-organization snapshot folded by the dashboard's own server
 
@@ -933,3 +963,95 @@ Reverse if: Google offers an API for these declarations (then apply them
 from the file, as infrastructure as code), or the guard fails so often on
 dependency changes that it is ignored (then narrow it to SDKs that can
 collect data).
+
+## 50. Three environments, one git branch and one dotenvx key each; preview is a persistent stack fed by `develop`
+
+Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 51
+
+Reason: the team needs development, preview and production, and until now
+preview builds and the dashboard pointed at the production project. Preview
+cannot be per pull request. Supabase's automatic branches get a new URL for
+each pull request, which neither an installed preview build nor the dashboard
+can follow, and Cloudflare makes no version URLs for Workers that hold a
+Durable Object, which both of ours do. So preview is a persistent stack fed
+by a `develop` branch. Pull requests merge to `develop`, and a release pull
+request from `develop` to `main` deploys production, as 42 and 43 anticipated.
+Each platform's own git integration does the deploying, so GitHub still
+holds no token. Supabase has a persistent branch `develop`. Workers Builds
+has `langquest-dashboard-preview` and `langquest-invite-email-preview`, the
+`env.preview` of each wrangler file. EAS has
+`.eas/workflows/deploy-preview.yml` on the `preview` channel. Secrets use one
+dotenvx key pair per environment, shared by every file of that environment,
+because dotenvx names the private key after the file's suffix. Per-target
+keys would add little: the dashboard Worker already holds the service-role
+key at run time. Each deploy target keeps its own file
+(`apps/mobile`, `apps/web`, `apps/invite-email`, `supabase`), so a platform
+receives only its own keys. That matters most for EAS, whose values end up
+in the app bundle. `scripts/env-files.test.ts` refuses a file encrypted with
+another key. The production key lives only with maintainers and on the two
+production Workers, and the preview key only with developers and the two
+preview Workers. A Workers Builds secret reaches every branch the Worker
+builds, so branch builds stay off. Supabase gets its secrets from
+`npm run supabase:secrets`, which pushes Edge Function secrets, writes the
+Vault secrets and schedules the projection job, comparing digests. We do not
+use Supabase's own dotenvx support, for three reasons: it would need a
+private key stored as a project secret, where every Edge Function can read
+it; it is documented for preview branches only; and encrypted values on
+persistent branches have a reported bug (supabase/cli#3742). The preview
+branch is built from migrations alone, and the scheduling migration
+(decision 42) skips a database without the Vault secrets, so
+`npm run secrets` runs that migration's body again after writing them. The setup and the commands are in
+`docs/environments.md`.
+Reverse if: releasing through `develop` delays fixes more than preview
+catches problems (then go back to merging straight to `main`, with preview
+following it); Supabase deploys dotenvx secrets reliably for persistent
+branches and production (then declare them in `config.toml`
+`[edge_runtime.secrets]` and `[db.vault]` and drop the script); or Workers
+Builds gets per-branch secrets (then a single Worker could serve both
+environments).
+
+Amended (2026-10-01, Carl Sauder): the Workers are named after this app,
+`langquest-next-dashboard` and `langquest-next-invite-email` (and their
+`-preview` copies), so they cannot be taken for LangQuest v2's in the same
+Cloudflare account. The dashboard had never been deployed; the invite-email
+Worker moved to the new name and the relay URL with it.
+
+## 51. Secrets are applied by a person when they change, never by a deploy; public settings are plain
+
+Date: 2026-10-01 · By: Carl Sauder · Status: accepted
+
+Reason: under 43's amendment and 49, every Cloudflare deploy decrypted an
+env file and uploaded its values. That put a private key on each of four
+Workers' builds. Each deploy target also had a file per environment, and
+most of their values were public: `EXPO_PUBLIC_*`, project URLs and refs, and
+the sender address. Those were encrypted only to keep the files uniform
+(the infrastructure skill's convention, not a recorded decision). So you
+needed a key to see which project preview used, to run the app locally, and
+to build the dashboard, whose page carries those values anyway. Secrets also
+crossed platforms in pairs (the relay secret in two files) and needed checks
+to keep the pairs equal. Now settings are split by kind:
+- **Public settings are plain**, in each platform's own file:
+  `apps/mobile/.env.<env>`, wrangler `vars`, and `[remotes.<env>]` project
+  refs in `supabase/config.toml`.
+- **Secrets are encrypted in one file per hosted environment**, the root
+  `.env.preview` and `.env.production`.
+- **`npm run secrets -- <env>` (`scripts/secrets.mjs`) puts every secret
+  where it is used**: Worker secrets, Edge Function secrets, Vault and the
+  projection job. One value feeds both ends of the relay and of the
+  projection secret, so they cannot drift. The service-role key is read
+  from Supabase on each run rather than stored.
+
+Worker secrets stay on the Worker across deploys, and wrangler refuses a
+deploy while one in `secrets.required` is missing, so a deploy carries code
+and vars only. No build system, CI or platform holds a dotenvx key. There is
+no development key, since development has no secrets. `env:check` refuses a
+plain secret, a secret in the app's files and a public setting in the
+secrets file. This supersedes 50's file per target and the keys on Worker
+builds; 50's environments and branches stand. The cost is that a changed
+secret takes effect only when someone runs `npm run secrets`. That is rare,
+and Supabase secrets already worked this way. Worker secrets cannot be read
+back, so the drift check only confirms they exist.
+Reverse if: secrets change often enough that a manual apply is forgotten
+(then apply them from CI, with the key in a protected CI environment); or a
+platform gains a way to read secrets from the repo at deploy without holding
+a key.

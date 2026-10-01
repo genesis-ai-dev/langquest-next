@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "langquest-dashboard",
+  "name": "langquest-next-dashboard",
   "main": "worker/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-29",
@@ -8,20 +8,37 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // The built page; only /api/* reaches the Worker first.
+  // The built page; only /api/* reaches the Worker first. The page alone:
+  // dist/ also holds the Vite-built Worker and a copy of .dev.vars, which
+  // must never be served.
   "assets": {
-    "directory": "./dist",
+    "directory": "./dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // Local development overrides both from .dev.vars (npm run web:dev writes it).
+  // Public settings (docs/environments.md). The project ref must match
+  // [remotes.production] in supabase/config.toml (a test checks it). Local
+  // development overrides it from .dev.vars (npm run web:dev writes it).
   "vars": { "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co" },
-  // Encrypted in apps/web/.env.production; npm run web:secrets pushes it.
+  // Set on the Worker by `npm run secrets -- production`, never at deploy;
+  // a deploy fails while one is missing.
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
   // One per organization (decision 44), holding its folded state in memory.
   "durable_objects": {
     "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
+  // The preview stack (docs/environments.md): langquest-next-dashboard-preview,
+  // deployed from develop. Vars, secrets and bindings are not inherited, so
+  // they are repeated here. Add "vars": { "SUPABASE_URL": ... } with the
+  // preview branch's ref once [remotes.preview] names it.
+  "env": {
+    "preview": {
+      "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
+      "durable_objects": {
+        "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+      }
+    }
+  }
 }

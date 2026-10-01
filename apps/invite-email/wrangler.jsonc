@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "langquest-invite-email",
+  "name": "langquest-next-invite-email",
   "main": "src/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-17",
@@ -9,6 +9,8 @@
   "preview_urls": false,
   "observability": { "enabled": true },
   "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+  // Set on the Worker by `npm run secrets -- production`, never at deploy;
+  // a deploy fails while it is missing.
   "secrets": { "required": ["INVITE_RELAY_SECRET"] },
   "send_email": [{
     "name": "EMAIL",
@@ -17,5 +19,21 @@
   "durable_objects": {
     "bindings": [{ "name": "DELIVERIES", "class_name": "InviteDelivery" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }],
+  // The preview stack (docs/environments.md): langquest-next-invite-email-preview,
+  // deployed from develop. Vars, secrets and bindings are not inherited, so
+  // they are repeated here.
+  "env": {
+    "preview": {
+      "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+      "secrets": { "required": ["INVITE_RELAY_SECRET"] },
+      "send_email": [{
+        "name": "EMAIL",
+        "allowed_sender_addresses": ["invites@frontierrnd.com"]
+      }],
+      "durable_objects": {
+        "bindings": [{ "name": "DELIVERIES", "class_name": "InviteDelivery" }]
+      }
+    }
+  }
 }
