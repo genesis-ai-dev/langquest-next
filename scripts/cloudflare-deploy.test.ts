@@ -43,6 +43,10 @@ describe('cloudflare deploy', () => {
     }
   });
 
+  it('serves only the built page, never the Vite-built Worker or its copy of .dev.vars beside it', () => {
+    expect(parseJsonc(read('apps/web/wrangler.jsonc')).assets.directory).toBe('./dist/client');
+  });
+
   it('keeps every secret out of vars, where a deploy would publish it', () => {
     for (const file of CONFIGS) {
       const config = parseJsonc(read(file));
