@@ -37,8 +37,10 @@ Rules specific to this folder:
 - No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
-- Env files are committed encrypted with dotenvx. Change a value with
-  `npm run env:update -- <env> KEY`, never by hand or in the EAS dashboard.
+- Secrets are committed encrypted with dotenvx in the root `.env.<env>`;
+  public settings are plain (`docs/environments.md`). Change either with
+  `npm run env:update -- <env> KEY`, never by hand or in a dashboard, and
+  apply secrets with `npm run secrets -- <env>`.
   Never read `.env.keys` or print decrypted values, and ask before pushing
   to EAS. Hosted settings live in repo files, not dashboards
   (`infrastructure-as-code`).

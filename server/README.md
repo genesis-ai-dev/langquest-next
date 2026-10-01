@@ -123,9 +123,9 @@ together:
 `npm run db:check` shows whether the hosted migrations match `main`;
 `npm run db:apply` still applies them by hand.
 
-The integration does not set secrets. `npm run supabase:secrets -- <preview|production>`
-sets the Edge Function secrets and the Vault secrets from
-`supabase/.env.<environment>` and schedules the projection job; run it after
-changing that file, and with `--check` to compare digests without changing
-anything.
+The integration does not set secrets. `npm run secrets -- <preview|production>`
+sets the Edge Function secrets and the Vault secrets from the root
+`.env.<environment>` and schedules the projection job (`docs/environments.md`);
+run it after changing that file, and with `--check` to compare digests
+without changing anything.
 

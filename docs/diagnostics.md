@@ -111,7 +111,7 @@ Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
 database, someone with access to the linked project runs `npm run
 diag:access` once, after this migration is deployed. It gives the role a
 generated password and encrypts the connection string (Supavisor, user
-`diag_reader.<project-ref>`) into `supabase/.env.production` with dotenvx,
+`diag_reader.<project-ref>`) into the root `.env.production` with dotenvx,
 printing nothing secret. It is a support credential, so never in
 `apps/mobile/.env.*`, which EAS receives. Then `npm run diag:hosted --
 report …` reads the hosted records; running `diag:access` again rotates

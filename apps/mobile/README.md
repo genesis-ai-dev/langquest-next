@@ -57,13 +57,13 @@ screen models build org-partition events core has no commands for
 (`src/orgAdmin.ts`, `src/screens/configModel.ts`, `src/contentTemplates.ts`);
 they are listed in `docs/ux/demo-parity.md`.
 
-Run: get `.env.keys` from a teammate once (password manager, never chat or
-email) and put it at the repository root. The env files are committed
-encrypted with dotenvx, so there is nothing else to copy. Then build the dev
-client once with `LANG=en_US.UTF-8 npm run ios` (the native
-`modules/microphone-energy` module cannot run in Expo Go) and afterwards
-`npm start -- --dev-client`. Use the npm scripts, not `npx expo` directly:
-they decrypt `.env.development` and turn off Expo's own `.env` loading. Your
+Run: the app's env files are committed and plain (they hold only public
+`EXPO_PUBLIC_*` settings, `docs/environments.md`), so there is nothing to copy
+and no key to get. Build the dev client once with
+`LANG=en_US.UTF-8 npm run ios` (the native `modules/microphone-energy` module
+cannot run in Expo Go) and afterwards `npm start -- --dev-client`. Use the npm
+scripts, not `npx expo` directly: they load `.env.development` and turn off
+Expo's own `.env` loading. Your
 own dev login goes in `.env.development.local` (git ignores it).
 Recording lives in `src/useRecorder.ts` (native VAD plus expo-audio),
 `src/blobs.ts` (content-addressed store), `src/blobTransport.ts` (Supabase
@@ -185,8 +185,8 @@ Build profiles map to channels of the same name: `development`, `preview`,
 `production` (`eas.json`), and each profile and `ship` script names the EAS
 environment of the same name. `EXPO_PUBLIC_*` values are inlined into the
 bundle at publish time, so changing one ships as an ordinary update: set it in
-the encrypted file with `npm run env:update -- preview KEY` from the repository
-root. It asks for the value, commits the file, and copies it to EAS, where
+the plain file with `npm run env:update -- preview KEY 'value'` from the
+repository root. It commits the file and copies it to EAS, where
 builds and updates read it. Change values this way, never in the EAS
 dashboard; `npm run env:diff:eas -- preview` shows any drift. Merging to
 `develop` ships to the preview channel (`.eas/workflows/deploy-preview.yml`),

@@ -709,8 +709,8 @@ landed yet.
 Amended (2026-10-01, Carl Sauder): there are now two targets. Merging to
 `main` still deploys production; merging to `develop` deploys a persistent
 Supabase branch `develop`, the preview environment (decisions.md 49). Secrets
-are not part of the integration's deploy: `npm run supabase:secrets` sets
-the Edge Function and Vault secrets from `supabase/.env.<environment>`.
+are not part of the integration's deploy: `npm run secrets` sets the Edge
+Function and Vault secrets (decisions.md 50).
 
 ## 43. Merging to main deploys the Cloudflare workers
 
@@ -751,6 +751,11 @@ Amended (2026-10-01, Carl Sauder): each Worker has a `-preview` copy
 `develop` with `apps/<worker>/.env.preview` and `DOTENV_PRIVATE_KEY_PREVIEW`
 as its only build secret (decisions.md 49). Branch builds stay off on all
 four Workers, because a Worker's build secret reaches every branch it builds.
+
+Amended (2026-10-01, Carl Sauder): deploys no longer upload secrets and no
+Worker build holds a key. Public settings are wrangler `vars`, and
+`npm run secrets` sets each Worker's secrets, which stay across deploys
+(decisions.md 50).
 
 ## 44. Dashboards read a per-organization snapshot folded by the dashboard's own server
 
@@ -923,7 +928,7 @@ script, which calls for a staff screen.
 
 ## 49. Three environments, one git branch and one dotenvx key each; preview is a persistent stack fed by `develop`
 
-Date: 2026-10-01 · By: Carl Sauder · Status: accepted
+Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 50
 
 Reason: the team needs development, preview and production, and until now
 preview builds and the dashboard pointed at the production project. Preview
@@ -965,3 +970,43 @@ branches and production (then declare them in `config.toml`
 `[edge_runtime.secrets]` and `[db.vault]` and drop the script); or Workers
 Builds gets per-branch secrets (then a single Worker could serve both
 environments).
+
+## 50. Secrets are applied by a person when they change, never by a deploy; public settings are plain
+
+Date: 2026-10-01 · By: Carl Sauder · Status: accepted
+
+Reason: under 43's amendment and 49, every Cloudflare deploy decrypted an
+env file and uploaded its values. That put a private key on each of four
+Workers' builds. Each deploy target also had a file per environment, and
+most of their values were public: `EXPO_PUBLIC_*`, project URLs and refs, and
+the sender address. Those were encrypted only to keep the files uniform
+(the infrastructure skill's convention, not a recorded decision). So you
+needed a key to see which project preview used, to run the app locally, and
+to build the dashboard, whose page carries those values anyway. Secrets also
+crossed platforms in pairs (the relay secret in two files) and needed checks
+to keep the pairs equal. Now settings are split by kind:
+- **Public settings are plain**, in each platform's own file:
+  `apps/mobile/.env.<env>`, wrangler `vars`, and `[remotes.<env>]` project
+  refs in `supabase/config.toml`.
+- **Secrets are encrypted in one file per hosted environment**, the root
+  `.env.preview` and `.env.production`.
+- **`npm run secrets -- <env>` (`scripts/secrets.mjs`) puts every secret
+  where it is used**: Worker secrets, Edge Function secrets, Vault and the
+  projection job. One value feeds both ends of the relay and of the
+  projection secret, so they cannot drift. The service-role key is read
+  from Supabase on each run rather than stored.
+
+Worker secrets stay on the Worker across deploys, and wrangler refuses a
+deploy while one in `secrets.required` is missing, so a deploy carries code
+and vars only. No build system, CI or platform holds a dotenvx key. There is
+no development key, since development has no secrets. `env:check` refuses a
+plain secret, a secret in the app's files and a public setting in the
+secrets file. This supersedes 49's file per target and the keys on Worker
+builds; 49's environments and branches stand. The cost is that a changed
+secret takes effect only when someone runs `npm run secrets`. That is rare,
+and Supabase secrets already worked this way. Worker secrets cannot be read
+back, so the drift check only confirms they exist.
+Reverse if: secrets change often enough that a manual apply is forgotten
+(then apply them from CI, with the key in a protected CI environment); or a
+platform gains a way to read secrets from the repo at deploy without holding
+a key.

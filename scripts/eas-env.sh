@@ -6,8 +6,9 @@
 #   npm run env:push:eas -- preview          push the committed file to EAS
 #   npm run env:push:eas -- preview --yes    same, without the question
 #
-# Needs DOTENV_PRIVATE_KEY_<ENVIRONMENT> in .env.keys. Decrypted values exist
-# only in a private temp folder that is removed on exit.
+# The app's files hold only public EXPO_PUBLIC_* values, kept plain, so no
+# key is needed (docs/environments.md). Copies exist only in a private temp
+# folder that is removed on exit.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -35,7 +36,7 @@ trap 'rm -rf "$dir"' EXIT
 
 npx dotenvx decrypt --stdout -f "$src" -fk .env.keys > "$dir/repo.env"
 if grep -q 'encrypted:' "$dir/repo.env"; then
-  echo "x cannot decrypt $src: DOTENV_PRIVATE_KEY_$(echo "$env" | tr a-z A-Z) is missing from .env.keys" >&2
+  echo "x $src still has encrypted values; make it plain first (docs/environments.md)" >&2
   exit 1
 fi
 grep -v '^DOTENV_PUBLIC_KEY' "$dir/repo.env" > "$dir/push.env"

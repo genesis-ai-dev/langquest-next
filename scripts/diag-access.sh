@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Give `diag_reader` a login on the hosted project and keep its connection
-# string encrypted in supabase/.env.production (docs/diagnostics.md).
+# string encrypted in .env.production (docs/diagnostics.md).
 #
 #   npm run diag:access              once, after the field diagnostics
 #                                    migration is on the hosted database
 #   npm run diag:hosted -- report …  then read hosted diagnostics
 #
 # Running it again rotates the password. It prints no secret, and commits
-# supabase/.env.production alone. A support credential never goes in
+# .env.production alone. A support credential never goes in
 # apps/mobile/.env.*, which EAS receives.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-file=supabase/.env.production
+file=.env.production
 [ -f supabase/.temp/project-ref ] || { echo "x not linked. Run: npx supabase link --project-ref <ref>" >&2; exit 1; }
 [ -f supabase/.temp/pooler-url ] || { echo "x no pooler URL in supabase/.temp; run npx supabase link again" >&2; exit 1; }
 if [ -n "$(git status --porcelain -- "$file")" ]; then

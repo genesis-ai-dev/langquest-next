@@ -15,20 +15,25 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // Local development reads .dev.vars (npm run web:dev writes it).
-  // Every key here comes from apps/web/.env.production at deploy.
-  "secrets": { "required": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] },
+  // Public settings (docs/environments.md). The project ref must match
+  // [remotes.production] in supabase/config.toml (a test checks it). Local
+  // development overrides it from .dev.vars (npm run web:dev writes it).
+  "vars": { "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co" },
+  // Set on the Worker by `npm run secrets -- production`, never at deploy;
+  // a deploy fails while one is missing.
+  "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
   // One per organization (decision 44), holding its folded state in memory.
   "durable_objects": {
     "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
   // The preview stack (docs/environments.md): langquest-dashboard-preview,
-  // deployed from develop with apps/web/.env.preview. Secrets and bindings
-  // are not inherited, so they are repeated here.
+  // deployed from develop. Vars, secrets and bindings are not inherited, so
+  // they are repeated here. Add "vars": { "SUPABASE_URL": ... } with the
+  // preview branch's ref once [remotes.preview] names it.
   "env": {
     "preview": {
-      "secrets": { "required": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] },
+      "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
         "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
       }

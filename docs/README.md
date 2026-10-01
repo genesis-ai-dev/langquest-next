@@ -1,8 +1,8 @@
 # Documentation
 
 - [decisions.md](./decisions.md) — The ADR log: every design decision, who made it and when, with reasoning and reversal conditions
-- [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys, and each Worker's one secret
-- [environments.md](./environments.md) — Development, preview and production: branches, dotenvx keys and who holds them, env files, setup
+- [cloudflare.md](./cloudflare.md) — Workers Builds: what merging to develop and main deploys; builds hold no secrets
+- [environments.md](./environments.md) — Development, preview and production: branches, where public settings and secrets live, `npm run secrets`, setup
 - [flow-coverage-audit.md](./flow-coverage-audit.md) — Flow coverage audit
 - [library.md](./library.md) — The library: templates, flows and reference material as versioned documents
 - [licensing.md](./licensing.md) — An organization's license, why it only opens, and the plan for what outsiders can see

@@ -8,8 +8,10 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // Every key here comes from apps/invite-email/.env.production at deploy.
-  "secrets": { "required": ["INVITE_FROM", "INVITE_RELAY_SECRET"] },
+  "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+  // Set on the Worker by `npm run secrets -- production`, never at deploy;
+  // a deploy fails while it is missing.
+  "secrets": { "required": ["INVITE_RELAY_SECRET"] },
   "send_email": [{
     "name": "EMAIL",
     "allowed_sender_addresses": ["invites@frontierrnd.com"]
@@ -19,11 +21,12 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteDelivery"] }],
   // The preview stack (docs/environments.md): langquest-invite-email-preview,
-  // deployed from develop with apps/invite-email/.env.preview. Secrets and
-  // bindings are not inherited, so they are repeated here.
+  // deployed from develop. Vars, secrets and bindings are not inherited, so
+  // they are repeated here.
   "env": {
     "preview": {
-      "secrets": { "required": ["INVITE_FROM", "INVITE_RELAY_SECRET"] },
+      "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+      "secrets": { "required": ["INVITE_RELAY_SECRET"] },
       "send_email": [{
         "name": "EMAIL",
         "allowed_sender_addresses": ["invites@frontierrnd.com"]

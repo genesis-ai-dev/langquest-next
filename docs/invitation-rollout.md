@@ -28,9 +28,9 @@ only before the QR screen. The QR screen confirms the chosen role.
 3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `project-projections` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
    Both validate authorization inside their handlers. Their function config
    disables the gateway's legacy JWT verification.
-4. Set a random `PROJECTION_WORKER_SECRET` in `supabase/.env.<environment>`
-   (`npm run env:update -- <environment> supabase PROJECTION_WORKER_SECRET`).
-5. Run `npm run supabase:secrets -- <environment>`. It sets that secret as an
+4. Set a random `PROJECTION_WORKER_SECRET` in the root `.env.<environment>`
+   (`npm run env:update -- <environment> PROJECTION_WORKER_SECRET "$(openssl rand -hex 32)"`).
+5. Run `npm run secrets -- <environment>`. It sets that secret as an
    Edge Function secret and in Vault as `langquest_projection_worker_secret`,
    stores the project URL in Vault as `langquest_project_url`, and runs
    `server/schedule-projections.sql` (one job every five minutes; `pg_cron`
@@ -39,10 +39,10 @@ only before the QR screen. The QR screen confirms the chosen role.
    scheduled request.
 6. Merging an `apps/invite-email` change to `main` deploys the Cloudflare email Worker (Workers Builds, `docs/cloudflare.md`). `npm run email:deploy` still deploys it by hand.
    Its configuration restricts sending to `invites@frontierrnd.com`.
-   Set the same random `INVITE_RELAY_SECRET` in `apps/invite-email/.env.<environment>`
-   and `supabase/.env.<environment>`, plus `INVITE_RELAY_URL` in the latter
-   pointing to the Worker `/send-invite` endpoint, then run
-   `npm run supabase:secrets -- <environment>` (`docs/environments.md`). No email credentials
+   Set a random `INVITE_RELAY_SECRET` in the root `.env.<environment>` and
+   run `npm run secrets -- <environment>`, which gives the same value to the
+   Worker and to `send-invite`, with `INVITE_RELAY_URL` pointing at the
+   Worker's `/send-invite` endpoint (`docs/environments.md`). No email credentials
    belong in the mobile build. Resend is no longer used.
 7. Build a new native app with the Expo notifications plugin and configured
    push credentials. A JavaScript update alone cannot add the native module.
