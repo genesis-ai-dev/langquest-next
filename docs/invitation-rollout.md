@@ -31,8 +31,10 @@ only before the QR screen. The QR screen confirms the chosen role.
 4. Set a random `PROJECTION_WORKER_SECRET` as an Edge Function secret.
    Store the same value in Vault as `langquest_projection_worker_secret`.
    Store the hosted project URL in Vault as `langquest_project_url`.
-5. Enable `pg_cron` and `pg_net`, then run
-   `server/schedule-projections.sql`. This installs one job every five minutes.
+5. Merging to `main` applies migration `20261001000000_schedule_projections.sql`,
+   which enables `pg_cron` and `pg_net` and installs one job every five minutes
+   once the Vault secrets from step 4 exist (a database without them gets no
+   job; run the migration's body again after adding them).
    Avoid overlapping manual projection runs. Check function logs and
    `net._http_response` after the first scheduled request.
 6. Merging an `apps/invite-email` change to `main` deploys the Cloudflare email Worker (`.github/workflows/deploy-cloudflare.yml`). `npm run email:deploy` still deploys it by hand.
