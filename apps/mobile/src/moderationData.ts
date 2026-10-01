@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 import { accountOutbox, queueAccountAction } from './accountData';
-import { blockedIds, reportPayload, type OpenReport, type ReportReason, type ReportTarget } from './moderation';
+import { blockedIds, groupReports, reportPayload, type OpenReport, type ReportReason, type ReportTarget } from './moderation';
 import { noteExpected } from './report';
 import { supabase } from './supabase';
 
@@ -67,6 +68,35 @@ export async function openReports(orgId: string): Promise<OpenReport[]> {
   const { data, error } = await supabase.rpc('org_content_reports', { p_org: orgId });
   if (error) throw new Error(error.message);
   return (data ?? []) as OpenReport[];
+}
+
+const reportListeners = new Set<() => void>();
+/** A moderator acted on a report: counts read it again. */
+export function reportsChanged(): void {
+  for (const listener of reportListeners) listener();
+}
+
+/**
+ * How many things have open reports this person may act on, for the Inbox
+ * badge. Read when the app comes forward, every five minutes, and after a
+ * moderator acts; offline it keeps the last count.
+ */
+export function useOpenReportCount(orgId: string, enabled: boolean): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) { setCount(0); return; }
+    let active = true;
+    const load = () => {
+      openReports(orgId).then((rows) => { if (active) setCount(groupReports(orgId, rows).length); })
+        .catch((e: unknown) => { noteExpected('open report count', e); });
+    };
+    load();
+    reportListeners.add(load);
+    const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
+    const timer = setInterval(load, 5 * 60_000);
+    return () => { active = false; reportListeners.delete(load); app.remove(); clearInterval(timer); };
+  }, [orgId, enabled]);
+  return count;
 }
 
 /** Take something out of the record for everyone (`v1.Redacted`, appended by the server as the caller). */

@@ -22,7 +22,16 @@ const [command = 'list', arg] = process.argv.slice(2).filter((a) => !a.startsWit
 function query<T>(sql: string): T[] {
   const r = spawnSync('npx', ['supabase', 'db', 'query', hosted ? '--linked' : '--local', '-o', 'json', sql], { encoding: 'utf8' });
   if (r.error) throw new Error(`could not run the Supabase CLI: ${r.error.message}`);
-  if (r.status !== 0) throw new Error(r.stderr.trim() || r.stdout.trim());
+  if (r.status !== 0) {
+    const out = r.stderr.trim() || r.stdout.trim();
+    if (/Cannot find project ref/.test(out)) {
+      throw new Error('This checkout is not linked to the hosted project. Run `npx supabase link --project-ref <ref>` here first, or run this from a checkout that is.');
+    }
+    if (/relation "public.content_reports" does not exist|function public\.\w+\(.*\) does not exist/.test(out)) {
+      throw new Error(`That database has no reports yet: apply the migrations first (${hosted ? 'merge to main' : 'npm run db:reset'}).`);
+    }
+    throw new Error(out);
+  }
   const start = r.stdout.indexOf('{');
   return (JSON.parse(r.stdout.slice(start)) as { rows: T[] }).rows;
 }
@@ -66,21 +75,31 @@ function list(): void {
   console.log(`\n${rows.length} open. Audio is in the blobs bucket by hash (cardHashes, blobHash).`);
 }
 
-switch (command) {
-  case 'list': list(); break;
-  case 'remove':
-  case 'dismiss': {
-    const [row] = query<{ n: number }>(`select public.staff_resolve_report(${literal(arg, 'report id')}, '${command}') as n`);
-    console.log(command === 'remove' ? `Removed: ${row?.n ?? 0} events redacted.` : 'Dismissed.');
-    break;
+function main(): void {
+  switch (command) {
+    case 'list': list(); break;
+    case 'remove':
+    case 'dismiss': {
+      const [row] = query<{ n: number }>(`select public.staff_resolve_report(${literal(arg, 'report id')}, '${command}') as n`);
+      console.log(command === 'remove' ? `Removed: ${row?.n ?? 0} events redacted.` : 'Dismissed.');
+      break;
+    }
+    case 'suspend':
+    case 'unsuspend': {
+      const [row] = query<{ found: boolean }>(`select public.suspend_account(${literal(arg, 'profile id')}, ${command === 'suspend'}) as found`);
+      console.log(row?.found ? `${command === 'suspend' ? 'Suspended' : 'Let back in'}.` : 'No account has that id.');
+      break;
+    }
+    default:
+      console.error('Use: list, remove <reportId>, dismiss <reportId>, suspend <profileId>, unsuspend <profileId> [--hosted] [--json]');
+      process.exitCode = 1;
   }
-  case 'suspend':
-  case 'unsuspend': {
-    const [row] = query<{ found: boolean }>(`select public.suspend_account(${literal(arg, 'profile id')}, ${command === 'suspend'}) as found`);
-    console.log(row?.found ? `${command === 'suspend' ? 'Suspended' : 'Let back in'}.` : 'No account has that id.');
-    break;
-  }
-  default:
-    console.error('Use: list, remove <reportId>, dismiss <reportId>, suspend <profileId>, unsuspend <profileId> [--hosted] [--json]');
-    process.exitCode = 1;
+}
+
+try {
+  main();
+} catch (e) {
+  // A message for staff, not a stack trace.
+  console.error(e instanceof Error ? e.message : String(e));
+  process.exitCode = 1;
 }

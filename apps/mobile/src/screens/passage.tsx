@@ -281,6 +281,14 @@ export function PassageRecord(ctx: Ctx) {
             if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
               trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
             }
+            // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
+            // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
+            if (!trailing && e.type === 'note') {
+              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId, laneId)} size={36} />;
+            }
+            if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
+              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId, laneId)} size={36} />;
+            }
             return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
           })}
           <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>

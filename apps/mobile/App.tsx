@@ -37,7 +37,7 @@ import { supabase, supabaseConfigError } from './src/supabase';
 import { C, colors, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
-import { useBlocks } from './src/moderationData';
+import { useBlocks, useOpenReportCount } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
 import { parseInvite } from './src/inviteCode';
 import { useOrg, type OrgHandle } from './src/useOrg';
@@ -540,7 +540,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   const screen = nav.current.screen;
   const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && TAB_SCREENS.includes(screen);
-  const tabs = tabsFor(session, { forYou, unread });
+  // Open reports count toward the Inbox badge for whoever may act on them (decisions.md 48).
+  const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
+  const tabs = tabsFor(session, { forYou, unread: unread + reportCount });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.
   const bottom = nav.stack[0]?.screen;
