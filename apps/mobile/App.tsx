@@ -8,15 +8,20 @@ import * as Notifications from 'expo-notifications';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx, RecentPassage } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
 import { UpdateBanner } from './src/UpdateBanner';
 import { maySwitchPersona } from './src/dev';
 import { edgeFor, MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
+import { chromeVisible, frame, layoutKind } from './src/layout';
+import { NavChrome } from './src/NavChrome';
+import { lockPhonesToPortrait } from './src/orientation';
+import { paneFor, type SplitSpec } from './src/panes';
+import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
 import { indexesFor } from './src/indexes';
-import { GhostBtn, Ico, ToastView, txt, type IconName, type ToastSpec } from './src/kit';
+import { EmptyState, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
 import { installGlobalHandlers, noteExpected, reportError } from './src/report';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
@@ -82,12 +87,21 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
 const CtxContext = createContext<Ctx | null>(null);
 const Stack = createNativeStackNavigator<StackParams>();
 
+/**
+ * The stack entry whose screen is drawn in the list pane of a split
+ * (panes.ts). Its own place in the stack shows the split's empty state
+ * instead, so a list is never mounted twice.
+ */
+const PaneKeyContext = createContext<{ key: string; empty?: SplitSpec['empty'] } | null>(null);
+
 type HostProps = { route: RouteProp<StackParams, ScreenId> };
 function hostFor(id: ScreenId) {
   const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
+    const pane = useContext(PaneKeyContext);
     if (!ctx) return null;
+    if (pane && props.route.key === pane.key) return <PaneEmpty spec={pane.empty} />;
     // One boundary per screen (error-tracking): a crash in a study guide
     // never takes the recorder, or the rest of the app, down with it.
     return (
@@ -101,6 +115,36 @@ function hostFor(id: ScreenId) {
 }
 const HOSTS = {} as Record<ScreenId, (props: HostProps) => React.JSX.Element | null>;
 for (const id of SCREEN_IDS) HOSTS[id] = hostFor(id);
+
+/** Beside a list with nothing open: what tapping a row will show here. */
+function PaneEmpty(props: { spec: SplitSpec['empty'] | undefined }) {
+  return (
+    <View style={styles.paneEmpty}>
+      {props.spec ? <EmptyState icon={props.spec.icon} title={props.spec.title} sub={props.spec.sub} /> : null}
+    </View>
+  );
+}
+
+/**
+ * The list of a split, drawn left of the stack on a desktop-wide window
+ * (decisions.md 55). Outside the navigator: the screen gets its route's
+ * params as it would on the stack, and a ctx whose moves start from it.
+ */
+function PaneSlot(props: { route: { screen: ScreenId; key: string; params?: Record<string, string> }; ctx: Ctx; layout: Layout; open: OpenDetail | null }) {
+  const Host = HOSTS[props.route.screen];
+  const route = { key: props.route.key, name: props.route.screen, params: props.route.params } as HostProps['route'];
+  return (
+    <LayoutContext.Provider value={props.layout}>
+      <PaneSelectionContext.Provider value={props.open}>
+        <CtxContext.Provider value={props.ctx}>
+          <View style={[styles.pane, { width: props.layout.contentWidth }]}>
+            <Host route={route} />
+          </View>
+        </CtxContext.Provider>
+      </PaneSelectionContext.Provider>
+    </LayoutContext.Provider>
+  );
+}
 
 /**
  * Whatever is wrong, the app says so. A release build has no redbox: an
@@ -171,7 +215,7 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
 
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
-  useEffect(() => { installGlobalHandlers(); }, []);
+  useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
   useEffect(() => {
     if (supabaseConfigError) return;
     supabase.auth.getSession().then(({ data }) => setAuth(data.session));
@@ -436,9 +480,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
   });
 
-  const go = useCallback(
-    (to: ScreenId, params?: Record<string, string>) => {
-      const from = nav.current.screen;
+  // Every move follows a declared edge from the screen it starts on: the top
+  // of the stack, or the list in a split's pane (`fromKey`), which moves as
+  // if it were on top (panes.ts).
+  const goFrom = useCallback(
+    (from: ScreenId, fromKey: string | undefined, to: ScreenId, params?: Record<string, string>) => {
       const edge = edgeFor(from, to) ?? (edgeFor(from, 'home_hub') && to === homeScreenFor(session) ? edgeFor(from, 'home_hub') : undefined);
       const route: Route = params ? { screen: to, params } : { screen: to };
       if (!edge) {
@@ -454,7 +500,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         toast("You don't have permission to open that.");
         return;
       }
-      switch (edge.mode ?? 'push') {
+      const mode = edge.mode ?? 'push';
+      if (fromKey && fromKey !== nav.stack[nav.stack.length - 1]?.key) return nav.fromRoute(fromKey, mode, route);
+      switch (mode) {
         case 'push': return nav.push(route);
         case 'replace': return nav.replace(route);
         case 'reset': return nav.reset(route);
@@ -464,6 +512,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     },
     [nav, session]
   );
+  const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(nav.current.screen, undefined, to, params),
+    [goFrom, nav.current.screen]);
 
   const openPassage = useCallback((unitId: string, lane: string, extra?: Record<string, string>) => {
     remember(unitId, lane);
@@ -539,7 +589,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   };
 
   const screen = nav.current.screen;
-  const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && TAB_SCREENS.includes(screen);
+  // Phone, tablet or desktop by the window's width alone (decisions.md 55).
+  const { width } = useWindowDimensions();
+  const kind = layoutKind(width);
+  const wide = kind !== 'phone';
+  const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && chromeVisible(kind, screen);
   // Open reports count toward the Inbox badge for whoever may act on them (decisions.md 48).
   const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
   const tabs = tabsFor(session, { forYou, unread: unread + reportCount });
@@ -549,57 +603,67 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const activeTab: TabId = tabs.find((t) => t.screen === screen)?.id
     ?? tabs.find((t) => t.screen === bottom)?.id
     ?? ([...MAP_SCREENS, ...PASSAGE_READING].includes(screen) ? 'map' : 'manage');
-  const TAB_ICONS: Record<TabId, IconName> = { work: 'work', map: 'map', manage: 'home', inbox: 'notif', settings: 'settings' };
+  const navChrome = (variant: 'bar' | 'rail' | 'sidebar') => (
+    <NavChrome variant={variant} tabs={tabs} active={activeTab} onSelect={(t) => { if (screen !== t.screen) nav.reset({ screen: t.screen }); }}
+      {...(org.state?.org?.value.name ? { orgName: org.state.org.value.name } : {})} actorId={props.actorId} />
+  );
+
+  // A list and what it opened, side by side on a desktop-wide window (panes.ts).
+  const found = kind === 'desktop' ? paneFor(nav.stack) : null;
+  const listKey = found?.list.key;
+  const split = found && listKey ? { ...found, list: { ...found.list, key: listKey } } : null;
+  const box = frame(width, { chrome: wide && showTabs, split: !!split });
+  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: split ? 'detail' : 'single' }),
+    [kind, box.detailWidth, !!split]);
+  const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list' }), [kind, box.paneWidth]);
+  const paneKey = useMemo(() => (split ? { key: split.list.key, ...(split.empty ? { empty: split.empty } : {}) } : null),
+    [split?.list.key, split?.empty]);
+  const paneCtx: Ctx | null = split ? {
+    ...ctx,
+    params: split.list.params ?? {},
+    go: (to, params) => goFrom(split.list.screen, split.list.key, to, params),
+    back: () => nav.fromRoute(split.list.key, 'back', split.list),
+    openPassage: (unitId, lane, extra) => {
+      remember(unitId, lane);
+      goFrom(split.list.screen, split.list.key, 'passage_record', { unitId, laneId: lane, ...extra });
+    }
+  } : null;
+  const openDetail: OpenDetail | null = split?.detail ? { screen: split.detail.screen, params: split.detail.params ?? {} } : null;
 
   return (
     <View style={{ flex: 1 }}>
       <PeopleContext.Provider value={people}>
-      <CtxContext.Provider value={ctx}>
-        {/* Its own box, so the native stack ends where the tab bar begins
-            rather than drawing screens underneath it. */}
-        <View style={{ flex: 1, overflow: 'hidden' }}>
-        <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}>
-          <Stack.Navigator
-            initialRouteName={nav.initial.screen}
-            screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}
-          >
-            {SCREEN_IDS.map((id) => (
-              // Tab-level screens are only ever reached by reset, so they
-              // crossfade like a tab switch; everything else slides like a push.
-              <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: TAB_SCREENS.includes(id) ? 'fade' : 'default' }} />
-            ))}
-          </Stack.Navigator>
-        </NavigationContainer>
-        </View>
-      </CtxContext.Provider>
-      </PeopleContext.Provider>
-      {showTabs ? (
-        <View style={styles.tabs}>
-          {tabs.map((t) => {
-            const active = t.id === activeTab;
-            const color = active ? C.primary : C.muted;
-            return (
-              <Pressable
-                key={t.id}
-                onPress={() => { if (screen !== t.screen) nav.reset({ screen: t.screen }); }}
-                accessibilityRole="tab"
-                accessibilityLabel={t.badge ? `${t.label}, ${t.badge}` : t.label}
-                accessibilityState={{ selected: active }}
-                style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          {wide && showTabs ? navChrome(kind === 'tablet' ? 'rail' : 'sidebar') : null}
+          {split && paneCtx ? <PaneSlot key={split.list.key} route={split.list} ctx={paneCtx} layout={paneLayout} open={openDetail} /> : null}
+          <LayoutContext.Provider value={stackLayout}>
+          <PaneKeyContext.Provider value={paneKey}>
+          <CtxContext.Provider value={ctx}>
+            {/* Its own box, so the native stack ends where the tab bar begins
+                rather than drawing screens underneath it. */}
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+            <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}>
+              <Stack.Navigator
+                initialRouteName={nav.initial.screen}
+                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}
               >
-                <View style={[styles.tabPill, active && { backgroundColor: C.light }]}>
-                  <Ico name={TAB_ICONS[t.id]} size={24} color={color} />
-                  {t.badge ? (
-                    <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{t.badge > 99 ? '99+' : t.badge}</Text></View>
-                  ) : null}
-                </View>
-                <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{t.label}</Text>
-              </Pressable>
-            );
-          })}
+                {SCREEN_IDS.map((id) => (
+                  // Tab-level screens are only ever reached by reset, so they
+                  // crossfade like a tab switch; everything else slides like a
+                  // push. On a wide window everything crossfades: the stack's
+                  // box moves as a pane comes and goes, and a slide across it reads as a jump.
+                  <Stack.Screen key={id} name={id} component={HOSTS[id]} options={{ animation: wide || TAB_SCREENS.includes(id) ? 'fade' : 'default' }} />
+                ))}
+              </Stack.Navigator>
+            </NavigationContainer>
+            </View>
+          </CtxContext.Provider>
+          </PaneKeyContext.Provider>
+          </LayoutContext.Provider>
         </View>
-      ) : null}
-      <ToastHost register={(show) => { showToast.current = show; }} bottom={showTabs ? 96 : 24} />
+        {!wide && showTabs ? navChrome('bar') : null}
+      </PeopleContext.Provider>
+      <ToastHost register={(show) => { showToast.current = show; }} bottom={!wide && showTabs ? 96 : 24} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
@@ -609,12 +673,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.card },
-  tabs: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.sm, paddingBottom: space.xs },
-  tab: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: space.sm },
-  tabPill: { paddingHorizontal: 18, paddingVertical: 4, borderRadius: 99 },
-  tabLabel: { fontSize: 13, fontWeight: '600' },
-  tabBadge: { position: 'absolute', top: -4, right: 6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 4, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
-  tabBadgeText: { color: C.white, fontSize: 13, fontWeight: '800' }
+  pane: { borderRightWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.bg },
+  paneEmpty: { flex: 1, backgroundColor: C.bg, justifyContent: 'center' }
 });
 
 /**

@@ -93,6 +93,18 @@ export const target = { min: 48, primary: 56, row: 64 } as const;
 export const tile = { sm: 44, md: 48, lg: 56 } as const;
 
 /**
+ * Window widths where the layout changes (decisions.md 55). A phone is
+ * always under `tablet`, so phones keep the demo's layout exactly; wider
+ * windows get a side rail, then a sidebar and list–detail panes.
+ */
+export const breakpoint = { tablet: 768, desktop: 1100 } as const;
+
+/** Widths on wide windows: the content column, a sheet shown as a dialog, footer actions, nav chrome, the list pane. */
+export const measure = {
+  column: 720, sheet: 560, action: 360, toast: 480, rail: 88, sidebar: 248, paneMin: 320, paneMax: 400, chapterTile: 72
+} as const;
+
+/**
  * Filled buttons in a status colour carry white text, which the bright
  * status colours cannot hold at 4.5:1; these deeper shades can. The hue (and
  * its meaning) stays the same.

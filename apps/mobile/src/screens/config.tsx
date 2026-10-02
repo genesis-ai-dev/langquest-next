@@ -27,7 +27,7 @@ import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon,
-  PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt
+  PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
 } from '../kit';
 import { lanesUsing, sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
@@ -125,6 +125,7 @@ function orgName(ctx: Ctx): string {
 
 export function RolesHome(ctx: Ctx) {
   const level = viewLevelFrom(ctx.params, ctx.session.adminScope);
+  const beside = useOpenDetail();
   const org = ctx.org.state;
   const state = ctx.project.state;
   const rows = useMemo(() => roleRows(org, state, level), [org, state, level]);
@@ -151,7 +152,8 @@ export function RolesHome(ctx: Ctx) {
                 sub={r.inherited ? 'View only · edit from the level where it was defined'
                   : `${plural(r.members, 'member')} · ${plural(r.privileges.length, 'privilege')}`}
                 badge={r.inherited ? 'View only' : undefined}
-                onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1} />
+                onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
+                current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
             ))}
           </Group>
         </>
@@ -807,6 +809,7 @@ function versificationNameOf(docs: ReturnType<typeof useLibraryDocs>, doc: Libra
 
 export function ReferenceHome(ctx: Ctx) {
   const state = ctx.project.state;
+  const beside = useOpenDetail();
   const lib = useLibrary(ctx);
   const laneId = ctx.params['laneId'] ?? null;
   const view = useMemo(() => (state ? referenceView(state, laneId) : null), [state, laneId]);
@@ -826,6 +829,7 @@ export function ReferenceHome(ctx: Ctx) {
   const open = (m: MaterialView) => (canManage ? () => ctx.go('material_editor', { materialId: m.materialId, ...(laneId ? { laneId } : {}) }) : undefined);
   const generalRow = (m: MaterialView, last: boolean) => (
     <Row key={m.materialId} icon="book" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
+      current={beside?.screen === 'material_editor' && beside.params['materialId'] === m.materialId}
       sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m)}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
   );
   const sets = [...view.questionSets].sort((a, b) => {
@@ -838,6 +842,7 @@ export function ReferenceHome(ctx: Ctx) {
     return (
       <Row key={m.itemId} icon={what?.type === 'study' ? 'sparkle' : what?.type === 'questions' ? 'chat' : 'book'} label={m.name} last={last}
         sub={`${what?.line ?? 'Loading…'} · ${sourceLine(m)}`} muted={m.archived}
+        current={beside?.screen === 'material_editor' && beside.params['itemId'] === m.itemId}
         badge={m.archived ? 'Archived' : updates[m.itemId] ? 'Update' : undefined} badgeTone={updates[m.itemId] && !m.archived ? 'amber' : undefined}
         onPress={canManage ? () => ctx.go('material_editor', { itemId: m.itemId, ...(laneId ? { laneId } : {}) }) : undefined} />
     );
@@ -1409,11 +1414,12 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
 function TermRow(props: { t: KeyTermView; lane: string; onPress: () => void; last: boolean }) {
   const { t } = props;
   const has = t.renderings.length > 0;
+  const beside = useOpenDetail();
   return (
     <Row icon="book" iconColor={has ? C.primary : TINT.amberText} iconBg={has ? undefined : TINT.amber}
       label={t.term} badge={isFiaTerm(t) ? 'FIA' : undefined}
       sub={has ? t.renderings.map((r) => r.rendering).join(' · ') : `No ${props.lane} rendering yet`}
-      onPress={props.onPress} last={props.last} />
+      onPress={props.onPress} last={props.last} current={beside?.screen === 'key_term_detail' && beside.params['termId'] === t.termId} />
   );
 }
 
