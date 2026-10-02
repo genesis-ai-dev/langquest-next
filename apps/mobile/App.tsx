@@ -21,7 +21,7 @@ import { lockPhonesToPortrait } from './src/orientation';
 import { paneFor, type SplitSpec } from './src/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
 import { indexesFor } from './src/indexes';
-import { EmptyState, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
+import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
 import { installGlobalHandlers, noteExpected, reportError } from './src/report';
 import { personLook } from './src/people';
 import { navRef, useNav, type Route, type StackParams } from './src/nav';
@@ -94,20 +94,31 @@ const Stack = createNativeStackNavigator<StackParams>();
  */
 const PaneKeyContext = createContext<{ key: string; empty?: SplitSpec['empty'] } | null>(null);
 
+/**
+ * Wide windows: each stack screen reports its footer's height under its
+ * route key, so the toast clears the buttons of whichever screen is on top.
+ */
+const FooterReportContext = createContext<((key: string, height: number) => void) | null>(null);
+
 type HostProps = { route: RouteProp<StackParams, ScreenId> };
 function hostFor(id: ScreenId) {
   const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
     const pane = useContext(PaneKeyContext);
+    const report = useContext(FooterReportContext);
+    const key = props.route.key;
+    const onFooter = useMemo(() => (report ? (height: number) => report(key, height) : null), [report, key]);
     if (!ctx) return null;
     if (pane && props.route.key === pane.key) return <PaneEmpty spec={pane.empty} />;
     // One boundary per screen (error-tracking): a crash in a study guide
     // never takes the recorder, or the rest of the app, down with it.
     return (
-      <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}>
-        <Screen {...ctx} params={props.route.params ?? {}} />
-      </ScreenBoundary>
+      <FooterHeightContext.Provider value={onFooter}>
+        <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}>
+          <Screen {...ctx} params={props.route.params ?? {}} />
+        </ScreenBoundary>
+      </FooterHeightContext.Provider>
     );
   }
   Host.displayName = `Host(${id})`;
@@ -138,7 +149,10 @@ function PaneSlot(props: { route: { screen: ScreenId; key: string; params?: Reco
       <PaneSelectionContext.Provider value={props.open}>
         <CtxContext.Provider value={props.ctx}>
           <View style={[styles.pane, { width: props.layout.contentWidth }]}>
-            <Host route={route} />
+            {/* The toast sits over the stack, so the list's footer does not move it. */}
+            <FooterReportContext.Provider value={null}>
+              <Host route={route} />
+            </FooterReportContext.Provider>
           </View>
         </CtxContext.Provider>
       </PaneSelectionContext.Provider>
@@ -629,6 +643,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       goFrom(split.list.screen, split.list.key, 'passage_record', { unitId, laneId: lane, ...extra });
     }
   } : null;
+  // The toast on a wide window: over the content, just above the top screen's footer.
+  const [footers, setFooters] = useState<Record<string, number>>({});
+  const reportFooter = useCallback((key: string, height: number) => {
+    setFooters((f) => (f[key] === height ? f : { ...f, [key]: height }));
+  }, []);
+  const topKey = nav.stack[nav.stack.length - 1]?.key;
+  const toastAbove = (topKey ? footers[topKey] ?? 0 : 0) + space.lg;
+  const toastHost = (bottom: number) => <ToastHost register={(show) => { showToast.current = show; }} bottom={bottom} />;
   const openDetail: OpenDetail | null = split?.detail ? { screen: split.detail.screen, params: split.detail.params ?? {} } : null;
 
   return (
@@ -639,6 +661,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
           {split && paneCtx ? <PaneSlot key={split.list.key} route={split.list} ctx={paneCtx} layout={paneLayout} open={openDetail} /> : null}
           <LayoutContext.Provider value={stackLayout}>
           <PaneKeyContext.Provider value={paneKey}>
+          <FooterReportContext.Provider value={wide ? reportFooter : null}>
           <CtxContext.Provider value={ctx}>
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
@@ -657,14 +680,16 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
+            {wide ? toastHost(toastAbove) : null}
             </View>
           </CtxContext.Provider>
+          </FooterReportContext.Provider>
           </PaneKeyContext.Provider>
           </LayoutContext.Provider>
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
-      <ToastHost register={(show) => { showToast.current = show; }} bottom={!wide && showTabs ? 96 : 24} />
+      {wide ? null : toastHost(showTabs ? 96 : 24)}
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
@@ -687,6 +712,8 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reader = useRef(false);
   useEffect(() => {
+    // react-native-web cannot tell and always answers yes, which doubled every toast on web.
+    if (Platform.OS === 'web') return;
     void AccessibilityInfo.isScreenReaderEnabled().then((on) => { reader.current = on; }, () => undefined);
     const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => { reader.current = on; });
     return () => sub.remove();

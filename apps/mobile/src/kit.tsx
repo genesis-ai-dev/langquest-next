@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
 } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -70,6 +70,13 @@ export const txt = StyleSheet.create({
 // ---- layout ----------------------------------------------------------------------------
 
 /**
+ * Wide windows only (decisions.md 55): how tall this screen's footer is, so
+ * the toast can sit just above its buttons rather than over them (App.tsx).
+ * Not provided on phones, where nothing is measured.
+ */
+export const FooterHeightContext = createContext<((height: number) => void) | null>(null);
+
+/**
  * A phone screen: header, a scrolling body on the lavender ground, and an
  * optional footer pinned above the keyboard (one main button, ADR-012).
  */
@@ -85,6 +92,9 @@ export function Screen(props: {
   // centred column and the footer's actions stop stretching (decisions.md 55).
   // The scroll view itself stays full width, so it scrolls from anywhere.
   const wide = useLayout().kind !== 'phone';
+  const reportFooter = useContext(FooterHeightContext);
+  const hasFooter = !!props.footer;
+  useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {props.header}
@@ -96,7 +106,8 @@ export function Screen(props: {
         </ScrollView>
       )}
       {props.footer ? (
-        <View style={[styles.footer, { paddingBottom: space.md }]}>
+        <View style={[styles.footer, { paddingBottom: space.md }]}
+          onLayout={reportFooter ? (e) => reportFooter(e.nativeEvent.layout.height) : undefined}>
           {wide ? <View style={styles.column}><View style={styles.footerActions}>{props.footer}</View></View> : props.footer}
         </View>
       ) : null}
