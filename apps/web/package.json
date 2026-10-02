@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx ../../scripts/web-dev-vars.ts && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.development.local -f ../mobile/.env.development -fk ../../.env.keys --ignore=MISSING_ENV_FILE --strict -- vite",
-    "build": "tsc --noEmit && tsc -p worker && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.production -fk ../../.env.keys --strict -- vite build",
-    "build:preview": "tsc --noEmit && tsc -p worker && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.preview -fk ../../.env.keys --strict -- vite build",
+    "dev": "tsx ../../scripts/web-dev-vars.ts && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.development.local -f ../mobile/.env.development --ignore=MISSING_ENV_FILE --strict -- vite",
+    "build": "tsc --noEmit && tsc -p worker && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.production --strict -- vite build",
+    "build:preview": "tsc --noEmit && tsc -p worker && env -u SUPABASE_SERVICE_ROLE_KEY dotenvx run -f ../mobile/.env.preview --strict -- vite build",
     "deploy": "npm run web:deploy --prefix ../..",
     "typecheck": "tsc --noEmit && tsc -p worker"
   },
