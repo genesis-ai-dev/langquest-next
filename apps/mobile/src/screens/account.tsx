@@ -350,8 +350,7 @@ export function SettingsHome(ctx: Ctx) {
   const advancedSummary = [
     p.pending > 0 || p.refused ? syncSub : 'Sync',
     'diagnostics',
-    ...(blocked > 0 ? ['blocked people'] : []),
-    'delete account'
+    ...(blocked > 0 ? ['blocked people'] : [])
   ].join(', ');
   return (
     <Screen header={<Header title="Settings" />}>
@@ -395,10 +394,12 @@ export function SettingsHome(ctx: Ctx) {
         {blocked > 0 ? (
           <Row icon="block" label="Blocked people" sub={plural(blocked, 'person', 'people')} onPress={() => setBlockedOpen(true)} />
         ) : null}
-        {/* Store rules, decisions.md 46; the path is declared in docs/play-store-declarations.md. */}
+      </Disclosure>
+      {/* Store rules, decisions.md 46: kept where the store answers and the App Review notes say it is (Settings → Delete account), not under Advanced. */}
+      <Group>
         <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label="Delete account" sub="Your account and your name, for good"
           onPress={() => ctx.go('delete_account')} last />
-      </Disclosure>
+      </Group>
       {ctx.canSwitchPersona ? (
         <>
           <SectionLabel label="Testing" />

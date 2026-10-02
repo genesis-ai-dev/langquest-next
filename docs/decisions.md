@@ -1219,9 +1219,9 @@ demo), and the app follows it:
 - **My Work** leads with one Next card and a bell replaces the Inbox tab for
   everyone with a My Work. The admin homes lead with Invite people or Open the
   passage map, the rest under Setup. Map filters sit behind one Filter chip.
-  Settings puts the likeliest rows first and the rest under Advanced
-  (account deletion is Settings › Advanced › Delete account; the Play listing
-  only holds the web URL, which is unchanged).
+  Settings puts the likeliest rows first and the rest under Advanced;
+  Delete account stays its own row in Settings, where the store answers and
+  the App Review notes say it is.
 
 The screen-by-screen path (what each screen shows, its main action, its
 secondary ones and the way back) is written out in `docs/ux/screen-path.md`.

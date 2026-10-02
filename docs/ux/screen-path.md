@@ -46,7 +46,7 @@ always a way back to a home.
 
 | Screen | What the person needs to see | Main action | Secondary | Rarer | Way back |
 | --- | --- | --- | --- | --- | --- |
-| Settings | Who they are, and the common rows | Edit Profile | Notifications; Getting started | What is LangQuest?, Switch organization (more than one), Sign out; Advanced (sync, diagnostics, blocked people, delete account) | — (tab) |
+| Settings | Who they are, and the common rows | Edit Profile | Notifications; Getting started | What is LangQuest?, Switch organization (more than one), Sign out; Advanced (sync, diagnostics, blocked people); Delete account (its own row, where the stores were told) | — (tab) |
 | Inbox (from the bell) | Updates, newest first | An update | — | Join requests and reports (admins) | Back to My Work |
 
 ## Getting in
