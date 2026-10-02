@@ -17,14 +17,14 @@ export interface ScreenContract {
 const REPORTS = ['report_content', 'set_blocked', 'remove_content'] as const;
 const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   sign_in: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
-  create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event'] },
+  create_account: { emits:['v1.TermsAccepted'],rpcs:['record_user_event','save_profile'] },
   welcome: { emits:['v1.VisionSeen'],rpcs:['record_user_event'] },
   // A new org's partition (createOrg.ts) and the welcome it skips
   // (markWelcomed). Its languages are added afterwards from Getting started
   // (ONB-5), each its own partition (decisions.md 37).
   create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.OrgLicenseSet','v1.VisionSeen'],rpcs:['record_user_event','save_profile'],reads:['profiles'] },
   request_access: { rpcs:['create_join_request'] },
-  scan_qr: { rpcs:['redeem_invite_v2','my_organizations'] },
+  scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_projects'] },
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext'] },
   status_home: { reads:['languageProgress'] },
@@ -43,10 +43,10 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
   study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
   study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'],rpcs:REPORTS },
-  invite_qr: { rpcs:['issue_invite'],reads:['org.roles'] },
-  invite_member: { rpcs:['issue_invite'],reads:['org.roles'] },
+  invite_qr: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
+  invite_member: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
   members_list: { rpcs:['decide_join_request'],reads:['org.members','join_requests','profiles'] },
-  edit_member: { emits:['v1.MemberRoleChanged','v1.MemberRemoved','v1.OrgMemberAdded','v1.OrgMemberRemoved'],rpcs:['decide_join_request'] },
+  edit_member: { emits:['v1.MemberRoleChanged','v1.MemberRemoved','v1.OrgMemberAdded','v1.OrgMemberRemoved'],rpcs:['decide_join_request','can_help_sign_in','issue_sign_in_code'] },
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
   // Registers the language in the org and starts its own partition (decisions.md 37).

@@ -7,7 +7,7 @@ const other = 'f2b7c9e0-5a44-4c1b-8e0f-9d6a1b2c3d44';
 const keys = [
   `inbox:${me}`, `inbox-read:${me}:org1`, `profile-directory:${me}`, `organizations:${me}`,
   `terms-version:${me}`, `vision:${me}`, `joined:${me}`, 'push-token',
-  `inbox:${other}`, `organizations:${other}`, 'public-projects', 'pending-invite', 'sb-ref-auth-token'
+  `inbox:${other}`, `organizations:${other}`, 'public-projects', 'held-invite', 'sb-ref-auth-token'
 ];
 
 function phone(serverError: string | null = null) {
@@ -36,7 +36,7 @@ describe('account deletion on the phone', () => {
     const p = phone();
     await deleteAccount(me, p.deps);
     expect(p.calls).toEqual(['server', 'forget', 'signOut']);
-    expect([...p.stored].sort()).toEqual([`inbox:${other}`, `organizations:${other}`, 'public-projects', 'pending-invite', 'sb-ref-auth-token'].sort());
+    expect([...p.stored].sort()).toEqual([`inbox:${other}`, `organizations:${other}`, 'public-projects', 'held-invite', 'sb-ref-auth-token'].sort());
   });
 
   it('changes nothing on the phone when the server refuses', async () => {

@@ -1107,3 +1107,33 @@ or validation of an event, since events are permanent. In Linear, a flagged
 issue reaches Live when its code ships dark, and a follow-up issue tracks the
 rollout and removing the flag. Reverse if: a flag must change what is
 synced, or we need percentage rollouts that organizations cannot override.
+
+## 54. Getting in is a key the phone holds, and an account without email has a steward
+
+Date: 2026-10-01 · By: Caleb Koster · Status: accepted
+
+Reason: a signed-out person who scanned a QR invite was sent to Sign In with
+no account, had to find the invite again after signing up, and an invite
+left in storage went to whoever signed in next. Translators in the field
+often have no email, and nobody could recover a lost password, since sign-up
+sends no email and the hosted project has no mail server. Every way in is
+now a key: an invite key adds a membership, a sign-in key sets a looked-after
+person's password. The phone holds one scanned invite with who it is for
+(`apps/mobile/src/heldInvite.ts`); one redeemer above the organization uses
+it, and screens only read it. Accounts made by invite without email use a
+non-delivering address on `people.langquest.org` and a sign-in name; the
+inviter becomes their steward (`account_stewards`), and the steward or an
+organization admin can show a one-time sign-in QR (`issue_sign_in_code`,
+Edge Function `sign-in-code`). Looked-after accounts cannot invite, in the
+session and in `issue_invite_v3`. Invites gain a label shown to the scanner
+by `preview_invite` and a use count for groups (`invite_redemptions`);
+membership still enters the log as `v1.OrgMemberAdded` and
+`v1.InviteRedeemed`, so no event changed. The first proposal put the
+account at `inviter+name@` the inviter's domain; it was not used because many
+providers do not accept `+` addresses, there is no mail server to send
+resets, and it would put the inviter's address in another person's account.
+Migration `20261002010000_invite_keys_and_stewards.sql`; design and flows in
+`docs/invites-and-accounts.md`.
+Reverse if: field teams reliably have email (then invites can require an
+address and stewards are unneeded), or steward recovery is abused (then
+recovery moves to organization admins only, or to proven email alone).
