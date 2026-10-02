@@ -2,6 +2,7 @@ import type { EventSpec, Update } from '@langquest-next/core';
 import type { ScreenId } from './flow';
 import type { Blocks } from './moderationData';
 import type { Session } from './session';
+import type { InviteHandle } from './useHeldInvite';
 import type { OrgHandle } from './useOrg';
 import type { ProjectHandle } from './useProject';
 
@@ -67,7 +68,12 @@ export interface Ctx {
   acceptTerms: (actorId?: string) => Promise<void>;
   /** Someone just joined by invite: they get the welcome even if this account was welcomed before (ADR-022). */
   markJoined: (actorId: string) => Promise<void>;
-  rememberInvite: (value: string) => Promise<void>;
+  /**
+   * The held invite (docs/invites-and-accounts.md): what was scanned, who it
+   * is for, and what happened to it. Screens read it and say who is joining;
+   * the app uses it.
+   */
+  invite: InviteHandle;
   /** Switch to another organization: its partition and its one work partition (decision 34). */
   openOrganization: (orgId: string) => Promise<void>;
   openDev: () => void;

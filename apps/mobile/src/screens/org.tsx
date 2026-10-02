@@ -16,7 +16,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { choiceLine, laneTemplateOf, libraryChoices, STARTER_TEMPLATE } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
-import { decideRequest, inviteUri, issueInvite, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
+import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
+import { signInUri } from '../inviteCode';
 import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row,
   Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt
@@ -764,13 +765,59 @@ export function EditMember(ctx: Ctx) {
         <LinkBtn label={`Remove from ${LEVEL_LABEL[entry!.scope.level].toLowerCase()}`} color={TINT.redText}
           onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
       ) : null}
+      {!pending && memberId ? <HelpSignIn memberId={memberId} who={who} /> : null}
     </Screen>
+  );
+}
+
+/**
+ * Help a looked-after member back in (docs/invites-and-accounts.md flow F):
+ * their steward, or an organization admin, shows a one-time QR, and the
+ * person scans it from Sign In to choose a new password. Shown only when the
+ * server says this session may help this person.
+ */
+function HelpSignIn(props: { memberId: string; who: string }) {
+  const [may, setMay] = useState(false);
+  const [key, setKey] = useState<{ code: string; signInName: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    void canHelpSignIn(props.memberId).then((ok) => { if (active) setMay(ok); });
+    return () => { active = false; };
+  }, [props.memberId]);
+  if (!may) return null;
+  async function make() {
+    setBusy(true);
+    setError('');
+    try { setKey(await issueSignInCode(props.memberId)); }
+    catch (e) { noteExpected('sign-in code', e); setError(e instanceof Error ? e.message : 'Try again when connected.'); }
+    finally { setBusy(false); }
+  }
+  return (
+    <>
+      <SectionLabel label="Signing in" />
+      {key ? (
+        <Card style={{ alignItems: 'center' }}>
+          <QRCode value={signInUri(key.code)} size={200} backgroundColor={C.white} color={C.dark} />
+          <Text style={txt.h3}>Sign-in name: {key.signInName}</Text>
+          <Text style={[txt.xs, { textAlign: 'center' }]}>
+            On their phone, {props.who} taps Scan a code on Sign In, scans this, and chooses a new password. It works once, for one hour.
+          </Text>
+        </Card>
+      ) : (
+        <GhostBtn label="Help them sign in" icon="lock" disabled={busy} onPress={() => void make()} />
+      )}
+      {error ? <Banner icon="flag" tone="amber" title="No code was made" body={error} /> : null}
+    </>
   );
 }
 
 // ---- Invite by QR -------------------------------------------------------------------------------------
 
 const QR_STEPS = ['Role', 'Name', 'QR code'];
+/** How many people a group code admits (the server allows up to 50). */
+const GROUP_USES = 30;
 
 export function InviteQr(ctx: Ctx) {
   const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
@@ -782,6 +829,8 @@ export function InviteQr(ctx: Ctx) {
   const [step, setStep] = useState(preferred && roles.some((r) => r.id === preferred) ? 1 : 0);
   const [roleId, setRoleId] = useState(preferred ?? '');
   const [name, setName] = useState('');
+  // One person, or a group (a workshop table) that shares one code.
+  const [audience, setAudience] = useState<'one' | 'group'>('one');
   const [invite, setInvite] = useState<NewInvite | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -792,7 +841,9 @@ export function InviteQr(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      setInvite(await issueInvite(ctx.project.orgId, roleId, scope));
+      // The name goes to the server with the invite, so the person scanning
+      // sees whom it is for (docs/invites-and-accounts.md section 4).
+      setInvite(await issueInvite(ctx.project.orgId, roleId, scope, { label: name, maxUses: audience === 'group' ? GROUP_USES : 1 }));
       setStep(2);
     } catch (e) {
       // Offline or refused by the server: its words say which.
@@ -828,8 +879,15 @@ export function InviteQr(ctx: Ctx) {
       ) : null}
       {step === 1 ? (
         <>
-          <Text style={txt.xs}>A name so you can tell whose code this is. It stays on this phone; they choose their own name when they join.</Text>
-          <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Nyibol Deng" autoCapitalize="words" />
+          <Choices items={[
+            { id: 'one', label: 'One person', sub: 'The code works once' },
+            { id: 'group', label: 'A group', sub: `Up to ${GROUP_USES} people share one code, for a workshop` }
+          ]} value={audience} onChoose={(id) => setAudience(id as 'one' | 'group')} />
+          <Text style={txt.xs}>{audience === 'one'
+            ? 'Their name is shown to them when they scan, so they know the code is theirs, and offered as their name.'
+            : 'A name for the group, shown to everyone who scans it.'}</Text>
+          <Field label={audience === 'one' ? 'Name' : 'Group name'} value={name} onChangeText={setName}
+            placeholder={audience === 'one' ? 'e.g. Nyibol Deng' : 'e.g. Juba workshop'} autoCapitalize="words" />
         </>
       ) : null}
       {step === 2 && invite && role ? (
@@ -845,7 +903,7 @@ export function InviteQr(ctx: Ctx) {
           <Card>
             <Text style={txt.xsStrong}>Or type this code</Text>
             <Text selectable style={[txt.sm, { fontFamily: 'Courier' }]}>{invite.token}</Text>
-            <Text style={txt.xs}>Shown once: leaving this screen loses the code. It can be used once, until {new Date(invite.expiresAt).toDateString()}.</Text>
+            <Text style={txt.xs}>Shown once: leaving this screen loses the code. {audience === 'group' ? `Up to ${GROUP_USES} people can use it` : 'It can be used once'}, until {new Date(invite.expiresAt).toDateString()}.</Text>
             <SmallBtn label="Share invite" icon="share" onPress={() => void Share.share({ message: uri })} />
           </Card>
         </>

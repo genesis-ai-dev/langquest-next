@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Update } from '@langquest-next/core';
 import {
-  firstName, groupByRead, inviteLine, inviteSummary, joinRequestIdOf, teamLabel, updateText, VISION_STEPS, welcomeRoleFor,
+  firstName, groupByRead, joinRequestIdOf, teamLabel, updateText, VISION_STEPS, welcomeRoleFor,
   WELCOME_POINTS, withArticle
 } from '../src/accountText';
 
@@ -98,17 +98,3 @@ describe('welcome', () => {
   });
 });
 
-describe('invite summary (ADR-028)', () => {
-  it('reads only the org from a link and ignores claims it cannot check', () => {
-    const full = 'langquestnext://invite?org=org1&token=abc&name=Akol%20Deng&role=Translator&orgName=Wycliffe%20Associates&from=Sarah';
-    expect(inviteSummary(full)).toEqual({ orgId: 'org1' });
-    expect(inviteSummary('langquestnext://invite?org=org1&token=abc')).toEqual({ orgId: 'org1' });
-    expect(inviteSummary('langquestnext://invite?token=abc&org=%E0%A4%A')).toEqual({});
-    expect(inviteSummary('a'.repeat(64))).toEqual({});
-  });
-
-  it('names an org only when the phone knows it, never by id', () => {
-    expect(inviteLine('Wycliffe Associates')).toBe('Invitation to join Wycliffe Associates');
-    expect(inviteLine()).toBe('Invitation to join an organization');
-  });
-});
