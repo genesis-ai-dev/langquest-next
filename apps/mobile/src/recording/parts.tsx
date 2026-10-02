@@ -91,5 +91,6 @@ const styles = StyleSheet.create({
   empty: { paddingHorizontal: space.lg, paddingVertical: space.xl, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.row },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  problem: { backgroundColor: TINT.red, borderRadius: radius.lg, padding: space.md, gap: space.sm }
+  // Edged, so it stands out on the recorder pane's warm ground.
+  problem: { backgroundColor: TINT.red, borderRadius: radius.lg, borderWidth: 1, borderColor: withAlpha(C.red, 0.45), padding: space.md, gap: space.sm }
 });

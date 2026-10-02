@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { NavigationContainer, type RouteProp } from '@react-navigation/native';
+import { CommonActions, NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { AccessibilityInfo, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -573,18 +573,25 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
+  const homeIsWork = homeScreenFor(session) === 'my_work';
   useEffect(() => {
     // Web (a test target) has no notification responses to read.
     if (!props.signedIn || Platform.OS === 'web') return;
     const receive = (response: Notifications.NotificationResponse | null) => {
       if (!response?.notification.request.content.data?.notificationId) return;
-      nav.reset({ screen: 'inbox_home' });
+      // People with a My Work reach the Inbox from its bell, so it opens over My Work with Back (no Inbox tab).
+      if (homeIsWork && navRef.isReady()) {
+        navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
+      } else nav.reset({ screen: 'inbox_home' });
       void Notifications.clearLastNotificationResponseAsync();
     };
     void Notifications.getLastNotificationResponseAsync().then(receive);
     const listener = Notifications.addNotificationResponseReceivedListener(receive);
     return () => listener.remove();
-  }, [props.signedIn, nav.reset]);
+  }, [props.signedIn, nav.reset, homeIsWork]);
+
+  // Open reports count toward the Inbox badge (the tab, or My Work's bell) for whoever may act on them (decisions.md 48).
+  const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
 
   const ctx: Ctx = {
     project,
@@ -604,7 +611,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openPassage,
     name,
     blocks,
-    inbox: { updates, unread, isRead: (id) => readIds.has(id), markRead },
+    inbox: { updates, unread: unread + reportCount, isRead: (id) => readIds.has(id), markRead },
     markWelcomed: async () => {
       await recordUserEvent(props.actorId, 'v1.VisionSeen');
       await AsyncStorage.multiSet([[`vision:${props.actorId}`, '1'], [`joined:${props.actorId}`, '0']]);
@@ -625,8 +632,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const kind = layoutKind(width);
   const wide = kind !== 'phone';
   const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && chromeVisible(kind, screen);
-  // Open reports count toward the Inbox badge for whoever may act on them (decisions.md 48).
-  const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
   const tabs = tabsFor(session, { forYou, unread: unread + reportCount });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.

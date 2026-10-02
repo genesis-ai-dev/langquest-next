@@ -51,6 +51,15 @@ export function validateEvent(e: AnyEvent): string | null {
   const optStrRecord = (k: string) =>
     p[k] === undefined || (isObject(p[k]) && Object.values(p[k] as object).every((v) => typeof v === 'string')) ? null : `${k} must map ids to strings`;
 
+  /** What v1.RequestMade and v2.RequestMade share; who it is for is checked per version. */
+  const request = () =>
+    str('requestId', 'unitId', 'laneId') ??
+    oneOf('what', ['record', 'review']) ??
+    optStr('kindId', 'profileId', 'dueDate', 'note', 'noteBlobHash') ??
+    (p['what'] === 'review' && !p['kindId'] ? 'a review request needs kindId' : null) ??
+    (p['guest'] === undefined || guest(p['guest']) ? null : 'guest needs name, channel, contact') ??
+    (p['questions'] === undefined || questions(p['questions']) ? null : 'questions must be id, text, type');
+
   switch (e.type) {
     case 'v1.ProjectCreated':
       return str('name', 'sourceLanguoidId');
@@ -136,13 +145,14 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('departureId');
     case 'v1.RequestMade':
       return (
-        str('requestId', 'unitId', 'laneId') ??
-        oneOf('what', ['record', 'review']) ??
-        optStr('kindId', 'profileId', 'dueDate', 'note', 'noteBlobHash') ??
-        (p['what'] === 'review' && !p['kindId'] ? 'a review request needs kindId' : null) ??
-        (p['profileId'] === undefined && p['guest'] === undefined ? 'profileId or guest required' : null) ??
-        (p['guest'] === undefined || guest(p['guest']) ? null : 'guest needs name, channel, contact') ??
-        (p['questions'] === undefined || questions(p['questions']) ? null : 'questions must be id, text, type')
+        request() ??
+        (p['profileId'] === undefined && p['guest'] === undefined ? 'profileId or guest required' : null)
+      );
+    case 'v2.RequestMade':
+      return (
+        request() ??
+        (p['teamId'] === undefined ? null : str('teamId')) ??
+        (['profileId', 'guest', 'teamId'].filter((k) => p[k] !== undefined).length === 1 ? null : 'exactly one of profileId, guest, teamId')
       );
     case 'v1.RequestWithdrawn':
       return str('requestId');
@@ -198,6 +208,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('laneId', 'flowId', 'itemId', 'name') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
         (typeof p['catalogVersion'] === 'number' && p['catalogVersion'] >= 2 ? null : 'catalogVersion must be 2 or more') ??
         (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null);
+    case 'v1.ReviewTeamKindSet':
+      return str('teamId', 'laneId') ?? (p['kindId'] === null ? null : str('kindId'));
     default:
       return null;
   }

@@ -48,6 +48,23 @@ export type ReviewVia = 'app' | 'link' | 'logged';
 export type ReviewOutcome = 'looks_good' | 'needs_changes' | 'recorded';
 export type DepartureType = 'skip' | 'override' | 'keep';
 
+/** The payload of v1.RequestMade, shared by v2.RequestMade. */
+export interface RequestPayload {
+  requestId: string;
+  unitId: string;
+  laneId: string;
+  what: 'record' | 'review';
+  kindId?: string;
+  /** A teammate; absent when `guest` (or, in v2, `teamId`) is set. */
+  profileId?: string;
+  /** Someone without the app, reached by a link. */
+  guest?: { name: string; channel: 'whatsapp' | 'sms'; contact: string };
+  dueDate?: string;
+  note?: string;
+  noteBlobHash?: string;
+  questions?: QuestionSpec[];
+}
+
 export type RecordEvents = {
   /** A kind of review in the organization's vocabulary. Register per kind; overrides the shipped kind of the same id. */
   'v1.ReviewKindDefined': {
@@ -110,21 +127,14 @@ export type RecordEvents = {
   /** Bring a set-aside step back. The departure stays on the record, marked undone. Add-wins. */
   'v1.DepartureUndone': { departureId: string };
   /** A record of asking (ADR-007, ADR-020): who, for what, by when. Nobody needs one to act. */
-  'v1.RequestMade': {
-    requestId: string;
-    unitId: string;
-    laneId: string;
-    what: 'record' | 'review';
-    kindId?: string;
-    /** A teammate; absent when `guest` is set. */
-    profileId?: string;
-    /** Someone without the app, reached by a link. */
-    guest?: { name: string; channel: 'whatsapp' | 'sms'; contact: string };
-    dueDate?: string;
-    note?: string;
-    noteBlobHash?: string;
-    questions?: QuestionSpec[];
-  };
+  'v1.RequestMade': RequestPayload;
+  /**
+   * v1.RequestMade that may instead be addressed to a review team in the
+   * same lane (ADR-029): open to every member, and the first review of the
+   * kind closes it, whoever gives it. Exactly one of profileId, guest,
+   * teamId. Grow-only by requestId, sharing ids with v1.
+   */
+  'v2.RequestMade': RequestPayload & { teamId?: string };
   /** Undo of a request. Add-wins. */
   'v1.RequestWithdrawn': { requestId: string };
   /** An anchored note: text, voice, or a photo. `onTakeId` is the version it was made on. Grow-only. */
@@ -190,7 +200,7 @@ export interface Departure extends Omit<RecordEvents['v1.DepartureRecorded'], 'd
   eventId: string;
 }
 
-export interface PassageRequest extends Omit<RecordEvents['v1.RequestMade'], 'requestId'> {
+export interface PassageRequest extends Omit<RecordEvents['v2.RequestMade'], 'requestId'> {
   id: string;
   by: string;
   hlc: Hlc;

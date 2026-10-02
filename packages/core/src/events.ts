@@ -143,6 +143,11 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   'v1.ReviewTeamDefined': { teamId: string; laneId: string; name: string };
   /** Register per (team, profile): in or out. */
   'v1.ReviewTeamMemberSet': { teamId: string; profileId: string; member: boolean };
+  /**
+   * The kind of review a team usually does (ADR-029): "Send to …" goes to
+   * it first. null = any kind. Register per team; `laneId` is the team's.
+   */
+  'v1.ReviewTeamKindSet': { teamId: string; laneId: string; kindId: string | null };
   /** The translator's answer to suggestions: what changed and why the rest stayed (text or audio). */
   'v1.ResponseRecorded': { takeId: string; respondsToTakeId: string; note?: string; blobHash?: string };
   /** A reviewer's spoken comment on a take at a step. */

@@ -193,20 +193,21 @@ export const EDGES: Edge[] = [
   e('back_translation', 'passage_record', 'back'), // tap Back (from record)
   e('back_translation', 'my_work', 'back'), // tap Back (from My Work)
   e('org_home', 'members_list'), // tap Members
-  e('org_home', 'roles_home'), // tap Roles
-  e('org_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
-  e('org_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
-  e('org_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
+  e('org_home', 'roles_home'), // tap Setup, then Roles
+  e('org_home', 'templates_home', undefined, 'manageTemplates'), // tap Setup, then Content Templates
+  e('org_home', 'reference_home', undefined, 'manageReference'), // tap Setup, then Reference Material
+  e('org_home', 'flows_home', undefined, 'manageFlows'), // tap Setup, then Review Flows
   e('language_home', 'members_list'), // tap Members
-  e('language_home', 'roles_home'), // tap Roles
+  e('language_home', 'roles_home'), // tap Setup, then Roles
   e('language_home', 'review_teams'), // tap Review Teams
   e('language_home', 'org_home', 'popTo'), // tap org breadcrumb
-  e('language_home', 'templates_home', undefined, 'manageTemplates'), // tap Content Templates
-  e('language_home', 'reference_home', undefined, 'manageReference'), // tap Reference Material
-  e('language_home', 'flows_home', undefined, 'manageFlows'), // tap Review Flows
+  e('language_home', 'templates_home', undefined, 'manageTemplates'), // tap Setup, then Content Templates
+  e('language_home', 'reference_home', undefined, 'manageReference'), // tap Setup, then Reference Material
+  e('language_home', 'flows_home', undefined, 'manageFlows'), // tap Setup, then Review Flows
   e('review_teams', 'review_team_editor'), // tap team / New
   e('review_team_editor', 'review_teams', 'back'), // tap Save / Back
   e('members_list', 'invite_member'), // tap Invite
+  e('org_home', 'invite_member', undefined, 'assigner'), // tap Invite people
   e('members_list', 'edit_member'), // tap Edit on an editable member
   e('edit_member', 'members_list', 'back'), // tap Save Assignment
   e('inbox_home', 'edit_member', undefined, 'assigner'), // tap Accept join request
@@ -239,6 +240,7 @@ export const EDGES: Edge[] = [
   e('key_term_detail', 'key_terms', 'back'), // tap Back
   e('key_term_detail', 'version_detail'), // tap where it's used
   e('inbox_home', 'passage_record'), // tap update about a passage
+  e('my_work', 'inbox_home'), // tap the bell (updates)
   e('settings_home', 'profile_edit'), // tap Edit Profile
   e('settings_home', 'org_switcher'), // tap Switch Organization
   e('settings_home', 'my_work', 'reset'), // tap Getting started

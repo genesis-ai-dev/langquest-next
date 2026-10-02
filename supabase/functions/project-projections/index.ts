@@ -20876,6 +20876,7 @@ function validateEvent(e) {
   const oneOf = (k, values) => values.includes(p[k]) ? null : `${k} must be one of ${values.join(", ")}`;
   const date = (k) => typeof p[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`;
   const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
+  const request = () => str("requestId", "unitId", "laneId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type");
   switch (e.type) {
     case "v1.ProjectCreated":
       return str("name", "sourceLanguoidId");
@@ -20924,7 +20925,9 @@ function validateEvent(e) {
     case "v1.DepartureUndone":
       return str("departureId");
     case "v1.RequestMade":
-      return str("requestId", "unitId", "laneId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["profileId"] === void 0 && p["guest"] === void 0 ? "profileId or guest required" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type");
+      return request() ?? (p["profileId"] === void 0 && p["guest"] === void 0 ? "profileId or guest required" : null);
+    case "v2.RequestMade":
+      return request() ?? (p["teamId"] === void 0 ? null : str("teamId")) ?? (["profileId", "guest", "teamId"].filter((k) => p[k] !== void 0).length === 1 ? null : "exactly one of profileId, guest, teamId");
     case "v1.RequestWithdrawn":
       return str("requestId");
     case "v1.NoteAdded":
@@ -20964,6 +20967,8 @@ function validateEvent(e) {
       return str("laneId", "unitId") ?? bool("hidden");
     case "v2.LaneFlowSelected":
       return str("laneId", "flowId", "itemId", "name") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (typeof p["catalogVersion"] === "number" && p["catalogVersion"] >= 2 ? null : "catalogVersion must be 2 or more") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null);
+    case "v1.ReviewTeamKindSet":
+      return str("teamId", "laneId") ?? (p["kindId"] === null ? null : str("kindId"));
     default:
       return null;
   }
@@ -21211,6 +21216,12 @@ function applyEvent(state, event) {
       lww(team.members, profileId, event, member2);
       break;
     }
+    case "v1.ReviewTeamKindSet": {
+      const { teamId, kindId } = event.payload;
+      const team = state.teams[teamId] ??= { laneId: "", name: { value: "", hlc: "", eventId: "" }, members: {} };
+      if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: kindId, hlc: event.hlc, eventId: event.id };
+      break;
+    }
     case "v1.ResponseRecorded": {
       const { takeId, respondsToTakeId, note, blobHash } = event.payload;
       state.responses[takeId] ??= {
@@ -21332,7 +21343,8 @@ function applyEvent(state, event) {
     case "v1.DepartureUndone":
       earliestUndo(state.undoneDepartures, event.payload.departureId, event);
       break;
-    case "v1.RequestMade": {
+    case "v1.RequestMade":
+    case "v2.RequestMade": {
       const { requestId, ...rest } = event.payload;
       firstWins(state.requests, requestId, event, { ...rest, id: requestId });
       break;

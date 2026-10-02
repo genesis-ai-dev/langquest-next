@@ -30,11 +30,12 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   status_home: { reads:['languageProgress'] },
   map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
   book_map: { reads:['derivePassage','unitPlace'] },
-  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestWithdrawn','v1.NoteAdded'],
+  // Send to … (ADR-029) asks the usual reviewer (v1) or review team (v2) in one tap.
+  passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v2.RequestMade','v1.RequestWithdrawn','v1.NoteAdded'],
     reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'],rpcs:REPORTS },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
-  ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
+  ask_someone: { emits:['v1.RequestMade','v2.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
   review_capture: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   add_record: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'] },
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeSelected','v1.TakeArchived','v1.TakeSubmitted',
@@ -55,7 +56,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // The public listing is keyed by partition; an org has one (decision 34).
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.OrgLicenseSet'],rpcs:['set_project_visibility'],reads:['project_visibility','orgLicense'] },
-  review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet'] },
+  review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   template_picker: { emits:['v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },

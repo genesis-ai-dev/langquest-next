@@ -152,6 +152,8 @@ export type RequestStatus = 'open' | 'done' | 'withdrawn';
 
 export interface RequestView extends Omit<PassageRequest, 'eventId'> {
   status: RequestStatus;
+  /** Sent to a review team: its name and the members it is open to (not the asker). */
+  team?: { name: string; memberIds: string[] };
   /** Made with v1.AssignmentMade: who asked is not on the record. */
   legacy?: boolean;
 }
@@ -306,6 +308,8 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
   for (const r of allRequests.sort(byHlc)) {
     push(requests, unitLaneKey(r.unitId, r.laneId), r);
     if (r.profileId) push(requestsTo, r.profileId, r);
+    // A team request is open to every member but the asker (ADR-029).
+    if (r.teamId) for (const id of teamMemberIds(state, r.teamId, r.laneId)) if (id !== r.by) push(requestsTo, id, r);
     if (r.by) push(requestsBy, r.by, r);
   }
   const notes = new Map<string, PassageNote[]>();
@@ -379,7 +383,8 @@ export function derivePassage(state: ProjectState, unitId: string, laneId: strin
     if (state.withdrawnRequests[r.id]) status = 'withdrawn';
     else if (r.what === 'record' && versions.some((v) => v.hlc > r.hlc)) status = 'done';
     else if (r.what === 'review' && reviews.some((x) => x.requestId === r.id || (x.kindId === r.kindId && x.hlc > r.hlc))) status = 'done';
-    return { ...r, status, ...(legacy ? { legacy } : {}) };
+    const team = r.teamId ? { name: state.teams[r.teamId]?.name.value ?? '', memberIds: teamMemberIds(state, r.teamId, r.laneId).filter((id) => id !== r.by) } : undefined;
+    return { ...r, status, ...(legacy ? { legacy } : {}), ...(team ? { team } : {}) };
   });
   const openRequests = requests.filter((r) => r.status === 'open');
 
@@ -444,6 +449,109 @@ export function feedbackIsMine(s: PassageState, actorId: string): boolean {
   return s.awaitingResponse.length > 0 && s.latest?.by === actorId;
 }
 
+// ---- who a request is for (ADR-029) ------------------------------------------------
+
+/**
+ * A review team's members, sorted. None when the team is unknown or, given
+ * `laneId`, belongs to another lane: a request names a team in its own lane.
+ */
+export function teamMemberIds(state: ProjectState, teamId: string, laneId?: string): string[] {
+  const team = state.teams[teamId];
+  if (!team || (laneId !== undefined && team.laneId !== laneId)) return [];
+  return Object.entries(team.members).filter(([, r]) => r.value).map(([id]) => id).sort();
+}
+
+type Addressed = Pick<PassageRequest, 'laneId' | 'profileId' | 'guest' | 'teamId'> & { by?: string };
+
+/**
+ * The request is this person's to do: addressed to them, or to a review
+ * team in its lane they are on (and they did not send it). Use this, not a
+ * profileId comparison, wherever "this request is mine" is decided.
+ */
+export function requestIsFor(state: ProjectState, request: Addressed, profileId: string): boolean {
+  if (request.profileId === profileId) return true;
+  if (!request.teamId || request.by === profileId) return false;
+  return teamMemberIds(state, request.teamId, request.laneId).includes(profileId);
+}
+
+export type RequestAddressee =
+  | { kind: 'person'; profileId: string }
+  | { kind: 'guest'; name: string }
+  | { kind: 'team'; teamId: string; name: string; memberIds: string[] };
+
+/** Who a request was sent to, for display: a teammate, a guest, or a review team (its name and members, not the asker). */
+export function requestAddressee(state: ProjectState, request: Addressed): RequestAddressee | undefined {
+  if (request.teamId) {
+    const memberIds = teamMemberIds(state, request.teamId, request.laneId).filter((id) => id !== request.by);
+    return { kind: 'team', teamId: request.teamId, name: state.teams[request.teamId]?.name.value ?? '', memberIds };
+  }
+  if (request.profileId) return { kind: 'person', profileId: request.profileId };
+  if (request.guest) return { kind: 'guest', name: request.guest.name };
+  return undefined;
+}
+
+/** The addressee's name: the team's ("Community reviewers"), the guest's, or `name(profileId)`. */
+export function requestAddresseeName(state: ProjectState, request: Addressed, name: (profileId: string) => string): string {
+  const a = requestAddressee(state, request);
+  if (!a) return '';
+  return a.kind === 'team' ? a.name || 'the review team' : a.kind === 'guest' ? a.name : name(a.profileId);
+}
+
+export type UsualTarget = { teamId: string; name: string } | { profileId: string };
+
+/**
+ * Where a kind of review usually goes in a language (ADR-029, "Send to the
+ * usual reviewer"): its review team, else the one person who usually does
+ * it there; undefined when neither is clear (then the app opens Ask
+ * someone). Advice only: anyone with the permission may still be asked.
+ *
+ * - Team: a team in the lane that usually does this kind
+ *   (v1.ReviewTeamKindSet), else one a (not removed) v1 workflow step of
+ *   this kind names (`teamId`); either with at least one member other than
+ *   `me`. A team set to "any kind" is not the usual target of any one kind.
+ * - Person: exactly one person other than `me` who reviewed this kind in
+ *   the app in this lane before (v1.ReviewRecorded via app, or a v1 review
+ *   of a step of this kind), not removed from the project.
+ *
+ * `eligible` narrows both, for example to people holding Review here.
+ */
+export function usualTarget(
+  state: ProjectState,
+  laneId: string,
+  kindId: string,
+  me: string,
+  opts: { eligible?: (profileId: string) => boolean } = {}
+): UsualTarget | undefined {
+  const ok = (id: string) => id !== me && !state.members[id]?.removed.value && (opts.eligible?.(id) ?? true);
+  const withMembers = (teamId: string) => teamMemberIds(state, teamId, laneId).some(ok);
+  const kindTeams = Object.entries(state.teams)
+    .filter(([id, t]) => t.laneId === laneId && t.kindId?.value === kindId && withMembers(id))
+    .map(([id]) => id).sort();
+  if (kindTeams[0]) return { teamId: kindTeams[0], name: state.teams[kindTeams[0]]!.name.value };
+  const teamIds = new Set<string>();
+  for (const slot of Object.values(state.workflowSteps)) {
+    const step = slot.step.value;
+    if (slot.removed || slot.step.hlc === '' || !step.teamId) continue;
+    if (step.laneId !== undefined && step.laneId !== laneId) continue;
+    if (kindOfV1Step(step.stepId) === kindId) teamIds.add(step.teamId);
+  }
+  for (const teamId of [...teamIds].sort()) {
+    if (withMembers(teamId)) return { teamId, name: state.teams[teamId]!.name.value };
+  }
+  const did = new Set<string>();
+  for (const r of Object.values(state.kindReviews)) {
+    if (r.kindId === kindId && r.via === 'app' && state.takes[r.takeId]?.laneId === laneId) did.add(r.by);
+  }
+  for (const [takeId, bySteps] of Object.entries(state.reviews)) {
+    if (state.takes[takeId]?.laneId !== laneId) continue;
+    for (const [stepId, byActor] of Object.entries(bySteps)) {
+      if (kindOfV1Step(stepId) === kindId) for (const actorId of Object.keys(byActor)) did.add(actorId);
+    }
+  }
+  const people = [...did].filter(ok);
+  return people.length === 1 ? { profileId: people[0]! } : undefined;
+}
+
 /**
  * The one-line state of a passage, worded for the person looking. `name`
  * turns a profile id into a display name ("you" for the viewer).
@@ -457,8 +565,11 @@ export function passageSummary(s: PassageState, kinds: KindDef[], actorId: strin
   const asked = s.steps.flatMap((st) => st.kinds).find((k) => k.state === 'asked');
   if (asked) {
     const kind = kinds.find((k) => k.id === asked.kindId)?.name ?? 'a review';
-    const who = asked.request?.profileId ?? asked.request?.guest?.name;
-    return asked.request?.profileId === actorId ? `Your turn: ${kind}` : `Waiting on ${who ? name(who) : 'a reviewer'} · ${kind}`;
+    const r = asked.request;
+    if (r?.profileId === actorId || r?.team?.memberIds.includes(actorId)) return `Your turn: ${kind}`;
+    if (r?.team) return `Waiting on ${r.team.name || 'the review team'} · ${kind}`;
+    const who = r?.profileId ?? r?.guest?.name;
+    return `Waiting on ${who ? name(who) : 'a reviewer'} · ${kind}`;
   }
   if (s.next) return `Next: ${stepName(kinds, s.next.step)}`;
   return `Version ${s.latest?.n ?? 1}`;
@@ -802,7 +913,7 @@ export function updatesFor(state: ProjectState, actorId: string, idx?: Indexes):
     const base = { unitId, laneId };
     for (const r of s.requests) {
       if (r.legacy) continue;
-      if (r.profileId === actorId && r.by !== actorId) out.push({ ...base, id: `request:${r.id}`, kind: 'request', by: r.by, hlc: r.hlc, request: r });
+      if ((r.profileId === actorId || r.team?.memberIds.includes(actorId)) && r.by !== actorId) out.push({ ...base, id: `request:${r.id}`, kind: 'request', by: r.by, hlc: r.hlc, request: r });
       if (r.by === actorId && r.status === 'done') {
         const doneBy = r.what === 'record' ? s.versions.find((v) => v.hlc > r.hlc) : s.reviews.find((x) => x.requestId === r.id || (x.kindId === r.kindId && x.hlc > r.hlc));
         if (doneBy && doneBy.by !== actorId) out.push({ ...base, id: `done:${r.id}`, kind: 'request_done', by: doneBy.by, hlc: doneBy.hlc, request: r });

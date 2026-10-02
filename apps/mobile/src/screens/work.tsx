@@ -17,13 +17,13 @@ import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Card, GhostBtn, Group, Header, Ico, Row, Screen, SectionLabel, Segments, ShowMore, SmallBtn, StepMarks, txt, type IconName
+  Card, GhostBtn, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SectionLabel, Segments, ShowMore, SmallBtn, StepMarks, txt, type IconName
 } from '../kit';
 import { dueText, feedbackSource, plural, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
-import { C, radius, space, TINT } from '../theme';
+import { C, radius, shadow, space, TINT } from '../theme';
 
 const FOR_YOU_CAP = 5;
 const WAITING_CAP = 3;
@@ -320,6 +320,44 @@ function AskCard(props: { icon: IconName; bg: string; fg: string; title: string;
   );
 }
 
+/**
+ * The first thing waiting on you, as one large card with one button (demo
+ * NextHighlight; Hick's law: the likely choice is the obvious one). The rest
+ * of For you follows as ordinary cards.
+ */
+function NextCard(props: { icon: IconName; bg: string; fg: string; title: string; sub: string; cta: string; onPress: () => void }) {
+  return (
+    <View style={styles.next}>
+      <Text style={[txt.label, { color: C.primary }]}>Next</Text>
+      <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
+        <View style={[styles.nextTile, { backgroundColor: props.bg }]}><Ico name={props.icon} size={28} color={props.fg} /></View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={txt.title}>{props.title}</Text>
+          <Text style={[txt.smMuted, { marginTop: 2 }]}>{props.sub}</Text>
+        </View>
+      </View>
+      <PrimaryBtn label={props.cta} icon={props.icon} onPress={props.onPress} />
+    </View>
+  );
+}
+
+/**
+ * Updates (demo bell): replaces the Inbox tab for people with a My Work. The
+ * count is what the Inbox tab used to show: unread updates and open reports.
+ */
+function Bell(props: { count: number; onPress: () => void }) {
+  return (
+    <View>
+      <IconBtn name="notif" label={props.count ? `Updates, ${props.count} new` : 'Updates'} onPress={props.onPress} />
+      {props.count > 0 ? (
+        <View pointerEvents="none" style={styles.bellBadge}>
+          <Text style={[txt.xsStrong, { color: C.white }]}>{props.count > 99 ? '99+' : props.count}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function UpNextCard(props: { icon: IconName; title: string; sub: string; action?: { label: string; onPress: () => void } }) {
   return (
     <Card>
@@ -369,7 +407,11 @@ export function MyWork(ctx: Ctx) {
   }, [state, actorId, canRecord, canReview, ctx.recent]);
 
   const orgName = ctx.org.state?.org?.value.name ?? state?.project?.value.name ?? '';
-  const header = <Header title="My Work" sub={orgName || undefined} action={<SyncChip {...ctx} />} />;
+  const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
+  const header = (
+    <Header title="My Work" sub={orgName || undefined}
+      action={<View style={styles.headerActions}><SyncChip {...ctx} />{bell}</View>} />
+  );
   if (!state || !lists) {
     return <Screen header={header}><Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xxl }]}>Loading your work…</Text></Screen>;
   }
@@ -445,9 +487,12 @@ export function MyWork(ctx: Ctx) {
             </Text>
           </View>
         </Card>
-      ) : shownForYou.map((h) => {
+      ) : shownForYou.map((h, i) => {
         const st = highlightStyle(h.kind);
         const t = highlightText(state, kinds, h, ctx.name);
+        if (i === 0) {
+          return <NextCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={withLanguage(h.laneId, t.sub)} onPress={() => openHighlight(h)} />;
+        }
         return <AskCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={withLanguage(h.laneId, t.sub)} onPress={() => openHighlight(h)} />;
       })}
       <ShowMore remaining={forYou.length - forYouShown} step={MORE_STEP} onMore={() => setForYouShown((n) => n + MORE_STEP)} />
@@ -490,6 +535,10 @@ export function MyWork(ctx: Ctx) {
 
 const styles = StyleSheet.create({
   ask: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 76, paddingVertical: space.md },
+  next: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1.5, borderColor: C.primary, padding: space.lg, gap: space.md, ...shadow },
+  nextTile: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
   tile: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   cta: { borderRadius: radius.full, paddingHorizontal: space.md, paddingVertical: space.sm },
   allSet: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: TINT.green, borderRadius: radius.xl, paddingLeft: space.lg, paddingRight: space.sm, paddingVertical: space.sm },

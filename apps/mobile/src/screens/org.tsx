@@ -1,6 +1,6 @@
 // Running the organization (Manage tab). Ports the demo's src/screens/org.tsx:
-// OrgHomeScreen, LanguageHomeScreen (with HomeSection, HomeCatalogRows,
-// HomeMemberRows, HomeProgressBars), MembersListScreen, InviteMemberScreen
+// OrgHomeScreen, LanguageHomeScreen (with HomeSection, HomePrimary,
+// HomeSetup, HomeProgressBars), MembersListScreen, InviteMemberScreen
 // (invite and edit), InviteQrScreen, ReviewTeamsScreen,
 // ReviewTeamEditorScreen and NewStructureItemScreen (new language).
 // Requirements ORG-1, ORG-2, ORG-5, ORG-6, ORG-7, NAV-6, FLOW-5; ADR-017
@@ -8,10 +8,10 @@
 // template, starting from the one its organization suggests). The demo's
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 34).
-import { CommandError, deriveFlow, emptyState, partitionOfLane, isMoreOpen, keyTermsFor, laneName, languageProgress, LICENSE_INFO, materialsFor, mayChangeLicense, libraryItemView, orgLicense, SEED_ROLES, type LanguageProgress, type License, type Role, type Scope, type ScopeLevel, type TemplateDoc } from '@langquest-next/core';
+import { CommandError, deriveFlow, emptyState, kindOf, partitionOfLane, isMoreOpen, keyTermsFor, laneName, languageProgress, LICENSE_INFO, materialsFor, mayChangeLicense, libraryItemView, orgLicense, SEED_ROLES, type LanguageProgress, type License, type Role, type Scope, type ScopeLevel, type EventSpec, type TemplateDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, Share, Text, View } from 'react-native';
+import { Share, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { choiceLine, laneTemplateOf, libraryChoices, STARTER_TEMPLATE } from '../contentTemplates';
 import type { Ctx } from '../ctx';
@@ -19,9 +19,10 @@ import { indexesFor } from '../indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import { signInUri } from '../inviteCode';
 import {
-  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row,
-  Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
+  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
+  Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
 } from '../kit';
+import { edgeFor } from '../flow';
 import { loadDocs } from '../library/docStore';
 import { sourceLine } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -37,8 +38,9 @@ import { languagesToList } from '../languages';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToPartition } from '../partitionWriter';
 import { contractsFor } from '../screenContracts';
+import { edgeAllowed } from '../session';
 import { supabase } from '../supabase';
-import { C, radius, space, tile, TINT, withAlpha } from '../theme';
+import { C, radius, space, tile, TINT } from '../theme';
 import { PersonAvatar, usePerson } from '../UserChip';
 
 /**
@@ -104,35 +106,27 @@ function laneParam(ctx: Ctx): string {
 
 // ---- level home building blocks ----------------------------------------------------------------
 
-/** A home section: label, a card of rows, and an add row. Open unless hidden (kept across Back). */
-function HomeSection(props: { ctx: Ctx; id: string; label: string; add?: { label: string; onPress: () => void }; children?: ReactNode }) {
-  const hidden = props.ctx.details(`home:${props.id}`);
+// Every home follows one shape (ADR-029; Hick's law, progressive
+// disclosure): one main button at the top, then what people open most (the
+// languages, then People), then everything set up once and rarely touched in
+// one collapsed "Setup" card, never nested deeper than that.
+
+/** A home section: label, a card of rows, and an add row. Always open (ADR-029). */
+function HomeSection(props: { label: string; add?: { label: string; onPress: () => void } | undefined; children?: ReactNode }) {
   return (
     <View>
-      <SectionLabel label={props.label} action={<SectionToggle section={props.label} expanded={!hidden.open} onToggle={hidden.onToggle} />} />
-      {hidden.open ? null : (
-        <Group>
-          {props.children}
-          {props.add ? <Row icon="plus" label={props.add.label} onPress={props.add.onPress} last /> : null}
-        </Group>
-      )}
+      <SectionLabel label={props.label} />
+      <Group>
+        {props.children}
+        {props.add ? <Row icon="plus" label={props.add.label} onPress={props.add.onPress} last /> : null}
+      </Group>
     </View>
   );
 }
 
-/**
- * Show / Hide beside a section label. A screen reader hears the section's
- * name and whether it is expanded, not a bare "Show". (kit's LinkBtn takes
- * no accessibility label or state yet; swap to it once it does.)
- */
-function SectionToggle(props: { section: string; expanded: boolean; onToggle: () => void }) {
-  return (
-    <Pressable onPress={props.onToggle} hitSlop={8} accessibilityRole="button" accessibilityState={{ expanded: props.expanded }}
-      accessibilityLabel={props.section} accessibilityHint={props.expanded ? 'Hides this section' : 'Shows this section'}
-      style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
-      <Text style={txt.link}>{props.expanded ? 'Hide' : 'Show'}</Text>
-    </Pressable>
-  );
+/** The one main button at the top of a home. */
+function HomePrimary(props: { label: string; icon: IconName; onPress: () => void }) {
+  return <PrimaryBtn label={props.label} icon={props.icon} onPress={props.onPress} />;
 }
 
 /** Demo HomeProgressBars: recorded and done, each with its count. */
@@ -156,10 +150,12 @@ function HomeProgressBars(props: { p: HomeProgress }) {
 type HomeId = 'org_home' | 'language_home';
 
 /**
- * Manage Content and Manage Processes (ORG-1): only the rows this person may
- * open, each saying what the languages under this home use.
+ * Setup (ORG-1, ADR-029): content templates, reference material, review
+ * flows, roles and the home's other set-once rows, together behind one tap.
+ * Only the rows this person may open, each saying what the languages under
+ * this home use. Open state is kept across Back.
  */
-function CatalogRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds: string[]; laneId?: string }) {
+function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds: string[]; laneId?: string; extra?: { label: string; rows: ReactNode } }) {
   const { ctx, laneIds } = props;
   const state = ctx.project.state;
   const can = ctx.session.can;
@@ -186,39 +182,38 @@ function CatalogRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds
   const templates = can('manage_templates');
   const reference = can('manage_reference');
   const flows = can('manage_flows');
-  const teams = props.from === 'language_home';
+  const open = ctx.details(`home:${props.from}:setup`);
+  const names = [templates && 'Content templates', reference && 'reference', flows && 'review flows', 'roles', props.extra?.label].filter(Boolean);
+  const summary = names.join(', ').replace(/^./, (c) => c.toUpperCase());
   return (
-    <>
-      {templates || reference ? (
-        <HomeSection ctx={ctx} id={`${props.from}:content`} label="Manage Content">
-          {templates ? <Row icon="template" label="Content Templates" sub={applied(counts.templates)} onPress={() => ctx.go('templates_home', params)} last={!reference} /> : null}
-          {reference ? <Row icon="book" label="Reference Material" onPress={() => ctx.go('reference_home', params)} last
-            sub={`${counts.study} study · ${counts.questions} question sets · ${counts.terms} key terms`} /> : null}
-        </HomeSection>
-      ) : null}
-      {flows || teams ? (
-        <HomeSection ctx={ctx} id={`${props.from}:process`} label="Manage Processes">
-          {flows ? <Row icon="flow" label="Review Flows" sub={applied(counts.flows)} onPress={() => ctx.go('flows_home', params)} last={!teams} /> : null}
-          {teams ? <Row icon="people" label="Review Teams" sub="Language reviewers grouped into teams" last
-            onPress={() => ctx.go('review_teams', { laneId: props.laneId ?? '' })} /> : null}
-        </HomeSection>
-      ) : null}
-    </>
+    <View style={{ paddingTop: space.md }}>
+      <Disclosure icon="settings" title="Setup" summary={summary} open={open.open} onToggle={open.onToggle}>
+        {templates ? <Row icon="template" label="Content Templates" sub={applied(counts.templates)} onPress={() => ctx.go('templates_home', params)} /> : null}
+        {reference ? <Row icon="book" label="Reference Material" onPress={() => ctx.go('reference_home', params)}
+          sub={`${counts.study} study · ${counts.questions} question sets · ${counts.terms} key terms`} /> : null}
+        {flows ? <Row icon="flow" label="Review Flows" sub={applied(counts.flows)} onPress={() => ctx.go('flows_home', params)} /> : null}
+        <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} at this level and above`} onPress={() => ctx.go('roles_home', params)}
+          last={!props.extra} />
+        {props.extra?.rows}
+      </Disclosure>
+    </View>
   );
 }
 
-/** Manage Members: roles visible here and who is assigned. */
-function MemberRows(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneId?: string }) {
+/** People: who is assigned here (Members), and on a language its review teams. */
+function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; laneId?: string }) {
   const { ctx } = props;
   const entries = useMemo(() => memberEntries(ctx.org.state, ctx.project.state, ctx.project.projectId), [ctx.org.state, ctx.project.state, ctx.project.projectId]);
   const here = membersAt(entries, props.level, ctx.project.projectId, props.laneId).length;
   const people = new Set(entries.map((e) => e.profileId)).size;
   const sub = props.level === 'lane' ? `${here} assigned at this language` : `${here} at org level · ${people} total`;
   const params = { level: props.level, ...(props.laneId ? { laneId: props.laneId } : {}) };
+  const teams = props.level === 'lane';
   return (
-    <HomeSection ctx={ctx} id={`${props.from}:members`} label="Manage Members">
-      <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} at this level and above`} onPress={() => ctx.go('roles_home', params)} />
-      <Row icon="people" label="Members" sub={sub} onPress={() => ctx.go('members_list', params)} last />
+    <HomeSection label="People">
+      <Row icon="people" label="Members" sub={sub} onPress={() => ctx.go('members_list', params)} last={!teams} />
+      {teams ? <Row icon="people" label="Review Teams" sub="Language reviewers grouped into teams" last
+        onPress={() => ctx.go('review_teams', { laneId: props.laneId ?? '' })} /> : null}
     </HomeSection>
   );
 }
@@ -246,6 +241,8 @@ export function OrgHome(ctx: Ctx) {
   if (!v.org || !v.state) return <Loading title="Organization" />;
   const mine = Object.values(v.org.members[ctx.session.actorId] ?? {}).find((m) => m.removed.value === false && m.scope.level === 'org');
   const memberCount = new Set(memberEntries(v.org, v.state, v.projectId).map((e) => e.profileId)).size;
+  // The demo's "Invite people" (gate assigner); a looked-after account may not invite (session.ts), so it asks both.
+  const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
   return (
     <Screen header={<Header title={v.orgName} />}>
       <Card>
@@ -261,7 +258,8 @@ export function OrgHome(ctx: Ctx) {
         </View>
         {v.lanes.length && v.orgProgress ? <HomeProgressBars p={v.orgProgress} /> : null}
       </Card>
-      <HomeSection ctx={ctx} id="org_home:languages" label="Manage Languages"
+      {canInvite ? <HomePrimary label="Invite people" icon="plus" onPress={() => ctx.go('invite_member', { level: 'org' })} /> : null}
+      <HomeSection label="Languages"
         add={ctx.session.can('manage_structure') ? { label: 'New language', onPress: () => ctx.go('new_language') } : undefined}>
         {v.lanes.length === 0 ? (
           <View style={{ padding: space.lg }}><Text style={txt.smMuted}>No languages yet. Add the first one your team will record.</Text></View>
@@ -275,9 +273,8 @@ export function OrgHome(ctx: Ctx) {
         })}
       </HomeSection>
       <ShowMore remaining={v.lanes.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
-      <CatalogRows ctx={ctx} from="org_home" level="org" laneIds={v.lanes} />
-      <MemberRows ctx={ctx} from="org_home" level="org" />
-      <LicenseSection ctx={ctx} />
+      <PeopleRows ctx={ctx} level="org" />
+      <HomeSetup ctx={ctx} from="org_home" level="org" laneIds={v.lanes} extra={{ label: 'license', rows: <LicenseSection ctx={ctx} /> }} />
     </Screen>
   );
 }
@@ -309,9 +306,7 @@ function LicenseSection(props: { ctx: Ctx }) {
   }
   return (
     <>
-      <HomeSection ctx={ctx} id="org_home:license" label="Who may use your work">
-        <LicenseRow license={current} onPress={() => setOpen(true)} last />
-      </HomeSection>
+      <LicenseRow license={current} onPress={() => setOpen(true)} last />
       <LicenseSheet visible={open} mode={may ? 'open' : 'view'} current={current} busy={busy}
         onClose={() => setOpen(false)} onConfirm={(l) => void openTo(l)} />
     </>
@@ -387,27 +382,13 @@ export function LanguageHome(ctx: Ctx) {
         <Text style={txt.xs}>Translator: {who} · Review flow: {deriveFlow(v.state, laneId).name} · Code {v.state.lanes[laneId]!.languoidId.toUpperCase()}</Text>
         <HomeProgressBars p={v.laneProgress(laneId) ?? { total: 0, recorded: 0, done: 0 }} />
       </Card>
-      <Card style={{ backgroundColor: C.primary, borderColor: C.primary }} accessibilityLabel="Passage map"
-        onPress={() => { ctx.setLane(laneId); ctx.go('map_home', { laneId }); }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: withAlpha(C.white, 0.18), alignItems: 'center', justifyContent: 'center' }}>
-            <Ico name="map" size={22} color={C.white} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[txt.body, { color: C.white, fontWeight: '700' }]}>Passage map</Text>
-            <Text style={[txt.xs, { color: withAlpha(C.white, 0.85) }]}>Every passage, where it stands, and what's next</Text>
-          </View>
-          <Ico name="right" size={22} color={C.white} />
-        </View>
-      </Card>
-      <CatalogRows ctx={ctx} from="language_home" level="lane" laneIds={[laneId]} laneId={laneId} />
-      <MemberRows ctx={ctx} from="language_home" level="lane" laneId={laneId} />
-      {listing.may ? (
-        <HomeSection ctx={ctx} id="language_home:discovery" label="Discovery">
+      <HomePrimary label="Open the passage map" icon="map" onPress={() => { ctx.setLane(laneId); ctx.go('map_home', { laneId }); }} />
+      <PeopleRows ctx={ctx} level="lane" laneId={laneId} />
+      <HomeSetup ctx={ctx} from="language_home" level="lane" laneIds={[laneId]} laneId={laneId}
+        {...(listing.may ? { extra: { label: 'public listing', rows: (
           <Row icon="globe" label="List publicly" sub="Share its name and progress only" last
             right={<Toggle label={`List ${name} publicly`} on={listing.listed} disabled={listing.busy} onToggle={() => void listing.set(!listing.listed)} />} />
-        </HomeSection>
-      ) : null}
+        ) } } : {})} />
       {listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null}
     </Screen>
   );
@@ -1030,7 +1011,7 @@ export function ReviewTeams(ctx: Ctx) {
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[txt.body, { fontWeight: '600' }]}>{t.name.value || 'Review team'}</Text>
-                <Text style={txt.xs}>{plural(people.length, 'member')}</Text>
+                <Text style={txt.xs}>{plural(people.length, 'member')}{t.kindId?.value && state ? ` · Usually ${kindOf(state, t.kindId.value).name}` : ''}</Text>
                 {people.length > 0 ? <Text style={txt.sm}>{people.map((id) => ctx.name(id)).join(', ')}</Text> : null}
               </View>
               {canManage ? <Ico name="right" size={22} color={C.muted} /> : null}
@@ -1051,6 +1032,13 @@ export function ReviewTeamEditor(ctx: Ctx) {
   const before = useMemo(() => (state && team ? teamMembers(state, teamId) : []), [state, team, teamId]);
   const [name, setName] = useState(team?.name.value ?? '');
   const [chosen, setChosen] = useState<string[]>(before);
+  const kindBefore = team?.kindId?.value ?? null;
+  const [kindId, setKindId] = useState<string | null>(kindBefore);
+  // The language's flow kinds, in flow order, plus the one already chosen if the flow dropped it.
+  const kindIds = useMemo(() => {
+    const ids = state ? deriveFlow(state, laneId).steps.flatMap((st) => st.kindIds) : [];
+    return [...new Set([...ids, ...(kindBefore ? [kindBefore] : [])])];
+  }, [state, laneId, kindBefore]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const eligible = useMemo(() => {
@@ -1066,9 +1054,16 @@ export function ReviewTeamEditor(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const plan = saveTeam(state, { commandId: Crypto.randomUUID(), teamId, laneId, name: title, members: chosen });
+      const commandId = Crypto.randomUUID();
+      const plan = saveTeam(state, { commandId, teamId, laneId, name: title, members: chosen });
+      // The kind it usually reviews (ADR-029): written only when it changed.
+      const kindSpec = (id: string, value: string | null): EventSpec => ({ id, type: 'v1.ReviewTeamKindSet', payload: { teamId, laneId, kindId: value } } as EventSpec);
+      const kindChanged = kindId !== kindBefore;
+      const specs = kindChanged ? [...plan.specs, kindSpec(`${commandId}:kind`, kindId)] : plan.specs;
+      const undoPlan = plan.undo;
+      const undo = undoPlan ? () => [...undoPlan(), ...(kindChanged ? [kindSpec(`${commandId}:undo:kind`, kindBefore)] : [])] : undefined;
       // ctx.act says "Not saved" and why; stay on the form to try again.
-      try { await ctx.act(plan.specs, `${title} saved · ${plural(chosen.length, 'person', 'people')}`, plan.undo ?? undefined); } catch { return; }
+      try { await ctx.act(specs, `${title} saved · ${plural(chosen.length, 'person', 'people')}`, undo); } catch { return; }
       ctx.back();
     } catch (e) {
       setError(failure('save review team', e));
@@ -1080,6 +1075,24 @@ export function ReviewTeamEditor(ctx: Ctx) {
     <Screen header={<Header title={name.trim() || (team ? team.name.value : 'New Review Team')} sub={team ? 'Review team' : 'New review team'} onBack={ctx.back} />}
       footer={<PrimaryBtn label="Save Team" disabled={!name.trim() || !ctx.session.can('manage_teams')} busy={busy} onPress={() => void save()} />}>
       <Field label="Team name" value={name} onChangeText={setName} placeholder="Team name" autoCapitalize="words" />
+      <SectionLabel label="Usually reviews" />
+      <Text style={txt.xs}>Send to … goes to this team for that kind of review. Anyone else can still be asked.</Text>
+      <Group>
+        {[null, ...kindIds].map((id, i, all) => {
+          const on = kindId === id;
+          return (
+            <Row key={id ?? 'any'} role="radio" selected={on} onPress={() => setKindId(id)} last={i === all.length - 1}
+              {...(id ? { leading: <KindIcon kindId={id} size={36} /> } : { icon: 'people' as const })}
+              label={id && state ? kindOf(state, id).name : 'Any kind'}
+              right={
+                <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: on ? C.primary : C.border,
+                  alignItems: 'center', justifyContent: 'center' }}>
+                  {on ? <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary }} /> : null}
+                </View>
+              } />
+          );
+        })}
+      </Group>
       <SectionLabel label={`Members · ${chosen.length}`} />
       <Text style={txt.xs}>Only members with Review privilege at this language can be added.</Text>
       {eligible.length === 0 ? (

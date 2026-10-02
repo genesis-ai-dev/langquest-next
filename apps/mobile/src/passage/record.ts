@@ -3,12 +3,14 @@
 // KindActionRow, describeEvent, the summaries, askPeopleFor). Screens in
 // `screens/passage.tsx` draw these; keeping them here lets tests hold the
 // words and the "who gets which button" rules without a renderer.
-// Requirements REC-1..8, ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020.
+// Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
+// ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
   feedbackIsMine, isCompleteState, KIND_STATE_LABEL, keyTermView, kindOfV1Step, membershipsOf, privilegesFor,
   privilegesOfFixedRole, scopeCovers, stepName,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
-  type Privilege, type ProjectState, type QuestionSpec, type RecordEntry, type ReviewView, type Role, type SourcedQuestion
+  type Privilege, type ProjectState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type Role, type SourcedQuestion,
+  type Version
 } from '@langquest-next/core';
 import type { IconName } from '../kit';
 import { HIDDEN_TEXT } from '../moderation';
@@ -26,16 +28,26 @@ export function pathLabel(name: string): string {
   return name.replace(/ (Check|Review|Approval)$/, '');
 }
 
-/** Who a request went to, as people say it: a teammate's name or the guest's. */
-export function requestee(r: { profileId?: string; guest?: { name: string } } | undefined, name: NameFn, lower = false): string {
+/** Is this request for the person looking: to them, or to a review team they're on (ADR-029)? */
+export type MineFn = (r: RequestView) => boolean;
+
+/** Without a team lookup, a request is someone's when it names them. */
+const namesMe = (me: string): MineFn => (r) => r.profileId === me;
+
+/** Who a request went to, as people say it: a teammate's name, a review team, or the guest's. */
+export function requestee(
+  r: { profileId?: string; guest?: { name: string }; teamId?: string } | undefined, name: NameFn, lower = false, teamName?: (teamId: string) => string | undefined
+): string {
   if (r?.profileId) return name(r.profileId, lower);
+  const team = r?.teamId ? teamName?.(r.teamId) : undefined;
+  if (team) return `the ${team} team`;
   return r?.guest?.name ?? (lower ? 'a reviewer' : 'A reviewer');
 }
 
 // ---- the hero (REC-1) ------------------------------------------------------------
 
 /** The hero's one-line answer to "where does this stand, and whose move is it?" */
-export function heroHeadline(p: PassageState, kinds: KindDef[], me: string, name: NameFn): string {
+export function heroHeadline(p: PassageState, kinds: KindDef[], me: string, name: NameFn, mine: MineFn = namesMe(me)): string {
   if (p.done) return 'Done';
   if (!p.recorded) return p.drafting ? 'Recording in progress' : 'Not started';
   if (p.awaitingResponse.length) {
@@ -47,7 +59,7 @@ export function heroHeadline(p: PassageState, kinds: KindDef[], me: string, name
   const open = next.kinds.filter((k) => !isCompleteState(k.state));
   const openName = open.map((k) => kindName(kinds, k.kindId)).join(' + ') || stepName(kinds, next.step);
   if (open.length && open.every((k) => k.state === 'asked')) {
-    if (open.some((k) => k.request?.profileId === me)) return `Your turn: ${openName}`;
+    if (open.some((k) => k.request && mine(k.request))) return `Your turn: ${openName}`;
     return `Waiting on ${[...new Set(open.map((k) => requestee(k.request, name, true)))].join(' and ')}`;
   }
   return `Next: ${openName}`;
@@ -86,9 +98,98 @@ export function stepSheetSub(s: FlowStepStatus, canAct: boolean): string {
   return `${together}${canAct ? 'Steps are a suggested order — you can do this now.' : 'Steps are a suggested order.'}`;
 }
 
+// ---- the journey: the path top to bottom, per version (REC-2, REC-2a, ADR-030) ---------
+
+/**
+ * The step that needs someone now, which the record opens on: the step whose
+ * feedback waits for an answer, else the suggested next step.
+ */
+export function currentStepId(p: PassageState): string | undefined {
+  const fb = p.awaitingResponse[0];
+  if (fb) return p.steps.find((st) => st.step.kindIds.includes(fb.kindId))?.step.id;
+  return p.recorded && !p.done ? p.next?.step.id : undefined;
+}
+
+/** Under the version's title: "Latest of 3", "Recorded", or "Older · 2 newer". */
+export function versionCaption(index: number, count: number): string {
+  if (index >= count - 1) return count > 1 ? `Latest of ${count}` : 'Recorded';
+  return `Older · ${count - index - 1} newer`;
+}
+
+/** The latest review of a kind on one version (by its number). */
+export function lastReviewOn(p: PassageState, kindId: string, versionN: number | undefined): ReviewView | undefined {
+  if (versionN === undefined) return undefined;
+  return [...p.reviews].reverse().find((r) => r.kindId === kindId && r.versionN === versionN);
+}
+
+/** Feedback on an earlier version that was revised into this one: the version's "Made after" chips. */
+export function madeAfter(p: PassageState, version: Pick<Version, 'takeId'>): ReviewView[] {
+  return p.reviews.filter((r) => r.response?.decision === 'revised' && r.response.revisedTakeId === version.takeId);
+}
+
+/** The version a review's answer recorded ("led to Version 3"), when it was revised. */
+export function ledTo(p: PassageState, r: Pick<ReviewView, 'response'>): Version | undefined {
+  if (r.response?.decision !== 'revised' || !r.response.revisedTakeId) return undefined;
+  return p.versions.find((v) => v.takeId === r.response?.revisedTakeId);
+}
+
+/** A step's dot when looking at an older version: what that version heard, nothing more. */
+export function oldStepState(reviews: (Pick<ReviewView, 'outcome' | 'response'> | undefined)[]): PathState {
+  if (reviews.length > 0 && reviews.every((r) => r && r.outcome !== 'needs_changes')) return 'complete';
+  if (reviews.some((r) => r?.outcome === 'needs_changes')) return reviews.some((r) => r?.response) ? 'answered' : 'attention';
+  return 'todo';
+}
+
+const capFirst = (s: string) => s.replace(/^./, (c) => c.toUpperCase());
+
+/** A closed step's one line on the latest version: each kind's state, and who when it has one kind. */
+export function stepSummary(s: FlowStepStatus, kinds: KindDef[], name: NameFn, teamName?: (teamId: string) => string | undefined): string {
+  if (s.lockedBy) return `Starts after the ${s.lockedBy} checkpoint`;
+  const one = s.kinds.length === 1;
+  return s.kinds.map((k) => {
+    const who = k.state === 'asked' && k.request ? requestee(k.request, name, false, teamName) : k.review ? feedbackSource(k.review, name) : '';
+    const label = k.state === 'asked' ? 'Waiting' : KIND_STATE_LABEL[k.state];
+    return `${one ? '' : `${pathLabel(kindName(kinds, k.kindId))}: `}${label}${who && one ? ` · ${who}` : ''}`;
+  }).join(' · ');
+}
+
+/** A closed step's one line on an older version: what each kind said of it. */
+export function oldStepSummary(kindIds: string[], reviews: (ReviewView | undefined)[], kinds: KindDef[]): string {
+  return kindIds.map((id, i) => {
+    const r = reviews[i];
+    const k = kinds.find((x) => x.id === id);
+    return `${kindIds.length > 1 ? `${pathLabel(kindName(kinds, id))}: ` : ''}${r ? capFirst(outcomeText(k, r.outcome)) : 'Not reviewed'}`;
+  }).join(' · ');
+}
+
+/** A kind's line in an open step on the latest version: its state, who, and which version they heard. */
+export function kindLineText(k: KindStatus, s: FlowStepStatus, p: PassageState, name: NameFn, teamName?: (teamId: string) => string | undefined): string {
+  const r = k.review;
+  switch (k.state) {
+    case 'asked': return `Waiting on ${requestee(k.request, name, true, teamName)}${k.request?.dueDate ? ` · ${dueText(k.request.dueDate)}` : ''}`;
+    case 'skipped': return `Set aside: ${k.departure?.reason ?? ''}`;
+    case 'locked': return `Starts after the ${s.lockedBy ?? 'checkpoint'} checkpoint`;
+    case 'todo': return 'Not yet';
+    default:
+      if (!r) return KIND_STATE_LABEL[k.state];
+      return `${KIND_STATE_LABEL[k.state]} · ${feedbackSource(r, name)}${r.versionN !== p.latest?.n ? ` on Version ${r.versionN}` : ''}`;
+  }
+}
+
+/** A kind's line in a step on an older version: what it said, and who. */
+export function oldKindLineText(r: ReviewView | undefined, kind: KindDef | undefined, name: NameFn): string {
+  if (!r) return 'Not reviewed on this version';
+  return `${capFirst(outcomeText(kind, r.outcome))} · ${feedbackSource(r, name)}`;
+}
+
+/** What a usual target is called on its button: "the Community team" or the person's name. */
+export function sendTargetLabel(t: { teamId: string; name: string } | { profileId: string }, name: NameFn): string {
+  return 'teamId' in t ? `the ${t.name} team` : name(t.profileId);
+}
+
 // ---- a kind's actions (REC-3) ------------------------------------------------------
 
-export type RowActionId = 'do' | 'ask' | 'log' | 'skip';
+export type RowActionId = 'do' | 'send' | 'ask' | 'log' | 'skip';
 export interface RowAction { id: RowActionId; label: string }
 
 export interface KindRowCan {
@@ -113,20 +214,31 @@ export interface KindRowActions {
 }
 
 /**
- * Every action a kind offers, all visible (REC-3). The main button depends
- * on who is looking: whoever recorded the latest version asks someone else;
- * a reviewer, or someone who was asked, does it now.
+ * Every action a kind offers (REC-3); the step sheet shows them all, the
+ * path's open step only the main one and More (ADR-029). The main button
+ * depends on who is looking: whoever recorded the latest version sends it
+ * to whoever usually does it (`sendTo`, "the Community team" or a name),
+ * with Send to someone else beside it, or asks someone when nobody usually
+ * does; a reviewer, or someone who was asked, does it now.
  */
-export function kindRowActions(o: { status: KindStatus; kind: KindDef; step: FlowStepStatus; can: KindRowCan; isAuthor: boolean; me: string }): KindRowActions {
+export function kindRowActions(o: {
+  status: KindStatus; kind: KindDef; step: FlowStepStatus; can: KindRowCan; isAuthor: boolean; me: string;
+  /** Who this kind usually goes to here, as the button says it. */
+  sendTo?: string;
+  mine?: MineFn;
+}): KindRowActions {
   const s = o.status.state;
-  const askedMe = s === 'asked' && o.status.request?.profileId === o.me;
+  const mine = o.mine ?? namesMe(o.me);
+  const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = o.step.step.checkpoint ? s === 'approved' : isCompleteState(s);
   const doIt: RowAction | undefined = o.can.review ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : 'Review it now' } : undefined;
-  const ask: RowAction | undefined = o.can.ask && s !== 'asked' ? { id: 'ask', label: s === 'addressed' ? 'Ask again' : 'Ask someone' } : undefined;
+  const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo ? { id: 'send', label: `Send to ${o.sendTo}` } : undefined;
+  const ask: RowAction | undefined = o.can.ask && s !== 'asked'
+    ? { id: 'ask', label: s === 'addressed' ? 'Ask again' : send ? 'Send to someone else' : 'Ask someone' } : undefined;
   const log: RowAction | undefined = o.can.log ? { id: 'log', label: 'Already happened' } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: 'Set aside' } : undefined;
-  const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? ask ?? doIt : doIt;
-  const second = s === 'asked' ? undefined : log;
+  const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
+  const second = s === 'asked' ? undefined : send && primary === send ? ask : log;
   const rest = [doIt, ask, log, skip].filter((a): a is RowAction => !!a && a !== primary && a !== second);
   return {
     actionable: !cleared && s !== 'locked' && s !== 'suggestions',
@@ -135,8 +247,12 @@ export function kindRowActions(o: { status: KindStatus; kind: KindDef; step: Flo
 }
 
 /** The line under a kind's name: its state, who, and the advice that goes with it. */
-export function kindRowSub(o: { status: KindStatus; kind: KindDef; step: FlowStepStatus; me: string; name: NameFn; checkedBy?: string; waitFor?: string }): string {
+export function kindRowSub(o: {
+  status: KindStatus; kind: KindDef; step: FlowStepStatus; me: string; name: NameFn; checkedBy?: string; waitFor?: string;
+  mine?: MineFn; teamName?: (teamId: string) => string | undefined;
+}): string {
   const { status, kind, step, name } = o;
+  const mine = o.mine ?? namesMe(o.me);
   const s = status.state;
   const req = status.request;
   const makes = kind.produces;
@@ -148,8 +264,8 @@ export function kindRowSub(o: { status: KindStatus; kind: KindDef; step: FlowSte
     return lower && who === 'You' ? 'you' : who;
   };
   if (s === 'asked') {
-    if (req?.profileId === o.me) return `${req.by ? name(req.by) : 'Someone'} asked you${due}`;
-    return `Waiting on ${requestee(req, name, true)}${req?.guest ? ` · by link over ${channelLabel(req.guest.channel)}` : ''}${due}`;
+    if (req && mine(req)) return `${req.by ? name(req.by) : 'Someone'} asked ${req.profileId ? 'you' : `your ${requestee(req, name, true, o.teamName).replace(/^the /, '')}`}${due}`;
+    return `Waiting on ${requestee(req, name, true, o.teamName)}${req?.guest ? ` · by link over ${channelLabel(req.guest.channel)}` : ''}${due}`;
   }
   if (s === 'skipped') return `Set aside: ${status.departure?.reason ?? ''}`;
   if (s === 'suggestions' && status.review) return `${source(status.review)} asked for changes`;
@@ -330,6 +446,13 @@ const ROLE_LABEL: Record<Role, string> = {
   owner: 'Organization Admin', coordinator: 'Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
 };
 
+/** Does this person hold `need` for the language: by their project role, or an org role whose scope covers it. */
+export function holdsIn(state: ProjectState, org: OrgState | null, profileId: string, target: { projectId: string; laneId: string }, need: Privilege): boolean {
+  const member = state.members[profileId];
+  if (member && !member.removed.value && privilegesOfFixedRole(member.role.value).has(need)) return true;
+  return !!org && privilegesFor(org, profileId, target).has(need);
+}
+
 export interface AskCandidate {
   profileId: string;
   /** Role name, and why they are suggested. */
@@ -377,11 +500,8 @@ export function askCandidates(
   const out: AskCandidate[] = [];
   for (const id of ids) {
     if (id === o.me) continue;
-    const privs = new Set<Privilege>();
+    if (!holdsIn(state, org, id, target, need)) continue;
     const member = state.members[id];
-    if (member && !member.removed.value) for (const p of privilegesOfFixedRole(member.role.value)) privs.add(p);
-    if (org) for (const p of privilegesFor(org, id, target)) privs.add(p);
-    if (!privs.has(need)) continue;
     const covering = org ? membershipsOf(org, id).find((m) => scopeCovers(m.scope, target) && org.roles[m.roleId.value] && !org.roles[m.roleId.value]!.retired) : undefined;
     const role = covering ? org!.roles[covering.roleId.value]!.name.value : member && !member.removed.value ? ROLE_LABEL[member.role.value] : 'Member';
     const why = onTeam.has(id) ? 'On the review team' : reviewedHere.has(id) ? 'Has done this here before' : '';

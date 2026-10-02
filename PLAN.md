@@ -171,6 +171,7 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.LaneTemplateSelected` / `v1.LaneFlowSelected` | laneId, templateId or flowId, catalogVersion | register per lane; the selector emits the implied `UnitAdded` / `WorkflowStepSet` with ids derived from the catalog (`fia@1/gen-p1`) |
 | `v1.WorkflowStepSet` / `v1.WorkflowStepRemoved` | stepId, laneId?, order, label?, role, teamId?, required, rule | register per step; removal is add-wins; lane steps override project steps override `config.workflow` |
 | `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` | teamId, laneId, name / teamId, profileId, member | register per team, register per (team, profile) |
+| `v1.ReviewTeamKindSet` | teamId, laneId, kindId (null = any kind) | register per team; the kind it usually reviews, so Send to … picks it (`usualTarget`) |
 | `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
 | `v1.ReviewCommentRecorded` | takeId, stepId, blobHash | grow-only per (take, step, actor) |
 | `v1.MaterialDefined` | materialId, kind, title, scope {laneId?, unitId?, stepId?}, templateRef? | grow-only (earliest wins); question sets from the catalog get `questions@1/<template>` ids |
@@ -183,6 +184,7 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins); a producing kind (back translation) records its cards as artifacts with outcome `recorded` |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, laneId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo; comply or explain |
 | `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, laneId, what (record, review), kindId?, profileId? or guest, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
+| `v2.RequestMade` | v1.RequestMade's fields plus teamId?; exactly one of profileId, guest, teamId | grow-only, sharing ids and `v1.RequestWithdrawn` with v1; a team request (a team in the same lane) is open to every member but the asker, and the first review of its kind closes it (`requestIsFor`) |
 | `v1.NoteAdded` | noteId, unitId, laneId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
 | `v1.StudyStepMarked` | unitId, laneId, guideId, stepId, done | register per (unit, lane, guide, step) |
 | `v1.LaneNamed` | laneId, name | register per lane |
@@ -413,8 +415,9 @@ short:
 
 Tokens are `apps/mobile/src/theme.ts` (the demo's `C` and `TINT`);
 primitives are `apps/mobile/src/kit.tsx`. `docs/ux/one-next-action.html`
-records the earlier task-first design (the VAD takeover it describes is
-still the recorder's full-screen mode).
+records the earlier task-first design. Recording now splits the screen with
+the source instead of taking it over (decisions.md 56). Each screen's main
+action, secondary actions and way back are in `docs/ux/screen-path.md`.
 
 ## 13. UX spec to event model
 

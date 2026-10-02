@@ -3,7 +3,8 @@
 // VersionDetailScreen (version_detail), ReviewDetailScreen (review_detail)
 // and AskSomeoneScreen (ask_someone).
 // Requirements CORE-1..11, REC-1..10, ASK-1..5; ADR-005, 007, 012, 013, 014,
-// 015, 016, 020, 021. Everything shown is derived from the event log
+// 015, 016, 020, 021, 029, 030 (the path top to bottom: passage/journey.tsx).
+// Everything shown is derived from the event log
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
 import {
@@ -12,22 +13,24 @@ import {
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { edgeFor, TITLES, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
-  NoteCard, PrimaryBtn, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt, type IconName
+  Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
+  NoteCard, PrimaryBtn, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt
 } from '../kit';
 import {
-  addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, describeEntry, DUE_CHOICES, dueError, feedbackNames, gridKindIds,
-  guestMessage, heroHeadline, historySummary, isoDay, kindRowActions, kindRowSub, laneState, nextQuestionType, pathLabel, pathState,
-  QUESTION_TYPE_LABEL, reviewMark, reviewsSummary, stepSheetSub, versionReviewsSummary, type EntryText, type KindRowCan, type PathState,
+  addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, DUE_CHOICES, dueError, feedbackNames,
+  gridKindIds, guestMessage, heroHeadline, historySummary, isoDay, kindRowActions, kindRowSub, nextQuestionType, QUESTION_TYPE_LABEL,
+  reviewMark, reviewsSummary, sendTargetLabel, stepSheetSub, versionReviewsSummary, type EntryText, type KindRowCan, type MineFn,
   type RowAction
 } from '../passage/record';
+import { Journey } from '../passage/journey';
+import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarget } from '../passage/sendTarget';
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
 import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
@@ -137,10 +140,13 @@ interface RecordCan extends KindRowCan {
   keep: boolean;
 }
 
+/** How far above the current step the record opens, so a little of the path above it shows. */
+const CURRENT_STEP_INSET = 96;
+
 /**
- * Everything that happened to a passage in one place: where it stands
- * against the language's flow (hero and path), the one suggested next step,
- * feedback that waits on its author, and the details on request.
+ * Everything that happened to a passage in one place: where it stands (the
+ * hero), the path top to bottom with the next step open in place and
+ * feedback at the step that gave it (ADR-030), and the details on request.
  */
 export function PassageRecord(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -149,14 +155,32 @@ export function PassageRecord(ctx: Ctx) {
   const [overriding, setOverriding] = useState<string | null>(null);
   const [keeping, setKeeping] = useState<string | null>(null);
   const [noting, setNoting] = useState(false);
+  const [more, setMore] = useState(false);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
+  // Which version the path shows: the latest unless someone flipped back (‹ ›, the dots, a swipe).
+  const versionCount = v?.p.versions.length ?? 0;
+  const [versionIdx, setVersionIdx] = useState(Math.max(0, versionCount - 1));
+  useEffect(() => { setVersionIdx(Math.max(0, versionCount - 1)); }, [v?.unitId, v?.laneId, versionCount]);
+  const scroll = useRef<ScrollView>(null);
+  const content = useRef<View>(null);
+  const scrolledFor = useRef<string | null>(null);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
+  const me = ctx.session.actorId;
+  const isAuthor = !!v?.p.latest && v.p.latest.by === me;
+  // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
+  const targets = useMemo(() => {
+    const out: Record<string, UsualTarget | undefined> = {};
+    if (!v || !isAuthor) return out;
+    for (const kindId of new Set(v.p.flow.steps.flatMap((st) => st.kindIds))) {
+      out[kindId] = usualTargetFor(v.state, ctx.org.state, { projectId: ctx.project.projectId, laneId: v.laneId, kindId, me });
+    }
+    return out;
+  }, [v?.state, v?.laneId, v?.p.flow, ctx.org.state, ctx.project.projectId, me, isAuthor]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
   const { p, kinds, unitId, laneId } = v;
-  const me = ctx.session.actorId;
   const s = ctx.session;
   const can: RecordCan = {
     record: canGo(ctx, 'passage_record', 'workspace'),
@@ -171,7 +195,8 @@ export function PassageRecord(ctx: Ctx) {
     keep: s.can('translate')
   };
   const params = { unitId, laneId };
-  const isAuthor = !!p.latest && p.latest.by === me;
+  const mine = requestIsMine(v.state, me);
+  const teamName = teamNameIn(v.state);
   const answersMine = can.record && can.keep && feedbackIsMine(p, me);
   const myDraft = p.drafting && p.draftBy === me;
   const fbKindIds = p.awaitingResponse.map((r) => r.kindId);
@@ -179,136 +204,170 @@ export function PassageRecord(ctx: Ctx) {
   const openStep = openStepId ? p.steps.find((st) => st.step.id === openStepId) : undefined;
   const anchor = (n: PassageNote) => anchorLabel(n, { state: v.state, p, guide });
   const describe = (e: (typeof timeline)[number]) => describeEntry(e, { p, kinds, name: ctx.name, anchor, guide, hidden: (id) => id !== me && ctx.blocks.has(id) });
+  const recordLabel = myDraft ? 'Continue recording' : 'Record a new version';
 
   /** Close the step sheet first; a second sheet waits until it has gone. */
   const afterSheet = (fn: () => void) => {
-    if (!openStepId) return fn();
+    if (!openStepId && !more) return fn();
     setOpenStepId(null);
+    setMore(false);
     setTimeout(fn, SHEET_GAP_MS);
   };
   const go = (to: ScreenId, extra: Record<string, string> = {}) => {
     setOpenStepId(null);
+    setMore(false);
     ctx.go(to, { ...params, ...extra });
+  };
+  /** One tap from the record: the kind goes to whoever usually does it, with Undo (ADR-029). */
+  const sendTo = (kindId: string) => {
+    const target = targets[kindId];
+    if (!target) return go('ask_someone', { what: 'review', kindId });
+    setOpenStepId(null);
+    const label = sendTargetLabel(target, ctx.name);
+    void perform(ctx, (c) => c.ask(sendToInput({ commandId: newId(), unitId, laneId, kindId, target })),
+      `Sent to ${label} — ${'teamId' in target ? 'anyone on it' : 'they'} will see it on My Work`,
+      (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
   };
   const onRowAction = (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => {
     const kind = v.kind(k.kindId);
     const request: Record<string, string> = askedMe && k.request ? { requestId: k.request.id } : {};
     if (a.id === 'do') go(kind.produces ? 'back_translation' : 'review_capture', { kindId: k.kindId, ...request });
+    if (a.id === 'send') sendTo(k.kindId);
     if (a.id === 'ask') go('ask_someone', { what: 'review', kindId: k.kindId });
     if (a.id === 'log') go('add_record', { kindId: k.kindId });
     if (a.id === 'skip') afterSheet(() => setSkipping({ kindId: k.kindId, stepId: step.step.id }));
   };
-  const kindRow = (k: KindStatus, step: FlowStepStatus, first: boolean) => (
-    <KindActionRow key={k.kindId} ctx={ctx} v={v} status={k} step={step} can={can} isAuthor={isAuthor} first={first}
-      {...(fbKindIds.length && !fbKindIds.includes(k.kindId) ? { waitFor: fbNames } : {})}
-      onAction={onRowAction} />
-  );
+  const target = (kindId: string) => targets[kindId];
+  const kindRow = (k: KindStatus, step: FlowStepStatus, first: boolean, compact: boolean) => {
+    const t = target(k.kindId);
+    return (
+      <KindActionRow key={k.kindId} ctx={ctx} v={v} status={k} step={step} can={can} isAuthor={isAuthor} first={first} compact={compact}
+        mine={mine} teamName={teamName} {...(t ? { sendTo: sendTargetLabel(t, ctx.name) } : {})}
+        {...(fbKindIds.length && !fbKindIds.includes(k.kindId) ? { waitFor: fbNames } : {})}
+        onAction={onRowAction} onMore={() => setOpenStepId(step.step.id)} />
+    );
+  };
+  /** Open where the work is: the current step, with the path above it to scroll back through (ADR-030, amended). */
+  const scrollToCurrent = (row: View) => {
+    const key = `${unitId}:${laneId}:${currentStepId(p) ?? ''}`;
+    const into = content.current;
+    if (scrolledFor.current === key || !into) return;
+    scrolledFor.current = key;
+    row.measureLayout(into, (_x, y) => scroll.current?.scrollTo({ y: Math.max(0, y - CURRENT_STEP_INSET), animated: false }));
+  };
 
   const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }),
     type === 'override' ? 'The checkpoint is back — later steps wait for it again'
       : type === 'keep' ? 'Undone — the feedback is waiting again' : "Brought back — it's a suggested step again");
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), 'Request withdrawn');
 
-  const footer = can.record && p.recorded && !answersMine ? (
-    p.done
-      ? <PrimaryBtn label={myDraft ? 'Continue recording' : 'New version'} icon="mic" onPress={() => go('workspace')} />
-      : <GhostBtn label={myDraft ? 'Continue recording' : 'New version'} icon="mic" onPress={() => go('workspace')} />
+  // Once every step is complete a new version is the one thing left to do; before that it waits under More (ADR-029).
+  const footer = can.record && p.recorded && p.done && !answersMine
+    ? <PrimaryBtn label={myDraft ? 'Continue recording' : 'New version'} icon="mic" onPress={() => go('workspace')} />
+    : undefined;
+  const moreAction = can.record && p.recorded && !p.done && !answersMine ? (
+    <Pressable onPress={() => setMore(true)} accessibilityRole="button" accessibilityLabel="More"
+      style={({ pressed }) => [styles.headerMore, pressed && { opacity: 0.6 }]}>
+      <Text style={[txt.sm, { fontWeight: '700' }]}>More</Text>
+      <Ico name="down" size={16} color={C.dark} />
+    </Pressable>
   ) : undefined;
 
   const showDetails = timeline.length > 0 || p.versions.length > 0 || !!study || can.note;
   const gridIds = gridKindIds(p);
   const flowLabel = p.flow.steps.length === 0 && !p.flow.flowId ? 'No review flow' : p.flow.name;
+  const latest = timeline[0];
 
   return (
-    <Screen header={<Header title={v.title} sub={`${v.lane} · ${flowLabel}`} onBack={ctx.back} />} footer={footer}>
-      <Hero ctx={ctx} v={v} {...(timeline[0] ? { latest: { text: describe(timeline[0]), hlc: timeline[0].hlc } } : {})}
-        canAct={can.ask || can.log || can.review} onOpenStep={setOpenStepId} />
+    <Screen fixed header={<Header title={v.title} sub={`${v.lane} · ${flowLabel}`} onBack={ctx.back} {...(moreAction ? { action: moreAction } : {})} />} footer={footer}>
+      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View ref={content} collapsable={false} style={{ gap: space.md }}>
+          <Card>
+            <Hero ctx={ctx} v={v} mine={mine} {...(latest ? { latest: { text: describe(latest), hlc: latest.hlc } } : {})} />
+            <Journey ctx={ctx} v={v} versionIdx={Math.min(versionIdx, Math.max(0, p.versions.length - 1))} onVersion={setVersionIdx}
+              canAct={can.ask || can.log || can.review} teamName={teamName}
+              onOpenStep={setOpenStepId} onCurrentLayout={scrollToCurrent}
+              onOpenVersion={(takeId) => go('version_detail', { takeId })} onOpenReview={(reviewId) => go('review_detail', { reviewId })}
+              feedbackSlot={(r) => answersMine ? (
+                <FeedbackToAnswer ctx={ctx} v={v} review={r}
+                  onOpen={() => go('review_detail', { reviewId: r.id })}
+                  onRevise={() => go('workspace', { reviewId: r.id })}
+                  onKeep={() => setKeeping(r.id)} />
+              ) : <WaitingOnAnswer ctx={ctx} v={v} review={r} onOpen={() => go('review_detail', { reviewId: r.id })} />}
+              nextSlot={(
+                <NextCard ctx={ctx} v={v} can={can} study={study} feedbackNames={fbNames} kindRow={kindRow}
+                  onRecord={() => go('workspace')} onStudy={() => go('study_guide')} onAskRecord={() => go('ask_someone', { what: 'record' })} />
+              )} />
+          </Card>
 
-      {p.awaitingResponse.map((r) => answersMine ? (
-        <FeedbackToAnswer key={r.id} ctx={ctx} v={v} review={r}
-          onOpen={() => go('review_detail', { reviewId: r.id })}
-          onRevise={() => go('workspace', { reviewId: r.id })}
-          onKeep={() => setKeeping(r.id)} />
-      ) : (
-        <Card key={r.id} onPress={() => go('review_detail', { reviewId: r.id })} style={styles.amberCard}
-          accessibilityLabel={`Waiting on ${p.latest ? ctx.name(p.latest.by, true) : 'the translator'}. Open the feedback`}>
-          <View style={styles.rowCenter}>
-            <Ico name="clock" size={20} color={TINT.amberText} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>
-                Waiting on {p.latest ? ctx.name(p.latest.by, true) : 'the translator'} to answer the {v.kind(r.kindId).name}
-              </Text>
-              <Text style={[txt.xs, { color: TINT.amberText, marginTop: 2 }]} numberOfLines={2}>
-                {feedbackSource(r, ctx.name)} asked for changes{r.comment ? `: ${authoredText(ctx, r.by, r.comment)}` : '.'}
-              </Text>
-            </View>
-            <Ico name="right" size={18} color={TINT.amberText} />
-          </View>
-        </Card>
-      ))}
-
-      <NextCard ctx={ctx} v={v} can={can} study={study} feedbackNames={fbNames} kindRow={kindRow}
-        onRecord={() => go('workspace')} onStudy={() => go('study_guide')} onAskRecord={() => go('ask_someone', { what: 'record' })}
-        onOverride={(stepId) => setOverriding(stepId)} />
-
-      {showDetails ? <SectionLabel label="Details" /> : null}
-      {study ? (
-        <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
-          summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
-          {...ctx.details(`passage:${unitId}:${laneId}:study`)}>
-          <StudyRows ctx={ctx} study={study} onOpen={(stepId) => go('study_step', { stepId })} />
-          <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
-        </Disclosure>
-      ) : null}
-      {p.versions.length > 0 && gridIds.length > 0 ? (
-        <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${laneId}:reviews`)}>
-          <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
-            onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
-        </Disclosure>
-      ) : null}
-      {timeline.length > 0 ? (
-        <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${laneId}:history`)}>
-          {timeline.slice(0, historyShown).map((e, i) => {
-            const t = describe(e);
-            let onPress: (() => void) | undefined;
-            let trailing: ReactNode = null;
-            if (e.type === 'version') onPress = () => go('version_detail', { takeId: e.version.takeId });
-            if (e.type === 'review' || e.type === 'response') onPress = () => go('review_detail', { reviewId: e.review.id });
-            if (e.type === 'study') onPress = () => go('study_step', { stepId: e.stepId });
-            if (e.type === 'departure' && !e.departure.undone && can.undo) {
-              trailing = <SmallBtn label="Undo" icon="undo" onPress={() => undoFromHistory(e.departure.id, e.departure.type)} />;
-            }
-            if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
-              trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
-            }
-            // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
-            // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
-            if (!trailing && e.type === 'note') {
-              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId, laneId)} size={36} />;
-            }
-            if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
-              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId, laneId)} size={36} />;
-            }
-            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
-          })}
-          <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
-            <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
-          </View>
-        </Disclosure>
-      ) : null}
-      {can.note ? (
-        <Group>
-          <Row icon="note" iconColor={TINT.amberText} iconBg={TINT.note} label="Add a note" sub="By voice or text. It follows this passage into reviews and later versions."
-            onPress={() => setNoting(true)} last />
-        </Group>
-      ) : null}
+          {showDetails ? <SectionLabel label="Details" /> : null}
+          {study ? (
+            <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
+              summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
+              {...ctx.details(`passage:${unitId}:${laneId}:study`)}>
+              <StudyRows ctx={ctx} study={study} onOpen={(stepId) => go('study_step', { stepId })} />
+              <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
+            </Disclosure>
+          ) : null}
+          {p.versions.length > 0 && gridIds.length > 0 ? (
+            <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${laneId}:reviews`)}>
+              <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
+                onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
+            </Disclosure>
+          ) : null}
+          {timeline.length > 0 ? (
+            <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${laneId}:history`)}>
+              {timeline.slice(0, historyShown).map((e, i) => {
+                const t = describe(e);
+                let onPress: (() => void) | undefined;
+                let trailing: ReactNode = null;
+                if (e.type === 'version') onPress = () => go('version_detail', { takeId: e.version.takeId });
+                if (e.type === 'review' || e.type === 'response') onPress = () => go('review_detail', { reviewId: e.review.id });
+                if (e.type === 'study') onPress = () => go('study_step', { stepId: e.stepId });
+                if (e.type === 'departure' && !e.departure.undone && can.undo) {
+                  trailing = <SmallBtn label="Undo" icon="undo" onPress={() => undoFromHistory(e.departure.id, e.departure.type)} />;
+                }
+                if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
+                  trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
+                }
+                // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
+                // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
+                if (!trailing && e.type === 'note') {
+                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId, laneId)} size={36} />;
+                }
+                if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
+                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId, laneId)} size={36} />;
+                }
+                return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
+              })}
+              <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
+                <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
+              </View>
+            </Disclosure>
+          ) : null}
+          {can.note ? (
+            <Group>
+              <Row icon="note" iconColor={TINT.amberText} iconBg={TINT.note} label="Add a note" sub="By voice or text. It follows this passage into reviews and later versions."
+                onPress={() => setNoting(true)} last />
+            </Group>
+          ) : null}
+        </View>
+      </ScrollView>
 
       {openStep ? (
         <Sheet visible title={stepName(kinds, openStep.step)} sub={stepSheetSub(openStep, can.ask || can.log || can.review)} onClose={() => setOpenStepId(null)}>
-          <Group>{openStep.kinds.map((k, i) => kindRow(k, openStep, i === 0))}</Group>
+          <Group>{openStep.kinds.map((k, i) => kindRow(k, openStep, i === 0, false))}</Group>
           {can.override && openStep.step.checkpoint && !openStep.complete && !openStep.override ? (
             <GhostBtn label="Move past this checkpoint…" tone="red" onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
           ) : null}
+        </Sheet>
+      ) : null}
+      {more ? (
+        <Sheet visible title="More" sub="Less common things to do with this passage." onClose={() => setMore(false)}>
+          <Group>
+            <Row icon="mic" label={recordLabel} sub="Reviews so far stay with the version they heard." onPress={() => go('workspace')} last />
+          </Group>
+          <Text style={txt.xs}>To ask someone else, say a step already happened, or set one aside, open that step on the path.</Text>
         </Sheet>
       ) : null}
       {skipping ? (
@@ -381,137 +440,35 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) 
   );
 }
 
-// ---- the hero and the step path (REC-1, REC-2) -----------------------------------------
+// ---- the hero (REC-1); the path itself is passage/journey.tsx (REC-2) --------------------
 
-function Hero(props: { ctx: Ctx; v: PassageView; latest?: { text: EntryText; hlc: string }; canAct: boolean; onOpenStep: (stepId: string) => void }) {
+function Hero(props: { ctx: Ctx; v: PassageView; mine: MineFn; latest?: { text: EntryText; hlc: string } }) {
   const { ctx, v } = props;
   const { p, kinds } = v;
   const tone = p.done ? C.green : p.awaitingResponse.length ? C.amber : C.primary;
   const cleared = p.steps.filter((st) => st.complete).length;
-  const focus = p.done ? p.steps.at(-1)?.step.id : p.next?.step.id;
-  const scroll = useRef<ScrollView>(null);
-  const width = useRef(0);
-  const target = useRef<{ x: number; w: number } | null>(null);
-  const reveal = () => {
-    const t = target.current;
-    if (t && width.current) scroll.current?.scrollTo({ x: Math.max(0, t.x + t.w - width.current + 8), animated: false });
-  };
   return (
-    <Card>
+    <View style={{ gap: space.xs, marginBottom: space.sm }}>
       <View style={styles.rowCenter}>
         <View style={[styles.toneDot, { backgroundColor: tone }]} />
-        <Text style={[txt.body, { fontWeight: '700', flex: 1 }]} accessibilityRole="header">{heroHeadline(p, kinds, ctx.session.actorId, ctx.name)}</Text>
+        <Text style={[txt.body, { fontWeight: '700', flex: 1 }]} accessibilityRole="header">
+          {heroHeadline(p, kinds, ctx.session.actorId, ctx.name, props.mine)}
+        </Text>
         {p.recorded && p.steps.length > 0 ? <Text style={txt.xsStrong}>{cleared} of {p.steps.length} done</Text> : null}
       </View>
       {props.latest ? (
-        <Text style={[txt.xs, { marginTop: -space.sm }]} numberOfLines={2}>
+        <Text style={txt.xs} numberOfLines={2}>
           Latest: {props.latest.text.title} · {props.latest.text.who} · {when(props.latest.hlc)}
         </Text>
       ) : null}
       {p.done && p.steps.length === 0 ? (
-        <Text style={[txt.xs, { marginTop: -space.sm }]}>This language collects recordings without reviews — recorded is done.</Text>
-      ) : null}
-      <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'flex-start', paddingVertical: 2 }}
-        onLayout={(e) => { width.current = e.nativeEvent.layout.width; reveal(); }}>
-        <View style={{ paddingTop: 7 }}>
-          <PathNode label="Recorded" state={p.recorded ? 'complete' : p.drafting ? 'current' : 'todo'} icon="mic" />
-        </View>
-        {p.steps.map((st, i) => {
-          const isNext = p.recorded && p.next?.step.id === st.step.id;
-          const lit = i === 0 ? p.recorded : !!p.steps[i - 1]?.complete;
-          return (
-            <View key={st.step.id} style={{ flexDirection: 'row', alignItems: 'flex-start' }}
-              onLayout={st.step.id === focus ? (e) => { target.current = { x: e.nativeEvent.layout.x, w: e.nativeEvent.layout.width }; reveal(); } : undefined}>
-              <View style={[styles.connector, { backgroundColor: lit ? C.primary : C.border }]} />
-              <Pressable onPress={() => props.onOpenStep(st.step.id)} accessibilityRole="button"
-                accessibilityLabel={`${stepName(kinds, st.step)}, options`} style={({ pressed }) => [styles.stepBox, pressed && { opacity: 0.7 }]}>
-                {st.kinds.length > 1
-                  ? <StepLanes v={v} step={st} isNext={isNext} />
-                  : <PathNode label={pathLabel(v.kind(st.step.kindIds[0] ?? '').name)} state={pathState(st, isNext)} checkpoint={st.step.checkpoint} override={!!st.override} />}
-                <Ico name="down" size={16} color={C.muted} />
-              </Pressable>
-            </View>
-          );
-        })}
-      </ScrollView>
-      {p.steps.length > 0 && props.canAct && !p.done ? (
-        <View style={[styles.rowCenter, { gap: 6, marginTop: -space.xs }]}>
-          <Ico name="help" size={14} color={C.muted} />
-          <Text style={[txt.xs, { flex: 1 }]}>Tap any step to ask someone, say it already happened, or set it aside.</Text>
-        </View>
-      ) : null}
-    </Card>
-  );
-}
-
-function PathNode(props: { label: string; state: PathState; icon?: IconName; checkpoint?: boolean; override?: boolean }) {
-  const dim = props.state === 'todo' || props.state === 'locked';
-  return (
-    <View style={styles.pathNode}>
-      <PathDot state={props.state} {...(props.icon ? { icon: props.icon } : {})} checkpoint={!!props.checkpoint} override={!!props.override} />
-      <Text style={[txt.xs, { fontWeight: '600', textAlign: 'center', color: dim ? C.muted : C.dark }]} numberOfLines={2}>{props.label}</Text>
-    </View>
-  );
-}
-
-const PATH_A11Y: Record<PathState, string> = {
-  complete: 'complete', answered: 'feedback answered', current: 'next', todo: 'to do', locked: 'locked', attention: 'needs attention', waiting: 'waiting'
-};
-
-/** A step's mark: colour and icon together (ADR-010); a lock for a checkpoint, a flag for an override. */
-function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean; override: boolean; size?: number }) {
-  const { state, checkpoint, override } = props;
-  const size = props.size ?? 36;
-  const px = (n: number) => Math.round((n * size) / 36);
-  const bg = state === 'complete' ? C.green : state === 'locked' ? TINT.gray : state === 'attention' ? TINT.amber : C.card;
-  const ring = state === 'current' || state === 'waiting' ? C.primary : state === 'attention' ? C.amber : state === 'answered' ? C.green
-    : state === 'todo' ? C.border : checkpoint && state !== 'complete' ? C.amber : 'transparent';
-  const halo = checkpoint ? (state === 'complete' ? withAlpha(C.green, 0.25) : withAlpha(C.amber, 0.31)) : 'transparent';
-  let mark: ReactNode = null;
-  if (state === 'complete') mark = <Ico name={override ? 'flag' : 'check'} size={px(18)} color={C.white} strokeWidth={3} />;
-  if (state === 'answered') mark = <Ico name="check" size={px(18)} color={C.green} strokeWidth={3} />;
-  if (state === 'locked') mark = <Ico name="lock" size={px(15)} color={C.faint} />;
-  if (state === 'current') mark = props.icon ? <Ico name={props.icon} size={px(16)} color={C.primary} /> : <View style={{ width: px(10), height: px(10), borderRadius: px(5), backgroundColor: C.primary }} />;
-  if (state === 'waiting') mark = <Ico name="clock" size={px(16)} color={C.primary} />;
-  if (state === 'attention') mark = <Ico name="chat" size={px(15)} color={TINT.amberText} />;
-  if (state === 'todo' && props.icon) mark = <Ico name={props.icon} size={px(15)} color={C.faint} />;
-  return (
-    <View accessibilityLabel={`${PATH_A11Y[state]}${checkpoint ? ', checkpoint' : ''}${override ? ', moved past' : ''}`}
-      style={{ padding: 2, borderRadius: size, borderWidth: 2, borderColor: halo }}>
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, borderWidth: 2, borderColor: ring, alignItems: 'center', justifyContent: 'center' }}>
-        {mark}
-      </View>
-      {checkpoint && !override ? (
-        <View style={[styles.checkpointBadge, { borderColor: state === 'complete' ? C.green : C.amber }]}>
-          <Ico name="lock" size={10} color={state === 'complete' ? C.green : C.amber} strokeWidth={2.6} />
-        </View>
+        <Text style={txt.xs}>This language collects recordings without reviews — recorded is done.</Text>
       ) : null}
     </View>
   );
 }
 
-/** A step with several kinds shows one lane per kind, so separate pieces of work never read as one review. */
-function StepLanes(props: { v: PassageView; step: FlowStepStatus; isNext: boolean }) {
-  const { step } = props;
-  return (
-    <View style={{ gap: 4, paddingHorizontal: 4, paddingTop: 2 }}>
-      {step.kinds.map((k) => {
-        const st = laneState(k, step, props.isNext);
-        return (
-          <View key={k.kindId} style={styles.rowCenter}>
-            <PathDot state={st} checkpoint={step.step.checkpoint} override={!!step.override} size={26} />
-            <Text style={[txt.xs, { fontWeight: '600', maxWidth: 90, color: st === 'todo' || st === 'locked' ? C.muted : C.dark }]} numberOfLines={2}>
-              {pathLabel(props.v.kind(k.kindId).name)}
-            </Text>
-          </View>
-        );
-      })}
-      <Text style={[txt.xs, { paddingLeft: 4 }]}>{step.kinds.length === 2 ? 'Either order' : 'Any order'}</Text>
-    </View>
-  );
-}
-
-// ---- the one next step (REC-4, REC-6, REC-7) -------------------------------------------
+// ---- the next step, in place on the path (REC-4, REC-6, REC-7; ADR-029) ------------------
 
 function NextCard(props: {
   ctx: Ctx;
@@ -519,11 +476,10 @@ function NextCard(props: {
   can: RecordCan;
   study: StudyProgress | null;
   feedbackNames: string;
-  kindRow: (k: KindStatus, step: FlowStepStatus, first: boolean) => ReactNode;
+  kindRow: (k: KindStatus, step: FlowStepStatus, first: boolean, compact: boolean) => ReactNode;
   onRecord: () => void;
   onStudy: () => void;
   onAskRecord: () => void;
-  onOverride: (stepId: string) => void;
 }) {
   const { ctx, v, can, study } = props;
   const { p, kinds } = v;
@@ -588,20 +544,16 @@ function NextCard(props: {
     );
   }
 
-  if (p.done) {
-    return (
-      <Banner icon="check" tone="green"
-        title={p.steps.length ? `Every step of ${p.flow.name} is complete.` : 'Recorded — nothing more is suggested.'} />
-    );
-  }
+  // Done: the path's Done stop and the footer say it.
+  if (p.done) return null;
 
   const next = p.next;
-  // Feedback waiting on an answer has its own card above; it isn't also a "next step".
+  // Feedback waiting on an answer shows above, in the same step; it isn't also a "next step".
   const rows = next?.kinds.filter((k) => k.state !== 'suggestions') ?? [];
   if (!next || rows.length === 0) return null;
 
   // Open feedback may change the recording, so the rest is best after its
-  // answer; tapping the step still offers everything (ADR-014).
+  // answer; the step's options still offer everything (ADR-014).
   if (props.feedbackNames) {
     const later = rows.filter((k) => !isCompleteState(k.state));
     if (later.length === 0) return null;
@@ -617,7 +569,7 @@ function NextCard(props: {
             <Text style={txt.xs}>
               After {author === me ? 'you answer' : `${author ? ctx.name(author, true) : 'the translator'} answers`} the {props.feedbackNames} feedback, so it's done on the version you keep.
               {asked.length > 0 ? ` ${askedNames.join(' and ')} ${asked.length === 1 && asked[0]?.request?.profileId !== me ? 'was' : 'were'} already asked.` : ''}
-              {' '}To start anyway, tap the step on the path.
+              {' '}To start anyway, use Options for this step.
             </Text>
           </View>
         </View>
@@ -627,28 +579,22 @@ function NextCard(props: {
 
   const waitingOn = p.steps.filter((st) => st.lockedBy).map((st) => stepName(kinds, st.step));
   return (
-    <View style={styles.nextCard}>
-      <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, gap: 6 }}>
-        <View style={styles.rowCenter}>
-          <Ico name="sparkle" size={16} color={C.primary} />
-          <Text style={[txt.label, { color: C.primary, flex: 1 }]}>Next step{rows.length > 1 ? ' · can happen together' : ''}</Text>
-          {next.step.checkpoint ? <Badge label="Checkpoint" tone="amber" /> : null}
-        </View>
-        {next.step.checkpoint && waitingOn.length > 0 ? (
-          <Text style={txt.xs}>{waitingOn.join(', ')} {waitingOn.length === 1 ? 'starts' : 'start'} once this says Looks good.</Text>
-        ) : null}
-      </View>
-      {rows.map((k) => props.kindRow(k, next, false))}
-      {can.override && next.step.checkpoint && !next.override ? (
-        <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.md }}>
-          <GhostBtn label="Move past this checkpoint…" tone="red" onPress={() => props.onOverride(next.step.id)} />
-        </View>
+    <View style={styles.inlineNext}>
+      {next.step.checkpoint && waitingOn.length > 0 ? (
+        <Text style={[txt.xs, { paddingHorizontal: space.lg, paddingBottom: space.sm }]}>
+          {waitingOn.join(', ')} {waitingOn.length === 1 ? 'starts' : 'start'} once this says Looks good.
+        </Text>
       ) : null}
+      {rows.map((k) => props.kindRow(k, next, false, true))}
     </View>
   );
 }
 
-/** One kind of review on a step: its state, who, and every action it offers (REC-3). */
+/**
+ * One kind of review on a step: its state, who, and its actions (REC-3). In
+ * the step sheet every action shows; on the path (`compact`) only the main
+ * button, and More opens the step sheet with the rest (ADR-029).
+ */
 function KindActionRow(props: {
   ctx: Ctx;
   v: PassageView;
@@ -658,17 +604,27 @@ function KindActionRow(props: {
   isAuthor: boolean;
   waitFor?: string;
   first: boolean;
+  compact: boolean;
+  mine: MineFn;
+  teamName: (teamId: string) => string | undefined;
+  /** Who this kind usually goes to, as its button says it ("the Community team"). */
+  sendTo?: string;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
+  onMore: () => void;
 }) {
   const { ctx, v, status, step } = props;
   const kind = v.kind(status.kindId);
   const me = ctx.session.actorId;
   const checkedBy = kind.produces ? v.kind(kind.produces.checkedBy).name : undefined;
-  const acts = kindRowActions({ status, kind, step, can: props.can, isAuthor: props.isAuthor, me });
-  const sub = kindRowSub({ status, kind, step, me, name: ctx.name, ...(checkedBy ? { checkedBy } : {}), ...(props.waitFor ? { waitFor: props.waitFor } : {}) });
+  const acts = kindRowActions({ status, kind, step, can: props.can, isAuthor: props.isAuthor, me, mine: props.mine, ...(props.sendTo ? { sendTo: props.sendTo } : {}) });
+  const sub = kindRowSub({
+    status, kind, step, me, name: ctx.name, mine: props.mine, teamName: props.teamName,
+    ...(checkedBy ? { checkedBy } : {}), ...(props.waitFor ? { waitFor: props.waitFor } : {})
+  });
   const btn = (a: RowAction, tone: 'primary' | 'plain') => (
     <SmallBtn label={a.label} tone={tone} onPress={() => props.onAction(a, status, step, acts.askedMe)} />
   );
+  const others = (acts.second ? 1 : 0) + acts.rest.length;
   return (
     <View style={[styles.kindRow, !props.first && styles.topBorder]}>
       <View style={styles.rowCenter}>
@@ -679,7 +635,17 @@ function KindActionRow(props: {
         </View>
         <View accessibilityLabel={KIND_STATE_LABEL[status.state]}><StateMark state={status.state} size={22} /></View>
       </View>
-      {acts.actionable && (acts.primary || acts.second || acts.rest.length) ? (
+      {acts.actionable && props.compact && (acts.primary || others > 0) ? (
+        <View style={styles.btnRow}>
+          {acts.primary ? <View style={{ flex: 1 }}>{btn(acts.primary, props.waitFor ? 'plain' : 'primary')}</View> : null}
+          {others > 0 ? (
+            <View style={acts.primary ? undefined : { flex: 1 }}>
+              <SmallBtn label={acts.primary ? 'More' : 'Options'} onPress={props.onMore} />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+      {acts.actionable && !props.compact && (acts.primary || acts.second || acts.rest.length) ? (
         <View style={{ gap: space.sm }}>
           {acts.primary || acts.second ? (
             <View style={styles.btnRow}>
@@ -725,6 +691,28 @@ function FeedbackToAnswer(props: { ctx: Ctx; v: PassageView; review: ReviewView;
       <View style={styles.btnRow}>
         <View style={{ flex: 1 }}><SmallBtn label="Keep it, say why" onPress={props.onKeep} /></View>
         <View style={{ flex: 1 }}><SmallBtn label="Record a fix" icon="mic" tone="primary" onPress={props.onRevise} /></View>
+      </View>
+    </Card>
+  );
+}
+
+/** The same feedback as everyone else sees it: whose answer it waits on. */
+function WaitingOnAnswer(props: { ctx: Ctx; v: PassageView; review: ReviewView; onOpen: () => void }) {
+  const { ctx, v, review: r } = props;
+  const author = v.p.latest ? ctx.name(v.p.latest.by, true) : 'the translator';
+  return (
+    <Card onPress={props.onOpen} style={styles.amberCard} accessibilityLabel={`Waiting on ${author}. Open the feedback`}>
+      <View style={styles.rowCenter}>
+        <Ico name="clock" size={20} color={TINT.amberText} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>
+            Waiting on {author} to answer the {v.kind(r.kindId).name}
+          </Text>
+          <Text style={[txt.xs, { color: TINT.amberText, marginTop: 2 }]} numberOfLines={2}>
+            {feedbackSource(r, ctx.name)} asked for changes{r.comment ? `: ${authoredText(ctx, r.by, r.comment)}` : '.'}
+          </Text>
+        </View>
+        <Ico name="right" size={18} color={TINT.amberText} />
       </View>
     </Card>
   );
@@ -1224,14 +1212,12 @@ const styles = StyleSheet.create({
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   btnRow: { flexDirection: 'row', gap: space.sm },
   toneDot: { width: 10, height: 10, borderRadius: 5 },
-  connector: { height: 2, width: 12, marginTop: 27 },
-  stepBox: { borderRadius: radius.lg, paddingTop: 6, paddingBottom: 4, paddingHorizontal: 2, alignItems: 'center', backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, minHeight: 48 },
-  pathNode: { alignItems: 'center', gap: 6, minWidth: 60, maxWidth: 88, paddingHorizontal: 2 },
-  checkpointBadge: { position: 'absolute', top: -2, right: -2, width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  body: { padding: space.lg, paddingBottom: space.xxl },
+  headerMore: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.bg },
+  inlineNext: { marginHorizontal: -space.lg, marginBottom: -space.lg, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
   amberCard: { backgroundColor: TINT.amber, borderColor: TINT.amber },
   dashedCard: { borderStyle: 'dashed', borderWidth: 1.5, shadowOpacity: 0, elevation: 0 },
   innerCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: C.card, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.md, minHeight: 48 },
-  nextCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
   kindRow: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md, backgroundColor: C.card },
   topBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   roundTile: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },

@@ -1,12 +1,12 @@
 {
  "screens": [
   "sign_in",
-  "terms_privacy",
-  "explore_home",
   "create_account",
-  "scan_qr",
+  "terms_privacy",
   "welcome",
   "vision",
+  "explore_home",
+  "scan_qr",
   "intent_chooser",
   "create_org",
   "request_access",
@@ -18,41 +18,41 @@
   "version_detail",
   "review_detail",
   "ask_someone",
-  "guest_review",
   "add_record",
   "study_guide",
   "study_step",
   "workspace",
   "review_capture",
   "back_translation",
-  "key_terms",
-  "key_term_detail",
-  "inbox_home",
-  "settings_home",
-  "profile_edit",
-  "org_switcher",
-  "sign_out_confirm",
+  "guest_review",
   "org_home",
-  "project_home",
-  "language_home",
   "new_project",
+  "project_home",
   "new_language",
+  "language_home",
+  "review_teams",
+  "review_team_editor",
   "members_list",
   "invite_member",
   "invite_qr",
   "edit_member",
   "roles_home",
   "role_editor",
-  "review_teams",
-  "review_team_editor",
-  "flows_home",
-  "flow_editor",
   "templates_home",
   "template_picker",
   "template_editor",
   "book_structure",
   "reference_home",
-  "material_editor"
+  "material_editor",
+  "key_terms",
+  "key_term_detail",
+  "flows_home",
+  "flow_editor",
+  "inbox_home",
+  "settings_home",
+  "profile_edit",
+  "org_switcher",
+  "sign_out_confirm"
  ],
  "edges": [
   {
@@ -872,7 +872,7 @@
    "to": "project_home",
    "mode": "push",
    "when": null,
-   "label": "tap project in Manage Projects"
+   "label": "tap project in Projects"
   },
   {
    "from": "org_home",
@@ -886,28 +886,28 @@
    "to": "roles_home",
    "mode": "push",
    "when": null,
-   "label": "tap Roles"
+   "label": "tap Setup, then Roles"
   },
   {
    "from": "org_home",
    "to": "templates_home",
    "mode": "push",
    "when": "manageTemplates",
-   "label": "tap Content Templates"
+   "label": "tap Setup, then Content Templates"
   },
   {
    "from": "org_home",
    "to": "reference_home",
    "mode": "push",
    "when": "manageReference",
-   "label": "tap Reference Material"
+   "label": "tap Setup, then Reference Material"
   },
   {
    "from": "org_home",
    "to": "flows_home",
    "mode": "push",
    "when": "manageFlows",
-   "label": "tap Review Flows"
+   "label": "tap Setup, then Review Flows"
   },
   {
    "from": "new_project",
@@ -928,7 +928,7 @@
    "to": "roles_home",
    "mode": "push",
    "when": null,
-   "label": "tap Roles"
+   "label": "tap Setup, then Roles"
   },
   {
    "from": "project_home",
@@ -942,7 +942,7 @@
    "to": "language_home",
    "mode": "push",
    "when": null,
-   "label": "tap language in Manage Languages"
+   "label": "tap language in Languages"
   },
   {
    "from": "project_home",
@@ -956,21 +956,21 @@
    "to": "templates_home",
    "mode": "push",
    "when": "manageTemplates",
-   "label": "tap Content Templates"
+   "label": "tap Setup, then Content Templates"
   },
   {
    "from": "project_home",
    "to": "reference_home",
    "mode": "push",
    "when": "manageReference",
-   "label": "tap Reference Material"
+   "label": "tap Setup, then Reference Material"
   },
   {
    "from": "project_home",
    "to": "flows_home",
    "mode": "push",
    "when": "manageFlows",
-   "label": "tap Review Flows"
+   "label": "tap Setup, then Review Flows"
   },
   {
    "from": "new_language",
@@ -991,7 +991,7 @@
    "to": "roles_home",
    "mode": "push",
    "when": null,
-   "label": "tap Roles"
+   "label": "tap Setup, then Roles"
   },
   {
    "from": "language_home",
@@ -1019,21 +1019,21 @@
    "to": "templates_home",
    "mode": "push",
    "when": "manageTemplates",
-   "label": "tap Content Templates"
+   "label": "tap Setup, then Content Templates"
   },
   {
    "from": "language_home",
    "to": "reference_home",
    "mode": "push",
    "when": "manageReference",
-   "label": "tap Reference Material"
+   "label": "tap Setup, then Reference Material"
   },
   {
    "from": "language_home",
    "to": "flows_home",
    "mode": "push",
    "when": "manageFlows",
-   "label": "tap Review Flows"
+   "label": "tap Setup, then Review Flows"
   },
   {
    "from": "review_teams",
@@ -1055,6 +1055,20 @@
    "mode": "push",
    "when": null,
    "label": "tap Invite"
+  },
+  {
+   "from": "org_home",
+   "to": "invite_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Invite people"
+  },
+  {
+   "from": "project_home",
+   "to": "invite_member",
+   "mode": "push",
+   "when": "assigner",
+   "label": "tap Invite people"
   },
   {
    "from": "members_list",
@@ -1279,6 +1293,13 @@
    "mode": "push",
    "when": null,
    "label": "tap update about a passage"
+  },
+  {
+   "from": "my_work",
+   "to": "inbox_home",
+   "mode": "push",
+   "when": null,
+   "label": "tap the bell (updates)"
   },
   {
    "from": "settings_home",

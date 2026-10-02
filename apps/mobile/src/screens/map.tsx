@@ -23,7 +23,7 @@ import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import { languagesToList } from '../languages';
 import {
-  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn,
+  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
   StepMarks, txt, useLayout, useOpenDetail
 } from '../kit';
 import { chapterColumns } from '../layout';
@@ -149,14 +149,31 @@ function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e:
   );
 }
 
+/**
+ * One "Filter" chip (MAP-3, ADR-029); the status chips open under it on
+ * request (progressive disclosure), and picking one folds them away again.
+ * With a filter set, the chip names it and an ✕ beside it clears it.
+ */
 function FilterChips(props: { filter: MapFilter; counts: Record<MapFilter, number>; onFilter: (f: MapFilter) => void }) {
+  const [open, setOpen] = useState(false);
+  const active = props.filter !== 'all' ? MAP_FILTERS.find((f) => f.id === props.filter) : undefined;
   return (
-    <ChipRow>
-      {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
-        <Chip key={f.id} label={f.label} on={props.filter === f.id} onPress={() => props.onFilter(f.id)}
-          {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
-      ))}
-    </ChipRow>
+    <View style={{ gap: space.sm }}>
+      <View style={styles.filterBar}>
+        <Chip icon="filter" label={active ? active.label : 'Filter'} on={!!active} onPress={() => setOpen((o) => !o)}
+          {...(active ? { count: props.counts[active.id] } : {})}
+          accessibilityLabel={`${active ? `Filter: ${active.label}` : 'Filter'}. ${open ? 'Hides' : 'Shows'} the choices`} />
+        {active && !open ? <IconBtn name="close" label="Clear filter" bg={C.card} onPress={() => props.onFilter('all')} /> : null}
+      </View>
+      {open ? (
+        <View style={styles.filterChoices}>
+          {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
+            <Chip key={f.id} label={f.label} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); setOpen(false); }}
+              {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -672,7 +689,14 @@ export function BookMap(ctx: Ctx) {
   const header = (
     <Header title={title} crumbs={crumbs} onBack={ctx.back}
       sub={`${lane ? `${lane} · ` : ''}${fmt(recordedCount)} of ${fmt(entries.length)} recorded`}
-      action={canEdit ? <SmallBtn icon="cut" label="Edit passages" onPress={() => ctx.go('book_structure', { laneId: laneId ?? '', bookId })} /> : undefined} />
+      action={canEdit ? (
+        // Quieter than the page's work (ADR-029): shaping a book is rare, so it reads as a muted link, still 48pt.
+        <Pressable onPress={() => ctx.go('book_structure', { laneId: laneId ?? '', bookId })} accessibilityRole="button" accessibilityLabel="Edit passages"
+          style={({ pressed }) => [styles.quietAction, pressed && { opacity: 0.6 }]}>
+          <Ico name="cut" size={18} color={C.muted} />
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '500' }]}>Edit passages</Text>
+        </Pressable>
+      ) : undefined} />
   );
   if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
   if (!laneId || (!book && bookId !== OTHER)) {
@@ -737,6 +761,9 @@ export function BookMap(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
+  filterBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  filterChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  quietAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.sm },
   disc: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   discDot: { position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white },
   iconCount: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
