@@ -12,9 +12,9 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
 } from 'lucide-react-native';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -96,7 +96,7 @@ export function Screen(props: {
   const hasFooter = !!props.footer;
   useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardSafe style={styles.screen}>
       {props.header}
       {props.fixed ? (
         <View style={[{ flex: 1 }, wide && styles.column, props.bodyStyle]}>{props.children}</View>
@@ -111,7 +111,44 @@ export function Screen(props: {
           {wide ? <View style={styles.column}><View style={styles.footerActions}>{props.footer}</View></View> : props.footer}
         </View>
       ) : null}
-    </KeyboardAvoidingView>
+    </KeyboardSafe>
+  );
+}
+
+/**
+ * Keeps its contents above the on-screen keyboard. iOS keeps the
+ * KeyboardAvoidingView it always had. Android draws edge to edge (Expo
+ * 54 on), so the window no longer shrinks for the keyboard and the
+ * footer and lower fields sat under it: here the view measures where it
+ * is on screen when the keyboard opens and pads its bottom by the part
+ * the keyboard covers. Re-measured on layout, so a window that does
+ * shrink is not padded twice.
+ */
+function KeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  if (Platform.OS !== 'android') {
+    return <KeyboardAvoidingView style={props.style} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{props.children}</KeyboardAvoidingView>;
+  }
+  return <AndroidKeyboardSafe {...props} />;
+}
+
+function AndroidKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  const view = useRef<View>(null);
+  const keyboardTop = useRef<number | null>(null);
+  const [covered, setCovered] = useState(0);
+  const remeasure = () => {
+    const top = keyboardTop.current;
+    if (top === null) { setCovered(0); return; }
+    view.current?.measureInWindow((_x, y, _w, h) => setCovered(Math.max(0, Math.round(y + h - top))));
+  };
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => { keyboardTop.current = e.endCoordinates.screenY; remeasure(); });
+    const hide = Keyboard.addListener('keyboardDidHide', () => { keyboardTop.current = null; setCovered(0); });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  return (
+    <View ref={view} style={[props.style, covered ? { paddingBottom: covered } : null]} onLayout={remeasure}>
+      {props.children}
+    </View>
   );
 }
 
@@ -560,7 +597,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
   const wide = useLayout().kind !== 'phone';
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
-      <KeyboardAvoidingView style={[{ flex: 1 }, wide && styles.dialogFrame]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel="Close" />
         <View style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           {wide ? null : <View style={styles.sheetGrip} />}
@@ -576,7 +613,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
           </ScrollView>
           {props.footer ? <View style={{ paddingHorizontal: space.xl, gap: space.sm }}>{props.footer}</View> : null}
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </Modal>
   );
 }
