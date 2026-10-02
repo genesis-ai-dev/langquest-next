@@ -1,7 +1,7 @@
 // The one way to show a person: avatar + name, tap for name and full id.
 // Names are not unique and can change, so the id is always one tap away.
 import { createContext, useContext, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { personLook, type PersonLook } from './people';
 import { txt } from './kit';
@@ -21,11 +21,20 @@ const SHAPE_POINTS = {
   hexagon: '6,2 18,2 23,12 18,22 6,22 1,12'
 } as const;
 
+/**
+ * Decorative: the name beside it is what a screen reader reads. The native
+ * props would reach the DOM on web as unknown attributes, so web hides it
+ * the DOM's own way.
+ */
+const HIDDEN = Platform.OS === 'web'
+  ? { 'aria-hidden': true }
+  : { accessibilityElementsHidden: true, importantForAccessibility: 'no' as const };
+
 export function PersonAvatar(props: { look: PersonLook; size?: number }) {
   const { look } = props;
   const size = props.size ?? 20;
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no">
+    <Svg width={size} height={size} viewBox="0 0 24 24" {...HIDDEN}>
       {look.shape === 'circle' ? <Circle cx={12} cy={12} r={11} fill={look.color} />
         : look.shape === 'square' ? <Rect x={2} y={2} width={20} height={20} rx={4} fill={look.color} />
         : <Polygon points={SHAPE_POINTS[look.shape]} fill={look.color} />}
