@@ -2,7 +2,8 @@
 // screens/shared.tsx): answer inputs for Yes/No, 1–5 and text questions
 // (REV-2), the question list with "Can't answer this?", earlier reviews that
 // play in place, the content a checking kind compares against (REV-5), the
-// background a reviewer opens on request (REV-1, ADR-013), and the
+// background a reviewer opens on request as one collapsed card (REV-1,
+// ADR-013, ADR-029), the strip of review stages (REV-0), and the
 // "Also covered in this session" picker for a review that already happened
 // (REV-6, ADR-028). Built from kit.tsx only.
 import type { KindDef, KeyTermView, PassageNote, RequestView, ReviewView, SourcedQuestion, Version } from '@langquest-next/core';
@@ -11,15 +12,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import {
-  Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt
+  Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt, useLayout
 } from '../kit';
 import { dueText, feedbackSource, outcomeText, plural, versionTitle, when } from '../passageView';
 import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
-import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { questionSource, searchPassages, nearbyPassages, type Answers, type PassageChoice, type Skips } from './capture';
+import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../theme';
+import { questionSource, searchPassages, nearbyPassages, summaryLine, type Answers, type PassageChoice, type Skips, type Stage, type StageId } from './capture';
 
 // ---- answers --------------------------------------------------------------------------
 
@@ -224,28 +225,26 @@ function EarlierReview(props: { ctx: Ctx; review: ReviewView; kind: KindDef | un
 
 const EARLIER_STEP = 5;
 
-export function EarlierReviews(props: { ctx: Ctx; detailsKey: string; reviews: ReviewView[]; kind: (id: string) => KindDef }) {
+function EarlierReviewsPart(props: { ctx: Ctx; reviews: ReviewView[]; kind: (id: string) => KindDef }) {
   const [shown, setShown] = useState(EARLIER_STEP);
-  const d = props.ctx.details(props.detailsKey);
-  if (props.reviews.length === 0) return null;
   const names = [...new Set(props.reviews.map((r) => props.kind(r.kindId).name))];
   const list = props.reviews.slice(0, shown);
   return (
-    <Disclosure icon="chat" title="Earlier reviews" summary={`${props.reviews.length} · ${names.join(', ')}`} open={d.open} onToggle={d.onToggle}>
+    <View>
+      <PartLabel label={`Earlier reviews · ${names.join(', ')}`} />
       {list.map((r, i) => <EarlierReview key={r.id} ctx={props.ctx} review={r} kind={props.kind(r.kindId)} last={i === list.length - 1} />)}
       {props.reviews.length > shown ? (
         <View style={{ padding: space.md }}>
           <ShowMore remaining={props.reviews.length - shown} step={EARLIER_STEP} onMore={() => setShown((n) => n + EARLIER_STEP)} />
         </View>
       ) : null}
-    </Disclosure>
+    </View>
   );
 }
 
 /** Notes and key terms the translator left (REV-1). */
-export function FromTranslator(props: {
+function FromTranslatorPart(props: {
   ctx: Ctx;
-  detailsKey: string;
   terms: KeyTermView[];
   notes: PassageNote[];
   anchor: (n: PassageNote) => string;
@@ -253,52 +252,131 @@ export function FromTranslator(props: {
   onOpenTerm: (termId: string) => void;
 }) {
   const [shown, setShown] = useState(EARLIER_STEP);
-  const d = props.ctx.details(props.detailsKey);
-  if (props.terms.length === 0 && props.notes.length === 0) return null;
   const notes = props.notes.slice(0, shown);
   return (
-    <Disclosure icon="book" title="From the translator" summary={`${plural(props.terms.length, 'term')} · ${plural(props.notes.length, 'note')}`} open={d.open} onToggle={d.onToggle}>
-      <View style={{ padding: space.lg, gap: space.sm }}>
-        {props.terms.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-            {props.terms.map((t) => {
-              const rendering = t.renderings.at(-1)?.rendering;
-              return <Chip key={t.termId} icon="book" label={`${t.term}${rendering ? ` · ${rendering}` : ''}`} on={false} onPress={() => props.onOpenTerm(t.termId)} />;
-            })}
-          </View>
-        ) : null}
-        {notes.map((n) => {
-          const older = props.olderVersion(n);
-          return (
-            <Authored key={n.id} ctx={props.ctx} by={n.by}>
-              <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
-                {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-                {...(n.blobHash ? { audio: <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play note" /> } : {})}
-                action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
-            </Authored>
-          );
-        })}
-        {props.notes.length > shown ? <ShowMore remaining={props.notes.length - shown} step={EARLIER_STEP} onMore={() => setShown((x) => x + EARLIER_STEP)} /> : null}
-      </View>
-    </Disclosure>
+    <View style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm }}>
+      <PartLabel label="From the translator" inset={false} />
+      {props.terms.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          {props.terms.map((t) => {
+            const rendering = t.renderings.at(-1)?.rendering;
+            return <Chip key={t.termId} icon="book" label={`${t.term}${rendering ? ` · ${rendering}` : ''}`} on={false} onPress={() => props.onOpenTerm(t.termId)} />;
+          })}
+        </View>
+      ) : null}
+      {notes.map((n) => {
+        const older = props.olderVersion(n);
+        return (
+          <Authored key={n.id} ctx={props.ctx} by={n.by}>
+            <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
+              {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
+              {...(n.blobHash ? { audio: <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play note" /> } : {})}
+              action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+          </Authored>
+        );
+      })}
+      {props.notes.length > shown ? <ShowMore remaining={props.notes.length - shown} step={EARLIER_STEP} onMore={() => setShown((x) => x + EARLIER_STEP)} /> : null}
+    </View>
   );
 }
 
 /** The team's study of the passage (FIA): evidence it was studied before drafting (ADR-018). */
-export function TeamStudy(props: { ctx: Ctx; detailsKey: string; study: StudyProgress; onOpenStep: (stepId: string) => void; onOpenStudy: () => void }) {
-  const d = props.ctx.details(props.detailsKey);
+function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenStep: (stepId: string) => void; onOpenStudy: () => void }) {
   const s = props.study;
   const started = s.doneCount > 0 || s.noteCount > 0;
   return (
-    <Disclosure icon="sparkle" title="The team's study" summary={`${s.guide.pattern} · ${started ? studySummary(s) : 'not started'}`} open={d.open} onToggle={d.onToggle}>
-      <Text style={[txt.smMuted, { paddingHorizontal: space.lg, paddingTop: space.md }]}>
-        What the team worked through before drafting, and what they said. Tap a step to see their answers and notes in place.
+    <View>
+      <PartLabel label={`The team's study · ${s.guide.pattern}`} />
+      <Text style={[txt.smMuted, { paddingHorizontal: space.lg }]}>
+        {started ? studySummary(s) : 'Not started'}. What the team worked through before drafting, and what they said. Tap a step to see their answers and notes in place.
       </Text>
       {s.steps.map((st) => (
         <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpenStep(st.step.id)} />
       ))}
       <Row icon="sparkle" label="Open the study" onPress={props.onOpenStudy} last />
+    </View>
+  );
+}
+
+/** A part's small heading inside Background. */
+function PartLabel(props: { label: string; inset?: boolean }) {
+  return <Text style={[txt.label, { paddingTop: space.lg, paddingBottom: space.sm }, props.inset !== false && { paddingHorizontal: space.lg }]}>{props.label}</Text>;
+}
+
+/**
+ * Everything a reviewer may open for background, as one collapsed card
+ * (REV-1, ADR-029): notes and key terms from the translator, the team's
+ * study, earlier reviews. Nothing to show, nothing drawn. A kind that
+ * withholds context shows WithheldNotice instead (REV-4).
+ */
+export function Background(props: {
+  ctx: Ctx;
+  detailsKey: string;
+  terms: KeyTermView[];
+  notes: PassageNote[];
+  anchor: (n: PassageNote) => string;
+  olderVersion: (n: PassageNote) => string | undefined;
+  onOpenTerm: (termId: string) => void;
+  study: StudyProgress | null;
+  onOpenStep: (stepId: string) => void;
+  onOpenStudy: () => void;
+  reviews: ReviewView[];
+  kind: (id: string) => KindDef;
+}) {
+  const d = props.ctx.details(props.detailsKey);
+  const fromTranslator = props.terms.length > 0 || props.notes.length > 0;
+  if (!fromTranslator && !props.study && props.reviews.length === 0) return null;
+  const summary = summaryLine([
+    fromTranslator && `${plural(props.terms.length, 'term')} · ${plural(props.notes.length, 'note')}`,
+    props.study && "the team's study",
+    props.reviews.length > 0 && plural(props.reviews.length, 'earlier review')
+  ]);
+  const parts: ReactNode[] = [];
+  if (fromTranslator) {
+    parts.push(<FromTranslatorPart key="translator" ctx={props.ctx} terms={props.terms} notes={props.notes}
+      anchor={props.anchor} olderVersion={props.olderVersion} onOpenTerm={props.onOpenTerm} />);
+  }
+  if (props.study) parts.push(<TeamStudyPart key="study" ctx={props.ctx} study={props.study} onOpenStep={props.onOpenStep} onOpenStudy={props.onOpenStudy} />);
+  if (props.reviews.length > 0) parts.push(<EarlierReviewsPart key="earlier" ctx={props.ctx} reviews={props.reviews} kind={props.kind} />);
+  return (
+    <Disclosure icon="book" title="Background" summary={summary} open={d.open} onToggle={d.onToggle}>
+      {parts.map((part, i) => <View key={i} style={i > 0 ? styles.partTop : null}>{part}</View>)}
     </Disclosure>
+  );
+}
+
+// ---- stages (REV-0, ADR-029) ------------------------------------------------------------------
+
+/**
+ * Where you are in the review, under the header: the current stage is
+ * highlighted, earlier ones go back with a tap, later ones wait for the
+ * footer's main button. Kit has no stage strip yet, so it is drawn here
+ * from theme tokens; every stage is a 48pt target.
+ */
+export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: StageId) => void }) {
+  const wide = useLayout().kind !== 'phone';
+  return (
+    <View style={styles.strip}>
+      <View style={[styles.stripRow, wide && { maxWidth: measure.column, alignSelf: 'center', width: '100%' }]} accessibilityLabel="Review stages">
+        {props.stages.map((st, i) => {
+          const current = i === props.at;
+          const done = i < props.at;
+          return (
+            <Pressable key={st.id} onPress={() => props.onGo(st.id)} disabled={!done} accessibilityRole="button"
+              accessibilityLabel={done ? `Back to ${st.label}` : `${st.label}, stage ${i + 1} of ${props.stages.length}`}
+              accessibilityState={{ selected: current, disabled: !done }}
+              style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
+              <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
+                {done ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : (
+                  <Text style={[styles.stageNumText, { color: current ? C.white : C.muted }]}>{i + 1}</Text>
+                )}
+              </View>
+              <Text style={[txt.sm, { fontWeight: '600', flexShrink: 1, color: current ? C.primary : done ? C.dark : C.muted }]} numberOfLines={1}>{st.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -390,6 +468,13 @@ const styles = StyleSheet.create({
   choiceBig: { fontSize: T.lg, fontWeight: '700' },
   inset: { backgroundColor: C.bg, borderRadius: radius.md, padding: space.md, gap: space.xs },
   withheld: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.lg, borderRadius: radius.lg, backgroundColor: TINT.gray },
+  partTop: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  strip: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.xs },
+  stripRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  stage: { flex: 1, minWidth: 0, minHeight: target.min, borderRadius: radius.md, paddingHorizontal: space.xs, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs + 2 },
+  stageNum: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stageNumLater: { borderWidth: 1.5, borderColor: C.border },
+  stageNumText: { fontSize: T.xs, fontWeight: '700' },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   mark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   counter: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },

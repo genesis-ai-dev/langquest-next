@@ -3,9 +3,11 @@ import {
   type AnyEvent, type EventPayloads, type EventType, type OrgState
 } from '@langquest-next/core';
 import {
-  addDays, answeredQuestions, askCandidates, describeEntry, dueError, feedbackNames, gridKindIds, heroHeadline, historySummary,
-  kindRowActions, kindRowSub, laneState, nextQuestionType, pathState, stepSheetSub
+  addDays, answeredQuestions, askCandidates, currentStepId, describeEntry, dueError, feedbackNames, gridKindIds, heroHeadline, historySummary,
+  kindLineText, kindRowActions, kindRowSub, laneState, lastReviewOn, ledTo, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
+  oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/record';
+import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
 import { HIDDEN_TEXT } from '../src/moderation';
 
 /**
@@ -257,5 +259,89 @@ describe('asking someone', () => {
     expect(nextQuestionType('yesno')).toBe('text');
     expect(nextQuestionType('text')).toBe('rating');
     expect(nextQuestionType('rating')).toBe('yesno');
+  });
+});
+
+describe('sending to the usual reviewer (ADR-029)', () => {
+  it('the author’s main button sends to whoever usually does it, with Send to someone else beside it', () => {
+    const p = project();
+    record(p, 'v1', ['c1']);
+    const s = p.passage();
+    const peer = s.steps[0]!.kinds[0]!;
+    const kind = p.kinds().find((k) => k.id === 'peer')!;
+    const acts = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol', sendTo: 'the Peer team' });
+    expect(acts.primary).toEqual({ id: 'send', label: 'Send to the Peer team' });
+    expect(acts.second).toEqual({ id: 'ask', label: 'Send to someone else' });
+    expect(acts.rest.map((a) => a.label)).toEqual(['Review it now', 'Already happened', 'Set aside']);
+    // Nobody usually does it: Ask someone, as before. A reviewer still reviews it now.
+    expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: true, me: 'akol' }).primary?.label).toBe('Ask someone');
+    expect(kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen', sendTo: 'Deng' }).primary?.label).toBe('Review it now');
+    expect(sendTargetLabel({ teamId: 't', name: 'Community' }, name)).toBe('the Community team');
+    expect(sendTargetLabel({ profileId: 'ayen' }, name)).toBe('Ayen');
+  });
+
+  it('finds the one person who reviewed this kind here, and sends to them in one command', () => {
+    const p = project();
+    record(p, 'v1', ['c1']);
+    expect(usualTargetFor(p.state(), null, { projectId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
+    p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
+    const target = usualTargetFor(p.state(), null, { projectId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' });
+    expect(target).toEqual({ profileId: 'ayen' });
+    record(p, 'v2', ['c2'], 'Clearer');
+    p.run('akol', (c) => c.ask(sendToInput({ commandId: 's1', unitId: 'john3', laneId: 'din', kindId: 'peer', target: target! })));
+    const sent = p.passage().openRequests.find((r) => r.kindId === 'peer')!;
+    expect(sent).toMatchObject({ profileId: 'ayen', by: 'akol', what: 'review' });
+    expect(requestIsMine(p.state(), 'ayen')(sent)).toBe(true);
+    expect(requestIsMine(p.state(), 'deng')(sent)).toBe(false);
+  });
+});
+
+describe('the journey (REC-2, REC-2a, ADR-030)', () => {
+  it('opens on the next step, or on the step whose feedback waits for an answer', () => {
+    const p = project();
+    expect(currentStepId(p.passage())).toBeUndefined();
+    record(p, 'v1', ['c1']);
+    expect(currentStepId(p.passage())).toBe(p.passage().steps[0]!.step.id);
+    p.run('deng', (c) => c.produceContent({ commandId: 'bt1', fromTakeId: p.passage().latest!.takeId, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 1000 }] }));
+    p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 3' }));
+    const s = p.passage();
+    expect(currentStepId(s)).toBe(s.steps[0]!.step.id);
+    expect(stepSummary(s.steps[0]!, p.kinds(), name)).toBe('Peer: Needs changes · Back Translation: Looks good');
+    expect(stepSummary(s.steps[3]!, p.kinds(), name)).toBe('Starts after the Consultant Check checkpoint');
+  });
+
+  it('flips between versions: what each heard, which version answered it, and what a version was made after', () => {
+    const p = project();
+    record(p, 'v1', ['c1']);
+    const first = p.passage().latest!;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [first.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Fix it' }));
+    record(p, 'v2', ['c2'], 'Clearer verse 3');
+    const s = p.passage();
+    expect(versionCaption(1, 2)).toBe('Latest of 2');
+    expect(versionCaption(0, 2)).toBe('Older · 1 newer');
+    expect(versionCaption(0, 1)).toBe('Recorded');
+    const heard = lastReviewOn(s, 'peer', 1);
+    expect(heard?.comment).toBe('Fix it');
+    expect(lastReviewOn(s, 'peer', 2)).toBeUndefined();
+    expect(oldKindLineText(heard, p.kinds().find((k) => k.id === 'peer'), name)).toBe('Needs changes · Ayen');
+    expect(oldKindLineText(undefined, undefined, name)).toBe('Not reviewed on this version');
+    expect(oldStepSummary(['peer', 'bt'], [heard, undefined], p.kinds())).toBe('Peer: Needs changes · Back Translation: Not reviewed');
+    expect(oldStepState([heard])).toBe('answered');
+    expect(ledTo(s, heard!)?.n).toBe(2);
+    expect(madeAfter(s, s.latest!).map((r) => r.id)).toEqual([heard!.id]);
+    expect(madeAfter(s, first)).toEqual([]);
+    expect(oldStepState([undefined])).toBe('todo');
+  });
+
+  it('a kind’s line says who and on which version, and who it waits on', () => {
+    const p = project();
+    record(p, 'v1', ['c1']);
+    p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
+    record(p, 'v2', ['c2'], 'Clearer');
+    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'bt', profileId: 'deng', dueDate: '2099-01-02' }));
+    const s = p.passage();
+    expect(kindLineText(s.steps[0]!.kinds[0]!, s.steps[0]!, s, name)).toBe('Looks good · Ayen on Version 1');
+    expect(kindLineText(s.steps[0]!.kinds[1]!, s.steps[0]!, s, name)).toBe('Waiting on Deng · due Jan 2');
+    expect(kindLineText(s.steps[1]!.kinds[0]!, s.steps[1]!, s, name)).toBe('Not yet');
   });
 });

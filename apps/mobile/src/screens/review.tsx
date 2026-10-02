@@ -4,7 +4,9 @@
 // screens/shared.tsx. Requirements REV-1..8; ADR-005 (reviews attach to the
 // version they heard), ADR-015 (a kind that makes content records it rather
 // than judging), ADR-028 (Already happened is per step and looks like
-// reviewing it now).
+// reviewing it now), ADR-029 (three short stages: ① Listen ② Questions
+// ③ Your verdict; one collapsed Background; Already happened's where, which
+// version, other passages and retelling behind one Add details).
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
 // keyTermLinksFor) and written with core recordReview / produceContent. A
@@ -21,15 +23,15 @@ import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Header, Ico, PrimaryBtn, ReasonSheet, Screen, SectionLabel, txt
+  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Screen, txt
 } from '../kit';
-import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passageView';
+import { passageCrumbs, passageView as passageViewOf, plural, usePassage, versionTitle, type PassageView } from '../passageView';
 import { problemText } from '../recording/parts';
-import { cleanAnswers, cleanSkips, CANT_ANSWER, earlierReviews, footHint, isGroupKind, loggedTargets, noteAnchorText, readiness,
-  recordedPassages, requestFor, toCompareFor, versionFor, type Answers, type Skips } from '../reviewing/capture';
+import { cleanAnswers, cleanSkips, CANT_ANSWER, earlierReviews, footHint, isGroupKind, loggedTargets, nextLabel, noteAnchorText, readiness,
+  recordedPassages, requestFor, reviewStages, stageAt, summaryLine, toCompareFor, versionFor, type Answers, type Skips, type StageId } from '../reviewing/capture';
 import {
-  AlsoCoveredPicker, AnswerInput, Block, CompareCard, EarlierReviews, FromTranslator, ListenCard, PeopleCounter, QuestionList,
-  RequestBanner, TeamStudy, WithheldNotice
+  AlsoCoveredPicker, AnswerInput, Background, Block, CompareCard, ListenCard, PeopleCounter, QuestionList,
+  RequestBanner, StageStrip, WithheldNotice
 } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
 import { useStudyGuide } from '../study/libraryGuides';
@@ -49,7 +51,7 @@ function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm
 
 // ---- Review it (review_capture) ----------------------------------------------------------
 
-/** Listen, see the background (unless the kind withholds it), answer, give feedback, send (REV-1..4). */
+/** Listen (with the background, unless the kind withholds it), answer, give your verdict (REV-0..4). */
 export function ReviewCapture(ctx: Ctx) {
   return <Capture ctx={ctx} logged={false} />;
 }
@@ -87,6 +89,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [evidence, setEvidence] = useState<AudioCard | null>(null);
   const [made, setMade] = useState<AudioCard[]>([]);
   const [busy, setBusy] = useState(false);
+  // Where you are in the review, kept for this visit: Back from a key term or the study returns here.
+  const [stageId, setStageId] = useState<StageId>('listen');
 
   const version = v ? versionFor(v.p, takeId) : undefined;
   const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
@@ -123,6 +127,13 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const here = all.find((p) => p.unitId === v.unitId);
   const detailKey = (part: string) => `${logged ? 'logged' : 'capture'}:${v.unitId}:${v.laneId}:${kind.id}:${part}`;
   const asker = request?.by ? ctx.name(request.by) : undefined;
+  const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
+  const at = stageAt(stages, stageId);
+  const stage = stages[at]!.id;
+  const next = stages[at + 1];
+  const details = ctx.details(detailKey('details'));
+  const latest = v.p.latest;
+  const otherPassages = !!here && all.some((p) => p.unitId !== here.unitId);
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
     const state = ctx.project.state;
@@ -181,9 +192,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId });
   }
 
-  const footer = (
+  const verdictFooter = (
     <>
-      {hint ? <Text style={[txt.xs, styles.center]}>{hint}</Text> : null}
+      {!r.ready ? (
+        <LinkBtn label={hint ?? ''} color={C.muted} style={{ alignSelf: 'center' }} onPress={() => setStageId('questions')} />
+      ) : hint ? <Text style={[txt.xs, styles.center]}>{hint}</Text> : null}
       {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>Saves to {also.length + 1} passages</Text> : null}
       {makes ? (
         <PrimaryBtn label="Save to the record" icon="check" disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
@@ -195,9 +208,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       )}
     </>
   );
+  const footer = next ? (
+    <>
+      {stage === 'questions' && !r.ready ? <Text style={[txt.xs, styles.center]}>{hint}</Text> : null}
+      <PrimaryBtn label={nextLabel(next)} icon="arrowR" onPress={() => setStageId(next.id)} />
+    </>
+  ) : verdictFooter;
 
-  return (
-    <Screen header={header(`${logged ? 'Already happened · ' : ''}${v.lane} · ${versionTitle(version.n)}`)} footer={footer}>
+  const listen = (
+    <>
       {logged ? (
         <>
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
@@ -206,17 +225,33 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           {group ? <PeopleCounter value={people} onChange={setPeople} /> : (
             <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? 'Who made it — e.g. Okello Joseph' : 'Who reviewed it — e.g. Peter Lual'} />
           )}
-          <Field value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" />
-          {v.p.versions.length > 1 ? (
-            <Block label="Which version was played">
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-                {[...v.p.versions].reverse().map((x) => (
-                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} onPress={() => setTakeId(x.takeId)} />
-                ))}
-              </View>
-            </Block>
-          ) : null}
-          {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
+          <Disclosure icon="edit" title="Add details" open={details.open} onToggle={details.onToggle}
+            summary={summaryLine([
+              place.trim() || 'Where',
+              `${versionTitle(version.n)}${latest && version.takeId === latest.takeId ? ' (latest)' : ''}`,
+              otherPassages && (also.length ? `+${plural(also.length, 'passage')}` : 'Other passages'),
+              !makes && (evidence ? 'Retelling recorded' : 'Retelling')
+            ])}>
+            <View style={{ padding: space.lg, gap: space.lg }}>
+              <Field value={place} onChangeText={setPlace} placeholder="Where — e.g. Bor church, after service" />
+              {v.p.versions.length > 1 ? (
+                <Block label="Which version was played">
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+                    {[...v.p.versions].reverse().map((x) => (
+                      <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} onPress={() => setTakeId(x.takeId)} />
+                    ))}
+                  </View>
+                </Block>
+              ) : null}
+              {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
+              {!makes ? (
+                <Block label="Evidence · optional" hint="A retelling or a recorded conversation makes the review easy to trust.">
+                  <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a retelling" hash={evidence?.hash ?? null}
+                    onChange={(h, card) => setEvidence(h ? voiceCard(h, card) : null)} />
+                </Block>
+              ) : null}
+            </View>
+          </Disclosure>
         </>
       ) : null}
 
@@ -227,54 +262,56 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {context === null ? <WithheldNotice kind={kind} /> : (
         <>
           {context.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
-          {context.any ? <SectionLabel label="Background" /> : null}
-          <FromTranslator ctx={ctx} detailsKey={detailKey('translator')} terms={context.terms} notes={context.notes}
-            anchor={context.anchor} olderVersion={context.olderVersion}
-            onOpenTerm={(termId) => ctx.go('key_term_detail', { termId, unitId: v.unitId, laneId: v.laneId })} />
-          {context.study ? (
-            <TeamStudy ctx={ctx} detailsKey={detailKey('study')} study={context.study}
-              onOpenStep={(stepId) => ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId })}
-              onOpenStudy={() => ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId })} />
-          ) : null}
-          <EarlierReviews ctx={ctx} detailsKey={detailKey('earlier')} reviews={context.earlier} kind={v.kind} />
+          <Background ctx={ctx} detailsKey={detailKey('background')}
+            terms={context.terms} notes={context.notes} anchor={context.anchor} olderVersion={context.olderVersion}
+            onOpenTerm={(termId) => ctx.go('key_term_detail', { termId, unitId: v.unitId, laneId: v.laneId })}
+            study={context.study}
+            onOpenStep={(stepId) => ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId })}
+            onOpenStudy={() => ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId })}
+            reviews={context.earlier} kind={v.kind} />
         </>
       )}
+    </>
+  );
 
-      <QuestionList questions={questions} answers={answers} skipped={skipped} {...(asker ? { asker } : {})}
-        onAnswer={(id, val) => setAnswers((a) => ({ ...a, [id]: val }))}
-        onSkip={setSkipFor}
-        onUnskip={(id) => setSkipped((s) => { const { [id]: _gone, ...rest } = s; return rest; })} />
+  const verdict = makes ? (
+    <>
+      <Block label={`The ${makes.what}`} hint="It's what gets checked next, so it's the one thing this entry needs.">
+        {made.map((c, i) => (
+          <VoiceNote key={c.hash} ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={`Part ${i + 1}`} hash={c.hash}
+            onChange={(nextHash, card) => setMade((m) => nextHash ? m.map((x) => (x.hash === c.hash ? voiceCard(nextHash, card) : x)) : m.filter((x) => x.hash !== c.hash))} />
+        ))}
+        <VoiceNote key={`new-${made.length}`} ctx={ctx} unitId={v.unitId} laneId={v.laneId}
+          label={made.length ? 'Record another part' : `Record the ${makes.what}`} hash={null}
+          onChange={(h, card) => { if (h) setMade((m) => (m.some((x) => x.hash === h) ? m : [...m, voiceCard(h, card)])); }} />
+      </Block>
+      <Block label="What happened" hint="Optional — what was hard to say back.">
+        <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a summary" hash={commentHash} onChange={setCommentHash} />
+        <Field value={comment} onChangeText={setComment} placeholder="Or type what was hard to say back" multiline />
+      </Block>
+    </>
+  ) : (
+    <Block label={logged ? 'What happened' : 'Your feedback'}>
+      <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={logged ? 'Record a summary' : 'Record voice feedback'} hash={commentHash} onChange={setCommentHash} />
+      <Field value={comment} onChangeText={setComment} multiline
+        placeholder={logged ? 'Or type what people understood and asked about' : "Or type it — what worked, what didn't"} />
+    </Block>
+  );
 
-      {makes ? (
-        <>
-          <Block label={`The ${makes.what}`} hint="It's what gets checked next, so it's the one thing this entry needs.">
-            {made.map((c, i) => (
-              <VoiceNote key={c.hash} ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={`Part ${i + 1}`} hash={c.hash}
-                onChange={(next, card) => setMade((m) => next ? m.map((x) => (x.hash === c.hash ? voiceCard(next, card) : x)) : m.filter((x) => x.hash !== c.hash))} />
-            ))}
-            <VoiceNote key={`new-${made.length}`} ctx={ctx} unitId={v.unitId} laneId={v.laneId}
-              label={made.length ? 'Record another part' : `Record the ${makes.what}`} hash={null}
-              onChange={(h, card) => { if (h) setMade((m) => (m.some((x) => x.hash === h) ? m : [...m, voiceCard(h, card)])); }} />
-          </Block>
-          <Block label="What happened" hint="Optional — what was hard to say back.">
-            <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a summary" hash={commentHash} onChange={setCommentHash} />
-            <Field value={comment} onChangeText={setComment} placeholder="Or type what was hard to say back" multiline />
-          </Block>
-        </>
-      ) : (
-        <Block label={logged ? 'What happened' : 'Your feedback'}>
-          <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={logged ? 'Record a summary' : 'Record voice feedback'} hash={commentHash} onChange={setCommentHash} />
-          <Field value={comment} onChangeText={setComment} multiline
-            placeholder={logged ? 'Or type what people understood and asked about' : "Or type it — what worked, what didn't"} />
-        </Block>
-      )}
+  // Keyed by stage so each stage opens at its top.
+  return (
+    <Screen key={stage} footer={footer}
+      header={<>{header(`${logged ? 'Already happened · ' : ''}${v.lane} · ${versionTitle(version.n)}`)}<StageStrip stages={stages} at={at} onGo={setStageId} /></>}>
+      {stage === 'listen' ? listen : null}
 
-      {logged && !makes ? (
-        <Block label="Evidence · optional" hint="A retelling or a recorded conversation makes the review easy to trust.">
-          <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a retelling" hash={evidence?.hash ?? null}
-            onChange={(h, card) => setEvidence(h ? voiceCard(h, card) : null)} />
-        </Block>
+      {stage === 'questions' ? (
+        <QuestionList questions={questions} answers={answers} skipped={skipped} {...(asker ? { asker } : {})}
+          onAnswer={(id, val) => setAnswers((a) => ({ ...a, [id]: val }))}
+          onSkip={setSkipFor}
+          onUnskip={(id) => setSkipped((s) => { const { [id]: _gone, ...rest } = s; return rest; })} />
       ) : null}
+
+      {stage === 'verdict' ? verdict : null}
 
       <ReasonSheet visible={skipFor !== null} title="Leave this question unanswered?"
         sub="Required questions can be skipped — the reason is saved with your review."
@@ -300,10 +337,7 @@ function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string,
   const study = guide ? studyProgress(state, p, guide) : null;
   const compare = toCompareFor(p, v.kinds, kindId);
   const earlier = earlierReviews(p, v.kinds, kindId);
-  return {
-    terms, notes, anchor, olderVersion, study, compare, earlier,
-    any: terms.length > 0 || notes.length > 0 || !!study || earlier.length > 0
-  };
+  return { terms, notes, anchor, olderVersion, study, compare, earlier };
 }
 
 // ---- Review by link (guest_review), as a preview ------------------------------------------------------

@@ -23,7 +23,7 @@ import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup
 import { openReports } from '../moderationData';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
-  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen,
+  Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
@@ -242,7 +242,8 @@ export function InboxHome(ctx: Ctx) {
 
   const canAssign = ctx.session.can('assign_work');
   return (
-    <Screen header={<Header title="Inbox" />}>
+    // Reached from My Work's bell (no Inbox tab there): Back returns to it.
+    <Screen header={<Header title="Inbox" {...(ctx.params['from'] === 'my_work' ? { onBack: ctx.back } : {})} />}>
       {accountActions.length ? (
         <>
           <SectionLabel label="Saved account changes" />
@@ -340,6 +341,17 @@ export function SettingsHome(ctx: Ctx) {
     : p.live ? 'Live: changes arrive as they happen'
     : p.online === false ? 'Offline: work is kept on this phone'
     : p.lastSync ? `Last synced ${p.lastSync}` : 'Everything is saved on this phone';
+  // Known and one: no Switch Organization row. Unknown (never listed on this phone): the row stays.
+  const orgs = useOrganizations(s.actorId).rows;
+  const canSwitch = orgs === null || orgs.length > 1;
+  const advanced = ctx.details('settings:advanced');
+  const blocked = ctx.blocks.ids.length;
+  // Unsent work is the one thing here that needs noticing, so it leads the summary.
+  const advancedSummary = [
+    p.pending > 0 || p.refused ? syncSub : 'Sync',
+    'diagnostics',
+    ...(blocked > 0 ? ['blocked people'] : [])
+  ].join(', ');
   return (
     <Screen header={<Header title="Settings" />}>
       <Card>
@@ -355,27 +367,38 @@ export function SettingsHome(ctx: Ctx) {
           </View>
         </View>
       </Card>
-      <SectionLabel label="Account" />
+      {/* One list in the order people need it (Hick's law, ADR-029): their profile, help, the rare switch, then Sign Out. */}
       <Group>
         <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
-        <Row icon="building" label="Switch Organization" sub={`${orgName} (active)`} onPress={() => ctx.go('org_switcher')} />
-        {/* Added, not in the demo (store rules, decisions.md 48). */}
-        <Row icon="block" label="Blocked people" sub={ctx.blocks.ids.length ? plural(ctx.blocks.ids.length, 'person', 'people') : 'Nobody'}
-          onPress={() => setBlockedOpen(true)} last />
-      </Group>
-      <SectionLabel label="App" />
-      <Group>
+        <Row icon="notif" label="Notifications" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
+          void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
+        }} />
         {homeScreenFor(s) === 'my_work' ? (
           <Row icon="play" label="Getting started" sub="Your first-day checklist" onPress={() => ctx.go('my_work', { showGettingStarted: '1' })} />
         ) : null}
-        <Row icon="book" label="What is LangQuest?" onPress={() => ctx.go('vision')} />
-        <Row icon="notif" label="Notification Settings" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
-          void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
-        }} />
+        <Row icon="book" label="What is LangQuest?" onPress={() => ctx.go('vision')} last={!canSwitch} />
+        {canSwitch ? (
+          <Row icon="building" label="Switch Organization" sub={`${orgName} (active)`} onPress={() => ctx.go('org_switcher')} last />
+        ) : null}
+      </Group>
+      <View style={{ paddingTop: space.sm }}>
+        <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
+      </View>
+      {/* Set once and rarely touched, behind one tap (progressive disclosure). App only: none of these is in the demo. */}
+      <Disclosure icon="settings" title="Advanced" summary={advancedSummary} open={advanced.open} onToggle={advanced.onToggle}>
         <Row icon="cloud" label="Sync" sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
-        {/* Added, not in the demo (docs/diagnostics.md, decisions.md 39): on by default, off here. */}
+        {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label="Send diagnostics" sub="Sends speed and error reports, never recordings, what you type or names."
-          role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last />
+          role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} />
+        {/* Store rules, decisions.md 48: shown once someone is blocked (blocking starts from the flag on what they made). */}
+        {blocked > 0 ? (
+          <Row icon="block" label="Blocked people" sub={plural(blocked, 'person', 'people')} onPress={() => setBlockedOpen(true)} />
+        ) : null}
+      </Disclosure>
+      {/* Store rules, decisions.md 46: kept where the store answers and the App Review notes say it is (Settings → Delete account), not under Advanced. */}
+      <Group>
+        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label="Delete account" sub="Your account and your name, for good"
+          onPress={() => ctx.go('delete_account')} last />
       </Group>
       {ctx.canSwitchPersona ? (
         <>
@@ -385,13 +408,37 @@ export function SettingsHome(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      <View style={{ paddingTop: space.md }}>
-        <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
-        <LinkBtn label="Delete account" color={C.muted} onPress={() => ctx.go('delete_account')} style={{ alignSelf: 'center' }} />
-      </View>
       {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
   );
+}
+
+type OrgRow = { org_id: string; name: string };
+
+/**
+ * The organizations this account belongs to: those saved on this phone at
+ * once (null when none were ever listed here), then the server's list, saved
+ * for next time. Offline, the saved list stays and `error` says so.
+ */
+function useOrganizations(actorId: string): { rows: OrgRow[] | null; error: string } {
+  const [rows, setRows] = useState<OrgRow[] | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    const key = `organizations:${actorId}`;
+    void (async () => {
+      const saved = await AsyncStorage.getItem(key);
+      if (active && saved) setRows(JSON.parse(saved) as OrgRow[]);
+      const { data, error } = await supabase.rpc('my_organizations');
+      if (error) { if (active) setError('Unable to refresh. Saved organizations remain available.'); return; }
+      // One row per organization: the server lists a row per registered partition.
+      const orgs = [...new Map(((data ?? []) as OrgRow[]).map((r) => [r.org_id, { org_id: r.org_id, name: r.name }])).values()];
+      await AsyncStorage.setItem(key, JSON.stringify(orgs));
+      if (active) setRows(orgs);
+    })().catch((e: unknown) => { if (active) setError(failure('org switcher', e)); });
+    return () => { active = false; };
+  }, [actorId]);
+  return { rows, error };
 }
 
 /**
@@ -497,23 +544,10 @@ export function ProfileEdit(ctx: Ctx) {
 // ---- Switch Organization (AUTH-8) --------------------------------------------------------------------------
 
 export function OrgSwitcher(ctx: Ctx) {
-  const [rows, setRows] = useState<{ org_id: string; name: string }[]>([]);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let active = true;
-    const key = `organizations:${ctx.session.actorId}`;
-    void (async () => {
-      const cached = JSON.parse(await AsyncStorage.getItem(key) ?? '[]');
-      if (active) setRows(cached);
-      const { data, error } = await supabase.rpc('my_organizations');
-      if (error) { if (active) setError('Unable to refresh. Saved organizations remain available.'); return; }
-      // One row per organization: the server lists a row per registered partition.
-      const orgs = [...new Map(((data ?? []) as { org_id: string; name: string }[]).map((r) => [r.org_id, { org_id: r.org_id, name: r.name }])).values()];
-      await AsyncStorage.setItem(key, JSON.stringify(orgs));
-      if (active) setRows(orgs);
-    })().catch((e: unknown) => { if (active) setError(failure('org switcher', e)); });
-    return () => { active = false; };
-  }, [ctx.session.actorId]);
+  const { rows: listed, error: listError } = useOrganizations(ctx.session.actorId);
+  const rows = listed ?? [];
+  const [switchError, setError] = useState('');
+  const error = switchError || listError;
   return (
     <Screen header={<Header title="Switch Organization" onBack={ctx.back} />}>
       {error ? <Banner icon="cloud" tone="amber" title={error} /> : null}

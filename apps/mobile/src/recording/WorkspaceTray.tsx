@@ -1,12 +1,12 @@
-// The workspace's tray (demo translate.tsx, REC-W5, TERM-4): everything the
-// team knows about the passage, pulled up when needed. Key terms with this
+// The workspace's Help sheet (demo translate.tsx HelpSheet, ADR-029; REC-W5,
+// TERM-4): everything the team knows about the passage, one tap away. Key terms with this
 // language's rendering and "Tie to your draft", the study's progress with
 // each step one tap away, notes (Add a note by voice or text; ones about
 // older versions marked), and the version history.
 import { commands, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
@@ -23,25 +23,30 @@ import { VoiceNote } from '../voiceNote';
 
 export type TrayTab = 'terms' | 'study' | 'notes' | 'history';
 
-/** The tab pills: "Key terms · 4", "FIA study · 2/6", "Notes · 3", "History · 2". */
-export function TrayTabs(props: { tab: TrayTab | null; onTab: (t: TrayTab | null) => void; terms: number; study: StudyProgress | null; notes: number; versions: number }) {
-  const pill = (id: TrayTab, label: string, count?: number) => (
-    <Chip key={id} label={label} on={props.tab === id} onPress={() => props.onTab(props.tab === id ? null : id)} {...(count !== undefined ? { count } : {})} />
-  );
+/** "Help" in the recording screen's header (ADR-029): icon and word, 48pt. */
+export function HelpButton(props: { onPress: () => void; disabled?: boolean }) {
   return (
-    <ChipRow>
-      {pill('terms', 'Key terms', props.terms)}
-      {props.study ? pill('study', `${props.study.guide.pattern} study ${props.study.doneCount}/${props.study.steps.length}`) : null}
-      {pill('notes', 'Notes', props.notes)}
-      {pill('history', 'History', props.versions)}
-    </ChipRow>
+    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel="Help"
+      accessibilityHint="Key terms, the study, notes and history for this passage" accessibilityState={{ disabled: !!props.disabled }}
+      style={({ pressed }) => [styles.help, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
+      <Ico name="help" size={20} color={C.primary} />
+      <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>Help</Text>
+    </Pressable>
   );
 }
 
-export function TrayBody(props: {
+/**
+ * The study tray as one sheet (ADR-029): key terms, the study, notes and
+ * history, one section at a time, with the same contents the tray had.
+ * Going anywhere from it closes it first, so it is never left over the
+ * next screen.
+ */
+export function HelpSheet(props: {
   ctx: Ctx;
   v: PassageView;
   tab: TrayTab;
+  onTab: (t: TrayTab) => void;
+  onClose: () => void;
   terms: KeyTermView[];
   tied: ReadonlySet<string>;
   /** The draft take a tie is made on; none until something is recorded. */
@@ -52,14 +57,27 @@ export function TrayBody(props: {
   notes: PassageNote[];
   disabled: boolean;
 }) {
-  const { height } = useWindowDimensions();
+  const { onClose } = props;
+  const ctx = useMemo<Ctx>(() => ({ ...props.ctx, go: (to, params) => { onClose(); props.ctx.go(to, params); } }), [props.ctx, onClose]);
+  const tab = props.tab === 'study' && !props.study ? 'terms' : props.tab;
+  const pill = (id: TrayTab, label: string, count?: number) => (
+    <Chip key={id} label={label} on={tab === id} onPress={() => props.onTab(id)} {...(count !== undefined ? { count } : {})} />
+  );
   return (
-    <ScrollView style={{ maxHeight: Math.round(height * 0.4) }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      {props.tab === 'terms' ? <TermsTab {...props} /> : null}
-      {props.tab === 'study' && props.study ? <StudyTab ctx={props.ctx} v={props.v} study={props.study} /> : null}
-      {props.tab === 'notes' ? <NotesTab ctx={props.ctx} v={props.v} notes={props.notes} disabled={props.disabled} /> : null}
-      {props.tab === 'history' ? <HistoryTab ctx={props.ctx} v={props.v} /> : null}
-    </ScrollView>
+    <Sheet visible title="Help" sub="What the team knows about this passage." onClose={onClose}>
+      <ChipRow>
+        {pill('terms', 'Key terms', props.terms.length)}
+        {props.study ? pill('study', `${props.study.guide.pattern} study ${props.study.doneCount}/${props.study.steps.length}`) : null}
+        {pill('notes', 'Notes', props.notes.length)}
+        {pill('history', 'History', props.v.p.versions.length)}
+      </ChipRow>
+      <View style={styles.body}>
+        {tab === 'terms' ? <TermsTab {...props} ctx={ctx} /> : null}
+        {tab === 'study' && props.study ? <StudyTab ctx={ctx} v={props.v} study={props.study} /> : null}
+        {tab === 'notes' ? <NotesTab ctx={ctx} v={props.v} notes={props.notes} disabled={props.disabled} /> : null}
+        {tab === 'history' ? <HistoryTab ctx={ctx} v={props.v} /> : null}
+      </View>
+    </Sheet>
   );
 }
 
@@ -234,7 +252,8 @@ function HistoryTab(props: { ctx: Ctx; v: PassageView }) {
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space.sm, paddingTop: space.sm, paddingBottom: space.sm },
+  body: { gap: space.sm },
+  help: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.light },
   pad: { paddingHorizontal: space.xs },
   item: { backgroundColor: C.bg, borderRadius: radius.lg, padding: space.sm, gap: space.sm },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.min, paddingHorizontal: space.sm },

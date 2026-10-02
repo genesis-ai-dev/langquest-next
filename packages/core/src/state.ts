@@ -104,6 +104,8 @@ export interface ReviewTeam {
   name: Register<string>;
   /** profileId -> in the team (register) */
   members: Record<string, Register<boolean>>;
+  /** The kind it usually reviews (v1.ReviewTeamKindSet); absent or null = any. */
+  kindId?: Register<string | null>;
 }
 
 export interface Material {

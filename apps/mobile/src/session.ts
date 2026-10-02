@@ -171,14 +171,19 @@ export interface Tab {
   badge?: number;
 }
 
-/** NAV-1: My Work (with its For you count), Map, Manage (admins only), Inbox (unread), Settings. */
+/**
+ * NAV-1: My Work (with its For you count), Map, Manage (admins only), Settings.
+ * People with a My Work get updates from its bell instead of an Inbox tab
+ * (one place for what's next, ADR-029); viewers keep the Inbox tab (unread).
+ */
 export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }): Tab[] {
   const tabs: Tab[] = [];
-  if (homeScreenFor(s) === 'my_work') tabs.push({ id: 'work', screen: 'my_work', label: 'My Work', badge: counts.forYou });
+  const hasMyWork = homeScreenFor(s) === 'my_work';
+  if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: 'My Work', badge: counts.forYou });
   tabs.push({ id: 'map', screen: mapScreenFor(s), label: 'Map' });
   const manage = manageHomeFor(s);
   if (manage) tabs.push({ id: 'manage', screen: manage, label: 'Manage' });
-  tabs.push({ id: 'inbox', screen: 'inbox_home', label: 'Inbox', badge: counts.unread });
+  if (!hasMyWork) tabs.push({ id: 'inbox', screen: 'inbox_home', label: 'Inbox', badge: counts.unread });
   tabs.push({ id: 'settings', screen: 'settings_home', label: 'Settings' });
   return tabs;
 }

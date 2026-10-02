@@ -268,6 +268,14 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       break;
     }
 
+    case 'v1.ReviewTeamKindSet': {
+      const { teamId, kindId } = event.payload;
+      // Like a membership, it may arrive before the definition; the lane stays the definition's.
+      const team = (state.teams[teamId] ??= { laneId: '', name: { value: '', hlc: '', eventId: '' }, members: {} });
+      if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: kindId, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
     case 'v1.ResponseRecorded': {
       const { takeId, respondsToTakeId, note, blobHash } = event.payload;
       state.responses[takeId] ??= {
@@ -389,7 +397,8 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       earliestUndo(state.undoneDepartures, event.payload.departureId, event);
       break;
 
-    case 'v1.RequestMade': {
+    case 'v1.RequestMade':
+    case 'v2.RequestMade': {
       const { requestId, ...rest } = event.payload;
       firstWins(state.requests, requestId, event, { ...rest, id: requestId });
       break;

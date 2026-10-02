@@ -2,7 +2,8 @@
 // requirements REV-1..8, ADR-005, ADR-015, ADR-028): which request a review
 // answers, what a checking kind compares against, what is still required
 // before an outcome can be sent, how notes are labelled, and which other
-// passages a session that already happened may have covered. No React and
+// passages a session that already happened may have covered, and the
+// stages the screen walks through (REV-0, ADR-029). No React and
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
 import {
   derivePassage, unitPlace, unitTitle,
@@ -86,6 +87,40 @@ export function footHint(r: Readiness, makes?: { what: string; has: boolean }): 
   if (!r.ready) return `${r.open} required question${r.open === 1 ? '' : 's'} left — answer, or say why not`;
   if (makes) return makes.has ? null : `Record the ${makes.what}.`;
   return r.saysWhat ? null : 'To ask for changes, say what to change above';
+}
+
+// ---- stages (REV-0, ADR-029) ------------------------------------------------------------------
+
+export type StageId = 'listen' | 'questions' | 'verdict';
+export interface Stage { id: StageId; label: string }
+
+/**
+ * Reviewing is three short stages: ① Listen ② Questions ③ Your verdict.
+ * Questions is left out when there are none. The last stage is named for
+ * what it holds: "Record it" when the kind makes content, "What happened"
+ * for a session that already happened.
+ */
+export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean }): Stage[] {
+  return [
+    { id: 'listen', label: 'Listen' },
+    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: 'Questions' }] : []),
+    { id: 'verdict', label: opts.makes ? 'Record it' : opts.logged ? 'What happened' : 'Your verdict' }
+  ];
+}
+
+/** Where a stage sits on the strip; a stage that is no longer there (its questions went) falls back to the first. */
+export function stageAt(stages: Stage[], id: StageId): number {
+  return Math.max(0, stages.findIndex((s) => s.id === id));
+}
+
+/** The footer's main button before the last stage: "Next: questions", "Next: your verdict". */
+export function nextLabel(stage: Stage): string {
+  return `Next: ${stage.label.toLowerCase()}`;
+}
+
+/** One line for a collapsed card: the parts that have something, joined with " · ". */
+export function summaryLine(parts: (string | false | null | undefined)[]): string {
+  return parts.filter((x): x is string => !!x).join(' · ');
 }
 
 /** Answers worth saving: only questions on the list, trimmed, none empty. Undefined when there are none. */

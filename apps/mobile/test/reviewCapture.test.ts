@@ -4,7 +4,8 @@ import {
 } from '@langquest-next/core';
 import {
   cleanAnswers, cleanSkips, earlierReviews, footHint, isGroupKind, loggedTargets, matchesQuery, nearbyPassages, noteAnchorText,
-  openRequired, questionSource, readiness, recordedPassages, requestFor, searchPassages, toCompareFor, versionFor
+  nextLabel, openRequired, questionSource, readiness, recordedPassages, requestFor, reviewStages, searchPassages, stageAt, summaryLine,
+  toCompareFor, versionFor
 } from '../src/reviewing/capture';
 import { parseQuery } from '../src/canon';
 
@@ -172,5 +173,31 @@ describe('a session that already happened (REV-6)', () => {
     const other = derivePassage(state, 'john4', 'din').latest!.takeId;
     expect(loggedTargets(state, 'din', { unitId: 'john3', takeId: first }, ['john4', 'john5', 'john3']))
       .toEqual([{ unitId: 'john3', takeId: first }, { unitId: 'john4', takeId: other }]);
+  });
+});
+
+describe('reviewing is three short stages (REV-0, ADR-029)', () => {
+  const labels = (o: Parameters<typeof reviewStages>[0]) => reviewStages(o).map((x) => x.label);
+
+  it('Listen, Questions, Your verdict; Questions left out when there are none', () => {
+    expect(labels({ questions: 2, logged: false, makes: false })).toEqual(['Listen', 'Questions', 'Your verdict']);
+    expect(labels({ questions: 0, logged: false, makes: false })).toEqual(['Listen', 'Your verdict']);
+  });
+
+  it('the last stage is named for what it holds when the review already happened', () => {
+    expect(labels({ questions: 1, logged: true, makes: false })).toEqual(['Listen', 'Questions', 'What happened']);
+    expect(labels({ questions: 0, logged: true, makes: true })).toEqual(['Listen', 'Record it']);
+  });
+
+  it('the main button names the next stage, and a stage that went away falls back to Listen', () => {
+    const stages = reviewStages({ questions: 1, logged: false, makes: false });
+    expect(stages.slice(1).map(nextLabel)).toEqual(['Next: questions', 'Next: your verdict']);
+    expect(stageAt(stages, 'verdict')).toBe(2);
+    expect(stageAt(reviewStages({ questions: 0, logged: false, makes: false }), 'questions')).toBe(0);
+  });
+
+  it('a collapsed card says only what it has', () => {
+    expect(summaryLine(['Where', 'Version 2 (latest)', false, undefined, 'Retelling'])).toBe('Where · Version 2 (latest) · Retelling');
+    expect(summaryLine([false, null])).toBe('');
   });
 });

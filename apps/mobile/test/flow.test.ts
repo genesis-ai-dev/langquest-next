@@ -1,4 +1,5 @@
 import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
+import { deriveSession, edgeAllowed, tabsFor } from '../src/session';
 import spec from './spec-flow.json';
 
 describe('UX flow coverage', () => {
@@ -41,5 +42,23 @@ describe('UX flow coverage', () => {
       expect(known.has(edge.from), edge.from).toBe(true);
       expect(known.has(edge.to), edge.to).toBe(true);
     }
+  });
+
+  it('people with a My Work reach updates from its bell; viewers keep the Inbox tab (NAV-1, ADR-029)', () => {
+    // Why: one place for what's next. Dropping the Inbox tab without the bell
+    // would leave updates unreachable for everyone who has a My Work.
+    const as = (role: string) => deriveSession('me', 'me@x', {
+      members: { me: { role: { value: role, hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } } }
+    } as unknown as Parameters<typeof deriveSession>[2], true, null, 'p1');
+    const bell = EDGES.find((e) => e.from === 'my_work' && e.to === 'inbox_home');
+    for (const role of ['owner', 'coordinator', 'translator', 'reviewer']) {
+      const s = as(role);
+      const tabs = tabsFor(s, { forYou: 0, unread: 3 });
+      expect(tabs.map((t) => t.id), role).not.toContain('inbox');
+      expect(tabs.map((t) => t.id), role).toContain('work');
+      expect(bell && edgeAllowed(bell, s), role).toBe(true);
+    }
+    const viewerTabs = tabsFor(as('viewer'), { forYou: 0, unread: 3 });
+    expect(viewerTabs.find((t) => t.id === 'inbox')?.badge).toBe(3);
   });
 });

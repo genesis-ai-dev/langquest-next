@@ -70,8 +70,11 @@ export interface Commands {
   /** Comply or explain: set a step aside, move past a checkpoint, keep a version despite feedback. */
   depart(c: { commandId: string; unitId: string; laneId: string; type: DepartureType; kindId?: string; stepId?: string; reviewId?: string; reason: string; reasonBlobHash?: string }): EventSpec[];
   undoDeparture(c: { commandId: string; departureId: string }): EventSpec[];
-  /** Ask someone (ASK-1..5). */
-  ask(c: Omit<RecordEvents['v1.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
+  /**
+   * Ask someone (ASK-1..5): a teammate, a guest by link, or a review team
+   * (ADR-029). A team request is v2.RequestMade; the others stay v1.
+   */
+  ask(c: Omit<RecordEvents['v2.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
   withdrawRequest(c: { commandId: string; requestId: string }): EventSpec[];
   addNote(c: { commandId: string; unitId: string; laneId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string }): EventSpec[];
   markStudyStep(c: { commandId: string; unitId: string; laneId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
@@ -260,11 +263,14 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
     },
 
     ask(c) {
-      if (!c.profileId && !c.guest) throw new CommandError('Pick who to ask.');
+      if (!c.profileId && !c.guest && !c.teamId) throw new CommandError('Pick who to ask.');
+      if (c.teamId && (c.profileId || c.guest)) throw new CommandError('Ask a team or a person, not both.');
       if (c.what === 'review' && !c.kindId) throw new CommandError('A review request names its kind.');
-      const { commandId, ...rest } = c;
+      const { commandId, teamId, ...rest } = c;
       const note = rest.note?.trim();
-      return [{ id: ids(commandId)(), type: 'v1.RequestMade', payload: { ...clean(rest), ...(note ? { note } : {}), requestId: `req:${commandId}` } }];
+      const payload = { ...clean(rest), ...(note ? { note } : {}), requestId: `req:${commandId}` };
+      if (teamId) return [{ id: ids(commandId)(), type: 'v2.RequestMade', payload: { ...payload, teamId } }];
+      return [{ id: ids(commandId)(), type: 'v1.RequestMade', payload }];
     },
 
     withdrawRequest(c) {

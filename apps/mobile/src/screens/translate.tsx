@@ -1,37 +1,47 @@
 // Doing the work: recording (demo `screens/translate.tsx` WorkspaceScreen,
 // flow nodes `workspace` and `back_translation`). REC-W1..6, REV-5, TERM-4;
 // ADR-015 (a back translation makes content, it isn't a verdict), ADR-028
-// (Publish confirms; the big red record button).
+// (Publish confirms; the big red record button), ADR-029 (one Help button).
 //
-// Workspace: the source with key terms, your takes (each change kept as the
-// draft on the record, so nothing is lost if you leave), the red record
-// button that opens the voice-detected session, the tray, and Publish.
-// Back translation: the same tools, but you listen to the latest version and
-// what you save is content for the next check, not a version.
+// One screen split in two (Caleb, LAN-23), instead of the demo's Listen →
+// Record → Publish stages: the source on top (its audio, its text with key
+// terms, on a cool ground), your recording below (on a warm ground), with a
+// divider to drag between them. Recording happens inside the lower pane, so
+// the source stays readable and playable; playing it pauses the microphone
+// and recording resumes when it stops (listen, speak, listen).
+//
+// Workspace: your takes (each change kept as the draft on the record, so
+// nothing is lost if you leave), the red record button, Help in the header,
+// and Publish. Back translation: the same tools, but you listen to the
+// latest version and what you save is content for the next check, not a
+// version.
 import {
   commands, keyTermsForUnit,
   type EventSpec, type KindDef, type PassageNote, type ReviewView, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Banner, Card, Disclosure, EmptyState, Field, Header, PrimaryBtn, Screen, SectionLabel, Sheet, txt
+  Banner, Card, EmptyState, Field, Header, PrimaryBtn, Screen, SectionLabel, Sheet, txt
 } from '../kit';
-import { PassageSourceAudio } from '../passageSourceAudio';
+import { PassageSourceAudio, SourcePlayer } from '../passageSourceAudio';
 import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
-import { VadTakeover } from '../recording/VadTakeover';
+import { SplitPane } from '../recording/SplitPane';
+import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from '../recording/splitModel';
+import { useListenLoop } from '../recording/useListenLoop';
+import { VadControls, VadPanel } from '../recording/VadTakeover';
 import {
   backTranslationDraftKey, canPublish, cardDurations, cardLabels, markTerms, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
-import { TrayBody, TrayTabs, type TrayTab } from '../recording/WorkspaceTray';
+import { HelpButton, HelpSheet, type TrayTab } from '../recording/WorkspaceTray';
 import { pendingPassageCards } from '../recordingFlow';
 import { reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
@@ -39,7 +49,7 @@ import { contractsFor } from '../screenContracts';
 import { readingsFor, type Reading } from '../scripture';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress } from '../study/progress';
-import { C, radius, space, TINT, type as T } from '../theme';
+import { C, radius, space, TINT, type as T, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
 
@@ -95,7 +105,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     current.project.triggerUpload();
   }, [unitId, laneId]);
   const rec = useRecorder(persist, { orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId, laneId });
-  const recording = rec.vadOn || rec.manualOn;
+  const loop = useListenLoop(rec);
+  const session = loop.phase !== 'off';
+  const recording = session || rec.manualOn;
 
   // Every change persists (REC-W2): saved cards not yet in a take are
   // composed into the draft as soon as they land, so the list on the record
@@ -181,8 +193,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     return [...shown, ...extra];
   }, [reading, sourceWords, unitTerms, tied]);
 
-  // ---- the tray (REC-W5) ----
-  const [tab, setTab] = useState<TrayTab | null>(null);
+  // ---- Help: the study tray as one sheet (REC-W5, ADR-029) ----
+  const [help, setHelp] = useState(false);
+  const closeHelp = useCallback(() => setHelp(false), []);
+  const [tab, setTab] = useState<TrayTab>('terms');
   const guide = useStudyGuide(ctx, unitId, laneId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
@@ -219,49 +233,52 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     : rec.error ? <SaveProblem message={rec.error} /> : null;
 
   return (
-    <Screen
-      header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.lane} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close />}
-      footer={
-        <View style={{ gap: space.sm }}>
-          <TrayTabs tab={tab} onTab={setTab} terms={trayTerms.length} study={study} notes={notes.length} versions={p.versions.length} />
-          {tab ? (
-            <TrayBody ctx={ctx} v={v} tab={tab} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId} canTie={canTie} study={study} notes={notes} disabled={blocked} />
-          ) : null}
-          {!isFirst && !changed && !recording && list.length > 0 ? (
-            <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s takes. Record a new take or delete one to publish a new version.</Text>
-          ) : null}
-          <View style={styles.actions}>
-            <RecordButton recording={recording} disabled={saving || rec.failureCount > 0} onPress={() => void rec.toggleVad()} />
-            <View style={{ flex: 1 }}>
-              <PrimaryBtn label="Publish" tone="dark" disabled={!changed || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
-            </View>
+    <Screen fixed
+      header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.lane} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close
+        action={<HelpButton onPress={() => setHelp(true)} disabled={recording} />} />}
+      footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
+        <View style={styles.actions}>
+          <RecordButton recording={false} disabled={saving || rec.failureCount > 0} onPress={() => void loop.toggle()} />
+          <View style={{ flex: 1 }}>
+            <PrimaryBtn label="Publish" tone="dark" disabled={!changed || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
           </View>
         </View>
-      }>
-      {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
-        : request ? <RequestBanner ctx={ctx} request={request} /> : null}
+      )}>
+      <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
+        topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
+        top={
+          <ScrollView contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled" accessibilityLabel="Source">
+            {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
+              : request ? <RequestBanner ctx={ctx} request={request} /> : null}
+            <PassageSourceAudio ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} />
+            <Card>
+              <View style={styles.labelRow}>
+                <Text style={[txt.label, { flex: 1 }]}>Source{reading ? ` · ${reading.code}` : ''}</Text>
+                {reading && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
+              </View>
+              {reading && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
+              {reading ? <SourceText reading={reading} terms={unitTerms} tied={tied}
+                {...(recording ? {} : { onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, laneId, termId }) })} />
+                : <Text style={txt.smMuted}>There's no source text for this passage in the app yet. Listen to the source, then record.</Text>}
+            </Card>
+          </ScrollView>
+        }
+        bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : (
+          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel="Your recording">
+            {problem}
+            <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
+            <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h)}
+              empty={isFirst ? 'No takes yet — tap the red button below to start.' : 'No takes yet — tap the red button below to record this version.'} />
+            {!isFirst && !changed && list.length > 0 ? (
+              <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s takes. Record a new take or delete one to publish a new version.</Text>
+            ) : null}
+          </ScrollView>
+        )} />
 
-      <Card>
-        <View style={styles.labelRow}>
-          <Text style={[txt.label, { flex: 1 }]}>Source{reading ? ` · ${reading.code}` : ''}</Text>
-          {reading && trayTerms.length > 0 ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
-        </View>
-        {reading && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
-        {reading ? <SourceText reading={reading} terms={unitTerms} tied={tied} onTerm={(termId) => ctx.go('key_term_detail', { unitId, laneId, termId })} />
-          : <Text style={txt.smMuted}>There's no source text for this passage in the app yet. Listen to the source below, then record.</Text>}
-      </Card>
-      {reading ? (
-        <Disclosure icon="listen" title="Listen to the source" summary="Chapter audio and the passage's reference recordings" {...ctx.details(`workspace:source:${unitId}`)}>
-          <View style={{ padding: space.md }}><PassageSourceAudio ctx={ctx} unitId={unitId} laneId={laneId} disabled={recording} /></View>
-        </Disclosure>
-      ) : <PassageSourceAudio ctx={ctx} unitId={unitId} laneId={laneId} disabled={recording} />}
-
-      <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
-      <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h)}
-        empty={isFirst ? 'No takes yet — tap the red button below to start.' : 'No takes yet — tap the red button below to record this version.'} />
-      {problem}
-
-      <VadTakeover rec={rec} count={list.length} />
+      {help ? (
+        <HelpSheet ctx={ctx} v={v} tab={tab} onTab={setTab} onClose={closeHelp} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId}
+          canTie={canTie} study={study} notes={notes} disabled={blocked} />
+      ) : null}
       {confirming ? (
         <PublishSheet ctx={ctx} v={v} n={nextN} first={isFirst} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
           {...(revising ? { revisingKind: v.kind(revising.kindId).name } : {})}
@@ -274,9 +291,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 /**
  * Verses with their numbers inline; key-term words underlined (REC-W1). A
  * term tied to the draft is green with a solid underline and a ✓, and says
- * "tied" to a screen reader, so the tie never rests on colour alone.
+ * "tied" to a screen reader, so the tie never rests on colour alone. While
+ * recording, the words stay marked but do not open the term (that would leave
+ * the recording running behind another screen).
  */
-function SourceText(props: { reading: Reading; terms: { termId: string; term: string }[]; tied: ReadonlySet<string>; onTerm: (termId: string) => void }) {
+function SourceText(props: { reading: Reading; terms: { termId: string; term: string }[]; tied: ReadonlySet<string>; onTerm?: (termId: string) => void }) {
+  const onTerm = props.onTerm;
   const verses = useMemo(() => props.reading.verses.map((x) => ({ verse: x, parts: markTerms(x.text, props.terms) })), [props.reading, props.terms]);
   return (
     <Text style={styles.source}>
@@ -287,7 +307,7 @@ function SourceText(props: { reading: Reading; terms: { termId: string; term: st
             if (!part.termId) return <Text key={i}>{part.text}</Text>;
             const tied = props.tied.has(part.termId);
             return (
-              <Text key={i} onPress={() => props.onTerm(part.termId!)} accessibilityRole="link"
+              <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
                 accessibilityLabel={`${part.text}, key term${tied ? ', tied to your draft' : ''}`}
                 style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
             );
@@ -383,7 +403,9 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     await add({ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format });
   }, [add]);
   const rec = useRecorder(persist);
-  const recording = rec.vadOn || rec.manualOn;
+  const loop = useListenLoop(rec);
+  const session = loop.phase !== 'off';
+  const recording = session || rec.manualOn;
   const [working, setWorking] = useState(false);
   const blocked = recording || rec.busy || working || !drafts.loaded || !!drafts.problem;
 
@@ -431,41 +453,47 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
   }
 
   const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));
+  const problem = drafts.problem ? <SaveProblem message={drafts.problem} />
+    : rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+    : rec.error ? <SaveProblem message={rec.error} /> : null;
   return (
-    <Screen
+    <Screen fixed
       header={<Header title={capitalize(produces.what)} sub={`${v.lane} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
-      footer={
+      footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.actions}>
-          <RecordButton recording={recording} disabled={blocked || rec.failureCount > 0} onPress={() => void rec.toggleVad()} />
+          <RecordButton recording={false} disabled={blocked || rec.failureCount > 0} onPress={() => void loop.toggle()} />
           <View style={{ flex: 1 }}>
             <PrimaryBtn label={`Save ${produces.what}`} tone="dark" disabled={cards.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
           </View>
         </View>
-      }>
-      <Banner icon="swap" title="You're making new content"
-        body={`Listen to ${versionTitle(of.n)}, then say what it means in ${produces.into}, in your own words. You're not judging it — ${checkedBy ? `the ${checkedBy} compares your ${produces.what} with the source` : `the next check compares your ${produces.what} with the source`}.`} />
-      {request ? <RequestBanner ctx={ctx} request={request} /> : null}
-      {madeFrom ? (
-        <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
-          body={`${versionTitle(of.n)} is out now, and saving puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
-      ) : null}
+      )}>
+      <SplitPane memoryKey="back_translation" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
+        topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
+        top={
+          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Listen to ${versionTitle(of.n)}`}>
+            {request ? <RequestBanner ctx={ctx} request={request} /> : null}
+            {madeFrom ? (
+              <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
+                body={`${versionTitle(of.n)} is out now, and saving puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
+            ) : null}
+            <SectionLabel label={`Listen · ${v.lane} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
+            <Card>
+              <SourcePlayer project={ctx.project} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} listen={loop.hooks} />
+              <Text style={txt.xs}>Notes, key terms and earlier reviews are hidden on purpose, so only the recording shapes what you say.</Text>
+            </Card>
+            <Banner icon="swap" title="You're making new content"
+              body={`Listen to ${versionTitle(of.n)}, then say what it means in ${produces.into}, in your own words. You're not judging it — ${checkedBy ? `the ${checkedBy} compares your ${produces.what} with the source` : `the next check compares your ${produces.what} with the source`}.`} />
+          </ScrollView>
+        }
+        bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={cards.length} noun="part" onResume={loop.resumeNow} /> : (
+          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Your ${produces.what}`}>
+            {problem}
+            <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
+            <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
+              empty={drafts.loaded ? 'No parts yet — listen to a part, then tap the red button and say it in your own words.' : 'Loading your parts…'} />
+          </ScrollView>
+        )} />
 
-      <SectionLabel label={`Listen · ${v.lane} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
-      <Card>
-        <View style={styles.listenRow}>
-          <AudioClip project={ctx.project} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} disabled={recording} seekControls />
-        </View>
-        <Text style={txt.xs}>Notes, key terms and earlier reviews are hidden on purpose, so only the recording shapes what you say.</Text>
-      </Card>
-
-      <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
-      <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
-        empty={drafts.loaded ? 'No parts yet — listen to a part, then tap the red button and say it in your own words.' : 'Loading your parts…'} />
-      {drafts.problem ? <SaveProblem message={drafts.problem} />
-        : rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
-        : rec.error ? <SaveProblem message={rec.error} /> : null}
-
-      <VadTakeover rec={rec} count={cards.length} />
       {confirming ? (
         <BackTranslationSheet what={produces.what} into={produces.into} of={of} checkedBy={checkedBy} busy={saving}
           onClose={() => setConfirming(false)} onSave={(note) => void save(note)} />
@@ -499,7 +527,12 @@ const styles = StyleSheet.create({
   term: { fontWeight: '600', color: C.primary, backgroundColor: C.light, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
   termTied: { color: TINT.greenText, backgroundColor: TINT.green, textDecorationStyle: 'solid' },
   checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
-  listenRow: { flexDirection: 'row', alignItems: 'center' }
+  // LAN-23: each half its own ground, so the two read as different places. The
+  // source is cool (the brand's pale tint; the theme has no blue), your
+  // recording warm (the red tint). Cards on both stay white, so text keeps its contrast.
+  sourcePane: { backgroundColor: C.light },
+  recordPane: { backgroundColor: withAlpha(C.red, 0.08) },
+  paneBody: { padding: space.lg, gap: space.md }
 });
 
 export const contracts = contractsFor('workspace', 'back_translation');

@@ -179,6 +179,8 @@ export function affectedPassages(event: AnyEvent, state: ProjectState): 'all' | 
     case 'v1.DepartureRecorded':
     case 'v1.DepartureUndone':
     case 'v1.RequestMade':
+    case 'v2.RequestMade':
+    case 'v1.ReviewTeamKindSet':
     case 'v1.RequestWithdrawn':
     case 'v1.NoteAdded':
     case 'v1.StudyStepMarked':

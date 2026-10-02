@@ -11,8 +11,8 @@ import { buildOrgFixture, buildRecordFixture } from '../packages/core/test/fixtu
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
 // The record's own event types; the fixture also carries a v1 flow selection.
 const RECORD_TYPES = new Set(['v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.ReviewRecorded', 'v1.DepartureRecorded',
-  'v1.DepartureUndone', 'v1.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed',
-  'v1.LaneCountrySet', 'v1.LaneTargetSet']);
+  'v1.DepartureUndone', 'v1.RequestMade', 'v2.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed',
+  'v1.LaneCountrySet', 'v1.LaneTargetSet', 'v1.ReviewTeamKindSet']);
 // The library's: org-partition items and versions, and a language's use of them.
 const LIBRARY_TYPES = new Set<string>([...LIBRARY_EVENT_TYPES, 'v2.LaneTemplateSelected', 'v1.LaneUnitHidden', 'v2.LaneFlowSelected']);
 // The organization's license (license.ts).
@@ -27,6 +27,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReviewRecorded': ['comment', 'commentBlobHash', 'answers', 'skipped', 'people', 'place', 'givenBy', 'requestId', 'artifacts'],
   'v1.DepartureRecorded': ['kindId', 'stepId', 'reviewId', 'reasonBlobHash'],
   'v1.RequestMade': ['kindId', 'profileId', 'guest', 'dueDate', 'note', 'noteBlobHash', 'questions'],
+  'v2.RequestMade': ['kindId', 'profileId', 'guest', 'teamId', 'dueDate', 'note', 'noteBlobHash', 'questions'],
   'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId'],
   'v1.LibraryItemDefined': ['copiedFrom'],
   'v1.LibraryVersionPublished': ['note'],
@@ -59,7 +60,14 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     variants.push({ ...p, scope: 'psalms' }, { ...p, startDate: '2026-1-1' }, { ...p, targetDate: p['startDate'] },
       { ...p, startDate: '2027-01-01', targetDate: '2026-01-01' }, { ...p, targetDate: 'soon' });
   }
-  if (e.type === 'v1.RequestMade') {
+  if (e.type === 'v1.ReviewTeamKindSet') variants.push({ ...p, kindId: '' }, { ...p, kindId: ['peer'] }, { ...p, teamId: '' });
+  if (e.type === 'v2.RequestMade') {
+    // Exactly one addressee: a team with a person or a guest too, or none at all.
+    const { teamId: _, ...none } = p;
+    variants.push(none, { ...p, profileId: 'r1' }, { ...p, guest: { name: 'n', channel: 'sms', contact: 'c' } }, { ...p, teamId: '' },
+      { ...none, profileId: 'r1' }, { ...none, guest: { name: 'n', channel: 'sms', contact: 'c' } }, { ...none, profileId: 'r1', guest: { name: 'n', channel: 'sms', contact: 'c' } });
+  }
+  if (e.type === 'v1.RequestMade' || e.type === 'v2.RequestMade') {
     variants.push({ ...p, questions: [{ id: 'q', text: 't', type: 'yesno', required: 'yes' }] }, { ...p, questions: [{ id: 'q', text: 't', type: 'essay' }] },
       { ...p, guest: { name: 'n', channel: 'email', contact: 'c' } });
   }
