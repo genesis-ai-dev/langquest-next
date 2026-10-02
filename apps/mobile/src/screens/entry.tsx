@@ -639,6 +639,12 @@ export function IntentChooser(ctx: Ctx) {
   }
   return (
     <Screen header={<Header title={waiting ? 'Request sent' : 'What brings you here?'} />}>
+      {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
+      {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title="Joining with your invite…" /> : null}
+      {ctx.invite.status.kind === 'waiting' ? (
+        <Banner icon="cloud" title="Your invite is saved" body="You'll join as soon as there's a connection." />
+      ) : null}
+      {ctx.invite.status.kind === 'dead' ? <Banner icon="flag" tone="amber" title="Your invite couldn't be used" body={ctx.invite.status.message} /> : null}
       {waiting ? (
         <>
           <View style={styles.waiting}>
