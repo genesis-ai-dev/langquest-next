@@ -419,6 +419,8 @@ enabled = true
 verify_jwt = false
 [functions.send-invite]
 verify_jwt = false
+[functions.sign-in-code]
+verify_jwt = false
 
 # Hosted projects, by environment (docs/environments.md). Scripts find a
 # project's ref here (npm run secrets), and the Workers' SUPABASE_URL vars
