@@ -1,6 +1,7 @@
 import type { BlobRef } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 
 /**
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
@@ -14,6 +15,11 @@ import { Directory, File, Paths } from 'expo-file-system';
  * Startup discards leftover staging files, so an interrupted download can
  * never be mistaken for a verified one. Deletion happens only in `reclaim`,
  * and only for files the caller has proven the server can give back.
+ *
+ * Web is a test target, not a shipped platform: expo-file-system has no web
+ * implementation, so there the store keeps bytes in memory (as the library
+ * document store does). A recording that has not uploaded is lost when the
+ * tab reloads or closes. A durable browser store comes before web ships.
  */
 const DIR_NAME = 'blobs';
 const STAGING_SUFFIX = '.part';
@@ -21,18 +27,24 @@ const STAGING_SUFFIX = '.part';
 /** What the store needs to name a file; the unit is sync's concern, not disk's. */
 export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
 
+const WEB = Platform.OS === 'web';
+const MIME: Record<BlobRef['format'], string> = { wav: 'audio/wav', m4a: 'audio/mp4' };
+
 export class BlobStore {
-  private readonly dir: Directory;
+  /** Null on web, where `memory` holds the bytes instead. */
+  private readonly dir: Directory | null;
+  private readonly memory = new Map<string, { bytes: Uint8Array<ArrayBuffer>; format: BlobRef['format']; url?: string }>();
   private readonly present = new Set<string>();
   private readonly sizeByHash = new Map<string, number>();
   private listeners = new Set<() => void>();
 
   constructor() {
-    this.dir = new Directory(Paths.document, DIR_NAME);
+    this.dir = WEB ? null : new Directory(Paths.document, DIR_NAME);
   }
 
   /** One listing at startup. Additive after that. */
   async init(): Promise<void> {
+    if (!this.dir) return;
     if (!this.dir.exists) this.dir.create({ intermediates: true, idempotent: true });
     for (const entry of this.dir.list()) {
       if (entry instanceof File) {
@@ -83,13 +95,40 @@ export class BlobStore {
     return new Set(this.present);
   }
 
-  fileFor(ref: BlobFile): File {
-    return new File(this.dir, `${ref.hash}.${ref.format}`);
+  /** Whether this file is stored: on disk, or in memory on web. */
+  exists(ref: BlobFile): boolean {
+    return this.dir ? this.fileFor(ref).exists : this.memory.has(ref.hash);
   }
 
-  /** Where a download lands before its bytes are verified. */
+  /** Its size as stored; ask `exists` first. */
+  storedSize(ref: BlobFile): number {
+    return this.dir ? this.fileFor(ref).size : this.memory.get(ref.hash)?.bytes.byteLength ?? 0;
+  }
+
+  /** Native only: the file on disk. */
+  fileFor(ref: BlobFile): File {
+    return new File(this.disk(), `${ref.hash}.${ref.format}`);
+  }
+
+  /** Native only: where a download lands before its bytes are verified. */
   stagingFor(ref: BlobFile): File {
-    return new File(this.dir, `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
+    return new File(this.disk(), `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
+  }
+
+  /** Web only: the bytes to upload. */
+  bytesOf(ref: BlobFile): Uint8Array<ArrayBuffer> | null {
+    return this.memory.get(ref.hash)?.bytes ?? null;
+  }
+
+  /** Web only: keep downloaded bytes the caller has verified against their hash. */
+  putVerified(ref: BlobFile, bytes: Uint8Array<ArrayBuffer>): void {
+    if (!this.memory.has(ref.hash)) this.memory.set(ref.hash, { bytes, format: ref.format });
+    this.markPresent(ref.hash, bytes.byteLength);
+  }
+
+  private disk(): Directory {
+    if (!this.dir) throw new Error('No blob files on web; bytes are kept in memory there.');
+    return this.dir;
   }
 
   /**
@@ -114,12 +153,20 @@ export class BlobStore {
     const removed: string[] = [];
     const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
     for (const ref of bySize) {
-      if (Paths.availableDiskSpace >= opts.minFreeBytes && this.totalBytes() <= opts.maxTotalBytes) break;
+      // Web has no disk to keep free, only memory to bound.
+      const roomy = this.dir ? Paths.availableDiskSpace >= opts.minFreeBytes : true;
+      if (roomy && this.totalBytes() <= opts.maxTotalBytes) break;
       if (!this.present.has(ref.hash)) continue;
-      try {
-        this.fileFor(ref).delete();
-      } catch {
-        continue;
+      if (this.dir) {
+        try {
+          this.fileFor(ref).delete();
+        } catch {
+          continue;
+        }
+      } else {
+        const url = this.memory.get(ref.hash)?.url;
+        if (url) URL.revokeObjectURL(url);
+        this.memory.delete(ref.hash);
       }
       this.present.delete(ref.hash);
       this.sizeByHash.delete(ref.hash);
@@ -130,7 +177,12 @@ export class BlobStore {
   }
 
   uriFor(ref: BlobFile): string | null {
-    return this.present.has(ref.hash) ? this.fileFor(ref).uri : null;
+    if (!this.present.has(ref.hash)) return null;
+    if (this.dir) return this.fileFor(ref).uri;
+    const kept = this.memory.get(ref.hash);
+    if (!kept) return null;
+    kept.url ??= URL.createObjectURL(new Blob([kept.bytes], { type: MIME[kept.format] }));
+    return kept.url;
   }
 
   /**
@@ -139,6 +191,7 @@ export class BlobStore {
    * land on the same name.
    */
   async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
+    if (!this.dir) return this.ingestInMemory(sourceUri, format, beforeMove);
     const src = new File(sourceUri);
     const bytes = await src.bytes();
     const hash = await BlobStore.hashOf(bytes);
@@ -147,6 +200,18 @@ export class BlobStore {
     await beforeMove?.(ref, bytes.byteLength);
     if (!dest.exists) src.move(dest);
     else src.delete();
+    this.markPresent(hash, bytes.byteLength);
+    return { ref, size: bytes.byteLength };
+  }
+
+  /** Web: the recorder hands over a blob: URL; read it, keep the bytes, let the URL go. */
+  private async ingestInMemory(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
+    const bytes = new Uint8Array(await (await fetch(sourceUri)).arrayBuffer());
+    const hash = await BlobStore.hashOf(bytes);
+    const ref: BlobFile = { hash, format };
+    await beforeMove?.(ref, bytes.byteLength);
+    if (!this.memory.has(hash)) this.memory.set(hash, { bytes, format });
+    if (sourceUri.startsWith('blob:')) URL.revokeObjectURL(sourceUri);
     this.markPresent(hash, bytes.byteLength);
     return { ref, size: bytes.byteLength };
   }

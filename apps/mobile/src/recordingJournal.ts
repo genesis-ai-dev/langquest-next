@@ -1,5 +1,6 @@
 import { getStore } from './store';
 import { File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 import {
   parseJournal, removeEntry, resumeEntries, upsertEntry,
   type JournalEntry, type ResumeDeps, type ResumeResult
@@ -14,7 +15,8 @@ import {
 const FILE_NAME = 'recording-journal.json';
 
 export class RecordingJournal {
-  private readonly file = new File(Paths.document, FILE_NAME);
+  // The legacy file to import; web (a test target) has no files and nothing to import.
+  private readonly file = Platform.OS === 'web' ? null : new File(Paths.document, FILE_NAME);
   private entries: JournalEntry[] | null = null;
   private chain: Promise<unknown> = Promise.resolve();
   private loading: Promise<JournalEntry[]> | undefined;
@@ -31,7 +33,7 @@ export class RecordingJournal {
     const store = await getStore();
     const saved = await store.meta(FILE_NAME);
     // Import the legacy file once. SQLite commits journal changes atomically.
-    const raw = saved ?? (this.file.exists ? await this.file.text() : undefined);
+    const raw = saved ?? (this.file?.exists ? await this.file.text() : undefined);
     if (raw) JSON.parse(raw); // Never silently erase a damaged journal.
     const entries = parseJournal(raw);
     if (saved === undefined) await store.setMeta(FILE_NAME, JSON.stringify(entries));
@@ -66,7 +68,8 @@ export class RecordingJournal {
   async resume(partition: { orgId: string; projectId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
     const result = await resumeEntries([...(await this.all())], partition, {
       ...deps,
-      fileExists: (uri) => { try { return new File(uri).exists; } catch { return false; } },
+      // On web a recording's blob: URL does not outlive the page, so after a reload there is nothing to resume.
+      fileExists: (uri) => { if (Platform.OS === 'web') return false; try { return new File(uri).exists; } catch { return false; } },
       save: (entry) => this.put(entry)
     });
     for (const id of [...result.resumed, ...result.dropped]) await this.remove(id);

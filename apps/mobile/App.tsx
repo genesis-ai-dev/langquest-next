@@ -8,7 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx, RecentPassage } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
@@ -544,7 +544,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   useEffect(() => {
-    if (!props.signedIn) return;
+    // Web (a test target) has no notification responses to read.
+    if (!props.signedIn || Platform.OS === 'web') return;
     const receive = (response: Notifications.NotificationResponse | null) => {
       if (!response?.notification.request.content.data?.notificationId) return;
       nav.reset({ screen: 'inbox_home' });
