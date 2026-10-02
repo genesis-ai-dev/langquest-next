@@ -18,7 +18,7 @@ Find what the pipeline left half-done. Report; fix nothing.
    seen here. Open one issue titled "Hosted database behind main" if none is
    open, with the diff; do not apply anything.
 4. Commits on main since the last run that name no issue ID. List them in one
-   comment on the digest issue, so work outside the board is visible.
+   comment on the digest issue, LAN-33, so work outside the board is visible.
 5. Do not repeat yourself: if the last comment on an issue already says the
    same thing and nothing changed, add nothing.
 
