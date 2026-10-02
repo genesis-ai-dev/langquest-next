@@ -360,8 +360,19 @@ do $$ declare r record; begin
   if r.accepted then raise exception 'lane admin must not define org roles'; end if;
   perform * from public.pull_events('org1', '_org', 0, 10);
   perform * from public.pull_events('org1', 'p2', 0, 10);
+  -- A phone cold-starts from a snapshot, so a member of one language must
+  -- be able to ask for the org's too, or it never downloads the org at all.
+  perform * from public.get_snapshot_meta('org1', '_org', 1);
+  perform public.get_snapshot_chunk('org1', '_org', 1, 1, 0);
+  perform * from public.get_snapshot('org1', '_org', 1);
+  perform * from public.get_snapshot_meta('org1', 'p2', 1);
 end $$;
 select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  perform * from public.get_snapshot_meta('org1', '_org', 1);
+  raise exception 'a stranger must not read the org snapshot';
+exception when insufficient_privilege then null;
+end $$;
 do $$ declare r record; begin
   begin
     perform * from public.pull_events('org1', '_org', 0, 10);
