@@ -10,7 +10,8 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { firstName, teamLabel, welcomeRoleFor, WELCOME_POINTS, withArticle } from '../accountText';
 import type { Ctx } from '../ctx';
-import { GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
+import { Banner, GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
+import { signInName } from '../accounts';
 import { laneName } from '@langquest-next/core';
 import { PersonAvatar } from '../UserChip';
 import { personLook } from '../people';
@@ -66,6 +67,7 @@ export function Welcome(ctx: Ctx) {
   }
 
   const first = firstName(who.displayName);
+  const handle = signInName(ctx.session.email);
   return (
     <Screen
       bodyStyle={styles.body}
@@ -88,6 +90,11 @@ export function Welcome(ctx: Ctx) {
           You're {withArticle(who.roleName).split(' ')[0]} <Text style={{ fontWeight: '700' }}>{who.roleName}</Text> on {who.team}.
         </Text>
       </View>
+      {handle ? (
+        // A looked-after account signs in with this, not an email (docs/invites-and-accounts.md).
+        <Banner icon="lock" title={`Your sign-in name is ${handle}`}
+          body="Write it down. You'll need it with your password. If you forget either, the person who invited you can help you back in." />
+      ) : null}
       <Group>
         {points.map((p, i) => <Row key={p.text} icon={p.icon} label={p.text} last={i === points.length - 1} />)}
       </Group>

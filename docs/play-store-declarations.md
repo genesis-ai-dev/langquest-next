@@ -84,7 +84,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | --- | --- |
 | Collects or shares required data types | Yes |
 | Encrypted in transit | Yes: Supabase and source audio over HTTPS; no cleartext allowed |
-| Account creation | Username and password (email and password); no OAuth, no other authentication |
+| Account creation | Username and password: an email and password, or, for someone joining by invite with no email, a sign-in name and password (docs/invites-and-accounts.md); no OAuth, no other authentication |
 | Account deletion URL | https://langquest.org/en/next/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
@@ -96,7 +96,8 @@ every type.
 
 | Category | Data type | Collected | Shared | Required or optional | Purposes |
 | --- | --- | --- | --- | --- | --- |
-| Personal info | Email address | Yes | No | Required | App functionality, Account management |
+| Personal info | Email address | Yes | No | Optional (someone joining by invite may have none) | App functionality, Account management |
+| Personal info | User IDs (the sign-in name of an account made by invite) | Yes | No | Optional | App functionality, Account management |
 | Personal info | Name | Yes | No | Required | App functionality, Account management |
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |
 | Messages | Other in-app messages (review comments, join request messages) | Yes | No | Optional | App functionality |

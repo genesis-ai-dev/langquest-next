@@ -33,3 +33,27 @@ export function parseInvite(input: string): { orgId?: string; token: string } | 
   // A bare token pasted out of a message.
   return null;
 }
+
+/**
+ * A sign-in key (docs/invites-and-accounts.md flow F): a steward's one-time
+ * code that lets a looked-after person choose a new password. Same shape of
+ * secret as an invite, a different door.
+ */
+export function signInUri(code: string): string {
+  return `langquestnext://signin?code=${encodeURIComponent(code)}`;
+}
+
+export function parseSignInKey(input: string): { code: string } | null {
+  const m = /^langquestnext:\/\/signin\?(?:.*&)?code=([0-9a-f]{64})(?:&|$)/i.exec(input.trim());
+  return m?.[1] ? { code: m[1].toLowerCase() } : null;
+}
+
+/** Every key the one scanner reads: an invite (link or bare code) or a sign-in key. */
+export type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string };
+
+export function parseKey(input: string): ScannedKey | null {
+  const signin = parseSignInKey(input);
+  if (signin) return { kind: 'signin', ...signin };
+  const invite = parseInvite(input);
+  return invite ? { kind: 'invite', ...invite } : null;
+}

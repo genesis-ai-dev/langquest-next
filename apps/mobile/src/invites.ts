@@ -1,5 +1,6 @@
 import type { Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
+import type { InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
 import { supabase } from './supabase';
 
@@ -54,18 +55,22 @@ export async function issueInvite(
   orgId: string,
   roleId: string,
   scope: Scope = { level: 'org' },
-  ttlDays: number = DEFAULT_TTL_DAYS
+  options: { label?: string; maxUses?: number; ttlDays?: number } = {}
 ): Promise<NewInvite> {
   const inviteId = Crypto.randomUUID();
   const token = newToken();
-  const expiresAt = new Date(Date.now() + ttlDays * 86_400_000).toISOString();
-  const { error } = await supabase.rpc('issue_invite', {
+  const expiresAt = new Date(Date.now() + (options.ttlDays ?? DEFAULT_TTL_DAYS) * 86_400_000).toISOString();
+  // The label (who it is for) is shown to whoever scans it, from the server,
+  // and kept out of the log (docs/invites-and-accounts.md section 4).
+  const { error } = await supabase.rpc('issue_invite_v3', {
     p_org: orgId,
     p_invite_id: inviteId,
     p_token_hash: await sha256Hex(token),
     p_role_id: roleId,
     p_scope: scope,
-    p_expires_at: expiresAt
+    p_expires_at: expiresAt,
+    p_label: options.label?.trim() || null,
+    p_max_uses: options.maxUses ?? 1
   });
   if (error) throw new Error(error.message);
   return { inviteId, token, expiresAt };
@@ -84,6 +89,49 @@ export async function redeemInvite(input: string): Promise<{ orgId: string }> {
   const orgId = data as string | null;
   if (!orgId) throw new Error('invite not found');
   return { orgId };
+}
+
+/**
+ * What the server says a key means, for the scan screen. Null when it could
+ * not be asked (offline): the screen then claims nothing.
+ */
+export async function previewInvite(token: string): Promise<InvitePreview | null> {
+  const { data, error } = await supabase.rpc('preview_invite', { p_token: token });
+  if (error || !data) return null;
+  return data as InvitePreview;
+}
+
+/**
+ * A sign-in key for a looked-after member (flow F), made by their steward or
+ * an organization admin. Only the hash leaves the phone; the code is shown
+ * once, as a QR. Returns the person's sign-in name to read out with it.
+ */
+export async function issueSignInCode(profileId: string): Promise<{ code: string; signInName: string }> {
+  const code = newToken();
+  const { data, error } = await supabase.rpc('issue_sign_in_code', { p_profile: profileId, p_code_hash: await sha256Hex(code) });
+  if (error) throw new Error(error.message);
+  return { code, signInName: data as string };
+}
+
+/** May this session help that person sign in? False on any doubt. */
+export async function canHelpSignIn(profileId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('can_help_sign_in', { p_profile: profileId });
+  return !error && data === true;
+}
+
+/**
+ * Use a sign-in key with a new password, signed out. Returns the sign-in
+ * name; the caller signs in with it.
+ */
+export async function redeemSignInCode(code: string, password: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('sign-in-code', { body: { code, password } });
+  if (error) {
+    // The function's own words are in the response body.
+    const context = (error as { context?: Response }).context;
+    const body = context ? await context.json().catch(() => null) as { error?: string } | null : null;
+    throw new Error(body?.error ?? error.message);
+  }
+  return (data as { signInName: string }).signInName;
 }
 
 /** Ask to join an org. One row per (org, requester); asking twice is not an error. */

@@ -39,7 +39,9 @@ import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { useBlocks, useOpenReportCount } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
-import { parseInvite } from './src/inviteCode';
+import { parseKey } from './src/inviteCode';
+import { nextStep } from './src/heldInvite';
+import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useProject } from './src/useProject';
@@ -205,6 +207,10 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   const [selectionRevision, setSelectionRevision] = useState(0);
   const [noOrganizations, setNoOrganizations] = useState(false);
   const key = `selection:${props.actorId}`;
+  // Set once an organization is opened here; a slower "my organizations"
+  // reply from before must not overrule it (it once said "none" right
+  // after an invite had been used, docs/invites-and-accounts.md section 1).
+  const chosen = useRef(false);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -218,7 +224,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       const { data, error } = await supabase.rpc('my_organizations');
       if (error) { noteExpected('restore organization', error); return; }
       const first = (data as { org_id: string }[] | null)?.[0];
-      if (!active) return;
+      if (!active || chosen.current) return;
       // The server's own list is empty: a new account, in no organization yet.
       setNoOrganizations(!first);
       if (!first) return;
@@ -228,13 +234,16 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     return () => { active = false; };
   }, [key, props.signedIn]);
   const openOrganization = useCallback(async (next: string) => {
+    chosen.current = true;
     await AsyncStorage.setItem(key, JSON.stringify({ orgId: next }));
-    await AsyncStorage.removeItem('pending-invite');
     setNoOrganizations(false);
     setOrgId(next);
     setSelectionRevision((revision) => revision + 1);
   }, [key]);
-  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} />;
+  // The held invite is used here, above the organization, so opening the
+  // organization it joined cannot interrupt it.
+  const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
+  return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite} />;
 }
 
 /**
@@ -243,7 +252,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; noOrganizations: boolean; openOrganization: Ctx['openOrganization'] }) {
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
@@ -257,7 +266,7 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  * place, without leaving the screen.
  */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
-  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization'] }) {
+  orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
   // ---- the language this person works in (MAP-7), and so the partition open ----
@@ -470,12 +479,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     go('passage_record', { unitId, laneId: lane, ...extra });
   }, [go, remember]);
 
+  // A link that opens the app is a scan (docs/invites-and-accounts.md flow D).
+  const { invite } = props;
   useEffect(() => {
     const receive = (url: string) => {
-      if (!parseInvite(url)) return;
-      void AsyncStorage.setItem('pending-invite', url).then(() => {
-        nav.reset({ screen: 'scan_qr', params: { invite: url } });
-      });
+      const key = parseKey(url);
+      if (!key) return;
+      if (key.kind === 'signin') { nav.reset({ screen: 'scan_qr', params: { code: url } }); return; }
+      void invite.scan(key).then(() => nav.reset({ screen: 'scan_qr' }));
     };
     if (!initialLinkRead) {
       initialLinkRead = true;
@@ -483,13 +494,17 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     }
     const listener = Linking.addEventListener('url', ({ url }) => receive(url));
     return () => listener.remove();
-  }, [nav.reset]);
+  }, [nav.reset, invite.scan]);
+  // An invite nobody has claimed is shown to whoever is signed in, once, to
+  // ask "Join as you?"; it never joins on its own (heldInvite.ts).
+  const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (!props.signedIn || !onboardingLoaded) return;
-    void AsyncStorage.getItem('pending-invite').then((value) => {
-      if (value) nav.reset({ screen: 'scan_qr', params: { invite: value } });
-    });
-  }, [props.signedIn, onboardingLoaded, nav.reset]);
+    if (!props.signedIn || !onboardingLoaded || !invite.held) return;
+    const step = nextStep(invite.held, props.actorId, Date.now());
+    if (step.step !== 'ask' || asked.current === invite.held.token) return;
+    asked.current = invite.held.token;
+    if (nav.current.screen !== 'scan_qr') nav.reset({ screen: 'scan_qr' });
+  }, [props.signedIn, onboardingLoaded, invite.held, props.actorId, nav]);
 
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
@@ -531,7 +546,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     },
     acceptTerms: (actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'),
     markJoined: (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1'),
-    rememberInvite: (value) => AsyncStorage.setItem('pending-invite', value),
+    invite,
     openOrganization: props.openOrganization,
     openDev: () => setDevOpen(true),
     isDev: IS_DEV,

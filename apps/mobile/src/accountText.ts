@@ -145,33 +145,5 @@ export const VISION_STEPS: { title: string; icon: 'globe' | 'book' | 'people'; b
   { title: 'Do it, or ask someone', icon: 'people', body: 'Your organization suggests what comes next. Do it yourself, ask someone, or say why not.' }
 ];
 
-// ---- Invites (AUTH-3, ADR-028) -------------------------------------------------------------
-
-export interface InviteSummary {
-  orgId?: string;
-}
-
-/**
- * What an invite link says about itself before it is redeemed: only the org
- * it is for. Links carry the org and the token and nothing else; any other
- * parameter (older links carried a name, a role and an inviter) is ignored,
- * because the scan screen must not show claims nobody has checked.
- */
-export function inviteSummary(input: string): InviteSummary {
-  const raw = input.trim();
-  if (!/^langquestnext:\/\/invite\?/.test(raw)) return {};
-  const m = /[?&]org=([^&\s]+)/.exec(raw);
-  if (!m?.[1]) return {};
-  try {
-    const orgId = decodeURIComponent(m[1].replace(/\+/g, ' ')).trim();
-    return orgId ? { orgId } : {};
-  } catch {
-    // A malformed escape: the link says nothing we can read about its org.
-    return {};
-  }
-}
-
-/** The scan screen's line: the org's name when this phone already knows it, else a neutral phrase (never an id). */
-export function inviteLine(knownOrgName?: string): string {
-  return knownOrgName ? `Invitation to join ${knownOrgName}` : 'Invitation to join an organization';
-}
+// The scan screen's invite card is heldInvite.ts `inviteCard`: the server's
+// preview, never what a link says about itself (ADR-028).

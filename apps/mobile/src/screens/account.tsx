@@ -7,6 +7,7 @@
 // Settings (store rules, decisions.md 48).
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 and ONB-5 (the
 // Settings rows back to them), CORE-12 (sign-out never strands work).
+import { signInName } from '../accounts';
 import { CommandError, decodeHlc, deriveKinds, kindOf, laneName, unitTitle, type Update } from '@langquest-next/core';
 import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -342,7 +343,10 @@ export function SettingsHome(ctx: Ctx) {
           <PersonAvatar look={personLook(s.actorId, name)} size={52} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={txt.h3} numberOfLines={1}>{name}</Text>
-            <Text style={[txt.xs, !s.email && { color: TINT.amberText }]} numberOfLines={1}>{s.email ?? 'No email linked'}</Text>
+            {/* A looked-after account signs in with its sign-in name; its address means nothing to the person. */}
+            <Text style={[txt.xs, !s.email && { color: TINT.amberText }]} numberOfLines={1}>
+              {signInName(s.email) ? `Sign-in name: ${signInName(s.email)}` : s.email ?? 'No email linked'}
+            </Text>
             <Text style={[txt.xs, { color: C.primary, fontWeight: '600' }]} numberOfLines={1}>{roleName} · {orgName}</Text>
           </View>
         </View>
