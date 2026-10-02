@@ -142,13 +142,19 @@ export const AUTH_SCREENS: ScreenId[] = ['sign_in', 'create_account'];
 export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_home', 'scan_qr', 'terms_privacy'];
 
 /**
- * Has enough arrived to route a signed-in person? The org fold must be in.
- * The language partition must be in too, unless the server lists no
- * organization for this person: they have no partition to sync, nothing more
- * will come, and waiting would keep them on Sign In for ever.
+ * Has enough arrived to route a signed-in person? The org must have synced
+ * once this session (or found itself offline or refused): a copy of the org
+ * already on this phone can predate a membership the server granted moments
+ * ago, as when someone joins by invite on a phone that held the org for
+ * another account, and routing on it sends a new member to "What brings you
+ * here?" and past their welcome (LAN-11). The language partition must be in
+ * too, unless the server lists no organization for this person: they have no
+ * partition to sync, nothing more will come, and waiting would keep them on
+ * Sign In for ever. A returning person is not held up: they are routed to
+ * the home remembered from last time meanwhile.
  */
-export function foldsSettled(orgLoaded: boolean, projectLoaded: boolean, noOrganizations: boolean): boolean {
-  return orgLoaded && (projectLoaded || noOrganizations);
+export function foldsSettled(orgSynced: boolean, projectLoaded: boolean, noOrganizations: boolean): boolean {
+  return orgSynced && (projectLoaded || noOrganizations);
 }
 
 /** Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to yet. */

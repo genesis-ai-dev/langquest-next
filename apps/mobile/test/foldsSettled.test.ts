@@ -7,7 +7,10 @@ import { describe, expect, it } from 'vitest';
 import { foldsSettled } from '../src/session';
 
 describe('foldsSettled', () => {
-  it('waits while the org has not arrived, even for someone with no organization', () => {
+  it('waits while the org has not synced, even for someone with no organization', () => {
+    // Why: a copy of the org already on the phone may not yet hold a
+    // membership granted a moment ago; routing on it sent a new member to
+    // "What brings you here?" (LAN-11). App passes org loaded AND settled.
     expect(foldsSettled(false, false, false)).toBe(false);
     expect(foldsSettled(false, false, true)).toBe(false);
   });

@@ -469,9 +469,10 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // state, not of an edge; each branch makes its own guard false, so it
   // settles in one extra render.
   //
-  // Both folds must be loaded first: postSignInScreen reads the role out of
-  // them, and routing early sends an admin to the wrong home.
-  const loaded = foldsSettled(org.state !== null, project.state !== null, props.noOrganizations);
+  // Both folds must be loaded first, the org synced once (foldsSettled):
+  // postSignInScreen reads the role out of them, and routing early sends an
+  // admin to the wrong home, or a new member to no home at all.
+  const loaded = foldsSettled(org.state !== null && org.settled, project.state !== null, props.noOrganizations);
   // Rendering must not wait on the log fold. The home screen for this
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.
