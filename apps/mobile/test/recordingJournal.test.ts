@@ -131,6 +131,7 @@ vi.mock('../src/store', () => ({ getStore: async () => ({
     disk.value = value;
   }
 }) }));
+vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 vi.mock('expo-file-system', () => ({
   Paths: { document: 'file:///documents' },
   File: class {

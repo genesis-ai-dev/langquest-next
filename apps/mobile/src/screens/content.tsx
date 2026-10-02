@@ -39,7 +39,7 @@ import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import {
   Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, Row, Screen, SearchField,
-  SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt
+  SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
 } from '../kit';
 import { loadDocs } from '../library/docStore';
 import { lanesUsing, sourceLine, type SharedItem } from '../library/model';
@@ -166,6 +166,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const [laneLimit, setLaneLimit] = useState(8);
   const [options, setOptions] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState<SharedItem | null>(null);
+  const beside = useOpenDetail();
   const docs = useLibraryDocs(lib.orgId, [...all.map((i) => i.current), ...others.slice(0, sharedLimit).map((c) => c.hash)]);
   const archivedOpen = ctx.details('templates:archived');
   const lanes = state ? Object.keys(state.lanes).sort((a, b) => laneName(state, a).localeCompare(laneName(state, b))) : [];
@@ -177,7 +178,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
     const users = lanesUsing(state, it.itemId).map((l) => (state ? laneName(state, l) : l));
     const update = it.source === 'subscription' && it.subscription?.active && !it.subscription.autoUpdate ? updates[it.itemId] : undefined;
     return (
-      <Card key={it.itemId}>
+      <Card key={it.itemId} current={beside?.screen === 'template_editor' && beside.params['itemId'] === it.itemId}>
         <View style={styles.head}>
           <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>

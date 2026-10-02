@@ -24,7 +24,7 @@ import { openReports } from '../moderationData';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen,
-  SectionLabel, Sheet, ShowMore, SmallBtn, txt, type IconName
+  SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
 import { dueText, plural, when } from '../passageView';
@@ -49,6 +49,8 @@ interface InboxItem {
   time?: string;
   read: boolean;
   onPress: () => void;
+  /** The passage it opens, so the row is marked while that passage shows beside the Inbox. */
+  unitId?: string;
 }
 
 const INBOX_STEP = 25;
@@ -181,7 +183,7 @@ export function InboxHome(ctx: Ctx) {
     for (const u of ctx.inbox.updates) {
       const w = words(u);
       items.push({
-        id: u.id, icon: w.icon, title: w.title, body: w.body, time: when(u.hlc), read: ctx.inbox.isRead(u.id),
+        id: u.id, icon: w.icon, title: w.title, body: w.body, time: when(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
         onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, u.laneId); }
       });
     }
@@ -202,6 +204,7 @@ export function InboxHome(ctx: Ctx) {
   }
 
   const { unread, earlier } = groupByRead(items, (i) => i.read);
+  const beside = useOpenDetail();
   const [shownUnread, setShownUnread] = useState(INBOX_STEP);
   const [shownEarlier, setShownEarlier] = useState(INBOX_STEP);
 
@@ -226,6 +229,7 @@ export function InboxHome(ctx: Ctx) {
       {rows.slice(0, shown).map((n, i, a) => (
         <Row key={n.id} icon={n.icon} iconBg={n.read ? C.bg : C.light} label={n.title}
           sub={n.time ? `${n.body} · ${n.time}` : n.body} last={i === a.length - 1} onPress={n.onPress}
+          current={!!n.unitId && beside?.screen === 'passage_record' && beside.params['unitId'] === n.unitId}
           right={
             <View style={styles.rowEnd}>
               {!n.read ? <View style={styles.dot} accessibilityLabel="Unread" /> : null}
@@ -734,8 +738,10 @@ function clock(hlc: string): string {
 }
 
 function Stat(props: { icon: IconName; color: string; value: number; label: string }) {
+  // Two by two on a phone; one row of four once the column is wide enough.
+  const { kind, contentWidth } = useLayout();
   return (
-    <View style={styles.tile2} accessible accessibilityLabel={`${props.value} ${props.label}`}>
+    <View style={[styles.tile2, kind !== 'phone' && contentWidth >= 600 && { width: '22%' }]} accessible accessibilityLabel={`${props.value} ${props.label}`}>
       <Ico name={props.icon} size={24} color={props.color} />
       <Text style={[styles.statValue, { color: props.color }]}>{props.value.toLocaleString('en-US')}</Text>
       <Text style={[txt.xs, { textAlign: 'center' }]}>{props.label}</Text>

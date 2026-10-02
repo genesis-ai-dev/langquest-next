@@ -20,7 +20,7 @@ import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, 
 import { signInUri } from '../inviteCode';
 import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row,
-  Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt
+  Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
 } from '../kit';
 import { loadDocs } from '../library/docStore';
 import { sourceLine } from '../library/model';
@@ -242,6 +242,7 @@ function Loading(props: { title: string; onBack?: () => void }) {
 export function OrgHome(ctx: Ctx) {
   const v = useOrgView(ctx);
   const [shown, setShown] = useState(20);
+  const beside = useOpenDetail();
   if (!v.org || !v.state) return <Loading title="Organization" />;
   const mine = Object.values(v.org.members[ctx.session.actorId] ?? {}).find((m) => m.removed.value === false && m.scope.level === 'org');
   const memberCount = new Set(memberEntries(v.org, v.state, v.projectId).map((e) => e.profileId)).size;
@@ -268,6 +269,7 @@ export function OrgHome(ctx: Ctx) {
           const p = v.laneProgress(laneId);
           return (
             <Row key={laneId} icon="globe" label={v.laneLabel(laneId)} onPress={() => ctx.go('language_home', { laneId })}
+              current={beside?.screen === 'language_home' && beside.params['laneId'] === laneId}
               sub={p ? `${deriveFlow(v.state!, laneId).name} · ${progressLine(p)}` : 'Open it to bring it onto this phone'} />
           );
         })}
@@ -421,8 +423,10 @@ function Avatar(props: { id: string; size?: number }) {
 /** One member: role badge and edit, or view only with a lock (demo MemberRows). */
 function MemberRow(props: { ctx: Ctx; e: MemberEntry; target: string; editable: boolean; level: ScopeLevel; last?: boolean }) {
   const { ctx, e } = props;
+  const beside = useOpenDetail();
   return (
     <Row leading={<Avatar id={e.profileId} />} label={ctx.name(e.profileId)} muted={!props.editable} last={props.last}
+      current={beside?.screen === 'edit_member' && beside.params['memberId'] === e.profileId}
       sub={`${props.target}${e.since ? ` · joined ${when(e.since)}` : ''}`}
       onPress={props.editable ? () => ctx.go('edit_member', { memberId: e.profileId, entry: e.key, level: props.level }) : undefined}
       right={
@@ -1002,6 +1006,7 @@ export function NewLanguage(ctx: Ctx) {
 
 export function ReviewTeams(ctx: Ctx) {
   const state = ctx.project.state;
+  const beside = useOpenDetail();
   const laneId = laneParam(ctx);
   const canManage = ctx.session.can('manage_teams');
   const teams = useMemo(() => Object.entries(state?.teams ?? {})
@@ -1017,7 +1022,7 @@ export function ReviewTeams(ctx: Ctx) {
       ) : teams.map(([teamId, t]) => {
         const people = state ? teamMembers(state, teamId) : [];
         return (
-          <Card key={teamId} accessibilityLabel={t.name.value}
+          <Card key={teamId} accessibilityLabel={t.name.value} current={beside?.screen === 'review_team_editor' && beside.params['teamId'] === teamId}
             onPress={canManage ? () => ctx.go('review_team_editor', { laneId, teamId }) : undefined}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
               <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>

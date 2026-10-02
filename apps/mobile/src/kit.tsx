@@ -12,14 +12,17 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
 } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { C, onColor, radius, shadow, space, target, TINT, type as T } from './theme';
+import { C, measure, onColor, radius, shadow, space, target, TINT, type as T } from './theme';
+import { useLayout } from './useLayout';
+
+export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLayout';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -67,6 +70,13 @@ export const txt = StyleSheet.create({
 // ---- layout ----------------------------------------------------------------------------
 
 /**
+ * Wide windows only (decisions.md 55): how tall this screen's footer is, so
+ * the toast can sit just above its buttons rather than over them (App.tsx).
+ * Not provided on phones, where nothing is measured.
+ */
+export const FooterHeightContext = createContext<((height: number) => void) | null>(null);
+
+/**
  * A phone screen: header, a scrolling body on the lavender ground, and an
  * optional footer pinned above the keyboard (one main button, ADR-012).
  */
@@ -78,17 +88,29 @@ export function Screen(props: {
   fixed?: boolean;
   bodyStyle?: StyleProp<ViewStyle>;
 }) {
+  // A wide window keeps the phone's reading width: the body sits in a
+  // centred column and the footer's actions stop stretching (decisions.md 55).
+  // The scroll view itself stays full width, so it scrolls from anywhere.
+  const wide = useLayout().kind !== 'phone';
+  const reportFooter = useContext(FooterHeightContext);
+  const hasFooter = !!props.footer;
+  useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {props.header}
       {props.fixed ? (
-        <View style={[{ flex: 1 }, props.bodyStyle]}>{props.children}</View>
+        <View style={[{ flex: 1 }, wide && styles.column, props.bodyStyle]}>{props.children}</View>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, wide && styles.column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {props.children}
         </ScrollView>
       )}
-      {props.footer ? <View style={[styles.footer, { paddingBottom: space.md }]}>{props.footer}</View> : null}
+      {props.footer ? (
+        <View style={[styles.footer, { paddingBottom: space.md }]}
+          onLayout={reportFooter ? (e) => reportFooter(e.nativeEvent.layout.height) : undefined}>
+          {wide ? <View style={styles.column}><View style={styles.footerActions}>{props.footer}</View></View> : props.footer}
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -106,8 +128,9 @@ export function Header(props: {
   close?: boolean;
   action?: ReactNode;
 }) {
-  return (
-    <View style={styles.header}>
+  const wide = useLayout().kind !== 'phone';
+  const content = (
+    <>
       {props.onBack ? (
         <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? 'Close' : 'Back'}
           style={({ pressed }) => [styles.headerBack, pressed && styles.pressed]}>
@@ -135,20 +158,25 @@ export function Header(props: {
         {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
       {props.action}
-    </View>
+    </>
   );
+  // Wide: the white bar spans the window, its contents line up with the body's column.
+  if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column]}>{content}</View></View>;
+  return <View style={styles.header}>{content}</View>;
 }
 
-export function Card(props: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string }) {
+/** `current`: what this card opened is showing beside the list (a split on a wide window, panes.ts). */
+export function Card(props: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; current?: boolean }) {
   if (props.onPress) {
     return (
       <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
-        style={({ pressed }) => [styles.card, props.style, pressed && styles.pressed]}>
+        accessibilityState={props.current ? { selected: true } : undefined}
+        style={({ pressed }) => [styles.card, props.style, props.current && styles.cardCurrent, pressed && styles.pressed]}>
         {props.children}
       </Pressable>
     );
   }
-  return <View style={[styles.card, props.style]}>{props.children}</View>;
+  return <View style={[styles.card, props.style, props.current && styles.cardCurrent]}>{props.children}</View>;
 }
 
 /** A group of rows on one white card. */
@@ -191,10 +219,12 @@ export function Row(props: {
   checked?: boolean;
   expanded?: boolean;
   disabled?: boolean;
+  /** What this row opened is showing beside the list (a split on a wide window, panes.ts). */
+  current?: boolean;
   accessibilityLabel?: string;
 }) {
   const state = {
-    ...(props.selected !== undefined ? { selected: props.selected } : {}),
+    ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
     ...(props.checked !== undefined ? { checked: props.checked } : {}),
     ...(props.expanded !== undefined ? { expanded: props.expanded } : {}),
     ...(props.disabled ? { disabled: true } : {})
@@ -221,7 +251,7 @@ export function Row(props: {
       {right}
     </>
   );
-  const style = [styles.row, !props.last && styles.rowBorder];
+  const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
   if (!props.onPress) return <View style={style}>{body}</View>;
   return (
     <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
@@ -521,15 +551,19 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
 
 // ---- sheets ------------------------------------------------------------------------------
 
-/** A bottom sheet: darkened backdrop, rounded top, ✕ to close. Never a flow node. */
+/**
+ * A bottom sheet: darkened backdrop, rounded top, ✕ to close. Never a flow
+ * node. On a wide window it is a centred dialog instead (decisions.md 55).
+ */
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const wide = useLayout().kind !== 'phone';
   return (
-    <Modal visible={props.visible} transparent animationType="slide" onRequestClose={props.onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
-          <View style={styles.sheetGrip} />
+    <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
+      <KeyboardAvoidingView style={[{ flex: 1 }, wide && styles.dialogFrame]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel="Close" />
+        <View style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
+          {wide ? null : <View style={styles.sheetGrip} />}
           <View style={styles.sheetHead}>
             <View style={{ flex: 1 }}>
               <Text style={txt.title}>{props.title}</Text>
@@ -602,13 +636,14 @@ export interface ToastSpec {
  */
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
   const t = props.toast;
+  const wide = useLayout().kind !== 'phone';
   useEffect(() => {
     if (t) AccessibilityInfo.announceForAccessibility(t.undo ? `${t.message} Undo available.` : t.message);
   }, [t?.id]);
   if (!t) return null;
   return (
     <View pointerEvents="box-none" style={[styles.toastWrap, { bottom: props.bottom }]}>
-      <View style={styles.toast}>
+      <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
         <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={`${t.message} Dismiss`}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
           <Ico name="check" size={20} color={C.green} />
@@ -629,18 +664,24 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   body: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
   footer: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm, backgroundColor: C.card, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  column: { width: '100%', maxWidth: measure.column, alignSelf: 'center' },
+  footerActions: { width: '100%', maxWidth: measure.action, alignSelf: 'center', gap: space.sm },
   pressed: { opacity: 0.7 },
   header: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  headerBar: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   headerBack: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', marginLeft: -space.xs },
   crumbs: { alignItems: 'center', gap: 2 },
   crumb: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   crumbTap: { minHeight: 32, justifyContent: 'center' },
   crumbLink: { fontSize: T.sm, fontWeight: '700', color: C.primary, maxWidth: 200 },
   card: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.lg, gap: space.md, ...shadow },
+  cardCurrent: { borderColor: C.primary, borderWidth: 2 },
   group: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden', ...shadow },
   sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xs, paddingTop: space.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  rowCurrent: { backgroundColor: C.light },
   iconTile: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   disclosure: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden', ...shadow },
   disclosureHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md },
@@ -665,6 +706,9 @@ const styles = StyleSheet.create({
   banner: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.lg, borderRadius: radius.lg },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15,18,28,0.45)' },
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, maxHeight: '88%', paddingTop: space.sm, gap: space.sm },
+  dialogFrame: { alignItems: 'center', justifyContent: 'center', padding: space.xl },
+  dialogBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(15,18,28,0.45)' },
+  dialog: { backgroundColor: C.bg, borderRadius: radius.sheet, width: '100%', maxWidth: measure.sheet, maxHeight: '80%', paddingTop: space.md, paddingBottom: space.xl, gap: space.sm, ...shadow, shadowOpacity: 0.2 },
   sheetGrip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.sm },
   quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center' },

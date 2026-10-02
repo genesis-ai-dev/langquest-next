@@ -89,9 +89,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         if (!file.card) {
           const store = await getBlobStore();
           const previous = (await journal.all()).find((e) => e.id === file.id);
-          if (previous?.hash && store.fileFor({ hash: previous.hash, format: file.format }).exists) {
+          if (previous?.hash && store.exists({ hash: previous.hash, format: file.format })) {
             file.card = { id: file.id, ref: { hash: previous.hash, format: file.format },
-              size: previous.size ?? store.fileFor({ hash: previous.hash, format: file.format }).size,
+              size: previous.size ?? store.storedSize({ hash: previous.hash, format: file.format }),
               durationMs: base.durationMs };
           } else {
             await journal.put(previous ?? { ...base, stage: 'recorded' });

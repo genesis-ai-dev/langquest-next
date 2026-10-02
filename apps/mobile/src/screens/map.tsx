@@ -24,8 +24,9 @@ import { indexesFor } from '../indexes';
 import { languagesToList } from '../languages';
 import {
   Card, Chip, ChipRow, EmptyState, Group, Header, Ico, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn,
-  StepMarks, txt
+  StepMarks, txt, useLayout, useOpenDetail
 } from '../kit';
+import { chapterColumns } from '../layout';
 import { plural } from '../passageView';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
@@ -130,8 +131,10 @@ function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e:
   const me = ctx.session.actorId;
   const title = unitTitle(props.state, e.unitId);
   const summary = passageSummary(e.s, props.kinds, me, (id) => ctx.name(id, true));
+  const beside = useOpenDetail();
   return (
     <Row label={title} sub={summary} last={props.last} onPress={props.onPress}
+      current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
       accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}`}
       {...(props.mine ? { badge: 'For you', badgeTone: 'amber' as const } : {})}
       leading={(
@@ -184,6 +187,7 @@ function FunnelRows(props: { progress: LanguageProgress }) {
 
 export function StatusHome(ctx: Ctx) {
   const state = ctx.project.state;
+  const beside = useOpenDetail();
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   // Every language the organization has; each is its own partition
@@ -214,6 +218,7 @@ export function StatusHome(ctx: Ctx) {
     ctx.setLane(laneId);
     ctx.go('map_home', { laneId });
   };
+  const isOpen = (laneId: string) => beside?.screen === 'map_home' && beside.params['laneId'] === laneId;
 
   return (
     <Screen header={header}>
@@ -244,7 +249,7 @@ export function StatusHome(ctx: Ctx) {
       {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder="Find a language" /> : null}
       {shown.length > 0 ? <SectionLabel label="Languages" /> : null}
       {shown.slice(0, limit).map((l) => l.progress ? (
-        <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
+        <Card key={l.laneId} current={isOpen(l.laneId)} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -258,7 +263,7 @@ export function StatusHome(ctx: Ctx) {
         </Card>
       ) : (
         // Not on this phone yet: opening it brings it down (decisions.md 37).
-        <Card key={l.laneId} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}. Not on this phone yet. Open it.`}>
+        <Card key={l.laneId} current={isOpen(l.laneId)} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}. Not on this phone yet. Open it.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -325,8 +330,10 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
       ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? ` · ${fmt(b.done)} done` : ''}`
       : `Not started · ${b.book ? plural(b.book.chapters, 'chapter') : plural(b.total, 'passage')}`;
   const feedback = b.feedback > 0 && filter === 'all';
+  const beside = useOpenDetail();
   return (
     <Row label={b.name} sub={sub} muted={!started} last={props.last} onPress={props.onPress}
+      current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
       accessibilityLabel={`${b.name}. ${sub}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`}
       {...(b.mine > 0 ? { badge: `${b.mine} for you`, badgeTone: 'amber' as const } : {})}
       {...(started ? { below: <StackBar done={b.done} recorded={b.recorded} total={b.total} /> } : {})}
@@ -562,7 +569,7 @@ interface ChapterTile {
   matches: boolean;
 }
 
-function Tile(props: { c: ChapterTile; onPress: () => void }) {
+function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean }) {
   const { c } = props;
   const t = TONES[c.tone];
   const parts = c.list.length;
@@ -571,8 +578,9 @@ function Tile(props: { c: ChapterTile; onPress: () => void }) {
   const toneIcon = c.tone === 'done' ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} />
     : c.tone === 'drafting' ? <Ico name="mic" size={14} color={t.fg} /> : null;
   return (
-    <Pressable onPress={props.onPress} disabled={parts === 0} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: parts === 0 }}
+    <Pressable onPress={props.onPress} disabled={parts === 0} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: parts === 0, selected: !!props.current }}
       style={({ pressed }) => [styles.tile, { backgroundColor: t.bg, borderColor: t.border, borderStyle: t.dashed ? 'dashed' : 'solid', opacity: c.matches ? 1 : 0.28 },
+        props.current && { borderColor: C.primary, borderWidth: 3, borderStyle: 'solid' },
         pressed && { transform: [{ scale: 0.95 }] }]}>
       <Text style={[styles.tileNumber, { color: t.fg }]}>{c.n}</Text>
       {parts > 1 ? (
@@ -627,6 +635,8 @@ export function BookMap(ctx: Ctx) {
   const [openChapter, setOpenChapter] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE);
   const forYou = useForYou(ctx, state, laneId);
+  const layout = useLayout();
+  const beside = useOpenDetail();
   const book = canonBook(bookId);
   const entries = useMemo(() => {
     if (!state || !laneId || !state.lanes[laneId]) return [];
@@ -690,8 +700,10 @@ export function BookMap(ctx: Ctx) {
     );
   }
 
+  // Five across on a phone; on a wider column, as many as stay tile-sized.
+  const cols = chapterColumns(layout.contentWidth, layout.kind);
   const rows: ChapterTile[][] = [];
-  for (let i = 0; i < chapters.length; i += 5) rows.push(chapters.slice(i, i + 5));
+  for (let i = 0; i < chapters.length; i += cols) rows.push(chapters.slice(i, i + cols));
 
   return (
     <Screen header={header}>
@@ -700,12 +712,12 @@ export function BookMap(ctx: Ctx) {
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
-              <Tile key={c.n} c={c} onPress={() => {
+              <Tile key={c.n} c={c} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
                 if (c.list.length === 1) open(c.list[0]!);
                 else if (c.list.length > 1) setOpenChapter(c.n);
               }} />
             ))}
-            {Array.from({ length: 5 - row.length }, (_, i) => <View key={`pad-${i}`} style={{ flex: 1 }} />)}
+            {Array.from({ length: cols - row.length }, (_, i) => <View key={`pad-${i}`} style={{ flex: 1 }} />)}
           </View>
         ))}
       </View>

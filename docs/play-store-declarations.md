@@ -150,7 +150,7 @@ this block.
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system",
-    "expo-notifications", "expo-sqlite", "expo-status-bar", "expo-updates",
+    "expo-notifications", "expo-screen-orientation", "expo-sqlite", "expo-status-bar", "expo-updates",
     "lucide-react-native", "react", "react-dom", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
     "react-native-url-polyfill", "react-native-web"
