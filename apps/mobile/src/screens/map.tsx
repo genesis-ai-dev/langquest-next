@@ -10,7 +10,8 @@
 import {
   contentTemplate, deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
   passageSummary, percent, timeAgo, unitPlace, unitTitle,
-  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
+  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace,
+  type UnitOffline
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -22,6 +23,7 @@ import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import { languagesToList } from '../languages';
+import { OfflineMark, offlineWords, keptOfflineMap } from '../offline';
 import { laneFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
@@ -134,15 +136,17 @@ function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e:
   const title = unitTitle(props.state, e.unitId);
   const summary = passageSummary(e.s, props.kinds, me, (id) => ctx.name(id, true));
   const beside = useOpenDetail();
+  const offline = keptOfflineMap(ctx).get(e.unitId);
   return (
     <Row label={title} sub={summary} last={props.last} onPress={props.onPress}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
-      accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}`}
+      accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}. ${offlineWords(offline)}`}
       {...(props.mine ? { badge: 'For you', badgeTone: 'amber' as const } : {})}
       leading={(
         <View>
           <PassageDisc s={e.s} />
           {props.mine ? <View style={styles.discDot} /> : null}
+          <OfflineMark u={offline} />
         </View>
       )}
       {...(e.s.recorded && e.s.steps.length > 0
@@ -602,11 +606,14 @@ interface ChapterTile {
   matches: boolean;
 }
 
-function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean }) {
+function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, UnitOffline> }) {
   const { c } = props;
   const t = TONES[c.tone];
   const parts = c.list.length;
-  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${c.matches ? '' : ', outside the filter'}`;
+  // Kept passages of this chapter (decisions.md 59): the mark is green only when every kept one is ready.
+  const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is UnitOffline => !!u);
+  const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this phone${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
+  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;
   // The tone's icon goes with its colour, even beside "N parts" (never colour alone).
   const toneIcon = c.tone === 'done' ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} />
     : c.tone === 'drafting' ? <Ico name="mic" size={14} color={t.fg} /> : null;
@@ -631,6 +638,7 @@ function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean })
         </View>
       ) : null}
       {c.mine ? <View style={styles.tileDot} /> : null}
+      {kept.length ? <OfflineMark corner u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : null}
     </Pressable>
   );
 }
@@ -654,6 +662,10 @@ function Legend(props: { none: boolean }) {
           <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: C.amber }} />
           <Text style={txt.smMuted}>For you</Text>
         </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <Ico name="onPhone" size={16} color={onColor.green} />
+          <Text style={txt.smMuted}>On this phone offline</Text>
+        </View>
       </View>
     </View>
   );
@@ -661,6 +673,7 @@ function Legend(props: { none: boolean }) {
 
 export function BookMap(ctx: Ctx) {
   const state = ctx.project.state;
+  const offline = keptOfflineMap(ctx);
   const laneId = ctx.params['laneId'] ?? ctx.laneId;
   const bookId = ctx.params['bookId'] ?? '';
   const initial = ctx.params['filter'];
@@ -752,7 +765,7 @@ export function BookMap(ctx: Ctx) {
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
-              <Tile key={c.n} c={c} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
+              <Tile key={c.n} c={c} offline={offline} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
                 if (c.list.length === 1) open(c.list[0]!);
                 else if (c.list.length > 1) setOpenChapter(c.n);
               }} />

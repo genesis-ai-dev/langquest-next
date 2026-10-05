@@ -1375,3 +1375,31 @@ sorted out). Until then iOS links open the web app; Android app links and
 both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
+
+## 59. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: a person can read and play passages while connected and assume they
+will still have them in the field, then find out after a long trip that the
+audio never came along. The offline scope was already precise (PLAN.md
+section 14 rule 10: assigned, worked in, or chosen with `keepOffline`), but
+nothing on screen showed it and nothing let anyone choose a passage. Core
+`offlineByUnit` and `offlineSummary` (`packages/core/src/blobs.ts`) count, per
+passage and for the whole scope, the audio a passage plays (its own and what
+it inherits, the same set the downloader fetches), how much is here, what is
+still to fetch and what nobody has sent yet. The app shows it in three places
+(`apps/mobile/src/offline.tsx`): a line on each passage ("On this phone",
+"Downloading for offline" with progress, or "Not kept on this phone" with
+Keep offline), a mark on the Map's passage discs for kept passages, and a
+"Ready for offline" row in Settings that opens the Sync screen, which lists
+what is always here and what always needs a connection (unkept audio, study
+pictures and study audio, reports, other languages). A passage is ready when
+it is kept and every file the server has is on the phone; a recording not yet
+sent from the phone that made it cannot block that, and is named instead.
+Text, status and history are not counted: the open language's partition is
+always whole on the phone.
+Reverse if: people keep so many passages that the 2 GB cache evicts kept
+audio's neighbours in practice (then the Settings line needs a size budget),
+or study media becomes downloadable (then it moves from "needs a connection"
+into the per-passage count).

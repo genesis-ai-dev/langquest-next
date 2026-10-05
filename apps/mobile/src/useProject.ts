@@ -69,6 +69,8 @@ export interface ProjectHandle {
     store: BlobStore | null;
     keptUnits: ReadonlySet<string>;
     keepOffline: (unitId: string, keep: boolean) => Promise<void>;
+    /** Audio files on this phone now; a new set whenever one arrives or is reclaimed. */
+    present: ReadonlySet<string>;
   };
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
@@ -110,6 +112,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
   const keptRef = useRef<ReadonlySet<string>>(new Set());
   const keepKey = `keep:${orgId}/${projectId}`;
+  const [present, setPresent] = useState<ReadonlySet<string>>(new Set());
   const [pendingUp, setPendingUp] = useState(0);
   const [pendingDown, setPendingDown] = useState(0);
   const [peakUp, setPeakUp] = useState(0);
@@ -290,6 +293,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       });
       reclaim();
       const unsubReclaim = blobStore.onChange(reclaim);
+      // What is on this phone, for the offline marks on passages and in Settings.
+      setPresent(blobStore.snapshot());
+      const unsubPresent = blobStore.onChange(() => setPresent(blobStore.snapshot()));
       // Web: a recording's playable URL is read from the browser's files on first ask; draw again once it is.
       const unsubUrls = blobStore.onUrlReady(() => setUrlsReady((n) => n + 1));
       // Sync on a poke from the server, after a local append, and on a
@@ -306,6 +312,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         unsubscribe();
         unsub();
         unsubReclaim();
+        unsubPresent();
         unsubUrls();
         up.stop();
         down.stop();
@@ -401,6 +408,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     store: storeRef.current,
     keptUnits,
     keepOffline,
+    present,
     peakUp,
     peakDown,
     rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() })
