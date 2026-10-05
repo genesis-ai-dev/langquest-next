@@ -99,11 +99,10 @@ export function newDraft(c: { method: Method; orgName: string; license: string; 
 const urlRef = (url: string | undefined, seconds?: number): MediaRef | undefined =>
   url ? { url, ...(seconds !== undefined ? { seconds } : {}) } : undefined;
 
-/** FIA states its license in its source line; anything else written CC BY-SA is read the same way. */
+/** FIA states its license in its source line (scripts/fia-adapter.ts FIA_ATTRIBUTION); study@2 says it outright. */
 function licenseOfSource(doc: StudyDoc | StudyDoc2): string | undefined {
   if (doc.format === 'study@2' && doc.license) return doc.license;
-  if (/CC BY-SA 4\.0/.test(doc.source) || doc.pattern === 'FIA') return 'CC-BY-SA-4.0';
-  return undefined;
+  return /CC BY-SA 4\.0/.test(doc.source) ? 'CC-BY-SA-4.0' : undefined;
 }
 
 /** "© 2025 Word Collective, CC BY-SA 4.0": FIA's credit is the part of its source line after the site and language. */
@@ -322,7 +321,7 @@ export function buildDoc(d: GuideDraft): StudyDoc2 {
         ...(r.description.trim() ? { description: r.description.trim() } : {}),
         media: r.media.flatMap((m) => {
           const file = cleanMedia(m.file);
-          return file ? [{ id: m.id, kind: m.kind, title: m.title.trim(), caption: m.caption.trim(), file }] : [];
+          return file ? [{ id: m.id, kind: m.kind, title: m.title.trim() || r.title.trim(), caption: m.caption.trim(), file }] : [];
         })
       })),
       // Each glossary entry is also a resource, so a link to it (`#t1`) opens it, as FIA's do.

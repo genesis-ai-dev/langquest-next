@@ -19,7 +19,7 @@ import {
   CALLOUT_KINDS, LICENSE_INFO, LICENSES, isLicense, orgLicense, subscriptionItemId, templateOfUnit, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
-import { Bold, Heading, List, type LucideIcon } from 'lucide-react-native';
+import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -32,7 +32,7 @@ import { failureMessage } from '../report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
 import { useStudyFileUri } from '../study/media';
-import { AudioBar, CALLOUT_LOOK, GlossarySheet, MediaSheet, StepPreview, useStudyAudio, ViewSwitch } from '../study/ui';
+import { AudioBar, CALLOUT_LOOK, GlossarySheet, MediaSheet, StepPreview, useStudyAudio } from '../study/ui';
 import { clock } from '../study/text';
 import { C, measure, radius, space, target, TINT, type as T } from '../theme';
 import { VoiceNote } from '../voiceNote';
@@ -125,13 +125,16 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   return (
     <Editor ctx={ctx} draft={draft} setDraft={setDraft} dispatch={dispatch} draftKey={key} restored={restored} savedAt={savedAt}
       own={own.flatMap((i) => { const d = docs.get(i.current); return isStudy(d) && i.current !== sourceHash ? [methodFromDoc(i.itemId, d)] : []; })}
-      isNew={!sourceHash} title={itemId ? 'Edit guide' : from ? 'Adapt a guide' : 'Write a guide'} />
+      isNew={!sourceHash} title={itemId ? 'Edit guide' : from ? 'Adapt a guide' : 'Write a guide'}
+      newer={!!(itemId && it?.current && draft.basis?.docHash && draft.basis.docHash !== it.current)} />
   );
 }
 
 function Editor(props: {
   ctx: Ctx; draft: GuideDraft; setDraft: (d: GuideDraft) => void; dispatch: Dispatch; draftKey: string;
   restored: number | null; savedAt: number | null; own: Method[]; isNew: boolean; title: string;
+  /** Someone published a version after this draft began. */
+  newer: boolean;
 }) {
   const { ctx, draft, dispatch } = props;
   const lib = useLibrary(ctx);
@@ -185,24 +188,36 @@ function Editor(props: {
 
   const counts: Record<DraftPanel, number | null> = { details: null, steps: draft.steps.length, media: draft.resources.length, glossary: draft.terms.length };
   const saved = props.savedAt ? `Draft saved on this device at ${time(props.savedAt)}.` : 'Drafts are saved on this device as you write.';
-  const panelProblems = tried ? problems.filter((p) => p.panel === panel) : [];
   return (
     <Screen fixed={false} columnWidth={wide ? measure.report : undefined}
-      header={<Header title={draft.title.trim() || props.title} sub={props.title} onBack={ctx.back} columnWidth={wide ? measure.report : undefined} />}
+      header={<Header title={draft.title.trim() || props.title} {...(draft.title.trim() ? { sub: props.title } : {})} onBack={ctx.back} columnWidth={wide ? measure.report : undefined} />}
       footer={<PrimaryBtn label={busy ?? (draft.basis?.itemId ? 'Publish new version' : 'Publish')} onPress={() => void publish()} disabled={!!busy} />}>
-      <ViewSwitch views={PANELS.map((p) => ({ id: p.id, icon: p.icon, label: counts[p.id] !== null ? `${p.label} · ${counts[p.id]}` : p.label }))}
-        active={panel} onChange={setPanel} />
-      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{saved} One person edits a guide at a time.</Text>
-      {props.restored && panel === 'details' ? (
-        <Banner icon="history" title={`Your draft from ${time(props.restored)} is open.`} body="Publish it, or keep writing. Nothing is published until you do." />
-      ) : null}
-      {tried && problems.length > 0 ? <Problems problems={problems} current={panel} onPick={goTo} /> : null}
-      {panelProblems.length === 0 && tried && problems.length === 0 ? <Banner icon="check" tone="green" title="Ready to publish." /> : null}
-
-      {panel === 'details' ? <DetailsPanel ctx={ctx} draft={draft} dispatch={dispatch} isNew={props.isNew} own={props.own} setDraft={props.setDraft} /> : null}
-      {panel === 'steps' ? <StepsPanel ctx={ctx} draft={draft} dispatch={dispatch} stepId={stepId} setStepId={setStepId} preview={preview} setDraft={props.setDraft} /> : null}
-      {panel === 'media' ? <MediaPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
-      {panel === 'glossary' ? <GlossaryPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
+      {/* Forms keep the reading width; only the steps use the whole window, side by side. */}
+      <View style={[{ gap: space.md }, panel === 'steps' ? null : s.reading]}>
+        {/* Tabs within the screen (kit ChipRow): they scroll sideways on a phone instead of shrinking. */}
+        <View accessibilityRole="tablist">
+          <ChipRow>
+            {PANELS.map((p) => (
+              <Chip key={p.id} icon={p.icon} label={p.label} on={panel === p.id} onPress={() => setPanel(p.id)}
+                {...(counts[p.id] !== null ? { count: counts[p.id]! } : {})} />
+            ))}
+          </ChipRow>
+        </View>
+        <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{saved} One person edits a guide at a time.</Text>
+        {props.restored && panel === 'details' ? (
+          <Banner icon="history" title={`Your draft from ${time(props.restored)} is open.`} body="Publish it, or keep writing. Nothing is published until you do." />
+        ) : null}
+        {props.newer ? (
+          <Banner icon="history" tone="amber" title="A newer version was published after you started this draft."
+            body="Publishing yours makes it the next version, without their changes." />
+        ) : null}
+        {tried && problems.length > 0 ? <Problems problems={problems} current={panel} onPick={goTo} /> : null}
+        {tried && problems.length === 0 ? <Banner icon="check" tone="green" title="Ready to publish." /> : null}
+        {panel === 'details' ? <DetailsPanel ctx={ctx} draft={draft} dispatch={dispatch} isNew={props.isNew} own={props.own} setDraft={props.setDraft} /> : null}
+        {panel === 'steps' ? <StepsPanel ctx={ctx} draft={draft} dispatch={dispatch} stepId={stepId} setStepId={setStepId} preview={preview} setDraft={props.setDraft} /> : null}
+        {panel === 'media' ? <MediaPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
+        {panel === 'glossary' ? <GlossaryPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
+      </View>
     </Screen>
   );
 }
@@ -475,7 +490,10 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
         </View>
       ) : (
         <>
-          <ViewSwitch views={[{ id: 'write', label: 'Write', icon: 'edit' }, { id: 'preview', label: 'Preview', icon: 'sparkle' }]} active={view} onChange={setView} />
+          <ChipRow>
+            <Chip icon="edit" label="Write" on={view === 'write'} onPress={() => setView('write')} />
+            <Chip icon="sparkle" label="Preview" on={view === 'preview'} onPress={() => setView('preview')} />
+          </ChipRow>
           {view === 'write' ? editor : preview}
         </>
       )}
@@ -523,7 +541,7 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
       <View style={s.toolbar} accessibilityRole="toolbar">
         <ToolBtn icon={Bold} label="Bold" onPress={() => apply(boldText(props.text, sel.current))} />
         <ToolBtn icon={List} label="List" onPress={() => apply(listText(props.text, sel.current))} />
-        <ToolBtn icon={Heading} label="Callout" on={tray === 'callout'} onPress={() => setTray(tray === 'callout' ? null : 'callout')} />
+        <ToolBtn icon={TextQuote} label="Callout" on={tray === 'callout'} onPress={() => setTray(tray === 'callout' ? null : 'callout')} />
         <Pressable onPress={() => setTray(tray === 'link' ? null : 'link')} accessibilityRole="button" accessibilityLabel="Link a picture, map or term"
           accessibilityState={{ expanded: tray === 'link' }} style={({ pressed }) => [s.tool, tray === 'link' && { backgroundColor: C.light, borderColor: C.primary }, pressed && s.pressed]}>
           <Ico name="link" size={18} color={C.primary} />
@@ -620,8 +638,10 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; se
       if (!file) return;
       setBusy(true);
       const ref = await keepPicked(file, kind);
-      const media: Omit<DraftMedia, 'id'> = { kind: mediaKindFor(kind, panel), title: file.name.replace(/\.[^.]+$/, ''), caption: '', file: ref };
-      dispatch(into ? { type: 'addMedia', ref: into.ref, media } : { type: 'addResource', kind: panel, media });
+      const name = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+      // A new set takes the file's name; a picture added to a set gets its own title.
+      const media: Omit<DraftMedia, 'id'> = { kind: mediaKindFor(kind, panel), title: into ? name : '', caption: '', file: ref };
+      dispatch(into ? { type: 'addMedia', ref: into.ref, media } : { type: 'addResource', kind: panel, title: name, media });
     } catch (e) {
       setError(e instanceof FileProblem ? e.message : failureMessage('guide media upload', e));
     } finally {
@@ -696,7 +716,7 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
             {(['photo', 'illustration'] as const).map((k) => <Chip key={k} label={k === 'photo' ? 'Photo' : 'Illustration'} on={m.kind === k} onPress={() => patch({ kind: k })} />)}
           </ChipRow>
         ) : null}
-        <Field label="Picture title" value={m.title} onChangeText={(v) => patch({ title: v })} placeholder="Title" autoCapitalize="sentences" />
+        {r.media.length > 1 ? <Field label="Picture title" value={m.title} onChangeText={(v) => patch({ title: v })} placeholder="Title" autoCapitalize="sentences" /> : null}
         <Field label="Caption" value={m.caption} onChangeText={(v) => patch({ caption: v })} placeholder="One sentence under it" autoCapitalize="sentences" />
       </View>
     </View>
@@ -739,6 +759,7 @@ function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch;
 
 const s = StyleSheet.create({
   pressed: { opacity: 0.7 },
+  reading: { width: '100%', maxWidth: measure.column, alignSelf: 'center' },
   problems: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.xs },
   problem: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.min },
   split: { flexDirection: 'row', gap: space.lg, alignItems: 'flex-start' },
