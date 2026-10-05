@@ -165,6 +165,11 @@ Amended (2026-10-03, Carl Sauder): on the web, signing out from "What brings
 you here?" waits for queued account changes too, since there sign-out
 forgets the browser (11, amended); a phone signs out there as before.
 
+Amended (2026-10-05, Caleb Koster): on a phone, unsent work no longer
+refuses sign-out; it is handed over and still goes as its author (60). The
+count is only the signed-in person's own work, never another person's on the
+same phone (`pendingCountBy`). The web keeps the refusal.
+
 ## 13. Two recorders, on purpose
 
 Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
@@ -1422,3 +1427,44 @@ scanned invite is now held until the invite itself expires, or a week when
 it was scanned offline, instead of 24 hours (`heldInvite.ts`): someone who
 scans in a village may find a signal days later, and claims already keep it
 from the next person on a shared phone.
+
+## 60. Signing out of a shared phone hands unsent work over, and it still goes as its author
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: amends 12. A family or a team often shares one phone, and the
+people 59 brings in by QR are the least able to wait for a signal before
+handing it on. Under 12 the phone refused sign-out while anything was
+queued, so the next person could not sign in until the first person's work
+had gone, and offline that could be days. Caleb asked (2026-10-05) that
+several people's work on one phone be accounted for, and chose this:
+- Signing out with work still to send moves the session to its own key on
+  the phone with no server call (`signOutHandingOver` in `handOver.ts`), so
+  it works offline and the session stays good. The app then shows the
+  signed-out screen as for any sign-out; nothing on screen can use the
+  kept session.
+- A courier runs for the whole app, whoever is signed in
+  (`useHandOvers`). When the phone is online it sends that person's queued
+  events in every partition (`deliverQueued`, a push-only `SyncClient` that
+  never folds or re-stamps), their account changes, the recordings the
+  server had not confirmed at sign-out, and the disconnect of their
+  notifications, all under their own session, so the server's rule that an
+  event comes from its author holds. Then it signs the kept session out and
+  forgets it.
+- If they sign back in on this phone first, their own session takes over
+  and the courier forgets theirs. If the server will not renew the kept
+  session, the courier forgets it and the work waits, still queued, for
+  their next sign-in; nothing is ever deleted unsent (events are pruned
+  only once confirmed, recordings evicted only once the server has them).
+- Everyone's events share the phone's one log as before; each session
+  pushes and counts only its own (`pendingPage` filtered by actor,
+  `pendingCountBy`). A browser forgets everything on sign-out (11), so the
+  web keeps 12's refusal.
+The kept session is the same kind of secret supabase-js already keeps on
+the phone (AsyncStorage), and lasts only until the work has gone.
+Recordings in a language other than the one open at sign-out are not
+listed; they go when anyone who works in that language opens it here, as
+before. Tests `packages/client/test/courier.test.ts`,
+`apps/mobile/test/handOver.test.ts`.
+Reverse if: kept sessions outlive their work in the field (then they
+expire after a set time), or a phone signs work in as the wrong person.

@@ -218,7 +218,8 @@ and the steward row is removed.
 | Phone lost or stolen | F with "Their old phone is lost": the old phone is signed out | The code ends every other session (59) |
 | Inviter leaves the organization | They can no longer help; anyone else with Invite there can | `may_help_sign_in` follows current roles (59) |
 | The reply to Join is lost | Tapping Join again signs the same account in | One request id per join (59) |
-| Shared phone, several translators | Each has a sign-in name and password; signing out keeps nobody's key | Claims bind to one account |
+| Shared phone, several translators | Each can set a password for it; signing out keeps nobody's key | Claims bind to one account |
+| Signs out of a shared phone with work unsent | Signs out anyway; the work still goes, as them, when the phone is online | The hand-over keeps their session only until it has gone (60) |
 | Someone else signed in when a key is scanned | Asked "Join as X?", with "Not X?" | `unclaimed` never joins on its own |
 | Scans the same code twice | Joins once, the second scan says "You're already in" | Redemption is idempotent per person |
 | Someone else's used code | "This invite has been used. Ask for a new one." | `preview_invite` says `used` |
