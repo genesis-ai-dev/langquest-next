@@ -31,11 +31,7 @@
           "UIInterfaceOrientationLandscapeLeft",
           "UIInterfaceOrientationLandscapeRight"
         ]
-      },
-      "associatedDomains": [
-        "applinks:next.langquest.org",
-        "applinks:next-preview.langquest.org"
-      ]
+      }
     },
     "android": {
       "adaptiveIcon": {
