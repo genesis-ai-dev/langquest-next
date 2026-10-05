@@ -98,7 +98,7 @@ describe('version chips', () => {
   it('say what there is and where it works', () => {
     expect(chipMarks({ text: true, audio: false, offlineAllowed: true, textOnPhone: true, audioOnPhone: false })).toEqual(['no audio', 'offline ✓']);
     expect(chipMarks({ text: true, audio: true, offlineAllowed: true, textOnPhone: true, audioOnPhone: true })).toEqual(['offline ✓']);
-    expect(chipMarks({ text: true, audio: true, offlineAllowed: false, textOnPhone: true, audioOnPhone: false })).toEqual(['text only']);
+    expect(chipMarks({ text: true, audio: true, offlineAllowed: false, textOnPhone: true, audioOnPhone: false })).toEqual(['audio streams']);
     expect(chipMarks({ text: true, audio: true, offlineAllowed: false, textOnPhone: false, audioOnPhone: false })).toEqual(['needs connection']);
     expect(chipMarks({ text: false, audio: false, offlineAllowed: false, textOnPhone: false, audioOnPhone: false })).toEqual(['no audio', 'needs connection']);
   });

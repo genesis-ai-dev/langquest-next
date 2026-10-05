@@ -181,6 +181,10 @@ export async function publishTimingJob(lib: ReturnType<typeof useLibrary>, it: L
   const get = (h: string | null | undefined) => (h ? loaded.get(h) ?? cachedDoc(h) : null);
   const source = get(base) as SourceDoc | null;
   if (!source || source.format !== 'source@1') throw new CommandError('The Bible is not on this phone yet. Try again when connected.');
+  // Its books, so chapters already timed keep their timings and text is carried over (books do not come with the source).
+  const books = await loadDocs(lib.orgId, source.books.map((b) => b.doc), { deps: false });
+  for (const [h, d] of books) loaded.set(h, d);
+  if (source.books.some((b) => b.doc && !loaded.get(b.doc) && !cachedDoc(b.doc))) throw new CommandError('Some of the Bible is not on this phone yet. Try again when connected.');
   const own = lib.items('versification').filter((v) => v.current);
   const vdocs = await loadDocs(lib.orgId, [source.versification, ...own.map((v) => v.current)]);
   const versifications = [source.versification, ...own.map((v) => v.current!)]

@@ -189,7 +189,8 @@ export function sourceFacts(source: SourceDoc, get: (hash: string | null | undef
     for (const b of source.books) {
       const t = testamentOf(b.book);
       const doc = get(b.doc) as SourceBookDoc | null;
-      if (!doc) { text[t] = true; continue; }
+      // A book not loaded yet: the source's own copyright lines say whether it has audio.
+      if (!doc) { text[t] = true; if (source.copyright.audio) audio[t] = true; continue; }
       if (doc.chapters.some((c) => c.verses?.length)) text[t] = true;
       if (doc.chapters.some((c) => c.audio)) audio[t] = true;
     }
@@ -201,7 +202,7 @@ export function sourceFacts(source: SourceDoc, get: (hash: string | null | undef
     const inT = books.filter((b) => testamentOf(b.book) === t);
     const timed = inT.filter((b) => b.timed > 0);
     timings[t] = timed.length === 0
-      ? (source.provider.kind === 'biblebrain' && !detail ? 'unknown' : 'none')
+      ? ((source.provider.kind === 'biblebrain' && !detail) || inT.some((b) => b.chapters === null) ? 'unknown' : 'none')
       : timed.length === inT.length && timed.every((b) => b.chapters === null || b.timed >= b.chapters) ? 'stored' : 'some';
   }
   const copyright = [source.copyright.text, source.copyright.audio && source.copyright.audio !== source.copyright.text ? source.copyright.audio : undefined, source.license]

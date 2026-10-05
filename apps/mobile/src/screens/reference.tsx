@@ -341,6 +341,8 @@ export function ReferenceSource(ctx: Ctx) {
   const row = rows[0];
   const it = row?.it ?? null;
   const source = row?.doc?.format === 'source@1' ? row.doc : null;
+  // This one Bible's books and their timings, to say what each book has (sources load without them).
+  const bookDocs = useLibraryDocs(lib.orgId, source?.books.map((b) => b.doc) ?? []);
   const canAct = canActAt(ctx, level);
   const canManage = ctx.session.can('manage_reference');
   const rec = useRecommend(ctx);
@@ -364,7 +366,7 @@ export function ReferenceSource(ctx: Ctx) {
   if (!it || !source) {
     return <Screen header={<Header title="Bible" onBack={ctx.back} />}><EmptyState icon="book" title={it && !row?.doc ? 'Loading…' : 'This Bible is not here any more'} /></Screen>;
   }
-  const facts = sourceFacts(source, docs.get, detail);
+  const facts = sourceFacts(source, (h) => bookDocs.get(h) ?? docs.get(h), detail);
   const need = timingsNeeded(source, facts, detail);
   const r = recState(ctx.org.state?.recommendations, ctx.project.state, level, it.itemId);
   const label = recLabel(r, level);

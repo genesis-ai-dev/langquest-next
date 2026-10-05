@@ -38,6 +38,8 @@ export interface SourceReaderProps {
   /** 'pane': part of a scrolling pane (recorder, review). 'screen': its own scroll view, the player kept on top (study). */
   layout?: 'pane' | 'screen';
   header?: ReactNode;
+  /** Under the text in the 'screen' layout (the recorder's reference recordings). */
+  footer?: ReactNode;
   /** Off screen: stop playing. */
   hidden?: boolean;
   listen?: ListenHooks;
@@ -275,6 +277,7 @@ export function SourceView(props: SourceReaderProps & {
         <View style={styles.sticky}>{playerBar}</View>
         {verses}
         {copyright}
+        {props.footer}
       </ScrollView>
     );
   }

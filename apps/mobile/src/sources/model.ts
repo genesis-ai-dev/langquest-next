@@ -109,7 +109,7 @@ export interface ChipFacts {
 /**
  * What a version chip says about this passage, so nobody is surprised in
  * the field: "no audio" when there is nothing to hear; then where it works,
- * "offline ✓" when all of it is on the phone, "text only" when only the text
+ * "offline ✓" when all of it is on the phone, "audio streams" when only the text
  * is (the audio streams), "needs connection" otherwise.
  */
 export function chipMarks(f: ChipFacts): string[] {
@@ -118,7 +118,7 @@ export function chipMarks(f: ChipFacts): string[] {
   const textOk = !f.text || f.textOnPhone;
   const audioOk = !f.audio || f.audioOnPhone;
   if ((f.text || f.audio) && textOk && audioOk) out.push('offline ✓');
-  else if (f.text && f.textOnPhone && f.audio) out.push('text only');
+  else if (f.text && f.textOnPhone && f.audio) out.push('audio streams');
   else out.push('needs connection');
   return out;
 }

@@ -182,7 +182,6 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 
   // ---- source and key terms (REC-W1): the source reader says what text it shows ----
   const [sourceWords, setSourceWords] = useState<string | null>(null);
-  const topScroll = useRef<ScrollView>(null);
   // What was offered and used here goes on the record with the version (docs/reference-material.md).
   const usage = useUsage();
   const unitTerms = useMemo(() => keyTermsForUnit(state, laneId, unitId), [state, laneId, unitId]);
@@ -260,22 +259,23 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
         topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
         top={
-          <ScrollView ref={topScroll} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled" accessibilityLabel="Source">
-            {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
-              : request ? <RequestBanner ctx={ctx} request={request} /> : null}
-            <View style={styles.labelRow}>
-              <Text style={[txt.label, { flex: 1 }]}>Source</Text>
-              {sourceWords && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
-            </View>
-            {sourceWords && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
-            <SourceReader ctx={ctx} unitId={unitId} laneId={laneId} listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
-              usage={usage} scrollRef={topScroll}
-              {...(recording ? {} : {
-                onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, laneId, termId }),
-                onMoreBibles: () => ctx.go('bible_explore', { unitId, laneId })
-              })} />
-            <ReferenceRecordings ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} onPlay={usage.open} />
-          </ScrollView>
+          // The reader scrolls itself with the player kept on top, so Play and the verse playing never part.
+          <SourceReader ctx={ctx} unitId={unitId} laneId={laneId} layout="screen" listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
+            usage={usage}
+            header={<View style={{ gap: space.sm }}>
+              {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
+                : request ? <RequestBanner ctx={ctx} request={request} /> : null}
+              <View style={styles.labelRow}>
+                <Text style={[txt.label, { flex: 1 }]}>Source</Text>
+                {sourceWords && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
+              </View>
+              {sourceWords && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
+            </View>}
+            footer={<ReferenceRecordings ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+            {...(recording ? {} : {
+              onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, laneId, termId }),
+              onMoreBibles: () => ctx.go('bible_explore', { unitId, laneId })
+            })} />
         }
         bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : (
           <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel="Your recording">

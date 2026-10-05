@@ -204,8 +204,11 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
   const sourceV11n = option?.doc ? get<VersificationDoc>(option.doc.versification) : null;
   const range = useMemo(() => (passage.range ? inSourceNumbering(passage.range, passage.versification, sourceV11n) : null), [passage.range, passage.versification, sourceV11n]);
   const bookHash = option?.doc && range ? option.doc.books.find((b) => b.book === range.book)?.doc : undefined;
-  const books = useLibraryDocs(ctx.project.orgId, [bookHash]);
+  const books = useLibraryDocs(ctx.project.orgId, [bookHash], { deps: false });
   const book = books.get<SourceBookDoc>(bookHash);
+  // Only the passage's chapters' timings, not the whole book's.
+  const timingHashes = useMemo(() => (book && range ? chaptersOf(range).map((c) => book.chapters.find((x) => x.chapter === c)?.timing) : []), [book, range]);
+  const timings = useLibraryDocs(ctx.project.orgId, timingHashes, { deps: false });
   const [bb, setBb] = useState<{ key: string; verses: Map<number, [number, number, string][]>; stamps: Map<number, { verse: number; seconds: number }[] | null>; problem: string | null; done: boolean } | null>(null);
   const [files, setFiles] = useState(0);
   const keptTick = useKeptRevision();
@@ -269,7 +272,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
         const ch = book?.chapters.find((x) => x.chapter === c);
         const a = ch?.audio;
         if (!a) continue;
-        const { timing, source } = resolveTiming({ bookTiming: get<TimingDoc>(ch.timing), audioHash: a.hash ?? null, durationMs: a.durationMs ?? null });
+        const { timing, source } = resolveTiming({ bookTiming: timings.get<TimingDoc>(ch.timing), audioHash: a.hash ?? null, durationMs: a.durationMs ?? null });
         // By hash when the document gives one; a file downloaded from its link is found through the index.
         const ref = a.hash ? { hash: a.hash, format: audioFormatOf(a.format) } : keptAudio(store, libAudioKey(a));
         const local = !!ref && !!store?.has(ref.hash);
@@ -291,7 +294,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     const ready = bb && bb.key === bbKeyNow ? bb : null;
     const rows = ready && filesets.text ? passageRows(range, ready.verses) : null;
     const audio: AudioChapter[] = filesets.audio ? chapters.map((c) => {
-      const ownTiming = get<TimingDoc>(book?.chapters.find((x) => x.chapter === c)?.timing);
+      const ownTiming = timings.get<TimingDoc>(book?.chapters.find((x) => x.chapter === c)?.timing);
       const { timing, source } = resolveTiming({ bookTiming: ownTiming, fcbhRows: ready?.stamps.get(c) ?? null });
       return {
         chapter: c, timing, timingSource: source, local: !!keptAudio(store, bbKey(filesets.audio!, range.book, c)),
@@ -306,7 +309,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
       filesets: [filesets.text, filesets.audio].filter((x): x is string => !!x), copyright, bibleBrain: true
     };
     // `setFiles` revisions re-run this through the store and index reads.
-  }, [option, range, book, bookHash, bb, bbKeyNow, filesets, get, store, keptTick, files]);
+  }, [option, range, book, bookHash, bb, bbKeyNow, filesets, get, timings.get, store, keptTick, files]);
 }
 
 /** The marks on each version chip for this passage. */
