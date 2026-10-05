@@ -1,10 +1,13 @@
 import { summarizeReports, type OrgReportsResponse } from '@langquest-next/core';
+import { handleBible, type BibleDeps } from './bible';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
   profileOf(token: string): Promise<string | null>;
   /** The caller's languages in the organization, or null when they are not in it. */
   reports(orgId: string, profileId: string, fresh: boolean): Promise<OrgReportsResponse | null>;
+  /** Bible Brain (`/api/bible/*`, bible.ts); without it, or without its key, those routes answer 503. */
+  bible?: Omit<BibleDeps, 'profileOf'>;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -52,6 +55,7 @@ export async function handleApi(request: Request, deps: ApiDeps): Promise<Respon
 
 async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   const url = new URL(request.url);
+  if (url.pathname.startsWith('/api/bible/')) return handleBible(request, { key: undefined, ...deps.bible, profileOf: deps.profileOf });
   const match = /^\/api\/orgs\/([^/]+)\/reports$/.exec(url.pathname);
   if (!match) return json(404, { error: 'Not found.' });
   if (request.method !== 'GET') return json(405, { error: 'Only GET is supported.' });

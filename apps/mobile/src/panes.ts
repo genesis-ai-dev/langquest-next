@@ -33,6 +33,9 @@ export const SPLITS: readonly SplitSpec[] = [
   { list: 'flows_home', details: ['flow_editor'], empty: { icon: 'flow', title: 'Pick a flow', sub: 'It opens here to edit.' } },
   { list: 'templates_home', details: ['template_editor'], empty: { icon: 'template', title: 'Pick a template', sub: 'It opens here to edit.' } },
   { list: 'reference_home', details: ['material_editor'], empty: { icon: 'folder', title: 'Pick reference material', sub: 'It opens here to edit.' } },
+  { list: 'reference_bibles', details: ['reference_source'], empty: { icon: 'book', title: 'Pick a Bible', sub: 'What it offers opens here.' } },
+  { list: 'reference_guides', details: ['material_editor'], empty: { icon: 'sparkle', title: 'Pick a guide or note', sub: 'It opens here.' } },
+  { list: 'reference_coverage', details: ['passage_reference'], empty: { icon: 'map', title: 'Pick a passage', sub: 'Its reference opens here.' } },
   { list: 'review_teams', details: ['review_team_editor'], empty: { icon: 'people', title: 'Pick a team', sub: 'It opens here to edit.' } },
   { list: 'key_terms', details: ['key_term_detail'], empty: { icon: 'book', title: 'Pick a term', sub: 'Its meaning and renderings open here.' } },
   { list: 'org_home', details: ['language_home'] }

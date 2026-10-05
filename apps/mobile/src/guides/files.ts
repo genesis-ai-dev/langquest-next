@@ -126,6 +126,39 @@ export function mediaKindFor(kind: PickKind, panel: 'media' | 'map'): StudyMedia
   return panel === 'map' ? 'map' : 'photo';
 }
 
+// ---- for any library material with audio or pictures (notes for translators, later) ----
+
+/** A recording from the app's recorder (useRecorder / VoiceNote) as a MediaRef: it is already in the blob store. */
+export function mediaFromRecording(card: { hash: string; format: StoredFormat; durationMs?: number }): MediaRef {
+  return { hash: card.hash, format: card.format, ...(card.durationMs !== undefined ? { seconds: Math.round(card.durationMs / 1000) } : {}) };
+}
+
+/** Pick a file in the browser and keep it (web only): the MediaRef to put in a document, or null when the picker is closed. */
+export async function pickMedia(kind: PickKind): Promise<MediaRef | null> {
+  const file = await pickFile(kind);
+  return file ? keepPicked(file, kind) : null;
+}
+
+/** The stored files a MediaRef names: the original and, for a picture or film, its phone copy. */
+export function storedFilesOfMedia(m: MediaRef, kind: PickKind): StoredFile[] {
+  const out: StoredFile[] = [];
+  const fallback: StoredFormat = kind === 'audio' ? 'm4a' : kind === 'video' ? 'mp4' : 'jpg';
+  if (m.hash) out.push({ hash: m.hash, format: isStoredFormat(m.format) ? m.format : fallback });
+  if (m.lowHash && m.lowHash !== m.hash) out.push({ hash: m.lowHash, format: kind === 'video' ? 'mp4' : 'jpg' });
+  return out;
+}
+
+/**
+ * Upload what a MediaRef names to the organization's library files
+ * (`<org>/_org/<hash>.<ext>`, where study/media.ts fetches them), before
+ * publishing the document that names it. Files not on this device are
+ * skipped: whoever added them uploaded them. Safe to repeat.
+ */
+export async function uploadMedia(orgId: string, m: MediaRef, kind: PickKind): Promise<void> {
+  const store = await getBlobStore();
+  for (const f of storedFilesOfMedia(m, kind)) if (store.has(f.hash)) await uploadBlob(orgId, ORG_PARTITION, f, store);
+}
+
 /** The stored name of each file the draft's document names (phone copies are always JPEG pictures or MP4 films). */
 export function storedFilesOf(d: GuideDraft): StoredFile[] {
   const out = new Map<string, StoredFile>();

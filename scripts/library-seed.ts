@@ -3,6 +3,7 @@
  *
  *   npm run library:seed -- --dry-run
  *   npm run library:seed -- [--fia-dir <dir>]... [--hosted]
+ *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
  * the six standard versifications, Bible and FIA templates, the standard
@@ -14,6 +15,12 @@
  * version), so running twice changes nothing: the server keeps the first of
  * each id, and a document it already has is the same document. A changed
  * source publishes a new version of its item and leaves the old ones.
+ *
+ * `--sources` adds the sources to read and hear (`scripts/sources-seed.ts`):
+ * Bible Brain editions, built from FCBH's API with BIBLE_BRAIN_ACCESS_KEY
+ * from the environment, and the BSB read by Frederick Surrey with the
+ * fia-align timings in `--timings`. It needs the network, even with
+ * `--dry-run`.
  *
  * Publishing goes through the service-role RPCs `library_seed_document`
  * (dependencies first) and `library_seed_events`, at SUPABASE_URL (local by
@@ -33,6 +40,7 @@ import {
   type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
+import { sourcesFor } from './sources-seed';
 
 export const SEED_ORG = { id: 'langquest', name: 'LangQuest' } as const;
 
@@ -285,6 +293,16 @@ async function main(argv: string[]) {
   const values = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] !== undefined ? [argv[i + 1]!] : []));
   // The demo's example guides go to a hosted project only with --with-examples.
   const build = buildLibrary({ fiaDirs: values('fia-dir'), examples: !argv.includes('--hosted') || argv.includes('--with-examples') });
+  if (argv.includes('--sources')) {
+    const versifications = build.items.filter((it) => it.kind === 'versification').map((it) => {
+      const body = build.documents.find((d) => d.hash === it.docHash)!.body as VersificationDoc;
+      return { code: body.code, hash: it.docHash, books: Object.keys(body.maxVerses) };
+    });
+    const sources = await sourcesFor(versifications, { timingsDir: values('timings')[0], bsbTextPath: values('bsb-text')[0], key: process.env['BIBLE_BRAIN_ACCESS_KEY'] });
+    const have = new Set(build.documents.map((d) => d.hash));
+    build.documents.push(...sources.documents.filter((d) => !have.has(d.hash)));
+    build.items.push(...sources.items);
+  }
   const events = seedEvents(build, Date.now());
   console.log(summary(build, events));
   if (argv.includes('--dry-run')) return;
