@@ -186,7 +186,8 @@ export type DraftAction =
   | { type: 'setStepAudio'; id: string; audio: MediaRef | null }
   | { type: 'moveStep'; id: string; by: -1 | 1 }
   | { type: 'deleteStep'; id: string }
-  | { type: 'addResource'; kind: 'media' | 'map'; title?: string }
+  /** A new set of pictures or a map, with its first picture when one was just picked. */
+  | { type: 'addResource'; kind: 'media' | 'map'; title?: string; media?: Omit<DraftMedia, 'id'> }
   | { type: 'updateResource'; ref: string; patch: Partial<Pick<DraftResource, 'title' | 'description'>> }
   | { type: 'deleteResource'; ref: string }
   | { type: 'addMedia'; ref: string; media: Omit<DraftMedia, 'id'> }
@@ -237,7 +238,8 @@ export function draftReducer(d: GuideDraft, a: DraftAction): GuideDraft {
       return { ...d, steps: d.steps.filter((s) => s.id !== a.id) };
     case 'addResource': {
       const ref = nextId(a.kind === 'map' ? 'c' : 'm', draftRefs(d));
-      return { ...d, resources: [...d.resources, { ref, kind: a.kind, title: a.title ?? '', description: '', media: [] }] };
+      const media = a.media ? [{ ...a.media, id: `${ref}-1` }] : [];
+      return { ...d, resources: [...d.resources, { ref, kind: a.kind, title: a.title ?? a.media?.title ?? '', description: '', media }] };
     }
     case 'updateResource':
       return { ...d, resources: d.resources.map((r) => (r.ref === a.ref ? { ...r, ...a.patch } : r)) };

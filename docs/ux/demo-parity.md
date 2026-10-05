@@ -82,6 +82,11 @@ Map, a passage record, the workspace and the FIA study; as the reviewer,
 Review it, the record updating, set aside with a reason, the Inbox. All
 events were accepted by the server's validation and permission rules.
 
+App-only screens (each edge is in `specParity.test.ts`'s drift log with its
+reason): Sync, Delete Account, the Reports section, and Write a Guide
+(`guide_editor`, from Reference Material and from a study guide's Edit or
+Copy to adapt; `src/guides/`, docs/reference-material.md).
+
 ### Not ported yet
 
 Demo-only tools are out of scope (see above). Beyond those:
@@ -111,7 +116,8 @@ Demo-only tools are out of scope (see above). Beyond those:
 - Audio for the BSB/WEB/KJV readings and the Luke 15 and John 3 study steps
   (the reader follows a simulated clock, and says so); passage text beyond
   Genesis 1-3, Luke 14-16, John 2-4 and the guide passages.
-- Photos on study notes (no image picker); video in study media.
+- Photos on study notes (no image picker); video in study media on phones
+  (guides written in the guide editor play films in the web app only).
 
 **Deliberately left out for now**
 - Practice passages, coach-mark tours and celebrations (ONB-3, ONB-4, ONB-6

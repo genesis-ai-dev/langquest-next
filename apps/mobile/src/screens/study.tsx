@@ -7,8 +7,10 @@
 // written, broken into sections anyone who adds to passages can note
 // (STUDY-7). Finishing a step is the drafting team's (Translate), recorded
 // with who and when, and undoable (STUDY-4). The study is advice: nothing
-// waits on it (STUDY-6).
-import { commands, keyTermsFor, type EventSpec } from '@langquest-next/core';
+// waits on it (STUDY-6). App only: Write a guide (`guide_editor`), where
+// someone who manages reference material edits the organization's own guide
+// or adapts FIA's; the editor itself is in src/guides/.
+import { commands, isLicense, keyTermsFor, LICENSE_INFO, type EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -26,6 +28,7 @@ import { contractsFor } from '../screenContracts';
 import { type StudyGuide as Guide, type StudyResource } from '../study/guides';
 import { glossaryEntryOf, useStudyGuide } from '../study/libraryGuides';
 import { studyProgress, type StudyProgress, type StudyStepStatus } from '../study/progress';
+import { GuideEditorScreen } from '../guides/GuideEditor';
 import { useStudyFileUri } from '../study/media';
 import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections, type StudySection } from '../study/text';
 import {
@@ -98,9 +101,16 @@ export function StudyGuide(ctx: Ctx) {
     )
   ) : undefined;
 
+  // Someone who manages reference material edits the organization's own guide, or adapts anyone else's (guides/GuideEditor.tsx).
+  const origin = guide.origin;
+  const edit = ctx.session.can('manage_reference') && origin
+    ? (origin.itemId
+      ? <SmallBtn label="Edit" icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, laneId: v.laneId })} />
+      : <SmallBtn label="Copy to adapt" icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, laneId: v.laneId })} />)
+    : undefined;
   return (
     <Screen fixed footer={footer}
-      header={<Header title={`${guide.pattern} study`} sub={v.lane} onBack={ctx.back}
+      header={<Header title={`${guide.pattern} study`} sub={v.lane} onBack={ctx.back} {...(edit ? { action: edit } : {})}
         crumbs={[{ label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId }) }]} />}>
       <ViewSwitch views={[{ id: 'steps', label: `${guide.pattern} steps`, icon: 'sparkle' }, { id: 'passage', label: 'Passage', icon: 'book' }]}
         active={view} onChange={setView} />
@@ -116,6 +126,9 @@ export function StudyGuide(ctx: Ctx) {
             <Text style={[txt.xsStrong, { flex: 1 }]} numberOfLines={1}>{guide.source}</Text>
           </View>
           <Text style={txt.sm}>{guide.about}</Text>
+          {guide.credit || guide.license ? (
+            <Text style={txt.xs}>{[guide.credit, guide.license && isLicense(guide.license) ? LICENSE_INFO[guide.license].name : guide.license].filter(Boolean).join(' · ')}</Text>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               {allDone ? <Ico name="check" size={16} color={TINT.greenText} /> : null}
@@ -435,4 +448,10 @@ const s = StyleSheet.create({
   handoff: { backgroundColor: C.light, borderRadius: radius.xl, padding: space.lg, gap: space.md }
 });
 
-export const contracts = contractsFor('study_guide', 'study_step');
+// ---- Write a guide (app only): the guide editor, guides/GuideEditor.tsx -------------------
+
+export function GuideEditor(ctx: Ctx) {
+  return <GuideEditorScreen ctx={ctx} />;
+}
+
+export const contracts = contractsFor('study_guide', 'study_step', 'guide_editor');

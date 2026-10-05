@@ -44,6 +44,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
   study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
   study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'],rpcs:REPORTS },
+  // Publishes a study@2 guide as a library version; its files go to the organization's guide files (guides/files.ts).
+  guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   invite_qr: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
   invite_member: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
   members_list: { rpcs:['decide_join_request'],reads:['org.members','join_requests','profiles'] },

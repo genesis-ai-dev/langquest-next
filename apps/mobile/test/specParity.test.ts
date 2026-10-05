@@ -30,7 +30,9 @@ const APP_ONLY: Record<string, string> = {
   'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
   'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
   'delete_account->sign_in': 'a deleted account is signed out',
-  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)'
+  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)',
+  'reference_home->guide_editor': 'Write a guide: an organization writes study material as rich as FIA\'s (docs/reference-material.md, guide editor)',
+  'study_guide->guide_editor': 'Edit a guide the organization controls, or Copy to adapt FIA\'s or another organization\'s'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -42,8 +44,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion and the Reports section, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section and the guide editor, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', 'guide_editor'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

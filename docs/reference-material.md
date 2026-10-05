@@ -92,6 +92,38 @@ passing ones (`timing_job_results`): each becomes a `timing@1` in the
 library, its book's `sourceBook@1` gets the hash, and the source item gets a
 new version, so subscribers follow it like any other update.
 
+## Guide editor
+
+Write a guide (`guide_editor`, reached from Reference Material, or from a
+study guide's Edit for the organization's own and Copy to adapt for FIA's
+and other organizations') makes `study@2` documents with everything FIA's
+material has. Web first; on a phone it edits text and records step audio.
+
+- **Draft.** A pure reducer (`src/guides/draft.ts`) over details, steps,
+  media and glossary, saved on the device as it changes (`draftStore.ts`),
+  one draft per guide per device. One person edits a guide at a time: two
+  drafts never merge, and the later publish is simply the next version.
+- **Methods.** A new guide starts from FIA's six steps (the same ids,
+  phases and purposes as `scripts/fia-adapter.ts`), one empty step, or the
+  steps of a guide the organization already has.
+- **Text.** Markdown with a toolbar: bold, list, a callout of each kind in
+  `CALLOUT_KINDS` (`> [!kind] text`), and links to pictures, maps and terms
+  by ref (`[the well](#m1)`). The preview is the step screen's own
+  rendering (`study/ui.tsx` `SectionBody`). Unknown callout words read as
+  `action`, so FIA's localized `[! kitendo]` still reads as "Stop here".
+- **Files.** Audio is recorded with the app's recorder or uploaded (web);
+  pictures, maps and films are uploaded on the web. Everything is kept in
+  the blob store by SHA-256, as recordings are. Pictures get a phone copy
+  made in the browser (canvas, 500px longest side, JPEG) as `lowHash`;
+  films have no phone copy yet. Publishing uploads the files to
+  `<org>/_org/<hash>.<ext>` in the blobs bucket, then publishes the version.
+  Readers fetch a missing file from there once and keep it.
+- **License.** A new guide takes the organization's license. Adapting FIA
+  keeps FIA's credit and CC BY-SA 4.0, which cannot be changed
+  (share-alike); a source that forbids adapting cannot be published.
+- **Publishing** needs Manage Reference; core `validateDoc` runs first and
+  any problem is said in plain words with a link to where to fix it.
+
 ## Where the code is
 
 | Part | Where |
@@ -101,5 +133,5 @@ new version, so subscribers follow it like any other update.
 | Bible Brain routes | `apps/web/worker/bible.ts` |
 | Reader, sources, explore, record of use | `apps/mobile/src/sources/` |
 | Admin: recommendations, coverage, passage links, timings | `apps/mobile/src/screens/config.tsx`, `apps/mobile/src/reference/` |
-| Guide editor | `apps/mobile/src/guides/` |
+| Guide editor | `apps/mobile/src/guides/`; reading `study@2` in `apps/mobile/src/study/` |
 | Seeding LangQuest's sources | `scripts/library-seed.ts`, `scripts/sources-seed.ts` |

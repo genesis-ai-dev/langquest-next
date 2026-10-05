@@ -866,6 +866,8 @@ export function ReferenceHome(ctx: Ctx) {
         action={canManage ? <SmallBtn label="New" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...(laneId ? { laneId } : {}) })} /> : undefined} />
       <Capped items={materials} render={libraryRow}
         empty="Nothing in your library yet. Follow or copy what other organizations share, or publish your own." />
+      {canManage ? <Group><Row icon="sparkle" label="Write a guide" sub="Steps with text and audio, pictures, maps and key terms" last
+        onPress={() => ctx.go('guide_editor', laneId ? { laneId } : {})} /></Group> : null}
       <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);

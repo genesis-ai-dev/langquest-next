@@ -16,7 +16,7 @@ An item is one of four kinds:
 | --- | --- | --- |
 | `template` | `template@1` | Manage Content Templates |
 | `flow` | `flow@1` | Manage Review Flows |
-| `material` | `study@1`, `collection@1`, `material@1` | Manage Reference Material |
+| `material` | `study@1`, `study@2`, `collection@1`, `material@1` | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
 
 A version is an immutable JSON **document** named by the SHA-256 of its
