@@ -29,6 +29,8 @@ export interface TimingPublication {
   failed: { book: string; chapter: number; reason: string }[];
   /** Chapters that already had another timing, which they keep. */
   kept: { book: string; chapter: number }[];
+  /** FCBH's timings for audio Bible Brain will not let us download (no audio hash): not published, the reader asks FCBH live. */
+  skipped: { book: string; chapter: number }[];
 }
 
 type Get = (hash: string | null | undefined) => LibraryDoc | null;
@@ -68,6 +70,7 @@ export async function timingPublication(
   const failed: TimingPublication['failed'] = [];
   const kept: TimingPublication['kept'] = [];
   const placed: TimingPublication['placed'] = [];
+  const skipped: TimingPublication['skipped'] = [];
   const inSource = new Set(source.books.map((b) => b.book));
   const v11n = (code: unknown): string | null => {
     if (isHash(code)) return code;
@@ -83,7 +86,14 @@ export async function timingPublication(
     if (!inSource.has(row.book)) { failed.push({ ...at, reason: 'This Bible does not have that book' }); continue; }
     const hash = v11n(row.body['versification']);
     if (!hash) { failed.push({ ...at, reason: `Numbered in a versification this organization does not have (${String(row.body['versification'])})` }); continue; }
-    const doc = withDeps({ ...(row.body as unknown as TimingDoc), versification: hash, deps: [] });
+    const body = row.body as unknown as TimingDoc;
+    // FCBH's timings where /download is refused come without the audio's hash: the reader uses FCBH live for those.
+    if (!isObj(body.audio) || !isHash(body.audio.sha256)) { skipped.push(at); continue; }
+    // fia-align writes `score: null` for FCBH's own timings; a missing score says the same.
+    const segments = Array.isArray(body.segments)
+      ? body.segments.map((g) => (isObj(g) && (g as { score?: unknown }).score === null ? (({ score: _s, ...rest }) => rest)(g) : g))
+      : body.segments;
+    const doc = withDeps({ ...body, segments, versification: hash, deps: [] });
     if (doc.book !== row.book || doc.chapter !== row.chapter) { failed.push({ ...at, reason: 'The result names another chapter' }); continue; }
     const invalid = validateDoc(doc);
     if (invalid) { failed.push({ ...at, reason: `Not a valid timing: ${invalid}` }); continue; }
@@ -129,11 +139,11 @@ export async function timingPublication(
   }
 
   // 3. The source's next version names the new books.
-  if (bookHashes.size === 0) return { docs: [], source: null, placed, failed, kept };
+  if (bookHashes.size === 0) return { docs: [], source: null, placed, failed, kept, skipped };
   const next = withDeps<SourceDoc>({ ...source, books: source.books.map((b) => (bookHashes.has(b.book) ? { ...b, doc: bookHashes.get(b.book)! } : b)), deps: [] });
   const text = canonicalJson(next);
   const hash = await hashOf(text);
-  if (hash === input.sourceHash) return { docs: [], source: null, placed: [], failed, kept };
+  if (hash === input.sourceHash) return { docs: [], source: null, placed: [], failed, kept, skipped };
   docs.push({ hash, text, doc: next });
-  return { docs, source: { doc: next, hash }, placed, failed, kept };
+  return { docs, source: { doc: next, hash }, placed, failed, kept, skipped };
 }

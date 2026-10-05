@@ -27,7 +27,7 @@ import {
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../report';
-import { bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../reference/bibleBrain';
+import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../reference/bibleBrain';
 import { coverage, coverageSummary, itemReaches, type Reach, type ReachWhy } from '../reference/coverage';
 import {
   biblebrainItemId, booksOf, languageOf, legacyMigration, offlineLine, orgLevelCan, recActions, recLabel, recState, REF_KIND_LABEL,
@@ -206,7 +206,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
         setError('');
         const exact = ls.find((l) => l.code === needle.toLowerCase()) ?? ls[0];
         setLang((cur) => (cur && ls.some((l) => l.code === cur) ? cur : exact?.code ?? null));
-      }).catch((e: unknown) => { if (active) setError(e instanceof Error ? e.message : 'Not connected.'); });
+      }).catch((e: unknown) => { if (active) setError(searchFailure(e)); });
     }, 350);
     return () => { active = false; clearTimeout(t); };
   }, [tab, q]);
@@ -214,7 +214,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
     if (!lang) { setBibles(null); return; }
     let active = true;
     setBibles(null);
-    biblesIn(lang).then((bs) => { if (active) setBibles(bs); }).catch((e: unknown) => { if (active) setError(e instanceof Error ? e.message : 'Not connected.'); });
+    biblesIn(lang).then((bs) => { if (active) setBibles(bs); }).catch((e: unknown) => { if (active) setError(searchFailure(e)); });
     return () => { active = false; };
   }, [lang]);
 
@@ -318,6 +318,12 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   );
 }
 
+/** Why a Bible Brain search failed, plainly: a server without the Bible routes answers 404. */
+function searchFailure(e: unknown): string {
+  if (e instanceof BibleError && e.status === 404) return 'This server does not offer Bible Brain search yet.';
+  return e instanceof Error ? e.message : 'Not connected.';
+}
+
 /** "Text OT NT · audio NT · FCBH timings" for a search result. */
 function bibleLine(b: BibleSummary): string {
   const t = (x: { OT?: string; NT?: string }) => [x.OT ? 'OT' : '', x.NT ? 'NT' : ''].filter(Boolean).join(' ');
@@ -349,9 +355,11 @@ export function ReferenceSource(ctx: Ctx) {
     bibleDetail(bibleId).then((d) => { if (active) setDetail(d); }).catch((e: unknown) => { if (active) setDetailError(referenceFailure('bible detail', e)); });
     return () => { active = false; };
   }, [bibleId, detail]);
+  // Asking for timings and publishing them are organization-wide acts (request_timings, the source's next version).
+  const canOrg = orgLevelCan(ctx.org.state, ctx.session.actorId, 'manage_reference');
   const timed = !!bibleId && canManage;
   const { jobs, refresh } = useTimingJobs(lib.orgId, it?.itemId ?? null, timed);
-  const outcomes = useTimingPublisher(ctx, lib, it, jobs, timed && orgLevelCan(ctx.org.state, ctx.session.actorId, 'manage_reference'));
+  const outcomes = useTimingPublisher(ctx, lib, it, jobs, timed && canOrg);
 
   if (!it || !source) {
     return <Screen header={<Header title="Bible" onBack={ctx.back} />}><EmptyState icon="book" title={it && !row?.doc ? 'Loading…' : 'This Bible is not here any more'} /></Screen>;
@@ -362,7 +370,7 @@ export function ReferenceSource(ctx: Ctx) {
   const label = recLabel(r, level);
   const open = jobs.filter((j) => !j.finished_at);
   const followed = it.source === 'subscription';
-  const mayAsk = canManage && need.allowed && need.requests.length > 0 && !followed && open.length === 0;
+  const mayAsk = canOrg && need.allowed && need.requests.length > 0 && !followed && open.length === 0;
 
   async function ask() {
     if (!it || !source || asking) return;
@@ -446,7 +454,7 @@ function JobCard(props: { ctx: Ctx; job: TimingJob; outcome?: Awaited<ReturnType
     <Card>
       <View style={styles.titleRow}>
         <Text style={[txt.h3, { flex: 1 }]}>{what}</Text>
-        <Badge label={j.error ? 'Stopped' : j.finished_at ? 'Done' : 'Working'} tone={j.error ? 'red' : j.finished_at ? 'green' : 'amber'} />
+        <Badge label={j.error ? 'Stopped' : j.finished_at ? 'Done' : j.claimed_at ? 'Working' : 'Waiting'} tone={j.error ? 'red' : j.finished_at ? 'green' : 'amber'} />
       </View>
       <Text style={txt.sm}>{state}</Text>
       {!j.finished_at && j.total > 0 ? (
@@ -459,7 +467,7 @@ function JobCard(props: { ctx: Ctx; job: TimingJob; outcome?: Awaited<ReturnType
         </>
       ) : null}
       {outcome && 'placed' in outcome ? (
-        <Text style={txt.xs}>{outcome.placed.length ? `Published: ${plural(outcome.placed.length, 'chapter')}.` : 'Already published.'}{outcome.kept.length ? ` ${plural(outcome.kept.length, 'chapter')} kept the timings they had.` : ''}</Text>
+        <Text style={txt.xs}>{outcome.placed.length ? `Published: ${plural(outcome.placed.length, 'chapter')}.` : 'Already published.'}{outcome.kept.length ? ` ${plural(outcome.kept.length, 'chapter')} kept the timings they had.` : ''}{outcome.skipped.length ? ` ${plural(outcome.skipped.length, 'chapter')} use FCBH's timings live.` : ''}</Text>
       ) : null}
       {failed.length ? (
         <Disclosure icon="flag" title="Did not pass" summary={`${plural(failed.length, 'chapter')}, not published`} {...failedOpen}>
@@ -646,7 +654,7 @@ export function ReferenceCoverage(ctx: Ctx) {
   const offered = useMemo(() => {
     const have = new Set(rows.map((r) => r.it.itemId));
     return new Map([...recommendedFor(ctx.org.state?.recommendations, state, laneId)].filter(([id]) => have.has(id)));
-  }, [ctx.org.state?.recommendations, state, laneId, rows]);
+  }, [ctx.org.state, state, laneId, rows]);
   const map = useMemo(() => (state && laneId && passages ? coverageFor(state, laneId, passages, offered, rows, docs.get) : null),
     [state, laneId, passages, offered, rows, docs.get]);
   const names = useMemo(() => new Map(rows.map((r) => [r.it.itemId, r.doc?.format === 'source@1' ? r.doc.abbreviation : r.it.name])), [rows]);
@@ -729,7 +737,7 @@ export function PassageReference(ctx: Ctx) {
   const offered = useMemo(() => {
     const have = new Set(rows.map((r) => r.it.itemId));
     return new Map([...recommendedFor(ctx.org.state?.recommendations, state, laneId)].filter(([id]) => have.has(id)));
-  }, [ctx.org.state?.recommendations, state, laneId, rows]);
+  }, [ctx.org.state, state, laneId, rows]);
   const result = useMemo(() => {
     if (!state || !passage) return null;
     const template = sel?.docHash ? (tdocs.get(sel.docHash) as TemplateDoc | null) : null;

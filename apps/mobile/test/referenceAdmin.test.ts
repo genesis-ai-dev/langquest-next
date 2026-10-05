@@ -214,6 +214,21 @@ describe('publishing a timing job', () => {
     ]);
   });
 
+  it('drops null scores, skips FCBH timings without an audio hash, and reads the versification by code (rsc)', async () => {
+    const RSC = H('c');
+    const fcbh = timing('MAT', 3, { source: 'fcbh', versification: 'rsc', segments: [{ verseStart: 1, verseEnd: 1, startMs: 0, endMs: 9000, score: null as unknown as number }] });
+    const noAudio = { ...timing('MAT', 4, { source: 'fcbh' }), audio: { sha256: null, durationMs: 1 } };
+    const out = await timingPublication({
+      source, sourceHash: H('1'), get: () => null, versifications: [{ code: 'eng', hash: ENG }, { code: 'rsc', hash: RSC }],
+      rows: [{ book: 'MAT', chapter: 3, ok: true, body: fcbh }, { book: 'MAT', chapter: 4, ok: true, body: noAudio }]
+    }, sha);
+    expect(out.failed).toEqual([]);
+    const t = out.docs[0]!.doc as TimingDoc;
+    expect([t.versification, t.segments[0]]).toEqual([RSC, { verseStart: 1, verseEnd: 1, startMs: 0, endMs: 9000 }]);
+    expect(out.skipped).toEqual([{ book: 'MAT', chapter: 4 }]);
+    expect(out.placed).toEqual([{ book: 'MAT', chapter: 3 }]);
+  });
+
   it('does not touch a book whose document is not on this phone', async () => {
     const withBook = withDeps({ ...source, books: source.books.map((b) => (b.book === 'MAT' ? { ...b, doc: H('9') } : b)) });
     const out = await timingPublication({ source: withBook, sourceHash: H('1'), rows: rows.slice(0, 1), get: () => null, versifications }, sha);

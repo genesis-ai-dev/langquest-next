@@ -22,7 +22,8 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined, laneI
   const lane = laneId ?? ctx.laneId;
   const { recommended, own } = useMemo(
     () => offeredGuideSources(ctx.org.state?.library ?? {}, ctx.org.state?.recommendations, state, lane, unitId),
-    [ctx.org.state?.library, ctx.org.state?.recommendations, state, lane, unitId]
+    // The org fold changes its maps in place; the state object is new on every change.
+    [ctx.org.state, state, lane, unitId]
   ) as { recommended: GuideSource[]; own: GuideSource[] };
   const sel = lane && state ? state.laneTemplates[lane]?.value : undefined;
   const { get } = useLibraryDocs(orgId, [...recommended.map((s) => s.hash), ...own.map((s) => s.hash), sel?.docHash]);

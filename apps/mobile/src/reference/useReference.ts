@@ -75,10 +75,11 @@ export interface RefItem {
 /** The library's reference items (material) with their current documents, re-rendering as documents arrive. */
 export function useRefItems(ctx: Ctx, include?: (it: LibraryItemView) => boolean) {
   const lib = useLibrary(ctx);
-  const library = ctx.org.state?.library;
-  const items = useMemo(() => libraryItems(library ?? {}, 'material').filter((it) => it.current && (include ? include(it) : true)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [library]);
+  // The org fold changes the library in place, so the list is read every render and kept while its versions are the same.
+  const fresh = libraryItems(ctx.org.state?.library ?? {}, 'material').filter((it) => it.current && (include ? include(it) : true));
+  const signature = fresh.map((it) => `${it.itemId}:${it.current}:${it.name}:${it.archived}:${it.source}:${it.versions.length}`).join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const items = useMemo(() => fresh, [signature]);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current));
   const rows: RefItem[] = useMemo(() => items.map((it) => {
     const doc = docs.get(it.current);

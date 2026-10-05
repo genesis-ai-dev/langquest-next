@@ -823,7 +823,7 @@ export function ReferenceHome(ctx: Ctx) {
   const termCount = useMemo(() => (state && termLane ? keyTermsFor(state, termLane).length : 0), [state, termLane]);
   const byLanguage = ctx.details('reference:by-language');
   // What translators are offered at this level (screens/reference.tsx).
-  const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, state, laneId), [ctx.org.state?.recommendations, state, laneId]);
+  const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, state, laneId), [ctx.org.state, state, laneId]);
   if (!state || !view) return <Screen header={<Header title="Reference Material" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
 
   const levelName = laneId ? laneName(state, laneId) : orgName(ctx);
