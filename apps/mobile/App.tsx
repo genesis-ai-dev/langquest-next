@@ -33,6 +33,7 @@ import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
 import * as Org from './src/screens/org';
 import * as Passage from './src/screens/passage';
+import * as Reference from './src/screens/reference';
 import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
 import * as Sources from './src/screens/sources';
@@ -86,6 +87,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   templates_home: Content.TemplatesHome, template_picker: Content.TemplatePicker, template_editor: Content.TemplateEditor,
   book_structure: Content.BookStructure,
   reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage,
+  reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
+  reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
   bible_explore: Sources.BibleExplore
 };
 

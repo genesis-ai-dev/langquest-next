@@ -64,8 +64,17 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Publishes template versions; languages move to them by themselves (library/follow.ts).
   template_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Library items (docs/library.md): the organization's, and what others share.
-  reference_home: { emits:['v1.CatalogItemToggled','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
-    reads:['materialsFor','sourceBibleEnabled','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
+  reference_home: { emits:['v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['materialsFor','library','recommendedFor'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
+  // Reference material by level (docs/reference-material.md). Bible Brain is read through the Worker's /api/bible routes.
+  reference_bibles: { emits:['v1.ReferenceRecommended','v1.LaneReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['library','recommendedFor','sourceOffers'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
+  // Publishing a timing job's results is the source's next version (reference/timings.ts).
+  reference_source: { emits:['v1.ReferenceRecommended','v1.LaneReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['library','recommendedFor','sourceOffers'],rpcs:['library_get_documents','library_put_document','request_timings','timing_jobs_for','timing_job_results'] },
+  reference_guides: { emits:['v1.ReferenceRecommended','v1.LaneReferenceRecommended'],reads:['library','recommendedFor','materialsFor'],rpcs:['library_get_documents'] },
+  reference_coverage: { reads:['library','recommendedFor','passageLink','laneLeafUnits'],rpcs:['library_get_documents'] },
+  passage_reference: { emits:['v1.PassageReferenceLinked'],reads:['library','recommendedFor','passageLink','linkedTo','materialsFor'],rpcs:['library_get_documents'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView'] },
   // Using a library flow for a language; Undo of an older catalog or custom flow restores it.

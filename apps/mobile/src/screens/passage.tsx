@@ -274,7 +274,8 @@ export function PassageRecord(ctx: Ctx) {
     </Pressable>
   ) : undefined;
 
-  const showDetails = timeline.length > 0 || p.versions.length > 0 || !!study || can.note;
+  // Details always has Reference: what translators are offered here and why (screens/reference.tsx).
+  const showDetails = true;
   const gridIds = gridKindIds(p);
   const flowLabel = p.flow.steps.length === 0 && !p.flow.flowId ? 'No review flow' : p.flow.name;
   const latest = timeline[0];
@@ -352,6 +353,9 @@ export function PassageRecord(ctx: Ctx) {
                 onPress={() => setNoting(true)} last />
             </Group>
           ) : null}
+          <Group>
+            <Row icon="book" label="Reference" sub="Bibles, guides and notes offered here, and why" onPress={() => go('passage_reference')} last />
+          </Group>
         </View>
       </ScrollView>
 

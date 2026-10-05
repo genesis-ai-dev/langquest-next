@@ -1,11 +1,15 @@
-// The study guide for a passage, from the library (docs/library.md): the
-// organization's own, copied or followed study material first, then what
-// other organizations share (LangQuest's FIA guides). Matching is
-// `guideMatch.ts`; this hook only gathers the documents.
-import { libraryItems, type StudyDoc } from '@langquest-next/core';
+// The study guide for a passage, from the library (docs/library.md,
+// docs/reference-material.md): what the organization or the language
+// recommends, or an admin linked to the passage, first; then the rest of the
+// organization's own, copied or followed material. What other organizations
+// merely share is never offered: an admin follows or copies it first
+// (`reference/offered.ts`). Matching is `guideMatch.ts`; this hook only
+// gathers the documents.
+import { type StudyDoc } from '@langquest-next/core';
 import { useMemo } from 'react';
 import type { Ctx } from '../ctx';
-import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
+import { useLibraryDocs } from '../library/useLibrary';
+import { offeredGuideSources } from '../reference/offered';
 import { bestGuide, guideFromDoc, passageVerses, type GuideSource } from './guideMatch';
 import type { StudyGuide } from './guides';
 
@@ -16,19 +20,19 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined, laneI
   const state = ctx.project.state;
   const orgId = ctx.project.orgId;
   const lane = laneId ?? ctx.laneId;
-  const own: GuideSource[] = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material')
-    .filter((i) => i.current && !i.archived)
-    .map((i) => ({ key: i.itemId, hash: i.current! })), [ctx.org.state?.library]);
-  const shared = useSharedItems('material', orgId, !!unitId);
-  const others: GuideSource[] = useMemo(() => shared.rows.map((r) => ({ key: `${r.org_id}.${r.item_id}`, hash: r.latest_hash })), [shared.rows]);
+  const { recommended, own } = useMemo(
+    () => offeredGuideSources(ctx.org.state?.library ?? {}, ctx.org.state?.recommendations, state, lane, unitId),
+    // The org fold changes its maps in place; the state object is new on every change.
+    [ctx.org.state, state, lane, unitId]
+  ) as { recommended: GuideSource[]; own: GuideSource[] };
   const sel = lane && state ? state.laneTemplates[lane]?.value : undefined;
-  const { get } = useLibraryDocs(orgId, [...own.map((s) => s.hash), ...others.map((s) => s.hash), sel?.docHash]);
+  const { get } = useLibraryDocs(orgId, [...recommended.map((s) => s.hash), ...own.map((s) => s.hash), sel?.docHash]);
 
   const choice = useMemo(() => {
     if (!state || !unitId) return null;
     const passage = passageVerses(state, unitId, lane, get);
-    return passage ? bestGuide(passage, [own, others], get) : null;
-  }, [state, unitId, lane, own, others, get]);
+    return passage ? bestGuide(passage, [recommended, own], get) : null;
+  }, [state, unitId, lane, recommended, own, get]);
 
   // The chosen guide's own document (a collection's entry) loads on demand.
   const entry = useLibraryDocs(orgId, [choice?.hash]);

@@ -9,7 +9,7 @@ import { buildFixture } from '../../../packages/core/test/fixtures';
 
 const root = path.resolve('apps/mobile');
 const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
-const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Sources)\.(\w+)/g)]
+const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Reference|Sources)\.(\w+)/g)]
   .map((m) => [m[2]!,m[1]! as ScreenId]));
 
 describe('screen action contracts', () => {
