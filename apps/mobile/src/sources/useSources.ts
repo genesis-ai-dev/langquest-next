@@ -20,7 +20,7 @@ import {
   bookOffers, catalogVerses, chaptersOf, chipMarks, filesetsFor, inSourceNumbering, offersFor, offlineAllowed, orderOptions, passageRows, playPlan,
   refText, resolveTiming, unitCoordinates, type PlayPlan, type SourceFrom, type SourceOption, type Timing, type TimingSource, type VerseRow
 } from './model';
-import { audioFormatOf, bbKey, ensureIndex, keptAudio, onSourceFiles, playableUri } from './offline';
+import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
 import { bibleBrain, textKept, useKeptRevision, useMyBibles } from './store';
 
 type Get = <T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => T | null;
@@ -267,7 +267,8 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
         const a = ch?.audio;
         if (!a) continue;
         const { timing, source } = resolveTiming({ bookTiming: get<TimingDoc>(ch.timing), audioHash: a.hash ?? null, durationMs: a.durationMs ?? null });
-        const ref = a.hash ? { hash: a.hash, format: audioFormatOf(a.format) } : null;
+        // By hash when the document gives one; a file downloaded from its link is found through the index.
+        const ref = a.hash ? { hash: a.hash, format: audioFormatOf(a.format) } : keptAudio(store, libAudioKey(a));
         const local = !!ref && !!store?.has(ref.hash);
         audio.push({
           chapter: c, timing, timingSource: source, local,
@@ -332,8 +333,8 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
         const book = books.get<SourceBookDoc>(hash);
         const exact = book ? bookOffers(book, chapters) : offers;
         const audioOnPhone = !!book && chapters.every((c) => {
-          const h = book.chapters.find((x) => x.chapter === c)?.audio?.hash;
-          return !!h && !!store?.has(h);
+          const a = book.chapters.find((x) => x.chapter === c)?.audio;
+          return !!a && (a.hash ? !!store?.has(a.hash) : !!keptAudio(store, libAudioKey(a)));
         });
         out[o.itemId] = chipMarks({ text: exact.text, audio: exact.audio, offlineAllowed: offlineAllowed(o), textOnPhone: !!book, audioOnPhone });
         continue;

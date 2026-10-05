@@ -48,7 +48,7 @@ interface Entry {
   at: number;
 }
 
-/** chapter key -> file. Keys: `bb:<fileset>:<book>:<chapter>`, `lib:<hash>`. */
+/** chapter key -> file. Keys: `bb:<fileset>:<book>:<chapter>`, `lib:<hash>`, `url:<url>` (library audio named only by its link). */
 let index: Record<string, Entry> | null = null;
 const indexListeners = new Set<() => void>();
 
@@ -71,6 +71,8 @@ async function saveIndex(): Promise<void> {
 
 export const bbKey = (fileset: string, book: string, chapter: number) => `bb:${fileset}:${book}:${chapter}`;
 export const libKey = (hash: string) => `lib:${hash}`;
+/** A library chapter's audio: by its hash when the document gives one, else by its link. */
+export const libAudioKey = (a: { hash?: string; url?: string }) => (a.hash ? libKey(a.hash) : `url:${a.url ?? ''}`);
 
 /** Re-render when files arrive or go. */
 export function onSourceFiles(l: () => void): () => void {
@@ -250,7 +252,7 @@ async function pass(project: ProjectHandle, org: OrgHandle, session: Session): P
           for (const c of chapters) {
             const a = book?.chapters.find((x) => x.chapter === c)?.audio;
             // TODO(sources): audio carried only by hash (no URL) needs the library media route the guide editor adds.
-            if (a?.url && isHash(a.hash)) wants.push({ key: libKey(a.hash), url: a.url, hash: a.hash, format: audioFormatOf(a.format), book: range.book, chapter: c });
+            if (a?.url) wants.push({ key: libAudioKey(a), url: a.url, ...(isHash(a.hash) ? { hash: a.hash } : {}), format: audioFormatOf(a.format), book: range.book, chapter: c });
           }
         } else {
           const fileset = filesetsFor(o, range.book).audio;
@@ -300,7 +302,7 @@ async function pass(project: ProjectHandle, org: OrgHandle, session: Session): P
       continue;
     }
     try {
-      if (w.url) await download(store, w.key, w.url, { expectHash: w.hash!, format: w.format ?? 'mp3' });
+      if (w.url) await download(store, w.key, w.url, { ...(w.hash ? { expectHash: w.hash } : {}), format: w.format ?? 'mp3' });
       else if (w.fileset && bibleBrain && !refused.has(w.fileset)) {
         const link = await bibleBrain.audio(w.fileset, w.book, w.chapter, { offline: true });
         // Stream only from now on: nothing of it stays on the phone.
