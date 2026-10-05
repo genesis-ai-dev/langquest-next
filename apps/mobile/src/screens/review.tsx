@@ -16,7 +16,7 @@ import {
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
@@ -34,6 +34,8 @@ import {
   RequestBanner, StageStrip, WithheldNotice
 } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
+import { SourceReader, useOfferedSources } from '../sources/SourceReader';
+import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
 import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
@@ -100,6 +102,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
   const all = useMemo(() => v && logged ? recordedPassages(v.state, v.laneId) : [], [v?.state, v?.laneId, logged]);
+  // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
+  const usage = useUsage();
+  const shown = !!context;
+  useOfferedSources(ctx, shown ? v?.unitId : undefined, shown ? v?.laneId : undefined, shown ? usage : undefined);
+  const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
+  useEffect(() => {
+    if (shown && guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
+  }, [shown, guide, guideItem, usage]);
 
   const crumbLabel = logged ? 'Already happened' : 'Review it';
   if (!v || !kind) {
@@ -177,6 +187,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             })));
         });
         message = targets.length > 1 ? `${kind.name} added to ${targets.length} passages` : `${kind.name} added to the record`;
+      }
+      // Each review of this passage names what its Background offered and what was opened.
+      const used = usage.items();
+      if (context && used.length) {
+        specs = [...specs, ...specs.flatMap((sp) => {
+          if (sp.type !== 'v1.ReviewRecorded') return [];
+          const p = sp.payload as { reviewId: string; takeId: string };
+          if (state.takes[p.takeId]?.unitId !== v.unitId) return [];
+          return c.referencesUsed({ commandId: cmd, laneId: v.laneId, unitId: v.unitId, reviewId: p.reviewId, items: used });
+        })];
       }
     } catch (e) {
       ctx.toast(`Not saved: ${problemText(logged ? 'add record: save' : 'review: send', e)}`);
@@ -266,9 +286,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             terms={context.terms} notes={context.notes} anchor={context.anchor} olderVersion={context.olderVersion}
             onOpenTerm={(termId) => ctx.go('key_term_detail', { termId, unitId: v.unitId, laneId: v.laneId })}
             study={context.study}
-            onOpenStep={(stepId) => ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId })}
-            onOpenStudy={() => ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId })}
-            reviews={context.earlier} kind={v.kind} />
+            onOpenStep={(stepId) => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId }); }}
+            onOpenStudy={() => { if (guideItem) usage.open(guideItem); ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId }); }}
+            reviews={context.earlier} kind={v.kind}
+            source={<SourceReader ctx={ctx} unitId={v.unitId} laneId={v.laneId} usage={usage}
+              onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, laneId: v.laneId })} />} />
         </>
       )}
     </>

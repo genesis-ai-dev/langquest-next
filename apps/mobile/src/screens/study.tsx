@@ -21,7 +21,6 @@ import {
 import { AudioClip } from '../audioClip';
 import { plural, usePassage, when, type PassageView } from '../passageView';
 import { noteExpected } from '../report';
-import { readingsFor } from '../scripture';
 import { contractsFor } from '../screenContracts';
 import { type StudyGuide as Guide, type StudyResource } from '../study/guides';
 import { glossaryEntryOf, useStudyGuide } from '../study/libraryGuides';
@@ -80,7 +79,6 @@ export function StudyGuide(ctx: Ctx) {
   const { v, guide, sp } = useStudy(ctx);
   const [view, setView] = useState<'steps' | 'passage'>('steps');
   const opened = useOpened(view === 'passage');
-  const readings = useMemo(() => (ctx.project.state && v ? readingsFor(ctx.project.state, v.unitId) : []), [ctx.project.state, v?.unitId]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!v || !guide || !sp) return <Missing ctx={ctx} title={TITLES.study_guide} v={v} />;
 
   const canStudy = ctx.session.can('translate');
@@ -105,7 +103,7 @@ export function StudyGuide(ctx: Ctx) {
         active={view} onChange={setView} />
       {opened ? (
         <View style={[s.pane, view !== 'passage' && s.hidden]}>
-          <PassageReader ctx={ctx} v={v} readings={readings} canContribute={canContribute} hidden={view !== 'passage'} />
+          <PassageReader ctx={ctx} v={v} canContribute={canContribute} hidden={view !== 'passage'} />
         </View>
       ) : null}
       <ScrollView style={[s.pane, view !== 'steps' && s.hidden]} contentContainerStyle={su.body}>
@@ -160,7 +158,6 @@ export function StudyStep(ctx: Ctx) {
   const [stepId, setStepId] = useState(ctx.params['stepId'] ?? '');
   const [view, setView] = useState<'step' | 'passage'>('step');
   const opened = useOpened(view === 'passage');
-  const readings = useMemo(() => (ctx.project.state && v ? readingsFor(ctx.project.state, v.unitId) : []), [ctx.project.state, v?.unitId]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!v || !guide || !sp) return <Missing ctx={ctx} title={TITLES.study_step} v={v} />;
 
   const status = sp.steps.find((st) => st.step.id === stepId) ?? sp.steps[0]!;
@@ -231,7 +228,7 @@ export function StudyStep(ctx: Ctx) {
         active={view} onChange={setView} />
       {opened ? (
         <View style={[s.pane, view !== 'passage' && s.hidden]}>
-          <PassageReader ctx={ctx} v={v} readings={readings} canContribute={canContribute} hidden={view !== 'passage'} />
+          <PassageReader ctx={ctx} v={v} canContribute={canContribute} hidden={view !== 'passage'} />
         </View>
       ) : null}
       <View style={[s.pane, view !== 'step' && s.hidden]}>
