@@ -111,6 +111,10 @@ export class MemoryStore implements EventStore {
     return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
   }
 
+  async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
+    return this.partition(orgId, projectId).filter((e) => e.status === 'pending' && e.event.actorId === actorId).length;
+  }
+
   async count(orgId: string, projectId: string): Promise<number> {
     return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected').length;
   }
