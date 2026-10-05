@@ -61,7 +61,10 @@ Deno.serve(async (request) => {
     // Three digits keep sign-in names apart; on the rare clash, new digits.
     for (let attempt = 0; attempt < 5 && !profileId; attempt++) {
       const candidate = `${makeSignInName(name, crypto.getRandomValues(new Uint16Array(1))[0]!)}@${MANAGED_DOMAIN}`;
-      const made = await service.auth.admin.createUser({ email: candidate, password: randomPassword(), email_confirm: true });
+      // `has_password: false` tells the app there is no password to sign back in with until they set one.
+      const made = await service.auth.admin.createUser({
+        email: candidate, password: randomPassword(), email_confirm: true, user_metadata: { has_password: false }
+      });
       if (made.error && /already|exists|registered/i.test(made.error.message)) continue;
       if (made.error || !made.data.user) return reply({ error: 'Unable to join right now. Please retry.' }, 503);
       profileId = made.data.user.id;
