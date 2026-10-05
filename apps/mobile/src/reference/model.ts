@@ -234,8 +234,12 @@ export function sourceSummary(f: SourceFacts): string {
   const t = both(f.text), a = both(f.audio);
   parts.push(t ? `Text ${t}` : 'No text');
   parts.push(a ? `audio ${a}` : 'no audio');
-  const timed = (['OT', 'NT'] as const).filter((x) => f.audio[x] && (f.timings[x] === 'fcbh' || f.timings[x] === 'stored'));
-  if (f.audio.OT || f.audio.NT) parts.push(timed.length ? 'verse timings' : (['OT', 'NT'] as const).some((x) => f.timings[x] === 'some') ? 'some timings' : 'no timings');
+  const withAudio = (['OT', 'NT'] as const).filter((x) => f.audio[x]);
+  const timed = withAudio.filter((x) => f.timings[x] === 'fcbh' || f.timings[x] === 'stored');
+  // Until Bible Brain has said whether FCBH has timestamps, say nothing about timings.
+  if (withAudio.length && !withAudio.every((x) => f.timings[x] === 'unknown')) {
+    parts.push(timed.length === withAudio.length ? 'verse timings' : timed.length || withAudio.some((x) => f.timings[x] === 'some') ? 'some timings' : 'no timings');
+  }
   parts.push(f.offline ? 'offline' : 'stream only');
   return parts.join(' · ');
 }

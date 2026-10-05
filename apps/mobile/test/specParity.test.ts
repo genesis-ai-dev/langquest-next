@@ -30,8 +30,20 @@ const APP_ONLY: Record<string, string> = {
   'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
   'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
   'delete_account->sign_in': 'a deleted account is signed out',
-  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)'
+  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)',
+  // Reference material by level (docs/reference-material.md): the demo's one reference library splits
+  // into Bibles (with each source's facts and timings), guides and notes, coverage, and one passage's.
+  'reference_home->reference_bibles': 'Bibles recommended at this level, and adding one from LangQuest or Bible Brain',
+  'reference_bibles->reference_source': "one source's text, audio, timings, offline rule and copyright, and generating verse timings",
+  'reference_home->reference_guides': 'guides and notes with recommendations and a filter',
+  'reference_guides->material_editor': 'a new note for translators, or an item to edit',
+  'reference_home->reference_coverage': "which recommended material reaches each of a language's passages",
+  'reference_coverage->passage_reference': "one passage's reference, to place or hide an item there",
+  'passage_record->passage_reference': 'what a translator is offered on this passage and why (Details)'
 };
+
+/** App-only reference screens (docs/reference-material.md). */
+const REFERENCE_SCREENS = ['reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference'];
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
 const key = (e: { from: string; to: string; mode?: string }) => `${e.from}->${e.to}`;
@@ -43,7 +55,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion and the Reports section, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

@@ -347,6 +347,8 @@ export function fieldLabel(fieldId: string): string {
 
 /** A reference kind's name ("Translation Guidelines"), or its id as words for a partner's own. */
 export function referenceKindName(kind: string): string {
+  // Notes for translators are library material only (docs/reference-material.md).
+  if (kind === 'note') return 'Note for translators';
   return REFERENCE_KINDS.find((k) => k.id === kind)?.name ?? fieldLabel(kind);
 }
 
