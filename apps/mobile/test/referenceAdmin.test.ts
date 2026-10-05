@@ -12,6 +12,7 @@ import {
   sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../src/reference/model';
 import { timingPublication, type TimingResultRow } from '../src/reference/timings';
+import { offeredGuideSources } from '../src/reference/offered';
 import type { BibleDetail } from '../src/reference/bibleBrain';
 import type { SharedItem } from '../src/library/model';
 
@@ -187,9 +188,14 @@ describe('publishing a timing job', () => {
     expect(again.docs).toEqual([]);
     expect(again.source).toBeNull();
     expect(again.failed).toHaveLength(2);
+
+    // A later job's different timing for a chapter already timed leaves it alone: jobs never undo each other.
+    const later = [{ book: 'MAT', chapter: 1, ok: true, body: timing('MAT', 1, { introEndMs: 1500 }) }];
+    const third = await timingPublication({ source: next, sourceHash: first.source!.hash, rows: later, get, versifications }, sha);
+    expect([third.source, third.kept]).toEqual([null, [{ book: 'MAT', chapter: 1 }]]);
   });
 
-  it("keeps a person's correction and the book's text and audio", async () => {
+  it("keeps a person's correction and the book's text", async () => {
     const manual = withDeps(timing('MAT', 1, { versification: ENG, source: 'manual' }));
     const manualHash = await sha(canonicalJson(manual));
     const book = withDeps<SourceBookDoc>({ format: 'sourceBook@1', book: 'MAT', chapters: [
@@ -294,5 +300,30 @@ describe('the old Source Bibles toggles', () => {
     expect(legacyMigration(o, library, [])).toEqual({ itemId: 'sub.langquest.langquest.source.bsb-fs', follow: null });
     o.recommendations['sub.langquest.langquest.source.bsb-fs'] = { value: false, hlc: 'y', eventId: 'y' };
     expect(legacyMigration(o, library, [shared])).toBeNull();
+  });
+});
+
+describe('where a passage’s study guide may come from', () => {
+  const lib = foldOrg([
+    ...['fia', 'notes', 'old', 'mine'].flatMap((id, i) => [
+      envelope('v1.LibraryItemDefined', { itemId: id, kind: 'material', name: id, description: '' }),
+      envelope('v1.LibraryVersionPublished', { itemId: id, kind: 'material', docHash: H(String(i + 1)) })
+    ]),
+    envelope('v1.LibraryItemArchived', { itemId: 'old', kind: 'material', archived: true }),
+    envelope('v1.ReferenceRecommended', { itemId: 'fia', recommended: true })
+  ]);
+  it('puts recommended and linked items first, then the organization’s own, and honours hides; never other organizations’ shared items', () => {
+    const state = laneState([
+      laneEnvelope('v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'mine', state: 'hidden' }),
+      laneEnvelope('v1.PassageReferenceLinked', { laneId: 'L1', unitId: 'u1', itemId: 'notes', linked: true }),
+      laneEnvelope('v1.PassageReferenceLinked', { laneId: 'L1', unitId: 'u2', itemId: 'fia', linked: false })
+    ]);
+    const on = (unitId: string) => {
+      const o = offeredGuideSources(lib.library, lib.recommendations, state, 'L1', unitId);
+      return [o.recommended.map((s) => s.key), o.own.map((s) => s.key)];
+    };
+    expect(on('u1')).toEqual([['notes', 'fia'], []]);
+    expect(on('u2')).toEqual([[], ['notes']]);
+    expect(on('u3')).toEqual([['fia'], ['notes']]);
   });
 });

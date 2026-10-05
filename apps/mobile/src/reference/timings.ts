@@ -3,7 +3,8 @@
 // versification's hash, its book's `sourceBook@1` gets a new version naming
 // it, and the source gets a new version naming the books. Pure, with the
 // hash function passed in: the same results always make the same documents,
-// so running it again publishes nothing new.
+// so running it again publishes nothing new, and a chapter that already has
+// a timing keeps it.
 import {
   canonicalJson, isHash, validateDoc, withDeps,
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TimingDoc
@@ -26,7 +27,7 @@ export interface TimingPublication {
   placed: { book: string; chapter: number }[];
   /** Chapters that did not pass, with why: listed, never published. */
   failed: { book: string; chapter: number; reason: string }[];
-  /** Chapters kept as they were: a person's correction stays. */
+  /** Chapters that already had another timing, which they keep. */
   kept: { book: string; chapter: number }[];
 }
 
@@ -109,7 +110,9 @@ export async function timingPublication(
     for (const [chapter, t] of results) {
       const at = chapters.find((c) => c.chapter === chapter);
       if (at?.timing === t.hash) continue;
-      if (at?.timing && (get(at.timing) as TimingDoc | null)?.source === 'manual') { kept.push({ book: b.book, chapter }); continue; }
+      // A chapter already timed keeps its timing: a person's correction, FCBH's, or an earlier job's.
+      // So jobs never undo each other, whatever order phones publish them in.
+      if (at?.timing) { kept.push({ book: b.book, chapter }); continue; }
       if (at) at.timing = t.hash;
       else chapters.push({ chapter, timing: t.hash });
       docs.push({ hash: t.hash, text: t.text, doc: t.doc });
