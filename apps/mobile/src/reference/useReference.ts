@@ -12,6 +12,7 @@ import type { SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { failureMessage, noteExpected } from '../report';
 import { supabase } from '../supabase';
+import { BibleError } from './bibleBrain';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from './timings';
 
@@ -26,7 +27,7 @@ export function referenceFailure(where: string, e: unknown): string {
   if (e instanceof Error && !(e instanceof CommandError) && /network|fetch|offline|timed? ?out|not connected/i.test(e.message)) {
     return 'Not connected. Try again when you are online.';
   }
-  if (e instanceof CommandError) return e.message;
+  if (e instanceof CommandError || e instanceof BibleError) return e.message;
   return failureMessage(where, e);
 }
 

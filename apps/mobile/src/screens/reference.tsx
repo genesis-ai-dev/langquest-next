@@ -419,7 +419,7 @@ export function ReferenceSource(ctx: Ctx) {
         {facts.books.map((b, i) => (
           <Row key={b.book} label={b.name} last={i === facts.books.length - 1}
             sub={facts.timings[testamentOf(b.book)] === 'fcbh' ? 'Timings by FCBH'
-              : b.timed === 0 ? (facts.audio[testamentOf(b.book)] ? 'No timings' : 'No audio')
+              : b.timed === 0 ? (!facts.audio[testamentOf(b.book)] ? 'No audio' : facts.timings[testamentOf(b.book)] === 'unknown' ? 'Not known until Bible Brain answers' : 'No timings')
               : `${b.timed}${b.chapters ? ` of ${b.chapters}` : ''} chapters timed · ${b.sources.map((s) => (s === 'generated' ? 'generated' : s === 'fcbh' ? 'FCBH' : 'corrected')).join(', ')}`} />
         ))}
       </Disclosure>
