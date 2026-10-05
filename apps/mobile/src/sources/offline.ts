@@ -212,6 +212,8 @@ export function useSourceOffline(project: ProjectHandle, org: OrgHandle, session
 }
 
 const checkedFilesets = new Set<string>();
+/** Links that failed this session (on the web, a host that does not allow cross-origin reads); not tried again until the app restarts. */
+const failedLinks = new Set<string>();
 
 async function pass(project: ProjectHandle, org: OrgHandle, session: Session): Promise<void> {
   const state = project.state;
@@ -309,7 +311,11 @@ async function pass(project: ProjectHandle, org: OrgHandle, session: Session): P
       continue;
     }
     try {
-      if (w.url) await download(store, w.key, w.url, { ...(w.hash ? { expectHash: w.hash } : {}), format: w.format ?? 'mp3' });
+      if (w.url) {
+        if (failedLinks.has(w.url)) continue;
+        try { await download(store, w.key, w.url, { ...(w.hash ? { expectHash: w.hash } : {}), format: w.format ?? 'mp3' }); }
+        catch (e) { failedLinks.add(w.url); throw e; }
+      }
       else if (w.fileset && bibleBrain && !refused.has(w.fileset)) {
         const link = await bibleBrain.audio(w.fileset, w.book, w.chapter, { offline: true });
         // Stream only from now on: nothing of it stays on the phone.

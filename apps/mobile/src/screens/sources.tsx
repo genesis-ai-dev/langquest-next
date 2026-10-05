@@ -33,6 +33,13 @@ function mediaLine(b: Pick<BibleSummary, 'text' | 'audio'>): string {
   return a.length === t.length && a.join() === t.join() ? `Text and audio · ${span(a)}` : `Text · ${span(t)}. Audio · ${span(a)}`;
 }
 
+/** The language most of these Bibles name ("English" from "English: USA", "English: Aboriginal"). */
+function languageOf(bibles: BibleSummary[] | null): string {
+  const counts = new Map<string, number>();
+  for (const b of bibles ?? []) { const n = b.languageName.split(':')[0]!.trim(); counts.set(n, (counts.get(n) ?? 0) + 1); }
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+}
+
 type Picked = { kind: 'biblebrain'; bibleId: string } | { kind: 'library'; itemId: string };
 
 export function BibleExplore(ctx: Ctx) {
@@ -101,7 +108,7 @@ export function BibleExplore(ctx: Ctx) {
               ))}
             </Group>
           ) : null}
-          <SectionLabel label={`Bibles in ${lang.name || bibles?.[0]?.languageName || lang.code}`} />
+          <SectionLabel label={`Bibles in ${lang.name || languageOf(bibles) || lang.code}`} />
           {bibles === null ? <Text style={txt.smMuted}>Loading…</Text> : bibles.length === 0 ? (
             <Card><Text style={txt.smMuted}>{problem || 'No Bibles in this language on Bible Brain.'}</Text></Card>
           ) : (

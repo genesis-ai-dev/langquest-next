@@ -190,7 +190,7 @@ export function SourceView(props: SourceReaderProps & {
       {plan ? (
         <View style={styles.playerRow}>
           <IconBtn name="restart" label="Back 10 seconds" size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(-10)} />
-          <IconBtn name={player.playing ? 'pause' : 'play'} size={target.primary} bg={C.primary} color={C.white}
+          <IconBtn name={player.playing ? 'pause' : 'play'} size={target.primary} bg={C.light} color={C.primary}
             label={player.playing ? 'Pause' : `Play the passage in ${abbr}`} onPress={player.toggle} />
           <IconBtn name="skip" label="Forward 10 seconds" size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(10)} />
           <View style={{ flex: 1, minWidth: 0 }}>
