@@ -49,6 +49,18 @@ const impls: [string, () => Promise<EventStore>][] = [
 ];
 
 describe.each(impls)('%s contract', (_name, make) => {
+  it('pendingCountBy counts one person\'s unsent events only (a shared phone)', async () => {
+    const s = await make();
+    await s.put({ event: ev('a1', '1'), status: 'pending' });
+    await s.put({ event: { ...ev('b1', '2'), actorId: 'b' }, status: 'pending' });
+    await s.put({ event: { ...ev('b2', '3', 1), actorId: 'b' }, status: 'confirmed' });
+    await s.put({ event: { ...ev('b3', '4'), actorId: 'b' }, status: 'rejected', rejectReason: 'no' });
+    expect(await s.pendingCount('o', 'p')).toBe(2);
+    expect(await s.pendingCountBy('o', 'p', 'a')).toBe(1);
+    expect(await s.pendingCountBy('o', 'p', 'b')).toBe(1);
+    expect(await s.pendingCountBy('o', 'p', 'c')).toBe(0);
+  });
+
   it('pending returns only pending, oldest first; all excludes rejected', async () => {
     const s = await make();
     await s.put({ event: ev('b', '2'), status: 'pending' });

@@ -211,6 +211,17 @@ export class SqliteStore implements EventStore {
     return Number(rows[0]?.n ?? 0);
   }
 
+  async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
+    // The outbox is small and already narrowed by the index, so reading the
+    // author out of the stored event costs less than a column and a migration.
+    const rows = await this.db.all<{ n: number }>(
+      `select count(*) as n from events where org_id = ? and project_id = ? and status = 'pending'
+       and json_extract(json, '$.actorId') = ?`,
+      [orgId, projectId, actorId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
   async count(orgId: string, projectId: string): Promise<number> {
     const rows = await this.db.all<{ n: number }>(
       `select count(*) as n from events where org_id = ? and project_id = ? and status <> 'rejected'`,

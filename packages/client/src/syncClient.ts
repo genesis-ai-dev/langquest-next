@@ -904,7 +904,13 @@ export class SyncClient<S = ProjectState> {
     return { pending, rejected, total, cursor, checkpointSeq: snap?.serverSeq ?? null };
   }
 
+  /**
+   * This session's own unsent events: what it can still deliver. Another
+   * person's queued events on a shared phone are theirs to send (push skips
+   * them), so they are never "waiting to send" here and never hold up this
+   * person's sign-out (decisions.md 11, 12).
+   */
   async pendingCount(): Promise<number> {
-    return this.opts.store.pendingCount(this.opts.orgId, this.opts.projectId);
+    return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.projectId, this.opts.actorId);
   }
 }
