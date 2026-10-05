@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SourceDoc, TimingDoc, UsedReference } from '@langquest-next/core';
 import { BibleBrainClient, BibleError, CACHE_PREFIX, type BibleDetail, type JsonCache } from '../src/sources/bibleBrain';
 import {
-  chipMarks, filesetsFor, madeWithLine, offersFor, orderOptions, passageRows, playPlan, refText, resolveTiming, rowAt, seekTargetFor, sourceUsed,
+  chipMarks, filesetsFor, madeWithLine, sourceEvictions, offersFor, orderOptions, passageRows, playPlan, refText, resolveTiming, rowAt, seekTargetFor, sourceUsed,
   unitCoordinates, usedItems, type SourceOption
 } from '../src/sources/model';
 
@@ -214,5 +214,15 @@ describe('BibleBrainClient', () => {
     expect(w.calls).toHaveLength(0);
     const c = new BibleBrainClient(server(w.f), memoryCache());
     expect((await c.audio('ENGESVN2DA', 'JHN', 1, { offline: true })).offline).toBe(true);
+  });
+});
+
+describe('the sources cache', () => {
+  it('evicts out-of-scope files first, oldest first, and keeps what the scope needs', () => {
+    const entries = { a: { bytes: 400, at: 1 }, b: { bytes: 400, at: 2 }, keep1: { bytes: 400, at: 0 }, c: { bytes: 400, at: 3 } };
+    expect(sourceEvictions(entries, new Set(['keep1']), 1000)).toEqual(['a', 'b']);
+    expect(sourceEvictions(entries, new Set(['keep1']), 5000)).toEqual([]);
+    // Everything is needed: nothing in scope is ever named.
+    expect(sourceEvictions(entries, new Set(['a', 'b', 'c', 'keep1']), 100)).toEqual([]);
   });
 });

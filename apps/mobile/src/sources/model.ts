@@ -329,6 +329,26 @@ export function seekTargetFor(plan: PlayPlan, row: VerseRow): { part: number; ms
   return span ? { part: i, ms: Math.max(part.fromMs, span.startMs) } : null;
 }
 
+// ---- the offline cache ---------------------------------------------------------------------------
+
+/**
+ * Files to delete to bring the sources under their cap, out-of-scope ones
+ * first, oldest first. Pure: never names a key in `keep`
+ * unless everything outside it is already gone.
+ */
+export function sourceEvictions(entries: Record<string, { bytes: number; at: number }>, keep: ReadonlySet<string>, capBytes: number): string[] {
+  let total = Object.values(entries).reduce((n, e) => n + e.bytes, 0);
+  const out: string[] = [];
+  const order = Object.entries(entries).sort(([ka, a], [kb, b]) => Number(keep.has(ka)) - Number(keep.has(kb)) || a.at - b.at);
+  for (const [k, e] of order) {
+    if (total <= capBytes) break;
+    if (keep.has(k)) break;
+    out.push(k);
+    total -= e.bytes;
+  }
+  return out;
+}
+
 // ---- the record of what was used ------------------------------------------------------------------
 
 /** One source as the record names it. */
