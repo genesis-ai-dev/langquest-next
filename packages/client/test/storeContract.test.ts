@@ -59,6 +59,9 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect(await s.pendingCountBy('o', 'p', 'a')).toBe(1);
     expect(await s.pendingCountBy('o', 'p', 'b')).toBe(1);
     expect(await s.pendingCountBy('o', 'p', 'c')).toBe(0);
+    await s.put({ event: { ...ev('b4', '5'), actorId: 'b', projectId: 'q' }, status: 'pending' });
+    expect(await s.pendingPartitionsBy('b')).toEqual([{ orgId: 'o', projectId: 'p' }, { orgId: 'o', projectId: 'q' }]);
+    expect(await s.pendingPartitionsBy('c')).toEqual([]);
   });
 
   it('pending returns only pending, oldest first; all excludes rejected', async () => {
