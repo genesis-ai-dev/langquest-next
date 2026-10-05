@@ -29,6 +29,7 @@
     "library:seed": "tsx scripts/library-seed.ts",
     "sample:org": "tsx scripts/sample-org.ts",
     "import:v2": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/importV2.ts",
+    "languoids": "tsx scripts/languoids.ts",
     "reconcile": "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | node -e \"process.stdin.on('data',d=>console.log(JSON.parse(d).SERVICE_ROLE_KEY))\") tsx server/blobReconciler.ts",
     "worker:build": "node scripts/build-projection-worker.mjs",
     "email:typecheck": "wrangler types -c apps/invite-email/wrangler.jsonc apps/invite-email/worker-configuration.d.ts && tsc -p apps/invite-email",

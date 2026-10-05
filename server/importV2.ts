@@ -108,6 +108,18 @@ for (const projectId of projects) {
   const rows = await fetchV2Rows(v2, projectId);
   console.log(`rows: ${rows.quests.length} quests, ${rows.assets.length} assets, ${rows.votes.length} votes, ${rows.members.length} member links`);
 
+  // Languages v2 users made are not in the language list (docs/languoids.md);
+  // a project that uses one is imported as it is and listed here to sort out.
+  const languoidIds = [...new Set(rows.languages.filter((l) => l.active && l.languoid_id).map((l) => l.languoid_id!))];
+  if (languoidIds.length) {
+    const { data, error } = await service.from('languoid').select('id').in('id', languoidIds);
+    if (error) throw new Error(`languoid: ${error.message}`);
+    const known = new Set((data ?? []).map((l) => l.id as string));
+    for (const id of languoidIds.filter((x) => !known.has(x))) {
+      console.log(`  language ${id} is not in the language list (made by a v2 user?); its lane keeps the v2 id`);
+    }
+  }
+
   // Blobs the log already confirms need no second upload.
   const alreadyStored = new Set<string>();
   for (let after = 0; ; ) {

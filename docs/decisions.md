@@ -1375,3 +1375,30 @@ sorted out). Until then iOS links open the web app; Android app links and
 both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
+
+## 59. Languages are a UUID-keyed table loaded from Glottolog, keeping v2's ids and none of v2's user-made languages
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: the app had no list of languages. A new language took whatever code
+an admin typed (`addLanguage`, "din"), while `import:v2` carried v2's
+languoid UUIDs, so lanes already named languages two ways. v2's own tables
+came from a one-off SQL load of a Glottolog dump that gave every row a random
+UUID and never kept the glottocode, so they could not be refreshed. Caleb
+chose UUIDs as the id, because languages collected in the field may not be
+in Glottolog yet, and chose not to bring over the languoids v2 users made,
+because many are junk or duplicates. So `languoid` and `languoid_name` are
+global reference tables (not in a partition; everyone reads, the service role
+writes), keyed by UUID, with the glottocode as a unique second key that
+`npm run languoids` (`scripts/languoids.ts`, `scripts/glottolog.ts`) uses to
+merge each Glottolog CLDF release: preview the diff, then apply it in one
+transaction. A languoid a release drops is retired, never deleted. On the
+first import, v2's Glottolog rows are matched to glottocodes (ISO 639-3, then
+the chain of names, then a unique name and level) and keep their v2 UUIDs, so
+imported projects point at the same language. This replaces the "languoid
+list in a static `catalog@N` bundle" of `docs/flow-coverage-audit.md` 5.D:
+the list is about 27,000 languoids and 75,000 names, and it changes on
+Glottolog's schedule, not the app's. `docs/languoids.md` has the details.
+Reverse if: people need to pick a language they have never searched for while
+offline; then the app ships or caches a compact name index built from these
+tables, and the tables stay the source.
