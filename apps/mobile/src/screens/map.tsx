@@ -10,8 +10,7 @@
 import {
   contentTemplate, deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
   passageSummary, percent, timeAgo, unitPlace, unitTitle,
-  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace,
-  type UnitOffline
+  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -23,7 +22,7 @@ import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import { languagesToList } from '../languages';
-import { OfflineMark, offlineWords, keptOfflineMap } from '../offline';
+import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../offline';
 import { laneFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
@@ -606,12 +605,12 @@ interface ChapterTile {
   matches: boolean;
 }
 
-function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, UnitOffline> }) {
+function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline> }) {
   const { c } = props;
   const t = TONES[c.tone];
   const parts = c.list.length;
   // Kept passages of this chapter (decisions.md 59): the mark is green only when every kept one is ready.
-  const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is UnitOffline => !!u);
+  const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
   const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this phone${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
   const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;
   // The tone's icon goes with its colour, even beside "N parts" (never colour alone).

@@ -1391,15 +1391,25 @@ it inherits, the same set the downloader fetches), how much is here, what is
 still to fetch and what nobody has sent yet. The app shows it in three places
 (`apps/mobile/src/offline.tsx`): a line on each passage ("On this phone",
 "Downloading for offline" with progress, or "Not kept on this phone" with
-Keep offline), a mark on the Map's passage discs for kept passages, and a
+Keep offline), a mark on the Map's passage discs and chapter tiles for kept
+passages, and a
 "Ready for offline" row in Settings that opens the Sync screen, which lists
-what is always here and what always needs a connection (unkept audio, study
-pictures and study audio, reports, other languages). A passage is ready when
+what is always here and what always needs a connection (unkept audio and
+study material, study films, reports, other languages). On a phone, a kept
+passage also takes its study guide along: step audio, glossary audio,
+pictures and maps (`study/StudyPrefetch.tsx` finds the guides,
+`study/studyFiles.ts` keeps the files by a hash of their address and screens
+play the local copy first). Films stay online because of their size, and the
+web app keeps none, since it needs a connection to open (decision 58). Study
+files are not evicted; FIA's are low-resolution copies. A passage is ready when
 it is kept and every file the server has is on the phone; a recording not yet
 sent from the phone that made it cannot block that, and is named instead.
 Text, status and history are not counted: the open language's partition is
-always whole on the phone.
+always whole on the phone. Keep offline works on the content template's own
+units, so it is a chapter where the template splits by chapter and a passage
+where it splits by passage; there is no separate chapter-wide switch
+(Caleb's call, 2026-10-05).
 Reverse if: people keep so many passages that the 2 GB cache evicts kept
 audio's neighbours in practice (then the Settings line needs a size budget),
-or study media becomes downloadable (then it moves from "needs a connection"
-into the per-passage count).
+the study file folder grows past what phones can spare (then it needs the
+same eviction rules as audio), or teams need films in the field.
