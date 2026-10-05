@@ -9,7 +9,7 @@ import {
   type RecommendationSource, type Register, type SourceBookDoc, type SourceDoc, type TimingDoc
 } from '@langquest-next/core';
 import type { SharedItem } from '../library/model';
-import type { BibleDetail } from './bibleBrain';
+import type { BibleDetail } from '../sources/bibleBrain';
 
 // ---- who may recommend ----------------------------------------------------------
 

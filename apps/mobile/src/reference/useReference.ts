@@ -12,7 +12,7 @@ import type { SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { failureMessage, noteExpected } from '../report';
 import { supabase } from '../supabase';
-import { BibleError } from './bibleBrain';
+import { BibleError } from '../bibleBrain';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from './timings';
 
