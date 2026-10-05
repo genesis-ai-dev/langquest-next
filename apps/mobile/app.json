@@ -31,7 +31,11 @@
           "UIInterfaceOrientationLandscapeLeft",
           "UIInterfaceOrientationLandscapeRight"
         ]
-      }
+      },
+      "associatedDomains": [
+        "applinks:next.langquest.org",
+        "applinks:next-preview.langquest.org"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -45,10 +49,46 @@
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "next.langquest.org",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "next.langquest.org",
+              "pathPrefix": "/signin"
+            },
+            {
+              "scheme": "https",
+              "host": "next-preview.langquest.org",
+              "pathPrefix": "/invite"
+            },
+            {
+              "scheme": "https",
+              "host": "next-preview.langquest.org",
+              "pathPrefix": "/signin"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "LangQuest",
+      "themeColor": "#6B48C8",
+      "backgroundColor": "#F4F2FA"
     },
     "plugins": [
       "expo-sqlite",

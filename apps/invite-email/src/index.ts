@@ -42,7 +42,7 @@ export class InviteDelivery extends DurableObject<Env> {
       const result = await this.env.EMAIL.send({
         to: p.email,
         from: { email: this.env.INVITE_FROM, name: 'LangQuest' },
-        ...invitationContent(p)
+        ...invitationContent(p, this.env.APP_URL)
       });
       this.ctx.storage.sql.exec(
         "UPDATE delivery SET status='sent',messageId=? WHERE id=1",

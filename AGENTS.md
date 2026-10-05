@@ -34,6 +34,13 @@ Rules specific to this folder:
   is generated from the demo's flow (`test/spec-flow.json`); the parity test
   holds it edge by edge.
 
+- The web app is the Expo app's web export (decisions.md 58), served with
+  the reports API by the Worker in `apps/web` (decision 44); there is no
+  separate web page any more. Report screens are the app's Reports section
+  (`apps/mobile/src/screens/reports.tsx`, parts in `src/reports/`), and
+  report logic is `packages/core/src/portfolio.ts`. Web-only code goes behind
+  `Platform.OS === 'web'` or in a `.web.tsx` file, and
+  `npm run test:web` (smart-tests/web-smoke) must pass.
 - No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.

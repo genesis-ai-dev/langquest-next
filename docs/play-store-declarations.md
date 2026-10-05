@@ -41,8 +41,8 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 
 | Field | Answer |
 | --- | --- |
-| Privacy policy | https://langquest.org/en/next/privacy (langquest-website repository, `src/app/[locale]/next/privacy`) |
-| Account deletion | https://langquest.org/en/next/delete-account; in the app: Settings → Delete account (decisions.md 46) |
+| Privacy policy | https://next.langquest.org/privacy (`apps/mobile/public/privacy.html`, served with the web app) |
+| Account deletion | https://next.langquest.org/delete-account (`apps/mobile/public/delete-account.html`); in the app, on a phone or the web: Settings → Delete account (decisions.md 46) |
 
 ## App access
 
@@ -83,13 +83,13 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | Question | Answer |
 | --- | --- |
 | Collects or shares required data types | Yes |
-| Encrypted in transit | Yes: Supabase and source audio over HTTPS; no cleartext allowed |
+| Encrypted in transit | Yes: Supabase, the reports server (a Cloudflare Worker, decisions.md 44) and source audio over HTTPS; no cleartext allowed |
 | Account creation | Username and password: an email and password, or, for someone joining by invite with no email, a sign-in name and password (docs/invites-and-accounts.md); no OAuth, no other authentication |
-| Account deletion URL | https://langquest.org/en/next/delete-account |
+| Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
 Data types. **Shared: No for every type.** Our processors (Supabase,
-Expo, Cloudflare, Vercel) are service providers, not sharing in Play's terms.
+Expo, Cloudflare) are service providers, not sharing in Play's terms.
 Work an organization chooses to list publicly or release under an open
 license is the organization's own action. **Processed ephemerally: No** for
 every type.
@@ -106,6 +106,10 @@ every type.
 | App info and performance | Crash logs | Yes | No | Optional (Settings switch) | App functionality, Analytics |
 | App info and performance | Diagnostics | Yes | No | Optional (Settings switch) | App functionality, Analytics |
 | Device or other IDs | Device or other IDs (random install ID, push token) | Yes | No | Required | App functionality |
+
+The Reports section's map and country names (`d3-geo`, `topojson-client`,
+`world-atlas`, `i18n-iso-countries`) are code and data inside the app: they
+make no network calls and collect nothing.
 
 Not collected: location, financial info, health, photos and videos, files,
 calendar, contacts, web browsing, app interactions beyond diagnostics, other
@@ -148,12 +152,12 @@ this block.
   "mobileDependencies": [
     "@expo/metro-runtime", "@langquest-next/client", "@langquest-next/core",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
-    "@react-navigation/native-stack", "@supabase/supabase-js", "expo", "expo-audio",
+    "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system",
     "expo-notifications", "expo-screen-orientation", "expo-sqlite", "expo-status-bar", "expo-updates",
-    "lucide-react-native", "react", "react-dom", "react-native", "react-native-qrcode-svg",
+    "i18n-iso-countries", "lucide-react-native", "react", "react-dom", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
-    "react-native-url-polyfill", "react-native-web"
+    "react-native-url-polyfill", "react-native-web", "topojson-client", "world-atlas"
   ],
   "diagnostics": {
     "context": ["appVersion", "channel", "embedded", "installId", "model", "os", "osVersion", "protocolVersion", "reducerVersion", "runtimeVersion", "updateId"],

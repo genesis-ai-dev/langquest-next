@@ -14,3 +14,4 @@ export * from './writeQueue';
 export * from './queries';
 export * from './diagnostics';
 export * from './sqliteDiagStore';
+export * from './reports';

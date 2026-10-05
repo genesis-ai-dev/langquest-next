@@ -30,6 +30,8 @@ const TAP = `registerProcessor('lq-tap', class extends AudioWorkletProcessor {
 });`;
 
 let capture: { ctx: AudioContext; stream: MediaStream } | null = null;
+/** The capture's sample rate: the phones' 44.1 kHz unless the browser insists on the device's own. */
+let rate = SAMPLE_RATE;
 const ring: Float32Array[] = [];
 let segment: { frames: Float32Array[]; startTime: number } | null = null;
 let vadEnabled = false;
@@ -47,7 +49,7 @@ function onFrame(frame: Float32Array) {
     if (action?.type === 'start') { emit('onSegmentStart'); open(action.prerollMs); }
     else if (action?.type === 'stop') {
       if (action.discard) { segment = null; emit('onSegmentComplete', { uri: '', startTime: 0, endTime: 0, duration: 0 }); }
-      else finish(Date.now() - action.rewindMs, SAMPLE_RATE * action.rewindMs / 1000);
+      else finish(Date.now() - action.rewindMs, rate * action.rewindMs / 1000);
     }
   }
   emit('onEnergyResult', { energy, timestamp: now });
@@ -64,7 +66,7 @@ function finish(endTime: number, trimSamples: number): string | null {
   const done = segment;
   segment = null;
   if (!done) return null;
-  const blob = new Blob([encodeWav(assemble(done.frames, Math.trunc(trimSamples))) as Uint8Array<ArrayBuffer>], { type: 'audio/wav' });
+  const blob = new Blob([encodeWav(assemble(done.frames, Math.trunc(trimSamples)), rate) as Uint8Array<ArrayBuffer>], { type: 'audio/wav' });
   const uri = URL.createObjectURL(blob);
   emit('onSegmentComplete', { uri, startTime: done.startTime, endTime, duration: endTime - done.startTime });
   return uri;
@@ -86,7 +88,19 @@ async function start() {
     // runs even when the output device stalls (seen on macOS: currentTime
     // stood still and no segment was ever emitted). Browsers without sinkId
     // ignore the option.
-    const ctx = new AudioContext({ sampleRate: SAMPLE_RATE, sinkId: { type: 'none' } } as AudioContextOptions);
+    // The phones' rate, so takes match theirs. Firefox will not connect a
+    // microphone to a context at another rate than the device's, so there
+    // the device's rate is used and written into the WAV header as it is.
+    let ctx = new AudioContext({ sampleRate: SAMPLE_RATE, sinkId: { type: 'none' } } as AudioContextOptions);
+    let source: MediaStreamAudioSourceNode;
+    try {
+      source = ctx.createMediaStreamSource(stream);
+    } catch {
+      void ctx.close();
+      ctx = new AudioContext({ sinkId: { type: 'none' } } as AudioContextOptions);
+      source = ctx.createMediaStreamSource(stream);
+    }
+    rate = ctx.sampleRate;
     const url = URL.createObjectURL(new Blob([TAP], { type: 'text/javascript' }));
     await ctx.audioWorklet.addModule(url);
     URL.revokeObjectURL(url);
@@ -94,7 +108,7 @@ async function start() {
     tap.port.onmessage = (e: MessageEvent<Float32Array>) => { if (capture) onFrame(e.data); };
     const mute = ctx.createGain();
     mute.gain.value = 0;
-    ctx.createMediaStreamSource(stream).connect(tap).connect(mute).connect(ctx.destination);
+    source.connect(tap).connect(mute).connect(ctx.destination);
     if (ctx.state === 'suspended') await ctx.resume();
     capture = { ctx, stream };
   } catch (e) {

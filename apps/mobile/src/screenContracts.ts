@@ -82,7 +82,12 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   org_switcher: { rpcs:['my_organizations'] },
   settings_home: { rpcs:['register_push_token','set_blocked'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
-  delete_account: { rpcs:['delete_my_account'] }
+  delete_account: { rpcs:['delete_my_account'] },
+  // Read from the dashboard's server, not the local fold (decisions.md 44, 57).
+  // A language's country and target go straight to the server: its
+  // partition need not be on this device.
+  reports_home: { reads:['orgReports'] },
+  reports_language: { emits:['v1.LaneCountrySet','v1.LaneTargetSet'],reads:['orgReports'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

@@ -7,7 +7,8 @@ import { commands, CommandError, type EventSpec, type NoteAnchor, type PassageNo
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { openContentLink } from '../share';
 import { AudioClip } from '../audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';
@@ -334,7 +335,7 @@ export function MediaSheet(props: { resource: StudyResource; source: string; onC
       {items.map((item) => (
         <View key={item.id} style={{ gap: space.xs }}>
           {item.kind === 'map' && item.url ? (
-            <Pressable onPress={() => void Linking.openURL(item.url!)} accessibilityRole="link" accessibilityLabel={`Open ${item.title} full size`}
+            <Pressable onPress={() => openContentLink(item.url!)} accessibilityRole="link" accessibilityLabel={`Open ${item.title} full size`}
               style={({ pressed }) => [styles.imageWrap, pressed && styles.pressed]}>
               <MediaImage item={item} />
             </Pressable>

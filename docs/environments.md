@@ -8,7 +8,7 @@ change; deploys never carry them, so no build system holds a key
 
 | Environment | Git branch | Supabase | Cloudflare Workers | App (EAS) |
 | --- | --- | --- | --- | --- |
-| development | your branch | local (`npm run db:start`) | `npm run web:dev` (local) | `npm run app`, development channel |
+| development | your branch | local (`npm run db:start`) | `npm run web:dev` (the Worker, local) | `npm run app`, development channel |
 | preview | `develop` | persistent branch `develop` of the hosted project | `langquest-next-dashboard-preview`, `langquest-next-invite-email-preview` | `preview` channel and profile |
 | production | `main` | the hosted project `xymxnebdwtbkfxlbylch` | `langquest-next-dashboard`, `langquest-next-invite-email` | `production` channel, TestFlight and Play internal |
 
@@ -36,7 +36,7 @@ not the app.
 
 | Setting | File | Reaches the platform by |
 | --- | --- | --- |
-| The app's public config (`EXPO_PUBLIC_*`), plain | `apps/mobile/.env.<env>` | `npm run env:push:eas -- <env>` (EAS builds and updates); the dashboard page's build reads it too |
+| The app's public config (`EXPO_PUBLIC_*`), plain | `apps/mobile/.env.<env>` | `npm run env:push:eas -- <env>` (EAS builds and updates); the web build (`npm run export:web`) reads it too |
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
 | Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the dashboard's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |

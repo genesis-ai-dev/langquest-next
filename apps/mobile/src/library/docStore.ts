@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { supabase } from '../supabase';
+import { webFiles } from '../webFiles';
 
 /**
  * Library documents on this phone (docs/library.md). A document is named by
@@ -15,8 +16,11 @@ import { supabase } from '../supabase';
  * document arrives.
  */
 
-// expo-file-system does not exist on web; there documents live in memory only.
-const DIR = Platform.OS === 'web' ? null : new Directory(Paths.document, 'library');
+// expo-file-system does not exist on the web; there documents live in the
+// browser's file storage under the same names (webFiles.ts), so one made
+// here survives a reload while it waits in the outbox.
+const WEB = Platform.OS === 'web' ? webFiles('library') : null;
+const DIR = WEB ? null : new Directory(Paths.document, 'library');
 const memory = new Map<string, LibraryDoc>();
 const listeners = new Set<() => void>();
 const outboxKey = (orgId: string) => `library-outbox:${orgId}`;
@@ -55,6 +59,13 @@ export function cachedDoc(hash: string | null | undefined): LibraryDoc | null {
 }
 
 async function fromDisk(hash: string): Promise<LibraryDoc | null> {
+  if (WEB) {
+    const bytes = await WEB.read(`${hash}.json`);
+    if (!bytes) return null;
+    const doc = await admit(hash, new TextDecoder().decode(bytes));
+    if (!doc) await WEB.remove(`${hash}.json`);
+    return doc;
+  }
   if (!DIR) return null;
   ensureDir();
   const file = new File(DIR, `${hash}.json`);
@@ -65,7 +76,11 @@ async function fromDisk(hash: string): Promise<LibraryDoc | null> {
   return doc;
 }
 
-function toDisk(hash: string, text: string) {
+async function toDisk(hash: string, text: string): Promise<void> {
+  if (WEB) {
+    await WEB.write(`${hash}.json`, new TextEncoder().encode(text));
+    return;
+  }
   if (!DIR) return;
   ensureDir();
   const file = new File(DIR, `${hash}.json`);
@@ -75,7 +90,7 @@ function toDisk(hash: string, text: string) {
 /** Keep a document made here, and queue it for the server. */
 export async function keepNewDoc(orgId: string, text: string, hash: string): Promise<void> {
   if (!(await admit(hash, text))) throw new Error('The document did not match its name.');
-  toDisk(hash, text);
+  await toDisk(hash, text);
   const raw = await AsyncStorage.getItem(outboxKey(orgId));
   const queued: string[] = raw ? JSON.parse(raw) : [];
   if (!queued.includes(hash)) await AsyncStorage.setItem(outboxKey(orgId), JSON.stringify([...queued, hash]));
@@ -109,7 +124,9 @@ export async function flushOutbox(orgId: string): Promise<number> {
   try {
     for (const h of queued) await send(h);
   } finally {
-    const left = queued.filter((h) => !sent.has(h) && docs.has(h));
+    // A queued document this device cannot read now stays queued: dropping it
+    // would leave the server without a document an event may already name.
+    const left = queued.filter((h) => !sent.has(h));
     await AsyncStorage.setItem(outboxKey(orgId), JSON.stringify(left));
   }
   return sent.size;
@@ -138,7 +155,7 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
       for (const row of (data ?? []) as { hash: string; body: string }[]) {
         const doc = await admit(row.hash, row.body);
         if (!doc) continue;
-        toDisk(row.hash, row.body);
+        await toDisk(row.hash, row.body);
         out.set(row.hash, doc);
       }
     }

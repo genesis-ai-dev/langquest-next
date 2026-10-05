@@ -30,8 +30,9 @@ export const SCREEN_IDS = [
   // 8 Method and content
   'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
   'reference_home', 'material_editor',
-  // App only: the local log, realtime state and transfers; account deletion (store rules)
-  'sync_status', 'delete_account'
+  // App only: the local log, realtime state and transfers; account deletion (store rules);
+  // the Reports section on wide windows (docs/decisions.md 57)
+  'sync_status', 'delete_account', 'reports_home', 'reports_language'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -268,7 +269,9 @@ export const EDGES: Edge[] = [
   e('intent_chooser', 'delete_account'),
   e('delete_account', 'sign_in', 'reset'),
   e('delete_account', 'settings_home', 'back'),
-  e('delete_account', 'intent_chooser', 'back')
+  e('delete_account', 'intent_chooser', 'back'),
+  e('reports_home', 'reports_language'),
+  e('reports_language', 'reports_home', 'back')
 ];
 
 /**
@@ -305,5 +308,5 @@ export const TITLES: Record<ScreenId, string> = {
   review_team_editor: 'Edit Review Team',
   flows_home: 'Review Flows', flow_editor: 'Flow Editor', templates_home: 'Content Templates', template_picker: 'Choose a Template',
   template_editor: 'Template Outline', book_structure: 'Divide a Book', reference_home: 'Reference Library', material_editor: 'Edit Material',
-  sync_status: 'Sync', delete_account: 'Delete Account'
+  sync_status: 'Sync', delete_account: 'Delete Account', reports_home: 'Reports', reports_language: 'Language Report'
 };

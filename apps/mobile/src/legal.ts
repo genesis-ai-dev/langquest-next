@@ -1,8 +1,8 @@
 /**
- * The privacy policy and the account deletion request page for this app.
- * They live on the LangQuest v2 website (langquest-website repository,
- * src/app/[locale]/next/) beside v2's own, until this repository's web app is
- * published (decisions.md 46). The app stores list the same addresses;
- * change them there too if the pages move.
+ * The privacy policy and the account deletion page for this app: static
+ * pages served beside the web app (apps/mobile/public, decisions.md 46,
+ * amended). The app stores list the same addresses; change them there too if
+ * they move, and keep the pages' text in step with what the code keeps.
  */
-export const PRIVACY_URL = 'https://langquest.org/en/next/privacy';
+export const PRIVACY_URL = 'https://next.langquest.org/privacy';
+export const DELETE_ACCOUNT_URL = 'https://next.langquest.org/delete-account';

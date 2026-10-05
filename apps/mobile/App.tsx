@@ -8,7 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { CommonActions, NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Dimensions, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx, RecentPassage } from './src/ctx';
 import { DevMenu } from './src/DevMenu';
@@ -33,10 +33,12 @@ import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
 import * as Org from './src/screens/org';
 import * as Passage from './src/screens/passage';
+import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
+import { StorageGate, useLeaveGuard } from './src/storageGate';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
 import { C, colors, space } from './src/theme';
@@ -44,6 +46,9 @@ import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { useBlocks, useOpenReportCount } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
+import { forgetKeyInAddress } from './src/appUrl';
+import { sectionAtLoad, useWebHistory } from './src/webHistory';
+import { titleFor } from './src/webPaths';
 import { parseKey } from './src/inviteCode';
 import { nextStep } from './src/heldInvite';
 import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
@@ -77,7 +82,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   roles_home: Config.RolesHome, role_editor: Config.RoleEditor, reference_home: Config.ReferenceHome, material_editor: Config.MaterialEditor,
   flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
   templates_home: Content.TemplatesHome, template_picker: Content.TemplatePicker, template_editor: Content.TemplateEditor,
-  book_structure: Content.BookStructure
+  book_structure: Content.BookStructure,
+  reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage
 };
 
 /**
@@ -208,7 +214,7 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
     return (
       <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md, backgroundColor: C.bg, flexGrow: 1 }}>
         <Text style={txt.h2} accessibilityRole="header">This screen could not open</Text>
-        <Text style={txt.body}>Your recordings and everything you saved are safe on this phone.</Text>
+        <Text style={txt.body}>Your recordings and everything you saved are safe on this device.</Text>
         <Text style={txt.smMuted} selectable>If it keeps happening, tell your team this code: {this.state.id}</Text>
         <GhostBtn label="Go back" icon="left" onPress={reset(this.props.onBack)} />
         <GhostBtn label="Go to My Work" icon="home" onPress={reset(this.props.onHome)} />
@@ -222,7 +228,7 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md }}>
       <Text style={txt.h3}>{props.title}</Text>
-      <Text style={txt.body}>Your recordings and everything you saved are safe on this phone.</Text>
+      <Text style={txt.body}>Your recordings and everything you saved are safe on this device.</Text>
       {props.id ? <Text style={txt.smMuted} selectable>Code for your team: {props.id}</Text> : null}
       <Text style={txt.xs} selectable>{props.detail}</Text>
     </ScrollView>
@@ -247,7 +253,9 @@ export default function App() {
           <Fatal title="This build is not configured" detail={supabaseConfigError} />
         ) : auth === undefined ? null : (
           <ErrorBoundary>
-            <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
+            <StorageGate>
+              <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
+            </StorageGate>
           </ErrorBoundary>
         )}
       </SafeAreaView>
@@ -348,6 +356,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     : rawProject.queries,
     [rawProject.queries, projectedState, rawProject.state, props.orgId, projectId]);
   const project = { ...rawProject, state: projectedState, queries };
+  // Web: warn before the tab closes with work still to send (storageGate.tsx).
+  useLeaveGuard(!rawProject.refused && (rawProject.pending > 0 || rawProject.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
   const blocks = useBlocks(props.actorId);
   const profileNames = useDisplayNames(props.actorId);
@@ -477,6 +487,27 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.
   // A role change is caught below once both folds are in.
+  // Web: the section the address named when the page loaded (a refresh), if this person may open it (webHistory.ts).
+  const urlSection = useRef<ScreenId | null>(sectionAtLoad);
+  const takeUrlSection = (): ScreenId | null => {
+    const s = urlSection.current;
+    urlSection.current = null;
+    if (!s) return null;
+    const tabScreens = tabsFor(session, undefined, { wide: layoutKind(Dimensions.get('window').width) !== 'phone' }).map((t) => t.screen);
+    const allowed = tabScreens.includes(s)
+      || (s === 'map_home' && tabScreens.some((t) => t === 'status_home' || t === 'map_home'))
+      || (s === 'language_home' && tabScreens.includes('org_home'));
+    return allowed ? s : null;
+  };
+  useWebHistory(nav.stack, nav.back);
+  // A returning person first lands on their cached home; once the session is
+  // in, the section in the address (a refresh) takes over, if they may open it.
+  useEffect(() => {
+    if (!loaded || !props.signedIn || !urlSection.current || session.isFirstTime) return;
+    if (AUTH_SCREENS.includes(nav.current.screen)) return;
+    const s = takeUrlSection();
+    if (s && nav.current.screen !== s) nav.reset({ screen: s });
+  });
   const homeKey = `home:${props.actorId}:${props.orgId}`;
   const [cachedHome, setCachedHome] = useState<ScreenId | null | undefined>(undefined);
   useEffect(() => {
@@ -500,7 +531,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     }
     if (!onboardingLoaded) return;
     if (!AUTH_SCREENS.includes(nav.current.screen)) return;
-    if (loaded) nav.reset({ screen: postSignInScreen(session) });
+    if (loaded) nav.reset({ screen: (!session.isFirstTime && takeUrlSection()) || postSignInScreen(session) });
     else if (cachedHome && !session.isFirstTime) nav.reset({ screen: cachedHome });
   });
 
@@ -550,6 +581,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     const receive = (url: string) => {
       const key = parseKey(url);
       if (!key) return;
+      forgetKeyInAddress();
       if (key.kind === 'signin') { nav.reset({ screen: 'scan_qr', params: { code: url } }); return; }
       void invite.scan(key).then(() => nav.reset({ screen: 'scan_qr' }));
     };
@@ -632,7 +664,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const kind = layoutKind(width);
   const wide = kind !== 'phone';
   const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && chromeVisible(kind, screen);
-  const tabs = tabsFor(session, { forYou, unread: unread + reportCount });
+  const tabs = tabsFor(session, { forYou, unread: unread + reportCount }, { wide });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.
   const bottom = nav.stack[0]?.screen;
@@ -687,7 +719,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
-            <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}>
+            <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
+              documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
                 initialRouteName={nav.initial.screen}
                 screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}

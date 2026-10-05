@@ -1,0 +1,119 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { Platform, ScrollView, Text, View } from 'react-native';
+import { EmptyState, GhostBtn, PrimaryBtn, txt } from './kit';
+import { reportError } from './report';
+import { allowStorage, onStoreFailure } from './store';
+import { startTab, type TabDeps, type TabState } from './tabLock';
+import { C, space } from './theme';
+
+const WEB = Platform.OS === 'web';
+const MOVED_KEY = 'langquest-moved';
+
+function browserTab(): TabDeps | null {
+  if (!WEB || typeof navigator === 'undefined' || !navigator.locks || typeof BroadcastChannel === 'undefined') return null;
+  const channel = new BroadcastChannel('langquest-tabs');
+  return {
+    request: async (name, opts, callback) => { await navigator.locks.request(name, opts, callback); },
+    post: (m) => channel.postMessage(m),
+    listen: (handler) => {
+      const on = (e: MessageEvent) => handler(String(e.data));
+      channel.addEventListener('message', on);
+      return () => channel.removeEventListener('message', on);
+    },
+    movedFlag: {
+      get: () => { try { return sessionStorage.getItem(MOVED_KEY) === '1'; } catch { return false; } },
+      set: () => { try { sessionStorage.setItem(MOVED_KEY, '1'); } catch { /* the reload still frees the pool */ } },
+      clear: () => { try { sessionStorage.removeItem(MOVED_KEY); } catch { /* nothing kept */ } }
+    },
+    reload: () => window.location.reload()
+  };
+}
+
+/**
+ * Ask the browser to keep this site's files when space runs low (it may say
+ * no; Chrome grants it to sites people use, Safari after the site is added
+ * to the home screen). Without it, a browser can clear the database and
+ * recordings like a cache.
+ */
+function keepStorage(): void {
+  void navigator.storage?.persist?.().catch(() => false);
+}
+
+/**
+ * Nothing opens the device's storage until this says so (store.ts). On the
+ * web that waits for this tab to hold the database (tabLock.ts); a phone
+ * goes straight through. Either way, storage that will not open is a screen
+ * with a code and a way to try again, not a spinner that never ends.
+ */
+export function StorageGate(props: { children: ReactNode }) {
+  const [tab, setTab] = useState<TabState>(WEB ? 'checking' : 'ready');
+  const [actions, setActions] = useState<{ useHere(): void } | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => onStoreFailure((e) => setFailure(reportError('open storage', e))), []);
+
+  useEffect(() => {
+    if (!WEB) return;
+    const deps = browserTab();
+    if (!deps) {
+      // No Web Locks (an old browser): open as before.
+      setTab('ready');
+      return;
+    }
+    const t = startTab(deps, setTab);
+    setActions(t);
+    return () => t.stop();
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'ready') return;
+    allowStorage();
+    if (WEB) keepStorage();
+  }, [tab]);
+
+  if (failure) {
+    return (
+      <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.md, flexGrow: 1, justifyContent: 'center', backgroundColor: C.bg }}>
+        <Text style={txt.h2} accessibilityRole="header">LangQuest could not open its storage</Text>
+        <Text style={txt.body}>
+          {WEB
+            ? 'Nothing was deleted. If LangQuest is open in another tab or window, close it, then try again. A private or incognito window cannot keep LangQuest\'s files: use a normal window.'
+            : 'Nothing was deleted. Try again; if it keeps happening, restart the app.'}
+        </Text>
+        <Text style={txt.smMuted} selectable>Code for your team: {failure}</Text>
+        <PrimaryBtn label="Try again" icon="restart" onPress={() => {
+          if (WEB) window.location.reload();
+          else { setFailure(null); setAttempt((n) => n + 1); }
+        }} />
+      </ScrollView>
+    );
+  }
+  if (tab === 'ready') return <View key={attempt} style={{ flex: 1 }}>{props.children}</View>;
+  if (tab === 'checking') return null;
+  const title = tab === 'moved' ? 'LangQuest moved to another tab' : tab === 'waiting' ? 'Moving LangQuest to this tab…' : 'LangQuest is open in another tab';
+  const sub = tab === 'waiting'
+    ? 'The other tab saves what it has and steps aside.'
+    : 'It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.';
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', backgroundColor: C.bg, padding: space.xl }}>
+      <EmptyState icon="layers" title={title} sub={sub}>
+        {tab !== 'waiting' && actions ? <GhostBtn label="Use it here" icon="swap" full={false} onPress={actions.useHere} /> : null}
+      </EmptyState>
+    </View>
+  );
+}
+
+/**
+ * Web: say so before the tab closes while this session still has work to
+ * send. Nothing is lost (it waits in this browser), but nobody else gets it
+ * until LangQuest opens here again.
+ */
+export function useLeaveGuard(unsent: boolean): void {
+  useEffect(() => {
+    if (!WEB || !unsent) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsent]);
+}

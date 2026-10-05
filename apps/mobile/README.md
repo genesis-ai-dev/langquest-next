@@ -115,11 +115,11 @@ by email, has no review, and is invisible to everyone else; the listing
 stays unpublished until someone promotes a release to production in Play
 Console.
 
-1. The privacy policy and the account deletion request page are on the
-   LangQuest v2 website, langquest.org (langquest-website repository,
-   `src/app/[locale]/next/`): `https://langquest.org/en/next/privacy` and
-   `https://langquest.org/en/next/delete-account` (`src/legal.ts`;
-   decisions.md 46). They must be live before Play review.
+1. The privacy policy and the account deletion page are static pages served
+   with the web app (`public/privacy.html`, `public/delete-account.html`):
+   `https://next.langquest.org/privacy` and
+   `https://next.langquest.org/delete-account` (`src/legal.ts`; decisions.md
+   46, amended). They must be live before Play review.
 2. In Play Console, create the app with package
    `com.frontierrnd.langquestnext` and fill in the App content
    declarations: the privacy policy URL above, app access with a reviewer

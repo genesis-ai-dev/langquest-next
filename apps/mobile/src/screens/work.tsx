@@ -281,8 +281,9 @@ function GettingStartedCard(props: { title: string; promise: string; rows: Start
         const body = (
           <>
             {num}
-            <View style={{ flex: 1, minWidth: 0, opacity: r.done ? 1 : 0.55 }}>
-              <Text style={[txt.body, { fontWeight: '600', color: r.done ? C.muted : C.dark }]} numberOfLines={2}>{r.label}</Text>
+            {/* Steps still to come read quieter, in the muted colour, never faded below 4.5:1 (WCAG AA). */}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[txt.body, { fontWeight: '600', color: C.muted }]} numberOfLines={2}>{r.label}</Text>
               <Text style={txt.smMuted} numberOfLines={1}>{r.sub}</Text>
             </View>
             {tappable ? <Ico name="right" size={20} color={C.muted} /> : null}

@@ -13,11 +13,13 @@ const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
  * because it is gitignored. This used to `throw` at module scope, which is
  * the worst possible way to say so: the import fails, `registerRootComponent`
  * never runs, and the release app is a white screen with nothing to read.
- * Report it as a value and let `App` put it on the screen.
+ * Report it as a value and let `App` put it on the screen. The one release
+ * build allowed a local server is `npm run export:web -- development`, which
+ * sets EXPO_PUBLIC_LOCAL_RELEASE for the web smoke test against a local stack.
  */
 export const supabaseConfigError: string | null = !url || !anon
   ? 'This build has no server configuration. EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY were not set when it was built (see apps/mobile/.env.example).'
-  : !__DEV__ && /^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2|192\.168\.)/.test(url)
+  : !__DEV__ && process.env.EXPO_PUBLIC_LOCAL_RELEASE !== '1' && /^https?:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2|192\.168\.)/.test(url)
     ? `This build points at ${url}, which only exists on a developer machine. A device build needs the hosted Supabase URL.`
     : null;
 

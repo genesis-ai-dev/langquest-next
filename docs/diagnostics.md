@@ -25,6 +25,13 @@ Every delivery also sends the phone's context: install id, OS and version,
 model (Android), runtime version, EAS update id and channel, whether the
 embedded bundle is running, reducer and protocol versions.
 
+**Web builds:** a browser has no expo-updates, so a record's
+`runtimeVersion` is the commit the web build was made from (its
+`/version.json`) and its `channel` is `web`. Web stack frames are from a
+minified bundle; the source maps are written to `apps/mobile/dist-sourcemaps/`
+and never served, so rebuild that commit with `npm run export:web` to read
+one.
+
 **Never recorded:** audio or blob bytes, event payloads, anything typed
 (titles, notes, comments, transcripts), names, emails, phone numbers, invite
 codes, tokens, IP addresses, location, screenshots. Error messages are not
@@ -61,8 +68,8 @@ under GDPR-style rules it is still personal data. What keeps it proportionate:
   which stops recording and sending and deletes what is waiting. The choice
   is kept on the phone (`diag:off`) and survives a restart.
 
-The privacy policy (on langquest.org, `https://langquest.org/en/next/privacy`,
-from the langquest-website repository; decisions.md 46) describes this: what
+The privacy policy (`https://next.langquest.org/privacy`, from
+`apps/mobile/public/privacy.html`; decisions.md 46) describes this: what
 is sent, that it can be turned off, and the 90 and 180 day retention. Change
 it with any change to what is recorded or how long it is kept.
 

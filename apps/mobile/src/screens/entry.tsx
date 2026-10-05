@@ -28,6 +28,7 @@ import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
+import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -633,9 +634,17 @@ export function IntentChooser(ctx: Ctx) {
   // The name Explore knew, else a neutral phrase: never the org's id.
   const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : 'the organization';
   const [error, setError] = useState('');
+  // A browser forgets everything at sign-out (forgetBrowser.ts), so there it
+  // waits, as Sign Out does, for an account change still to send.
+  const queued = actions.filter((a) => a.status === 'queued').length;
   async function signOut() {
+    if (FORGETS_ON_SIGN_OUT && queued > 0) {
+      setError(`Still to send: ${queued === 1 ? 'an account change' : `${queued} account changes`}. Sign out once you are back online and they have gone.`);
+      return;
+    }
     const { error } = await supabase.auth.signOut();
-    if (error) setError(error.message);
+    if (error) { setError(error.message); return; }
+    await forgetThisBrowser();
   }
   return (
     <Screen header={<Header title={waiting ? 'Request sent' : 'What brings you here?'} />}>

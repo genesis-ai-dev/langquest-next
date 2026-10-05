@@ -8,7 +8,9 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+  // APP_URL: the app's https address for invite links (decisions.md 58);
+  // empty would send the older langquestnext:// link.
+  "vars": { "INVITE_FROM": "invites@frontierrnd.com", "APP_URL": "https://next.langquest.org" },
   // Set on the Worker by `npm run secrets -- production`, never at deploy;
   // a deploy fails while it is missing.
   "secrets": { "required": ["INVITE_RELAY_SECRET"] },
@@ -25,7 +27,7 @@
   // they are repeated here.
   "env": {
     "preview": {
-      "vars": { "INVITE_FROM": "invites@frontierrnd.com" },
+      "vars": { "INVITE_FROM": "invites@frontierrnd.com", "APP_URL": "https://next-preview.langquest.org" },
       "secrets": { "required": ["INVITE_RELAY_SECRET"] },
       "send_email": [{
         "name": "EMAIL",

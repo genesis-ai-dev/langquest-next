@@ -10,6 +10,7 @@
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/native-stack": "^7.19.1",
     "@supabase/supabase-js": "^2.116.0",
+    "d3-geo": "^3.1.1",
     "expo": "~57.0.22",
     "expo-audio": "~57.0.5",
     "expo-camera": "~57.0.5",
@@ -21,6 +22,7 @@
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.22",
+    "i18n-iso-countries": "^7.14.0",
     "lucide-react-native": "^1.46.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -30,10 +32,15 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
     "@types/react": "~19.2.2",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-specification": "^1.0.5",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -48,6 +55,7 @@
     "android:release": "dotenvx run -f .env.preview --strict -e EXPO_NO_DOTENV=1 -- expo run:android --variant release --device",
     "ios": "dotenvx run -f .env.development.local -f .env.development --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo run:ios",
     "web": "dotenvx run -f .env.development.local -f .env.development --ignore=MISSING_ENV_FILE --strict -e EXPO_NO_DOTENV=1 -- expo start --web",
+    "export:web": "node scripts/export-web.mjs",
     "typecheck": "tsc --noEmit",
     "ship": "npm run typecheck && eas update --branch preview --environment preview",
     "ship:prod": "npm run typecheck && eas update --branch production --environment production",

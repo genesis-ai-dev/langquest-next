@@ -139,6 +139,13 @@ use. Consequence for production: a shared phone can hold several users'
 queued events; the client pushes only the current actor's, so nobody's
 work is refused under someone else's session.
 
+Amended (2026-10-03, Carl Sauder): on the web a browser may be a shared or
+library computer, where the next person could read what the last one left.
+So there, signing out (or deleting the account) deletes the databases, the
+recordings and library documents, and every saved key, then reloads
+(`forgetBrowser.ts`); it runs only after the unsent-work check of 12.
+Phones keep the log as before.
+
 ## 12. No accidental sign-out offline
 
 Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
@@ -153,6 +160,10 @@ server refusal of this actor never traps them (PLAN.md section 11 step 4).
 What refuses is work this session could still deliver: queued project and
 org events, account changes and audio not yet uploaded. The screen says
 which.
+
+Amended (2026-10-03, Carl Sauder): on the web, signing out from "What brings
+you here?" waits for queued account changes too, since there sign-out
+forgets the browser (11, amended); a phone signs out there as before.
 
 ## 13. Two recorders, on purpose
 
@@ -803,6 +814,26 @@ CPU (then shard it by language, one object per partition), or figures must
 be shared across organizations or read without the Worker (then stored rows
 again, with a policy).
 
+Amended (2026-10-03, Carl Sauder): the object now keeps a cache in its own
+SQLite (`OrgCache`, `apps/web/worker/sqlCache.ts`), because an object is
+evicted after a short idle spell and a dashboard is visited now and then, so
+nearly every visit was a cold start: `_org` pulled from 0 and every language
+read back from its snapshot (about 13 MB at Bible scale) and refolded. The
+cache holds, per partition, the reports and member list (written each time
+they change) and the fold itself (written when new, after a redaction, and
+then every `STATE_SAVE_EVERY` events, like a phone's checkpoint), all tagged
+with `REDUCER_VERSION` and `REPORT_VERSION`; a mismatch is ignored and
+rebuilt, so the cache is still never the truth. A pass first asks
+`partition_heads` (a service-role RPC over `partition_cursors`) and pulls only
+the partitions that moved, so an organization nobody wrote to costs one
+query, awake or woken. Memory holds every partition's summary but only the
+`STATES_IN_MEMORY` most recent folds. The Worker checks tokens with
+`getClaims`, which verifies them locally once the project has asymmetric
+signing keys. Phones get `?view=summary` (each language's progress alone),
+and every answer carries an ETag over its rows and `X-As-Of`, so an
+unchanged answer is a 304. `_org` gets no server snapshot: with the cache it
+is folded from 0 once per reducer version.
+
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -866,6 +897,16 @@ follow).
 Amended (2026-09-30, Caleb Koster): deletion also removes the person's
 blocks, blocks of them, and the reporter mark on reports they sent
 (decision 48). The reports themselves stay, for staff.
+
+Amended (2026-10-05, Carl Sauder): the web app is published (58), so the
+privacy policy and the deletion page move here, as the reverse condition
+said: static pages served beside it, `https://next.langquest.org/privacy`
+and `/delete-account` (`apps/mobile/public`), plain HTML that opens without
+signing in. Signed-in deletion on the web is the app's own Settings, Delete
+account, which the deletion page links to (`/settings`). The policy now
+covers the web app, what a browser keeps and that sign-out removes it (11,
+amended), and Cloudflare in place of Vercel; `legal.ts` and the store
+listings follow. The old langquest.org pages should redirect here.
 
 ## 47. A deleted person's name is erased from the log, the one edit the log allows
 
@@ -1138,9 +1179,18 @@ Reverse if: field teams reliably have email (then invites can require an
 address and stewards are unneeded), or steward recovery is abused (then
 recovery moves to organization admins only, or to proven email alone).
 
+Amended (2026-10-03, Carl Sauder): a key also travels as an https link,
+`https://next.langquest.org/invite#org=…&token=…` and `/signin#code=…`,
+which a phone with the app opens in the app (universal links, app links)
+and anything else opens in the web app (58). The key is after the `#`, so
+no server receives it or keeps it in a log, and the web app takes it out
+of the address once read. Links use the address when a build has
+EXPO_PUBLIC_APP_URL (the invite email: APP_URL); otherwise the
+`langquestnext://` link, and both are always read (`inviteCode.ts`).
+
 ## 55. Wide windows get a centred column, a side rail or sidebar, and list–detail panes; phones are unchanged
 
-Date: 2026-10-01 · By: Carl Sauder · Status: accepted
+Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 58
 
 Reason: we are preparing the app for tablets and for publishing on the web.
 The partner demo (28) is designed only for a portrait phone, so on an iPad or
@@ -1229,3 +1279,89 @@ The core model the screens teach is the demo's `docs/core-model.md` (LAN-29).
 Reverse if: testing with field users shows people can't find the actions
 under More or Setup, or that the split recorder is too cramped on small
 Android phones.
+
+## 57. The app shows the organization's reports: a Reports section on wide windows, server totals on a phone's Progress
+
+Date: 2026-10-03 · By: Carl Sauder · Status: accepted
+
+Reason: the Expo app now runs on tablets and in a browser (55), so the
+separate web dashboard (`apps/web`, 41, 44) was a second front end with its
+own sign-in, routing and charts. Its report pages move into the app as a
+Reports section (`src/screens/reports.tsx`, its parts in `src/reports/`): a
+tab after Map, shown only when the window is 768 or wider and the person has
+`view_status` (`tabsFor`), with the dashboard's sections behind a row of
+chips (Overview, Recent activity, Languages, Geography, Field report,
+Monthly ledger, Pace, Alerts) and one language's page. Two app-only screens,
+`reports_home` and `reports_language`, with one edge each way, are in
+`flow.ts` and the parity test's drift log; the demo has no such screens, and
+a phone's screens stay the demo's. Their figures are core
+`portfolio.ts` (moved from the page) over the rows the dashboard's server
+returns, fetched by `packages/client` `fetchOrgReports`; a language's
+country and target go straight to the server with `appendConfirmed`, since
+that language's partition need not be on the device. A phone gets no
+Reports tab, but its Progress overview and organization home now count every
+language: the local fold for the language it has open, the server's
+`?view=summary` for the rest, labelled with how old they are and kept on the
+device for offline (`useOrgSummary`, `orgFigures.ts`). The page in
+`apps/web/src` is frozen until the app's web export replaces it behind the
+same Worker. The cost: four libraries ship in the app for the map and country
+names, and Reports need a connection.
+Reverse if: partners want reports on phones (then a phone-shaped Reports
+chain, which the demo would need to define), or the server's figures and a
+phone's own fold disagree in ways people notice (then show only one source
+per screen).
+
+## 58. The web is a published platform: one Worker serves it, and a browser keeps its work like a phone
+
+Date: 2026-10-03 · By: Carl Sauder · Status: accepted
+
+Reason: with the reports in the app (57), the Expo web build replaces the
+dashboard page, so it has to hold up as a platform rather than a test target
+(55 left blob storage, notifications and publishing aside). What changed:
+- Hosting: the dashboard's Worker (`apps/web`, 44) serves the app's web
+  export (`npm run export:web`, `output: single`) as its static assets, with
+  `/api/*` first, at `next.langquest.org` (preview `next-preview`), custom
+  domains on the langquest.org zone in this account. EAS Hosting has
+  no Durable Objects and wants Expo Router; Supabase functions have no
+  per-organization memory. The Vite page is deleted.
+- Durability: recordings and library documents live in the browser's origin
+  private file system (`webFiles.ts`), so one not yet uploaded outlives a
+  reload as it outlives a restart on a phone; the app asks the browser to
+  keep its storage (`navigator.storage.persist`). The database stays
+  expo-sqlite's, whose file pool is exclusive to one page.
+- One tab: a Web Lock decides which tab holds the database (`tabLock.ts`,
+  `storageGate.tsx`); another says so and offers "Use it here", and nothing
+  opens storage before the lock is held.
+- Honest audio: phones play only what a file's label says, so a browser
+  records MP4 when it can and otherwise converts the take to WAV
+  (`audioFormat.ts`); `BlobRef.format` stays `wav | m4a`. A tab in the
+  background keeps recording; leaving the page warns first.
+- Shared computers: sign-out forgets the browser (11, 12 amended).
+- Links: one https link per key (54 amended), served `.well-known` files
+  from `appLinks.json` for universal links and app links.
+- Addresses: the address names the section (`webPaths.ts`), a refresh
+  returns to it when the person may open it, Back steps back in the app, and
+  the tab title names the screen; navigation still follows `flow.ts` only.
+- Headers (`webHeaders.mjs`): a content security policy from what the app
+  loads, HSTS and the rest. No cross-origin isolation: the async database
+  API needs no SharedArrayBuffer, and isolation would block study images.
+- Launch needs a connection (no service worker); work continues offline once
+  open. Push notifications stay phone-only for now; the Inbox works on the
+  web.
+- Updates: each build writes its commit to `/version.json`, and the open app
+  offers a reload when the deployed one differs. Diagnostics name the build
+  the same way; source maps are kept out of what is served.
+- Checks: `smart-tests/web-smoke` runs the release build, served by the
+  Worker, in Chromium, Firefox and WebKit on every pull request, with an
+  axe accessibility check; the export holds a 5.5 MB JavaScript budget. The
+  muted text colour moved from the demo's #7D72A8 to #6E629E, the same hue at
+  4.5:1 (WCAG AA), which axe required.
+Changing the domain later: the Worker route, EXPO_PUBLIC_APP_URL and APP_URL,
+the Supabase redirect URLs and `appLinks.json`, plus a native build listing
+both domains; keep the old host serving, then redirecting, until links sent
+and work unsent there have drained, since a browser's storage belongs to its
+origin.
+Reverse if: field use needs the web to open offline (then a service worker
+for the app shell), people need several tabs at once (then a shared worker
+holds the database), or browsers' storage proves less durable than phones'
+in practice (then the web becomes read-mostly and recording stays on phones).

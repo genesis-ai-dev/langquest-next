@@ -9,11 +9,11 @@ describe('UX flow coverage', () => {
       expect(SCREEN_IDS, id).toContain(id);
       expect(TITLES[id as keyof typeof TITLES], id).toBeTruthy();
     }
-    // The app-only screens: the local log, realtime state and transfers; and
-    // account deletion, which the app stores require (decisions.md 46).
-    expect(SCREEN_IDS.length).toBe(kept.length + 2);
-    expect(TITLES.sync_status).toBeTruthy();
-    expect(TITLES.delete_account).toBeTruthy();
+    // The app-only screens: the local log, realtime state and transfers;
+    // account deletion, which the app stores require (decisions.md 46); and
+    // the Reports section on a wide window (decisions.md 57).
+    expect(SCREEN_IDS.length).toBe(kept.length + 4);
+    for (const id of ['sync_status', 'delete_account', 'reports_home', 'reports_language'] as const) expect(TITLES[id]).toBeTruthy();
   });
 
   it('every screen is reachable from sign_in through declared edges and tabs', () => {
@@ -22,7 +22,8 @@ describe('UX flow coverage', () => {
     const adj = new Map<NodeId, Set<NodeId>>();
     const add = (a: NodeId, b: NodeId) => adj.set(a, (adj.get(a) ?? new Set()).add(b));
     for (const edge of EDGES) add(edge.from, edge.to);
-    for (const id of SCREEN_IDS) for (const tab of TAB_SCREENS) add(id, tab);
+    // The phone's tabs, and the Reports tab a wide window adds (decisions.md 57).
+    for (const id of SCREEN_IDS) for (const tab of [...TAB_SCREENS, 'reports_home'] as const) add(id, tab);
     // home_hub fans out to every home.
     for (const edge of EDGES.filter((e) => e.from === 'home_hub')) add('home_hub', edge.to);
 
