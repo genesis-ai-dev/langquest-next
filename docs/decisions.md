@@ -1375,3 +1375,42 @@ sorted out). Until then iOS links open the web app; Android app links and
 both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
+
+## 59. Reference material is library documents placed by coordinates, recommended at three levels, and recorded where it was used
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: translators need Bible text and audio, study guides and notes beside
+the recorder, and the app had a stand-in: a dozen bundled English chapters
+with simulated verse timings, two opt-in OpenBible audio editions on the old
+catalog toggle, guides matched from every organization's shared material,
+and no record of what anyone used (review of 2026-10-05; Genesis 1 played
+nothing because no organization had turned a source on). Caleb chose
+(2026-10-05): open texts and audio stored by us, Bible Brain content cached
+on phones only where its `/download` endpoint allows; organization admins
+recommend, language admins narrow or add for their team, translators
+choose for themselves and see what works offline and what has audio;
+tapping a verse jumps the audio there and plays on; the record keeps what
+was offered plus what was opened or played. So: sources are library
+documents (`source@1`, `sourceBook@1`), joined to their audio by
+`timing@1` documents named by the recording's SHA-256 and versification, so
+any text with the same verse numbers can be highlighted against any
+recording; recommendations are `v1.ReferenceRecommended` (org partition)
+and `v1.LaneReferenceRecommended` (language), hand placement is
+`v1.PassageReferenceLinked`, and `v1.ReferencesUsed` names what was in
+front of the person on a version or review (`packages/core/src/references.ts`).
+Passages take coordinates from their unit ids, never labels. Bible Brain
+is reached only through the web Worker, which keeps the key, caches
+answers, picks filesets by testament and hands out keyless signed links; we
+keep none of their content on our servers. Verse timings Bible Brain lacks
+are made by fia-align (genesis-ai-dev/fia), whose model weights (Meta's
+MMS, CC BY-NC 4.0) suit a free app; the job takes audio only from filesets
+`/download` allows, deletes it afterwards and keeps the timings, and an
+admin's app publishes the passing chapters as the source's next version.
+Organizations write guides as rich as FIA's in a web editor, as `study@2`
+(media by hash, callout kinds, placement by template node). The full design
+is `docs/reference-material.md`.
+Reverse if: FCBH objects to our timings or to on-device caching (then their
+audio plays with FCBH timings only and streams), or field teams find three
+levels of recommendation confusing (then the language level goes and
+translators pick from the organization's list).

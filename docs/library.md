@@ -105,4 +105,7 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 versifications, and the sources `scripts/library-seed.ts` turns into
 documents (templates, flows, question sets). FIA study material comes in
 through the FIA adapter (`scripts/fia-adapter.ts`) from the FIA API's
-pericope JSON. None of it ships in the app.
+pericope JSON. Sources to read and hear (`source@1`) are built by
+`scripts/sources-seed.ts`: Bible Brain editions from FCBH's API (linked,
+nothing of theirs stored) and the BSB read by Frederick Surrey from its
+public-domain text (library/README.md). None of it ships in the app.
