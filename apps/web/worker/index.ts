@@ -5,7 +5,7 @@ export { OrgSnapshot } from './orgSnapshot';
 
 /** The dashboard's server: `/api/*` here, everything else is the built page. */
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (!new URL(request.url).pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     return handleApi(request, {
       // Verified here against the project's signing keys when it has
@@ -15,7 +15,8 @@ export default {
         const { data, error } = await serviceClient(env).auth.getClaims(token);
         return error ? null : data?.claims.sub ?? null;
       },
-      reports: (orgId, profileId, fresh) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).reports(orgId, profileId, fresh)
+      reports: (orgId, profileId, fresh) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).reports(orgId, profileId, fresh),
+      bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) }
     });
   }
 } satisfies ExportedHandler<Env>;
