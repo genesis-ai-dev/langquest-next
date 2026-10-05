@@ -4380,7 +4380,7 @@ Suggested solution: ${env.workaround}`;
 var websocket_factory_default = WebSocketFactory;
 
 // node_modules/@supabase/realtime-js/dist/module/lib/version.js
-var version = "2.116.0";
+var version = "2.117.2";
 
 // node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/${version}`;
@@ -8094,6 +8094,10 @@ var RealtimeClient = class {
    * the client remains in callback mode and continues to refresh from it on heartbeat,
    * even after a bootstrap/override `setAuth(token)` call.
    *
+   * The callback is called on connect and on every heartbeat (`heartbeatIntervalMs`,
+   * default 25000ms). Its token must stay valid past the next call, or the server closes
+   * the channel at expiry with no automatic resubscribe.
+   *
    * @param token A JWT string to override the token set on the client.
    *
    * @example Setting the authorization header
@@ -10352,7 +10356,7 @@ var StorageFileApi = class extends BaseApiClient {
     return query;
   }
 };
-var version2 = "2.116.0";
+var version2 = "2.117.2";
 var DEFAULT_HEADERS = { "X-Client-Info": `storage-js/${version2}` };
 var StorageBucketApi = class extends BaseApiClient {
   constructor(url, headers = {}, fetch$1, opts) {
@@ -11910,7 +11914,7 @@ var StorageClient = class extends StorageBucketApi {
 };
 
 // node_modules/@supabase/auth-js/dist/module/lib/version.js
-var version3 = "2.116.0";
+var version3 = "2.117.2";
 
 // node_modules/@supabase/auth-js/dist/module/lib/constants.js
 var AUTO_REFRESH_TICK_DURATION_MS = 30 * 1e3;
@@ -12536,11 +12540,6 @@ var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 function validateUUID(str) {
   if (!UUID_REGEX.test(str)) {
     throw new Error("@supabase/auth-js: Expected parameter to be UUID but is not");
-  }
-}
-function assertPasskeyExperimentalEnabled(experimental) {
-  if (!experimental.passkey) {
-    throw new Error("@supabase/auth-js: the passkey API is experimental and disabled by default. Enable it by passing `auth: { experimental: { passkey: true } }` to createClient (or to the GoTrueClient constructor).");
   }
 }
 function assertRecoveryCodesExperimentalEnabled(experimental) {
@@ -13803,11 +13802,8 @@ var GoTrueAdminApi = class {
    * Lists all passkeys for a user.
    *
    * This function should only be called on a server. Never expose your secret key in the browser.
-   *
-   * Requires `auth.experimental.passkey: true`.
    */
   async _adminListPasskeys(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     validateUUID(params.userId);
     try {
       return await _request(this.fetch, "GET", `${this.url}/admin/users/${params.userId}/passkeys`, { headers: this.headers, xform: (data) => ({ data, error: null }) });
@@ -13822,11 +13818,8 @@ var GoTrueAdminApi = class {
    * Deletes a user's passkey.
    *
    * This function should only be called on a server. Never expose your secret key in the browser.
-   *
-   * Requires `auth.experimental.passkey: true`.
    */
   async _adminDeletePasskey(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     validateUUID(params.userId);
     validateUUID(params.passkeyId);
     try {
@@ -16965,31 +16958,16 @@ var GoTrueClient = class _GoTrueClient {
       const hasExpired = currentSession.expires_at ? currentSession.expires_at * 1e3 - Date.now() < EXPIRY_MARGIN_MS : false;
       this._debug("#__loadSession()", `session has${hasExpired ? "" : " not"} expired`, "expires_at", currentSession.expires_at);
       if (!hasExpired) {
-        if (this.userStorage) {
-          const maybeUser = await getItemAsync(this.userStorage, this.storageKey + "-user");
-          if (maybeUser === null || maybeUser === void 0 ? void 0 : maybeUser.user) {
-            currentSession.user = maybeUser.user;
-          } else {
-            currentSession.user = userNotAvailableProxy();
-          }
-        }
-        if (this.storage.isServer && currentSession.user && !currentSession.user.__isUserNotAvailableProxy) {
-          const suppressWarningRef = { value: this.suppressGetSessionWarning };
-          currentSession.user = insecureUserWarningProxy(currentSession.user, suppressWarningRef);
-          if (suppressWarningRef.value) {
-            this.suppressGetSessionWarning = true;
-          }
-        }
-        return { data: { session: currentSession }, error: null };
+        return { data: { session: await this._hydrateSessionUser(currentSession) }, error: null };
       }
       const { data: session, error } = await this._callRefreshToken(currentSession.refresh_token);
       if (error) {
-        const accessTokenStillValid = !!(currentSession.expires_at && currentSession.expires_at * 1e3 > Date.now());
-        if (accessTokenStillValid) {
-          const stillStored = await getItemAsync(this.storage, this.storageKey);
-          if (stillStored && stillStored.refresh_token === currentSession.refresh_token) {
-            return this._returnResult({ data: { session: currentSession }, error: null });
-          }
+        const stored = await getItemAsync(this.storage, this.storageKey);
+        if (stored && this._isValidSession(stored) && stored.expires_at && stored.expires_at * 1e3 > Date.now()) {
+          return this._returnResult({
+            data: { session: await this._hydrateSessionUser(stored) },
+            error: null
+          });
         }
         return this._returnResult({ data: { session: null }, error });
       }
@@ -16997,6 +16975,26 @@ var GoTrueClient = class _GoTrueClient {
     } finally {
       this._debug("#__loadSession()", "end");
     }
+  }
+  /**
+   * Completes a session read back from storage so it matches what callers of
+   * `getSession()` expect: fills in `session.user` from `userStorage` when the
+   * client keeps the user in split storage, and wraps the user in the
+   * insecure-access warning proxy on the server.
+   */
+  async _hydrateSessionUser(session) {
+    if (this.userStorage) {
+      const maybeUser = await getItemAsync(this.userStorage, this.storageKey + "-user");
+      session.user = (maybeUser === null || maybeUser === void 0 ? void 0 : maybeUser.user) ? maybeUser.user : userNotAvailableProxy();
+    }
+    if (this.storage.isServer && session.user && !session.user.__isUserNotAvailableProxy) {
+      const suppressWarningRef = { value: this.suppressGetSessionWarning };
+      session.user = insecureUserWarningProxy(session.user, suppressWarningRef);
+      if (suppressWarningRef.value) {
+        this.suppressGetSessionWarning = true;
+      }
+    }
+    return session;
   }
   /**
    * Gets the current user details if there is an existing session. This method
@@ -19705,13 +19703,35 @@ var GoTrueClient = class _GoTrueClient {
    * 2. Prompts user via navigator.credentials.get()
    * 3. Verifies credential with server and creates session
    *
-   * Requires `auth.experimental.passkey: true`.
+   * Pass `options.mediation: 'conditional'` to use WebAuthn Conditional UI
+   * (passkey autofill) instead of the modal picker; the value is forwarded to
+   * `navigator.credentials.get()` unchanged.
+   *
+   * The challenge fetched in step 1 expires after the server's
+   * GOTRUE_WEBAUTHN_CHALLENGE_EXPIRY_DURATION (5 minutes by default). With
+   * `mediation: 'conditional'` the autofill prompt can stay pending for longer
+   * than that: the browser ceremony then still succeeds, but verification fails
+   * with `error_code: "webauthn_challenge_expired"`. Recover by calling
+   * `signInWithPasskey()` again. It fetches a fresh challenge and, unless you
+   * passed your own `options.signal`, cancels the pending ceremony first, so
+   * the browser never sees two concurrent WebAuthn requests; the earlier call
+   * resolves with a `WebAuthnError` whose code is `ERROR_CEREMONY_ABORTED`. If
+   * you pass your own `signal`, abort it before retrying.
    *
    * @category Auth
+   *
+   * @example Sign in with Conditional UI (passkey autofill)
+   * ```js
+   * // <input autocomplete="username webauthn" /> somewhere on the page
+   * const { data, error } = await supabase.auth.signInWithPasskey({
+   *   options: {
+   *     mediation: 'conditional'
+   *   }
+   * });
+   * ```
    */
   async signInWithPasskey(credentials) {
-    var _a, _b, _c;
-    assertPasskeyExperimentalEnabled(this.experimental);
+    var _a, _b, _c, _d;
     try {
       if (!browserSupportsWebAuthn()) {
         return this._returnResult({
@@ -19729,7 +19749,8 @@ var GoTrueClient = class _GoTrueClient {
       const signal = (_c = (_b = credentials === null || credentials === void 0 ? void 0 : credentials.options) === null || _b === void 0 ? void 0 : _b.signal) !== null && _c !== void 0 ? _c : webAuthnAbortService.createNewAbortSignal();
       const { data: credential, error: credentialError } = await getCredential({
         publicKey: publicKeyOptions,
-        signal
+        signal,
+        mediation: (_d = credentials === null || credentials === void 0 ? void 0 : credentials.options) === null || _d === void 0 ? void 0 : _d.mediation
       });
       if (credentialError || !credential) {
         return this._returnResult({
@@ -19755,13 +19776,12 @@ var GoTrueClient = class _GoTrueClient {
    * 2. Prompts user via navigator.credentials.create()
    * 3. Verifies credential with server
    *
-   * Requires an active session. Requires `auth.experimental.passkey: true`.
+   * Requires an active session.
    *
    * @category Auth
    */
   async registerPasskey(credentials) {
     var _a, _b;
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       if (!browserSupportsWebAuthn()) {
         return this._returnResult({
@@ -19802,7 +19822,6 @@ var GoTrueClient = class _GoTrueClient {
    * Returns WebAuthn credential creation options to pass to navigator.credentials.create().
    */
   async _startPasskeyRegistration() {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19834,7 +19853,6 @@ var GoTrueClient = class _GoTrueClient {
    * The credentialResponse should be the serialized output of navigator.credentials.create().
    */
   async _verifyPasskeyRegistration(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19870,7 +19888,6 @@ var GoTrueClient = class _GoTrueClient {
    */
   async _startPasskeyAuthentication(params) {
     var _a;
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       const { data, error } = await _request(this.fetch, "POST", `${this.url}/passkeys/authentication/options`, {
         headers: this.headers,
@@ -19894,7 +19911,6 @@ var GoTrueClient = class _GoTrueClient {
    * The credential should be the serialized output of navigator.credentials.get().
    */
   async _verifyPasskeyAuthentication(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       const { data, error } = await _request(this.fetch, "POST", `${this.url}/passkeys/authentication/verify`, {
         headers: this.headers,
@@ -19923,7 +19939,6 @@ var GoTrueClient = class _GoTrueClient {
    * List all passkeys for the current user.
    */
   async _listPasskeys() {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19954,7 +19969,6 @@ var GoTrueClient = class _GoTrueClient {
    * Update a passkey.
    */
   async _updatePasskey(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19985,7 +19999,6 @@ var GoTrueClient = class _GoTrueClient {
    * Delete a passkey.
    */
   async _deletePasskey(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -20021,7 +20034,7 @@ var AuthClient = GoTrueClient_default;
 var AuthClient_default = AuthClient;
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
-var version4 = "2.116.0";
+var version4 = "2.117.2";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
 if (typeof Deno !== "undefined") {
