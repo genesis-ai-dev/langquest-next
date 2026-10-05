@@ -86,7 +86,9 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: 
     return ids.map((id) => libraryItemView(library ?? {}, id)?.current);
   }, [recs, mine.list, library]);
   const sharedHashes = recs.size === 0 ? shared.rows.map((r) => r.latest_hash) : [];
-  const { get, error } = useLibraryDocs(orgId, [...itemHashes, ...sharedHashes, template]);
+  // Sources alone, not every book they list: only the book being read is fetched (usePassageSource).
+  const { get, error } = useLibraryDocs(orgId, [...itemHashes, ...sharedHashes], { deps: false });
+  useLibraryDocs(orgId, [template]);
   const templateDoc = get<TemplateDoc>(template);
   const versification = templateDoc?.bible ? get<VersificationDoc>(templateDoc.bible.versification) : null;
   const bibleIds = useMemo(() => mine.list.filter((m) => m.kind === 'biblebrain' && m.bibleId).map((m) => m.bibleId!).sort(), [mine.list]);
@@ -198,6 +200,7 @@ const storeOf = (ctx: Ctx) => ctx.project.blobs.store;
 export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, passage: PassageSources): PassageSource | null {
   const { get } = passage;
   const store = storeOf(ctx);
+  useLibraryDocs(ctx.project.orgId, [option?.doc?.versification], { deps: false });
   const sourceV11n = option?.doc ? get<VersificationDoc>(option.doc.versification) : null;
   const range = useMemo(() => (passage.range ? inSourceNumbering(passage.range, passage.versification, sourceV11n) : null), [passage.range, passage.versification, sourceV11n]);
   const bookHash = option?.doc && range ? option.doc.books.find((b) => b.book === range.book)?.doc : undefined;

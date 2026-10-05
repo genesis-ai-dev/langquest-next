@@ -230,9 +230,16 @@ async function pass(project: ProjectHandle, org: OrgHandle, session: Session): P
       const h = libraryItemView(org.state?.library ?? {}, itemId)?.current;
       if (h) hashes.add(h);
     }
-    const docs = hashes.size ? await loadDocs(project.orgId, [...hashes]).catch(() => new Map()) : new Map();
+    const docs: Map<string, unknown> = hashes.size ? await loadDocs(project.orgId, [...hashes], { deps: false }).catch(() => new Map()) : new Map();
     const getDoc = (h: string) => (docs.get(h) as SourceDoc | undefined) ?? null;
     const options = offlineOptions(org, state, laneId, mine, getDoc);
+    // Only the books the scope's passages are in (a source lists all it has).
+    const bookHashes = new Set<string>();
+    for (const unitId of scope) {
+      const book = unitCoordinates(unitId)?.book;
+      for (const o of options) { const h = book ? o.doc?.books.find((b) => b.book === book)?.doc : undefined; if (h) bookHashes.add(h); }
+    }
+    if (bookHashes.size) for (const [h, d] of await loadDocs(project.orgId, [...bookHashes], { deps: false }).catch(() => new Map())) docs.set(h, d);
     // Bible Brain picks phones may keep (the Worker said so when they were added; it says again at download).
     for (const m of mine.filter((x) => x.kind === 'biblebrain' && x.bibleId)) {
       const bible = await bibleBrain?.keptBible(m.bibleId!);

@@ -173,7 +173,7 @@ export function SourceView(props: SourceReaderProps & {
   const chipRow = props.chips === false ? null : (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
       {passage.options.map((o) => (
-        <VersionChip key={o.itemId} option={o} on={o.itemId === option?.itemId} marks={marks[o.itemId] ?? []} onPress={() => props.onChoose?.(o)} />
+        <VersionChip key={o.itemId} option={o} label={chipLabel(o, passage.options)} on={o.itemId === option?.itemId} marks={marks[o.itemId] ?? []} onPress={() => props.onChoose?.(o)} />
       ))}
       {props.onMoreBibles ? (
         <Pressable onPress={props.onMoreBibles} accessibilityRole="button" accessibilityLabel="More Bibles: find and add another Bible"
@@ -288,6 +288,16 @@ export function SourceView(props: SourceReaderProps & {
   );
 }
 
+/** The abbreviation, and when two versions share it, what tells them apart ("BSB · read by Frederick Surrey"). */
+export function chipLabel(o: SourceOption, all: SourceOption[]): string {
+  const twin = all.find((x) => x !== o && x.abbreviation === o.abbreviation);
+  if (!twin) return o.abbreviation;
+  let i = 0;
+  while (i < o.name.length && o.name[i] === twin.name[i]) i++;
+  const rest = o.name.slice(i).replace(/^[\s,;:–-]+/, '').trim();
+  return `${o.abbreviation} · ${rest || (o.doc?.provider.kind === 'library' || o.kind === 'library' && !o.doc ? 'library' : 'Bible Brain')}`;
+}
+
 function copyrightLine(c: { text?: string; audio?: string }): string {
   if (c.text && c.audio && c.text !== c.audio) return `Text ${c.text} · Audio ${c.audio}`;
   return c.text ?? c.audio ?? '';
@@ -299,7 +309,7 @@ function clock(ms: number): string {
 }
 
 /** A version: its abbreviation, and under it what it has here ("no audio", "offline ✓"). */
-function VersionChip(props: { option: SourceOption; on: boolean; marks: string[]; onPress: () => void }) {
+function VersionChip(props: { option: SourceOption; label: string; on: boolean; marks: string[]; onPress: () => void }) {
   const o = props.option;
   const from = o.from === 'language' || o.from === 'organization' ? 'recommended' : o.from === 'mine' ? 'my Bible' : o.from === 'passage' ? 'for this passage' : null;
   return (
@@ -307,7 +317,7 @@ function VersionChip(props: { option: SourceOption; on: boolean; marks: string[]
       accessibilityLabel={[o.name, from, ...props.marks].filter(Boolean).join(', ')}
       style={({ pressed }) => [styles.chip, props.on && styles.chipOn, pressed && styles.pressed]}>
       <View>
-        <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]} numberOfLines={1}>{o.abbreviation}</Text>
+        <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]} numberOfLines={1}>{props.label}</Text>
         {props.marks.length ? (
           <Text style={[styles.chipMarks, { color: props.on ? withAlpha(C.white, 0.85) : C.muted }]} numberOfLines={1}>{props.marks.join(' · ')}</Text>
         ) : null}
