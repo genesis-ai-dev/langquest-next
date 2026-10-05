@@ -3,13 +3,14 @@ import type { Member, ProjectState, Register } from './state';
 import { emptyState } from './state';
 import { validateEvent } from './validate';
 import { studyMarkKey, type Undo } from './record';
+import { applyReferenceEvent } from './references';
 
 /**
  * Bump when a materializer changes in a way that alters output for existing
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 8;
+export const REDUCER_VERSION = 9;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -434,7 +435,14 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
       break;
     }
 
+    case 'v1.LaneReferenceRecommended':
+    case 'v1.PassageReferenceLinked':
+    case 'v1.ReferencesUsed':
+      applyReferenceEvent(state, event);
+      break;
+
     case 'v1.OrgCreated':
+    case 'v1.ReferenceRecommended':
     case 'v1.RoleDefined':
     case 'v1.RoleRetired':
     case 'v1.OrgMemberAdded':

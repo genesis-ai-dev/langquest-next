@@ -30,3 +30,4 @@ export * from './versification';
 export * from './libraryDocs';
 export * from './library';
 export * from './libraryApply';
+export * from './references';

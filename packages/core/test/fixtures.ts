@@ -290,6 +290,23 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.LaneTargetSet', { laneId: 'L1', scope: 'nt', startDate: '2026-01-01', targetDate: '2027-07-01' });
   emit('dE', 'lead2', 'v1.LaneTargetSet', { laneId: 'L1', scope: 'gospels', startDate: '2026-01-01', targetDate: '2026-12-31' });
 
+  // Reference material (references.ts): a language hides the organization's
+  // recommendation offline while another admin recommends it, an admin links
+  // a guide to a passage and later hides it, and a version and a review
+  // record what was in front of the person.
+  emit('dE', 'lead2', 'v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'langquest.source.bsb', state: 'hidden' });
+  emit('dA', 'lead', 'v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'langquest.source.bsb', state: 'recommended' });
+  emit('dA', 'lead', 'v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'langquest.source.esv', state: 'inherit' });
+  emit('dA', 'lead', 'v1.PassageReferenceLinked', { laneId: 'L1', unitId: 'luke1', itemId: 'health-notes', linked: true });
+  emit('dE', 'lead2', 'v1.PassageReferenceLinked', { laneId: 'L1', unitId: 'luke1', itemId: 'health-notes', linked: false });
+  emit('dB', 't1', 'v1.ReferencesUsed', { laneId: 'L1', unitId: 'luke1', takeId: 'take2', items: [
+    { itemId: 'langquest.source.bsb', name: 'Berean Standard Bible', kind: 'source', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', ref: 'LUK 1:1-4', opened: true, copyright: 'Public domain' },
+    { itemId: 'langquest.fia.eng', name: 'FIA study guides (English)', kind: 'guide', ref: 'hear', opened: false }] });
+  emit('dG', 't2', 'v1.ReferencesUsed', { laneId: 'L1', unitId: 'luke1', takeId: 'take2', items: [
+    { itemId: 'langquest.fia.eng', name: 'FIA study guides (English)', kind: 'guide', ref: 'hear', opened: true },
+    { itemId: 'biblebrain.ENGESV', name: 'English Standard Version', kind: 'source', detail: 'ENGESVN1DA', opened: true }] });
+  emit('dF', 'bt1', 'v1.ReferencesUsed', { laneId: 'L1', unitId: 'luke1', reviewId: 'rv1', items: [{ itemId: 'guidelines', name: 'Translation Guidelines', kind: 'note', opened: false }] });
+
   // Ties the merge rules must settle without looking at arrival order
   // (event-sourced-sync, "Tests to write"): the same review id from two
   // devices, once at the same clock; two people undoing the same departure,
@@ -359,6 +376,9 @@ export function buildOrgFixture(): AnyEvent[] {
   // The license only opens (license.ts): a later, more closed choice from
   // an admin who was offline changes nothing, and two devices opening to the
   // same license at the same clock settle on the lower id.
+  emit('v1.ReferenceRecommended', { itemId: 'langquest.source.bsb', recommended: true });
+  raw('rec-a', 'dB', '001800000960500:000000:dB', 'v1.ReferenceRecommended', { itemId: 'langquest.source.esv', recommended: true });
+  raw('rec-b', 'dC', '001800000960500:000000:dB', 'v1.ReferenceRecommended', { itemId: 'langquest.source.esv', recommended: false });
   emit('v1.OrgLicenseSet', { license: 'CC-BY-NC-ND-4.0' });
   raw('lic-a', 'dB', '001800000970000:000000:dB', 'v1.OrgLicenseSet', { license: 'CC-BY-SA-4.0' });
   raw('lic-b', 'dC', '001800000970000:000000:dB', 'v1.OrgLicenseSet', { license: 'CC-BY-SA-4.0' });

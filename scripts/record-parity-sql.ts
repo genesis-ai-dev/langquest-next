@@ -12,7 +12,8 @@ const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb
 // The record's own event types; the fixture also carries a v1 flow selection.
 const RECORD_TYPES = new Set(['v1.ReviewKindDefined', 'v2.WorkflowStepSet', 'v1.ReviewRecorded', 'v1.DepartureRecorded',
   'v1.DepartureUndone', 'v1.RequestMade', 'v2.RequestMade', 'v1.RequestWithdrawn', 'v1.NoteAdded', 'v1.StudyStepMarked', 'v1.LaneNamed',
-  'v1.LaneCountrySet', 'v1.LaneTargetSet', 'v1.ReviewTeamKindSet']);
+  'v1.LaneCountrySet', 'v1.LaneTargetSet', 'v1.ReviewTeamKindSet',
+  'v1.ReferenceRecommended', 'v1.LaneReferenceRecommended', 'v1.PassageReferenceLinked', 'v1.ReferencesUsed']);
 // The library's: org-partition items and versions, and a language's use of them.
 const LIBRARY_TYPES = new Set<string>([...LIBRARY_EVENT_TYPES, 'v2.LaneTemplateSelected', 'v1.LaneUnitHidden', 'v2.LaneFlowSelected']);
 // The organization's license (license.ts).
@@ -31,7 +32,8 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId'],
   'v1.LibraryItemDefined': ['copiedFrom'],
   'v1.LibraryVersionPublished': ['note'],
-  'v2.LaneTemplateSelected': ['books']
+  'v2.LaneTemplateSelected': ['books'],
+  'v1.ReferencesUsed': ['takeId', 'reviewId']
 };
 const HASH = 'a'.repeat(64);
 const broken: AnyEvent[] = events.flatMap((e) => {
@@ -59,6 +61,18 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   if (e.type === 'v1.LaneTargetSet') {
     variants.push({ ...p, scope: 'psalms' }, { ...p, startDate: '2026-1-1' }, { ...p, targetDate: p['startDate'] },
       { ...p, startDate: '2027-01-01', targetDate: '2026-01-01' }, { ...p, targetDate: 'soon' });
+  }
+  if (e.type === 'v1.LaneReferenceRecommended') variants.push({ ...p, state: 'pinned' }, { ...p, state: '' });
+  if (e.type === 'v1.ReferencesUsed') {
+    const item = (p['items'] as Record<string, unknown>[])[0]!;
+    variants.push({ ...p, items: [] }, { ...p, items: 'x' }, { ...p, items: [5] }, { ...p, takeId: 't', reviewId: 'r' }, { ...p, takeId: '' },
+      { ...p, items: Array.from({ length: 201 }, () => item) });
+    for (const k of Object.keys(item)) {
+      const { [k]: _, ...rest } = item;
+      variants.push({ ...p, items: [rest] }, { ...p, items: [{ ...item, [k]: 5 }] });
+    }
+    for (const k of ['docHash', 'ref', 'detail', 'copyright']) variants.push({ ...p, items: [{ ...item, [k]: 5 }] });
+    variants.push({ ...p, items: [{ ...item, kind: 'video' }] }, { ...p, items: [{ ...item, opened: 'yes' }] }, { ...p, items: [{ ...item, itemId: '' }] });
   }
   if (e.type === 'v1.ReviewTeamKindSet') variants.push({ ...p, kindId: '' }, { ...p, kindId: ['peer'] }, { ...p, teamId: '' });
   if (e.type === 'v2.RequestMade') {

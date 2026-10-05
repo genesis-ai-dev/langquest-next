@@ -1,5 +1,6 @@
 import type { AnyEvent, EventEnvelope, EventType, Role } from './events';
 import type { Hlc } from './hlc';
+import { applyOrgRecommendation, type ReferenceOrgEvents } from './references';
 import { applyLibraryEvent, LIBRARY_EVENT_TYPES, type LibraryEvents, type LibraryItemState } from './library';
 import { DEFAULT_LICENSE, licenseRank, type License } from './license';
 import type { Register } from './state';
@@ -99,7 +100,7 @@ export interface Scope {
 
 export type CatalogKind = 'template' | 'reference' | 'flow';
 
-export interface OrgEventPayloads extends LibraryEvents {
+export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
   'v1.OrgCreated': { name: string };
   /** A named privilege set. Scope is never on the role; it is on the membership (A38). */
   'v1.RoleDefined': { roleId: string; name: string; privileges: Privilege[] };
@@ -140,7 +141,7 @@ export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.OrgMemberAdded',
   'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.ProjectRegistered',
-  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.OrgLicenseSet', ...LIBRARY_EVENT_TYPES
+  'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.OrgLicenseSet', 'v1.ReferenceRecommended', ...LIBRARY_EVENT_TYPES
 ];
 
 /**
@@ -224,7 +225,12 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.LaneUnitHidden': ['manage_templates', 'shape_templates'],
   'v2.LaneFlowSelected': 'manage_flows',
   'v1.LaneCountrySet': 'manage_structure',
-  'v1.LaneTargetSet': 'manage_structure'
+  'v1.LaneTargetSet': 'manage_structure',
+  'v1.ReferenceRecommended': 'manage_reference',
+  'v1.LaneReferenceRecommended': 'manage_reference',
+  'v1.PassageReferenceLinked': 'manage_reference',
+  // Whoever publishes a version (translate) or records a review (review, or translate for a logged check).
+  'v1.ReferencesUsed': ['translate', 'review']
 };
 
 /** The privilege that manages each kind of library item. */
@@ -372,10 +378,12 @@ export interface OrgState {
    * reserved (`orgLicense`).
    */
   license: Register<License> | null;
+  /** itemId -> recommended to every language (`v1.ReferenceRecommended`, references.ts). */
+  recommendations: Record<string, Register<boolean>>;
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
 }
 
 export function scopeKey(s: Scope): string {
@@ -502,6 +510,9 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       }
       break;
     }
+    case 'v1.ReferenceRecommended':
+      applyOrgRecommendation((state.recommendations ??= {}), event);
+      break;
     case 'v1.Redacted':
       state.redactions[event.payload.eventId] = true;
       break;
