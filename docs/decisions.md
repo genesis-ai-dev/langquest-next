@@ -1365,3 +1365,13 @@ Reverse if: field use needs the web to open offline (then a service worker
 for the app shell), people need several tabs at once (then a shared worker
 holds the database), or browsers' storage proves less durable than phones'
 in practice (then the web becomes read-mostly and recording stays on phones).
+
+Amended (2026-10-05, Carl Sauder): iOS does not claim the domains yet.
+`ios.associatedDomains` in `app.json` failed the App Store build: the
+provisioning profile EAS made before it lacks the Associated Domains
+capability, and builds from the workflow cannot add one (that needs an Apple
+ID with access to Certificates, Identifiers & Profiles, which is being
+sorted out). Until then iOS links open the web app; Android app links and
+both `.well-known` files are unchanged. To turn it on: enable Associated
+Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
+new App Store profile (`eas credentials`), and put `associatedDomains` back.
