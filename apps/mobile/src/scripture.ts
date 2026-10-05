@@ -3,9 +3,9 @@
 // STUDY-5, ADR-019). Public-domain text ships with the app for the passages
 // the demo covers: the study guides' passages in BSB, WEB and KJV, and whole
 // WEB chapters for Genesis 1–3, Luke 14–16 and John 2–4. Elsewhere there is
-// none yet and screens say so. There is no recorded reading of this text
-// yet, so each verse's start is simulated from its length: playback can
-// still highlight the verse being read, and a paused note knows its verse.
+// none yet and screens say so. It is the readers' last resort
+// (sources/useSources.ts), labelled as built in: the sources an
+// organization recommends come first. No timings are made up for it.
 import type { ProjectState } from '@langquest-next/core';
 import { CHAPTER_TEXT } from './study/chapterText';
 import { PASSAGE_TEXTS } from './study/passageTexts';
@@ -17,8 +17,6 @@ export interface Verse {
   chapter: number;
   verse: number;
   text: string;
-  /** Seconds into the reading's audio where this verse starts, when known. */
-  start?: number;
 }
 
 export interface Reading {
@@ -27,8 +25,6 @@ export interface Reading {
   /** "BSB" */
   code: string;
   verses: Verse[];
-  /** The reading aloud, when there is one. */
-  audioUrl?: string;
 }
 
 export const TRANSLATIONS: { code: string; name: string }[] = [
@@ -36,12 +32,6 @@ export const TRANSLATIONS: { code: string; name: string }[] = [
   { code: 'WEB', name: 'World English Bible' },
   { code: 'KJV', name: 'King James Version' }
 ];
-
-/** Read aloud at a steady pace: about 14 characters a second, with a short pause between verses. */
-const CHARS_PER_SECOND = 14;
-const VERSE_GAP = 0.6;
-
-const verseSeconds = (text: string) => text.length / CHARS_PER_SECOND + VERSE_GAP;
 
 function verseText(code: string, book: string, chapter: number, verse: number): string | undefined {
   for (const p of PASSAGE_TEXTS) {
@@ -52,19 +42,17 @@ function verseText(code: string, book: string, chapter: number, verse: number): 
   return code === 'WEB' ? CHAPTER_TEXT[`${book} ${chapter}`]?.[verse - 1] : undefined;
 }
 
-/** The translations that have every verse of a range, with simulated timings. */
+/** The translations that have every verse of a range. */
 export function readingsForRange(range: VerseRange): Reading[] {
   const verses = versesOf(range, (c) => CHAPTER_TEXT[`${range.book} ${c}`]?.length);
   if (!verses || verses.length === 0) return [];
   const out: Reading[] = [];
   for (const t of TRANSLATIONS) {
-    let at = 0;
     const list: Verse[] = [];
     for (const { chapter, verse } of verses) {
       const text = verseText(t.code, range.book, chapter, verse);
       if (text === undefined) break;
-      list.push({ ref: `${chapter}:${verse}`, chapter, verse, text, start: at });
-      at += verseSeconds(text);
+      list.push({ ref: `${chapter}:${verse}`, chapter, verse, text });
     }
     if (list.length === verses.length) out.push({ translation: t.name, code: t.code, verses: list });
   }
@@ -84,23 +72,6 @@ export function readingsFor(state: ProjectState, unitId: string): Reading[] {
     cache.set(key, hit);
   }
   return hit;
-}
-
-/** How long a reading takes aloud, in seconds (its last verse's start plus that verse). */
-export function readingSeconds(r: Reading): number {
-  const last = r.verses[r.verses.length - 1];
-  return last ? (last.start ?? 0) + verseSeconds(last.text) : 0;
-}
-
-/** The verse being read at `t` seconds; the last verse once past the end. */
-export function verseAt(r: Reading, t: number): Verse | undefined {
-  if (t <= 0) return undefined;
-  let current: Verse | undefined;
-  for (const v of r.verses) {
-    if ((v.start ?? 0) <= t) current = v;
-    else break;
-  }
-  return current;
 }
 
 /** The passage's source text as one paragraph (for key-term matching and the workspace), or null. */
