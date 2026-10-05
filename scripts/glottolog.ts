@@ -1,6 +1,6 @@
 /**
  * Glottolog's CLDF release -> rows for the languoid staging tables
- * (supabase/migrations/20261005000000_languoids.sql). Pure, so it can be
+ * (supabase/migrations/20261006000000_languoids.sql). Pure, so it can be
  * tested; scripts/languoids.ts fetches the files and loads the rows.
  *
  * The release is https://github.com/glottolog/glottolog-cldf, files under
