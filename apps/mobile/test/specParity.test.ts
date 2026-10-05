@@ -30,7 +30,12 @@ const APP_ONLY: Record<string, string> = {
   'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
   'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
   'delete_account->sign_in': 'a deleted account is signed out',
-  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)'
+  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)',
+  'workspace->bible_explore': 'More Bibles beside the recorder: explore Bible Brain and add a Bible for yourself (docs/reference-material.md)',
+  'study_guide->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
+  'study_step->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
+  'review_capture->bible_explore': 'More Bibles from the reviewer\'s Background (docs/reference-material.md)',
+  'add_record->bible_explore': 'More Bibles from Already happened\'s Background (docs/reference-material.md)'
 };
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
@@ -42,8 +47,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion and the Reports section, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section and More Bibles, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', 'bible_explore'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

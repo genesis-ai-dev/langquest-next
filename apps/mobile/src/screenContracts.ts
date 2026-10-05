@@ -36,10 +36,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v2.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
-  review_capture: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
-  add_record: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'] },
+  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
+  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'] },
+  // What was offered and used goes on the record with the version (docs/reference-material.md).
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeSelected','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked'],reads:['derivePassage','keyTermsForUnit'],rpcs:REPORTS },
+    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.ReferencesUsed'],reads:['derivePassage','keyTermsForUnit','recommendedFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
   study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
@@ -87,7 +88,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // A language's country and target go straight to the server: its
   // partition need not be on this device.
   reports_home: { reads:['orgReports'] },
-  reports_language: { emits:['v1.LaneCountrySet','v1.LaneTargetSet'],reads:['orgReports'] }
+  reports_language: { emits:['v1.LaneCountrySet','v1.LaneTargetSet'],reads:['orgReports'] },
+  // Bible Brain through the Worker (docs/reference-material.md); My Bibles are kept on the phone.
+  bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]
