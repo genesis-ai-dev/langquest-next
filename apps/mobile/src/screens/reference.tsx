@@ -567,7 +567,9 @@ export function ReferenceGuides(ctx: Ctx) {
         <Card><Text style={txt.smMuted}>{items.length ? 'Nothing matches the filter.' : 'No guides or notes in your library yet. Follow or copy what other organizations share under Reference Material, or write a note.'}</Text></Card>
       ) : withRec.slice(0, n).map(({ r, label }) => (
         <Card key={r.it.itemId} current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
-          onPress={() => ctx.go('material_editor', { itemId: r.it.itemId, ...laneParams(level) })} accessibilityLabel={`${r.it.name}. ${label}`}>
+          onPress={() => (r.doc?.format === 'study@2' && r.it.source !== 'subscription'
+            ? ctx.go('guide_editor', { itemId: r.it.itemId, ...laneParams(level) })
+            : ctx.go('material_editor', { itemId: r.it.itemId, ...laneParams(level) }))} accessibilityLabel={`${r.it.name}. ${label}`}>
           <View style={styles.titleRow}>
             <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(label)} />

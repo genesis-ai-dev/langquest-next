@@ -293,7 +293,9 @@ export const EDGES: Edge[] = [
   e('reference_home', 'guide_editor', undefined, 'manageReference'),
   e('guide_editor', 'reference_home', 'back'),
   e('study_guide', 'guide_editor', undefined, 'manageReference'),
-  e('guide_editor', 'study_guide', 'back')
+  e('guide_editor', 'study_guide', 'back'),
+  e('reference_guides', 'guide_editor', undefined, 'manageReference'),
+  e('guide_editor', 'reference_guides', 'back')
 ];
 
 /**

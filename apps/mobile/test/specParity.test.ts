@@ -41,7 +41,8 @@ const APP_ONLY: Record<string, string> = {
   'reference_coverage->passage_reference': "one passage's reference, to place or hide an item there",
   'passage_record->passage_reference': 'what a translator is offered on this passage and why (Details)',
   'reference_home->guide_editor': 'Write a guide: an organization writes study material as rich as FIA\'s (docs/reference-material.md, guide editor)',
-  'study_guide->guide_editor': 'Edit a guide the organization controls, or Copy to adapt FIA\'s or another organization\'s'
+  'study_guide->guide_editor': 'Edit a guide the organization controls, or Copy to adapt FIA\'s or another organization\'s',
+  'reference_guides->guide_editor': 'Open a guide the organization wrote in the guide editor'
 };
 
 /** App-only reference screens (docs/reference-material.md). */

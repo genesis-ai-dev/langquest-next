@@ -261,3 +261,30 @@ grant execute on function public.timing_job_claim(text), public.timing_job_progr
   public.timing_job_finish(uuid, jsonb, text) to service_role;
 
 notify pgrst, 'reload schema';
+
+-- ---- guide media ----------------------------------------------------------------
+--
+-- Files an authored guide (study@2) names live at <org>/_org/<hash>.<ext>.
+-- Every member of the organization may read them, whatever the scope of
+-- their membership, and so may members of an organization that can read a
+-- guide naming that hash (one it copied or follows): content addressing
+-- means a hash is readable only because a document it may read names it.
+create or replace function public._library_media_readable(p_name text, p_profile text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select split_part(p_name, '/', 2) = '_org' and p_profile is not null and (
+    public._library_member(split_part(p_name, '/', 1), p_profile)
+    or exists (
+      select 1 from public.org_memberships m
+        join public.library_document_access a on a.org_id = m.org_id
+        join public.library_documents d on d.hash = a.hash
+       where m.profile_id = p_profile and not m.removed and d.format = 'study@2'
+         and position(split_part(split_part(p_name, '/', 3), '.', 1) in d.body) > 0
+         and length(split_part(split_part(p_name, '/', 3), '.', 1)) = 64));
+$$;
+revoke all on function public._library_media_readable(text, text) from public, anon;
+grant execute on function public._library_media_readable(text, text) to authenticated;
+
+drop policy if exists "blobs: library media read" on storage.objects;
+create policy "blobs: library media read"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'blobs' and public._library_media_readable(name, public.caller_id()));
