@@ -30,11 +30,32 @@ const STAGING_SUFFIX = '.part';
 /** What the store needs to name a file; the unit is sync's concern, not disk's. */
 export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
 
+/**
+ * Every kind of file the store keeps: recordings (wav, m4a), and the audio,
+ * pictures and films of guides an organization writes (study@2, the guide
+ * editor). The extension is part of the name, as for recordings.
+ */
+export const STORED_FORMATS = ['wav', 'm4a', 'mp3', 'ogg', 'aac', 'jpg', 'png', 'webp', 'gif', 'mp4', 'webm'] as const;
+export type StoredFormat = (typeof STORED_FORMATS)[number];
+export type StoredFile = { hash: string; format: StoredFormat };
+
+export function isStoredFormat(v: unknown): v is StoredFormat {
+  return typeof v === 'string' && (STORED_FORMATS as readonly string[]).includes(v);
+}
+
 const WEB = Platform.OS === 'web';
-const MIME: Record<BlobRef['format'], string> = { wav: 'audio/wav', m4a: 'audio/mp4' };
+const MIME: Record<StoredFormat, string> = {
+  wav: 'audio/wav', m4a: 'audio/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', aac: 'audio/aac',
+  jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm'
+};
+
+/** The media type a stored file is uploaded and played as. */
+export function mimeOf(format: StoredFormat): string {
+  return MIME[format];
+}
 /** Object URLs kept for playback on the web, most recently used last. */
 const URLS_KEPT = 64;
-const nameOf = (ref: BlobFile) => `${ref.hash}.${ref.format}`;
+const nameOf = (ref: StoredFile) => `${ref.hash}.${ref.format}`;
 
 export class BlobStore {
   /** Null on web, where `files` holds them instead. */
@@ -117,32 +138,32 @@ export class BlobStore {
   }
 
   /** Whether this file is stored. On the web the index is the truth: it is marked only after a write commits. */
-  exists(ref: BlobFile): boolean {
+  exists(ref: StoredFile): boolean {
     return this.dir ? this.fileFor(ref).exists : this.present.has(ref.hash);
   }
 
   /** Its size as stored; ask `exists` first. */
-  storedSize(ref: BlobFile): number {
+  storedSize(ref: StoredFile): number {
     return this.dir ? this.fileFor(ref).size : this.sizeByHash.get(ref.hash) ?? 0;
   }
 
   /** Native only: the file on disk. */
-  fileFor(ref: BlobFile): File {
+  fileFor(ref: StoredFile): File {
     return new File(this.disk(), `${ref.hash}.${ref.format}`);
   }
 
   /** Native only: where a download lands before its bytes are verified. */
-  stagingFor(ref: BlobFile): File {
+  stagingFor(ref: StoredFile): File {
     return new File(this.disk(), `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
   }
 
   /** Web only: the bytes to upload. */
-  async readBytes(ref: BlobFile): Promise<Uint8Array<ArrayBuffer> | null> {
+  async readBytes(ref: StoredFile): Promise<Uint8Array<ArrayBuffer> | null> {
     return this.web().read(nameOf(ref));
   }
 
   /** Web only: keep downloaded bytes the caller has verified against their hash. */
-  async putVerified(ref: BlobFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+  async putVerified(ref: StoredFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     if (!this.present.has(ref.hash)) await this.web().write(nameOf(ref), bytes);
     this.markPresent(ref.hash, bytes.byteLength);
   }
@@ -161,7 +182,7 @@ export class BlobStore {
    * Promote a verified staging file to its trusted name (an atomic rename on
    * the same volume) and index it. Callers verify first; this does not.
    */
-  commitStaged(ref: BlobFile, size: number): void {
+  commitStaged(ref: StoredFile, size: number): void {
     const staged = this.stagingFor(ref);
     const dest = this.fileFor(ref);
     if (dest.exists) staged.delete();
@@ -175,7 +196,7 @@ export class BlobStore {
    * decides eligibility (core `evictableBlobs`); this only does the disk
    * work, largest first so the fewest files go.
    */
-  reclaim(evictable: readonly BlobFile[], opts: { minFreeBytes: number; maxTotalBytes: number }): string[] {
+  reclaim(evictable: readonly StoredFile[], opts: { minFreeBytes: number; maxTotalBytes: number }): string[] {
     const removed: string[] = [];
     const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
     for (const ref of bySize) {
@@ -209,7 +230,7 @@ export class BlobStore {
    * and answers null; listeners hear when its URL is ready, by which time a
    * screen that asked while drawing has it for the tap.
    */
-  uriFor(ref: BlobFile): string | null {
+  uriFor(ref: StoredFile): string | null {
     if (!this.present.has(ref.hash)) return null;
     if (this.dir) return this.fileFor(ref).uri;
     const url = this.urls.get(ref.hash);
@@ -227,7 +248,7 @@ export class BlobStore {
     return null;
   }
 
-  private keepUrl(ref: BlobFile, bytes: Uint8Array<ArrayBuffer>): void {
+  private keepUrl(ref: StoredFile, bytes: Uint8Array<ArrayBuffer>): void {
     if (!this.urls.has(ref.hash)) this.urls.set(ref.hash, URL.createObjectURL(new Blob([bytes], { type: MIME[ref.format] })));
     while (this.urls.size > URLS_KEPT) {
       const [oldest, url] = this.urls.entries().next().value!;
@@ -273,6 +294,28 @@ export class BlobStore {
     this.markPresent(hash, bytes.byteLength);
     this.keepUrl(ref, bytes);
     return { ref, size: bytes.byteLength };
+  }
+
+  /**
+   * Keep bytes picked or made on this device (a picture, its phone copy, an
+   * audio file for a guide): hashed first, so the name is trusted like a
+   * recording's. Idempotent.
+   */
+  async ingestBytes(bytes: Uint8Array<ArrayBuffer>, format: StoredFormat): Promise<StoredFile & { size: number }> {
+    const hash = await BlobStore.hashOf(bytes);
+    const ref: StoredFile = { hash, format };
+    if (this.files) {
+      if (!this.present.has(hash)) await this.files.write(nameOf(ref), bytes);
+      this.keepUrl(ref, bytes);
+    } else {
+      const dest = this.fileFor(ref);
+      if (!dest.exists) {
+        dest.create({ overwrite: true });
+        dest.write(bytes);
+      }
+    }
+    this.markPresent(hash, bytes.byteLength);
+    return { ...ref, size: bytes.byteLength };
   }
 
   /** Called by the downloader once a file is on disk and verified. */

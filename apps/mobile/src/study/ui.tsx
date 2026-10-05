@@ -3,11 +3,12 @@
 // study.tsx's `ViewSwitch`, `PassageReader`, `ContributeSheet`). STUDY-3,
 // STUDY-5, STUDY-7, ADR-019. Audio follows audioSession.ts: starting one
 // player stops every other, and playback sets the session to play mode.
-import { commands, CommandError, type EventSpec, type NoteAnchor, type PassageNote } from '@langquest-next/core';
+import { commands, CommandError, type CalloutKind, type EventSpec, type NoteAnchor, type PassageNote } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { CircleHelp, Globe, Pause, StickyNote, TriangleAlert, type LucideIcon } from 'lucide-react-native';
+import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { openContentLink } from '../share';
 import { AudioClip } from '../audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
@@ -21,8 +22,9 @@ import { readingSeconds, verseAt, type Reading } from '../scripture';
 import { C, onColor, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
+import { useStudyFileUri } from './media';
 import type { StudyStepStatus } from './progress';
-import { clock } from './text';
+import { clock, inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
 
 // ---- audio -------------------------------------------------------------------------
 
@@ -310,23 +312,30 @@ export function resourceIcon(r: StudyResource | undefined): IconName {
 }
 
 /** The picture when there is a file for it (FIA sends low-resolution copies), a neutral stand-in otherwise or offline. */
-function MediaImage(props: { item: StudyMedia }) {
+function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
   const [failed, setFailed] = useState(false);
   const it = props.item;
-  if (!it.url || failed) {
+  const { uri, waiting } = useStudyFileUri(props.orgId, it.file, it.url);
+  // A film kept as a file plays in the browser; phones have no player for it yet, so they say so.
+  const film = it.kind === 'video' && !!it.file;
+  if (film && uri && Platform.OS === 'web') {
+    return createElement('video', { src: uri, controls: true, preload: 'metadata', 'aria-label': it.title, style: { width: '100%', aspectRatio: '16 / 9', backgroundColor: '#000', display: 'block' } });
+  }
+  if (!uri || failed || film) {
+    const why = film ? 'Films play in the web app for now.' : waiting ? 'Loading…' : uri ? 'Not loaded. Check your connection.' : MEDIA_LABEL[it.kind];
     return (
       <View style={styles.standIn} accessibilityLabel={`${MEDIA_LABEL[it.kind]}: ${it.title}`}>
         <Ico name={MEDIA_ICON[it.kind]} size={40} color={C.faint} />
-        <Text style={[txt.xs, { textAlign: 'center' }]}>{it.url ? 'Not loaded. Check your connection.' : MEDIA_LABEL[it.kind]}</Text>
+        <Text style={[txt.xs, { textAlign: 'center' }]}>{why}</Text>
       </View>
     );
   }
-  return <Image source={{ uri: it.url }} accessibilityLabel={it.title} onError={() => setFailed(true)}
+  return <Image source={{ uri }} accessibilityLabel={it.title} onError={() => setFailed(true)}
     resizeMode={it.kind === 'map' ? 'contain' : 'cover'} style={styles.image} />;
 }
 
 /** A set of pictures or a map, full width. A map opens full size. */
-export function MediaSheet(props: { resource: StudyResource; source: string; onClose: () => void }) {
+export function MediaSheet(props: { resource: StudyResource; source: string; orgId?: string | null; onClose: () => void }) {
   const items = props.resource.media ?? [];
   const kinds = [...new Set(items.map((i) => MEDIA_LABEL[i.kind]))].join(', ');
   return (
@@ -337,10 +346,10 @@ export function MediaSheet(props: { resource: StudyResource; source: string; onC
           {item.kind === 'map' && item.url ? (
             <Pressable onPress={() => openContentLink(item.url!)} accessibilityRole="link" accessibilityLabel={`Open ${item.title} full size`}
               style={({ pressed }) => [styles.imageWrap, pressed && styles.pressed]}>
-              <MediaImage item={item} />
+              <MediaImage item={item} orgId={props.orgId} />
             </Pressable>
           ) : (
-            <View style={styles.imageWrap}><MediaImage item={item} /></View>
+            <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
           )}
           {item.caption || (items.length > 1 && item.title) ? (
             <Text style={txt.smMuted}>
@@ -351,25 +360,97 @@ export function MediaSheet(props: { resource: StudyResource; source: string; onC
       ))}
       <Text style={txt.xs}>
         Low-resolution copies, sized for phones with little data.{items.some((i) => i.kind === 'map' && i.url) ? ' Tap the map to open it full size.' : ''}
+        {items.some((i) => i.noPhoneCopy) ? ' This film has no small phone copy yet.' : ''}
       </Text>
     </Sheet>
   );
 }
 
 /** A glossary term: its entry, read aloud when there is audio, and the project's key term when there is one. */
-export function GlossarySheet(props: { entry: GlossaryEntry; source: string; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void }) {
+export function GlossarySheet(props: { entry: GlossaryEntry; source: string; orgId?: string | null; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void }) {
   const e = props.entry;
   const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;
-  const audio = useStudyAudio(e.audioUrl, Math.max(5, Math.round(words / 2.5)));
+  const { uri: audioUri } = useStudyFileUri(props.orgId, e.audioFile, e.audioUrl);
+  const audio = useStudyAudio(audioUri, Math.max(5, Math.round(words / 2.5)));
   useEffect(() => () => audio.pause(), []);
   return (
     <Sheet visible title={e.term} sub={`Glossary · ${props.source}`} onClose={props.onClose}
       footer={props.hasKeyTerm ? <PrimaryBtn label="Open the key term" icon="book" onPress={props.onOpenTerm} /> : undefined}>
       {e.hint ? <Text style={[txt.body, { fontWeight: '600' }]}>{e.hint}</Text> : null}
-      {e.audioUrl ? <AudioBar audio={audio} label={`Listen: ${e.term}`} {...(audio.failed ? { sub: "Couldn't load the audio — playing a stand-in" } : {})} /> : null}
+      {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={`Listen: ${e.term}`} {...(audio.failed ? { sub: "Couldn't load the audio — playing a stand-in" } : {})} /> : null}
       {e.body ? e.body.split(/\n{2,}/).map((para, i) => <Text key={i} style={txt.body}>{para.trim()}</Text>) : null}
       {!props.hasKeyTerm ? <Text style={txt.xs}>This term isn't in your organization's key terms yet.</Text> : null}
     </Sheet>
+  );
+}
+
+// ---- a step's text: callouts, list items, headings and links -------------------------------
+
+/**
+ * How each callout kind reads (core CALLOUT_KINDS): an icon and a word, so
+ * the kind never rests on colour alone, on a quiet tint with an edge.
+ */
+export const CALLOUT_LOOK: Record<CalloutKind, { label: string; icon: LucideIcon; bg: string; edge: string; ink: string }> = {
+  action: { label: 'Stop here', icon: Pause, bg: C.light, edge: C.primary, ink: C.primary },
+  note: { label: 'Note', icon: StickyNote, bg: TINT.gray, edge: TINT.grayText, ink: TINT.grayText },
+  question: { label: 'Question', icon: CircleHelp, bg: C.card, edge: C.soft, ink: C.primary },
+  culture: { label: 'Culture', icon: Globe, bg: TINT.green, edge: TINT.greenText, ink: TINT.greenText },
+  warning: { label: 'Careful', icon: TriangleAlert, bg: TINT.amber, edge: TINT.amberText, ink: TINT.amberText }
+};
+
+/** Inline text: bold words and links to pictures, maps and glossary terms. */
+export function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
+  return inlineParts(props.text).map((p, i) => {
+    if (p.type === 'text') return p.text;
+    if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '700' }}>{p.text}</Text>;
+    return (
+      <Text key={i} onPress={props.onOpenRef ? () => props.onOpenRef!(p.ref) : undefined} accessibilityRole="link" suppressHighlighting={false}
+        style={{ fontWeight: '700', color: C.primary, textDecorationLine: 'underline' }}>{p.text}</Text>
+    );
+  });
+}
+
+/** One section of a step's text, drawn the same on the step screen and in the guide editor's preview. */
+export function SectionBody(props: { section: StudySection; onOpenRef?: (ref: string) => void }) {
+  const sec = props.section;
+  const inline = <Inline text={sec.text} {...(props.onOpenRef ? { onOpenRef: props.onOpenRef } : {})} />;
+  if (isCallout(sec.kind)) {
+    const look = CALLOUT_LOOK[sec.kind];
+    const Icon = look.icon;
+    return (
+      <View style={[styles.callout, { backgroundColor: look.bg, borderColor: look.edge }, sec.kind === 'question' && styles.calloutOutlined]}>
+        <View style={styles.calloutHead}>
+          <Icon size={16} color={look.ink} strokeWidth={2.4} />
+          <Text style={[styles.calloutLabel, { color: look.ink }]}>{look.label}</Text>
+        </View>
+        <Text style={styles.stepText}>{inline}</Text>
+      </View>
+    );
+  }
+  if (sec.kind === 'item') {
+    return (
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <Text style={[styles.stepText, styles.itemMark]}>{sec.n ? `${sec.n}.` : '•'}</Text>
+        <Text style={[styles.stepText, { flex: 1 }, isQuestion(sec) && { fontWeight: '600' }]}>{inline}</Text>
+      </View>
+    );
+  }
+  if (sec.kind === 'heading') return <Text style={txt.h3}>{inline}</Text>;
+  return <Text style={styles.stepText}>{inline}</Text>;
+}
+
+/** A step's whole text as the step screen shows it, without notes: the guide editor's live preview. */
+export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => void }) {
+  const sections = useMemo(() => studySections(props.text), [props.text]);
+  if (!sections.length) return <View style={styles.textCard}><Text style={[txt.smMuted, { padding: space.md }]}>Nothing written yet.</Text></View>;
+  return (
+    <View style={styles.textCard}>
+      {sections.map((sec) => (
+        <View key={sec.id} style={{ paddingHorizontal: space.sm }}>
+          <View style={styles.previewSection}><SectionBody section={sec} {...(props.onOpenRef ? { onOpenRef: props.onOpenRef } : {})} /></View>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -508,5 +589,12 @@ export const styles = StyleSheet.create({
   where: { backgroundColor: C.card, borderLeftWidth: 3, borderColor: C.primary, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
   imageWrap: { borderRadius: radius.lg, overflow: 'hidden', backgroundColor: TINT.gray },
   image: { width: '100%', aspectRatio: 4 / 3, backgroundColor: TINT.gray },
-  standIn: { width: '100%', aspectRatio: 4 / 3, alignItems: 'center', justifyContent: 'center', gap: space.sm, backgroundColor: TINT.gray, padding: space.lg }
+  standIn: { width: '100%', aspectRatio: 4 / 3, alignItems: 'center', justifyContent: 'center', gap: space.sm, backgroundColor: TINT.gray, padding: space.lg },
+  stepText: { fontSize: T.sm, lineHeight: 26, color: C.dark },
+  itemMark: { width: 24, textAlign: 'right', fontWeight: '700', color: C.primary },
+  callout: { gap: 2, borderLeftWidth: 4, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
+  calloutOutlined: { borderWidth: 1, borderLeftWidth: 4 },
+  calloutHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  calloutLabel: { fontSize: T.xs, fontWeight: '800', letterSpacing: 0.4 },
+  previewSection: { borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: 6, minHeight: 40, justifyContent: 'center' }
 });

@@ -1,12 +1,19 @@
 // One study step's document, broken into tappable sections (the UX demo's
 // src/studyText.ts, STUDY-3, ADR-019). Study material arrives as one markdown
 // document per step (FIA's API sends `textAsMarkdown`). It is broken up at
-// its line breaks, so any paragraph, list item or "Stop here" box can take a
+// its line breaks, so any paragraph, list item or callout box can take a
 // note, and each keeps its inline links to pictures, maps and glossary terms.
 // Section ids come from the order of the sections, so they are stable for as
 // long as the text is. Pure: no I/O.
+//
+// Callouts are blockquotes that start with a kind: `> [!note] text`. The
+// kinds are core's CALLOUT_KINDS; FIA writes `[!action]` ("Stop here"), and
+// its translations sometimes localize the word (`[! kitendo]`), so any kind
+// we do not know reads as `action`. A blockquote with no kind is `action`
+// too, as FIA's always were.
+import { CALLOUT_KINDS, type CalloutKind } from '@langquest-next/core';
 
-export type StudySectionKind = 'para' | 'item' | 'action' | 'heading';
+export type StudySectionKind = 'para' | 'item' | 'heading' | CalloutKind;
 
 export interface StudySection {
   id: string;
@@ -17,31 +24,46 @@ export interface StudySection {
   n?: number;
 }
 
+/** `[!kind]` at the start of a blockquote line, with whatever follows it. */
+const CALLOUT_MARK = /^\[!\s*([^\]]*)\]\s*(.*)$/;
+
+/** The callout kind a marker names; anything unknown (FIA's localized words) is `action`. */
+export function calloutKind(word: string): CalloutKind {
+  const w = word.trim().toLowerCase();
+  return (CALLOUT_KINDS as readonly string[]).includes(w) ? (w as CalloutKind) : 'action';
+}
+
+export function isCallout(kind: StudySectionKind): kind is CalloutKind {
+  return (CALLOUT_KINDS as readonly string[]).includes(kind);
+}
+
 export function studySections(md: string): StudySection[] {
   const out: Omit<StudySection, 'id'>[] = [];
   let para: string[] = [];
-  let action: string[] | null = null;
+  let callout: { kind: CalloutKind; lines: string[] } | null = null;
   const flushPara = () => {
     if (para.length) out.push({ kind: 'para', text: para.join(' ').trim() });
     para = [];
   };
-  const flushAction = () => {
-    if (action) {
-      const text = action.join(' ').replace(/^\[!action\]\s*/i, '').trim();
-      if (text) out.push({ kind: 'action', text });
+  const flushCallout = () => {
+    if (callout) {
+      const text = callout.lines.join(' ').trim();
+      if (text) out.push({ kind: callout.kind, text });
     }
-    action = null;
+    callout = null;
   };
   for (const raw of md.split('\n')) {
     const line = raw.trim();
     if (line.startsWith('>')) {
       flushPara();
       const body = line.replace(/^>\s?/, '');
-      if (/^\[!action\]/i.test(body) || action === null) { flushAction(); action = []; }
-      if (body && !/^\[!action\]$/i.test(body)) action!.push(body);
+      const mark = CALLOUT_MARK.exec(body);
+      if (mark || callout === null) { flushCallout(); callout = { kind: mark ? calloutKind(mark[1]!) : 'action', lines: [] }; }
+      const rest = mark ? mark[2]! : body;
+      if (rest) callout!.lines.push(rest);
       continue;
     }
-    flushAction();
+    flushCallout();
     if (!line) { flushPara(); continue; }
     const numbered = /^(\d+)\.\s+(.*)$/.exec(line);
     const bullet = /^[-*]\s+(.*)$/.exec(line);
@@ -52,7 +74,7 @@ export function studySections(md: string): StudySection[] {
     para.push(line);
   }
   flushPara();
-  flushAction();
+  flushCallout();
   return out.map((s, i) => ({ ...s, id: `s${i}` }));
 }
 
