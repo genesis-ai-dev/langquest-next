@@ -1,5 +1,6 @@
 import { handleApi } from './api';
 import { serviceClient, type Env } from './env';
+import { publishLangQuestTimings } from './timings';
 
 export { OrgSnapshot } from './orgSnapshot';
 
@@ -18,5 +19,9 @@ export default {
       reports: (orgId, profileId, fresh) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).reports(orgId, profileId, fresh),
       bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) }
     });
+  },
+  // Verse timings asked for LangQuest's own sources, published when fia-align finishes them (worker/timings.ts).
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(publishLangQuestTimings(serviceClient(env)).then((r) => { if (r.jobs) console.log(`timings: ${r.published} of ${r.jobs} jobs published`); }));
   }
 } satisfies ExportedHandler<Env>;

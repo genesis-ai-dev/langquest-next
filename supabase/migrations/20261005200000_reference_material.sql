@@ -288,3 +288,84 @@ drop policy if exists "blobs: library media read" on storage.objects;
 create policy "blobs: library media read"
   on storage.objects for select to authenticated
   using (bucket_id = 'blobs' and public._library_media_readable(name, public.caller_id()));
+
+-- ---- timings for LangQuest's own sources ----------------------------------------
+--
+-- An organization that follows one of LangQuest's sources may ask for its
+-- missing timings too. The job then names LangQuest's item, and the web
+-- Worker's scheduled publisher (apps/web/worker/timings.ts) publishes the
+-- passing chapters as that item's next version, so every organization
+-- following it gets them. Only LangQuest's items are published this way:
+-- the server writes into no other organization's library.
+alter table public.timing_jobs add column if not exists publish_org text;
+alter table public.timing_jobs add column if not exists publish_item text;
+alter table public.timing_jobs add column if not exists published_at timestamptz;
+
+drop function if exists public.request_timings(text, text, text, text, text, text[], text);
+create or replace function public.request_timings(
+  p_org text, p_item text, p_bible_id text, p_audio_fileset text, p_text_fileset text, p_books text[], p_versification text default 'eng',
+  p_publish_org text default null, p_publish_item text default null
+) returns uuid language plpgsql security definer set search_path = '' as $$
+declare v_actor text := public.caller_id(); v_id uuid;
+begin
+  if v_actor is null then raise exception 'sign in required' using errcode = '42501'; end if;
+  if not (public.org_privileges(p_org, v_actor, '_org', null) && array['manage_reference']) then
+    raise exception 'not allowed to ask for timings here' using errcode = '42501';
+  end if;
+  if coalesce(cardinality(p_books), 0) = 0 or cardinality(p_books) > 120
+     or exists (select 1 from unnest(p_books) b where b !~ '^[A-Z0-9]{3}$') then
+    raise exception 'books must be 1 to 120 USFM codes' using errcode = '22023';
+  end if;
+  if coalesce(p_audio_fileset, '') !~ '^[A-Za-z0-9_-]{4,40}$' or coalesce(p_bible_id, '') !~ '^[A-Za-z0-9_-]{3,40}$'
+     or (p_text_fileset is not null and p_text_fileset !~ '^[A-Za-z0-9_-]{4,40}$') then
+    raise exception 'not a Bible Brain id' using errcode = '22023';
+  end if;
+  if (p_publish_org is null) <> (p_publish_item is null) then raise exception 'publish_org and publish_item go together' using errcode = '22023'; end if;
+  if p_publish_org is not null and (p_publish_org <> 'langquest' or not exists (
+       select 1 from public.library_subscriptions s
+        where s.org_id = p_org and s.item_id = p_item and s.source_org_id = p_publish_org and s.source_item_id = p_publish_item)) then
+    raise exception 'only a LangQuest source this organization follows' using errcode = '42501';
+  end if;
+  select j.id into v_id from public.timing_jobs j
+   where coalesce(j.publish_org, j.org_id) = coalesce(p_publish_org, p_org) and coalesce(j.publish_item, j.item_id) = coalesce(p_publish_item, p_item)
+     and j.audio_fileset = p_audio_fileset and j.published_at is null and (j.finished_at is null or j.publish_org is not null) limit 1;
+  if v_id is not null then return v_id; end if;
+  insert into public.timing_jobs (org_id, item_id, requested_by, bible_id, audio_fileset, text_fileset, books, versification, total, publish_org, publish_item)
+  values (p_org, p_item, v_actor, p_bible_id, p_audio_fileset, p_text_fileset, p_books, coalesce(p_versification, 'eng'), 0, p_publish_org, p_publish_item)
+  returning id into v_id;
+  return v_id;
+end $$;
+revoke all on function public.request_timings(text, text, text, text, text, text[], text, text, text) from public, anon;
+grant execute on function public.request_timings(text, text, text, text, text, text[], text, text, text) to authenticated;
+
+-- The publisher (service role): finished jobs for LangQuest's items not yet published.
+create or replace function public.timing_jobs_to_publish()
+returns table (id uuid, publish_org text, publish_item text)
+language sql stable security definer set search_path = '' as $$
+  select j.id, j.publish_org, j.publish_item from public.timing_jobs j
+   where j.publish_org is not null and j.finished_at is not null and j.published_at is null
+   order by j.finished_at limit 20;
+$$;
+create or replace function public.timing_job_published(p_job uuid)
+returns void language sql security definer set search_path = '' as $$
+  update public.timing_jobs set published_at = now() where id = p_job;
+$$;
+-- A job's results for the publisher, whatever organization asked.
+create or replace function public.timing_job_results_for_publisher(p_job uuid)
+returns table (book text, chapter int, ok boolean, body jsonb)
+language sql stable security definer set search_path = '' as $$
+  select r.book, r.chapter, r.ok, r.body from public.timing_job_results r where r.job_id = p_job order by r.book, r.chapter;
+$$;
+-- The current document of an organization's item and the documents it names, for the publisher.
+create or replace function public.library_docs_for_publisher(p_org text, p_item text)
+returns table (hash text, body text, is_current boolean)
+language sql stable security definer set search_path = '' as $$
+  with cur as (select public._library_available(p_org, p_item) as h)
+  select d.hash, d.body, d.hash = (select h from cur) from public.library_documents d
+   where d.hash = (select h from cur) or d.hash = any (select unnest(c.deps) from public.library_documents c where c.hash = (select h from cur));
+$$;
+revoke all on function public.timing_jobs_to_publish(), public.timing_job_published(uuid), public.timing_job_results_for_publisher(uuid),
+  public.library_docs_for_publisher(text, text) from public, anon, authenticated;
+grant execute on function public.timing_jobs_to_publish(), public.timing_job_published(uuid), public.timing_job_results_for_publisher(uuid),
+  public.library_docs_for_publisher(text, text) to service_role;
+notify pgrst, 'reload schema';

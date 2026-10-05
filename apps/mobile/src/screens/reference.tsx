@@ -372,7 +372,9 @@ export function ReferenceSource(ctx: Ctx) {
   const label = recLabel(r, level);
   const open = jobs.filter((j) => !j.finished_at);
   const followed = it.source === 'subscription';
-  const mayAsk = canOrg && need.allowed && need.requests.length > 0 && !followed && open.length === 0;
+  // Following LangQuest's own source: the timings go to LangQuest's copy, for everyone who follows it.
+  const viaLangQuest = followed && it.subscription?.sourceOrgId === 'langquest' ? { org: 'langquest', item: it.subscription.sourceItemId } : null;
+  const mayAsk = canOrg && need.allowed && need.requests.length > 0 && (!followed || !!viaLangQuest) && open.length === 0;
 
   async function ask() {
     if (!it || !source || asking) return;
@@ -380,7 +382,8 @@ export function ReferenceSource(ctx: Ctx) {
     try {
       const versification = (docs.get(source.versification) as VersificationDoc | null)?.code ?? 'eng';
       for (const q of need.requests) {
-        await requestTimings(lib.orgId, { itemId: it.itemId, bibleId: q.bibleId, audioFileset: q.audioFileset, textFileset: q.textFileset, books: q.books, versification });
+        await requestTimings(lib.orgId, { itemId: it.itemId, bibleId: q.bibleId, audioFileset: q.audioFileset, textFileset: q.textFileset, books: q.books, versification,
+          ...(viaLangQuest ? { publishTo: viaLangQuest } : {}) });
       }
       ctx.toast(`Asked for verse timings for ${plural(need.requests.reduce((n, q) => n + q.books.length, 0), 'book')}. Progress shows here.`);
       await refresh();
@@ -430,7 +433,8 @@ export function ReferenceSource(ctx: Ctx) {
         <>
           <SectionLabel label="Generating timings" />
           {need.reason ? <Banner icon="lock" tone="amber" title="These timings can't be generated" body={need.reason} /> : null}
-          {followed && need.requests.length ? <Banner icon="link" title={`Follows ${it.subscription?.sourceOrgName ?? 'another organization'}`} body="Timings are added by whoever publishes it. Copy it to add your own." /> : null}
+          {followed && need.requests.length && !viaLangQuest ? <Banner icon="link" title={`Follows ${it.subscription?.sourceOrgName ?? 'another organization'}`} body="Timings are added by whoever publishes it. Copy it to add your own." /> : null}
+          {viaLangQuest && need.requests.length ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>This Bible follows LangQuest. Timings you ask for are added to LangQuest's copy, so every organization that follows it gets them.</Text> : null}
           {!need.reason && need.requests.length === 0 && detail ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Every book with audio has verse timings.</Text> : null}
           {!detail && !detailError ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Checking Bible Brain…</Text> : null}
           {mayAsk ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{`${plural(need.requests.reduce((n, q) => n + q.books.length, 0), 'book')} of audio without timings. Timings let translators hear one verse at a time.`}</Text> : null}

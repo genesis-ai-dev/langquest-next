@@ -8,7 +8,7 @@
 import {
   canonicalJson, isHash, validateDoc, withDeps,
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TimingDoc
-} from '@langquest-next/core';
+} from './libraryDocs';
 
 /** One row of `timing_job_results`. */
 export interface TimingResultRow {

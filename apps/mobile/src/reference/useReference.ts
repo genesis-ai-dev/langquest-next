@@ -14,7 +14,7 @@ import { failureMessage, noteExpected } from '../report';
 import { supabase } from '../supabase';
 import { BibleError } from '../bibleBrain';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
-import { timingPublication, type TimingPublication, type TimingResultRow } from './timings';
+import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
 
 /** The level a screen is at: the language in its params (when this phone has it open), else the organization. */
 export function levelOf(ctx: Ctx): Level {
@@ -158,10 +158,11 @@ export function useTimingJobs(orgId: string, itemId: string | null, enabled: boo
 }
 
 /** Ask for verse timings for some books of one source's audio. One open job per audio is enough; asking again returns it. */
-export async function requestTimings(orgId: string, c: { itemId: string; bibleId: string; audioFileset: string; textFileset: string | null; books: string[]; versification: string }): Promise<string> {
+export async function requestTimings(orgId: string, c: { itemId: string; bibleId: string; audioFileset: string; textFileset: string | null; books: string[]; versification: string; publishTo?: { org: string; item: string } }): Promise<string> {
   const { data, error } = await supabase.rpc('request_timings', {
     p_org: orgId, p_item: c.itemId, p_bible_id: c.bibleId, p_audio_fileset: c.audioFileset, p_text_fileset: c.textFileset,
-    p_books: c.books, p_versification: c.versification
+    p_books: c.books, p_versification: c.versification,
+    ...(c.publishTo ? { p_publish_org: c.publishTo.org, p_publish_item: c.publishTo.item } : {})
   });
   if (error) throw new CommandError(error.message);
   return data as string;

@@ -11,7 +11,7 @@ import {
   biblebrainItemId, legacyMigration, LEGACY_SOURCE, orgLevelCan, recActions, recLabel, recState, recUndo, recWrite, sourceFacts,
   sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../src/reference/model';
-import { timingPublication, type TimingResultRow } from '../src/reference/timings';
+import { timingPublication, type TimingResultRow } from '@langquest-next/core';
 import { offeredGuideSources } from '../src/reference/offered';
 import type { BibleDetail } from '../src/sources/bibleBrain';
 import type { SharedItem } from '../src/library/model';
