@@ -8,6 +8,7 @@
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 and ONB-5 (the
 // Settings rows back to them), CORE-12 (sign-out never strands work).
 import { signInName } from '../accounts';
+import { readHelp, type SignInHelp } from '../signInHelp';
 import { CommandError, decodeHlc, deriveKinds, kindOf, laneName, unitTitle, type Update } from '@langquest-next/core';
 import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -325,6 +326,33 @@ export function InboxHome(ctx: Ctx) {
   );
 }
 
+// ---- Getting back in, for an account without email (decisions.md 59) ---------------------------------
+
+/** Who invited this person, by the invite they redeemed: the one to ask on a new phone. */
+function useInviterName(ctx: Ctx): string | undefined {
+  const me = ctx.session.actorId;
+  const invite = Object.values(ctx.org.state?.invites ?? {}).find((i) => i.redeemedBy === me);
+  return invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
+}
+
+/**
+ * Whether a looked-after account has a password: one made by joining has
+ * none until its owner sets one (the `join` function marks it); older ones
+ * chose one when they joined. Null until read from the stored session.
+ */
+function useHasPassword(): [boolean | null, () => void] {
+  const [has, setHas] = useState<boolean | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setHas(data.session?.user.user_metadata?.['has_password'] !== false);
+    });
+    return () => { active = false; };
+  }, [tick]);
+  return [has, () => setTick((t) => t + 1)];
+}
+
 // ---- Settings (AUTH-7, AUTH-8, ONB-2, ONB-5) ------------------------------------------------------
 
 /** Account and app rows only; everything about running the org lives under Manage. */
@@ -335,6 +363,10 @@ export function SettingsHome(ctx: Ctx) {
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
   const { roleName, orgName, memberName } = useAccountLine(ctx);
+  const inviter = useInviterName(ctx);
+  const [hasPassword] = useHasPassword();
+  const [help, setHelp] = useState<SignInHelp | null>(null);
+  useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = names[s.actorId] ?? memberName ?? s.email?.split('@')[0] ?? 'You';
   const p = ctx.project;
   const syncSub = p.refused ? 'This account cannot sync this organization'
@@ -360,17 +392,29 @@ export function SettingsHome(ctx: Ctx) {
           <PersonAvatar look={personLook(s.actorId, name)} size={52} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={txt.h3} numberOfLines={1}>{name}</Text>
-            {/* A looked-after account signs in with its sign-in name; its address means nothing to the person. */}
-            <Text style={[txt.xs, !s.email && { color: TINT.amberText }]} numberOfLines={1}>
-              {signInName(s.email) ? `Sign-in name: ${signInName(s.email)}` : s.email ?? 'No email linked'}
+            {/* A looked-after account's address means nothing to the person (decisions.md 59). */}
+            <Text style={[txt.xs, (!s.email || s.isManaged) && { color: TINT.amberText }]} numberOfLines={1}>
+              {s.isManaged || !s.email ? 'No email yet' : s.email}
             </Text>
             <Text style={[txt.xs, { color: C.primary, fontWeight: '600' }]} numberOfLines={1}>{roleName} · {orgName}</Text>
           </View>
         </View>
+        {s.isManaged ? (
+          <View style={{ gap: 2 }}>
+            <Text style={txt.xs}>New phone? {inviter ?? 'The person who invited you'} or an admin can help you sign in.</Text>
+            {help ? (
+              <Text style={txt.xs}>Signed in on this phone with {help.helper ? `${help.helper}'s` : 'someone\'s'} help · {new Date(help.at).toLocaleDateString()}</Text>
+            ) : null}
+          </View>
+        ) : null}
       </Card>
       {/* One list in the order people need it (Hick's law, ADR-029): their profile, help, the rare switch, then Sign Out. */}
       <Group>
         <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
+        {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
+        {s.isManaged && hasPassword === false ? (
+          <Row icon="lock" label="Set a password" sub="If other people use this phone" onPress={() => ctx.go('profile_edit')} />
+        ) : null}
         {/* No push on the web yet: requests and feedback still reach the Inbox there. */}
         {Platform.OS !== 'web' ? (
           <Row icon="notif" label="Notifications" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
@@ -510,17 +554,28 @@ function useDiagnosticsSwitch(ctx: Ctx): { on: boolean | null; toggle: () => voi
 export function ProfileEdit(ctx: Ctx) {
   const names = useDisplayNames(ctx.session.actorId);
   const [name, setName] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [hasPassword, recheck] = useHasPassword();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const actions = useAccountActions(ctx.session.actorId);
   const pending = actions.filter((a) => a.kind === 'profile' && a.status !== 'sent').at(-1);
   const value = name ?? String(pending?.payload.displayName ?? names[ctx.session.actorId] ?? '');
+  const managed = ctx.session.isManaged;
+  const handle = signInName(ctx.session.email);
   async function save() {
     setBusy(true);
     setError('');
     try {
+      // A password goes to the server now (it needs a connection); the name syncs whenever it can.
+      if (managed && password) {
+        if (password.length < 6) { setError('Choose a password of 6 or more characters.'); return; }
+        const { error } = await supabase.auth.updateUser({ password, data: { has_password: true } });
+        if (error) { noteExpected('set password', error); setError(/fetch|network/i.test(error.message) ? 'Setting a password needs a connection.' : error.message); return; }
+        recheck();
+      }
       await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
-      ctx.toast('Profile saved. It syncs when you are connected.');
+      ctx.toast(managed && password ? 'Saved. You can sign in with your sign-in name and this password.' : 'Profile saved. It syncs when you are connected.');
       ctx.back();
     } catch (e) { setError(failure('save profile', e)); }
     finally { setBusy(false); }
@@ -536,8 +591,20 @@ export function ProfileEdit(ctx: Ctx) {
       <Field label="Full Name" value={value} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
       <View style={{ gap: space.xs }}>
         <Text style={txt.xsStrong}>Email</Text>
-        <Text style={txt.body}>{ctx.session.email ?? 'No email linked'}</Text>
+        {/* A looked-after account's address is not an email anyone can use (accounts.ts). */}
+        <Text style={txt.body}>{managed || !ctx.session.email ? 'No email yet' : ctx.session.email}</Text>
       </View>
+      {managed ? (
+        <View style={{ gap: space.xs }}>
+          <Field label={hasPassword ? 'New password (optional)' : 'Password (optional)'} value={password} onChangeText={setPassword}
+            placeholder="6 or more characters" secure autoCapitalize="none" />
+          <Text style={txt.xs}>
+            {password || hasPassword
+              ? `You sign in with ${handle ?? 'your sign-in name'} and this password. Write the name down.`
+              : 'Set one if other people use this phone, so you can sign back in after they do.'}
+          </Text>
+        </View>
+      ) : null}
       {pending?.status === 'failed' ? <Banner icon="flag" tone="amber" title="Your last change was not accepted" body={pending.error} /> : null}
       {pending?.status === 'queued' ? <Banner icon="cloud" title="Saved on this phone" body="It sends when you are connected." /> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
@@ -593,6 +660,10 @@ export function SignOutConfirm(ctx: Ctx) {
   const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Without an email or a password, getting back in takes a helper's code (decisions.md 59).
+  const inviter = useInviterName(ctx);
+  const [hasPassword] = useHasPassword();
+  const needsHelp = ctx.session.isManaged && hasPassword === false;
   async function signOut() {
     setBusy(true);
     try {
@@ -607,9 +678,11 @@ export function SignOutConfirm(ctx: Ctx) {
     ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
     : refused
       ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this phone.'
-      : FORGETS_ON_SIGN_OUT
-        ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
-        : 'You can sign back in anytime.';
+      : needsHelp
+        ? `To sign back in, you'll need a code from ${inviter ?? 'the person who invited you'} or an admin. If other people use this phone, set a password in Edit Profile first.`
+        : FORGETS_ON_SIGN_OUT
+          ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
+          : 'You can sign back in anytime.';
   return (
     <Screen bodyStyle={styles.centered}
       footer={

@@ -158,7 +158,9 @@ Phone state: one value, the **held key**, in `AsyncStorage` under
   account". The next account to sign in on this phone takes it.
 - `<profileId>`: that account joins, now or when the phone is next online.
 - A held key is dropped after it is used, when the server says it is
-  expired, used up or unknown, or 24 hours after it was scanned.
+  expired, used up or unknown, or when the invite expires (a week after it
+  was scanned, if the phone never reached the server; it was 24 hours
+  before decision 59).
 
 ## 5. Flows
 
