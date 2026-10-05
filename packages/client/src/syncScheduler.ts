@@ -7,6 +7,10 @@
  *   an event appended mid-push is never left waiting for the next poll.
  * - `connection(true)` when the realtime channel comes up: run now, then a
  *   long fallback poll. `connection(false)`: a shorter poll carries on.
+ * - `wake()` when the app comes back to the screen or the device says it
+ *   is online again: run now and forget the offline backoff, since the
+ *   reason for waiting may be gone (a browser also slows timers in a
+ *   hidden tab, so a backoff timer may be far behind).
  * - A run that reports offline backs off geometrically, with jitter so a
  *   room full of phones does not reconnect in lockstep; nothing here polls
  *   a dead radio every fifteen seconds. Any success resets the backoff.
@@ -95,6 +99,15 @@ export class SyncScheduler {
     this.live = connected;
     if (connected && !was) this.soon(0);
     else if (!connected && was && !this.running) this.schedule();
+  }
+
+  wake(): void {
+    if (this.running) {
+      this.dirty = true;
+      return;
+    }
+    this.offlineRuns = 0;
+    this.soon(0);
   }
 
   /** Consecutive offline runs so far; the UI reads it as "how long quiet". */

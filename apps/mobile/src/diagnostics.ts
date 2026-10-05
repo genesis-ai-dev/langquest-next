@@ -6,6 +6,7 @@ import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
 import { applyDiagnosticsOn, readDiagnosticsOn, saveDiagnosticsOn } from './diagnosticsSetting';
 import { getDiagStore, getStore } from './store';
+import { BUILD_ID } from './webBuild';
 import { supabase } from './supabase';
 
 // Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
@@ -55,10 +56,11 @@ async function context(): Promise<DiagContext> {
     os: Platform.OS,
     osVersion: c.Release ?? c.osVersion ?? String(Platform.Version),
     model: c.Model,
-    runtimeVersion: Updates.runtimeVersion,
-    updateId: Updates.updateId,
-    channel: Updates.channel,
-    embedded: Updates.isEmbeddedLaunch ? 'yes' : 'no',
+    // A browser has no expo-updates: its build is the commit the page was built from (webBuild.ts).
+    runtimeVersion: Platform.OS === 'web' ? BUILD_ID || undefined : Updates.runtimeVersion,
+    updateId: Platform.OS === 'web' ? undefined : Updates.updateId,
+    channel: Platform.OS === 'web' ? 'web' : Updates.channel,
+    embedded: Platform.OS !== 'web' && Updates.isEmbeddedLaunch ? 'yes' : 'no',
     reducerVersion: String(REDUCER_VERSION),
     protocolVersion: String(CLIENT_PROTOCOL_VERSION)
   });

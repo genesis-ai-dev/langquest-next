@@ -5,14 +5,19 @@
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-29",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
+  // The app's address (decisions.md 58), on the langquest.org zone in this
+  // account.
+  "routes": [{ "pattern": "next.langquest.org", "custom_domain": true }],
   "observability": { "enabled": true },
-  // The built page; only /api/* reaches the Worker first. The page alone:
-  // dist/ also holds the Vite-built Worker and a copy of .dev.vars, which
-  // must never be served.
+  // The app's web export (npm run export:web in apps/mobile, decisions.md
+  // 57): the page, its bundles, version.json and _headers. Only /api/*
+  // reaches the Worker first; every other path the page does not have is
+  // the page (single-page app). Its source maps are written elsewhere and
+  // never served.
   "assets": {
-    "directory": "./dist/client",
+    "directory": "../mobile/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
@@ -24,7 +29,8 @@
   // Set on the Worker by `npm run secrets -- production`, never at deploy;
   // a deploy fails while one is missing.
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
-  // One per organization (decision 44), holding its folded state in memory.
+  // One per organization (decision 44): reports and recent folds in memory,
+  // a rebuildable cache of them in its own SQLite.
   "durable_objects": {
     "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
   },
@@ -35,6 +41,7 @@
   // preview branch's ref once [remotes.preview] names it.
   "env": {
     "preview": {
+      "routes": [{ "pattern": "next-preview.langquest.org", "custom_domain": true }],
       "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
         "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]

@@ -87,11 +87,14 @@ export function Screen(props: {
   /** Body without its own scroll view (a list that virtualizes). */
   fixed?: boolean;
   bodyStyle?: StyleProp<ViewStyle>;
+  /** On a wide window, a column wider than the reading width (reports' tables and charts side by side). */
+  columnWidth?: number;
 }) {
   // A wide window keeps the phone's reading width: the body sits in a
   // centred column and the footer's actions stop stretching (decisions.md 55).
   // The scroll view itself stays full width, so it scrolls from anywhere.
   const wide = useLayout().kind !== 'phone';
+  const column = wide ? [styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null] : null;
   const reportFooter = useContext(FooterHeightContext);
   const hasFooter = !!props.footer;
   useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
@@ -99,16 +102,16 @@ export function Screen(props: {
     <KeyboardSafe style={styles.screen}>
       {props.header}
       {props.fixed ? (
-        <View style={[{ flex: 1 }, wide && styles.column, props.bodyStyle]}>{props.children}</View>
+        <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, wide && styles.column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {props.children}
         </ScrollView>
       )}
       {props.footer ? (
         <View style={[styles.footer, { paddingBottom: space.md }]}
           onLayout={reportFooter ? (e) => reportFooter(e.nativeEvent.layout.height) : undefined}>
-          {wide ? <View style={styles.column}><View style={styles.footerActions}>{props.footer}</View></View> : props.footer}
+          {wide ? <View style={column}><View style={styles.footerActions}>{props.footer}</View></View> : props.footer}
         </View>
       ) : null}
     </KeyboardSafe>
@@ -164,6 +167,8 @@ export function Header(props: {
   onBack?: () => void;
   close?: boolean;
   action?: ReactNode;
+  /** Match a Screen given the same `columnWidth`. */
+  columnWidth?: number;
 }) {
   const wide = useLayout().kind !== 'phone';
   const content = (
@@ -198,7 +203,7 @@ export function Header(props: {
     </>
   );
   // Wide: the white bar spans the window, its contents line up with the body's column.
-  if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column]}>{content}</View></View>;
+  if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
   return <View style={styles.header}>{content}</View>;
 }
 

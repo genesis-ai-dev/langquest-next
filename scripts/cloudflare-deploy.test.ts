@@ -43,8 +43,8 @@ describe('cloudflare deploy', () => {
     }
   });
 
-  it('serves only the built page, never the Vite-built Worker or its copy of .dev.vars beside it', () => {
-    expect(parseJsonc(read('apps/web/wrangler.jsonc')).assets.directory).toBe('./dist/client');
+  it('serves the app\'s web export, which holds no Worker code, .dev.vars or source maps', () => {
+    expect(parseJsonc(read('apps/web/wrangler.jsonc')).assets.directory).toBe('../mobile/dist');
   });
 
   it('keeps every secret out of vars, where a deploy would publish it', () => {

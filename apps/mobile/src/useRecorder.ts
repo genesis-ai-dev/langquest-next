@@ -4,11 +4,17 @@ import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import MicrophoneEnergy, { type VADConfig } from '../modules/microphone-energy';
+import { preferredRecordingType } from './audioFormat';
 import { getBlobStore } from './blobs';
 import { getRecordingJournal } from './recordingJournal';
 import type { JournalTarget } from './recordingJournalCore';
+import { storableRecording } from './webAudio';
+
+const WEB = Platform.OS === 'web';
+/** A browser records MP4 when it can (audioFormat.ts); otherwise the take is converted to WAV when it stops. */
+const WEB_TYPE = WEB && typeof MediaRecorder !== 'undefined' ? preferredRecordingType((t) => MediaRecorder.isTypeSupported(t)) : undefined;
 
 export interface RecordedCard {
   /** Stable id chosen before any save step; the handler uses it as recordingId. */
@@ -46,7 +52,8 @@ export function isRecording(): boolean {
  */
 export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget) {
   const recorder = useAudioRecorder({
-    ...RecordingPresets.HIGH_QUALITY, directory: 'document'
+    ...RecordingPresets.HIGH_QUALITY, directory: 'document',
+    ...(WEB_TYPE ? { web: { mimeType: WEB_TYPE, bitsPerSecond: 128000 } } : {})
   });
   const [vadOn, setVadOn] = useState(false);
   const [vadCapturing, setVadCapturing] = useState(false);
@@ -180,7 +187,11 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         const uri = recorder.uri;
         await MicrophoneEnergy.stopEnergyDetection().catch(fail);
         await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true }).catch(fail);
-        if (uri && durationMs >= 200) await deliver({ id: Crypto.randomUUID(), uri, format: 'm4a', durationMs });
+        if (uri && durationMs >= 200) {
+          // A phone records AAC in MP4; a browser records what it can, made playable everywhere first.
+          const stored = WEB ? await storableRecording(uri) : { uri, format: 'm4a' as const };
+          await deliver({ id: Crypto.randomUUID(), ...stored, durationMs });
+        }
       } catch (e) { fail(e); }
       finally { work(-1); }
     })();
@@ -264,19 +275,34 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
       })
     ];
+    // A phone stops recording when the app leaves the screen. A browser tab
+    // keeps the microphone while another tab is in front, so the web stops
+    // only when the page itself goes.
+    const stopAll = () => { void manualUp(); void stopVad(); };
     const appState = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') { void manualUp(); void stopVad(); }
+      if (state !== 'active' && !WEB) stopAll();
     });
+    if (WEB) window.addEventListener('pagehide', stopAll);
     return () => {
       mounted.current = false;
       wanted.current = false;
       appState.remove();
+      if (WEB) window.removeEventListener('pagehide', stopAll);
       // Keep native listeners through the final segment emitted by stop.
       void Promise.all([manualUp(), stopVad()]).finally(() => {
         subscriptions.forEach((subscription) => subscription.remove());
       });
     };
   }, [deliver, fail, manualUp, stopVad]);
+
+  // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first.
+  const recording = manualOn || vadOn || working > 0;
+  useEffect(() => {
+    if (!WEB || !recording) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [recording]);
 
   return {
     vadOn, vadCapturing, manualOn, error, pauseDuration, cutoff,

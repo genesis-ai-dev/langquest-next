@@ -1,7 +1,8 @@
 # Cloudflare
 
-Cloudflare Workers Builds deploys the invite-email Worker and the dashboard
-(decisions.md 43): merging to `main` deploys the production Workers, and
+Cloudflare Workers Builds deploys the invite-email Worker and the web app's
+Worker, `langquest-next-dashboard`, which serves the app's web export and the
+reports API (decisions.md 43, 58): merging to `main` deploys the production Workers, and
 merging to `develop` deploys their `-preview` copies (decisions.md 50,
 `docs/environments.md`). There is no GitHub Actions workflow and no API token
 in GitHub. Cloudflare generates the build token. Builds have no secrets at
@@ -17,9 +18,15 @@ secrets `npm run secrets` set on it (decisions.md 51).
 | Build command | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
 | Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `packages/core/*`, `packages/client/*`, `apps/mobile/.env.production`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | as invite email | as dashboard, with `apps/mobile/.env.preview` |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/client/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | as invite email | as dashboard |
 
-Leave the default dependency install on. Branch builds stay off so a branch
+Leave the default dependency install on. The web app's deploy command builds
+the Expo web export first (`npm run export:web`, a few minutes), reading
+`apps/mobile/.env.<env>` and the commit from `WORKERS_CI_COMMIT_SHA`; it fails
+if the JavaScript is over its budget. Its custom domains,
+`next.langquest.org` and `next-preview.langquest.org`, are `routes` in
+`apps/web/wrangler.jsonc` on the `langquest.org` zone in this account; a
+deploy attaches them. Branch builds stay off so a branch
 never deploys over preview or production.
 
 The preview Workers are the `env.preview` section of each wrangler file

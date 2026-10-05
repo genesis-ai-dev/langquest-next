@@ -8,7 +8,7 @@ import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from './theme';
 import { UserChip } from './UserChip';
 
-const TAB_ICONS: Record<TabId, IconName> = { work: 'work', map: 'map', manage: 'home', inbox: 'notif', settings: 'settings' };
+const TAB_ICONS: Record<TabId, IconName> = { work: 'work', map: 'map', reports: 'progress', manage: 'home', inbox: 'notif', settings: 'settings' };
 
 export function NavChrome(props: {
   variant: 'bar' | 'rail' | 'sidebar';
@@ -20,11 +20,13 @@ export function NavChrome(props: {
 }) {
   if (props.variant === 'sidebar') {
     return (
-      <View style={styles.sidebar} accessibilityRole="tablist">
+      <View style={styles.sidebar}>
         <View style={styles.sidebarHead}>
           {props.orgName ? <Text style={txt.h3} numberOfLines={2}>{props.orgName}</Text> : null}
           {props.actorId ? <View style={{ alignSelf: 'flex-start' }}><UserChip id={props.actorId} /></View> : null}
         </View>
+        {/* Only the tabs are in the tab list; the account chip beside them is a button of its own. */}
+        <View accessibilityRole="tablist" style={{ gap: 2 }}>
         {props.tabs.map((t) => {
           const active = t.id === props.active;
           const color = active ? C.primary : C.dark;
@@ -38,6 +40,7 @@ export function NavChrome(props: {
             </Pressable>
           );
         })}
+        </View>
       </View>
     );
   }

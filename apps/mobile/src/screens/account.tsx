@@ -13,7 +13,7 @@ import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { deleteAccount } from '../accountDeletion';
 import { groupByRead, updateText } from '../accountText';
@@ -33,6 +33,7 @@ import { noteExpected, reportError, failureMessage } from '../report';
 import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { homeScreenFor } from '../session';
+import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -370,9 +371,12 @@ export function SettingsHome(ctx: Ctx) {
       {/* One list in the order people need it (Hick's law, ADR-029): their profile, help, the rare switch, then Sign Out. */}
       <Group>
         <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
-        <Row icon="notif" label="Notifications" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
-          void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
-        }} />
+        {/* No push on the web yet: requests and feedback still reach the Inbox there. */}
+        {Platform.OS !== 'web' ? (
+          <Row icon="notif" label="Notifications" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
+            void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
+          }} />
+        ) : null}
         {homeScreenFor(s) === 'my_work' ? (
           <Row icon="play" label="Getting started" sub="Your first-day checklist" onPress={() => ctx.go('my_work', { showGettingStarted: '1' })} />
         ) : null}
@@ -595,6 +599,7 @@ export function SignOutConfirm(ctx: Ctx) {
       await unregisterNotifications();
       const result = await supabase.auth.signOut();
       if (result.error) throw result.error;
+      await forgetThisBrowser();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0;
@@ -602,7 +607,9 @@ export function SignOutConfirm(ctx: Ctx) {
     ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
     : refused
       ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this phone.'
-      : 'You can sign back in anytime.';
+      : FORGETS_ON_SIGN_OUT
+        ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
+        : 'You can sign back in anytime.';
   return (
     <Screen bodyStyle={styles.centered}
       footer={
@@ -653,7 +660,7 @@ export function DeleteAccount(ctx: Ctx) {
       await deleteAccount(ctx.session.actorId, {
         deleteOnServer: async () => (await supabase.rpc('delete_my_account')).error?.message ?? null,
         storage: AsyncStorage,
-        signOutHere: async () => { await supabase.auth.signOut({ scope: 'local' }); }
+        signOutHere: async () => { await supabase.auth.signOut({ scope: 'local' }); await forgetThisBrowser(); }
       });
     } catch (e) { setError(failure('delete account', e)); setBusy(false); }
   }

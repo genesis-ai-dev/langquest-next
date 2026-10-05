@@ -54,19 +54,50 @@ function expoDriver(db: SQLite.SQLiteDatabase): SqlDriver {
 
 let storePromise: Promise<SqliteStore> | undefined;
 let diagPromise: Promise<SqliteDiagStore> | undefined;
+/** The open databases, so signing out on the web can close and delete them. */
+const opened = new Map<string, SQLite.SQLiteDatabase>();
+const open = (name: string) => SQLite.openDatabaseAsync(name).then((db) => { opened.set(name, db); return db; });
+
+/**
+ * On the web nothing may open SQLite before this tab holds the database
+ * (webGate.tsx): expo-sqlite's file pool claims its handles for the life of
+ * the page, so one opened in a second tab fails, and that tab's database
+ * stays broken until it reloads. Phones open at once.
+ */
+let allow: () => void = () => {};
+const allowed: Promise<void> = Platform.OS === 'web' ? new Promise((resolve) => { allow = resolve; }) : Promise.resolve();
+export function allowStorage(): void {
+  allow();
+}
+
+const failureListeners = new Set<(error: unknown) => void>();
+/** Hear when the device's storage could not be opened; the next `getStore` tries again. */
+export function onStoreFailure(listener: (error: unknown) => void): () => void {
+  failureListeners.add(listener);
+  return () => failureListeners.delete(listener);
+}
+function failed<T>(forget: () => void) {
+  return (error: unknown): Promise<T> => {
+    forget();
+    for (const l of failureListeners) l(error);
+    throw error;
+  };
+}
 
 /**
  * Field diagnostics waiting for delivery (diagnostics.ts). Their own file:
  * a diagnostics write must never hold a lock an event commit is waiting for.
  */
 export function getDiagStore(): Promise<SqliteDiagStore> {
-  diagPromise ??= SQLite.openDatabaseAsync('langquest-diagnostics.db').then((db) => SqliteDiagStore.open(expoDriver(db)));
+  // Diagnostics fail quietly (diagnostics.ts); only the event log tells the screen.
+  diagPromise ??= allowed.then(() => open('langquest-diagnostics.db')).then((db) => SqliteDiagStore.open(expoDriver(db)))
+    .catch((error: unknown) => { diagPromise = undefined; throw error; });
   return diagPromise;
 }
 
 /** One local event log per device, shared by every open project. */
 export function getStore(): Promise<SqliteStore> {
-  storePromise ??= SQLite.openDatabaseAsync('langquest-next.db').then(async (db) => {
+  storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
     const driver = expoDriver(db);
     const store = await SqliteStore.open(driver);
     // The journey oracle reads the device log directly (smart tests, web dev
@@ -78,6 +109,21 @@ export function getStore(): Promise<SqliteStore> {
       }
     };
     return store;
-  });
+  }).catch(failed<SqliteStore>(() => { storePromise = undefined; }));
   return storePromise;
+}
+
+/**
+ * Web only, signing out on a shared computer (decisions.md 11, amended):
+ * close and delete both databases. Callers reload the page afterwards, so
+ * nothing holds a handle to what was closed.
+ */
+export async function deleteLocalDatabases(): Promise<void> {
+  storePromise = undefined;
+  diagPromise = undefined;
+  for (const name of ['langquest-next.db', 'langquest-diagnostics.db']) {
+    await opened.get(name)?.closeAsync().catch(() => undefined);
+    opened.delete(name);
+    await SQLite.deleteDatabaseAsync(name);
+  }
 }

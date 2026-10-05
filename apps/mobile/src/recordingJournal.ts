@@ -15,7 +15,7 @@ import {
 const FILE_NAME = 'recording-journal.json';
 
 export class RecordingJournal {
-  // The legacy file to import; web (a test target) has no files and nothing to import.
+  // The legacy file to import; the web never had one.
   private readonly file = Platform.OS === 'web' ? null : new File(Paths.document, FILE_NAME);
   private entries: JournalEntry[] | null = null;
   private chain: Promise<unknown> = Promise.resolve();
@@ -68,7 +68,9 @@ export class RecordingJournal {
   async resume(partition: { orgId: string; projectId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
     const result = await resumeEntries([...(await this.all())], partition, {
       ...deps,
-      // On web a recording's blob: URL does not outlive the page, so after a reload there is nothing to resume.
+      // On the web a recording's blob: URL does not outlive the page. Once
+      // ingested its bytes are in the browser's files (blobs.ts) and it
+      // resumes by hash above this check; before that, a reload loses it.
       fileExists: (uri) => { if (Platform.OS === 'web') return false; try { return new File(uri).exists; } catch { return false; } },
       save: (entry) => this.put(entry)
     });

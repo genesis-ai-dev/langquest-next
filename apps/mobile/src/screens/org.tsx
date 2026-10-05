@@ -11,12 +11,13 @@
 import { CommandError, deriveFlow, emptyState, kindOf, partitionOfLane, isMoreOpen, keyTermsFor, laneName, languageProgress, LICENSE_INFO, materialsFor, mayChangeLicense, libraryItemView, orgLicense, SEED_ROLES, type LanguageProgress, type License, type Role, type Scope, type ScopeLevel, type EventSpec, type TemplateDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Share, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { choiceLine, laneTemplateOf, libraryChoices, STARTER_TEMPLATE } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
+import { APP_URL } from '../appUrl';
 import { signInUri } from '../inviteCode';
 import {
   Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
@@ -38,9 +39,12 @@ import { languagesToList } from '../languages';
 import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToPartition } from '../partitionWriter';
 import { contractsFor } from '../screenContracts';
+import { laneFigures } from '../orgFigures';
 import { edgeAllowed } from '../session';
+import { shareText } from '../share';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT } from '../theme';
+import { useOrgSummary } from '../useOrgSummary';
 import { PersonAvatar, usePerson } from '../UserChip';
 
 /**
@@ -53,15 +57,16 @@ const failure = failureMessage;
 
 /**
  * Names and progress for the open organization, derived once per fold.
- * Every language the organization lists is here (docs/decisions.md 37);
- * progress is known for the languages in the open partition only, since a
- * phone pulls just the language it has open.
+ * Every language the organization lists is here (docs/decisions.md 37). A
+ * phone pulls just the language it has open, so the others' progress comes
+ * from the dashboard's server when it can be reached (decision 44).
  */
 function useOrgView(ctx: Ctx) {
   const state = ctx.project.state;
   const org = ctx.org.state;
   const projectId = ctx.project.projectId;
-  const progress = useMemo(() => {
+  const summary = useOrgSummary(ctx.session.actorId, ctx.project.orgId);
+  const local = useMemo(() => {
     const out = new Map<string, LanguageProgress>();
     if (!state) return out;
     const idx = indexesFor(state);
@@ -75,8 +80,10 @@ function useOrgView(ctx: Ctx) {
     // laneLabel reads state and names.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx.languages, state, names, ctx.project.projectId]);
+  // The open language from this phone's fold, the others from the dashboard's server (decision 44).
+  const progress = useMemo(() => new Map([...laneFigures(lanes, local, summary)].map(([laneId, f]) => [laneId, f.progress])), [lanes, local, summary]);
   const orgName = org?.org?.value.name ?? 'Organization';
-  /** Progress of a language this phone has open; null for the others. */
+  /** Progress of a language, folded here or from the server; null when neither knows it. */
   const laneProgress = (laneId: string): HomeProgress | null => progress.get(laneId) ?? null;
   const allKnown = lanes.every((l) => progress.has(l));
   const orgProgress = allKnown ? sumProgress(lanes.map((l) => progress.get(l)!)) : null;
@@ -784,7 +791,7 @@ function HelpSignIn(props: { memberId: string; who: string }) {
       <SectionLabel label="Signing in" />
       {key ? (
         <Card style={{ alignItems: 'center' }}>
-          <QRCode value={signInUri(key.code)} size={200} backgroundColor={C.white} color={C.dark} />
+          <QRCode value={signInUri(key.code, APP_URL)} size={200} backgroundColor={C.white} color={C.dark} />
           <Text style={txt.h3}>Sign-in name: {key.signInName}</Text>
           <Text style={[txt.xs, { textAlign: 'center' }]}>
             On their phone, {props.who} taps Scan a code on Sign In, scans this, and chooses a new password. It works once, for one hour.
@@ -841,7 +848,7 @@ export function InviteQr(ctx: Ctx) {
   const params = { level, ...(ctx.params['laneId'] ? { laneId: ctx.params['laneId'] } : {}) };
   // The link carries the org and the token only: a scanner shows nothing a
   // forwarded link could have altered. The name stays on this screen.
-  const uri = invite ? inviteUri(ctx.project.orgId, invite.token) : '';
+  const uri = invite ? inviteUri(ctx.project.orgId, invite.token, APP_URL) : '';
   return (
     <Screen header={<Header title="Invite by QR" sub={role ? role.name : 'Role and name only'}
       onBack={step === 1 && !invite ? () => setStep(0) : ctx.back} />}
@@ -889,7 +896,10 @@ export function InviteQr(ctx: Ctx) {
             <Text style={txt.xsStrong}>Or type this code</Text>
             <Text selectable style={[txt.sm, { fontFamily: 'Courier' }]}>{invite.token}</Text>
             <Text style={txt.xs}>Shown once: leaving this screen loses the code. {audience === 'group' ? `Up to ${GROUP_USES} people can use it` : 'It can be used once'}, until {new Date(invite.expiresAt).toDateString()}.</Text>
-            <SmallBtn label="Share invite" icon="share" onPress={() => void Share.share({ message: uri })} />
+            <SmallBtn label="Share invite" icon="share" onPress={() => void shareText(uri).then((r) => {
+              if (r === 'copied') ctx.toast('Invite link copied. Paste it into a message.');
+              else if (r === 'failed') ctx.toast('Could not share it. Type the code above instead.');
+            })} />
           </Card>
         </>
       ) : null}

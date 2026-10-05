@@ -276,11 +276,10 @@ langquest-next/
                      SupabaseTransport; unit tests on a fake server plus an
                      integration test against local Supabase
   apps/mobile/       Expo app; SQLite EventStore, blob store, screens
-  apps/web/          progress dashboard (Vite + React) and its Cloudflare
-                     Worker: one Durable Object per org folds its partitions
-                     and serves the reports each person may view; the page
-                     never folds, and writes only a language's country and
-                     target, online, via SyncClient
+  apps/web/          the Cloudflare Worker that serves the app's web export
+                     (decisions 57, 58) and the reports API: one Durable
+                     Object per org folds its partitions and serves the
+                     reports each person may view (decision 44)
   server/            supabase migrations (events, snapshots, RPCs), smoke.sql
   docs/              decisions
 ```

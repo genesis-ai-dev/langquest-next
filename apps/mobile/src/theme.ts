@@ -11,7 +11,8 @@ export const C = {
   soft: '#8B6FE8',
   bg: '#F4F2FA',
   dark: '#1C1440',
-  muted: '#7D72A8',
+  /** The demo's #7D72A8 darkened to read at 4.5:1 on white, the ground and `light` (WCAG AA; decisions.md 58). */
+  muted: '#6E629E',
   border: '#E6E2F3',
   card: '#FFFFFF',
   light: '#F0EAFF',
@@ -101,7 +102,9 @@ export const breakpoint = { tablet: 768, desktop: 1100 } as const;
 
 /** Widths on wide windows: the content column, a sheet shown as a dialog, footer actions, nav chrome, the list pane. */
 export const measure = {
-  column: 720, sheet: 560, action: 360, toast: 480, rail: 88, sidebar: 248, paneMin: 320, paneMax: 400, chapterTile: 72
+  column: 720, sheet: 560, action: 360, toast: 480, rail: 88, sidebar: 248, paneMin: 320, paneMax: 400, chapterTile: 72,
+  /** Reports read across a wide window: tables and charts side by side. */
+  report: 1120
 } as const;
 
 /**

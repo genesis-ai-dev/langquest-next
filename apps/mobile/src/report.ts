@@ -44,7 +44,7 @@ export function installGlobalHandlers(): void {
   installed = true;
   const g = globalThis as unknown as {
     ErrorUtils?: { getGlobalHandler: () => (e: unknown, fatal?: boolean) => void; setGlobalHandler: (h: (e: unknown, fatal?: boolean) => void) => void };
-    addEventListener?: (type: string, listener: (event: { reason?: unknown }) => void) => void;
+    addEventListener?: (type: string, listener: (event: { reason?: unknown; error?: unknown }) => void) => void;
   };
   const previous = g.ErrorUtils?.getGlobalHandler();
   g.ErrorUtils?.setGlobalHandler((e, fatal) => {
@@ -52,6 +52,8 @@ export function installGlobalHandlers(): void {
     previous?.(e, fatal);
   });
   g.addEventListener?.('unhandledrejection', (event) => { reportError('unhandled promise', event.reason); });
+  // A browser has no ErrorUtils: an error thrown outside React and outside a promise arrives here.
+  if (typeof document !== 'undefined') g.addEventListener?.('error', (event) => { reportError('global (web)', event.error); });
 }
 
 /**

@@ -3,6 +3,7 @@ import { applyOrgEvent, emptyOrgState, foldOrg, ORG_PARTITION, REDUCER_VERSION, 
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getStore } from './store';
+import { onWake } from './wake';
 import { supabase } from './supabase';
 import { diagnostics } from './diagnostics';
 
@@ -67,6 +68,9 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
     if (changed) await refresh();
     setSettled(true);
   }, [refresh]);
+
+  // Back on screen or back online: sync now rather than at the end of a backoff.
+  useEffect(() => onWake(() => schedulerRef.current?.wake()), []);
 
   useEffect(() => {
     let cancelled = false;

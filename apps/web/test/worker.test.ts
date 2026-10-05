@@ -1,6 +1,8 @@
-import { encodeHlc, REDUCER_VERSION, SEED_ROLES, takeSnapshot, type AnyEvent } from '@langquest-next/core';
+import { DatabaseSync } from 'node:sqlite';
+import { encodeHlc, REDUCER_VERSION, REPORT_VERSION, SEED_ROLES, takeSnapshot, type AnyEvent } from '@langquest-next/core';
 import { handleApi, type ApiDeps } from '../worker/api';
-import { OrgFolder, type Source } from '../worker/orgFolder';
+import { MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
+import { SqlCache, splitText } from '../worker/sqlCache';
 
 /**
  * The dashboard's server (decision 44): who gets which languages, and how
@@ -14,6 +16,7 @@ class FakeLog implements Source {
   readonly partitions = new Map<string, AnyEvent[]>();
   readonly snapshots = new Map<string, string>();
   readonly pulls: { projectId: string; after: number }[] = [];
+  headCalls = 0;
   private seq = 0;
 
   add(projectId: string, type: string, payload: unknown, id = `e${this.seq + 1}`): string {
@@ -33,6 +36,12 @@ class FakeLog implements Source {
     this.pulls.push({ projectId, after });
     await Promise.resolve();
     return (this.partitions.get(projectId) ?? []).filter((e) => orgId === ORG && e.serverSeq! > after).slice(0, limit);
+  }
+
+  /** What partition_heads answers; a log without it is pulled to find out. */
+  async heads(orgId: string) {
+    this.headCalls += 1;
+    return orgId === ORG ? Object.fromEntries([...this.partitions].map(([id, list]) => [id, list.length])) : {};
   }
 
   async snapshotMeta(_org: string, projectId: string, reducerVersion: number) {
@@ -61,7 +70,12 @@ function orgLog(): FakeLog {
   return log;
 }
 
-const lanes = (out: { rows: { laneId: string }[] }) => out.rows.map((r) => r.laneId);
+const lanes = (out: { rows: { laneId: string }[] } | null) => out!.rows.map((r) => r.laneId);
+
+/** The same log without partition_heads, as before the RPC existed. */
+const withoutHeads = (log: FakeLog): Source => ({
+  pull: log.pull.bind(log), snapshotMeta: log.snapshotMeta.bind(log), snapshotChunk: log.snapshotChunk.bind(log)
+});
 
 describe('OrgFolder', () => {
   it('gives each person only the languages they may view', async () => {
@@ -70,7 +84,7 @@ describe('OrgFolder', () => {
     expect(lanes(await folder.reportsFor('dinka'))).toEqual(['din']);
     // Joined the partition the older way, with no org membership.
     expect(lanes(await folder.reportsFor('old'))).toEqual(['nus']);
-    expect(lanes(await folder.reportsFor('stranger'))).toEqual([]);
+    expect(await folder.reportsFor('stranger')).toBeNull();
     expect(folder.knows('stranger')).toBe(false);
     expect(folder.knows('old')).toBe(true);
   });
@@ -81,24 +95,24 @@ describe('OrgFolder', () => {
     log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Thuɔŋjäŋ' });
     const out = await new OrgFolder(log, ORG).reportsFor('admin');
     expect(log.pulls.filter((p) => p.projectId === 'din')).toEqual([{ projectId: 'din', after: 1 }]);
-    expect(out.rows.find((r) => r.laneId === 'din')?.report.name).toBe('Thuɔŋjäŋ');
+    expect(out!.rows.find((r) => r.laneId === 'din')?.report.name).toBe('Thuɔŋjäŋ');
   });
 
   it('answers from memory for a minute, then catches up from its cursor', async () => {
     let now = Date.UTC(2026, 8, 30, 12);
     const log = orgLog();
-    const folder = new OrgFolder(log, ORG, () => now);
+    const folder = new OrgFolder(withoutHeads(log), ORG, new MemoryCache(), () => now);
     const first = await folder.reportsFor('admin');
     const pulled = log.pulls.length;
     log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Renamed' });
     now += 30_000;
-    expect((await folder.reportsFor('admin')).rows[0]!.report.name).toBe('DIN');
+    expect((await folder.reportsFor('admin'))!.rows[0]!.report.name).toBe('DIN');
     expect(log.pulls.length).toBe(pulled);
     now += 31_000;
     const later = await folder.reportsFor('admin');
-    expect(later.rows[0]!.report.name).toBe('Renamed');
+    expect(later!.rows[0]!.report.name).toBe('Renamed');
     expect(log.pulls.slice(pulled).find((p) => p.projectId === 'din')).toEqual({ projectId: 'din', after: 1 });
-    expect(Date.parse(later.asOf) - Date.parse(first.asOf)).toBe(61_000);
+    expect(Date.parse(later!.asOf) - Date.parse(first!.asOf)).toBe(61_000);
   });
 
   it('shares one pass among requests that arrive together', async () => {
@@ -106,6 +120,7 @@ describe('OrgFolder', () => {
     const folder = new OrgFolder(log, ORG);
     await Promise.all([folder.reportsFor('admin'), folder.reportsFor('dinka'), folder.reportsFor('old')]);
     expect(log.pulls.filter((p) => p.projectId === '_org')).toHaveLength(1);
+    expect(log.headCalls).toBe(1);
   });
 
   it('a fresh request during a pass waits for one that starts after it, so a save just made is in it', async () => {
@@ -114,19 +129,142 @@ describe('OrgFolder', () => {
     const running = folder.reportsFor('admin');
     log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Saved just now' });
     const [a, b] = await Promise.all([folder.reportsFor('admin', true), folder.reportsFor('dinka', true), running]);
-    expect(a.rows[0]!.report.name).toBe('Saved just now');
-    expect(b.rows[0]!.report.name).toBe('Saved just now');
-    expect(log.pulls.filter((p) => p.projectId === '_org')).toHaveLength(2);
+    expect(a!.rows[0]!.report.name).toBe('Saved just now');
+    expect(b!.rows[0]!.report.name).toBe('Saved just now');
+    expect(log.headCalls).toBe(2);
   });
 
   it('refolds a partition when a redaction targets something already folded', async () => {
     const log = orgLog();
-    const folder = new OrgFolder(log, ORG);
+    const folder = new OrgFolder(withoutHeads(log), ORG);
     const named = log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Mistake' });
-    expect((await folder.reportsFor('admin')).rows[0]!.report.name).toBe('Mistake');
+    expect((await folder.reportsFor('admin'))!.rows[0]!.report.name).toBe('Mistake');
     log.add('din', 'v1.Redacted', { eventId: named });
-    expect((await folder.reportsFor('admin', true)).rows[0]!.report.name).toBe('DIN');
+    expect((await folder.reportsFor('admin', true))!.rows[0]!.report.name).toBe('DIN');
     expect(log.pulls.filter((p) => p.projectId === 'din').map((p) => p.after)).toEqual([0, 2, 0]);
+  });
+});
+
+describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
+  const at = Date.UTC(2026, 9, 3, 12);
+
+  it('asks for the heads and pulls only the partitions that moved', async () => {
+    let now = at;
+    const log = orgLog();
+    const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now);
+    await folder.reportsFor('admin');
+    log.pulls.length = 0;
+    log.add('nus', 'v1.LaneNamed', { laneId: 'nus', name: 'Naath' });
+    now += 61_000;
+    const out = await folder.reportsFor('admin');
+    expect(log.pulls).toEqual([{ projectId: 'nus', after: 2 }]);
+    expect(out!.rows.find((r) => r.laneId === 'nus')?.report.name).toBe('Naath');
+  });
+
+  it('wakes from its cache with one heads query and no pulls when nothing moved', async () => {
+    const log = orgLog();
+    const cache = new MemoryCache();
+    const first = await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
+    log.pulls.length = 0;
+    log.headCalls = 0;
+    // A new object after an eviction: empty memory, the same storage.
+    const woken = await new OrgFolder(log, ORG, cache, () => at + 3_600_000).reportsFor('admin');
+    expect(log.headCalls).toBe(1);
+    expect(log.pulls).toEqual([]);
+    expect(woken!.rows.map((r) => r.report.name)).toEqual(first!.rows.map((r) => r.report.name));
+    expect(lanes(await new OrgFolder(log, ORG, cache, () => at).reportsFor('dinka'))).toEqual(['din']);
+  });
+
+  it('catches up a woken partition from its cached fold, not from the start', async () => {
+    const log = orgLog();
+    const cache = new MemoryCache();
+    await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
+    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Later' });
+    log.pulls.length = 0;
+    const out = await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
+    expect(log.pulls).toEqual([{ projectId: 'din', after: 1 }]);
+    expect(out!.rows[0]!.report.name).toBe('Later');
+  });
+
+  it('refolds the reports of a partition that did not move when the day turns', async () => {
+    const log = orgLog();
+    const cache = new MemoryCache();
+    await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
+    const tomorrow = await new OrgFolder(log, ORG, cache, () => at + 86_400_000).reportsFor('admin');
+    expect(log.pulls.filter((p) => p.after > 0)).toEqual([]);
+    expect(JSON.parse((await cache.get('summary:din'))!).day).toBe('2026-10-04');
+    expect(tomorrow!.rows).toHaveLength(2);
+  });
+
+  it('ignores what another reducer or report version cached', async () => {
+    const log = orgLog();
+    const cache = new MemoryCache();
+    await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
+    for (const [key, text] of cache.data) cache.data.set(key, JSON.stringify({ ...JSON.parse(text), v: REDUCER_VERSION - 1, rv: REPORT_VERSION - 1 }));
+    log.pulls.length = 0;
+    await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
+    expect(log.pulls.map((p) => p.after)).toEqual([0, 0, 0]);
+  });
+
+  it('writes a fold when it is new, after a redaction, and then only every so often', async () => {
+    let now = at;
+    const log = orgLog();
+    const cache = new MemoryCache();
+    const folder = new OrgFolder(log, ORG, cache, () => now);
+    const named = log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Mistake' });
+    await folder.reportsFor('admin');
+    const cachedCursor = () => (JSON.parse(cache.data.get('state:din')!) as { cursor: number }).cursor;
+    expect(cachedCursor()).toBe(2);
+    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Small change' });
+    await folder.reportsFor('admin', true);
+    expect(cachedCursor()).toBe(2);
+    expect(JSON.parse(cache.data.get('summary:din')!).cursor).toBe(3);
+    log.add('din', 'v1.Redacted', { eventId: named });
+    await folder.reportsFor('admin', true);
+    expect(cachedCursor()).toBe(4);
+    expect(cache.data.get('state:din')).not.toContain('Mistake');
+    for (let i = 0; i < STATE_SAVE_EVERY; i++) log.add('din', 'v1.LaneNamed', { laneId: 'din', name: `n${i}` });
+    now += 61_000;
+    await folder.reportsFor('admin');
+    expect(cachedCursor()).toBe(4 + STATE_SAVE_EVERY);
+  });
+
+  it('keeps nothing for an organization with no log', async () => {
+    const cache = new MemoryCache();
+    expect(await new OrgFolder(new FakeLog(), 'nobody', cache).reportsFor('admin')).toBeNull();
+    expect(cache.data.size).toBe(0);
+  });
+});
+
+describe('the object\'s SQLite cache', () => {
+  const sqlite = () => {
+    const db = new DatabaseSync(':memory:');
+    return new SqlCache({
+      // Like the object's sql.exec, a statement runs when it is called.
+      exec: (query, ...bindings) => {
+        const statement = db.prepare(query);
+        const rows = /^\s*select/i.test(query) ? statement.all(...(bindings as never[])) : (statement.run(...(bindings as never[])), []);
+        return { toArray: () => rows as Record<string, unknown>[] };
+      },
+      transactionSync: (fn) => {
+        db.exec('begin');
+        try { const out = fn(); db.exec('commit'); return out; } catch (e) { db.exec('rollback'); throw e; }
+      }
+    });
+  };
+
+  it('splits long text into parts without breaking a surrogate pair, and joins it back', async () => {
+    const text = `ab${'😀'.repeat(5)}c`;
+    const parts = splitText(text, 3);
+    expect(parts.join('')).toBe(text);
+    expect(parts.every((p) => !/[\ud800-\udbff]$/.test(p))).toBe(true);
+    const cache = sqlite();
+    const long = 'é😀x'.repeat(300_000);
+    await cache.put('k', long);
+    expect(await cache.get('k')).toBe(long);
+    await cache.put('k', 'short');
+    expect(await cache.get('k')).toBe('short');
+    expect(await cache.get('missing')).toBeNull();
   });
 });
 
@@ -165,6 +303,38 @@ describe('the reports API', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => { throw new Error('down'); } }))).status).toBe(502);
     err.mockRestore();
+  });
+
+  it('answers a summary view with each language\'s progress alone', async () => {
+    const report = { name: 'Dinka', progress: { total: 3, recorded: 1, done: 0, steps: [], waiting: 0, feedback: 0 } };
+    const d = deps({ reports: async () => ({ rows: [{ projectId: 'p', laneId: 'din', report: report as never }], asOf: body.asOf }) });
+    const res = await handleApi(get('/api/orgs/o/reports?view=summary', 'good'), d);
+    expect(await res.json()).toEqual({ rows: [{ projectId: 'p', laneId: 'din', name: 'Dinka', progress: report.progress }], asOf: body.asOf });
+  });
+
+  it('answers an unchanged request with a 304 that still says how fresh it is', async () => {
+    const first = await handleApi(get('/api/orgs/o/reports', 'good'), deps());
+    const etag = first.headers.get('etag')!;
+    expect(etag).toMatch(/^"[0-9a-f]{32}"$/);
+    expect(first.headers.get('x-as-of')).toBe(body.asOf);
+    const later = { rows: [], asOf: '2026-09-30T12:05:00.000Z' };
+    const again = new Request('https://dash.example/api/orgs/o/reports', { headers: { authorization: 'Bearer good', 'if-none-match': etag } });
+    const res = await handleApi(again, deps({ reports: async () => later }));
+    expect(res.status).toBe(304);
+    expect(res.headers.get('x-as-of')).toBe(later.asOf);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(await res.text()).toBe('');
+  });
+
+  it('lets a local development origin call it, and nobody else', async () => {
+    const from = (origin: string, method = 'GET') => new Request('https://dash.example/api/orgs/o/reports', { method, headers: { origin, authorization: 'Bearer good' } });
+    const local = await handleApi(from('http://localhost:8081'), deps());
+    expect(local.headers.get('access-control-allow-origin')).toBe('http://localhost:8081');
+    expect(local.headers.get('access-control-expose-headers')).toBe('etag, x-as-of');
+    const preflight = await handleApi(from('http://127.0.0.1:8081', 'OPTIONS'), deps());
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get('access-control-allow-headers')).toBe('authorization, if-none-match');
+    expect((await handleApi(from('https://evil.example'), deps())).headers.get('access-control-allow-origin')).toBeNull();
   });
 
   it('knows only its one route and method', async () => {

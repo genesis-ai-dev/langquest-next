@@ -1,6 +1,7 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
 # checks:   the pre-push gate again (typecheck + unit and property tests).
+# web-smoke: the release web build in three browser engines (smart-tests/web-smoke).
 # journeys: Jev walks the avatar journeys (smart-tests/journeys) against the
 #           web build and a local Supabase started here from the migrations.
 #           smart-tests/env.sh reads its URL and keys from `supabase status`,
@@ -42,6 +43,29 @@ jobs:
       # Deploying); refuse one that is behind its source.
       - name: Worker bundle matches its source
         run: npm run worker:build && git diff --exit-code -- supabase/functions
+
+  web-smoke:
+    # The web as a published platform (decisions.md 58): the release web
+    # build, served by the Worker as in production, against a local Supabase,
+    # in Chromium (desktop and phone width), Firefox and WebKit. Deterministic:
+    # no model. The build also holds the bundle-size budget.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: checks
+    env:
+      CI: 'true'
+      SMOKE_PORT: '8787'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Start Supabase (applies every migration)
+        run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor
+      - name: Smoke-test the web app
+        shell: bash
+        run: source smart-tests/env.sh && npx playwright test -c smart-tests/web-smoke.config.ts
 
   journeys:
     # Manual until smart-tests/world.ts seeds main's org > language model

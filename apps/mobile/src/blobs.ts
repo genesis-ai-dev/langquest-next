@@ -2,6 +2,7 @@ import type { BlobRef } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
+import { webFiles, type WebFiles } from './webFiles';
 
 /**
  * Content-addressed local blob store (PLAN.md section 14, rules 9 and 11).
@@ -16,10 +17,12 @@ import { Platform } from 'react-native';
  * never be mistaken for a verified one. Deletion happens only in `reclaim`,
  * and only for files the caller has proven the server can give back.
  *
- * Web is a test target, not a shipped platform: expo-file-system has no web
- * implementation, so there the store keeps bytes in memory (as the library
- * document store does). A recording that has not uploaded is lost when the
- * tab reloads or closes. A durable browser store comes before web ships.
+ * On the web there is no expo-file-system: files live in the browser's
+ * origin private file system (webFiles.ts) under the same names, so a
+ * recording that has not uploaded survives a reload, as it survives a
+ * restart on a phone. Writes there commit whole, so no staging name is
+ * needed. Playing one needs an object URL, made from its bytes on first
+ * ask and kept for the most recent files.
  */
 const DIR_NAME = 'blobs';
 const STAGING_SUFFIX = '.part';
@@ -29,21 +32,39 @@ export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
 
 const WEB = Platform.OS === 'web';
 const MIME: Record<BlobRef['format'], string> = { wav: 'audio/wav', m4a: 'audio/mp4' };
+/** Object URLs kept for playback on the web, most recently used last. */
+const URLS_KEPT = 64;
+const nameOf = (ref: BlobFile) => `${ref.hash}.${ref.format}`;
 
 export class BlobStore {
-  /** Null on web, where `memory` holds the bytes instead. */
+  /** Null on web, where `files` holds them instead. */
   private readonly dir: Directory | null;
-  private readonly memory = new Map<string, { bytes: Uint8Array<ArrayBuffer>; format: BlobRef['format']; url?: string }>();
+  private readonly files: WebFiles | null;
+  /** Web: object URLs for playback, and loads under way. */
+  private readonly urls = new Map<string, string>();
+  private readonly loading = new Set<string>();
   private readonly present = new Set<string>();
   private readonly sizeByHash = new Map<string, number>();
   private listeners = new Set<() => void>();
+  private urlListeners = new Set<() => void>();
 
-  constructor() {
-    this.dir = WEB ? null : new Directory(Paths.document, DIR_NAME);
+  constructor(files: WebFiles | null = WEB ? webFiles(DIR_NAME) : null) {
+    this.files = files;
+    this.dir = files ? null : new Directory(Paths.document, DIR_NAME);
   }
 
   /** One listing at startup. Additive after that. */
   async init(): Promise<void> {
+    if (this.files) {
+      for (const { name, size } of await this.files.list()) {
+        const hash = name.split('.')[0];
+        if (hash) {
+          this.present.add(hash);
+          this.sizeByHash.set(hash, size);
+        }
+      }
+      return;
+    }
     if (!this.dir) return;
     if (!this.dir.exists) this.dir.create({ intermediates: true, idempotent: true });
     for (const entry of this.dir.list()) {
@@ -95,14 +116,14 @@ export class BlobStore {
     return new Set(this.present);
   }
 
-  /** Whether this file is stored: on disk, or in memory on web. */
+  /** Whether this file is stored. On the web the index is the truth: it is marked only after a write commits. */
   exists(ref: BlobFile): boolean {
-    return this.dir ? this.fileFor(ref).exists : this.memory.has(ref.hash);
+    return this.dir ? this.fileFor(ref).exists : this.present.has(ref.hash);
   }
 
   /** Its size as stored; ask `exists` first. */
   storedSize(ref: BlobFile): number {
-    return this.dir ? this.fileFor(ref).size : this.memory.get(ref.hash)?.bytes.byteLength ?? 0;
+    return this.dir ? this.fileFor(ref).size : this.sizeByHash.get(ref.hash) ?? 0;
   }
 
   /** Native only: the file on disk. */
@@ -116,19 +137,24 @@ export class BlobStore {
   }
 
   /** Web only: the bytes to upload. */
-  bytesOf(ref: BlobFile): Uint8Array<ArrayBuffer> | null {
-    return this.memory.get(ref.hash)?.bytes ?? null;
+  async readBytes(ref: BlobFile): Promise<Uint8Array<ArrayBuffer> | null> {
+    return this.web().read(nameOf(ref));
   }
 
   /** Web only: keep downloaded bytes the caller has verified against their hash. */
-  putVerified(ref: BlobFile, bytes: Uint8Array<ArrayBuffer>): void {
-    if (!this.memory.has(ref.hash)) this.memory.set(ref.hash, { bytes, format: ref.format });
+  async putVerified(ref: BlobFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    if (!this.present.has(ref.hash)) await this.web().write(nameOf(ref), bytes);
     this.markPresent(ref.hash, bytes.byteLength);
   }
 
   private disk(): Directory {
-    if (!this.dir) throw new Error('No blob files on web; bytes are kept in memory there.');
+    if (!this.dir) throw new Error('No expo-file-system on the web; files are in webFiles there.');
     return this.dir;
+  }
+
+  private web(): WebFiles {
+    if (!this.files) throw new Error('webFiles is the web store only.');
+    return this.files;
   }
 
   /**
@@ -153,7 +179,7 @@ export class BlobStore {
     const removed: string[] = [];
     const bySize = [...evictable].sort((a, b) => (this.sizeOf(b.hash) ?? 0) - (this.sizeOf(a.hash) ?? 0));
     for (const ref of bySize) {
-      // Web has no disk to keep free, only memory to bound.
+      // The browser reports no free space synchronously; on the web the total alone is bounded.
       const roomy = this.dir ? Paths.availableDiskSpace >= opts.minFreeBytes : true;
       if (roomy && this.totalBytes() <= opts.maxTotalBytes) break;
       if (!this.present.has(ref.hash)) continue;
@@ -164,9 +190,11 @@ export class BlobStore {
           continue;
         }
       } else {
-        const url = this.memory.get(ref.hash)?.url;
+        const url = this.urls.get(ref.hash);
         if (url) URL.revokeObjectURL(url);
-        this.memory.delete(ref.hash);
+        this.urls.delete(ref.hash);
+        // Off the index now; if the delete is lost, the next start lists the file again, and its bytes still match its name.
+        void this.web().remove(nameOf(ref)).catch(() => undefined);
       }
       this.present.delete(ref.hash);
       this.sizeByHash.delete(ref.hash);
@@ -176,13 +204,43 @@ export class BlobStore {
     return removed;
   }
 
+  /**
+   * Where to play it from. On the web the first ask starts reading the file
+   * and answers null; listeners hear when its URL is ready, by which time a
+   * screen that asked while drawing has it for the tap.
+   */
   uriFor(ref: BlobFile): string | null {
     if (!this.present.has(ref.hash)) return null;
     if (this.dir) return this.fileFor(ref).uri;
-    const kept = this.memory.get(ref.hash);
-    if (!kept) return null;
-    kept.url ??= URL.createObjectURL(new Blob([kept.bytes], { type: MIME[kept.format] }));
-    return kept.url;
+    const url = this.urls.get(ref.hash);
+    if (url) {
+      this.urls.delete(ref.hash);
+      this.urls.set(ref.hash, url);
+      return url;
+    }
+    if (!this.loading.has(ref.hash)) {
+      this.loading.add(ref.hash);
+      void this.web().read(nameOf(ref)).then((bytes) => {
+        if (bytes) this.keepUrl(ref, bytes);
+      }).catch(() => undefined).finally(() => this.loading.delete(ref.hash));
+    }
+    return null;
+  }
+
+  private keepUrl(ref: BlobFile, bytes: Uint8Array<ArrayBuffer>): void {
+    if (!this.urls.has(ref.hash)) this.urls.set(ref.hash, URL.createObjectURL(new Blob([bytes], { type: MIME[ref.format] })));
+    while (this.urls.size > URLS_KEPT) {
+      const [oldest, url] = this.urls.entries().next().value!;
+      URL.revokeObjectURL(url);
+      this.urls.delete(oldest);
+    }
+    for (const l of this.urlListeners) l();
+  }
+
+  /** Web: hear when a file asked for by `uriFor` can be played, so the screen that asked draws again. */
+  onUrlReady(l: () => void): () => void {
+    this.urlListeners.add(l);
+    return () => this.urlListeners.delete(l);
   }
 
   /**
@@ -191,7 +249,7 @@ export class BlobStore {
    * land on the same name.
    */
   async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
-    if (!this.dir) return this.ingestInMemory(sourceUri, format, beforeMove);
+    if (!this.dir) return this.ingestOnWeb(sourceUri, format, beforeMove);
     const src = new File(sourceUri);
     const bytes = await src.bytes();
     const hash = await BlobStore.hashOf(bytes);
@@ -204,15 +262,16 @@ export class BlobStore {
     return { ref, size: bytes.byteLength };
   }
 
-  /** Web: the recorder hands over a blob: URL; read it, keep the bytes, let the URL go. */
-  private async ingestInMemory(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
+  /** Web: the recorder hands over a blob: URL; read it, store the bytes under their hash, let the URL go. */
+  private async ingestOnWeb(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
     const bytes = new Uint8Array(await (await fetch(sourceUri)).arrayBuffer());
     const hash = await BlobStore.hashOf(bytes);
     const ref: BlobFile = { hash, format };
     await beforeMove?.(ref, bytes.byteLength);
-    if (!this.memory.has(hash)) this.memory.set(hash, { bytes, format });
+    if (!this.present.has(hash)) await this.web().write(nameOf(ref), bytes);
     if (sourceUri.startsWith('blob:')) URL.revokeObjectURL(sourceUri);
     this.markPresent(hash, bytes.byteLength);
+    this.keepUrl(ref, bytes);
     return { ref, size: bytes.byteLength };
   }
 

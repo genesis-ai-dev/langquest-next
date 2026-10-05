@@ -106,6 +106,27 @@ describe('SyncScheduler', () => {
     expect(h.runs.at(-1)).toBe(225_000);
   });
 
+  it('waking (back on screen, or online again) runs now and starts the backoff over', async () => {
+    const h = harness([
+      async () => ({ offline: true }), async () => ({ offline: true }), async () => ({ offline: true }),
+      async () => ({ offline: true })
+    ]);
+    h.s.start();
+    await h.advance(0);
+    await h.advance(15_000);
+    await h.advance(30_000);
+    expect(h.runs).toEqual([0, 15_000, 45_000]);
+    // Waiting 60s now; the network came back after 1s.
+    await h.advance(1_000);
+    h.s.wake();
+    await h.advance(0);
+    expect(h.runs).toEqual([0, 15_000, 45_000, 46_000]);
+    expect(h.s.offlineStreak).toBe(1);
+    // That run was offline again, so the backoff starts over at its first step.
+    await h.advance(15_000);
+    expect(h.runs.at(-1)).toBe(61_000);
+  });
+
   it('the channel coming up runs immediately', async () => {
     const h = harness();
     h.s.start();

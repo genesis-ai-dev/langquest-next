@@ -57,7 +57,9 @@ export function chapterColumns(contentWidth: number, kind: LayoutKind): number {
 export const WIDE_CHROME: readonly ScreenId[] = [
   'members_list', 'edit_member', 'invite_member', 'invite_qr', 'new_language', 'review_teams', 'review_team_editor',
   'roles_home', 'role_editor', 'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
-  'reference_home', 'material_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status'
+  'reference_home', 'material_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status',
+  // The Reports tab exists only on a wide window (decisions.md 57).
+  'reports_home', 'reports_language'
 ];
 
 /** Whether the tabs (bar, rail or sidebar) show on this screen. On a phone, exactly the demo's tab screens. */

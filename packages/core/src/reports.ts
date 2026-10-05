@@ -446,7 +446,7 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
  * partition's own member list (the older way of joining). A member scoped to
  * one language sees only that language.
  */
-export function mayViewLane(org: OrgState, project: ProjectState, profileId: string, projectId: string, laneId: string): boolean {
+export function mayViewLane(org: OrgState, project: Pick<ProjectState, 'members'>, profileId: string, projectId: string, laneId: string): boolean {
   if (privilegesFor(org, profileId, { projectId, laneId }).has('view_status')) return true;
   const member = project.members[profileId];
   return !!member && !member.removed.value && privilegesOfFixedRole(member.role.value).has('view_status');
@@ -528,4 +528,34 @@ export function paceOf(r: LaneReport, now: number): Pace | null {
   else if (gap >= -5) band = 'on_pace';
   else band = projectedFinish !== null && projectedFinish <= targetDate ? 'behind' : 'stalled';
   return { band, scope, actual, expected, gap, projectedFinish };
+}
+
+// ---- what the dashboard's server answers (decision 44) ----------------------------
+
+/** `GET /api/orgs/:org/reports`: the languages this person may see. */
+export interface OrgReportsResponse {
+  rows: { projectId: string; laneId: string; report: LaneReport }[];
+  /** When the dashboard's server last caught up with the log, ISO. */
+  asOf: string;
+}
+
+/** One language's progress alone, for a phone's overview of languages it has not opened. */
+export interface LaneSummary {
+  projectId: string;
+  laneId: string;
+  name: string;
+  progress: LanguageProgress;
+}
+
+/** `GET /api/orgs/:org/reports?view=summary`. */
+export interface OrgSummaryResponse {
+  rows: LaneSummary[];
+  asOf: string;
+}
+
+export function summarizeReports(out: OrgReportsResponse): OrgSummaryResponse {
+  return {
+    rows: out.rows.map(({ projectId, laneId, report }) => ({ projectId, laneId, name: report.name, progress: report.progress })),
+    asOf: out.asOf
+  };
 }

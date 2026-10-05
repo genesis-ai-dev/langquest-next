@@ -34,4 +34,10 @@ describe('invitation email content', () => {
     expect(content.html).toContain('&amp;token=');
     expect(content.html).toContain('langquestnext://invite?org=');
   });
+  it('links to the app\'s https address once it has one, with the key after the #', () => {
+    const content = invitationContent(invitation, 'https://next.langquest.org/');
+    expect(content.text).toContain(`https://next.langquest.org/invite#org=${encodeURIComponent(invitation.orgId)}&token=${invitation.token}`);
+    expect(content.html).toContain('>Open LangQuest</a>');
+    expect(content.html).not.toContain('langquestnext://');
+  });
 });

@@ -9,6 +9,7 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RateMeter } from './rate';
 import { getStore } from './store';
+import { onWake } from './wake';
 import { supabase } from './supabase';
 
 export interface ProjectHandle {
@@ -101,6 +102,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [pending, setPending] = useState(0);
   const [lastSync, setLastSync] = useState('never');
   const [online, setOnline] = useState<boolean | null>(null);
+  // Bumped when a web recording's URL is ready (blobs.ts uriFor); only its re-render matters.
+  const [, setUrlsReady] = useState(0);
   const [tooOld, setTooOld] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
   const [pulled, setPulled] = useState(false);
@@ -184,6 +187,9 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     if (changed) await refresh();
     return { more };
   }, [refresh]);
+
+  // Back on screen or back online: sync now rather than at the end of a backoff.
+  useEffect(() => onWake(() => schedulerRef.current?.wake()), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -284,6 +290,8 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       });
       reclaim();
       const unsubReclaim = blobStore.onChange(reclaim);
+      // Web: a recording's playable URL is read from the browser's files on first ask; draw again once it is.
+      const unsubUrls = blobStore.onUrlReady(() => setUrlsReady((n) => n + 1));
       // Sync on a poke from the server, after a local append, and on a
       // fallback poll that backs off while offline (SyncScheduler).
       const scheduler = new SyncScheduler({
@@ -298,6 +306,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         unsubscribe();
         unsub();
         unsubReclaim();
+        unsubUrls();
         up.stop();
         down.stop();
         unwatch();
