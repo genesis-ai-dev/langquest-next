@@ -67,6 +67,28 @@ organization), JSON. `503 {"error"}` when the Worker has no
 | `/api/bible/audio/:filesetId/:book/:chapter` | `{ url, durationMs?, bytes?, expiresAt, offline }` (a signed MP3 link without the key; through `/download` when `offline`) |
 | `/api/bible/timestamps/:filesetId/:book/:chapter` | `{ rows: [{ verse, seconds }] }`, 404 when FCBH has none |
 
+How the Worker reads FCBH (`apps/web/worker/bible.ts`):
+
+- **Filesets per testament.** Size `C` counts for both testaments, `OT` and
+  `NT` for one, portions (`NTP`, `NTOTP`) only when nothing whole exists.
+  Text is `text_plain`. Audio is a file (`audio` or `audio_drama`), never a
+  stream (FCBH's HLS playlists carry the key), preferring MP3 over opus
+  (opus16 has no timestamps), then non-drama, then the higher bitrate.
+- **Offline** for a fileset is whether `/download/{fileset}/{book}/{chapter}`
+  answers 200 for our key (403 when it does not), probed once with the first
+  chapter of its testament (or with the chapter asked for, on the audio
+  route) and cached a day.
+- **Caching** uses the Workers Cache API under our own URLs, never the
+  caller's token or the key: a day for languages, Bibles, text, timestamps,
+  copyright and the offline probe; up to three hours for an audio link
+  (FCBH signs them for about a day; `expiresAt` comes from the link).
+- **Every answer is checked not to contain the key**, and an audio link must
+  be an https `.mp3` or `.webm` file, or the route answers 404.
+- `abbreviation` is the Bible id without its three-letter language prefix
+  (`ENGESV` → `ESV`). FCBH marks the deuterocanon `AP`; those books are
+  listed with `testament: 'OT'`. FCBH's timestamps start with a verse `0` row
+  (the chapter's heading), passed on as it comes.
+
 ```ts
 type Testaments = { OT?: string; NT?: string };            // fileset ids
 interface BibleSummary {

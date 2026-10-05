@@ -43,12 +43,18 @@ not the app.
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PROJECTION_WORKER_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by
-`npm run diag:hosted`, never pushed). `npm run secrets` puts each where it
-is used, as `scripts/secrets.mjs` declares:
+`npm run diag:hosted`, never pushed). It may also hold
+`BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By Hearing's key for the Worker's
+Bible routes (`docs/reference-material.md`). That one is optional: it is not
+in the Worker's `secrets.required`, so a deploy never waits for it, and
+until a person sets it (`npm run env:update -- <env> BIBLE_BRAIN_ACCESS_KEY`,
+then `npm run secrets -- <env>`) the Bible routes answer 503.
+`npm run secrets` puts each where it is used, as `scripts/secrets.mjs`
+declares:
 
 | Destination | Gets |
 | --- | --- |
-| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo |
+| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` when the file has it |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret` |
@@ -66,7 +72,10 @@ Two private keys, `DOTENV_PRIVATE_KEY_PREVIEW` and
 `DOTENV_PRIVATE_KEY_PRODUCTION`, each in its own password-manager entry and in
 the `.env.keys` of whoever changes or applies that environment's secrets.
 Nothing else holds a key: not GitHub, Cloudflare, Supabase or EAS. Running the
-app or the dashboard locally needs none.
+app or the dashboard locally needs none. The Bible routes locally need the
+Bible Brain key in your shell when `npm run web:dev` starts
+(`scripts/web-dev-vars.ts` copies it into the ignored `apps/web/.dev.vars`
+without printing it); without it they answer 503.
 
 Workers Builds still keeps branch builds off on every Worker, so a branch
 never deploys over preview or production.
