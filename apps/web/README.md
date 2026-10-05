@@ -5,7 +5,11 @@ The Cloudflare Worker that serves LangQuest on the web (decisions.md 58):
 - its static assets are the Expo app's web export (`apps/mobile/dist`, from
   `npm run export:web -w mobile -- <env>`), with the headers that build writes;
 - `GET /api/orgs/:org/reports` is answered first, by one Durable Object per
-  organization (decision 44, `worker/`).
+  organization (decision 44, `worker/`);
+- `GET /api/bible/*` reads Bible Brain with the server's key, which phones
+  never see (`worker/bible.ts`, docs/reference-material.md). It answers 503
+  until the optional `BIBLE_BRAIN_ACCESS_KEY` secret is set
+  (docs/environments.md); locally, export it before `npm run web:dev`.
 
 Locally:
 
