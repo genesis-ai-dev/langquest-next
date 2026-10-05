@@ -13,7 +13,7 @@ import {
 } from '../src/reference/model';
 import { timingPublication, type TimingResultRow } from '../src/reference/timings';
 import { offeredGuideSources } from '../src/reference/offered';
-import type { BibleDetail } from '../src/reference/bibleBrain';
+import type { BibleDetail } from '../src/sources/bibleBrain';
 import type { SharedItem } from '../src/library/model';
 
 const H = (c: string) => c.repeat(64);

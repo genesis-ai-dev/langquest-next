@@ -3,7 +3,7 @@ import { buildLibrary } from '../../../scripts/library-seed';
 import { bestGuide, glossaryEntryOf, guideFromDoc, passageVerses } from '../src/study/guideMatch';
 import { overlap, parseRange, versesOf } from '../src/study/range';
 import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections } from '../src/study/text';
-import { readingSeconds, readingsFor, sourceText, verseAt } from '../src/scripture';
+import { readingsFor, sourceText } from '../src/scripture';
 
 function withUnits(units: Record<string, string>): ProjectState {
   const s = emptyState();
@@ -133,17 +133,12 @@ describe('scripture', () => {
     son: 'Luke 15:11-32', 'bible@1/luk-15': 'Luke 15', gen: 'Genesis 1:1-2:3', far: 'Luke 22', john: 'John 3:1-21', book: 'Luke'
   });
 
-  it('has the guide passages in three translations with simulated timings', () => {
+  it('has the guide passages in three translations, with no made-up timings', () => {
     const r = readingsFor(s, 'son');
     expect(r.map((x) => x.code)).toEqual(['BSB', 'WEB', 'KJV']);
     expect(r[0]!.translation).toBe('Berean Standard Bible');
     expect(r[0]!.verses.map((v) => v.ref)).toEqual(Array.from({ length: 22 }, (_, i) => `15:${i + 11}`));
-    expect(r[0]!.verses[0]!.start).toBe(0);
-    expect(r[0]!.verses[1]!.start).toBeGreaterThan(0);
-    expect(readingSeconds(r[0]!)).toBeGreaterThan(r[0]!.verses[21]!.start!);
-    expect(verseAt(r[0]!, 0)).toBeUndefined();
-    expect(verseAt(r[0]!, r[0]!.verses[3]!.start! + 0.1)?.ref).toBe('15:14');
-    expect(verseAt(r[0]!, 9999)?.ref).toBe('15:32');
+    expect(r[0]!.verses.every((v) => !('start' in v))).toBe(true);
     expect(readingsFor(s, 'john').map((x) => x.code)).toEqual(['BSB', 'WEB', 'KJV']);
   });
 

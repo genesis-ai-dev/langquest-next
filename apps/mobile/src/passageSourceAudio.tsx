@@ -1,13 +1,12 @@
-// Avatar U. Replay chapter sources and passage references beside the recorder.
+// Recordings beside the recorder: the team's own source audio and the
+// recordings in reference material (passageResources.ts). Bible text and
+// audio are the source reader's (sources/SourceReader.tsx).
 //
-// The recording screen's top pane (LAN-23) plays the source while a take is
+// The recording screen's top pane (LAN-23) plays these while a take is
 // being recorded, so its player takes the listen loop's hooks: playing first
 // pauses the microphone, and stopping (pause, end, failure) lets it resume.
 // It is AudioClip's player with those two hooks; AudioClip itself has no
 // way to wait before switching the audio session to playback.
-import {
-  SOURCE_BIBLES, sourceAudioUrl, sourceBibleEnabled, sourceChapters
-} from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -21,38 +20,21 @@ import { reportError } from './report';
 import { C, space, target, TINT } from './theme';
 import type { ProjectHandle } from './useProject';
 
-export function PassageSourceAudio({ ctx, unitId, laneId, disabled, listen }: {
-  ctx: Ctx; unitId: string; laneId: string; disabled: boolean; listen?: ListenHooks;
+/** The passage's reference recordings, each with its own player; nothing when there are none. */
+export function ReferenceRecordings({ ctx, unitId, laneId, disabled, listen, onPlay }: {
+  ctx: Ctx; unitId: string; laneId: string; disabled: boolean; listen?: ListenHooks; onPlay?: (id: string) => void;
 }) {
-  const chapters = sourceChapters(unitId);
-  const bibles = SOURCE_BIBLES.filter((b) => ctx.org.state &&
-    sourceBibleEnabled(ctx.org.state, b.id, ctx.project.projectId));
   const references = ctx.project.state
     ? getReferenceSlides(ctx.project.state, laneId, unitId) : [];
-  if (bibles.length === 0 && references.length === 0) return null;
+  if (references.length === 0) return null;
   return <View style={{ gap: space.sm }}>
-    {bibles.flatMap((bible) => chapters.map((chapter) =>
-      <Card key={`${bible.id}:${chapter.book}:${chapter.chapter}`}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Ico name="listen" size={22} color={TINT.amberText} />
-          <View style={{ flex: 1 }}>
-            <Text style={txt.body}>{chapter.label} · {bible.code}</Text>
-            <Text style={txt.xs}>Full chapter</Text>
-          </View>
-        </View>
-        <SourcePlayer project={ctx.project} hashes={[]} disabled={disabled} {...(listen ? { listen } : {})}
-          uri={sourceAudioUrl(bible, chapter,
-            process.env.EXPO_PUBLIC_SOURCE_AUDIO_BASE_URL ??
-              'https://pub-e5e8108b319c42069acd1ebf4fd0fb02.r2.dev')}
-          label={`Play ${bible.name}, ${chapter.label}, full chapter`} />
-      </Card>))}
     {references.map((item) => <Card key={item.id}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <Ico name="listen" size={22} color={TINT.amberText} />
         <Text style={[txt.sm, { flex: 1 }]}>{item.label}</Text>
       </View>
       <SourcePlayer project={ctx.project} hashes={[item.hash]} {...(listen ? { listen } : {})}
-        label={`Play ${item.label}`} disabled={disabled} />
+        label={`Play ${item.label}`} disabled={disabled} {...(onPlay ? { onPlay: () => onPlay(item.id) } : {})} />
     </Card>)}
   </View>;
 }
@@ -74,6 +56,8 @@ export function SourcePlayer(props: {
   label: string;
   disabled?: boolean;
   listen?: ListenHooks;
+  /** Called when it starts playing (the record of what was used). */
+  onPlay?: () => void;
 }) {
   const [playing, setPlayingState] = useState(false);
   const [error, setError] = useState('');
@@ -126,6 +110,7 @@ export function SourcePlayer(props: {
     wants.current = true;
     setPlaying(true);
     setError('');
+    props.onPlay?.();
     try {
       // The microphone first: nothing of the source may land in a take.
       await listenRef.current?.beforePlay();

@@ -36,7 +36,9 @@ export const SCREEN_IDS = [
   // App only: reference material by level, its coverage and one passage's (docs/reference-material.md)
   'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference',
   // App only: the guide editor (docs/reference-material.md)
-  'guide_editor'
+  'guide_editor',
+  // App only: exploring Bibles beside a passage (docs/reference-material.md)
+  'bible_explore'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -295,7 +297,18 @@ export const EDGES: Edge[] = [
   e('study_guide', 'guide_editor', undefined, 'manageReference'),
   e('guide_editor', 'study_guide', 'back'),
   e('reference_guides', 'guide_editor', undefined, 'manageReference'),
-  e('guide_editor', 'reference_guides', 'back')
+  e('guide_editor', 'reference_guides', 'back'),
+  // More Bibles, from the source reader beside a passage (docs/reference-material.md).
+  e('workspace', 'bible_explore'),
+  e('study_guide', 'bible_explore'),
+  e('study_step', 'bible_explore'),
+  e('review_capture', 'bible_explore'),
+  e('add_record', 'bible_explore'),
+  e('bible_explore', 'workspace', 'back'),
+  e('bible_explore', 'study_guide', 'back'),
+  e('bible_explore', 'study_step', 'back'),
+  e('bible_explore', 'review_capture', 'back'),
+  e('bible_explore', 'add_record', 'back')
 ];
 
 /**
@@ -335,5 +348,6 @@ export const TITLES: Record<ScreenId, string> = {
   sync_status: 'Sync', delete_account: 'Delete Account', reports_home: 'Reports', reports_language: 'Language Report',
   reference_bibles: 'Bibles', reference_source: 'Bible', reference_guides: 'Guides and Notes', reference_coverage: 'Coverage',
   passage_reference: 'Reference',
-  guide_editor: 'Write a Guide'
+  guide_editor: 'Write a Guide',
+  bible_explore: 'More Bibles'
 };

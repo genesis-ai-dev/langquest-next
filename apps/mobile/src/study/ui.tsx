@@ -14,11 +14,11 @@ import { AudioClip } from '../audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
-import { Chip, ChipRow, EmptyState, Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../kit';
+import { Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../kit';
 import { plural, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
-import { readingSeconds, verseAt, type Reading } from '../scripture';
+import { SourceReader } from '../sources/SourceReader';
 import { C, onColor, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
@@ -456,106 +456,54 @@ export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => 
 
 // ---- the passage: read and listen in a few translations, note any verse (STUDY-5) -------
 
-export function PassageReader(props: { ctx: Ctx; v: PassageView; readings: Reading[]; canContribute: boolean; header?: ReactNode; hidden?: boolean }) {
-  const [code, setCode] = useState(props.readings[0]?.code);
-  const reading = props.readings.find((r) => r.code === code) ?? props.readings[0];
-  if (!reading) {
-    return (
-      <ScrollView contentContainerStyle={styles.body}>
-        {props.header}
-        <EmptyState icon="book" title={`No Bible text for ${props.v.title} yet`}
-          sub="The app has the text of a few passages so far. The rest comes with the translations your organization chooses." />
-      </ScrollView>
-    );
-  }
-  return <TranslationView key={reading.code} {...props} reading={reading} onPick={setCode} />;
-}
+// ---- the passage: read and listen in the language's Bibles, note any verse (STUDY-5) -------
 
-function TranslationView(props: { ctx: Ctx; v: PassageView; readings: Reading[]; reading: Reading; canContribute: boolean; header?: ReactNode; hidden?: boolean; onPick: (code: string) => void }) {
-  const { ctx, v, reading } = props;
-  const audio = useStudyAudio(reading.audioUrl, Math.ceil(readingSeconds(reading)));
-  const [selected, setSelected] = useState<string | null>(null);
-  const [adding, setAdding] = useState<{ verse: string; at?: string } | null>(null);
-  const current = verseAt(reading, audio.time);
-  const scroll = useRef<ScrollView>(null);
-  const cardY = useRef(0);
-  const rows = useRef<Record<string, number>>({});
+/**
+ * The study's Passage view: the source reader (sources/SourceReader.tsx)
+ * with the team's notes on each verse. Tapping a verse plays on from it and
+ * selects it, so a note can be added there; paused in a verse, the note
+ * says where.
+ */
+export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: boolean; header?: ReactNode; hidden?: boolean }) {
+  const { ctx, v } = props;
+  const [adding, setAdding] = useState<{ verse: string; at?: string; code: string } | null>(null);
   const notes = useMemo(() => v.p.notes.filter((n) => n.anchor.kind === 'verse'), [v.p.notes]);
   const notesOn = (ref: string) => notes.filter((n) => n.anchor.kind === 'verse' && n.anchor.verse === ref);
-
-  useEffect(() => {
-    if (!audio.playing || !current) return;
-    const y = rows.current[current.ref];
-    if (y !== undefined) scroll.current?.scrollTo({ y: Math.max(0, cardY.current + y - 180), animated: true });
-  }, [audio.playing, current?.ref]);
-  useEffect(() => () => audio.pause(), []);
-  useEffect(() => { if (props.hidden) audio.pause(); }, [props.hidden]);
-
-  const sub = reading.audioUrl ? reading.translation : `${reading.translation} · no recording yet, the clock follows reading pace`;
   return (
-    <ScrollView ref={scroll} stickyHeaderIndices={[1]} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <View style={{ gap: space.md }}>
-        {props.header}
-        {props.readings.length > 1 ? (
-          <ChipRow>
-            {props.readings.map((r) => <Chip key={r.code} label={r.code} on={r.code === reading.code} onPress={() => props.onPick(r.code)} />)}
-          </ChipRow>
-        ) : null}
-      </View>
-      <View style={styles.sticky}>
-        <AudioBar audio={audio} label={`${v.title} · ${reading.code}`} sub={sub} />
-        {props.canContribute && !audio.playing && audio.time > 0 && current ? (
-          <Pressable onPress={() => setAdding({ verse: current.ref, at: clock(audio.time) })} accessibilityRole="button"
-            style={({ pressed }) => [styles.momentBtn, pressed && styles.pressed]}>
-            <Ico name="note" size={16} color={TINT.amberText} />
-            <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>Add a note at {clock(audio.time)} · verse {current.ref}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      <View style={styles.textCard} onLayout={(e) => { cardY.current = e.nativeEvent.layout.y; }}>
-        {reading.verses.map((verse) => {
-          const here = notesOn(verse.ref);
-          const isSel = selected === verse.ref;
-          const playingHere = current?.ref === verse.ref && audio.time > 0;
-          return (
-            <View key={verse.ref} onLayout={(e) => { rows.current[verse.ref] = e.nativeEvent.layout.y; }} style={{ paddingHorizontal: space.sm }}>
-              <Pressable disabled={!props.canContribute} onPress={() => setSelected((cur) => (cur === verse.ref ? null : verse.ref))}
-                accessibilityRole={props.canContribute ? 'button' : undefined} accessibilityState={{ selected: isSel }}
-                style={[styles.verse, playingHere && { backgroundColor: C.light }, isSel && styles.selected]}>
-                <Text style={[styles.verseRef, playingHere && { color: C.primary }]}>{verse.ref}</Text>
-                <Text style={[styles.readingText, { flex: 1 }]}>{verse.text}</Text>
-                {here.length > 0 && !isSel ? <View style={styles.count}><Text style={styles.countText}>{here.length}</Text></View> : null}
-              </Pressable>
-              {isSel && props.canContribute ? (
-                <Pressable onPress={() => setAdding({ verse: verse.ref })} accessibilityRole="button"
-                  style={({ pressed }) => [styles.addBtn, { marginLeft: 44 }, pressed && styles.pressed]}>
-                  <Ico name="note" size={16} color={C.white} />
-                  <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>Add a note on {verse.ref}</Text>
-                </Pressable>
-              ) : null}
-              {here.length > 0 ? (
-                <View style={{ paddingLeft: 44, paddingRight: space.xs, paddingBottom: space.sm, gap: space.sm }}>
-                  {here.map((n) => {
-                    const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
-                    return <StudyNote key={n.id} ctx={ctx} note={n} label={a || `Verse ${verse.ref}`} />;
-                  })}
-                </View>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
-      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-        Notes on the passage stay with it, like the rest of the study, and reviewers see them with the team's notes.
-      </Text>
+    <>
+      <SourceReader ctx={ctx} unitId={v.unitId} laneId={v.laneId} layout="screen" hidden={props.hidden}
+        {...(props.header ? { header: props.header } : {})}
+        onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, laneId: v.laneId })}
+        verse={{
+          badge: (row) => notesOn(row.key).length,
+          below: (row, c) => {
+            const here = notesOn(row.key);
+            if (!(c.selected && props.canContribute) && here.length === 0) return null;
+            return (
+              <View style={{ paddingLeft: 44, paddingRight: space.xs, paddingBottom: space.sm, gap: space.sm }}>
+                {c.selected && props.canContribute ? (
+                  <Pressable onPress={() => setAdding({ verse: row.key, code: c.code, ...(c.at ? { at: c.at } : {}) })} accessibilityRole="button"
+                    style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
+                    <Ico name="note" size={16} color={C.white} />
+                    <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>Add a note on {row.key}{c.at ? ` at ${c.at}` : ''}</Text>
+                  </Pressable>
+                ) : null}
+                {here.map((n) => {
+                  const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
+                  return <StudyNote key={n.id} ctx={ctx} note={n} label={a || `Verse ${row.key}`} />;
+                })}
+              </View>
+            );
+          }
+        }} />
       {adding ? (
         <ContributeSheet ctx={ctx} unitId={v.unitId} laneId={v.laneId} title="Add a note"
-          where={`${v.title} · verse ${adding.verse} · ${reading.code}${adding.at ? ` · ${adding.at}` : ''}`}
-          onClose={() => { setAdding(null); setSelected(null); }}
-          onSave={(c) => saveNote(ctx, v, { kind: 'verse', verse: adding.verse, translation: reading.code, ...(adding.at ? { at: adding.at } : {}) }, c,
+          where={`${v.title} · verse ${adding.verse} · ${adding.code}${adding.at ? ` · ${adding.at}` : ''}`}
+          onClose={() => setAdding(null)}
+          onSave={(c) => saveNote(ctx, v, { kind: 'verse', verse: adding.verse, translation: adding.code, ...(adding.at ? { at: adding.at } : {}) }, c,
             `Note added on ${adding.verse} — it follows this passage`)} />
       ) : null}
-    </ScrollView>
+    </>
   );
 }
 

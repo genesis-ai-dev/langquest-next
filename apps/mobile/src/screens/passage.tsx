@@ -34,6 +34,7 @@ import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarge
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
 import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
+import { UsedLine } from '../sources/used';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed } from '../session';
 import { useStudyGuide } from '../study/libraryGuides';
@@ -869,6 +870,7 @@ export function VersionDetail(ctx: Ctx) {
           )) : null}
         </Card>
       </Authored>
+      <UsedLine ctx={ctx} state={v.state} subject={{ takeId: version.takeId }} detailsKey={key('used')} />
 
       {terms.length > 0 || reviews.length > 0 || notes.length > 0 ? <SectionLabel label="Details" /> : null}
       {terms.length > 0 ? (
@@ -986,6 +988,7 @@ export function ReviewDetail(ctx: Ctx) {
             onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })} last />
         </Group>
       ) : null}
+      <UsedLine ctx={ctx} state={v.state} subject={{ reviewId: review.id }} detailsKey={`review:${unitId}:${laneId}:${review.id}:used`} />
       {review.comment || review.commentBlobHash ? (
         <Card>
           <Label text={makes ? 'Note from the back translator' : 'Feedback'} />

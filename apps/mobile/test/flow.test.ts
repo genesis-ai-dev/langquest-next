@@ -14,7 +14,9 @@ describe('UX flow coverage', () => {
     // the Reports section on a wide window (decisions.md 57).
     // And the reference screens by level and the guide editor (docs/reference-material.md).
     const appOnly = ['sync_status', 'delete_account', 'reports_home', 'reports_language',
-      'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference', 'guide_editor'] as const;
+      'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference', 'guide_editor',
+      // More Bibles beside a passage (docs/reference-material.md).
+      'bible_explore'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(TITLES[id]).toBeTruthy();
   });

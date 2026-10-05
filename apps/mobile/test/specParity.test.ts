@@ -42,7 +42,12 @@ const APP_ONLY: Record<string, string> = {
   'passage_record->passage_reference': 'what a translator is offered on this passage and why (Details)',
   'reference_home->guide_editor': 'Write a guide: an organization writes study material as rich as FIA\'s (docs/reference-material.md, guide editor)',
   'study_guide->guide_editor': 'Edit a guide the organization controls, or Copy to adapt FIA\'s or another organization\'s',
-  'reference_guides->guide_editor': 'Open a guide the organization wrote in the guide editor'
+  'reference_guides->guide_editor': 'Open a guide the organization wrote in the guide editor',
+  'workspace->bible_explore': 'More Bibles beside the recorder: explore Bible Brain and add a Bible for yourself (docs/reference-material.md)',
+  'study_guide->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
+  'study_step->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
+  'review_capture->bible_explore': 'More Bibles from the reviewer\'s Background (docs/reference-material.md)',
+  'add_record->bible_explore': 'More Bibles from Already happened\'s Background (docs/reference-material.md)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -57,8 +62,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion the Reports section, the reference screens and the guide editor, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor and More Bibles, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

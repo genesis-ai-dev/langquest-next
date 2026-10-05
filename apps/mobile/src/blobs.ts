@@ -27,8 +27,10 @@ import { webFiles, type WebFiles } from './webFiles';
 const DIR_NAME = 'blobs';
 const STAGING_SUFFIX = '.part';
 
-/** What the store needs to name a file; the unit is sync's concern, not disk's. */
-export type BlobFile = Pick<BlobRef, 'hash' | 'format'>;
+/** What the store needs to name a file; the unit is sync's concern, not disk's. MP3 is a source's chapter audio (sources/offline.ts), never a recording. */
+export type BlobFile = { hash: string; format: BlobRef['format'] | 'mp3' };
+/** A recording's file: always one of the formats the recorder makes. */
+export type RecordingFile = Pick<BlobRef, 'hash' | 'format'>;
 
 /**
  * Every kind of file the store keeps: recordings (wav, m4a), and the audio,
@@ -226,6 +228,31 @@ export class BlobStore {
   }
 
   /**
+   * Delete these files whatever the space: a source's audio whose license
+   * no longer lets phones keep it, or one the sources cache evicts
+   * (sources/offline.ts). Recordings never come through here.
+   */
+  remove(refs: readonly BlobFile[]): string[] {
+    const removed: string[] = [];
+    for (const ref of refs) {
+      if (!this.present.has(ref.hash)) continue;
+      if (this.dir) {
+        try { this.fileFor(ref).delete(); } catch { continue; }
+      } else {
+        const url = this.urls.get(ref.hash);
+        if (url) URL.revokeObjectURL(url);
+        this.urls.delete(ref.hash);
+        void this.web().remove(nameOf(ref)).catch(() => undefined);
+      }
+      this.present.delete(ref.hash);
+      this.sizeByHash.delete(ref.hash);
+      removed.push(ref.hash);
+    }
+    if (removed.length) for (const l of this.listeners) l();
+    return removed;
+  }
+
+  /**
    * Where to play it from. On the web the first ask starts reading the file
    * and answers null; listeners hear when its URL is ready, by which time a
    * screen that asked while drawing has it for the tap.
@@ -269,12 +296,12 @@ export class BlobStore {
    * content-addressed name, and return the ref. Idempotent: the same bytes
    * land on the same name.
    */
-  async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
+  async ingest(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: RecordingFile, size: number) => Promise<void>): Promise<{ ref: RecordingFile; size: number }> {
     if (!this.dir) return this.ingestOnWeb(sourceUri, format, beforeMove);
     const src = new File(sourceUri);
     const bytes = await src.bytes();
     const hash = await BlobStore.hashOf(bytes);
-    const ref: BlobFile = { hash, format };
+    const ref: RecordingFile = { hash, format };
     const dest = this.fileFor(ref);
     await beforeMove?.(ref, bytes.byteLength);
     if (!dest.exists) src.move(dest);
@@ -284,10 +311,10 @@ export class BlobStore {
   }
 
   /** Web: the recorder hands over a blob: URL; read it, store the bytes under their hash, let the URL go. */
-  private async ingestOnWeb(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: BlobFile, size: number) => Promise<void>): Promise<{ ref: BlobFile; size: number }> {
+  private async ingestOnWeb(sourceUri: string, format: BlobRef['format'], beforeMove?: (ref: RecordingFile, size: number) => Promise<void>): Promise<{ ref: RecordingFile; size: number }> {
     const bytes = new Uint8Array(await (await fetch(sourceUri)).arrayBuffer());
     const hash = await BlobStore.hashOf(bytes);
-    const ref: BlobFile = { hash, format };
+    const ref: RecordingFile = { hash, format };
     await beforeMove?.(ref, bytes.byteLength);
     if (!this.present.has(hash)) await this.web().write(nameOf(ref), bytes);
     if (sourceUri.startsWith('blob:')) URL.revokeObjectURL(sourceUri);
