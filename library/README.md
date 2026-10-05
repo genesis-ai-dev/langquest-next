@@ -98,3 +98,11 @@ the chapter's MP3 is left out.
 Seeding a hosted project needs its service role key and the owner's
 go-ahead. The script refuses a non-local `SUPABASE_URL` unless it is given
 `--hosted`; never put the key in a file here.
+
+## Verse timings
+
+`timings/bsb-fs/` holds fia-align `timing@1` output for the BSB read by
+Frederick Surrey (OpenBible's CC0 audio, BSB text from berean.bible), made
+on 2026-10-05 with `fia-align chapter --text-file … --audio-file …`; every
+chapter passed the proportion check. Seed them with
+`npm run library:seed -- --sources --timings library/timings/bsb-fs`.
