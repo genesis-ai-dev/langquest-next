@@ -5,7 +5,7 @@ Oral Bible translation, rebuilt on an append-only event log. Read
 
 ## Local development
 
-Requires Docker via colima (`colima start`) and Node 22.
+Requires Docker via colima (`colima start`) and Node 24 (npm 11, which the lockfile is written with; CI uses the same).
 
 ```bash
 npm install
