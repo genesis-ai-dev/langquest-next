@@ -1,5 +1,6 @@
 import { unitAncestry } from './materials';
-import type { PartitionState } from './state';
+import { unitsAskedOf } from './passage';
+import type { LanguageState } from './state';
 
 /**
  * Blob work lists, derived on every pass (PLAN.md section 14 rule 1).
@@ -14,17 +15,12 @@ export interface BlobRef {
   unitId: string;
 }
 
-/** Every blob the partition references: recording cards and reference audio. */
-export function referencedBlobs(state: PartitionState): Map<string, BlobRef> {
+/** Every blob the language references: recording cards and reference audio. */
+export function referencedBlobs(state: LanguageState): Map<string, BlobRef> {
   const out = new Map<string, BlobRef>();
   for (const r of Object.values(state.recordings)) {
     for (const c of r.cards) {
       if (!out.has(c.hash)) out.set(c.hash, { hash: c.hash, format: c.format ?? 'wav', unitId: r.unitId });
-    }
-  }
-  for (const ref of Object.values(state.references)) {
-    if (ref.blobHash && !out.has(ref.blobHash)) {
-      out.set(ref.blobHash, { hash: ref.blobHash, format: 'm4a', unitId: ref.unitId });
     }
   }
   for (const m of Object.values(state.materials)) {
@@ -41,22 +37,16 @@ export function referencedBlobs(state: PartitionState): Map<string, BlobRef> {
     const unitId = state.takes[takeId]?.unitId ?? '';
     if (r.blobHash && !out.has(r.blobHash)) out.set(r.blobHash, { hash: r.blobHash, format: 'm4a', unitId });
   }
-  for (const [takeId, bySteps] of Object.entries(state.reviewComments)) {
-    const unitId = state.takes[takeId]?.unitId ?? '';
-    for (const byActor of Object.values(bySteps)) {
-      for (const c of Object.values(byActor)) if (!out.has(c.blobHash)) out.set(c.blobHash, { hash: c.blobHash, format: 'm4a', unitId });
-    }
-  }
   // The record's own audio (decision 30): voice notes, spoken feedback and
   // reasons, directions, and what a producing kind made. Named only by the
   // event that uses it; voice notes are m4a, artifacts carry their format.
   const add = (hash: string | undefined, unitId: string, format: BlobRef['format'] = 'm4a') => {
     if (hash && !out.has(hash)) out.set(hash, { hash, format, unitId });
   };
-  for (const n of Object.values(state.notes ?? {})) add(n.blobHash, n.unitId);
-  for (const d of Object.values(state.departures ?? {})) add(d.reasonBlobHash, d.unitId);
-  for (const r of Object.values(state.requests ?? {})) add(r.noteBlobHash, r.unitId);
-  for (const r of Object.values(state.kindReviews ?? {})) {
+  for (const n of Object.values(state.notes)) add(n.blobHash, n.unitId);
+  for (const d of Object.values(state.departures)) add(d.reasonBlobHash, d.unitId);
+  for (const r of Object.values(state.requests)) add(r.noteBlobHash, r.unitId);
+  for (const r of Object.values(state.kindReviews)) {
     const unitId = state.takes[r.takeId]?.unitId ?? '';
     add(r.commentBlobHash, unitId);
     for (const c of r.artifacts ?? []) add(c.hash, unitId, c.format ?? 'wav');
@@ -65,7 +55,7 @@ export function referencedBlobs(state: PartitionState): Map<string, BlobRef> {
 }
 
 /** The server's latest verdict says the bytes are there. */
-export function isStored(state: PartitionState, hash: string): boolean {
+export function isStored(state: LanguageState, hash: string): boolean {
   return state.blobs[hash]?.stored === true;
 }
 
@@ -76,7 +66,7 @@ export function isStored(state: PartitionState, hash: string): boolean {
  * did not land intact and is uploaded again (idempotent overwrite).
  */
 export function deriveUploadWork(
-  state: PartitionState,
+  state: LanguageState,
   present: ReadonlySet<string>,
   localSizes?: ReadonlyMap<string, number>
 ): BlobRef[] {
@@ -99,7 +89,7 @@ export function deriveUploadWork(
  * offline; null means everything, which only a coordinator on wifi wants.
  */
 export function deriveDownloadWork(
-  state: PartitionState,
+  state: LanguageState,
   present: ReadonlySet<string>,
   scope: ReadonlySet<string> | null = null
 ): BlobRef[] {
@@ -120,32 +110,14 @@ export function deriveDownloadWork(
  * Every blob a set of units needs offline: their own audio plus the
  * reference audio, materials and key terms they inherit (rule 10).
  */
-function scopedHashes(state: PartitionState, scope: ReadonlySet<string>, refs = referencedBlobs(state)): Set<string> {
+function scopedHashes(state: LanguageState, scope: ReadonlySet<string>, refs = referencedBlobs(state)): Set<string> {
   const needed = new Set<string>();
-  // Preserve every directly scoped blob, including review comments and
-  // responses, then add resources inherited by these passages.
+  // Preserve every directly scoped blob, including feedback and responses,
+  // then add resources inherited by these passages.
   for (const ref of refs.values()) if (scope.has(ref.unitId)) needed.add(ref.hash);
-  const lanesByUnit = new Map<string, Set<string>>();
-  for (const item of [
-    ...Object.values(state.assignments), ...Object.values(state.recordings),
-    ...Object.values(state.takes)
-  ]) {
-    if (!scope.has(item.unitId)) continue;
-    const lanes = lanesByUnit.get(item.unitId) ?? new Set<string>();
-    lanes.add(item.laneId);
-    lanesByUnit.set(item.unitId, lanes);
-  }
   for (const unitId of scope) {
     const ancestors = unitAncestry(state, unitId);
-    const lanes = lanesByUnit.get(unitId);
-    // Explicit offline selection may precede assignment. In that case
-    // resources for this unit in every lane remain available, as before.
-    const laneMatches = (lane?: string) => !lane || !lanes || lanes.has(lane);
-    for (const ref of Object.values(state.references)) {
-      if (ref.blobHash && ancestors.has(ref.unitId)) needed.add(ref.blobHash);
-    }
     for (const material of Object.values(state.materials)) {
-      if (!laneMatches(material.scope.laneId)) continue;
       if (material.scope.unitId && !ancestors.has(material.scope.unitId)) continue;
       if (material.scope.stepId) continue;
       for (const field of Object.values(material.fields)) {
@@ -153,7 +125,6 @@ function scopedHashes(state: PartitionState, scope: ReadonlySet<string>, refs = 
       }
     }
     for (const term of Object.values(state.keyTerms)) {
-      if (!laneMatches(term.laneId)) continue;
       if (term.unitScope.length && !term.unitScope.some((id) => ancestors.has(id))) continue;
       for (const adjustment of Object.values(term.adjustments)) {
         if (adjustment.blobHash) needed.add(adjustment.blobHash);
@@ -164,32 +135,31 @@ function scopedHashes(state: PartitionState, scope: ReadonlySet<string>, refs = 
 }
 
 /**
- * The units a person needs offline by default: everything they are assigned
- * to, plus everything they have recorded or composed in. Explicit "keep
- * offline" choices are unioned in by the app.
+ * The units a person needs offline by default: everything they are asked to
+ * record or review, plus everything they have recorded or composed in.
+ * Explicit "keep offline" choices are unioned in by the app.
  */
-export function defaultOfflineScope(state: PartitionState, actorId: string): Set<string> {
-  const scope = new Set<string>();
-  for (const a of Object.values(state.assignments)) if (a.profileId === actorId) scope.add(a.unitId);
+export function defaultOfflineScope(state: LanguageState, actorId: string): Set<string> {
+  const scope = unitsAskedOf(state, actorId);
   for (const r of Object.values(state.recordings)) if (r.actorId === actorId) scope.add(r.unitId);
   for (const t of Object.values(state.takes)) if (t.actorId === actorId && t.unitId) scope.add(t.unitId);
   return scope;
 }
 
 /** Referenced but neither confirmed nor present anywhere we can see: visibly missing. */
-export function deriveMissingBlobs(state: PartitionState, present: ReadonlySet<string>): BlobRef[] {
+export function deriveMissingBlobs(state: LanguageState, present: ReadonlySet<string>): BlobRef[] {
   return [...referencedBlobs(state).values()].filter((r) => !isStored(state, r.hash) && !present.has(r.hash));
 }
 
 /**
  * Local files this device may delete to reclaim space: referenced by this
- * partition, confirmed intact on the server (so they can come back), outside
+ * language, confirmed intact on the server (so they can come back), outside
  * the offline scope, and not upload work. Everything else is protected:
  * unsynced recordings, explicit offline selections, and files of other
- * partitions (which this state cannot see, so it never names them).
+ * languages (which this state cannot see, so it never names them).
  */
 export function evictableBlobs(
-  state: PartitionState,
+  state: LanguageState,
   present: ReadonlySet<string>,
   scope: ReadonlySet<string> | null,
   localSizes?: ReadonlyMap<string, number>
@@ -206,12 +176,12 @@ export function evictableBlobs(
 }
 
 /** Why a passage is kept on this phone; null when it is not. */
-export type OfflineReason = 'assigned' | 'worked' | 'chosen';
+export type OfflineReason = 'asked' | 'worked' | 'chosen';
 
 /**
  * What a passage has on this phone for use without a connection. Text,
  * status and history are always here once its language is open (the whole
- * partition syncs); audio is here only for passages in the offline scope.
+ * language syncs); audio is here only for passages in the offline scope.
  */
 export interface UnitOffline {
   reason: OfflineReason | null;
@@ -231,7 +201,7 @@ export interface UnitOffline {
 
 /** Counts for one passage's audio on this phone, kept or not. */
 export function unitOffline(
-  state: PartitionState,
+  state: LanguageState,
   unitId: string,
   present: ReadonlySet<string>,
   actorId: string,
@@ -240,9 +210,9 @@ export function unitOffline(
   return offlineByUnit(state, [unitId], present, actorId, chosen).get(unitId)!;
 }
 
-/** `unitOffline` for many passages (a map's rows), reading the partition's audio once. */
+/** `unitOffline` for many passages (a map's rows), reading the language's audio once. */
 export function offlineByUnit(
-  state: PartitionState,
+  state: LanguageState,
   unitIds: Iterable<string>,
   present: ReadonlySet<string>,
   actorId: string,
@@ -250,18 +220,17 @@ export function offlineByUnit(
 ): Map<string, UnitOffline> {
   const refs = referencedBlobs(state);
   const mine = defaultOfflineScope(state, actorId);
-  const assigned = new Set<string>();
-  for (const a of Object.values(state.assignments)) if (a.profileId === actorId) assigned.add(a.unitId);
+  const asked = unitsAskedOf(state, actorId);
   const out = new Map<string, UnitOffline>();
   for (const unitId of unitIds) {
     if (out.has(unitId)) continue;
-    const reason: OfflineReason | null = assigned.has(unitId) ? 'assigned' : mine.has(unitId) ? 'worked' : chosen.has(unitId) ? 'chosen' : null;
+    const reason: OfflineReason | null = asked.has(unitId) ? 'asked' : mine.has(unitId) ? 'worked' : chosen.has(unitId) ? 'chosen' : null;
     out.set(unitId, countUnit(state, unitId, reason, present, refs));
   }
   return out;
 }
 
-function countUnit(state: PartitionState, unitId: string, reason: OfflineReason | null, present: ReadonlySet<string>, refs: Map<string, BlobRef>): UnitOffline {
+function countUnit(state: LanguageState, unitId: string, reason: OfflineReason | null, present: ReadonlySet<string>, refs: Map<string, BlobRef>): UnitOffline {
   let here = 0;
   let toFetch = 0;
   let bytesToFetch = 0;
@@ -279,7 +248,7 @@ function countUnit(state: PartitionState, unitId: string, reason: OfflineReason 
 export interface OfflineSummary {
   kept: number;
   ready: number;
-  /** Kept passages that chose to be kept, as opposed to assigned or worked in. */
+  /** Kept passages that chose to be kept, as opposed to asked of the person or worked in. */
   chosen: number;
   filesToFetch: number;
   bytesToFetch: number;
@@ -288,7 +257,7 @@ export interface OfflineSummary {
 }
 
 export function offlineSummary(
-  state: PartitionState,
+  state: LanguageState,
   present: ReadonlySet<string>,
   actorId: string,
   chosen: ReadonlySet<string>

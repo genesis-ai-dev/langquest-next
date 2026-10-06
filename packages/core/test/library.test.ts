@@ -1,14 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { foldOrg } from '../src/org';
-import { fold } from '../src/reducer';
-import { emptyState } from '../src/state';
+import { foldLanguage as fold } from '../src/reducer';
+import { emptyLanguageState } from '../src/state';
 import { buildOrgFixture, shuffle } from './fixtures';
 import { libraryItems, libraryItemView } from '../src/library';
 import { canonicalJson, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type TemplateDoc } from '../src/libraryDocs';
 import { libraryFlowId, selectFlowSpecs, selectTemplateSpecs, studyEntriesFor, templateUnits } from '../src/libraryApply';
 import { deriveFlow, unitPlace } from '../src/passage';
-import { laneLeafUnits, buildIndexes } from '../src/indexes';
+import { languagePassages, buildIndexes } from '../src/indexes';
 import { parseRef, type VersificationDoc } from '../src/versification';
 import type { AnyEvent } from '../src/events';
 import type { EventSpec } from '../src/commands';
@@ -26,7 +26,7 @@ function load(code: string): VersificationDoc {
 const eng = load('eng');
 const org = load('org');
 
-describe('the library in the org partition', () => {
+describe('the library in the organization stream', () => {
   const events = buildOrgFixture();
   const canonical = foldOrg(events);
 
@@ -98,25 +98,25 @@ describe('a language using library versions', () => {
   });
 
   it('hides the parts a new version drops and brings them back when a later one has them again (TPL-7)', () => {
-    const apply = (state: ReturnType<typeof emptyState>, specs: EventSpec[], at: number) =>
-      fold(specs.map((s, i) => ({ ...s, orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'd', hlc: `${String(at + i).padStart(15, '0')}:000000:d` }) as AnyEvent), state);
-    let state = apply(emptyState(), [{ id: 'lane', type: 'v1.LaneAdded', payload: { laneId: 'L1', languoidId: 'din' } } as EventSpec], 1);
-    state = apply(state, selectTemplateSpecs(state, { commandId: 'c1', laneId: 'L1', itemId: 'ruth', docHash: H('1'), doc: v1, versification: eng }), 10);
-    const leaves = () => laneLeafUnits(state, buildIndexes(state), 'L1');
+    const apply = (state: ReturnType<typeof emptyLanguageState>, specs: EventSpec[], at: number) =>
+      fold(specs.map((s, i) => ({ ...s, orgId: 'o', streamId: 'L1', actorId: 'a', deviceId: 'd', hlc: `${String(at + i).padStart(15, '0')}:000000:d` }) as AnyEvent), state);
+    let state = emptyLanguageState();
+    state = apply(state, selectTemplateSpecs(state, { commandId: 'c1', itemId: 'ruth', docHash: H('1'), doc: v1, versification: eng }), 10);
+    const leaves = () => languagePassages(state, buildIndexes(state));
     expect(leaves()).toEqual(['ruth/RUT.1.1-16', 'ruth/RUT.1.17-22']);
 
     const v2: TemplateDoc = { ...v1, bible: { ...v1.bible!, passages: [{ ref: 'RUT 1:1-22', name: 'Ruth 1' }] } };
-    state = apply(state, selectTemplateSpecs(state, { commandId: 'c2', laneId: 'L1', itemId: 'ruth', docHash: H('2'), doc: v2, versification: eng }), 100);
+    state = apply(state, selectTemplateSpecs(state, { commandId: 'c2', itemId: 'ruth', docHash: H('2'), doc: v2, versification: eng }), 100);
     expect(leaves()).toEqual(['ruth/RUT.1.1-22']);
     // Nothing is deleted: the first version's units are still in the log.
     expect(state.units['ruth/RUT.1.1-16']).toBeDefined();
 
-    state = apply(state, selectTemplateSpecs(state, { commandId: 'c3', laneId: 'L1', itemId: 'ruth', docHash: H('1'), doc: v1, versification: eng }), 200);
+    state = apply(state, selectTemplateSpecs(state, { commandId: 'c3', itemId: 'ruth', docHash: H('1'), doc: v1, versification: eng }), 200);
     expect(leaves()).toEqual(['ruth/RUT.1.1-16', 'ruth/RUT.1.17-22']);
   });
 
   it('places a library unit on the Map by its id, with the book named in the language', () => {
-    const state = emptyState();
+    const state = emptyLanguageState();
     state.units['ruth/RUT'] = { parentUnitId: null, kind: 'book', label: 'Rut', order: 'b' };
     state.units['ruth/RUT.1.17-2.3'] = { parentUnitId: 'ruth/RUT', kind: 'passage', label: 'Rut 1:17–2:3', order: 'p' };
     const place = unitPlace(state, 'ruth/RUT.1.17-2.3');
@@ -131,9 +131,9 @@ describe('a language using library versions', () => {
       steps: [{ stepId: 's1', kindIds: ['elder'] }, { stepId: 's2', kindIds: ['final'], checkpoint: true }]
     };
     expect(validateDoc(flow)).toBeNull();
-    const specs = selectFlowSpecs(emptyState(), { commandId: 'f', laneId: 'L1', itemId: 'elders', docHash: H('9'), doc: flow });
-    const state = fold(specs.map((s, i) => ({ ...s, orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent));
-    const f = deriveFlow(state, 'L1');
+    const specs = selectFlowSpecs(emptyLanguageState(), { commandId: 'f', itemId: 'elders', docHash: H('9'), doc: flow });
+    const state = fold(specs.map((s, i) => ({ ...s, orgId: 'o', streamId: 'L1', actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent));
+    const f = deriveFlow(state);
     expect(f.name).toBe('Elders first');
     expect(f.itemId).toBe('elders');
     expect(f.flowId).toBe(libraryFlowId('elders', H('9')));

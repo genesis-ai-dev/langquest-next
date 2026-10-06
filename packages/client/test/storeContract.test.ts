@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import type { AnyEvent, PassageRow } from '@langquest-next/core';
+import type { AnyEvent } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import type { EventStore } from '../src/types';
@@ -21,20 +21,16 @@ function nodeDriver(): SqlDriver {
   return driver;
 }
 
-function row(unitId: string, laneId: string, order: string): PassageRow {
-  return { unitId, laneId, order, label: unitId, takeId: null, outcome: null, submitted: false, cardCount: 0, steps: [], assignees: [] };
-}
-
 function ev(id: string, hlc: string, serverSeq?: number): AnyEvent {
   return {
     id,
-    type: 'v1.LaneAdded',
+    type: 'v1.UnitAdded',
     orgId: 'o',
-    partitionId: 'p',
+    streamId: 'p',
     actorId: 'a',
     deviceId: 'd',
     hlc,
-    payload: { laneId: id, languoidId: 'x' },
+    payload: { unitId: id, parentUnitId: null, kind: 'passage', label: id, order: hlc },
     ...(serverSeq !== undefined ? { serverSeq } : {})
   };
 }
@@ -59,9 +55,9 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect(await s.pendingCountBy('o', 'p', 'a')).toBe(1);
     expect(await s.pendingCountBy('o', 'p', 'b')).toBe(1);
     expect(await s.pendingCountBy('o', 'p', 'c')).toBe(0);
-    await s.put({ event: { ...ev('b4', '5'), actorId: 'b', partitionId: 'q' }, status: 'pending' });
-    expect(await s.pendingPartitionsBy('b')).toEqual([{ orgId: 'o', partitionId: 'p' }, { orgId: 'o', partitionId: 'q' }]);
-    expect(await s.pendingPartitionsBy('c')).toEqual([]);
+    await s.put({ event: { ...ev('b4', '5'), actorId: 'b', streamId: 'q' }, status: 'pending' });
+    expect(await s.pendingStreamsBy('b')).toEqual([{ orgId: 'o', streamId: 'p' }, { orgId: 'o', streamId: 'q' }]);
+    expect(await s.pendingStreamsBy('c')).toEqual([]);
   });
 
   it('pending returns only pending, oldest first; all excludes rejected', async () => {
@@ -96,31 +92,22 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect(await s.pendingPage('o', 'p', 'e', 2)).toEqual([]);
   });
 
-  it('commit writes events, cursor, meta, and rows together; rows page in display order', async () => {
+  it('commit writes events, cursor, meta and prune together', async () => {
     // Why: the single writer's promise is that one batch is one durable
-    // step. The rows a screen reads must come from the same commit as the
-    // events that produced them.
+    // step. A pull page's events and the cursor past them land together.
     const s = await make();
+    await s.put({ event: ev('old', '0', 1), status: 'confirmed' });
     await s.commit({
-      events: [{ event: ev('a', '1'), status: 'pending' }],
-      cursor: { orgId: 'o', partitionId: 'p', seq: 9 },
+      events: [{ event: ev('a', '1'), status: 'pending' }, { event: ev('b', '2', 2), status: 'confirmed' }],
+      cursor: { orgId: 'o', streamId: 'p', seq: 9 },
       meta: { k: 'v' },
-      rows: { orgId: 'o', partitionId: 'p', put: [row('u2', 'L1', 'b'), row('u1', 'L1', 'a'), row('u1', 'L2', 'a'), row('u3', 'L1', 'c')] }
+      prune: { orgId: 'o', streamId: 'p', uptoSeq: 1 }
     });
     expect((await s.pending('o', 'p')).map((e) => e.event.id)).toEqual(['a']);
+    expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b']);
     expect(await s.cursor('o', 'p')).toBe(9);
+    expect(await s.cursor('o', 'q')).toBe(0);
     expect(await s.meta('k')).toBe('v');
-    expect((await s.passage('o', 'p', 'u1', 'L2'))?.laneId).toBe('L2');
-    const first = await s.passages('o', 'p', { limit: 2 });
-    expect(first.map((r) => `${r.unitId}:${r.laneId}`)).toEqual(['u1:L1', 'u1:L2']);
-    const last = first[first.length - 1]!;
-    const rest = await s.passages('o', 'p', { after: { order: last.order, unitId: last.unitId, laneId: last.laneId }, limit: 10 });
-    expect(rest.map((r) => `${r.unitId}:${r.laneId}`)).toEqual(['u2:L1', 'u3:L1']);
-    expect((await s.passages('o', 'p', { laneId: 'L1', limit: 10 })).map((r) => r.unitId)).toEqual(['u1', 'u2', 'u3']);
-    await s.commit({ rows: { orgId: 'o', partitionId: 'p', delete: [{ unitId: 'u3', laneId: 'L1' }] } });
-    expect(await s.passage('o', 'p', 'u3', 'L1')).toBeUndefined();
-    await s.commit({ rows: { orgId: 'o', partitionId: 'p', clear: true, put: [row('u9', 'L1', 'z')] } });
-    expect((await s.passages('o', 'p', { limit: 10 })).map((r) => r.unitId)).toEqual(['u9']);
   });
 
   it('put is an upsert by id, so a confirm replaces the pending row', async () => {
@@ -131,7 +118,7 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect((await s.get('a'))?.event.serverSeq).toBe(7);
   });
 
-  it('cursor defaults to 0 and persists per partition', async () => {
+  it('cursor defaults to 0 and persists per stream', async () => {
     const s = await make();
     expect(await s.cursor('o', 'p')).toBe(0);
     await s.setCursor('o', 'p', 42);
@@ -140,9 +127,9 @@ describe.each(impls)('%s contract', (_name, make) => {
     expect(await s.cursor('o', 'q')).toBe(5);
   });
 
-  it('partitions do not leak into each other', async () => {
+  it('streams do not leak into each other', async () => {
     const s = await make();
-    await s.put({ event: { ...ev('a', '1'), partitionId: 'other' }, status: 'pending' });
+    await s.put({ event: { ...ev('a', '1'), streamId: 'other' }, status: 'pending' });
     expect(await s.pending('o', 'p')).toEqual([]);
   });
 });
@@ -188,26 +175,43 @@ describe('SqliteStore durability', () => {
     expect((db.prepare('pragma synchronous').get() as { synchronous: number }).synchronous).toBe(1);
   });
 
-  it('starts empty on a phone whose log predates the partition_id rename', async () => {
-    // Why: the server was reset with the rename (decisions.md 63), so the old
-    // log, cursors and device id mean nothing to it, and the old columns
-    // would fail every query.
+  it.each(['project_id', 'partition_id'])('starts empty on a phone whose events table has %s and no stream_id', async (column) => {
+    // Why: the server was reset with the move to streams (decisions.md 63),
+    // so an older log, its cursors and device id mean nothing to it, and the
+    // old columns would fail every query.
     const driver = nodeDriver();
-    await driver.run(`create table events (id text primary key, org_id text not null, project_id text not null,
+    await driver.run(`create table events (id text primary key, org_id text not null, ${column} text not null,
       status text not null, reject_reason text, hlc text not null, server_seq integer, json text not null)`);
     await driver.run(`insert into events values ('old', 'o', 'p', 'pending', null, '1', null, '{}')`);
+    await driver.run(`create table cursors (org_id text not null, ${column} text not null, seq integer not null, primary key (org_id, ${column}))`);
+    await driver.run(`insert into cursors values ('o', 'p', 42)`);
     await driver.run(`create table meta (key text primary key, value text not null)`);
     await driver.run(`insert into meta values ('deviceId', 'old-device')`);
+    await driver.run(`create table passage_rows (org_id text not null, ${column} text not null, unit_id text not null, json text not null)`);
     const s = await SqliteStore.open(driver);
     expect(await s.count('o', 'p')).toBe(0);
+    expect(await s.cursor('o', 'p')).toBe(0);
     expect(await s.meta('deviceId')).toBeUndefined();
+    expect(await driver.all(`select name from sqlite_master where name = 'passage_rows'`)).toEqual([]);
     await s.put({ event: ev('a', '1'), status: 'pending' });
+    await s.setCursor('o', 'p', 3);
     expect((await s.all('o', 'p')).map((e) => e.event.id)).toEqual(['a']);
+    expect(await s.cursor('o', 'p')).toBe(3);
+  });
+
+  it('keeps a log that already has stream_id across reopening', async () => {
+    const driver = nodeDriver();
+    const first = await SqliteStore.open(driver);
+    await first.put({ event: ev('a', '1'), status: 'pending' });
+    await first.setMeta('deviceId', 'd1');
+    const again = await SqliteStore.open(driver);
+    expect((await again.all('o', 'p')).map((e) => e.event.id)).toEqual(['a']);
+    expect(await again.meta('deviceId')).toBe('d1');
   });
 });
 
 describe.each(impls)('%s batch and rejected contract', (_name, make) => {
-  it('putMany upserts every row and rejected() lists refusals oldest first per partition', async () => {
+  it('putMany upserts every row and rejected() lists refusals oldest first per stream', async () => {
     // Why: after a month offline a device pulls tens of thousands of events;
     // one statement each would be one fsync each. And the UI must be able to
     // show what was refused without scanning the whole log.
@@ -218,7 +222,7 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
       { event: ev('b', '2', 2), status: 'confirmed' },
       { event: ev('y', '4'), status: 'rejected', rejectReason: 'not a member' },
       { event: ev('x', '3'), status: 'rejected', rejectReason: 'invalid payload: x' },
-      { event: { ...ev('z', '5'), partitionId: 'other' }, status: 'rejected', rejectReason: 'no' }
+      { event: { ...ev('z', '5'), streamId: 'other' }, status: 'rejected', rejectReason: 'no' }
     ]);
     await s.putMany([]);
     expect((await s.get('a'))?.status).toBe('confirmed');
@@ -247,23 +251,23 @@ describe('SqliteStore transactions', () => {
   });
 
   it('a commit that fails halfway leaves nothing behind (SQLite)', async () => {
-    // Why: a phone can die between statements. The log and the rows must
-    // move together or not at all, or a screen could show a take the log
-    // does not have.
+    // Why: a phone can die between statements. A pull page's events and
+    // the cursor past them must move together or not at all, or the next
+    // pull would skip events the log does not have.
     const s = await SqliteStore.open(nodeDriver());
     await s.commit({ events: [{ event: ev('a', '1'), status: 'pending' }] });
-    const bad = { ...row('u1', 'L1', 'a'), order: null as unknown as string };
+    const bad = { ...ev('c', '3'), hlc: null as unknown as string };
     await expect(
-      s.commit({ events: [{ event: ev('b', '2'), status: 'pending' }], cursor: { orgId: 'o', partitionId: 'p', seq: 5 }, rows: { orgId: 'o', partitionId: 'p', put: [bad] } })
+      s.commit({ events: [{ event: ev('b', '2'), status: 'pending' }, { event: bad, status: 'pending' }], cursor: { orgId: 'o', streamId: 'p', seq: 5 }, meta: { k: 'v' } })
     ).rejects.toThrow();
     expect((await s.pending('o', 'p')).map((e) => e.event.id)).toEqual(['a']);
     expect(await s.cursor('o', 'p')).toBe(0);
-    expect(await s.passages('o', 'p', { limit: 10 })).toEqual([]);
+    expect(await s.meta('k')).toBeUndefined();
   });
 });
 
 
-it('serializes shared-store mutations across partitions and direct metadata writes', async () => {
+it('serializes shared-store mutations across streams and direct metadata writes', async () => {
   const db = nodeDriver();
   const original = db.transaction!;
   let active = 0;
@@ -279,7 +283,7 @@ it('serializes shared-store mutations across partitions and direct metadata writ
   const store = await SqliteStore.open(db);
   await Promise.all([
     store.put({ event: ev('one', '1'), status: 'pending' }),
-    store.putMany([{ event: { ...ev('two', '2'), partitionId: '_org' }, status: 'pending' }]),
+    store.putMany([{ event: { ...ev('two', '2'), streamId: '_org' }, status: 'pending' }]),
     store.setMeta('journal', 'saved'),
     store.setCursor('o', 'p', 5),
     store.prune('o', 'p', 0)
@@ -289,54 +293,6 @@ it('serializes shared-store mutations across partitions and direct metadata writ
   expect(await store.pendingCount('o', 'p')).toBe(1);
   expect(await store.pendingCount('o', '_org')).toBe(1);
 });
-
-it('SQLite task filters page individual tasks and maintain progress totals', async () => {
-  const store = await SqliteStore.open(nodeDriver());
-  const submitted: PassageRow = { ...row('u1', 'L1', 'a'), takeId: 'take',
-    submitted: true, outcome: 'approved', steps: [
-      { stepId: 'a', eligible: ['reviewer'], decided: [] },
-      { stepId: 'b', eligible: ['reviewer'], decided: ['reviewer'] }
-    ] };
-  await store.commit({ rows: { orgId: 'o', partitionId: 'p', put: [submitted,
-    ...Array.from({ length: 500 }, (_, i) => row(`unused${i}`, 'L1', `z${i}`))] } });
-  const query = { actorId: 'reviewer', translate: false, limit: 1 };
-  const first = await store.taskPage('o', 'p', query);
-  expect(first.map((r) => r.taskId)).toEqual(['review:u1:L1:a']);
-  const next = await store.taskPage('o', 'p', { ...query,
-    after: { order: 'a', unitId: 'u1', laneId: 'L1', taskId: first[0]!.taskId } });
-  expect(next.map((r) => r.taskId)).toEqual(['review:u1:L1:b']);
-  expect((await store.taskPage('o', 'p', { ...query, status: ['done'], laneId: 'L1' })).map((r) => r.taskId))
-    .toEqual(['review:u1:L1:b']);
-  expect(await store.taskPage('o', 'p', { ...query, status: [] })).toEqual([]);
-  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 501, translated: 1, approved: 1 });
-  await store.commit({ rows: { orgId: 'o', partitionId: 'p', put: [{ ...submitted, outcome: 'in_review' }] } });
-  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 501, translated: 1, approved: 0 });
-  await store.commit({ rows: { orgId: 'o', partitionId: 'p', delete: [{ unitId: 'u1', laneId: 'L1' }] } });
-  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 500, translated: 0, approved: 0 });
-  expect(await store.taskPage('o', 'p', query)).toEqual([]);
-  await store.commit({ rows: { orgId: 'o', partitionId: 'p', clear: true, put: [submitted] } });
-  expect(await store.laneCounts('o', 'p', 'L1')).toEqual({ passages: 1, translated: 1, approved: 1 });
-});
-
-
-it('filtered SQLite task lookup uses task indexes, not passage scans', async () => {
-  const db = nodeDriver();
-  const all = db.all.bind(db);
-  let plan: string[] = [];
-  db.all = async <T,>(sql: string, params: unknown[] = []) => {
-    if (sql.includes('select p.json, t.task_id')) {
-      plan = (await all<{ detail: string }>(`explain query plan ${sql}`, params)).map((r) => r.detail);
-    }
-    return all<T>(sql, params);
-  };
-  const store = await SqliteStore.open(db);
-  await store.commit({ rows: { orgId: 'o', partitionId: 'p', put: [row('u', 'lane', 'a')] } });
-  await store.taskPage('o', 'p', { actorId: 'actor', translate: true,
-    status: ['todo', 'doing'], laneId: 'lane', limit: 20 });
-  expect(plan.some((line) => line.includes('SEARCH task_rows') && line.includes('task_rows_lane_status'))).toBe(true);
-  expect(plan.some((line) => line.includes('SCAN task_rows'))).toBe(false);
-});
-
 
 it('SQLite outbox pagination follows an event clock correction', async () => {
   const store = await SqliteStore.open(nodeDriver());

@@ -1,15 +1,13 @@
 import { BIBLE_BOOKS } from './catalogData';
 import { libraryUnitRange } from './versification';
-import { flowTemplate, QUESTION_TEMPLATES } from './catalog';
 import type { Hlc } from './hlc';
-import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
+import { buildIndexes, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplateV2, V1_STAGE_KINDS,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
 import { sourceChapters } from './sourceBibles';
-import type { PartitionState } from './state';
-import { deriveWorkflow } from './workflow';
+import type { LanguageState } from './state';
 import { stateRevision } from './reducer';
 
 /**
@@ -27,36 +25,20 @@ import { stateRevision } from './reducer';
 
 // ---- vocabulary ------------------------------------------------------------------
 
-/** The part of a v1 step id that names its stage: `quick_check@1/peer_review` -> `peer_review`. */
-const stageOf = (stepId: string) => stepId.slice(stepId.lastIndexOf('/') + 1);
-
-/** The kind a v1 workflow step reads as. */
-export function kindOfV1Step(stepId: string): string {
-  return V1_STAGE_KINDS[stageOf(stepId)] ?? stepId;
-}
-
 /**
- * Every kind this partition speaks: the shipped vocabulary, overridden or
- * extended by `v1.ReviewKindDefined`, plus a kind for any v1 step that maps
- * to none (named by its label), so a lane configured before v2 still reads.
+ * Every kind this language speaks: the shipped vocabulary, overridden or
+ * extended by `v1.ReviewKindDefined` (its flow brings the kinds it uses).
  */
-export function deriveKinds(state: PartitionState): KindDef[] {
+export function deriveKinds(state: LanguageState): KindDef[] {
   const out = new Map<string, KindDef>(DEFAULT_KINDS.map((k) => [k.id, k]));
-  for (const slot of Object.entries(state.workflowSteps).sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v)) {
-    if (slot.removed || slot.step.hlc === '') continue;
-    const kindId = kindOfV1Step(slot.step.value.stepId);
-    if (!out.has(kindId)) {
-      out.set(kindId, { id: kindId, name: slot.step.value.label ?? humanize(stageOf(kindId)), description: '', usualReviewer: '' });
-    }
-  }
-  // Shipped kinds keep their order; the organization's own follow by id, so
-  // the list never depends on the order events arrived in.
+  // Shipped kinds keep their order; the language's own follow by id, so the
+  // list never depends on the order events arrived in.
   for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id]!.value);
   return [...out.values()];
 }
 
-export function kindOf(state: PartitionState, kindId: string): KindDef {
-  return deriveKinds(state).find((k) => k.id === kindId) ?? { id: kindId, name: humanize(stageOf(kindId)), description: '', usualReviewer: '' };
+export function kindOf(state: LanguageState, kindId: string): KindDef {
+  return deriveKinds(state).find((k) => k.id === kindId) ?? { id: kindId, name: humanize(kindId), description: '', usualReviewer: '' };
 }
 
 function humanize(id: string): string {
@@ -70,10 +52,10 @@ export interface FlowStep {
   checkpoint: boolean;
 }
 
-export interface LaneFlow {
-  /** Catalog flow the lane chose, if any. */
+export interface LanguageFlow {
+  /** The flow the language chose: a library flow's version, or `custom`; null when none is chosen. */
   flowId: string | null;
-  /** The library flow and version it uses, when chosen from the library (decision 36). */
+  /** The library flow and version it uses (decision 36). */
   itemId: string | null;
   docHash: string | null;
   name: string;
@@ -81,34 +63,21 @@ export interface LaneFlow {
 }
 
 /**
- * The flow in force for a lane. v2 steps (lane over partition) win; a lane
- * that selected a v2 flow reads only v2 steps, so choosing "Collect only"
- * really means no steps. Otherwise the v1 workflow, one kind per step.
+ * The flow in force: the steps under the chosen flow's prefix that were not
+ * removed. A language that chose no flow has no steps, so a recorded
+ * passage is done ("Collect only" means the same, by choice).
  */
-export function deriveFlow(state: PartitionState, laneId: string): LaneFlow {
-  const selection = state.laneFlows[laneId]?.value ?? null;
-  const live = Object.values(state.flowSteps)
+export function deriveFlow(state: LanguageState): LanguageFlow {
+  const selection = state.flow?.value ?? null;
+  if (!selection) return { flowId: null, itemId: null, docHash: null, name: 'No review flow', steps: [] };
+  const prefix = flowStepPrefix(selection.flowId);
+  const steps = Object.values(state.flowSteps)
     .map((r) => r.value)
-    .filter((d) => !state.workflowSteps[d.stepId]?.removed);
-  const v2Selection = selection !== null && selection.catalogVersion >= 2;
-  // A lane that chose (or saved) its own v2 flow shows exactly that
-  // selection's steps, even none: "Collect only" must not fall back to the
-  // partition's steps, and a flow chosen before stays out of sight.
-  const prefix = v2Selection ? flowStepPrefix(laneId, selection.flowId, selection.catalogVersion) : null;
-  const laneSteps = live.filter((d) => d.laneId === laneId && (prefix === null || d.stepId.startsWith(prefix)));
-  const partitionSteps = live.filter((d) => d.laneId === undefined);
-  const v2 = laneSteps.length > 0 || v2Selection ? laneSteps : partitionSteps;
-  const name = selection && selection.flowId !== CUSTOM_FLOW
-    ? selection.name ?? flowTemplateV2(selection.flowId)?.name ?? flowTemplate(selection.flowId)?.name ?? 'Custom flow'
-    : v2.length > 0 ? 'Custom flow' : 'Review flow';
-  if (v2.length > 0 || (selection && selection.catalogVersion >= 2)) {
-    const steps = [...v2]
-      .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1))
-      .map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
-    return { flowId: selection?.flowId ?? null, itemId: selection?.itemId ?? null, docHash: selection?.docHash ?? null, name, steps };
-  }
-  const steps = deriveWorkflow(state, laneId).map((s) => ({ id: s.id, kindIds: [kindOfV1Step(s.id)], checkpoint: false }));
-  return { flowId: selection?.flowId ?? null, itemId: selection?.itemId ?? null, docHash: selection?.docHash ?? null, name, steps };
+    .filter((d) => d.stepId.startsWith(prefix) && !state.removedSteps[d.stepId])
+    .sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1))
+    .map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
+  const name = selection.flowId === CUSTOM_FLOW ? 'Custom flow' : selection.name ?? flowTemplate(selection.flowId)?.name ?? 'Review flow';
+  return { flowId: selection.flowId, itemId: selection.itemId ?? null, docHash: selection.docHash ?? null, name, steps };
 }
 
 export function stepName(kinds: KindDef[], step: FlowStep): string {
@@ -144,8 +113,6 @@ export interface ReviewView extends Omit<KindReview, 'eventId'> {
   /** The version it heard. */
   versionN: number;
   response?: ResponseView;
-  /** v1.ReviewSubmitted, read as an in-app review of the step's kind. */
-  legacy?: boolean;
 }
 
 export type RequestStatus = 'open' | 'done' | 'withdrawn';
@@ -154,8 +121,6 @@ export interface RequestView extends Omit<PassageRequest, 'eventId'> {
   status: RequestStatus;
   /** Sent to a review team: its name and the members it is open to (not the asker). */
   team?: { name: string; memberIds: string[] };
-  /** Made with v1.AssignmentMade: who asked is not on the record. */
-  legacy?: boolean;
 }
 
 export interface DepartureView extends Omit<Departure, 'eventId'> {
@@ -197,8 +162,7 @@ export interface FlowStepStatus {
 
 export interface PassageState {
   unitId: string;
-  laneId: string;
-  flow: LaneFlow;
+  flow: LanguageFlow;
   versions: Version[];
   latest?: Version;
   recorded: boolean;
@@ -224,11 +188,12 @@ export interface PassageState {
 interface RecordIndexes {
   idx: Indexes;
   kinds: KindDef[];
-  /** unit:lane -> submitted takes, oldest first */
+  flow: LanguageFlow;
+  /** unitId -> submitted takes, oldest first */
   versions: Map<string, string[]>;
-  /** unit:lane -> unsubmitted, unarchived takes, newest first */
+  /** unitId -> unsubmitted, unarchived takes, newest first */
   drafts: Map<string, string[]>;
-  /** takeId -> reviews of it (v1 + v1.ReviewRecorded) */
+  /** takeId -> reviews of it */
   reviewsByTake: Map<string, KindReview[]>;
   departures: Map<string, Departure[]>;
   requests: Map<string, PassageRequest[]>;
@@ -237,7 +202,7 @@ interface RecordIndexes {
   notes: Map<string, PassageNote[]>;
   /** takeId -> change note from NoteAdded(anchor version, role change) */
   changeNotes: Map<string, PassageNote>;
-  /** unit:lane -> derived state, filled lazily */
+  /** unitId -> derived state, filled lazily */
   passages: Map<string, PassageState>;
 }
 
@@ -246,7 +211,7 @@ interface RecordIndexes {
  * fresh top-level copy per change; a client's live state is mutated in
  * place and bumps its revision with every applied event.
  */
-const cache = new WeakMap<PartitionState, { revision: number; ri: RecordIndexes }>();
+const cache = new WeakMap<LanguageState, { revision: number; ri: RecordIndexes }>();
 
 function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   const list = m.get(k);
@@ -258,59 +223,33 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
 const byHlc = <T extends { hlc: string; id?: string }>(a: T, b: T) =>
   a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? '') < (b.id ?? '') ? -1 : (a.id ?? '') > (b.id ?? '') ? 1 : 0;
 
-function recordIndexes(state: PartitionState, idx?: Indexes): RecordIndexes {
+function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
   const revision = stateRevision(state);
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
   const reviewsByTake = new Map<string, KindReview[]>();
-  for (const r of Object.values(state.kindReviews ?? {})) push(reviewsByTake, r.takeId, r);
-  // v1 reviews read as in-app reviews of the step's kind (outcome from the decision).
-  for (const [takeId, bySteps] of Object.entries(state.reviews)) {
-    for (const [stepId, byActor] of Object.entries(bySteps)) {
-      for (const [actorId, reg] of Object.entries(byActor)) {
-        const v = reg.value;
-        push(reviewsByTake, takeId, {
-          id: `v1:${takeId}:${stepId}:${actorId}`, takeId, kindId: kindOfV1Step(stepId),
-          outcome: v.decision === 'approve' ? 'looks_good' : 'needs_changes', via: 'app',
-          ...(v.comment !== undefined ? { comment: v.comment } : {}),
-          ...(v.answers !== undefined ? { answers: v.answers } : {}),
-          by: actorId, hlc: reg.hlc, eventId: reg.eventId
-        });
-      }
-    }
-  }
+  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
   const versions = new Map<string, string[]>();
   const drafts = new Map<string, string[]>();
   const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
   const submittedAt = (id: string) => state.submissions[id]?.hlc ?? '';
   for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
-    push(versions, unitLaneKey(t.unitId, t.laneId), id);
+    push(versions, t.unitId, id);
   }
   for (const [id, t] of takes.filter(([id, t]) => !state.submissions[id] && !t.archived && t.cardHashes.length > 0).sort(([ia, a], [ib, b]) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1))) {
-    push(drafts, unitLaneKey(t.unitId, t.laneId), id);
+    push(drafts, t.unitId, id);
   }
   const departures = new Map<string, Departure[]>();
-  for (const d of Object.values(state.departures).sort(byHlc)) push(departures, unitLaneKey(d.unitId, d.laneId), d);
+  for (const d of Object.values(state.departures).sort(byHlc)) push(departures, d.unitId, d);
   const requests = new Map<string, PassageRequest[]>();
   const requestsTo = new Map<string, PassageRequest[]>();
   const requestsBy = new Map<string, PassageRequest[]>();
-  const allRequests: PassageRequest[] = [...Object.values(state.requests)];
-  // Legacy assignments to record read as requests to record.
-  for (const [key, a] of Object.entries(state.assignments)) {
-    if (a.role === 'reviewer' || a.role === 'viewer') continue;
-    allRequests.push({
-      id: `assignment:${key}`, unitId: a.unitId, laneId: a.laneId, what: 'record', profileId: a.profileId,
-      ...(a.dueDate !== undefined ? { dueDate: a.dueDate } : {}),
-      ...(a.instructions !== undefined ? { note: a.instructions } : {}),
-      by: '', hlc: a.hlc, eventId: key
-    });
-  }
-  for (const r of allRequests.sort(byHlc)) {
-    push(requests, unitLaneKey(r.unitId, r.laneId), r);
+  for (const r of Object.values(state.requests).sort(byHlc)) {
+    push(requests, r.unitId, r);
     if (r.profileId) push(requestsTo, r.profileId, r);
     // A team request is open to every member but the asker (ADR-029).
-    if (r.teamId) for (const id of teamMemberIds(state, r.teamId, r.laneId)) if (id !== r.by) push(requestsTo, id, r);
-    if (r.by) push(requestsBy, r.by, r);
+    if (r.teamId) for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) push(requestsTo, id, r);
+    push(requestsBy, r.by, r);
   }
   const notes = new Map<string, PassageNote[]>();
   const changeNotes = new Map<string, PassageNote>();
@@ -319,10 +258,10 @@ function recordIndexes(state: PartitionState, idx?: Indexes): RecordIndexes {
       if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
       continue;
     }
-    push(notes, unitLaneKey(n.unitId, n.laneId), n);
+    push(notes, n.unitId, n);
   }
   const out: RecordIndexes = {
-    idx: idx ?? buildIndexes(state), kinds: deriveKinds(state), versions, drafts, reviewsByTake,
+    idx: idx ?? buildIndexes(state), kinds: deriveKinds(state), flow: deriveFlow(state), versions, drafts, reviewsByTake,
     departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map()
   };
   cache.set(state, { revision, ri: out });
@@ -331,12 +270,12 @@ function recordIndexes(state: PartitionState, idx?: Indexes): RecordIndexes {
 
 // ---- the passage -----------------------------------------------------------------
 
-export function derivePassage(state: PartitionState, unitId: string, laneId: string, idx?: Indexes): PassageState {
+export function derivePassage(state: LanguageState, unitId: string, idx?: Indexes): PassageState {
   const ri = recordIndexes(state, idx);
-  const key = unitLaneKey(unitId, laneId);
+  const key = unitId;
   const hit = ri.passages.get(key);
   if (hit) return hit;
-  const flow = deriveFlow(state, laneId);
+  const flow = ri.flow;
 
   const versions: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId]!;
@@ -350,7 +289,6 @@ export function derivePassage(state: PartitionState, unitId: string, laneId: str
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
   });
-  const versionOf = new Map(versions.map((v) => [v.takeId, v]));
 
   const departures: DepartureView[] = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
     const undone = state.undoneDepartures[d.id];
@@ -359,7 +297,7 @@ export function derivePassage(state: PartitionState, unitId: string, laneId: str
   const active = (match: (d: DepartureView) => boolean) => [...departures].reverse().find((d) => match(d) && !d.undone);
 
   const reviews: ReviewView[] = versions
-    .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n, ...(r.id.startsWith('v1:') ? { legacy: true } : {}) })))
+    .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
     .sort(byHlc)
     .map((r) => {
       if (r.outcome !== 'needs_changes') return r;
@@ -378,13 +316,12 @@ export function derivePassage(state: PartitionState, unitId: string, laneId: str
     });
 
   const requests: RequestView[] = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
-    const legacy = r.id.startsWith('assignment:');
     let status: RequestStatus = 'open';
     if (state.withdrawnRequests[r.id]) status = 'withdrawn';
     else if (r.what === 'record' && versions.some((v) => v.hlc > r.hlc)) status = 'done';
     else if (r.what === 'review' && reviews.some((x) => x.requestId === r.id || (x.kindId === r.kindId && x.hlc > r.hlc))) status = 'done';
-    const team = r.teamId ? { name: state.teams[r.teamId]?.name.value ?? '', memberIds: teamMemberIds(state, r.teamId, r.laneId).filter((id) => id !== r.by) } : undefined;
-    return { ...r, status, ...(legacy ? { legacy } : {}), ...(team ? { team } : {}) };
+    const team = r.teamId ? { name: state.teams[r.teamId]?.name.value ?? '', memberIds: teamMemberIds(state, r.teamId).filter((id) => id !== r.by) } : undefined;
+    return { ...r, status, ...(team ? { team } : {}) };
   });
   const openRequests = requests.filter((r) => r.status === 'open');
 
@@ -430,7 +367,7 @@ export function derivePassage(state: PartitionState, unitId: string, laneId: str
   const draftTakeId = ri.drafts.get(key)?.[0];
   const next = recorded ? open.find((s) => !s.override) ?? open[0] : undefined;
   const result: PassageState = {
-    unitId, laneId, flow, versions, recorded, departures, reviews, requests, openRequests, steps,
+    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -439,7 +376,6 @@ export function derivePassage(state: PartitionState, unitId: string, laneId: str
     ...(draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId]!.actorId } : {}),
     ...(next ? { next } : {})
   };
-  void versionOf;
   ri.passages.set(key, result);
   return result;
 }
@@ -451,27 +387,24 @@ export function feedbackIsMine(s: PassageState, actorId: string): boolean {
 
 // ---- who a request is for (ADR-029) ------------------------------------------------
 
-/**
- * A review team's members, sorted. None when the team is unknown or, given
- * `laneId`, belongs to another lane: a request names a team in its own lane.
- */
-export function teamMemberIds(state: PartitionState, teamId: string, laneId?: string): string[] {
+/** A review team's members, sorted; none when the team is unknown. */
+export function teamMemberIds(state: LanguageState, teamId: string): string[] {
   const team = state.teams[teamId];
-  if (!team || (laneId !== undefined && team.laneId !== laneId)) return [];
+  if (!team) return [];
   return Object.entries(team.members).filter(([, r]) => r.value).map(([id]) => id).sort();
 }
 
-type Addressed = Pick<PassageRequest, 'laneId' | 'profileId' | 'guest' | 'teamId'> & { by?: string };
+type Addressed = Pick<PassageRequest, 'profileId' | 'guest' | 'teamId'> & { by?: string };
 
 /**
  * The request is this person's to do: addressed to them, or to a review
- * team in its lane they are on (and they did not send it). Use this, not a
- * profileId comparison, wherever "this request is mine" is decided.
+ * team they are on (and they did not send it). Use this, not a profileId
+ * comparison, wherever "this request is mine" is decided.
  */
-export function requestIsFor(state: PartitionState, request: Addressed, profileId: string): boolean {
+export function requestIsFor(state: LanguageState, request: Addressed, profileId: string): boolean {
   if (request.profileId === profileId) return true;
   if (!request.teamId || request.by === profileId) return false;
-  return teamMemberIds(state, request.teamId, request.laneId).includes(profileId);
+  return teamMemberIds(state, request.teamId).includes(profileId);
 }
 
 export type RequestAddressee =
@@ -480,9 +413,9 @@ export type RequestAddressee =
   | { kind: 'team'; teamId: string; name: string; memberIds: string[] };
 
 /** Who a request was sent to, for display: a teammate, a guest, or a review team (its name and members, not the asker). */
-export function requestAddressee(state: PartitionState, request: Addressed): RequestAddressee | undefined {
+export function requestAddressee(state: LanguageState, request: Addressed): RequestAddressee | undefined {
   if (request.teamId) {
-    const memberIds = teamMemberIds(state, request.teamId, request.laneId).filter((id) => id !== request.by);
+    const memberIds = teamMemberIds(state, request.teamId).filter((id) => id !== request.by);
     return { kind: 'team', teamId: request.teamId, name: state.teams[request.teamId]?.name.value ?? '', memberIds };
   }
   if (request.profileId) return { kind: 'person', profileId: request.profileId };
@@ -491,7 +424,7 @@ export function requestAddressee(state: PartitionState, request: Addressed): Req
 }
 
 /** The addressee's name: the team's ("Community reviewers"), the guest's, or `name(profileId)`. */
-export function requestAddresseeName(state: PartitionState, request: Addressed, name: (profileId: string) => string): string {
+export function requestAddresseeName(state: LanguageState, request: Addressed, name: (profileId: string) => string): string {
   const a = requestAddressee(state, request);
   if (!a) return '';
   return a.kind === 'team' ? a.name || 'the review team' : a.kind === 'guest' ? a.name : name(a.profileId);
@@ -500,54 +433,32 @@ export function requestAddresseeName(state: PartitionState, request: Addressed, 
 export type UsualTarget = { teamId: string; name: string } | { profileId: string };
 
 /**
- * Where a kind of review usually goes in a language (ADR-029, "Send to the
+ * Where a kind of review usually goes in the language (ADR-029, "Send to the
  * usual reviewer"): its review team, else the one person who usually does
- * it there; undefined when neither is clear (then the app opens Ask
- * someone). Advice only: anyone with the permission may still be asked.
+ * it; undefined when neither is clear (then the app opens Ask someone).
+ * Advice only: anyone with the permission may still be asked.
  *
- * - Team: a team in the lane that usually does this kind
- *   (v1.ReviewTeamKindSet), else one a (not removed) v1 workflow step of
- *   this kind names (`teamId`); either with at least one member other than
- *   `me`. A team set to "any kind" is not the usual target of any one kind.
+ * - Team: one that usually does this kind (v1.ReviewTeamKindSet), with at
+ *   least one member other than `me`. A team set to "any kind" is not the
+ *   usual target of any one kind.
  * - Person: exactly one person other than `me` who reviewed this kind in
- *   the app in this lane before (v1.ReviewRecorded via app, or a v1 review
- *   of a step of this kind), not removed from the partition.
+ *   the app before.
  *
- * `eligible` narrows both, for example to people holding Review here.
+ * `eligible` narrows both, for example to people who still hold Review here.
  */
 export function usualTarget(
-  state: PartitionState,
-  laneId: string,
+  state: LanguageState,
   kindId: string,
   me: string,
   opts: { eligible?: (profileId: string) => boolean } = {}
 ): UsualTarget | undefined {
-  const ok = (id: string) => id !== me && !state.members[id]?.removed.value && (opts.eligible?.(id) ?? true);
-  const withMembers = (teamId: string) => teamMemberIds(state, teamId, laneId).some(ok);
+  const ok = (id: string) => id !== me && (opts.eligible?.(id) ?? true);
   const kindTeams = Object.entries(state.teams)
-    .filter(([id, t]) => t.laneId === laneId && t.kindId?.value === kindId && withMembers(id))
+    .filter(([id, t]) => t.kindId?.value === kindId && teamMemberIds(state, id).some(ok))
     .map(([id]) => id).sort();
   if (kindTeams[0]) return { teamId: kindTeams[0], name: state.teams[kindTeams[0]]!.name.value };
-  const teamIds = new Set<string>();
-  for (const slot of Object.values(state.workflowSteps)) {
-    const step = slot.step.value;
-    if (slot.removed || slot.step.hlc === '' || !step.teamId) continue;
-    if (step.laneId !== undefined && step.laneId !== laneId) continue;
-    if (kindOfV1Step(step.stepId) === kindId) teamIds.add(step.teamId);
-  }
-  for (const teamId of [...teamIds].sort()) {
-    if (withMembers(teamId)) return { teamId, name: state.teams[teamId]!.name.value };
-  }
   const did = new Set<string>();
-  for (const r of Object.values(state.kindReviews)) {
-    if (r.kindId === kindId && r.via === 'app' && state.takes[r.takeId]?.laneId === laneId) did.add(r.by);
-  }
-  for (const [takeId, bySteps] of Object.entries(state.reviews)) {
-    if (state.takes[takeId]?.laneId !== laneId) continue;
-    for (const [stepId, byActor] of Object.entries(bySteps)) {
-      if (kindOfV1Step(stepId) === kindId) for (const actorId of Object.keys(byActor)) did.add(actorId);
-    }
-  }
+  for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app') did.add(r.by);
   const people = [...did].filter(ok);
   return people.length === 1 ? { profileId: people[0]! } : undefined;
 }
@@ -588,10 +499,10 @@ export interface LanguageProgress {
   feedback: number;
 }
 
-export function languageProgress(state: PartitionState, laneId: string, idx?: Indexes): LanguageProgress {
+export function languageProgress(state: LanguageState, idx?: Indexes): LanguageProgress {
   const ri = recordIndexes(state, idx);
-  const flow = deriveFlow(state, laneId);
-  const states = laneLeafUnits(state, ri.idx, laneId).map((u) => derivePassage(state, u, laneId, ri.idx));
+  const flow = ri.flow;
+  const states = ri.idx.passages.map((u) => derivePassage(state, u, ri.idx));
   return {
     total: states.length,
     recorded: states.filter((s) => s.recorded).length,
@@ -618,7 +529,6 @@ export interface Highlight {
   id: string;
   kind: HighlightKind;
   unitId: string;
-  laneId: string;
   request?: RequestView;
   review?: ReviewView;
   hlc: Hlc;
@@ -628,45 +538,41 @@ export interface Highlight {
  * What is waiting for this person (WORK-1): requests to them, feedback on
  * versions they recorded, their unsaved drafts. Ordered: requests, then
  * drafts, then feedback, each newest first. Visits only the passages the
- * person is involved in, never the whole lane.
+ * person is involved in, never the whole language.
  */
 export function highlightsFor(
-  state: PartitionState,
+  state: LanguageState,
   actorId: string,
-  opts: { canRecord: boolean; canReview: boolean; laneIds?: string[] },
+  opts: { canRecord: boolean; canReview: boolean },
   idx?: Indexes
 ): Highlight[] {
   const ri = recordIndexes(state, idx);
-  const inLane = (laneId: string) => !opts.laneIds || opts.laneIds.includes(laneId);
   const out: Highlight[] = [];
-  const seen = new Set<string>();
   for (const r of ri.requestsTo.get(actorId) ?? []) {
-    if (!inLane(r.laneId) || !state.units[r.unitId]) continue;
-    const s = derivePassage(state, r.unitId, r.laneId, ri.idx);
+    if (!state.units[r.unitId]) continue;
+    const s = derivePassage(state, r.unitId, ri.idx);
     const view = s.requests.find((x) => x.id === r.id);
     if (!view || view.status !== 'open') continue;
     if (r.what === 'record' && opts.canRecord) {
-      out.push({ id: `req-${r.id}`, kind: 'record', unitId: r.unitId, laneId: r.laneId, request: view, hlc: r.hlc });
+      out.push({ id: `req-${r.id}`, kind: 'record', unitId: r.unitId, request: view, hlc: r.hlc });
     } else if (r.what === 'review' && opts.canReview) {
       const kind = ri.kinds.find((k) => k.id === r.kindId);
-      out.push({ id: `req-${r.id}`, kind: kind?.produces ? 'produce' : 'review', unitId: r.unitId, laneId: r.laneId, request: view, hlc: r.hlc });
+      out.push({ id: `req-${r.id}`, kind: kind?.produces ? 'produce' : 'review', unitId: r.unitId, request: view, hlc: r.hlc });
     }
   }
   if (opts.canRecord) {
-    for (const [key, drafts] of ri.drafts) {
+    for (const [unitId, drafts] of ri.drafts) {
       const t = state.takes[drafts[0]!]!;
-      if (t.actorId !== actorId || !inLane(t.laneId)) continue;
-      if (out.some((h) => unitLaneKey(h.unitId, h.laneId) === key)) continue;
-      out.push({ id: `draft-${key}`, kind: 'draft', unitId: t.unitId, laneId: t.laneId, hlc: t.hlc });
+      if (t.actorId !== actorId) continue;
+      if (out.some((h) => h.unitId === unitId)) continue;
+      out.push({ id: `draft-${unitId}`, kind: 'draft', unitId, hlc: t.hlc });
     }
-    for (const [key, takeIds] of ri.versions) {
-      const latest = state.takes[takeIds.at(-1)!]!;
-      if (seen.has(key) || !inLane(latest.laneId)) continue;
-      seen.add(key);
-      if ((state.submissions[takeIds.at(-1)!]?.actorId ?? latest.actorId) !== actorId) continue;
-      const s = derivePassage(state, latest.unitId, latest.laneId, ri.idx);
+    for (const [unitId, takeIds] of ri.versions) {
+      const latestId = takeIds.at(-1)!;
+      if ((state.submissions[latestId]?.actorId ?? state.takes[latestId]!.actorId) !== actorId) continue;
+      const s = derivePassage(state, unitId, ri.idx);
       for (const r of s.awaitingResponse) {
-        out.push({ id: `resp-${key}-${r.id}`, kind: 'respond', unitId: s.unitId, laneId: s.laneId, review: r, hlc: r.hlc });
+        out.push({ id: `resp-${unitId}-${r.id}`, kind: 'respond', unitId, review: r, hlc: r.hlc });
       }
     }
   }
@@ -674,21 +580,31 @@ export function highlightsFor(
   return out.sort((a, b) => rank(a) - rank(b) || (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0));
 }
 
+/** Passages with an open request to this person, to record or to review (their own or their team's). */
+export function unitsAskedOf(state: LanguageState, actorId: string, idx?: Indexes): Set<string> {
+  const ri = recordIndexes(state, idx);
+  const out = new Set<string>();
+  for (const r of ri.requestsTo.get(actorId) ?? []) {
+    if (out.has(r.unitId) || !state.units[r.unitId]) continue;
+    if (derivePassage(state, r.unitId, ri.idx).openRequests.some((x) => x.id === r.id)) out.add(r.unitId);
+  }
+  return out;
+}
+
 export interface Waiting {
   id: string;
   unitId: string;
-  laneId: string;
   request: RequestView;
 }
 
 /** What a person asked of someone else that is not done yet, most overdue first (WORK-3). */
-export function waitingOn(state: PartitionState, actorId: string, opts: { laneIds?: string[] } = {}, idx?: Indexes): Waiting[] {
+export function waitingOn(state: LanguageState, actorId: string, idx?: Indexes): Waiting[] {
   const ri = recordIndexes(state, idx);
   const out: Waiting[] = [];
   for (const r of ri.requestsBy.get(actorId) ?? []) {
-    if (r.profileId === actorId || (opts.laneIds && !opts.laneIds.includes(r.laneId)) || !state.units[r.unitId]) continue;
-    const view = derivePassage(state, r.unitId, r.laneId, ri.idx).requests.find((x) => x.id === r.id);
-    if (view?.status === 'open') out.push({ id: `wait-${r.id}`, unitId: r.unitId, laneId: r.laneId, request: view });
+    if (r.profileId === actorId || !state.units[r.unitId]) continue;
+    const view = derivePassage(state, r.unitId, ri.idx).requests.find((x) => x.id === r.id);
+    if (view?.status === 'open') out.push({ id: `wait-${r.id}`, unitId: r.unitId, request: view });
   }
   const due = (w: Waiting) => w.request.dueDate ?? '￿';
   return out.reverse().sort((a, b) => (due(a) < due(b) ? -1 : due(a) > due(b) ? 1 : 0));
@@ -699,15 +615,15 @@ export function waitingOn(state: PartitionState, actorId: string, opts: { laneId
  * the first passage nobody recorded; a reviewer the first recording nobody
  * checked.
  */
-export function upNext(state: PartitionState, laneId: string, opts: { canRecord: boolean; canReview: boolean }, idx?: Indexes): { kind: 'record' | 'review'; unitId: string } | null {
+export function upNext(state: LanguageState, opts: { canRecord: boolean; canReview: boolean }, idx?: Indexes): { kind: 'record' | 'review'; unitId: string } | null {
   const ri = recordIndexes(state, idx);
-  const units = laneLeafUnits(state, ri.idx, laneId);
+  const units = ri.idx.passages;
   if (opts.canRecord) {
-    const u = units.find((id) => { const s = derivePassage(state, id, laneId, ri.idx); return !s.recorded && !s.drafting; });
+    const u = units.find((id) => { const s = derivePassage(state, id, ri.idx); return !s.recorded && !s.drafting; });
     if (u) return { kind: 'record', unitId: u };
   }
   if (opts.canReview) {
-    const u = units.find((id) => { const s = derivePassage(state, id, laneId, ri.idx); return s.recorded && s.reviews.length === 0 && s.steps.length > 0; });
+    const u = units.find((id) => { const s = derivePassage(state, id, ri.idx); return s.recorded && s.reviews.length === 0 && s.steps.length > 0; });
     if (u) return { kind: 'review', unitId: u };
   }
   return null;
@@ -717,33 +633,29 @@ export function upNext(state: PartitionState, laneId: string, opts: { canRecord:
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  source: 'org' | 'partition' | 'language' | 'request';
+  source: 'org' | 'language' | 'request';
   required: boolean;
 }
 
 /**
  * Questions for a kind of review (REV-2): the shipped set for the kind, then
- * question-set materials scoped to the kind (`scope.stepId` = kind id) at
- * partition then language level, then the asker's own.
+ * the language's question-set materials for the kind (`scope.stepId` = kind
+ * id), then the asker's own.
  */
-export function questionsForKind(state: PartitionState, kindId: string, laneId: string, request?: RequestView): SourcedQuestion[] {
+export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
   for (const t of QUESTION_TEMPLATES) {
-    if (!t.stageId || (V1_STAGE_KINDS[t.stageId] ?? t.stageId) !== kindId) continue;
+    if (t.kindId !== kindId) continue;
     for (const q of t.questions) out.push({ q: { id: `${t.id}#${q.id}`, text: q.text, type: q.type }, source: 'org', required: false });
   }
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
     .sort(([a], [b]) => (a < b ? -1 : 1));
-  for (const level of ['partition', 'language'] as const) {
-    for (const [id, m] of sets) {
-      if ((level === 'language') !== (m.scope.laneId !== undefined)) continue;
-      if (level === 'language' && m.scope.laneId !== laneId) continue;
-      for (const [fieldId, f] of Object.entries(m.fields).sort(([a], [b]) => (a < b ? -1 : 1))) {
-        const text = f.value.text?.trim();
-        if (!text) continue;
-        const [type, required, body] = parseQuestionField(text);
-        out.push({ q: { id: `${id}#${fieldId}`, text: body, type, ...(required ? { required } : {}) }, source: level, required });
-      }
+  for (const [id, m] of sets) {
+    for (const [fieldId, f] of Object.entries(m.fields).sort(([a], [b]) => (a < b ? -1 : 1))) {
+      const text = f.value.text?.trim();
+      if (!text) continue;
+      const [type, required, body] = parseQuestionField(text);
+      out.push({ q: { id: `${id}#${fieldId}`, text: body, type, ...(required ? { required } : {}) }, source: 'language', required });
     }
   }
   for (const q of request?.questions ?? []) out.push({ q, source: 'request', required: !!q.required });
@@ -772,15 +684,15 @@ export type RecordEntry =
   | { type: 'study'; hlc: Hlc; by: string; guideId: string; stepId: string };
 
 /** Everything on the record, newest first (REC-8). Study notes stay with the study; finished steps are one entry each. */
-export function recordTimeline(state: PartitionState, s: PassageState): RecordEntry[] {
+export function recordTimeline(state: LanguageState, s: PassageState): RecordEntry[] {
   const out: RecordEntry[] = [
     ...s.versions.map((v) => ({ type: 'version' as const, hlc: v.hlc, by: v.by, version: v })),
     ...s.reviews.map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
     ...s.reviews.filter((r) => r.response?.decision === 'revised').map((r) => ({ type: 'response' as const, hlc: r.response!.hlc, by: r.response!.by, review: r, response: r.response! })),
-    ...s.requests.filter((r) => !r.legacy).map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
+    ...s.requests.map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
     ...s.departures.map((d) => ({ type: 'departure' as const, hlc: d.hlc, by: d.by, departure: d })),
     ...s.notes.filter((n) => n.anchor.kind !== 'study').map((n) => ({ type: 'note' as const, hlc: n.hlc, by: n.by, note: n })),
-    ...studyMarksFor(state, s.unitId, s.laneId).map((m) => ({ type: 'study' as const, hlc: m.hlc, by: m.by, guideId: m.guideId, stepId: m.stepId }))
+    ...studyMarksFor(state, s.unitId).map((m) => ({ type: 'study' as const, hlc: m.hlc, by: m.by, guideId: m.guideId, stepId: m.stepId }))
   ];
   // Same instant (a version and the feedback it answered): the day's usual
   // order, so the answer reads above the version that carries it.
@@ -806,8 +718,8 @@ export interface StudyMark {
 }
 
 /** Finished study steps for one passage (ADR-018); an un-finished mark is not listed. */
-export function studyMarksFor(state: PartitionState, unitId: string, laneId: string, guideId?: string): StudyMark[] {
-  const prefix = `${unitId}:${laneId}:`;
+export function studyMarksFor(state: LanguageState, unitId: string, guideId?: string): StudyMark[] {
+  const prefix = `${unitId}:`;
   const out: StudyMark[] = [];
   for (const [key, reg] of Object.entries(state.studyMarks)) {
     if (!key.startsWith(prefix) || !reg.value.done) continue;
@@ -840,7 +752,7 @@ export interface UnitPlace {
 }
 
 /** Book and chapters of a unit, for the Map (MAP-4, MAP-5). */
-export function unitPlace(state: PartitionState, unitId: string): UnitPlace {
+export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
   const chapters = sourceChapters(unitId);
   let bookId: string | null = chapters[0]?.book ?? null;
   if (!bookId) {
@@ -868,7 +780,7 @@ export function unitPlace(state: PartitionState, unitId: string): UnitPlace {
 }
 
 /** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3". */
-export function unitTitle(state: PartitionState, unitId: string): string {
+export function unitTitle(state: LanguageState, unitId: string): string {
   return state.units[unitId]?.label ?? unitId;
 }
 
@@ -881,7 +793,6 @@ export interface Update {
   id: string;
   kind: UpdateKind;
   unitId: string;
-  laneId: string;
   by: string;
   hlc: Hlc;
   request?: RequestView;
@@ -894,25 +805,21 @@ export interface Update {
  * them for something, reviewed a version they recorded, answered feedback
  * they gave, or did what they asked. Never their own acts. Newest first.
  */
-export function updatesFor(state: PartitionState, actorId: string, idx?: Indexes): Update[] {
+export function updatesFor(state: LanguageState, actorId: string, idx?: Indexes): Update[] {
   const ri = recordIndexes(state, idx);
   const keys = new Set<string>();
-  for (const r of ri.requestsTo.get(actorId) ?? []) keys.add(unitLaneKey(r.unitId, r.laneId));
-  for (const r of ri.requestsBy.get(actorId) ?? []) keys.add(unitLaneKey(r.unitId, r.laneId));
-  for (const [key, takeIds] of ri.versions) {
-    if (takeIds.some((t) => (state.submissions[t]?.actorId ?? state.takes[t]?.actorId) === actorId)) keys.add(key);
-    else if (takeIds.some((t) => (ri.reviewsByTake.get(t) ?? []).some((r) => r.by === actorId))) keys.add(key);
+  for (const r of ri.requestsTo.get(actorId) ?? []) keys.add(r.unitId);
+  for (const r of ri.requestsBy.get(actorId) ?? []) keys.add(r.unitId);
+  for (const [unitId, takeIds] of ri.versions) {
+    if (takeIds.some((t) => (state.submissions[t]?.actorId ?? state.takes[t]?.actorId) === actorId)) keys.add(unitId);
+    else if (takeIds.some((t) => (ri.reviewsByTake.get(t) ?? []).some((r) => r.by === actorId))) keys.add(unitId);
   }
   const out: Update[] = [];
-  for (const key of keys) {
-    const sep = key.lastIndexOf(':');
-    const unitId = key.slice(0, sep);
-    const laneId = key.slice(sep + 1);
+  for (const unitId of keys) {
     if (!state.units[unitId]) continue;
-    const s = derivePassage(state, unitId, laneId, ri.idx);
-    const base = { unitId, laneId };
+    const s = derivePassage(state, unitId, ri.idx);
+    const base = { unitId };
     for (const r of s.requests) {
-      if (r.legacy) continue;
       if ((r.profileId === actorId || r.team?.memberIds.includes(actorId)) && r.by !== actorId) out.push({ ...base, id: `request:${r.id}`, kind: 'request', by: r.by, hlc: r.hlc, request: r });
       if (r.by === actorId && r.status === 'done') {
         const doneBy = r.what === 'record' ? s.versions.find((v) => v.hlc > r.hlc) : s.reviews.find((x) => x.requestId === r.id || (x.kindId === r.kindId && x.hlc > r.hlc));
@@ -930,11 +837,6 @@ export function updatesFor(state: PartitionState, actorId: string, idx?: Indexes
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0));
 }
 
-/** A language's name for people: its given name, else its code. */
-export function laneName(state: PartitionState, laneId: string): string {
-  return state.laneNames[laneId]?.value ?? state.lanes[laneId]?.languoidId?.toUpperCase() ?? laneId;
-}
-
 /**
  * Audio that belongs to the record rather than to the passage's reference
  * material: voice notes, spoken feedback and reasons, what-changed notes,
@@ -942,7 +844,7 @@ export function laneName(state: PartitionState, laneId: string): string {
  * are source-language cards like reference audio, so lists of "source
  * audio" must leave them out.
  */
-export function recordAudioHashes(state: PartitionState): Set<string> {
+export function recordAudioHashes(state: LanguageState): Set<string> {
   const out = new Set<string>();
   const add = (h?: string) => { if (h) out.add(h); };
   for (const n of Object.values(state.notes ?? {})) { add(n.blobHash); add(n.photoHash); }

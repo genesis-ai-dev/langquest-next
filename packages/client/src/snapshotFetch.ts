@@ -1,4 +1,4 @@
-import type { PartitionState, Snapshot } from '@langquest-next/core';
+import type { LanguageState, Snapshot } from '@langquest-next/core';
 import type { Transport } from './types';
 
 /**
@@ -10,22 +10,22 @@ import type { Transport } from './types';
 export async function fetchSnapshot(
   transport: Pick<Transport, 'snapshotMeta' | 'snapshotChunk'>,
   orgId: string,
-  partitionId: string,
+  streamId: string,
   reducerVersion: number,
   opts: { saved?: ReadonlyMap<number, string>; onChunk?: (serverSeq: number, index: number, text: string) => Promise<void> } = {}
 ): Promise<Snapshot | null> {
-  const meta = await transport.snapshotMeta(orgId, partitionId, reducerVersion);
+  const meta = await transport.snapshotMeta(orgId, streamId, reducerVersion);
   if (!meta) return null;
   const pieces: string[] = [];
   for (let i = 0; i < meta.chunks; i++) {
     let text = opts.saved?.get(i);
     if (text === undefined) {
-      const fetched = await transport.snapshotChunk(orgId, partitionId, reducerVersion, meta.serverSeq, i);
+      const fetched = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
       if (fetched === null) return null; // snapshot rolled forward mid-fetch; caller retries
       text = fetched;
       await opts.onChunk?.(meta.serverSeq, i, text);
     }
     pieces.push(text);
   }
-  return { orgId, partitionId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join('')) as PartitionState };
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join('')) as LanguageState };
 }

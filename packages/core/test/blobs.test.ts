@@ -1,10 +1,31 @@
 import { defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
-import { fold } from '../src/reducer';
-import { emptyState } from '../src/state';
+import type { AnyEvent, EventPayloads, EventType } from '../src/events';
+import { foldLanguage } from '../src/reducer';
+import { emptyLanguageState } from '../src/state';
 import { buildFixture } from './fixtures';
 
+/**
+ * The language fixture plus what these tests lean on: a review asked of r1
+ * on luke1 (after r1's own review, so it stays open), and reference audio
+ * on luke1 that nobody has uploaded yet.
+ */
+function events(): AnyEvent[] {
+  let n = 0;
+  const ev = <T extends EventType>(type: T, payload: EventPayloads[T]): AnyEvent => {
+    n += 1;
+    return { id: `b${n}`, type, orgId: 'org1', streamId: 'L1', actorId: 'lead', deviceId: 'dA', hlc: `00170000010000${n}:000000:dA`, payload } as AnyEvent;
+  };
+  return [
+    ...buildFixture(),
+    ev('v1.RequestMade', { requestId: 'ask-r1', unitId: 'luke1', what: 'review', kindId: 'final', profileId: 'r1' }),
+    ev('v1.MaterialDefined', { materialId: 'overview', kind: 'overview', title: 'Overview', scope: { unitId: 'luke1' } }),
+    ev('v1.MaterialFieldSet', { materialId: 'overview', fieldId: 'audio', blobHash: 'sha256:ov1' })
+  ];
+}
+const fold = (list: AnyEvent[]) => foldLanguage(list, emptyLanguageState());
+
 describe('blob work lists are derived, never queued (PLAN.md section 14)', () => {
-  const state = fold(buildFixture(), emptyState());
+  const state = fold(events());
 
   it('references every card in every recording', () => {
     expect([...referencedBlobs(state).keys()].sort()).toEqual(['c1', 'c2', 'sha256:ov1']);
@@ -30,19 +51,19 @@ describe('blob work lists are derived, never queued (PLAN.md section 14)', () =>
 });
 
 describe('download scope (PLAN.md section 14 rule 10)', () => {
-  const state = fold(buildFixture(), emptyState());
+  const state = fold(events());
 
   it('downloads only blobs of units in scope, reference audio included', () => {
-    // Why: joining a partition on a metered link must not fetch every card of
-    // every take in every lane. Scope is the passages the user keeps offline.
+    // Why: opening a language on a metered link must not fetch every card of
+    // every take in it. Scope is the passages the user keeps offline.
     const inScope = deriveDownloadWork(state, new Set(), new Set(['luke1']));
     expect(inScope.map((r) => r.hash).sort()).toEqual(['c1']);
     expect(deriveDownloadWork(state, new Set(), new Set(['elsewhere']))).toEqual([]);
     expect(referencedBlobs(state).get('sha256:ov1')?.unitId).toBe('luke1');
   });
 
-  it('the default scope is the units the actor is assigned to or has worked on', () => {
-    expect([...defaultOfflineScope(state, 'r1')]).toEqual(['luke1']); // assigned reviewer
+  it('the default scope is the units the actor is asked about or has worked on', () => {
+    expect([...defaultOfflineScope(state, 'r1')]).toEqual(['luke1']); // asked to review
     expect([...defaultOfflineScope(state, 't1')]).toEqual(['luke1']); // recorded there
     expect([...defaultOfflineScope(state, 'nobody')]).toEqual([]);
   });
@@ -53,7 +74,7 @@ describe('blob integrity (server-confirmed size, server-side invalidation)', () 
     // Why: the client hashes before upload, but nothing checks the bytes
     // that arrived. The confirmation carries the stored size; a mismatch
     // is the cheapest possible corruption signal and must reopen the work.
-    const state = fold(buildFixture(), emptyState());
+    const state = fold(events());
     const sizes = new Map([['c1', 12345], ['c2', 10]]);
     expect(deriveUploadWork(state, new Set(['c1', 'c2']), sizes).map((r) => r.hash)).toEqual(['c2']);
     sizes.set('c1', 99);
@@ -61,28 +82,28 @@ describe('blob integrity (server-confirmed size, server-side invalidation)', () 
   });
 
   it('BlobInvalidated after BlobStored reopens upload and stops download, in any order', () => {
-    const events = buildFixture();
-    const stored = events.find((e) => e.type === 'v1.BlobStored')!;
+    const all = events();
+    const stored = all.find((e) => e.type === 'v1.BlobStored')!;
     const invalid = { ...stored, id: 'inv1', type: 'v1.BlobInvalidated', hlc: stored.hlc + '1', payload: { hash: 'c1', reason: 'hash mismatch' } } as never;
-    const a = fold([...events, invalid], emptyState());
-    const b = fold([invalid, ...events], emptyState());
+    const a = fold([...all, invalid]);
+    const b = fold([invalid, ...all]);
     expect(isStored(a, 'c1')).toBe(false);
     expect(isStored(b, 'c1')).toBe(false);
     expect(deriveDownloadWork(a, new Set(), null).map((r) => r.hash)).toEqual([]);
     expect(deriveUploadWork(a, new Set(['c1'])).map((r) => r.hash)).toEqual(['c1']);
     // A later re-upload confirmation wins again.
     const again = { ...stored, id: 'st2', hlc: stored.hlc + '2', payload: { hash: 'c1', size: 12345 } } as never;
-    expect(isStored(fold([invalid, again, ...events], emptyState()), 'c1')).toBe(true);
+    expect(isStored(fold([invalid, again, ...all]), 'c1')).toBe(true);
   });
 });
 
 describe('eviction candidates (cache quota)', () => {
-  const state = fold(buildFixture(), emptyState());
+  const state = fold(events());
 
   it('offers only confirmed, out-of-scope, referenced files; unsynced and kept-offline files are protected', () => {
     // Why: reclaiming space must never delete the only copy of a recording
     // (c2 is unconfirmed) or something the user chose to keep (luke1 scope).
-    const present = new Set(['c1', 'c2', 'unrelated-partition-file']);
+    const present = new Set(['c1', 'c2', 'unrelated-language-file']);
     expect(evictableBlobs(state, present, new Set(['elsewhere'])).map((r) => r.hash)).toEqual(['c1']);
     expect(evictableBlobs(state, present, new Set(['luke1']))).toEqual([]);
     expect(evictableBlobs(state, present, null)).toEqual([]);
@@ -90,7 +111,7 @@ describe('eviction candidates (cache quota)', () => {
 });
 
 describe('what is on this phone for offline use (shown per passage and in Settings)', () => {
-  const state = fold(buildFixture(), emptyState());
+  const state = fold(events());
   const none = new Set<string>();
 
   it('a passage someone only browses is not kept, even with its text here', () => {
@@ -102,8 +123,8 @@ describe('what is on this phone for offline use (shown per passage and in Settin
     expect(u.notSent).toBe(2); // c2 and the reference audio are not
   });
 
-  it('assignment, own work and an explicit choice keep a passage, in that order of reason', () => {
-    expect(unitOffline(state, 'luke1', none, 'r1', none).reason).toBe('assigned');
+  it('a request, own work and an explicit choice keep a passage, in that order of reason', () => {
+    expect(unitOffline(state, 'luke1', none, 'r1', none).reason).toBe('asked');
     expect(unitOffline(state, 'luke1', none, 't1', none).reason).toBe('worked');
     expect(unitOffline(state, 'luke1', none, 'nobody', new Set(['luke1'])).reason).toBe('chosen');
   });

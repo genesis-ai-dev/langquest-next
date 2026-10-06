@@ -1,26 +1,7 @@
-import {
-  SOURCE_BIBLES, sourceAudioUrl, sourceBibleEnabled, sourceChapters
-} from '../src/sourceBibles';
-import { catalogKey, emptyOrgState } from '../src/org';
+import { SOURCE_BIBLES, sourceAudioUrl, sourceChapters } from '../src/sourceBibles';
 import { FIA_PERICOPES } from '../src/catalogData';
 
 describe('organization source Bibles', () => {
-  it('requires organization opt-in and respects partition opt-out', () => {
-    const org = emptyOrgState();
-    const id = SOURCE_BIBLES[0].id;
-    const orgKey = catalogKey('reference', id, 'org');
-    const partitionKey = catalogKey('reference', id, 'partition', 'partition');
-    expect(sourceBibleEnabled(org, id, 'partition')).toBe(false);
-    org.catalog[orgKey] = { value: true, hlc: '1', eventId: 'e1' };
-    expect(sourceBibleEnabled(org, id, 'partition')).toBe(true);
-    org.catalog[partitionKey] = { value: false, hlc: '2', eventId: 'e2' };
-    expect(sourceBibleEnabled(org, id, 'partition')).toBe(false);
-    expect(sourceBibleEnabled(org, id, 'another-partition')).toBe(true);
-    org.catalog[orgKey] = { value: false, hlc: '3', eventId: 'e3' };
-    org.catalog[partitionKey] = { value: true, hlc: '4', eventId: 'e4' };
-    expect(sourceBibleEnabled(org, id, 'partition')).toBe(false);
-  });
-
   it('maps chapter, book and cross-chapter FIA passages', () => {
     expect(sourceChapters('bible@1/jon-2')).toEqual([
       { book: 'jon', chapter: 2, label: 'Jonah 2' }

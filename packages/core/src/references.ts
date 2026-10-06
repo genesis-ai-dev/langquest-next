@@ -7,9 +7,9 @@ import type { Register } from './state';
  * Reference material a translator sees (docs/reference-material.md).
  *
  * Three levels decide what is offered. An organization recommends items
- * from its library (`v1.ReferenceRecommended`, org partition); a language
- * narrows or adds to that for its team (`v1.LaneReferenceRecommended`,
- * language partition); translators then choose for themselves, on their own
+ * from its library (`v1.ReferenceRecommended`, organization stream); a
+ * language narrows or adds to that for its team (`v1.ReferenceSet`, its own
+ * stream); translators then choose for themselves, on their own
  * device, and may explore anything. A passage gets the recommended items its
  * coordinates match, plus what an admin linked to it by hand
  * (`v1.PassageReferenceLinked`, which can also hide a match).
@@ -23,7 +23,7 @@ import type { Register } from './state';
  * grow-only per subject and item, with `opened` true once any event says so.
  */
 
-export type LaneRecommendation = 'recommended' | 'hidden' | 'inherit';
+export type LanguageRecommendation = 'recommended' | 'hidden' | 'inherit';
 
 /** One item in the record of what was used. */
 export interface UsedReference {
@@ -50,45 +50,42 @@ export interface ReferenceOrgEvents {
 }
 
 export interface ReferenceWorkEvents {
-  /** A language's own say on one item: recommend it to the team, hide the organization's recommendation, or follow the organization. Register per language and item. */
-  'v1.LaneReferenceRecommended': { laneId: string; itemId: string; state: LaneRecommendation };
-  /** An admin places an item on one passage by hand, or hides a match there. Register per language, passage and item. */
-  'v1.PassageReferenceLinked': { laneId: string; unitId: string; itemId: string; linked: boolean };
+  /** The language's own say on one item: recommend it to the team, hide the organization's recommendation, or follow the organization. Register per item. */
+  'v1.ReferenceSet': { itemId: string; state: LanguageRecommendation };
+  /** An admin places an item on one passage by hand, or hides a match there. Register per passage and item. */
+  'v1.PassageReferenceLinked': { unitId: string; itemId: string; linked: boolean };
   /** What was in front of the person for a version (`takeId`) or a review (`reviewId`); exactly one of the two. Grow-only. */
-  'v1.ReferencesUsed': { laneId: string; unitId: string; takeId?: string; reviewId?: string; items: UsedReference[] };
+  'v1.ReferencesUsed': { unitId: string; takeId?: string; reviewId?: string; items: UsedReference[] };
 }
 
 export interface ReferenceState {
-  /** laneId -> itemId -> the language's say. */
-  laneReferences: Record<string, Record<string, Register<LaneRecommendation>>>;
-  /** `${laneId}\u0000${unitId}` -> itemId -> linked (true) or hidden (false). */
+  /** itemId -> the language's say. */
+  languageReferences: Record<string, Register<LanguageRecommendation>>;
+  /** unitId -> itemId -> linked (true) or hidden (false). */
   passageLinks: Record<string, Record<string, Register<boolean>>>;
   /** `take:<id>` or `review:<id>` -> itemId -> what was used. */
   referencesUsed: Record<string, Record<string, UsedReference & { by: string; hlc: Hlc; eventId: string }>>;
 }
 
 export function emptyReferenceState(): ReferenceState {
-  return { laneReferences: {}, passageLinks: {}, referencesUsed: {} };
+  return { languageReferences: {}, passageLinks: {}, referencesUsed: {} };
 }
-
-export const passageKey = (laneId: string, unitId: string) => `${laneId}\u0000${unitId}`;
 export const usedKey = (s: { takeId?: string; reviewId?: string }) => (s.takeId ? `take:${s.takeId}` : `review:${s.reviewId}`);
 
 const later = (current: Register<unknown> | undefined, e: EventEnvelope) =>
   !current || current.hlc === '' || current.hlc < e.hlc || (current.hlc === e.hlc && current.eventId < e.id);
 
-/** Fold one language-partition reference event. Order-independent and idempotent (the caller guards ids). */
+/** Fold one language-stream reference event. Order-independent and idempotent (the caller guards ids). */
 export function applyReferenceEvent(state: ReferenceState, e: EventEnvelope): void {
   switch (e.type) {
-    case 'v1.LaneReferenceRecommended': {
-      const p = e.payload as ReferenceWorkEvents['v1.LaneReferenceRecommended'];
-      const lane = (state.laneReferences[p.laneId] ??= {});
-      if (later(lane[p.itemId], e)) lane[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
+    case 'v1.ReferenceSet': {
+      const p = e.payload as ReferenceWorkEvents['v1.ReferenceSet'];
+      if (later(state.languageReferences[p.itemId], e)) state.languageReferences[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
       break;
     }
     case 'v1.PassageReferenceLinked': {
       const p = e.payload as ReferenceWorkEvents['v1.PassageReferenceLinked'];
-      const links = (state.passageLinks[passageKey(p.laneId, p.unitId)] ??= {});
+      const links = (state.passageLinks[p.unitId] ??= {});
       if (later(links[p.itemId], e)) links[p.itemId] = { value: p.linked, hlc: e.hlc, eventId: e.id };
       break;
     }
@@ -109,7 +106,7 @@ export function applyReferenceEvent(state: ReferenceState, e: EventEnvelope): vo
   }
 }
 
-/** Fold the org-partition recommendation into `recommendations` (OrgState). */
+/** Fold the organization's recommendation into `recommendations` (OrgState). */
 export function applyOrgRecommendation(recs: Record<string, Register<boolean>>, e: EventEnvelope): void {
   const p = e.payload as ReferenceOrgEvents['v1.ReferenceRecommended'];
   if (later(recs[p.itemId], e)) recs[p.itemId] = { value: p.recommended, hlc: e.hlc, eventId: e.id };
@@ -126,13 +123,11 @@ export type RecommendationSource = 'organization' | 'language';
  */
 export function recommendedFor(
   orgRecs: Record<string, Register<boolean>> | undefined,
-  state: ReferenceState | null,
-  laneId: string | null | undefined
+  state: ReferenceState | null
 ): Map<string, RecommendationSource> {
   const out = new Map<string, RecommendationSource>();
   for (const [itemId, r] of Object.entries(orgRecs ?? {})) if (r.value) out.set(itemId, 'organization');
-  const lane = laneId && state ? state.laneReferences[laneId] ?? {} : {};
-  for (const [itemId, r] of Object.entries(lane)) {
+  for (const [itemId, r] of Object.entries(state?.languageReferences ?? {})) {
     if (r.value === 'hidden') out.delete(itemId);
     else if (r.value === 'recommended') out.set(itemId, 'language');
   }
@@ -140,13 +135,13 @@ export function recommendedFor(
 }
 
 /** An admin's choice on one passage: true linked by hand, false hidden here, undefined when the coordinates decide. */
-export function passageLink(state: ReferenceState, laneId: string, unitId: string, itemId: string): boolean | undefined {
-  return state.passageLinks[passageKey(laneId, unitId)]?.[itemId]?.value;
+export function passageLink(state: ReferenceState, unitId: string, itemId: string): boolean | undefined {
+  return state.passageLinks[unitId]?.[itemId]?.value;
 }
 
 /** Items linked to a passage by hand. */
-export function linkedTo(state: ReferenceState, laneId: string, unitId: string): string[] {
-  return Object.entries(state.passageLinks[passageKey(laneId, unitId)] ?? {}).filter(([, r]) => r.value).map(([id]) => id).sort();
+export function linkedTo(state: ReferenceState, unitId: string): string[] {
+  return Object.entries(state.passageLinks[unitId] ?? {}).filter(([, r]) => r.value).map(([id]) => id).sort();
 }
 
 /** What a version or review records as used, sources first, then by name. */

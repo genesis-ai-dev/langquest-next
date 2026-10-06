@@ -1,6 +1,6 @@
 import type { AnyEvent, EventEnvelope } from './events';
-import type { Member, PartitionState, Register } from './state';
-import { emptyState } from './state';
+import type { LanguageState, Material, Register, ReviewTeam } from './state';
+import { emptyLanguageState } from './state';
 import { validateEvent } from './validate';
 import { studyMarkKey, type Undo } from './record';
 import { applyReferenceEvent } from './references';
@@ -10,7 +10,7 @@ import { applyReferenceEvent } from './references';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 9;
+export const REDUCER_VERSION = 10;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -24,11 +24,11 @@ export function stateRevision(state: object): number {
 }
 
 /**
- * Apply one event. Must be deterministic, order-independent, and idempotent
- * (PLAN.md invariants 2 and 3). Mutates and returns `state` for speed; callers
- * that need immutability clone first.
+ * Apply one language-stream event. Must be deterministic, order-independent,
+ * and idempotent (PLAN.md invariants 2 and 3). Mutates and returns `state`
+ * for speed; callers that need immutability clone first.
  */
-export function applyEvent(state: PartitionState, event: AnyEvent): PartitionState {
+export function applyLanguageEvent(state: LanguageState, event: AnyEvent): LanguageState {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
   REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
@@ -41,32 +41,11 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
   if (state.redactions[event.id]) return state;
 
   switch (event.type) {
-    case 'v1.PartitionCreated':
-      setRegister(state, 'partition', event, event.payload);
-      break;
-
-    case 'v1.PartitionConfigChanged':
-      setRegister(state, 'config', event, event.payload.config);
-      break;
-
-    case 'v1.MemberAdded': {
-      const m = member(state, event.payload.profileId);
-      lwwRegister(m, 'role', event, event.payload.role);
-      lwwRegister(m, 'removed', event, false);
+    case 'v1.TemplateSelected': {
+      const { itemId, docHash, unitPrefix, books } = event.payload;
+      state.template = set(state.template, event, { itemId, docHash, unitPrefix, ...(books ? { books: [...books].sort() } : {}) });
       break;
     }
-
-    case 'v1.MemberRoleChanged':
-      lwwRegister(member(state, event.payload.profileId), 'role', event, event.payload.role);
-      break;
-
-    case 'v1.MemberRemoved':
-      lwwRegister(member(state, event.payload.profileId), 'removed', event, true);
-      break;
-
-    case 'v1.LaneAdded':
-      state.lanes[event.payload.laneId] ??= { languoidId: event.payload.languoidId };
-      break;
 
     case 'v1.UnitAdded': {
       const { unitId, ...unit } = event.payload;
@@ -74,14 +53,56 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
       break;
     }
 
-    case 'v1.ReferenceAttached': {
-      const { refId, unitId, kind, blobHash, text } = event.payload;
-      state.references[refId] ??= {
-        unitId,
-        kind,
-        ...(blobHash !== undefined ? { blobHash } : {}),
-        ...(text !== undefined ? { text } : {})
-      };
+    case 'v1.UnitHidden':
+      lww(state.hiddenUnits, event.payload.unitId, event, event.payload.hidden);
+      break;
+
+    case 'v1.FlowSelected': {
+      const { flowId, itemId, docHash, name } = event.payload;
+      state.flow = set(state.flow, event, { flowId, ...(itemId ? { itemId } : {}), ...(docHash ? { docHash } : {}), ...(name ? { name } : {}) });
+      break;
+    }
+
+    case 'v1.FlowStepSet': {
+      const { stepId, order, kindIds, checkpoint } = event.payload;
+      lww(state.flowSteps, stepId, event, { stepId, order, kindIds: [...kindIds], checkpoint });
+      break;
+    }
+
+    case 'v1.FlowStepRemoved':
+      state.removedSteps[event.payload.stepId] = true; // add-wins
+      break;
+
+    case 'v1.ReviewKindDefined': {
+      const { kindId, name, description, usualReviewer, withholdsContext, produces } = event.payload;
+      lww(state.reviewKinds, kindId, event, {
+        id: kindId,
+        name,
+        description: description ?? '',
+        usualReviewer: usualReviewer ?? '',
+        ...(withholdsContext !== undefined ? { withholdsContext } : {}),
+        ...(produces !== undefined ? { produces: { ...produces } } : {})
+      });
+      break;
+    }
+
+    case 'v1.ReviewTeamDefined': {
+      const { teamId, name } = event.payload;
+      const team = (state.teams[teamId] ??= emptyTeam());
+      if (team.name.hlc === '' || !loses(team.name, event)) team.name = { value: name, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
+    case 'v1.ReviewTeamMemberSet': {
+      const { teamId, profileId, member } = event.payload;
+      // A membership may arrive before the definition.
+      lww((state.teams[teamId] ??= emptyTeam()).members, profileId, event, member);
+      break;
+    }
+
+    case 'v1.ReviewTeamKindSet': {
+      const team = (state.teams[event.payload.teamId] ??= emptyTeam());
+      if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: event.payload.kindId, hlc: event.hlc, eventId: event.id };
       break;
     }
 
@@ -111,169 +132,18 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
       } else {
         // Archive arrived before compose. Record a placeholder so the flag
         // survives; compose fills in the rest.
-        state.takes[event.payload.takeId] = {
-          unitId: '',
-          laneId: '',
-          cardHashes: [],
-          parentTakeId: null,
-          actorId: event.actorId,
-          hlc: event.hlc,
-          archived: true
-        };
+        state.takes[event.payload.takeId] = { unitId: '', cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true };
       }
       break;
     }
-
-    case 'v1.TakeSelected':
-      lww(
-        state.selectedTakes,
-        `${event.payload.unitId}:${event.payload.laneId}`,
-        event,
-        event.payload.takeId
-      );
-      break;
 
     case 'v1.TakeSubmitted': {
       const { takeId, questionSetIds } = event.payload;
       // Grow-only, earliest wins: resubmitting the same take is a no-op.
       const prior = state.submissions[takeId];
       if (!prior || event.hlc < prior.hlc) {
-        state.submissions[takeId] = {
-          takeId,
-          actorId: event.actorId,
-          hlc: event.hlc,
-          questionSetIds: questionSetIds ?? []
-        };
+        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds: questionSetIds ?? [] };
       }
-      break;
-    }
-
-    case 'v1.ReviewSubmitted': {
-      const { takeId, stepId, decision, comment, answers } = event.payload;
-      const byStep = (state.reviews[takeId] ??= {});
-      const byActor = (byStep[stepId] ??= {});
-      lww(byActor, event.actorId, event, {
-        decision,
-        ...(comment !== undefined ? { comment } : {}),
-        ...(answers !== undefined ? { answers } : {}),
-        hlc: event.hlc
-      });
-      break;
-    }
-
-    case 'v1.AssignmentMade': {
-      const { unitId, laneId, profileId, role, dueDate, instructions } = event.payload;
-      // Latest assignment for the same (unit, lane, person, role) wins, so a
-      // due date can be changed by re-assigning.
-      const key = `${unitId}:${laneId}:${profileId}:${role}`;
-      const prior = state.assignments[key];
-      if (!prior || prior.hlc < event.hlc) {
-        state.assignments[key] = {
-          unitId,
-          laneId,
-          profileId,
-          role,
-          ...(dueDate !== undefined ? { dueDate } : {}),
-          ...(instructions !== undefined ? { instructions } : {}),
-          hlc: event.hlc
-        };
-      }
-      break;
-    }
-
-    case 'v1.SourceImported':
-      state.sourcePins[`${event.payload.sourcePartitionId}:${event.payload.sourceSeq}`] ??=
-        event.payload;
-      break;
-
-    case 'v1.BlobStored':
-      blobVerdict(state, event, { size: event.payload.size, stored: true });
-      break;
-
-    case 'v1.BlobInvalidated':
-      blobVerdict(state, event, { size: 0, stored: false });
-      break;
-
-    case 'v1.Redacted':
-      // Only effective for targets not yet applied; `fold` applies
-      // redactions first, and the sync client refolds when one arrives late.
-      state.redactions[event.payload.eventId] = true;
-      break;
-
-    case 'v1.LaneTemplateSelected': {
-      const { laneId, templateId, catalogVersion } = event.payload;
-      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion });
-      break;
-    }
-
-    case 'v1.LaneFlowSelected': {
-      const { laneId, flowId, catalogVersion } = event.payload;
-      lww(state.laneFlows, laneId, event, { flowId, catalogVersion });
-      break;
-    }
-
-    case 'v2.LaneTemplateSelected': {
-      const { laneId, itemId, docHash, unitPrefix, books } = event.payload;
-      // The unit prefix reads like the v1 catalog's `templateId@version`, so
-      // a library template made to keep an old catalog's units keeps them.
-      const at = unitPrefix.indexOf('@');
-      const templateId = at < 0 ? unitPrefix : unitPrefix.slice(0, at);
-      const catalogVersion = at < 0 ? 0 : Number(unitPrefix.slice(at + 1)) || 0;
-      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion, itemId, docHash, ...(books ? { books: [...books].sort() } : {}) });
-      break;
-    }
-
-    case 'v1.LaneUnitHidden': {
-      const { laneId, unitId, hidden } = event.payload;
-      lww((state.laneHiddenUnits[laneId] ??= {}), unitId, event, hidden);
-      break;
-    }
-
-    case 'v2.LaneFlowSelected': {
-      const { laneId, flowId, catalogVersion, itemId, docHash, name } = event.payload;
-      lww(state.laneFlows, laneId, event, { flowId, catalogVersion, itemId, docHash, name });
-      break;
-    }
-
-    case 'v1.WorkflowStepSet': {
-      const def = event.payload;
-      const slot = (state.workflowSteps[def.stepId] ??= { step: { value: def, hlc: '', eventId: '' }, removed: false });
-      if (slot.step.hlc === '' || !loses(slot.step, event)) slot.step = { value: def, hlc: event.hlc, eventId: event.id };
-      break;
-    }
-
-    case 'v1.WorkflowStepRemoved': {
-      const slot = (state.workflowSteps[event.payload.stepId] ??= {
-        step: { value: { stepId: event.payload.stepId, order: '', role: 'reviewer', required: false, rule: 'any' }, hlc: '', eventId: '' },
-        removed: false
-      });
-      slot.removed = true; // add-wins
-      break;
-    }
-
-    case 'v1.ReviewTeamDefined': {
-      const { teamId, laneId, name } = event.payload;
-      const team = (state.teams[teamId] ??= { laneId, name: { value: name, hlc: '', eventId: '' }, members: {} });
-      if (team.name.hlc === '' || !loses(team.name, event)) {
-        team.name = { value: name, hlc: event.hlc, eventId: event.id };
-        team.laneId = laneId;
-      }
-      break;
-    }
-
-    case 'v1.ReviewTeamMemberSet': {
-      const { teamId, profileId, member } = event.payload;
-      // A membership may arrive before the definition; the placeholder lane is filled by ReviewTeamDefined.
-      const team = (state.teams[teamId] ??= { laneId: '', name: { value: '', hlc: '', eventId: '' }, members: {} });
-      lww(team.members, profileId, event, member);
-      break;
-    }
-
-    case 'v1.ReviewTeamKindSet': {
-      const { teamId, kindId } = event.payload;
-      // Like a membership, it may arrive before the definition; the lane stays the definition's.
-      const team = (state.teams[teamId] ??= { laneId: '', name: { value: '', hlc: '', eventId: '' }, members: {} });
-      if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: kindId, hlc: event.hlc, eventId: event.id };
       break;
     }
 
@@ -289,11 +159,41 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
       break;
     }
 
-    case 'v1.ReviewCommentRecorded': {
-      const { takeId, stepId, blobHash } = event.payload;
-      const byStep = (state.reviewComments[takeId] ??= {});
-      const byActor = (byStep[stepId] ??= {});
-      byActor[event.actorId] ??= { blobHash, hlc: event.hlc };
+    case 'v1.ReviewRecorded': {
+      const { reviewId, ...rest } = event.payload;
+      firstWins(state.kindReviews, reviewId, event, { ...rest, id: reviewId });
+      break;
+    }
+
+    case 'v1.DepartureRecorded': {
+      const { departureId, ...rest } = event.payload;
+      firstWins(state.departures, departureId, event, { ...rest, id: departureId });
+      break;
+    }
+
+    case 'v1.DepartureUndone':
+      earliestUndo(state.undoneDepartures, event.payload.departureId, event);
+      break;
+
+    case 'v1.RequestMade': {
+      const { requestId, ...rest } = event.payload;
+      firstWins(state.requests, requestId, event, { ...rest, id: requestId });
+      break;
+    }
+
+    case 'v1.RequestWithdrawn':
+      earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+
+    case 'v1.NoteAdded': {
+      const { noteId, ...rest } = event.payload;
+      firstWins(state.notes, noteId, event, { ...rest, id: noteId });
+      break;
+    }
+
+    case 'v1.StudyStepMarked': {
+      const { unitId, guideId, stepId, done } = event.payload;
+      lww(state.studyMarks, studyMarkKey(unitId, guideId, stepId), event, { done, by: event.actorId });
       break;
     }
 
@@ -314,40 +214,33 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
 
     case 'v1.MaterialFieldSet': {
       const { materialId, fieldId, text, blobHash } = event.payload;
-      const m = (state.materials[materialId] ??= { kind: '', title: '', scope: {}, createdBy: '', hlc: '', fields: {}, locked: { value: false, hlc: '', eventId: '' } });
-      lww(m.fields, fieldId, event, { ...(text !== undefined ? { text } : {}), ...(blobHash !== undefined ? { blobHash } : {}) });
+      lww(material(state, materialId).fields, fieldId, event, { ...(text !== undefined ? { text } : {}), ...(blobHash !== undefined ? { blobHash } : {}) });
       break;
     }
 
     case 'v1.MaterialLocked': {
-      const m = (state.materials[event.payload.materialId] ??= { kind: '', title: '', scope: {}, createdBy: '', hlc: '', fields: {}, locked: { value: false, hlc: '', eventId: '' } });
+      const m = material(state, event.payload.materialId);
       if (m.locked.hlc === '' || !loses(m.locked, event)) m.locked = { value: event.payload.locked, hlc: event.hlc, eventId: event.id };
       break;
     }
 
-    case 'v1.StepQuestionSetLinked':
-      lww(state.stepQuestionSets, event.payload.stepId, event, event.payload.materialId);
-      break;
-
     case 'v1.KeyTermDefined': {
-      const { termId, laneId, term, gloss, unitScope } = event.payload;
-      const t = (state.keyTerms[termId] ??= { laneId, term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} });
+      const { termId, term, gloss, unitScope } = event.payload;
+      const t = (state.keyTerms[termId] ??= { term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} });
       // Placeholder from an early rendering has an empty term; fill it in.
-      if (t.term === '') { t.laneId = laneId; t.term = term; t.gloss = gloss; t.unitScope = [...unitScope]; }
+      if (t.term === '') { t.term = term; t.gloss = gloss; t.unitScope = [...unitScope]; }
       break;
     }
 
     case 'v1.KeyTermRenderingAdded': {
       const { termId, renderingId, rendering, context } = event.payload;
-      const t = (state.keyTerms[termId] ??= { laneId: '', term: '', gloss: '', unitScope: [], renderings: {}, adjustments: {} });
-      t.renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
+      keyTerm(state, termId).renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
       break;
     }
 
     case 'v1.KeyTermAdjusted': {
       const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
-      const t = (state.keyTerms[termId] ??= { laneId: '', term: '', gloss: '', unitScope: [], renderings: {}, adjustments: {} });
-      t.adjustments[adjustmentId] ??= {
+      keyTerm(state, termId).adjustments[adjustmentId] ??= {
         note, actorId: event.actorId, hlc: event.hlc,
         ...(blobHash !== undefined ? { blobHash } : {}), ...(duringTakeId !== undefined ? { duringTakeId } : {})
       };
@@ -361,105 +254,47 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
       break;
     }
 
-    // ---- the passage record (record.ts) --------------------------------
-
-    case 'v1.ReviewKindDefined': {
-      const { kindId, name, description, usualReviewer, withholdsContext, produces } = event.payload;
-      lww(state.reviewKinds, kindId, event, {
-        id: kindId,
-        name,
-        description: description ?? '',
-        usualReviewer: usualReviewer ?? '',
-        ...(withholdsContext !== undefined ? { withholdsContext } : {}),
-        ...(produces !== undefined ? { produces: { ...produces } } : {})
-      });
-      break;
-    }
-
-    case 'v2.WorkflowStepSet': {
-      const { stepId, laneId, order, kindIds, checkpoint } = event.payload;
-      lww(state.flowSteps, stepId, event, { stepId, ...(laneId !== undefined ? { laneId } : {}), order, kindIds: [...kindIds], checkpoint });
-      break;
-    }
-
-    case 'v1.ReviewRecorded': {
-      const { reviewId, ...rest } = event.payload;
-      firstWins(state.kindReviews, reviewId, event, { ...rest, id: reviewId });
-      break;
-    }
-
-    case 'v1.DepartureRecorded': {
-      const { departureId, ...rest } = event.payload;
-      firstWins(state.departures, departureId, event, { ...rest, id: departureId });
-      break;
-    }
-
-    case 'v1.DepartureUndone':
-      earliestUndo(state.undoneDepartures, event.payload.departureId, event);
-      break;
-
-    case 'v1.RequestMade':
-    case 'v2.RequestMade': {
-      const { requestId, ...rest } = event.payload;
-      firstWins(state.requests, requestId, event, { ...rest, id: requestId });
-      break;
-    }
-
-    case 'v1.RequestWithdrawn':
-      earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
-      break;
-
-    case 'v1.NoteAdded': {
-      const { noteId, ...rest } = event.payload;
-      firstWins(state.notes, noteId, event, { ...rest, id: noteId });
-      break;
-    }
-
-    case 'v1.StudyStepMarked': {
-      const { unitId, laneId, guideId, stepId, done } = event.payload;
-      lww(state.studyMarks, studyMarkKey(unitId, laneId, guideId, stepId), event, { done, by: event.actorId });
-      break;
-    }
-
-    case 'v1.LaneNamed':
-      lww(state.laneNames, event.payload.laneId, event, event.payload.name);
-      break;
-
-    case 'v1.LaneCountrySet':
-      lww(state.laneCountries, event.payload.laneId, event, event.payload.country);
-      break;
-
-    case 'v1.LaneTargetSet': {
-      const { laneId, scope, startDate, targetDate } = event.payload;
-      lww(state.laneTargets, laneId, event, { scope, startDate, targetDate });
-      break;
-    }
-
-    case 'v1.LaneReferenceRecommended':
+    case 'v1.ReferenceSet':
     case 'v1.PassageReferenceLinked':
     case 'v1.ReferencesUsed':
       applyReferenceEvent(state, event);
       break;
 
+    case 'v1.BlobStored':
+      blobVerdict(state, event, { size: event.payload.size, stored: true });
+      break;
+
+    case 'v1.BlobInvalidated':
+      blobVerdict(state, event, { size: 0, stored: false });
+      break;
+
+    case 'v1.Redacted':
+      // Only effective for targets not yet applied; `foldLanguage` applies
+      // redactions first, and the sync client refolds when one arrives late.
+      state.redactions[event.payload.eventId] = true;
+      break;
+
     case 'v1.OrgCreated':
-    case 'v1.ReferenceRecommended':
     case 'v1.RoleDefined':
     case 'v1.RoleRetired':
-    case 'v1.OrgMemberAdded':
-    case 'v1.OrgMemberRemoved':
-    case 'v1.CatalogItemToggled':
-    case 'v1.PartitionRegistered':
+    case 'v1.MemberAdded':
+    case 'v1.MemberRemoved':
     case 'v1.InviteIssued':
     case 'v1.InviteRedeemed':
     case 'v1.JoinDecided':
-    case 'v1.OrgLicenseSet':
+    case 'v1.LicenseSet':
+    case 'v1.LanguageAdded':
+    case 'v1.LanguageRenamed':
+    case 'v1.LanguageCountrySet':
+    case 'v1.LanguageTargetSet':
+    case 'v1.ReferenceRecommended':
     case 'v1.LibraryItemDefined':
     case 'v1.LibraryVersionPublished':
     case 'v1.LibrarySharingSet':
     case 'v1.LibraryItemArchived':
     case 'v1.LibrarySubscribed':
     case 'v1.LibraryPinned':
-      // Org partition events (org.ts). Nothing to fold into partition state.
+      // Organization-stream events (org.ts). Nothing to fold into a language.
       break;
 
     default: {
@@ -472,15 +307,15 @@ export function applyEvent(state: PartitionState, event: AnyEvent): PartitionSta
   return state;
 }
 
-export function fold(events: Iterable<AnyEvent>, initial: PartitionState = emptyState()): PartitionState {
+export function foldLanguage(events: Iterable<AnyEvent>, initial: LanguageState = emptyLanguageState()): LanguageState {
   let state = initial;
   // Redactions first so their targets are never applied, whatever the order.
   const rest: AnyEvent[] = [];
   for (const event of events) {
-    if (event.type === 'v1.Redacted') state = applyEvent(state, event);
+    if (event.type === 'v1.Redacted') state = applyLanguageEvent(state, event);
     else rest.push(event);
   }
-  for (const event of rest) state = applyEvent(state, event);
+  for (const event of rest) state = applyLanguageEvent(state, event);
   return state;
 }
 
@@ -508,30 +343,23 @@ function earliestUndo(table: Record<string, Undo>, key: string, event: EventEnve
 }
 
 /** Latest server verdict on a blob wins; ties by event id. */
-function blobVerdict(state: PartitionState, event: EventEnvelope, v: { size: number; stored: boolean }): void {
+function blobVerdict(state: LanguageState, event: EventEnvelope, v: { size: number; stored: boolean }): void {
   const hash = (event.payload as { hash: string }).hash;
   const cur = state.blobs[hash];
   if (cur && (cur.hlc > event.hlc || (cur.hlc === event.hlc && cur.eventId > event.id))) return;
   state.blobs[hash] = { ...v, hlc: event.hlc, eventId: event.id };
 }
 
-function member(state: PartitionState, profileId: string): Member {
-  return (state.members[profileId] ??= {
-    role: { value: 'viewer', hlc: '', eventId: '' },
-    removed: { value: false, hlc: '', eventId: '' }
-  });
+function emptyTeam(): ReviewTeam {
+  return { name: { value: '', hlc: '', eventId: '' }, members: {} };
 }
 
-/** LWW on one register field of an object. */
-function lwwRegister<O, K extends keyof O>(
-  obj: O,
-  key: K,
-  event: EventEnvelope,
-  value: O[K] extends Register<infer V> ? V : never
-): void {
-  const current = obj[key] as Register<unknown>;
-  if (loses(current, event)) return;
-  (obj as Record<K, Register<unknown>>)[key] = { value, hlc: event.hlc, eventId: event.id };
+function material(state: LanguageState, materialId: string): Material {
+  return (state.materials[materialId] ??= { kind: '', title: '', scope: {}, createdBy: '', hlc: '', fields: {}, locked: { value: false, hlc: '', eventId: '' } });
+}
+
+function keyTerm(state: LanguageState, termId: string) {
+  return (state.keyTerms[termId] ??= { term: '', gloss: '', unitScope: [], renderings: {}, adjustments: {} });
 }
 
 /** Later HLC wins; equal HLC cannot happen across devices (node id suffix). */
@@ -556,13 +384,8 @@ function loses(current: Register<unknown>, event: EventEnvelope): boolean {
   return current.eventId > event.id;
 }
 
-function setRegister<K extends 'partition' | 'config'>(
-  state: PartitionState,
-  key: K,
-  event: EventEnvelope,
-  value: NonNullable<PartitionState[K]>['value']
-): void {
-  const current = state[key];
-  if (current && loses(current, event)) return;
-  state[key] = { value, hlc: event.hlc, eventId: event.id } as PartitionState[K];
+/** A single register (the template or flow selection): later clock wins. */
+function set<V>(current: Register<V> | null, event: EventEnvelope, value: V): Register<V> {
+  if (current && loses(current, event)) return current;
+  return { value, hlc: event.hlc, eventId: event.id };
 }

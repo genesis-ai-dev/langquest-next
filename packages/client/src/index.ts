@@ -12,7 +12,6 @@ export * from './blobReconciler';
 export * from './snapshotFetch';
 export * from './v2import';
 export * from './writeQueue';
-export * from './queries';
 export * from './diagnostics';
 export * from './sqliteDiagStore';
 export * from './reports';

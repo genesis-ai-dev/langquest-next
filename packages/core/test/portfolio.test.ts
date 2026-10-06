@@ -1,9 +1,9 @@
-import type { LaneReport } from '../src/reports';
+import type { LanguageReport } from '../src/reports';
 import {
   activityWindow, alertsFor, attentionCount, combinedActivity, coverageAverage, coverageOn, csvCell, dayPercents, defaultLedgerMonth,
-  fieldReport, isSettled, laneCsv, lanesCsv, ledgerCsv, ledgerFor, logByDay, orgTotals, paceGroups, portfolioCounts, reportText,
-  sortLanes, timeAgo, toCsv, watchList, workingScope,
-  type LaneRow
+  fieldReport, isSettled, languageCsv, languagesCsv, ledgerCsv, ledgerFor, logByDay, orgTotals, paceGroups, portfolioCounts, reportText,
+  sortLanguages, timeAgo, toCsv, watchList, workingScope,
+  type LanguageRow
 } from '../src/portfolio';
 
 /**
@@ -18,9 +18,9 @@ const cov = (g = 0, nt = 0, ot = 0) => ({ gospels: g, nt, ot, bible: 0 });
 const days = (from: string, n: number, cards: (i: number) => number) =>
   Array.from({ length: n }, (_, i) => ({ day: new Date(Date.parse(`${from}T00:00:00Z`) + i * DAY).toISOString().slice(0, 10), cards: cards(i), chapters: cards(i) ? 1 : 0 }));
 
-function report(over: Partial<LaneReport> & { name: string }): LaneReport {
+function report(over: Partial<LanguageReport> & { name: string }): LanguageReport {
   return {
-    laneId: over.name.toLowerCase(), languoidId: over.name.slice(0, 3).toLowerCase(), country: null, flowName: 'Quick Check', target: null,
+    languageId: over.name.toLowerCase(), code: over.name.slice(0, 3).toLowerCase(), country: null, flowName: 'Quick Check', target: null,
     progress: { total: 10, recorded: 4, done: 2, steps: [], waiting: 0, feedback: 0 },
     work: { not_started: 5, drafting: 1, in_review: 2, feedback: 0, done: 2 },
     stages: [], bottleneck: null,
@@ -36,7 +36,7 @@ function report(over: Partial<LaneReport> & { name: string }): LaneReport {
   };
 }
 
-const row = (r: LaneReport, updatedAt = '2026-09-30T11:00:00Z'): LaneRow => ({ orgId: 'o', partitionId: 'work', laneId: r.laneId, updatedAt, report: r });
+const row = (r: LanguageReport, updatedAt = '2026-09-30T11:00:00Z'): LanguageRow => ({ orgId: 'o', languageId: r.languageId, updatedAt, report: r });
 const uploadedDaysAgo = (d: number) => ({ cards: 1, chapters: 1, firstAt: null, lastAt: new Date(NOW - d * DAY).toISOString(), daily: [], log: [] });
 
 describe('orgTotals', () => {
@@ -170,13 +170,13 @@ describe('alerts', () => {
   });
 });
 
-describe('sortLanes', () => {
+describe('sortLanguages', () => {
   const rows = [
     row(report({ name: 'nuer', progress: { total: 10, recorded: 9, done: 1, steps: [], waiting: 0, feedback: 0 } })),
     row(report({ name: 'Dinka', progress: { total: 4, recorded: 1, done: 1, steps: [], waiting: 0, feedback: 0 }, attention: { feedback: 2, openRequests: 0, overdueRequests: 1, atCheckpoint: 1 } })),
     row(report({ name: 'Bari', progress: { total: 0, recorded: 0, done: 0, steps: [], waiting: 0, feedback: 0 } }))
   ];
-  const names = (key: Parameters<typeof sortLanes>[1], dir: 'asc' | 'desc') => sortLanes(rows, key, dir).map((r) => r.report.name);
+  const names = (key: Parameters<typeof sortLanguages>[1], dir: 'asc' | 'desc') => sortLanguages(rows, key, dir).map((r) => r.report.name);
   it('sorts names without regard to case, and shares not counts', () => {
     expect(names('name', 'asc')).toEqual(['Bari', 'Dinka', 'nuer']);
     expect(names('recorded', 'desc')).toEqual(['nuer', 'Dinka', 'Bari']);
@@ -195,8 +195,8 @@ describe('CSV', () => {
   });
   it('writes one line per language and per book', () => {
     const r = report({ name: 'Dinka', country: 'SS', books: [{ bookId: 'luk', label: 'Luke', total: 4, recorded: 2, done: 1 }] });
-    expect(lanesCsv([row(r)], NOW).split('\r\n')[1]).toMatch(/^Dinka,din,SS,Quick Check,10,4,2,40,20,0,0,0,0,,not_started,/);
-    expect(laneCsv(r).split('\r\n')[1]).toBe('Luke,4,2,1,50,25');
+    expect(languagesCsv([row(r)], NOW).split('\r\n')[1]).toMatch(/^Dinka,din,SS,Quick Check,10,4,2,40,20,0,0,0,0,,not_started,/);
+    expect(languageCsv(r).split('\r\n')[1]).toBe('Luke,4,2,1,50,25');
   });
 });
 

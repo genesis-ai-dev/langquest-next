@@ -1,6 +1,5 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
 import { bookIdOf, libraryUnitRange } from './versification';
-import { catalogEnabled, catalogKey, type OrgState } from './org';
 
 /** Audio editions are explicit opt-ins, unlike the legacy reference catalog. */
 export const SOURCE_BIBLES = [
@@ -10,13 +9,6 @@ export const SOURCE_BIBLES = [
     directory: 'msb_frederick_surrey', narrator: 'Frederick Surrey' }
 ] as const;
 export type SourceBible = typeof SOURCE_BIBLES[number];
-
-export function sourceBibleEnabled(
-  org: OrgState, id: string, partitionId?: string
-): boolean {
-  return org.catalog[catalogKey('reference', id, 'org')]?.value === true &&
-    catalogEnabled(org, 'reference', id, partitionId);
-}
 
 // OpenBible's filenames use these spellings, which differ from our book ids.
 const AUDIO_BOOKS = (

@@ -1,14 +1,14 @@
-import { fold } from '../src/reducer';
-import { emptyState } from '../src/state';
+import { foldLanguage } from '../src/reducer';
+import { emptyLanguageState } from '../src/state';
 import type { AnyEvent } from '../src/events';
 import { bookOfChapter, chapterNumber, SCOPE_VERSES, unitChapters, unitVerses } from '../src/coverage';
 
 /** Coverage counts verses of the canon, so the parse of each unit kind decides what "90% of the Gospels" means. */
 
-const withUnits = (units: [string, string][]) => fold(units.map(([unitId, label], i) => ({
-  id: `u${i}`, type: 'v1.UnitAdded', orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'a', hlc: `00000000000000${i}:000000:a`,
+const withUnits = (units: [string, string][]) => foldLanguage(units.map(([unitId, label], i) => ({
+  id: `u${i}`, type: 'v1.UnitAdded', orgId: 'o', streamId: 'L1', actorId: 'a', deviceId: 'a', hlc: `00000000000000${i}:000000:a`,
   payload: { unitId, parentUnitId: null, kind: 'passage', label, order: String(i) }
-}) as AnyEvent), emptyState());
+}) as AnyEvent), emptyLanguageState());
 
 describe('unitVerses', () => {
   const state = withUnits([

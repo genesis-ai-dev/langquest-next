@@ -76,13 +76,13 @@ export class NotSavedError extends Error {
 }
 
 /**
- * Append one event to a partition this device does not sync and wait for
+ * Append one event to a stream this device does not sync and wait for
  * the server's answer, with no outbox: it is saved when this resolves, and
  * when it throws nothing was. For settings made online from a report (a
- * language's country or target) where the partition is not open here.
+ * language's country or target) where the stream is not open here.
  */
 export async function appendConfirmed<T extends EventType>(
-  c: { orgId: string; partitionId: string; actorId: string; deviceId: string; transport: Transport },
+  c: { orgId: string; streamId: string; actorId: string; deviceId: string; transport: Transport },
   type: T,
   payload: EventPayloads[T]
 ): Promise<void> {

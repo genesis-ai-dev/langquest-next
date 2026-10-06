@@ -52,11 +52,7 @@ export interface LibraryEvents {
   'v1.LibraryPinned': { itemId: string; kind: LibraryKind; docHash: string };
 }
 
-/**
- * Work-partition events that tie a language to library versions. The v1
- * forms stay readable for languages set up from the catalog that used to
- * ship in the app.
- */
+/** Language-stream events that tie a language to library versions. */
 export interface LibraryWorkEvents {
   /**
    * A language uses a version of a library template. `unitPrefix` is what
@@ -66,11 +62,15 @@ export interface LibraryWorkEvents {
    * to the books this language covers (a New Testament team on a whole-Bible
    * template); absent means all of them.
    */
-  'v2.LaneTemplateSelected': { laneId: string; itemId: string; docHash: string; unitPrefix: string; books?: string[] };
+  'v1.TemplateSelected': { itemId: string; docHash: string; unitPrefix: string; books?: string[] };
   /** A part of a language's template that its current version no longer has; hidden, never deleted (TPL-7). */
-  'v1.LaneUnitHidden': { laneId: string; unitId: string; hidden: boolean };
-  /** A language uses a version of a library flow; `flowId` is the step prefix, `name` what people read. */
-  'v2.LaneFlowSelected': { laneId: string; flowId: string; catalogVersion: number; itemId: string; docHash: string; name: string };
+  'v1.UnitHidden': { unitId: string; hidden: boolean };
+  /**
+   * The flow a language uses. `flowId` is its steps' prefix: a library
+   * flow's version (`libraryFlowId`, with the item, version and name), or
+   * `custom` for steps edited by hand.
+   */
+  'v1.FlowSelected': { flowId: string; itemId?: string; docHash?: string; name?: string };
 }
 
 export interface LibraryVersion {

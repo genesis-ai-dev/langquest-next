@@ -1,3 +1,4 @@
+import { ORG_STREAM } from '@langquest-next/core';
 import { appendConfirmed, fetchOrgReports, fetchOrgSummary, NotSavedError, ReportsError, type ReportsServer } from '../src/reports';
 import { FakeServer } from './fakeServer';
 
@@ -41,22 +42,22 @@ describe('fetching reports', () => {
 });
 
 describe('appendConfirmed', () => {
-  const who = { orgId: 'org1', partitionId: 'p1', actorId: 'a1', deviceId: 'd1' };
+  const who = { orgId: 'org1', streamId: ORG_STREAM, actorId: 'a1', deviceId: 'd1' };
 
   it('resolves only once the server has the event', async () => {
     const fake = new FakeServer();
-    await appendConfirmed({ ...who, transport: fake.transportFor() }, 'v1.LaneCountrySet', { laneId: 'din', country: 'SS' });
-    expect(fake.log.map((e) => e.type)).toEqual(['v1.LaneCountrySet']);
+    await appendConfirmed({ ...who, transport: fake.transportFor() }, 'v1.LanguageCountrySet', { languageId: 'din', country: 'SS' });
+    expect(fake.log.map((e) => [e.type, e.streamId])).toEqual([['v1.LanguageCountrySet', ORG_STREAM]]);
   });
 
   it('says why nothing was saved', async () => {
     const offline = new FakeServer();
     offline.offline = true;
-    await expect(appendConfirmed({ ...who, transport: offline.transportFor() }, 'v1.LaneCountrySet', { laneId: 'din', country: 'SS' }))
+    await expect(appendConfirmed({ ...who, transport: offline.transportFor() }, 'v1.LanguageCountrySet', { languageId: 'din', country: 'SS' }))
       .rejects.toEqual(new NotSavedError('No connection. Nothing was saved; try again when you are back online.', 'offline'));
     const refusing = new FakeServer();
-    refusing.authorize = () => 'may not emit v1.LaneCountrySet';
-    await expect(appendConfirmed({ ...who, transport: refusing.transportFor() }, 'v1.LaneCountrySet', { laneId: 'din', country: 'SS' }))
+    refusing.authorize = () => 'may not emit v1.LanguageCountrySet';
+    await expect(appendConfirmed({ ...who, transport: refusing.transportFor() }, 'v1.LanguageCountrySet', { languageId: 'din', country: 'SS' }))
       .rejects.toMatchObject({ reason: 'refused' });
   });
 });

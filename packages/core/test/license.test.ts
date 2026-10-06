@@ -6,8 +6,8 @@ import { validateEvent } from '../src/validate';
 import { buildOrgFixture, shuffle } from './fixtures';
 
 const ev = (seq: number, type: string, payload: unknown, deviceId = 'dA', actorId = 'lead'): AnyEvent =>
-  ({ id: `l${seq}`, type, orgId: 'org1', partitionId: '_org', actorId, deviceId, hlc: encodeHlc(1_800_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq }) as AnyEvent;
-const set = (seq: number, license: string, deviceId = 'dA') => ev(seq, 'v1.OrgLicenseSet', { license }, deviceId);
+  ({ id: `l${seq}`, type, orgId: 'org1', streamId: '_org', actorId, deviceId, hlc: encodeHlc(1_800_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq }) as AnyEvent;
+const set = (seq: number, license: string, deviceId = 'dA') => ev(seq, 'v1.LicenseSet', { license }, deviceId);
 
 describe('organization license (docs/decisions.md 38)', () => {
   it('is all rights reserved until someone opens it', () => {
@@ -61,13 +61,13 @@ describe('organization license (docs/decisions.md 38)', () => {
   it('is the owner\'s to change, at organization scope only', () => {
     // Why: opening is permanent, so only Organization Admin decides it; an
     // admin of one language cannot open the whole organization's work.
-    expect(EVENT_PRIVILEGE['v1.OrgLicenseSet']).toBe('manage_roles');
+    expect(EVENT_PRIVILEGE['v1.LicenseSet']).toBe('manage_roles');
     expect(SEED_ROLES.filter((r) => r.privileges.includes('manage_roles')).map((r) => r.roleId)).toEqual(['org_admin']);
     const org = foldOrg([
       ...SEED_ROLES.map((r, i) => ev(10 + i, 'v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
-      ev(20, 'v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' } }),
-      ev(21, 'v1.OrgMemberAdded', { profileId: 'coord', roleId: 'coordinator', scope: { level: 'org' } }),
-      ev(22, 'v1.OrgMemberAdded', { profileId: 'langAdmin', roleId: 'org_admin', scope: { level: 'lane', partitionId: 'L1', laneId: 'L1' } })
+      ev(20, 'v1.MemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' } }),
+      ev(21, 'v1.MemberAdded', { profileId: 'coord', roleId: 'coordinator', scope: { level: 'org' } }),
+      ev(22, 'v1.MemberAdded', { profileId: 'langAdmin', roleId: 'org_admin', scope: { level: 'language', languageId: 'L1' } })
     ]);
     expect(mayChangeLicense(org, 'lead')).toBe(true);
     expect(mayChangeLicense(org, 'coord')).toBe(false);

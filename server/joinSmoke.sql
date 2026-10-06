@@ -13,32 +13,35 @@ insert into auth.users (id, email, aud, role) values
   ('21000000-0000-0000-0000-00000000000e', 'achol-201@people.langquest.org', 'authenticated', 'authenticated'),
   ('21000000-0000-0000-0000-00000000000f', 'deng-202@people.langquest.org', 'authenticated', 'authenticated');
 insert into public.profiles (id, display_name) values ('21000000-0000-0000-0000-00000000000b', 'Ryder Lead');
-select public._apply_org_event('join-org','v1.RoleDefined',
-  '{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}', '999:1:test');
-select public._apply_org_event('join-org','v1.RoleDefined',
-  '{"roleId":"lead","name":"Lead","privileges":["invite_members","translate"]}', '999:1:test');
-select public._apply_org_event('join-org','v1.RoleDefined',
-  '{"roleId":"translator","name":"Translator","privileges":["translate"]}', '999:1:test');
-select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}','999:1:test');
-select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"lane","partitionId":"L-one","laneId":"L-one"}}','999:1:test');
-select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000c","roleId":"lead","scope":{"level":"lane","partitionId":"L-two","laneId":"L-two"}}','999:1:test');
-select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000d","roleId":"admin","scope":{"level":"org"}}','999:1:test');
-select public._append_event_as('join-org-created','join-org','_org','v1.OrgCreated','21000000-0000-0000-0000-00000000000a','server','{"name":"Join test"}');
-select public._append_event_as('join-lang-one','join-org','_org','v1.PartitionRegistered','21000000-0000-0000-0000-00000000000a','server','{"partitionId":"L-one","name":"Languish"}');
+-- The organization, its roles, its admins, two languages and their leads,
+-- in one batch.
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"join-o1","type":"v1.OrgCreated","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000001:000000:dJ","payload":{"name":"Join test"}},
+    {"id":"join-o2","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000002:000000:dJ","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}},
+    {"id":"join-o3","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000003:000000:dJ","payload":{"roleId":"lead","name":"Lead","privileges":["invite_members","translate"]}},
+    {"id":"join-o4","type":"v1.RoleDefined","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000004:000000:dJ","payload":{"roleId":"translator","name":"Translator","privileges":["translate"]}},
+    {"id":"join-o5","type":"v1.MemberAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000005:000000:dJ","payload":{"profileId":"21000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}},
+    {"id":"join-o6","type":"v1.LanguageAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000006:000000:dJ","payload":{"languageId":"L-one","name":"Languish","code":"lgs","sourceCode":"eng"}},
+    {"id":"join-o7","type":"v1.LanguageAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000007:000000:dJ","payload":{"languageId":"L-two","name":"Otherish","code":"oth","sourceCode":"eng"}},
+    {"id":"join-o8","type":"v1.MemberAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000008:000000:dJ","payload":{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"language","languageId":"L-one"}}},
+    {"id":"join-o9","type":"v1.MemberAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000009:000000:dJ","payload":{"profileId":"21000000-0000-0000-0000-00000000000c","roleId":"lead","scope":{"level":"language","languageId":"L-two"}}},
+    {"id":"join-o10","type":"v1.MemberAdded","orgId":"join-org","streamId":"_org","actorId":"21000000-0000-0000-0000-00000000000a","deviceId":"dJ","hlc":"000000000000010:000000:dJ","payload":{"profileId":"21000000-0000-0000-0000-00000000000d","roleId":"admin","scope":{"level":"org"}}}
+  ]'::jsonb, (select min_client_version from public.server_config)) loop
+    if not r.accepted then raise exception 'bootstrap event % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
 
 -- The admin invites Achol to the first language; the admin who will leave invites Deng.
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
 select public.issue_invite_v3('join-org','31000000-0000-0000-0000-000000000001',
   encode(extensions.digest(repeat('a',64),'sha256'),'hex'),'translator',
-  '{"level":"lane","partitionId":"L-one","laneId":"L-one"}',now()+interval '1 day','Achol Mabior',1);
+  '{"level":"language","languageId":"L-one"}',now()+interval '1 day','Achol Mabior',1);
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000d',true);
 select public.issue_invite_v3('join-org','31000000-0000-0000-0000-000000000002',
   encode(extensions.digest(repeat('b',64),'sha256'),'hex'),'translator',
-  '{"level":"lane","partitionId":"L-one","laneId":"L-one"}',now()+interval '1 day','Deng',1);
+  '{"level":"language","languageId":"L-one"}',now()+interval '1 day','Deng',1);
 
 -- `join` (the service role) redeems for the account it just made.
 select set_config('request.jwt.claim.sub','',true);
@@ -49,7 +52,7 @@ do $$ begin
     raise exception 'a repeat for the same account must succeed'; end if;
   if public.redeem_invite_for('21000000-0000-0000-0000-00000000000f', repeat('b',64)) <> 'join-org' then
     raise exception 'second join'; end if;
-  if not ('translate' = any(public.org_privileges('join-org','21000000-0000-0000-0000-00000000000e','L-one','L-one'))) then
+  if not ('translate' = any(public.org_privileges('join-org','21000000-0000-0000-0000-00000000000e','L-one'))) then
     raise exception 'language membership missing'; end if;
   if (select steward_id::text from public.account_stewards where profile_id = '21000000-0000-0000-0000-00000000000e')
      <> '21000000-0000-0000-0000-00000000000a' then raise exception 'who to ask not recorded'; end if;
@@ -100,10 +103,10 @@ end $$;
 -- The admin who invited Deng leaves, and the lead loses their language:
 -- neither can help any more, though the leaver is still recorded as the one
 -- who invited Deng.
-select public._apply_org_event('join-org','v1.OrgMemberRemoved',
-  '{"profileId":"21000000-0000-0000-0000-00000000000d","scope":{"level":"org"}}','999:2:test');
-select public._apply_org_event('join-org','v1.OrgMemberRemoved',
-  '{"profileId":"21000000-0000-0000-0000-00000000000b","scope":{"level":"lane","partitionId":"L-one","laneId":"L-one"}}','999:2:test');
+select public._append_event_as('join-leave-d','join-org','_org','v1.MemberRemoved','21000000-0000-0000-0000-00000000000a','server',
+  '{"profileId":"21000000-0000-0000-0000-00000000000d","scope":{"level":"org"}}');
+select public._append_event_as('join-leave-b','join-org','_org','v1.MemberRemoved','21000000-0000-0000-0000-00000000000a','server',
+  '{"profileId":"21000000-0000-0000-0000-00000000000b","scope":{"level":"language","languageId":"L-one"}}');
 do $$ begin
   if public.may_help_sign_in('21000000-0000-0000-0000-00000000000d','21000000-0000-0000-0000-00000000000f') then
     raise exception 'the inviter who left must not help'; end if;
@@ -114,8 +117,8 @@ do $$ begin
 end $$;
 
 -- A code that says the old phone is lost, and who helped.
-select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"lane","partitionId":"L-one","laneId":"L-one"}}','999:3:test');
+select public._append_event_as('join-back-b','join-org','_org','v1.MemberAdded','21000000-0000-0000-0000-00000000000a','server',
+  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"language","languageId":"L-one"}}');
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000b',true);
 do $$ begin
   if public.issue_sign_in_code_v2('21000000-0000-0000-0000-00000000000e', repeat('5',64), true) <> 'achol-201' then
