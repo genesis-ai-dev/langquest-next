@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, ScrollView, Text, View } from 'react-native';
 import { EmptyState, GhostBtn, PrimaryBtn, txt } from './kit';
 import { reportError } from './report';
@@ -8,6 +8,23 @@ import { C, space } from './theme';
 
 const WEB = Platform.OS === 'web';
 const MOVED_KEY = 'langquest-moved';
+/** Set while this tab takes the database over from another, so one failed first open reloads instead of stopping. */
+const TOOK_KEY = 'langquest-took';
+/**
+ * The other tab's lock goes with its page, but the browser can take a moment
+ * longer to let go of its file handles; opening at once can find them still
+ * held (seen on CI's Linux Chromium). Wait this long after a takeover.
+ */
+const TAKEOVER_SETTLE_MS = 1500;
+
+function tookFlag(op: 'get' | 'set' | 'clear'): boolean {
+  try {
+    if (op === 'get') return sessionStorage.getItem(TOOK_KEY) === '1';
+    if (op === 'set') sessionStorage.setItem(TOOK_KEY, '1');
+    else sessionStorage.removeItem(TOOK_KEY);
+  } catch { /* no session storage: the error screen's Try again still works */ }
+  return false;
+}
 
 function browserTab(): TabDeps | null {
   if (!WEB || typeof navigator === 'undefined' || !navigator.locks || typeof BroadcastChannel === 'undefined') return null;
@@ -51,7 +68,15 @@ export function StorageGate(props: { children: ReactNode }) {
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
-  useEffect(() => onStoreFailure((e) => setFailure(reportError('open storage', e))), []);
+  useEffect(() => onStoreFailure((e) => {
+    // Right after a takeover the other tab's files may not have been let go yet: reload once and open again.
+    if (WEB && tookFlag('get')) {
+      tookFlag('clear');
+      window.location.reload();
+      return;
+    }
+    setFailure(reportError('open storage', e));
+  }), []);
 
   useEffect(() => {
     if (!WEB) return;
@@ -62,14 +87,22 @@ export function StorageGate(props: { children: ReactNode }) {
       return;
     }
     const t = startTab(deps, setTab);
-    setActions(t);
+    setActions({ useHere: () => { tookFlag('set'); t.useHere(); } });
     return () => t.stop();
   }, []);
 
+  const last = useRef<TabState>(tab);
   useEffect(() => {
+    const prev = last.current;
+    last.current = tab;
     if (tab !== 'ready') return;
-    allowStorage();
     if (WEB) keepStorage();
+    if (prev !== 'waiting') { allowStorage(); return; }
+    // Taken over just now: give the other tab's files a moment to be let go of,
+    // and stop treating a failure as the takeover's once storage has had time to open.
+    const open = setTimeout(allowStorage, TAKEOVER_SETTLE_MS);
+    const settled = setTimeout(() => tookFlag('clear'), 30_000);
+    return () => { clearTimeout(open); clearTimeout(settled); };
   }, [tab]);
 
   if (failure) {

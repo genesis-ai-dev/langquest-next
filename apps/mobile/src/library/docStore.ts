@@ -141,6 +141,9 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
   const out = new Map<string, LibraryDoc>();
   let want = [...new Set(hashes.filter((h): h is string => !!h))];
   const seen = new Set<string>();
+  // Offline, the server's refusal must not hide what is on disk: keep walking
+  // the documents here (and their deps), tell the screens, then report it.
+  let failed: Error | null = null;
   while (want.length) {
     const missing: string[] = [];
     for (const h of want) {
@@ -149,10 +152,18 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
       if (doc) out.set(h, doc);
       else missing.push(h);
     }
-    for (let i = 0; i < missing.length; i += 100) {
-      const { data, error } = await supabase.rpc('library_get_documents', { p_org: orgId, p_hashes: missing.slice(i, i + 100) });
-      if (error) throw new Error(error.message);
-      for (const row of (data ?? []) as { hash: string; body: string }[]) {
+    // One refusal is enough to know the server is away this time.
+    for (let i = 0; i < missing.length && !failed; i += 100) {
+      let rows: { hash: string; body: string }[];
+      try {
+        const { data, error } = await supabase.rpc('library_get_documents', { p_org: orgId, p_hashes: missing.slice(i, i + 100) });
+        if (error) throw new Error(error.message);
+        rows = (data ?? []) as { hash: string; body: string }[];
+      } catch (e) {
+        failed ??= e instanceof Error ? e : new Error(String(e));
+        continue;
+      }
+      for (const row of rows) {
         const doc = await admit(row.hash, row.body);
         if (!doc) continue;
         await toDisk(row.hash, row.body);
@@ -167,6 +178,7 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
     want = [...next];
   }
   if (out.size) notify();
+  if (failed) throw failed;
   return out;
 }
 

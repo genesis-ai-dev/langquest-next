@@ -7,7 +7,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
   ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, Download, Filter, Flag, Folder, Globe, History,
+  ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
@@ -36,7 +36,7 @@ export const ICONS = {
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, up: ChevronUp, user: User, video: Video,
-  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers
+  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, onPhone: CloudCheck, notOnPhone: CloudOff
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 

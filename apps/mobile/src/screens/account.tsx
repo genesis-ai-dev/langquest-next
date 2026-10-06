@@ -19,6 +19,7 @@ import { accountOutbox, queueAccountAction } from '../accountData';
 import { deleteAccount } from '../accountDeletion';
 import { groupByRead, updateText } from '../accountText';
 import type { Ctx } from '../ctx';
+import { OfflineCard, offlineLine, useOfflineSummary } from '../offline';
 import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
 import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
 import { openReports } from '../moderationData';
@@ -370,6 +371,7 @@ export function SettingsHome(ctx: Ctx) {
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = names[s.actorId] ?? memberName ?? s.email?.split('@')[0] ?? 'You';
   const p = ctx.project;
+  const offline = useOfflineSummary(ctx);
   const syncSub = p.refused ? 'This account cannot sync this organization'
     : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
     : p.live ? 'Live: changes arrive as they happen'
@@ -425,6 +427,9 @@ export function SettingsHome(ctx: Ctx) {
         {homeScreenFor(s) === 'my_work' ? (
           <Row icon="play" label="Getting started" sub="Your first-day checklist" onPress={() => ctx.go('my_work', { showGettingStarted: '1' })} />
         ) : null}
+        {/* What comes along to the field, out of Advanced so it is seen before a trip (decisions.md 61). */}
+        <Row icon={offline && offline.kept > 0 && offline.ready === offline.kept ? 'onPhone' : 'notOnPhone'} label="Ready for offline" sub={offlineLine(offline)}
+          onPress={() => ctx.go('sync_status')} />
         <Row icon="book" label="What is LangQuest?" onPress={() => ctx.go('vision')} last={!canSwitch} />
         {canSwitch ? (
           <Row icon="building" label="Switch Organization" sub={`${orgName} (active)`} onPress={() => ctx.go('org_switcher')} last />
@@ -808,6 +813,7 @@ export function SyncStatus(ctx: Ctx) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, org]);
   const offline = project.online === false;
+  const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = [...(ins?.rejected ?? []), ...(orgIns?.rejected ?? [])];
   const syncNow = async () => {
@@ -822,6 +828,8 @@ export function SyncStatus(ctx: Ctx) {
       <Banner icon="cloud" tone={project.live ? 'green' : offline ? 'amber' : 'brand'}
         title={project.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this phone' : 'Checking for changes now and then'}
         body={project.refused ?? (project.tooOld ? 'Update the app to sync.' : undefined)} />
+      {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
+      <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
         <Stat icon="up" color={pendingEvents ? C.primary : C.green} value={pendingEvents} label="waiting to upload" />
         <Stat icon="flag" color={rejected.length ? TINT.redText : C.muted} value={rejected.length} label="refused by the server" />

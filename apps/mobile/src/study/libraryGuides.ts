@@ -13,29 +13,47 @@ export { glossaryEntryOf } from './guideMatch';
 
 /** The guide for a passage, or null while its documents load or when none covers it. */
 export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined, laneId?: string | null): StudyGuide | null {
+  const ids = useMemo(() => (unitId ? [unitId] : []), [unitId]);
+  return useStudyGuides(ctx, ids, laneId).get(unitId ?? '') ?? null;
+}
+
+/**
+ * Guides for many passages at once (the offline prefetch, decisions.md 61).
+ * A passage missing from the map has no guide, or its documents have not loaded.
+ */
+export function useStudyGuides(ctx: Ctx, unitIds: readonly string[], laneId?: string | null): Map<string, StudyGuide> {
   const state = ctx.project.state;
   const orgId = ctx.project.orgId;
   const lane = laneId ?? ctx.laneId;
   const own: GuideSource[] = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material')
     .filter((i) => i.current && !i.archived)
     .map((i) => ({ key: i.itemId, hash: i.current! })), [ctx.org.state?.library]);
-  const shared = useSharedItems('material', orgId, !!unitId);
+  const shared = useSharedItems('material', orgId, unitIds.length > 0);
   const others: GuideSource[] = useMemo(() => shared.rows.map((r) => ({ key: `${r.org_id}.${r.item_id}`, hash: r.latest_hash })), [shared.rows]);
   const sel = lane && state ? state.laneTemplates[lane]?.value : undefined;
-  const { get } = useLibraryDocs(orgId, [...own.map((s) => s.hash), ...others.map((s) => s.hash), sel?.docHash]);
+  // Nothing to match, nothing to load: the prefetch on the web, or a screen with no passage yet.
+  const { get } = useLibraryDocs(orgId, unitIds.length ? [...own.map((s) => s.hash), ...others.map((s) => s.hash), sel?.docHash] : []);
 
-  const choice = useMemo(() => {
-    if (!state || !unitId) return null;
-    const passage = passageVerses(state, unitId, lane, get);
-    return passage ? bestGuide(passage, [own, others], get) : null;
-  }, [state, unitId, lane, own, others, get]);
+  const choices = useMemo(() => {
+    const out = new Map<string, { id: string; hash: string }>();
+    if (!state) return out;
+    for (const unitId of unitIds) {
+      const passage = passageVerses(state, unitId, lane, get);
+      const choice = passage ? bestGuide(passage, [own, others], get) : null;
+      if (choice) out.set(unitId, choice);
+    }
+    return out;
+  }, [state, unitIds, lane, own, others, get]);
 
-  // The chosen guide's own document (a collection's entry) loads on demand.
-  const entry = useLibraryDocs(orgId, [choice?.hash]);
+  // The chosen guides' own documents (a collection's entries) load on demand.
+  const entry = useLibraryDocs(orgId, [...choices.values()].map((c) => c.hash));
   const entryGet = entry.get;
   return useMemo(() => {
-    if (!choice) return null;
-    const doc = entryGet(choice.hash);
-    return doc && doc.format === 'study@1' ? guideFromDoc(choice.id, doc as StudyDoc) : null;
-  }, [choice, entryGet]);
+    const out = new Map<string, StudyGuide>();
+    for (const [unitId, choice] of choices) {
+      const doc = entryGet(choice.hash);
+      if (doc && doc.format === 'study@1') out.set(unitId, guideFromDoc(choice.id, doc as StudyDoc));
+    }
+    return out;
+  }, [choices, entryGet]);
 }
