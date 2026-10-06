@@ -1151,7 +1151,7 @@ synced, or we need percentage rollouts that organizations cannot override.
 
 ## 54. Getting in is a key the phone holds, and an account without email has a steward
 
-Date: 2026-10-01 · By: Caleb Koster · Status: accepted
+Date: 2026-10-01 · By: Caleb Koster · Status: partly superseded by 59
 
 Reason: a signed-out person who scanned a QR invite was sent to Sign In with
 no account, had to find the invite again after signing up, and an invite
@@ -1375,3 +1375,38 @@ sorted out). Until then iOS links open the web app; Android app links and
 both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
+
+## 59. Joining by invite needs no password, and whoever can invite you can get you back in
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: supersedes part of 54. People invited by QR in the field often have
+no email and will not remember a sign-in name or a password, so 54's join
+(a name, a password twice, a sign-in name to write down) asked them for what
+they would lose, and its recovery made them choose a new password anyway.
+Caleb chose (2026-10-05) the direction tried in the partner demo (its
+ADR-031, branch `caleb-qr-onboarding`):
+- Joining by invite makes the account with no password. The `join` Edge
+  Function takes the invite from a signed-out phone, makes a looked-after
+  account named as the inviter typed (a group invite asks for the name),
+  adds the membership through `redeem_invite_for`, and returns a session.
+  It is safe to repeat: the phone sends one request id per join
+  (`invite_join_requests`). The account's password is random and never
+  shown; the person may set one later, for a shared phone.
+- Getting back in is a helper's code that signs the person straight in
+  (`sign-in-code` without a password returns a session). Whoever holds
+  Invite at a scope that covers one of the person's memberships may help,
+  while they hold it (`may_help_sign_in`); the steward row now only says
+  who to ask. A helper can mark the old phone lost
+  (`issue_sign_in_code_v2`), and the code then signs every other session of
+  the account out.
+- Adding a proven email ends help codes for that person
+  (`take_sign_in_code_v2` refuses accounts with their own email); the
+  emailed codes that prove an address come next.
+Builds from before keep working: `redeem_invite_v2`, `issue_sign_in_code`
+and the password path of `sign-in-code` keep their contracts. Migration
+`20261005120000_join_without_password.sql`, tests `server/joinSmoke.sql`,
+design in `docs/invites-and-accounts.md`.
+Reverse if: people lose their way back in more often than helpers can bring
+them back (then joining asks for an optional password again), or help codes
+are misused (then help narrows to organization admins, as 54 said).
