@@ -18,9 +18,9 @@ import type { GuideDraft } from './draft';
 import { draftFiles } from './draft';
 
 /** Supabase Storage's limit for one file (supabase/config.toml). */
-export const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_BYTES = 50 * 1024 * 1024;
 /** The phone copy's longest side, in pixels (core MediaRef: "pictures 500px"). */
-export const LOW_SIDE = 500;
+const LOW_SIDE = 500;
 
 export const canPickFiles = Platform.OS === 'web';
 
@@ -34,7 +34,7 @@ const BY_TYPE: Record<string, StoredFormat> = {
 };
 
 /** The stored format of a picked file, from its media type or else its extension; null when the store cannot keep it. */
-export function formatOfFile(type: string, name: string): StoredFormat | null {
+function formatOfFile(type: string, name: string): StoredFormat | null {
   const byType = BY_TYPE[type.toLowerCase()];
   if (byType) return byType;
   const ext = name.toLowerCase().split('.').pop()?.replace(/^jpeg$/, 'jpg');
@@ -59,7 +59,7 @@ export function pickFile(kind: PickKind): Promise<File | null> {
 const bytesOf = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer());
 
 /** A picture's size and its scale to fit the phone copy (never enlarged). */
-export function lowSize(width: number, height: number, side = LOW_SIDE): { width: number; height: number } {
+function lowSize(width: number, height: number, side = LOW_SIDE): { width: number; height: number } {
   const scale = Math.min(1, side / Math.max(width, height, 1));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
@@ -140,7 +140,7 @@ export async function pickMedia(kind: PickKind): Promise<MediaRef | null> {
 }
 
 /** The stored files a MediaRef names: the original and, for a picture or film, its phone copy. */
-export function storedFilesOfMedia(m: MediaRef, kind: PickKind): StoredFile[] {
+function storedFilesOfMedia(m: MediaRef, kind: PickKind): StoredFile[] {
   const out: StoredFile[] = [];
   const fallback: StoredFormat = kind === 'audio' ? 'm4a' : kind === 'video' ? 'mp4' : 'jpg';
   if (m.hash) out.push({ hash: m.hash, format: isStoredFormat(m.format) ? m.format : fallback });
@@ -160,7 +160,7 @@ export async function uploadMedia(orgId: string, m: MediaRef, kind: PickKind): P
 }
 
 /** The stored name of each file the draft's document names (phone copies are always JPEG pictures or MP4 films). */
-export function storedFilesOf(d: GuideDraft): StoredFile[] {
+function storedFilesOf(d: GuideDraft): StoredFile[] {
   const out = new Map<string, StoredFile>();
   for (const f of draftFiles(d)) {
     const fallback: StoredFormat = f.kind === 'audio' ? 'm4a' : f.kind === 'video' ? 'mp4' : 'jpg';

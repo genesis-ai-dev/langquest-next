@@ -66,7 +66,7 @@ export type Mode = 'push' | 'replace' | 'back' | 'reset' | 'popTo';
  *  - manageTemplates / manageReference / manageFlows: the matching Manage permission
  *  - shapeTemplates: Shape Content Templates (or Manage Content Templates)
  */
-export type Gate =
+type Gate =
   | 'guest' | 'home'
   | 'translator' | 'reviewer' | 'contributor' | 'asker' | 'assigner'
   | 'manageTemplates' | 'manageReference' | 'manageFlows' | 'shapeTemplates';
@@ -324,7 +324,7 @@ export const EDGES: Edge[] = [
  */
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
 export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step', 'passage_reference'];
-export const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
+const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
 ];

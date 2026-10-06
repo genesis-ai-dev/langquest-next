@@ -6,7 +6,7 @@ import type { LanguageProgress, LanguageSummary } from '@langquest-next/core';
  * server sums the rest (decision 44). The local fold wins for a language
  * this phone has: it is the reducer's own answer, fresher, and offline.
  */
-export interface LanguageFigures {
+interface LanguageFigures {
   progress: LanguageProgress;
   /** null when folded here; otherwise when the server last caught up, ISO. */
   asOf: string | null;

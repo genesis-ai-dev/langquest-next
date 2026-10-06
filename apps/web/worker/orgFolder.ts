@@ -33,11 +33,11 @@ export class MemoryCache implements OrgCache {
 }
 
 /** A snapshot older than this is caught up before it answers. */
-export const MAX_AGE_MS = 60_000;
+const MAX_AGE_MS = 60_000;
 /** A language's fold is written to the cache when it has moved this far since the last write. */
 export const STATE_SAVE_EVERY = 500;
 /** Whole folds kept in memory, most recently used; the rest are read back from the cache when they move. */
-export const STATES_IN_MEMORY = 8;
+const STATES_IN_MEMORY = 8;
 const PAGE = 1000;
 const PARALLEL = 4;
 

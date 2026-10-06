@@ -25,7 +25,7 @@ export interface LanguageRow {
 const DAY_MS = 86_400_000;
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-export interface OrgTotals {
+interface OrgTotals {
   languages: number;
   total: number;
   recorded: number;
@@ -110,7 +110,7 @@ export function coverageOn(r: LanguageReport, scope: TargetScope, day: string): 
 
 // ---- recency --------------------------------------------------------------------------
 
-export interface WatchItem {
+interface WatchItem {
   row: LanguageRow;
   band: RecencyBand;
   days: number;
@@ -147,7 +147,7 @@ export function watchList(rows: LanguageRow[], now: number): WatchItem[] {
 
 // ---- activity windows -------------------------------------------------------------------
 
-export interface DayTotal { day: string; cards: number; chapters: number }
+interface DayTotal { day: string; cards: number; chapters: number }
 
 /** Uploads per day across languages, oldest first. */
 export function mergedDaily(rows: LanguageRow[]): DayTotal[] {
@@ -163,7 +163,7 @@ export function mergedDaily(rows: LanguageRow[]): DayTotal[] {
   return [...m.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
-export interface ActivityWindow {
+interface ActivityWindow {
   days: number;
   cards: number;
   previousCards: number;
@@ -211,7 +211,7 @@ export function topLanguages(rows: LanguageRow[], days: number, now: number): { 
     .sort((a, b) => b.cards - a.cards || a.row.report.name.localeCompare(b.row.report.name));
 }
 
-export interface LogDay {
+interface LogDay {
   day: string;
   entries: (LogEntry & { row: LanguageRow })[];
   cards: number;
@@ -273,7 +273,7 @@ export function milestoneText(m: Milestone & { row: LanguageRow }): string {
 
 export type ReportWindow = 'week' | 'month' | 'ytd';
 
-export interface FieldReport {
+interface FieldReport {
   window: ReportWindow;
   title: string;
   /** First and last day covered, inclusive. */
@@ -295,7 +295,7 @@ export interface FieldReport {
   resumed: LanguageRow[];
 }
 
-export function reportWindow(window: ReportWindow, now: number): { from: string; to: string; days: number } {
+function reportWindow(window: ReportWindow, now: number): { from: string; to: string; days: number } {
   const to = isoDay(now);
   if (window === 'ytd') {
     const from = `${to.slice(0, 4)}-01-01`;
@@ -418,7 +418,7 @@ export function defaultLedgerMonth(months: string[], now: number): string | unde
   return [...months].reverse().find((m) => isSettled(m, now)) ?? months.at(-1);
 }
 
-export interface LedgerLine {
+interface LedgerLine {
   row: LanguageRow;
   chapters: number;
   books: { bookId: string; label: string; chapters: number }[];
@@ -466,7 +466,7 @@ export function paceGroups(rows: LanguageRow[], now: number): { band: PaceBand |
 
 export type AlertLevel = 'attention' | 'look' | 'fyi';
 
-export interface Alert {
+interface Alert {
   id: string;
   level: AlertLevel;
   title: string;
@@ -476,7 +476,7 @@ export interface Alert {
 }
 
 /** Figures older than this were read long before the page was looked at. */
-export const STALE_AFTER_MS = 15 * 60_000;
+const STALE_AFTER_MS = 15 * 60_000;
 
 /**
  * Checks on the data itself, in plain language. `asOf` is when the

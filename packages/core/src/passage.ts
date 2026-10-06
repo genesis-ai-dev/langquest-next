@@ -52,7 +52,7 @@ export interface FlowStep {
   checkpoint: boolean;
 }
 
-export interface LanguageFlow {
+interface LanguageFlow {
   /** The flow the language chose: a library flow's version, or `custom`; null when none is chosen. */
   flowId: string | null;
   /** The library flow and version it uses (decision 36). */
@@ -99,7 +99,7 @@ export interface Version {
   changeBlobHash?: string;
 }
 
-export interface ResponseView {
+interface ResponseView {
   decision: 'revised' | 'kept';
   by: string;
   hlc: Hlc;
@@ -115,7 +115,7 @@ export interface ReviewView extends Omit<KindReview, 'eventId'> {
   response?: ResponseView;
 }
 
-export type RequestStatus = 'open' | 'done' | 'withdrawn';
+type RequestStatus = 'open' | 'done' | 'withdrawn';
 
 export interface RequestView extends Omit<PassageRequest, 'eventId'> {
   status: RequestStatus;
@@ -123,7 +123,7 @@ export interface RequestView extends Omit<PassageRequest, 'eventId'> {
   team?: { name: string; memberIds: string[] };
 }
 
-export interface DepartureView extends Omit<Departure, 'eventId'> {
+interface DepartureView extends Omit<Departure, 'eventId'> {
   undone?: { by: string; hlc: Hlc };
 }
 
@@ -388,7 +388,7 @@ export function feedbackIsMine(s: PassageState, actorId: string): boolean {
 // ---- who a request is for (ADR-029) ------------------------------------------------
 
 /** A review team's members, sorted; none when the team is unknown. */
-export function teamMemberIds(state: LanguageState, teamId: string): string[] {
+function teamMemberIds(state: LanguageState, teamId: string): string[] {
   const team = state.teams[teamId];
   if (!team) return [];
   return Object.entries(team.members).filter(([, r]) => r.value).map(([id]) => id).sort();
@@ -407,7 +407,7 @@ export function requestIsFor(state: LanguageState, request: Addressed, profileId
   return teamMemberIds(state, request.teamId).includes(profileId);
 }
 
-export type RequestAddressee =
+type RequestAddressee =
   | { kind: 'person'; profileId: string }
   | { kind: 'guest'; name: string }
   | { kind: 'team'; teamId: string; name: string; memberIds: string[] };
@@ -523,7 +523,7 @@ export function percent(n: number, total: number): number {
 
 // ---- My Work ---------------------------------------------------------------------
 
-export type HighlightKind = 'respond' | 'record' | 'review' | 'produce' | 'draft';
+type HighlightKind = 'respond' | 'record' | 'review' | 'produce' | 'draft';
 
 export interface Highlight {
   id: string;
@@ -710,7 +710,7 @@ export function reviewGrid(s: PassageState, kindIds: string[]): { version: Versi
 
 // ---- study progress --------------------------------------------------------------
 
-export interface StudyMark {
+interface StudyMark {
   guideId: string;
   stepId: string;
   by: string;
@@ -786,7 +786,7 @@ export function unitTitle(state: LanguageState, unitId: string): string {
 
 // ---- updates for the Inbox -----------------------------------------------------------
 
-export type UpdateKind = 'request' | 'review' | 'revision' | 'kept' | 'request_done';
+type UpdateKind = 'request' | 'review' | 'revision' | 'kept' | 'request_done';
 
 export interface Update {
   /** Stable, so read state kept on a device survives a refold. */

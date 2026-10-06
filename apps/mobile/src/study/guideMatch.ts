@@ -99,7 +99,7 @@ export function guideFromDoc(id: string, doc: StudyDoc | StudyDoc2, opts: { phon
 }
 
 /** A guide id from where it lives; never ':' (study mark keys are ':'-separated). */
-export const guideId = (source: string, ref: string) => `${source}~${ref}`.replace(/[:\s]/g, '.');
+const guideId = (source: string, ref: string) => `${source}~${ref}`.replace(/[:\s]/g, '.');
 
 /** The passage's verses and the versification they are in (null when its template names none). */
 export function passageVerses(state: LanguageState, unitId: string, get: Get): { range: VerseRange; versification: VersificationDoc | null } | null {

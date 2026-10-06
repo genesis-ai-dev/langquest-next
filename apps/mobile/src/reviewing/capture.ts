@@ -39,7 +39,7 @@ export function requestFor(p: PassageState, kindId: string, actorId: string, opt
 }
 
 /** Kinds whose content this kind checks (the Consultant Check checks a back translation, ADR-015). */
-export function producersFor(kinds: KindDef[], kindId: string): KindDef[] {
+function producersFor(kinds: KindDef[], kindId: string): KindDef[] {
   return kinds.filter((k) => k.produces?.checkedBy === kindId);
 }
 
@@ -68,7 +68,7 @@ export function openRequired(questions: SourcedQuestion[], answers: Answers, ski
   return questions.filter((q) => q.required && !answered(answers[q.q.id]) && skipped[q.q.id] === undefined);
 }
 
-export interface Readiness {
+interface Readiness {
   /** Required questions left. */
   open: number;
   /** Looks good may be sent: every required question handled (REV-3). */

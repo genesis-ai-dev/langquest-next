@@ -4,7 +4,7 @@
 // the organization already has, reused as the skeleton. Pure.
 import type { StudyDoc, StudyDoc2 } from '@langquest-next/core';
 
-export interface MethodStep {
+interface MethodStep {
   id: string;
   title: string;
   phase: string;

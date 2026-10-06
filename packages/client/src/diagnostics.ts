@@ -57,8 +57,8 @@ export const DIAG_CONTEXT = [
   'embedded', 'reducerVersion', 'protocolVersion'
 ] as const;
 
-export type DiagKind = keyof typeof DIAG_SCHEMA;
-export type DiagContextKey = (typeof DIAG_CONTEXT)[number];
+type DiagKind = keyof typeof DIAG_SCHEMA;
+type DiagContextKey = (typeof DIAG_CONTEXT)[number];
 export type DiagContext = Partial<Record<DiagContextKey, string>>;
 
 export interface DiagRecord {
@@ -74,7 +74,7 @@ export interface DiagRecord {
   stack?: string;
 }
 
-export interface DiagInput {
+interface DiagInput {
   orgId?: string;
   streamId?: string;
   n?: Record<string, number>;
@@ -177,7 +177,7 @@ export class MemoryDiagStore implements DiagStore {
   }
 }
 
-export interface DiagnosticsOptions {
+interface DiagnosticsOptions {
   store: DiagStore;
   newId: () => string;
   now?: () => number;
@@ -194,7 +194,7 @@ const FAIL_FIELD: Record<FailureClass, string> = {
   offline: 'failOffline', http4xx: 'failHttp4xx', http5xx: 'failHttp5xx', hash: 'failHash', disk: 'failDisk', other: 'failOther'
 };
 
-export interface TransferSample {
+interface TransferSample {
   orgId: string;
   streamId: string;
   bytes: number;

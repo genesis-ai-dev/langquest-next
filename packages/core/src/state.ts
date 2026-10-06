@@ -17,14 +17,14 @@ export interface Register<V> {
   eventId: string;
 }
 
-export interface Unit {
+interface Unit {
   parentUnitId: string | null;
   kind: string;
   label: string;
   order: string;
 }
 
-export interface Recording {
+interface Recording {
   unitId: string;
   kind: 'source' | 'target';
   cards: Card[];
@@ -32,7 +32,7 @@ export interface Recording {
   hlc: Hlc;
 }
 
-export interface Take {
+interface Take {
   unitId: string;
   cardHashes: string[];
   parentTakeId: string | null;
@@ -41,7 +41,7 @@ export interface Take {
   archived: boolean;
 }
 
-export interface Submission {
+interface Submission {
   takeId: string;
   actorId: string;
   hlc: Hlc;
@@ -68,7 +68,7 @@ export interface Material {
   locked: Register<boolean>;
 }
 
-export interface KeyTerm {
+interface KeyTerm {
   term: string;
   gloss: string;
   unitScope: string[];
@@ -77,7 +77,7 @@ export interface KeyTerm {
 }
 
 /** The template a language uses (v1.TemplateSelected). */
-export interface TemplateSelection {
+interface TemplateSelection {
   itemId: string;
   docHash: string;
   /** What its units' ids start with (`${unitPrefix}/${node}`). */

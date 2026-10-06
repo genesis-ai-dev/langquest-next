@@ -176,7 +176,7 @@ export function evictableBlobs(
 }
 
 /** Why a passage is kept on this phone; null when it is not. */
-export type OfflineReason = 'asked' | 'worked' | 'chosen';
+type OfflineReason = 'asked' | 'worked' | 'chosen';
 
 /**
  * What a passage has on this phone for use without a connection. Text,

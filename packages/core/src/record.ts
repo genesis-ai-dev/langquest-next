@@ -17,7 +17,7 @@ import type { Hlc } from './hlc';
  */
 
 /** A kind that makes new content instead of judging (back translation, ADR-015). */
-export interface ProducesSpec {
+interface ProducesSpec {
   /** "back translation" */
   what: string;
   /** "English" */
@@ -49,7 +49,7 @@ export type ReviewOutcome = 'looks_good' | 'needs_changes' | 'recorded';
 export type DepartureType = 'skip' | 'override' | 'keep';
 
 /** The payload of v1.RequestMade: exactly one of `profileId`, `guest`, `teamId`. */
-export interface RequestPayload {
+interface RequestPayload {
   requestId: string;
   unitId: string;
   what: 'record' | 'review';
@@ -145,8 +145,6 @@ export type RecordEvents = {
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
 };
 
-export type RecordEventType = keyof RecordEvents;
-
 // ---- folded state ------------------------------------------------------------
 
 export interface KindDef {
@@ -158,7 +156,7 @@ export interface KindDef {
   produces?: ProducesSpec;
 }
 
-export interface FlowStepDef {
+interface FlowStepDef {
   stepId: string;
   order: string;
   kindIds: string[];
@@ -255,7 +253,7 @@ export const DEFAULT_KINDS: KindDef[] = [
     description: 'Local listeners hear the polished recording and say whether it sounds natural and acceptable.' }
 ];
 
-export interface FlowTemplate {
+interface FlowTemplate {
   id: string;
   name: string;
   description: string;
@@ -300,7 +298,7 @@ export function flowTemplate(id: string): FlowTemplate | undefined {
 }
 
 /** Shipped question sets, each for one kind of review. LangQuest's library publishes them too. */
-export interface QuestionTemplate {
+interface QuestionTemplate {
   id: string;
   name: string;
   /** The kind of review these questions are for. */

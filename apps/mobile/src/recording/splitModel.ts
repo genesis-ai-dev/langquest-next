@@ -18,7 +18,7 @@ export const MIN_BOTTOM = 120;
 /** The recorder while recording: the status line and the level meter. */
 export const MIN_BOTTOM_RECORDING = 144;
 
-export interface PaneHeights { top: number; bottom: number }
+interface PaneHeights { top: number; bottom: number }
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));

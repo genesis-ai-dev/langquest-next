@@ -2,7 +2,7 @@
 // report"). Pure, so the thresholds are tested and a human, the CLI and
 // Claude all read the same hypotheses off the same numbers.
 
-export interface TransferTotals {
+interface TransferTotals {
   count?: number; bytes?: number; ms?: number; maxMs?: number;
   signMs?: number; fetchMs?: number; verifyMs?: number;
   failOffline?: number; failHttp4xx?: number; failHttp5xx?: number; failHash?: number; failDisk?: number; failOther?: number;
@@ -44,7 +44,7 @@ export interface Member {
 
 export interface RpcStat { rpc: string; calls: number; mean_ms: number; max_ms: number; total_s: number; rows_per_call: number }
 
-export interface Signal {
+interface Signal {
   level: 'problem' | 'watch' | 'info';
   /** Install the signal is about, or null for the language or the server. */
   install: string | null;

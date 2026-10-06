@@ -12,7 +12,7 @@ import type { TargetScope } from '@langquest-next/core';
 
 const DAY = 86_400_000;
 
-export interface HistoryProfile {
+interface HistoryProfile {
   country: string;
   /** Book the work starts in (BIBLE_BOOKS itemId); passages are recorded in order from its first. */
   startBook: string;
@@ -38,7 +38,7 @@ export const HISTORY_PROFILES: Record<string, HistoryProfile> = {
   'L-hlb-sample': { country: 'IN', startBook: 'gen', fromDaysAgo: 120, toDaysAgo: 60, passagesPerWeek: 3, reviewShare: 0.1 }
 };
 
-export type Action =
+type Action =
   | { kind: 'record'; at: number; unitIndex: number; cards: number; uploaded: boolean }
   | { kind: 'review'; at: number; unitIndex: number };
 

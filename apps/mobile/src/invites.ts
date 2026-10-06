@@ -121,7 +121,7 @@ export async function canHelpSignIn(profileId: string): Promise<boolean> {
 }
 
 /** What `join` and `sign-in-code` hand back: the session the phone signs in with. */
-export interface Tokens { access_token: string; refresh_token: string }
+interface Tokens { access_token: string; refresh_token: string }
 
 /** An Edge Function's refusal, in the function's own words (they are in the response body). */
 export class FunctionError extends Error {

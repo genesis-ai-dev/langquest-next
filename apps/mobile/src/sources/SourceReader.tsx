@@ -22,16 +22,16 @@ import type { Usage } from './used';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
-export const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
+const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
-export interface VerseExtras {
+interface VerseExtras {
   /** A count beside a verse (notes on it). */
   badge?: (row: VerseRow) => number;
   /** Under a verse: what to show when it is selected or has notes. `at` is where playback paused in it. */
   below?: (row: VerseRow, c: { selected: boolean; at?: string; code: string }) => ReactNode;
 }
 
-export interface SourceReaderProps {
+interface SourceReaderProps {
   ctx: Ctx;
   unitId: string;
   languageId: string;
@@ -292,7 +292,7 @@ export function SourceView(props: SourceReaderProps & {
 }
 
 /** The abbreviation, and when two versions share it, what tells them apart ("BSB · read by Frederick Surrey"). */
-export function chipLabel(o: SourceOption, all: SourceOption[]): string {
+function chipLabel(o: SourceOption, all: SourceOption[]): string {
   const twin = all.find((x) => x !== o && x.abbreviation === o.abbreviation);
   if (!twin) return o.abbreviation;
   let i = 0;

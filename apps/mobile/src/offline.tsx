@@ -28,7 +28,7 @@ function useStudyRevision(): number {
 }
 
 /** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
-export function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
+function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;
   const { present, keptUnits } = ctx.language.blobs;
   const me = ctx.session.actorId;
@@ -67,7 +67,7 @@ export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
 let keptCache: { state: object; present: ReadonlySet<string>; kept: ReadonlySet<string>; me: string; rev: number; map: Map<string, KeptOffline> } | null = null;
 
 /** The whole scope: audio from core, with passages counted ready only once their study files are here too. */
-export type OfflineOverview = OfflineSummary & { studyToFetch: number };
+type OfflineOverview = OfflineSummary & { studyToFetch: number };
 
 export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
   const state = ctx.language.state;
@@ -84,7 +84,7 @@ export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
   }, [state, present, keptUnits, me, rev]);
 }
 
-export function sizeText(bytes: number): string {
+function sizeText(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;

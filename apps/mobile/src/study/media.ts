@@ -18,12 +18,12 @@ const failedAt = new Map<string, number>();
 const RETRY_MS = 60_000;
 
 /** The blob store's name for a guide file, or null when its format is not one the store keeps. */
-export function storedFileOf(file: StudyFile | undefined): StoredFile | null {
+function storedFileOf(file: StudyFile | undefined): StoredFile | null {
   return file && isStoredFormat(file.format) ? { hash: file.hash, format: file.format } : null;
 }
 
 /** Fetch a guide file into the blob store from the organization's guide files. */
-export function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promise<void> {
+function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promise<void> {
   const last = failedAt.get(ref.hash);
   if (last && Date.now() - last < RETRY_MS) return Promise.reject(new Error('Not available yet.'));
   let p = inflight.get(ref.hash);

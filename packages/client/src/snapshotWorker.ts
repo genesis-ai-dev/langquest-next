@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { fetchSnapshot } from './snapshotFetch';
 
-export interface SnapshotResult {
+interface SnapshotResult {
   orgId: string;
   streamId: string;
   serverSeq: number;

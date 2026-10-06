@@ -10,7 +10,7 @@
  */
 
 /** Who the held invite is for. */
-export type Claim =
+type Claim =
   /** Scanned; nobody has said who is joining. Never used without asking. */
   | { kind: 'unclaimed' }
   /** A signed-out person chose "new person" or "I have an account": the next account to sign in here. */
@@ -64,7 +64,7 @@ export function claim(held: HeldInvite, who: 'next-account' | { actorId: string 
   return { ...held, claim: who === 'next-account' ? { kind: 'next-account' } : { kind: 'account', actorId: who.actorId } };
 }
 
-export type Step =
+type Step =
   /** Nothing to do (no invite, or not for this session). */
   | { step: 'none' }
   /** Let it go: too old. */
@@ -92,7 +92,7 @@ export function nextStep(held: HeldInvite | null, actorId: string | null, now: n
 
 export type DeadReason = 'expired' | 'used' | 'not_found' | 'retired';
 
-export type Outcome =
+type Outcome =
   | { kind: 'joined'; orgId: string }
   /** Not reached, or the server was busy: keep it and try again later. */
   | { kind: 'retry' }

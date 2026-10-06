@@ -70,7 +70,7 @@ export interface ReferenceState {
 export function emptyReferenceState(): ReferenceState {
   return { languageReferences: {}, passageLinks: {}, referencesUsed: {} };
 }
-export const usedKey = (s: { takeId?: string; reviewId?: string }) => (s.takeId ? `take:${s.takeId}` : `review:${s.reviewId}`);
+const usedKey = (s: { takeId?: string; reviewId?: string }) => (s.takeId ? `take:${s.takeId}` : `review:${s.reviewId}`);
 
 const later = (current: Register<unknown> | undefined, e: EventEnvelope) =>
   !current || current.hlc === '' || current.hlc < e.hlc || (current.hlc === e.hlc && current.eventId < e.id);
@@ -190,7 +190,7 @@ export function sourceOffers(source: SourceDoc, book: string): { text: boolean; 
 }
 
 /** A verse span in one chapter's recording. */
-export interface Span { startMs: number; endMs: number }
+interface Span { startMs: number; endMs: number }
 
 /** Where verses `from`..`to` (inclusive) sit in a chapter's recording, by the segments that cover them; null when none do. */
 export function verseSpan(timing: Pick<TimingDoc, 'segments'>, from: number, to: number = from): Span | null {

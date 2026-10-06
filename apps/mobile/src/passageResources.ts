@@ -1,6 +1,6 @@
 import { materialsFor, recordAudioHashes, unitAncestry, type BlobRef, type LanguageState } from '@langquest-next/core';
 
-export type AudioItem = { id: string; label: string; hash: string; format: BlobRef['format'] };
+type AudioItem = { id: string; label: string; hash: string; format: BlobRef['format'] };
 
 function formatFor(state: LanguageState, hash: string): BlobRef['format'] {
   for (const recording of Object.values(state.recordings)) {

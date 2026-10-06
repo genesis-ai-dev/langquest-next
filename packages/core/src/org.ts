@@ -124,7 +124,7 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
  * payload: see `privilegeFor`. The SQL `event_privilege` is this table; keep
  * them identical (`scripts/record-parity-sql.ts`).
  */
-export type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
+type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
 
 export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   // organization stream
@@ -191,7 +191,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
 };
 
 /** The privilege that manages each kind of library item. */
-export const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification', Privilege> = {
+const LIBRARY_PRIVILEGE: Record<'template' | 'flow' | 'material' | 'versification', Privilege> = {
   template: 'manage_templates',
   versification: 'manage_templates',
   flow: 'manage_flows',
@@ -281,13 +281,13 @@ export function effectiveRole(privs: ReadonlySet<Privilege>): Role | null {
 
 // ---- state ---------------------------------------------------------------
 
-export interface OrgRoleState {
+interface OrgRoleState {
   name: Register<string>;
   privileges: Register<Privilege[]>;
   retired: boolean;
 }
 
-export interface OrgMembership {
+interface OrgMembership {
   roleId: Register<string>;
   removed: Register<boolean>;
   scope: Scope;
@@ -298,7 +298,7 @@ export interface OrgMembership {
  * event than the rest, so each event writes only its own fields and the two
  * commute: a redemption that arrives before its issue still lands.
  */
-export interface OrgInvite {
+interface OrgInvite {
   roleId: string;
   scope: Scope;
   expiresAt: string;
@@ -307,7 +307,7 @@ export interface OrgInvite {
   redeemedBy: string | null;
 }
 
-export interface JoinDecision {
+interface JoinDecision {
   profileId: string;
   accepted: boolean;
   decidedBy: string;
@@ -319,7 +319,7 @@ export interface JoinDecision {
  * event type, so they commute: a rename that arrives before the language
  * was added waits for `added`.
  */
-export interface OrgLanguage {
+interface OrgLanguage {
   /** `v1.LanguageAdded`, earliest wins; null while only later events have arrived. */
   added: { name: string; code: string; sourceCode: string; hlc: Hlc; eventId: string } | null;
   renamed: Register<string> | null;
@@ -589,7 +589,7 @@ export function membershipsOf(state: OrgState, profileId: string): OrgMembership
 }
 
 /** Someone who may work in a language, with what they may do there. */
-export interface LanguagePerson {
+interface LanguagePerson {
   profileId: string;
   privileges: Set<Privilege>;
   /** The fixed role their privileges amount to (`effectiveRole`). */

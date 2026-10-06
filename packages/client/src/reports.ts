@@ -25,14 +25,14 @@ export class ReportsError extends Error {
   get offline(): boolean { return this.status === null; }
 }
 
-export interface ReportsRequest {
+interface ReportsRequest {
   /** Catch up with the log before answering, rather than answer from the last minute. */
   fresh?: boolean;
   /** The ETag of what the caller already holds; an unchanged answer comes back as `unchanged`. */
   etag?: string | null;
 }
 
-export type ReportsAnswer<T> =
+type ReportsAnswer<T> =
   | { status: 'changed'; body: T; etag: string | null }
   | { status: 'unchanged'; asOf: string; etag: string };
 

@@ -73,7 +73,7 @@ export interface LibraryWorkEvents {
   'v1.FlowSelected': { flowId: string; itemId?: string; docHash?: string; name?: string };
 }
 
-export interface LibraryVersion {
+interface LibraryVersion {
   docHash: string;
   hlc: Hlc;
   eventId: string;
@@ -116,7 +116,7 @@ const earlier = (current: Register<unknown>, e: EventEnvelope) =>
   current.hlc === '' || e.hlc < current.hlc || (e.hlc === current.hlc && e.id < current.eventId);
 const reg = <V>(value: V, e: EventEnvelope): Register<V> => ({ value, hlc: e.hlc, eventId: e.id });
 
-export type LibraryEventType = keyof LibraryEvents;
+type LibraryEventType = keyof LibraryEvents;
 export const LIBRARY_EVENT_TYPES: readonly LibraryEventType[] = [
   'v1.LibraryItemDefined', 'v1.LibraryVersionPublished', 'v1.LibrarySharingSet', 'v1.LibraryItemArchived',
   'v1.LibrarySubscribed', 'v1.LibraryPinned'

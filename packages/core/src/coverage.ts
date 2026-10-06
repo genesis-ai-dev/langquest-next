@@ -52,7 +52,7 @@ export const SCOPE_VERSES: Record<TargetScope, number> = (() => {
 export const bookOfVerse = (v: number): number => VERSE_BOOK[v]!;
 
 /** A chapter's id across the canon: `bookIndex * 1000 + chapter`. */
-export const chapterOfVerse = (v: number): number => VERSE_BOOK[v]! * 1000 + VERSE_CHAPTER[v]!;
+const chapterOfVerse = (v: number): number => VERSE_BOOK[v]! * 1000 + VERSE_CHAPTER[v]!;
 export const bookOfChapter = (chapterId: number): number => Math.floor(chapterId / 1000);
 export const chapterNumber = (chapterId: number): number => chapterId % 1000;
 export const bookLabel = (bookIndex: number): string => BIBLE_BOOKS[bookIndex]?.label ?? '';

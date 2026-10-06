@@ -33,7 +33,7 @@ export interface Materializer<S> {
   version: number;
 }
 
-export const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
+const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
   empty: emptyLanguageState,
   apply: applyLanguageEvent,
   fold: foldLanguage,
@@ -44,14 +44,14 @@ export const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
 };
 
 /** What screens subscribe to: the fold, its revision, and how many local writes are not yet on disk. */
-export interface PublishedState<S = LanguageState> {
+interface PublishedState<S = LanguageState> {
   state: S;
   revision: number;
   saving: number;
 }
 
 /** What one `sync()` attempt did, and why it did nothing when it did nothing. */
-export interface SyncResult {
+interface SyncResult {
   pushed: number;
   rejected: number;
   pulled: number;
@@ -65,7 +65,7 @@ export interface SyncResult {
   more: boolean;
 }
 
-export interface SyncClientOptions<S = LanguageState> {
+interface SyncClientOptions<S = LanguageState> {
   /** Defaults to the language reducer. */
   materializer?: Materializer<S>;
   orgId: string;

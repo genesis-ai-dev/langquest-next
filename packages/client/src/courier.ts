@@ -11,7 +11,7 @@ const NO_FOLD: Materializer<null> = {
   version: 0
 };
 
-export interface Delivered {
+interface Delivered {
   accepted: number;
   rejected: number;
   /** This person's events still queued afterwards (unreachable, or refused for their clock). */

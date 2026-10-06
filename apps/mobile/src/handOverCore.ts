@@ -30,7 +30,7 @@ export interface Attempt {
   unregistered: boolean;
 }
 
-export type Next =
+type Next =
   /** Some of it is still to go: try again later. */
   | { kind: 'keep'; handOver: HandOver }
   /** All of it went: end their session and forget it. */

@@ -20,7 +20,7 @@ export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: 
 }
 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
-export function canModerate(ctx: Ctx, t: ReportTarget): boolean {
+function canModerate(ctx: Ctx, t: ReportTarget): boolean {
   return t.kind === 'person' ? ctx.session.can('invite_members') : ctx.session.can('manage_structure');
 }
 
@@ -44,7 +44,7 @@ export function ReportFlag(props: { ctx: Ctx; target: ReportTarget; size?: numbe
 type Step = { at: 'menu' } | { at: 'report'; of: ReportTarget } | { at: 'remove' };
 
 /** Report the thing or its maker, block or unblock them, or (for a moderator) take it out of the record. */
-export function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => void; startAt?: 'report' }) {
+function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => void; startAt?: 'report' }) {
   const { ctx, target } = props;
   const [step, setStep] = useState<Step>(props.startAt === 'report' ? { at: 'report', of: target } : { at: 'menu' });
   const [reason, setReason] = useState<ReportReason | null>(null);

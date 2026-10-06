@@ -7,9 +7,9 @@ import type { Scope, Update } from '@langquest-next/core';
 
 // ---- Inbox (INBOX-1) -------------------------------------------------------------------
 
-export type UpdateIcon = 'assign' | 'chat' | 'check' | 'people';
+type UpdateIcon = 'assign' | 'chat' | 'check' | 'people';
 
-export interface UpdateWords {
+interface UpdateWords {
   /** A person's display name ("You" for the viewer). */
   name: (profileId: string) => string;
   /** "Luke 15:11-32" */
@@ -91,7 +91,7 @@ export function joinRequestIdOf(notificationId: string): { orgId: string; reques
 
 // ---- Welcome (ONB-1, ADR-022) ------------------------------------------------------------
 
-export type WelcomeRole = 'translator' | 'reviewer' | 'admin' | 'viewer';
+type WelcomeRole = 'translator' | 'reviewer' | 'admin' | 'viewer';
 
 /** Which welcome someone gets: what they may do, never a job title (ADR-006). */
 export function welcomeRoleFor(s: { isAdmin: boolean; can: (p: 'translate' | 'review') => boolean }): WelcomeRole {

@@ -27,7 +27,7 @@ export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLay
 // ---- icons -------------------------------------------------------------------------
 
 /** The demo's icon names, drawn with lucide. */
-export const ICONS = {
+const ICONS = {
   arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
   chatDots: MessageSquareText, check: Check, clock: Clock, close: X, cloud: Cloud, cut: Scissors, down: ChevronDown,
   download: Download, edit: Pencil, filter: Filter, flag: Flag, flow: Workflow, folder: Folder, globe: Globe,
@@ -344,7 +344,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
 
 // ---- buttons ---------------------------------------------------------------------------
 
-export type Tone = 'primary' | 'dark' | 'amber' | 'red' | 'green';
+type Tone = 'primary' | 'dark' | 'amber' | 'red' | 'green';
 const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: onColor.amber, red: onColor.red, green: onColor.green };
 
 /** The one main button: 56pt, filled, full width by default. */

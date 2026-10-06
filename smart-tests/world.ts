@@ -25,8 +25,8 @@ const ORG_MATERIALIZER: Materializer<OrgState> = {
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
   readFileSync(new URL('../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
 
-export interface Person { id: string; email: string; sb: SupabaseClient; session: Session }
-export interface World {
+interface Person { id: string; email: string; sb: SupabaseClient; session: Session }
+interface World {
   orgId: string;
   /** The one language, and so its stream. */
   languageId: string;
@@ -44,7 +44,7 @@ export interface World {
 }
 
 /** A translator's Version 1 of passages[0], submitted, with real audio on the server. */
-export interface SubmittedWorld extends World {
+interface SubmittedWorld extends World {
   reviewer: Person;
   /** Required questions the reviewer must answer or skip, as `${materialId}#${fieldId}`. */
   requiredQuestionIds: string[];
@@ -195,7 +195,7 @@ export async function seedSubmittedWorld(options: {
 }
 
 /** A translator world whose language has an FIA study with spoken guidance on "Setting the Stage". */
-export interface StudyWorld extends World { studyMaterialId: string; stepId: 'stage'; audioHash: string }
+interface StudyWorld extends World { studyMaterialId: string; stepId: 'stage'; audioHash: string }
 
 /**
  * The translator world plus an FIA study for the language with step audio on
@@ -235,7 +235,7 @@ export async function waitForLog(page: Page): Promise<void> {
 }
 
 /** localStorage the app reads at startup: the signed-in session, the open organization and its open language (App.tsx). */
-export function browserStateFor(world: World, who: Person): Record<string, string> {
+function browserStateFor(world: World, who: Person): Record<string, string> {
   const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
   return {
     [`sb-${ref}-auth-token`]: JSON.stringify(who.session),

@@ -92,7 +92,7 @@ export function followOps(library: Record<string, LibraryItemState>, itemId: str
 }
 
 /** Something a language uses from the library that has since moved to another version. */
-export interface Behind {
+interface Behind {
   kind: 'template' | 'flow';
   itemId: string;
   /** The version the item is at now. */

@@ -1,7 +1,7 @@
 import { NativeModule, requireNativeModule } from 'expo-modules-core';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type VADResult = {
+type VADResult = {
   energy: number;
   timestamp: number;
 };

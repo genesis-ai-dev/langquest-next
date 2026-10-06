@@ -14,7 +14,7 @@ const notify = () => { for (const l of listeners) l(); };
 let indexed: Promise<void> | null = null;
 
 /** One listing of kept answers, so "on this phone" can be said without waiting. */
-export function loadKeptIndex(): Promise<void> {
+function loadKeptIndex(): Promise<void> {
   indexed ??= AsyncStorage.getAllKeys()
     .then((keys) => { for (const k of keys) if (k.startsWith(CACHE_PREFIX)) kept.add(k); notify(); })
     .catch(() => undefined);

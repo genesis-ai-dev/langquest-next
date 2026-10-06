@@ -24,7 +24,7 @@ export type NameFn = (profileId: string, lower?: boolean) => string;
 const kindName = (kinds: KindDef[], id?: string) => kinds.find((k) => k.id === id)?.name ?? 'Review';
 
 /** "Community Check" -> "Community": the path is too narrow for full kind names. */
-export function pathLabel(name: string): string {
+function pathLabel(name: string): string {
   return name.replace(/ (Check|Review|Approval)$/, '');
 }
 
@@ -35,7 +35,7 @@ export type MineFn = (r: RequestView) => boolean;
 const namesMe = (me: string): MineFn => (r) => r.profileId === me;
 
 /** Who a request went to, as people say it: a teammate's name, a review team, or the guest's. */
-export function requestee(
+function requestee(
   r: { profileId?: string; guest?: { name: string }; teamId?: string } | undefined, name: NameFn, lower = false, teamName?: (teamId: string) => string | undefined
 ): string {
   if (r?.profileId) return name(r.profileId, lower);
@@ -189,7 +189,7 @@ export function sendTargetLabel(t: { teamId: string; name: string } | { profileI
 
 // ---- a kind's actions (REC-3) ------------------------------------------------------
 
-export type RowActionId = 'do' | 'send' | 'ask' | 'log' | 'skip';
+type RowActionId = 'do' | 'send' | 'ask' | 'log' | 'skip';
 export interface RowAction { id: RowActionId; label: string }
 
 export interface KindRowCan {
@@ -203,7 +203,7 @@ export interface KindRowCan {
   skip: boolean;
 }
 
-export interface KindRowActions {
+interface KindRowActions {
   /** Buttons are shown only while the kind still needs doing. */
   actionable: boolean;
   primary?: RowAction;
@@ -383,7 +383,7 @@ export function describeEntry(e: RecordEntry, o: {
 const lowerYou = (s: string) => (s === 'You' ? 'you' : s);
 
 /** "Kept after Peer Review" when the kept feedback is known. */
-export function keptTitle(p: PassageState, kinds: KindDef[], reviewId?: string): string {
+function keptTitle(p: PassageState, kinds: KindDef[], reviewId?: string): string {
   const r = p.reviews.find((x) => x.id === reviewId);
   return r ? `Kept after ${kindName(kinds, r.kindId)}` : 'Kept after feedback';
 }
@@ -416,13 +416,13 @@ export function reviewMark(r: Pick<ReviewView, 'outcome' | 'response'>): 'approv
 
 // ---- review detail (REC-10) --------------------------------------------------------
 
-export function formatAnswer(type: QuestionSpec['type'], value: string): string {
+function formatAnswer(type: QuestionSpec['type'], value: string): string {
   if (type === 'rating') return `${value} / 5`;
   if (type === 'yesno') return value === 'yes' ? 'Yes' : value === 'no' ? 'No' : value;
   return value;
 }
 
-export const QUESTION_SOURCE: Record<SourcedQuestion['source'], string> = {
+const QUESTION_SOURCE: Record<SourcedQuestion['source'], string> = {
   org: 'Organization', language: 'Language', request: 'Asked for this review'
 };
 
@@ -447,7 +447,7 @@ export function holdsIn(org: OrgState | null, profileId: string, languageId: str
   return !!org && privilegesFor(org, profileId, languageId).has(need);
 }
 
-export interface AskCandidate {
+interface AskCandidate {
   profileId: string;
   /** Role name, and why they are suggested. */
   sub: string;

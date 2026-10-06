@@ -58,7 +58,7 @@ export async function queueAccountAction(
   return id;
 }
 export const TERMS_VERSION = '2026-09-30';
-export type UserEventType = 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
+type UserEventType = 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
 export async function recordUserEvent(actorId: string, type: UserEventType) {
   const payload = type === 'v1.TermsAccepted' ? { version: TERMS_VERSION } : {};
   await queueAccountAction(actorId, 'user_event', { type, payload },

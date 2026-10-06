@@ -36,7 +36,7 @@ export const PERSONAS: Persona[] = [
  * inlined into the bundle (every EXPO_PUBLIC_* value is), so it must never
  * guard a real account, and seeding would write personas into a real org.
  */
-export function isLocalServer(url: string | null | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL): boolean {
+function isLocalServer(url: string | null | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL): boolean {
   if (!url) return false;
   const host = /^[a-z]+:\/\/(\[[^\]]+\]|[^/:?#]+)/i.exec(url.trim())?.[1]?.toLowerCase();
   // 10.0.2.2 is the Android emulator's name for the host machine.
@@ -49,7 +49,7 @@ export function isLocalServer(url: string | null | undefined = process.env.EXPO_
  * the translator's and reviewer's experience; only against a local server
  * (see isLocalServer). Dev builds may always open it.
  */
-export const PERSONA_TESTERS: string[] = (process.env.EXPO_PUBLIC_PERSONA_EMAILS ?? 'ryder@frontierrnd.com')
+const PERSONA_TESTERS: string[] = (process.env.EXPO_PUBLIC_PERSONA_EMAILS ?? 'ryder@frontierrnd.com')
   .split(',')
   .map((e: string) => e.trim().toLowerCase())
   .filter(Boolean);

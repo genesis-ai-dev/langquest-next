@@ -2,8 +2,8 @@ import { privilegeAllows, privilegeFor, type AnyEvent, type EventType } from '@l
 import { SCREEN_IDS, type ScreenId } from './flow';
 import type { Session } from './session';
 
-export type ScreenEvent = EventType | 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
-export interface ScreenContract {
+type ScreenEvent = EventType | 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
+interface ScreenContract {
   emits: readonly ScreenEvent[];
   reads: readonly string[];
   /** Writes outside the member-only event log have an explicit RPC contract. */

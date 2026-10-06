@@ -13,8 +13,6 @@ import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from './contentTempl
 // ---- levels ------------------------------------------------------------------------
 
 /** The two levels a role is granted at: the organization, which covers every language, and one language (decision 63). */
-export const LEVELS: readonly ScopeLevel[] = ['org', 'language'];
-/** The demo's SCOPE_LABEL. */
 export const LEVEL_LABEL: Record<ScopeLevel, string> = { org: 'Organization', language: 'Language' };
 
 /** A `level` param back to a level; anything else reads as the organization. */
@@ -22,11 +20,11 @@ export function parseLevel(value: string | undefined): ScopeLevel {
   return value === 'language' ? value : 'org';
 }
 
-export function scopeAt(level: ScopeLevel, languageId: string): Scope {
+function scopeAt(level: ScopeLevel, languageId: string): Scope {
   return level === 'org' ? { level } : { level, languageId };
 }
 
-export function sameScope(a: Scope, b: Scope): boolean {
+function sameScope(a: Scope, b: Scope): boolean {
   return scopeKey(a) === scopeKey(b);
 }
 
@@ -269,7 +267,7 @@ export function addLanguage(
  * The language source Bibles are offered in: the app ships English
  * readings (BSB, WEB, KJV), so a new language starts from them.
  */
-export const SOURCE_CODE = 'eng';
+const SOURCE_CODE = 'eng';
 
 /** A language id people can read in logs, unique per add: "L-din-3f9a2c". It is also its stream's id. */
 export function newLanguageId(code: string, random: string): string {

@@ -18,7 +18,7 @@ export type { BibleBook };
 
 // ---- verses and ranges -----------------------------------------------------------
 
-export type VerseRef = { c: number; v: number };
+type VerseRef = { c: number; v: number };
 export const verseKey = (r: VerseRef): number => r.c * 1000 + r.v;
 
 /** FIA's seeds spell Mark and John differently from the canon list. */
@@ -29,11 +29,11 @@ export function bibleBook(bookId: string): BibleBook | undefined {
   return BIBLE_BOOKS.find((b) => b.itemId === id);
 }
 
-export function versesIn(book: BibleBook, chapter: number): number {
+function versesIn(book: BibleBook, chapter: number): number {
   return book.verses[chapter - 1] ?? 0;
 }
 
-export function lastVerse(book: BibleBook): VerseRef {
+function lastVerse(book: BibleBook): VerseRef {
   const c = book.verses.length;
   return { c, v: versesIn(book, c) };
 }
@@ -103,7 +103,7 @@ export function chipLabel(book: BibleBook, s: { from: VerseRef; to: VerseRef }):
 // ---- a language's template ----------------------------------------------------------
 
 /** The library version a language records against. */
-export interface LanguageTemplate {
+interface LanguageTemplate {
   itemId: string;
   docHash: string;
   /** The books it covers; null means every book. */
@@ -388,7 +388,7 @@ export function countOutline(list: OutlineNode[]): { folders: number; items: num
 const booksCache = new WeakMap<LanguageState, Map<string, string[]>>();
 
 /** The language's units grouped by Bible book, in canon order within each book. Cached per fold revision. */
-export function unitsByBook(state: LanguageState, idx: Indexes): Map<string, string[]> {
+function unitsByBook(state: LanguageState, idx: Indexes): Map<string, string[]> {
   const hit = booksCache.get(state);
   if (hit) return hit;
   const out = new Map<string, string[]>();
@@ -403,7 +403,7 @@ export function unitsByBook(state: LanguageState, idx: Indexes): Map<string, str
   return out;
 }
 
-export interface BookRow {
+interface BookRow {
   book: BibleBook;
   /** What the language calls it (a library template names its books). */
   label: string;

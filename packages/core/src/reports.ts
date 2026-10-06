@@ -1,4 +1,4 @@
-import { bookId, bookLabel, bookOfChapter, bookOfVerse, chapterOfVerse, inScope, SCOPE_VERSES, unitChapters, unitVerses } from './coverage';
+import { bookId, bookLabel, bookOfChapter, bookOfVerse, inScope, SCOPE_VERSES, unitChapters, unitVerses } from './coverage';
 import { buildIndexes, type Indexes } from './indexes';
 import {
   deriveFlow, deriveKinds, derivePassage, languageProgress, stepName, unitPlace,
@@ -27,17 +27,17 @@ export const REPORT_VERSION = 4;
 /** Weeks of activity and coverage history a report carries, ending with the week that holds `now`. */
 export const REPORT_WEEKS = 53;
 /** Days of daily upload counts. */
-export const REPORT_DAYS = 35;
+const REPORT_DAYS = 35;
 /** Days of the progress line. */
 export const PROGRESS_DAYS = 90;
 /** Days of the chapter log. */
-export const LOG_DAYS = 14;
+const LOG_DAYS = 14;
 /** Months of the ledger, ending with the month that holds `now`. */
-export const LEDGER_MONTHS = 13;
+const LEDGER_MONTHS = 13;
 /** A recorded card not on the server after this long is stuck on a phone. */
-export const STUCK_AFTER_DAYS = 14;
+const STUCK_AFTER_DAYS = 14;
 /** Coverage thresholds that count as milestones. */
-export const MILESTONES = [25, 50, 75, 100] as const;
+const MILESTONES = [25, 50, 75, 100] as const;
 
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
@@ -47,7 +47,7 @@ const LOG_LIMIT = 120;
 export type PassageWork = 'not_started' | 'drafting' | 'in_review' | 'feedback' | 'done';
 export const PASSAGE_WORK: readonly PassageWork[] = ['not_started', 'drafting', 'in_review', 'feedback', 'done'];
 
-export interface StageCount {
+interface StageCount {
   stepId: string;
   name: string;
   checkpoint: boolean;
@@ -55,7 +55,7 @@ export interface StageCount {
   passages: number;
 }
 
-export interface BookReport {
+interface BookReport {
   bookId: string | null;
   label: string;
   total: number;
@@ -73,7 +73,7 @@ export interface ActivityWeek {
   requests: number;
 }
 
-export interface UploadDay {
+interface UploadDay {
   day: string;
   cards: number;
   /** Distinct Bible chapters that got audio this day. */
@@ -97,13 +97,13 @@ export interface LogEntry {
 export type Coverage = Record<TargetScope, number>;
 
 /** Passages recorded and done as of the end of a day. */
-export interface ProgressDay {
+interface ProgressDay {
   day: string;
   recorded: number;
   done: number;
 }
 
-export interface CoverageWeek {
+interface CoverageWeek {
   /** Sunday that ends the week, UTC. */
   weekEnd: string;
   recorded: Coverage;
@@ -116,7 +116,7 @@ export interface Milestone {
   at: string;
 }
 
-export interface LedgerMonth {
+interface LedgerMonth {
   /** `YYYY-MM`, UTC. */
   month: string;
   /** Chapters whose first audio reached the server this month; each chapter counts once, ever. */
@@ -179,7 +179,7 @@ export interface LanguageReport {
   };
 }
 
-export function passageWork(s: PassageState): PassageWork {
+function passageWork(s: PassageState): PassageWork {
   if (s.done) return 'done';
   if (!s.recorded) return s.drafting ? 'drafting' : 'not_started';
   return s.awaitingResponse.length > 0 ? 'feedback' : 'in_review';
@@ -458,7 +458,7 @@ export const RECENCY_DAYS: Record<Exclude<RecencyBand, 'not_started'>, [number, 
   active: [0, 13], check_in: [14, 20], reminder: [21, 27], four_weeks: [28, 34], five_weeks: [35, 44], inactive: [45, Infinity]
 };
 
-export function daysSince(iso: string | null, now: number): number | null {
+function daysSince(iso: string | null, now: number): number | null {
   return iso === null ? null : Math.max(0, Math.floor((now - Date.parse(iso)) / DAY_MS));
 }
 

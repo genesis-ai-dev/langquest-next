@@ -13,7 +13,7 @@ import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
 const BUCKET = 'blobs';
 
 /** `<org>/<stream>/<hash>.<ext>`: a recording belongs to its language's stream, so the stream is the language id. */
-export function objectPath(orgId: string, streamId: string, ref: StoredFile): string {
+function objectPath(orgId: string, streamId: string, ref: StoredFile): string {
   return `${orgId}/${streamId}/${ref.hash}.${ref.format}`;
 }
 

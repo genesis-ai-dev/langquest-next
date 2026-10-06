@@ -2,7 +2,7 @@
 // the device blob store and the server. The model that drove the UI has no
 // say here; "done" from Jev is never a pass.
 
-export type Verdict = 'passed' | 'product_failure' | 'inconclusive';
+type Verdict = 'passed' | 'product_failure' | 'inconclusive';
 
 export interface DeviceRow {
   status: 'pending' | 'confirmed' | 'rejected';
@@ -11,7 +11,7 @@ export interface DeviceRow {
 }
 export interface ServerRow { id: string; type: string; actor_id: string; payload: Record<string, unknown> }
 
-export interface RecordingContract { actorId: string; unitIds: string[] }
+interface RecordingContract { actorId: string; unitIds: string[] }
 export interface RecordingEvidence {
   /** Every event in the language's stream on the device, after the journey. */
   device: DeviceRow[];
@@ -22,8 +22,8 @@ export interface RecordingEvidence {
   server: ServerRow[];
 }
 
-export interface Check { name: string; ok: boolean; detail?: string }
-export interface Outcome { verdict: Verdict; checks: Check[] }
+interface Check { name: string; ok: boolean; detail?: string }
+interface Outcome { verdict: Verdict; checks: Check[] }
 
 /**
  * A translator recorded an assigned passage: the take is an event in the
@@ -136,7 +136,7 @@ const synced = (rows: DeviceRow[], server: ServerRow[]) => {
   return rows.length > 0 && rows.every((r) => r.status === 'confirmed' && ids.has(r.event.id));
 };
 
-export interface VersionContract {
+interface VersionContract {
   actorId: string; unitId: string;
   /** Takes that existed before the journey; a version made from them is not new. */
   priorTakeIds: string[];
@@ -188,7 +188,7 @@ export function judgeSavedVersion(contract: VersionContract, evidence: LogEviden
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface ReviewContract {
+interface ReviewContract {
   reviewerId: string; takeId: string; stepId: string;
   decision: 'approve' | 'suggest_changes';
   /** Each needs an answer or a `${id}#skipped` reason. */
@@ -225,7 +225,7 @@ export function judgeReview(contract: ReviewContract, evidence: LogEvidence): Ou
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface RequestContract {
+interface RequestContract {
   askerId: string; unitId: string; assigneeId: string;
   what: 'record' | 'check';
   /** A check request must be fixed to this kind (ADR-020). */
@@ -266,7 +266,7 @@ export function judgeRequest(contract: RequestContract, evidence: LogEvidence): 
 
 // ---- Phase 2b journeys: departures and kept feedback -----------------------
 
-export interface SetAsideContract { actorId: string; unitId: string; stepId: string; kindId?: string }
+interface SetAsideContract { actorId: string; unitId: string; stepId: string; kindId?: string }
 
 /**
  * A step (or its kind) was set aside with a reason (J-REC-5): a
@@ -296,7 +296,7 @@ export function judgeSetAside(contract: SetAsideContract, evidence: LogEvidence)
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface KeptContract {
+interface KeptContract {
   authorId: string;
   /** The feedback kept: a legacy review by (take, step, reviewer), or a check by id. */
   target: { takeId: string; stepId: string; reviewerId: string } | { checkId: string };
@@ -334,7 +334,7 @@ export function judgeKept(contract: KeptContract, evidence: LogEvidence): Outcom
 
 // ---- Phase 2a journeys: flows of kinds, checks of a kind ------------------
 
-export interface FlowContract { adminId: string }
+interface FlowContract { adminId: string }
 
 /**
  * An admin built a flow with two kinds together in one step and a
@@ -367,7 +367,7 @@ export function judgeFlow(contract: FlowContract, evidence: LogEvidence): Outcom
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface CheckContract {
+interface CheckContract {
   reviewerId: string; takeId: string; kindId: string;
   outcome: 'looks_good' | 'needs_changes';
   /** Each needs an answer or a skipped-question reason. */
@@ -410,7 +410,7 @@ export function judgeCheck(contract: CheckContract, evidence: LogEvidence): Outc
 
 // ---- Phase 2b slice C: logged checks, produced content, anchored notes -----
 
-export interface LoggedCheckContract {
+interface LoggedCheckContract {
   loggerId: string; kindId: string; outcome: 'looks_good' | 'needs_changes';
   /** Each passage covered, by the version that was played: one CheckLogged per take. */
   takeIds: string[];
@@ -450,7 +450,7 @@ export function judgeLoggedCheck(contract: LoggedCheckContract, evidence: LogEvi
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface ProducedContract { makerId: string; unitId: string; fromTakeId: string; kindId: string }
+interface ProducedContract { makerId: string; unitId: string; fromTakeId: string; kindId: string }
 
 /**
  * A back translation (J-BT-1/2): a ContentProduced
@@ -481,7 +481,7 @@ export function judgeBackTranslation(contract: ProducedContract, evidence: LogEv
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface StudyNoteContract { authorId: string; unitId: string; materialId: string; stepId: string; text: string }
+interface StudyNoteContract { authorId: string; unitId: string; materialId: string; stepId: string; text: string }
 
 /**
  * A note at a moment in the study audio (J-STUDY-2): a ContextItemAdded by
@@ -513,14 +513,14 @@ export function judgeStudyNote(contract: StudyNoteContract, evidence: LogEvidenc
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface SearchContract {
+interface SearchContract {
   /** Exactly what the user types, e.g. "luk 1". */
   query: string;
   languageId: string;
   /** Passages the query means; opening any other one is not this journey. */
   matchingUnitIds: string[];
 }
-export interface SearchEvidence {
+interface SearchEvidence {
   /** Text the user typed, in order (the driver's own keystrokes, not its claims). */
   typed: string[];
   /** The device-local Recent list (RecentPassage[]) before and after the journey. */
@@ -551,8 +551,8 @@ export function judgeMapSearch(contract: SearchContract, evidence: SearchEvidenc
 
 // ---- New Language: a language and its own stream (decision 63) ------------
 
-export interface NewLanguageContract { adminId: string; name: string; code: string }
-export interface NewLanguageEvidence {
+interface NewLanguageContract { adminId: string; name: string; code: string }
+interface NewLanguageEvidence {
   /** The organization's stream on the device, where the language is added. */
   org: DeviceRow[];
   /** The new language's own stream on the device, empty if none was added. */

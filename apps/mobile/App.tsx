@@ -42,7 +42,7 @@ import * as Work from './src/screens/work';
 import { StorageGate, useLeaveGuard } from './src/storageGate';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
-import { C, colors, space } from './src/theme';
+import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { useBlocks, useOpenReportCount } from './src/moderationData';
@@ -712,7 +712,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
                 initialRouteName={nav.initial.screen}
-                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}
+                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: C.bg } }}
               >
                 {SCREEN_IDS.map((id) => (
                   // Tab-level screens are only ever reached by reset, so they

@@ -18,7 +18,7 @@ import { formatRef, usfmOf, withDeps, type StudyDoc, type StudyResourceDoc } fro
 /** FIA's licence and holder, as its Aquifer releases state them (github.com/BibleAquifer/FIATranslationGuide). */
 export const FIA_ATTRIBUTION = '© 2025 Word Collective, CC BY-SA 4.0';
 
-export const FIA_ABOUT =
+const FIA_ABOUT =
   'FIA takes the team through six steps for each passage, in audio and text, before anyone drafts: Familiarize, then Internalize, then Articulate. Each step asks you to listen to the passage again. Answers and notes the team adds stay with the passage, so reviewers can see the study behind the draft.';
 
 /** FIA's steps by their API identifier; the ids are the app's, because study records point at them. */
@@ -39,7 +39,7 @@ const secondsFor = (words: number) => Math.round(words / 2.2);
 type Edges<T> = { edges: { node: T }[] };
 type ByLanguage = { language: { id: string; nameEnglish?: string } };
 
-export interface FiaPericopeJson {
+interface FiaPericopeJson {
   id: string;
   startChapter: number;
   startVerse: number;

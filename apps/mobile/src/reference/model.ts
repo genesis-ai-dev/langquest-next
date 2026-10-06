@@ -22,7 +22,7 @@ export function orgLevelCan(org: OrgState | null, profileId: string, p: Privileg
 /** Where a screen is: the organization, or one language (whose state is the open language's). */
 export type Level = { kind: 'org' } | { kind: 'language'; languageId: string };
 
-export interface RecState {
+interface RecState {
   /** The organization recommends it. */
   org: boolean;
   /** The language's own say, when it has one other than following the organization. */
@@ -130,10 +130,10 @@ export function booksOf(doc: LibraryDoc | null | undefined): string[] {
 
 // ---- source facts -----------------------------------------------------------------
 
-export type Testament = 'OT' | 'NT';
-export type TimingSource = 'fcbh' | 'generated' | 'manual';
+type Testament = 'OT' | 'NT';
+type TimingSource = 'fcbh' | 'generated' | 'manual';
 
-export interface BookTimings {
+interface BookTimings {
   book: string;
   name: string;
   /** Chapters with a timing in this source's book document. */
@@ -144,7 +144,7 @@ export interface BookTimings {
   sources: TimingSource[];
 }
 
-export interface SourceFacts {
+interface SourceFacts {
   text: Record<Testament, boolean>;
   audio: Record<Testament, boolean>;
   /** Per testament: FCBH answers live (`timestamps` in the Worker's detail), stored timings, or none. */
@@ -241,7 +241,7 @@ export function sourceSummary(f: SourceFacts): string {
 
 // ---- verse timings to ask for -------------------------------------------------------
 
-export interface TimingRequest {
+interface TimingRequest {
   testament: Testament;
   bibleId: string;
   audioFileset: string;

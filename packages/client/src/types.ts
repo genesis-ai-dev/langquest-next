@@ -114,7 +114,7 @@ export interface SnapshotMeta {
  * push; a clock-ahead refusal re-stamps the clock; invalid payloads never
  * retry.
  */
-export type RejectCode = 'NOT_MEMBER' | 'NOT_ALLOWED' | 'NOT_LISTED' | 'INVALID' | 'CLOCK_AHEAD' | 'UNKNOWN';
+type RejectCode = 'NOT_MEMBER' | 'NOT_ALLOWED' | 'NOT_LISTED' | 'INVALID' | 'CLOCK_AHEAD' | 'UNKNOWN';
 
 export function rejectCodeOf(reason: string | undefined): RejectCode {
   const r = reason ?? '';

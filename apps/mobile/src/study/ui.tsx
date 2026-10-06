@@ -29,7 +29,7 @@ import { clock, inlineParts, isCallout, isQuestion, studySections, type StudySec
 
 // ---- audio -------------------------------------------------------------------------
 
-export interface StudyAudio {
+interface StudyAudio {
   playing: boolean;
   time: number;
   duration: number;
@@ -403,7 +403,7 @@ export const CALLOUT_LOOK: Record<CalloutKind, { label: string; icon: LucideIcon
 };
 
 /** Inline text: bold words and links to pictures, maps and glossary terms. */
-export function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
+function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
   return inlineParts(props.text).map((p, i) => {
     if (p.type === 'text') return p.text;
     if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '700' }}>{p.text}</Text>;

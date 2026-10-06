@@ -9,7 +9,7 @@ import { reportsServer } from '../useOrgSummary';
  * shared by the section and a language's page. Held in memory only: these
  * are read online, and a reopened section asks again with its ETag.
  */
-export type Loaded =
+type Loaded =
   | { status: 'loading' }
   | { status: 'ready'; rows: LanguageRow[]; asOf: string; refreshing: boolean }
   | { status: 'error'; message: string; offline: boolean };
@@ -38,7 +38,7 @@ function set(e: Entry, state: Loaded) {
 }
 
 /** Ask the server; `fresh` makes it catch up first (after a setting was saved). */
-export function loadReports(orgId: string, fresh = false): Promise<void> {
+function loadReports(orgId: string, fresh = false): Promise<void> {
   const e = entry(orgId);
   if (e.inflight && !fresh) return e.inflight;
   if (!reportsServer) {

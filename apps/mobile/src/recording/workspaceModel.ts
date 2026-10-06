@@ -84,7 +84,7 @@ export function tiedTermIds(state: LanguageState, startTakeId: string | undefine
   return out;
 }
 
-export interface TextPart {
+interface TextPart {
   text: string;
   termId?: string;
 }

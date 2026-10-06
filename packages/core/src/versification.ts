@@ -35,7 +35,7 @@ export interface VersificationDoc {
 }
 
 /** One verse: book (USFM), chapter, verse (0 = a Psalm title). */
-export interface Verse {
+interface Verse {
   book: string;
   chapter: number;
   verse: number;
@@ -197,7 +197,7 @@ export function chaptersInBook(doc: VersificationDoc, book: string): number {
 }
 
 /** Every verse a range covers under this system, in order. */
-export function versesOf(doc: VersificationDoc, r: VerseRange): Verse[] {
+function versesOf(doc: VersificationDoc, r: VerseRange): Verse[] {
   const max = compile(doc).max.get(r.book);
   if (!max) return [];
   const out: Verse[] = [];

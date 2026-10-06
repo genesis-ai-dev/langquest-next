@@ -33,7 +33,7 @@ import { chaptersOf, filesetsFor, offlineAllowed, sourceEvictions, unitCoordinat
 import { bibleBrain, type MyBible } from './store';
 
 /** The sources' share of the 2 GB blob cache. */
-export const SOURCE_CACHE_BYTES = 1024 * 1024 * 1024;
+const SOURCE_CACHE_BYTES = 1024 * 1024 * 1024;
 const INDEX_KEY = 'source-audio:index';
 /** Files fetched per pass; the next pass carries on. */
 const PER_PASS = 40;
@@ -70,7 +70,7 @@ async function saveIndex(): Promise<void> {
 }
 
 export const bbKey = (fileset: string, book: string, chapter: number) => `bb:${fileset}:${book}:${chapter}`;
-export const libKey = (hash: string) => `lib:${hash}`;
+const libKey = (hash: string) => `lib:${hash}`;
 /** A library chapter's audio: by its hash when the document gives one, else by its link. */
 export const libAudioKey = (a: { hash?: string; url?: string }) => (a.hash ? libKey(a.hash) : `url:${a.url ?? ''}`);
 
@@ -80,7 +80,7 @@ export function onSourceFiles(l: () => void): () => void {
   return () => { indexListeners.delete(l); };
 }
 
-export type AudioFormat = BlobFile['format'];
+type AudioFormat = BlobFile['format'];
 
 /** A library audio's format as the store names it. */
 export function audioFormatOf(format: string | undefined): AudioFormat {
@@ -142,7 +142,7 @@ async function download(store: BlobStore, key: string, url: string, opts: { expe
 }
 
 /** Delete every file of a fileset phones may no longer keep. */
-export async function purgeFileset(store: BlobStore, fileset: string): Promise<number> {
+async function purgeFileset(store: BlobStore, fileset: string): Promise<number> {
   const idx = await loadIndex();
   const keys = Object.keys(idx).filter((k) => idx[k]!.fileset === fileset);
   if (keys.length === 0) return 0;

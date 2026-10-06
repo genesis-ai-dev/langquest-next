@@ -2,7 +2,7 @@
 // translations (the UX demo's src/bible.ts, STUDY-5). Verse numbers only;
 // `scripture.ts` adds references and reading-pace timings.
 
-export interface PassageText {
+interface PassageText {
   /** Book id as core's catalog names it ("gen", "luk", "joh"). */
   book: string;
   chapter: number;

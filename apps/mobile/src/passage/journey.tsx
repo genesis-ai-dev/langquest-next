@@ -25,7 +25,7 @@ const PATH_A11Y: Record<PathState, string> = {
 };
 
 /** A step's mark: colour and icon together (ADR-010); a lock for a checkpoint, a flag for an override. */
-export function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean; override: boolean; size?: number }) {
+function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean; override: boolean; size?: number }) {
   const { state, checkpoint, override } = props;
   const size = props.size ?? 36;
   const px = (n: number) => Math.round((n * size) / 36);

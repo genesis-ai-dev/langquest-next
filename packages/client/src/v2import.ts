@@ -43,12 +43,12 @@ export interface V2Rows {
   votes: { id: string; asset_id: string; polarity: string; comment: string | null; creator_id: string | null; created_at: string }[];
 }
 
-export interface CopiedBlob {
+interface CopiedBlob {
   hash: string;
   durationMs: number;
 }
 
-export interface MapOptions {
+interface MapOptions {
   orgId: string;
   /** v2 object name -> the blob as stored in this app. Missing names are reported and skipped. */
   blobs: ReadonlyMap<string, CopiedBlob>;
@@ -56,7 +56,7 @@ export interface MapOptions {
   grant?: { profileId: string; role: Role }[];
 }
 
-export interface MapReport {
+interface MapReport {
   events: number;
   books: number;
   passages: number;
@@ -73,7 +73,7 @@ export interface MapReport {
 }
 
 /** What the organization stream needs to list an imported language (`mapOrgSeed`). */
-export interface SeededLanguage {
+interface SeededLanguage {
   languageId: string;
   name: string;
   code: string;
@@ -236,7 +236,7 @@ function pad(n: number): string {
 // everyone. Pages of 1000 (PostgREST's cap) walked by offset.
 // ---------------------------------------------------------------------------
 
-export interface V2Source {
+interface V2Source {
   url: string;
   anonKey: string;
   /** Public bucket holding v2 audio; objects are addressed by the names in asset_content_link.audio. */
@@ -289,7 +289,7 @@ export async function fetchV2Rows(src: V2Source, projectId: string): Promise<V2R
   };
 }
 
-export function* chunks<T>(items: T[], size: number): Generator<T[]> {
+function* chunks<T>(items: T[], size: number): Generator<T[]> {
   for (let i = 0; i < items.length; i += size) yield items.slice(i, i + size);
 }
 
@@ -306,7 +306,7 @@ export function audioNames(rows: V2Rows): string[] {
 // same way it learns of a phone's upload.
 // ---------------------------------------------------------------------------
 
-export interface BlobCopyDeps {
+interface BlobCopyDeps {
   download(name: string): Promise<Uint8Array | null>;
   digest(bytes: Uint8Array): Promise<string>;
   durationMs(bytes: Uint8Array, name: string): Promise<number>;

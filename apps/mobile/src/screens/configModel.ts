@@ -33,7 +33,7 @@ export const PRIVILEGE_INFO: Record<Privilege, { label: string; desc: string }> 
   view_status: { label: 'View Status', desc: 'See the map and passage records read-only in their scope' }
 };
 
-export type ViewLevel = Scope['level'];
+type ViewLevel = Scope['level'];
 export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', language: 'Language' };
 
 /**
@@ -48,7 +48,7 @@ export function viewLevelFrom(params: Record<string, string>, adminScope: Scope 
   return adminScope?.level === 'language' ? 'language' : 'org';
 }
 
-export interface RoleRow {
+interface RoleRow {
   roleId: string;
   name: string;
   privileges: Privilege[];
@@ -63,7 +63,7 @@ export interface RoleRow {
   inherited: boolean;
 }
 
-export interface RoleHolder {
+interface RoleHolder {
   profileId: string;
   scope: Scope;
 }
@@ -114,7 +114,7 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 // Flows are library items (docs/library.md): a language uses one version of
 // one, or steps of its own (a custom flow, core `saveFlowSteps`).
 
-export interface FlowUse {
+interface FlowUse {
   /** What its flow is called (`deriveFlow(...).name`). */
   flowName: string;
   /** The library item and version it uses; null for its own steps or none. */
@@ -240,7 +240,7 @@ export const REFERENCE_KINDS: { id: string; code: string; name: string }[] = [
  * The language's own material, written in the app. Material for every
  * language is a library item the organization recommends (decision 62).
  */
-export interface ReferenceView {
+interface ReferenceView {
   study: MaterialView[];
   /** Question sets tied to a kind of review (`scope.stepId` = kind id). */
   questionSets: MaterialView[];

@@ -25,7 +25,7 @@ export interface ReconcilerDeps {
   digest(bytes: Uint8Array): Promise<string>;
 }
 
-export interface ReconcileReport {
+interface ReconcileReport {
   streams: number;
   objects: number;
   confirmed: number;
@@ -95,7 +95,7 @@ async function foldStream(transport: Transport, orgId: string, streamId: string,
 }
 
 /** Wire the reconciler to a service-role Supabase client. */
-export function supabaseReconcilerDeps(service: SupabaseClient, bucket = 'blobs'): ReconcilerDeps {
+function supabaseReconcilerDeps(service: SupabaseClient, bucket = 'blobs'): ReconcilerDeps {
   const storage = service.storage.from(bucket);
   const path = (o: BlobObject) => `${o.orgId}/${o.streamId}/${o.hash}.${o.format}`;
   return {

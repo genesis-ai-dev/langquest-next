@@ -17,7 +17,7 @@ export * from './passage';
 export * from './coverage';
 export * from './reports';
 export * from './portfolio';
-export { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook, type FiaPericope } from './catalogData';
+export { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from './catalogData';
 export * from './versification';
 export * from './libraryDocs';
 export * from './library';

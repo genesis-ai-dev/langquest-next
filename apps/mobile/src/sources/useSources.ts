@@ -145,7 +145,7 @@ function builtinReadings(range: VerseRange) {
 
 // ---- one source for one passage ---------------------------------------------------------------------
 
-export interface AudioChapter {
+interface AudioChapter {
   chapter: number;
   timing: Timing | null;
   timingSource: TimingSource;
@@ -155,7 +155,7 @@ export interface AudioChapter {
   resolve: () => Promise<string>;
 }
 
-export interface PassageSource {
+interface PassageSource {
   loading: boolean;
   /** The passage in the source's own numbering. */
   range: VerseRange;

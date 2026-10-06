@@ -37,7 +37,7 @@ export type RecordingFile = Pick<BlobRef, 'hash' | 'format'>;
  * pictures and films of guides an organization writes (study@2, the guide
  * editor). The extension is part of the name, as for recordings.
  */
-export const STORED_FORMATS = ['wav', 'm4a', 'mp3', 'ogg', 'aac', 'jpg', 'png', 'webp', 'gif', 'mp4', 'webm'] as const;
+const STORED_FORMATS = ['wav', 'm4a', 'mp3', 'ogg', 'aac', 'jpg', 'png', 'webp', 'gif', 'mp4', 'webm'] as const;
 export type StoredFormat = (typeof STORED_FORMATS)[number];
 export type StoredFile = { hash: string; format: StoredFormat };
 

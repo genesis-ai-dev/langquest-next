@@ -38,17 +38,17 @@ import {
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import { addHistory } from './sample-history';
 
-export const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
+const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
 const ADMIN_EMAIL = 'sample-admin@langquest.invalid';
 
 /** The languages the sample has, each on one of LangQuest's templates. */
-export const SAMPLE_LANGUAGES = [
+const SAMPLE_LANGUAGES = [
   { languageId: 'L-din-sample', code: 'din', name: 'Dinka', template: 'FIA passages (English)' },
   { languageId: 'L-nus-sample', code: 'nus', name: 'Nuer', template: 'Bible chapters (Original)' }
 ] as const;
 
 /** The languages --history adds, so the dashboard has a quiet one, a stuck one and an inactive one to show. */
-export const HISTORY_LANGUAGES = [
+const HISTORY_LANGUAGES = [
   { languageId: 'L-bfa-sample', code: 'bfa', name: 'Bari', template: 'FIA passages (English)' },
   { languageId: 'L-kcg-sample', code: 'kcg', name: 'Tyap', template: 'Bible chapters (Original)' },
   { languageId: 'L-bom-sample', code: 'bom', name: 'Berom', template: 'FIA passages (English)' },

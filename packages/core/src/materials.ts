@@ -19,7 +19,7 @@ import type { LanguageState } from './state';
  */
 
 /** Where a material applies; empty means the whole language. */
-export interface MaterialScope {
+interface MaterialScope {
   unitId?: string;
   /** For question sets: the kind of review they are for. */
   stepId?: string;
@@ -122,7 +122,7 @@ export function materialsFor(state: LanguageState, at: MaterialScope = {}): Mate
     .sort((a, b) => (a.title < b.title ? -1 : 1));
 }
 
-export interface QuestionView {
+interface QuestionView {
   /** `${materialId}#${fieldId}`: the key answers are stored under. */
   id: string;
   materialId: string;

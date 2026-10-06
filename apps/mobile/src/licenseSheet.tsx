@@ -8,7 +8,7 @@ import { Linking, Text, View } from 'react-native';
 import { Banner, GhostBtn, Ico, LinkBtn, PrimaryBtn, Row, Sheet, txt } from './kit';
 import { C, space } from './theme';
 
-export type LicenseSheetMode = 'choose' | 'open' | 'view';
+type LicenseSheetMode = 'choose' | 'open' | 'view';
 
 const SUB: Record<LicenseSheetMode, string> = {
   choose: 'Who may use what your team records and writes. You can open it up later, but never close it again.',

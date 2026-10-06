@@ -14,8 +14,8 @@ export const RING_FRAMES = 10;
 export const DEFAULT_PREROLL_MS = 200;
 
 /** confirmMultiplier is in the JS type, but neither native configureVAD reads it. */
-export type VadSettings = Required<Omit<VADConfig, 'confirmMultiplier'>>;
-export const VAD_DEFAULTS: VadSettings = {
+type VadSettings = Required<Omit<VADConfig, 'confirmMultiplier'>>;
+const VAD_DEFAULTS: VadSettings = {
   threshold: 0.05, onsetMultiplier: 0.1, maxOnsetDuration: 250, silenceDuration: 300,
   minSegmentDuration: 500, rewindHalfPause: true, minActiveAudioDuration: 250
 };
@@ -33,7 +33,7 @@ export function prerollFrames(ms: number): number {
   return Math.trunc(ms / FRAME_MS);
 }
 
-export type VadAction =
+type VadAction =
   | { type: 'start'; prerollMs: number }
   /** `discard`: too little active audio; native deletes the file and emits an empty uri. */
   | { type: 'stop'; discard: boolean; rewindMs: number };

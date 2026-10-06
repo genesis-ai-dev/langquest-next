@@ -10,7 +10,7 @@ import type { HeldInvite } from './heldInvite';
 const KEY = 'held-invite';
 const listeners = new Set<(held: HeldInvite | null) => void>();
 
-export async function readHeld(): Promise<HeldInvite | null> {
+async function readHeld(): Promise<HeldInvite | null> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     const held = raw ? (JSON.parse(raw) as HeldInvite) : null;

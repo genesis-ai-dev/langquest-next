@@ -11,7 +11,7 @@ import { CHAPTER_TEXT } from './study/chapterText';
 import { PASSAGE_TEXTS } from './study/passageTexts';
 import { unitRange, versesOf, type VerseRange } from './study/range';
 
-export interface Verse {
+interface Verse {
   /** "15:11" */
   ref: string;
   chapter: number;
@@ -19,7 +19,7 @@ export interface Verse {
   text: string;
 }
 
-export interface Reading {
+interface Reading {
   /** "Berean Standard Bible" */
   translation: string;
   /** "BSB" */
@@ -27,7 +27,7 @@ export interface Reading {
   verses: Verse[];
 }
 
-export const TRANSLATIONS: { code: string; name: string }[] = [
+const TRANSLATIONS: { code: string; name: string }[] = [
   { code: 'BSB', name: 'Berean Standard Bible' },
   { code: 'WEB', name: 'World English Bible' },
   { code: 'KJV', name: 'King James Version' }

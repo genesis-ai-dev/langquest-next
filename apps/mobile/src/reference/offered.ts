@@ -8,7 +8,7 @@ import {
   type LibraryItemState, type LanguageState, type Register
 } from '@langquest-next/core';
 
-export interface OfferedSource {
+interface OfferedSource {
   /**
    * Names the guide in guide ids (notes and finished steps hang on them):
    * the item id, or for a followed item its owner's `<org>.<item>`, the key

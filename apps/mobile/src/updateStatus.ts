@@ -7,7 +7,7 @@
  *
  * Pure so the wording is testable without a native module.
  */
-export type UpdateStatus = {
+type UpdateStatus = {
   /**
    * `busy` = something is happening, no action. `ready`/`failed`/`offline` are
    * tappable. `offline` is its own kind because "Update failed" reads as "the
