@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { sessionStorageKey } from './sessionKey';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -27,14 +28,7 @@ export const supabaseConfigError: string | null = !url || !anon
 export const supabaseUrl = url ?? 'https://unconfigured.invalid';
 export const supabaseAnonKey = anon ?? 'unconfigured';
 
-/**
- * Where the session is kept: supabase-js's own default, named here so a
- * hand-over (handOver.ts) can move it to another key without a server call.
- * Changing it would sign everyone out.
- */
-export function sessionStorageKey(serverUrl: string): string {
-  return `sb-${new URL(serverUrl).hostname.split('.')[0]}-auth-token`;
-}
+/** Where the session is kept (sessionKey.ts). */
 export const SESSION_KEY = sessionStorageKey(supabaseUrl);
 
 // A placeholder keeps `createClient` from throwing when the config is
