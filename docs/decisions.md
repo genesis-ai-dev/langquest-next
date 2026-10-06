@@ -768,6 +768,17 @@ the earlier migrations (63), and the worker is the `stream-projections`
 Edge Function (job `langquest-stream-projections`; the old job is
 unscheduled). Reset databases have no migration history to repair.
 
+Amended (2026-10-06, Carl Sauder): the local stack runs the worker too, every
+minute. `npm run db:start` and `npm run db:reset` (`scripts/local-db.mjs`)
+write a local-only secret to the ignored `supabase/functions/.env`, set the
+two Vault values in the local database and run the schedule migration, as
+`npm run secrets` does on a hosted one, and seed the library when there is
+none. Testing on simulators against a local database had no server Inbox rows
+or snapshots, and we want no extra command to bring a local environment up.
+It is not in `seed.sql`: preview branches run that too, where local values
+would be wrong; and `npm run db:test` resets with plain `supabase db reset`,
+since its smokes count snapshots and Inbox rows.
+
 ## 43. Merging to main deploys the Cloudflare workers
 
 Date: 2026-09-30 · By: Carl Sauder · Status: accepted

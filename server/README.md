@@ -52,10 +52,13 @@ Run it locally, not against production without explicit authorization.
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
 the `stream-projections` Edge Function. Migration 20261006000001 schedules
 it every five minutes wherever the Vault secrets `langquest_project_url` and
-`langquest_projection_worker_secret` exist (production), and nowhere else;
-it replaces the hand-run `schedule-projections.sql`. `npm run secrets` runs it
-again after setting them, which is how preview gets its job. `select * from cron.job`
-shows the one job, `net._http_response` its answers.
+`langquest_projection_worker_secret` exist. `npm run secrets` sets them and
+runs it again, which is how preview and production get the job. Locally,
+`npm run db:start` and `npm run db:reset` do the same (`scripts/local-db.mjs`:
+a local secret in the ignored `supabase/functions/.env`, the Vault values, the
+job every minute) and seed the library when there is none. `npm run db:test`
+resets with `supabase db reset` directly, so no pass runs under its smokes. `select * from cron.job` shows the one job,
+`net._http_response` its answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object

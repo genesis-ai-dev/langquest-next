@@ -111,6 +111,14 @@ Shrink with `sips -Z 800` before viewing.
 3. On the other device: create the second account, Join with QR code, paste
    the code.
 
+Bring the local database up with `npm run db:start`, not `supabase start`
+(and whoever owns it resets it with `npm run db:reset`): these also run the
+projection worker every minute (server Inbox rows, pushes, snapshots) and
+seed the library. The iOS simulator never receives pushes. After pulling a branch that adds or renames an Edge
+Function, restart the local stack (`npx supabase stop && npx supabase
+start`, which keeps the database): the functions served are fixed when it
+starts, and a missing one answers 404 ("non-2xx status code" in the app).
+
 ## Checking the server
 
 From a checkout linked to the hosted project (`npx supabase link`; the main
