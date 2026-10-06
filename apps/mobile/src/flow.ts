@@ -253,6 +253,8 @@ export const EDGES: Edge[] = [
   e('my_work', 'inbox_home'), // tap the bell (updates)
   e('settings_home', 'profile_edit'), // tap Edit Profile
   e('settings_home', 'org_switcher'), // tap Switch Organization
+  e('org_switcher', 'create_org'), // App only: tap New organization
+  e('create_org', 'org_switcher', 'back'),
   e('settings_home', 'my_work', 'reset'), // tap Getting started
   e('settings_home', 'vision'), // tap What is LangQuest?
   e('vision', 'settings_home', 'back'), // tap Back / Done (from Settings)

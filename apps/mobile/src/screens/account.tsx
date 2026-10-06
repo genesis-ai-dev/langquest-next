@@ -377,7 +377,7 @@ export function SettingsHome(ctx: Ctx) {
     : p.live ? 'Live: changes arrive as they happen'
     : p.online === false ? 'Offline: work is kept on this phone'
     : p.lastSync ? `Last synced ${p.lastSync}` : 'Everything is saved on this phone';
-  // Known and one: no Switch Organization row. Unknown (never listed on this phone): the row stays.
+  // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
   const orgs = useOrganizations(s.actorId).rows;
   const canSwitch = orgs === null || orgs.length > 1;
   const advanced = ctx.details('settings:advanced');
@@ -430,10 +430,9 @@ export function SettingsHome(ctx: Ctx) {
         {/* What comes along to the field, out of Advanced so it is seen before a trip (decisions.md 61). */}
         <Row icon={offline && offline.kept > 0 && offline.ready === offline.kept ? 'onPhone' : 'notOnPhone'} label="Ready for offline" sub={offlineLine(offline)}
           onPress={() => ctx.go('sync_status')} />
-        <Row icon="book" label="What is LangQuest?" onPress={() => ctx.go('vision')} last={!canSwitch} />
-        {canSwitch ? (
-          <Row icon="building" label="Switch Organization" sub={`${orgName} (active)`} onPress={() => ctx.go('org_switcher')} last />
-        ) : null}
+        <Row icon="book" label="What is LangQuest?" onPress={() => ctx.go('vision')} />
+        {/* Always here: someone in one organization may start another (Switch Organization, then New organization). */}
+        <Row icon="building" label="Switch Organization" sub={canSwitch ? `${orgName} (active)` : `${orgName} · or start a new one`} onPress={() => ctx.go('org_switcher')} last />
       </Group>
       <View style={{ paddingTop: space.sm }}>
         <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
@@ -644,6 +643,16 @@ export function OrgSwitcher(ctx: Ctx) {
         );
       })}
       {!rows.length && !error ? <EmptyState icon="building" title="Loading your organizations…" /> : null}
+      {/* App only: someone already in an organization starts another, and is its Organization Admin. */}
+      <Card onPress={() => ctx.go('create_org')} accessibilityLabel="New organization">
+        <View style={styles.profile}>
+          <View style={styles.tile}><Ico name="plus" size={24} color={C.primary} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[txt.body, { fontWeight: '600', color: C.primary }]}>New organization</Text>
+            <Text style={txt.xs}>You'll be its admin. Your place in the others stays as it is.</Text>
+          </View>
+        </View>
+      </Card>
     </Screen>
   );
 }
