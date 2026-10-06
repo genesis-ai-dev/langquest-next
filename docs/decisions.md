@@ -299,6 +299,9 @@ policies keep speaking `Role`. Reverse if: partners never define a custom
 role; then the seed roles are simply all there is. (An event may now need
 any one of several privileges: 31.)
 
+Amended (2026-10-06, Carl Sauder): scope is `org` or `language` (63);
+the project and lane levels are gone, and a person holds one role per scope.
+
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -312,7 +315,7 @@ retry.
 
 ## 25. Templates instantiate with derived ids, and per-lane settings layer over project settings
 
-Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+Date: 2026-09-15 · By: Ryder Wishart · Status: superseded by 63
 
 Reason: the UX spec applies content templates and review flows per language
 (A42) while units and workflow live in the project partition. Deriving
@@ -436,6 +439,10 @@ still applies. Hand-edited steps live under the language's `custom` prefix
 and new ones get fresh ids. Reverse if: step ids must be shared across
 languages; then key overrides and skips by kind instead of step.
 
+Amended (2026-10-06, Carl Sauder): each language now has a stream of its
+own (63), so step ids are namespaced by flow version only
+(`<flowId>@<v>/<step>`, `custom/<step>`); the add-wins reason still holds.
+
 ## 33. Derived views are cached per state object and revision, outside the state
 
 Date: 2026-09-28 · By: Caleb Koster · Status: accepted
@@ -451,7 +458,7 @@ moves to immutable states; then identity alone is enough.
 
 ## 34. An organization holds its languages directly, and is the one unit that syncs
 
-Date: 2026-09-28 · By: Caleb Koster · Status: partly superseded by 37
+Date: 2026-09-28 · By: Caleb Koster · Status: superseded by 63
 
 Reason: partners think in organizations and languages; the project level
 between them was a grouping nobody asked for, and every screen paid for it
@@ -475,11 +482,6 @@ Not done: an org that already has several projects keeps only the earliest
 visible; moving the others' lanes into it needs a server migration. Reverse
 if: one organization needs two separately synced bodies of work; then a
 second work partition is a registry entry, not a new event.
-
-Amended (2026-10-05, Carl Sauder): storage no longer keeps its shape:
-the partition key, the work partition's events and everything else named
-for the project now say partition, with the databases reset to rename
-them (63).
 
 ## 35. This file is the one ADR log, and agents keep it for every developer
 
@@ -560,6 +562,12 @@ partition and read as before. Partly supersedes 34 (the organization as one
 synced unit). Reverse if: people routinely work across many languages at
 once; then sync the languages a person is assigned to in the background, or
 let the server fold a progress summary per language.
+
+Amended (2026-10-06, Carl Sauder): a language's identity lives in the
+organization stream (`v1.LanguageAdded`, replacing `ProjectRegistered`,
+`ProjectCreated`, `LaneAdded` and `LaneNamed`), and a language stream
+accepts events only once the organization lists it, which replaces the
+bootstrap rule (63). Organizations from before this no longer exist.
 
 ## 38. An organization's work has one license, and it only opens
 
@@ -1559,38 +1567,42 @@ audio plays with FCBH timings only and streams), or field teams find three
 levels of recommendation confusing (then the language level goes and
 translators pick from the organization's list).
 
-## 63. The project is gone from the code: partitions everywhere, with the databases reset to rename it
+Amended (2026-10-06, Carl Sauder): the three levels stand; the language
+level is `v1.ReferenceSet` in the language's stream, and material or
+question sets meant for every language are recommended library items,
+not copies in the open language (63).
 
-Date: 2026-10-05 · By: Carl Sauder · Status: accepted
+## 63. Below the organization there are only languages, and the sync unit is the stream
 
-Reason: the code still named the project level between organization and
-language that 34 dropped (`projectId`, `ProjectState`, `v1.ProjectCreated`,
-the `project` scope level); since 37 that thing is a partition (a language's,
-`_org` or `_user`), and the old name sent readers looking for a project that
-does not exist (Carl, 2026-10-05). 34 kept the names because shipped events
-and the partition key must not change; with three developers on the app and
-nobody else's data on the server, we reset the databases and update every
-installed build instead (Carl, 2026-10-05). So the event envelope, every
-Postgres and SQLite column (`partition_id`) and RPC parameter
-(`p_partition_id`, `p_partition`), the payload keys (`scope.partitionId`,
-`CatalogItemToggled.partitionId`, `PartitionRegistered.partitionId`,
-`SourceImported.sourcePartitionId`), the event types (`v1.PartitionCreated`,
-`v1.PartitionRegistered`, `v1.PartitionConfigChanged`), the scope and
-catalog level (`partition`), the fold (`PartitionState`), the tables
-(`public_partitions`, `partition_visibility`, `partition_summaries`), the
-coordinator role (`coordinator`), the app's handle (`usePartition`,
-`ctx.partition`) and the projection Edge Function (`partition-projections`)
-all say partition. The migrations were edited in place rather than followed
-by renaming ones, so the hosted database is reset before this ships. A phone
-whose log still has `project_id` drops its log, cursors, read models and
-device id when it opens the store (`SqliteStore.open`), since they belong to
-the old server. `PartitionRegistered` carries `partitionId`, not `laneId`:
-the app registers one language per partition, but the v2 importer registers
-a partition holding several lanes. Kept: Supabase's and EAS's own project
-(`[remotes.*] project_id`, `--project-ref`, `langquest_project_url`, the EAS
-`projectId`), LangQuest v2's `project` table in the importer, the partner
-demo's screen ids (`project_home`, `new_project`, recorded as dropped), and
-notes that say the project level was dropped. Partly supersedes 34 (storage
-keeps its shape). Reverse if: never as such; once anyone outside the team
-holds data, a rename like this needs new versioned events and a migration,
-not an edit in place.
+Date: 2026-10-06 · By: Carl Sauder · Status: accepted
+
+Reason: the model still carried two levels that no longer existed. The
+project left the app in 34 and became one partition per language in 37, yet
+the code named it everywhere (`projectId`, `ProjectState`,
+`v1.ProjectCreated`, the `project` scope) while SQL and docs called it a
+partition; and every partition held exactly one lane with the same id. Most
+of the code paid for distinctions that never varied, and where they varied
+TypeScript and SQL disagreed: a lane-scoped member was authorized for the
+whole partition on any event without a `laneId`, "All languages" materials
+reached only the language that was open, and the UI offered language admins
+invites the server refused. With three developers and nobody else's data,
+we reset the databases instead of migrating (Carl, 2026-10-06). So, as
+`docs/streams-and-languages.md` sets out: below an organization there are
+only languages; a language's identity (name, code, source code, country,
+target) lives in the organization stream (`LanguageAdded`), its work in its
+own stream, and a language stream accepts events only once the organization
+lists it. The sync unit is the stream (organization, language or person),
+named `streamId` only in sync code; everything about a language says
+`languageId`, and work payloads carry neither, since the stream an event is
+appended to says which language it belongs to. Membership scope is `org` or
+`language`, one role per scope, and core and SQL compute privileges the
+same way. Settings have two shared levels: the organization's library and
+its recommendations, and the language's template, flow and own choices;
+material for every language is a recommended library item. The event
+catalog keeps one version of each event, restarted at `v1`, without the
+ones nothing wrote, and the role-based v1 workflow model is retired in
+favour of the record model. The migrations were squashed into one baseline.
+Supersedes 25 and 34; amends 23, 32, 37 and 62.
+Reverse if: an organization needs one body of work synced across several
+languages at once; then a language stream gains members of its own, not a
+lane level.

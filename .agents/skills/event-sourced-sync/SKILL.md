@@ -12,14 +12,15 @@ file and PLAN.md disagree, PLAN.md wins; fix this file.
 
 ## The model in five lines
 
-1. The only write is **appending an intent event** to a partition's log.
+1. The only write is **appending an intent event** to a stream (an
+   organization's, a language's, or a person's).
 2. Every event type is **commutative and idempotent**. Any subset, in any order,
    applied any number of times, folds to the same state.
 3. **State is derived** by the pure reducer in `packages/core`, identically on
    device and server. Status (approved, done, pending review) is asked of
-   `passage.ts` / `workflow.ts`, never stored.
+   `passage.ts`, never stored.
 4. The device **materializes on append**, pushes pending events from the
-   outbox, and pulls the partition tail by `serverSeq` cursor. Sync status is a
+   outbox, and pulls the stream's tail by `serverSeq` cursor. Sync status is a
    column on the events table (`pending | confirmed | rejected`).
 5. **Audio is immutable and content-addressed**; blobs sync independently of the
    events that reference them.
@@ -38,9 +39,9 @@ Ask these in order. If an answer is "no", redesign before writing code.
 - **Does the reducer case write only its own registers?** A case that reads
   existing state to decide what to write breaks order independence (the
   `MemberRemoved` bug in PLAN.md section 6). Derive combinations at read time instead.
-- **Is it self-contained in its partition?** It references entities in the same
-  partition, global catalog data, or blobs by hash. Cross-partition use is a
-  `SourceImported` pin (invariant 6).
+- **Is it self-contained in its stream?** It references entities in the same
+  stream, the organization's library and identity, or blobs by hash, and a
+  work payload never names its language: the stream does (invariant 6).
 - **Who may emit it?** Add it to the SQL `event_privilege`; the server's
   membership fold is the only authorization on the write path.
 - **What does an old client do with it?** Old reducers must skip unknown types
@@ -82,7 +83,8 @@ permutation and idempotence tests then cover it), and
   rebuildable** from the log; they may lag, and they can be thrown away.
 - **No trigger-maintained rollups.** Async workers consume the log (PLAN.md
   section 5); the write path is append plus the membership check only.
-- **Tenant on every row and every query**: `orgId`, `partitionId`. Index plans
+- **Tenant on every row and every query**: `orgId`, `streamId` (or
+  `languageId` on tables about a language). Index plans
   are part of the migration (PLAN.md section 5).
 - **Snapshots are tagged with the reducer version**; a client folds the log
   rather than loading a snapshot from another version (invariant 10).
