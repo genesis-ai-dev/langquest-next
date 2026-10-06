@@ -26,7 +26,7 @@ import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../
 import { laneFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
-  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
+  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
   StepMarks, txt, useLayout, useOpenDetail
 } from '../kit';
 import { chapterColumns } from '../layout';
@@ -184,25 +184,56 @@ function FilterChips(props: { filter: MapFilter; counts: Record<MapFilter, numbe
 
 // ---- progress overview (MAP-8) ------------------------------------------------------------
 
+/** `n` steps of the brand hue, pale to full: later stages read darker (sequential ramp). */
+function stageRamp(n: number): string[] {
+  const from = [0xc2, 0xb2, 0xf3], to = [0x4b, 0x2c, 0x9e];
+  return Array.from({ length: n }, (_, i) => {
+    const t = n === 1 ? 1 : i / (n - 1);
+    return '#' + from.map((a, k) => Math.round(a + (to[k]! - a) * t).toString(16).padStart(2, '0')).join('');
+  });
+}
+
+/**
+ * Every stage of the language's flow on one track (MAP-8): each stage's bar
+ * starts at zero and they overlap, the longest behind, so a passage further
+ * along sits in a darker band. Stages are nested in practice, so the bands
+ * read as how many passages stand at each stage. The legend under it gives
+ * the exact counts, so identity is never colour alone.
+ */
 function FunnelRows(props: { progress: LanguageProgress }) {
   const p = props.progress;
+  const ramp = stageRamp(1 + p.steps.length);
   const rows = [
-    { label: 'Recorded', n: p.recorded, color: C.primary, checkpoint: false },
-    ...p.steps.map((st) => ({ label: st.name, n: st.cleared, color: C.soft, checkpoint: st.checkpoint })),
+    { label: 'Recorded', n: p.recorded, color: ramp[0]!, checkpoint: false },
+    ...p.steps.map((st, i) => ({ label: st.name, n: st.cleared, color: ramp[i + 1]!, checkpoint: st.checkpoint })),
     ...(p.steps.length ? [{ label: 'Done', n: p.done, color: C.green, checkpoint: false }] : [])
   ];
+  // Longest first, so a shorter bar is never hidden behind a longer one.
+  const layers = rows.map((r, i) => ({ ...r, i })).filter((r) => r.n > 0).sort((a, b) => b.n - a.n || a.i - b.i);
+  const h = 14;
   return (
-    <View style={{ gap: space.md }}>
-      {rows.map((r, i) => (
-        <View key={`${r.label}-${i}`} style={{ gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {r.checkpoint ? <Ico name="lock" size={14} color={TINT.amberText} /> : null}
-            <Text style={[txt.sm, { flex: 1, fontWeight: '500' }]} numberOfLines={1}>{r.label}{r.checkpoint ? ' · checkpoint' : ''}</Text>
-            <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>{fmt(r.n)} of {fmt(p.total)}</Text>
+    <View style={{ gap: space.sm }}>
+      <View accessible accessibilityRole="progressbar"
+        accessibilityLabel={rows.map((r) => `${r.label}: ${fmt(r.n)} of ${fmt(p.total)}`).join(', ')}
+        style={{ height: h, borderRadius: h, backgroundColor: C.bg, overflow: 'hidden' }}>
+        {layers.map((r) => (
+          <View key={`${r.label}-${r.i}`} style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, minWidth: h, borderRadius: h,
+            width: `${Math.min(100, (r.n / p.total) * 100)}%`, backgroundColor: r.color,
+            borderRightWidth: r.n < p.total ? 2 : 0, borderColor: C.card
+          }} />
+        ))}
+      </View>
+      <View style={styles.legend}>
+        {rows.map((r, i) => (
+          <View key={`${r.label}-${i}`} style={styles.legendItem}>
+            <View style={[styles.swatch, { backgroundColor: r.color }]} />
+            {r.checkpoint ? <Ico name="lock" size={12} color={TINT.amberText} /> : null}
+            <Text style={txt.smMuted} numberOfLines={1}>{r.label}</Text>
+            <Text style={[txt.sm, { fontWeight: '700' }]}>{fmt(r.n)}</Text>
           </View>
-          <ProgressBar value={percent(r.n, p.total)} color={r.color} height={10} />
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
@@ -314,7 +345,7 @@ export function StatusHome(ctx: Ctx) {
       {q && shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>No language matches “{query}”.</Text> : null}
       {languages.length > 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-          Each bar counts passages that have cleared that step of the language's review flow. A passage is done when every step is complete — or, with no flow, once it's recorded.
+          Each bar layers the steps of the language's review flow: the further a passage has come, the darker its band. A passage is done when every step is complete — or, with no flow, once it's recorded. Locked steps are checkpoints.
         </Text>
       ) : null}
     </Screen>
@@ -796,6 +827,9 @@ const styles = StyleSheet.create({
   discDot: { position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white },
   iconCount: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
   bigNumber: { fontSize: T.display, fontWeight: '700' },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md, rowGap: 4 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  swatch: { width: 10, height: 10, borderRadius: 3 },
   code: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   stat: { flex: 1, backgroundColor: C.card, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.md },
   statValue: { fontSize: T.xl, fontWeight: '700' },
