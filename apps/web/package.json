@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx ../../scripts/web-dev-vars.ts && wrangler dev --port 8787",
+    "dev": "tsx ../../scripts/web-dev-vars.ts && wrangler dev -c .wrangler.dev.jsonc --port 8787",
     "build": "npm run export:web -w mobile -- production",
     "build:preview": "npm run export:web -w mobile -- preview",
     "deploy": "npm run web:deploy --prefix ../..",

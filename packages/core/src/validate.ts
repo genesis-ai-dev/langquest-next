@@ -210,9 +210,36 @@ export function validateEvent(e: AnyEvent): string | null {
         (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null);
     case 'v1.ReviewTeamKindSet':
       return str('teamId', 'laneId') ?? (p['kindId'] === null ? null : str('kindId'));
+    // ---- reference material (references.ts)
+    case 'v1.ReferenceRecommended':
+      return str('itemId') ?? bool('recommended');
+    case 'v1.LaneReferenceRecommended':
+      return str('laneId', 'itemId') ?? oneOf('state', ['recommended', 'hidden', 'inherit']);
+    case 'v1.PassageReferenceLinked':
+      return str('laneId', 'unitId', 'itemId') ?? bool('linked');
+    case 'v1.ReferencesUsed':
+      return (
+        str('laneId', 'unitId') ??
+        (['takeId', 'reviewId'].filter((k) => p[k] !== undefined).length === 1 ? null : 'exactly one of takeId, reviewId') ??
+        optStr('takeId', 'reviewId') ?? (p['takeId'] === '' || p['reviewId'] === '' ? 'takeId or reviewId must be non-empty' : null) ??
+        usedItems(p['items'])
+      );
     default:
       return null;
   }
+}
+
+const USED_KINDS = ['source', 'guide', 'note', 'questions'];
+function usedItems(v: unknown): string | null {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return 'items must be a list of 1 to 200';
+  for (const x of v) {
+    if (!isObject(x)) return 'items must be objects';
+    if (typeof x['itemId'] !== 'string' || x['itemId'] === '' || typeof x['name'] !== 'string' || x['name'] === '') return 'items need an itemId and a name';
+    if (!USED_KINDS.includes(x['kind'] as string)) return `item kind must be one of ${USED_KINDS.join(', ')}`;
+    if (typeof x['opened'] !== 'boolean') return 'opened must be a boolean';
+    for (const k of ['docHash', 'ref', 'detail', 'copyright']) if (x[k] !== undefined && typeof x[k] !== 'string') return `${k} must be a string`;
+  }
+  return null;
 }
 
 /** A membership scope: org, or project with projectId, or lane with projectId and laneId. */

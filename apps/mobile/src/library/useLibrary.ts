@@ -113,8 +113,8 @@ export function useLibrary(ctx: Ctx) {
   return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs };
 }
 
-/** Documents for these hashes (and their deps), re-rendering as they arrive. */
-export function useLibraryDocs(orgId: string, hashes: (string | null | undefined)[]) {
+/** Documents for these hashes (and their deps, unless `deps: false`), re-rendering as they arrive. */
+export function useLibraryDocs(orgId: string, hashes: (string | null | undefined)[], opts: { deps?: boolean } = {}) {
   const key = [...new Set(hashes.filter(Boolean))].sort().join(',');
   const [revision, bump] = useState(0);
   const [error, setError] = useState('');
@@ -122,13 +122,13 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
   useEffect(() => {
     if (!key) return;
     let active = true;
-    loadDocs(orgId, key.split(',')).catch((e: unknown) => {
+    loadDocs(orgId, key.split(','), opts.deps === false ? { deps: false } : {}).catch((e: unknown) => {
       // Offline: what is on the phone is shown; the rest says it is waiting.
       noteExpected('library documents', e);
       if (active) setError(e instanceof Error ? e.message : 'Not connected.');
     });
     return () => { active = false; };
-  }, [orgId, key]);
+  }, [orgId, key, opts.deps]);
   // A new `get` whenever documents arrive, so memos that read through it recompute.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const get = useCallback(<T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => cachedDoc(hash) as T | null, [revision]);

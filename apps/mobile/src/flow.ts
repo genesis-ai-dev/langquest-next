@@ -32,7 +32,13 @@ export const SCREEN_IDS = [
   'reference_home', 'material_editor',
   // App only: the local log, realtime state and transfers; account deletion (store rules);
   // the Reports section on wide windows (docs/decisions.md 57)
-  'sync_status', 'delete_account', 'reports_home', 'reports_language'
+  'sync_status', 'delete_account', 'reports_home', 'reports_language',
+  // App only: reference material by level, its coverage and one passage's (docs/reference-material.md)
+  'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference',
+  // App only: the guide editor (docs/reference-material.md)
+  'guide_editor',
+  // App only: exploring Bibles beside a passage (docs/reference-material.md)
+  'bible_explore'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -274,7 +280,38 @@ export const EDGES: Edge[] = [
   e('delete_account', 'settings_home', 'back'),
   e('delete_account', 'intent_chooser', 'back'),
   e('reports_home', 'reports_language'),
-  e('reports_language', 'reports_home', 'back')
+  e('reports_language', 'reports_home', 'back'),
+  e('reference_home', 'reference_bibles', undefined, 'manageReference'),
+  e('reference_bibles', 'reference_home', 'back'),
+  e('reference_bibles', 'reference_source', undefined, 'manageReference'),
+  e('reference_source', 'reference_bibles', 'back'),
+  e('reference_home', 'reference_guides', undefined, 'manageReference'),
+  e('reference_guides', 'reference_home', 'back'),
+  e('reference_guides', 'material_editor', undefined, 'manageReference'),
+  e('material_editor', 'reference_guides', 'back'),
+  e('reference_home', 'reference_coverage', undefined, 'manageReference'),
+  e('reference_coverage', 'reference_home', 'back'),
+  e('reference_coverage', 'passage_reference', undefined, 'manageReference'),
+  e('passage_reference', 'reference_coverage', 'back'),
+  e('passage_record', 'passage_reference'),
+  e('passage_reference', 'passage_record', 'back'),
+  e('reference_home', 'guide_editor', undefined, 'manageReference'),
+  e('guide_editor', 'reference_home', 'back'),
+  e('study_guide', 'guide_editor', undefined, 'manageReference'),
+  e('guide_editor', 'study_guide', 'back'),
+  e('reference_guides', 'guide_editor', undefined, 'manageReference'),
+  e('guide_editor', 'reference_guides', 'back'),
+  // More Bibles, from the source reader beside a passage (docs/reference-material.md).
+  e('workspace', 'bible_explore'),
+  e('study_guide', 'bible_explore'),
+  e('study_step', 'bible_explore'),
+  e('review_capture', 'bible_explore'),
+  e('add_record', 'bible_explore'),
+  e('bible_explore', 'workspace', 'back'),
+  e('bible_explore', 'study_guide', 'back'),
+  e('bible_explore', 'study_step', 'back'),
+  e('bible_explore', 'review_capture', 'back'),
+  e('bible_explore', 'add_record', 'back')
 ];
 
 /**
@@ -284,7 +321,7 @@ export const EDGES: Edge[] = [
  * (ADR-021, NAV-4, NAV-5).
  */
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
-export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step'];
+export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step', 'passage_reference'];
 export const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
@@ -311,5 +348,9 @@ export const TITLES: Record<ScreenId, string> = {
   review_team_editor: 'Edit Review Team',
   flows_home: 'Review Flows', flow_editor: 'Flow Editor', templates_home: 'Content Templates', template_picker: 'Choose a Template',
   template_editor: 'Template Outline', book_structure: 'Divide a Book', reference_home: 'Reference Library', material_editor: 'Edit Material',
-  sync_status: 'Sync', delete_account: 'Delete Account', reports_home: 'Reports', reports_language: 'Language Report'
+  sync_status: 'Sync', delete_account: 'Delete Account', reports_home: 'Reports', reports_language: 'Language Report',
+  reference_bibles: 'Bibles', reference_source: 'Bible', reference_guides: 'Guides and Notes', reference_coverage: 'Coverage',
+  passage_reference: 'Reference',
+  guide_editor: 'Write a Guide',
+  bible_explore: 'More Bibles'
 };

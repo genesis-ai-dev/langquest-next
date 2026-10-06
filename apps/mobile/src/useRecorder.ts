@@ -1,5 +1,5 @@
 import type { BlobRef } from '@langquest-next/core';
-import type { BlobFile } from './blobs';
+import type { RecordingFile } from './blobs';
 import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import * as Crypto from 'expo-crypto';
@@ -19,7 +19,7 @@ const WEB_TYPE = WEB && typeof MediaRecorder !== 'undefined' ? preferredRecordin
 export interface RecordedCard {
   /** Stable id chosen before any save step; the handler uses it as recordingId. */
   id: string;
-  ref: BlobFile;
+  ref: RecordingFile;
   durationMs: number;
   size: number;
 }

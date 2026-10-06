@@ -14,7 +14,7 @@
 // Pure reading lives in configModel.ts.
 import {
   CommandError, commands, deriveFlow, deriveKinds, derivePassage, formatQuestionField, keyTermsFor, keyTermView, laneName,
-  materialView, parseQuestionField, privilegesFor, PRIVILEGES, REFERENCE_KINDS, SOURCE_BIBLES, sourceBibleEnabled, subscriptionItemId,
+  materialView, parseQuestionField, PRIVILEGES, recommendedFor, REFERENCE_KINDS, subscriptionItemId,
   takesLinkingTerm, templateFields, templateOfUnit, unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialDoc,
   type MaterialView, type Privilege, type ProjectState, type QuestionSpec, type VersificationDoc
@@ -822,7 +822,8 @@ export function ReferenceHome(ctx: Ctx) {
   const termLane = laneId ?? (ctx.laneId && state?.lanes[ctx.laneId] ? ctx.laneId : Object.keys(state?.lanes ?? {})[0]) ?? null;
   const termCount = useMemo(() => (state && termLane ? keyTermsFor(state, termLane).length : 0), [state, termLane]);
   const byLanguage = ctx.details('reference:by-language');
-  const bibles = ctx.details('reference:source-bibles');
+  // What translators are offered at this level (screens/reference.tsx).
+  const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, state, laneId), [ctx.org.state, state, laneId]);
   if (!state || !view) return <Screen header={<Header title="Reference Material" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
 
   const levelName = laneId ? laneName(state, laneId) : orgName(ctx);
@@ -855,6 +856,9 @@ export function ReferenceHome(ctx: Ctx) {
         Context lives at the level it holds and adds up; nothing is copied. Translators see it in the workspace tray; reviewers see the questions for their kind of review.
       </Intro>
 
+      <SectionLabel label="What translators are offered" />
+      <OfferedRows ctx={ctx} laneId={laneId} offered={offered} materials={materials} get={docs.get} />
+
       <SectionLabel label="Key terms" />
       <Group>
         <Row icon="book" label="Key Terms" last
@@ -866,6 +870,8 @@ export function ReferenceHome(ctx: Ctx) {
         action={canManage ? <SmallBtn label="New" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...(laneId ? { laneId } : {}) })} /> : undefined} />
       <Capped items={materials} render={libraryRow}
         empty="Nothing in your library yet. Follow or copy what other organizations share, or publish your own." />
+      {canManage ? <Group><Row icon="sparkle" label="Write a guide" sub="Steps with text and audio, pictures, maps and key terms" last
+        onPress={() => ctx.go('guide_editor', laneId ? { laneId } : {})} /></Group> : null}
       <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
@@ -903,43 +909,33 @@ export function ReferenceHome(ctx: Ctx) {
           {view.byLanguage.flatMap((g, gi) => g.items.map((m, i) => generalRow(m, gi === view.byLanguage.length - 1 && i === g.items.length - 1)))}
         </Disclosure>
       ) : null}
-
-      <SourceBibles ctx={ctx} open={bibles.open} onToggle={bibles.onToggle} />
     </Screen>
   );
 }
 
-/** Source Bibles the organization adds (the settings the old library held). */
-function SourceBibles(props: { ctx: Ctx; open: boolean; onToggle: () => void }) {
-  const { ctx } = props;
-  const org = ctx.org.state;
-  const [busy, setBusy] = useState(false);
-  if (!org) return null;
-  const canOrg = privilegesFor(org, ctx.session.actorId, {}).has('manage_reference');
-  const added = SOURCE_BIBLES.filter((b) => sourceBibleEnabled(org, b.id));
-  async function toggle(id: string, name: string, enabled: boolean) {
-    if (busy) return;
-    const payload = { kind: 'reference' as const, itemId: id, level: 'org' as const };
-    setBusy(true);
-    try {
-      await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled });
-      ctx.toast(`${name} ${enabled ? 'added' : 'turned off'}.`, async () => {
-        try { await ctx.org.append('v1.CatalogItemToggled', { ...payload, enabled: !enabled }); ctx.toast('Undone.'); } catch (e) { ctx.toast(`Not undone. ${failure('undo source bible', e)}`); }
-      });
-    } catch (e) {
-      ctx.toast(`Not saved. ${failure('toggle source bible', e)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
+/**
+ * Bibles, guides and notes at this level, and coverage against a language's
+ * passages, each one tap away (screens/reference.tsx). The old Source Bibles
+ * toggles became recommendations: the Bibles screen moves them over once.
+ */
+function OfferedRows(props: { ctx: Ctx; laneId: string | null; offered: Map<string, string>; materials: LibraryItemView[]; get: (h: string | null | undefined) => LibraryDoc | null }) {
+  const { ctx, laneId, offered, materials, get } = props;
+  const params: Record<string, string> = laneId ? { laneId } : {};
+  const count = (formats: string[], kind?: string) => materials.filter((m) => {
+    const doc = get(m.current);
+    return offered.has(m.itemId) && !!doc && formats.includes(doc.format) && (!kind || (doc.format === 'material@1' && doc.kind === kind));
+  }).length;
+  const bibles = count(['source@1']);
+  const guides = count(['study@1', 'study@2', 'collection@1']);
+  const notes = count(['material@1'], 'note');
+  const lane = laneId ?? (ctx.laneId && ctx.project.state?.lanes[ctx.laneId] ? ctx.laneId : null);
   return (
-    <Disclosure icon="sound" title="Source Bibles" summary={added.length ? added.map((b) => b.code).join(' · ') : 'None added yet'} open={props.open} onToggle={props.onToggle}>
-      {SOURCE_BIBLES.map((b, i) => (
-        <ToggleRow key={b.id} label={b.name} desc={`For the organization · English · ${b.narrator} · chapter audio · CC0`}
-          on={sourceBibleEnabled(org, b.id)} disabled={busy || !canOrg} onToggle={() => void toggle(b.id, b.name, !sourceBibleEnabled(org, b.id))}
-          last={i === SOURCE_BIBLES.length - 1} />
-      ))}
-    </Disclosure>
+    <Group>
+      <Row icon="sound" label="Bibles" sub={`${bibles} recommended · text, audio, offline use and timings`} onPress={() => ctx.go('reference_bibles', params)} />
+      <Row icon="sparkle" label="Guides and notes" sub={`${guides} recommended guide${guides === 1 ? '' : 's'} · ${plural(notes, 'note')}`} onPress={() => ctx.go('reference_guides', params)} last={!lane} />
+      {lane ? <Row icon="map" label="Coverage" sub={`What reaches each passage in ${ctx.project.state ? laneName(ctx.project.state, lane) : 'this language'}`}
+        onPress={() => ctx.go('reference_coverage', { laneId: lane })} last /> : null}
+    </Group>
   );
 }
 
@@ -1194,7 +1190,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
 }
 
 /** Kinds of simple material the library editor makes; question sets and study guides come from elsewhere. */
-const LIBRARY_MATERIAL_KINDS = ['tg', 'tmf', 'brief', 'document'];
+const LIBRARY_MATERIAL_KINDS = ['note', 'tg', 'tmf', 'brief', 'document'];
 
 /** A versification a verse link can be read in: one this organization has, or one another shares (followed or copied on Save). */
 interface VersificationChoice { key: string; label: string; hash: string | null; shared?: SharedItem }
@@ -1226,7 +1222,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const baseLinks = material?.links ?? [];
   const baseRefs = baseLinks.flatMap((l) => ('ref' in l ? [l.ref] : [])).join('\n');
   const baseParts = baseLinks.flatMap((l) => ('node' in l ? [l] : []));
-  const k = kind ?? material?.kind ?? 'tg';
+  const k = kind ?? material?.kind ?? ctx.params['kind'] ?? 'tg';
   const t = title ?? material?.title ?? '';
   const b = body ?? material?.body ?? '';
   const refs = parseRefLinks(refsText ?? baseRefs);

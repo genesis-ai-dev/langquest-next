@@ -1,8 +1,7 @@
-import type { BlobRef } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { File, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { BlobStore } from './blobs';
+import { BlobStore, mimeOf, type StoredFile } from './blobs';
 import type { TransferTimings } from './diagnostics';
 import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
 
@@ -13,7 +12,7 @@ import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
  */
 const BUCKET = 'blobs';
 
-export function objectPath(orgId: string, projectId: string, ref: BlobRef): string {
+export function objectPath(orgId: string, projectId: string, ref: StoredFile): string {
   return `${orgId}/${projectId}/${ref.hash}.${ref.format}`;
 }
 
@@ -23,7 +22,7 @@ export function objectPath(orgId: string, projectId: string, ref: BlobRef): stri
  * so bucket policies apply unchanged. `as` is the session to send under:
  * a hand-over sends a signed-out person's recordings as them (handOver.ts).
  */
-export async function uploadBlob(orgId: string, projectId: string, ref: BlobRef, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
+export async function uploadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
   const { data, error: authError } = await as.auth.getSession();
   if (authError) throw new Error(authError.message);
   const token = data.session?.access_token;
@@ -33,7 +32,7 @@ export async function uploadBlob(orgId: string, projectId: string, ref: BlobRef,
     Authorization: `Bearer ${token}`,
     apikey: supabaseAnonKey,
     'x-upsert': 'true',
-    'Content-Type': ref.format === 'wav' ? 'audio/wav' : 'audio/mp4'
+    'Content-Type': mimeOf(ref.format)
   };
   const sent = Date.now();
   // Web keeps blobs in the browser's file storage (webFiles.ts): the same request, from those bytes.
@@ -55,7 +54,7 @@ export class UploadError extends Error {
  * network fetch, and reading plus hashing on the phone, which on a slow
  * phone can outweigh the network.
  */
-export async function downloadBlob(orgId: string, projectId: string, ref: BlobRef, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
+export async function downloadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
   let mark = Date.now();
   const lap = () => { const now = Date.now(); const ms = now - mark; mark = now; return ms; };
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, projectId, ref), 600);
@@ -77,7 +76,7 @@ export async function downloadBlob(orgId: string, projectId: string, ref: BlobRe
   store.commitStaged(ref, bytes.byteLength);
 }
 
-async function uploadFromWeb(url: string, headers: Record<string, string>, ref: BlobRef, store: BlobStore): Promise<{ status: number; body: string }> {
+async function uploadFromWeb(url: string, headers: Record<string, string>, ref: StoredFile, store: BlobStore): Promise<{ status: number; body: string }> {
   const bytes = await store.readBytes(ref);
   if (!bytes) throw new Error(`no bytes for ${ref.hash} in this browser`);
   const res = await fetch(url, { method: 'POST', headers, body: bytes });
@@ -85,7 +84,7 @@ async function uploadFromWeb(url: string, headers: Record<string, string>, ref: 
 }
 
 /** Web: the same verification as on disk, with the bytes kept only if their hash matches. */
-async function downloadOnWeb(signedUrl: string, ref: BlobRef, store: BlobStore, timings: TransferTimings, lap: () => number): Promise<void> {
+async function downloadOnWeb(signedUrl: string, ref: StoredFile, store: BlobStore, timings: TransferTimings, lap: () => number): Promise<void> {
   const res = await fetch(signedUrl);
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
   const bytes = new Uint8Array(await res.arrayBuffer());

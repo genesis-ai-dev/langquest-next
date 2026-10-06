@@ -11,6 +11,8 @@
   // account.
   "routes": [{ "pattern": "next.langquest.org", "custom_domain": true }],
   "observability": { "enabled": true },
+  // Publishes verse timings asked for LangQuest's own sources (worker/timings.ts).
+  "triggers": { "crons": ["*/10 * * * *"] },
   // The app's web export (npm run export:web in apps/mobile, decisions.md
   // 57): the page, its bundles, version.json and _headers. Only /api/*
   // reaches the Worker first; every other path the page does not have is

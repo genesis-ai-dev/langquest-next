@@ -21,3 +21,8 @@ apps/web/dist/
 apps/mobile/credentials.json
 *.p12
 *.mobileprovision
+
+# Local screenshots and scratch seeds for looking at the app
+.screenshots/
+/.preview/
+apps/web/.wrangler.dev.jsonc

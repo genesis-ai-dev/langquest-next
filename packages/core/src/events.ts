@@ -3,6 +3,7 @@ import type { LibraryWorkEvents } from './library';
 import type { MaterialEvents } from './materials';
 import type { OrgEventPayloads } from './org';
 import type { RecordEvents } from './record';
+import type { ReferenceWorkEvents } from './references';
 
 /**
  * Event catalog v1. See PLAN.md section 6.
@@ -46,7 +47,7 @@ export interface Card {
   format?: 'wav' | 'm4a';
 }
 
-export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents, LibraryWorkEvents {
+export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents, LibraryWorkEvents, ReferenceWorkEvents {
   'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
   'v1.ProjectConfigChanged': { config: ProjectConfig };
   'v1.MemberAdded': { profileId: string; role: Role };

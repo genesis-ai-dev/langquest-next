@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  FILE_KEYS, OPTIONAL_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -16,6 +16,17 @@ describe('secrets', () => {
         const required = wranglerFor(parseJsonc(read(config)), env).secrets?.required ?? [];
         expect(Object.keys(wanted.workers[worker as keyof typeof WORKERS]).sort(), `${worker} ${env}`).toEqual([...required].sort());
       }
+    }
+  });
+
+  it('passes the Bible Brain key to the dashboard only when the file has it, and never requires it', () => {
+    const withKey = destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'service');
+    expect(withKey.workers.dashboard).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service', BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: '' }, 'ref', 'service').workers.dashboard).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service' });
+    for (const key of OPTIONAL_KEYS) {
+      expect(FILE_KEYS).toContain(key);
+      expect(REQUIRED_KEYS).not.toContain(key);
+      for (const env of ['production', 'preview']) expect(wranglerFor(parseJsonc(read(WORKERS.dashboard)), env).secrets?.required ?? []).not.toContain(key);
     }
   });
 

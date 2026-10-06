@@ -7,12 +7,23 @@
 // people add (notes, answers, finished steps) is on the passage's record
 // (core `studyMarksFor`, `v1.NoteAdded` with a study anchor).
 
+/**
+ * A file in the blob store, named by its SHA-256 (an authored guide's audio
+ * and pictures, `study@2`). It plays and shows offline once on the device,
+ * like a recording; `format` is the file's extension.
+ */
+export interface StudyFile {
+  hash: string;
+  format: string;
+}
+
 /** A glossary entry a term link opens: FIA's Master Glossary, or the guide's own description. */
 export interface GlossaryEntry {
   term: string;
   hint?: string;
   body?: string;
   audioUrl?: string;
+  audioFile?: StudyFile;
 }
 
 export type StudyMediaKind = 'map' | 'photo' | 'illustration' | 'video';
@@ -24,6 +35,10 @@ export interface StudyMedia {
   title: string;
   caption: string;
   url?: string;
+  /** The stored file: the phone copy on a phone when there is one, else the original. */
+  file?: StudyFile;
+  /** A film with no phone copy yet: the original is all there is. */
+  noPhoneCopy?: boolean;
   duration?: string;
 }
 
@@ -47,7 +62,7 @@ export interface StudyStep {
   /** The step's document, as markdown. */
   text: string;
   /** The step read aloud. `seconds` is an estimate until the file's own length is known. */
-  audio: { url?: string; seconds: number };
+  audio: { url?: string; file?: StudyFile; seconds: number };
 }
 
 export interface StudyGuide {
@@ -64,4 +79,19 @@ export interface StudyGuide {
   resources: StudyResource[];
   /** Glossary entries by the term links' refs ("t63"), when the material has them. */
   glossary?: Record<string, GlossaryEntry>;
+  /** The license it is under and who to credit (`study@2`; FIA's is in `source`). */
+  license?: string;
+  credit?: string;
+  /** Where it came from in the library, so someone who manages reference material can edit or adapt it. */
+  origin?: GuideOrigin;
+}
+
+/**
+ * The library document behind a guide. `itemId` is set when the guide is a
+ * single document of an item this organization controls (Edit); otherwise
+ * it is someone else's or part of a collection (Copy to adapt).
+ */
+export interface GuideOrigin {
+  docHash: string;
+  itemId?: string;
 }

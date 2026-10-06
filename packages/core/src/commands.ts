@@ -3,6 +3,7 @@ import { buildIndexes, type Indexes } from './indexes';
 import type { ProjectState } from './state';
 import { currentTake, deriveTakeStatus } from './workflow';
 import { derivePassage } from './passage';
+import type { UsedReference } from './references';
 import { CUSTOM_FLOW, FLOW_CATALOG_VERSION, flowStepId, flowStepPrefix, flowTemplateV2, instantiateFlowV2, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
@@ -103,7 +104,20 @@ export interface Commands {
    * as a custom flow.
    */
   restoreFlow(c: { commandId: string; laneId: string; previous: { flowId: string | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
+
+  // ---- reference material (references.ts) ----
+
+  /**
+   * What was in front of the person for a version (`takeId`) or a review
+   * (`reviewId`), appended in the same batch as the publish or review it
+   * describes. One item per material: `opened` once anything says so, the
+   * first description otherwise. Nothing offered, no event.
+   */
+  referencesUsed(c: { commandId: string; laneId: string; unitId: string; takeId?: string; reviewId?: string; items: UsedReference[] }): EventSpec[];
 }
+
+/** The most items one `v1.ReferencesUsed` carries (validate.ts). */
+export const MAX_USED_ITEMS = 200;
 
 export type { QuestionSpec };
 
@@ -395,6 +409,25 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
 
     lockMaterial(c) {
       return [{ id: ids(c.commandId)(), type: 'v1.MaterialLocked', payload: { materialId: c.materialId, locked: c.locked } }];
+    },
+
+    referencesUsed(c) {
+      if (!!c.takeId === !!c.reviewId) throw new CommandError('Name the version or the review, not both.');
+      const byId = new Map<string, UsedReference>();
+      for (const item of c.items) {
+        if (!item.itemId || !item.name) continue;
+        const prior = byId.get(item.itemId);
+        byId.set(item.itemId, prior ? { ...prior, opened: prior.opened || item.opened } : clean({ ...item }));
+      }
+      // Opened first, so a capped list keeps what was actually used.
+      const items = [...byId.values()].sort((a, b) => Number(b.opened) - Number(a.opened)).slice(0, MAX_USED_ITEMS);
+      if (items.length === 0) return [];
+      const subject = c.takeId ? { takeId: c.takeId } : { reviewId: c.reviewId! };
+      return [{
+        id: `${c.commandId}:refs:${c.takeId ?? c.reviewId}`,
+        type: 'v1.ReferencesUsed',
+        payload: { laneId: c.laneId, unitId: c.unitId, ...subject, items }
+      }];
     },
 
     restoreFlow(c) {

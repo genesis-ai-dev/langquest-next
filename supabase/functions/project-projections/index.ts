@@ -20775,6 +20775,45 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
+// packages/core/src/references.ts
+function emptyReferenceState() {
+  return { laneReferences: {}, passageLinks: {}, referencesUsed: {} };
+}
+var passageKey = (laneId, unitId) => `${laneId}\0${unitId}`;
+var usedKey = (s) => s.takeId ? `take:${s.takeId}` : `review:${s.reviewId}`;
+var later = (current, e) => !current || current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+function applyReferenceEvent(state, e) {
+  switch (e.type) {
+    case "v1.LaneReferenceRecommended": {
+      const p = e.payload;
+      const lane = state.laneReferences[p.laneId] ??= {};
+      if (later(lane[p.itemId], e)) lane[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case "v1.PassageReferenceLinked": {
+      const p = e.payload;
+      const links = state.passageLinks[passageKey(p.laneId, p.unitId)] ??= {};
+      if (later(links[p.itemId], e)) links[p.itemId] = { value: p.linked, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case "v1.ReferencesUsed": {
+      const p = e.payload;
+      const used = state.referencesUsed[usedKey(p)] ??= {};
+      for (const item of p.items) {
+        const prior = used[item.itemId];
+        const earliest = !prior || e.hlc < prior.hlc || e.hlc === prior.hlc && e.id < prior.eventId;
+        const opened = item.opened || (prior?.opened ?? false);
+        used[item.itemId] = earliest ? { ...item, opened, by: e.actorId, hlc: e.hlc, eventId: e.id } : { ...prior, opened };
+      }
+      break;
+    }
+  }
+}
+function applyOrgRecommendation(recs, e) {
+  const p = e.payload;
+  if (later(recs[p.itemId], e)) recs[p.itemId] = { value: p.recommended, hlc: e.hlc, eventId: e.id };
+}
+
 // packages/core/src/record.ts
 function emptyRecordState() {
   return {
@@ -20825,7 +20864,8 @@ function emptyState() {
     stepQuestionSets: {},
     keyTerms: {},
     keyTermLinks: {},
-    ...emptyRecordState()
+    ...emptyRecordState(),
+    ...emptyReferenceState()
   };
 }
 var DEFAULT_CONFIG = {
@@ -20982,9 +21022,30 @@ function validateEvent(e) {
       return str("laneId", "flowId", "itemId", "name") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (typeof p["catalogVersion"] === "number" && p["catalogVersion"] >= 2 ? null : "catalogVersion must be 2 or more") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null);
     case "v1.ReviewTeamKindSet":
       return str("teamId", "laneId") ?? (p["kindId"] === null ? null : str("kindId"));
+    // ---- reference material (references.ts)
+    case "v1.ReferenceRecommended":
+      return str("itemId") ?? bool("recommended");
+    case "v1.LaneReferenceRecommended":
+      return str("laneId", "itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
+    case "v1.PassageReferenceLinked":
+      return str("laneId", "unitId", "itemId") ?? bool("linked");
+    case "v1.ReferencesUsed":
+      return str("laneId", "unitId") ?? (["takeId", "reviewId"].filter((k) => p[k] !== void 0).length === 1 ? null : "exactly one of takeId, reviewId") ?? optStr("takeId", "reviewId") ?? (p["takeId"] === "" || p["reviewId"] === "" ? "takeId or reviewId must be non-empty" : null) ?? usedItems(p["items"]);
     default:
       return null;
   }
+}
+var USED_KINDS = ["source", "guide", "note", "questions"];
+function usedItems(v) {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return "items must be a list of 1 to 200";
+  for (const x of v) {
+    if (!isObject(x)) return "items must be objects";
+    if (typeof x["itemId"] !== "string" || x["itemId"] === "" || typeof x["name"] !== "string" || x["name"] === "") return "items need an itemId and a name";
+    if (!USED_KINDS.includes(x["kind"])) return `item kind must be one of ${USED_KINDS.join(", ")}`;
+    if (typeof x["opened"] !== "boolean") return "opened must be a boolean";
+    for (const k of ["docHash", "ref", "detail", "copyright"]) if (x[k] !== void 0 && typeof x[k] !== "string") return `${k} must be a string`;
+  }
+  return null;
 }
 function scope(v) {
   if (!isObject(v)) return "scope must be an object";
@@ -21027,7 +21088,7 @@ function isObject(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 8;
+var REDUCER_VERSION = 9;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function applyEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
@@ -21386,7 +21447,13 @@ function applyEvent(state, event) {
       lww(state.laneTargets, laneId, event, { scope: scope2, startDate, targetDate });
       break;
     }
+    case "v1.LaneReferenceRecommended":
+    case "v1.PassageReferenceLinked":
+    case "v1.ReferencesUsed":
+      applyReferenceEvent(state, event);
+      break;
     case "v1.OrgCreated":
+    case "v1.ReferenceRecommended":
     case "v1.RoleDefined":
     case "v1.RoleRetired":
     case "v1.OrgMemberAdded":
@@ -21860,7 +21927,7 @@ function newItem() {
     pinned: { value: null, hlc: "", eventId: "" }
   };
 }
-var later = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+var later2 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
 var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
 var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
 var LIBRARY_EVENT_TYPES = [
@@ -21878,8 +21945,8 @@ function applyLibraryEvent(library, e) {
   switch (e.type) {
     case "v1.LibraryItemDefined": {
       const d = p;
-      if (later(item.name, e)) item.name = reg(d.name, e);
-      if (later(item.description, e)) item.description = reg(d.description, e);
+      if (later2(item.name, e)) item.name = reg(d.name, e);
+      if (later2(item.description, e)) item.description = reg(d.description, e);
       if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
       break;
     }
@@ -21893,21 +21960,21 @@ function applyLibraryEvent(library, e) {
     }
     case "v1.LibrarySharingSet": {
       const d = p;
-      if (later(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
+      if (later2(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
       break;
     }
     case "v1.LibraryItemArchived":
-      if (later(item.archived, e)) item.archived = reg(p.archived, e);
+      if (later2(item.archived, e)) item.archived = reg(p.archived, e);
       break;
     case "v1.LibrarySubscribed": {
       const d = p;
-      if (later(item.subscription, e)) {
+      if (later2(item.subscription, e)) {
         item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
       }
       break;
     }
     case "v1.LibraryPinned":
-      if (later(item.pinned, e)) item.pinned = reg(p.docHash, e);
+      if (later2(item.pinned, e)) item.pinned = reg(p.docHash, e);
       break;
   }
 }
@@ -21942,6 +22009,7 @@ var ORG_EVENT_TYPES = [
   "v1.InviteRedeemed",
   "v1.JoinDecided",
   "v1.OrgLicenseSet",
+  "v1.ReferenceRecommended",
   ...LIBRARY_EVENT_TYPES
 ];
 var SEED_ROLES = [
@@ -21965,7 +22033,7 @@ function effectiveRole(privs) {
   return null;
 }
 function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
 }
 function scopeKey(s) {
   return s.level === "org" ? "org" : s.level === "project" ? `project:${s.projectId}` : `lane:${s.projectId}/${s.laneId}`;
@@ -22073,6 +22141,9 @@ function applyOrgEvent(state, event) {
       }
       break;
     }
+    case "v1.ReferenceRecommended":
+      applyOrgRecommendation(state.recommendations ??= {}, event);
+      break;
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;
       break;

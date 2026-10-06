@@ -34,8 +34,10 @@ import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
 import * as Org from './src/screens/org';
 import * as Passage from './src/screens/passage';
+import * as Reference from './src/screens/reference';
 import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
+import * as Sources from './src/screens/sources';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
@@ -55,6 +57,7 @@ import { nextStep } from './src/heldInvite';
 import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
+import { useSourceOffline } from './src/sources/offline';
 import { useProject } from './src/useProject';
 import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
@@ -73,7 +76,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   passage_record: Passage.PassageRecord, version_detail: Passage.VersionDetail, review_detail: Passage.ReviewDetail,
   ask_someone: Passage.AskSomeone,
   guest_review: Review.GuestReview, add_record: Review.AddRecord, review_capture: Review.ReviewCapture,
-  study_guide: Study.StudyGuide, study_step: Study.StudyStep,
+  study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: Study.GuideEditor,
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
   key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
@@ -85,7 +88,10 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
   templates_home: Content.TemplatesHome, template_picker: Content.TemplatePicker, template_editor: Content.TemplateEditor,
   book_structure: Content.BookStructure,
-  reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage
+  reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage,
+  reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
+  reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
+  bible_explore: Sources.BibleExplore
 };
 
 /**
@@ -403,6 +409,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(project, org, session);
+  // Sources phones may keep follow the offline scope (docs/reference-material.md).
+  useSourceOffline(project, org, session);
 
   // The open language; an organization from before decision 37 opens its
   // shared partition, whose own languages are known once it has loaded.
