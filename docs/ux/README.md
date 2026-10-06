@@ -109,7 +109,7 @@ reference only — do not import from it.
 | Hand-off ends at a blocked gate | Kept take → ready → locally queued | Show recovery and offline outcomes |
 | Cutoff only supports dragging | Keyboard slider with an accessible name | Support alternative input |
 
-The mobile app now implements this journey through real partition events and
+The mobile app now implements this journey through real language-stream events and
 audio. See the [implementation notes](implementation.md) for coverage, content
 gaps, and device checks. The mock remains independent of the workflow engine.
 Before release, test icon comprehension and hold gestures with translators,

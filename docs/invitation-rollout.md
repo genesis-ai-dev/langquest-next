@@ -25,7 +25,7 @@ only before the QR screen. The QR screen confirms the chosen role.
    The repair preserves the legacy invitation overload. The new app uses
    `redeem_invite_v2`, leaving the old return shape available to old clients.
 2. Run `npm run db:check`. Every required API contract must exist.
-3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `partition-projections` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
+3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `stream-projections` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
    Both validate authorization inside their handlers. Their function config
    disables the gateway's legacy JWT verification.
 4. Set a random `PROJECTION_WORKER_SECRET` in the root `.env.<environment>`
@@ -105,6 +105,5 @@ are removed after verification.
 ## Remaining audit work
 
 Profile photos, organization dashboard summaries, key terms as content,
-and remaining audio capture surfaces remain separate work. Lane-only
-memberships are not broadened into partition-wide task grants. Full UI
+and remaining audio capture surfaces remain separate work. Full UI
 automation and device acceptance remain necessary alongside model tests.

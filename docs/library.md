@@ -25,7 +25,7 @@ sorted, no whitespace). The log never carries a document, only its hash.
 Documents that refer to others list them in `deps` (a template its
 versification, a collection its study guides) so they are shared together.
 
-Events, all in the org partition (`packages/core/src/library.ts`):
+Events, all in the organization stream (`packages/core/src/library.ts`):
 
 | Event | Merge |
 | --- | --- |
@@ -58,17 +58,17 @@ self-contained (PLAN.md invariant 6): no live link to the other organization.
 ## Languages
 
 A language uses one version of a template and one of a flow. Applying one
-emits the ordinary events into the language's own partition (decision 37)
+emits the ordinary events into the language's own stream (decision 63)
 (`libraryApply.ts`), with ids decided by the item, so two admins applying
 offline agree:
 
-- Template: `v2.LaneTemplateSelected {laneId, itemId, docHash, unitPrefix}`,
+- Template: `v1.TemplateSelected {itemId, docHash, unitPrefix, books?}`,
   `v1.UnitAdded` for parts not yet in the log (id `<itemId>/<node>`: `GEN`,
-  `GEN.1`, `GEN.1.1-2.3`, or an outline id), and `v1.LaneUnitHidden` for
+  `GEN.1`, `GEN.1.1-2.3`, or an outline id), and `v1.UnitHidden` for
   parts the version no longer has (hidden, never deleted; TPL-7).
-- Flow: `v1.ReviewKindDefined` for kinds the organization lacks,
-  `v2.WorkflowStepSet` under the version's prefix (`<lane>/<itemId>~<hash12>@2/`),
-  and `v2.LaneFlowSelected {..., itemId, docHash, name}`.
+- Flow: `v1.ReviewKindDefined` for kinds the language lacks,
+  `v1.FlowStepSet` under the version's flow id (`libraryFlowId`, steps
+  `<flowId>/<step>`), and `v1.FlowSelected {flowId, itemId, docHash, name}`.
 
 When an item a language uses moves to a new version (an edit here, or a
 subscription update), the next device of someone who may apply it does so.

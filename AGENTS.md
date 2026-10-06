@@ -43,7 +43,7 @@ Rules specific to this folder:
   report logic is `packages/core/src/portfolio.ts`. Web-only code goes behind
   `Platform.OS === 'web'` or in a `.web.tsx` file, and
   `npm run test:web` (smart-tests/web-smoke) must pass.
-- No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
+- No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes

@@ -103,9 +103,8 @@ sequence, cursor, snapshots and blob folder.
 
    | What | Today | After |
    | --- | --- | --- |
-   | A passage's selected take | `<unitId>:<laneId>` | `<unitId>` |
    | A study step marked done | `<unitId>:<laneId>:<guideId>:<stepId>` | `<unitId>:<guideId>:<stepId>` |
-   | A flow step's id | `<laneId>/<flowId>@<v>/<step>` | `<flowId>@<v>/<step>` |
+   | A flow step's id | `<laneId>/<flowId>@<v>/<step>` | `<flowId>/<step>` |
    | A hand-edited flow step's id | `<laneId>/custom/<step>` | `custom/<step>` |
    | The Translation Guidelines material's id | `tg:<laneId>` | `tg` |
 6. You may grant a role, or issue an invite, only at a scope where you hold
@@ -147,13 +146,12 @@ authorized by the actor's privileges for that language.
 | `v1.TemplateSelected` | itemId, docHash, unitPrefix, books? | `v2.LaneTemplateSelected` (v1 dropped) |
 | `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | unchanged |
 | `v1.UnitHidden` | unitId, hidden | `v1.LaneUnitHidden` |
-| `v1.FlowSelected` | flowId, catalogVersion, itemId, docHash, name | `v2.LaneFlowSelected`; `restoreFlow` is ported off v1 |
+| `v1.FlowSelected` | flowId, itemId?, docHash?, name? | `v2.LaneFlowSelected`; `restoreFlow` is ported off v1 |
 | `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds, checkpoint / stepId | `v2.WorkflowStepSet`, `v1.WorkflowStepRemoved` |
 | `v1.ReviewKindDefined` | as today | unchanged |
 | `v1.ReviewTeamDefined` / `…MemberSet` / `…KindSet` | teamId, name / teamId, profileId, member / teamId, kindId | laneId dropped |
 | `v1.RecordingAdded` | recordingId, unitId, kind, cards | laneId dropped |
 | `v1.TakeComposed` / `v1.TakeArchived` | takeId, unitId, cardHashes, parentTakeId / takeId | laneId dropped |
-| `v1.TakeSelected` | unitId, takeId | keyed by unitId |
 | `v1.TakeSubmitted` | takeId, questionSetIds? | unchanged |
 | `v1.ResponseRecorded` | as today | unchanged |
 | `v1.ReviewRecorded` | as today | replaces `v1.ReviewSubmitted` |
@@ -174,17 +172,17 @@ These are dropped and have no replacement:
 - The project-level `MemberAdded`, `MemberRoleChanged` and `MemberRemoved`.
 - `LaneAdded`, plus `LaneNamed`, `LaneCountrySet` and `LaneTargetSet`, which
   move to the organization stream.
-- `SourceImported`, `AssignmentMade`, `ReviewSubmitted`,
-  `ReviewCommentRecorded` and `StepQuestionSetLinked`.
+- `SourceImported`, `AssignmentMade`, `ReviewSubmitted`, `TakeSelected`,
+  `ReviewCommentRecorded` and `StepQuestionSetLinked`. Nothing read a
+  selected take: a passage's current version is its latest submitted take.
 - `CatalogItemToggled`. Nothing on `main` writes it, and nothing calls
   `catalogEnabled` or `sourceBibleEnabled`, since decision 62 replaced the
   source-Bible opt-in it served with recommendations. `catalogKey`,
   `catalogEnabled` and `sourceBibles.ts`' toggle go with it.
 - The v1 `LaneTemplateSelected`, `LaneFlowSelected` and `WorkflowStepSet`.
 
-`ReferenceAttached` is written only by the v2 importer. Phase 5 either maps
-it onto `NoteAdded` or materials, or keeps it as the importer's one extra
-event.
+`ReferenceAttached` was written only by the v2 importer, which now writes a
+v2 project's source content as a material (`v2src:<asset>`) instead.
 
 ### Person stream
 
@@ -285,7 +283,7 @@ ends green on `npm test`, `npm run typecheck`, and from phase 3
   `partition`, `lane` or `project` identifiers in `packages/*/src`,
   `apps/*/src`, `server` or `supabase/migrations`. Allow-list the Supabase
   and EAS "project" (refs, `langquest_project_url`) and the demo's screen
-  ids. It fails until phase 6 is done, so it is marked `todo` until then.
+  ids. It is on since phase 7.
 
 **Phase 1. Core: the two folds.**
 1. Rename the envelope field `projectId` to `streamId`, and add
@@ -465,3 +463,10 @@ These don't change the concepts.
 - Whether a translator's own Bible choices (device-only today, under
   `my-bibles:<actor>:<org>:<language>`) move to the person stream so they
   follow the person to another phone. That needs the pull path above.
+- "Use in reviews" on a library question set still copies the set into the
+  open language as a material, instead of recommending the library item.
+  `questionsForKind` reads only the language's own materials, so a
+  recommendation would reach reviewers only once it is also given the
+  recommended question-set documents (fetched by hash) and the review
+  screens pass them. Until then a set meant for every language has to be
+  used in each language.

@@ -6,7 +6,7 @@ before it followed the partner demo (docs/decisions.md 28); see
 
 The mobile app implemented the connected journey from `one-next-action.html`.
 The HTML remains an isolated design reference. Mobile screens derive progress
-from partition events and use the existing local store and sync queue.
+from language-stream events and use the existing local store and sync queue.
 
 ## Connected journey
 
@@ -16,7 +16,7 @@ from partition events and use the existing local store and sync queue.
 | My Work | Show pending work before completed work. Offer one next task. |
 | Passage hub | Keep six tiles visible. Derive one yellow next action from references, relevant terms, and the selected take. |
 | References | Play one available audio item per slide. Enable Next after playback finishes. |
-| Terms | Record and keep one relevant term at a time. Credit existing audio across the lane glossary. |
+| Terms | Record and keep one relevant term at a time. Credit existing audio across the language's glossary. |
 | Passage recording | Hold to record, or enter the red voice-activated recording screen. Adjust the cutoff and pause length. |
 | Keep or redo | Keep a composed take, or discard the pending run and record again. Recover saved segments after returning to the passage. |
 | Questions | Browse one question set per slide and optionally attach sets before hand-off. |
@@ -28,8 +28,8 @@ includes inherited reference audio and relevant glossary recordings from other
 passages. Audio controls show when a file still needs downloading.
 
 Reference listening completion stays on the current phone. Its key includes
-organization, partition, actor, lane, and passage. Changing reference content
-invalidates completion. Term progress and takes come from shared partition events.
+organization, language, actor and passage. Changing reference content
+invalidates completion. Term progress and takes come from shared language-stream events.
 
 The setup wizard configures the open language. It does not add language switching.
 Its reference step selects existing source recordings or accepts written content.

@@ -427,8 +427,8 @@ action, secondary actions and way back are in `docs/ux/screen-path.md`.
 The spec's domain (`ng-langquest-ux/src/data.ts`) maps onto the event log
 like this. Where the spec forced a model change, it is noted. The record
 model (kinds, flows, reviews by kind, departures, requests, notes, study) is
-in `docs/ux/demo-parity.md`; rows below about quorum rules and fixed-role
-review steps describe v1 lanes, which still fold and read as kinds.
+in `docs/ux/demo-parity.md`; the role-based workflow model it replaced is
+gone (decision 63).
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
@@ -438,16 +438,16 @@ review steps describe v1 lanes, which still fold and read as kinds.
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
 | Take (audio) | cards (`RecordingAdded`) referenced by a take | |
 | Review flow, stages A→B→C→D | a library flow's version used by the language (`FlowSelected`) instantiated as `FlowStepSet` registers with the kinds it brings | |
-| Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`; a step's `teamId` | eligibility: per-unit assignment, else team, else role holders |
-| Stage round: assigned, submitted, reviewed | derived from assignment, submission, and review events | never stored |
-| Verdict approved / suggestions | `ReviewSubmitted.decision` = `approve` or `suggest_changes` | **renamed** from reject: suggestions are advisory (A11) |
-| Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), `StepQuestionSetLinked`, `ReviewSubmitted.answers` keyed `materialId#fieldId` | question sets are materials of kind `questions` |
+| Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`, `ReviewTeamKindSet` (the kind it usually does) | a request may go to a team (`RequestMade.teamId`); `usualTarget` suggests one |
+| Stage round: asked, submitted, reviewed | derived from requests, submissions and reviews (`derivePassage`) | never stored |
+| Verdict looks good / needs changes | `ReviewRecorded.outcome` = `looks_good`, `needs_changes` or `recorded` (a producing kind), by kind | suggestions are advisory (A11); a checkpoint step is passed or overridden (`DepartureRecorded`) |
+| Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), the kind's questions (`questionsForKind`) or a request's own, `ReviewRecorded.answers` | question sets are materials of kind `questions` |
 | Translator response to suggestions | a new take with `parentTakeId`, `ResponseRecorded` (note or audio), then `TakeSubmitted` | the `respond` task type |
-| Assignment: type, assignee, due, instructions | `AssignmentMade` | **added** `dueDate`, `instructions`; type is derived from role and state |
-| To Do / Doing / Done | `Task.status` from `deriveTasks` | todo: nothing; doing: draft exists; done: submitted or decided |
-| Piece work status: unassigned / doing / waiting / done | derived per unit from assignments and take status | P dashboard, step 7 |
-| Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
-| Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
+| Assignment: what, who, due, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `dueDate`, `note`; a request is done when what it asked for happens |
+| To Do / Doing / Done | `upNext`, `highlightsFor` and `waitingOn` (core `passage.ts`) | todo: asked or next; doing: a draft exists; done: the flow is through |
+| Piece work status | derived per passage (`derivePassage`: recorded, steps complete, done) | reports (`languageReport`) |
+| Bottleneck ("3 in Community Check") | passages by the first step not yet complete (`languageProgress.steps`) | reports |
+| Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | a v2 project's source content is imported as material |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / language) | organization stream: `RoleDefined`, `MemberAdded { scope }` (core `org.ts`); one role per scope | fixed roles are seed roles; `effectiveRole` maps back |

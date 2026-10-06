@@ -14,9 +14,9 @@ reference material review and design" (2026-10-05).
   and notes (`material@1`, kind `note`, plus the in-app materials of
   decision 26). Shapes and validation: `packages/core/src/libraryDocs.ts`.
 - **Three levels decide what is offered** (`packages/core/src/references.ts`):
-  the organization recommends library items (`v1.ReferenceRecommended`, org
-  partition); a language admin recommends more, hides some, or follows the
-  organization (`v1.LaneReferenceRecommended`); translators choose for
+  the organization recommends library items (`v1.ReferenceRecommended`,
+  organization stream); a language admin recommends more, hides some, or
+  follows the organization (`v1.ReferenceSet`); translators choose for
   themselves on their device and may explore any Bible online. Every option
   says whether it has audio and whether it can be kept offline.
 - **Coordinates place material on passages.** A passage's verse range comes

@@ -275,6 +275,11 @@ leaves a passage waiting forever with nothing on screen saying why. These
 are properties of the fold, so `deriveBlockers` computes them and the status
 screen can show the one action that clears each. Reverse if: never.
 
+Amended (2026-10-06, Carl Sauder): `deriveBlockers` and the blocker rows went
+with the role-based v1 workflow model (63). The record model says what a
+passage waits on (`waitingOn`) and what concerns a person (`updatesFor`),
+which the Inbox and the server's notifications both read.
+
 ## 22. One sync client, two folds
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -312,6 +317,14 @@ event's own clock within a window, and the client re-queues membership
 refusals when a pull shows the actor's membership changed. Clock-ahead
 refusals re-stamp the clock and keep the event ids. Invalid payloads never
 retry.
+
+Amended (2026-10-06, Carl Sauder): the server no longer authorizes as of the
+event's clock; it decides by the membership it holds now (63), and the
+membership-row and as-of paths are gone. The client re-queues `NOT_MEMBER`
+and `NOT_ALLOWED` refusals when the organization stream changes a membership
+or a role (`onMembershipChanged`), and re-queues `NOT_LISTED` ("language not
+listed yet") on every push, since a new language's own events can reach the
+server before the organization's `LanguageAdded`.
 
 ## 25. Templates instantiate with derived ids, and per-lane settings layer over project settings
 
@@ -749,6 +762,12 @@ Supabase branch `develop`, the preview environment (decisions.md 50). Secrets
 are not part of the integration's deploy: `npm run secrets` sets the Edge
 Function and Vault secrets (decisions.md 51).
 
+Amended (2026-10-06, Carl Sauder): the schedule is now
+`20261006000001_schedule_projections.sql`, beside the baseline that replaced
+the earlier migrations (63), and the worker is the `stream-projections`
+Edge Function (job `langquest-stream-projections`; the old job is
+unscheduled). Reset databases have no migration history to repair.
+
 ## 43. Merging to main deploys the Cloudflare workers
 
 Date: 2026-09-30 · By: Carl Sauder · Status: accepted
@@ -951,6 +970,11 @@ bytes until the app is removed; the fold never shows them. Partly supersedes
 Reverse if: event integrity comes to depend on payload bytes (a hash chain
 or signatures), which would need erasure designed in (for example,
 encrypting personal fields with a per-person key and deleting the key).
+
+Amended (2026-10-06, Carl Sauder): with the catalog restarted at `v1` (63),
+no event type has a `displayName` and nothing in the log holds a name, so
+`events_immutable` has no exception any more: the log refuses every update
+and delete, and account deletion only appends `MemberRemoved` events.
 
 ## 48. Reports and blocks are private rows, not events, and acting on a report is a redaction
 
@@ -1606,3 +1630,11 @@ Supersedes 25 and 34; amends 23, 32, 37 and 62.
 Reverse if: an organization needs one body of work synced across several
 languages at once; then a language stream gains members of its own, not a
 lane level.
+
+Amended (2026-10-06, Carl Sauder): two choices made while retiring the v1
+model. A new language picks its flow when it is added, and a language with no
+flow selected has no steps (`deriveFlow`), instead of falling back to a
+default workflow. The server's Inbox rows and pushes come from the same
+`updatesFor` the phone's Inbox reads, one row per update for each person who
+may open the language; the blocker and "translate everything" rows are gone.
+Amends 21, 24, 42 and 47.
