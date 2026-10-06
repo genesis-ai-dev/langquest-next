@@ -31,7 +31,8 @@ export function useStudyGuides(ctx: Ctx, unitIds: readonly string[], laneId?: st
   const shared = useSharedItems('material', orgId, unitIds.length > 0);
   const others: GuideSource[] = useMemo(() => shared.rows.map((r) => ({ key: `${r.org_id}.${r.item_id}`, hash: r.latest_hash })), [shared.rows]);
   const sel = lane && state ? state.laneTemplates[lane]?.value : undefined;
-  const { get } = useLibraryDocs(orgId, [...own.map((s) => s.hash), ...others.map((s) => s.hash), sel?.docHash]);
+  // Nothing to match, nothing to load: the prefetch on the web, or a screen with no passage yet.
+  const { get } = useLibraryDocs(orgId, unitIds.length ? [...own.map((s) => s.hash), ...others.map((s) => s.hash), sel?.docHash] : []);
 
   const choices = useMemo(() => {
     const out = new Map<string, { id: string; hash: string }>();

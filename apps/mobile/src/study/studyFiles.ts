@@ -9,6 +9,7 @@
 // there study media stay on the web and the offline card says so.
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
+import { noteExpected } from '../report';
 import type { StudyGuide } from './guides';
 
 export const STUDY_FILES_OFFLINE = Platform.OS !== 'web';
@@ -18,6 +19,8 @@ const STAGING = '.part';
 /** A failed address waits this long before it is tried again, so a dead link never loops. */
 const RETRY_MS = 5 * 60 * 1000;
 const CONCURRENCY = 2;
+/** A download that has not finished by now is given up and retried later, so one stalled request never holds the rest. */
+const TIMEOUT_MS = 2 * 60 * 1000;
 
 const present = new Map<string, string>();
 const failedAt = new Map<string, number>();
@@ -27,6 +30,10 @@ const changed = () => { revision++; for (const l of listeners) l(); };
 let loaded = false;
 let running = false;
 let queue: string[] = [];
+/** Addresses being fetched now: a new wish list must not start them twice into the same staging file. */
+const inFlight = new Set<string>();
+let online = false;
+let retry: ReturnType<typeof setTimeout> | null = null;
 /** Per kept passage, the study addresses it wants; set by the prefetcher, read by the offline counts. */
 let wanted = new Map<string, string[]>();
 
@@ -90,14 +97,19 @@ export function studyWanted(): ReadonlyMap<string, string[]> {
 }
 
 /** The prefetcher's latest wish list; downloads what is missing while `online`. */
-export function setStudyWanted(next: Map<string, string[]>, online: boolean): void {
+export function setStudyWanted(next: Map<string, string[]>, isOnline: boolean): void {
   wanted = next;
+  online = isOnline;
   changed();
+  enqueue();
+}
+
+function enqueue(): void {
   if (!DIR || !online) return;
   load();
   const now = Date.now();
-  const all = new Set([...next.values()].flat());
-  queue = [...all].filter((u) => !present.has(nameOf(u)) && now - (failedAt.get(u) ?? 0) > RETRY_MS);
+  const all = new Set([...wanted.values()].flat());
+  queue = [...all].filter((u) => !present.has(nameOf(u)) && !inFlight.has(u) && now - (failedAt.get(u) ?? 0) >= RETRY_MS);
   if (!running) void drain();
 }
 
@@ -111,6 +123,10 @@ async function drain(): Promise<void> {
   } finally {
     running = false;
   }
+  // Anything that failed waits RETRY_MS, then the same wish list is tried again without anyone asking.
+  if (failedAt.size && !retry) {
+    retry = setTimeout(() => { retry = null; enqueue(); }, RETRY_MS + 1000);
+  }
 }
 
 async function fetchOne(url: string): Promise<void> {
@@ -118,19 +134,28 @@ async function fetchOne(url: string): Promise<void> {
   const name = nameOf(url);
   if (present.has(name)) return;
   const staged = new File(DIR, name + STAGING);
+  inFlight.add(url);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     if (staged.exists) staged.delete();
-    await File.downloadFileAsync(url, staged);
+    await Promise.race([
+      File.downloadFileAsync(url, staged),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timed out')), TIMEOUT_MS); })
+    ]);
     const dest = new File(DIR, name);
     if (dest.exists) dest.delete();
     staged.move(dest);
     present.set(name, dest.uri);
     failedAt.delete(url);
     changed();
-  } catch {
+  } catch (e) {
     // Offline or a dead link: expected in the field. Tried again after RETRY_MS.
+    noteExpected('study file download', e);
     failedAt.set(url, Date.now());
     try { if (staged.exists) staged.delete(); } catch { /* next launch */ }
+  } finally {
+    clearTimeout(timer);
+    inFlight.delete(url);
   }
 }
 
