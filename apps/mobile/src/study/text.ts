@@ -13,7 +13,7 @@
 // too, as FIA's always were.
 import { CALLOUT_KINDS, type CalloutKind } from '@langquest-next/core';
 
-export type StudySectionKind = 'para' | 'item' | 'heading' | CalloutKind;
+type StudySectionKind = 'para' | 'item' | 'heading' | CalloutKind;
 
 export interface StudySection {
   id: string;
@@ -78,7 +78,7 @@ export function studySections(md: string): StudySection[] {
   return out.map((s, i) => ({ ...s, id: `s${i}` }));
 }
 
-export type InlinePart =
+type InlinePart =
   | { type: 'text'; text: string }
   | { type: 'bold'; text: string }
   /** `ref` is the link target without its "#": "m387" pictures, "c47" a map, "t63" a glossary term. */
@@ -100,7 +100,7 @@ export function inlineParts(text: string): InlinePart[] {
   return parts;
 }
 
-export function plainText(text: string): string {
+function plainText(text: string): string {
   return inlineParts(text).map((p) => p.text).join('');
 }
 

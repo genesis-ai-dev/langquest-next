@@ -21,9 +21,9 @@ test('translator keeps the version and says why', async ({ page }) => {
 
   const contract = { authorId: world.translator.id, target: { takeId: world.version1.takeId, stepId: world.stepId, reviewerId: world.reviewer.id } };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeKept(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeKept(contract, evidence), run.status);
   await reportRun(page, run, outcome);

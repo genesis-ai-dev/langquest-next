@@ -88,7 +88,7 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
   const [shown, setShown] = useState(TERM_STEP);
   const [tying, setTying] = useState<string | null>(null);
   async function tie(termId: string) {
-    const state = ctx.project.state;
+    const state = ctx.language.state;
     if (!state || !props.draftTakeId || !props.canTie || tying) return;
     setTying(termId);
     try {
@@ -99,7 +99,7 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
     } catch { /* ctx.act said what went wrong */ }
     finally { setTying(null); }
   }
-  const scope = { unitId: v.unitId, laneId: v.laneId };
+  const scope = { unitId: v.unitId, languageId: v.languageId };
   return (
     <>
       {props.terms.length === 0 ? <Text style={[txt.smMuted, styles.pad]}>No key terms matched this passage's source.</Text> : null}
@@ -114,7 +114,7 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{t.term}</Text>
                 <Text style={[txt.xsStrong, { color: renderings.length ? C.primary : TINT.amberText, marginTop: 2 }]} numberOfLines={1}>
-                  {renderings.length ? renderings.join(' · ') : `No ${v.lane} rendering yet`}
+                  {renderings.length ? renderings.join(' · ') : `No ${v.language} rendering yet`}
                 </Text>
               </View>
               {tied ? <View style={styles.tied}><Ico name="link" size={14} color={TINT.greenText} /><Badge label="Tied" tone="green" /></View> : null}
@@ -137,7 +137,7 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
 
 function StudyTab(props: { ctx: Ctx; v: PassageView; study: StudyProgress }) {
   const { ctx, v, study } = props;
-  const scope = { unitId: v.unitId, laneId: v.laneId };
+  const scope = { unitId: v.unitId, languageId: v.languageId };
   return (
     <>
       <View style={[styles.pad, { gap: space.sm }]}>
@@ -191,8 +191,8 @@ function NotesTab(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disab
           <Authored key={n.id} ctx={ctx} by={n.by}>
             <NoteCard anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
               {...(older ? { olderVersion: versionTitle(older) } : {})}
-              {...(n.blobHash ? { audio: <AudioClip project={ctx.project} hashes={[n.blobHash]} label="Play voice note" /> } : {})}
-              action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+              {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label="Play voice note" /> } : {})}
+              action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
           </Authored>
         );
       })}
@@ -208,12 +208,12 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   async function save() {
-    const state = ctx.project.state;
+    const state = ctx.language.state;
     if (!state || busy) return;
     setBusy(true);
     try {
       const specs = commands(state, indexesFor(state)).addNote({
-        commandId: Crypto.randomUUID(), unitId: v.unitId, laneId: v.laneId, anchor: { kind: 'passage' },
+        commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
       await ctx.act(specs, 'Note added.');
@@ -224,7 +224,7 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
   return (
     <Sheet visible title="Add a note" sub="Anchored to the whole passage. It follows the passage into reviews and later versions." onClose={props.onClose}
       footer={<PrimaryBtn label="Save note" busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} />}>
-      <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Say it" hash={hash} onChange={setHash} />
+      <VoiceNote ctx={ctx} label="Say it" hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
     </Sheet>
   );
@@ -243,7 +243,7 @@ function HistoryTab(props: { ctx: Ctx; v: PassageView }) {
         <View key={x.takeId} style={styles.history}>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{versionTitle(x.n)} <Text style={[txt.sm, { fontWeight: '400', color: C.muted }]}>· {ctx.name(x.by)} · {when(x.hlc)}</Text></Text>
           <Text style={[txt.sm, { marginTop: 2 }]}>{x.changeNote ?? (x.n === 1 ? 'First recording.' : 'Said in a voice note.')}</Text>
-          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip project={ctx.project} hashes={[x.changeBlobHash]} label={`Play what changed in ${versionTitle(x.n)}`} /></View> : null}
+          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip language={ctx.language} hashes={[x.changeBlobHash]} label={`Play what changed in ${versionTitle(x.n)}`} /></View> : null}
         </View>
       ))}
       <ShowMore remaining={versions.length - shown} step={HISTORY_STEP} onMore={() => setShown((n) => n + HISTORY_STEP)} />

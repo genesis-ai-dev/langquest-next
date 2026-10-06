@@ -13,16 +13,15 @@
 // when the item moves to a new version the language follows it
 // (library/follow.ts). Dividing books into passages (TPL-4..7), drafts and
 // template tasks need events that do not exist yet: book_structure reads.
-// Languages set up from the catalog that used to ship in the app keep its
-// name and levels, read-only.
 //
-// There is no project level (docs/decisions.md 34). templates_home params:
-// `level` ('org' | 'language'; an old 'project' reads as 'org') and/or
-// `laneId`. template_picker: `laneId`. template_editor: `itemId` (a library
-// template), `new` (start one), or `laneId` (a language on a catalog
-// template, read-only). book_structure: `laneId`, `bookId`.
+// Below the organization there are only languages (docs/decisions.md 63).
+// templates_home params: `level` ('org' | 'language') and/or `languageId`.
+// template_picker: `languageId`. template_editor: `itemId` (a library
+// template), `new` (start one), or `languageId` (that language's template).
+// book_structure: `languageId`, `bookId`. A `languageId` param opens that
+// language, so its state is the open language's.
 import {
-  chaptersInBook, derivePassage, languageProgress, laneName,
+  chaptersInBook, derivePassage, languageName, languageProgress,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { useMemo, useRef, useState } from 'react';
@@ -30,9 +29,9 @@ import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   bibleBook, bookRows, bookSegments, chapterBlocks, chipLabel, choiceLine, continuesInto, countOutline, addNode, docFromForm,
-  docLevels, englishBookName, fiaStarts, formChanged, formFromDoc, laneTemplateLine, laneTemplateOf, levelsForDivide,
+  docLevels, englishBookName, fiaStarts, formChanged, formFromDoc, levelsForDivide,
   levelsForOutline, libraryChoices, moveNode, newTemplateForm, partName, pluralOf, recordedCount, removeNode, renameNode,
-  setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, versesText, versificationBooks, versionNumber,
+  setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks, versionNumber,
   type BibleBook, type Block, type LibraryChoice, type Segment, type TemplateForm
 } from '../contentTemplates';
 import type { Ctx } from '../ctx';
@@ -42,7 +41,7 @@ import {
   SectionLabel, SmallBtn, Sheet, ShowMore, Toggle, txt, useOpenDetail
 } from '../kit';
 import { loadDocs } from '../library/docStore';
-import { lanesUsing, sourceLine, type SharedItem } from '../library/model';
+import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { plural } from '../passageView';
 import { failureMessage } from '../report';
@@ -73,14 +72,24 @@ type Level = 'org' | 'language';
 type Lib = ReturnType<typeof useLibrary>;
 
 /** Which view of templates this is: the level from params, else the viewer's own scope (ADR-017). */
-function levelOf(ctx: Ctx): { level: Level; laneId: string | null } {
+function levelOf(ctx: Ctx): { level: Level; languageId: string | null } {
   const level = ctx.params['level'];
-  const laneParam = ctx.params['laneId'];
-  if (level === 'org' || level === 'project') return { level: 'org', laneId: null };
-  if (level === 'language' || level === 'lane' || laneParam) return { level: 'language', laneId: laneParam ?? ctx.laneId };
+  const languageParam = ctx.params['languageId'];
+  if (level === 'org') return { level: 'org', languageId: null };
+  if (level === 'language' || languageParam) return { level: 'language', languageId: languageParam ?? ctx.languageId };
   const scope = ctx.session.adminScope;
-  if (scope?.level === 'org' || scope?.level === 'project') return { level: 'org', laneId: null };
-  return { level: 'language', laneId: scope?.laneId ?? ctx.laneId };
+  if (scope?.level === 'org') return { level: 'org', languageId: null };
+  return { level: 'language', languageId: scope?.languageId ?? ctx.languageId };
+}
+
+/** Is this the open language (whose state the screen reads)? */
+function isOpen(ctx: Ctx, languageId: string | null | undefined): languageId is string {
+  return !!languageId && languageId === ctx.language.languageId;
+}
+
+/** The languages using a template: the open one, when it does (other languages' choices are in their own logs). */
+function usersOf(ctx: Ctx, itemId: string): string[] {
+  return usesItem(ctx.language.state, itemId) ? [languageName(ctx.org.state, ctx.language.languageId)] : [];
 }
 
 function orgName(ctx: Ctx): string {
@@ -144,14 +153,14 @@ function useRunner(ctx: Ctx) {
 // ---- Content Templates -------------------------------------------------------------------
 
 export function TemplatesHome(ctx: Ctx) {
-  const { level, laneId } = levelOf(ctx);
-  if (level === 'language') return <LanguageTemplateView ctx={ctx} laneId={laneId} />;
+  const { level, languageId } = levelOf(ctx);
+  if (level === 'language') return <LanguageTemplateView ctx={ctx} languageId={languageId} />;
   return <TemplateLibraryView ctx={ctx} />;
 }
 
 /** The organization: its templates, what others share, and what each language uses (TPL-1). */
 function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
-  const state = ctx.project.state;
+  const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
   const canManage = ctx.session.can('manage_templates');
@@ -163,19 +172,19 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const { updates } = useLibraryUpdates(lib.orgId);
   const [limit, setLimit] = useState(8);
   const [sharedLimit, setSharedLimit] = useState(5);
-  const [laneLimit, setLaneLimit] = useState(8);
+  const [languageLimit, setLanguageLimit] = useState(8);
   const [options, setOptions] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState<SharedItem | null>(null);
   const beside = useOpenDetail();
   const docs = useLibraryDocs(lib.orgId, [...all.map((i) => i.current), ...others.slice(0, sharedLimit).map((c) => c.hash)]);
   const archivedOpen = ctx.details('templates:archived');
-  const lanes = state ? Object.keys(state.lanes).sort((a, b) => laneName(state, a).localeCompare(laneName(state, b))) : [];
+  const languages = ctx.languages;
   const scopeName = orgName(ctx);
   const optionsItem = options ? lib.item(options) : null;
 
   const itemCard = (it: LibraryItemView) => {
     const doc = docs.get<TemplateDoc>(it.current);
-    const users = lanesUsing(state, it.itemId).map((l) => (state ? laneName(state, l) : l));
+    const users = usersOf(ctx, it.itemId);
     const update = it.source === 'subscription' && it.subscription?.active && !it.subscription.autoUpdate ? updates[it.itemId] : undefined;
     return (
       <Card key={it.itemId} current={beside?.screen === 'template_editor' && beside.params['itemId'] === it.itemId}>
@@ -251,17 +260,18 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
 
       <SectionLabel label="By language" />
-      {lanes.length === 0 || !state ? (
+      {languages.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No languages here yet.</Text>
       ) : (
         <>
           <Group>
-            {lanes.slice(0, laneLimit).map((laneId, i, shown) => (
-              <Row key={laneId} icon="globe" iconColor={C.muted} iconBg={C.bg} label={laneName(state, laneId)}
-                sub={laneTemplateLine(state, lib.item, laneId)} last={i === shown.length - 1} />
+            {languages.slice(0, languageLimit).map((l, i, shown) => (
+              <Row key={l.languageId} icon="globe" iconColor={C.muted} iconBg={C.bg} label={l.name}
+                sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : 'Open to see its template'}
+                onPress={() => ctx.go('templates_home', { level: 'language', languageId: l.languageId })} last={i === shown.length - 1} />
             ))}
           </Group>
-          <ShowMore remaining={lanes.length - laneLimit} step={8} onMore={() => setLaneLimit((l) => l + 8)} />
+          <ShowMore remaining={languages.length - languageLimit} step={8} onMore={() => setLanguageLimit((l) => l + 8)} />
         </>
       )}
 
@@ -400,28 +410,28 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
 }
 
 /** A language: its template and version, its levels and counts, Change, and the books (TPL-1, TPL-7). */
-function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null }) {
-  const state = ctx.project.state;
+function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: string | null }) {
+  const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(8);
   const { busy, run } = useRunner(ctx);
-  const sel = state && laneId && state.lanes[laneId] ? laneTemplateOf(state, laneId) : null;
-  const libSel = sel?.source === 'library' ? sel : null;
-  const docs = useLibraryDocs(lib.orgId, [libSel?.docHash]);
+  const open = isOpen(ctx, languageId);
+  const sel = state && open ? templateOf(state) : null;
+  const docs = useLibraryDocs(lib.orgId, [sel?.docHash]);
   const { updates } = useLibraryUpdates(lib.orgId);
   const data = useMemo(() => {
-    if (!state || !laneId || !state.lanes[laneId]) return null;
+    if (!state || !open) return null;
     const idx = indexesFor(state);
     return {
-      lane: laneName(state, laneId),
-      books: bookRows(state, idx, laneId),
-      progress: languageProgress(state, laneId, idx),
-      setAside: setAsideCount(state, laneId)
+      language: languageName(ctx.org.state, languageId),
+      books: bookRows(state, idx),
+      progress: languageProgress(state, idx),
+      setAside: setAsideCount(state)
     };
-  }, [state, laneId]);
+  }, [state, open, languageId, ctx.org.state]);
   if (!state) return <Loading title="Content Template" onBack={ctx.back} />;
-  if (!data || !laneId) {
+  if (!data || !languageId) {
     return (
       <Screen header={<Header title="Content Template" onBack={ctx.back} />}>
         <EmptyState icon="globe" title="No language chosen" sub="Open Content Templates from a language to see the structure it records against." />
@@ -430,60 +440,57 @@ function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null
   }
   const canManage = ctx.session.can('manage_templates');
   const canShape = ctx.session.can('shape_templates') || canManage;
-  const item = libSel ? lib.item(libSel.itemId) : null;
-  const doc = docs.get<TemplateDoc>(libSel?.docHash);
+  const item = sel ? lib.item(sel.itemId) : null;
+  const doc = docs.get<TemplateDoc>(sel?.docHash);
   const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
-  const levels = sel?.source === 'legacy' ? sel.levels : doc ? docLevels(doc) : [];
-  const last = partName(state, laneId, doc);
+  const levels = doc ? docLevels(doc) : [];
+  const last = partName(doc);
   const parts = lower(pluralOf(last));
   const q = query.trim().toLowerCase();
   const books = data.books.filter((b) => !q || b.label.toLowerCase().includes(q) || b.book.label.toLowerCase().includes(q));
-  const n = versionNumber(item, libSel?.docHash);
+  const n = versionNumber(item, sel?.docHash);
   const from = item?.subscription ? ` · from ${item.subscription.sourceOrgName}` : item?.copiedFrom ? ` · copied from ${item.copiedFrom.orgName}` : '';
-  const newer = item?.current && libSel && item.current !== libSel.docHash ? versionNumber(item, item.current) : null;
+  const newer = item?.current && sel && item.current !== sel.docHash ? versionNumber(item, item.current) : null;
   const update = item?.subscription?.active && !item.subscription.autoUpdate ? updates[item.itemId] : undefined;
 
   return (
-    <Screen header={<Header title="Content Template" sub={data.lane} onBack={ctx.back} />}>
+    <Screen header={<Header title="Content Template" sub={data.language} onBack={ctx.back} />}>
       {sel ? (
         <Card>
           <View>
-            <Text style={txt.label}>{data.lane} records against</Text>
-            <Text style={[txt.h2, { marginTop: space.xs }]}>{sel.source === 'legacy' ? sel.name : item?.name ?? doc?.name ?? 'Its template'}</Text>
+            <Text style={txt.label}>{data.language} records against</Text>
+            <Text style={[txt.h2, { marginTop: space.xs }]}>{item?.name ?? doc?.name ?? 'Its template'}</Text>
             <Text style={[txt.smMuted, { marginTop: 2 }]}>
-              {sel.source === 'legacy' ? 'Built into the app' : n ? `Version ${n}${from}` : from.replace(/^ · /, '')}
+              {n ? `Version ${n}${from}` : from.replace(/^ · /, '')}
             </Text>
           </View>
-          {sel.source === 'library' && !doc ? <LoadingLine /> : <LevelsLine levels={levels} />}
+          {!doc ? <LoadingLine /> : <LevelsLine levels={levels} />}
           {doc?.bible ? (
             <Text style={txt.sm}>
-              {`${libSel?.books ? `${libSel.books.length} of its ${plural(doc.bible.books.length, 'book')}` : plural(doc.bible.books.length, 'book')} · ${v11n ? `${v11n.name} versification` : 'versification loading…'}`}
+              {`${sel?.books ? `${sel.books.length} of its ${plural(doc.bible.books.length, 'book')}` : plural(doc.bible.books.length, 'book')} · ${v11n ? `${v11n.name} versification` : 'versification loading…'}`}
             </Text>
           ) : null}
           <Text style={txt.sm}>
             {`${data.books.length && !doc?.bible ? `${plural(data.books.length, 'book')} · ` : ''}${plural(data.progress.total, lower(last), parts)} · ${data.progress.recorded.toLocaleString('en-US')} recorded`}
           </Text>
           {newer ? (
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>Version {newer} is out. {data.lane} moves to it by itself.</Text>
+            <Text style={[txt.sm, { color: C.primary, fontWeight: '600' }]}>Version {newer} is out. {data.language} moves to it by itself.</Text>
           ) : update ? (
             <>
               <Text style={[txt.sm, { color: TINT.amberText }]}>{item!.subscription!.sourceOrgName} has a newer version.</Text>
               {canManage ? (
                 <SmallBtn label="Take update" icon="download" disabled={busy} onPress={() => void run('take template update', async () => {
                   await lib.takeUpdate(item!, update);
-                  ctx.toast(`${data.lane} moves to the new version of ${item!.name}.`);
+                  ctx.toast(`${data.language} moves to the new version of ${item!.name}.`);
                 })} />
               ) : null}
             </>
           ) : null}
-          {sel.source === 'legacy' ? (
-            <Text style={txt.smMuted}>Choose a template from the library to change its structure.</Text>
-          ) : null}
           {canManage ? (
             <View style={{ gap: space.sm }}>
               <GhostBtn label={item && item.source !== 'subscription' ? 'Edit template' : 'View template'} icon="edit"
-                onPress={() => ctx.go('template_editor', sel.source === 'library' ? { itemId: sel.itemId } : { laneId })} />
-              <GhostBtn label="Change template" icon="swap" onPress={() => ctx.go('template_picker', { laneId })} />
+                onPress={() => ctx.go('template_editor', { itemId: sel.itemId })} />
+              <GhostBtn label="Change template" icon="swap" onPress={() => ctx.go('template_picker', { languageId })} />
             </View>
           ) : null}
         </Card>
@@ -492,16 +499,16 @@ function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null
           <Text style={txt.h3}>No template yet</Text>
           <Text style={txt.smMuted}>
             {canManage
-              ? `Choose the structure ${data.lane} records against. Its passages come from the template.`
-              : `Whoever manages content templates chooses the structure ${data.lane} records against.`}
+              ? `Choose the structure ${data.language} records against. Its passages come from the template.`
+              : `Whoever manages content templates chooses the structure ${data.language} records against.`}
           </Text>
-          {canManage ? <PrimaryBtn label="Choose a template" icon="template" onPress={() => ctx.go('template_picker', { laneId })} /> : null}
+          {canManage ? <PrimaryBtn label="Choose a template" icon="template" onPress={() => ctx.go('template_picker', { languageId })} /> : null}
         </Card>
       )}
 
       {data.setAside > 0 ? (
         <Banner icon="history" title={`${plural(data.setAside, 'recorded part')} set aside`}
-          body={`${data.setAside === 1 ? 'It is' : 'They are'} not in the template ${data.lane} uses now. Set aside, not deleted: change back to bring ${data.setAside === 1 ? 'it' : 'them'} back.`} />
+          body={`${data.setAside === 1 ? 'It is' : 'They are'} not in the template ${data.language} uses now. Set aside, not deleted: change back to bring ${data.setAside === 1 ? 'it' : 'them'} back.`} />
       ) : null}
 
       {sel && canShape && data.books.length > 0 ? (
@@ -517,7 +524,7 @@ function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null
             <Group>
               {books.slice(0, limit).map((b, i, shown) => (
                 <Row key={b.book.itemId} icon="book" label={b.label} sub={plural(b.parts, lower(last), parts)}
-                  onPress={() => ctx.go('book_structure', { laneId, bookId: b.book.itemId })} last={i === shown.length - 1} />
+                  onPress={() => ctx.go('book_structure', { languageId, bookId: b.book.itemId })} last={i === shown.length - 1} />
               ))}
             </Group>
           )}
@@ -531,8 +538,8 @@ function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null
 // ---- Choose a Template ------------------------------------------------------------------------
 
 export function TemplatePicker(ctx: Ctx) {
-  const state = ctx.project.state;
-  const laneId = ctx.params['laneId'] ?? ctx.laneId;
+  const state = ctx.language.state;
+  const languageId = ctx.params['languageId'] ?? ctx.languageId;
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
@@ -542,44 +549,44 @@ export function TemplatePicker(ctx: Ctx) {
   const [picked, setPicked] = useState<string | null>(null);
   const [sharedLimit, setSharedLimit] = useState(5);
   const [busy, setBusy] = useState(false);
-  const sel = state && laneId && state.lanes[laneId] ? laneTemplateOf(state, laneId) : null;
+  const open = isOpen(ctx, languageId);
+  const sel = state && open ? templateOf(state) : null;
   const pick = choices.find((c) => c.key === picked);
-  const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.source === 'library' ? sel.docHash : null]);
-  const recorded = useMemo(() => (state && laneId ? recordedCount(state, laneId) : 0), [state, laneId]);
+  const docs = useLibraryDocs(lib.orgId, [pick?.hash, sel?.docHash]);
+  const recorded = useMemo(() => (state && open ? recordedCount(state) : 0), [state, open]);
   if (!state) return <Loading title="Choose a Template" onBack={ctx.back} />;
-  if (!laneId || !state.lanes[laneId]) {
+  if (!isOpen(ctx, languageId)) {
     return (
       <Screen header={<Header title="Choose a Template" onBack={ctx.back} />}>
         <EmptyState icon="globe" title="No language chosen" sub="Choose a template from a language's Content Template." />
       </Screen>
     );
   }
-  const lane = laneName(state, laneId);
+  const language = languageName(ctx.org.state, languageId);
   const canUse = ctx.session.can('manage_templates');
-  const currentName = sel ? (sel.source === 'legacy' ? sel.name : lib.item(sel.itemId)?.name ?? 'its template') : null;
-  const inUse = (c: LibraryChoice) => sel?.source === 'library' && c.source === 'ours' && c.item.itemId === sel.itemId;
-  const currentDoc = sel?.source === 'library' ? docs.get<TemplateDoc>(sel.docHash) : null;
-  const currentParts = lower(pluralOf(partName(state, laneId, currentDoc)));
+  const currentName = sel ? lib.item(sel.itemId)?.name ?? 'its template' : null;
+  const inUse = (c: LibraryChoice) => !!sel && c.source === 'ours' && c.item.itemId === sel.itemId;
+  const currentDoc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
+  const currentParts = lower(pluralOf(partName(currentDoc)));
 
   async function use(c: LibraryChoice) {
-    if (!state || !laneId || busy || !canUse) return;
+    if (!state || busy || !canUse) return;
     setBusy(true);
     try {
-      const prev = state.laneTemplates[laneId]?.value;
+      const prev = state.template?.value;
       const books = prev?.books;
-      // Undo re-applies the version used before, worked out now (none for a template from the app,
-      // or when that version's document is not on the phone).
+      // Undo re-applies the version used before, worked out now (none when that version's document is not on the phone).
       const undo = prev?.itemId && prev.docHash
-        ? await lib.applySpecs(laneId, prev.itemId, { docHash: prev.docHash, ...(books ? { books } : {}) }).catch(() => null)
+        ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(books ? { books } : {}) }).catch(() => null)
         : null;
       // Another organization's template is followed, with automatic updates, before it is used.
       const itemId = c.source === 'shared' ? await lib.subscribe(c.shared, true) : c.item.itemId;
-      const specs = await lib.applySpecs(laneId, itemId, { docHash: c.hash, ...(books ? { books } : {}) });
+      const specs = await lib.applySpecs(itemId, { docHash: c.hash, ...(books ? { books } : {}) });
       // ctx.act says "Not saved" and why itself; stay here to try again.
       try {
-        await ctx.act(specs, `${lane} now uses ${c.name}.`, undo ? () => undo : undefined);
+        await ctx.act(specs, `${language} now uses ${c.name}.`, undo ? () => undo : undefined);
       } catch { return; }
-      ctx.go('templates_home', { laneId });
+      ctx.go('templates_home', { languageId });
     } catch (e) {
       ctx.toast(failure('use template', e));
     } finally {
@@ -614,14 +621,14 @@ export function TemplatePicker(ctx: Ctx) {
   const changing = !!pick && !inUse(pick);
   return (
     <Screen
-      header={<Header title="Choose a Template" sub={currentName ? `For ${lane} · now ${currentName}` : `For ${lane}`} onBack={ctx.back} />}
+      header={<Header title="Choose a Template" sub={currentName ? `For ${language} · now ${currentName}` : `For ${language}`} onBack={ctx.back} />}
       footer={changing && pick ? (
         <>
           <Text style={txt.smMuted}>
             {sel
-              ? `${lane}'s current ${currentParts} are hidden, not deleted.${recorded ? ` ${plural(recorded, 'part has', 'parts have')} recordings — change back to this template to bring them back.` : ''}`
-              : `${lane} will record against ${pick.name}. You can change it later; nothing recorded is ever deleted.`}
-            {pick.source === 'shared' ? ` Your organization follows it, so ${pick.shared.org_name}'s new versions reach ${lane} by themselves.` : ''}
+              ? `${language}'s current ${currentParts} are hidden, not deleted.${recorded ? ` ${plural(recorded, 'part has', 'parts have')} recordings — change back to this template to bring them back.` : ''}`
+              : `${language} will record against ${pick.name}. You can change it later; nothing recorded is ever deleted.`}
+            {pick.source === 'shared' ? ` Your organization follows it, so ${pick.shared.org_name}'s new versions reach ${language} by themselves.` : ''}
           </Text>
           <PrimaryBtn label={`Use ${pick.name}`} icon="check" busy={busy} disabled={!canUse} onPress={() => void use(pick)} />
         </>
@@ -644,35 +651,15 @@ const levelSub = (i: number, count: number, display?: string) =>
   i === count - 1 ? `Recorded · shown by ${display ?? 'reference'}` : i === count - 2 ? "Holds what's recorded · can be downloaded" : 'Holds folders';
 
 export function TemplateEditor(ctx: Ctx) {
-  const itemId = ctx.params['itemId'];
+  const languageId = ctx.params['languageId'] ?? ctx.languageId;
+  const used = ctx.language.state && isOpen(ctx, languageId) ? templateOf(ctx.language.state)?.itemId : undefined;
+  const itemId = ctx.params['itemId'] ?? (ctx.params['new'] ? undefined : used);
   if (itemId) return <LibraryTemplate ctx={ctx} itemId={itemId} />;
   if (ctx.params['new']) return <NewTemplate ctx={ctx} />;
-  return <AppTemplate ctx={ctx} />;
-}
-
-/** A language on a template from the catalog that used to ship in the app: its name and levels, read-only. */
-function AppTemplate({ ctx }: { ctx: Ctx }) {
-  const state = ctx.project.state;
-  const laneId = ctx.params['laneId'] ?? ctx.laneId;
-  if (!state) return <Loading title="Template Outline" onBack={ctx.back} />;
-  const sel = laneId && state.lanes[laneId] ? laneTemplateOf(state, laneId) : null;
-  if (!sel || sel.source !== 'legacy' || !laneId) {
-    return (
-      <Screen header={<Header title="Template Outline" onBack={ctx.back} />}>
-        <EmptyState icon="template" title="Template not found" sub="Open a template from Content Templates." />
-      </Screen>
-    );
-  }
-  const lane = laneName(state, laneId);
+  if (!ctx.language.state) return <Loading title="Template Outline" onBack={ctx.back} />;
   return (
-    <Screen header={<Header title={sel.name} sub={`${lane}'s template`} onBack={ctx.back} />}>
-      <Banner icon="lock" title="Built into the app" body={`To change ${lane}'s structure, choose a template from the library under Change template.`} />
-      <SectionLabel label="Levels" />
-      <Group>
-        {sel.levels.map((l, i) => (
-          <Row key={`${l}-${i}`} icon={i === sel.levels.length - 1 ? 'media' : 'folder'} label={l} sub={levelSub(i, sel.levels.length)} last={i === sel.levels.length - 1} />
-        ))}
-      </Group>
+    <Screen header={<Header title="Template Outline" onBack={ctx.back} />}>
+      <EmptyState icon="template" title="Template not found" sub="Open a template from Content Templates." />
     </Screen>
   );
 }
@@ -777,7 +764,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
  * Save publishes the next version. A followed template opens read-only.
  */
 function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; item: LibraryItemView | null; initial: TemplateForm }) {
-  const state = ctx.project.state;
+  const state = ctx.language.state;
   const [f, setF] = useState<TemplateForm>(initial);
   const [editingLevel, setEditingLevel] = useState<number | null>(null);
   const [editingBook, setEditingBook] = useState<string | null>(null);
@@ -795,7 +782,7 @@ function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; i
   const followed = item?.source === 'subscription';
   const readOnly = !ctx.session.can('manage_templates') || followed;
   const changed = isNew || formChanged(f, initial) || f.name.trim() !== initial.name || f.description.trim() !== initial.description;
-  const users = item ? lanesUsing(state, item.itemId).map((l) => (state ? laneName(state, l) : l)) : [];
+  const users = item ? usersOf(ctx, item.itemId) : [];
   const bible = f.structure === 'bible';
   const v11nChoice = v.choices.find((c) => c.hash === f.versification);
   const v11nName = v11n?.name ?? v11nChoice?.name ?? (f.versification ? 'Loading…' : 'Choose one');
@@ -1108,22 +1095,23 @@ function NodeSheet(props: {
 // ---- Divide a Book ------------------------------------------------------------------------------
 
 export function BookStructure(ctx: Ctx) {
-  const state = ctx.project.state;
-  const laneId = ctx.params['laneId'] ?? ctx.laneId;
+  const state = ctx.language.state;
+  const languageId = ctx.params['languageId'] ?? ctx.languageId;
   const bookId = ctx.params['bookId'];
   const book = bookId ? bibleBook(bookId) : undefined;
   const list = useRef<FlatList<number>>(null);
   const [picking, setPicking] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
-  const sel = state && laneId && state.lanes[laneId] ? laneTemplateOf(state, laneId) : null;
-  const docs = useLibraryDocs(ctx.project.orgId, [sel?.source === 'library' ? sel.docHash : null]);
-  const doc = sel?.source === 'library' ? docs.get<TemplateDoc>(sel.docHash) : null;
+  const open = isOpen(ctx, languageId);
+  const sel = state && open ? templateOf(state) : null;
+  const docs = useLibraryDocs(ctx.language.orgId, [sel?.docHash]);
+  const doc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
 
   const data = useMemo(() => {
-    if (!state || !laneId || !state.lanes[laneId] || !book) return null;
+    if (!state || !open || !book) return null;
     const idx = indexesFor(state);
-    const segments = bookSegments(state, idx, laneId, book);
-    const recorded = new Set(segments.filter((s) => derivePassage(state, s.unitId, laneId, idx).recorded).map((s) => s.unitId));
+    const segments = bookSegments(state, idx, book);
+    const recorded = new Set(segments.filter((s) => derivePassage(state, s.unitId, idx).recorded).map((s) => s.unitId));
     // The words, where the app has them (scripture.ts); verse numbers otherwise.
     const text = new Map<string, string>();
     const translation = new Map<number, string>();
@@ -1137,26 +1125,26 @@ export function BookStructure(ctx: Ctx) {
     }
     // FIA's breaks show only where the language divides differently (TPL-5): where a part starts there, no mark.
     const textOf = (c: number, v: number) => text.get(`${c}:${v}`);
-    const label = bookRows(state, idx, laneId).find((r) => r.book.itemId === book.itemId)?.label ?? book.label;
-    return { lane: laneName(state, laneId), label, segments, recorded, textOf, translation, fia: fiaStarts(book) };
-  }, [state, laneId, book]);
+    const label = bookRows(state, idx).find((r) => r.book.itemId === book.itemId)?.label ?? book.label;
+    return { language: languageName(ctx.org.state, languageId!), label, segments, recorded, textOf, translation, fia: fiaStarts(book) };
+  }, [state, open, languageId, book, ctx.org.state]);
 
   if (!state) return <Loading title="Divide a Book" onBack={ctx.back} />;
-  if (!book || !data || !laneId) {
+  if (!book || !data || !languageId) {
     return (
       <Screen header={<Header title="Divide a Book" onBack={ctx.back} />}>
         <EmptyState icon="book" title="Choose a book" sub="Open a book from the language's Content Template, or from its Map." />
       </Screen>
     );
   }
-  const part = partName(state, laneId, doc);
+  const part = partName(doc);
   const parts = lower(pluralOf(part));
   const chapters = book.verses.map((_, i) => i + 1);
   const fia = canShape ? data.fia : new Set<number>();
   const jump = (c: number) => list.current?.scrollToIndex({ index: c - 1, animated: true });
 
   return (
-    <Screen fixed header={<Header title={data.label} sub={`${data.lane} · ${plural(data.segments.length, lower(part), parts)}`} onBack={ctx.back} />}>
+    <Screen fixed header={<Header title={data.label} sub={`${data.language} · ${plural(data.segments.length, lower(part), parts)}`} onBack={ctx.back} />}>
       <View style={styles.jumpBar}>
         <ChipRow>
           <Chip label="Chapter" icon="down" on onPress={() => setPicking(true)} />
@@ -1179,9 +1167,9 @@ export function BookStructure(ctx: Ctx) {
         ListHeaderComponent={
           <View style={{ padding: space.lg, gap: space.md }}>
             <Banner icon="cut" title={`Changing where ${parts} start is coming`}
-              body={`For now you can read how ${data.lane}'s ${parts} divide ${data.label}${fia.size ? ", with FIA's breaks marked as suggestions" : ''}.`} />
+              body={`For now you can read how ${data.language}'s ${parts} divide ${data.label}${fia.size ? ", with FIA's breaks marked as suggestions" : ''}.`} />
             {data.segments.length === 0 ? (
-              <Text style={txt.smMuted}>{data.lane} has no {parts} in {data.label} yet.</Text>
+              <Text style={txt.smMuted}>{data.language} has no {parts} in {data.label} yet.</Text>
             ) : null}
           </View>
         }

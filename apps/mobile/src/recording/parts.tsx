@@ -56,7 +56,7 @@ export function CardList(props: {
     <View style={styles.list}>
       {props.cards.map((c, i) => (
         <View key={`${c.hash}-${i}`} style={[styles.row, i > 0 && styles.rowBorder]}>
-          <AudioClip project={props.ctx.project} hashes={[c.hash]} label={`Play ${c.label}`} disabled={props.disabled} />
+          <AudioClip language={props.ctx.language} hashes={[c.hash]} label={`Play ${c.label}`} disabled={props.disabled} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{c.label}</Text>
             <Text style={txt.xs}>{mmss(c.durationMs)}</Text>

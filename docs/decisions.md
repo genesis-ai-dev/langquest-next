@@ -275,6 +275,11 @@ leaves a passage waiting forever with nothing on screen saying why. These
 are properties of the fold, so `deriveBlockers` computes them and the status
 screen can show the one action that clears each. Reverse if: never.
 
+Amended (2026-10-06, Carl Sauder): `deriveBlockers` and the blocker rows went
+with the role-based v1 workflow model (63). The record model says what a
+passage waits on (`waitingOn`) and what concerns a person (`updatesFor`),
+which the Inbox and the server's notifications both read.
+
 ## 22. One sync client, two folds
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -299,6 +304,9 @@ policies keep speaking `Role`. Reverse if: partners never define a custom
 role; then the seed roles are simply all there is. (An event may now need
 any one of several privileges: 31.)
 
+Amended (2026-10-06, Carl Sauder): scope is `org` or `language` (63);
+the project and lane levels are gone, and a person holds one role per scope.
+
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -310,9 +318,17 @@ refusals when a pull shows the actor's membership changed. Clock-ahead
 refusals re-stamp the clock and keep the event ids. Invalid payloads never
 retry.
 
+Amended (2026-10-06, Carl Sauder): the server no longer authorizes as of the
+event's clock; it decides by the membership it holds now (63), and the
+membership-row and as-of paths are gone. The client re-queues `NOT_MEMBER`
+and `NOT_ALLOWED` refusals when the organization stream changes a membership
+or a role (`onMembershipChanged`), and re-queues `NOT_LISTED` ("language not
+listed yet") on every push, since a new language's own events can reach the
+server before the organization's `LanguageAdded`.
+
 ## 25. Templates instantiate with derived ids, and per-lane settings layer over project settings
 
-Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+Date: 2026-09-15 · By: Ryder Wishart · Status: superseded by 63
 
 Reason: the UX spec applies content templates and review flows per language
 (A42) while units and workflow live in the project partition. Deriving
@@ -436,6 +452,10 @@ still applies. Hand-edited steps live under the language's `custom` prefix
 and new ones get fresh ids. Reverse if: step ids must be shared across
 languages; then key overrides and skips by kind instead of step.
 
+Amended (2026-10-06, Carl Sauder): each language now has a stream of its
+own (63), so step ids are namespaced by flow version only
+(`<flowId>@<v>/<step>`, `custom/<step>`); the add-wins reason still holds.
+
 ## 33. Derived views are cached per state object and revision, outside the state
 
 Date: 2026-09-28 · By: Caleb Koster · Status: accepted
@@ -451,7 +471,7 @@ moves to immutable states; then identity alone is enough.
 
 ## 34. An organization holds its languages directly, and is the one unit that syncs
 
-Date: 2026-09-28 · By: Caleb Koster · Status: partly superseded by 37
+Date: 2026-09-28 · By: Caleb Koster · Status: superseded by 63
 
 Reason: partners think in organizations and languages; the project level
 between them was a grouping nobody asked for, and every screen paid for it
@@ -555,6 +575,12 @@ partition and read as before. Partly supersedes 34 (the organization as one
 synced unit). Reverse if: people routinely work across many languages at
 once; then sync the languages a person is assigned to in the background, or
 let the server fold a progress summary per language.
+
+Amended (2026-10-06, Carl Sauder): a language's identity lives in the
+organization stream (`v1.LanguageAdded`, replacing `ProjectRegistered`,
+`ProjectCreated`, `LaneAdded` and `LaneNamed`), and a language stream
+accepts events only once the organization lists it, which replaces the
+bootstrap rule (63). Organizations from before this no longer exist.
 
 ## 38. An organization's work has one license, and it only opens
 
@@ -735,6 +761,23 @@ Amended (2026-10-01, Carl Sauder): there are now two targets. Merging to
 Supabase branch `develop`, the preview environment (decisions.md 50). Secrets
 are not part of the integration's deploy: `npm run secrets` sets the Edge
 Function and Vault secrets (decisions.md 51).
+
+Amended (2026-10-06, Carl Sauder): the schedule is now
+`20261006000001_schedule_projections.sql`, beside the baseline that replaced
+the earlier migrations (63), and the worker is the `stream-projections`
+Edge Function (job `langquest-stream-projections`; the old job is
+unscheduled). Reset databases have no migration history to repair.
+
+Amended (2026-10-06, Carl Sauder): the local stack runs the worker too, every
+minute. `npm run db:start` and `npm run db:reset` (`scripts/local-db.mjs`)
+write a local-only secret to the ignored `supabase/functions/.env`, set the
+two Vault values in the local database and run the schedule migration, as
+`npm run secrets` does on a hosted one, and seed the library when there is
+none. Testing on simulators against a local database had no server Inbox rows
+or snapshots, and we want no extra command to bring a local environment up.
+It is not in `seed.sql`: preview branches run that too, where local values
+would be wrong; and `npm run db:test` resets with plain `supabase db reset`,
+since its smokes count snapshots and Inbox rows.
 
 ## 43. Merging to main deploys the Cloudflare workers
 
@@ -938,6 +981,11 @@ bytes until the app is removed; the fold never shows them. Partly supersedes
 Reverse if: event integrity comes to depend on payload bytes (a hash chain
 or signatures), which would need erasure designed in (for example,
 encrypting personal fields with a per-person key and deleting the key).
+
+Amended (2026-10-06, Carl Sauder): with the catalog restarted at `v1` (63),
+no event type has a `displayName` and nothing in the log holds a name, so
+`events_immutable` has no exception any more: the log refuses every update
+and delete, and account deletion only appends `MemberRemoved` events.
 
 ## 48. Reports and blocks are private rows, not events, and acting on a report is a redaction
 
@@ -1553,3 +1601,51 @@ Reverse if: FCBH objects to our timings or to on-device caching (then their
 audio plays with FCBH timings only and streams), or field teams find three
 levels of recommendation confusing (then the language level goes and
 translators pick from the organization's list).
+
+Amended (2026-10-06, Carl Sauder): the three levels stand; the language
+level is `v1.ReferenceSet` in the language's stream, and material or
+question sets meant for every language are recommended library items,
+not copies in the open language (63).
+
+## 63. Below the organization there are only languages, and the sync unit is the stream
+
+Date: 2026-10-06 · By: Carl Sauder · Status: accepted
+
+Reason: the model still carried two levels that no longer existed. The
+project left the app in 34 and became one partition per language in 37, yet
+the code named it everywhere (`projectId`, `ProjectState`,
+`v1.ProjectCreated`, the `project` scope) while SQL and docs called it a
+partition; and every partition held exactly one lane with the same id. Most
+of the code paid for distinctions that never varied, and where they varied
+TypeScript and SQL disagreed: a lane-scoped member was authorized for the
+whole partition on any event without a `laneId`, "All languages" materials
+reached only the language that was open, and the UI offered language admins
+invites the server refused. With three developers and nobody else's data,
+we reset the databases instead of migrating (Carl, 2026-10-06). So, as
+`docs/streams-and-languages.md` sets out: below an organization there are
+only languages; a language's identity (name, code, source code, country,
+target) lives in the organization stream (`LanguageAdded`), its work in its
+own stream, and a language stream accepts events only once the organization
+lists it. The sync unit is the stream (organization, language or person),
+named `streamId` only in sync code; everything about a language says
+`languageId`, and work payloads carry neither, since the stream an event is
+appended to says which language it belongs to. Membership scope is `org` or
+`language`, one role per scope, and core and SQL compute privileges the
+same way. Settings have two shared levels: the organization's library and
+its recommendations, and the language's template, flow and own choices;
+material for every language is a recommended library item. The event
+catalog keeps one version of each event, restarted at `v1`, without the
+ones nothing wrote, and the role-based v1 workflow model is retired in
+favour of the record model. The migrations were squashed into one baseline.
+Supersedes 25 and 34; amends 23, 32, 37 and 62.
+Reverse if: an organization needs one body of work synced across several
+languages at once; then a language stream gains members of its own, not a
+lane level.
+
+Amended (2026-10-06, Carl Sauder): two choices made while retiring the v1
+model. A new language picks its flow when it is added, and a language with no
+flow selected has no steps (`deriveFlow`), instead of falling back to a
+default workflow. The server's Inbox rows and pushes come from the same
+`updatesFor` the phone's Inbox reads, one row per update for each person who
+may open the language; the blocker and "translate everything" rows are gone.
+Amends 21, 24, 42 and 47.

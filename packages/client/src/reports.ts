@@ -25,14 +25,14 @@ export class ReportsError extends Error {
   get offline(): boolean { return this.status === null; }
 }
 
-export interface ReportsRequest {
+interface ReportsRequest {
   /** Catch up with the log before answering, rather than answer from the last minute. */
   fresh?: boolean;
   /** The ETag of what the caller already holds; an unchanged answer comes back as `unchanged`. */
   etag?: string | null;
 }
 
-export type ReportsAnswer<T> =
+type ReportsAnswer<T> =
   | { status: 'changed'; body: T; etag: string | null }
   | { status: 'unchanged'; asOf: string; etag: string };
 
@@ -76,13 +76,13 @@ export class NotSavedError extends Error {
 }
 
 /**
- * Append one event to a partition this device does not sync and wait for
+ * Append one event to a stream this device does not sync and wait for
  * the server's answer, with no outbox: it is saved when this resolves, and
  * when it throws nothing was. For settings made online from a report (a
- * language's country or target) where the partition is not open here.
+ * language's country or target) where the stream is not open here.
  */
 export async function appendConfirmed<T extends EventType>(
-  c: { orgId: string; projectId: string; actorId: string; deviceId: string; transport: Transport },
+  c: { orgId: string; streamId: string; actorId: string; deviceId: string; transport: Transport },
   type: T,
   payload: EventPayloads[T]
 ): Promise<void> {

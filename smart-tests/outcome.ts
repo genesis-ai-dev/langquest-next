@@ -2,7 +2,7 @@
 // the device blob store and the server. The model that drove the UI has no
 // say here; "done" from Jev is never a pass.
 
-export type Verdict = 'passed' | 'product_failure' | 'inconclusive';
+type Verdict = 'passed' | 'product_failure' | 'inconclusive';
 
 export interface DeviceRow {
   status: 'pending' | 'confirmed' | 'rejected';
@@ -11,19 +11,19 @@ export interface DeviceRow {
 }
 export interface ServerRow { id: string; type: string; actor_id: string; payload: Record<string, unknown> }
 
-export interface RecordingContract { actorId: string; unitIds: string[]; laneId: string }
+interface RecordingContract { actorId: string; unitIds: string[] }
 export interface RecordingEvidence {
-  /** Every event in the project partition on the device, after the journey. */
+  /** Every event in the language's stream on the device, after the journey. */
   device: DeviceRow[];
   /** Hashes with a trusted file in the device blob store, before and after the journey. */
   blobsBefore: string[];
   blobsAfter: string[];
-  /** Server events for the project, read after sync had time to run. */
+  /** Server events for the language's stream, read after sync had time to run. */
   server: ServerRow[];
 }
 
-export interface Check { name: string; ok: boolean; detail?: string }
-export interface Outcome { verdict: Verdict; checks: Check[] }
+interface Check { name: string; ok: boolean; detail?: string }
+interface Outcome { verdict: Verdict; checks: Check[] }
 
 /**
  * A translator recorded an assigned passage: the take is an event in the
@@ -35,7 +35,6 @@ export function judgeRecording(contract: RecordingContract, evidence: RecordingE
   const recordings = evidence.device.filter((r) => r.event.type === 'v1.RecordingAdded'
     && r.event.actorId === contract.actorId
     && contract.unitIds.includes(String(r.event.payload['unitId']))
-    && r.event.payload['laneId'] === contract.laneId
     && r.event.payload['kind'] === 'target');
   const hashes = recordings.flatMap((r) => (r.event.payload['cards'] as { hash: string }[] | undefined ?? []).map((c) => c.hash));
   const newBlobs = evidence.blobsAfter.filter((h) => !evidence.blobsBefore.includes(h));
@@ -54,7 +53,7 @@ export function judgeRecording(contract: RecordingContract, evidence: RecordingE
       detail: orphans.length ? `${orphans.length} stored take(s) with no RecordingAdded` : undefined },
     { name: 'recording-reached-server', ok: recordings.length > 0 && recordings.every((r) => serverIds.has(r.event.id)),
       detail: `device status: ${recordings.map((r) => r.status).join(', ') || 'none'}; ` +
-        `pending in partition: ${evidence.device.filter((r) => r.status === 'pending').length}` },
+        `pending in the language: ${evidence.device.filter((r) => r.status === 'pending').length}` },
     { name: 'audio-reached-server', ok: hashes.length > 0 && hashes.every((h) => stored.has(h)) }
   ];
   if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
@@ -66,7 +65,7 @@ export function judgeRecording(contract: RecordingContract, evidence: RecordingE
 /** The contract's takes in one reading of the device log. */
 function takesIn(contract: RecordingContract, device: DeviceRow[]) {
   return device.filter((r) => r.event.type === 'v1.RecordingAdded' && r.event.actorId === contract.actorId
-    && contract.unitIds.includes(String(r.event.payload['unitId'])) && r.event.payload['laneId'] === contract.laneId
+    && contract.unitIds.includes(String(r.event.payload['unitId']))
     && r.event.payload['kind'] === 'target');
 }
 
@@ -137,8 +136,8 @@ const synced = (rows: DeviceRow[], server: ServerRow[]) => {
   return rows.length > 0 && rows.every((r) => r.status === 'confirmed' && ids.has(r.event.id));
 };
 
-export interface VersionContract {
-  actorId: string; unitId: string; laneId: string;
+interface VersionContract {
+  actorId: string; unitId: string;
   /** Takes that existed before the journey; a version made from them is not new. */
   priorTakeIds: string[];
   /** When the version answers feedback: the reviewed take it must name. */
@@ -157,7 +156,7 @@ export interface LogEvidence { device: DeviceRow[]; server: ServerRow[]; blobsAf
 export function judgeSavedVersion(contract: VersionContract, evidence: LogEvidence): Outcome {
   const mine = (r: DeviceRow) => r.event.actorId === contract.actorId;
   const composed = evidence.device.filter((r) => mine(r) && r.event.type === 'v1.TakeComposed'
-    && r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+    && r.event.payload['unitId'] === contract.unitId
     && !contract.priorTakeIds.includes(String(r.event.payload['takeId'])));
   const submitted = evidence.device.filter((r) => mine(r) && r.event.type === 'v1.TakeSubmitted'
     && composed.some((c) => c.event.payload['takeId'] === r.event.payload['takeId']));
@@ -189,7 +188,7 @@ export function judgeSavedVersion(contract: VersionContract, evidence: LogEviden
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface ReviewContract {
+interface ReviewContract {
   reviewerId: string; takeId: string; stepId: string;
   decision: 'approve' | 'suggest_changes';
   /** Each needs an answer or a `${id}#skipped` reason. */
@@ -226,8 +225,8 @@ export function judgeReview(contract: ReviewContract, evidence: LogEvidence): Ou
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface RequestContract {
-  askerId: string; unitId: string; laneId: string; assigneeId: string;
+interface RequestContract {
+  askerId: string; unitId: string; assigneeId: string;
   what: 'record' | 'check';
   /** A check request must be fixed to this kind (ADR-020). */
   kindId?: string;
@@ -243,7 +242,7 @@ export interface RequestContract {
 export function judgeRequest(contract: RequestContract, evidence: LogEvidence): Outcome {
   const asks = evidence.device.filter((r) => r.event.type === 'v1.RequestMade' && r.event.actorId === contract.askerId);
   const withdrawn = new Set(evidence.device.filter((r) => r.event.type === 'v1.RequestWithdrawn').map((r) => String(r.event.payload['requestId'])));
-  const right = asks.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+  const right = asks.filter((r) => r.event.payload['unitId'] === contract.unitId
     && r.event.payload['assigneeId'] === contract.assigneeId && r.event.payload['what'] === contract.what
     && (contract.kindId === undefined || r.event.payload['kindId'] === contract.kindId));
   const dated = right.filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(String(r.event.payload['dueDate'] ?? '')));
@@ -267,7 +266,7 @@ export function judgeRequest(contract: RequestContract, evidence: LogEvidence): 
 
 // ---- Phase 2b journeys: departures and kept feedback -----------------------
 
-export interface SetAsideContract { actorId: string; unitId: string; laneId: string; stepId: string; kindId?: string }
+interface SetAsideContract { actorId: string; unitId: string; stepId: string; kindId?: string }
 
 /**
  * A step (or its kind) was set aside with a reason (J-REC-5): a
@@ -279,7 +278,7 @@ export function judgeSetAside(contract: SetAsideContract, evidence: LogEvidence)
   const mine = evidence.device.filter((r) => r.event.type === 'v1.StepSetAside' && r.event.actorId === contract.actorId);
   const undone = new Set(evidence.device.filter((r) => r.event.type === 'v1.DepartureUndone' && r.event.payload['departureKind'] === 'set_aside')
     .map((r) => String(r.event.payload['departureId'])));
-  const right = mine.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+  const right = mine.filter((r) => r.event.payload['unitId'] === contract.unitId
     && r.event.payload['stepId'] === contract.stepId
     && (contract.kindId === undefined || r.event.payload['kindId'] === undefined || r.event.payload['kindId'] === contract.kindId));
   const why = right.filter((r) => String(r.event.payload['reason'] ?? '').trim() !== '' || String(r.event.payload['reasonBlobHash'] ?? '') !== '');
@@ -297,7 +296,7 @@ export function judgeSetAside(contract: SetAsideContract, evidence: LogEvidence)
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface KeptContract {
+interface KeptContract {
   authorId: string;
   /** The feedback kept: a legacy review by (take, step, reviewer), or a check by id. */
   target: { takeId: string; stepId: string; reviewerId: string } | { checkId: string };
@@ -335,19 +334,18 @@ export function judgeKept(contract: KeptContract, evidence: LogEvidence): Outcom
 
 // ---- Phase 2a journeys: flows of kinds, checks of a kind ------------------
 
-export interface FlowContract { adminId: string; laneId: string }
+interface FlowContract { adminId: string }
 
 /**
  * An admin built a flow with two kinds together in one step and a
- * checkpoint: after the journey, the lane's v2 steps as the admin last set
+ * checkpoint: after the journey, the language's steps as the admin last set
  * them include one with at least two kinds and one marked as a checkpoint,
  * every such event is confirmed on the server, and nothing was rejected.
  * Later edits of a step win (register per step), and removed steps do not count.
  */
 export function judgeFlow(contract: FlowContract, evidence: LogEvidence): Outcome {
-  const sets = evidence.device.filter((r) => r.event.type === 'v2.WorkflowStepSet' && r.event.actorId === contract.adminId
-    && r.event.payload['laneId'] === contract.laneId);
-  const removed = new Set(evidence.device.filter((r) => r.event.type === 'v1.WorkflowStepRemoved')
+  const sets = evidence.device.filter((r) => r.event.type === 'v1.FlowStepSet' && r.event.actorId === contract.adminId);
+  const removed = new Set(evidence.device.filter((r) => r.event.type === 'v1.FlowStepRemoved')
     .map((r) => String(r.event.payload['stepId'])));
   const last = new Map<string, DeviceRow>();
   for (const r of sets) last.set(String(r.event.payload['stepId']), r); // device log order is append order
@@ -356,7 +354,7 @@ export function judgeFlow(contract: FlowContract, evidence: LogEvidence): Outcom
   const together = live.filter((r) => new Set(kindsOf(r)).size >= 2);
   const checkpoint = live.filter((r) => r.event.payload['checkpoint'] === true);
   const checks: Check[] = [
-    { name: 'flow-steps-in-device-log', ok: live.length > 0, detail: `${sets.length} v2 step event(s), ${live.length} live step(s)` },
+    { name: 'flow-steps-in-device-log', ok: live.length > 0, detail: `${sets.length} step event(s), ${live.length} live step(s)` },
     { name: 'flow-has-kinds-together', ok: together.length > 0,
       detail: live.map((r) => `${String(r.event.payload['stepId'])}: ${kindsOf(r).join(' + ')}`).join('; ') || undefined },
     { name: 'flow-has-checkpoint', ok: checkpoint.length > 0 },
@@ -369,7 +367,7 @@ export function judgeFlow(contract: FlowContract, evidence: LogEvidence): Outcom
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface CheckContract {
+interface CheckContract {
   reviewerId: string; takeId: string; kindId: string;
   outcome: 'looks_good' | 'needs_changes';
   /** Each needs an answer or a skipped-question reason. */
@@ -412,7 +410,7 @@ export function judgeCheck(contract: CheckContract, evidence: LogEvidence): Outc
 
 // ---- Phase 2b slice C: logged checks, produced content, anchored notes -----
 
-export interface LoggedCheckContract {
+interface LoggedCheckContract {
   loggerId: string; kindId: string; outcome: 'looks_good' | 'needs_changes';
   /** Each passage covered, by the version that was played: one CheckLogged per take. */
   takeIds: string[];
@@ -452,44 +450,44 @@ export function judgeLoggedCheck(contract: LoggedCheckContract, evidence: LogEvi
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface ProducedContract { makerId: string; unitId: string; laneId: string; fromTakeId: string; kindId: string }
+interface ProducedContract { makerId: string; unitId: string; fromTakeId: string; kindId: string }
 
 /**
- * A back translation made in an ordinary lane (J-BT-1/2): a ContentProduced
+ * A back translation (J-BT-1/2): a ContentProduced
  * by the maker from the version, of the producing kind, with at least one
- * card whose audio is on the device, confirmed on the server. The maker must not have composed or recorded anything in the source
- * lane of that passage: an old client would show that take as the
+ * card whose audio is on the device, confirmed on the server. The maker must not have composed or recorded anything for
+ * that passage: an old client would show that take as the
  * translator's newest version.
  */
 export function judgeBackTranslation(contract: ProducedContract, evidence: LogEvidence): Outcome {
   const mine = evidence.device.filter((r) => r.event.type === 'v1.ContentProduced' && r.event.actorId === contract.makerId);
-  const right = mine.filter((r) => r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId
+  const right = mine.filter((r) => r.event.payload['unitId'] === contract.unitId
     && r.event.payload['fromTakeId'] === contract.fromTakeId && r.event.payload['kindId'] === contract.kindId);
   const hashesOf = (r: DeviceRow) => ((r.event.payload['cards'] as { hash?: string }[] | undefined) ?? []).map((c) => String(c.hash ?? ''));
   const withAudio = right.filter((r) => hashesOf(r).length > 0 && hashesOf(r).every((h) => evidence.blobsAfter.includes(h)));
-  const inLane = evidence.device.filter((r) => (r.event.type === 'v1.TakeComposed' || r.event.type === 'v1.RecordingAdded' || r.event.type === 'v1.TakeSubmitted')
+  const asVersion = evidence.device.filter((r) => (r.event.type === 'v1.TakeComposed' || r.event.type === 'v1.RecordingAdded' || r.event.type === 'v1.TakeSubmitted')
     && r.event.actorId === contract.makerId
-    && (r.event.type === 'v1.TakeSubmitted' || (r.event.payload['unitId'] === contract.unitId && r.event.payload['laneId'] === contract.laneId)));
+    && (r.event.type === 'v1.TakeSubmitted' || (r.event.payload['unitId'] === contract.unitId)));
   const checks: Check[] = [
     { name: 'content-in-device-log', ok: right.length > 0,
       detail: mine.map((r) => `${String(r.event.payload['kindId'])} from ${String(r.event.payload['fromTakeId'])}, ${hashesOf(r).length} card(s)`).join('; ') || 'none' },
     { name: 'content-audio-on-device', ok: withAudio.length > 0 },
-    { name: 'no-take-in-source-lane', ok: inLane.length === 0, detail: inLane.map((r) => r.event.type).join(', ') || undefined },
+    { name: 'no-take-of-the-passage', ok: asVersion.length === 0, detail: asVersion.map((r) => r.event.type).join(', ') || undefined },
     rejectedCheck(evidence.device),
     { name: 'content-reached-server', ok: synced(withAudio, evidence.server), detail: `device status: ${right.map((r) => r.status).join(', ') || 'none'}` }
   ];
   if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
-  const exercised = mine.length > 0 || inLane.length > 0 || evidence.device.some((r) => r.status === 'rejected');
+  const exercised = mine.length > 0 || asVersion.length > 0 || evidence.device.some((r) => r.status === 'rejected');
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface StudyNoteContract { authorId: string; unitId: string; laneId: string; materialId: string; stepId: string; text: string }
+interface StudyNoteContract { authorId: string; unitId: string; materialId: string; stepId: string; text: string }
 
 /**
  * A note at a moment in the study audio (J-STUDY-2): a ContextItemAdded by
  * the author homed on the passage, with a study anchor on that material
  * and step whose atMs is a whole number of ms above 0 (never "3:12"), the
- * text asked for, confirmed on the server. A note overwriting the lane's
+ * text asked for, confirmed on the server. A note overwriting the language's
  * guideline field (MaterialFieldSet) is the old one-note path.
  */
 export function judgeStudyNote(contract: StudyNoteContract, evidence: LogEvidence): Outcome {
@@ -515,19 +513,19 @@ export function judgeStudyNote(contract: StudyNoteContract, evidence: LogEvidenc
   return { verdict: exercised ? 'product_failure' : 'inconclusive', checks };
 }
 
-export interface SearchContract {
+interface SearchContract {
   /** Exactly what the user types, e.g. "luk 1". */
   query: string;
-  laneId: string;
+  languageId: string;
   /** Passages the query means; opening any other one is not this journey. */
   matchingUnitIds: string[];
 }
-export interface SearchEvidence {
+interface SearchEvidence {
   /** Text the user typed, in order (the driver's own keystrokes, not its claims). */
   typed: string[];
   /** The device-local Recent list (RecentPassage[]) before and after the journey. */
-  recentBefore: { unitId: string; laneId: string }[];
-  recentAfter: { unitId: string; laneId: string }[];
+  recentBefore: { unitId: string; languageId: string }[];
+  recentAfter: { unitId: string; languageId: string }[];
 }
 
 /**
@@ -539,59 +537,58 @@ export function judgeMapSearch(contract: SearchContract, evidence: SearchEvidenc
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   const searched = evidence.typed.some((t) => norm(t) === norm(contract.query));
   const opened = evidence.recentAfter[0];
-  const fresh = !!opened && !evidence.recentBefore.some((r) => r.unitId === opened.unitId && r.laneId === opened.laneId);
-  const matches = !!opened && opened.laneId === contract.laneId && contract.matchingUnitIds.includes(opened.unitId);
+  const fresh = !!opened && !evidence.recentBefore.some((r) => r.unitId === opened.unitId && r.languageId === opened.languageId);
+  const matches = !!opened && opened.languageId === contract.languageId && contract.matchingUnitIds.includes(opened.unitId);
   const checks: Check[] = [
     { name: 'query-typed', ok: searched, detail: `typed: ${JSON.stringify(evidence.typed)}` },
     { name: 'passage-opened', ok: fresh, detail: `recent before ${evidence.recentBefore.length}, after ${evidence.recentAfter.length}` },
-    { name: 'opened-passage-matches-query', ok: matches, detail: opened ? `${opened.unitId} in ${opened.laneId}` : 'none' }
+    { name: 'opened-passage-matches-query', ok: matches, detail: opened ? `${opened.unitId} in ${opened.languageId}` : 'none' }
   ];
   if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
   // Without the typed query there is nothing to judge about search.
   return { verdict: searched && fresh ? 'product_failure' : 'inconclusive', checks };
 }
 
-// ---- Decision 28: a project is one language --------------------------------
+// ---- New Language: a language and its own stream (decision 63) ------------
 
-export interface NewProjectContract { adminId: string; name: string; languoidId: string }
-export interface NewProjectEvidence {
-  /** The org partition on the device, where the project is registered. */
+interface NewLanguageContract { adminId: string; name: string; code: string }
+interface NewLanguageEvidence {
+  /** The organization's stream on the device, where the language is added. */
   org: DeviceRow[];
-  /** The registered project's own partition on the device, empty if none was registered. */
+  /** The new language's own stream on the device, empty if none was added. */
   device: DeviceRow[];
   server: ServerRow[];
 }
 
-/** The project this admin registered under this name, if any (device log order is append order). */
-export function registeredProjectId(contract: NewProjectContract, org: DeviceRow[]): string | null {
-  const mine = org.filter((r) => r.event.type === 'v1.ProjectRegistered' && r.event.actorId === contract.adminId
+/** The language this admin added under this name, if any (device log order is append order). */
+export function addedLanguageId(contract: NewLanguageContract, org: DeviceRow[]): string | null {
+  const mine = org.filter((r) => r.event.type === 'v1.LanguageAdded' && r.event.actorId === contract.adminId
     && String(r.event.payload['name'] ?? '').trim() === contract.name);
-  return mine.length ? String(mine[mine.length - 1]!.event.payload['projectId']) : null;
+  return mine.length ? String(mine[mine.length - 1]!.event.payload['languageId']) : null;
 }
 
 /**
- * An admin created a project for one language: it is registered in the org,
- * born with its name, and holds exactly one lane, for the language asked
- * for, all confirmed on the server with nothing rejected. Why: the project
- * is the sync and permission bucket, so a project with no language or two
- * languages breaks what everyone downstream is scoped by.
+ * An admin added a language: the organization's stream adds it with the
+ * name and code asked for, and its own stream starts with a template and a
+ * flow, all confirmed on the server with nothing rejected. Why: a language
+ * without a flow has no steps, and one without a template has no passages,
+ * so nobody downstream could work in it.
  */
-export function judgeNewProject(contract: NewProjectContract, evidence: NewProjectEvidence): Outcome {
-  const projectId = registeredProjectId(contract, evidence.org);
-  const created = evidence.device.filter((r) => r.event.type === 'v1.ProjectCreated'
-    && String(r.event.payload['name'] ?? '').trim() === contract.name);
-  const lanes = evidence.device.filter((r) => r.event.type === 'v1.LaneAdded');
-  const laneIds = new Set(lanes.map((r) => String(r.event.payload['laneId'])));
-  const languages = lanes.map((r) => String(r.event.payload['languoidId']));
+export function judgeNewLanguage(contract: NewLanguageContract, evidence: NewLanguageEvidence): Outcome {
+  const languageId = addedLanguageId(contract, evidence.org);
+  const added = evidence.org.filter((r) => r.event.type === 'v1.LanguageAdded' && r.event.payload['languageId'] === languageId);
+  const codes = added.map((r) => String(r.event.payload['code']));
+  const template = evidence.device.filter((r) => r.event.type === 'v1.TemplateSelected');
+  const flow = evidence.device.filter((r) => r.event.type === 'v1.FlowSelected');
   const checks: Check[] = [
-    { name: 'project-registered-in-org', ok: projectId !== null },
-    { name: 'project-created-with-name', ok: created.length > 0 },
-    { name: 'project-has-one-language', ok: laneIds.size === 1, detail: `${laneIds.size} lane(s): ${languages.join(', ') || 'none'}` },
-    { name: 'language-is-the-one-asked-for', ok: languages.length > 0 && languages.every((l) => l === contract.languoidId) },
+    { name: 'language-added-in-org', ok: languageId !== null },
+    { name: 'language-is-the-one-asked-for', ok: codes.length > 0 && codes.every((c) => c === contract.code), detail: codes.join(', ') || 'none' },
+    { name: 'language-has-template', ok: template.length > 0 },
+    { name: 'language-has-flow', ok: flow.length > 0 },
     rejectedCheck([...evidence.org, ...evidence.device]),
-    { name: 'project-reached-server', ok: synced([...created, ...lanes], evidence.server),
-      detail: `device status: ${[...created, ...lanes].map((r) => r.status).join(', ') || 'none'}` }
+    { name: 'language-reached-server', ok: synced([...template, ...flow], evidence.server),
+      detail: `device status: ${[...added, ...template, ...flow].map((r) => r.status).join(', ') || 'none'}` }
   ];
   if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
-  return { verdict: projectId !== null ? 'product_failure' : 'inconclusive', checks };
+  return { verdict: languageId !== null ? 'product_failure' : 'inconclusive', checks };
 }

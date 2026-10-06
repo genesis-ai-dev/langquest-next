@@ -18,7 +18,7 @@ import type { BlobRef } from '@langquest-next/core';
  * the bytes every worker holds in memory at once, so several large files
  * finishing together cannot spike a weak phone.
  */
-export interface TransferWorkerOptions {
+interface TransferWorkerOptions {
   work: () => BlobRef[];
   transfer: (ref: BlobRef) => Promise<void>;
   isOnline: () => boolean;

@@ -1,12 +1,12 @@
-import { emptyState, type LibraryDoc, type ProjectState, type StudyDoc } from '@langquest-next/core';
+import { emptyLanguageState, type LibraryDoc, type LanguageState, type StudyDoc } from '@langquest-next/core';
 import { buildLibrary } from '../../../scripts/library-seed';
 import { bestGuide, glossaryEntryOf, guideFromDoc, passageVerses } from '../src/study/guideMatch';
 import { overlap, parseRange, versesOf } from '../src/study/range';
 import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections } from '../src/study/text';
 import { readingsFor, sourceText } from '../src/scripture';
 
-function withUnits(units: Record<string, string>): ProjectState {
-  const s = emptyState();
+function withUnits(units: Record<string, string>): LanguageState {
+  const s = emptyLanguageState();
   for (const [id, label] of Object.entries(units)) s.units[id] = { parentUnitId: null, kind: 'passage', label, order: id };
   return s;
 }
@@ -70,8 +70,8 @@ describe('guides from the library', () => {
   const collections = build.items.filter((i) => get(i.docHash)?.format === 'collection@1')
     .sort((a, b) => (a.itemId.endsWith('.cmn') ? -1 : b.itemId.endsWith('.cmn') ? 1 : 0));
   const sources = [collections.map((i) => ({ key: i.itemId, hash: i.docHash }))];
-  const guideFor = (state: ProjectState, unitId: string) => {
-    const passage = passageVerses(state, unitId, null, get);
+  const guideFor = (state: LanguageState, unitId: string) => {
+    const passage = passageVerses(state, unitId, get);
     const choice = passage ? bestGuide(passage, sources, get) : null;
     return choice ? guideFromDoc(choice.id, get(choice.hash) as StudyDoc) : null;
   };

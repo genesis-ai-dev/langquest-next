@@ -12,8 +12,9 @@ import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
  */
 const BUCKET = 'blobs';
 
-export function objectPath(orgId: string, projectId: string, ref: StoredFile): string {
-  return `${orgId}/${projectId}/${ref.hash}.${ref.format}`;
+/** `<org>/<stream>/<hash>.<ext>`: a recording belongs to its language's stream, so the stream is the language id. */
+function objectPath(orgId: string, streamId: string, ref: StoredFile): string {
+  return `${orgId}/${streamId}/${ref.hash}.${ref.format}`;
 }
 
 /**
@@ -22,12 +23,12 @@ export function objectPath(orgId: string, projectId: string, ref: StoredFile): s
  * so bucket policies apply unchanged. `as` is the session to send under:
  * a hand-over sends a signed-out person's recordings as them (handOver.ts).
  */
-export async function uploadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
+export async function uploadBlob(orgId: string, streamId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
   const { data, error: authError } = await as.auth.getSession();
   if (authError) throw new Error(authError.message);
   const token = data.session?.access_token;
   if (!token) throw new Error('Not signed in.');
-  const url = `${supabaseUrl}/storage/v1/object/${BUCKET}/${objectPath(orgId, projectId, ref)}`;
+  const url = `${supabaseUrl}/storage/v1/object/${BUCKET}/${objectPath(orgId, streamId, ref)}`;
   const headers = {
     Authorization: `Bearer ${token}`,
     apikey: supabaseAnonKey,
@@ -54,10 +55,10 @@ export class UploadError extends Error {
  * network fetch, and reading plus hashing on the phone, which on a slow
  * phone can outweigh the network.
  */
-export async function downloadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
+export async function downloadBlob(orgId: string, streamId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
   let mark = Date.now();
   const lap = () => { const now = Date.now(); const ms = now - mark; mark = now; return ms; };
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, projectId, ref), 600);
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, streamId, ref), 600);
   timings.signMs = lap();
   if (error || !data) throw new Error(error?.message ?? 'no signed url');
   if (Platform.OS === 'web') return downloadOnWeb(data.signedUrl, ref, store, timings, lap);

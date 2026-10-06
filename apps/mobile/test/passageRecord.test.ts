@@ -1,10 +1,10 @@
 import {
-  commands, deriveKinds, derivePassage, emptyOrgState, emptyState, fold, HlcClock, recordTimeline,
-  type AnyEvent, type EventPayloads, type EventType, type OrgState
+  commands, deriveKinds, derivePassage, emptyLanguageState, flowTemplate, foldLanguage, foldOrg, HlcClock, instantiateFlow, ORG_STREAM,
+  recordTimeline, SEED_ROLES, type AnyEvent, type EventPayloads, type EventType, type OrgState, type Scope
 } from '@langquest-next/core';
 import {
   addDays, answeredQuestions, askCandidates, currentStepId, describeEntry, dueError, feedbackNames, gridKindIds, heroHeadline, historySummary,
-  kindLineText, kindRowActions, kindRowSub, laneState, lastReviewOn, ledTo, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
+  kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
   oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/record';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
@@ -16,7 +16,7 @@ import { HIDDEN_TEXT } from '../src/moderation';
  * record reads against the Standard Bible Flow (peer + bt, community,
  * consultant checkpoint, final).
  */
-function project() {
+function language() {
   const events: AnyEvent[] = [];
   let wall = 1_700_000_000_000;
   let seq = 0;
@@ -26,41 +26,60 @@ function project() {
     clocks.set(actorId, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `x${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
+    events.push({ id: `x${seq}`, type, orgId: 'o', streamId: 'din', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
   };
-  const state = () => fold(events, emptyState());
+  const state = () => foldLanguage(events, emptyLanguageState());
   const run = (actorId: string, build: (c: ReturnType<typeof commands>) => { type: EventType; payload: unknown }[]) => {
     for (const spec of build(commands(state()))) emit(actorId, spec.type, spec.payload as never);
   };
-  emit('lead', 'v1.MemberAdded', { profileId: 'lead', role: 'owner' });
-  emit('lead', 'v1.MemberAdded', { profileId: 'akol', role: 'translator' });
-  emit('lead', 'v1.MemberAdded', { profileId: 'ayen', role: 'reviewer' });
-  emit('lead', 'v1.MemberAdded', { profileId: 'deng', role: 'reviewer' });
-  emit('lead', 'v1.LaneAdded', { laneId: 'din', languoidId: 'din' });
   emit('lead', 'v1.UnitAdded', { unitId: 'john3', parentUnitId: null, kind: 'passage', label: 'John 3:1-21', order: 'a1' });
-  run('lead', (c) => c.useFlow({ commandId: 'flow', laneId: 'din', flowId: 'standard_bible' }));
-  const passage = () => derivePassage(state(), 'john3', 'din');
+  for (const step of instantiateFlow('standard_bible')) emit('lead', 'v1.FlowStepSet', step);
+  emit('lead', 'v1.FlowSelected', { flowId: 'standard_bible', name: flowTemplate('standard_bible')!.name });
+  const passage = () => derivePassage(state(), 'john3');
   const kinds = () => deriveKinds(state());
   return { emit, run, state, passage, kinds, events };
+}
+
+/**
+ * The organization around the language: the seed roles and a "Community
+ * Reviewer" role, the lead an Organization Admin, akol translating and ayen
+ * and deng reviewing in Dinka, plus anyone `extra` names.
+ */
+function team(extra: [string, string, Scope][] = []): OrgState {
+  const events: AnyEvent[] = [];
+  let seq = 0;
+  const emit = <T extends EventType>(type: T, payload: EventPayloads[T]) => {
+    seq += 1;
+    events.push({ id: `o${seq}`, type, orgId: 'o', streamId: ORG_STREAM, actorId: 'lead', deviceId: 'lead',
+      hlc: `${String(seq).padStart(15, '0')}:000000:lead`, payload } as AnyEvent);
+  };
+  for (const r of SEED_ROLES) emit('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
+  emit('v1.RoleDefined', { roleId: 'rev', name: 'Community Reviewer', privileges: ['review'] });
+  const din: Scope = { level: 'language', languageId: 'din' };
+  const members: [string, string, Scope][] = [
+    ['lead', 'org_admin', { level: 'org' }], ['akol', 'translator', din], ['ayen', 'reviewer', din], ['deng', 'reviewer', din], ...extra
+  ];
+  for (const [profileId, roleId, scope] of members) emit('v1.MemberAdded', { profileId, roleId, scope });
+  return foldOrg(events);
 }
 
 /** ctx.name as seen by `me`: the viewer is always "you". */
 const nameFor = (me: string) => (id: string, lower = false) => (id === me ? (lower ? 'you' : 'You') : id.charAt(0).toUpperCase() + id.slice(1));
 const name = nameFor('akol');
-const record = (p: ReturnType<typeof project>, cmd: string, cards: string[], note?: string) =>
-  p.run('akol', (c) => c.publishVersion({ commandId: cmd, unitId: 'john3', laneId: 'din', cardHashes: cards, ...(note ? { note } : {}) }));
+const record = (p: ReturnType<typeof language>, cmd: string, cards: string[], note?: string) =>
+  p.run('akol', (c) => c.publishVersion({ commandId: cmd, unitId: 'john3', cardHashes: cards, ...(note ? { note } : {}) }));
 const all = { review: true, ask: true, log: true, skip: true };
 
 describe('the passage record hero', () => {
   it('says Not started, then Next with the open kinds of the first step', () => {
-    const p = project();
+    const p = language();
     expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Not started');
     record(p, 'v1', ['c1']);
     expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Next: Peer Review + Back Translation');
   });
 
   it('feedback belongs to the latest version’s author: theirs to answer, everyone else waits on them', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     const take = p.passage().latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [take], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 3 is unclear' }));
@@ -72,10 +91,10 @@ describe('the passage record hero', () => {
   });
 
   it('an asked kind reads as your turn for the person asked, waiting for anyone else', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
-    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen' }));
-    p.run('akol', (c) => c.ask({ commandId: 'a2', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'bt', profileId: 'ayen' }));
+    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', what: 'review', kindId: 'peer', profileId: 'ayen' }));
+    p.run('akol', (c) => c.ask({ commandId: 'a2', unitId: 'john3', what: 'review', kindId: 'bt', profileId: 'ayen' }));
     const s = p.passage();
     expect(heroHeadline(s, p.kinds(), 'ayen', nameFor('ayen'))).toBe('Your turn: Peer Review + Back Translation');
     expect(heroHeadline(s, p.kinds(), 'deng', nameFor('deng'))).toBe('Waiting on Ayen');
@@ -85,7 +104,7 @@ describe('the passage record hero', () => {
 
 describe('the step path', () => {
   it('marks the next step current, a checkpoint’s later steps locked, and answered feedback as answered', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     let s = p.passage();
     expect(pathState(s.steps[0]!, true)).toBe('current');
@@ -97,19 +116,19 @@ describe('the step path', () => {
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [take], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Fix it' }));
     s = p.passage();
     expect(pathState(s.steps[0]!, true)).toBe('attention');
-    expect(laneState(s.steps[0]!.kinds[0]!, s.steps[0]!, true)).toBe('attention');
+    expect(kindPathState(s.steps[0]!.kinds[0]!, s.steps[0]!, true)).toBe('attention');
     record(p, 'v2', ['c2'], 'Clearer verse 3');
     p.run('deng', (c) => c.produceContent({ commandId: 'bt1', fromTakeId: p.passage().latest!.takeId, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 1000 }] }));
     s = p.passage();
-    expect(laneState(s.steps[0]!.kinds[0]!, s.steps[0]!, false)).toBe('answered');
-    expect(laneState(s.steps[0]!.kinds[1]!, s.steps[0]!, false)).toBe('complete');
+    expect(kindPathState(s.steps[0]!.kinds[0]!, s.steps[0]!, false)).toBe('answered');
+    expect(kindPathState(s.steps[0]!.kinds[1]!, s.steps[0]!, false)).toBe('complete');
     expect(pathState(s.steps[0]!, false)).toBe('answered');
   });
 });
 
 describe('a kind’s actions', () => {
   it('the author gets Ask as the main button, a reviewer gets Review it now; set aside is not on checkpoints', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     const s = p.passage();
     const peer = s.steps[0]!.kinds[0]!;
@@ -128,7 +147,7 @@ describe('a kind’s actions', () => {
   });
 
   it('a producing kind offers its own action, and says it records content, not a verdict', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     const s = p.passage();
     const bt = s.steps[0]!.kinds[1]!;
@@ -139,9 +158,9 @@ describe('a kind’s actions', () => {
   });
 
   it('someone asked sees Review it now; everyone else sees who it waits on and no main button', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
-    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen', dueDate: '2099-01-02' }));
+    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', what: 'review', kindId: 'peer', profileId: 'ayen', dueDate: '2099-01-02' }));
     const s = p.passage();
     const peer = s.steps[0]!.kinds[0]!;
     const kind = p.kinds().find((k) => k.id === 'peer')!;
@@ -155,7 +174,7 @@ describe('a kind’s actions', () => {
   });
 
   it('while feedback is open, the other kinds are best after it (advice, not a gate)', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'x' }));
     const s = p.passage();
@@ -169,9 +188,9 @@ describe('a kind’s actions', () => {
 
 describe('the record’s details', () => {
   it('reads each entry the demo’s way, newest first, with set-asides and their reasons', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
-    p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', laneId: 'din', type: 'skip', kindId: 'bt', reason: 'Not needed for this passage' }));
+    p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', type: 'skip', kindId: 'bt', reason: 'Not needed for this passage' }));
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'logged', givenBy: 'Pastor Garang' }));
     const s = p.passage();
     const t = recordTimeline(p.state(), s);
@@ -186,9 +205,9 @@ describe('the record’s details', () => {
   });
 
   it('keeps a blocked person\'s words out of the record\'s lines, and nothing else (decisions.md 48)', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
-    p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', laneId: 'din', type: 'skip', kindId: 'bt', reason: 'You are useless' }));
+    p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', type: 'skip', kindId: 'bt', reason: 'You are useless' }));
     const s = p.passage();
     const t = recordTimeline(p.state(), s);
     const o = { p: s, kinds: p.kinds(), name, anchor: () => 'Whole passage', hidden: (id: string) => id === 'ayen' };
@@ -199,7 +218,7 @@ describe('the record’s details', () => {
   });
 
   it('drops a version a moderator removed, from the events remove_content redacts for it (decisions.md 48)', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1'], 'First try');
     record(p, 'v2', ['c2'], 'Clearer in verse 3');
     const [gone, kept] = p.passage().versions;
@@ -230,21 +249,21 @@ describe('the record’s details', () => {
 });
 
 describe('asking someone', () => {
-  it('lists project and org members with the needed permission, the usual reviewers first, never the asker', () => {
-    const p = project();
+  it('lists everyone whose role covers the language with the needed permission, the usual reviewers first, never the asker', () => {
+    const p = language();
     record(p, 'v1', ['c1']);
     p.run('deng', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    const org: OrgState = emptyOrgState();
-    org.roles['rev'] = { name: { value: 'Community Reviewer', hlc: '', eventId: '' }, privileges: { value: ['review'], hlc: '', eventId: '' }, retired: false };
-    org.members['nyibol'] = { 'lane:p/din': { roleId: { value: 'rev', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' }, scope: { level: 'lane', projectId: 'p', laneId: 'din' } } as never };
-    org.members['elsewhere'] = { 'lane:p/other': { roleId: { value: 'rev', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' }, scope: { level: 'lane', projectId: 'p', laneId: 'other' } } as never };
+    const org = team([
+      ['nyibol', 'rev', { level: 'language', languageId: 'din' }],
+      ['elsewhere', 'rev', { level: 'language', languageId: 'other' }]
+    ]);
 
-    const review = askCandidates(p.state(), org, { projectId: 'p', laneId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
+    const review = askCandidates(p.state(), org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
     expect(review.map((c) => c.profileId).sort()).toEqual(['ayen', 'deng', 'nyibol']);
     expect(review.find((c) => c.profileId === 'deng')).toMatchObject({ usual: true, sub: 'Reviewer · Has done this here before' });
     expect(review.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, sub: 'Community Reviewer' });
 
-    const rec = askCandidates(p.state(), org, { projectId: 'p', laneId: 'din', what: 'record', me: 'lead' });
+    const rec = askCandidates(p.state(), org, { languageId: 'din', what: 'record', me: 'lead' });
     expect(rec.map((c) => c.profileId)).toEqual(['akol']);
   });
 
@@ -264,7 +283,7 @@ describe('asking someone', () => {
 
 describe('sending to the usual reviewer (ADR-029)', () => {
   it('the author’s main button sends to whoever usually does it, with Send to someone else beside it', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     const s = p.passage();
     const peer = s.steps[0]!.kinds[0]!;
@@ -281,14 +300,16 @@ describe('sending to the usual reviewer (ADR-029)', () => {
   });
 
   it('finds the one person who reviewed this kind here, and sends to them in one command', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
-    expect(usualTargetFor(p.state(), null, { projectId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
+    expect(usualTargetFor(p.state(), team(), { languageId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    const target = usualTargetFor(p.state(), null, { projectId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' });
+    const target = usualTargetFor(p.state(), team(), { languageId: 'din', kindId: 'peer', me: 'akol' });
     expect(target).toEqual({ profileId: 'ayen' });
+    // Who may review comes from the organization's roles: with none loaded, nobody does.
+    expect(usualTargetFor(p.state(), null, { languageId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
     record(p, 'v2', ['c2'], 'Clearer');
-    p.run('akol', (c) => c.ask(sendToInput({ commandId: 's1', unitId: 'john3', laneId: 'din', kindId: 'peer', target: target! })));
+    p.run('akol', (c) => c.ask(sendToInput({ commandId: 's1', unitId: 'john3', kindId: 'peer', target: target! })));
     const sent = p.passage().openRequests.find((r) => r.kindId === 'peer')!;
     expect(sent).toMatchObject({ profileId: 'ayen', by: 'akol', what: 'review' });
     expect(requestIsMine(p.state(), 'ayen')(sent)).toBe(true);
@@ -298,7 +319,7 @@ describe('sending to the usual reviewer (ADR-029)', () => {
 
 describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   it('opens on the next step, or on the step whose feedback waits for an answer', () => {
-    const p = project();
+    const p = language();
     expect(currentStepId(p.passage())).toBeUndefined();
     record(p, 'v1', ['c1']);
     expect(currentStepId(p.passage())).toBe(p.passage().steps[0]!.step.id);
@@ -311,7 +332,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   });
 
   it('flips between versions: what each heard, which version answered it, and what a version was made after', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     const first = p.passage().latest!;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [first.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Fix it' }));
@@ -334,11 +355,11 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   });
 
   it('a kind’s line says who and on which version, and who it waits on', () => {
-    const p = project();
+    const p = language();
     record(p, 'v1', ['c1']);
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     record(p, 'v2', ['c2'], 'Clearer');
-    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'bt', profileId: 'deng', dueDate: '2099-01-02' }));
+    p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', what: 'review', kindId: 'bt', profileId: 'deng', dueDate: '2099-01-02' }));
     const s = p.passage();
     expect(kindLineText(s.steps[0]!.kinds[0]!, s.steps[0]!, s, name)).toBe('Looks good · Ayen on Version 1');
     expect(kindLineText(s.steps[0]!.kinds[1]!, s.steps[0]!, s, name)).toBe('Waiting on Deng · due Jan 2');

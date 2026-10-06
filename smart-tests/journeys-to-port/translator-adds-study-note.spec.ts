@@ -22,9 +22,9 @@ test('translator adds a study note at a moment', async ({ page }) => {
   const contract = { authorId: world.translator.id, unitId: passage.unitId, laneId: world.laneId,
     materialId: world.studyMaterialId, stepId: world.stepId, text };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeStudyNote(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeStudyNote(contract, evidence), run.status);
   await reportRun(page, run, outcome);

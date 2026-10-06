@@ -11,9 +11,9 @@ import { supabase } from './supabase';
 export interface Persona {
   id: string;
   label: string;
-  /** Membership role seeded into the org's work partition; null = not a member. */
+  /** The fixed role this persona plays (the seeded roles' `fixed`); null = not a member. */
   role: Role | null;
-  /** Org role id seeded into the org partition (core SEED_ROLES). */
+  /** Org role id seeded in the organization stream (core SEED_ROLES). */
   roleId: string | null;
   email: string;
 }
@@ -22,7 +22,7 @@ const DOMAIN = 'example.test';
 
 export const PERSONAS: Persona[] = [
   { id: 'owner', label: 'Org admin', role: 'owner', roleId: 'org_admin', email: `lq-owner@${DOMAIN}` },
-  { id: 'coordinator', label: 'Coordinator', role: 'coordinator', roleId: 'project_coordinator', email: `lq-coordinator@${DOMAIN}` },
+  { id: 'coordinator', label: 'Coordinator', role: 'coordinator', roleId: 'coordinator', email: `lq-coordinator@${DOMAIN}` },
   { id: 'translator', label: 'Translator', role: 'translator', roleId: 'translator', email: `lq-translator@${DOMAIN}` },
   { id: 'reviewer', label: 'Reviewer', role: 'reviewer', roleId: 'reviewer', email: `lq-reviewer@${DOMAIN}` },
   { id: 'viewer', label: 'Viewer', role: 'viewer', roleId: 'viewer', email: `lq-viewer@${DOMAIN}` },
@@ -36,7 +36,7 @@ export const PERSONAS: Persona[] = [
  * inlined into the bundle (every EXPO_PUBLIC_* value is), so it must never
  * guard a real account, and seeding would write personas into a real org.
  */
-export function isLocalServer(url: string | null | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL): boolean {
+function isLocalServer(url: string | null | undefined = process.env.EXPO_PUBLIC_SUPABASE_URL): boolean {
   if (!url) return false;
   const host = /^[a-z]+:\/\/(\[[^\]]+\]|[^/:?#]+)/i.exec(url.trim())?.[1]?.toLowerCase();
   // 10.0.2.2 is the Android emulator's name for the host machine.
@@ -49,7 +49,7 @@ export function isLocalServer(url: string | null | undefined = process.env.EXPO_
  * the translator's and reviewer's experience; only against a local server
  * (see isLocalServer). Dev builds may always open it.
  */
-export const PERSONA_TESTERS: string[] = (process.env.EXPO_PUBLIC_PERSONA_EMAILS ?? 'ryder@frontierrnd.com')
+const PERSONA_TESTERS: string[] = (process.env.EXPO_PUBLIC_PERSONA_EMAILS ?? 'ryder@frontierrnd.com')
   .split(',')
   .map((e: string) => e.trim().toLowerCase())
   .filter(Boolean);

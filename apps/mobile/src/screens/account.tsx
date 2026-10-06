@@ -9,7 +9,7 @@
 // Settings rows back to them), CORE-12 (sign-out never strands work).
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
-import { CommandError, decodeHlc, deriveKinds, kindOf, laneName, unitTitle, type Update } from '@langquest-next/core';
+import { CommandError, decodeHlc, deriveKinds, kindOf, languageName, unitTitle, type Update } from '@langquest-next/core';
 import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
@@ -74,7 +74,7 @@ function useAccountLine(ctx: Ctx) {
     ?? (ctx.session.role ? ctx.session.role[0]!.toUpperCase() + ctx.session.role.slice(1) : 'No role yet');
   // Before the org's name has synced, a neutral phrase: never its id.
   const orgName = org?.org?.value.name ?? 'your organization';
-  return { roleName, orgName, memberName: mine.find((m) => m.displayName)?.displayName };
+  return { roleName, orgName };
 }
 
 /**
@@ -84,9 +84,9 @@ function useAccountLine(ctx: Ctx) {
  * organization open it.
  */
 export function InboxHome(ctx: Ctx) {
-  const { state } = ctx.project;
+  const { state } = ctx.language;
   const me = ctx.session.actorId;
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.language.orgId;
   const accountActions = useAccountActions(me).filter((a) => a.status !== 'sent');
   const names = useDisplayNames(me);
   const { orgName } = useAccountLine(ctx);
@@ -153,16 +153,18 @@ export function InboxHome(ctx: Ctx) {
     else if (row.kind === 'content_report') ctx.toast('Connect to the internet to see what was reported.');
   }
 
-  // The words for each record-derived update, memoized on the fold.
+  // The words for each record-derived update, memoized on the fold. Updates are the open language's.
+  const languageId = ctx.language.languageId;
+  const language = languageName(ctx.org.state, languageId);
   const words = useMemo(() => {
     if (!state) return null;
     const kinds = deriveKinds(state);
     const kindName = (id: string | undefined) => (id ? (kinds.find((k) => k.id === id) ?? kindOf(state, id)).name : 'review');
     const produces = (id: string) => !!(kinds.find((k) => k.id === id) ?? kindOf(state, id)).produces;
     return (u: Update) => updateText(u, {
-      name: ctx.name, passage: unitTitle(state, u.unitId), lane: laneName(state, u.laneId), kindName, produces, due: (d) => dueText(d)
+      name: ctx.name, passage: unitTitle(state, u.unitId), language, kindName, produces, due: (d) => dueText(d)
     });
-  }, [state, ctx.name]);
+  }, [state, language, ctx.name]);
 
   // Built each render: only the shown rows are drawn, and the words are memoized above.
   const items: InboxItem[] = [];
@@ -177,7 +179,7 @@ export function InboxHome(ctx: Ctx) {
   }
   for (const g of reports ?? []) {
     const t = g.target;
-    const where = t.unitId && state?.units[t.unitId] ? ` · ${unitTitle(state, t.unitId)}` : '';
+    const where = t.unitId && t.languageId === languageId && state?.units[t.unitId] ? ` · ${unitTitle(state, t.unitId)}` : '';
     items.push({
       id: `report:${g.key}`, icon: 'flag', title: reportTitle(t, ctx.name), read: false,
       body: `${reportSummary(g)}${where}`, time: new Date(g.latest).toLocaleDateString(), onPress: () => setOpenReport(g)
@@ -188,7 +190,7 @@ export function InboxHome(ctx: Ctx) {
       const w = words(u);
       items.push({
         id: u.id, icon: w.icon, title: w.title, body: w.body, time: when(u.hlc), read: ctx.inbox.isRead(u.id), unitId: u.unitId,
-        onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, u.laneId); }
+        onPress: () => { ctx.inbox.markRead([u.id]); ctx.openPassage(u.unitId, languageId); }
       });
     }
   }
@@ -288,7 +290,7 @@ export function InboxHome(ctx: Ctx) {
               const t = openReport.target;
               setOpenReport(null);
               if (t.kind === 'person') ctx.go('members_list');
-              else if (t.unitId && t.laneId) ctx.openPassage(t.unitId, t.laneId);
+              else if (t.unitId && t.languageId) ctx.openPassage(t.unitId, t.languageId);
             }} />}>
           <View style={styles.requestBody}>
             <Text style={txt.body}>
@@ -364,13 +366,13 @@ export function SettingsHome(ctx: Ctx) {
   const diag = useDiagnosticsSwitch(ctx);
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
-  const { roleName, orgName, memberName } = useAccountLine(ctx);
+  const { roleName, orgName } = useAccountLine(ctx);
   const inviter = useInviterName(ctx);
   const [hasPassword] = useHasPassword();
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
-  const name = names[s.actorId] ?? memberName ?? s.email?.split('@')[0] ?? 'You';
-  const p = ctx.project;
+  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? 'You';
+  const p = ctx.language;
   const offline = useOfflineSummary(ctx);
   const syncSub = p.refused ? 'This account cannot sync this organization'
     : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
@@ -484,8 +486,7 @@ function useOrganizations(actorId: string): { rows: OrgRow[] | null; error: stri
       if (active && saved) setRows(JSON.parse(saved) as OrgRow[]);
       const { data, error } = await supabase.rpc('my_organizations');
       if (error) { if (active) setError('Unable to refresh. Saved organizations remain available.'); return; }
-      // One row per organization: the server lists a row per registered partition.
-      const orgs = [...new Map(((data ?? []) as OrgRow[]).map((r) => [r.org_id, { org_id: r.org_id, name: r.name }])).values()];
+      const orgs = ((data ?? []) as OrgRow[]).map((r) => ({ org_id: r.org_id, name: r.name }));
       await AsyncStorage.setItem(key, JSON.stringify(orgs));
       if (active) setRows(orgs);
     })().catch((e: unknown) => { if (active) setError(failure('org switcher', e)); });
@@ -628,7 +629,7 @@ export function OrgSwitcher(ctx: Ctx) {
     <Screen header={<Header title="Switch Organization" onBack={ctx.back} />}>
       {error ? <Banner icon="cloud" tone="amber" title={error} /> : null}
       {rows.map((r) => {
-        const active = r.org_id === ctx.project.orgId;
+        const active = r.org_id === ctx.language.orgId;
         return (
           <Card key={r.org_id} accessibilityLabel={active ? `${r.name}, active` : r.name}
             onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
@@ -671,7 +672,7 @@ export function OrgSwitcher(ctx: Ctx) {
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
  */
 export function SignOutConfirm(ctx: Ctx) {
-  const { online, refused } = ctx.project;
+  const { online, refused } = ctx.language;
   const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -685,8 +686,8 @@ export function SignOutConfirm(ctx: Ctx) {
     setBusy(true);
     try {
       if (handsOver) {
-        const { orgId, projectId } = ctx.project;
-        await signOutHandingOver(ctx.session.actorId, ctx.project.blobs.unsent().map((ref) => ({ orgId, projectId, ref })));
+        const { orgId, languageId } = ctx.language;
+        await signOutHandingOver(ctx.session.actorId, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
         return;
       }
       await unregisterNotifications();
@@ -728,12 +729,12 @@ export function SignOutConfirm(ctx: Ctx) {
 
 /** What this session could still deliver from this phone; sign-out and deletion wait for it. */
 function useUnsent(ctx: Ctx): string[] {
-  const { pending, refused } = ctx.project;
+  const { pending, refused } = ctx.language;
   const accountQueued = useAccountActions(ctx.session.actorId).filter((a) => a.status === 'queued').length;
   return [
     !refused && pending > 0 ? plural(pending, 'change') : null,
     ctx.org.pending > 0 ? plural(ctx.org.pending, 'organization change') : null,
-    !refused && ctx.project.blobs.pendingUp > 0 ? plural(ctx.project.blobs.pendingUp, 'recording') : null,
+    !refused && ctx.language.blobs.pendingUp > 0 ? plural(ctx.language.blobs.pendingUp, 'recording') : null,
     accountQueued > 0 ? plural(accountQueued, 'account change') : null
   ].filter((w): w is string => w !== null);
 }
@@ -749,7 +750,7 @@ function useUnsent(ctx: Ctx): string[] {
  */
 export function DeleteAccount(ctx: Ctx) {
   const waiting = useUnsent(ctx);
-  const offline = ctx.project.online === false;
+  const offline = ctx.language.online === false;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function remove() {
@@ -796,7 +797,7 @@ export function DeleteAccount(ctx: Ctx) {
  * one line each so a developer can see the log move. Polled once a second.
  */
 export function SyncStatus(ctx: Ctx) {
-  const { project, org } = ctx;
+  const { language, org } = ctx;
   const [ins, setIns] = useState<SyncInspection | null>(null);
   const [orgIns, setOrgIns] = useState<SyncInspection | null>(null);
   const [rates, setRates] = useState({ up: 0, down: 0 });
@@ -811,32 +812,32 @@ export function SyncStatus(ctx: Ctx) {
       ctx.toast(failure('sync inspect', e));
     };
     const tick = () => {
-      void project.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
+      void language.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
       void org.inspect().then((i) => { if (alive) setOrgIns(i); }).catch(failed);
-      setRates(project.blobs.rates());
+      setRates(language.blobs.rates());
     };
     tick();
     const timer = setInterval(tick, 1000);
     return () => { alive = false; clearInterval(timer); };
-    // ctx.toast is stable for the visit; project and org drive the poll.
+    // ctx.toast is stable for the visit; language and org drive the poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, org]);
-  const offline = project.online === false;
+  }, [language, org]);
+  const offline = language.online === false;
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = [...(ins?.rejected ?? []), ...(orgIns?.rejected ?? [])];
   const syncNow = async () => {
     setBusy(true);
-    try { await Promise.all([project.sync(), org.sync()]); project.triggerUpload(); }
+    try { await Promise.all([language.sync(), org.sync()]); language.triggerUpload(); }
     catch (e) { ctx.toast(failure('sync now', e)); }
     finally { setBusy(false); }
   };
   return (
     <Screen header={<Header title="Sync" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Syncing…' : 'Sync now'} icon="restart" onPress={() => void syncNow()} disabled={project.tooOld || busy} />}>
-      <Banner icon="cloud" tone={project.live ? 'green' : offline ? 'amber' : 'brand'}
-        title={project.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this phone' : 'Checking for changes now and then'}
-        body={project.refused ?? (project.tooOld ? 'Update the app to sync.' : undefined)} />
+      footer={<PrimaryBtn label={busy ? 'Syncing…' : 'Sync now'} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
+      <Banner icon="cloud" tone={language.live ? 'green' : offline ? 'amber' : 'brand'}
+        title={language.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this phone' : 'Checking for changes now and then'}
+        body={language.refused ?? (language.tooOld ? 'Update the app to sync.' : undefined)} />
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
@@ -845,8 +846,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat icon="check" color={C.green} value={ins?.cursor ?? 0} label="latest confirmed" />
         <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label="local checkpoint" />
       </View>
-      <Transfer icon="up" pending={project.blobs.pendingUp} peak={project.blobs.peakUp} rate={rates.up} label="Audio uploading" />
-      <Transfer icon="download" pending={project.blobs.pendingDown} peak={project.blobs.peakDown} rate={rates.down} label="Audio downloading" />
+      <Transfer icon="up" pending={language.blobs.pendingUp} peak={language.blobs.peakUp} rate={rates.up} label="Audio uploading" />
+      <Transfer icon="download" pending={language.blobs.pendingDown} peak={language.blobs.peakDown} rate={rates.down} label="Audio downloading" />
       {ins && ins.pending.length ? (
         <>
           <SectionLabel label={`Waiting · ${ins.pending.length}`} />

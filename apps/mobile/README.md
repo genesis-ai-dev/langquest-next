@@ -5,7 +5,7 @@ Expo 57 app, run as a development build (the native recorder module does not loa
 1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/client`. The store logic itself lives in the client
    package and is contract-tested there against node:sqlite.
-2. `src/useProject.ts`: one `SyncClient` on the open language's partition
+2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
    with `SupabaseTransport`, sync on open and every 15 s, a pending count.
    `src/useOrg.ts`: the same client on the org partition (`_org`) with the
    org materializer. An organization holds its languages directly and is

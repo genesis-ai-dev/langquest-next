@@ -19,18 +19,18 @@ export interface WebFiles {
 }
 
 /** The parts of the File System Access API these stores use, so tests can fake them. */
-export interface DirHandle {
+interface DirHandle {
   getDirectoryHandle(name: string, opts?: { create?: boolean }): Promise<DirHandle>;
   getFileHandle(name: string, opts?: { create?: boolean }): Promise<FileHandle>;
   removeEntry(name: string, opts?: { recursive?: boolean }): Promise<void>;
   entries(): AsyncIterable<[string, { kind: 'file' | 'directory' }]>;
 }
-export interface FileHandle {
+interface FileHandle {
   getFile(): Promise<{ size: number; arrayBuffer(): Promise<ArrayBuffer> }>;
   createWritable(): Promise<{ write(data: Uint8Array<ArrayBuffer>): Promise<void>; close(): Promise<void> }>;
 }
 
-export const ROOT_DIR = 'langquest';
+const ROOT_DIR = 'langquest';
 
 function browserRoot(): Promise<DirHandle> {
   return navigator.storage.getDirectory() as unknown as Promise<DirHandle>;

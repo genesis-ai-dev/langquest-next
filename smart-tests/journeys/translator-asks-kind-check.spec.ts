@@ -14,18 +14,18 @@ import { openAs, seedSubmittedWorld } from '../world';
 test.use({ viewport: { width: 430, height: 1600 } });
 
 test('translator asks a reviewer for a kind check, due in a week', async ({ page }) => {
-  const world = await seedSubmittedWorld({ v2Flow: true });
+  const world = await seedSubmittedWorld();
   const passage = world.passages[0]!;
   await openAs(page, world, world.translator);
 
   const run = await runJev(page, askForKindCheck(passage.label, 'the reviewer'), { timeoutMs: 90_000, maxDecisions: 30 });
 
-  const contract = { askerId: world.translator.id, unitId: passage.unitId, laneId: world.laneId, assigneeId: world.reviewer.id,
-    what: 'check' as const, ...(world.kindId ? { kindId: world.kindId } : {}) };
+  const contract = { askerId: world.translator.id, unitId: passage.unitId, assigneeId: world.reviewer.id,
+    what: 'check' as const, kindId: world.kindId };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.languageId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.languageId)
   }), (e) => judgeRequest(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeRequest(contract, evidence), run.status);
   await reportRun(page, run, outcome);

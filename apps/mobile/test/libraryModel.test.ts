@@ -1,11 +1,11 @@
-import { emptyState, foldOrg, type AnyEvent } from '@langquest-next/core';
-import { copyOps, followOps, lanesBehind, lanesUsing, newItemId, publishOps, sourceLine, subscribeOps, type LibraryOp, type SharedItem } from '../src/library/model';
+import { emptyLanguageState, foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
+import { behindLibrary, copyOps, followOps, newItemId, publishOps, sourceLine, subscribeOps, usesItem, type LibraryOp, type SharedItem } from '../src/library/model';
 import { libraryItemView } from '@langquest-next/core';
 
 const H = (c: string) => c.repeat(64);
 let seq = 0;
 const fold = (ops: LibraryOp[], prior: AnyEvent[] = []) => {
-  const events = [...prior, ...ops.map((op) => ({ ...op, id: `e${++seq}`, orgId: 'o', projectId: '_org', actorId: 'a', deviceId: 'd', hlc: `${String(seq).padStart(15, '0')}:000000:d` }) as AnyEvent)];
+  const events = [...prior, ...ops.map((op) => ({ ...op, id: `e${++seq}`, orgId: 'o', streamId: ORG_STREAM, actorId: 'a', deviceId: 'd', hlc: `${String(seq).padStart(15, '0')}:000000:d` }) as AnyEvent)];
   return { events, library: foldOrg(events).library };
 };
 
@@ -57,24 +57,28 @@ describe('another organization\'s item', () => {
   });
 });
 
-describe('languages behind their items', () => {
-  it('lists a language whose template or flow item has moved to another version', () => {
+describe('a language behind its items', () => {
+  it('lists the template or flow whose item has moved to another version', () => {
     const { library } = fold([
       ...publishOps({}, { itemId: 'ruth', kind: 'template', name: 'Ruth', description: '', docHash: H('1') }),
       { type: 'v1.LibraryVersionPublished', payload: { itemId: 'ruth', kind: 'template', docHash: H('2') } },
       ...subscribeOps(shared, true).ops
     ]);
-    const state = emptyState();
-    state.lanes['L1'] = { languoidId: 'din' };
-    state.lanes['L2'] = { languoidId: 'nus' };
-    state.laneTemplates['L1'] = { value: { templateId: 'ruth', catalogVersion: 0, itemId: 'ruth', docHash: H('1'), books: ['RUT'] }, hlc: 'x', eventId: 'x' };
-    state.laneTemplates['L2'] = { value: { templateId: 'ruth', catalogVersion: 0, itemId: 'ruth', docHash: H('2') }, hlc: 'x', eventId: 'x' };
     const subId = subscribeOps(shared, true).itemId;
-    state.laneFlows['L2'] = { value: { flowId: 'f', catalogVersion: 2, itemId: subId, docHash: H('a'), name: 'Standard' }, hlc: 'x', eventId: 'x' };
-    expect(lanesBehind(state, library)).toEqual([
-      { laneId: 'L1', kind: 'template', itemId: 'ruth', docHash: H('2'), books: ['RUT'] },
-      { laneId: 'L2', kind: 'flow', itemId: subId, docHash: H('b') }
+    const state = emptyLanguageState();
+    state.template = { value: { itemId: 'ruth', docHash: H('1'), unitPrefix: 'ruth', books: ['RUT'] }, hlc: 'x', eventId: 'x' };
+    state.flow = { value: { flowId: 'f', itemId: subId, docHash: H('a'), name: 'Standard' }, hlc: 'x', eventId: 'x' };
+    expect(behindLibrary(state, library)).toEqual([
+      { kind: 'template', itemId: 'ruth', docHash: H('2'), books: ['RUT'] },
+      { kind: 'flow', itemId: subId, docHash: H('b') }
     ]);
-    expect(lanesUsing(state, 'ruth')).toEqual(['L1', 'L2']);
+    expect([usesItem(state, 'ruth'), usesItem(state, subId), usesItem(state, 'other'), usesItem(null, 'ruth')]).toEqual([true, true, false, false]);
+  });
+
+  it('lists nothing when the language is on the current versions', () => {
+    const { library } = fold(publishOps({}, { itemId: 'ruth2', kind: 'template', name: 'Ruth', description: '', docHash: H('1') }));
+    const state = emptyLanguageState();
+    state.template = { value: { itemId: 'ruth2', docHash: H('1'), unitPrefix: 'ruth2' }, hlc: 'x', eventId: 'x' };
+    expect(behindLibrary(state, library)).toEqual([]);
   });
 });

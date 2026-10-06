@@ -5,57 +5,59 @@
 // memberIsEditableAt, languageReviewers). Requirements ORG-1, ORG-2, ORG-5,
 // ORG-6, ORG-7, FLOW-5.
 import {
-  privilegesFor, privilegesOfFixedRole, SEED_ROLES,
-  type EventPayloads, type EventSpec, type EventType, type OrgState, type ProjectState, type Role, type Scope,
-  type ScopeLevel, type TemplateDoc
+  FLOWS, languagePeople, orgLanguages, privilegesFor, scopeKey,
+  type EventPayloads, type EventSpec, type EventType, type LanguageState, type OrgState, type Scope, type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
 import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from './contentTemplates';
 
 // ---- levels ------------------------------------------------------------------------
 
-/**
- * The levels anyone can grant at: the organization and a language
- * (decision 34). `project` remains a scope in the event shape; a membership
- * at it covers the org's one work partition, so it reads as every language.
- */
-export const LEVELS: readonly ScopeLevel[] = ['org', 'lane'];
-/** The demo's SCOPE_LABEL: a lane is a "Language" to people. */
-export const LEVEL_LABEL: Record<ScopeLevel, string> = { org: 'Organization', project: 'All languages', lane: 'Language' };
-const RANK: Record<ScopeLevel, number> = { org: 0, project: 1, lane: 2 };
+/** The two levels a role is granted at: the organization, which covers every language, and one language (decision 63). */
+export const LEVEL_LABEL: Record<ScopeLevel, string> = { org: 'Organization', language: 'Language' };
 
-export function levelRank(level: ScopeLevel): number {
-  return RANK[level];
-}
-
-/** A `level` param back to a level; anything else (a project, from before decision 34) reads as the organization. */
+/** A `level` param back to a level; anything else reads as the organization. */
 export function parseLevel(value: string | undefined): ScopeLevel {
-  return value === 'lane' ? value : 'org';
+  return value === 'language' ? value : 'org';
+}
+
+function scopeAt(level: ScopeLevel, languageId: string): Scope {
+  return level === 'org' ? { level } : { level, languageId };
+}
+
+function sameScope(a: Scope, b: Scope): boolean {
+  return scopeKey(a) === scopeKey(b);
 }
 
 /**
- * Demo `grantScopeAt`: the highest level this admin may grant at from a
- * home. Viewing a lower home, it is that home; viewing above your own
- * scope, it is your own scope. Null when you administer nothing.
+ * May this person grant a role, or issue an invite, at a scope? Only where
+ * they hold Invite: at org scope, or at a language they hold it for. The
+ * server checks the same (rule 6 of docs/streams-and-languages.md).
  */
-export function grantFloor(admin: Scope | null, view: ScopeLevel): ScopeLevel | null {
-  if (!admin) return null;
-  return RANK[view] >= RANK[admin.level] ? view : admin.level;
+export function mayGrantAt(org: OrgState | null, actorId: string, scope: Scope): boolean {
+  return !!org && privilegesFor(org, actorId, scope.level === 'language' ? scope.languageId : undefined).has('invite_members');
 }
 
-/** Demo `assignableScopes`: this level and below, never above the inviter's own scope (ORG-6). */
-export function assignableLevels(admin: Scope | null, view: ScopeLevel): ScopeLevel[] {
-  const floor = grantFloor(admin, view);
-  return floor ? LEVELS.filter((l) => RANK[l] >= RANK[floor]) : [];
+/** The languages this person may grant roles in, by name. */
+export function grantableLanguages(org: OrgState | null, actorId: string): string[] {
+  return orgLanguages(org).filter((l) => mayGrantAt(org, actorId, scopeAt('language', l.languageId))).map((l) => l.languageId);
 }
 
-export function scopeAt(level: ScopeLevel, projectId: string, laneId?: string): Scope {
-  if (level === 'org') return { level };
-  if (level === 'project') return { level, projectId };
-  return { level, projectId, ...(laneId ? { laneId } : {}) };
+/**
+ * Demo `assignableScopes`: the levels this person may grant at from a home,
+ * highest first. A language home grants at the language only; the
+ * organization's home also at the organization, for someone who holds
+ * Invite there (ORG-6).
+ */
+export function assignableLevels(org: OrgState | null, actorId: string, view: ScopeLevel): ScopeLevel[] {
+  const out: ScopeLevel[] = [];
+  if (view === 'org' && mayGrantAt(org, actorId, { level: 'org' })) out.push('org');
+  if (grantableLanguages(org, actorId).length > 0) out.push('language');
+  return out;
 }
 
-export function sameScope(a: Scope, b: Scope): boolean {
-  return a.level === b.level && (a.level === 'org' || a.projectId === b.projectId) && (a.level !== 'lane' || a.laneId === b.laneId);
+/** Demo `grantScopeAt`: the highest level this person may grant at from a home, or null. */
+export function grantFloor(org: OrgState | null, actorId: string, view: ScopeLevel): ScopeLevel | null {
+  return assignableLevels(org, actorId, view)[0] ?? null;
 }
 
 // ---- progress ----------------------------------------------------------------------
@@ -79,7 +81,7 @@ export function progressLine(p: HomeProgress): string {
 
 // ---- members -----------------------------------------------------------------------
 
-/** One person's role at one scope. A project member added the old way reads as a project-level entry. */
+/** One person's role at one scope. */
 export interface MemberEntry {
   key: string;
   profileId: string;
@@ -87,20 +89,10 @@ export interface MemberEntry {
   roleId: string;
   /** When the role was granted (the register's clock), for "joined". */
   since: string;
-  /** Present for a member of the project log only (v1.MemberAdded), who has no org membership. */
-  legacyRole?: Role;
 }
 
-/** The seed role a fixed project role reads as. */
-export function seedRoleId(role: Role): string {
-  return SEED_ROLES.find((r) => r.fixed === role)?.roleId ?? role;
-}
-
-/**
- * Everyone with a role somewhere: active org memberships at every scope,
- * plus members of the open project's own log who hold no org membership.
- */
-export function memberEntries(org: OrgState | null, project: ProjectState | null, projectId: string): MemberEntry[] {
+/** Everyone with a role somewhere: the organization's active memberships at every scope. */
+export function memberEntries(org: OrgState | null): MemberEntry[] {
   const out: MemberEntry[] = [];
   for (const [profileId, scopes] of Object.entries(org?.members ?? {})) {
     for (const [key, m] of Object.entries(scopes)) {
@@ -108,64 +100,42 @@ export function memberEntries(org: OrgState | null, project: ProjectState | null
       out.push({ key: `${profileId}|${key}`, profileId, scope: m.scope, roleId: m.roleId.value, since: m.roleId.hlc });
     }
   }
-  for (const [profileId, m] of Object.entries(project?.members ?? {})) {
-    if (m.removed.value || org?.members[profileId]) continue;
-    out.push({
-      key: `${profileId}|legacy`, profileId, scope: { level: 'project', projectId }, roleId: seedRoleId(m.role.value),
-      since: m.role.hlc, legacyRole: m.role.value
-    });
-  }
   return out;
 }
 
-/**
- * Members assigned exactly at a home's level (ORG-5). At the organization
- * that includes anyone assigned to all of its languages (a project-level
- * membership of its work partition, from before decision 34).
- */
-export function membersAt(entries: MemberEntry[], level: ScopeLevel, projectId: string, laneId?: string): MemberEntry[] {
-  return entries.filter((e) => sameScope(e.scope, scopeAt(level, projectId, laneId))
-    || (level === 'org' && e.scope.level === 'project' && e.scope.projectId === projectId));
+/** Members assigned exactly at a home's level (ORG-5): the organization, or that language. */
+export function membersAt(entries: MemberEntry[], level: ScopeLevel, languageId = ''): MemberEntry[] {
+  const at = scopeAt(level, languageId);
+  return entries.filter((e) => sameScope(e.scope, at));
 }
 
-/** Members from the levels above a home, shown view-only there (ORG-5). */
-export function membersAbove(entries: MemberEntry[], level: ScopeLevel, projectId: string): MemberEntry[] {
-  if (level === 'org') return [];
-  return entries.filter((e) => e.scope.level === 'org' || (level === 'lane' && e.scope.level === 'project' && e.scope.projectId === projectId));
+/** Members from the level above a home, shown view only there (ORG-5): the organization's, on a language home. */
+export function membersAbove(entries: MemberEntry[], level: ScopeLevel): MemberEntry[] {
+  return level === 'org' ? [] : entries.filter((e) => e.scope.level === 'org');
 }
 
-/**
- * Members assigned at a language of this organization, grouped by language,
- * for "Expand by". Each language is its own partition (decisions.md 37), so
- * every language counts, not only the open one.
- */
+/** Members assigned at a language, grouped by language, for "Expand by". */
 export function groupBelow(entries: MemberEntry[]): Map<string, MemberEntry[]> {
   const out = new Map<string, MemberEntry[]>();
   for (const e of entries) {
-    if (e.scope.level !== 'lane' || !e.scope.laneId) continue;
-    out.set(e.scope.laneId, [...(out.get(e.scope.laneId) ?? []), e]);
+    if (e.scope.level !== 'language') continue;
+    out.set(e.scope.languageId, [...(out.get(e.scope.languageId) ?? []), e]);
   }
   return out;
 }
 
-/** Demo `memberIsEditableAt`: a home edits its own level and below, never above. */
-export function editableAt(scope: Scope, view: ScopeLevel): boolean {
-  return RANK[scope.level] >= RANK[view];
-}
-
-/** An org-partition write (ctx.org.append), in the order to apply it. */
+/** An organization-stream write (ctx.org.append), in the order to apply it. */
 export type OrgOp =
-  | { type: 'v1.OrgMemberAdded'; payload: EventPayloads['v1.OrgMemberAdded'] }
-  | { type: 'v1.OrgMemberRemoved'; payload: EventPayloads['v1.OrgMemberRemoved'] };
+  | { type: 'v1.MemberAdded'; payload: EventPayloads['v1.MemberAdded'] }
+  | { type: 'v1.MemberRemoved'; payload: EventPayloads['v1.MemberRemoved'] };
 
 /**
- * Change an org member's role or scope (ORG-7) and the writes that put it
- * back (CORE-5). A new scope is a new membership: the old one is removed.
- * Legacy project members are not handled here (their role is a project event).
+ * Change a member's role or scope (ORG-7) and the writes that put it back
+ * (CORE-5). A new scope is a new membership: the old one is removed.
  */
 export function changeMembership(entry: MemberEntry, next: { roleId: string; scope: Scope }): { apply: OrgOp[]; undo: OrgOp[] } {
-  const add = (roleId: string, scope: Scope): OrgOp => ({ type: 'v1.OrgMemberAdded', payload: { profileId: entry.profileId, roleId, scope } });
-  const remove = (scope: Scope): OrgOp => ({ type: 'v1.OrgMemberRemoved', payload: { profileId: entry.profileId, scope } });
+  const add = (roleId: string, scope: Scope): OrgOp => ({ type: 'v1.MemberAdded', payload: { profileId: entry.profileId, roleId, scope } });
+  const remove = (scope: Scope): OrgOp => ({ type: 'v1.MemberRemoved', payload: { profileId: entry.profileId, scope } });
   if (sameScope(entry.scope, next.scope)) {
     if (entry.roleId === next.roleId) return { apply: [], undo: [] };
     return { apply: [add(next.roleId, entry.scope)], undo: [add(entry.roleId, entry.scope)] };
@@ -179,27 +149,19 @@ export function changeMembership(entry: MemberEntry, next: { roleId: string; sco
 /** Take someone off one scope (and the write that restores them). */
 export function removeMembership(entry: MemberEntry): { apply: OrgOp[]; undo: OrgOp[] } {
   return {
-    apply: [{ type: 'v1.OrgMemberRemoved', payload: { profileId: entry.profileId, scope: entry.scope } }],
-    undo: [{ type: 'v1.OrgMemberAdded', payload: { profileId: entry.profileId, roleId: entry.roleId, scope: entry.scope } }]
+    apply: [{ type: 'v1.MemberRemoved', payload: { profileId: entry.profileId, scope: entry.scope } }],
+    undo: [{ type: 'v1.MemberAdded', payload: { profileId: entry.profileId, roleId: entry.roleId, scope: entry.scope } }]
   };
 }
 
 // ---- review teams (FLOW-5) ------------------------------------------------------------
 
 /** Demo `languageReviewers`: people holding Review over this language. */
-export function reviewEligible(org: OrgState | null, project: ProjectState | null, projectId: string, laneId: string): string[] {
-  const out = new Set<string>();
-  for (const profileId of Object.keys(org?.members ?? {})) {
-    if (org && privilegesFor(org, profileId, { projectId, laneId }).has('review')) out.add(profileId);
-  }
-  for (const [profileId, m] of Object.entries(project?.members ?? {})) {
-    if (m.removed.value || org?.members[profileId]) continue;
-    if (privilegesOfFixedRole(m.role.value).has('review')) out.add(profileId);
-  }
-  return [...out].sort();
+export function reviewEligible(org: OrgState | null, languageId: string): string[] {
+  return [...languagePeople(org, languageId).values()].filter((p) => p.privileges.has('review')).map((p) => p.profileId).sort();
 }
 
-export function teamMembers(state: ProjectState, teamId: string): string[] {
+export function teamMembers(state: LanguageState, teamId: string): string[] {
   return Object.entries(state.teams[teamId]?.members ?? {}).filter(([, r]) => r.value).map(([id]) => id).sort();
 }
 
@@ -214,14 +176,14 @@ const counter = (commandId: string) => {
  * written. `undo` restores the name and membership it had, or is null for a
  * new team (there is no event that removes a team).
  */
-export function saveTeam(state: ProjectState, c: { commandId: string; teamId: string; laneId: string; name: string; members: string[] }): { specs: EventSpec[]; undo: (() => EventSpec[]) | null } {
+export function saveTeam(state: LanguageState, c: { commandId: string; teamId: string; name: string; members: string[] }): { specs: EventSpec[]; undo: (() => EventSpec[]) | null } {
   const next = counter(c.commandId);
   const team = state.teams[c.teamId];
   const before = team ? teamMembers(state, c.teamId) : [];
   const chosen = new Set(c.members);
   const name = c.name.trim();
   const specs: EventSpec[] = [];
-  if (!team || team.name.value !== name || team.laneId !== c.laneId) specs.push(spec(next(), 'v1.ReviewTeamDefined', { teamId: c.teamId, laneId: c.laneId, name }));
+  if (!team || team.name.value !== name) specs.push(spec(next(), 'v1.ReviewTeamDefined', { teamId: c.teamId, name }));
   for (const id of [...chosen].sort()) if (!before.includes(id)) specs.push(spec(next(), 'v1.ReviewTeamMemberSet', { teamId: c.teamId, profileId: id, member: true }));
   for (const id of before) if (!chosen.has(id)) specs.push(spec(next(), 'v1.ReviewTeamMemberSet', { teamId: c.teamId, profileId: id, member: false }));
   if (!team) return { specs, undo: null };
@@ -231,7 +193,7 @@ export function saveTeam(state: ProjectState, c: { commandId: string; teamId: st
     undo: () => {
       const back = counter(`${c.commandId}:undo`);
       const out: EventSpec[] = [];
-      if (oldName !== name) out.push(spec(back(), 'v1.ReviewTeamDefined', { teamId: c.teamId, laneId: team.laneId, name: oldName }));
+      if (oldName !== name) out.push(spec(back(), 'v1.ReviewTeamDefined', { teamId: c.teamId, name: oldName }));
       for (const id of before) if (!chosen.has(id)) out.push(spec(back(), 'v1.ReviewTeamMemberSet', { teamId: c.teamId, profileId: id, member: true }));
       for (const id of chosen) if (!before.includes(id)) out.push(spec(back(), 'v1.ReviewTeamMemberSet', { teamId: c.teamId, profileId: id, member: false }));
       return out;
@@ -262,55 +224,53 @@ export function booksInScope(doc: TemplateDoc, scope: LanguageScope): string[] |
   });
 }
 
+/** The flow LangQuest suggests to a language that has nothing to go by. */
+export const STARTER_FLOW = { orgId: STARTER_TEMPLATE.orgId, name: FLOWS[0]!.name } as const;
+
 /**
- * The template a new language starts from (ORG-2): the one most languages
- * here already use, else LangQuest's starter, else the first there is.
- * Returns a choice's key, or null when there is nothing to choose.
+ * What a new language starts from (ORG-2): the item the open language uses,
+ * else LangQuest's starter, else the first there is. Returns a choice's
+ * key, or null when there is nothing to choose.
  */
-export function suggestedTemplate(state: ProjectState | null, choices: LibraryChoice[]): string | null {
-  const counts = new Map<string, number>();
-  for (const sel of Object.values(state?.laneTemplates ?? {})) {
-    const itemId = sel.value.itemId;
-    if (itemId) counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
-  }
-  const used = choices
-    .filter((c): c is Extract<LibraryChoice, { source: 'ours' }> => c.source === 'ours' && (counts.get(c.item.itemId) ?? 0) > 0)
-    .sort((a, b) => counts.get(b.item.itemId)! - counts.get(a.item.itemId)! || (a.item.itemId < b.item.itemId ? -1 : 1))[0];
+export function suggestedChoice(inUse: string | null | undefined, choices: LibraryChoice[], starter: { orgId: string; name: string }): string | null {
+  const used = inUse ? choices.find((c) => c.source === 'ours' && c.item.itemId === inUse) : undefined;
   if (used) return used.key;
-  const starter = choices.find((c) => c.name === STARTER_TEMPLATE.name && (c.source === 'ours' || c.shared.org_id === STARTER_TEMPLATE.orgId));
-  return (starter ?? choices[0])?.key ?? null;
+  const first = choices.find((c) => c.name === starter.name && (c.source === 'ours' || c.shared.org_id === starter.orgId));
+  return (first ?? choices[0])?.key ?? null;
 }
 
 /**
- * Add a language: the lane, its name for people (read everywhere through
- * core `laneName`), then its template's events (`applySpecs` from the
- * library: the selection and the units it needs that are not here yet;
- * units are shared across languages).
+ * Add a language: `LanguageAdded` for the organization's stream, then the
+ * new language's own first events, its template (`TemplateSelected` and
+ * the units it needs) and its flow (`FlowSelected` and its steps), as
+ * `applySpecs` from the library made them. A language needs both, so a
+ * missing one is refused here. The language's stream accepts its events
+ * once the organization's lists it.
  */
-export function addLanguage(state: ProjectState | null, c: { commandId: string; laneId: string; code: string; name: string; template: EventSpec[] }): EventSpec[] {
+export function addLanguage(
+  org: OrgState | null,
+  c: { languageId: string; code: string; name: string; template: EventSpec[]; flow: EventSpec[] }
+): { added: EventPayloads['v1.LanguageAdded']; specs: EventSpec[] } {
   const code = c.code.trim().toLowerCase();
   const name = c.name.trim();
   if (!code) throw new Error('Enter a language code.');
-  if (state?.lanes[c.laneId]) throw new Error('That language is already here.');
-  const next = counter(c.commandId);
-  // The language's own partition starts with it (docs/decisions.md 37); the
-  // server accepts that first event from someone who manages structure.
-  const specs: EventSpec[] = [
-    spec(next(), 'v1.ProjectCreated', { name: name || code, sourceLanguoidId: SOURCE_LANGUOID }),
-    spec(next(), 'v1.LaneAdded', { laneId: c.laneId, languoidId: code })
-  ];
-  if (name) specs.push(spec(next(), 'v1.LaneNamed', { laneId: c.laneId, name }));
-  return [...specs, ...c.template];
+  if (org?.languages[c.languageId]?.added) throw new Error('That language is already here.');
+  if (!c.template.some((s) => s.type === 'v1.TemplateSelected')) throw new Error('Choose a template.');
+  if (!c.flow.some((s) => s.type === 'v1.FlowSelected')) throw new Error('Choose a review flow.');
+  return {
+    added: { languageId: c.languageId, name: name || code.toUpperCase(), code, sourceCode: SOURCE_CODE },
+    specs: [...c.template, ...c.flow]
+  };
 }
 
 /**
- * The source text a language translates from: the app ships English
+ * The language source Bibles are offered in: the app ships English
  * readings (BSB, WEB, KJV), so a new language starts from them.
  */
-export const SOURCE_LANGUOID = 'eng';
+const SOURCE_CODE = 'eng';
 
-/** A lane id people can read in logs, unique per add: "L-din-3f9a2c". It is also the language's partition id. */
-export function newLaneId(code: string, random: string): string {
+/** A language id people can read in logs, unique per add: "L-din-3f9a2c". It is also its stream's id. */
+export function newLanguageId(code: string, random: string): string {
   const slug = code.trim().toLowerCase().replace(/[^a-z0-9]+/g, '') || 'lang';
   return `L-${slug}-${random.replace(/-/g, '').slice(0, 6)}`;
 }

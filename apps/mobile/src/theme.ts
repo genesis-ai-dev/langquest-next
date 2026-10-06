@@ -38,40 +38,6 @@ export const TINT = {
   noteBorder: '#F5E6B0'
 } as const;
 
-/**
- * The previous token names, kept so screens written against them take the
- * new look without a rewrite. New code uses `C` and `TINT`.
- */
-export const colors = {
-  background: C.bg,
-  foreground: C.dark,
-  card: C.card,
-  muted: C.bg,
-  mutedForeground: C.muted,
-  border: C.border,
-  action: C.primary,
-  actionForeground: C.white,
-  translate: C.primary,
-  review: C.primary,
-  reference: C.amber,
-  done: C.green,
-  danger: C.red,
-  white: C.white
-} as const;
-
-export const tint = {
-  translate: C.light,
-  review: C.light,
-  translateBadge: C.light,
-  reviewBadge: C.light,
-  reviewChip: C.light,
-  done: TINT.green,
-  doneBorder: 'rgba(16, 185, 129, 0.25)',
-  translateBar: 'rgba(107, 72, 200, 0.35)',
-  reviewBar: 'rgba(107, 72, 200, 0.35)',
-  mutedContainer: 'rgba(244, 242, 250, 0.70)'
-} as const;
-
 export const radius = { sm: 8, md: 12, lg: 16, xl: 20, sheet: 28, full: 999 } as const;
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 

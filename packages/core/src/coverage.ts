@@ -1,6 +1,6 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
-import type { TargetScope } from './record';
-import type { ProjectState } from './state';
+import type { TargetScope } from './org';
+import type { LanguageState } from './state';
 
 /**
  * Where a unit sits in the canon, verse by verse, so coverage can be
@@ -52,7 +52,7 @@ export const SCOPE_VERSES: Record<TargetScope, number> = (() => {
 export const bookOfVerse = (v: number): number => VERSE_BOOK[v]!;
 
 /** A chapter's id across the canon: `bookIndex * 1000 + chapter`. */
-export const chapterOfVerse = (v: number): number => VERSE_BOOK[v]! * 1000 + VERSE_CHAPTER[v]!;
+const chapterOfVerse = (v: number): number => VERSE_BOOK[v]! * 1000 + VERSE_CHAPTER[v]!;
 export const bookOfChapter = (chapterId: number): number => Math.floor(chapterId / 1000);
 export const chapterNumber = (chapterId: number): number => chapterId % 1000;
 export const bookLabel = (bookIndex: number): string => BIBLE_BOOKS[bookIndex]?.label ?? '';
@@ -96,7 +96,7 @@ const cache = new Map<string, number[]>();
  * pericope its range, a hand-added unit what its label says ("Luke
  * 15:11-32", "John 3"). Book overviews and anything else cover none.
  */
-export function unitVerses(state: ProjectState, unitId: string): number[] {
+export function unitVerses(state: LanguageState, unitId: string): number[] {
   const label = state.units[unitId]?.label ?? '';
   const key = `${unitId}\u0000${label}`;
   const hit = cache.get(key);
@@ -120,6 +120,6 @@ export function unitVerses(state: ProjectState, unitId: string): number[] {
 }
 
 /** The chapters a unit touches, as chapter ids. */
-export function unitChapters(state: ProjectState, unitId: string): number[] {
+export function unitChapters(state: LanguageState, unitId: string): number[] {
   return [...new Set(unitVerses(state, unitId).map(chapterOfVerse))];
 }

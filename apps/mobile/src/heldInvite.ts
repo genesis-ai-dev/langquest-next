@@ -10,7 +10,7 @@
  */
 
 /** Who the held invite is for. */
-export type Claim =
+type Claim =
   /** Scanned; nobody has said who is joining. Never used without asking. */
   | { kind: 'unclaimed' }
   /** A signed-out person chose "new person" or "I have an account": the next account to sign in here. */
@@ -64,7 +64,7 @@ export function claim(held: HeldInvite, who: 'next-account' | { actorId: string 
   return { ...held, claim: who === 'next-account' ? { kind: 'next-account' } : { kind: 'account', actorId: who.actorId } };
 }
 
-export type Step =
+type Step =
   /** Nothing to do (no invite, or not for this session). */
   | { step: 'none' }
   /** Let it go: too old. */
@@ -92,7 +92,7 @@ export function nextStep(held: HeldInvite | null, actorId: string | null, now: n
 
 export type DeadReason = 'expired' | 'used' | 'not_found' | 'retired';
 
-export type Outcome =
+type Outcome =
   | { kind: 'joined'; orgId: string }
   /** Not reached, or the server was busy: keep it and try again later. */
   | { kind: 'retry' }
@@ -119,7 +119,7 @@ export interface InvitePreview {
   orgId?: string;
   orgName?: string | null;
   roleName?: string | null;
-  scopeLevel?: 'org' | 'project' | 'lane' | null;
+  scopeLevel?: 'org' | 'language' | null;
   languageName?: string | null;
   label?: string | null;
   invitedBy?: string | null;
@@ -145,7 +145,7 @@ export function deadMessage(reason: DeadReason, from?: string | null): string {
 export function inviteCard(p: InvitePreview | null): { title: string; detail: string | null; from: string | null } {
   if (!p || p.status === 'not_found') return { title: 'Invitation to join an organization', detail: null, from: null };
   const title = p.label && !p.group ? `Invite for ${p.label}` : p.label ? p.label : `Invitation to ${p.orgName ?? 'an organization'}`;
-  const where = p.scopeLevel === 'lane' && p.languageName ? `${p.languageName} · ${p.orgName ?? ''}`.replace(/ · $/, '') : p.orgName ?? null;
+  const where = p.scopeLevel === 'language' && p.languageName ? `${p.languageName} · ${p.orgName ?? ''}`.replace(/ · $/, '') : p.orgName ?? null;
   const detail = [p.roleName, where].filter(Boolean).join(' · ') || null;
   return { title, detail, from: p.invitedBy ?? null };
 }

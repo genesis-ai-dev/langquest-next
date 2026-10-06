@@ -13,28 +13,32 @@ function phone() {
   const server = new FakeServer();
   const store = new MemoryStore();
   const wall = { t: 0 };
-  const client = (actorId: string, projectId = 'p1') =>
+  const client = (actorId: string, streamId = 'p1') =>
     new SyncClient({
-      orgId: 'org1', projectId, actorId, deviceId: 'shared', store, transport: server.transportFor(),
-      clock: new HlcClock('shared', () => (wall.t += 1)), newId: () => `${actorId}-${projectId}-${(wall.t += 1)}`
+      orgId: 'org1', streamId, actorId, deviceId: 'shared', store, transport: server.transportFor(),
+      clock: new HlcClock('shared', () => (wall.t += 1)), newId: () => `${actorId}-${streamId}-${(wall.t += 1)}`
     });
   return { server, store, client };
 }
 
+function unit(label: string) {
+  return { unitId: label, parentUnitId: null, kind: 'passage', label, order: 'a' };
+}
+
 describe('deliverQueued (a shared phone handed on)', () => {
-  it("sends every partition's queued events by one person, and only theirs", async () => {
+  it("sends every stream's queued events by one person, and only theirs", async () => {
     const { server, store, client } = phone();
     server.offline = true;
     const akol = client('akol');
     await akol.load();
-    await akol.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await akol.append('v1.UnitAdded', unit('Luke'));
     const akolElsewhere = client('akol', 'p2');
     await akolElsewhere.load();
-    await akolElsewhere.append('v1.ProjectCreated', { name: 'John', sourceLanguoidId: 'eng' });
+    await akolElsewhere.append('v1.UnitAdded', unit('John'));
     const mary = client('mary');
     await mary.load();
-    await mary.append('v1.ProjectCreated', { name: 'Mark', sourceLanguoidId: 'eng' });
-    expect(await store.pendingPartitionsBy('akol')).toEqual([{ orgId: 'org1', projectId: 'p1' }, { orgId: 'org1', projectId: 'p2' }]);
+    await mary.append('v1.UnitAdded', unit('Mark'));
+    expect(await store.pendingStreamsBy('akol')).toEqual([{ orgId: 'org1', streamId: 'p1' }, { orgId: 'org1', streamId: 'p2' }]);
 
     server.offline = false;
     const sent = await deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared' });
@@ -42,7 +46,7 @@ describe('deliverQueued (a shared phone handed on)', () => {
     expect(server.log.map((e) => e.actorId)).toEqual(['akol', 'akol']);
     // Mary's work waits for Mary's session.
     expect(await store.pendingCountBy('org1', 'p1', 'mary')).toBe(1);
-    expect(await store.pendingPartitionsBy('akol')).toEqual([]);
+    expect(await store.pendingStreamsBy('akol')).toEqual([]);
   });
 
   it('offline: nothing is lost, and it goes on the next try', async () => {
@@ -50,7 +54,7 @@ describe('deliverQueued (a shared phone handed on)', () => {
     server.offline = true;
     const akol = client('akol');
     await akol.load();
-    await akol.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await akol.append('v1.UnitAdded', unit('Luke'));
     await expect(deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared' })).rejects.toThrow();
     expect(await store.pendingCountBy('org1', 'p1', 'akol')).toBe(1);
     server.offline = false;
@@ -62,11 +66,11 @@ describe('deliverQueued (a shared phone handed on)', () => {
     server.offline = true;
     const akol = client('akol');
     await akol.load();
-    await akol.append('v1.ProjectCreated', { name: 'Refused', sourceLanguoidId: 'eng' });
-    await akol.append('v1.ProjectCreated', { name: 'Too early', sourceLanguoidId: 'eng' });
+    await akol.append('v1.UnitAdded', unit('Refused'));
+    await akol.append('v1.UnitAdded', unit('Too early'));
     server.offline = false;
     server.authorize = (e) => {
-      const name = (e.payload as { name?: string }).name;
+      const name = (e.payload as { label?: string }).label;
       return name === 'Refused' ? 'not a member of this organization' : name === 'Too early' ? 'clock ahead: server time 5' : null;
     };
     const sent = await deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared' });
@@ -74,6 +78,6 @@ describe('deliverQueued (a shared phone handed on)', () => {
     expect((await store.rejected('org1', 'p1')).map((l) => l.rejectReason)).toEqual(['not a member of this organization']);
     // Not re-stamped: the queued event keeps its clock for Akol's own client to fix.
     const queued = await store.pending('org1', 'p1');
-    expect(queued.map((l) => (l.event.payload as { name: string }).name)).toEqual(['Too early']);
+    expect(queued.map((l) => (l.event.payload as { label: string }).label)).toEqual(['Too early']);
   });
 });

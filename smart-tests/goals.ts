@@ -22,7 +22,7 @@ export const answerFeedback = (label: string, note: string) =>
   `Keep the take, then save it as Version 2. When asked what changed, type: "${note}". Stop when you are back on the passage page.`;
 
 export const askToRecord = (label: string, person: string) =>
-  `You coordinate this project. Find the passage "${label}" on the Map (open the project's only language, then its book) ` +
+  `You coordinate this language. Find the passage "${label}" on the Map (open the language, then its book) ` +
   'and open that passage\'s page. Nobody has recorded it yet, and you will not record it yourself. ' +
   'On a passage page you tap a step on its path (starting with Recorded) to ask someone to do it. ' +
   `Ask ${person} to do the recording, due in a week, and send the ask. Stop when the ask is sent.`;
@@ -32,8 +32,8 @@ export const searchMap = (query: string) =>
   'Stop when that passage is open.';
 
 export const buildFlow = () =>
-  'You manage review flows for one language, and a project is one language. On the Manage tab, open the project, and from ' +
-  'the project\'s own page open how its passages are checked (its review flow; the organization-wide flow list cannot be edited). ' +
+  'You manage review flows for one language. On the Manage tab, open the language, and from ' +
+  'the language\'s own page open how its passages are checked (its review flow; the organization-wide flow list cannot be edited). ' +
   'Edit the flow. Remove any steps already there. Add a first step with Peer Review, and alongside it, in the same step, Back Translation. ' +
   'Then add a second step with Consultant Check and make that step a checkpoint. Save the flow. Stop when the flow is saved.';
 
@@ -74,8 +74,8 @@ export const addStudyNoteAtMoment = (label: string, note: string) =>
   `You are a translator studying "${label}". Open its study and go to the "Setting the Stage" step. Play the step's audio, ` +
   `pause it after a second or two, and add a note at that moment that says exactly: ${note}. Save the note. Stop when it is saved.`;
 
-// ---- Decision 28: a project is one language -------------------------------
+// ---- New Language: a language and its own stream (decision 63) ------------
 
-export const createProject = (name: string, languageCode: string) =>
-  `You are an organization admin. Start a new project called "${name}" for translating into the language with code ` +
-  `"${languageCode}". Create it. Stop when the project is created.`;
+export const createLanguage = (name: string, languageCode: string) =>
+  `You are an organization admin. Add a new language called "${name}" with the language code ` +
+  `"${languageCode}". Create it. Stop when the language is created.`;

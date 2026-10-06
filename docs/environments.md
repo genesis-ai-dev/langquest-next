@@ -75,7 +75,10 @@ Nothing else holds a key: not GitHub, Cloudflare, Supabase or EAS. Running the
 app or the dashboard locally needs none. The Bible routes locally need the
 Bible Brain key in your shell when `npm run web:dev` starts
 (`scripts/web-dev-vars.ts` copies it into the ignored `apps/web/.dev.vars`
-without printing it); without it they answer 503.
+without printing it); without it they answer 503. `npm run db:start` and
+`npm run db:reset` also schedule the projection worker locally, every minute,
+with a local secret of its own, and seed the library (`server/README.md`).
+Plain `supabase start` or `supabase db reset` skip both.
 
 Workers Builds still keeps branch builds off on every Worker, so a branch
 never deploys over preview or production.

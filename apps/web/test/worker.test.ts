@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { encodeHlc, REDUCER_VERSION, REPORT_VERSION, SEED_ROLES, takeSnapshot, type AnyEvent } from '@langquest-next/core';
+import { encodeHlc, REDUCER_VERSION, REPORT_VERSION, SEED_ROLES, takeSnapshot, type AnyEvent, type OrgReportsResponse } from '@langquest-next/core';
 import { handleApi, type ApiDeps } from '../worker/api';
 import { MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
 import { SqlCache, splitText } from '../worker/sqlCache';
@@ -13,66 +13,69 @@ import { SqlCache, splitText } from '../worker/sqlCache';
 const ORG = 'org1';
 
 class FakeLog implements Source {
-  readonly partitions = new Map<string, AnyEvent[]>();
+  readonly streams = new Map<string, AnyEvent[]>();
   readonly snapshots = new Map<string, string>();
-  readonly pulls: { projectId: string; after: number }[] = [];
+  readonly pulls: { streamId: string; after: number }[] = [];
   headCalls = 0;
   private seq = 0;
 
-  add(projectId: string, type: string, payload: unknown, id = `e${this.seq + 1}`): string {
-    const list = this.partitions.get(projectId) ?? [];
+  add(streamId: string, type: string, payload: unknown, id = `e${this.seq + 1}`): string {
+    const list = this.streams.get(streamId) ?? [];
     this.seq += 1;
-    list.push({ id, type, orgId: ORG, projectId, actorId: 'admin', deviceId: 'd', hlc: encodeHlc(1_790_000_000_000 + this.seq, 0, 'd'), payload, serverSeq: list.length + 1 } as AnyEvent);
-    this.partitions.set(projectId, list);
+    list.push({ id, type, orgId: ORG, streamId, actorId: 'admin', deviceId: 'd', hlc: encodeHlc(1_790_000_000_000 + this.seq, 0, 'd'), payload, serverSeq: list.length + 1 } as AnyEvent);
+    this.streams.set(streamId, list);
     return id;
   }
 
-  /** What the projection worker would have stored for the partition as it stands. */
-  snapshot(projectId: string) {
-    this.snapshots.set(projectId, JSON.stringify(takeSnapshot(ORG, projectId, this.partitions.get(projectId) ?? [])));
+  /** What the projection worker would have stored for the stream as it stands. */
+  snapshot(streamId: string) {
+    this.snapshots.set(streamId, JSON.stringify(takeSnapshot(ORG, streamId, this.streams.get(streamId) ?? [])));
   }
 
-  async pull(orgId: string, projectId: string, after: number, limit: number) {
-    this.pulls.push({ projectId, after });
+  async pull(orgId: string, streamId: string, after: number, limit: number) {
+    this.pulls.push({ streamId, after });
     await Promise.resolve();
-    return (this.partitions.get(projectId) ?? []).filter((e) => orgId === ORG && e.serverSeq! > after).slice(0, limit);
+    return (this.streams.get(streamId) ?? []).filter((e) => orgId === ORG && e.serverSeq! > after).slice(0, limit);
   }
 
-  /** What partition_heads answers; a log without it is pulled to find out. */
+  /** What stream_heads answers; a log without it is pulled to find out. */
   async heads(orgId: string) {
     this.headCalls += 1;
-    return orgId === ORG ? Object.fromEntries([...this.partitions].map(([id, list]) => [id, list.length])) : {};
+    return orgId === ORG ? Object.fromEntries([...this.streams].map(([id, list]) => [id, list.length])) : {};
   }
 
-  async snapshotMeta(_org: string, projectId: string, reducerVersion: number) {
-    const s = this.snapshots.get(projectId);
+  async snapshotMeta(_org: string, streamId: string, reducerVersion: number) {
+    const s = this.snapshots.get(streamId);
     if (!s || reducerVersion !== REDUCER_VERSION) return null;
     return { serverSeq: (JSON.parse(s) as { serverSeq: number }).serverSeq, chunks: 1, bytes: s.length };
   }
 
-  async snapshotChunk(_org: string, projectId: string) {
-    const s = this.snapshots.get(projectId);
+  async snapshotChunk(_org: string, streamId: string) {
+    const s = this.snapshots.get(streamId);
     return s ? JSON.stringify((JSON.parse(s) as { state: unknown }).state) : null;
   }
 }
 
+const unit = (unitId: string, label = unitId) => ({ unitId, parentUnitId: null, kind: 'passage', label, order: unitId });
+
+/** Languages din and nus, each with one passage; 'admin' at org scope, 'dinka' viewing din. */
 function orgLog(): FakeLog {
   const log = new FakeLog();
   log.add('_org', 'v1.OrgCreated', { name: 'Org' });
   for (const r of SEED_ROLES) log.add('_org', 'v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
-  log.add('_org', 'v1.ProjectRegistered', { projectId: 'din', name: 'Dinka' });
-  log.add('_org', 'v1.ProjectRegistered', { projectId: 'nus', name: 'Nuer' });
-  log.add('_org', 'v1.OrgMemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } });
-  log.add('_org', 'v1.OrgMemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'lane', projectId: 'din', laneId: 'din' } });
-  log.add('din', 'v1.LaneAdded', { laneId: 'din', languoidId: 'din' });
-  log.add('nus', 'v1.LaneAdded', { laneId: 'nus', languoidId: 'nus' });
-  log.add('nus', 'v1.MemberAdded', { profileId: 'old', role: 'translator' });
+  log.add('_org', 'v1.LanguageAdded', { languageId: 'din', name: 'Dinka', code: 'din', sourceCode: 'eng' });
+  log.add('_org', 'v1.LanguageAdded', { languageId: 'nus', name: 'Nuer', code: 'nus', sourceCode: 'eng' });
+  log.add('_org', 'v1.MemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } });
+  log.add('_org', 'v1.MemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'language', languageId: 'din' } });
+  log.add('din', 'v1.UnitAdded', unit('d1'));
+  log.add('nus', 'v1.UnitAdded', unit('n1'));
   return log;
 }
 
-const lanes = (out: { rows: { laneId: string }[] } | null) => out!.rows.map((r) => r.laneId);
+const languages = (out: OrgReportsResponse | null) => out!.rows.map((r) => r.languageId);
+const report = (out: OrgReportsResponse | null, languageId = 'din') => out!.rows.find((r) => r.languageId === languageId)!.report;
 
-/** The same log without partition_heads, as before the RPC existed. */
+/** The same log without stream_heads, as before the RPC existed. */
 const withoutHeads = (log: FakeLog): Source => ({
   pull: log.pull.bind(log), snapshotMeta: log.snapshotMeta.bind(log), snapshotChunk: log.snapshotChunk.bind(log)
 });
@@ -80,22 +83,20 @@ const withoutHeads = (log: FakeLog): Source => ({
 describe('OrgFolder', () => {
   it('gives each person only the languages they may view', async () => {
     const folder = new OrgFolder(orgLog(), ORG);
-    expect(lanes(await folder.reportsFor('admin'))).toEqual(['din', 'nus']);
-    expect(lanes(await folder.reportsFor('dinka'))).toEqual(['din']);
-    // Joined the partition the older way, with no org membership.
-    expect(lanes(await folder.reportsFor('old'))).toEqual(['nus']);
+    expect(languages(await folder.reportsFor('admin'))).toEqual(['din', 'nus']);
+    expect(languages(await folder.reportsFor('dinka'))).toEqual(['din']);
     expect(await folder.reportsFor('stranger')).toBeNull();
     expect(folder.knows('stranger')).toBe(false);
-    expect(folder.knows('old')).toBe(true);
+    expect(folder.knows('dinka')).toBe(true);
   });
 
-  it('starts a partition from its server snapshot and pulls only what came after', async () => {
+  it('starts a language from its server snapshot and pulls only what came after', async () => {
     const log = orgLog();
     log.snapshot('din');
-    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Thuɔŋjäŋ' });
+    log.add('din', 'v1.UnitAdded', unit('d2'));
     const out = await new OrgFolder(log, ORG).reportsFor('admin');
-    expect(log.pulls.filter((p) => p.projectId === 'din')).toEqual([{ projectId: 'din', after: 1 }]);
-    expect(out!.rows.find((r) => r.laneId === 'din')?.report.name).toBe('Thuɔŋjäŋ');
+    expect(log.pulls.filter((p) => p.streamId === 'din')).toEqual([{ streamId: 'din', after: 1 }]);
+    expect(report(out).progress.total).toBe(2);
   });
 
   it('answers from memory for a minute, then catches up from its cursor', async () => {
@@ -104,22 +105,22 @@ describe('OrgFolder', () => {
     const folder = new OrgFolder(withoutHeads(log), ORG, new MemoryCache(), () => now);
     const first = await folder.reportsFor('admin');
     const pulled = log.pulls.length;
-    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Renamed' });
+    log.add('_org', 'v1.LanguageRenamed', { languageId: 'din', name: 'Renamed' });
     now += 30_000;
-    expect((await folder.reportsFor('admin'))!.rows[0]!.report.name).toBe('DIN');
+    expect(report(await folder.reportsFor('admin')).name).toBe('Dinka');
     expect(log.pulls.length).toBe(pulled);
     now += 31_000;
     const later = await folder.reportsFor('admin');
-    expect(later!.rows[0]!.report.name).toBe('Renamed');
-    expect(log.pulls.slice(pulled).find((p) => p.projectId === 'din')).toEqual({ projectId: 'din', after: 1 });
+    expect(report(later).name).toBe('Renamed');
+    expect(log.pulls.slice(pulled).find((p) => p.streamId === 'din')).toEqual({ streamId: 'din', after: 1 });
     expect(Date.parse(later!.asOf) - Date.parse(first!.asOf)).toBe(61_000);
   });
 
   it('shares one pass among requests that arrive together', async () => {
     const log = orgLog();
     const folder = new OrgFolder(log, ORG);
-    await Promise.all([folder.reportsFor('admin'), folder.reportsFor('dinka'), folder.reportsFor('old')]);
-    expect(log.pulls.filter((p) => p.projectId === '_org')).toHaveLength(1);
+    await Promise.all([folder.reportsFor('admin'), folder.reportsFor('dinka')]);
+    expect(log.pulls.filter((p) => p.streamId === '_org')).toHaveLength(1);
     expect(log.headCalls).toBe(1);
   });
 
@@ -127,38 +128,51 @@ describe('OrgFolder', () => {
     const log = orgLog();
     const folder = new OrgFolder(log, ORG);
     const running = folder.reportsFor('admin');
-    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Saved just now' });
+    log.add('_org', 'v1.LanguageRenamed', { languageId: 'din', name: 'Saved just now' });
     const [a, b] = await Promise.all([folder.reportsFor('admin', true), folder.reportsFor('dinka', true), running]);
-    expect(a!.rows[0]!.report.name).toBe('Saved just now');
-    expect(b!.rows[0]!.report.name).toBe('Saved just now');
+    expect(report(a).name).toBe('Saved just now');
+    expect(report(b).name).toBe('Saved just now');
     expect(log.headCalls).toBe(2);
   });
 
-  it('refolds a partition when a redaction targets something already folded', async () => {
+  it('refolds a language when a redaction targets something already folded', async () => {
     const log = orgLog();
     const folder = new OrgFolder(withoutHeads(log), ORG);
-    const named = log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Mistake' });
-    expect((await folder.reportsFor('admin'))!.rows[0]!.report.name).toBe('Mistake');
-    log.add('din', 'v1.Redacted', { eventId: named });
-    expect((await folder.reportsFor('admin', true))!.rows[0]!.report.name).toBe('DIN');
-    expect(log.pulls.filter((p) => p.projectId === 'din').map((p) => p.after)).toEqual([0, 2, 0]);
+    const added = log.add('din', 'v1.UnitAdded', unit('d2', 'Mistake'));
+    expect(report(await folder.reportsFor('admin')).progress.total).toBe(2);
+    log.add('din', 'v1.Redacted', { eventId: added });
+    expect(report(await folder.reportsFor('admin', true)).progress.total).toBe(1);
+    expect(log.pulls.filter((p) => p.streamId === 'din').map((p) => p.after)).toEqual([0, 2, 0]);
+  });
+
+  it('refolds every language when the organization changes, without pulling them again', async () => {
+    let now = Date.UTC(2026, 8, 30, 12);
+    const log = orgLog();
+    const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now);
+    await folder.reportsFor('admin');
+    log.pulls.length = 0;
+    log.add('_org', 'v1.LanguageCountrySet', { languageId: 'nus', country: 'SS' });
+    now += 61_000;
+    const out = await folder.reportsFor('admin');
+    expect(log.pulls).toEqual([{ streamId: '_org', after: 10 }]);
+    expect(report(out, 'nus').country).toBe('SS');
   });
 });
 
 describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
   const at = Date.UTC(2026, 9, 3, 12);
 
-  it('asks for the heads and pulls only the partitions that moved', async () => {
+  it('asks for the heads and pulls only the languages that moved', async () => {
     let now = at;
     const log = orgLog();
     const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now);
     await folder.reportsFor('admin');
     log.pulls.length = 0;
-    log.add('nus', 'v1.LaneNamed', { laneId: 'nus', name: 'Naath' });
+    log.add('nus', 'v1.UnitAdded', unit('n2'));
     now += 61_000;
     const out = await folder.reportsFor('admin');
-    expect(log.pulls).toEqual([{ projectId: 'nus', after: 2 }]);
-    expect(out!.rows.find((r) => r.laneId === 'nus')?.report.name).toBe('Naath');
+    expect(log.pulls).toEqual([{ streamId: 'nus', after: 1 }]);
+    expect(report(out, 'nus').progress.total).toBe(2);
   });
 
   it('wakes from its cache with one heads query and no pulls when nothing moved', async () => {
@@ -172,21 +186,21 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
     expect(log.headCalls).toBe(1);
     expect(log.pulls).toEqual([]);
     expect(woken!.rows.map((r) => r.report.name)).toEqual(first!.rows.map((r) => r.report.name));
-    expect(lanes(await new OrgFolder(log, ORG, cache, () => at).reportsFor('dinka'))).toEqual(['din']);
+    expect(languages(await new OrgFolder(log, ORG, cache, () => at).reportsFor('dinka'))).toEqual(['din']);
   });
 
-  it('catches up a woken partition from its cached fold, not from the start', async () => {
+  it('catches up a woken language from its cached fold, not from the start', async () => {
     const log = orgLog();
     const cache = new MemoryCache();
     await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
-    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Later' });
+    log.add('din', 'v1.UnitAdded', unit('d2'));
     log.pulls.length = 0;
     const out = await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
-    expect(log.pulls).toEqual([{ projectId: 'din', after: 1 }]);
-    expect(out!.rows[0]!.report.name).toBe('Later');
+    expect(log.pulls).toEqual([{ streamId: 'din', after: 1 }]);
+    expect(report(out).progress.total).toBe(2);
   });
 
-  it('refolds the reports of a partition that did not move when the day turns', async () => {
+  it('refolds the reports of a language that did not move when the day turns', async () => {
     const log = orgLog();
     const cache = new MemoryCache();
     await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
@@ -211,19 +225,19 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
     const log = orgLog();
     const cache = new MemoryCache();
     const folder = new OrgFolder(log, ORG, cache, () => now);
-    const named = log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Mistake' });
+    const added = log.add('din', 'v1.UnitAdded', unit('d2', 'Mistake'));
     await folder.reportsFor('admin');
     const cachedCursor = () => (JSON.parse(cache.data.get('state:din')!) as { cursor: number }).cursor;
     expect(cachedCursor()).toBe(2);
-    log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Small change' });
+    log.add('din', 'v1.UnitAdded', unit('d3'));
     await folder.reportsFor('admin', true);
     expect(cachedCursor()).toBe(2);
     expect(JSON.parse(cache.data.get('summary:din')!).cursor).toBe(3);
-    log.add('din', 'v1.Redacted', { eventId: named });
+    log.add('din', 'v1.Redacted', { eventId: added });
     await folder.reportsFor('admin', true);
     expect(cachedCursor()).toBe(4);
     expect(cache.data.get('state:din')).not.toContain('Mistake');
-    for (let i = 0; i < STATE_SAVE_EVERY; i++) log.add('din', 'v1.LaneNamed', { laneId: 'din', name: `n${i}` });
+    for (let i = 0; i < STATE_SAVE_EVERY; i++) log.add('din', 'v1.UnitAdded', unit(`m${i}`));
     now += 61_000;
     await folder.reportsFor('admin');
     expect(cachedCursor()).toBe(4 + STATE_SAVE_EVERY);
@@ -306,10 +320,10 @@ describe('the reports API', () => {
   });
 
   it('answers a summary view with each language\'s progress alone', async () => {
-    const report = { name: 'Dinka', progress: { total: 3, recorded: 1, done: 0, steps: [], waiting: 0, feedback: 0 } };
-    const d = deps({ reports: async () => ({ rows: [{ projectId: 'p', laneId: 'din', report: report as never }], asOf: body.asOf }) });
+    const summary = { name: 'Dinka', progress: { total: 3, recorded: 1, done: 0, steps: [], waiting: 0, feedback: 0 } };
+    const d = deps({ reports: async () => ({ rows: [{ languageId: 'din', report: summary as never }], asOf: body.asOf }) });
     const res = await handleApi(get('/api/orgs/o/reports?view=summary', 'good'), d);
-    expect(await res.json()).toEqual({ rows: [{ projectId: 'p', laneId: 'din', name: 'Dinka', progress: report.progress }], asOf: body.asOf });
+    expect(await res.json()).toEqual({ rows: [{ languageId: 'din', name: 'Dinka', progress: summary.progress }], asOf: body.asOf });
   });
 
   it('answers an unchanged request with a 304 that still says how fresh it is', async () => {

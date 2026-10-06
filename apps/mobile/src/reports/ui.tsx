@@ -1,4 +1,4 @@
-import { percent, recencyOf, SCOPE_LABEL, timeAgo, type Coverage, type LaneReport } from '@langquest-next/core';
+import { percent, recencyOf, SCOPE_LABEL, timeAgo, type Coverage, type LanguageReport } from '@langquest-next/core';
 import type { ReactNode } from 'react';
 import { Platform, Share, StyleSheet, Text, View } from 'react-native';
 import { Badge, Card, Ico, txt, type IconName } from '../kit';
@@ -203,7 +203,7 @@ export function CoverageRows(props: { recorded: Coverage; done: Coverage }) {
   );
 }
 
-export function RecencyBadge(props: { report: LaneReport; now: number }) {
+export function RecencyBadge(props: { report: LanguageReport; now: number }) {
   const { band, days } = recencyOf(props.report, props.now);
   return <ToneBadge tone={RECENCY_TONE[band]} label={`${RECENCY_LABEL[band]}${days !== null && band !== 'active' ? ` · ${days}d` : ''}`} />;
 }
@@ -220,7 +220,7 @@ export function HeadlineStats(props: { total: number; recorded: number; done: nu
   );
 }
 
-export function AttentionPanel(props: { attention: LaneReport['attention'] }) {
+export function AttentionPanel(props: { attention: LanguageReport['attention'] }) {
   const a = props.attention;
   const tone = (n: number, t: Tone): Tone | undefined => (n > 0 ? t : undefined);
   return (

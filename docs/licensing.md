@@ -34,7 +34,7 @@ Once work has gone out under open terms, anyone who took a copy keeps those
 terms, so letting an organization close it again would promise something the
 app cannot keep. The rule is in three places:
 
-- **The fold.** `v1.OrgLicenseSet {license}` lives in the org partition, and
+- **The fold.** `v1.LicenseSet {license}` lives in the organization stream, and
   `applyOrgEvent` keeps the most open license ever set, with the earliest
   event that set it (a ratchet: max over the ladder). Two admins opening it
   offline both land on the more open of their choices, in any order, and a
@@ -66,7 +66,7 @@ visible to outsiders by upgrading.
   they are identified (the demo's "Visibility" open tension; the ETEN meeting
   notes). Keeping the organization closed is the answer for them today.
 - **Explore** listings carry the license of the organization behind them
-  (`public_projects.license`, written by the projection worker).
+  (`public_languages.license`, written by the projection worker).
 
 ## What the license covers
 
@@ -94,7 +94,7 @@ does not change it.
 | Any Creative Commons rung | everything, by role (unchanged) | the work, read-only, for every language; listed languages also appear on Explore |
 
 Listing and licensing are separate. **Listing** (per language, reversible,
-`set_project_visibility`) is about being found on Explore. **The license**
+`set_language_visibility`) is about being found on Explore. **The license**
 (per organization, one way) is about what people may do with the work. An
 open organization's unlisted language is not on Explore, but someone with a
 link may still look inside it.
@@ -105,13 +105,13 @@ projection.
 
 ## Plan
 
-1. **Done (this change).** `v1.OrgLicenseSet` with the ratchet fold,
-   validation and privilege in core and SQL (migration
-   `20260929120000_org_license.sql`, parity script, smoke section 8e); the
+1. **Done (this change).** `v1.LicenseSet` with the ratchet fold,
+   validation and privilege in core and SQL (now in the baseline migration,
+   parity script, smoke section 8e); the
    choice on Create Organization; opening it from Organization Home; the
    license on Explore listings. Nothing outside the organization can see more
    than before.
-2. **Public projection.** The projection worker already folds every partition
+2. **Public projection.** The projection worker already folds every stream
    off the write path (invariant 9). For languages whose organization's
    license has `outsidersMayView`, it writes safe rows and nothing else:
    `public_languages (org_id, language_id, name, org_name, license, updated_at)`

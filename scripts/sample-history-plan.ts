@@ -12,7 +12,7 @@ import type { TargetScope } from '@langquest-next/core';
 
 const DAY = 86_400_000;
 
-export interface HistoryProfile {
+interface HistoryProfile {
   country: string;
   /** Book the work starts in (BIBLE_BOOKS itemId); passages are recorded in order from its first. */
   startBook: string;
@@ -28,7 +28,7 @@ export interface HistoryProfile {
   stuck?: [number, number];
 }
 
-/** Keyed by lane id; the two languages every sample has, then the four --history adds. */
+/** Keyed by language id; the two languages every sample has, then the four --history adds. */
 export const HISTORY_PROFILES: Record<string, HistoryProfile> = {
   'L-din-sample': { country: 'SS', startBook: 'mat', target: { scope: 'nt', startDaysAgo: 70, targetDaysAhead: 600 }, fromDaysAgo: 70, toDaysAgo: 0, passagesPerWeek: 7, reviewShare: 0.5 },
   'L-nus-sample': { country: 'SS', startBook: 'mar', target: { scope: 'gospels', startDaysAgo: 150, targetDaysAhead: 200 }, fromDaysAgo: 84, toDaysAgo: 1, passagesPerWeek: 9, reviewShare: 0.7 },
@@ -38,7 +38,7 @@ export const HISTORY_PROFILES: Record<string, HistoryProfile> = {
   'L-hlb-sample': { country: 'IN', startBook: 'gen', fromDaysAgo: 120, toDaysAgo: 60, passagesPerWeek: 3, reviewShare: 0.1 }
 };
 
-export type Action =
+type Action =
   | { kind: 'record'; at: number; unitIndex: number; cards: number; uploaded: boolean }
   | { kind: 'review'; at: number; unitIndex: number };
 

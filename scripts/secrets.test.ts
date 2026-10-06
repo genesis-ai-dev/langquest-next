@@ -32,7 +32,9 @@ describe('secrets', () => {
 
   it('sets every secret an Edge Function reads, except the ones Supabase sets itself', () => {
     // Every function folder, and the `_shared` code they import.
-    const names = readdirSync(new URL('../supabase/functions', import.meta.url))
+    // Folders only: the ignored local `.env` (scripts/local-db.mjs) sits beside them.
+    const names = readdirSync(new URL('../supabase/functions', import.meta.url), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory()).map((entry) => entry.name)
       .flatMap((dir) => readdirSync(new URL(`../supabase/functions/${dir}`, import.meta.url))
         .filter((file) => file.endsWith('.ts'))
         .map((file) => `supabase/functions/${dir}/${file}`))

@@ -1,5 +1,5 @@
 /**
- * Snapshot worker CLI. Runs one pass over every partition.
+ * Snapshot worker CLI. Runs one pass over every language stream.
  *   npm run snapshot            (local Supabase; key read from `supabase status`)
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx server/snapshotWorker.ts
  * Schedule it (cron, a Worker, pg_cron calling an HTTP endpoint) at whatever
@@ -15,4 +15,4 @@ if (!key) {
   process.exit(1);
 }
 const results = await runSnapshotWorker(createClient(url, key, { auth: { persistSession: false } }));
-for (const r of results) console.log(`${r.orgId}/${r.projectId} seq=${r.serverSeq} ${r.updated ? 'updated' : 'unchanged'}`);
+for (const r of results) console.log(`${r.orgId}/${r.streamId} seq=${r.serverSeq} ${r.updated ? 'updated' : 'unchanged'}`);

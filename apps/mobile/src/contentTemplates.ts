@@ -1,17 +1,14 @@
 // Pure reading of content templates for the content screens (screens/content.tsx),
 // ported from the UX demo's src/content.ts and src/domain/boundaries.ts
 // (TPL-1..9, ADR-025..027). Templates are library items (docs/library.md):
-// a language names one version of one (`v2.LaneTemplateSelected`) and its
-// units come from that version. Languages set up from the catalog that used
-// to ship in the app still read their template's name and levels from it.
-// Everything here is derived from the fold and the documents; nothing is
+// a language names one version of one (`v1.TemplateSelected`) and its units
+// come from that version. Everything here is derived from the fold and the documents; nothing is
 // stored. A language's passages in a book are its template's units in that
 // book, read as verse ranges; FIA's breaks are read from core's bundled
 // pericope list.
 import {
-  bookIdOf, bookOrder, canonicalJson, contentTemplate, laneLeafUnits, libraryUnitRange, subscriptionItemId, templateOfUnit,
-  unitPlace, USFM_BOOKS,
-  type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type ProjectState,
+  bookIdOf, bookOrder, canonicalJson, languagePassages, libraryUnitRange, subscriptionItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
+  type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type LanguageState,
   type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
@@ -21,7 +18,7 @@ export type { BibleBook };
 
 // ---- verses and ranges -----------------------------------------------------------
 
-export type VerseRef = { c: number; v: number };
+type VerseRef = { c: number; v: number };
 export const verseKey = (r: VerseRef): number => r.c * 1000 + r.v;
 
 /** FIA's seeds spell Mark and John differently from the canon list. */
@@ -32,11 +29,11 @@ export function bibleBook(bookId: string): BibleBook | undefined {
   return BIBLE_BOOKS.find((b) => b.itemId === id);
 }
 
-export function versesIn(book: BibleBook, chapter: number): number {
+function versesIn(book: BibleBook, chapter: number): number {
   return book.verses[chapter - 1] ?? 0;
 }
 
-export function lastVerse(book: BibleBook): VerseRef {
+function lastVerse(book: BibleBook): VerseRef {
   const c = book.verses.length;
   return { c, v: versesIn(book, c) };
 }
@@ -105,20 +102,17 @@ export function chipLabel(book: BibleBook, s: { from: VerseRef; to: VerseRef }):
 
 // ---- a language's template ----------------------------------------------------------
 
-/** What a language records against: a library version, or a template from the catalog that used to ship in the app. */
-export type LaneTemplate =
-  | { source: 'library'; itemId: string; docHash: string; books: string[] | null }
-  | { source: 'legacy'; templateId: string; catalogVersion: number; name: string; levels: string[] };
+/** The library version a language records against. */
+interface LanguageTemplate {
+  itemId: string;
+  docHash: string;
+  /** The books it covers; null means every book. */
+  books: string[] | null;
+}
 
-export function laneTemplateOf(state: ProjectState, laneId: string): LaneTemplate | null {
-  const sel = state.laneTemplates[laneId]?.value;
-  if (!sel) return null;
-  if (sel.itemId && sel.docHash) return { source: 'library', itemId: sel.itemId, docHash: sel.docHash, books: sel.books ?? null };
-  const t = contentTemplate(sel.templateId);
-  return {
-    source: 'legacy', templateId: sel.templateId, catalogVersion: sel.catalogVersion,
-    name: t?.name ?? sel.templateId, levels: t?.unitKinds.map((k) => k.label) ?? []
-  };
+export function templateOf(state: LanguageState): LanguageTemplate | null {
+  const sel = state.template?.value;
+  return sel ? { itemId: sel.itemId, docHash: sel.docHash, books: sel.books ?? null } : null;
 }
 
 /** A template's levels, outermost first: Book › Chapter, Module › Lesson. */
@@ -127,10 +121,8 @@ export function docLevels(doc: TemplateDoc): string[] {
 }
 
 /** The word for what a language records: its template's last level ("Passage", "Chapter"). */
-export function partName(state: ProjectState, laneId: string, doc?: TemplateDoc | null): string {
-  const t = laneTemplateOf(state, laneId);
-  const levels = t?.source === 'legacy' ? t.levels : doc ? docLevels(doc) : [];
-  return levels.at(-1) ?? 'Passage';
+export function partName(doc?: TemplateDoc | null): string {
+  return (doc ? docLevels(doc) : []).at(-1) ?? 'Passage';
 }
 
 /** "passages", "stories": the demo's plural of a level name. */
@@ -145,11 +137,10 @@ export function versionNumber(item: LibraryItemView | null, docHash: string | nu
   return item?.versions.find((v) => v.docHash === docHash)?.n ?? null;
 }
 
-/** "FIA passages (English) · version 2", "Bible · from the app", or "No template yet", for a language's row. */
-export function laneTemplateLine(state: ProjectState, item: (itemId: string) => LibraryItemView | null, laneId: string): string {
-  const t = laneTemplateOf(state, laneId);
+/** "FIA passages (English) · version 2", or "No template yet", for a language's row. */
+export function templateLine(state: LanguageState, item: (itemId: string) => LibraryItemView | null): string {
+  const t = templateOf(state);
   if (!t) return 'No template yet';
-  if (t.source === 'legacy') return `${t.name} · from the app`;
   const it = item(t.itemId);
   const n = versionNumber(it, t.docHash);
   return `${it?.name ?? 'A template'}${n ? ` · version ${n}` : ''}`;
@@ -161,28 +152,27 @@ export function laneTemplateLine(state: ProjectState, item: (itemId: string) => 
  * version dropped them, or it narrowed its books. Switching back brings them
  * back; nothing was deleted.
  */
-export function setAsideCount(state: ProjectState, laneId: string): number {
-  const sel = state.laneTemplates[laneId]?.value;
+export function setAsideCount(state: LanguageState): number {
+  const sel = state.template?.value;
   if (!sel) return 0;
-  const hidden = state.laneHiddenUnits[laneId] ?? {};
   const books = sel.books ? new Set(sel.books) : null;
   const units = new Set<string>();
   for (const t of Object.values(state.takes)) {
-    if (t.laneId !== laneId || t.archived) continue;
-    const from = templateOfUnit(t.unitId);
-    if (!from) continue;
+    if (t.archived) continue;
+    const prefix = unitPrefixOf(t.unitId);
+    if (prefix === null) continue;
     const book = libraryUnitRange(t.unitId)?.book;
-    if (from.templateId !== sel.templateId || from.catalogVersion !== sel.catalogVersion) units.add(t.unitId);
-    else if (hidden[t.unitId]?.value === true) units.add(t.unitId);
+    if (prefix !== sel.unitPrefix) units.add(t.unitId);
+    else if (state.hiddenUnits[t.unitId]?.value === true) units.add(t.unitId);
     else if (books && book && !books.has(book)) units.add(t.unitId);
   }
   return units.size;
 }
 
-/** Parts of a language that already have a recording: they never move on their own. */
-export function recordedCount(state: ProjectState, laneId: string): number {
+/** Parts of the language that already have a recording: they never move on their own. */
+export function recordedCount(state: LanguageState): number {
   const units = new Set<string>();
-  for (const t of Object.values(state.takes)) if (t.laneId === laneId && !t.archived) units.add(t.unitId);
+  for (const t of Object.values(state.takes)) if (!t.archived) units.add(t.unitId);
   return units.size;
 }
 
@@ -395,30 +385,25 @@ export function countOutline(list: OutlineNode[]): { folders: number; items: num
 
 // ---- a language's books ------------------------------------------------------------------
 
-const booksCache = new WeakMap<ProjectState, Map<string, Map<string, string[]>>>();
+const booksCache = new WeakMap<LanguageState, Map<string, string[]>>();
 
-/** A language's units grouped by Bible book, in canon order within each book. Cached per fold revision. */
-export function laneUnitsByBook(state: ProjectState, idx: Indexes, laneId: string): Map<string, string[]> {
-  let perLane = booksCache.get(state);
-  if (!perLane) {
-    perLane = new Map();
-    booksCache.set(state, perLane);
-  }
-  const hit = perLane.get(laneId);
+/** The language's units grouped by Bible book, in canon order within each book. Cached per fold revision. */
+function unitsByBook(state: LanguageState, idx: Indexes): Map<string, string[]> {
+  const hit = booksCache.get(state);
   if (hit) return hit;
   const out = new Map<string, string[]>();
-  for (const unitId of laneLeafUnits(state, idx, laneId)) {
+  for (const unitId of languagePassages(state, idx)) {
     const bookId = unitPlace(state, unitId).bookId;
     if (!bookId) continue;
     const list = out.get(bookId);
     if (list) list.push(unitId);
     else out.set(bookId, [unitId]);
   }
-  perLane.set(laneId, out);
+  booksCache.set(state, out);
   return out;
 }
 
-export interface BookRow {
+interface BookRow {
   book: BibleBook;
   /** What the language calls it (a library template names its books). */
   label: string;
@@ -426,8 +411,8 @@ export interface BookRow {
 }
 
 /** The books a language divides, in canon order, with how many parts each has. */
-export function bookRows(state: ProjectState, idx: Indexes, laneId: string): BookRow[] {
-  const byBook = laneUnitsByBook(state, idx, laneId);
+export function bookRows(state: LanguageState, idx: Indexes): BookRow[] {
+  const byBook = unitsByBook(state, idx);
   return BIBLE_BOOKS.filter((b) => byBook.has(b.itemId)).map((book) => {
     const units = byBook.get(book.itemId)!;
     return { book, label: unitPlace(state, units[0]!).bookLabel || book.label, parts: units.length };
@@ -468,8 +453,8 @@ export function toSegments(book: BibleBook, units: { unitId: string; label: stri
   return out;
 }
 
-export function bookSegments(state: ProjectState, idx: Indexes, laneId: string, book: BibleBook): Segment[] {
-  const units = laneUnitsByBook(state, idx, laneId).get(book.itemId) ?? [];
+export function bookSegments(state: LanguageState, idx: Indexes, book: BibleBook): Segment[] {
+  const units = unitsByBook(state, idx).get(book.itemId) ?? [];
   return toSegments(book, units.map((unitId) => ({ unitId, label: state.units[unitId]?.label ?? '' })));
 }
 

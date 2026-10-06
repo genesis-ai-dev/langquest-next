@@ -16,7 +16,7 @@ export const PERSON_COLORS = [
   { name: 'Slate', hex: '#495057' }
 ] as const;
 export const PERSON_SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'] as const;
-export type PersonShape = typeof PERSON_SHAPES[number];
+type PersonShape = typeof PERSON_SHAPES[number];
 
 export interface PersonLook {
   id: string;

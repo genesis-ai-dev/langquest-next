@@ -1,8 +1,8 @@
 import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
-  adminScopeOf, catalogEnabled, effectiveRole, emptyOrgState, foldOrg, privilegeFor, privilegesFor,
-  privilegesOfFixedRole, SEED_ROLES, EVENT_PRIVILEGE, WORK_PARTITION, workPartitionOf, orgLanguages, partitionOfLane
+  adminScopeOf, effectiveRole, emptyOrgState, foldOrg, languageInfo, languageName, languageOfOrgEvent, languagePeople, orgLanguages,
+  privilegeFor, privilegesFor, privilegesOfFixedRole, scopeCovers, SEED_ROLES, EVENT_PRIVILEGE
 } from '../src/org';
 import { buildFixture, shuffle } from './fixtures';
 
@@ -11,34 +11,34 @@ function orgFixture(): AnyEvent[] {
   let seq = 0;
   const emit = (type: string, payload: unknown, deviceId = 'dA', actorId = 'lead') => {
     seq += 1;
-    out.push({ id: `o${seq}`, type, orgId: 'org1', projectId: '_org', actorId, deviceId, hlc: encodeHlc(1_700_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq } as AnyEvent);
+    out.push({ id: `o${seq}`, type, orgId: 'org1', streamId: '_org', actorId, deviceId, hlc: encodeHlc(1_700_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq } as AnyEvent);
   };
   emit('v1.OrgCreated', { name: 'Wycliffe Associates' });
   for (const r of SEED_ROLES) emit('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
   emit('v1.RoleDefined', { roleId: 'lang_lead', name: 'Translation Team Leader', privileges: ['assign_work', 'manage_teams', 'translate', 'review', 'view_status'] });
-  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'East Africa NT' });
-  emit('v1.ProjectRegistered', { projectId: 'p2', name: 'SE Asia Gospels' });
-  // Registered again from another device, later: the first name stands.
-  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Renamed later' }, 'dB');
-  emit('v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' }, displayName: 'Lead' });
-  emit('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'project_coordinator', scope: { level: 'project', projectId: 'p1' } });
-  emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'lane', projectId: 'p1', laneId: 'din' } });
-  emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'translator', scope: { level: 'lane', projectId: 'p1', laneId: 'nus' } });
-  emit('v1.OrgMemberAdded', { profileId: 'viewer', roleId: 'viewer', scope: { level: 'org' } });
-  emit('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'translator', scope: { level: 'project', projectId: 'p1' } });
-  emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'project', projectId: 'p1' } }, 'dB');
+  emit('v1.LanguageAdded', { languageId: 'din', name: 'Dinka', code: 'din', sourceCode: 'eng' });
+  emit('v1.LanguageAdded', { languageId: 'nus', name: 'Nuer', code: 'nus', sourceCode: 'eng' });
+  // Added again from another device, later: the first one stands.
+  emit('v1.LanguageAdded', { languageId: 'din', name: 'Added later', code: 'dik', sourceCode: 'fra' }, 'dB');
+  emit('v1.MemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' } });
+  emit('v1.MemberAdded', { profileId: 'coord', roleId: 'coordinator', scope: { level: 'org' } });
+  emit('v1.MemberAdded', { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'language', languageId: 'din' } });
+  emit('v1.MemberAdded', { profileId: 'akol', roleId: 'translator', scope: { level: 'language', languageId: 'nus' } });
+  emit('v1.MemberAdded', { profileId: 'viewer', roleId: 'viewer', scope: { level: 'org' } });
+  emit('v1.MemberAdded', { profileId: 'gone', roleId: 'translator', scope: { level: 'language', languageId: 'din' } });
+  emit('v1.MemberRemoved', { profileId: 'gone', scope: { level: 'language', languageId: 'din' } }, 'dB');
   // Role edited later from another device: privileges register wins by clock.
   emit('v1.RoleDefined', { roleId: 'lang_lead', name: 'Translation Team Leader', privileges: ['assign_work', 'manage_teams', 'manage_reference', 'translate', 'review', 'view_status'] }, 'dC');
   emit('v1.RoleRetired', { roleId: 'unused' });
-  emit('v1.CatalogItemToggled', { kind: 'flow', itemId: 'quick_check', level: 'org', enabled: false });
-  emit('v1.CatalogItemToggled', { kind: 'template', itemId: 'fia', level: 'project', projectId: 'p2', enabled: false });
   // A language renamed from two devices: the later clock names it in the org's list.
-  emit('v1.LaneNamed', { laneId: 'din', name: 'Dinka' });
-  emit('v1.LaneNamed', { laneId: 'din', name: 'Thuɔŋjäŋ' }, 'dB');
+  emit('v1.LanguageRenamed', { languageId: 'din', name: 'Dinka (old name)' });
+  emit('v1.LanguageRenamed', { languageId: 'din', name: 'Thuɔŋjäŋ' }, 'dB');
+  // A rename for a language this device has not seen added yet.
+  emit('v1.LanguageRenamed', { languageId: 'later', name: 'Not yet' });
   return out;
 }
 
-describe('org partition fold', () => {
+describe('organization stream fold', () => {
   const events = orgFixture();
   const canonical = foldOrg(events);
 
@@ -47,86 +47,114 @@ describe('org partition fold', () => {
     expect(foldOrg([...events, ...shuffle(events, 3)])).toEqual(canonical);
   });
 
-  it('ignores project events, and a project fold ignores org events', () => {
+  it('ignores language-stream events', () => {
     const mixed = foldOrg([...buildFixture(), ...events]);
     const strip = (s: typeof mixed) => ({ ...s, appliedEventIds: {}, invalidEvents: {}, redactions: {} });
     expect(strip(mixed)).toEqual(strip(canonical));
-    expect(Object.keys(mixed.projects)).toEqual(['p1', 'p2']);
   });
 
-  it('an org opens one work partition, the earliest registered, whatever the arrival order (decision 34)', () => {
-    // Why: an organization holds languages directly. Orgs from before that
-    // may have several registered projects; every device must open the same.
-    expect(canonical.projects['p1']?.name).toBe('East Africa NT');
-    expect(workPartitionOf(canonical)).toBe('p1');
-    for (let seed = 1; seed <= 20; seed++) expect(workPartitionOf(foldOrg(shuffle(events, seed)))).toBe('p1');
-    expect(workPartitionOf(emptyOrgState())).toBe(WORK_PARTITION);
-    expect(workPartitionOf(null)).toBe(WORK_PARTITION);
+  it('a language added twice keeps the earliest addition, whatever the arrival order', () => {
+    // Why: two admins adding the same language offline must agree on its
+    // code and source language, which nothing later can change.
+    expect(canonical.languages['din']?.added).toMatchObject({ name: 'Dinka', code: 'din', sourceCode: 'eng' });
+    for (let seed = 1; seed <= 20; seed++) expect(foldOrg(shuffle(events, seed)).languages['din']?.added?.eventId).toBe(canonical.languages['din']?.added?.eventId);
   });
 
-  it('lists each language as its own partition, named by the latest rename in the org log (decision 37)', () => {
-    // Why: a phone pulls only the languages it opens, so the org partition
-    // is where everyone learns which languages exist and what they are called.
-    const withLanguages = foldOrg([
-      ...events,
-      { id: 'lang-1', type: 'v1.ProjectRegistered', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_100_000, 0, 'dA'), payload: { projectId: 'L-din-1', name: 'Dinka' } },
-      { id: 'lang-2', type: 'v1.LaneNamed', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_200_000, 0, 'dA'), payload: { laneId: 'L-din-1', name: 'Thuɔŋjäŋ' } },
-      { id: 'lang-3', type: 'v1.LaneNamed', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dB', hlc: encodeHlc(1_700_000_150_000, 0, 'dB'), payload: { laneId: 'L-din-1', name: 'Dinka (older)' } }
-    ] as AnyEvent[]);
-    expect(orgLanguages(withLanguages).find((l) => l.laneId === 'L-din-1')?.name).toBe('Thuɔŋjäŋ');
-    expect(partitionOfLane(withLanguages, 'L-din-1')).toBe('L-din-1');
-    // A language from before decision 37 lives in the org's one shared partition.
-    expect(partitionOfLane(withLanguages, 'din')).toBe('p1');
+  it('lists each language, named by the latest rename, and only languages that were added (decision 63)', () => {
+    // Why: a phone pulls only the languages it opens, so the organization
+    // stream is where everyone learns which languages exist and what they are called.
+    expect(orgLanguages(canonical).map((l) => [l.languageId, l.name])).toEqual([['nus', 'Nuer'], ['din', 'Thuɔŋjäŋ']]);
+    expect(languageInfo(canonical, 'din')).toEqual({ languageId: 'din', name: 'Thuɔŋjäŋ', code: 'din', sourceCode: 'eng', country: null, target: null });
+    expect(languageInfo(canonical, 'later')).toBeNull();
+    expect(languageName(canonical, 'din')).toBe('Thuɔŋjäŋ');
+    expect(languageName(canonical, 'unknown')).toBe('unknown');
+    expect(languageName(null, 'din')).toBe('din');
+    expect(orgLanguages(null)).toEqual([]);
   });
 
   it('privileges are the union over covering scopes through live roles', () => {
     // Why: this is the spec's model (A38): scope is on the membership, the
     // role is only a privilege set, and a person may hold several.
-    expect(privilegesFor(canonical, 'lead', { projectId: 'p2' }).has('manage_roles')).toBe(true);
-    expect(privilegesFor(canonical, 'coord', { projectId: 'p1' }).has('assign_work')).toBe(true);
-    expect(privilegesFor(canonical, 'coord', { projectId: 'p1' }).has('manage_roles')).toBe(false);
-    expect(privilegesFor(canonical, 'coord', { projectId: 'p2' }).size).toBe(0);
-    const din = privilegesFor(canonical, 'akol', { projectId: 'p1', laneId: 'din' });
+    expect(privilegesFor(canonical, 'lead', 'nus').has('manage_roles')).toBe(true);
+    expect(privilegesFor(canonical, 'coord', 'din').has('assign_work')).toBe(true);
+    expect(privilegesFor(canonical, 'coord', 'din').has('manage_roles')).toBe(false);
+    const din = privilegesFor(canonical, 'akol', 'din');
     expect(din.has('assign_work')).toBe(true);
     expect(din.has('manage_reference')).toBe(true); // the later role edit won
-    const nus = privilegesFor(canonical, 'akol', { projectId: 'p1', laneId: 'nus' });
+    const nus = privilegesFor(canonical, 'akol', 'nus');
     expect(nus.has('assign_work')).toBe(false);
     expect(nus.has('translate')).toBe(true);
-    // No lane given: anything they hold anywhere in the project.
-    expect(privilegesFor(canonical, 'akol', { projectId: 'p1' }).has('assign_work')).toBe(true);
-    expect(privilegesFor(canonical, 'gone', { projectId: 'p1' }).size).toBe(0);
+    expect(privilegesFor(canonical, 'gone', 'din').size).toBe(0);
+  });
+
+  it('with no language, only org-scope roles count', () => {
+    // Why: org-wide acts (adding a language, the license, roles) must never
+    // be granted by a role someone holds in one language.
+    expect(privilegesFor(canonical, 'akol').size).toBe(0);
+    expect(privilegesFor(canonical, 'coord').has('assign_work')).toBe(true);
+    expect(privilegesFor(canonical, 'lead').has('manage_roles')).toBe(true);
+    expect(scopeCovers({ level: 'org' })).toBe(true);
+    expect(scopeCovers({ level: 'org' }, 'din')).toBe(true);
+    expect(scopeCovers({ level: 'language', languageId: 'din' }, 'din')).toBe(true);
+    expect(scopeCovers({ level: 'language', languageId: 'din' }, 'nus')).toBe(false);
+    expect(scopeCovers({ level: 'language', languageId: 'din' })).toBe(false);
+  });
+
+  it('a language\'s people are everyone whose role covers it, org scope included', () => {
+    // Why: a language stream has no member list of its own (rule 4); who
+    // may work there, and as what, comes from the organization's memberships.
+    const din = languagePeople(canonical, 'din');
+    expect([...din.keys()].sort()).toEqual(['akol', 'coord', 'lead', 'viewer']);
+    expect(din.get('akol')?.role).toBe('coordinator');
+    expect(din.get('lead')?.role).toBe('owner');
+    expect(din.get('viewer')?.role).toBe('viewer');
+    const nus = languagePeople(canonical, 'nus');
+    expect(nus.get('akol')?.role).toBe('translator');
+    expect(nus.get('akol')?.privileges.has('assign_work')).toBe(false);
+    expect(nus.has('gone')).toBe(false);
+    expect(languagePeople(null, 'din').size).toBe(0);
   });
 
   it('home follows the highest scope with a manage privilege (A34), so a language admin exists', () => {
     expect(adminScopeOf(canonical, 'lead')).toEqual({ level: 'org' });
-    expect(adminScopeOf(canonical, 'coord')).toEqual({ level: 'project', projectId: 'p1' });
-    expect(adminScopeOf(canonical, 'akol')).toEqual({ level: 'lane', projectId: 'p1', laneId: 'din' });
+    expect(adminScopeOf(canonical, 'coord')).toEqual({ level: 'org' });
+    expect(adminScopeOf(canonical, 'akol')).toEqual({ level: 'language', languageId: 'din' });
     expect(adminScopeOf(canonical, 'viewer')).toBeNull();
     expect(adminScopeOf(canonical, 'gone')).toBeNull();
   });
 
-  it('catalog: disabled at org hides below; project may narrow', () => {
-    expect(catalogEnabled(canonical, 'flow', 'quick_check')).toBe(false);
-    expect(catalogEnabled(canonical, 'flow', 'quick_check', 'p1')).toBe(false);
-    expect(catalogEnabled(canonical, 'template', 'fia')).toBe(true);
-    expect(catalogEnabled(canonical, 'template', 'fia', 'p1')).toBe(true);
-    expect(catalogEnabled(canonical, 'template', 'fia', 'p2')).toBe(false);
-  });
-
   it('seed roles reproduce the fixed roles exactly, in both directions', () => {
     // Why: an org created today must authorize exactly what the fixed
-    // role set did, or existing projects change behaviour on upgrade.
+    // role set did, or existing languages change behaviour on upgrade.
     for (const r of SEED_ROLES) expect(effectiveRole(new Set(r.privileges))).toBe(r.fixed);
     expect(privilegesOfFixedRole('reviewer')).toEqual(new Set(['review', 'view_status']));
-    expect(effectiveRole(privilegesFor(canonical, 'akol', { projectId: 'p1', laneId: 'din' }))).toBe('coordinator');
+    expect(effectiveRole(privilegesFor(canonical, 'akol', 'din'))).toBe('coordinator');
     expect(effectiveRole(new Set())).toBeNull();
   });
 
-  it('every event type has a privilege rule and catalog toggles resolve by kind', () => {
+  it('every event type has a privilege rule and library events resolve by kind', () => {
     for (const t of Object.keys(EVENT_PRIVILEGE)) expect(EVENT_PRIVILEGE[t as keyof typeof EVENT_PRIVILEGE], t).not.toBeUndefined();
-    const toggle = events.find((e) => e.type === 'v1.CatalogItemToggled')!;
-    expect(privilegeFor(toggle)).toBe('manage_flows');
+    const lib = (kind: string) => ({ ...events[0]!, type: 'v1.LibraryItemDefined', payload: { itemId: 'x', kind, name: 'X', description: '' } }) as AnyEvent;
+    expect(privilegeFor(lib('flow'))).toBe('manage_flows');
+    expect(privilegeFor(lib('template'))).toBe('manage_templates');
+    expect(privilegeFor(lib('material'))).toBe('manage_reference');
     expect(privilegeFor(events[0]!)).toBe('bootstrap');
+  });
+
+  it('authorizes a language\'s own acts against that language, and everything else at org scope', () => {
+    // Why: a language admin may rename their language or grant roles in it
+    // (rule 6), but adding a language or granting org-wide needs org scope.
+    // The SQL may_emit mirrors this.
+    const ev = (type: string, payload: unknown) => ({ ...events[0]!, type, payload }) as AnyEvent;
+    expect(languageOfOrgEvent(ev('v1.LanguageRenamed', { languageId: 'din', name: 'x' }))).toBe('din');
+    expect(languageOfOrgEvent(ev('v1.LanguageCountrySet', { languageId: 'din', country: 'SS' }))).toBe('din');
+    expect(languageOfOrgEvent(ev('v1.LanguageTargetSet', { languageId: 'din', scope: 'nt', startDate: '2026-01-01', targetDate: '2027-01-01' }))).toBe('din');
+    expect(languageOfOrgEvent(ev('v1.MemberAdded', { profileId: 'p', roleId: 'translator', scope: { level: 'language', languageId: 'din' } }))).toBe('din');
+    expect(languageOfOrgEvent(ev('v1.MemberRemoved', { profileId: 'p', scope: { level: 'language', languageId: 'nus' } }))).toBe('nus');
+    expect(languageOfOrgEvent(ev('v1.InviteIssued', { inviteId: 'i', roleId: 'translator', scope: { level: 'language', languageId: 'din' }, expiresAt: 'x' }))).toBe('din');
+    expect(languageOfOrgEvent(ev('v1.MemberAdded', { profileId: 'p', roleId: 'translator', scope: { level: 'org' } }))).toBeUndefined();
+    expect(languageOfOrgEvent(ev('v1.LanguageAdded', { languageId: 'din', name: 'x', code: 'din', sourceCode: 'eng' }))).toBeUndefined();
+    expect(languageOfOrgEvent(ev('v1.LicenseSet', { license: 'CC0-1.0' }))).toBeUndefined();
   });
 
   it('starts empty', () => {
@@ -137,13 +165,13 @@ describe('org partition fold', () => {
 
 describe('invites and join requests (audit 5.B)', () => {
   const ev = (seq: number, type: string, payload: unknown, actorId = 'lead'): AnyEvent =>
-    ({ id: `i${seq}`, type, orgId: 'org1', projectId: '_org', actorId, deviceId: 'dA', hlc: encodeHlc(1_800_000_000_000 + seq, 0, 'dA'), payload, serverSeq: seq }) as AnyEvent;
+    ({ id: `i${seq}`, type, orgId: 'org1', streamId: '_org', actorId, deviceId: 'dA', hlc: encodeHlc(1_800_000_000_000 + seq, 0, 'dA'), payload, serverSeq: seq }) as AnyEvent;
 
   const scope = { level: 'org' as const };
 
   it('records an issued invite without ever carrying the token', () => {
     // Why: the QR carries the secret; the log carries only the fact. A token
-    // in the log would be readable by every member who pulls the partition.
+    // in the log would be readable by every member who pulls the organization stream.
     const e = ev(1, 'v1.InviteIssued', { inviteId: 'inv1', roleId: 'translator', scope, expiresAt: '2026-10-01T00:00:00Z' });
     const s = foldOrg([e]);
     expect(Object.keys(s.invalidEvents)).toHaveLength(0);

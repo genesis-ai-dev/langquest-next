@@ -9,7 +9,6 @@ import { BibleError, type BibleDetail, type BibleLanguage, type BibleSummary } f
 import { bibleBrain } from './sources/store';
 
 export { BibleError, type BibleDetail, type BibleLanguage, type BibleSummary };
-export type { BibleErrorKind } from './sources/bibleBrain';
 
 /** Is there a Worker to ask in this build? */
 export const bibleSearchAvailable = bibleBrain !== null;

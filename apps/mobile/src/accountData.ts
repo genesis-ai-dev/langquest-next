@@ -31,9 +31,9 @@ export function accountOutbox(actorId: string): DurableOutbox {
           : action.kind === 'report'
             // Reports and blocks (decisions.md 48): rows on the server, never events.
             ? await client.rpc('report_content', {
-              p_id: action.id, p_org: p.orgId, p_partition: p.partitionId, p_kind: p.kind,
+              p_id: action.id, p_org: p.orgId, p_language: p.languageId ?? null, p_kind: p.kind,
               p_target: p.targetId, p_profile: p.profileId, p_reason: p.reason,
-              p_details: p.details ?? null, p_unit: p.unitId ?? null, p_lane: p.laneId ?? null
+              p_details: p.details ?? null, p_unit: p.unitId ?? null
             })
             : action.kind === 'block'
               ? await client.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
@@ -58,29 +58,26 @@ export async function queueAccountAction(
   return id;
 }
 export const TERMS_VERSION = '2026-09-30';
-export type UserEventType = 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
+type UserEventType = 'v1.TermsAccepted' | 'v1.VisionSeen' | 'v1.WalkthroughDone';
 export async function recordUserEvent(actorId: string, type: UserEventType) {
   const payload = type === 'v1.TermsAccepted' ? { version: TERMS_VERSION } : {};
   await queueAccountAction(actorId, 'user_event', { type, payload },
     `${actorId}:${type}:${type === 'v1.TermsAccepted' ? TERMS_VERSION : '1'}`);
   if (type === 'v1.TermsAccepted') await AsyncStorage.setItem(`terms-version:${actorId}`, TERMS_VERSION);
 }
-export interface PublicProject {
-  org_id: string; project_id: string; name: string;
-  languages: string[]; translated_pct: number; updated_at: string;
-  /** Absent from servers before the license migration, and from older caches. */
-  license?: string;
+/** A language listed on Explore (`public_languages`, written by the projection worker). */
+export interface PublicLanguage {
+  org_id: string; language_id: string; name: string; code: string;
+  translated_pct: number; updated_at: string; license: string;
 }
-export async function publicProjects(): Promise<PublicProject[]> {
-  // `*` rather than a column list, so a server without the license column
-  // (migration 20260929120000) still answers.
-  const { data, error } = await supabase.from('public_projects')
-    .select('*')
+export async function publicLanguages(): Promise<PublicLanguage[]> {
+  const { data, error } = await supabase.from('public_languages')
+    .select('org_id,language_id,name,code,translated_pct,updated_at,license')
     .order('name').limit(100);
   if (error) throw new Error(error.message);
-  await AsyncStorage.setItem('public-projects', JSON.stringify(data));
-  return data as PublicProject[];
+  await AsyncStorage.setItem('public-languages', JSON.stringify(data));
+  return data as PublicLanguage[];
 }
-export async function cachedPublicProjects(): Promise<PublicProject[]> {
-  return JSON.parse(await AsyncStorage.getItem('public-projects') ?? '[]');
+export async function cachedPublicLanguages(): Promise<PublicLanguage[]> {
+  return JSON.parse(await AsyncStorage.getItem('public-languages') ?? '[]');
 }

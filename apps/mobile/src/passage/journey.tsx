@@ -25,7 +25,7 @@ const PATH_A11Y: Record<PathState, string> = {
 };
 
 /** A step's mark: colour and icon together (ADR-010); a lock for a checkpoint, a flag for an override. */
-export function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean; override: boolean; size?: number }) {
+function PathDot(props: { state: PathState; icon?: IconName; checkpoint: boolean; override: boolean; size?: number }) {
   const { state, checkpoint, override } = props;
   const size = props.size ?? 36;
   const px = (n: number) => Math.round((n * size) / 36);
@@ -84,7 +84,7 @@ export function Journey(props: {
   const currentId = currentStepId(p);
   // Steps someone opened or closed by hand; the rest follow the default (the current one open).
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  useEffect(() => { setExpanded({}); }, [v.unitId, v.laneId, props.versionIdx]);
+  useEffect(() => { setExpanded({}); }, [v.unitId, v.languageId, props.versionIdx]);
   const currentRow = useRef<View>(null);
   const go = (i: number) => { if (i >= 0 && i < versions.length && i !== props.versionIdx) props.onVersion(i); };
   const goTo = (takeId?: string) => go(versions.findIndex((x) => x.takeId === takeId));
@@ -271,7 +271,7 @@ function VersionCard(props: {
         </View>
       ) : null}
       <View style={styles.rowCenter}>
-        <AudioClip project={ctx.project} hashes={version.cardHashes} label={`Play ${versionTitle(version.n)}`} />
+        <AudioClip language={ctx.language} hashes={version.cardHashes} label={`Play ${versionTitle(version.n)}`} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{ctx.name(version.by)} · {when(version.hlc)}</Text>
           <Text style={txt.xs}>{plural(version.cardHashes.length, 'take')}</Text>
@@ -329,7 +329,7 @@ function ReviewAttachments(props: { ctx: Ctx; v: PassageView; review: ReviewView
 function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string }) {
   return (
     <View style={styles.rowCenter}>
-      <AudioClip project={props.ctx.project} hashes={props.hashes} label={`Play ${props.label.toLowerCase()}`} />
+      <AudioClip language={props.ctx.language} hashes={props.hashes} label={`Play ${props.label.toLowerCase()}`} />
       <Text style={[txt.sm, { fontWeight: '600', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
     </View>
   );

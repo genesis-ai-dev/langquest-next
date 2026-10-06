@@ -18,7 +18,7 @@ organization. Ryder saw him as a member. Signing out and in changed nothing.
   organization-wide members, while the event pull also admitted members of
   one language. Every sync of the org was refused, the org stayed empty, and
   an empty org routes to "What brings you here?". Fixed on its own in PR 22
-  (`can_read_partition`, one rule for every read).
+  (`can_read_stream`, one rule for every read).
 - **What made it confusing, and is fixed here:**
   1. A signed-out scan said "Continue to sign in", though the person had no
      account. The invite then waited in storage while they left the screen,
@@ -103,7 +103,7 @@ bar of signal and no email at all.
 ## 4. Data model
 
 Server tables (no new events: membership still enters the log as
-`v1.OrgMemberAdded` and `v1.InviteRedeemed`, as before):
+`v1.MemberAdded` and `v1.InviteRedeemed`, as before):
 
 - `invites`: unchanged columns, plus
   - `label`: the name the inviter typed ("Nyibol Deng"), shown to the person

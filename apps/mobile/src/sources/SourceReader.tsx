@@ -22,19 +22,19 @@ import type { Usage } from './used';
 import { useChipMarks, usePassageSource, useSources, type PassageSources } from './useSources';
 
 /** Faith Comes By Hearing's terms for Bible Brain (DBP) content. */
-export const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
+const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
-export interface VerseExtras {
+interface VerseExtras {
   /** A count beside a verse (notes on it). */
   badge?: (row: VerseRow) => number;
   /** Under a verse: what to show when it is selected or has notes. `at` is where playback paused in it. */
   below?: (row: VerseRow, c: { selected: boolean; at?: string; code: string }) => ReactNode;
 }
 
-export interface SourceReaderProps {
+interface SourceReaderProps {
   ctx: Ctx;
   unitId: string;
-  laneId: string;
+  languageId: string;
   /** 'pane': part of a scrolling pane (recorder, review). 'screen': its own scroll view, the player kept on top (study). */
   layout?: 'pane' | 'screen';
   header?: ReactNode;
@@ -56,7 +56,7 @@ export interface SourceReaderProps {
   scrollRef?: RefObject<ScrollView | null>;
 }
 
-const choiceKey = (actorId: string, orgId: string, laneId: string) => `source-choice:${actorId}:${orgId}:${laneId}`;
+const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
 const choices = new Map<string, string>();
 
 /** The version chosen last for this language on this phone, shared by the recorder, the study and the review. */
@@ -89,15 +89,15 @@ function useOffer(usage: Usage | undefined, passage: PassageSources): void {
  * screen where the reader sits behind a disclosure (the reviewer's
  * Background), so what was offered is recorded whether or not it was opened.
  */
-export function useOfferedSources(ctx: Ctx, unitId: string | undefined, laneId: string | undefined, usage: Usage | undefined): void {
-  const passage = useSources(ctx, unitId, laneId);
+export function useOfferedSources(ctx: Ctx, unitId: string | undefined, languageId: string | undefined, usage: Usage | undefined): void {
+  const passage = useSources(ctx, unitId, languageId);
   useOffer(usage, passage);
 }
 
 export function SourceReader(props: SourceReaderProps) {
-  const { ctx, unitId, laneId } = props;
-  const passage = useSources(ctx, unitId, laneId);
-  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.project.orgId, laneId));
+  const { ctx, unitId, languageId } = props;
+  const passage = useSources(ctx, unitId, languageId);
+  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId));
   const option = passage.options.find((o) => o.itemId === chosen) ?? passage.options[0];
 
   // Everything offered goes on the record; choosing a version is using it.
@@ -292,7 +292,7 @@ export function SourceView(props: SourceReaderProps & {
 }
 
 /** The abbreviation, and when two versions share it, what tells them apart ("BSB · read by Frederick Surrey"). */
-export function chipLabel(o: SourceOption, all: SourceOption[]): string {
+function chipLabel(o: SourceOption, all: SourceOption[]): string {
   const twin = all.find((x) => x !== o && x.abbreviation === o.abbreviation);
   if (!twin) return o.abbreviation;
   let i = 0;

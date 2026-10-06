@@ -18,7 +18,7 @@
  * - Dinka on "FIA passages (English)" and Nuer on "Bible chapters
  *   (Original)", which numbers some books differently (Joel, Malachi, the
  *   Psalms), so FIA's English-numbered guides show versification at work;
- *   each language its own partition (docs/decisions.md 37);
+ *   each language a stream of its own (docs/decisions.md 63);
  * - invite codes for teammates, printed at the end.
  *
  * With --history (local database only), four more languages and months of
@@ -32,27 +32,27 @@ import { pathToFileURL } from 'node:url';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/client';
 import {
-  applyOrgEvent, emptyOrgState, emptyState, foldOrg, ORG_PARTITION, REDUCER_VERSION, SEED_ROLES, selectFlowSpecs, selectTemplateSpecs,
+  applyOrgEvent, emptyLanguageState, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, SEED_ROLES, selectFlowSpecs, selectTemplateSpecs,
   subscriptionItemId, type EventSpec, type FlowDoc, type LibraryDoc, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import { addHistory } from './sample-history';
 
-export const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
+const SAMPLE_ORG = { id: 'langquest-sample', name: 'LangQuest Sample' } as const;
 const ADMIN_EMAIL = 'sample-admin@langquest.invalid';
 
 /** The languages the sample has, each on one of LangQuest's templates. */
-export const SAMPLE_LANGUAGES = [
-  { laneId: 'L-din-sample', code: 'din', name: 'Dinka', template: 'FIA passages (English)' },
-  { laneId: 'L-nus-sample', code: 'nus', name: 'Nuer', template: 'Bible chapters (Original)' }
+const SAMPLE_LANGUAGES = [
+  { languageId: 'L-din-sample', code: 'din', name: 'Dinka', template: 'FIA passages (English)' },
+  { languageId: 'L-nus-sample', code: 'nus', name: 'Nuer', template: 'Bible chapters (Original)' }
 ] as const;
 
 /** The languages --history adds, so the dashboard has a quiet one, a stuck one and an inactive one to show. */
-export const HISTORY_LANGUAGES = [
-  { laneId: 'L-bfa-sample', code: 'bfa', name: 'Bari', template: 'FIA passages (English)' },
-  { laneId: 'L-kcg-sample', code: 'kcg', name: 'Tyap', template: 'Bible chapters (Original)' },
-  { laneId: 'L-bom-sample', code: 'bom', name: 'Berom', template: 'FIA passages (English)' },
-  { laneId: 'L-hlb-sample', code: 'hlb', name: 'Halbi', template: 'Bible chapters (Original)' }
+const HISTORY_LANGUAGES = [
+  { languageId: 'L-bfa-sample', code: 'bfa', name: 'Bari', template: 'FIA passages (English)' },
+  { languageId: 'L-kcg-sample', code: 'kcg', name: 'Tyap', template: 'Bible chapters (Original)' },
+  { languageId: 'L-bom-sample', code: 'bom', name: 'Berom', template: 'FIA passages (English)' },
+  { languageId: 'L-hlb-sample', code: 'hlb', name: 'Halbi', template: 'Bible chapters (Original)' }
 ] as const;
 const SAMPLE_FLOW = 'Standard Bible Flow';
 
@@ -102,20 +102,20 @@ async function main(argv: string[]) {
   }
   const { sb, userId } = await signIn(url, supabaseKey('SUPABASE_ANON_KEY', url), supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url));
   const transport = new SupabaseTransport(sb);
-  const client = <S>(projectId: string, materializer?: typeof orgMaterializer) => new SyncClient<S>({
-    orgId: SAMPLE_ORG.id, projectId, actorId: userId, deviceId: 'sample-script', store: new MemoryStore(), transport,
+  const client = <S>(streamId: string, materializer?: typeof orgMaterializer) => new SyncClient<S>({
+    orgId: SAMPLE_ORG.id, streamId, actorId: userId, deviceId: 'sample-script', store: new MemoryStore(), transport,
     newId: () => randomUUID(), ...(materializer ? { materializer } : {})
   } as never);
 
   // 1. The organization, unless it is there already.
-  const org = client<OrgState>(ORG_PARTITION, orgMaterializer);
+  const org = client<OrgState>(ORG_STREAM, orgMaterializer);
   await org.load();
   await org.sync();
   const orgState = () => org.getState() as OrgState;
   if (!orgState().org) {
     await org.append('v1.OrgCreated', { name: SAMPLE_ORG.name });
     for (const r of SEED_ROLES) await org.append('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
-    await org.append('v1.OrgMemberAdded', { profileId: userId, roleId: 'org_admin', scope: { level: 'org' }, displayName: 'Sample admin' });
+    await org.append('v1.MemberAdded', { profileId: userId, roleId: 'org_admin', scope: { level: 'org' } });
     await org.sync();
   }
 
@@ -147,26 +147,24 @@ async function main(argv: string[]) {
   const flow = await follow(find('flow', SAMPLE_FLOW));
   await load([flow.hash]);
 
-  // 3. Each language: listed in the org, its own partition started with its template and flow.
+  // 3. Each language: added in the organization's stream, then its own stream given its template and flow.
   const languages = history ? [...SAMPLE_LANGUAGES, ...HISTORY_LANGUAGES] : SAMPLE_LANGUAGES;
   for (const lang of languages) {
-    if (orgState().projects[lang.laneId]) continue;
+    if (orgState().languages[lang.languageId]?.added) continue;
     const template = await follow(find('template', lang.template));
     await load([template.hash]);
     const tdoc = docs.get(template.hash) as TemplateDoc;
     if (tdoc.bible) await load([tdoc.bible.versification]);
     const v11n = tdoc.bible ? (docs.get(tdoc.bible.versification) as VersificationDoc) : null;
-    await org.append('v1.ProjectRegistered', { projectId: lang.laneId, name: lang.name });
+    // The server takes a language's own events once the organization has added it.
+    await org.append('v1.LanguageAdded', { languageId: lang.languageId, name: lang.name, code: lang.code, sourceCode: 'eng' });
     await org.sync();
-    const fresh = emptyState();
+    const fresh = emptyLanguageState();
     const specs: EventSpec[] = [
-      { id: randomUUID(), type: 'v1.ProjectCreated', payload: { name: lang.name, sourceLanguoidId: 'eng' } } as EventSpec,
-      { id: randomUUID(), type: 'v1.LaneAdded', payload: { laneId: lang.laneId, languoidId: lang.code } } as EventSpec,
-      { id: randomUUID(), type: 'v1.LaneNamed', payload: { laneId: lang.laneId, name: lang.name } } as EventSpec,
-      ...selectTemplateSpecs(fresh, { commandId: randomUUID(), laneId: lang.laneId, itemId: template.itemId, docHash: template.hash, doc: tdoc, versification: v11n }),
-      ...selectFlowSpecs(fresh, { commandId: randomUUID(), laneId: lang.laneId, itemId: flow.itemId, docHash: flow.hash, doc: docs.get(flow.hash) as FlowDoc })
+      ...selectTemplateSpecs(fresh, { commandId: randomUUID(), itemId: template.itemId, docHash: template.hash, doc: tdoc, versification: v11n }),
+      ...selectFlowSpecs(fresh, { commandId: randomUUID(), itemId: flow.itemId, docHash: flow.hash, doc: docs.get(flow.hash) as FlowDoc })
     ];
-    const work = client(lang.laneId);
+    const work = client(lang.languageId);
     await work.load();
     await work.appendMany(specs);
     for (let pass = 0; pass < 20; pass++) {
@@ -181,7 +179,7 @@ async function main(argv: string[]) {
   // 4. Months of work behind each language, for the web dashboard.
   if (history) {
     const service = createClient(url, supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url), { auth: { persistSession: false, autoRefreshToken: false } });
-    await addHistory({ sb, service, orgId: SAMPLE_ORG.id, actorId: userId, laneIds: languages.map((l) => l.laneId) });
+    await addHistory({ sb, service, orgId: SAMPLE_ORG.id, actorId: userId, languageIds: languages.map((l) => l.languageId) });
   }
 
   // 5. Invite codes: each joins one teammate to the sample, once, for 30 days.
@@ -192,7 +190,7 @@ async function main(argv: string[]) {
   console.log('In the app: Create Account, then "Join with QR code" or "Join an existing org", and paste one code.\n');
   for (let i = 0; i < count; i++) {
     const token = randomBytes(32).toString('hex');
-    await rpc(sb, 'issue_invite', {
+    await rpc(sb, 'issue_invite_v3', {
       p_org: SAMPLE_ORG.id, p_invite_id: randomUUID(), p_token_hash: createHash('sha256').update(token).digest('hex'),
       p_role_id: role, p_scope: { level: 'org' }, p_expires_at: expiresAt
     });

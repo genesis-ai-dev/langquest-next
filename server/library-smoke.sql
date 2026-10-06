@@ -11,7 +11,7 @@ create temp table lib_docs (k text primary key, hash text not null, body text no
 
 create function pg_temp.ev(p_id text, p_org text, p_actor text, p_type text, p_payload jsonb, p_hlc text default null)
 returns jsonb language sql as $$
-  select jsonb_build_object('id', p_id, 'orgId', p_org, 'projectId', '_org', 'actorId', p_actor, 'deviceId', 'd-' || p_actor,
+  select jsonb_build_object('id', p_id, 'orgId', p_org, 'streamId', '_org', 'actorId', p_actor, 'deviceId', 'd-' || p_actor,
     'hlc', coalesce(p_hlc, lpad(nextval('lib_clock')::text, 15, '0') || ':000000:d-' || p_actor), 'type', p_type, 'payload', p_payload);
 $$;
 create function pg_temp.push(p_events jsonb) returns void language plpgsql as $$
@@ -39,7 +39,7 @@ create function pg_temp.readable(p_org text, variadic p_keys text[]) returns int
 $$;
 create function pg_temp.pins(p_org text, p_k text) returns int language sql as $$
   select count(*)::int from public.events e
-  where e.org_id = p_org and e.project_id = '_org' and e.type = 'v1.LibraryPinned' and e.payload->>'docHash' = pg_temp.h(p_k);
+  where e.org_id = p_org and e.stream_id = '_org' and e.type = 'v1.LibraryPinned' and e.payload->>'docHash' = pg_temp.h(p_k);
 $$;
 
 -- 1. Three organizations, each bootstrapped by its creator. libB also has a
@@ -54,12 +54,12 @@ begin
     perform pg_temp.push(jsonb_build_array(
       pg_temp.ev(o.org || '-1', o.org, o.actor, 'v1.OrgCreated', jsonb_build_object('name', o.name)),
       pg_temp.ev(o.org || '-2', o.org, o.actor, 'v1.RoleDefined', jsonb_build_object('roleId', 'admin', 'name', 'Admin', 'privileges', v_all)),
-      pg_temp.ev(o.org || '-3', o.org, o.actor, 'v1.OrgMemberAdded', jsonb_build_object('profileId', o.actor, 'roleId', 'admin', 'scope', jsonb_build_object('level', 'org')))));
+      pg_temp.ev(o.org || '-3', o.org, o.actor, 'v1.MemberAdded', jsonb_build_object('profileId', o.actor, 'roleId', 'admin', 'scope', jsonb_build_object('level', 'org')))));
   end loop;
   perform set_config('request.jwt.claim.sub', 'bob', false);
   perform pg_temp.push(jsonb_build_array(
     pg_temp.ev('libB-4', 'libB', 'bob', 'v1.RoleDefined', '{"roleId":"viewer","name":"Viewer","privileges":["view_status"]}'),
-    pg_temp.ev('libB-5', 'libB', 'bob', 'v1.OrgMemberAdded', '{"profileId":"vic","roleId":"viewer","scope":{"level":"org"}}')));
+    pg_temp.ev('libB-5', 'libB', 'bob', 'v1.MemberAdded', '{"profileId":"vic","roleId":"viewer","scope":{"level":"org"}}')));
 end $$;
 
 -- The documents: a versification, templates on it, a study guide and a
@@ -234,7 +234,7 @@ select pg_temp.put('libA', 'T2');
 select pg_temp.push1(pg_temp.ev('a-tpl-5', 'libA', 'alice', 'v1.LibraryVersionPublished', jsonb_build_object('itemId', 'tpl', 'kind', 'template', 'docHash', pg_temp.h('T2'))));
 do $$ declare r record; begin
   select * into r from public.events where id = 'pin:libB:sub.libA.tpl:' || pg_temp.h('T2');
-  if not found or r.org_id <> 'libB' or r.project_id <> '_org' or r.actor_id <> 'server' or r.device_id <> 'server'
+  if not found or r.org_id <> 'libB' or r.stream_id <> '_org' or r.actor_id <> 'server' or r.device_id <> 'server'
      or r.payload <> jsonb_build_object('itemId', 'sub.libA.tpl', 'kind', 'template', 'docHash', pg_temp.h('T2')) then
     raise exception 'automatic pin wrong: %', r;
   end if;
@@ -312,7 +312,7 @@ do $$ begin
      or has_function_privilege('authenticated', 'public.library_seed_document(text, text)', 'execute')
      or has_function_privilege('anon', 'public.library_get_documents(text, text[])', 'execute')
      or has_function_privilege('authenticated', 'public._library_store(text, text)', 'execute')
-     or has_function_privilege('authenticated', 'public._apply_org_event(text, text, jsonb, text)', 'execute') then
+     or has_function_privilege('authenticated', 'public._apply_org_event(text, text, text, jsonb, text, text)', 'execute') then
     raise exception 'a service function is callable by a client';
   end if;
   if not has_function_privilege('authenticated', 'public.library_put_document(text, text)', 'execute')

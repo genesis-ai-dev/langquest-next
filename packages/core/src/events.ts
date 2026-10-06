@@ -6,38 +6,19 @@ import type { RecordEvents } from './record';
 import type { ReferenceWorkEvents } from './references';
 
 /**
- * Event catalog v1. See PLAN.md section 6.
+ * Event catalog v1. See PLAN.md section 6 and docs/streams-and-languages.md.
+ *
+ * Events live in streams: the organization stream (org.ts), one stream per
+ * language (this file, record.ts, materials.ts, library.ts, references.ts),
+ * and each person's own. A language event never names its language: the
+ * stream it is appended to does.
  *
  * Never change a shipped event's payload. Add a `v2.X` event and keep the
  * `v1.X` reducer case forever.
  */
 
+/** The fixed roles every privilege set maps back to (`effectiveRole`). */
 export type Role = 'owner' | 'coordinator' | 'translator' | 'reviewer' | 'viewer';
-
-export type QuorumRule = 'any' | 'majority' | 'unanimous';
-
-export interface WorkflowStep {
-  id: string;
-  /** Members holding this role are eligible reviewers for the step. */
-  role: Role;
-  /** A review team (`ReviewTeamDefined`) whose members are eligible instead of the role holders. */
-  teamId?: string;
-  required: boolean;
-  rule: QuorumRule;
-  label?: string;
-}
-
-export interface UnitKind {
-  id: string;
-  label: string;
-  /** Kinds that may appear as children, in order. */
-  childKinds: string[];
-}
-
-export interface ProjectConfig {
-  unitKinds: UnitKind[];
-  workflow: WorkflowStep[];
-}
 
 /** One voice-activity card: an immutable audio blob named by its content hash. */
 export interface Card {
@@ -48,12 +29,6 @@ export interface Card {
 }
 
 export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents, LibraryWorkEvents, ReferenceWorkEvents {
-  'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
-  'v1.ProjectConfigChanged': { config: ProjectConfig };
-  'v1.MemberAdded': { profileId: string; role: Role };
-  'v1.MemberRoleChanged': { profileId: string; role: Role };
-  'v1.MemberRemoved': { profileId: string };
-  'v1.LaneAdded': { laneId: string; languoidId: string };
   'v1.UnitAdded': {
     unitId: string;
     parentUnitId: string | null;
@@ -62,55 +37,24 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
     /** Fractional index string; lexical order is display order. */
     order: string;
   };
-  'v1.ReferenceAttached': {
-    unitId: string;
-    refId: string;
-    kind: string;
-    blobHash?: string;
-    text?: string;
-  };
   'v1.RecordingAdded': {
     recordingId: string;
     unitId: string;
-    laneId: string;
     kind: 'source' | 'target';
     cards: Card[];
   };
   'v1.TakeComposed': {
     takeId: string;
     unitId: string;
-    laneId: string;
     cardHashes: string[];
     parentTakeId: string | null;
   };
   'v1.TakeArchived': { takeId: string };
-  'v1.TakeSelected': { unitId: string; laneId: string; takeId: string };
   /**
    * The translator hands a take to review. Until this, a take is a draft:
    * recordings save immediately, submission is the explicit act (UX spec A30).
    */
   'v1.TakeSubmitted': { takeId: string; questionSetIds?: string[] };
-  /**
-   * A reviewer's decision for one step. "Suggest changes" is advisory, not a
-   * veto: it sends the take back to the translator as a respond task
-   * (UX spec A11). Answers are keyed by question id.
-   */
-  'v1.ReviewSubmitted': {
-    takeId: string;
-    stepId: string;
-    decision: 'approve' | 'suggest_changes';
-    comment?: string;
-    answers?: Record<string, string>;
-  };
-  'v1.AssignmentMade': {
-    unitId: string;
-    laneId: string;
-    profileId: string;
-    role: Role;
-    dueDate?: string;
-    instructions?: string;
-  };
-  'v1.SourceImported': { sourceProjectId: string; sourceSeq: number; unitIds: string[] };
   /**
    * Server-only. Appended by the storage trigger when a blob lands, so every
    * device learns a card is safely stored through the normal pull. Clients
@@ -119,9 +63,9 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    */
   'v1.BlobStored': { hash: string; size: number };
   /**
-   * Append-only removal. The target event is excluded from every fold as if
-   * it had never been appended; its blobs drop out of every work list. Owner
-   * or coordinator only. The log itself keeps both events for audit.
+   * Append-only removal, in any stream. The target event is excluded from
+   * every fold as if it had never been appended; its blobs drop out of every
+   * work list. The log itself keeps both events for audit.
    */
   'v1.Redacted': { eventId: string; reason?: string };
   /**
@@ -131,28 +75,14 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * nobody downloads it. A later BlobStored wins back.
    */
   'v1.BlobInvalidated': { hash: string; reason?: string };
-  // ---- step 11: catalog selection, per-step workflow, teams, respond loop
-  //      (docs/flow-coverage-audit.md 5.D, 5.F)
-  /** A lane picks one content template from the catalog; the selector also emits the UnitAdded events it implies. */
-  'v1.LaneTemplateSelected': { laneId: string; templateId: string; catalogVersion: number };
-  /** A lane picks one review flow; the selector also emits the WorkflowStepSet events it implies. */
-  'v1.LaneFlowSelected': { laneId: string; flowId: string; catalogVersion: number };
-  /** One workflow step as its own register, so two admins editing offline merge per step. laneId absent = project-wide. */
-  'v1.WorkflowStepSet': { stepId: string; laneId?: string; order: string; label?: string; role: Role; teamId?: string; required: boolean; rule: QuorumRule };
-  'v1.WorkflowStepRemoved': { stepId: string };
-  /** A named group of reviewers on one lane (UX spec review teams). */
-  'v1.ReviewTeamDefined': { teamId: string; laneId: string; name: string };
+  /** A named group of reviewers in the language (UX spec review teams). */
+  'v1.ReviewTeamDefined': { teamId: string; name: string };
   /** Register per (team, profile): in or out. */
   'v1.ReviewTeamMemberSet': { teamId: string; profileId: string; member: boolean };
-  /**
-   * The kind of review a team usually does (ADR-029): "Send to …" goes to
-   * it first. null = any kind. Register per team; `laneId` is the team's.
-   */
-  'v1.ReviewTeamKindSet': { teamId: string; laneId: string; kindId: string | null };
+  /** The kind of review a team usually does (ADR-029): "Send to …" goes to it first. null = any kind. Register per team. */
+  'v1.ReviewTeamKindSet': { teamId: string; kindId: string | null };
   /** The translator's answer to suggestions: what changed and why the rest stayed (text or audio). */
   'v1.ResponseRecorded': { takeId: string; respondsToTakeId: string; note?: string; blobHash?: string };
-  /** A reviewer's spoken comment on a take at a step. */
-  'v1.ReviewCommentRecorded': { takeId: string; stepId: string; blobHash: string };
 }
 
 export type EventType = keyof EventPayloads;
@@ -161,7 +91,8 @@ export interface EventEnvelope<T extends EventType = EventType> {
   id: string;
   type: T;
   orgId: string;
-  projectId: string;
+  /** The stream: `ORG_STREAM`, a language id, or a profile id under `PERSON_ORG` (org.ts). */
+  streamId: string;
   actorId: string;
   deviceId: string;
   hlc: Hlc;

@@ -154,7 +154,7 @@ this block.
   "blockedPermissions": [],
   "plugins": [
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
-    "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite and project QR codes.\"}",
+    "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-notifications",
     "expo-sqlite"
   ],

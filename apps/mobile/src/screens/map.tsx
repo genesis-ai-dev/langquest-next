@@ -8,9 +8,9 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import {
-  contentTemplate, deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
-  passageSummary, percent, timeAgo, unitPlace, unitTitle,
-  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
+  deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
+  passageSummary, percent, privilegesFor, timeAgo, unitPlace, unitTitle,
+  type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -21,9 +21,8 @@ import {
 import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
-import { languagesToList } from '../languages';
 import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../offline';
-import { laneFigures, oldestAsOf } from '../orgFigures';
+import { languageFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
   Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
@@ -53,36 +52,43 @@ interface Entry {
   s: PassageState;
 }
 
-const laneCache = new WeakMap<ProjectState, Map<string, Entry[]>>();
+const entryCache = new WeakMap<LanguageState, Entry[]>();
 
-/** Every passage a language works on, with where it sits and where it stands; shared by the map and its books. */
-function laneEntries(state: ProjectState, laneId: string): Entry[] {
-  let byLane = laneCache.get(state);
-  if (!byLane) { byLane = new Map(); laneCache.set(state, byLane); }
-  const hit = byLane.get(laneId);
+/** Every passage the open language works on, with where it sits and where it stands; shared by the map and its books. */
+function languageEntries(state: LanguageState): Entry[] {
+  const hit = entryCache.get(state);
   if (hit) return hit;
   const idx = indexesFor(state);
-  const out = laneLeafUnits(state, idx, laneId).map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: derivePassage(state, unitId, laneId, idx) }));
-  byLane.set(laneId, out);
+  const out = idx.passages.map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: derivePassage(state, unitId, idx) }));
+  entryCache.set(state, out);
   return out;
 }
 
 /** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). */
-function useForYou(ctx: Ctx, state: ProjectState | null, laneId: string | null): Set<string> {
+function useForYou(ctx: Ctx, state: LanguageState | null): Set<string> {
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
-  return useMemo(() => new Set(state && laneId
-    ? highlightsFor(state, ctx.session.actorId, { canRecord, canReview, laneIds: [laneId] }, indexesFor(state)).map((h) => h.unitId)
-    : []), [state, laneId, ctx.session.actorId, canRecord, canReview]);
+  return useMemo(() => new Set(state
+    ? highlightsFor(state, ctx.session.actorId, { canRecord, canReview }, indexesFor(state)).map((h) => h.unitId)
+    : []), [state, ctx.session.actorId, canRecord, canReview]);
 }
 
-function flowLabel(state: ProjectState, laneId: string): string {
-  const flow = deriveFlow(state, laneId);
+function flowLabel(state: LanguageState): string {
+  const flow = deriveFlow(state);
   return flow.steps.length ? flow.name : 'No review flow';
 }
 
-function laneCode(state: ProjectState, laneId: string): string {
-  return (state.lanes[laneId]?.languoidId ?? laneId).slice(0, 3).toUpperCase();
+function languageCode(org: OrgState | null, languageId: string): string {
+  return (languageInfo(org, languageId)?.code || languageId).slice(0, 3).toUpperCase();
+}
+
+/**
+ * The open language's state, or null while it is loading or another one is
+ * opening: a `languageId` param opens that language's stream, and until it
+ * has, the state on hand is the previous language's.
+ */
+function openState(ctx: Ctx, languageId: string | null): LanguageState | null {
+  return languageId && languageId === ctx.language.languageId ? ctx.language.state : null;
 }
 
 // ---- small shared pieces ---------------------------------------------------------------
@@ -129,7 +135,7 @@ function PassageDisc(props: { s: PassageState }) {
   );
 }
 
-function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
+function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
   const { e, ctx } = props;
   const me = ctx.session.actorId;
   const title = unitTitle(props.state, e.unitId);
@@ -239,29 +245,28 @@ function FunnelRows(props: { progress: LanguageProgress }) {
 }
 
 export function StatusHome(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.language.state;
   const beside = useOpenDetail();
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
-  // Every language the organization has; each is its own partition
-  // (decisions.md 37). This phone folds the one it has open; the dashboard's
-  // server answers for the rest (decision 44), as of when it last caught up.
-  const summary = useOrgSummary(ctx.session.actorId, ctx.project.orgId);
+  // Every language the organization has; each is its own stream (decision
+  // 63). This phone folds the one it has open; the dashboard's server
+  // answers for the rest (decision 44), as of when it last caught up.
+  const summary = useOrgSummary(ctx.session.actorId, ctx.language.orgId);
   const languages = useMemo(() => {
-    const idx = state ? indexesFor(state) : null;
-    const names = new Map(ctx.languages.map((l) => [l.laneId, l.name]));
-    const ids = languagesToList(ctx.languages, state, ctx.project.projectId);
-    const local = new Map(state ? ids.filter((laneId) => state.lanes[laneId]).map((laneId) => [laneId, languageProgress(state, laneId, idx!)]) : []);
-    const figures = laneFigures(ids, local, summary);
-    return ids.map((laneId) => {
-      const here = !!state?.lanes[laneId];
-      const f = figures.get(laneId);
+    const openId = state ? ctx.language.languageId : null;
+    const ids = ctx.languages.map((l) => l.languageId);
+    const local = new Map(state && openId ? [[openId, languageProgress(state, indexesFor(state))]] : []);
+    const figures = languageFigures(ids, local, summary);
+    return ctx.languages.map(({ languageId, name }) => {
+      const here = languageId === openId;
+      const f = figures.get(languageId);
       return {
-        laneId, here, name: here ? laneName(state!, laneId) : names.get(laneId) ?? laneId, code: here ? laneCode(state!, laneId) : '',
-        flow: here ? flowLabel(state!, laneId) : '', progress: f?.progress ?? null, asOf: f?.asOf ?? null
+        languageId, here, name, code: languageCode(ctx.org.state, languageId),
+        flow: here ? flowLabel(state!) : '', progress: f?.progress ?? null, asOf: f?.asOf ?? null
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [state, ctx.languages, ctx.project.projectId, summary]);
+  }, [state, ctx.languages, ctx.language.languageId, ctx.org.state, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title="Progress" sub={[orgName, 'All languages'].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title="Loading…" /></Screen>;
@@ -274,11 +279,9 @@ export function StatusHome(ctx: Ctx) {
   const waiting = known.reduce((n, p) => n + p.waiting, 0);
   const q = query.trim().toLowerCase();
   const shown = q ? languages.filter((l) => `${l.name} ${l.code}`.toLowerCase().includes(q)) : languages;
-  const open = (laneId: string) => {
-    ctx.setLane(laneId);
-    ctx.go('map_home', { laneId });
-  };
-  const isOpen = (laneId: string) => beside?.screen === 'map_home' && beside.params['laneId'] === laneId;
+  // The param opens that language's stream.
+  const open = (languageId: string) => ctx.go('map_home', { languageId });
+  const isOpen = (languageId: string) => beside?.screen === 'map_home' && beside.params['languageId'] === languageId;
 
   return (
     <Screen header={header}>
@@ -310,7 +313,7 @@ export function StatusHome(ctx: Ctx) {
       {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder="Find a language" /> : null}
       {shown.length > 0 ? <SectionLabel label="Languages" /> : null}
       {shown.slice(0, limit).map((l) => l.progress && l.here ? (
-        <Card key={l.laneId} current={isOpen(l.laneId)} onPress={() => open(l.laneId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
+        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={`${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded. Open its map.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -323,9 +326,9 @@ export function StatusHome(ctx: Ctx) {
           <FunnelRows progress={l.progress} />
         </Card>
       ) : (
-        // Not on this phone yet: opening it brings it down (decisions.md 37).
+        // Not open on this phone: opening it brings it down (decision 63).
         // The server's figures, when it has them, show what it holds meanwhile.
-        <Card key={l.laneId} current={isOpen(l.laneId)} onPress={() => open(l.laneId)}
+        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)}
           accessibilityLabel={l.progress ? `${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded, as of ${timeAgo(l.asOf!, Date.now())}. Not on this phone yet. Open it.` : `${l.name}. Not on this phone yet. Open it.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
@@ -416,7 +419,7 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
 }
 
 /** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
-function OutlineMap(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; laneId: string; entries: Entry[]; forYou: Set<string> }) {
+function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; languageId: string; entries: Entry[]; forYou: Set<string> }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
   const sections = useMemo(() => {
     const by = new Map<string, Entry[]>();
@@ -438,7 +441,7 @@ function OutlineMap(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; la
             <Group>
               {shown.map((e, i) => (
                 <PassageRow key={e.unitId} ctx={props.ctx} state={props.state} kinds={props.kinds} e={e} mine={props.forYou.has(e.unitId)}
-                  last={i === shown.length - 1} onPress={() => props.ctx.openPassage(e.unitId, props.laneId)} />
+                  last={i === shown.length - 1} onPress={() => props.ctx.openPassage(e.unitId, props.languageId)} />
               ))}
             </Group>
             <ShowMore remaining={list.length - limit} step={PAGE} onMore={() => setLimits((l) => ({ ...l, [name]: limit + PAGE }))} />
@@ -449,50 +452,56 @@ function OutlineMap(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; la
   );
 }
 
+/** Languages this person may open: those a role of theirs covers, at org scope or the language's own. */
+function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
+  const org = ctx.org.state;
+  if (!org) return [];
+  return ctx.languages.filter((l) => privilegesFor(org, ctx.session.actorId, l.languageId).size > 0);
+}
+
 export function MapHome(ctx: Ctx) {
-  const state = ctx.project.state;
-  const [picked, setPicked] = useState<string | null>(null);
-  const lanes = state ? indexesFor(state).lanes : [];
-  const wanted = picked ?? ctx.params['laneId'] ?? ctx.laneId;
-  const laneId = wanted && lanes.includes(wanted) ? wanted : lanes[0] ?? null;
+  // The map is of the open language: a `languageId` param has opened it.
+  const languageId = ctx.params['languageId'] ?? ctx.languageId;
+  const state = openState(ctx, languageId);
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const [filter, setFilter] = useState<MapFilter>('all');
   const [testament, setTestament] = useState<Testament | null>(null);
-  const forYou = useForYou(ctx, state, laneId);
-  const entries = useMemo(() => (state && laneId ? laneEntries(state, laneId) : []), [state, laneId]);
+  const forYou = useForYou(ctx, state);
+  const entries = useMemo(() => (state ? languageEntries(state) : []), [state]);
   const books = useMemo(() => summarizeBooks(entries, filter, forYou), [entries, filter, forYou]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
-  const progress = useMemo(() => (state && laneId ? languageProgress(state, laneId, indexesFor(state)) : null), [state, laneId]);
+  const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
 
-  const lane = state && laneId ? laneName(state, laneId) : 'Passage Map';
+  const language = languageId ? languageName(ctx.org.state, languageId) : 'Passage Map';
   const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
-  const sel = state && laneId ? state.laneTemplates[laneId]?.value : undefined;
-  // A library template by its item's name; one from the old in-app catalog by the catalog's.
-  const templateName = sel?.itemId ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : sel ? contentTemplate(sel.templateId)?.name : undefined;
-  const sub = state && laneId
-    ? [outline ? 'Own outline' : templateName, flowLabel(state, laneId)].filter(Boolean).join(' · ')
+  const sel = state?.template?.value;
+  const templateName = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : undefined;
+  const sub = state
+    ? [outline ? 'Own outline' : templateName, flowLabel(state)].filter(Boolean).join(' · ')
     : undefined;
   // Workers land here from the Map tab; everyone else came from the overview or a language home.
   const backable = mapScreenFor(ctx.session) === 'status_home';
-  const header = <Header title={lane} {...(sub ? { sub } : {})} {...(backable ? { onBack: ctx.back } : {})} />;
+  const header = <Header title={language} {...(sub ? { sub } : {})} {...(backable ? { onBack: ctx.back } : {})} />;
 
-  if (!state) return <Screen header={header}><EmptyState icon="map" title="Loading…" /></Screen>;
-  if (!laneId || !progress) {
+  if (!languageId) {
     return <Screen header={header}><EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its passages show here." /></Screen>;
   }
+  if (!state || !progress) return <Screen header={header}><EmptyState icon="map" title="Loading…" /></Screen>;
 
-  const switchLane = (id: string) => {
-    setPicked(id);
-    ctx.setLane(id);
+  // Reached from the Map tab, a worker switches language here; from the
+  // overview or a language home, the screen is about that one language.
+  const choices = ctx.params['languageId'] ? [] : openableLanguages(ctx);
+  const switchLanguage = (id: string) => {
+    ctx.setLanguage(id);
     setQuery('');
     setLimit(PAGE);
   };
-  const openBook = (key: string) => ctx.go('book_map', { laneId, bookId: key, ...(filter !== 'all' ? { filter } : {}) });
-  const languageChips = lanes.length > 1 ? (
+  const openBook = (key: string) => ctx.go('book_map', { languageId, bookId: key, ...(filter !== 'all' ? { filter } : {}) });
+  const languageChips = choices.length > 1 ? (
     <ChipRow>
-      {lanes.map((id) => <Chip key={id} label={laneName(state, id)} on={id === laneId} onPress={() => switchLane(id)} />)}
+      {choices.map((l) => <Chip key={l.languageId} label={l.name} on={l.languageId === languageId} onPress={() => switchLanguage(l.languageId)} />)}
     </ChipRow>
   ) : null;
 
@@ -500,7 +509,7 @@ export function MapHome(ctx: Ctx) {
     return (
       <Screen header={header}>
         {languageChips}
-        <EmptyState icon="book" title="No passages yet" sub={`Once ${lane} has passages to record, they show here by book and chapter.`} />
+        <EmptyState icon="book" title="No passages yet" sub={`Once ${language} has passages to record, they show here by book and chapter.`} />
       </Screen>
     );
   }
@@ -509,7 +518,7 @@ export function MapHome(ctx: Ctx) {
     return (
       <Screen header={header}>
         {languageChips}
-        <OutlineMap ctx={ctx} state={state} kinds={kinds} laneId={laneId} entries={entries} forYou={forYou} />
+        <OutlineMap ctx={ctx} state={state} kinds={kinds} languageId={languageId} entries={entries} forYou={forYou} />
       </Screen>
     );
   }
@@ -552,7 +561,7 @@ export function MapHome(ctx: Ctx) {
               <Group>
                 {passageHits.slice(0, limit).map((e, i, shown) => (
                   <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1}
-                    onPress={() => ctx.openPassage(e.unitId, laneId)} />
+                    onPress={() => ctx.openPassage(e.unitId, languageId)} />
                 ))}
               </Group>
             ) : null}
@@ -702,22 +711,22 @@ function Legend(props: { none: boolean }) {
 }
 
 export function BookMap(ctx: Ctx) {
-  const state = ctx.project.state;
+  const languageId = ctx.params['languageId'] ?? ctx.languageId;
+  const state = openState(ctx, languageId);
   const offline = keptOfflineMap(ctx);
-  const laneId = ctx.params['laneId'] ?? ctx.laneId;
   const bookId = ctx.params['bookId'] ?? '';
   const initial = ctx.params['filter'];
   const [filter, setFilter] = useState<MapFilter>(isMapFilter(initial) ? initial : 'all');
   const [openChapter, setOpenChapter] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE);
-  const forYou = useForYou(ctx, state, laneId);
+  const forYou = useForYou(ctx, state);
   const layout = useLayout();
   const beside = useOpenDetail();
   const book = canonBook(bookId);
   const entries = useMemo(() => {
-    if (!state || !laneId || !state.lanes[laneId]) return [];
-    return laneEntries(state, laneId).filter((e) => (bookId === OTHER ? !canonBook(e.place.bookId) : e.place.bookId === bookId));
-  }, [state, laneId, bookId]);
+    if (!state) return [];
+    return languageEntries(state).filter((e) => (bookId === OTHER ? !canonBook(e.place.bookId) : e.place.bookId === bookId));
+  }, [state, languageId, bookId]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chapters = useMemo((): ChapterTile[] => {
@@ -740,29 +749,29 @@ export function BookMap(ctx: Ctx) {
     });
   }, [book, entries, forYou, filter]);
 
-  const lane = state && laneId ? laneName(state, laneId) : '';
+  const language = languageId ? languageName(ctx.org.state, languageId) : '';
   const title = book?.name ?? 'Other';
   const recordedCount = entries.filter((e) => e.s.recorded).length;
-  const crumbs = [{ label: lane || 'Passage Map', onPress: () => ctx.go('map_home', laneId ? { laneId } : undefined) }, { label: title }];
+  const crumbs = [{ label: language || 'Passage Map', onPress: () => ctx.go('map_home', languageId ? { languageId } : undefined) }, { label: title }];
   const canEdit = !!book && canGo(ctx, 'book_map', 'book_structure');
   const header = (
     <Header title={title} crumbs={crumbs} onBack={ctx.back}
-      sub={`${lane ? `${lane} · ` : ''}${fmt(recordedCount)} of ${fmt(entries.length)} recorded`}
+      sub={`${language ? `${language} · ` : ''}${fmt(recordedCount)} of ${fmt(entries.length)} recorded`}
       action={canEdit ? (
         // Quieter than the page's work (ADR-029): shaping a book is rare, so it reads as a muted link, still 48pt.
-        <Pressable onPress={() => ctx.go('book_structure', { laneId: laneId ?? '', bookId })} accessibilityRole="button" accessibilityLabel="Edit passages"
+        <Pressable onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })} accessibilityRole="button" accessibilityLabel="Edit passages"
           style={({ pressed }) => [styles.quietAction, pressed && { opacity: 0.6 }]}>
           <Ico name="cut" size={18} color={C.muted} />
           <Text style={[txt.sm, { color: C.muted, fontWeight: '500' }]}>Edit passages</Text>
         </Pressable>
       ) : undefined} />
   );
-  if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
-  if (!laneId || (!book && bookId !== OTHER)) {
+  if (!languageId || (!book && bookId !== OTHER)) {
     return <Screen header={header}><EmptyState icon="book" title="This book isn't in this language" sub="Go back to the map to pick another." /></Screen>;
   }
+  if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
 
-  const open = (e: Entry) => ctx.openPassage(e.unitId, laneId);
+  const open = (e: Entry) => ctx.openPassage(e.unitId, languageId);
   const sheet = openChapter ? chapters[openChapter - 1] : undefined;
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.

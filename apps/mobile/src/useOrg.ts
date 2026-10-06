@@ -1,5 +1,5 @@
 import { SupabaseTransport, SyncClient, SyncScheduler, ensureDeviceId, type Materializer, type SyncInspection } from '@langquest-next/client';
-import { applyOrgEvent, emptyOrgState, foldOrg, ORG_PARTITION, REDUCER_VERSION, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
+import { applyOrgEvent, emptyOrgState, foldOrg, ORG_STREAM, REDUCER_VERSION, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getStore } from './store';
@@ -18,6 +18,11 @@ export interface OrgHandle {
   pulled: boolean;
   /** The first sync attempt has finished, reached or not: the local fold is as good as it will get offline. */
   settled: boolean;
+  /**
+   * Bumped when a pulled event changed a membership or a role. The open
+   * language's client then re-queues work refused for want of one.
+   */
+  membershipEpoch: number;
 }
 
 export const ORG_MATERIALIZER: Materializer<OrgState> = {
@@ -31,9 +36,9 @@ export const ORG_MATERIALIZER: Materializer<OrgState> = {
 };
 
 /**
- * The organization partition on this device (docs/flow-coverage-audit.md
- * 5.A): roles, memberships, catalog toggles, project list. Same sync
- * client as a project, different fold. Small enough to pull whole.
+ * The organization stream on this device (decision 63): roles,
+ * memberships, languages, the library. Same sync client as a language,
+ * different fold. Small enough to pull whole.
  */
 export function useOrg(orgId: string, actorId: string): OrgHandle {
   const clientRef = useRef<SyncClient<OrgState> | null>(null);
@@ -42,6 +47,7 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   const [live, setLive] = useState(false);
   const [pulled, setPulled] = useState(false);
   const [settled, setSettled] = useState(false);
+  const [membershipEpoch, setMembershipEpoch] = useState(0);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const onlineRef = useRef<boolean | null>(null);
 
@@ -82,13 +88,14 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
       const client = new SyncClient<OrgState>({
         materializer: ORG_MATERIALIZER,
         orgId,
-        projectId: ORG_PARTITION,
+        streamId: ORG_STREAM,
         actorId,
         deviceId,
         store,
         transport,
         newId: () => Crypto.randomUUID(),
-        diag: diagnostics
+        diag: diagnostics,
+        onMembershipChanged: () => setMembershipEpoch((n) => n + 1)
       });
       await client.load();
       if (cancelled) return;
@@ -97,7 +104,7 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
         run: async () => { await sync(); return { offline: onlineRef.current === false }; }
       });
       schedulerRef.current = scheduler;
-      unwatch = transport.watch(orgId, ORG_PARTITION, {
+      unwatch = transport.watch(orgId, ORG_STREAM, {
         onPoke: () => scheduler.nudge(),
         onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
       });
@@ -127,5 +134,5 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   );
 
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
-  return { state, pending, append, sync, live, inspect, pulled, settled };
+  return { state, pending, append, sync, live, inspect, pulled, settled, membershipEpoch };
 }

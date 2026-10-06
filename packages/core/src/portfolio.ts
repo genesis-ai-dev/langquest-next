@@ -1,19 +1,18 @@
 import { percent } from './passage';
 import {
   PASSAGE_WORK, paceOf, portfolioOf, recencyOf, RECENCY_DAYS,
-  type ActivityWeek, type LaneReport, type LogEntry, type Milestone, type Pace, type PaceBand, type PassageWork,
+  type ActivityWeek, type LanguageReport, type LogEntry, type Milestone, type Pace, type PaceBand, type PassageWork,
   type Portfolio, type RecencyBand
 } from './reports';
-import { TARGET_SCOPES, type TargetScope } from './record';
+import { TARGET_SCOPES, type TargetScope } from './org';
 
 /** One language's report, as an app holds it after asking the dashboard's server. */
-export interface LaneRow {
+export interface LanguageRow {
   orgId: string;
-  projectId: string;
-  laneId: string;
+  languageId: string;
   /** When the server last caught up with the log (the response's `asOf`). */
   updatedAt: string;
-  report: LaneReport;
+  report: LanguageReport;
 }
 
 /**
@@ -26,7 +25,7 @@ export interface LaneRow {
 const DAY_MS = 86_400_000;
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-export interface OrgTotals {
+interface OrgTotals {
   languages: number;
   total: number;
   recorded: number;
@@ -44,7 +43,7 @@ export interface OrgTotals {
 const later = (a: string | null, b: string | null) => (a === null ? b : b === null ? a : a > b ? a : b);
 const earlier = (a: string | null, b: string | null) => (a === null ? b : b === null ? a : a < b ? a : b);
 
-export function orgTotals(rows: LaneRow[]): OrgTotals {
+export function orgTotals(rows: LanguageRow[]): OrgTotals {
   const out: OrgTotals = {
     languages: rows.length, total: 0, recorded: 0, done: 0,
     work: Object.fromEntries(PASSAGE_WORK.map((w) => [w, 0])) as Record<PassageWork, number>,
@@ -65,12 +64,12 @@ export function orgTotals(rows: LaneRow[]): OrgTotals {
   return out;
 }
 
-export function byCountry(rows: LaneRow[], country: string): LaneRow[] {
+export function byCountry(rows: LanguageRow[], country: string): LanguageRow[] {
   return country ? rows.filter((r) => (r.report.country ?? '') === country) : rows;
 }
 
 /** Countries present in the rows, by how many languages each has. */
-export function countryCounts(rows: LaneRow[]): { country: string | null; languages: number; cards: number }[] {
+export function countryCounts(rows: LanguageRow[]): { country: string | null; languages: number; cards: number }[] {
   const m = new Map<string | null, { country: string | null; languages: number; cards: number }>();
   for (const { report: r } of rows) {
     const e = m.get(r.country) ?? { country: r.country, languages: 0, cards: 0 };
@@ -87,7 +86,7 @@ export function countryCounts(rows: LaneRow[]): { country: string | null; langua
  * Coverage across languages. Every language's denominator is the same canon,
  * so the mean of shares is also the share of all verses across languages.
  */
-export function coverageAverage(rows: LaneRow[], which: 'recorded' | 'done'): Record<TargetScope, number> {
+export function coverageAverage(rows: LanguageRow[], which: 'recorded' | 'done'): Record<TargetScope, number> {
   return Object.fromEntries(TARGET_SCOPES.map((s) => [s,
     rows.length === 0 ? 0 : Math.round((10 * rows.reduce((n, r) => n + r.report.coverage[which][s], 0)) / rows.length) / 10
   ])) as Record<TargetScope, number>;
@@ -96,14 +95,14 @@ export function coverageAverage(rows: LaneRow[], which: 'recorded' | 'done'): Re
 export const SCOPE_LABEL: Record<TargetScope, string> = { gospels: 'Gospels', nt: 'New Testament', ot: 'Old Testament', bible: 'Whole Bible' };
 
 /** What a language is working toward: its target, else the first part of the canon it has not finished. */
-export function workingScope(r: LaneReport): TargetScope | null {
+export function workingScope(r: LanguageReport): TargetScope | null {
   if (r.target) return r.target.scope;
   if (r.coverage.recorded.bible === 0 && r.uploads.cards === 0) return null;
   return (['gospels', 'nt', 'ot'] as const).find((s) => r.coverage.recorded[s] < 100) ?? 'bible';
 }
 
 /** Recorded coverage of a scope as of a day, from the weekly series (the week that ended by then). */
-export function coverageOn(r: LaneReport, scope: TargetScope, day: string): number {
+export function coverageOn(r: LanguageReport, scope: TargetScope, day: string): number {
   let v = 0;
   for (const w of r.coverage.weekly) if (w.weekEnd < day) v = w.recorded[scope];
   return v;
@@ -111,16 +110,16 @@ export function coverageOn(r: LaneReport, scope: TargetScope, day: string): numb
 
 // ---- recency --------------------------------------------------------------------------
 
-export interface WatchItem {
-  row: LaneRow;
+interface WatchItem {
+  row: LanguageRow;
   band: RecencyBand;
   days: number;
   /** Days until it reads as inactive. */
   untilInactive: number;
 }
 
-export function recencyGroups(rows: LaneRow[], now: number): Record<RecencyBand, { row: LaneRow; days: number | null }[]> {
-  const out = { active: [], check_in: [], reminder: [], four_weeks: [], five_weeks: [], inactive: [], not_started: [] } as Record<RecencyBand, { row: LaneRow; days: number | null }[]>;
+export function recencyGroups(rows: LanguageRow[], now: number): Record<RecencyBand, { row: LanguageRow; days: number | null }[]> {
+  const out = { active: [], check_in: [], reminder: [], four_weeks: [], five_weeks: [], inactive: [], not_started: [] } as Record<RecencyBand, { row: LanguageRow; days: number | null }[]>;
   for (const row of rows) {
     const { band, days } = recencyOf(row.report, now);
     out[band].push({ row, days });
@@ -129,14 +128,14 @@ export function recencyGroups(rows: LaneRow[], now: number): Record<RecencyBand,
   return out;
 }
 
-export function portfolioCounts(rows: LaneRow[], now: number): Record<Portfolio, number> {
+export function portfolioCounts(rows: LanguageRow[], now: number): Record<Portfolio, number> {
   const out: Record<Portfolio, number> = { active: 0, quiet: 0, inactive: 0, not_started: 0 };
   for (const r of rows) out[portfolioOf(recencyOf(r.report, now).band)] += 1;
   return out;
 }
 
 /** Languages two to six weeks quiet, most urgent first: who to contact. */
-export function watchList(rows: LaneRow[], now: number): WatchItem[] {
+export function watchList(rows: LanguageRow[], now: number): WatchItem[] {
   const out: WatchItem[] = [];
   for (const row of rows) {
     const { band, days } = recencyOf(row.report, now);
@@ -148,10 +147,10 @@ export function watchList(rows: LaneRow[], now: number): WatchItem[] {
 
 // ---- activity windows -------------------------------------------------------------------
 
-export interface DayTotal { day: string; cards: number; chapters: number }
+interface DayTotal { day: string; cards: number; chapters: number }
 
 /** Uploads per day across languages, oldest first. */
-export function mergedDaily(rows: LaneRow[]): DayTotal[] {
+export function mergedDaily(rows: LanguageRow[]): DayTotal[] {
   const m = new Map<string, DayTotal>();
   for (const { report } of rows) {
     for (const d of report.uploads.daily) {
@@ -164,7 +163,7 @@ export function mergedDaily(rows: LaneRow[]): DayTotal[] {
   return [...m.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
-export interface ActivityWindow {
+interface ActivityWindow {
   days: number;
   cards: number;
   previousCards: number;
@@ -177,7 +176,7 @@ export interface ActivityWindow {
 }
 
 /** The last `days` days of uploads (today included) against the `days` before. */
-export function activityWindow(rows: LaneRow[], days: number, now: number): ActivityWindow {
+export function activityWindow(rows: LanguageRow[], days: number, now: number): ActivityWindow {
   const today = isoDay(now);
   const start = isoDay(now - (days - 1) * DAY_MS);
   const prevStart = isoDay(now - (2 * days - 1) * DAY_MS);
@@ -190,10 +189,10 @@ export function activityWindow(rows: LaneRow[], days: number, now: number): Acti
   for (const { report } of rows) {
     for (const e of report.uploads.log) {
       if (e.day < start) continue;
-      passages.add(`${report.laneId}\u0000${e.unitId}`);
-      books.add(`${report.laneId}\u0000${e.book}`);
+      passages.add(`${report.languageId}\u0000${e.unitId}`);
+      books.add(`${report.languageId}\u0000${e.book}`);
     }
-    if (report.uploads.daily.some((d) => d.day >= start && d.cards > 0)) languages.add(report.laneId);
+    if (report.uploads.daily.some((d) => d.day >= start && d.cards > 0)) languages.add(report.languageId);
   }
   return {
     days, daily, previousDaily,
@@ -204,7 +203,7 @@ export function activityWindow(rows: LaneRow[], days: number, now: number): Acti
 }
 
 /** Languages by cards uploaded in the window, most first. */
-export function topLanguages(rows: LaneRow[], days: number, now: number): { row: LaneRow; cards: number }[] {
+export function topLanguages(rows: LanguageRow[], days: number, now: number): { row: LanguageRow; cards: number }[] {
   const start = isoDay(now - (days - 1) * DAY_MS);
   return rows
     .map((row) => ({ row, cards: row.report.uploads.daily.filter((d) => d.day >= start).reduce((n, d) => n + d.cards, 0) }))
@@ -212,18 +211,18 @@ export function topLanguages(rows: LaneRow[], days: number, now: number): { row:
     .sort((a, b) => b.cards - a.cards || a.row.report.name.localeCompare(b.row.report.name));
 }
 
-export interface LogDay {
+interface LogDay {
   day: string;
-  entries: (LogEntry & { row: LaneRow })[];
+  entries: (LogEntry & { row: LanguageRow })[];
   cards: number;
   passages: number;
   languages: number;
 }
 
 /** The day-by-day log of passages that got audio, newest day first. */
-export function logByDay(rows: LaneRow[], days: number, now: number): LogDay[] {
+export function logByDay(rows: LanguageRow[], days: number, now: number): LogDay[] {
   const start = isoDay(now - (days - 1) * DAY_MS);
-  const m = new Map<string, (LogEntry & { row: LaneRow })[]>();
+  const m = new Map<string, (LogEntry & { row: LanguageRow })[]>();
   for (const row of rows) for (const e of row.report.uploads.log) if (e.day >= start) (m.get(e.day) ?? m.set(e.day, []).get(e.day)!).push({ ...e, row });
   return [...m].sort(([a], [b]) => (a < b ? 1 : -1)).map(([day, entries]) => {
     entries.sort((a, b) => (a.at < b.at ? 1 : -1));
@@ -231,13 +230,13 @@ export function logByDay(rows: LaneRow[], days: number, now: number): LogDay[] {
       day, entries,
       cards: entries.reduce((n, e) => n + e.cards, 0),
       passages: entries.length,
-      languages: new Set(entries.map((e) => e.row.laneId)).size
+      languages: new Set(entries.map((e) => e.row.languageId)).size
     };
   });
 }
 
 /** Weekly totals across languages, oldest first. */
-export function combinedActivity(rows: LaneRow[]): ActivityWeek[] {
+export function combinedActivity(rows: LanguageRow[]): ActivityWeek[] {
   const weeks = new Map<string, ActivityWeek>();
   for (const { report } of rows) {
     for (const w of report.activity) {
@@ -253,19 +252,19 @@ export function combinedActivity(rows: LaneRow[]): ActivityWeek[] {
 }
 
 /** Cards per week for the last `n` weeks, for a sparkline. */
-export function weeklyCards(r: LaneReport, n = 8): number[] {
+export function weeklyCards(r: LanguageReport, n = 8): number[] {
   return r.activity.slice(-n).map((w) => w.cards);
 }
 
 // ---- milestones -------------------------------------------------------------------------
 
-export function milestonesSince(rows: LaneRow[], sinceIso: string): (Milestone & { row: LaneRow })[] {
+export function milestonesSince(rows: LanguageRow[], sinceIso: string): (Milestone & { row: LanguageRow })[] {
   return rows
     .flatMap((row) => row.report.milestones.filter((m) => m.at >= sinceIso).map((m) => ({ ...m, row })))
     .sort((a, b) => (a.at < b.at ? 1 : -1));
 }
 
-export function milestoneText(m: Milestone & { row: LaneRow }): string {
+export function milestoneText(m: Milestone & { row: LanguageRow }): string {
   const scope = SCOPE_LABEL[m.scope];
   return m.threshold === 100 ? `${m.row.report.name}: ${scope} fully recorded` : `${m.row.report.name}: ${m.threshold}% of the ${scope} recorded`;
 }
@@ -274,7 +273,7 @@ export function milestoneText(m: Milestone & { row: LaneRow }): string {
 
 export type ReportWindow = 'week' | 'month' | 'ytd';
 
-export interface FieldReport {
+interface FieldReport {
   window: ReportWindow;
   title: string;
   /** First and last day covered, inclusive. */
@@ -287,16 +286,16 @@ export interface FieldReport {
   countries: number;
   ntRecorded: number;
   passagesDone: number;
-  advanced: { row: LaneRow; scope: TargetScope; before: number; after: number }[];
-  mostRecorded: { row: LaneRow; cards: number }[];
+  advanced: { row: LanguageRow; scope: TargetScope; before: number; after: number }[];
+  mostRecorded: { row: LanguageRow; cards: number }[];
   portfolio: Record<Portfolio, number>;
   workingOn: Record<TargetScope | 'none', number>;
-  milestones: (Milestone & { row: LaneRow })[];
-  wentQuiet: LaneRow[];
-  resumed: LaneRow[];
+  milestones: (Milestone & { row: LanguageRow })[];
+  wentQuiet: LanguageRow[];
+  resumed: LanguageRow[];
 }
 
-export function reportWindow(window: ReportWindow, now: number): { from: string; to: string; days: number } {
+function reportWindow(window: ReportWindow, now: number): { from: string; to: string; days: number } {
   const to = isoDay(now);
   if (window === 'ytd') {
     const from = `${to.slice(0, 4)}-01-01`;
@@ -307,7 +306,7 @@ export function reportWindow(window: ReportWindow, now: number): { from: string;
 }
 
 /** Cards uploaded between two days inclusive: daily counts where they reach, weekly beyond. */
-function cardsBetween(r: LaneReport, from: string, to: string): number {
+function cardsBetween(r: LanguageReport, from: string, to: string): number {
   const firstDaily = r.uploads.daily[0]?.day ?? to;
   if (from >= firstDaily) return r.uploads.daily.filter((d) => d.day >= from && d.day <= to).reduce((n, d) => n + d.cards, 0);
   // Beyond the daily counts: every week that overlaps the range, whole.
@@ -316,14 +315,14 @@ function cardsBetween(r: LaneReport, from: string, to: string): number {
     .reduce((n, w) => n + w.cards, 0);
 }
 
-export function fieldReport(rows: LaneRow[], window: ReportWindow, now: number): FieldReport {
+export function fieldReport(rows: LanguageRow[], window: ReportWindow, now: number): FieldReport {
   const { from, to, days } = reportWindow(window, now);
   const prevFrom = isoDay(Date.parse(`${from}T00:00:00Z`) - days * DAY_MS);
   const prevTo = isoDay(Date.parse(`${from}T00:00:00Z`) - DAY_MS);
   const perLang = rows.map((row) => ({ row, cards: cardsBetween(row.report, from, to) }));
   const workingOn = { gospels: 0, nt: 0, ot: 0, bible: 0, none: 0 } as Record<TargetScope | 'none', number>;
   for (const { report } of rows) workingOn[workingScope(report) ?? 'none'] += 1;
-  const quietDay = (row: LaneRow) => recencyOf(row.report, now).days;
+  const quietDay = (row: LanguageRow) => recencyOf(row.report, now).days;
   return {
     window,
     title: window === 'week' ? 'This week in the field' : window === 'month' ? 'This month in the field' : `${to.slice(0, 4)} so far`,
@@ -403,7 +402,7 @@ export function reportText(fr: FieldReport, orgName: string): string {
 /** How long after a month ends its figures keep moving (late uploads) before they are settled. */
 export const SETTLE_DAYS = 5;
 
-export function ledgerMonths(rows: LaneRow[]): string[] {
+export function ledgerMonths(rows: LanguageRow[]): string[] {
   const s = new Set<string>();
   for (const { report } of rows) for (const m of report.ledger) s.add(m.month);
   return [...s].sort();
@@ -419,13 +418,13 @@ export function defaultLedgerMonth(months: string[], now: number): string | unde
   return [...months].reverse().find((m) => isSettled(m, now)) ?? months.at(-1);
 }
 
-export interface LedgerLine {
-  row: LaneRow;
+interface LedgerLine {
+  row: LanguageRow;
   chapters: number;
   books: { bookId: string; label: string; chapters: number }[];
 }
 
-export function ledgerFor(rows: LaneRow[], month: string): { chapters: number; books: number; languages: number; lines: LedgerLine[] } {
+export function ledgerFor(rows: LanguageRow[], month: string): { chapters: number; books: number; languages: number; lines: LedgerLine[] } {
   const lines: LedgerLine[] = [];
   for (const row of rows) {
     const m = row.report.ledger.find((x) => x.month === month);
@@ -440,11 +439,11 @@ export function ledgerFor(rows: LaneRow[], month: string): { chapters: number; b
   };
 }
 
-export function ledgerCsv(rows: LaneRow[], month: string, countryName: (c: string | null) => string): string {
+export function ledgerCsv(rows: LanguageRow[], month: string, countryName: (c: string | null) => string): string {
   const l = ledgerFor(rows, month);
   return toCsv([
     ['Month', 'Language', 'Code', 'Country', 'New chapters', 'Books', 'Chapters by book'],
-    ...l.lines.map((x) => [month, x.row.report.name, x.row.report.languoidId, countryName(x.row.report.country), x.chapters, x.books.length,
+    ...l.lines.map((x) => [month, x.row.report.name, x.row.report.code, countryName(x.row.report.country), x.chapters, x.books.length,
       x.books.map((b) => `${b.label} ${b.chapters}`).join('; ')]),
     [month, 'Total', null, null, l.chapters, l.books, null]
   ]);
@@ -452,9 +451,9 @@ export function ledgerCsv(rows: LaneRow[], month: string, countryName: (c: strin
 
 // ---- pace ---------------------------------------------------------------------------------
 
-export function paceGroups(rows: LaneRow[], now: number): { band: PaceBand | 'no_target'; items: { row: LaneRow; pace: Pace | null }[] }[] {
+export function paceGroups(rows: LanguageRow[], now: number): { band: PaceBand | 'no_target'; items: { row: LanguageRow; pace: Pace | null }[] }[] {
   const order: (PaceBand | 'no_target')[] = ['ahead', 'on_pace', 'behind', 'stalled', 'complete', 'no_target'];
-  const groups = new Map(order.map((b) => [b, [] as { row: LaneRow; pace: Pace | null }[]]));
+  const groups = new Map(order.map((b) => [b, [] as { row: LanguageRow; pace: Pace | null }[]]));
   for (const row of rows) {
     const pace = paceOf(row.report, now);
     groups.get(pace?.band ?? 'no_target')!.push({ row, pace });
@@ -467,24 +466,24 @@ export function paceGroups(rows: LaneRow[], now: number): { band: PaceBand | 'no
 
 export type AlertLevel = 'attention' | 'look' | 'fyi';
 
-export interface Alert {
+interface Alert {
   id: string;
   level: AlertLevel;
   title: string;
   body: string;
   action: string;
-  rows: LaneRow[];
+  rows: LanguageRow[];
 }
 
 /** Figures older than this were read long before the page was looked at. */
-export const STALE_AFTER_MS = 15 * 60_000;
+const STALE_AFTER_MS = 15 * 60_000;
 
 /**
  * Checks on the data itself, in plain language. `asOf` is when the
  * dashboard's server last caught up with the log; it catches up on every
  * load, so old figures mean the page has been open a while.
  */
-export function alertsFor(rows: LaneRow[], asOf: string, now: number): Alert[] {
+export function alertsFor(rows: LanguageRow[], asOf: string, now: number): Alert[] {
   const out: Alert[] = [];
   if (now - Date.parse(asOf) > STALE_AFTER_MS) {
     out.push({
@@ -534,15 +533,15 @@ export function alertsFor(rows: LaneRow[], asOf: string, now: number): Alert[] {
 // ---- sorting and tables ---------------------------------------------------------------------
 
 /** Things a coordinator can act on in one language. */
-export function attentionCount(r: LaneReport): number {
+export function attentionCount(r: LanguageReport): number {
   return r.attention.feedback + r.attention.overdueRequests + r.attention.atCheckpoint;
 }
 
-export type LaneSortKey = 'name' | 'recorded' | 'done' | 'attention' | 'activity' | 'coverage' | 'cards' | 'upload';
+export type LanguageSortKey = 'name' | 'recorded' | 'done' | 'attention' | 'activity' | 'coverage' | 'cards' | 'upload';
 export type SortDir = 'asc' | 'desc';
 
-export function sortLanes(rows: LaneRow[], key: LaneSortKey, dir: SortDir): LaneRow[] {
-  const value = (r: LaneReport): number | string => {
+export function sortLanguages(rows: LanguageRow[], key: LanguageSortKey, dir: SortDir): LanguageRow[] {
+  const value = (r: LanguageReport): number | string => {
     switch (key) {
       case 'name': return r.name.toLocaleLowerCase();
       case 'recorded': return percent(r.progress.recorded, r.progress.total);
@@ -564,7 +563,7 @@ export function sortLanes(rows: LaneRow[], key: LaneSortKey, dir: SortDir): Lane
 }
 
 /** Recorded and done as shares of the language's passages today, one point per day, for the progress line. */
-export function dayPercents(r: LaneReport): { day: string; recorded: number; done: number }[] {
+export function dayPercents(r: LanguageReport): { day: string; recorded: number; done: number }[] {
   const total = r.progress.total;
   return r.progressDaily.map((d) => ({ day: d.day, recorded: percent(d.recorded, total), done: percent(d.done, total) }));
 }
@@ -589,13 +588,13 @@ export function toCsv(rows: Cell[][]): string {
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 }
 
-export function lanesCsv(rows: LaneRow[], now = Date.now()): string {
+export function languagesCsv(rows: LanguageRow[], now = Date.now()): string {
   return toCsv([
     ['Language', 'Code', 'Country', 'Review flow', 'Passages', 'Recorded', 'Done', 'Recorded %', 'Done %',
       'Gospels recorded %', 'New Testament recorded %', 'Old Testament recorded %', 'Recordings on server', 'Last upload', 'Upload status',
       'Feedback to answer', 'Open requests', 'Overdue requests', 'At a checkpoint', 'Bottleneck', 'Last activity', 'Report updated'],
     ...rows.map(({ report: r, updatedAt }) => [
-      r.name, r.languoidId, r.country, r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
+      r.name, r.code, r.country, r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
       percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
       r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
       recencyOf(r, now).band,
@@ -605,7 +604,7 @@ export function lanesCsv(rows: LaneRow[], now = Date.now()): string {
   ]);
 }
 
-export function laneCsv(r: LaneReport): string {
+export function languageCsv(r: LanguageReport): string {
   return toCsv([
     ['Book', 'Passages', 'Recorded', 'Done', 'Recorded %', 'Done %'],
     ...r.books.map((b) => [b.label, b.total, b.recorded, b.done, percent(b.recorded, b.total), percent(b.done, b.total)])

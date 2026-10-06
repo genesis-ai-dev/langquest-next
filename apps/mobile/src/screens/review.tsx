@@ -12,7 +12,7 @@
 // keyTermLinksFor) and written with core recordReview / produceContent. A
 // review is grow-only, so sending it offers no Undo.
 import {
-  commands, derivePassage, keyTermLinksFor, questionsForKind,
+  commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -97,15 +97,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const version = v ? versionFor(v.p, takeId) : undefined;
   const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
     [v?.p, kindId, actorId, ctx.params, logged]);
-  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, v.laneId, request) : [], [v?.state, v?.laneId, kindId, request]);
-  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
+  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request) : [], [v?.state, kindId, request]);
+  const guide = useStudyGuide(ctx, v?.unitId);
   const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
-  const all = useMemo(() => v && logged ? recordedPassages(v.state, v.laneId) : [], [v?.state, v?.laneId, logged]);
+  const all = useMemo(() => v && logged ? recordedPassages(v.state) : [], [v?.state, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
   const shown = !!context;
-  useOfferedSources(ctx, shown ? v?.unitId : undefined, shown ? v?.laneId : undefined, shown ? usage : undefined);
+  useOfferedSources(ctx, shown ? v?.unitId : undefined, shown ? v?.languageId : undefined, shown ? usage : undefined);
   const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
     if (shown && guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
@@ -115,17 +115,17 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   if (!v || !kind) {
     return (
       <Screen header={<Header title={logged ? TITLES.add_record : TITLES.review_capture} onBack={ctx.back} close />}>
-        <EmptyState icon="book" title={ctx.project.state ? "This passage isn't in the project" : 'Loading…'} />
+        <EmptyState icon="book" title={ctx.language.state ? "This passage isn't in this language" : 'Loading…'} />
       </Screen>
     );
   }
   const header = (sub: string) => <Header title={kind.name} sub={sub} crumbs={passageCrumbs(ctx, v, crumbLabel)} onBack={ctx.back} close />;
   if (!version) {
-    return <Screen header={header(v.lane)}><EmptyState icon="mic" title="There's no recording to review yet." sub="Once a version is published, it can be reviewed here." /></Screen>;
+    return <Screen header={header(v.language)}><EmptyState icon="mic" title="There's no recording to review yet." sub="Once a version is published, it can be reviewed here." /></Screen>;
   }
   if (!logged && kind.produces) {
     return (
-      <Screen header={header(`${v.lane} · ${versionTitle(version.n)}`)}>
+      <Screen header={header(`${v.language} · ${versionTitle(version.n)}`)}>
         <EmptyState icon="swap" title={`${kind.name} makes a recording`} sub={`It isn't a verdict, so it isn't reviewed here. Use ${kind.produces.action} on the passage's record.`} />
       </Screen>
     );
@@ -135,7 +135,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const hint = footHint(r, makes ? { what: makes.what, has: made.length > 0 } : undefined);
   const group = isGroupKind(kind.id);
   const here = all.find((p) => p.unitId === v.unitId);
-  const detailKey = (part: string) => `${logged ? 'logged' : 'capture'}:${v.unitId}:${v.laneId}:${kind.id}:${part}`;
+  const detailKey = (part: string) => `${logged ? 'logged' : 'capture'}:${v.unitId}:${v.languageId}:${kind.id}:${part}`;
   const asker = request?.by ? ctx.name(request.by) : undefined;
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
   const at = stageAt(stages, stageId);
@@ -146,7 +146,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const otherPassages = !!here && all.some((p) => p.unitId !== here.unitId);
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
-    const state = ctx.project.state;
+    const state = ctx.language.state;
     if (!state || !v || !version || !kind || busy) return;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
@@ -165,14 +165,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         const sentTo = version.by === actorId ? 'on the record' : `sent to ${ctx.name(version.by)}`;
         message = outcome === 'looks_good' ? `Looks good · ${sentTo}` : `Feedback ${sentTo}`;
       } else {
-        const targets = loggedTargets(state, v.laneId, { unitId: v.unitId, takeId: version.takeId }, also);
+        const targets = loggedTargets(state, { unitId: v.unitId, takeId: version.takeId }, also);
         const who = !group && givenBy.trim() ? { givenBy: givenBy.trim() } : {};
         const shared = {
           ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}),
           ...who, ...(group && people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {})
         };
         targets.forEach((t, i) => {
-          const tp = t.unitId === v.unitId ? v.p : derivePassage(state, t.unitId, v.laneId, indexesFor(state));
+          const tp = t.unitId === v.unitId ? v.p : derivePassage(state, t.unitId, indexesFor(state));
           const req = requestFor(tp, kind.id, actorId, { mineOnly: true });
           const commandId = `${cmd}:${i}`;
           specs.push(...(makes
@@ -195,7 +195,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           if (sp.type !== 'v1.ReviewRecorded') return [];
           const p = sp.payload as { reviewId: string; takeId: string };
           if (state.takes[p.takeId]?.unitId !== v.unitId) return [];
-          return c.referencesUsed({ commandId: cmd, laneId: v.laneId, unitId: v.unitId, reviewId: p.reviewId, items: used });
+          return c.referencesUsed({ commandId: cmd, unitId: v.unitId, reviewId: p.reviewId, items: used });
         })];
       }
     } catch (e) {
@@ -209,7 +209,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       setBusy(false);
       return;
     }
-    ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId });
+    ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId });
   }
 
   const verdictFooter = (
@@ -266,7 +266,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
               {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
               {!makes ? (
                 <Block label="Evidence · optional" hint="A retelling or a recorded conversation makes the review easy to trust.">
-                  <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a retelling" hash={evidence?.hash ?? null}
+                  <VoiceNote ctx={ctx} label="Record a retelling" hash={evidence?.hash ?? null}
                     onChange={(h, card) => setEvidence(h ? voiceCard(h, card) : null)} />
                 </Block>
               ) : null}
@@ -284,13 +284,13 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           {context.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
           <Background ctx={ctx} detailsKey={detailKey('background')}
             terms={context.terms} notes={context.notes} anchor={context.anchor} olderVersion={context.olderVersion}
-            onOpenTerm={(termId) => ctx.go('key_term_detail', { termId, unitId: v.unitId, laneId: v.laneId })}
+            onOpenTerm={(termId) => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId })}
             study={context.study}
-            onOpenStep={(stepId) => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId }); }}
-            onOpenStudy={() => { if (guideItem) usage.open(guideItem); ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId }); }}
+            onOpenStep={(stepId) => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId }); }}
+            onOpenStudy={() => { if (guideItem) usage.open(guideItem); ctx.go('study_guide', { unitId: v.unitId, languageId: v.languageId }); }}
             reviews={context.earlier} kind={v.kind}
-            source={<SourceReader ctx={ctx} unitId={v.unitId} laneId={v.laneId} usage={usage}
-              onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, laneId: v.laneId })} />} />
+            source={<SourceReader ctx={ctx} unitId={v.unitId} languageId={v.languageId} usage={usage}
+              onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId })} />} />
         </>
       )}
     </>
@@ -300,21 +300,21 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <>
       <Block label={`The ${makes.what}`} hint="It's what gets checked next, so it's the one thing this entry needs.">
         {made.map((c, i) => (
-          <VoiceNote key={c.hash} ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={`Part ${i + 1}`} hash={c.hash}
+          <VoiceNote key={c.hash} ctx={ctx} label={`Part ${i + 1}`} hash={c.hash}
             onChange={(nextHash, card) => setMade((m) => nextHash ? m.map((x) => (x.hash === c.hash ? voiceCard(nextHash, card) : x)) : m.filter((x) => x.hash !== c.hash))} />
         ))}
-        <VoiceNote key={`new-${made.length}`} ctx={ctx} unitId={v.unitId} laneId={v.laneId}
+        <VoiceNote key={`new-${made.length}`} ctx={ctx}
           label={made.length ? 'Record another part' : `Record the ${makes.what}`} hash={null}
           onChange={(h, card) => { if (h) setMade((m) => (m.some((x) => x.hash === h) ? m : [...m, voiceCard(h, card)])); }} />
       </Block>
       <Block label="What happened" hint="Optional — what was hard to say back.">
-        <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Record a summary" hash={commentHash} onChange={setCommentHash} />
+        <VoiceNote ctx={ctx} label="Record a summary" hash={commentHash} onChange={setCommentHash} />
         <Field value={comment} onChangeText={setComment} placeholder="Or type what was hard to say back" multiline />
       </Block>
     </>
   ) : (
     <Block label={logged ? 'What happened' : 'Your feedback'}>
-      <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={logged ? 'Record a summary' : 'Record voice feedback'} hash={commentHash} onChange={setCommentHash} />
+      <VoiceNote ctx={ctx} label={logged ? 'Record a summary' : 'Record voice feedback'} hash={commentHash} onChange={setCommentHash} />
       <Field value={comment} onChangeText={setComment} multiline
         placeholder={logged ? 'Or type what people understood and asked about' : "Or type it — what worked, what didn't"} />
     </Block>
@@ -323,7 +323,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // Keyed by stage so each stage opens at its top.
   return (
     <Screen key={stage} footer={footer}
-      header={<>{header(`${logged ? 'Already happened · ' : ''}${v.lane} · ${versionTitle(version.n)}`)}<StageStrip stages={stages} at={at} onGo={setStageId} /></>}>
+      header={<>{header(`${logged ? 'Already happened · ' : ''}${v.language} · ${versionTitle(version.n)}`)}<StageStrip stages={stages} at={at} onGo={setStageId} /></>}>
       {stage === 'listen' ? listen : null}
 
       {stage === 'questions' ? (
@@ -372,18 +372,20 @@ function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string,
  * a labelled preview: answers can be tried, nothing is sent or recorded.
  */
 export function GuestReview(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.language.state;
   const requestId = ctx.params['requestId'];
   const named = requestId && state ? state.requests[requestId] : undefined;
   const unitId = named?.unitId ?? ctx.params['unitId'];
-  const laneId = named?.laneId ?? ctx.params['laneId'] ?? ctx.laneId ?? undefined;
-  const v = useMemo(() => state && unitId && laneId && state.units[unitId] ? passageViewOf(state, unitId, laneId) : null, [state, unitId, laneId]);
+  const languageId = ctx.params['languageId'] ?? ctx.languageId ?? undefined;
+  const open = languageId === ctx.language.languageId;
+  const v = useMemo(() => state && unitId && languageId && open && state.units[unitId]
+    ? passageViewOf(state, unitId, languageId, languageName(ctx.org.state, languageId)) : null, [state, unitId, languageId, open, ctx.org.state]);
   const [answers, setAnswers] = useState<Answers>({});
   const [comment, setComment] = useState('');
   const request = v ? (requestId ? v.p.requests.find((r) => r.id === requestId) : undefined)
     ?? [...v.p.openRequests].reverse().find((r) => r.what === 'review' && !!r.guest) : undefined;
   const kindId = request?.kindId ?? 'community';
-  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, v.laneId, request).slice(0, 3) : [], [v, kindId, request]);
+  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request).slice(0, 3) : [], [v, kindId, request]);
 
   const header = <Header title={TITLES.guest_review} sub="Preview · what someone without the app sees" onBack={ctx.back} close />;
   if (!v) return <Screen header={header}><EmptyState icon="link" title={state ? 'No link to preview' : 'Loading…'} sub="Ask someone without the app from a passage to see what they get." /></Screen>;
@@ -415,14 +417,14 @@ export function GuestReview(ctx: Ctx) {
           <Badge label="No account needed" />
         </View>
         <Text style={txt.title}>{headline}</Text>
-        <Text style={txt.xs}>{v.lane} · {kind.name}</Text>
+        <Text style={txt.xs}>{v.language} · {kind.name}</Text>
       </Card>
       {request?.note ? <Card style={{ backgroundColor: C.light }}><Text style={txt.body}>“{request.note}”</Text></Card> : null}
-      {request?.noteBlobHash ? <AudioClip project={ctx.project} hashes={[request.noteBlobHash]} label="Play their directions" /> : null}
+      {request?.noteBlobHash ? <AudioClip language={ctx.language} hashes={[request.noteBlobHash]} label="Play their directions" /> : null}
       {version ? (
         <Card>
           <Text style={txt.h3}>Listen</Text>
-          <AudioClip project={ctx.project} hashes={version.cardHashes} label={`Play ${v.title}`} />
+          <AudioClip language={ctx.language} hashes={version.cardHashes} label={`Play ${v.title}`} />
         </Card>
       ) : <EmptyState icon="mic" title="There's no recording to listen to yet." />}
       {questions.map((q) => (
@@ -432,7 +434,7 @@ export function GuestReview(ctx: Ctx) {
         </Card>
       ))}
       <Block label="Tell us what you understood">
-        {/* A voice reply would be saved to the project's record; a preview must not write, so it is shown, not live. */}
+        {/* A voice reply would be saved to the language's record; a preview must not write, so it is shown, not live. */}
         <View style={styles.voiceOff} accessibilityState={{ disabled: true }}>
           <View style={styles.micDot}><Ico name="mic" size={18} color={C.white} /></View>
           <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>Tap to reply by voice</Text>

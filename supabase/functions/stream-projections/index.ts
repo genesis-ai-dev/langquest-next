@@ -5019,7 +5019,7 @@ var Channel = class {
    * Destroys and stops related timers.
    */
   teardown() {
-    this.pushBuffer.forEach((push) => push.destroy());
+    this.pushBuffer.forEach((push2) => push2.destroy());
     this.pushBuffer = [];
     this.rejoinTimer.reset();
     this.joinPush.destroy();
@@ -6731,9 +6731,9 @@ var ChannelAdapter = class {
     return this.channel.onError(callback);
   }
   push(event, payload, timeout) {
-    let push;
+    let push2;
     try {
-      push = this.channel.push(event, payload, timeout);
+      push2 = this.channel.push(event, payload, timeout);
     } catch (error) {
       throw new Error(`tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`);
     }
@@ -6742,7 +6742,7 @@ var ChannelAdapter = class {
       removedPush.cancelTimeout();
       this.socket.log("channel", `discarded push due to buffer overflow: ${removedPush.event}`, removedPush.payload());
     }
-    return push;
+    return push2;
   }
   updateJoinPayload(payload) {
     const oldPayload = this.channel.joinPush.payload();
@@ -7435,13 +7435,13 @@ var RealtimeChannel = class _RealtimeChannel {
     } else {
       return new Promise((resolve) => {
         var _a2, _b2, _c;
-        const push = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
+        const push2 = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout);
         if (args.type === "broadcast" && !((_c = (_b2 = (_a2 = this.params) === null || _a2 === void 0 ? void 0 : _a2.config) === null || _b2 === void 0 ? void 0 : _b2.broadcast) === null || _c === void 0 ? void 0 : _c.ack)) {
           resolve("ok");
         }
-        push.receive("ok", () => resolve("ok"));
-        push.receive("error", () => resolve("error"));
-        push.receive("timeout", () => resolve("timed out"));
+        push2.receive("ok", () => resolve("ok"));
+        push2.receive("error", () => resolve("error"));
+        push2.receive("timeout", () => resolve("timed out"));
       });
     }
   }
@@ -20777,22 +20777,20 @@ if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and b
 
 // packages/core/src/references.ts
 function emptyReferenceState() {
-  return { laneReferences: {}, passageLinks: {}, referencesUsed: {} };
+  return { languageReferences: {}, passageLinks: {}, referencesUsed: {} };
 }
-var passageKey = (laneId, unitId) => `${laneId}\0${unitId}`;
 var usedKey = (s) => s.takeId ? `take:${s.takeId}` : `review:${s.reviewId}`;
 var later = (current, e) => !current || current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
 function applyReferenceEvent(state, e) {
   switch (e.type) {
-    case "v1.LaneReferenceRecommended": {
+    case "v1.ReferenceSet": {
       const p = e.payload;
-      const lane = state.laneReferences[p.laneId] ??= {};
-      if (later(lane[p.itemId], e)) lane[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
+      if (later(state.languageReferences[p.itemId], e)) state.languageReferences[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
       break;
     }
     case "v1.PassageReferenceLinked": {
       const p = e.payload;
-      const links = state.passageLinks[passageKey(p.laneId, p.unitId)] ??= {};
+      const links = state.passageLinks[p.unitId] ??= {};
       if (later(links[p.itemId], e)) links[p.itemId] = { value: p.linked, hlc: e.hlc, eventId: e.id };
       break;
     }
@@ -20819,1098 +20817,146 @@ function emptyRecordState() {
   return {
     reviewKinds: {},
     flowSteps: {},
+    removedSteps: {},
     kindReviews: {},
     departures: {},
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
     notes: {},
-    studyMarks: {},
-    laneNames: {},
-    laneCountries: {},
-    laneTargets: {}
+    studyMarks: {}
   };
 }
-var studyMarkKey = (unitId, laneId, guideId, stepId) => `${unitId}:${laneId}:${guideId}:${stepId}`;
+var studyMarkKey = (unitId, guideId, stepId) => `${unitId}:${guideId}:${stepId}`;
+var DEFAULT_KINDS = [
+  {
+    id: "peer",
+    name: "Peer Review",
+    usualReviewer: "Another translator",
+    description: "Another translator listens for accuracy and natural speech."
+  },
+  {
+    id: "bt",
+    name: "Back Translation",
+    usualReviewer: "A bilingual speaker",
+    withholdsContext: true,
+    produces: { what: "back translation", into: "English", action: "Back-translate it", checkedBy: "consultant" },
+    description: "A bilingual speaker records the passage back into English, in their own words. It's new content, not a verdict: the Consultant Check uses it to compare meaning."
+  },
+  {
+    id: "community",
+    name: "Community Check",
+    usualReviewer: "Community members",
+    description: "Play it for people in the community and capture what they understood."
+  },
+  {
+    id: "consultant",
+    name: "Consultant Check",
+    usualReviewer: "A translation consultant",
+    description: "A consultant checks meaning against the source, verse by verse."
+  },
+  {
+    id: "final",
+    name: "Final Approval",
+    usualReviewer: "The language coordinator",
+    description: "Sign-off that the passage is ready to share."
+  },
+  {
+    id: "retell",
+    name: "Retell Check",
+    usualReviewer: "A listener",
+    description: "A listener retells the passage in their own words."
+  },
+  {
+    id: "local",
+    name: "Local Check",
+    usualReviewer: "Local listeners",
+    description: "Local listeners hear the polished recording and say whether it sounds natural and acceptable."
+  }
+];
+var FLOWS = [
+  {
+    id: "standard_bible",
+    name: "Standard Bible Flow",
+    description: "Peer and back translation together, then the community, then a consultant before sign-off.",
+    steps: [
+      { stepId: "s1", kindIds: ["peer", "bt"] },
+      { stepId: "s2", kindIds: ["community"] },
+      { stepId: "s3", kindIds: ["consultant"], checkpoint: true },
+      { stepId: "s4", kindIds: ["final"] }
+    ]
+  },
+  {
+    id: "quick_check",
+    name: "Quick Check",
+    description: "A peer listens, then the coordinator signs off.",
+    steps: [{ stepId: "s1", kindIds: ["peer"] }, { stepId: "s2", kindIds: ["final"] }]
+  },
+  {
+    id: "oral_review",
+    name: "Oral Review Path",
+    description: "Community playback and retelling together, then sign-off.",
+    steps: [{ stepId: "s1", kindIds: ["community", "retell"] }, { stepId: "s2", kindIds: ["final"], checkpoint: true }]
+  },
+  {
+    id: "consultant_only",
+    name: "Consultant-only",
+    description: "A consultant must check it before sign-off.",
+    steps: [{ stepId: "s1", kindIds: ["consultant"], checkpoint: true }, { stepId: "s2", kindIds: ["final"] }]
+  },
+  {
+    id: "collect_only",
+    name: "Collect only",
+    description: "No reviews: a passage is done once it is recorded.",
+    steps: []
+  },
+  {
+    id: "spoken_oral",
+    name: "Spoken Oral Method",
+    description: "Community check on the first draft, peer review of the second, back translation, consultant sessions until approved, then a local check of the polished recording.",
+    steps: [
+      { stepId: "s1", kindIds: ["community"] },
+      { stepId: "s2", kindIds: ["peer"] },
+      { stepId: "s3", kindIds: ["bt"] },
+      { stepId: "s4", kindIds: ["consultant"], checkpoint: true },
+      { stepId: "s5", kindIds: ["local"] }
+    ]
+  }
+];
+function flowTemplate(id) {
+  return FLOWS.find((f) => f.id === id);
+}
+var CUSTOM_FLOW = "custom";
+function flowStepPrefix(flowId) {
+  return `${flowId}/`;
+}
 
 // packages/core/src/state.ts
-function emptyState() {
+function emptyLanguageState() {
   return {
-    project: null,
-    config: null,
-    members: {},
-    lanes: {},
     units: {},
-    references: {},
     recordings: {},
     takes: {},
     submissions: {},
-    reviews: {},
-    selectedTakes: {},
-    assignments: {},
-    sourcePins: {},
     blobs: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
-    laneTemplates: {},
-    laneHiddenUnits: {},
-    laneFlows: {},
-    workflowSteps: {},
+    template: null,
+    hiddenUnits: {},
+    flow: null,
     teams: {},
     responses: {},
-    reviewComments: {},
     materials: {},
-    stepQuestionSets: {},
     keyTerms: {},
     keyTermLinks: {},
     ...emptyRecordState(),
     ...emptyReferenceState()
   };
 }
-var DEFAULT_CONFIG = {
-  unitKinds: [
-    { id: "book", label: "Book", childKinds: ["passage"] },
-    { id: "passage", label: "Passage", childKinds: [] }
-  ],
-  workflow: [{ id: "community", role: "reviewer", required: true, rule: "majority" }]
-};
 
-// packages/core/src/license.ts
-var LICENSES = [
-  "all-rights-reserved",
-  "CC-BY-NC-ND-4.0",
-  "CC-BY-NC-SA-4.0",
-  "CC-BY-SA-4.0",
-  "CC-BY-4.0",
-  "CC0-1.0"
-];
-var DEFAULT_LICENSE = "all-rights-reserved";
-function isLicense(v) {
-  return typeof v === "string" && LICENSES.includes(v);
-}
-function licenseRank(license) {
-  return LICENSES.indexOf(license);
-}
-
-// packages/core/src/validate.ts
-var ROLES = ["owner", "coordinator", "translator", "reviewer", "viewer"];
-function validateEvent(e) {
-  for (const k of ["id", "type", "orgId", "projectId", "actorId", "deviceId", "hlc"]) {
-    if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
-  }
-  if (!isObject(e.payload)) return "payload must be an object";
-  const p = e.payload;
-  const str = (...keys) => {
-    for (const k of keys) if (typeof p[k] !== "string" || p[k] === "") return `${k} must be a non-empty string`;
-    return null;
-  };
-  const optStr = (...keys) => {
-    for (const k of keys) if (p[k] !== void 0 && typeof p[k] !== "string") return `${k} must be a string`;
-    return null;
-  };
-  const role = (k) => ROLES.includes(p[k]) ? null : `${k} must be a role`;
-  const cards = (k) => {
-    if (!Array.isArray(p[k])) return `${k} must be an array`;
-    for (const c of p[k]) {
-      if (!isObject(c)) return `${k} entries must be objects`;
-      const card = c;
-      if (typeof card["hash"] !== "string" || card["hash"] === "") return `${k} entries need a hash`;
-      if (typeof card["durationMs"] !== "number") return `${k} entries need durationMs`;
-    }
-    return null;
-  };
-  const strArray = (k) => Array.isArray(p[k]) && p[k].every((x) => typeof x === "string") ? null : `${k} must be a string array`;
-  const optBool = (k) => p[k] === void 0 || typeof p[k] === "boolean" ? null : `${k} must be a boolean`;
-  const bool = (k) => typeof p[k] === "boolean" ? null : `${k} must be a boolean`;
-  const hash = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
-  const nonEmpty2 = (o, ...keys) => keys.every((k) => typeof o[k] === "string" && o[k] !== "");
-  const libraryItem = () => str("itemId") ?? (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p["itemId"]) ? null : "itemId may use letters, digits, . _ and - only") ?? oneOf("kind", ["template", "flow", "material", "versification"]);
-  const oneOf = (k, values) => values.includes(p[k]) ? null : `${k} must be one of ${values.join(", ")}`;
-  const date = (k) => typeof p[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`;
-  const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
-  const request = () => str("requestId", "unitId", "laneId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type");
-  switch (e.type) {
-    case "v1.ProjectCreated":
-      return str("name", "sourceLanguoidId");
-    case "v1.ProjectConfigChanged":
-      return isObject(p["config"]) ? null : "config must be an object";
-    case "v1.MemberAdded":
-    case "v1.MemberRoleChanged":
-      return str("profileId") ?? role("role");
-    case "v1.MemberRemoved":
-      return str("profileId");
-    case "v1.LaneAdded":
-      return str("laneId", "languoidId");
-    case "v1.UnitAdded":
-      return str("unitId", "kind", "label", "order") ?? (p["parentUnitId"] === null || typeof p["parentUnitId"] === "string" ? null : "parentUnitId must be a string or null");
-    case "v1.ReferenceAttached":
-      return str("unitId", "refId", "kind") ?? optStr("blobHash", "text");
-    case "v1.RecordingAdded":
-      return str("recordingId", "unitId", "laneId") ?? (p["kind"] === "source" || p["kind"] === "target" ? null : "kind must be source or target") ?? cards("cards");
-    case "v1.TakeComposed":
-      return str("takeId", "unitId", "laneId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null || typeof p["parentTakeId"] === "string" ? null : "parentTakeId must be a string or null");
-    case "v1.TakeArchived":
-    case "v1.TakeSubmitted":
-      return str("takeId");
-    case "v1.TakeSelected":
-      return str("unitId", "laneId", "takeId");
-    case "v1.ReviewSubmitted":
-      return str("takeId", "stepId") ?? (p["decision"] === "approve" || p["decision"] === "suggest_changes" ? null : "decision must be approve or suggest_changes") ?? optStr("comment");
-    case "v1.AssignmentMade":
-      return str("unitId", "laneId", "profileId") ?? role("role") ?? optStr("dueDate", "instructions");
-    case "v1.SourceImported":
-      return str("sourceProjectId") ?? (typeof p["sourceSeq"] === "number" ? null : "sourceSeq must be a number") ?? strArray("unitIds");
-    case "v1.BlobStored":
-      return str("hash") ?? (typeof p["size"] === "number" ? null : "size must be a number");
-    case "v1.Redacted":
-      return str("eventId") ?? optStr("reason");
-    case "v1.BlobInvalidated":
-      return str("hash") ?? optStr("reason");
-    case "v1.ReviewKindDefined":
-      return str("kindId", "name") ?? optStr("description", "usualReviewer") ?? optBool("withholdsContext") ?? (p["produces"] === void 0 || produces(p["produces"]) ? null : "produces needs what, into, action, checkedBy");
-    case "v2.WorkflowStepSet":
-      return str("stepId", "order") ?? optStr("laneId") ?? strArray("kindIds") ?? (typeof p["checkpoint"] === "boolean" ? null : "checkpoint must be a boolean");
-    case "v1.ReviewRecorded":
-      return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
-    case "v1.DepartureRecorded":
-      return str("departureId", "unitId", "laneId", "reason") ?? oneOf("type", ["skip", "override", "keep"]) ?? optStr("kindId", "stepId", "reviewId", "reasonBlobHash") ?? (p["type"] === "skip" && !p["kindId"] ? "skip needs kindId" : null) ?? (p["type"] === "override" && !p["stepId"] ? "override needs stepId" : null) ?? (p["type"] === "keep" && !p["reviewId"] ? "keep needs reviewId" : null);
-    case "v1.DepartureUndone":
-      return str("departureId");
-    case "v1.RequestMade":
-      return request() ?? (p["profileId"] === void 0 && p["guest"] === void 0 ? "profileId or guest required" : null);
-    case "v2.RequestMade":
-      return request() ?? (p["teamId"] === void 0 ? null : str("teamId")) ?? (["profileId", "guest", "teamId"].filter((k) => p[k] !== void 0).length === 1 ? null : "exactly one of profileId, guest, teamId");
-    case "v1.RequestWithdrawn":
-      return str("requestId");
-    case "v1.NoteAdded":
-      return str("noteId", "unitId", "laneId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
-    case "v1.StudyStepMarked":
-      return str("unitId", "laneId", "guideId", "stepId") ?? (typeof p["done"] === "boolean" ? null : "done must be a boolean");
-    case "v1.LaneNamed":
-      return str("laneId", "name");
-    case "v1.LaneCountrySet":
-      return str("laneId") ?? (typeof p["country"] === "string" && /^[A-Z]{2}$/.test(p["country"]) ? null : "country must be an ISO 3166 alpha-2 code");
-    case "v1.LaneTargetSet":
-      return str("laneId") ?? oneOf("scope", ["gospels", "nt", "ot", "bible"]) ?? date("startDate") ?? date("targetDate") ?? (p["targetDate"] > p["startDate"] ? null : "targetDate must be after startDate");
-    case "v1.InviteIssued":
-      return str("inviteId", "roleId", "expiresAt") ?? scope(p["scope"]);
-    case "v1.InviteRedeemed":
-      return str("inviteId", "profileId");
-    case "v1.JoinDecided":
-      return str("requestId", "profileId") ?? (typeof p["accepted"] === "boolean" ? null : "accepted must be a boolean");
-    case "v1.OrgLicenseSet":
-      return isLicense(p["license"]) ? null : `license must be one of ${LICENSES.join(", ")}`;
-    // ---- the library (library.ts, docs/decisions.md 36)
-    case "v1.LibraryItemDefined":
-      return libraryItem() ?? str("name") ?? (typeof p["description"] === "string" ? null : "description must be a string") ?? (p["copiedFrom"] === void 0 || isObject(p["copiedFrom"]) && nonEmpty2(p["copiedFrom"], "orgId", "orgName", "itemId") && hash(p["copiedFrom"]["docHash"]) ? null : "copiedFrom needs orgId, orgName, itemId and a docHash");
-    case "v1.LibraryVersionPublished":
-      return libraryItem() ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? optStr("note");
-    case "v1.LibrarySharingSet":
-      return libraryItem() ?? bool("shared") ?? bool("subscribable");
-    case "v1.LibraryItemArchived":
-      return libraryItem() ?? bool("archived");
-    case "v1.LibrarySubscribed":
-      return libraryItem() ?? str("sourceOrgId", "sourceOrgName", "sourceItemId", "name") ?? bool("autoUpdate") ?? bool("active");
-    case "v1.LibraryPinned":
-      return libraryItem() ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest");
-    case "v2.LaneTemplateSelected":
-      return str("laneId", "itemId", "unitPrefix") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (/[/\s]/.test(p["unitPrefix"]) ? "unitPrefix may not contain / or spaces" : null) ?? (p["books"] === void 0 || Array.isArray(p["books"]) && p["books"].every((b) => typeof b === "string" && /^[A-Z0-9]{3}$/.test(b)) ? null : "books must be USFM book codes");
-    case "v1.LaneUnitHidden":
-      return str("laneId", "unitId") ?? bool("hidden");
-    case "v2.LaneFlowSelected":
-      return str("laneId", "flowId", "itemId", "name") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (typeof p["catalogVersion"] === "number" && p["catalogVersion"] >= 2 ? null : "catalogVersion must be 2 or more") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null);
-    case "v1.ReviewTeamKindSet":
-      return str("teamId", "laneId") ?? (p["kindId"] === null ? null : str("kindId"));
-    // ---- reference material (references.ts)
-    case "v1.ReferenceRecommended":
-      return str("itemId") ?? bool("recommended");
-    case "v1.LaneReferenceRecommended":
-      return str("laneId", "itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
-    case "v1.PassageReferenceLinked":
-      return str("laneId", "unitId", "itemId") ?? bool("linked");
-    case "v1.ReferencesUsed":
-      return str("laneId", "unitId") ?? (["takeId", "reviewId"].filter((k) => p[k] !== void 0).length === 1 ? null : "exactly one of takeId, reviewId") ?? optStr("takeId", "reviewId") ?? (p["takeId"] === "" || p["reviewId"] === "" ? "takeId or reviewId must be non-empty" : null) ?? usedItems(p["items"]);
-    default:
-      return null;
-  }
-}
-var USED_KINDS = ["source", "guide", "note", "questions"];
-function usedItems(v) {
-  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return "items must be a list of 1 to 200";
-  for (const x of v) {
-    if (!isObject(x)) return "items must be objects";
-    if (typeof x["itemId"] !== "string" || x["itemId"] === "" || typeof x["name"] !== "string" || x["name"] === "") return "items need an itemId and a name";
-    if (!USED_KINDS.includes(x["kind"])) return `item kind must be one of ${USED_KINDS.join(", ")}`;
-    if (typeof x["opened"] !== "boolean") return "opened must be a boolean";
-    for (const k of ["docHash", "ref", "detail", "copyright"]) if (x[k] !== void 0 && typeof x[k] !== "string") return `${k} must be a string`;
-  }
-  return null;
-}
-function scope(v) {
-  if (!isObject(v)) return "scope must be an object";
-  const level = v["level"];
-  if (level === "org") return null;
-  if (typeof v["projectId"] !== "string" || v["projectId"] === "") return "scope.projectId required";
-  if (level === "project") return null;
-  if (level === "lane") return typeof v["laneId"] === "string" && v["laneId"] !== "" ? null : "scope.laneId required";
-  return "scope.level must be org, project or lane";
-}
-var nonEmpty = (v) => typeof v === "string" && v !== "";
-function produces(v) {
-  return isObject(v) && ["what", "into", "action", "checkedBy"].every((k) => nonEmpty(v[k]));
-}
-function guest(v) {
-  return isObject(v) && nonEmpty(v["name"]) && nonEmpty(v["contact"]) && (v["channel"] === "whatsapp" || v["channel"] === "sms");
-}
-function questions(v) {
-  return Array.isArray(v) && v.every((q) => isObject(q) && nonEmpty(q["id"]) && nonEmpty(q["text"]) && (q["type"] === "rating" || q["type"] === "yesno" || q["type"] === "text") && (q["required"] === void 0 || typeof q["required"] === "boolean"));
-}
-function anchor(v) {
-  if (!isObject(v)) return "anchor must be an object";
-  switch (v["kind"]) {
-    case "passage":
-      return null;
-    case "version":
-      return nonEmpty(v["takeId"]) ? null : "anchor.takeId required";
-    case "verse":
-      return nonEmpty(v["verse"]) ? null : "anchor.verse required";
-    case "study":
-      return nonEmpty(v["guideId"]) && nonEmpty(v["stepId"]) ? null : "anchor.guideId and stepId required";
-    case "term":
-      return nonEmpty(v["termId"]) ? null : "anchor.termId required";
-    default:
-      return "anchor.kind must be passage, version, verse, study or term";
-  }
-}
-function isObject(v) {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-// packages/core/src/reducer.ts
-var REDUCER_VERSION = 9;
-var REVISIONS = /* @__PURE__ */ new WeakMap();
-function applyEvent(state, event) {
-  if (state.appliedEventIds[event.id]) return state;
-  state.appliedEventIds[event.id] = true;
-  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
-  const invalid = validateEvent(event);
-  if (invalid) {
-    state.invalidEvents[event.id] = invalid;
-    return state;
-  }
-  if (state.redactions[event.id]) return state;
-  switch (event.type) {
-    case "v1.ProjectCreated":
-      setRegister(state, "project", event, event.payload);
-      break;
-    case "v1.ProjectConfigChanged":
-      setRegister(state, "config", event, event.payload.config);
-      break;
-    case "v1.MemberAdded": {
-      const m = member(state, event.payload.profileId);
-      lwwRegister(m, "role", event, event.payload.role);
-      lwwRegister(m, "removed", event, false);
-      break;
-    }
-    case "v1.MemberRoleChanged":
-      lwwRegister(member(state, event.payload.profileId), "role", event, event.payload.role);
-      break;
-    case "v1.MemberRemoved":
-      lwwRegister(member(state, event.payload.profileId), "removed", event, true);
-      break;
-    case "v1.LaneAdded":
-      state.lanes[event.payload.laneId] ??= { languoidId: event.payload.languoidId };
-      break;
-    case "v1.UnitAdded": {
-      const { unitId, ...unit } = event.payload;
-      state.units[unitId] ??= unit;
-      break;
-    }
-    case "v1.ReferenceAttached": {
-      const { refId, unitId, kind, blobHash, text } = event.payload;
-      state.references[refId] ??= {
-        unitId,
-        kind,
-        ...blobHash !== void 0 ? { blobHash } : {},
-        ...text !== void 0 ? { text } : {}
-      };
-      break;
-    }
-    case "v1.RecordingAdded": {
-      const { recordingId, ...rest } = event.payload;
-      state.recordings[recordingId] ??= { ...rest, actorId: event.actorId, hlc: event.hlc };
-      break;
-    }
-    case "v1.TakeComposed": {
-      const { takeId, ...rest } = event.payload;
-      const prior = state.takes[takeId];
-      state.takes[takeId] = {
-        ...rest,
-        actorId: event.actorId,
-        hlc: event.hlc,
-        // Add-wins: an archive that arrived before the compose still sticks.
-        archived: prior?.archived ?? false
-      };
-      break;
-    }
-    case "v1.TakeArchived": {
-      const take = state.takes[event.payload.takeId];
-      if (take) {
-        take.archived = true;
-      } else {
-        state.takes[event.payload.takeId] = {
-          unitId: "",
-          laneId: "",
-          cardHashes: [],
-          parentTakeId: null,
-          actorId: event.actorId,
-          hlc: event.hlc,
-          archived: true
-        };
-      }
-      break;
-    }
-    case "v1.TakeSelected":
-      lww(
-        state.selectedTakes,
-        `${event.payload.unitId}:${event.payload.laneId}`,
-        event,
-        event.payload.takeId
-      );
-      break;
-    case "v1.TakeSubmitted": {
-      const { takeId, questionSetIds } = event.payload;
-      const prior = state.submissions[takeId];
-      if (!prior || event.hlc < prior.hlc) {
-        state.submissions[takeId] = {
-          takeId,
-          actorId: event.actorId,
-          hlc: event.hlc,
-          questionSetIds: questionSetIds ?? []
-        };
-      }
-      break;
-    }
-    case "v1.ReviewSubmitted": {
-      const { takeId, stepId, decision, comment, answers } = event.payload;
-      const byStep = state.reviews[takeId] ??= {};
-      const byActor = byStep[stepId] ??= {};
-      lww(byActor, event.actorId, event, {
-        decision,
-        ...comment !== void 0 ? { comment } : {},
-        ...answers !== void 0 ? { answers } : {},
-        hlc: event.hlc
-      });
-      break;
-    }
-    case "v1.AssignmentMade": {
-      const { unitId, laneId, profileId, role, dueDate, instructions } = event.payload;
-      const key = `${unitId}:${laneId}:${profileId}:${role}`;
-      const prior = state.assignments[key];
-      if (!prior || prior.hlc < event.hlc) {
-        state.assignments[key] = {
-          unitId,
-          laneId,
-          profileId,
-          role,
-          ...dueDate !== void 0 ? { dueDate } : {},
-          ...instructions !== void 0 ? { instructions } : {},
-          hlc: event.hlc
-        };
-      }
-      break;
-    }
-    case "v1.SourceImported":
-      state.sourcePins[`${event.payload.sourceProjectId}:${event.payload.sourceSeq}`] ??= event.payload;
-      break;
-    case "v1.BlobStored":
-      blobVerdict(state, event, { size: event.payload.size, stored: true });
-      break;
-    case "v1.BlobInvalidated":
-      blobVerdict(state, event, { size: 0, stored: false });
-      break;
-    case "v1.Redacted":
-      state.redactions[event.payload.eventId] = true;
-      break;
-    case "v1.LaneTemplateSelected": {
-      const { laneId, templateId, catalogVersion } = event.payload;
-      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion });
-      break;
-    }
-    case "v1.LaneFlowSelected": {
-      const { laneId, flowId, catalogVersion } = event.payload;
-      lww(state.laneFlows, laneId, event, { flowId, catalogVersion });
-      break;
-    }
-    case "v2.LaneTemplateSelected": {
-      const { laneId, itemId, docHash, unitPrefix, books } = event.payload;
-      const at = unitPrefix.indexOf("@");
-      const templateId = at < 0 ? unitPrefix : unitPrefix.slice(0, at);
-      const catalogVersion = at < 0 ? 0 : Number(unitPrefix.slice(at + 1)) || 0;
-      lww(state.laneTemplates, laneId, event, { templateId, catalogVersion, itemId, docHash, ...books ? { books: [...books].sort() } : {} });
-      break;
-    }
-    case "v1.LaneUnitHidden": {
-      const { laneId, unitId, hidden } = event.payload;
-      lww(state.laneHiddenUnits[laneId] ??= {}, unitId, event, hidden);
-      break;
-    }
-    case "v2.LaneFlowSelected": {
-      const { laneId, flowId, catalogVersion, itemId, docHash, name } = event.payload;
-      lww(state.laneFlows, laneId, event, { flowId, catalogVersion, itemId, docHash, name });
-      break;
-    }
-    case "v1.WorkflowStepSet": {
-      const def = event.payload;
-      const slot = state.workflowSteps[def.stepId] ??= { step: { value: def, hlc: "", eventId: "" }, removed: false };
-      if (slot.step.hlc === "" || !loses(slot.step, event)) slot.step = { value: def, hlc: event.hlc, eventId: event.id };
-      break;
-    }
-    case "v1.WorkflowStepRemoved": {
-      const slot = state.workflowSteps[event.payload.stepId] ??= {
-        step: { value: { stepId: event.payload.stepId, order: "", role: "reviewer", required: false, rule: "any" }, hlc: "", eventId: "" },
-        removed: false
-      };
-      slot.removed = true;
-      break;
-    }
-    case "v1.ReviewTeamDefined": {
-      const { teamId, laneId, name } = event.payload;
-      const team = state.teams[teamId] ??= { laneId, name: { value: name, hlc: "", eventId: "" }, members: {} };
-      if (team.name.hlc === "" || !loses(team.name, event)) {
-        team.name = { value: name, hlc: event.hlc, eventId: event.id };
-        team.laneId = laneId;
-      }
-      break;
-    }
-    case "v1.ReviewTeamMemberSet": {
-      const { teamId, profileId, member: member2 } = event.payload;
-      const team = state.teams[teamId] ??= { laneId: "", name: { value: "", hlc: "", eventId: "" }, members: {} };
-      lww(team.members, profileId, event, member2);
-      break;
-    }
-    case "v1.ReviewTeamKindSet": {
-      const { teamId, kindId } = event.payload;
-      const team = state.teams[teamId] ??= { laneId: "", name: { value: "", hlc: "", eventId: "" }, members: {} };
-      if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: kindId, hlc: event.hlc, eventId: event.id };
-      break;
-    }
-    case "v1.ResponseRecorded": {
-      const { takeId, respondsToTakeId, note, blobHash } = event.payload;
-      state.responses[takeId] ??= {
-        respondsToTakeId,
-        ...note !== void 0 ? { note } : {},
-        ...blobHash !== void 0 ? { blobHash } : {},
-        actorId: event.actorId,
-        hlc: event.hlc
-      };
-      break;
-    }
-    case "v1.ReviewCommentRecorded": {
-      const { takeId, stepId, blobHash } = event.payload;
-      const byStep = state.reviewComments[takeId] ??= {};
-      const byActor = byStep[stepId] ??= {};
-      byActor[event.actorId] ??= { blobHash, hlc: event.hlc };
-      break;
-    }
-    case "v1.MaterialDefined": {
-      const { materialId, kind, title, scope: scope2, templateRef } = event.payload;
-      const m = state.materials[materialId] ??= {
-        kind,
-        title,
-        scope: { ...scope2 },
-        createdBy: event.actorId,
-        hlc: event.hlc,
-        fields: {},
-        locked: { value: false, hlc: "", eventId: "" },
-        ...templateRef !== void 0 ? { templateRef } : {}
-      };
-      if (m.hlc === "" || m.hlc > event.hlc) {
-        m.kind = kind;
-        m.title = title;
-        m.scope = { ...scope2 };
-        m.createdBy = event.actorId;
-        m.hlc = event.hlc;
-        if (templateRef !== void 0) m.templateRef = templateRef;
-        else delete m.templateRef;
-      }
-      break;
-    }
-    case "v1.MaterialFieldSet": {
-      const { materialId, fieldId, text, blobHash } = event.payload;
-      const m = state.materials[materialId] ??= { kind: "", title: "", scope: {}, createdBy: "", hlc: "", fields: {}, locked: { value: false, hlc: "", eventId: "" } };
-      lww(m.fields, fieldId, event, { ...text !== void 0 ? { text } : {}, ...blobHash !== void 0 ? { blobHash } : {} });
-      break;
-    }
-    case "v1.MaterialLocked": {
-      const m = state.materials[event.payload.materialId] ??= { kind: "", title: "", scope: {}, createdBy: "", hlc: "", fields: {}, locked: { value: false, hlc: "", eventId: "" } };
-      if (m.locked.hlc === "" || !loses(m.locked, event)) m.locked = { value: event.payload.locked, hlc: event.hlc, eventId: event.id };
-      break;
-    }
-    case "v1.StepQuestionSetLinked":
-      lww(state.stepQuestionSets, event.payload.stepId, event, event.payload.materialId);
-      break;
-    case "v1.KeyTermDefined": {
-      const { termId, laneId, term, gloss, unitScope } = event.payload;
-      const t = state.keyTerms[termId] ??= { laneId, term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} };
-      if (t.term === "") {
-        t.laneId = laneId;
-        t.term = term;
-        t.gloss = gloss;
-        t.unitScope = [...unitScope];
-      }
-      break;
-    }
-    case "v1.KeyTermRenderingAdded": {
-      const { termId, renderingId, rendering, context } = event.payload;
-      const t = state.keyTerms[termId] ??= { laneId: "", term: "", gloss: "", unitScope: [], renderings: {}, adjustments: {} };
-      t.renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
-      break;
-    }
-    case "v1.KeyTermAdjusted": {
-      const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
-      const t = state.keyTerms[termId] ??= { laneId: "", term: "", gloss: "", unitScope: [], renderings: {}, adjustments: {} };
-      t.adjustments[adjustmentId] ??= {
-        note,
-        actorId: event.actorId,
-        hlc: event.hlc,
-        ...blobHash !== void 0 ? { blobHash } : {},
-        ...duringTakeId !== void 0 ? { duringTakeId } : {}
-      };
-      break;
-    }
-    case "v1.KeyTermLinked": {
-      const { takeId, termId, note, adjustmentId } = event.payload;
-      const byTerm = state.keyTermLinks[takeId] ??= {};
-      byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
-      break;
-    }
-    // ---- the passage record (record.ts) --------------------------------
-    case "v1.ReviewKindDefined": {
-      const { kindId, name, description, usualReviewer, withholdsContext, produces: produces2 } = event.payload;
-      lww(state.reviewKinds, kindId, event, {
-        id: kindId,
-        name,
-        description: description ?? "",
-        usualReviewer: usualReviewer ?? "",
-        ...withholdsContext !== void 0 ? { withholdsContext } : {},
-        ...produces2 !== void 0 ? { produces: { ...produces2 } } : {}
-      });
-      break;
-    }
-    case "v2.WorkflowStepSet": {
-      const { stepId, laneId, order, kindIds, checkpoint } = event.payload;
-      lww(state.flowSteps, stepId, event, { stepId, ...laneId !== void 0 ? { laneId } : {}, order, kindIds: [...kindIds], checkpoint });
-      break;
-    }
-    case "v1.ReviewRecorded": {
-      const { reviewId, ...rest } = event.payload;
-      firstWins(state.kindReviews, reviewId, event, { ...rest, id: reviewId });
-      break;
-    }
-    case "v1.DepartureRecorded": {
-      const { departureId, ...rest } = event.payload;
-      firstWins(state.departures, departureId, event, { ...rest, id: departureId });
-      break;
-    }
-    case "v1.DepartureUndone":
-      earliestUndo(state.undoneDepartures, event.payload.departureId, event);
-      break;
-    case "v1.RequestMade":
-    case "v2.RequestMade": {
-      const { requestId, ...rest } = event.payload;
-      firstWins(state.requests, requestId, event, { ...rest, id: requestId });
-      break;
-    }
-    case "v1.RequestWithdrawn":
-      earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
-      break;
-    case "v1.NoteAdded": {
-      const { noteId, ...rest } = event.payload;
-      firstWins(state.notes, noteId, event, { ...rest, id: noteId });
-      break;
-    }
-    case "v1.StudyStepMarked": {
-      const { unitId, laneId, guideId, stepId, done } = event.payload;
-      lww(state.studyMarks, studyMarkKey(unitId, laneId, guideId, stepId), event, { done, by: event.actorId });
-      break;
-    }
-    case "v1.LaneNamed":
-      lww(state.laneNames, event.payload.laneId, event, event.payload.name);
-      break;
-    case "v1.LaneCountrySet":
-      lww(state.laneCountries, event.payload.laneId, event, event.payload.country);
-      break;
-    case "v1.LaneTargetSet": {
-      const { laneId, scope: scope2, startDate, targetDate } = event.payload;
-      lww(state.laneTargets, laneId, event, { scope: scope2, startDate, targetDate });
-      break;
-    }
-    case "v1.LaneReferenceRecommended":
-    case "v1.PassageReferenceLinked":
-    case "v1.ReferencesUsed":
-      applyReferenceEvent(state, event);
-      break;
-    case "v1.OrgCreated":
-    case "v1.ReferenceRecommended":
-    case "v1.RoleDefined":
-    case "v1.RoleRetired":
-    case "v1.OrgMemberAdded":
-    case "v1.OrgMemberRemoved":
-    case "v1.CatalogItemToggled":
-    case "v1.ProjectRegistered":
-    case "v1.InviteIssued":
-    case "v1.InviteRedeemed":
-    case "v1.JoinDecided":
-    case "v1.OrgLicenseSet":
-    case "v1.LibraryItemDefined":
-    case "v1.LibraryVersionPublished":
-    case "v1.LibrarySharingSet":
-    case "v1.LibraryItemArchived":
-    case "v1.LibrarySubscribed":
-    case "v1.LibraryPinned":
-      break;
-    default: {
-      const _exhaustive = event;
-      void _exhaustive;
-    }
-  }
-  return state;
-}
-function fold(events, initial = emptyState()) {
-  let state = initial;
-  const rest = [];
-  for (const event of events) {
-    if (event.type === "v1.Redacted") state = applyEvent(state, event);
-    else rest.push(event);
-  }
-  for (const event of rest) state = applyEvent(state, event);
-  return state;
-}
-function firstWins(table, key, event, value) {
-  const prior = table[key];
-  if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.eventId <= event.id)) return;
-  table[key] = { ...value, by: event.actorId, hlc: event.hlc, eventId: event.id };
-}
-function earliestUndo(table, key, event) {
-  const prior = table[key];
-  if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.by <= event.actorId)) return;
-  table[key] = { by: event.actorId, hlc: event.hlc };
-}
-function blobVerdict(state, event, v) {
-  const hash = event.payload.hash;
-  const cur = state.blobs[hash];
-  if (cur && (cur.hlc > event.hlc || cur.hlc === event.hlc && cur.eventId > event.id)) return;
-  state.blobs[hash] = { ...v, hlc: event.hlc, eventId: event.id };
-}
-function member(state, profileId) {
-  return state.members[profileId] ??= {
-    role: { value: "viewer", hlc: "", eventId: "" },
-    removed: { value: false, hlc: "", eventId: "" }
-  };
-}
-function lwwRegister(obj, key, event, value) {
-  const current = obj[key];
-  if (loses(current, event)) return;
-  obj[key] = { value, hlc: event.hlc, eventId: event.id };
-}
-function lww(table, key, event, value) {
-  const current = table[key];
-  if (current && loses(current, event)) return;
-  table[key] = { value, hlc: event.hlc, eventId: event.id };
-}
-function loses(current, event) {
-  if (current.hlc !== event.hlc) return current.hlc > event.hlc;
-  return current.eventId > event.id;
-}
-function setRegister(state, key, event, value) {
-  const current = state[key];
-  if (current && loses(current, event)) return;
-  state[key] = { value, hlc: event.hlc, eventId: event.id };
-}
-
-// packages/core/src/catalogData.ts
-var BIBLE_BOOKS = [{ "itemId": "gen", "label": "Genesis", "order": 1e3, "verses": [31, 25, 24, 26, 32, 22, 24, 22, 29, 32, 32, 20, 18, 24, 21, 16, 27, 33, 38, 18, 34, 24, 20, 67, 34, 35, 46, 22, 35, 43, 55, 32, 20, 31, 29, 43, 36, 30, 23, 23, 57, 38, 34, 34, 28, 34, 31, 22, 33, 26] }, { "itemId": "exo", "label": "Exodus", "order": 2e3, "verses": [22, 25, 22, 31, 23, 30, 25, 32, 35, 29, 10, 51, 22, 31, 27, 36, 16, 27, 25, 26, 36, 31, 33, 18, 40, 37, 21, 43, 46, 38, 18, 35, 23, 35, 35, 38, 29, 31, 43, 38] }, { "itemId": "lev", "label": "Leviticus", "order": 3e3, "verses": [17, 16, 17, 35, 19, 30, 38, 36, 24, 20, 47, 8, 59, 57, 33, 34, 16, 30, 37, 27, 24, 33, 44, 23, 55, 46, 34] }, { "itemId": "num", "label": "Numbers", "order": 4e3, "verses": [54, 34, 51, 49, 31, 27, 89, 26, 23, 36, 35, 16, 33, 45, 41, 50, 13, 32, 22, 29, 35, 41, 30, 25, 18, 65, 23, 31, 40, 16, 54, 42, 56, 29, 34, 13] }, { "itemId": "deu", "label": "Deuteronomy", "order": 5e3, "verses": [46, 37, 29, 49, 33, 25, 26, 20, 29, 22, 32, 32, 18, 29, 23, 22, 20, 22, 21, 20, 23, 30, 25, 22, 19, 19, 26, 68, 29, 20, 30, 52, 29, 12] }, { "itemId": "jos", "label": "Joshua", "order": 6e3, "verses": [18, 24, 17, 24, 15, 27, 26, 35, 27, 43, 23, 24, 33, 15, 63, 10, 18, 28, 51, 9, 45, 34, 16, 33] }, { "itemId": "jdg", "label": "Judges", "order": 7e3, "verses": [36, 23, 31, 24, 31, 40, 25, 35, 57, 18, 40, 15, 25, 20, 20, 31, 13, 31, 30, 48, 25] }, { "itemId": "rut", "label": "Ruth", "order": 8e3, "verses": [22, 23, 18, 22] }, { "itemId": "1sa", "label": "1 Samuel", "order": 9e3, "verses": [28, 36, 21, 22, 12, 21, 17, 22, 27, 27, 15, 25, 23, 52, 35, 23, 58, 30, 24, 42, 15, 23, 29, 22, 44, 25, 12, 25, 11, 31, 13] }, { "itemId": "2sa", "label": "2 Samuel", "order": 1e4, "verses": [27, 32, 39, 12, 25, 23, 29, 18, 13, 19, 27, 31, 39, 33, 37, 23, 29, 33, 43, 26, 22, 51, 39, 25] }, { "itemId": "1ki", "label": "1 Kings", "order": 11e3, "verses": [53, 46, 28, 34, 18, 38, 51, 66, 28, 29, 43, 33, 34, 31, 34, 34, 24, 46, 21, 43, 29, 53] }, { "itemId": "2ki", "label": "2 Kings", "order": 12e3, "verses": [18, 25, 27, 44, 27, 33, 20, 29, 37, 36, 21, 21, 25, 29, 38, 20, 41, 37, 37, 21, 26, 20, 37, 20, 30] }, { "itemId": "1ch", "label": "1 Chronicles", "order": 13e3, "verses": [54, 55, 24, 43, 26, 81, 40, 40, 44, 14, 47, 40, 14, 17, 29, 43, 27, 17, 19, 8, 30, 19, 32, 31, 31, 32, 34, 21, 30] }, { "itemId": "2ch", "label": "2 Chronicles", "order": 14e3, "verses": [17, 18, 17, 22, 14, 42, 22, 18, 31, 19, 23, 16, 22, 15, 19, 14, 19, 34, 11, 37, 20, 12, 21, 27, 28, 23, 9, 27, 36, 27, 21, 33, 25, 33, 27, 23] }, { "itemId": "ezr", "label": "Ezra", "order": 15e3, "verses": [11, 70, 13, 24, 17, 22, 28, 36, 15, 44] }, { "itemId": "neh", "label": "Nehemiah", "order": 16e3, "verses": [11, 20, 32, 23, 19, 19, 73, 18, 38, 39, 36, 47, 31] }, { "itemId": "est", "label": "Esther", "order": 17e3, "verses": [22, 23, 15, 17, 14, 14, 10, 17, 32, 3] }, { "itemId": "job", "label": "Job", "order": 18e3, "verses": [22, 13, 26, 21, 27, 30, 21, 22, 35, 22, 20, 25, 28, 22, 35, 22, 16, 21, 29, 29, 34, 30, 17, 25, 6, 14, 23, 28, 25, 31, 40, 22, 33, 37, 16, 33, 24, 41, 30, 24, 34, 17] }, { "itemId": "psa", "label": "Psalms", "order": 19e3, "verses": [6, 12, 8, 8, 12, 10, 17, 9, 20, 18, 7, 8, 6, 7, 5, 11, 15, 50, 14, 9, 13, 31, 6, 10, 22, 12, 14, 9, 11, 12, 24, 11, 22, 22, 28, 12, 40, 22, 13, 17, 13, 11, 5, 26, 17, 11, 9, 14, 20, 23, 19, 9, 6, 7, 23, 13, 11, 11, 17, 12, 8, 12, 11, 10, 13, 20, 7, 35, 36, 5, 24, 20, 28, 23, 10, 12, 20, 72, 13, 19, 16, 8, 18, 12, 13, 17, 7, 18, 52, 17, 16, 15, 5, 23, 11, 13, 12, 9, 9, 5, 8, 28, 22, 35, 45, 48, 43, 13, 31, 7, 10, 10, 9, 8, 18, 19, 2, 29, 176, 7, 8, 9, 4, 8, 5, 6, 5, 6, 8, 8, 3, 18, 3, 3, 21, 26, 9, 8, 24, 13, 10, 7, 12, 15, 21, 10, 20, 14, 9, 6] }, { "itemId": "pro", "label": "Proverbs", "order": 2e4, "verses": [33, 22, 35, 27, 23, 35, 27, 36, 18, 32, 31, 28, 25, 35, 33, 33, 28, 24, 29, 30, 31, 29, 35, 34, 28, 28, 27, 28, 27, 33, 31] }, { "itemId": "ecc", "label": "Ecclesiastes", "order": 21e3, "verses": [18, 26, 22, 16, 20, 12, 29, 17, 18, 20, 10, 14] }, { "itemId": "sng", "label": "Song of Solomon", "order": 22e3, "verses": [17, 17, 11, 16, 16, 13, 13, 14] }, { "itemId": "isa", "label": "Isaiah", "order": 23e3, "verses": [31, 22, 26, 6, 30, 13, 25, 22, 21, 34, 16, 6, 22, 32, 9, 14, 14, 7, 25, 6, 17, 25, 18, 23, 12, 21, 13, 29, 24, 33, 9, 20, 24, 17, 10, 22, 38, 22, 8, 31, 29, 25, 28, 28, 25, 13, 15, 22, 26, 11, 23, 15, 12, 17, 13, 12, 21, 14, 21, 22, 11, 12, 19, 12, 25, 24] }, { "itemId": "jer", "label": "Jeremiah", "order": 24e3, "verses": [19, 37, 25, 31, 31, 30, 34, 22, 26, 25, 23, 17, 27, 22, 21, 21, 27, 23, 15, 18, 14, 30, 40, 10, 38, 24, 22, 17, 32, 24, 40, 44, 26, 22, 19, 32, 21, 28, 18, 16, 18, 22, 13, 30, 5, 28, 7, 47, 39, 46, 64, 34] }, { "itemId": "lam", "label": "Lamentations", "order": 25e3, "verses": [22, 22, 66, 22, 22] }, { "itemId": "ezk", "label": "Ezekiel", "order": 26e3, "verses": [28, 10, 27, 17, 17, 14, 27, 18, 11, 22, 25, 28, 23, 23, 8, 63, 24, 32, 14, 49, 32, 31, 49, 27, 17, 21, 36, 26, 21, 26, 18, 32, 33, 31, 15, 38, 28, 23, 29, 49, 26, 20, 27, 31, 25, 24, 23, 35] }, { "itemId": "dan", "label": "Daniel", "order": 27e3, "verses": [21, 49, 30, 37, 31, 28, 28, 27, 27, 21, 45, 13] }, { "itemId": "hos", "label": "Hosea", "order": 28e3, "verses": [11, 23, 5, 19, 15, 11, 16, 14, 17, 15, 12, 14, 16, 9] }, { "itemId": "joe", "label": "Joel", "order": 29e3, "verses": [20, 32, 21] }, { "itemId": "amo", "label": "Amos", "order": 3e4, "verses": [15, 16, 15, 13, 27, 14, 17, 14, 15] }, { "itemId": "oba", "label": "Obadiah", "order": 31e3, "verses": [21] }, { "itemId": "jon", "label": "Jonah", "order": 32e3, "verses": [17, 10, 10, 11] }, { "itemId": "mic", "label": "Micah", "order": 33e3, "verses": [16, 13, 12, 13, 15, 16, 20] }, { "itemId": "nah", "label": "Nahum", "order": 34e3, "verses": [15, 13, 19] }, { "itemId": "hab", "label": "Habakkuk", "order": 35e3, "verses": [17, 20, 19] }, { "itemId": "zep", "label": "Zephaniah", "order": 36e3, "verses": [18, 15, 20] }, { "itemId": "hag", "label": "Haggai", "order": 37e3, "verses": [15, 23] }, { "itemId": "zec", "label": "Zechariah", "order": 38e3, "verses": [21, 13, 10, 14, 11, 15, 14, 23, 17, 12, 17, 14, 9, 21] }, { "itemId": "mal", "label": "Malachi", "order": 39e3, "verses": [14, 17, 18, 6] }, { "itemId": "mat", "label": "Matthew", "order": 4e4, "verses": [25, 23, 17, 25, 48, 34, 29, 34, 38, 42, 30, 50, 58, 36, 39, 28, 27, 35, 30, 34, 46, 46, 39, 51, 46, 75, 66, 20] }, { "itemId": "mar", "label": "Mark", "order": 41e3, "verses": [45, 28, 35, 41, 43, 56, 37, 38, 50, 52, 33, 44, 37, 72, 47, 20] }, { "itemId": "luk", "label": "Luke", "order": 42e3, "verses": [80, 52, 38, 44, 39, 49, 50, 56, 62, 42, 54, 59, 35, 35, 32, 31, 37, 43, 48, 47, 38, 71, 56, 53] }, { "itemId": "joh", "label": "John", "order": 43e3, "verses": [51, 25, 36, 54, 47, 71, 53, 59, 41, 42, 57, 50, 38, 31, 27, 33, 26, 40, 42, 31, 25] }, { "itemId": "act", "label": "Acts", "order": 44e3, "verses": [26, 47, 26, 37, 42, 15, 60, 40, 43, 48, 30, 25, 52, 28, 41, 40, 34, 28, 41, 38, 40, 30, 35, 27, 27, 32, 44, 31] }, { "itemId": "rom", "label": "Romans", "order": 45e3, "verses": [32, 29, 31, 25, 21, 23, 25, 39, 33, 21, 36, 21, 14, 23, 33, 27] }, { "itemId": "1co", "label": "1 Corinthians", "order": 46e3, "verses": [31, 16, 23, 21, 13, 20, 40, 13, 27, 33, 34, 31, 13, 40, 58, 24] }, { "itemId": "2co", "label": "2 Corinthians", "order": 47e3, "verses": [24, 17, 18, 18, 21, 18, 16, 24, 15, 18, 33, 21, 14] }, { "itemId": "gal", "label": "Galatians", "order": 48e3, "verses": [24, 21, 29, 31, 26, 18] }, { "itemId": "eph", "label": "Ephesians", "order": 49e3, "verses": [23, 22, 21, 32, 33, 24] }, { "itemId": "phi", "label": "Philippians", "order": 5e4, "verses": [30, 30, 21, 23] }, { "itemId": "col", "label": "Colossians", "order": 51e3, "verses": [29, 23, 25, 18] }, { "itemId": "1th", "label": "1 Thessalonians", "order": 52e3, "verses": [10, 20, 13, 18, 28] }, { "itemId": "2th", "label": "2 Thessalonians", "order": 53e3, "verses": [12, 17, 18] }, { "itemId": "1ti", "label": "1 Timothy", "order": 54e3, "verses": [20, 15, 16, 16, 25, 21] }, { "itemId": "2ti", "label": "2 Timothy", "order": 55e3, "verses": [18, 26, 17, 22] }, { "itemId": "tit", "label": "Titus", "order": 56e3, "verses": [16, 15, 15] }, { "itemId": "phm", "label": "Philemon", "order": 57e3, "verses": [25] }, { "itemId": "heb", "label": "Hebrews", "order": 58e3, "verses": [14, 18, 19, 16, 14, 20, 28, 13, 28, 39, 40, 29, 25] }, { "itemId": "jas", "label": "James", "order": 59e3, "verses": [27, 26, 18, 17, 20] }, { "itemId": "1pe", "label": "1 Peter", "order": 6e4, "verses": [25, 25, 22, 19, 14] }, { "itemId": "2pe", "label": "2 Peter", "order": 61e3, "verses": [21, 22, 18] }, { "itemId": "1jn", "label": "1 John", "order": 62e3, "verses": [10, 29, 24, 21, 21] }, { "itemId": "2jn", "label": "2 John", "order": 63e3, "verses": [13] }, { "itemId": "3jn", "label": "3 John", "order": 64e3, "verses": [14] }, { "itemId": "jud", "label": "Jude", "order": 65e3, "verses": [25] }, { "itemId": "rev", "label": "Revelation", "order": 66e3, "verses": [20, 29, 22, 11, 14, 17, 17, 13, 21, 11, 19, 17, 18, 20, 8, 21, 18, 24, 21, 15, 27, 21] }];
-var FIA_PERICOPES = [{ "itemId": "gen-p1", "book": "gen", "label": "Genesis 1:1-2:3", "order": 1001, "verseRange": "1:1-2:3" }, { "itemId": "gen-p2", "book": "gen", "label": "Genesis 2:4-25", "order": 1002, "verseRange": "2:4-25" }, { "itemId": "gen-p3", "book": "gen", "label": "Genesis 3:1-24", "order": 1003, "verseRange": "3:1-24" }, { "itemId": "gen-p4a", "book": "gen", "label": "Genesis 4:1-16", "order": 1004, "verseRange": "4:1-16" }, { "itemId": "gen-p4b", "book": "gen", "label": "Genesis 4:17-26", "order": 1004, "verseRange": "4:17-26" }, { "itemId": "gen-p5", "book": "gen", "label": "Genesis 5:1-32", "order": 1005, "verseRange": "5:1-32" }, { "itemId": "gen-p6", "book": "gen", "label": "Genesis 6:1-8", "order": 1006, "verseRange": "6:1-8" }, { "itemId": "gen-p7", "book": "gen", "label": "Genesis 6:9-22", "order": 1007, "verseRange": "6:9-22" }, { "itemId": "gen-p8", "book": "gen", "label": "Genesis 7:1-24", "order": 1008, "verseRange": "7:1-24" }, { "itemId": "gen-p9", "book": "gen", "label": "Genesis 8:1-19", "order": 1009, "verseRange": "8:1-19" }, { "itemId": "gen-p10", "book": "gen", "label": "Genesis 8:20-9:17", "order": 1010, "verseRange": "8:20-9:17" }, { "itemId": "gen-p11", "book": "gen", "label": "Genesis 9:18-29", "order": 1011, "verseRange": "9:18-29" }, { "itemId": "gen-p12", "book": "gen", "label": "Genesis 10:1-32", "order": 1012, "verseRange": "10:1-32" }, { "itemId": "gen-p13", "book": "gen", "label": "Genesis 11:1-9", "order": 1013, "verseRange": "11:1-9" }, { "itemId": "gen-p14", "book": "gen", "label": "Genesis 11:10-26", "order": 1014, "verseRange": "11:10-26" }, { "itemId": "gen-p15", "book": "gen", "label": "Genesis 11:27-32", "order": 1015, "verseRange": "11:27-32" }, { "itemId": "gen-p16", "book": "gen", "label": "Genesis 12:1-9", "order": 1016, "verseRange": "12:1-9" }, { "itemId": "gen-p17", "book": "gen", "label": "Genesis 12:10-20", "order": 1017, "verseRange": "12:10-20" }, { "itemId": "gen-p18", "book": "gen", "label": "Genesis 13:1-18", "order": 1018, "verseRange": "13:1-18" }, { "itemId": "gen-p19", "book": "gen", "label": "Genesis 14:1-16", "order": 1019, "verseRange": "14:1-16" }, { "itemId": "gen-p20", "book": "gen", "label": "Genesis 14:17-24", "order": 1020, "verseRange": "14:17-24" }, { "itemId": "gen-p21", "book": "gen", "label": "Genesis 15:1-21", "order": 1021, "verseRange": "15:1-21" }, { "itemId": "gen-p22", "book": "gen", "label": "Genesis 16:1-16", "order": 1022, "verseRange": "16:1-16" }, { "itemId": "gen-p23", "book": "gen", "label": "Genesis 17:1-27", "order": 1023, "verseRange": "17:1-27" }, { "itemId": "gen-p24", "book": "gen", "label": "Genesis 18:1-15", "order": 1024, "verseRange": "18:1-15" }, { "itemId": "gen-p25", "book": "gen", "label": "Genesis 18:16-33", "order": 1025, "verseRange": "18:16-33" }, { "itemId": "gen-p26", "book": "gen", "label": "Genesis 19:1-29", "order": 1026, "verseRange": "19:1-29" }, { "itemId": "gen-p27", "book": "gen", "label": "Genesis 19:30-38", "order": 1027, "verseRange": "19:30-38" }, { "itemId": "gen-p28", "book": "gen", "label": "Genesis 20:1-18", "order": 1028, "verseRange": "20:1-18" }, { "itemId": "gen-p29", "book": "gen", "label": "Genesis 21:1-21", "order": 1029, "verseRange": "21:1-21" }, { "itemId": "gen-p30", "book": "gen", "label": "Genesis 21:22-34", "order": 1030, "verseRange": "21:22-34" }, { "itemId": "gen-p31", "book": "gen", "label": "Genesis 22:1-19", "order": 1031, "verseRange": "22:1-19" }, { "itemId": "gen-p32", "book": "gen", "label": "Genesis 22:20-24", "order": 1032, "verseRange": "22:20-24" }, { "itemId": "gen-p33", "book": "gen", "label": "Genesis 23:1-20", "order": 1033, "verseRange": "23:1-20" }, { "itemId": "gen-p34a", "book": "gen", "label": "Genesis 24:1-14", "order": 1034, "verseRange": "24:1-14" }, { "itemId": "gen-p34b", "book": "gen", "label": "Genesis 24:15-28", "order": 1034, "verseRange": "24:15-28" }, { "itemId": "gen-p34c", "book": "gen", "label": "Genesis 24:29-49", "order": 1034, "verseRange": "24:29-49" }, { "itemId": "gen-p34d", "book": "gen", "label": "Genesis 24:50-61", "order": 1034, "verseRange": "24:50-61" }, { "itemId": "gen-p34e", "book": "gen", "label": "Genesis 24:62-67", "order": 1034, "verseRange": "24:62-67" }, { "itemId": "gen-p35", "book": "gen", "label": "Genesis 25:1-11", "order": 1035, "verseRange": "25:1-11" }, { "itemId": "gen-p36", "book": "gen", "label": "Genesis 25:12-18", "order": 1036, "verseRange": "25:12-18" }, { "itemId": "gen-p37", "book": "gen", "label": "Genesis 25:19-34", "order": 1037, "verseRange": "25:19-34" }, { "itemId": "gen-p38", "book": "gen", "label": "Genesis 26:1-33", "order": 1038, "verseRange": "26:1-33" }, { "itemId": "gen-p39a", "book": "gen", "label": "Genesis 26:34-27:17", "order": 1039, "verseRange": "26:34-27:17" }, { "itemId": "gen-p39b", "book": "gen", "label": "Genesis 27:18-29", "order": 1039, "verseRange": "27:18-29" }, { "itemId": "gen-p39c", "book": "gen", "label": "Genesis 27:30-40", "order": 1039, "verseRange": "27:30-40" }, { "itemId": "gen-p39d", "book": "gen", "label": "Genesis 27:41-28:9", "order": 1039, "verseRange": "27:41-28:9" }, { "itemId": "gen-p40", "book": "gen", "label": "Genesis 28:10-22", "order": 1040, "verseRange": "28:10-22" }, { "itemId": "gen-p41", "book": "gen", "label": "Genesis 29:1-14", "order": 1041, "verseRange": "29:1-14" }, { "itemId": "gen-p42", "book": "gen", "label": "Genesis 29:15-30", "order": 1042, "verseRange": "29:15-30" }, { "itemId": "gen-p43", "book": "gen", "label": "Genesis 29:31-30:24", "order": 1043, "verseRange": "29:31-30:24" }, { "itemId": "gen-p44", "book": "gen", "label": "Genesis 30:25-43", "order": 1044, "verseRange": "30:25-43" }, { "itemId": "gen-p45", "book": "gen", "label": "Genesis 31:1-21", "order": 1045, "verseRange": "31:1-21" }, { "itemId": "gen-p46a", "book": "gen", "label": "Genesis 31:22-35", "order": 1046, "verseRange": "31:22-35" }, { "itemId": "gen-p46b", "book": "gen", "label": "Genesis 31:36-55", "order": 1046, "verseRange": "31:36-55" }, { "itemId": "gen-p47", "book": "gen", "label": "Genesis 32:1-21", "order": 1047, "verseRange": "32:1-21" }, { "itemId": "gen-p48", "book": "gen", "label": "Genesis 32:22-32", "order": 1048, "verseRange": "32:22-32" }, { "itemId": "gen-p49", "book": "gen", "label": "Genesis 33:1-20", "order": 1049, "verseRange": "33:1-20" }, { "itemId": "gen-p50a", "book": "gen", "label": "Genesis 34:1-17", "order": 1050, "verseRange": "34:1-17" }, { "itemId": "gen-p50b", "book": "gen", "label": "Genesis 34:18-31", "order": 1050, "verseRange": "34:18-31" }, { "itemId": "gen-p51", "book": "gen", "label": "Genesis 35:1-15", "order": 1051, "verseRange": "35:1-15" }, { "itemId": "gen-p52", "book": "gen", "label": "Genesis 35:16-20", "order": 1052, "verseRange": "35:16-20" }, { "itemId": "gen-p53", "book": "gen", "label": "Genesis 35:21-29", "order": 1053, "verseRange": "35:21-29" }, { "itemId": "gen-p54a", "book": "gen", "label": "Genesis 36:1-19", "order": 1054, "verseRange": "36:1-19" }, { "itemId": "gen-p54b", "book": "gen", "label": "Genesis 36:20-30", "order": 1054, "verseRange": "36:20-30" }, { "itemId": "gen-p54c", "book": "gen", "label": "Genesis 36:31-43", "order": 1054, "verseRange": "36:31-43" }, { "itemId": "gen-p55", "book": "gen", "label": "Genesis 37:1-11", "order": 1055, "verseRange": "37:1-11" }, { "itemId": "gen-p56", "book": "gen", "label": "Genesis 37:12-36", "order": 1056, "verseRange": "37:12-36" }, { "itemId": "gen-p57", "book": "gen", "label": "Genesis 38:1-30", "order": 1057, "verseRange": "38:1-30" }, { "itemId": "gen-p58", "book": "gen", "label": "Genesis 39:1-23", "order": 1058, "verseRange": "39:1-23" }, { "itemId": "gen-p59", "book": "gen", "label": "Genesis 40:1-23", "order": 1059, "verseRange": "40:1-23" }, { "itemId": "gen-p60", "book": "gen", "label": "Genesis 41:1-36", "order": 1060, "verseRange": "41:1-36" }, { "itemId": "gen-p61", "book": "gen", "label": "Genesis 41:37-57", "order": 1061, "verseRange": "41:37-57" }, { "itemId": "gen-p62a", "book": "gen", "label": "Genesis 42:1-26", "order": 1062, "verseRange": "42:1-26" }, { "itemId": "gen-p62b", "book": "gen", "label": "Genesis 42:27-38", "order": 1062, "verseRange": "42:27-38" }, { "itemId": "gen-p63", "book": "gen", "label": "Genesis 43:1-34", "order": 1063, "verseRange": "43:1-34" }, { "itemId": "gen-p64a", "book": "gen", "label": "Genesis 44:1-13", "order": 1064, "verseRange": "44:1-13" }, { "itemId": "gen-p64b", "book": "gen", "label": "Genesis 44:14-34", "order": 1064, "verseRange": "44:14-34" }, { "itemId": "gen-p65", "book": "gen", "label": "Genesis 45:1-28", "order": 1065, "verseRange": "45:1-28" }, { "itemId": "gen-p66", "book": "gen", "label": "Genesis 46:1-27", "order": 1066, "verseRange": "46:1-27" }, { "itemId": "gen-p67", "book": "gen", "label": "Genesis 46:28-47:12", "order": 1067, "verseRange": "46:28-47:12" }, { "itemId": "gen-p68", "book": "gen", "label": "Genesis 47:13-26", "order": 1068, "verseRange": "47:13-26" }, { "itemId": "gen-p69", "book": "gen", "label": "Genesis 47:27-31", "order": 1069, "verseRange": "47:27-31" }, { "itemId": "gen-p70", "book": "gen", "label": "Genesis 48:1-22", "order": 1070, "verseRange": "48:1-22" }, { "itemId": "gen-p71", "book": "gen", "label": "Genesis 49:1-28", "order": 1071, "verseRange": "49:1-28" }, { "itemId": "gen-p72", "book": "gen", "label": "Genesis 49:29-50:14", "order": 1072, "verseRange": "49:29-50:14" }, { "itemId": "gen-p73", "book": "gen", "label": "Genesis 50:15-21", "order": 1073, "verseRange": "50:15-21" }, { "itemId": "gen-p74", "book": "gen", "label": "Genesis 50:22-26", "order": 1074, "verseRange": "50:22-26" }, { "itemId": "exo-p1", "book": "exo", "label": "Exodus 1:1-7", "order": 2001, "verseRange": "1:1-7" }, { "itemId": "exo-p2", "book": "exo", "label": "Exodus 1:8-14", "order": 2002, "verseRange": "1:8-14" }, { "itemId": "exo-p3", "book": "exo", "label": "Exodus 1:15-22", "order": 2003, "verseRange": "1:15-22" }, { "itemId": "exo-p4", "book": "exo", "label": "Exodus 2:1-10", "order": 2004, "verseRange": "2:1-10" }, { "itemId": "exo-p5", "book": "exo", "label": "Exodus 2:11-15", "order": 2005, "verseRange": "2:11-15" }, { "itemId": "exo-p6", "book": "exo", "label": "Exodus 2:16-25", "order": 2006, "verseRange": "2:16-25" }, { "itemId": "exo-p7", "book": "exo", "label": "Exodus 3:1-10", "order": 2007, "verseRange": "3:1-10" }, { "itemId": "exo-p8", "book": "exo", "label": "Exodus 3:11-22", "order": 2008, "verseRange": "3:11-22" }, { "itemId": "exo-p9", "book": "exo", "label": "Exodus 4:1-17", "order": 2009, "verseRange": "4:1-17" }, { "itemId": "exo-p10", "book": "exo", "label": "Exodus 4:18-31", "order": 2010, "verseRange": "4:18-31" }, { "itemId": "exo-p11", "book": "exo", "label": "Exodus 5:1-21", "order": 2011, "verseRange": "5:1-21" }, { "itemId": "exo-p12", "book": "exo", "label": "Exodus 5:22-6:13", "order": 2012, "verseRange": "5:22-6:13" }, { "itemId": "exo-p13", "book": "exo", "label": "Exodus 6:14-27", "order": 2013, "verseRange": "6:14-27" }, { "itemId": "exo-p14", "book": "exo", "label": "Exodus 6:28-7:13", "order": 2014, "verseRange": "6:28-7:13" }, { "itemId": "exo-p15", "book": "exo", "label": "Exodus 7:14-25", "order": 2015, "verseRange": "7:14-25" }, { "itemId": "exo-p16", "book": "exo", "label": "Exodus 8:1-15", "order": 2016, "verseRange": "8:1-15" }, { "itemId": "exo-p17", "book": "exo", "label": "Exodus 8:16-19", "order": 2017, "verseRange": "8:16-19" }, { "itemId": "exo-p18", "book": "exo", "label": "Exodus 8:20-32", "order": 2018, "verseRange": "8:20-32" }, { "itemId": "exo-p19", "book": "exo", "label": "Exodus 9:1-7", "order": 2019, "verseRange": "9:1-7" }, { "itemId": "exo-p20", "book": "exo", "label": "Exodus 9:8-12", "order": 2020, "verseRange": "9:8-12" }, { "itemId": "exo-p21a", "book": "exo", "label": "Exodus 9:13-21", "order": 2021, "verseRange": "9:13-21" }, { "itemId": "exo-p21b", "book": "exo", "label": "Exodus 9:22-35", "order": 2021, "verseRange": "9:22-35" }, { "itemId": "exo-p22", "book": "exo", "label": "Exodus 10:1-20", "order": 2022, "verseRange": "10:1-20" }, { "itemId": "exo-p23", "book": "exo", "label": "Exodus 10:21-29", "order": 2023, "verseRange": "10:21-29" }, { "itemId": "exo-p24", "book": "exo", "label": "Exodus 11:1-10", "order": 2024, "verseRange": "11:1-10" }, { "itemId": "exo-p25", "book": "exo", "label": "Exodus 12:1-13", "order": 2025, "verseRange": "12:1-13" }, { "itemId": "exo-p26", "book": "exo", "label": "Exodus 12:14-28", "order": 2026, "verseRange": "12:14-28" }, { "itemId": "exo-p27", "book": "exo", "label": "Exodus 12:29-42", "order": 2027, "verseRange": "12:29-42" }, { "itemId": "exo-p28", "book": "exo", "label": "Exodus 12:43-51", "order": 2028, "verseRange": "12:43-51" }, { "itemId": "exo-p29", "book": "exo", "label": "Exodus 13:1-16", "order": 2029, "verseRange": "13:1-16" }, { "itemId": "exo-p30", "book": "exo", "label": "Exodus 13:17-22", "order": 2030, "verseRange": "13:17-22" }, { "itemId": "exo-p31", "book": "exo", "label": "Exodus 14:1-14", "order": 2031, "verseRange": "14:1-14" }, { "itemId": "exo-p32", "book": "exo", "label": "Exodus 14:15-31", "order": 2032, "verseRange": "14:15-31" }, { "itemId": "exo-p33a", "book": "exo", "label": "Exodus 15:1-10", "order": 2033, "verseRange": "15:1-10" }, { "itemId": "exo-p33b", "book": "exo", "label": "Exodus 15:11-18", "order": 2033, "verseRange": "15:11-18" }, { "itemId": "exo-p34", "book": "exo", "label": "Exodus 15:19-27", "order": 2034, "verseRange": "15:19-27" }, { "itemId": "exo-p35", "book": "exo", "label": "Exodus 16:1-12", "order": 2035, "verseRange": "16:1-12" }, { "itemId": "exo-p36", "book": "exo", "label": "Exodus 16:13-21", "order": 2036, "verseRange": "16:13-21" }, { "itemId": "exo-p37", "book": "exo", "label": "Exodus 16:22-36", "order": 2037, "verseRange": "16:22-36" }, { "itemId": "exo-p38", "book": "exo", "label": "Exodus 17:1-7", "order": 2038, "verseRange": "17:1-7" }, { "itemId": "exo-p39", "book": "exo", "label": "Exodus 17:8-16", "order": 2039, "verseRange": "17:8-16" }, { "itemId": "exo-p40", "book": "exo", "label": "Exodus 18:1-12", "order": 2040, "verseRange": "18:1-12" }, { "itemId": "exo-p41", "book": "exo", "label": "Exodus 18:13-27", "order": 2041, "verseRange": "18:13-27" }, { "itemId": "exo-p42", "book": "exo", "label": "Exodus 19:1-15", "order": 2042, "verseRange": "19:1-15" }, { "itemId": "exo-p43", "book": "exo", "label": "Exodus 19:16-25", "order": 2043, "verseRange": "19:16-25" }, { "itemId": "exo-p44", "book": "exo", "label": "Exodus 20:1-7", "order": 2044, "verseRange": "20:1-7" }, { "itemId": "exo-p45", "book": "exo", "label": "Exodus 20:8-17", "order": 2045, "verseRange": "20:8-17" }, { "itemId": "exo-p46", "book": "exo", "label": "Exodus 20:18-26", "order": 2046, "verseRange": "20:18-26" }, { "itemId": "exo-p47", "book": "exo", "label": "Exodus 21:1-11", "order": 2047, "verseRange": "21:1-11" }, { "itemId": "exo-p48", "book": "exo", "label": "Exodus 21:12-17", "order": 2048, "verseRange": "21:12-17" }, { "itemId": "exo-p49", "book": "exo", "label": "Exodus 21:18-27", "order": 2049, "verseRange": "21:18-27" }, { "itemId": "exo-p50", "book": "exo", "label": "Exodus 21:28-36", "order": 2050, "verseRange": "21:28-36" }, { "itemId": "exo-p51a", "book": "exo", "label": "Exodus 22:1-6", "order": 2051, "verseRange": "22:1-6" }, { "itemId": "exo-p51b", "book": "exo", "label": "Exodus 22:7-15", "order": 2051, "verseRange": "22:7-15" }, { "itemId": "exo-p52", "book": "exo", "label": "Exodus 22:16-24", "order": 2052, "verseRange": "22:16-24" }, { "itemId": "exo-p53", "book": "exo", "label": "Exodus 22:25-31", "order": 2053, "verseRange": "22:25-31" }, { "itemId": "exo-p54", "book": "exo", "label": "Exodus 23:1-9", "order": 2054, "verseRange": "23:1-9" }, { "itemId": "exo-p55", "book": "exo", "label": "Exodus 23:10-19", "order": 2055, "verseRange": "23:10-19" }, { "itemId": "exo-p56", "book": "exo", "label": "Exodus 23:20-33", "order": 2056, "verseRange": "23:20-33" }, { "itemId": "exo-p57", "book": "exo", "label": "Exodus 24:1-8", "order": 2057, "verseRange": "24:1-8" }, { "itemId": "exo-p58", "book": "exo", "label": "Exodus 24:9-18", "order": 2058, "verseRange": "24:9-18" }, { "itemId": "exo-p59", "book": "exo", "label": "Exodus 25:1-9", "order": 2059, "verseRange": "25:1-9" }, { "itemId": "exo-p60", "book": "exo", "label": "Exodus 25:10-22", "order": 2060, "verseRange": "25:10-22" }, { "itemId": "exo-p61", "book": "exo", "label": "Exodus 25:23-30", "order": 2061, "verseRange": "25:23-30" }, { "itemId": "exo-p62", "book": "exo", "label": "Exodus 25:31-40", "order": 2062, "verseRange": "25:31-40" }, { "itemId": "exo-p63", "book": "exo", "label": "Exodus 26:1-14", "order": 2063, "verseRange": "26:1-14" }, { "itemId": "exo-p64", "book": "exo", "label": "Exodus 26:15-30", "order": 2064, "verseRange": "26:15-30" }, { "itemId": "exo-p65", "book": "exo", "label": "Exodus 26:31-37", "order": 2065, "verseRange": "26:31-37" }, { "itemId": "exo-p66", "book": "exo", "label": "Exodus 27:1-8", "order": 2066, "verseRange": "27:1-8" }, { "itemId": "exo-p67", "book": "exo", "label": "Exodus 27:9-21", "order": 2067, "verseRange": "27:9-21" }, { "itemId": "exo-p68", "book": "exo", "label": "Exodus 28:1-14", "order": 2068, "verseRange": "28:1-14" }, { "itemId": "exo-p69", "book": "exo", "label": "Exodus 28:15-30", "order": 2069, "verseRange": "28:15-30" }, { "itemId": "exo-p70", "book": "exo", "label": "Exodus 28:31-43", "order": 2070, "verseRange": "28:31-43" }, { "itemId": "exo-p71", "book": "exo", "label": "Exodus 29:1-9", "order": 2071, "verseRange": "29:1-9" }, { "itemId": "exo-p72", "book": "exo", "label": "Exodus 29:10-18", "order": 2072, "verseRange": "29:10-18" }, { "itemId": "exo-p73", "book": "exo", "label": "Exodus 29:19-28", "order": 2073, "verseRange": "29:19-28" }, { "itemId": "exo-p74", "book": "exo", "label": "Exodus 29:29-37", "order": 2074, "verseRange": "29:29-37" }, { "itemId": "exo-p75", "book": "exo", "label": "Exodus 29:38-46", "order": 2075, "verseRange": "29:38-46" }, { "itemId": "exo-p76", "book": "exo", "label": "Exodus 30:1-10", "order": 2076, "verseRange": "30:1-10" }, { "itemId": "exo-p77", "book": "exo", "label": "Exodus 30:11-16", "order": 2077, "verseRange": "30:11-16" }, { "itemId": "exo-p78", "book": "exo", "label": "Exodus 30:17-21", "order": 2078, "verseRange": "30:17-21" }, { "itemId": "exo-p79", "book": "exo", "label": "Exodus 30:22-33", "order": 2079, "verseRange": "30:22-33" }, { "itemId": "exo-p80", "book": "exo", "label": "Exodus 30:34-38", "order": 2080, "verseRange": "30:34-38" }, { "itemId": "exo-p81", "book": "exo", "label": "Exodus 31:1-11", "order": 2081, "verseRange": "31:1-11" }, { "itemId": "exo-p82", "book": "exo", "label": "Exodus 31:12-18", "order": 2082, "verseRange": "31:12-18" }, { "itemId": "exo-p83", "book": "exo", "label": "Exodus 32:1-14", "order": 2083, "verseRange": "32:1-14" }, { "itemId": "exo-p84", "book": "exo", "label": "Exodus 32:15-24", "order": 2084, "verseRange": "32:15-24" }, { "itemId": "exo-p85", "book": "exo", "label": "Exodus 32:25-35", "order": 2085, "verseRange": "32:25-35" }, { "itemId": "exo-p86", "book": "exo", "label": "Exodus 33:1-11", "order": 2086, "verseRange": "33:1-11" }, { "itemId": "exo-p87", "book": "exo", "label": "Exodus 33:12-23", "order": 2087, "verseRange": "33:12-23" }, { "itemId": "exo-p88", "book": "exo", "label": "Exodus 34:1-9", "order": 2088, "verseRange": "34:1-9" }, { "itemId": "exo-p89", "book": "exo", "label": "Exodus 34:10-17", "order": 2089, "verseRange": "34:10-17" }, { "itemId": "exo-p90", "book": "exo", "label": "Exodus 34:18-28", "order": 2090, "verseRange": "34:18-28" }, { "itemId": "exo-p91", "book": "exo", "label": "Exodus 34:29-35", "order": 2091, "verseRange": "34:29-35" }, { "itemId": "exo-p92", "book": "exo", "label": "Exodus 35:1-19", "order": 2092, "verseRange": "35:1-19" }, { "itemId": "exo-p93", "book": "exo", "label": "Exodus 35:20-29", "order": 2093, "verseRange": "35:20-29" }, { "itemId": "exo-p94", "book": "exo", "label": "Exodus 35:30-36:7", "order": 2094, "verseRange": "35:30-36:7" }, { "itemId": "exo-p95", "book": "exo", "label": "Exodus 36:8-19", "order": 2095, "verseRange": "36:8-19" }, { "itemId": "exo-p96", "book": "exo", "label": "Exodus 36:20-34", "order": 2096, "verseRange": "36:20-34" }, { "itemId": "exo-p97", "book": "exo", "label": "Exodus 36:35-38", "order": 2097, "verseRange": "36:35-38" }, { "itemId": "exo-p98", "book": "exo", "label": "Exodus 37:1-9", "order": 2098, "verseRange": "37:1-9" }, { "itemId": "exo-p99", "book": "exo", "label": "Exodus 37:10-16", "order": 2099, "verseRange": "37:10-16" }, { "itemId": "exo-p100", "book": "exo", "label": "Exodus 37:17-24", "order": 2100, "verseRange": "37:17-24" }, { "itemId": "exo-p101", "book": "exo", "label": "Exodus 37:25-38:8", "order": 2101, "verseRange": "37:25-38:8" }, { "itemId": "exo-p102", "book": "exo", "label": "Exodus 38:9-20", "order": 2102, "verseRange": "38:9-20" }, { "itemId": "exo-p103", "book": "exo", "label": "Exodus 38:21-31", "order": 2103, "verseRange": "38:21-31" }, { "itemId": "exo-p104", "book": "exo", "label": "Exodus 39:1-7", "order": 2104, "verseRange": "39:1-7" }, { "itemId": "exo-p105", "book": "exo", "label": "Exodus 39:8-21", "order": 2105, "verseRange": "39:8-21" }, { "itemId": "exo-p106", "book": "exo", "label": "Exodus 39:22-31", "order": 2106, "verseRange": "39:22-31" }, { "itemId": "exo-p107", "book": "exo", "label": "Exodus 39:32-43", "order": 2107, "verseRange": "39:32-43" }, { "itemId": "exo-p108", "book": "exo", "label": "Exodus 40:1-15", "order": 2108, "verseRange": "40:1-15" }, { "itemId": "exo-p109", "book": "exo", "label": "Exodus 40:16-33", "order": 2109, "verseRange": "40:16-33" }, { "itemId": "exo-p110", "book": "exo", "label": "Exodus 40:34-38", "order": 2110, "verseRange": "40:34-38" }, { "itemId": "num-p1", "book": "num", "label": "Numbers 1:1-16", "order": 4001, "verseRange": "1:1-16" }, { "itemId": "num-p2", "book": "num", "label": "Numbers 1:17-47", "order": 4002, "verseRange": "1:17-47" }, { "itemId": "num-p3", "book": "num", "label": "Numbers 1:48-54", "order": 4003, "verseRange": "1:48-54" }, { "itemId": "num-p4", "book": "num", "label": "Numbers 2:1-17", "order": 4004, "verseRange": "2:1-17" }, { "itemId": "num-p5", "book": "num", "label": "Numbers 2:18-34", "order": 4005, "verseRange": "2:18-34" }, { "itemId": "num-p6", "book": "num", "label": "Numbers 3:1-13", "order": 4006, "verseRange": "3:1-13" }, { "itemId": "num-p7", "book": "num", "label": "Numbers 3:14-20", "order": 4007, "verseRange": "3:14-20" }, { "itemId": "num-p8", "book": "num", "label": "Numbers 3:21-26", "order": 4008, "verseRange": "3:21-26" }, { "itemId": "num-p9", "book": "num", "label": "Numbers 3:27-32", "order": 4009, "verseRange": "3:27-32" }, { "itemId": "num-p10", "book": "num", "label": "Numbers 3:33-39", "order": 4010, "verseRange": "3:33-39" }, { "itemId": "num-p11", "book": "num", "label": "Numbers 3:40-51", "order": 4011, "verseRange": "3:40-51" }, { "itemId": "num-p12", "book": "num", "label": "Numbers 4:1-20", "order": 4012, "verseRange": "4:1-20" }, { "itemId": "num-p13", "book": "num", "label": "Numbers 4:21-28", "order": 4013, "verseRange": "4:21-28" }, { "itemId": "num-p14", "book": "num", "label": "Numbers 4:29-33", "order": 4014, "verseRange": "4:29-33" }, { "itemId": "num-p15", "book": "num", "label": "Numbers 4:34-49", "order": 4015, "verseRange": "4:34-49" }, { "itemId": "num-p16", "book": "num", "label": "Numbers 5:1-4", "order": 4016, "verseRange": "5:1-4" }, { "itemId": "num-p17", "book": "num", "label": "Numbers 5:5-10", "order": 4017, "verseRange": "5:5-10" }, { "itemId": "num-p18", "book": "num", "label": "Numbers 5:11-31", "order": 4018, "verseRange": "5:11-31" }, { "itemId": "num-p19a", "book": "num", "label": "Numbers 6:1-12", "order": 4019, "verseRange": "6:1-12" }, { "itemId": "num-p19b", "book": "num", "label": "Numbers 6:13-21", "order": 4019, "verseRange": "6:13-21" }, { "itemId": "num-p20", "book": "num", "label": "Numbers 6:22-27", "order": 4020, "verseRange": "6:22-27" }, { "itemId": "num-p21", "book": "num", "label": "Numbers 7:1-9", "order": 4021, "verseRange": "7:1-9" }, { "itemId": "num-p22", "book": "num", "label": "Numbers 7:10-83", "order": 4022, "verseRange": "7:10-83" }, { "itemId": "num-p23", "book": "num", "label": "Numbers 7:84-89", "order": 4023, "verseRange": "7:84-89" }, { "itemId": "num-p24", "book": "num", "label": "Numbers 8:1-4", "order": 4024, "verseRange": "8:1-4" }, { "itemId": "num-p25", "book": "num", "label": "Numbers 8:5-22", "order": 4025, "verseRange": "8:5-22" }, { "itemId": "num-p26", "book": "num", "label": "Numbers 8:23-26", "order": 4026, "verseRange": "8:23-26" }, { "itemId": "num-p27", "book": "num", "label": "Numbers 9:1-14", "order": 4027, "verseRange": "9:1-14" }, { "itemId": "num-p28", "book": "num", "label": "Numbers 9:15-23", "order": 4028, "verseRange": "9:15-23" }, { "itemId": "num-p29", "book": "num", "label": "Numbers 10:1-10", "order": 4029, "verseRange": "10:1-10" }, { "itemId": "num-p30", "book": "num", "label": "Numbers 10:11-36", "order": 4030, "verseRange": "10:11-36" }, { "itemId": "num-p31", "book": "num", "label": "Numbers 11:1-15", "order": 4031, "verseRange": "11:1-15" }, { "itemId": "num-p32", "book": "num", "label": "Numbers 11:16-30", "order": 4032, "verseRange": "11:16-30" }, { "itemId": "num-p33", "book": "num", "label": "Numbers 11:31-35", "order": 4033, "verseRange": "11:31-35" }, { "itemId": "num-p34", "book": "num", "label": "Numbers 12:1-16", "order": 4034, "verseRange": "12:1-16" }, { "itemId": "num-p35", "book": "num", "label": "Numbers 13:1-16", "order": 4035, "verseRange": "13:1-16" }, { "itemId": "num-p36", "book": "num", "label": "Numbers 13:17-33", "order": 4036, "verseRange": "13:17-33" }, { "itemId": "num-p37", "book": "num", "label": "Numbers 14:1-10", "order": 4037, "verseRange": "14:1-10" }, { "itemId": "num-p38", "book": "num", "label": "Numbers 14:11-25", "order": 4038, "verseRange": "14:11-25" }, { "itemId": "num-p39", "book": "num", "label": "Numbers 14:26-38", "order": 4039, "verseRange": "14:26-38" }, { "itemId": "num-p40", "book": "num", "label": "Numbers 14:39-45", "order": 4040, "verseRange": "14:39-45" }, { "itemId": "num-p41", "book": "num", "label": "Numbers 15:1-16", "order": 4041, "verseRange": "15:1-16" }, { "itemId": "num-p42", "book": "num", "label": "Numbers 15:17-21", "order": 4042, "verseRange": "15:17-21" }, { "itemId": "num-p43", "book": "num", "label": "Numbers 15:22-31", "order": 4043, "verseRange": "15:22-31" }, { "itemId": "num-p44", "book": "num", "label": "Numbers 15:32-36", "order": 4044, "verseRange": "15:32-36" }, { "itemId": "num-p45", "book": "num", "label": "Numbers 15:37-41", "order": 4045, "verseRange": "15:37-41" }, { "itemId": "num-p46a", "book": "num", "label": "Numbers 16:1-19", "order": 4046, "verseRange": "16:1-19" }, { "itemId": "num-p46b", "book": "num", "label": "Numbers 16:20-35", "order": 4046, "verseRange": "16:20-35" }, { "itemId": "num-p47", "book": "num", "label": "Numbers 16:36-50", "order": 4047, "verseRange": "16:36-50" }, { "itemId": "num-p48", "book": "num", "label": "Numbers 17:1-13", "order": 4048, "verseRange": "17:1-13" }, { "itemId": "num-p49", "book": "num", "label": "Numbers 18:1-7", "order": 4049, "verseRange": "18:1-7" }, { "itemId": "num-p50", "book": "num", "label": "Numbers 18:8-20", "order": 4050, "verseRange": "18:8-20" }, { "itemId": "num-p51", "book": "num", "label": "Numbers 18:21-24", "order": 4051, "verseRange": "18:21-24" }, { "itemId": "num-p52", "book": "num", "label": "Numbers 18:25-32", "order": 4052, "verseRange": "18:25-32" }, { "itemId": "num-p53", "book": "num", "label": "Numbers 19:1-10", "order": 4053, "verseRange": "19:1-10" }, { "itemId": "num-p54", "book": "num", "label": "Numbers 19:11-22", "order": 4054, "verseRange": "19:11-22" }, { "itemId": "num-p55", "book": "num", "label": "Numbers 20:1-13", "order": 4055, "verseRange": "20:1-13" }, { "itemId": "num-p56", "book": "num", "label": "Numbers 20:14-21", "order": 4056, "verseRange": "20:14-21" }, { "itemId": "num-p57", "book": "num", "label": "Numbers 20:22-29", "order": 4057, "verseRange": "20:22-29" }, { "itemId": "num-p58", "book": "num", "label": "Numbers 21:1-9", "order": 4058, "verseRange": "21:1-9" }, { "itemId": "num-p59", "book": "num", "label": "Numbers 21:10-20", "order": 4059, "verseRange": "21:10-20" }, { "itemId": "num-p60a", "book": "num", "label": "Numbers 21:21-26", "order": 4060, "verseRange": "21:21-26" }, { "itemId": "num-p60b", "book": "num", "label": "Numbers 21:27-30", "order": 4060, "verseRange": "21:27-30" }, { "itemId": "num-p61", "book": "num", "label": "Numbers 21:31-35", "order": 4061, "verseRange": "21:31-35" }, { "itemId": "num-p62", "book": "num", "label": "Numbers 22:1-21", "order": 4062, "verseRange": "22:1-21" }, { "itemId": "num-p63", "book": "num", "label": "Numbers 22:22-40", "order": 4063, "verseRange": "22:22-40" }, { "itemId": "num-p64", "book": "num", "label": "Numbers 22:41-23:6", "order": 4064, "verseRange": "22:41-23:6" }, { "itemId": "num-p65", "book": "num", "label": "Numbers 23:7-12", "order": 4065, "verseRange": "23:7-12" }, { "itemId": "num-p66", "book": "num", "label": "Numbers 23:13-26", "order": 4066, "verseRange": "23:13-26" }, { "itemId": "num-p67", "book": "num", "label": "Numbers 23:27-24:13", "order": 4067, "verseRange": "23:27-24:13" }, { "itemId": "num-p68", "book": "num", "label": "Numbers 24:14-19", "order": 4068, "verseRange": "24:14-19" }, { "itemId": "num-p69", "book": "num", "label": "Numbers 24:20-25", "order": 4069, "verseRange": "24:20-25" }, { "itemId": "num-p70", "book": "num", "label": "Numbers 25:1-9", "order": 4070, "verseRange": "25:1-9" }, { "itemId": "num-p71", "book": "num", "label": "Numbers 25:10-18", "order": 4071, "verseRange": "25:10-18" }, { "itemId": "num-p72a", "book": "num", "label": "Numbers 26:1-11", "order": 4072, "verseRange": "26:1-11" }, { "itemId": "num-p72b", "book": "num", "label": "Numbers 26:12-14", "order": 4072, "verseRange": "26:12-14" }, { "itemId": "num-p72c", "book": "num", "label": "Numbers 26:15-18", "order": 4072, "verseRange": "26:15-18" }, { "itemId": "num-p72d", "book": "num", "label": "Numbers 26:19-22", "order": 4072, "verseRange": "26:19-22" }, { "itemId": "num-p72e", "book": "num", "label": "Numbers 26:23-25", "order": 4072, "verseRange": "26:23-25" }, { "itemId": "num-p72f", "book": "num", "label": "Numbers 26:26-27", "order": 4072, "verseRange": "26:26-27" }, { "itemId": "num-p72g", "book": "num", "label": "Numbers 26:28-34", "order": 4072, "verseRange": "26:28-34" }, { "itemId": "num-p72h", "book": "num", "label": "Numbers 26:35-37", "order": 4072, "verseRange": "26:35-37" }, { "itemId": "num-p72i", "book": "num", "label": "Numbers 26:38-41", "order": 4072, "verseRange": "26:38-41" }, { "itemId": "num-p72j", "book": "num", "label": "Numbers 26:42-43", "order": 4072, "verseRange": "26:42-43" }, { "itemId": "num-p72k", "book": "num", "label": "Numbers 26:44-47", "order": 4072, "verseRange": "26:44-47" }, { "itemId": "num-p72l", "book": "num", "label": "Numbers 26:48-50", "order": 4072, "verseRange": "26:48-50" }, { "itemId": "num-p72m", "book": "num", "label": "Numbers 26:51-56", "order": 4072, "verseRange": "26:51-56" }, { "itemId": "num-p72n", "book": "num", "label": "Numbers 26:57-65", "order": 4072, "verseRange": "26:57-65" }, { "itemId": "num-p73", "book": "num", "label": "Numbers 27:1-11", "order": 4073, "verseRange": "27:1-11" }, { "itemId": "num-p74", "book": "num", "label": "Numbers 27:12-23", "order": 4074, "verseRange": "27:12-23" }, { "itemId": "num-p75", "book": "num", "label": "Numbers 28:1-10", "order": 4075, "verseRange": "28:1-10" }, { "itemId": "num-p76", "book": "num", "label": "Numbers 28:11-15", "order": 4076, "verseRange": "28:11-15" }, { "itemId": "num-p77", "book": "num", "label": "Numbers 28:16-25", "order": 4077, "verseRange": "28:16-25" }, { "itemId": "num-p78", "book": "num", "label": "Numbers 28:26-31", "order": 4078, "verseRange": "28:26-31" }, { "itemId": "num-p79", "book": "num", "label": "Numbers 29:1-6", "order": 4079, "verseRange": "29:1-6" }, { "itemId": "num-p80", "book": "num", "label": "Numbers 29:7-11", "order": 4080, "verseRange": "29:7-11" }, { "itemId": "num-p81", "book": "num", "label": "Numbers 29:12-40", "order": 4081, "verseRange": "29:12-40" }, { "itemId": "num-p82", "book": "num", "label": "Numbers 30:1-16", "order": 4082, "verseRange": "30:1-16" }, { "itemId": "num-p83", "book": "num", "label": "Numbers 31:1-24", "order": 4083, "verseRange": "31:1-24" }, { "itemId": "num-p84", "book": "num", "label": "Numbers 31:25-54", "order": 4084, "verseRange": "31:25-54" }, { "itemId": "num-p85", "book": "num", "label": "Numbers 32:1-15", "order": 4085, "verseRange": "32:1-15" }, { "itemId": "num-p86", "book": "num", "label": "Numbers 32:16-27", "order": 4086, "verseRange": "32:16-27" }, { "itemId": "num-p87", "book": "num", "label": "Numbers 32:28-32", "order": 4087, "verseRange": "32:28-32" }, { "itemId": "num-p88", "book": "num", "label": "Numbers 32:33-42", "order": 4088, "verseRange": "32:33-42" }, { "itemId": "num-p89a", "book": "num", "label": "Numbers 33:1-15", "order": 4089, "verseRange": "33:1-15" }, { "itemId": "num-p89b", "book": "num", "label": "Numbers 33:16-36", "order": 4089, "verseRange": "33:16-36" }, { "itemId": "num-p89c", "book": "num", "label": "Numbers 33:37-49", "order": 4089, "verseRange": "33:37-49" }, { "itemId": "num-p90", "book": "num", "label": "Numbers 33:50-56", "order": 4090, "verseRange": "33:50-56" }, { "itemId": "num-p91", "book": "num", "label": "Numbers 34:1-15", "order": 4091, "verseRange": "34:1-15" }, { "itemId": "num-p92", "book": "num", "label": "Numbers 34:16-29", "order": 4092, "verseRange": "34:16-29" }, { "itemId": "num-p93", "book": "num", "label": "Numbers 35:1-8", "order": 4093, "verseRange": "35:1-8" }, { "itemId": "num-p94a", "book": "num", "label": "Numbers 35:9-29", "order": 4094, "verseRange": "35:9-29" }, { "itemId": "num-p94b", "book": "num", "label": "Numbers 35:30-34", "order": 4094, "verseRange": "35:30-34" }, { "itemId": "num-p95", "book": "num", "label": "Numbers 36:1-13", "order": 4095, "verseRange": "36:1-13" }, { "itemId": "jos-p1", "book": "jos", "label": "Joshua 1:1-9", "order": 6001, "verseRange": "1:1-9" }, { "itemId": "jos-p2", "book": "jos", "label": "Joshua 1:10-18", "order": 6002, "verseRange": "1:10-18" }, { "itemId": "jos-p3", "book": "jos", "label": "Joshua 2:1-14", "order": 6003, "verseRange": "2:1-14" }, { "itemId": "jos-p4", "book": "jos", "label": "Joshua 2:15-24", "order": 6004, "verseRange": "2:15-24" }, { "itemId": "jos-p5", "book": "jos", "label": "Joshua 3:1-17", "order": 6005, "verseRange": "3:1-17" }, { "itemId": "jos-p6", "book": "jos", "label": "Joshua 4:1-14", "order": 6006, "verseRange": "4:1-14" }, { "itemId": "jos-p7", "book": "jos", "label": "Joshua 4:15-5:1", "order": 6007, "verseRange": "4:15-5:1" }, { "itemId": "jos-p8", "book": "jos", "label": "Joshua 5:2-9", "order": 6008, "verseRange": "5:2-9" }, { "itemId": "jos-p9", "book": "jos", "label": "Joshua 5:10-15", "order": 6009, "verseRange": "5:10-15" }, { "itemId": "jos-p10", "book": "jos", "label": "Joshua 6:1-14", "order": 6010, "verseRange": "6:1-14" }, { "itemId": "jos-p11", "book": "jos", "label": "Joshua 6:15-27", "order": 6011, "verseRange": "6:15-27" }, { "itemId": "jos-p12", "book": "jos", "label": "Joshua 7:1-9", "order": 6012, "verseRange": "7:1-9" }, { "itemId": "jos-p13", "book": "jos", "label": "Joshua 7:10-26", "order": 6013, "verseRange": "7:10-26" }, { "itemId": "jos-p14", "book": "jos", "label": "Joshua 8:1-13", "order": 6014, "verseRange": "8:1-13" }, { "itemId": "jos-p15", "book": "jos", "label": "Joshua 8:14-29", "order": 6015, "verseRange": "8:14-29" }, { "itemId": "jos-p16", "book": "jos", "label": "Joshua 8:30-35", "order": 6016, "verseRange": "8:30-35" }, { "itemId": "jos-p17", "book": "jos", "label": "Joshua 9:1-15", "order": 6017, "verseRange": "9:1-15" }, { "itemId": "jos-p18", "book": "jos", "label": "Joshua 9:16-27", "order": 6018, "verseRange": "9:16-27" }, { "itemId": "jos-p19", "book": "jos", "label": "Joshua 10:1-15", "order": 6019, "verseRange": "10:1-15" }, { "itemId": "jos-p20", "book": "jos", "label": "Joshua 10:16-28", "order": 6020, "verseRange": "10:16-28" }, { "itemId": "jos-p21", "book": "jos", "label": "Joshua 10:29-43", "order": 6021, "verseRange": "10:29-43" }, { "itemId": "jos-p22", "book": "jos", "label": "Joshua 11:1-15", "order": 6022, "verseRange": "11:1-15" }, { "itemId": "jos-p23", "book": "jos", "label": "Joshua 11:16-23", "order": 6023, "verseRange": "11:16-23" }, { "itemId": "jos-p24", "book": "jos", "label": "Joshua 12:1-6", "order": 6024, "verseRange": "12:1-6" }, { "itemId": "jos-p25", "book": "jos", "label": "Joshua 12:7-24", "order": 6025, "verseRange": "12:7-24" }, { "itemId": "jos-p26", "book": "jos", "label": "Joshua 13:1-7", "order": 6026, "verseRange": "13:1-7" }, { "itemId": "jos-p27", "book": "jos", "label": "Joshua 13:8-13", "order": 6027, "verseRange": "13:8-13" }, { "itemId": "jos-p28", "book": "jos", "label": "Joshua 13:14-23", "order": 6028, "verseRange": "13:14-23" }, { "itemId": "jos-p29", "book": "jos", "label": "Joshua 13:24-33", "order": 6029, "verseRange": "13:24-33" }, { "itemId": "jos-p30", "book": "jos", "label": "Joshua 14:1-15", "order": 6030, "verseRange": "14:1-15" }, { "itemId": "jos-p31", "book": "jos", "label": "Joshua 15:1-12", "order": 6031, "verseRange": "15:1-12" }, { "itemId": "jos-p32", "book": "jos", "label": "Joshua 15:13-19", "order": 6032, "verseRange": "15:13-19" }, { "itemId": "jos-p33", "book": "jos", "label": "Joshua 15:20-32", "order": 6033, "verseRange": "15:20-32" }, { "itemId": "jos-p34", "book": "jos", "label": "Joshua 15:33-47", "order": 6034, "verseRange": "15:33-47" }, { "itemId": "jos-p35", "book": "jos", "label": "Joshua 15:48-63", "order": 6035, "verseRange": "15:48-63" }, { "itemId": "jos-p36", "book": "jos", "label": "Joshua 16:1-10", "order": 6036, "verseRange": "16:1-10" }, { "itemId": "jos-p37", "book": "jos", "label": "Joshua 17:1-13", "order": 6037, "verseRange": "17:1-13" }, { "itemId": "jos-p38", "book": "jos", "label": "Joshua 17:14-18", "order": 6038, "verseRange": "17:14-18" }, { "itemId": "jos-p39", "book": "jos", "label": "Joshua 18:1-10", "order": 6039, "verseRange": "18:1-10" }, { "itemId": "jos-p40", "book": "jos", "label": "Joshua 18:11-28", "order": 6040, "verseRange": "18:11-28" }, { "itemId": "jos-p41", "book": "jos", "label": "Joshua 19:1-9", "order": 6041, "verseRange": "19:1-9" }, { "itemId": "jos-p42", "book": "jos", "label": "Joshua 19:10-16", "order": 6042, "verseRange": "19:10-16" }, { "itemId": "jos-p43", "book": "jos", "label": "Joshua 19:17-23", "order": 6043, "verseRange": "19:17-23" }, { "itemId": "jos-p44", "book": "jos", "label": "Joshua 19:24-31", "order": 6044, "verseRange": "19:24-31" }, { "itemId": "jos-p45", "book": "jos", "label": "Joshua 19:32-39", "order": 6045, "verseRange": "19:32-39" }, { "itemId": "jos-p46", "book": "jos", "label": "Joshua 19:40-48", "order": 6046, "verseRange": "19:40-48" }, { "itemId": "jos-p47", "book": "jos", "label": "Joshua 19:49-51", "order": 6047, "verseRange": "19:49-51" }, { "itemId": "jos-p48", "book": "jos", "label": "Joshua 20:1-9", "order": 6048, "verseRange": "20:1-9" }, { "itemId": "jos-p49", "book": "jos", "label": "Joshua 21:1-8", "order": 6049, "verseRange": "21:1-8" }, { "itemId": "jos-p50", "book": "jos", "label": "Joshua 21:9-19", "order": 6050, "verseRange": "21:9-19" }, { "itemId": "jos-p51", "book": "jos", "label": "Joshua 21:20-26", "order": 6051, "verseRange": "21:20-26" }, { "itemId": "jos-p52", "book": "jos", "label": "Joshua 21:27-33", "order": 6052, "verseRange": "21:27-33" }, { "itemId": "jos-p53", "book": "jos", "label": "Joshua 21:34-40", "order": 6053, "verseRange": "21:34-40" }, { "itemId": "jos-p54", "book": "jos", "label": "Joshua 21:41-45", "order": 6054, "verseRange": "21:41-45" }, { "itemId": "jos-p55", "book": "jos", "label": "Joshua 22:1-12", "order": 6055, "verseRange": "22:1-12" }, { "itemId": "jos-p56", "book": "jos", "label": "Joshua 22:13-20", "order": 6056, "verseRange": "22:13-20" }, { "itemId": "jos-p57", "book": "jos", "label": "Joshua 22:21-34", "order": 6057, "verseRange": "22:21-34" }, { "itemId": "jos-p58a", "book": "jos", "label": "Joshua 23:1-8", "order": 6058, "verseRange": "23:1-8" }, { "itemId": "jos-p58b", "book": "jos", "label": "Joshua 23:9-16", "order": 6058, "verseRange": "23:9-16" }, { "itemId": "jos-p59", "book": "jos", "label": "Joshua 24:1-13", "order": 6059, "verseRange": "24:1-13" }, { "itemId": "jos-p60", "book": "jos", "label": "Joshua 24:14-28", "order": 6060, "verseRange": "24:14-28" }, { "itemId": "jos-p61", "book": "jos", "label": "Joshua 24:29-33", "order": 6061, "verseRange": "24:29-33" }, { "itemId": "jdg-p1", "book": "jdg", "label": "Judges 1:1-8", "order": 7001, "verseRange": "1:1-8" }, { "itemId": "jdg-p2", "book": "jdg", "label": "Judges 1:9-17", "order": 7002, "verseRange": "1:9-17" }, { "itemId": "jdg-p3", "book": "jdg", "label": "Judges 1:18-26", "order": 7003, "verseRange": "1:18-26" }, { "itemId": "jdg-p4", "book": "jdg", "label": "Judges 1:27-36", "order": 7004, "verseRange": "1:27-36" }, { "itemId": "jdg-p5", "book": "jdg", "label": "Judges 2:1-10", "order": 7005, "verseRange": "2:1-10" }, { "itemId": "jdg-p6", "book": "jdg", "label": "Judges 2:11-19", "order": 7006, "verseRange": "2:11-19" }, { "itemId": "jdg-p7", "book": "jdg", "label": "Judges 2:20-3:6", "order": 7007, "verseRange": "2:20-3:6" }, { "itemId": "jdg-p8", "book": "jdg", "label": "Judges 3:7-11", "order": 7008, "verseRange": "3:7-11" }, { "itemId": "jdg-p9", "book": "jdg", "label": "Judges 3:12-31", "order": 7009, "verseRange": "3:12-31" }, { "itemId": "jdg-p10a", "book": "jdg", "label": "Judges 4:1-10", "order": 7010, "verseRange": "4:1-10" }, { "itemId": "jdg-p10b", "book": "jdg", "label": "Judges 4:11-24", "order": 7010, "verseRange": "4:11-24" }, { "itemId": "jdg-p11a", "book": "jdg", "label": "Judges 5:1-11a", "order": 7011, "verseRange": "5:1-11a" }, { "itemId": "jdg-p11b", "book": "jdg", "label": "Judges 5:11b-18", "order": 7011, "verseRange": "5:11b-18" }, { "itemId": "jdg-p11c", "book": "jdg", "label": "Judges 5:19-23", "order": 7011, "verseRange": "5:19-23" }, { "itemId": "jdg-p11d", "book": "jdg", "label": "Judges 5:24-31", "order": 7011, "verseRange": "5:24-31" }, { "itemId": "jdg-p12", "book": "jdg", "label": "Judges 6:1-10", "order": 7012, "verseRange": "6:1-10" }, { "itemId": "jdg-p13", "book": "jdg", "label": "Judges 6:11-27", "order": 7013, "verseRange": "6:11-27" }, { "itemId": "jdg-p14", "book": "jdg", "label": "Judges 6:28-40", "order": 7014, "verseRange": "6:28-40" }, { "itemId": "jdg-p15", "book": "jdg", "label": "Judges 7:1-8", "order": 7015, "verseRange": "7:1-8" }, { "itemId": "jdg-p16a", "book": "jdg", "label": "Judges 7:9-15", "order": 7016, "verseRange": "7:9-15" }, { "itemId": "jdg-p16b", "book": "jdg", "label": "Judges 7:16-25", "order": 7016, "verseRange": "7:16-25" }, { "itemId": "jdg-p17", "book": "jdg", "label": "Judges 8:1-3", "order": 7017, "verseRange": "8:1-3" }, { "itemId": "jdg-p18", "book": "jdg", "label": "Judges 8:4-21", "order": 7018, "verseRange": "8:4-21" }, { "itemId": "jdg-p19", "book": "jdg", "label": "Judges 8:22-35", "order": 7019, "verseRange": "8:22-35" }, { "itemId": "jdg-p20", "book": "jdg", "label": "Judges 9:1-6", "order": 7020, "verseRange": "9:1-6" }, { "itemId": "jdg-p21", "book": "jdg", "label": "Judges 9:7-21", "order": 7021, "verseRange": "9:7-21" }, { "itemId": "jdg-p22", "book": "jdg", "label": "Judges 9:22-29", "order": 7022, "verseRange": "9:22-29" }, { "itemId": "jdg-p23", "book": "jdg", "label": "Judges 9:30-41", "order": 7023, "verseRange": "9:30-41" }, { "itemId": "jdg-p24", "book": "jdg", "label": "Judges 9:42-49", "order": 7024, "verseRange": "9:42-49" }, { "itemId": "jdg-p25", "book": "jdg", "label": "Judges 9:50-57", "order": 7025, "verseRange": "9:50-57" }, { "itemId": "jdg-p26", "book": "jdg", "label": "Judges 10:1-5", "order": 7026, "verseRange": "10:1-5" }, { "itemId": "jdg-p27", "book": "jdg", "label": "Judges 10:6-16", "order": 7027, "verseRange": "10:6-16" }, { "itemId": "jdg-p28", "book": "jdg", "label": "Judges 10:17-11:11", "order": 7028, "verseRange": "10:17-11:11" }, { "itemId": "jdg-p29", "book": "jdg", "label": "Judges 11:12-28", "order": 7029, "verseRange": "11:12-28" }, { "itemId": "jdg-p30a", "book": "jdg", "label": "Judges 11:29-33", "order": 7030, "verseRange": "11:29-33" }, { "itemId": "jdg-p30b", "book": "jdg", "label": "Judges 11:34-40", "order": 7030, "verseRange": "11:34-40" }, { "itemId": "jdg-p31", "book": "jdg", "label": "Judges 12:1-7", "order": 7031, "verseRange": "12:1-7" }, { "itemId": "jdg-p32", "book": "jdg", "label": "Judges 12:8-15", "order": 7032, "verseRange": "12:8-15" }, { "itemId": "jdg-p33a", "book": "jdg", "label": "Judges 13:1-7", "order": 7033, "verseRange": "13:1-7" }, { "itemId": "jdg-p33b", "book": "jdg", "label": "Judges 13:8-25", "order": 7033, "verseRange": "13:8-25" }, { "itemId": "jdg-p34a", "book": "jdg", "label": "Judges 14:1-9", "order": 7034, "verseRange": "14:1-9" }, { "itemId": "jdg-p34b", "book": "jdg", "label": "Judges 14:10-20", "order": 7034, "verseRange": "14:10-20" }, { "itemId": "jdg-p35", "book": "jdg", "label": "Judges 15:1-8", "order": 7035, "verseRange": "15:1-8" }, { "itemId": "jdg-p36", "book": "jdg", "label": "Judges 15:9-20", "order": 7036, "verseRange": "15:9-20" }, { "itemId": "jdg-p37", "book": "jdg", "label": "Judges 16:1-3", "order": 7037, "verseRange": "16:1-3" }, { "itemId": "jdg-p38a", "book": "jdg", "label": "Judges 16:4-14", "order": 7038, "verseRange": "16:4-14" }, { "itemId": "jdg-p38b", "book": "jdg", "label": "Judges 16:15-22", "order": 7038, "verseRange": "16:15-22" }, { "itemId": "jdg-p39", "book": "jdg", "label": "Judges 16:23-31", "order": 7039, "verseRange": "16:23-31" }, { "itemId": "jdg-p40", "book": "jdg", "label": "Judges 17:1-13", "order": 7040, "verseRange": "17:1-13" }, { "itemId": "jdg-p41", "book": "jdg", "label": "Judges 18:1-10", "order": 7041, "verseRange": "18:1-10" }, { "itemId": "jdg-p42", "book": "jdg", "label": "Judges 18:11-21", "order": 7042, "verseRange": "18:11-21" }, { "itemId": "jdg-p43", "book": "jdg", "label": "Judges 18:22-31", "order": 7043, "verseRange": "18:22-31" }, { "itemId": "jdg-p44a", "book": "jdg", "label": "Judges 19:1-10", "order": 7044, "verseRange": "19:1-10" }, { "itemId": "jdg-p44b", "book": "jdg", "label": "Judges 19:11-21", "order": 7044, "verseRange": "19:11-21" }, { "itemId": "jdg-p45", "book": "jdg", "label": "Judges 19:22-30", "order": 7045, "verseRange": "19:22-30" }, { "itemId": "jdg-p46", "book": "jdg", "label": "Judges 20:1-11", "order": 7046, "verseRange": "20:1-11" }, { "itemId": "jdg-p47", "book": "jdg", "label": "Judges 20:12-25", "order": 7047, "verseRange": "20:12-25" }, { "itemId": "jdg-p48a", "book": "jdg", "label": "Judges 20:26-35", "order": 7048, "verseRange": "20:26-35" }, { "itemId": "jdg-p48b", "book": "jdg", "label": "Judges 20:36-48", "order": 7048, "verseRange": "20:36-48" }, { "itemId": "jdg-p49", "book": "jdg", "label": "Judges 21:1-12", "order": 7049, "verseRange": "21:1-12" }, { "itemId": "jdg-p50", "book": "jdg", "label": "Judges 21:13-25", "order": 7050, "verseRange": "21:13-25" }, { "itemId": "1sa-p1", "book": "1sa", "label": "1 Samuel 1:1-8", "order": 9001, "verseRange": "1:1-8" }, { "itemId": "1sa-p2", "book": "1sa", "label": "1 Samuel 1:9-18", "order": 9002, "verseRange": "1:9-18" }, { "itemId": "1sa-p3", "book": "1sa", "label": "1 Samuel 1:19-28", "order": 9003, "verseRange": "1:19-28" }, { "itemId": "1sa-p4", "book": "1sa", "label": "1 Samuel 2:1-11", "order": 9004, "verseRange": "2:1-11" }, { "itemId": "1sa-p5", "book": "1sa", "label": "1 Samuel 2:12-26", "order": 9005, "verseRange": "2:12-26" }, { "itemId": "1sa-p6", "book": "1sa", "label": "1 Samuel 2:27-36", "order": 9006, "verseRange": "2:27-36" }, { "itemId": "1sa-p7", "book": "1sa", "label": "1 Samuel 3:1-14", "order": 9007, "verseRange": "3:1-14" }, { "itemId": "1sa-p8", "book": "1sa", "label": "1 Samuel 3:15-4:1a", "order": 9008, "verseRange": "3:15-4:1a" }, { "itemId": "1sa-p9", "book": "1sa", "label": "1 Samuel 4:1b-11", "order": 9009, "verseRange": "4:1b-11" }, { "itemId": "1sa-p10", "book": "1sa", "label": "1 Samuel 4:12-22", "order": 9010, "verseRange": "4:12-22" }, { "itemId": "1sa-p11", "book": "1sa", "label": "1 Samuel 5:1-12", "order": 9011, "verseRange": "5:1-12" }, { "itemId": "1sa-p12", "book": "1sa", "label": "1 Samuel 6:1-18", "order": 9012, "verseRange": "6:1-18" }, { "itemId": "1sa-p13", "book": "1sa", "label": "1 Samuel 6:19-7:2", "order": 9013, "verseRange": "6:19-7:2" }, { "itemId": "1sa-p14", "book": "1sa", "label": "1 Samuel 7:3-17", "order": 9014, "verseRange": "7:3-17" }, { "itemId": "1sa-p15", "book": "1sa", "label": "1 Samuel 8:1-9", "order": 9015, "verseRange": "8:1-9" }, { "itemId": "1sa-p16", "book": "1sa", "label": "1 Samuel 8:10-22", "order": 9016, "verseRange": "8:10-22" }, { "itemId": "1sa-p17", "book": "1sa", "label": "1 Samuel 9:1-14", "order": 9017, "verseRange": "9:1-14" }, { "itemId": "1sa-p18", "book": "1sa", "label": "1 Samuel 9:15-27", "order": 9018, "verseRange": "9:15-27" }, { "itemId": "1sa-p19", "book": "1sa", "label": "1 Samuel 10:1-16", "order": 9019, "verseRange": "10:1-16" }, { "itemId": "1sa-p20", "book": "1sa", "label": "1 Samuel 10:17-27", "order": 9020, "verseRange": "10:17-27" }, { "itemId": "1sa-p21", "book": "1sa", "label": "1 Samuel 11:1-15", "order": 9021, "verseRange": "11:1-15" }, { "itemId": "1sa-p22", "book": "1sa", "label": "1 Samuel 12:1-17", "order": 9022, "verseRange": "12:1-17" }, { "itemId": "1sa-p23", "book": "1sa", "label": "1 Samuel 12:18-25", "order": 9023, "verseRange": "12:18-25" }, { "itemId": "1sa-p24", "book": "1sa", "label": "1 Samuel 13:1-14", "order": 9024, "verseRange": "13:1-14" }, { "itemId": "1sa-p25", "book": "1sa", "label": "1 Samuel 13:15-23", "order": 9025, "verseRange": "13:15-23" }, { "itemId": "1sa-p26", "book": "1sa", "label": "1 Samuel 14:1-15", "order": 9026, "verseRange": "14:1-15" }, { "itemId": "1sa-p27", "book": "1sa", "label": "1 Samuel 14:16-23", "order": 9027, "verseRange": "14:16-23" }, { "itemId": "1sa-p28", "book": "1sa", "label": "1 Samuel 14:24-35", "order": 9028, "verseRange": "14:24-35" }, { "itemId": "1sa-p29", "book": "1sa", "label": "1 Samuel 14:36-46", "order": 9029, "verseRange": "14:36-46" }, { "itemId": "1sa-p30", "book": "1sa", "label": "1 Samuel 14:47-52", "order": 9030, "verseRange": "14:47-52" }, { "itemId": "1sa-p31", "book": "1sa", "label": "1 Samuel 15:1-9", "order": 9031, "verseRange": "15:1-9" }, { "itemId": "1sa-p32", "book": "1sa", "label": "1 Samuel 15:10-23", "order": 9032, "verseRange": "15:10-23" }, { "itemId": "1sa-p33", "book": "1sa", "label": "1 Samuel 15:24-35", "order": 9033, "verseRange": "15:24-35" }, { "itemId": "1sa-p34", "book": "1sa", "label": "1 Samuel 16:1-13", "order": 9034, "verseRange": "16:1-13" }, { "itemId": "1sa-p35", "book": "1sa", "label": "1 Samuel 16:14-23", "order": 9035, "verseRange": "16:14-23" }, { "itemId": "1sa-p36", "book": "1sa", "label": "1 Samuel 17:1-11", "order": 9036, "verseRange": "17:1-11" }, { "itemId": "1sa-p37", "book": "1sa", "label": "1 Samuel 17:12-19", "order": 9037, "verseRange": "17:12-19" }, { "itemId": "1sa-p38", "book": "1sa", "label": "1 Samuel 17:20-30", "order": 9038, "verseRange": "17:20-30" }, { "itemId": "1sa-p39", "book": "1sa", "label": "1 Samuel 17:31-40", "order": 9039, "verseRange": "17:31-40" }, { "itemId": "1sa-p40", "book": "1sa", "label": "1 Samuel 17:41-54", "order": 9040, "verseRange": "17:41-54" }, { "itemId": "1sa-p41", "book": "1sa", "label": "1 Samuel 17:55-18:5", "order": 9041, "verseRange": "17:55-18:5" }, { "itemId": "1sa-p42", "book": "1sa", "label": "1 Samuel 18:6-16", "order": 9042, "verseRange": "18:6-16" }, { "itemId": "1sa-p43", "book": "1sa", "label": "1 Samuel 18:17-30", "order": 9043, "verseRange": "18:17-30" }, { "itemId": "1sa-p44", "book": "1sa", "label": "1 Samuel 19:1-10", "order": 9044, "verseRange": "19:1-10" }, { "itemId": "1sa-p45", "book": "1sa", "label": "1 Samuel 19:11-24", "order": 9045, "verseRange": "19:11-24" }, { "itemId": "1sa-p46", "book": "1sa", "label": "1 Samuel 20:1-17", "order": 9046, "verseRange": "20:1-17" }, { "itemId": "1sa-p47", "book": "1sa", "label": "1 Samuel 20:18-34", "order": 9047, "verseRange": "20:18-34" }, { "itemId": "1sa-p48", "book": "1sa", "label": "1 Samuel 20:35-42", "order": 9048, "verseRange": "20:35-42" }, { "itemId": "1sa-p49a", "book": "1sa", "label": "1 Samuel 21:1-9", "order": 9049, "verseRange": "21:1-9" }, { "itemId": "1sa-p49b", "book": "1sa", "label": "1 Samuel 21:10-15", "order": 9049, "verseRange": "21:10-15" }, { "itemId": "1sa-p50", "book": "1sa", "label": "1 Samuel 22:1-10", "order": 9050, "verseRange": "22:1-10" }, { "itemId": "1sa-p51", "book": "1sa", "label": "1 Samuel 22:11-23", "order": 9051, "verseRange": "22:11-23" }, { "itemId": "1sa-p52", "book": "1sa", "label": "1 Samuel 23:1-14", "order": 9052, "verseRange": "23:1-14" }, { "itemId": "1sa-p53", "book": "1sa", "label": "1 Samuel 23:15-29", "order": 9053, "verseRange": "23:15-29" }, { "itemId": "1sa-p54", "book": "1sa", "label": "1 Samuel 24:1-7", "order": 9054, "verseRange": "24:1-7" }, { "itemId": "1sa-p55", "book": "1sa", "label": "1 Samuel 24:8-22", "order": 9055, "verseRange": "24:8-22" }, { "itemId": "1sa-p56", "book": "1sa", "label": "1 Samuel 25:1-13", "order": 9056, "verseRange": "25:1-13" }, { "itemId": "1sa-p57", "book": "1sa", "label": "1 Samuel 25:14-22", "order": 9057, "verseRange": "25:14-22" }, { "itemId": "1sa-p58", "book": "1sa", "label": "1 Samuel 25:23-38", "order": 9058, "verseRange": "25:23-38" }, { "itemId": "1sa-p59", "book": "1sa", "label": "1 Samuel 25:39-44", "order": 9059, "verseRange": "25:39-44" }, { "itemId": "1sa-p60", "book": "1sa", "label": "1 Samuel 26:1-12", "order": 9060, "verseRange": "26:1-12" }, { "itemId": "1sa-p61", "book": "1sa", "label": "1 Samuel 26:13-25", "order": 9061, "verseRange": "26:13-25" }, { "itemId": "1sa-p62", "book": "1sa", "label": "1 Samuel 27:1-28:2", "order": 9062, "verseRange": "27:1-28:2" }, { "itemId": "1sa-p63", "book": "1sa", "label": "1 Samuel 28:3-14", "order": 9063, "verseRange": "28:3-14" }, { "itemId": "1sa-p64", "book": "1sa", "label": "1 Samuel 28:15-25", "order": 9064, "verseRange": "28:15-25" }, { "itemId": "1sa-p65", "book": "1sa", "label": "1 Samuel 29:1-11", "order": 9065, "verseRange": "29:1-11" }, { "itemId": "1sa-p66", "book": "1sa", "label": "1 Samuel 30:1-15", "order": 9066, "verseRange": "30:1-15" }, { "itemId": "1sa-p67", "book": "1sa", "label": "1 Samuel 30:16-31", "order": 9067, "verseRange": "30:16-31" }, { "itemId": "1sa-p68", "book": "1sa", "label": "1 Samuel 31:1-13", "order": 9068, "verseRange": "31:1-13" }, { "itemId": "2sa-p1", "book": "2sa", "label": "2 Samuel 1:1-16", "order": 10001, "verseRange": "1:1-16" }, { "itemId": "2sa-p2", "book": "2sa", "label": "2 Samuel 1:17-27", "order": 10002, "verseRange": "1:17-27" }, { "itemId": "2sa-p3", "book": "2sa", "label": "2 Samuel 2:1-7", "order": 10003, "verseRange": "2:1-7" }, { "itemId": "2sa-p4", "book": "2sa", "label": "2 Samuel 2:8-11", "order": 10004, "verseRange": "2:8-11" }, { "itemId": "2sa-p5", "book": "2sa", "label": "2 Samuel 2:12-17", "order": 10005, "verseRange": "2:12-17" }, { "itemId": "2sa-p6", "book": "2sa", "label": "2 Samuel 2:18-3:1", "order": 10006, "verseRange": "2:18-3:1" }, { "itemId": "2sa-p7", "book": "2sa", "label": "2 Samuel 3:2-5", "order": 10007, "verseRange": "3:2-5" }, { "itemId": "2sa-p8", "book": "2sa", "label": "2 Samuel 3:6-21", "order": 10008, "verseRange": "3:6-21" }, { "itemId": "2sa-p9", "book": "2sa", "label": "2 Samuel 3:22-30", "order": 10009, "verseRange": "3:22-30" }, { "itemId": "2sa-p10", "book": "2sa", "label": "2 Samuel 3:31-39", "order": 10010, "verseRange": "3:31-39" }, { "itemId": "2sa-p11", "book": "2sa", "label": "2 Samuel 4:1-12", "order": 10011, "verseRange": "4:1-12" }, { "itemId": "2sa-p12", "book": "2sa", "label": "2 Samuel 5:1-16", "order": 10012, "verseRange": "5:1-16" }, { "itemId": "2sa-p13", "book": "2sa", "label": "2 Samuel 5:17-25", "order": 10013, "verseRange": "5:17-25" }, { "itemId": "2sa-p14", "book": "2sa", "label": "2 Samuel 6:1-15", "order": 10014, "verseRange": "6:1-15" }, { "itemId": "2sa-p15", "book": "2sa", "label": "2 Samuel 6:16-23", "order": 10015, "verseRange": "6:16-23" }, { "itemId": "2sa-p16", "book": "2sa", "label": "2 Samuel 7:1-17", "order": 10016, "verseRange": "7:1-17" }, { "itemId": "2sa-p17", "book": "2sa", "label": "2 Samuel 7:18-29", "order": 10017, "verseRange": "7:18-29" }, { "itemId": "2sa-p18", "book": "2sa", "label": "2 Samuel 8:1-14", "order": 10018, "verseRange": "8:1-14" }, { "itemId": "2sa-p19", "book": "2sa", "label": "2 Samuel 8:15-18", "order": 10019, "verseRange": "8:15-18" }, { "itemId": "2sa-p20", "book": "2sa", "label": "2 Samuel 9:1-13", "order": 10020, "verseRange": "9:1-13" }, { "itemId": "2sa-p21", "book": "2sa", "label": "2 Samuel 10:1-19", "order": 10021, "verseRange": "10:1-19" }, { "itemId": "2sa-p22", "book": "2sa", "label": "2 Samuel 11:1-13", "order": 10022, "verseRange": "11:1-13" }, { "itemId": "2sa-p23", "book": "2sa", "label": "2 Samuel 11:14-27", "order": 10023, "verseRange": "11:14-27" }, { "itemId": "2sa-p24", "book": "2sa", "label": "2 Samuel 12:1-15a", "order": 10024, "verseRange": "12:1-15a" }, { "itemId": "2sa-p25", "book": "2sa", "label": "2 Samuel 12:15b-25", "order": 10025, "verseRange": "12:15b-25" }, { "itemId": "2sa-p26", "book": "2sa", "label": "2 Samuel 12:26-31", "order": 10026, "verseRange": "12:26-31" }, { "itemId": "2sa-p27a", "book": "2sa", "label": "2 Samuel 13:1-9", "order": 10027, "verseRange": "13:1-9" }, { "itemId": "2sa-p27b", "book": "2sa", "label": "2 Samuel 13:10-22", "order": 10027, "verseRange": "13:10-22" }, { "itemId": "2sa-p28", "book": "2sa", "label": "2 Samuel 13:23-39", "order": 10028, "verseRange": "13:23-39" }, { "itemId": "2sa-p29a", "book": "2sa", "label": "2 Samuel 14:1-11", "order": 10029, "verseRange": "14:1-11" }, { "itemId": "2sa-p29b", "book": "2sa", "label": "2 Samuel 14:12-24", "order": 10029, "verseRange": "14:12-24" }, { "itemId": "2sa-p30", "book": "2sa", "label": "2 Samuel 14:25-33", "order": 10030, "verseRange": "14:25-33" }, { "itemId": "2sa-p31", "book": "2sa", "label": "2 Samuel 15:1-12", "order": 10031, "verseRange": "15:1-12" }, { "itemId": "2sa-p32", "book": "2sa", "label": "2 Samuel 15:13-23", "order": 10032, "verseRange": "15:13-23" }, { "itemId": "2sa-p33", "book": "2sa", "label": "2 Samuel 15:24-37", "order": 10033, "verseRange": "15:24-37" }, { "itemId": "2sa-p34", "book": "2sa", "label": "2 Samuel 16:1-4", "order": 10034, "verseRange": "16:1-4" }, { "itemId": "2sa-p35", "book": "2sa", "label": "2 Samuel 16:5-14", "order": 10035, "verseRange": "16:5-14" }, { "itemId": "2sa-p36", "book": "2sa", "label": "2 Samuel 16:15-23", "order": 10036, "verseRange": "16:15-23" }, { "itemId": "2sa-p37", "book": "2sa", "label": "2 Samuel 17:1-14", "order": 10037, "verseRange": "17:1-14" }, { "itemId": "2sa-p38", "book": "2sa", "label": "2 Samuel 17:15-29", "order": 10038, "verseRange": "17:15-29" }, { "itemId": "2sa-p39a", "book": "2sa", "label": "2 Samuel 18:1-8", "order": 10039, "verseRange": "18:1-8" }, { "itemId": "2sa-p39b", "book": "2sa", "label": "2 Samuel 18:9-18", "order": 10039, "verseRange": "18:9-18" }, { "itemId": "2sa-p40", "book": "2sa", "label": "2 Samuel 18:19-33", "order": 10040, "verseRange": "18:19-33" }, { "itemId": "2sa-p41", "book": "2sa", "label": "2 Samuel 19:1-8a", "order": 10041, "verseRange": "19:1-8a" }, { "itemId": "2sa-p42", "book": "2sa", "label": "2 Samuel 19:8b-18a", "order": 10042, "verseRange": "19:8b-18a" }, { "itemId": "2sa-p43", "book": "2sa", "label": "2 Samuel 19:18b-23", "order": 10043, "verseRange": "19:18b-23" }, { "itemId": "2sa-p44", "book": "2sa", "label": "2 Samuel 19:24-30", "order": 10044, "verseRange": "19:24-30" }, { "itemId": "2sa-p45", "book": "2sa", "label": "2 Samuel 19:31-39", "order": 10045, "verseRange": "19:31-39" }, { "itemId": "2sa-p46", "book": "2sa", "label": "2 Samuel 19:40-43", "order": 10046, "verseRange": "19:40-43" }, { "itemId": "2sa-p47", "book": "2sa", "label": "2 Samuel 20:1-22", "order": 10047, "verseRange": "20:1-22" }, { "itemId": "2sa-p48", "book": "2sa", "label": "2 Samuel 20:23-26", "order": 10048, "verseRange": "20:23-26" }, { "itemId": "2sa-p49", "book": "2sa", "label": "2 Samuel 21:1-14", "order": 10049, "verseRange": "21:1-14" }, { "itemId": "2sa-p50", "book": "2sa", "label": "2 Samuel 21:15-22", "order": 10050, "verseRange": "21:15-22" }, { "itemId": "2sa-p51a", "book": "2sa", "label": "2 Samuel 22:1-4", "order": 10051, "verseRange": "22:1-4" }, { "itemId": "2sa-p51b", "book": "2sa", "label": "2 Samuel 22:5-20", "order": 10051, "verseRange": "22:5-20" }, { "itemId": "2sa-p51c", "book": "2sa", "label": "2 Samuel 22:21-29", "order": 10051, "verseRange": "22:21-29" }, { "itemId": "2sa-p51d", "book": "2sa", "label": "2 Samuel 22:30-46", "order": 10051, "verseRange": "22:30-46" }, { "itemId": "2sa-p51e", "book": "2sa", "label": "2 Samuel 22:47-51", "order": 10051, "verseRange": "22:47-51" }, { "itemId": "2sa-p52", "book": "2sa", "label": "2 Samuel 23:1-7", "order": 10052, "verseRange": "23:1-7" }, { "itemId": "2sa-p53", "book": "2sa", "label": "2 Samuel 23:8-17", "order": 10053, "verseRange": "23:8-17" }, { "itemId": "2sa-p54", "book": "2sa", "label": "2 Samuel 23:18-23", "order": 10054, "verseRange": "23:18-23" }, { "itemId": "2sa-p55", "book": "2sa", "label": "2 Samuel 23:24-39", "order": 10055, "verseRange": "23:24-39" }, { "itemId": "2sa-p56", "book": "2sa", "label": "2 Samuel 24:1-9", "order": 10056, "verseRange": "24:1-9" }, { "itemId": "2sa-p57", "book": "2sa", "label": "2 Samuel 24:10-17", "order": 10057, "verseRange": "24:10-17" }, { "itemId": "2sa-p58", "book": "2sa", "label": "2 Samuel 24:18-25", "order": 10058, "verseRange": "24:18-25" }, { "itemId": "1ki-p1a", "book": "1ki", "label": "1 Kings 1:1-4", "order": 11001, "verseRange": "1:1-4" }, { "itemId": "1ki-p1b", "book": "1ki", "label": "1 Kings 1:5-10", "order": 11001, "verseRange": "1:5-10" }, { "itemId": "1ki-p2", "book": "1ki", "label": "1 Kings 1:11-27", "order": 11002, "verseRange": "1:11-27" }, { "itemId": "1ki-p3", "book": "1ki", "label": "1 Kings 1:28-37", "order": 11003, "verseRange": "1:28-37" }, { "itemId": "1ki-p4", "book": "1ki", "label": "1 Kings 1:38-53", "order": 11004, "verseRange": "1:38-53" }, { "itemId": "1ki-p5", "book": "1ki", "label": "1 Kings 2:1-12", "order": 11005, "verseRange": "2:1-12" }, { "itemId": "1ki-p6", "book": "1ki", "label": "1 Kings 2:13-25", "order": 11006, "verseRange": "2:13-25" }, { "itemId": "1ki-p7", "book": "1ki", "label": "1 Kings 2:26-35", "order": 11007, "verseRange": "2:26-35" }, { "itemId": "1ki-p8", "book": "1ki", "label": "1 Kings 2:36-46", "order": 11008, "verseRange": "2:36-46" }, { "itemId": "1ki-p9", "book": "1ki", "label": "1 Kings 3:1-15", "order": 11009, "verseRange": "3:1-15" }, { "itemId": "1ki-p10", "book": "1ki", "label": "1 Kings 3:16-28", "order": 11010, "verseRange": "3:16-28" }, { "itemId": "1ki-p11", "book": "1ki", "label": "1 Kings 4:1-19", "order": 11011, "verseRange": "4:1-19" }, { "itemId": "1ki-p12", "book": "1ki", "label": "1 Kings 4:20-28", "order": 11012, "verseRange": "4:20-28" }, { "itemId": "1ki-p13", "book": "1ki", "label": "1 Kings 4:29-34", "order": 11013, "verseRange": "4:29-34" }, { "itemId": "1ki-p14", "book": "1ki", "label": "1 Kings 5:1-12", "order": 11014, "verseRange": "5:1-12" }, { "itemId": "1ki-p15", "book": "1ki", "label": "1 Kings 5:13-18", "order": 11015, "verseRange": "5:13-18" }, { "itemId": "1ki-p16", "book": "1ki", "label": "1 Kings 6:1-13", "order": 11016, "verseRange": "6:1-13" }, { "itemId": "1ki-p17", "book": "1ki", "label": "1 Kings 6:14-38", "order": 11017, "verseRange": "6:14-38" }, { "itemId": "1ki-p18", "book": "1ki", "label": "1 Kings 7:1-12", "order": 11018, "verseRange": "7:1-12" }, { "itemId": "1ki-p19", "book": "1ki", "label": "1 Kings 7:13-22", "order": 11019, "verseRange": "7:13-22" }, { "itemId": "1ki-p20", "book": "1ki", "label": "1 Kings 7:23-39", "order": 11020, "verseRange": "7:23-39" }, { "itemId": "1ki-p21", "book": "1ki", "label": "1 Kings 7:40-51", "order": 11021, "verseRange": "7:40-51" }, { "itemId": "1ki-p23", "book": "1ki", "label": "1 Kings 8:12-21", "order": 11023, "verseRange": "8:12-21" }, { "itemId": "1ki-p24", "book": "1ki", "label": "1 Kings 8:22-30", "order": 11024, "verseRange": "8:22-30" }, { "itemId": "1ki-p26", "book": "1ki", "label": "1 Kings 8:54-61", "order": 11026, "verseRange": "8:54-61" }, { "itemId": "1ki-p27", "book": "1ki", "label": "1 Kings 8:62-66", "order": 11027, "verseRange": "8:62-66" }, { "itemId": "1ki-p28", "book": "1ki", "label": "1 Kings 9:1-9", "order": 11028, "verseRange": "9:1-9" }, { "itemId": "1ki-p29", "book": "1ki", "label": "1 Kings 9:10-25", "order": 11029, "verseRange": "9:10-25" }, { "itemId": "1ki-p30", "book": "1ki", "label": "1 Kings 9:26-10:13", "order": 11030, "verseRange": "9:26-10:13" }, { "itemId": "1ki-p31", "book": "1ki", "label": "1 Kings 10:14-29", "order": 11031, "verseRange": "10:14-29" }, { "itemId": "1ki-p33", "book": "1ki", "label": "1 Kings 11:14-25", "order": 11033, "verseRange": "11:14-25" }, { "itemId": "1ki-p34", "book": "1ki", "label": "1 Kings 11:26-43", "order": 11034, "verseRange": "11:26-43" }, { "itemId": "1ki-p35", "book": "1ki", "label": "1 Kings 12:1-15", "order": 11035, "verseRange": "12:1-15" }, { "itemId": "1ki-p36", "book": "1ki", "label": "1 Kings 12:16-24", "order": 11036, "verseRange": "12:16-24" }, { "itemId": "1ki-p37", "book": "1ki", "label": "1 Kings 12:25-33", "order": 11037, "verseRange": "12:25-33" }, { "itemId": "1ki-p38", "book": "1ki", "label": "1 Kings 13:1-10", "order": 11038, "verseRange": "13:1-10" }, { "itemId": "1ki-p39a", "book": "1ki", "label": "1 Kings 13:11-22", "order": 11039, "verseRange": "13:11-22" }, { "itemId": "1ki-p39b", "book": "1ki", "label": "1 Kings 13:23-34", "order": 11039, "verseRange": "13:23-34" }, { "itemId": "1ki-p40a", "book": "1ki", "label": "1 Kings 14:1-11", "order": 11040, "verseRange": "14:1-11" }, { "itemId": "1ki-p40b", "book": "1ki", "label": "1 Kings 14:12-20", "order": 11040, "verseRange": "14:12-20" }, { "itemId": "1ki-p41", "book": "1ki", "label": "1 Kings 14:21-31", "order": 11041, "verseRange": "14:21-31" }, { "itemId": "1ki-p42", "book": "1ki", "label": "1 Kings 15:1-8", "order": 11042, "verseRange": "15:1-8" }, { "itemId": "1ki-p44", "book": "1ki", "label": "1 Kings 15:25-32", "order": 11044, "verseRange": "15:25-32" }, { "itemId": "1ki-p45", "book": "1ki", "label": "1 Kings 15:33-16:7", "order": 11045, "verseRange": "15:33-16:7" }, { "itemId": "1ki-p46", "book": "1ki", "label": "1 Kings 16:8-14", "order": 11046, "verseRange": "16:8-14" }, { "itemId": "1ki-p47", "book": "1ki", "label": "1 Kings 16:15-20", "order": 11047, "verseRange": "16:15-20" }, { "itemId": "1ki-p48", "book": "1ki", "label": "1 Kings 16:21-28", "order": 11048, "verseRange": "16:21-28" }, { "itemId": "1ki-p49", "book": "1ki", "label": "1 Kings 16:29-34", "order": 11049, "verseRange": "16:29-34" }, { "itemId": "1ki-p50", "book": "1ki", "label": "1 Kings 17:1-7", "order": 11050, "verseRange": "17:1-7" }, { "itemId": "1ki-p51", "book": "1ki", "label": "1 Kings 17:8-16", "order": 11051, "verseRange": "17:8-16" }, { "itemId": "1ki-p52", "book": "1ki", "label": "1 Kings 17:17-24", "order": 11052, "verseRange": "17:17-24" }, { "itemId": "1ki-p53", "book": "1ki", "label": "1 Kings 18:1-15", "order": 11053, "verseRange": "18:1-15" }, { "itemId": "1ki-p54", "book": "1ki", "label": "1 Kings 18:16-29", "order": 11054, "verseRange": "18:16-29" }, { "itemId": "1ki-p55", "book": "1ki", "label": "1 Kings 18:30-40", "order": 11055, "verseRange": "18:30-40" }, { "itemId": "1ki-p56", "book": "1ki", "label": "1 Kings 18:41-46", "order": 11056, "verseRange": "18:41-46" }, { "itemId": "1ki-p57", "book": "1ki", "label": "1 Kings 19:1-8", "order": 11057, "verseRange": "19:1-8" }, { "itemId": "1ki-p58", "book": "1ki", "label": "1 Kings 19:9-21", "order": 11058, "verseRange": "19:9-21" }, { "itemId": "1ki-p59", "book": "1ki", "label": "1 Kings 20:1-12", "order": 11059, "verseRange": "20:1-12" }, { "itemId": "1ki-p60", "book": "1ki", "label": "1 Kings 20:13-22", "order": 11060, "verseRange": "20:13-22" }, { "itemId": "1ki-p61", "book": "1ki", "label": "1 Kings 20:23-34", "order": 11061, "verseRange": "20:23-34" }, { "itemId": "1ki-p62", "book": "1ki", "label": "1 Kings 20:35-43", "order": 11062, "verseRange": "20:35-43" }, { "itemId": "1ki-p63", "book": "1ki", "label": "1 Kings 21:1-16", "order": 11063, "verseRange": "21:1-16" }, { "itemId": "1ki-p64", "book": "1ki", "label": "1 Kings 21:17-29", "order": 11064, "verseRange": "21:17-29" }, { "itemId": "1ki-p65", "book": "1ki", "label": "1 Kings 22:1-12", "order": 11065, "verseRange": "22:1-12" }, { "itemId": "1ki-p66", "book": "1ki", "label": "1 Kings 22:13-28", "order": 11066, "verseRange": "22:13-28" }, { "itemId": "1ki-p67", "book": "1ki", "label": "1 Kings 22:29-40", "order": 11067, "verseRange": "22:29-40" }, { "itemId": "1ki-p68", "book": "1ki", "label": "1 Kings 22:41-53", "order": 11068, "verseRange": "22:41-53" }, { "itemId": "1ch-p1", "book": "1ch", "label": "1 Chronicles 1:1-7", "order": 13001, "verseRange": "1:1-7" }, { "itemId": "1ch-p2", "book": "1ch", "label": "1 Chronicles 1:8-16", "order": 13002, "verseRange": "1:8-16" }, { "itemId": "1ch-p3", "book": "1ch", "label": "1 Chronicles 1:17-27", "order": 13003, "verseRange": "1:17-27" }, { "itemId": "1ch-p4", "book": "1ch", "label": "1 Chronicles 1:28-33", "order": 13004, "verseRange": "1:28-33" }, { "itemId": "1ch-p5", "book": "1ch", "label": "1 Chronicles 1:34-37", "order": 13005, "verseRange": "1:34-37" }, { "itemId": "1ch-p6", "book": "1ch", "label": "1 Chronicles 1:38-42", "order": 13006, "verseRange": "1:38-42" }, { "itemId": "1ch-p7", "book": "1ch", "label": "1 Chronicles 1:43-54", "order": 13007, "verseRange": "1:43-54" }, { "itemId": "1ch-p8", "book": "1ch", "label": "1 Chronicles 2:1-8", "order": 13008, "verseRange": "2:1-8" }, { "itemId": "1ch-p9", "book": "1ch", "label": "1 Chronicles 2:9-17", "order": 13009, "verseRange": "2:9-17" }, { "itemId": "1ch-p10", "book": "1ch", "label": "1 Chronicles 2:18-24", "order": 13010, "verseRange": "2:18-24" }, { "itemId": "1ch-p11", "book": "1ch", "label": "1 Chronicles 2:25-33", "order": 13011, "verseRange": "2:25-33" }, { "itemId": "1ch-p12", "book": "1ch", "label": "1 Chronicles 2:34-41", "order": 13012, "verseRange": "2:34-41" }, { "itemId": "1ch-p13", "book": "1ch", "label": "1 Chronicles 2:42-50a", "order": 13013, "verseRange": "2:42-50a" }, { "itemId": "1ch-p14", "book": "1ch", "label": "1 Chronicles 2:50b-55", "order": 13014, "verseRange": "2:50b-55" }, { "itemId": "1ch-p15", "book": "1ch", "label": "1 Chronicles 3:1-9", "order": 13015, "verseRange": "3:1-9" }, { "itemId": "1ch-p16", "book": "1ch", "label": "1 Chronicles 3:10-16", "order": 13016, "verseRange": "3:10-16" }, { "itemId": "1ch-p17", "book": "1ch", "label": "1 Chronicles 3:17-24", "order": 13017, "verseRange": "3:17-24" }, { "itemId": "1ch-p18", "book": "1ch", "label": "1 Chronicles 4:1-10", "order": 13018, "verseRange": "4:1-10" }, { "itemId": "1ch-p19", "book": "1ch", "label": "1 Chronicles 4:11-20", "order": 13019, "verseRange": "4:11-20" }, { "itemId": "1ch-p20", "book": "1ch", "label": "1 Chronicles 4:21-23", "order": 13020, "verseRange": "4:21-23" }, { "itemId": "1ch-p21", "book": "1ch", "label": "1 Chronicles 4:24-43", "order": 13021, "verseRange": "4:24-43" }, { "itemId": "1ch-p22", "book": "1ch", "label": "1 Chronicles 5:1-10", "order": 13022, "verseRange": "5:1-10" }, { "itemId": "1ch-p23", "book": "1ch", "label": "1 Chronicles 5:11-17", "order": 13023, "verseRange": "5:11-17" }, { "itemId": "1ch-p24", "book": "1ch", "label": "1 Chronicles 5:18-26", "order": 13024, "verseRange": "5:18-26" }, { "itemId": "1ch-p25", "book": "1ch", "label": "1 Chronicles 6:1-15", "order": 13025, "verseRange": "6:1-15" }, { "itemId": "1ch-p26", "book": "1ch", "label": "1 Chronicles 6:16-30", "order": 13026, "verseRange": "6:16-30" }, { "itemId": "1ch-p30", "book": "1ch", "label": "1 Chronicles 7:1-5", "order": 13030, "verseRange": "7:1-5" }, { "itemId": "1ch-p31", "book": "1ch", "label": "1 Chronicles 7:6-13", "order": 13031, "verseRange": "7:6-13" }, { "itemId": "1ch-p32", "book": "1ch", "label": "1 Chronicles 7:14-19", "order": 13032, "verseRange": "7:14-19" }, { "itemId": "1ch-p33", "book": "1ch", "label": "1 Chronicles 7:20-29", "order": 13033, "verseRange": "7:20-29" }, { "itemId": "1ch-p34", "book": "1ch", "label": "1 Chronicles 7:30-40", "order": 13034, "verseRange": "7:30-40" }, { "itemId": "1ch-p35", "book": "1ch", "label": "1 Chronicles 8:1-16", "order": 13035, "verseRange": "8:1-16" }, { "itemId": "1ch-p36", "book": "1ch", "label": "1 Chronicles 8:17-28", "order": 13036, "verseRange": "8:17-28" }, { "itemId": "1ch-p37", "book": "1ch", "label": "1 Chronicles 8:29-40", "order": 13037, "verseRange": "8:29-40" }, { "itemId": "1ch-p38", "book": "1ch", "label": "1 Chronicles 9:1-9", "order": 13038, "verseRange": "9:1-9" }, { "itemId": "1ch-p39", "book": "1ch", "label": "1 Chronicles 9:10-16", "order": 13039, "verseRange": "9:10-16" }, { "itemId": "1ch-p40", "book": "1ch", "label": "1 Chronicles 9:17-27", "order": 13040, "verseRange": "9:17-27" }, { "itemId": "1ch-p41", "book": "1ch", "label": "1 Chronicles 9:28-34", "order": 13041, "verseRange": "9:28-34" }, { "itemId": "1ch-p42", "book": "1ch", "label": "1 Chronicles 9:35-44", "order": 13042, "verseRange": "9:35-44" }, { "itemId": "1ch-p43", "book": "1ch", "label": "1 Chronicles 10:1-14", "order": 13043, "verseRange": "10:1-14" }, { "itemId": "1ch-p44", "book": "1ch", "label": "1 Chronicles 11:1-9", "order": 13044, "verseRange": "11:1-9" }, { "itemId": "1ch-p45", "book": "1ch", "label": "1 Chronicles 11:10-19", "order": 13045, "verseRange": "11:10-19" }, { "itemId": "1ch-p46", "book": "1ch", "label": "1 Chronicles 11:20-25", "order": 13046, "verseRange": "11:20-25" }, { "itemId": "1ch-p47", "book": "1ch", "label": "1 Chronicles 11:26-47", "order": 13047, "verseRange": "11:26-47" }, { "itemId": "1ch-p48", "book": "1ch", "label": "1 Chronicles 12:1-7", "order": 13048, "verseRange": "12:1-7" }, { "itemId": "1ch-p49", "book": "1ch", "label": "1 Chronicles 12:8-15", "order": 13049, "verseRange": "12:8-15" }, { "itemId": "1ch-p50", "book": "1ch", "label": "1 Chronicles 12:16-18", "order": 13050, "verseRange": "12:16-18" }, { "itemId": "1ch-p51", "book": "1ch", "label": "1 Chronicles 12:19-22", "order": 13051, "verseRange": "12:19-22" }, { "itemId": "1ch-p52", "book": "1ch", "label": "1 Chronicles 12:23-40", "order": 13052, "verseRange": "12:23-40" }, { "itemId": "1ch-p53", "book": "1ch", "label": "1 Chronicles 13:1-14", "order": 13053, "verseRange": "13:1-14" }, { "itemId": "1ch-p54", "book": "1ch", "label": "1 Chronicles 14:1-7", "order": 13054, "verseRange": "14:1-7" }, { "itemId": "1ch-p55", "book": "1ch", "label": "1 Chronicles 14:8-17", "order": 13055, "verseRange": "14:8-17" }, { "itemId": "1ch-p56", "book": "1ch", "label": "1 Chronicles 15:1-24", "order": 13056, "verseRange": "15:1-24" }, { "itemId": "1ch-p57", "book": "1ch", "label": "1 Chronicles 15:25-16:7", "order": 13057, "verseRange": "15:25-16:7" }, { "itemId": "1ch-p58a", "book": "1ch", "label": "1 Chronicles 16:8-13", "order": 13058, "verseRange": "16:8-13" }, { "itemId": "1ch-p58b", "book": "1ch", "label": "1 Chronicles 16:14-22", "order": 13058, "verseRange": "16:14-22" }, { "itemId": "1ch-p58c", "book": "1ch", "label": "1 Chronicles 16:23-33", "order": 13058, "verseRange": "16:23-33" }, { "itemId": "1ch-p58d", "book": "1ch", "label": "1 Chronicles 16:34-36", "order": 13058, "verseRange": "16:34-36" }, { "itemId": "1ch-p59", "book": "1ch", "label": "1 Chronicles 16:37-43", "order": 13059, "verseRange": "16:37-43" }, { "itemId": "1ch-p60", "book": "1ch", "label": "1 Chronicles 17:1-15", "order": 13060, "verseRange": "17:1-15" }, { "itemId": "1ch-p61", "book": "1ch", "label": "1 Chronicles 17:16-27", "order": 13061, "verseRange": "17:16-27" }, { "itemId": "1ch-p62", "book": "1ch", "label": "1 Chronicles 18:1-13", "order": 13062, "verseRange": "18:1-13" }, { "itemId": "1ch-p63", "book": "1ch", "label": "1 Chronicles 18:14-17", "order": 13063, "verseRange": "18:14-17" }, { "itemId": "1ch-p64", "book": "1ch", "label": "1 Chronicles 19:1-9", "order": 13064, "verseRange": "19:1-9" }, { "itemId": "1ch-p65", "book": "1ch", "label": "1 Chronicles 19:10-19", "order": 13065, "verseRange": "19:10-19" }, { "itemId": "1ch-p66", "book": "1ch", "label": "1 Chronicles 20:1-3", "order": 13066, "verseRange": "20:1-3" }, { "itemId": "1ch-p67", "book": "1ch", "label": "1 Chronicles 20:4-8", "order": 13067, "verseRange": "20:4-8" }, { "itemId": "1ch-p68", "book": "1ch", "label": "1 Chronicles 21:1-6", "order": 13068, "verseRange": "21:1-6" }, { "itemId": "1ch-p69", "book": "1ch", "label": "1 Chronicles 21:7-17", "order": 13069, "verseRange": "21:7-17" }, { "itemId": "1ch-p70", "book": "1ch", "label": "1 Chronicles 21:18-22:1", "order": 13070, "verseRange": "21:18-22:1" }, { "itemId": "1ch-p71", "book": "1ch", "label": "1 Chronicles 22:2-19", "order": 13071, "verseRange": "22:2-19" }, { "itemId": "1ch-p72", "book": "1ch", "label": "1 Chronicles 23:1-6", "order": 13072, "verseRange": "23:1-6" }, { "itemId": "1ch-p73", "book": "1ch", "label": "1 Chronicles 23:7-11", "order": 13073, "verseRange": "23:7-11" }, { "itemId": "1ch-p74", "book": "1ch", "label": "1 Chronicles 23:12-20", "order": 13074, "verseRange": "23:12-20" }, { "itemId": "1ch-p75", "book": "1ch", "label": "1 Chronicles 23:21-32", "order": 13075, "verseRange": "23:21-32" }, { "itemId": "1ch-p76", "book": "1ch", "label": "1 Chronicles 24:1-19", "order": 13076, "verseRange": "24:1-19" }, { "itemId": "1ch-p77", "book": "1ch", "label": "1 Chronicles 24:20-31", "order": 13077, "verseRange": "24:20-31" }, { "itemId": "1ch-p78a", "book": "1ch", "label": "1 Chronicles 25:1-7", "order": 13078, "verseRange": "25:1-7" }, { "itemId": "1ch-p78b", "book": "1ch", "label": "1 Chronicles 25:8-31", "order": 13078, "verseRange": "25:8-31" }, { "itemId": "1ch-p79", "book": "1ch", "label": "1 Chronicles 26:1-19", "order": 13079, "verseRange": "26:1-19" }, { "itemId": "1ch-p80", "book": "1ch", "label": "1 Chronicles 26:20-28", "order": 13080, "verseRange": "26:20-28" }, { "itemId": "1ch-p81", "book": "1ch", "label": "1 Chronicles 26:29-32", "order": 13081, "verseRange": "26:29-32" }, { "itemId": "1ch-p82", "book": "1ch", "label": "1 Chronicles 27:1-15", "order": 13082, "verseRange": "27:1-15" }, { "itemId": "1ch-p83", "book": "1ch", "label": "1 Chronicles 27:16-24", "order": 13083, "verseRange": "27:16-24" }, { "itemId": "1ch-p84", "book": "1ch", "label": "1 Chronicles 27:25-31", "order": 13084, "verseRange": "27:25-31" }, { "itemId": "1ch-p85", "book": "1ch", "label": "1 Chronicles 27:32-34", "order": 13085, "verseRange": "27:32-34" }, { "itemId": "1ch-p86", "book": "1ch", "label": "1 Chronicles 28:1-8", "order": 13086, "verseRange": "28:1-8" }, { "itemId": "1ch-p87", "book": "1ch", "label": "1 Chronicles 28:9-21", "order": 13087, "verseRange": "28:9-21" }, { "itemId": "1ch-p88", "book": "1ch", "label": "1 Chronicles 29:1-9", "order": 13088, "verseRange": "29:1-9" }, { "itemId": "1ch-p89", "book": "1ch", "label": "1 Chronicles 29:10-20", "order": 13089, "verseRange": "29:10-20" }, { "itemId": "1ch-p90", "book": "1ch", "label": "1 Chronicles 29:21-25", "order": 13090, "verseRange": "29:21-25" }, { "itemId": "1ch-p91", "book": "1ch", "label": "1 Chronicles 29:26-30", "order": 13091, "verseRange": "29:26-30" }, { "itemId": "job-p1", "book": "job", "label": "Job 1:1-5", "order": 18001, "verseRange": "1:1-5" }, { "itemId": "job-p2", "book": "job", "label": "Job 1:6-12", "order": 18002, "verseRange": "1:6-12" }, { "itemId": "job-p3", "book": "job", "label": "Job 1:13-22", "order": 18003, "verseRange": "1:13-22" }, { "itemId": "job-p4", "book": "job", "label": "Job 2:1-6", "order": 18004, "verseRange": "2:1-6" }, { "itemId": "job-p5", "book": "job", "label": "Job 2:7-13", "order": 18005, "verseRange": "2:7-13" }, { "itemId": "psa-p1", "book": "psa", "label": "Psalms 1:1-6", "order": 19001, "verseRange": "1:1-6" }, { "itemId": "psa-p3", "book": "psa", "label": "Psalms 3:1-8", "order": 19003, "verseRange": "3:1-8" }, { "itemId": "psa-p117", "book": "psa", "label": "Psalms 117:1-2", "order": 19117, "verseRange": "117:1-2" }, { "itemId": "mat-p1", "book": "mat", "label": "Matthew 1:1-17", "order": 40001, "verseRange": "1:1-17" }, { "itemId": "mat-p2", "book": "mat", "label": "Matthew 1:18-25", "order": 40002, "verseRange": "1:18-25" }, { "itemId": "mat-p3", "book": "mat", "label": "Matthew 2:1-12", "order": 40003, "verseRange": "2:1-12" }, { "itemId": "mat-p4", "book": "mat", "label": "Matthew 2:13-23", "order": 40004, "verseRange": "2:13-23" }, { "itemId": "mat-p5", "book": "mat", "label": "Matthew 3:1-17", "order": 40005, "verseRange": "3:1-17" }, { "itemId": "mat-p6", "book": "mat", "label": "Matthew 4:1-11", "order": 40006, "verseRange": "4:1-11" }, { "itemId": "mat-p7", "book": "mat", "label": "Matthew 4:12-25", "order": 40007, "verseRange": "4:12-25" }, { "itemId": "mat-p8", "book": "mat", "label": "Matthew 5:1-12", "order": 40008, "verseRange": "5:1-12" }, { "itemId": "mat-p9", "book": "mat", "label": "Matthew 5:13-16", "order": 40009, "verseRange": "5:13-16" }, { "itemId": "mat-p10", "book": "mat", "label": "Matthew 5:17-26", "order": 40010, "verseRange": "5:17-26" }, { "itemId": "mat-p11", "book": "mat", "label": "Matthew 5:27-32", "order": 40011, "verseRange": "5:27-32" }, { "itemId": "mat-p12", "book": "mat", "label": "Matthew 5:33-42", "order": 40012, "verseRange": "5:33-42" }, { "itemId": "mat-p13", "book": "mat", "label": "Matthew 5:43-48", "order": 40013, "verseRange": "5:43-48" }, { "itemId": "mat-p14", "book": "mat", "label": "Matthew 6:1-8", "order": 40014, "verseRange": "6:1-8" }, { "itemId": "mat-p15", "book": "mat", "label": "Matthew 6:9-18", "order": 40015, "verseRange": "6:9-18" }, { "itemId": "mat-p16", "book": "mat", "label": "Matthew 6:19-34", "order": 40016, "verseRange": "6:19-34" }, { "itemId": "mat-p17", "book": "mat", "label": "Matthew 7:1-12", "order": 40017, "verseRange": "7:1-12" }, { "itemId": "mat-p18", "book": "mat", "label": "Matthew 7:13-29", "order": 40018, "verseRange": "7:13-29" }, { "itemId": "mat-p19", "book": "mat", "label": "Matthew 8:1-17", "order": 40019, "verseRange": "8:1-17" }, { "itemId": "mat-p20", "book": "mat", "label": "Matthew 8:18-22", "order": 40020, "verseRange": "8:18-22" }, { "itemId": "mat-p21", "book": "mat", "label": "Matthew 8:23-27", "order": 40021, "verseRange": "8:23-27" }, { "itemId": "mat-p22", "book": "mat", "label": "Matthew 8:28-34", "order": 40022, "verseRange": "8:28-34" }, { "itemId": "mat-p23", "book": "mat", "label": "Matthew 9:1-8", "order": 40023, "verseRange": "9:1-8" }, { "itemId": "mat-p24", "book": "mat", "label": "Matthew 9:9-13", "order": 40024, "verseRange": "9:9-13" }, { "itemId": "mat-p25", "book": "mat", "label": "Matthew 9:14-17", "order": 40025, "verseRange": "9:14-17" }, { "itemId": "mat-p26", "book": "mat", "label": "Matthew 9:18-26", "order": 40026, "verseRange": "9:18-26" }, { "itemId": "mat-p27", "book": "mat", "label": "Matthew 9:27-38", "order": 40027, "verseRange": "9:27-38" }, { "itemId": "mat-p28", "book": "mat", "label": "Matthew 10:1-15", "order": 40028, "verseRange": "10:1-15" }, { "itemId": "mat-p29", "book": "mat", "label": "Matthew 10:16-25", "order": 40029, "verseRange": "10:16-25" }, { "itemId": "mat-p30", "book": "mat", "label": "Matthew 10:26-33", "order": 40030, "verseRange": "10:26-33" }, { "itemId": "mat-p31", "book": "mat", "label": "Matthew 10:34-42", "order": 40031, "verseRange": "10:34-42" }, { "itemId": "mat-p32a", "book": "mat", "label": "Matthew 11:1-6", "order": 40032, "verseRange": "11:1-6" }, { "itemId": "mat-p32b", "book": "mat", "label": "Matthew 11:7-19", "order": 40032, "verseRange": "11:7-19" }, { "itemId": "mat-p33", "book": "mat", "label": "Matthew 11:20-24", "order": 40033, "verseRange": "11:20-24" }, { "itemId": "mat-p34", "book": "mat", "label": "Matthew 11:25-30", "order": 40034, "verseRange": "11:25-30" }, { "itemId": "mat-p35", "book": "mat", "label": "Matthew 12:1-14", "order": 40035, "verseRange": "12:1-14" }, { "itemId": "mat-p36", "book": "mat", "label": "Matthew 12:15-21", "order": 40036, "verseRange": "12:15-21" }, { "itemId": "mat-p37", "book": "mat", "label": "Matthew 12:22-32", "order": 40037, "verseRange": "12:22-32" }, { "itemId": "mat-p38", "book": "mat", "label": "Matthew 12:33-37", "order": 40038, "verseRange": "12:33-37" }, { "itemId": "mat-p39", "book": "mat", "label": "Matthew 12:38-45", "order": 40039, "verseRange": "12:38-45" }, { "itemId": "mat-p40", "book": "mat", "label": "Matthew 12:46-50", "order": 40040, "verseRange": "12:46-50" }, { "itemId": "mat-p41", "book": "mat", "label": "Matthew 13:1-9", "order": 40041, "verseRange": "13:1-9" }, { "itemId": "mat-p42", "book": "mat", "label": "Matthew 13:10-17", "order": 40042, "verseRange": "13:10-17" }, { "itemId": "mat-p43", "book": "mat", "label": "Matthew 13:18-23", "order": 40043, "verseRange": "13:18-23" }, { "itemId": "mat-p44", "book": "mat", "label": "Matthew 13:24-35", "order": 40044, "verseRange": "13:24-35" }, { "itemId": "mat-p45", "book": "mat", "label": "Matthew 13:36-43", "order": 40045, "verseRange": "13:36-43" }, { "itemId": "mat-p46", "book": "mat", "label": "Matthew 13:44-53", "order": 40046, "verseRange": "13:44-53" }, { "itemId": "mat-p47", "book": "mat", "label": "Matthew 13:54-58", "order": 40047, "verseRange": "13:54-58" }, { "itemId": "mat-p48", "book": "mat", "label": "Matthew 14:1-12", "order": 40048, "verseRange": "14:1-12" }, { "itemId": "mat-p49", "book": "mat", "label": "Matthew 14:13-21", "order": 40049, "verseRange": "14:13-21" }, { "itemId": "mat-p50", "book": "mat", "label": "Matthew 14:22-36", "order": 40050, "verseRange": "14:22-36" }, { "itemId": "mat-p51", "book": "mat", "label": "Matthew 15:1-20", "order": 40051, "verseRange": "15:1-20" }, { "itemId": "mat-p52", "book": "mat", "label": "Matthew 15:21-28", "order": 40052, "verseRange": "15:21-28" }, { "itemId": "mat-p53", "book": "mat", "label": "Matthew 15:29-39", "order": 40053, "verseRange": "15:29-39" }, { "itemId": "mat-p54", "book": "mat", "label": "Matthew 16:1-12", "order": 40054, "verseRange": "16:1-12" }, { "itemId": "mat-p55", "book": "mat", "label": "Matthew 16:13-20", "order": 40055, "verseRange": "16:13-20" }, { "itemId": "mat-p56", "book": "mat", "label": "Matthew 16:21-28", "order": 40056, "verseRange": "16:21-28" }, { "itemId": "mat-p57", "book": "mat", "label": "Matthew 17:1-13", "order": 40057, "verseRange": "17:1-13" }, { "itemId": "mat-p58", "book": "mat", "label": "Matthew 17:14-21", "order": 40058, "verseRange": "17:14-21" }, { "itemId": "mat-p59", "book": "mat", "label": "Matthew 17:22-27", "order": 40059, "verseRange": "17:22-27" }, { "itemId": "mat-p60", "book": "mat", "label": "Matthew 18:1-9", "order": 40060, "verseRange": "18:1-9" }, { "itemId": "mat-p61", "book": "mat", "label": "Matthew 18:10-14", "order": 40061, "verseRange": "18:10-14" }, { "itemId": "mat-p62", "book": "mat", "label": "Matthew 18:15-20", "order": 40062, "verseRange": "18:15-20" }, { "itemId": "mat-p63", "book": "mat", "label": "Matthew 18:21-35", "order": 40063, "verseRange": "18:21-35" }, { "itemId": "mat-p64", "book": "mat", "label": "Matthew 19:1-12", "order": 40064, "verseRange": "19:1-12" }, { "itemId": "mat-p65", "book": "mat", "label": "Matthew 19:13-30", "order": 40065, "verseRange": "19:13-30" }, { "itemId": "mat-p66", "book": "mat", "label": "Matthew 20:1-16", "order": 40066, "verseRange": "20:1-16" }, { "itemId": "mat-p67", "book": "mat", "label": "Matthew 20:17-28", "order": 40067, "verseRange": "20:17-28" }, { "itemId": "mat-p68", "book": "mat", "label": "Matthew 20:29-34", "order": 40068, "verseRange": "20:29-34" }, { "itemId": "mat-p69", "book": "mat", "label": "Matthew 21:1-11", "order": 40069, "verseRange": "21:1-11" }, { "itemId": "mat-p70", "book": "mat", "label": "Matthew 21:12-22", "order": 40070, "verseRange": "21:12-22" }, { "itemId": "mat-p71", "book": "mat", "label": "Matthew 21:23-32", "order": 40071, "verseRange": "21:23-32" }, { "itemId": "mat-p72", "book": "mat", "label": "Matthew 21:33-46", "order": 40072, "verseRange": "21:33-46" }, { "itemId": "mat-p73", "book": "mat", "label": "Matthew 22:1-14", "order": 40073, "verseRange": "22:1-14" }, { "itemId": "mat-p74", "book": "mat", "label": "Matthew 22:15-22", "order": 40074, "verseRange": "22:15-22" }, { "itemId": "mat-p75", "book": "mat", "label": "Matthew 22:23-33", "order": 40075, "verseRange": "22:23-33" }, { "itemId": "mat-p76", "book": "mat", "label": "Matthew 22:34-46", "order": 40076, "verseRange": "22:34-46" }, { "itemId": "mat-p77", "book": "mat", "label": "Matthew 23:1-12", "order": 40077, "verseRange": "23:1-12" }, { "itemId": "mat-p78", "book": "mat", "label": "Matthew 23:13-22", "order": 40078, "verseRange": "23:13-22" }, { "itemId": "mat-p79", "book": "mat", "label": "Matthew 23:23-28", "order": 40079, "verseRange": "23:23-28" }, { "itemId": "mat-p80", "book": "mat", "label": "Matthew 23:29-36", "order": 40080, "verseRange": "23:29-36" }, { "itemId": "mat-p81", "book": "mat", "label": "Matthew 23:37-24:2", "order": 40081, "verseRange": "23:37-24:2" }, { "itemId": "mat-p82", "book": "mat", "label": "Matthew 24:3-14", "order": 40082, "verseRange": "24:3-14" }, { "itemId": "mat-p83", "book": "mat", "label": "Matthew 24:15-28", "order": 40083, "verseRange": "24:15-28" }, { "itemId": "mat-p84", "book": "mat", "label": "Matthew 24:29-36", "order": 40084, "verseRange": "24:29-36" }, { "itemId": "mat-p85", "book": "mat", "label": "Matthew 24:37-44", "order": 40085, "verseRange": "24:37-44" }, { "itemId": "mat-p86", "book": "mat", "label": "Matthew 24:45-51", "order": 40086, "verseRange": "24:45-51" }, { "itemId": "mat-p87", "book": "mat", "label": "Matthew 25:1-13", "order": 40087, "verseRange": "25:1-13" }, { "itemId": "mat-p88", "book": "mat", "label": "Matthew 25:14-30", "order": 40088, "verseRange": "25:14-30" }, { "itemId": "mat-p89", "book": "mat", "label": "Matthew 25:31-46", "order": 40089, "verseRange": "25:31-46" }, { "itemId": "mat-p90", "book": "mat", "label": "Matthew 26:1-16", "order": 40090, "verseRange": "26:1-16" }, { "itemId": "mat-p91", "book": "mat", "label": "Matthew 26:17-25", "order": 40091, "verseRange": "26:17-25" }, { "itemId": "mat-p92", "book": "mat", "label": "Matthew 26:26-35", "order": 40092, "verseRange": "26:26-35" }, { "itemId": "mat-p93", "book": "mat", "label": "Matthew 26:36-46", "order": 40093, "verseRange": "26:36-46" }, { "itemId": "mat-p94", "book": "mat", "label": "Matthew 26:47-56", "order": 40094, "verseRange": "26:47-56" }, { "itemId": "mat-p95", "book": "mat", "label": "Matthew 26:57-68", "order": 40095, "verseRange": "26:57-68" }, { "itemId": "mat-p96", "book": "mat", "label": "Matthew 26:69-75", "order": 40096, "verseRange": "26:69-75" }, { "itemId": "mat-p97", "book": "mat", "label": "Matthew 27:1-10", "order": 40097, "verseRange": "27:1-10" }, { "itemId": "mat-p98", "book": "mat", "label": "Matthew 27:11-26", "order": 40098, "verseRange": "27:11-26" }, { "itemId": "mat-p99", "book": "mat", "label": "Matthew 27:27-31", "order": 40099, "verseRange": "27:27-31" }, { "itemId": "mat-p100", "book": "mat", "label": "Matthew 27:32-44", "order": 40100, "verseRange": "27:32-44" }, { "itemId": "mat-p101", "book": "mat", "label": "Matthew 27:45-56", "order": 40101, "verseRange": "27:45-56" }, { "itemId": "mat-p102", "book": "mat", "label": "Matthew 27:57-66", "order": 40102, "verseRange": "27:57-66" }, { "itemId": "mat-p103", "book": "mat", "label": "Matthew 28:1-15", "order": 40103, "verseRange": "28:1-15" }, { "itemId": "mat-p104", "book": "mat", "label": "Matthew 28:16-20", "order": 40104, "verseRange": "28:16-20" }, { "itemId": "mrk-p1", "book": "mrk", "label": "Mark 1:1-13", "order": 41001, "verseRange": "1:1-13" }, { "itemId": "mrk-p2", "book": "mrk", "label": "Mark 1:14-20", "order": 41002, "verseRange": "1:14-20" }, { "itemId": "mrk-p3", "book": "mrk", "label": "Mark 1:21-28", "order": 41003, "verseRange": "1:21-28" }, { "itemId": "mrk-p4", "book": "mrk", "label": "Mark 1:29-34", "order": 41004, "verseRange": "1:29-34" }, { "itemId": "mrk-p5", "book": "mrk", "label": "Mark 1:35-39", "order": 41005, "verseRange": "1:35-39" }, { "itemId": "mrk-p6", "book": "mrk", "label": "Mark 1:40-45", "order": 41006, "verseRange": "1:40-45" }, { "itemId": "mrk-p7", "book": "mrk", "label": "Mark 2:1-12", "order": 41007, "verseRange": "2:1-12" }, { "itemId": "mrk-p8", "book": "mrk", "label": "Mark 2:13-17", "order": 41008, "verseRange": "2:13-17" }, { "itemId": "mrk-p9", "book": "mrk", "label": "Mark 2:18-22", "order": 41009, "verseRange": "2:18-22" }, { "itemId": "mrk-p10", "book": "mrk", "label": "Mark 2:23-3:6", "order": 41010, "verseRange": "2:23-3:6" }, { "itemId": "mrk-p11", "book": "mrk", "label": "Mark 3:7-12", "order": 41011, "verseRange": "3:7-12" }, { "itemId": "mrk-p12", "book": "mrk", "label": "Mark 3:13-19", "order": 41012, "verseRange": "3:13-19" }, { "itemId": "mrk-p13", "book": "mrk", "label": "Mark 3:20-35", "order": 41013, "verseRange": "3:20-35" }, { "itemId": "mrk-p14", "book": "mrk", "label": "Mark 4:1-20", "order": 41014, "verseRange": "4:1-20" }, { "itemId": "mrk-p15", "book": "mrk", "label": "Mark 4:21-25", "order": 41015, "verseRange": "4:21-25" }, { "itemId": "mrk-p16", "book": "mrk", "label": "Mark 4:26-34", "order": 41016, "verseRange": "4:26-34" }, { "itemId": "mrk-p17", "book": "mrk", "label": "Mark 4:35-41", "order": 41017, "verseRange": "4:35-41" }, { "itemId": "mrk-p18", "book": "mrk", "label": "Mark 5:1-20", "order": 41018, "verseRange": "5:1-20" }, { "itemId": "mrk-p19a", "book": "mrk", "label": "Mark 5:21-34", "order": 41019, "verseRange": "5:21-34" }, { "itemId": "mrk-p19b", "book": "mrk", "label": "Mark 5:35-43", "order": 41019, "verseRange": "5:35-43" }, { "itemId": "mrk-p20", "book": "mrk", "label": "Mark 6:1-6a", "order": 41020, "verseRange": "6:1-6a" }, { "itemId": "mrk-p21", "book": "mrk", "label": "Mark 6:6b-13", "order": 41021, "verseRange": "6:6b-13" }, { "itemId": "mrk-p22", "book": "mrk", "label": "Mark 6:14-29", "order": 41022, "verseRange": "6:14-29" }, { "itemId": "mrk-p23a", "book": "mrk", "label": "Mark 6:30-44", "order": 41023, "verseRange": "6:30-44" }, { "itemId": "mrk-p23b", "book": "mrk", "label": "Mark 6:45-56", "order": 41023, "verseRange": "6:45-56" }, { "itemId": "mrk-p24a", "book": "mrk", "label": "Mark 7:1-8", "order": 41024, "verseRange": "7:1-8" }, { "itemId": "mrk-p24b", "book": "mrk", "label": "Mark 7:9-13", "order": 41024, "verseRange": "7:9-13" }, { "itemId": "mrk-p24c", "book": "mrk", "label": "Mark 7:14-23", "order": 41024, "verseRange": "7:14-23" }, { "itemId": "mrk-p25", "book": "mrk", "label": "Mark 7:24-30", "order": 41025, "verseRange": "7:24-30" }, { "itemId": "mrk-p26", "book": "mrk", "label": "Mark 7:31-37", "order": 41026, "verseRange": "7:31-37" }, { "itemId": "mrk-p27a", "book": "mrk", "label": "Mark 8:1-10", "order": 41027, "verseRange": "8:1-10" }, { "itemId": "mrk-p27b", "book": "mrk", "label": "Mark 8:11-21", "order": 41027, "verseRange": "8:11-21" }, { "itemId": "mrk-p28", "book": "mrk", "label": "Mark 8:22-26", "order": 41028, "verseRange": "8:22-26" }, { "itemId": "mrk-p29a", "book": "mrk", "label": "Mark 8:27-30", "order": 41029, "verseRange": "8:27-30" }, { "itemId": "mrk-p29b", "book": "mrk", "label": "Mark 8:31-9:1", "order": 41029, "verseRange": "8:31-9:1" }, { "itemId": "mrk-p30", "book": "mrk", "label": "Mark 9:2-13", "order": 41030, "verseRange": "9:2-13" }, { "itemId": "mrk-p31", "book": "mrk", "label": "Mark 9:14-29", "order": 41031, "verseRange": "9:14-29" }, { "itemId": "mrk-p32", "book": "mrk", "label": "Mark 9:30-50", "order": 41032, "verseRange": "9:30-50" }, { "itemId": "mrk-p33", "book": "mrk", "label": "Mark 10:1-12", "order": 41033, "verseRange": "10:1-12" }, { "itemId": "mrk-p34", "book": "mrk", "label": "Mark 10:13-31", "order": 41034, "verseRange": "10:13-31" }, { "itemId": "mrk-p35", "book": "mrk", "label": "Mark 10:32-45", "order": 41035, "verseRange": "10:32-45" }, { "itemId": "mrk-p36", "book": "mrk", "label": "Mark 10:46-52", "order": 41036, "verseRange": "10:46-52" }, { "itemId": "mrk-p37", "book": "mrk", "label": "Mark 11:1-11", "order": 41037, "verseRange": "11:1-11" }, { "itemId": "mrk-p38", "book": "mrk", "label": "Mark 11:12-26", "order": 41038, "verseRange": "11:12-26" }, { "itemId": "mrk-p39a", "book": "mrk", "label": "Mark 11:27-33", "order": 41039, "verseRange": "11:27-33" }, { "itemId": "mrk-p39b", "book": "mrk", "label": "Mark 12:1-12", "order": 41039, "verseRange": "12:1-12" }, { "itemId": "mrk-p40", "book": "mrk", "label": "Mark 12:13-17", "order": 41040, "verseRange": "12:13-17" }, { "itemId": "mrk-p41", "book": "mrk", "label": "Mark 12:18-27", "order": 41041, "verseRange": "12:18-27" }, { "itemId": "mrk-p42", "book": "mrk", "label": "Mark 12:28-34", "order": 41042, "verseRange": "12:28-34" }, { "itemId": "mrk-p43", "book": "mrk", "label": "Mark 12:35-37", "order": 41043, "verseRange": "12:35-37" }, { "itemId": "mrk-p44", "book": "mrk", "label": "Mark 12:38-44", "order": 41044, "verseRange": "12:38-44" }, { "itemId": "mrk-p45a", "book": "mrk", "label": "Mark 13:1-8", "order": 41045, "verseRange": "13:1-8" }, { "itemId": "mrk-p45b", "book": "mrk", "label": "Mark 13:9-23", "order": 41045, "verseRange": "13:9-23" }, { "itemId": "mrk-p45c", "book": "mrk", "label": "Mark 13:24-31", "order": 41045, "verseRange": "13:24-31" }, { "itemId": "mrk-p45d", "book": "mrk", "label": "Mark 13:32-37", "order": 41045, "verseRange": "13:32-37" }, { "itemId": "mrk-p46", "book": "mrk", "label": "Mark 14:1-11", "order": 41046, "verseRange": "14:1-11" }, { "itemId": "mrk-p47a", "book": "mrk", "label": "Mark 14:12-26", "order": 41047, "verseRange": "14:12-26" }, { "itemId": "mrk-p47b", "book": "mrk", "label": "Mark 14:27-31", "order": 41047, "verseRange": "14:27-31" }, { "itemId": "mrk-p48", "book": "mrk", "label": "Mark 14:32-42", "order": 41048, "verseRange": "14:32-42" }, { "itemId": "mrk-p49", "book": "mrk", "label": "Mark 14:43-52", "order": 41049, "verseRange": "14:43-52" }, { "itemId": "mrk-p50a", "book": "mrk", "label": "Mark 14:53-65", "order": 41050, "verseRange": "14:53-65" }, { "itemId": "mrk-p50b", "book": "mrk", "label": "Mark 14:66-72", "order": 41050, "verseRange": "14:66-72" }, { "itemId": "mrk-p51", "book": "mrk", "label": "Mark 15:1-15", "order": 41051, "verseRange": "15:1-15" }, { "itemId": "mrk-p52a", "book": "mrk", "label": "Mark 15:16-32", "order": 41052, "verseRange": "15:16-32" }, { "itemId": "mrk-p52b", "book": "mrk", "label": "Mark 15:33-39", "order": 41052, "verseRange": "15:33-39" }, { "itemId": "mrk-p53", "book": "mrk", "label": "Mark 15:40-47", "order": 41053, "verseRange": "15:40-47" }, { "itemId": "mrk-p54", "book": "mrk", "label": "Mark 16:1-8", "order": 41054, "verseRange": "16:1-8" }, { "itemId": "mrk-p55", "book": "mrk", "label": "Mark 16:9-20", "order": 41055, "verseRange": "16:9-20" }, { "itemId": "luk-p1", "book": "luk", "label": "Luke 1:1-4", "order": 42001, "verseRange": "1:1-4" }, { "itemId": "luk-p2", "book": "luk", "label": "Luke 1:5-25", "order": 42002, "verseRange": "1:5-25" }, { "itemId": "luk-p3", "book": "luk", "label": "Luke 1:26-38", "order": 42003, "verseRange": "1:26-38" }, { "itemId": "luk-p4", "book": "luk", "label": "Luke 1:39-56", "order": 42004, "verseRange": "1:39-56" }, { "itemId": "luk-p5", "book": "luk", "label": "Luke 1:57-80", "order": 42005, "verseRange": "1:57-80" }, { "itemId": "luk-p6", "book": "luk", "label": "Luke 2:1-21", "order": 42006, "verseRange": "2:1-21" }, { "itemId": "luk-p7", "book": "luk", "label": "Luke 2:22-40", "order": 42007, "verseRange": "2:22-40" }, { "itemId": "luk-p8", "book": "luk", "label": "Luke 2:41-52", "order": 42008, "verseRange": "2:41-52" }, { "itemId": "luk-p9", "book": "luk", "label": "Luke 3:1-14", "order": 42009, "verseRange": "3:1-14" }, { "itemId": "luk-p10", "book": "luk", "label": "Luke 3:15-22", "order": 42010, "verseRange": "3:15-22" }, { "itemId": "luk-p11", "book": "luk", "label": "Luke 3:23-38", "order": 42011, "verseRange": "3:23-38" }, { "itemId": "luk-p12", "book": "luk", "label": "Luke 4:1-13", "order": 42012, "verseRange": "4:1-13" }, { "itemId": "luk-p13", "book": "luk", "label": "Luke 4:14-30", "order": 42013, "verseRange": "4:14-30" }, { "itemId": "luk-p14", "book": "luk", "label": "Luke 4:31-44", "order": 42014, "verseRange": "4:31-44" }, { "itemId": "luk-p15", "book": "luk", "label": "Luke 5:1-11", "order": 42015, "verseRange": "5:1-11" }, { "itemId": "luk-p16", "book": "luk", "label": "Luke 5:12-16", "order": 42016, "verseRange": "5:12-16" }, { "itemId": "luk-p17", "book": "luk", "label": "Luke 5:17-26", "order": 42017, "verseRange": "5:17-26" }, { "itemId": "luk-p18", "book": "luk", "label": "Luke 5:27-39", "order": 42018, "verseRange": "5:27-39" }, { "itemId": "luk-p19", "book": "luk", "label": "Luke 6:1-11", "order": 42019, "verseRange": "6:1-11" }, { "itemId": "luk-p20", "book": "luk", "label": "Luke 6:12-16", "order": 42020, "verseRange": "6:12-16" }, { "itemId": "luk-p21a", "book": "luk", "label": "Luke 6:17-19", "order": 42021, "verseRange": "6:17-19" }, { "itemId": "luk-p21b", "book": "luk", "label": "Luke 6:20-26", "order": 42021, "verseRange": "6:20-26" }, { "itemId": "luk-p21c", "book": "luk", "label": "Luke 6:27-36", "order": 42021, "verseRange": "6:27-36" }, { "itemId": "luk-p21d", "book": "luk", "label": "Luke 6:37-42", "order": 42021, "verseRange": "6:37-42" }, { "itemId": "luk-p21e", "book": "luk", "label": "Luke 6:43-49", "order": 42021, "verseRange": "6:43-49" }, { "itemId": "luk-p22", "book": "luk", "label": "Luke 7:1-10", "order": 42022, "verseRange": "7:1-10" }, { "itemId": "luk-p23", "book": "luk", "label": "Luke 7:11-17", "order": 42023, "verseRange": "7:11-17" }, { "itemId": "luk-p24", "book": "luk", "label": "Luke 7:18-35", "order": 42024, "verseRange": "7:18-35" }, { "itemId": "luk-p25", "book": "luk", "label": "Luke 7:36-8:3", "order": 42025, "verseRange": "7:36-8:3" }, { "itemId": "luk-p26", "book": "luk", "label": "Luke 8:4-15", "order": 42026, "verseRange": "8:4-15" }, { "itemId": "luk-p27", "book": "luk", "label": "Luke 8:16-18", "order": 42027, "verseRange": "8:16-18" }, { "itemId": "luk-p28", "book": "luk", "label": "Luke 8:19-21", "order": 42028, "verseRange": "8:19-21" }, { "itemId": "luk-p29", "book": "luk", "label": "Luke 8:22-25", "order": 42029, "verseRange": "8:22-25" }, { "itemId": "luk-p30", "book": "luk", "label": "Luke 8:26-39", "order": 42030, "verseRange": "8:26-39" }, { "itemId": "luk-p31", "book": "luk", "label": "Luke 8:40-56", "order": 42031, "verseRange": "8:40-56" }, { "itemId": "luk-p32a", "book": "luk", "label": "Luke 9:1-17", "order": 42032, "verseRange": "9:1-17" }, { "itemId": "luk-p32b", "book": "luk", "label": "Luke 9:18-27", "order": 42032, "verseRange": "9:18-27" }, { "itemId": "luk-p33", "book": "luk", "label": "Luke 9:28-36", "order": 42033, "verseRange": "9:28-36" }, { "itemId": "luk-p34", "book": "luk", "label": "Luke 9:37-45", "order": 42034, "verseRange": "9:37-45" }, { "itemId": "luk-p35", "book": "luk", "label": "Luke 9:46-62", "order": 42035, "verseRange": "9:46-62" }, { "itemId": "luk-p36a", "book": "luk", "label": "Luke 10:1-16", "order": 42036, "verseRange": "10:1-16" }, { "itemId": "luk-p36b", "book": "luk", "label": "Luke 10:17-24", "order": 42036, "verseRange": "10:17-24" }, { "itemId": "luk-p37", "book": "luk", "label": "Luke 10:25-37", "order": 42037, "verseRange": "10:25-37" }, { "itemId": "luk-p38", "book": "luk", "label": "Luke 10:38-42", "order": 42038, "verseRange": "10:38-42" }, { "itemId": "luk-p39", "book": "luk", "label": "Luke 11:1-13", "order": 42039, "verseRange": "11:1-13" }, { "itemId": "luk-p40", "book": "luk", "label": "Luke 11:14-32", "order": 42040, "verseRange": "11:14-32" }, { "itemId": "luk-p41", "book": "luk", "label": "Luke 11:33-54", "order": 42041, "verseRange": "11:33-54" }, { "itemId": "luk-p42", "book": "luk", "label": "Luke 12:1-12", "order": 42042, "verseRange": "12:1-12" }, { "itemId": "luk-p43", "book": "luk", "label": "Luke 12:13-21", "order": 42043, "verseRange": "12:13-21" }, { "itemId": "luk-p44", "book": "luk", "label": "Luke 12:22-34", "order": 42044, "verseRange": "12:22-34" }, { "itemId": "luk-p45a", "book": "luk", "label": "Luke 12:35-48", "order": 42045, "verseRange": "12:35-48" }, { "itemId": "luk-p45b", "book": "luk", "label": "Luke 12:49-59", "order": 42045, "verseRange": "12:49-59" }, { "itemId": "luk-p46", "book": "luk", "label": "Luke 13:1-9", "order": 42046, "verseRange": "13:1-9" }, { "itemId": "luk-p47", "book": "luk", "label": "Luke 13:10-17", "order": 42047, "verseRange": "13:10-17" }, { "itemId": "luk-p48", "book": "luk", "label": "Luke 13:18-21", "order": 42048, "verseRange": "13:18-21" }, { "itemId": "luk-p49", "book": "luk", "label": "Luke 13:22-30", "order": 42049, "verseRange": "13:22-30" }, { "itemId": "luk-p50", "book": "luk", "label": "Luke 13:31-35", "order": 42050, "verseRange": "13:31-35" }, { "itemId": "luk-p51a", "book": "luk", "label": "Luke 14:1-14", "order": 42051, "verseRange": "14:1-14" }, { "itemId": "luk-p51b", "book": "luk", "label": "Luke 14:15-24", "order": 42051, "verseRange": "14:15-24" }, { "itemId": "luk-p52", "book": "luk", "label": "Luke 14:25-35", "order": 42052, "verseRange": "14:25-35" }, { "itemId": "luk-p53a", "book": "luk", "label": "Luke 15:1-10", "order": 42053, "verseRange": "15:1-10" }, { "itemId": "luk-p53b", "book": "luk", "label": "Luke 15:11-32", "order": 42053, "verseRange": "15:11-32" }, { "itemId": "luk-p54", "book": "luk", "label": "Luke 16:1-15", "order": 42054, "verseRange": "16:1-15" }, { "itemId": "luk-p55", "book": "luk", "label": "Luke 16:16-18", "order": 42055, "verseRange": "16:16-18" }, { "itemId": "luk-p56", "book": "luk", "label": "Luke 16:19-31", "order": 42056, "verseRange": "16:19-31" }, { "itemId": "luk-p57", "book": "luk", "label": "Luke 17:1-10", "order": 42057, "verseRange": "17:1-10" }, { "itemId": "luk-p58", "book": "luk", "label": "Luke 17:11-19", "order": 42058, "verseRange": "17:11-19" }, { "itemId": "luk-p59", "book": "luk", "label": "Luke 17:20-37", "order": 42059, "verseRange": "17:20-37" }, { "itemId": "luk-p60", "book": "luk", "label": "Luke 18:1-17", "order": 42060, "verseRange": "18:1-17" }, { "itemId": "luk-p61", "book": "luk", "label": "Luke 18:18-30", "order": 42061, "verseRange": "18:18-30" }, { "itemId": "luk-p62", "book": "luk", "label": "Luke 18:31-34", "order": 42062, "verseRange": "18:31-34" }, { "itemId": "luk-p63", "book": "luk", "label": "Luke 18:35-19:10", "order": 42063, "verseRange": "18:35-19:10" }, { "itemId": "luk-p64", "book": "luk", "label": "Luke 19:11-27", "order": 42064, "verseRange": "19:11-27" }, { "itemId": "luk-p65", "book": "luk", "label": "Luke 19:28-44", "order": 42065, "verseRange": "19:28-44" }, { "itemId": "luk-p66a", "book": "luk", "label": "Luke 19:45-20:8", "order": 42066, "verseRange": "19:45-20:8" }, { "itemId": "luk-p66b", "book": "luk", "label": "Luke 20:9-19", "order": 42066, "verseRange": "20:9-19" }, { "itemId": "luk-p67", "book": "luk", "label": "Luke 20:20-40", "order": 42067, "verseRange": "20:20-40" }, { "itemId": "luk-p68", "book": "luk", "label": "Luke 20:41-44", "order": 42068, "verseRange": "20:41-44" }, { "itemId": "luk-p69", "book": "luk", "label": "Luke 20:45-21:4", "order": 42069, "verseRange": "20:45-21:4" }, { "itemId": "luk-p70a", "book": "luk", "label": "Luke 21:5-11", "order": 42070, "verseRange": "21:5-11" }, { "itemId": "luk-p70b", "book": "luk", "label": "Luke 21:12-19", "order": 42070, "verseRange": "21:12-19" }, { "itemId": "luk-p70c", "book": "luk", "label": "Luke 21:20-28", "order": 42070, "verseRange": "21:20-28" }, { "itemId": "luk-p70d", "book": "luk", "label": "Luke 21:29-38", "order": 42070, "verseRange": "21:29-38" }, { "itemId": "luk-p71", "book": "luk", "label": "Luke 22:1-6", "order": 42071, "verseRange": "22:1-6" }, { "itemId": "luk-p72a", "book": "luk", "label": "Luke 22:7-23", "order": 42072, "verseRange": "22:7-23" }, { "itemId": "luk-p72b", "book": "luk", "label": "Luke 22:24-38", "order": 42072, "verseRange": "22:24-38" }, { "itemId": "luk-p73", "book": "luk", "label": "Luke 22:39-46", "order": 42073, "verseRange": "22:39-46" }, { "itemId": "luk-p74", "book": "luk", "label": "Luke 22:47-62", "order": 42074, "verseRange": "22:47-62" }, { "itemId": "luk-p75a", "book": "luk", "label": "Luke 22:63-71", "order": 42075, "verseRange": "22:63-71" }, { "itemId": "luk-p75b", "book": "luk", "label": "Luke 23:1-12", "order": 42075, "verseRange": "23:1-12" }, { "itemId": "luk-p75c", "book": "luk", "label": "Luke 23:13-25", "order": 42075, "verseRange": "23:13-25" }, { "itemId": "luk-p76a", "book": "luk", "label": "Luke 23:26-43", "order": 42076, "verseRange": "23:26-43" }, { "itemId": "luk-p76b", "book": "luk", "label": "Luke 23:44-49", "order": 42076, "verseRange": "23:44-49" }, { "itemId": "luk-p77", "book": "luk", "label": "Luke 23:50-56", "order": 42077, "verseRange": "23:50-56" }, { "itemId": "luk-p78", "book": "luk", "label": "Luke 24:1-12", "order": 42078, "verseRange": "24:1-12" }, { "itemId": "luk-p79", "book": "luk", "label": "Luke 24:13-35", "order": 42079, "verseRange": "24:13-35" }, { "itemId": "luk-p80", "book": "luk", "label": "Luke 24:36-53", "order": 42080, "verseRange": "24:36-53" }, { "itemId": "jhn-p1", "book": "jhn", "label": "John 1:1-5", "order": 43001, "verseRange": "1:1-5" }, { "itemId": "jhn-p2", "book": "jhn", "label": "John 1:6-18", "order": 43002, "verseRange": "1:6-18" }, { "itemId": "jhn-p3", "book": "jhn", "label": "John 1:19-28", "order": 43003, "verseRange": "1:19-28" }, { "itemId": "jhn-p4", "book": "jhn", "label": "John 1:29-34", "order": 43004, "verseRange": "1:29-34" }, { "itemId": "jhn-p5", "book": "jhn", "label": "John 1:35-42", "order": 43005, "verseRange": "1:35-42" }, { "itemId": "jhn-p6", "book": "jhn", "label": "John 1:43-51", "order": 43006, "verseRange": "1:43-51" }, { "itemId": "jhn-p7", "book": "jhn", "label": "John 2:1-12", "order": 43007, "verseRange": "2:1-12" }, { "itemId": "jhn-p8", "book": "jhn", "label": "John 2:13-25", "order": 43008, "verseRange": "2:13-25" }, { "itemId": "jhn-p9", "book": "jhn", "label": "John 3:1-8", "order": 43009, "verseRange": "3:1-8" }, { "itemId": "jhn-p10", "book": "jhn", "label": "John 3:9-21", "order": 43010, "verseRange": "3:9-21" }, { "itemId": "jhn-p11", "book": "jhn", "label": "John 3:22-36", "order": 43011, "verseRange": "3:22-36" }, { "itemId": "jhn-p12", "book": "jhn", "label": "John 4:1-15", "order": 43012, "verseRange": "4:1-15" }, { "itemId": "jhn-p13", "book": "jhn", "label": "John 4:16-26", "order": 43013, "verseRange": "4:16-26" }, { "itemId": "jhn-p14", "book": "jhn", "label": "John 4:27-42", "order": 43014, "verseRange": "4:27-42" }, { "itemId": "jhn-p15", "book": "jhn", "label": "John 4:43-54", "order": 43015, "verseRange": "4:43-54" }, { "itemId": "jhn-p16", "book": "jhn", "label": "John 5:1-15", "order": 43016, "verseRange": "5:1-15" }, { "itemId": "jhn-p17", "book": "jhn", "label": "John 5:16-23", "order": 43017, "verseRange": "5:16-23" }, { "itemId": "jhn-p18", "book": "jhn", "label": "John 5:24-30", "order": 43018, "verseRange": "5:24-30" }, { "itemId": "jhn-p19", "book": "jhn", "label": "John 5:31-47", "order": 43019, "verseRange": "5:31-47" }, { "itemId": "jhn-p20", "book": "jhn", "label": "John 6:1-15", "order": 43020, "verseRange": "6:1-15" }, { "itemId": "jhn-p21", "book": "jhn", "label": "John 6:16-21", "order": 43021, "verseRange": "6:16-21" }, { "itemId": "jhn-p22", "book": "jhn", "label": "John 6:22-27", "order": 43022, "verseRange": "6:22-27" }, { "itemId": "jhn-p23", "book": "jhn", "label": "John 6:28-40", "order": 43023, "verseRange": "6:28-40" }, { "itemId": "jhn-p24", "book": "jhn", "label": "John 6:41-51", "order": 43024, "verseRange": "6:41-51" }, { "itemId": "jhn-p25", "book": "jhn", "label": "John 6:52-59", "order": 43025, "verseRange": "6:52-59" }, { "itemId": "jhn-p26", "book": "jhn", "label": "John 6:60-71", "order": 43026, "verseRange": "6:60-71" }, { "itemId": "jhn-p27", "book": "jhn", "label": "John 7:1-10", "order": 43027, "verseRange": "7:1-10" }, { "itemId": "jhn-p28", "book": "jhn", "label": "John 7:11-24", "order": 43028, "verseRange": "7:11-24" }, { "itemId": "jhn-p29", "book": "jhn", "label": "John 7:25-36", "order": 43029, "verseRange": "7:25-36" }, { "itemId": "jhn-p30", "book": "jhn", "label": "John 7:37-44", "order": 43030, "verseRange": "7:37-44" }, { "itemId": "jhn-p31", "book": "jhn", "label": "John 7:45-53", "order": 43031, "verseRange": "7:45-53" }, { "itemId": "jhn-p32", "book": "jhn", "label": "John 8:1-11", "order": 43032, "verseRange": "8:1-11" }, { "itemId": "jhn-p33", "book": "jhn", "label": "John 8:12-20", "order": 43033, "verseRange": "8:12-20" }, { "itemId": "jhn-p34", "book": "jhn", "label": "John 8:21-30", "order": 43034, "verseRange": "8:21-30" }, { "itemId": "jhn-p35", "book": "jhn", "label": "John 8:31-47", "order": 43035, "verseRange": "8:31-47" }, { "itemId": "jhn-p36", "book": "jhn", "label": "John 8:48-59", "order": 43036, "verseRange": "8:48-59" }, { "itemId": "jhn-p37", "book": "jhn", "label": "John 9:1-12", "order": 43037, "verseRange": "9:1-12" }, { "itemId": "jhn-p38", "book": "jhn", "label": "John 9:13-23", "order": 43038, "verseRange": "9:13-23" }, { "itemId": "jhn-p39", "book": "jhn", "label": "John 9:24-34", "order": 43039, "verseRange": "9:24-34" }, { "itemId": "jhn-p40", "book": "jhn", "label": "John 9:35-41", "order": 43040, "verseRange": "9:35-41" }, { "itemId": "jhn-p41", "book": "jhn", "label": "John 10:1-10", "order": 43041, "verseRange": "10:1-10" }, { "itemId": "jhn-p42", "book": "jhn", "label": "John 10:11-21", "order": 43042, "verseRange": "10:11-21" }, { "itemId": "jhn-p43", "book": "jhn", "label": "John 10:22-42", "order": 43043, "verseRange": "10:22-42" }, { "itemId": "jhn-p44", "book": "jhn", "label": "John 11:1-16", "order": 43044, "verseRange": "11:1-16" }, { "itemId": "jhn-p45", "book": "jhn", "label": "John 11:17-27", "order": 43045, "verseRange": "11:17-27" }, { "itemId": "jhn-p46", "book": "jhn", "label": "John 11:28-44", "order": 43046, "verseRange": "11:28-44" }, { "itemId": "jhn-p47", "book": "jhn", "label": "John 11:45-57", "order": 43047, "verseRange": "11:45-57" }, { "itemId": "jhn-p48", "book": "jhn", "label": "John 12:1-11", "order": 43048, "verseRange": "12:1-11" }, { "itemId": "jhn-p49", "book": "jhn", "label": "John 12:12-19", "order": 43049, "verseRange": "12:12-19" }, { "itemId": "jhn-p50", "book": "jhn", "label": "John 12:20-36", "order": 43050, "verseRange": "12:20-36" }, { "itemId": "jhn-p51", "book": "jhn", "label": "John 12:37-50", "order": 43051, "verseRange": "12:37-50" }, { "itemId": "jhn-p52", "book": "jhn", "label": "John 13:1-11", "order": 43052, "verseRange": "13:1-11" }, { "itemId": "jhn-p53", "book": "jhn", "label": "John 13:12-30", "order": 43053, "verseRange": "13:12-30" }, { "itemId": "jhn-p54", "book": "jhn", "label": "John 13:31-38", "order": 43054, "verseRange": "13:31-38" }, { "itemId": "jhn-p55", "book": "jhn", "label": "John 14:1-14", "order": 43055, "verseRange": "14:1-14" }, { "itemId": "jhn-p56", "book": "jhn", "label": "John 14:15-21", "order": 43056, "verseRange": "14:15-21" }, { "itemId": "jhn-p57", "book": "jhn", "label": "John 14:22-31", "order": 43057, "verseRange": "14:22-31" }, { "itemId": "jhn-p58", "book": "jhn", "label": "John 15:1-17", "order": 43058, "verseRange": "15:1-17" }, { "itemId": "jhn-p59", "book": "jhn", "label": "John 15:18-27", "order": 43059, "verseRange": "15:18-27" }, { "itemId": "jhn-p60", "book": "jhn", "label": "John 16:1-15", "order": 43060, "verseRange": "16:1-15" }, { "itemId": "jhn-p61", "book": "jhn", "label": "John 16:16-24", "order": 43061, "verseRange": "16:16-24" }, { "itemId": "jhn-p62", "book": "jhn", "label": "John 16:25-33", "order": 43062, "verseRange": "16:25-33" }, { "itemId": "jhn-p63", "book": "jhn", "label": "John 17:1-19", "order": 43063, "verseRange": "17:1-19" }, { "itemId": "jhn-p64", "book": "jhn", "label": "John 17:20-26", "order": 43064, "verseRange": "17:20-26" }, { "itemId": "jhn-p65", "book": "jhn", "label": "John 18:1-14", "order": 43065, "verseRange": "18:1-14" }, { "itemId": "jhn-p66", "book": "jhn", "label": "John 18:15-27", "order": 43066, "verseRange": "18:15-27" }, { "itemId": "jhn-p67", "book": "jhn", "label": "John 18:28-40", "order": 43067, "verseRange": "18:28-40" }, { "itemId": "jhn-p68", "book": "jhn", "label": "John 19:1-16", "order": 43068, "verseRange": "19:1-16" }, { "itemId": "jhn-p69", "book": "jhn", "label": "John 19:17-30", "order": 43069, "verseRange": "19:17-30" }, { "itemId": "jhn-p70", "book": "jhn", "label": "John 19:31-42", "order": 43070, "verseRange": "19:31-42" }, { "itemId": "jhn-p71", "book": "jhn", "label": "John 20:1-18", "order": 43071, "verseRange": "20:1-18" }, { "itemId": "jhn-p72", "book": "jhn", "label": "John 20:19-31", "order": 43072, "verseRange": "20:19-31" }, { "itemId": "jhn-p73", "book": "jhn", "label": "John 21:1-14", "order": 43073, "verseRange": "21:1-14" }, { "itemId": "jhn-p74", "book": "jhn", "label": "John 21:15-25", "order": 43074, "verseRange": "21:15-25" }, { "itemId": "act-p1a", "book": "act", "label": "Acts 1:1-5", "order": 44001, "verseRange": "1:1-5" }, { "itemId": "act-p1b", "book": "act", "label": "Acts 1:6-11", "order": 44001, "verseRange": "1:6-11" }, { "itemId": "act-p2", "book": "act", "label": "Acts 1:12-14", "order": 44002, "verseRange": "1:12-14" }, { "itemId": "act-p3", "book": "act", "label": "Acts 1:15-26", "order": 44003, "verseRange": "1:15-26" }, { "itemId": "act-p4", "book": "act", "label": "Acts 2:1-13", "order": 44004, "verseRange": "2:1-13" }, { "itemId": "act-p5a", "book": "act", "label": "Acts 2:14-36", "order": 44005, "verseRange": "2:14-36" }, { "itemId": "act-p5b", "book": "act", "label": "Acts 2:37-41", "order": 44005, "verseRange": "2:37-41" }, { "itemId": "act-p6", "book": "act", "label": "Acts 2:41-47", "order": 44006, "verseRange": "2:41-47" }, { "itemId": "act-p7", "book": "act", "label": "Acts 3:1-10", "order": 44007, "verseRange": "3:1-10" }, { "itemId": "act-p8", "book": "act", "label": "Acts 3:11-26", "order": 44008, "verseRange": "3:11-26" }, { "itemId": "act-p9", "book": "act", "label": "Acts 4:1-22", "order": 44009, "verseRange": "4:1-22" }, { "itemId": "act-p10", "book": "act", "label": "Acts 4:23-31", "order": 44010, "verseRange": "4:23-31" }, { "itemId": "act-p11", "book": "act", "label": "Acts 4:32-37", "order": 44011, "verseRange": "4:32-37" }, { "itemId": "act-p12", "book": "act", "label": "Acts 5:1-11", "order": 44012, "verseRange": "5:1-11" }, { "itemId": "act-p13", "book": "act", "label": "Acts 5:12-16", "order": 44013, "verseRange": "5:12-16" }, { "itemId": "act-p14a", "book": "act", "label": "Acts 5:17-26", "order": 44014, "verseRange": "5:17-26" }, { "itemId": "act-p14b", "book": "act", "label": "Acts 5:27-42", "order": 44014, "verseRange": "5:27-42" }, { "itemId": "act-p15", "book": "act", "label": "Acts 6:1-7", "order": 44015, "verseRange": "6:1-7" }, { "itemId": "act-p16", "book": "act", "label": "Acts 6:8-15", "order": 44016, "verseRange": "6:8-15" }, { "itemId": "act-p17a", "book": "act", "label": "Acts 7:1-8", "order": 44017, "verseRange": "7:1-8" }, { "itemId": "act-p17b", "book": "act", "label": "Acts 7:9-19", "order": 44017, "verseRange": "7:9-19" }, { "itemId": "act-p17c", "book": "act", "label": "Acts 7:20-34", "order": 44017, "verseRange": "7:20-34" }, { "itemId": "act-p18a", "book": "act", "label": "Acts 7:35-43", "order": 44018, "verseRange": "7:35-43" }, { "itemId": "act-p18b", "book": "act", "label": "Acts 7:44-53", "order": 44018, "verseRange": "7:44-53" }, { "itemId": "act-p19", "book": "act", "label": "Acts 7:54-8:3", "order": 44019, "verseRange": "7:54-8:3" }, { "itemId": "act-p20", "book": "act", "label": "Acts 8:4-25", "order": 44020, "verseRange": "8:4-25" }, { "itemId": "act-p21", "book": "act", "label": "Acts 8:26-40", "order": 44021, "verseRange": "8:26-40" }, { "itemId": "act-p22a", "book": "act", "label": "Acts 9:1-19a", "order": 44022, "verseRange": "9:1-19a" }, { "itemId": "act-p22b", "book": "act", "label": "Acts 9:19b-31", "order": 44022, "verseRange": "9:19b-31" }, { "itemId": "act-p23", "book": "act", "label": "Acts 9:32-35", "order": 44023, "verseRange": "9:32-35" }, { "itemId": "act-p24", "book": "act", "label": "Acts 9:36-43", "order": 44024, "verseRange": "9:36-43" }, { "itemId": "act-p25a", "book": "act", "label": "Acts 10:1-8", "order": 44025, "verseRange": "10:1-8" }, { "itemId": "act-p25b", "book": "act", "label": "Acts 10:9-23a", "order": 44025, "verseRange": "10:9-23a" }, { "itemId": "act-p25c", "book": "act", "label": "Acts 10:23b-33", "order": 44025, "verseRange": "10:23b-33" }, { "itemId": "act-p25d", "book": "act", "label": "Acts 10:34-48", "order": 44025, "verseRange": "10:34-48" }, { "itemId": "act-p26", "book": "act", "label": "Acts 11:1-18", "order": 44026, "verseRange": "11:1-18" }, { "itemId": "act-p27", "book": "act", "label": "Acts 11:19-26", "order": 44027, "verseRange": "11:19-26" }, { "itemId": "act-p28", "book": "act", "label": "Acts 11:27-30", "order": 44028, "verseRange": "11:27-30" }, { "itemId": "act-p29", "book": "act", "label": "Acts 12:1-5", "order": 44029, "verseRange": "12:1-5" }, { "itemId": "act-p30", "book": "act", "label": "Acts 12:6-19", "order": 44030, "verseRange": "12:6-19" }, { "itemId": "act-p31", "book": "act", "label": "Acts 12:20-24", "order": 44031, "verseRange": "12:20-24" }, { "itemId": "act-p32", "book": "act", "label": "Acts 12:25-13:3", "order": 44032, "verseRange": "12:25-13:3" }, { "itemId": "act-p33", "book": "act", "label": "Acts 13:4-12", "order": 44033, "verseRange": "13:4-12" }, { "itemId": "act-p34", "book": "act", "label": "Acts 13:13-22", "order": 44034, "verseRange": "13:13-22" }, { "itemId": "act-p35a", "book": "act", "label": "Acts 13:23-41", "order": 44035, "verseRange": "13:23-41" }, { "itemId": "act-p35b", "book": "act", "label": "Acts 13:42-52", "order": 44035, "verseRange": "13:42-52" }, { "itemId": "act-p36", "book": "act", "label": "Acts 14:1-7", "order": 44036, "verseRange": "14:1-7" }, { "itemId": "act-p37", "book": "act", "label": "Acts 14:8-20", "order": 44037, "verseRange": "14:8-20" }, { "itemId": "act-p38", "book": "act", "label": "Acts 14:21-28", "order": 44038, "verseRange": "14:21-28" }, { "itemId": "act-p39a", "book": "act", "label": "Acts 15:1-21", "order": 44039, "verseRange": "15:1-21" }, { "itemId": "act-p39b", "book": "act", "label": "Acts 15:22-35", "order": 44039, "verseRange": "15:22-35" }, { "itemId": "act-p40", "book": "act", "label": "Acts 15:36-41", "order": 44040, "verseRange": "15:36-41" }, { "itemId": "act-p41a", "book": "act", "label": "Acts 16:1-5", "order": 44041, "verseRange": "16:1-5" }, { "itemId": "act-p41b", "book": "act", "label": "Acts 16:6-15", "order": 44041, "verseRange": "16:6-15" }, { "itemId": "act-p41c", "book": "act", "label": "Acts 16:16-24", "order": 44041, "verseRange": "16:16-24" }, { "itemId": "act-p41d", "book": "act", "label": "Acts 16:25-40", "order": 44041, "verseRange": "16:25-40" }, { "itemId": "act-p42", "book": "act", "label": "Acts 17:1-9", "order": 44042, "verseRange": "17:1-9" }, { "itemId": "act-p43", "book": "act", "label": "Acts 17:10-15", "order": 44043, "verseRange": "17:10-15" }, { "itemId": "act-p44a", "book": "act", "label": "Acts 17:16-21", "order": 44044, "verseRange": "17:16-21" }, { "itemId": "act-p44b", "book": "act", "label": "Acts 17:22-34", "order": 44044, "verseRange": "17:22-34" }, { "itemId": "act-p45", "book": "act", "label": "Acts 18:1-17", "order": 44045, "verseRange": "18:1-17" }, { "itemId": "act-p46", "book": "act", "label": "Acts 18:18-23", "order": 44046, "verseRange": "18:18-23" }, { "itemId": "act-p47", "book": "act", "label": "Acts 18:24-28", "order": 44047, "verseRange": "18:24-28" }, { "itemId": "act-p48", "book": "act", "label": "Acts 19:1-7", "order": 44048, "verseRange": "19:1-7" }, { "itemId": "act-p49", "book": "act", "label": "Acts 19:8-10", "order": 44049, "verseRange": "19:8-10" }, { "itemId": "act-p50", "book": "act", "label": "Acts 19:11-20", "order": 44050, "verseRange": "19:11-20" }, { "itemId": "act-p51", "book": "act", "label": "Acts 19:21-41", "order": 44051, "verseRange": "19:21-41" }, { "itemId": "act-p52", "book": "act", "label": "Acts 20:1-6", "order": 44052, "verseRange": "20:1-6" }, { "itemId": "act-p53", "book": "act", "label": "Acts 20:7-12", "order": 44053, "verseRange": "20:7-12" }, { "itemId": "act-p54", "book": "act", "label": "Acts 20:13-17", "order": 44054, "verseRange": "20:13-17" }, { "itemId": "act-p55", "book": "act", "label": "Acts 20:18-38", "order": 44055, "verseRange": "20:18-38" }, { "itemId": "act-p56", "book": "act", "label": "Acts 21:1-9", "order": 44056, "verseRange": "21:1-9" }, { "itemId": "act-p57", "book": "act", "label": "Acts 21:10-14", "order": 44057, "verseRange": "21:10-14" }, { "itemId": "act-p58", "book": "act", "label": "Acts 21:15-26", "order": 44058, "verseRange": "21:15-26" }, { "itemId": "act-p59", "book": "act", "label": "Acts 21:27-36", "order": 44059, "verseRange": "21:27-36" }, { "itemId": "act-p60", "book": "act", "label": "Acts 21:37-22:21", "order": 44060, "verseRange": "21:37-22:21" }, { "itemId": "act-p61", "book": "act", "label": "Acts 22:22-29", "order": 44061, "verseRange": "22:22-29" }, { "itemId": "act-p62", "book": "act", "label": "Acts 22:30-23:11", "order": 44062, "verseRange": "22:30-23:11" }, { "itemId": "act-p63", "book": "act", "label": "Acts 23:12-35", "order": 44063, "verseRange": "23:12-35" }, { "itemId": "act-p64", "book": "act", "label": "Acts 24:1-9", "order": 44064, "verseRange": "24:1-9" }, { "itemId": "act-p65", "book": "act", "label": "Acts 24:10-23", "order": 44065, "verseRange": "24:10-23" }, { "itemId": "act-p66", "book": "act", "label": "Acts 24:24-27", "order": 44066, "verseRange": "24:24-27" }, { "itemId": "act-p67", "book": "act", "label": "Acts 25:1-5", "order": 44067, "verseRange": "25:1-5" }, { "itemId": "act-p68", "book": "act", "label": "Acts 25:6-12", "order": 44068, "verseRange": "25:6-12" }, { "itemId": "act-p69", "book": "act", "label": "Acts 25:13-22", "order": 44069, "verseRange": "25:13-22" }, { "itemId": "act-p70", "book": "act", "label": "Acts 25:23-27", "order": 44070, "verseRange": "25:23-27" }, { "itemId": "act-p71a", "book": "act", "label": "Acts 26:1-23", "order": 44071, "verseRange": "26:1-23" }, { "itemId": "act-p71b", "book": "act", "label": "Acts 26:24-32", "order": 44071, "verseRange": "26:24-32" }, { "itemId": "act-p72", "book": "act", "label": "Acts 27:1-8", "order": 44072, "verseRange": "27:1-8" }, { "itemId": "act-p73a", "book": "act", "label": "Acts 27:9-26", "order": 44073, "verseRange": "27:9-26" }, { "itemId": "act-p73b", "book": "act", "label": "Acts 27:27-38", "order": 44073, "verseRange": "27:27-38" }, { "itemId": "act-p74", "book": "act", "label": "Acts 27:39-44", "order": 44074, "verseRange": "27:39-44" }, { "itemId": "act-p75", "book": "act", "label": "Acts 28:1-10", "order": 44075, "verseRange": "28:1-10" }, { "itemId": "act-p76", "book": "act", "label": "Acts 28:11-16", "order": 44076, "verseRange": "28:11-16" }, { "itemId": "act-p77", "book": "act", "label": "Acts 28:17-31", "order": 44077, "verseRange": "28:17-31" }, { "itemId": "1co-p1", "book": "1co", "label": "1 Corinthians 1:1-9", "order": 46001, "verseRange": "1:1-9" }, { "itemId": "1co-p2", "book": "1co", "label": "1 Corinthians 1:10-17", "order": 46002, "verseRange": "1:10-17" }, { "itemId": "1co-p3", "book": "1co", "label": "1 Corinthians 1:18-25", "order": 46003, "verseRange": "1:18-25" }, { "itemId": "1co-p4", "book": "1co", "label": "1 Corinthians 1:26-31", "order": 46004, "verseRange": "1:26-31" }, { "itemId": "1co-p5", "book": "1co", "label": "1 Corinthians 2:1-5", "order": 46005, "verseRange": "2:1-5" }, { "itemId": "1co-p6", "book": "1co", "label": "1 Corinthians 2:6-16", "order": 46006, "verseRange": "2:6-16" }, { "itemId": "1co-p7", "book": "1co", "label": "1 Corinthians 3:1-4", "order": 46007, "verseRange": "3:1-4" }, { "itemId": "1co-p8", "book": "1co", "label": "1 Corinthians 3:5-9", "order": 46008, "verseRange": "3:5-9" }, { "itemId": "1co-p9", "book": "1co", "label": "1 Corinthians 3:10-17", "order": 46009, "verseRange": "3:10-17" }, { "itemId": "1co-p10", "book": "1co", "label": "1 Corinthians 3:18-23", "order": 46010, "verseRange": "3:18-23" }, { "itemId": "1co-p11", "book": "1co", "label": "1 Corinthians 4:1-5", "order": 46011, "verseRange": "4:1-5" }, { "itemId": "1co-p12", "book": "1co", "label": "1 Corinthians 4:6-13", "order": 46012, "verseRange": "4:6-13" }, { "itemId": "1co-p13", "book": "1co", "label": "1 Corinthians 4:14-21", "order": 46013, "verseRange": "4:14-21" }, { "itemId": "1co-p14", "book": "1co", "label": "1 Corinthians 5:1-13", "order": 46014, "verseRange": "5:1-13" }, { "itemId": "1co-p15", "book": "1co", "label": "1 Corinthians 6:1-11", "order": 46015, "verseRange": "6:1-11" }, { "itemId": "1co-p16", "book": "1co", "label": "1 Corinthians 6:12-20", "order": 46016, "verseRange": "6:12-20" }, { "itemId": "1co-p17", "book": "1co", "label": "1 Corinthians 7:1-9", "order": 46017, "verseRange": "7:1-9" }, { "itemId": "1co-p18", "book": "1co", "label": "1 Corinthians 7:10-16", "order": 46018, "verseRange": "7:10-16" }, { "itemId": "1co-p19", "book": "1co", "label": "1 Corinthians 7:17-24", "order": 46019, "verseRange": "7:17-24" }, { "itemId": "1co-p20", "book": "1co", "label": "1 Corinthians 7:25-31", "order": 46020, "verseRange": "7:25-31" }, { "itemId": "1co-p21", "book": "1co", "label": "1 Corinthians 7:32-40", "order": 46021, "verseRange": "7:32-40" }, { "itemId": "1co-p22", "book": "1co", "label": "1 Corinthians 8:1-13", "order": 46022, "verseRange": "8:1-13" }, { "itemId": "1co-p23", "book": "1co", "label": "1 Corinthians 9:1-14", "order": 46023, "verseRange": "9:1-14" }, { "itemId": "1co-p24", "book": "1co", "label": "1 Corinthians 9:15-23", "order": 46024, "verseRange": "9:15-23" }, { "itemId": "1co-p25", "book": "1co", "label": "1 Corinthians 9:24-27", "order": 46025, "verseRange": "9:24-27" }, { "itemId": "1co-p26", "book": "1co", "label": "1 Corinthians 10:1-13", "order": 46026, "verseRange": "10:1-13" }, { "itemId": "1co-p27", "book": "1co", "label": "1 Corinthians 10:14-22", "order": 46027, "verseRange": "10:14-22" }, { "itemId": "1co-p28", "book": "1co", "label": "1 Corinthians 10:23-11:1", "order": 46028, "verseRange": "10:23-11:1" }, { "itemId": "1co-p29", "book": "1co", "label": "1 Corinthians 11:2-16", "order": 46029, "verseRange": "11:2-16" }, { "itemId": "1co-p30", "book": "1co", "label": "1 Corinthians 11:17-26", "order": 46030, "verseRange": "11:17-26" }, { "itemId": "1co-p31", "book": "1co", "label": "1 Corinthians 11:27-34", "order": 46031, "verseRange": "11:27-34" }, { "itemId": "1co-p32", "book": "1co", "label": "1 Corinthians 12:1-11", "order": 46032, "verseRange": "12:1-11" }, { "itemId": "1co-p33", "book": "1co", "label": "1 Corinthians 12:12-26", "order": 46033, "verseRange": "12:12-26" }, { "itemId": "1co-p34", "book": "1co", "label": "1 Corinthians 12:27-31", "order": 46034, "verseRange": "12:27-31" }, { "itemId": "1co-p35", "book": "1co", "label": "1 Corinthians 13:1-7", "order": 46035, "verseRange": "13:1-7" }, { "itemId": "1co-p36", "book": "1co", "label": "1 Corinthians 13:8-13", "order": 46036, "verseRange": "13:8-13" }, { "itemId": "1co-p37", "book": "1co", "label": "1 Corinthians 14:1-5", "order": 46037, "verseRange": "14:1-5" }, { "itemId": "1co-p38", "book": "1co", "label": "1 Corinthians 14:6-19", "order": 46038, "verseRange": "14:6-19" }, { "itemId": "1co-p39", "book": "1co", "label": "1 Corinthians 14:20-25", "order": 46039, "verseRange": "14:20-25" }, { "itemId": "1co-p40", "book": "1co", "label": "1 Corinthians 14:26-33", "order": 46040, "verseRange": "14:26-33" }, { "itemId": "1co-p41", "book": "1co", "label": "1 Corinthians 14:34-40", "order": 46041, "verseRange": "14:34-40" }, { "itemId": "1co-p42", "book": "1co", "label": "1 Corinthians 15:1-11", "order": 46042, "verseRange": "15:1-11" }, { "itemId": "1co-p43", "book": "1co", "label": "1 Corinthians 15:12-19", "order": 46043, "verseRange": "15:12-19" }, { "itemId": "1co-p44", "book": "1co", "label": "1 Corinthians 15:20-28", "order": 46044, "verseRange": "15:20-28" }, { "itemId": "1co-p45", "book": "1co", "label": "1 Corinthians 15:29-34", "order": 46045, "verseRange": "15:29-34" }, { "itemId": "1co-p46", "book": "1co", "label": "1 Corinthians 15:35-41", "order": 46046, "verseRange": "15:35-41" }, { "itemId": "1co-p47", "book": "1co", "label": "1 Corinthians 15:42-49", "order": 46047, "verseRange": "15:42-49" }, { "itemId": "1co-p48", "book": "1co", "label": "1 Corinthians 15:50-58", "order": 46048, "verseRange": "15:50-58" }, { "itemId": "1co-p49", "book": "1co", "label": "1 Corinthians 16:1-4", "order": 46049, "verseRange": "16:1-4" }, { "itemId": "1co-p50", "book": "1co", "label": "1 Corinthians 16:5-12", "order": 46050, "verseRange": "16:5-12" }, { "itemId": "1co-p51", "book": "1co", "label": "1 Corinthians 16:13-18", "order": 46051, "verseRange": "16:13-18" }, { "itemId": "1co-p52", "book": "1co", "label": "1 Corinthians 16:19-24", "order": 46052, "verseRange": "16:19-24" }, { "itemId": "gal-p1", "book": "gal", "label": "Galatians 1:1-5", "order": 48001, "verseRange": "1:1-5" }, { "itemId": "gal-p2", "book": "gal", "label": "Galatians 1:6-10", "order": 48002, "verseRange": "1:6-10" }, { "itemId": "gal-p3", "book": "gal", "label": "Galatians 1:11-24", "order": 48003, "verseRange": "1:11-24" }, { "itemId": "gal-p4", "book": "gal", "label": "Galatians 2:1-10", "order": 48004, "verseRange": "2:1-10" }, { "itemId": "gal-p5", "book": "gal", "label": "Galatians 2:11-14", "order": 48005, "verseRange": "2:11-14" }, { "itemId": "gal-p6", "book": "gal", "label": "Galatians 2:15-21", "order": 48006, "verseRange": "2:15-21" }, { "itemId": "gal-p7", "book": "gal", "label": "Galatians 3:1-9", "order": 48007, "verseRange": "3:1-9" }, { "itemId": "gal-p8", "book": "gal", "label": "Galatians 3:10-14", "order": 48008, "verseRange": "3:10-14" }, { "itemId": "gal-p9", "book": "gal", "label": "Galatians 3:15-18", "order": 48009, "verseRange": "3:15-18" }, { "itemId": "gal-p10", "book": "gal", "label": "Galatians 3:19-25", "order": 48010, "verseRange": "3:19-25" }, { "itemId": "gal-p11", "book": "gal", "label": "Galatians 3:26-4:7", "order": 48011, "verseRange": "3:26-4:7" }, { "itemId": "gal-p12", "book": "gal", "label": "Galatians 4:8-20", "order": 48012, "verseRange": "4:8-20" }, { "itemId": "gal-p13", "book": "gal", "label": "Galatians 4:21-27", "order": 48013, "verseRange": "4:21-27" }, { "itemId": "gal-p14", "book": "gal", "label": "Galatians 4:28-5:1", "order": 48014, "verseRange": "4:28-5:1" }, { "itemId": "gal-p15", "book": "gal", "label": "Galatians 5:2-6", "order": 48015, "verseRange": "5:2-6" }, { "itemId": "gal-p16", "book": "gal", "label": "Galatians 5:7-12", "order": 48016, "verseRange": "5:7-12" }, { "itemId": "gal-p17", "book": "gal", "label": "Galatians 5:13-18", "order": 48017, "verseRange": "5:13-18" }, { "itemId": "gal-p18", "book": "gal", "label": "Galatians 5:19-26", "order": 48018, "verseRange": "5:19-26" }, { "itemId": "gal-p19", "book": "gal", "label": "Galatians 6:1-10", "order": 48019, "verseRange": "6:1-10" }, { "itemId": "gal-p20", "book": "gal", "label": "Galatians 6:11-18", "order": 48020, "verseRange": "6:11-18" }, { "itemId": "eph-p1", "book": "eph", "label": "Ephesians 1:1-6", "order": 49001, "verseRange": "1:1-6" }, { "itemId": "eph-p2a", "book": "eph", "label": "Ephesians 1:7-10", "order": 49002, "verseRange": "1:7-10" }, { "itemId": "eph-p2b", "book": "eph", "label": "Ephesians 1:11-14", "order": 49002, "verseRange": "1:11-14" }, { "itemId": "eph-p3", "book": "eph", "label": "Ephesians 1:15-23", "order": 49003, "verseRange": "1:15-23" }, { "itemId": "eph-p4", "book": "eph", "label": "Ephesians 2:1-10", "order": 49004, "verseRange": "2:1-10" }, { "itemId": "eph-p5", "book": "eph", "label": "Ephesians 2:11-18", "order": 49005, "verseRange": "2:11-18" }, { "itemId": "eph-p6", "book": "eph", "label": "Ephesians 2:19-22", "order": 49006, "verseRange": "2:19-22" }, { "itemId": "eph-p7", "book": "eph", "label": "Ephesians 3:1-6", "order": 49007, "verseRange": "3:1-6" }, { "itemId": "eph-p8", "book": "eph", "label": "Ephesians 3:7-13", "order": 49008, "verseRange": "3:7-13" }, { "itemId": "eph-p9", "book": "eph", "label": "Ephesians 3:14-21", "order": 49009, "verseRange": "3:14-21" }, { "itemId": "eph-p10", "book": "eph", "label": "Ephesians 4:1-6", "order": 49010, "verseRange": "4:1-6" }, { "itemId": "eph-p11", "book": "eph", "label": "Ephesians 4:7-16", "order": 49011, "verseRange": "4:7-16" }, { "itemId": "eph-p12", "book": "eph", "label": "Ephesians 4:17-24", "order": 49012, "verseRange": "4:17-24" }, { "itemId": "eph-p13", "book": "eph", "label": "Ephesians 4:25-32", "order": 49013, "verseRange": "4:25-32" }, { "itemId": "eph-p14", "book": "eph", "label": "Ephesians 5:1-6", "order": 49014, "verseRange": "5:1-6" }, { "itemId": "eph-p15", "book": "eph", "label": "Ephesians 5:7-14", "order": 49015, "verseRange": "5:7-14" }, { "itemId": "eph-p16", "book": "eph", "label": "Ephesians 5:15-21", "order": 49016, "verseRange": "5:15-21" }, { "itemId": "eph-p17", "book": "eph", "label": "Ephesians 5:22-33", "order": 49017, "verseRange": "5:22-33" }, { "itemId": "eph-p18", "book": "eph", "label": "Ephesians 6:1-9", "order": 49018, "verseRange": "6:1-9" }, { "itemId": "eph-p19", "book": "eph", "label": "Ephesians 6:10-20", "order": 49019, "verseRange": "6:10-20" }, { "itemId": "eph-p20", "book": "eph", "label": "Ephesians 6:21-24", "order": 49020, "verseRange": "6:21-24" }, { "itemId": "1th-p1", "book": "1th", "label": "1 Thessalonians 1:1-10", "order": 52001, "verseRange": "1:1-10" }, { "itemId": "1th-p2", "book": "1th", "label": "1 Thessalonians 2:1-8", "order": 52002, "verseRange": "2:1-8" }, { "itemId": "1th-p3a", "book": "1th", "label": "1 Thessalonians 2:9-13", "order": 52003, "verseRange": "2:9-13" }, { "itemId": "1th-p3b", "book": "1th", "label": "1 Thessalonians 2:14-16", "order": 52003, "verseRange": "2:14-16" }, { "itemId": "1th-p4", "book": "1th", "label": "1 Thessalonians 2:17-3:5", "order": 52004, "verseRange": "2:17-3:5" }, { "itemId": "1th-p5", "book": "1th", "label": "1 Thessalonians 3:6-13", "order": 52005, "verseRange": "3:6-13" }, { "itemId": "1th-p6", "book": "1th", "label": "1 Thessalonians 4:1-8", "order": 52006, "verseRange": "4:1-8" }, { "itemId": "1th-p7", "book": "1th", "label": "1 Thessalonians 4:9-12", "order": 52007, "verseRange": "4:9-12" }, { "itemId": "1th-p8", "book": "1th", "label": "1 Thessalonians 4:13-18", "order": 52008, "verseRange": "4:13-18" }, { "itemId": "1th-p9", "book": "1th", "label": "1 Thessalonians 5:1-11", "order": 52009, "verseRange": "5:1-11" }, { "itemId": "1th-p10", "book": "1th", "label": "1 Thessalonians 5:12-22", "order": 52010, "verseRange": "5:12-22" }, { "itemId": "1th-p11", "book": "1th", "label": "1 Thessalonians 5:23-28", "order": 52011, "verseRange": "5:23-28" }, { "itemId": "2th-p1", "book": "2th", "label": "2 Thessalonians 1:1-4", "order": 53001, "verseRange": "1:1-4" }, { "itemId": "2th-p2", "book": "2th", "label": "2 Thessalonians 1:5-12", "order": 53002, "verseRange": "1:5-12" }, { "itemId": "2th-p3", "book": "2th", "label": "2 Thessalonians 2:1-12", "order": 53003, "verseRange": "2:1-12" }, { "itemId": "2th-p4", "book": "2th", "label": "2 Thessalonians 2:13-17", "order": 53004, "verseRange": "2:13-17" }, { "itemId": "2th-p5", "book": "2th", "label": "2 Thessalonians 3:1-5", "order": 53005, "verseRange": "3:1-5" }, { "itemId": "2th-p6", "book": "2th", "label": "2 Thessalonians 3:6-18", "order": 53006, "verseRange": "3:6-18" }, { "itemId": "1ti-p1a", "book": "1ti", "label": "1 Timothy 1:1-2", "order": 54001, "verseRange": "1:1-2" }, { "itemId": "1ti-p1b", "book": "1ti", "label": "1 Timothy 1:3-7", "order": 54001, "verseRange": "1:3-7" }, { "itemId": "1ti-p2", "book": "1ti", "label": "1 Timothy 1:8-11", "order": 54002, "verseRange": "1:8-11" }, { "itemId": "1ti-p3", "book": "1ti", "label": "1 Timothy 1:12-20", "order": 54003, "verseRange": "1:12-20" }, { "itemId": "1ti-p4", "book": "1ti", "label": "1 Timothy 2:1-7", "order": 54004, "verseRange": "2:1-7" }, { "itemId": "1ti-p5", "book": "1ti", "label": "1 Timothy 2:8-15", "order": 54005, "verseRange": "2:8-15" }, { "itemId": "1ti-p6", "book": "1ti", "label": "1 Timothy 3:1-7", "order": 54006, "verseRange": "3:1-7" }, { "itemId": "1ti-p7", "book": "1ti", "label": "1 Timothy 3:8-13", "order": 54007, "verseRange": "3:8-13" }, { "itemId": "1ti-p8", "book": "1ti", "label": "1 Timothy 3:14-16", "order": 54008, "verseRange": "3:14-16" }, { "itemId": "1ti-p9", "book": "1ti", "label": "1 Timothy 4:1-5", "order": 54009, "verseRange": "4:1-5" }, { "itemId": "1ti-p10", "book": "1ti", "label": "1 Timothy 4:6-10", "order": 54010, "verseRange": "4:6-10" }, { "itemId": "1ti-p11", "book": "1ti", "label": "1 Timothy 4:11-16", "order": 54011, "verseRange": "4:11-16" }, { "itemId": "1ti-p12", "book": "1ti", "label": "1 Timothy 5:1-8", "order": 54012, "verseRange": "5:1-8" }, { "itemId": "1ti-p13", "book": "1ti", "label": "1 Timothy 5:9-16", "order": 54013, "verseRange": "5:9-16" }, { "itemId": "1ti-p14", "book": "1ti", "label": "1 Timothy 5:17-25", "order": 54014, "verseRange": "5:17-25" }, { "itemId": "1ti-p15", "book": "1ti", "label": "1 Timothy 6:1-2e", "order": 54015, "verseRange": "6:1-2e" }, { "itemId": "1ti-p16", "book": "1ti", "label": "1 Timothy 6:2f-10", "order": 54016, "verseRange": "6:2f-10" }, { "itemId": "1ti-p17", "book": "1ti", "label": "1 Timothy 6:11-16", "order": 54017, "verseRange": "6:11-16" }, { "itemId": "1ti-p18", "book": "1ti", "label": "1 Timothy 6:17-21", "order": 54018, "verseRange": "6:17-21" }, { "itemId": "2ti-p1", "book": "2ti", "label": "2 Timothy 1:1-7", "order": 55001, "verseRange": "1:1-7" }, { "itemId": "2ti-p2", "book": "2ti", "label": "2 Timothy 1:8-14", "order": 55002, "verseRange": "1:8-14" }, { "itemId": "2ti-p3", "book": "2ti", "label": "2 Timothy 1:15-18", "order": 55003, "verseRange": "1:15-18" }, { "itemId": "2ti-p4", "book": "2ti", "label": "2 Timothy 2:1-7", "order": 55004, "verseRange": "2:1-7" }, { "itemId": "2ti-p5", "book": "2ti", "label": "2 Timothy 2:8-13", "order": 55005, "verseRange": "2:8-13" }, { "itemId": "2ti-p6", "book": "2ti", "label": "2 Timothy 2:14-19", "order": 55006, "verseRange": "2:14-19" }, { "itemId": "2ti-p7", "book": "2ti", "label": "2 Timothy 2:20-26", "order": 55007, "verseRange": "2:20-26" }, { "itemId": "2ti-p8", "book": "2ti", "label": "2 Timothy 3:1-9", "order": 55008, "verseRange": "3:1-9" }, { "itemId": "2ti-p9", "book": "2ti", "label": "2 Timothy 3:10-17", "order": 55009, "verseRange": "3:10-17" }, { "itemId": "2ti-p10", "book": "2ti", "label": "2 Timothy 4:1-8", "order": 55010, "verseRange": "4:1-8" }, { "itemId": "2ti-p11", "book": "2ti", "label": "2 Timothy 4:9-22", "order": 55011, "verseRange": "4:9-22" }, { "itemId": "tit-p1", "book": "tit", "label": "Titus 1:1-4", "order": 56001, "verseRange": "1:1-4" }, { "itemId": "tit-p2", "book": "tit", "label": "Titus 1:5-9", "order": 56002, "verseRange": "1:5-9" }, { "itemId": "tit-p3", "book": "tit", "label": "Titus 1:10-16", "order": 56003, "verseRange": "1:10-16" }, { "itemId": "tit-p4", "book": "tit", "label": "Titus 2:1-10", "order": 56004, "verseRange": "2:1-10" }, { "itemId": "tit-p5", "book": "tit", "label": "Titus 2:11-15", "order": 56005, "verseRange": "2:11-15" }, { "itemId": "tit-p6", "book": "tit", "label": "Titus 3:1-11", "order": 56006, "verseRange": "3:1-11" }, { "itemId": "tit-p7", "book": "tit", "label": "Titus 3:12-15", "order": 56007, "verseRange": "3:12-15" }, { "itemId": "1jn-p1", "book": "1jn", "label": "1 John 1:1-4", "order": 62001, "verseRange": "1:1-4" }, { "itemId": "1jn-p2", "book": "1jn", "label": "1 John 1:5-2:2", "order": 62002, "verseRange": "1:5-2:2" }, { "itemId": "1jn-p3", "book": "1jn", "label": "1 John 2:3-11", "order": 62003, "verseRange": "2:3-11" }, { "itemId": "1jn-p4", "book": "1jn", "label": "1 John 2:12-17", "order": 62004, "verseRange": "2:12-17" }, { "itemId": "1jn-p5", "book": "1jn", "label": "1 John 2:18-28", "order": 62005, "verseRange": "2:18-28" }, { "itemId": "1jn-p6", "book": "1jn", "label": "1 John 2:29-3:10", "order": 62006, "verseRange": "2:29-3:10" }, { "itemId": "1jn-p7", "book": "1jn", "label": "1 John 3:11-18", "order": 62007, "verseRange": "3:11-18" }, { "itemId": "1jn-p8", "book": "1jn", "label": "1 John 3:19-24", "order": 62008, "verseRange": "3:19-24" }, { "itemId": "1jn-p9", "book": "1jn", "label": "1 John 4:1-6", "order": 62009, "verseRange": "4:1-6" }, { "itemId": "1jn-p10", "book": "1jn", "label": "1 John 4:7-12", "order": 62010, "verseRange": "4:7-12" }, { "itemId": "1jn-p11", "book": "1jn", "label": "1 John 4:13-21", "order": 62011, "verseRange": "4:13-21" }, { "itemId": "1jn-p12", "book": "1jn", "label": "1 John 5:1-5", "order": 62012, "verseRange": "5:1-5" }, { "itemId": "1jn-p13", "book": "1jn", "label": "1 John 5:6-12", "order": 62013, "verseRange": "5:6-12" }, { "itemId": "1jn-p14", "book": "1jn", "label": "1 John 5:13-21", "order": 62014, "verseRange": "5:13-21" }, { "itemId": "2jn-p1", "book": "2jn", "label": "2 John 1:1-3", "order": 63001, "verseRange": "1:1-3" }, { "itemId": "2jn-p2", "book": "2jn", "label": "2 John 1:4-6", "order": 63002, "verseRange": "1:4-6" }, { "itemId": "2jn-p3", "book": "2jn", "label": "2 John 1:7-13", "order": 63003, "verseRange": "1:7-13" }, { "itemId": "3jn-p1", "book": "3jn", "label": "3 John 1:1-8", "order": 64001, "verseRange": "1:1-8" }, { "itemId": "3jn-p2", "book": "3jn", "label": "3 John 1:9-10", "order": 64002, "verseRange": "1:9-10" }, { "itemId": "3jn-p3", "book": "3jn", "label": "3 John 1:11-15", "order": 64003, "verseRange": "1:11-15" }, { "itemId": "jud-p1", "book": "jud", "label": "Jude 1:1-2", "order": 65001, "verseRange": "1:1-2" }, { "itemId": "jud-p2", "book": "jud", "label": "Jude 1:3-7", "order": 65002, "verseRange": "1:3-7" }, { "itemId": "jud-p3", "book": "jud", "label": "Jude 1:8-11", "order": 65003, "verseRange": "1:8-11" }, { "itemId": "jud-p4", "book": "jud", "label": "Jude 1:12-16", "order": 65004, "verseRange": "1:12-16" }, { "itemId": "jud-p5", "book": "jud", "label": "Jude 1:17-23", "order": 65005, "verseRange": "1:17-23" }, { "itemId": "jud-p6", "book": "jud", "label": "Jude 1:24-25", "order": 65006, "verseRange": "1:24-25" }];
-
-// packages/core/src/catalog.ts
-var pad = (n, w = 4) => String(n).padStart(w, "0");
-function bibleTemplate() {
-  const items = [];
-  BIBLE_BOOKS.forEach((b, bi) => {
-    items.push({ itemId: b.itemId, parentItemId: null, kind: "book", label: b.label, order: `b${pad(bi)}` });
-    b.verses.forEach((_, ci) => {
-      items.push({ itemId: `${b.itemId}-${ci + 1}`, parentItemId: b.itemId, kind: "chapter", label: `${b.label} ${ci + 1}`, order: `b${pad(bi)}c${pad(ci + 1, 3)}` });
-    });
-  });
-  return {
-    id: "bible",
-    name: "Chapter Units",
-    description: "One translatable chunk per chapter, Book \u203A Chapter (Protestant canon).",
-    unitKinds: [
-      { id: "book", label: "Book", childKinds: ["chapter"] },
-      { id: "chapter", label: "Chapter", childKinds: [] }
-    ],
-    items
-  };
-}
-function fiaTemplate() {
-  const items = [];
-  const bookIndex = new Map(BIBLE_BOOKS.map((b, i) => [b.itemId, i]));
-  const seen = /* @__PURE__ */ new Set();
-  FIA_PERICOPES.forEach((p, i) => {
-    if (!seen.has(p.book)) {
-      seen.add(p.book);
-      const b = BIBLE_BOOKS[bookIndex.get(p.book) ?? -1];
-      items.push({ itemId: p.book, parentItemId: null, kind: "book", label: b?.label ?? p.book, order: `b${pad(bookIndex.get(p.book) ?? 999)}` });
-    }
-    items.push({ itemId: p.itemId, parentItemId: p.book, kind: "pericope", label: p.label, order: `b${pad(bookIndex.get(p.book) ?? 999)}p${pad(i, 5)}` });
-  });
-  return {
-    id: "fia",
-    name: "FIA",
-    description: "Familiarization, Internalization, Articulation passages: literary units for oral and church-based teams.",
-    unitKinds: [
-      { id: "book", label: "Book", childKinds: ["pericope"] },
-      { id: "pericope", label: "Passage", childKinds: [] }
-    ],
-    items
-  };
-}
-function bookTemplate() {
-  return {
-    id: "book",
-    name: "Book Overview",
-    description: "Whole-book chunks for introductions, outlines, and book-level drafting.",
-    // Its own kind id: 'book' is a container in every other template and in
-    // DEFAULT_CONFIG, and kind ids are shared project-wide.
-    unitKinds: [{ id: "book_unit", label: "Book", childKinds: [] }],
-    items: BIBLE_BOOKS.map((b, i) => ({ itemId: b.itemId, parentItemId: null, kind: "book_unit", label: b.label, order: `b${pad(i)}` }))
-  };
-}
-var templates = null;
-function contentTemplates() {
-  templates ??= [fiaTemplate(), bibleTemplate(), bookTemplate()];
-  return templates;
-}
-function contentTemplate(id) {
-  return contentTemplates().find((t) => t.id === id);
-}
-function templateOfUnit(unitId) {
-  const m = /^([a-z0-9_]+)@(\d+)\//.exec(unitId);
-  if (m) return { templateId: m[1], catalogVersion: Number(m[2]) };
-  const lib = /^([a-z0-9][a-z0-9._-]*)\//i.exec(unitId);
-  return lib ? { templateId: lib[1], catalogVersion: 0 } : null;
-}
-function effectiveUnitKinds(state, base) {
-  const out = new Map(base.map((k) => [k.id, k]));
-  for (const sel of Object.values(state.laneTemplates)) {
-    const t = contentTemplate(sel.value.templateId);
-    if (t) {
-      for (const k of t.unitKinds) if (!out.has(k.id)) out.set(k.id, k);
-    }
-  }
-  return [...out.values()];
-}
-
-// packages/core/src/indexes.ts
-var unitLaneKey = (unitId, laneId) => `${unitId}:${laneId}`;
-function buildIndexes(state) {
-  const kinds = effectiveUnitKinds(state, (state.config?.value ?? DEFAULT_CONFIG).unitKinds);
-  const known = new Set(kinds.map((k) => k.id));
-  const leafKinds = new Set(kinds.filter((k) => k.childKinds.length === 0).map((k) => k.id));
-  const isLeaf = (kind) => !known.has(kind) || leafKinds.has(kind);
-  const units = Object.entries(state.units).sort(([, a], [, b]) => a.order < b.order ? -1 : 1);
-  const leafUnits = [];
-  const containerUnits = [];
-  for (const [id, u] of units) (isLeaf(u.kind) ? leafUnits : containerUnits).push(id);
-  const takesByUnitLane = /* @__PURE__ */ new Map();
-  const takeEntries = Object.entries(state.takes).filter(([, t]) => !t.archived).sort(([, a], [, b]) => a.hlc < b.hlc ? 1 : -1);
-  for (const [id, t] of takeEntries) {
-    const key = unitLaneKey(t.unitId, t.laneId);
-    const list = takesByUnitLane.get(key);
-    if (list) list.push(id);
-    else takesByUnitLane.set(key, [id]);
-  }
-  const assignmentsByUnitLane = /* @__PURE__ */ new Map();
-  const assignmentsByActor = /* @__PURE__ */ new Map();
-  for (const a of Object.values(state.assignments)) {
-    const key = unitLaneKey(a.unitId, a.laneId);
-    const byUnit = assignmentsByUnitLane.get(key);
-    if (byUnit) byUnit.push(a);
-    else assignmentsByUnitLane.set(key, [a]);
-    const byActor = assignmentsByActor.get(a.profileId);
-    if (byActor) byActor.push(a);
-    else assignmentsByActor.set(a.profileId, [a]);
-  }
-  const activeMembersByRole = /* @__PURE__ */ new Map();
-  for (const [id, m] of Object.entries(state.members)) {
-    if (m.removed.value) continue;
-    const list = activeMembersByRole.get(m.role.value);
-    if (list) list.push(id);
-    else activeMembersByRole.set(m.role.value, [id]);
-  }
-  for (const list of activeMembersByRole.values()) list.sort();
-  return {
-    takesByUnitLane,
-    assignmentsByUnitLane,
-    assignmentsByActor,
-    activeMembersByRole,
-    leafUnits,
-    containerUnits,
-    lanes: Object.keys(state.lanes).sort()
-  };
-}
-function laneLeafUnits(state, idx, laneId) {
-  const sel = state.laneTemplates[laneId]?.value;
-  if (!sel) return idx.leafUnits;
-  const hidden = state.laneHiddenUnits?.[laneId] ?? {};
-  const books = sel.books ? new Set(sel.books) : null;
-  return idx.leafUnits.filter((id) => {
-    if (hidden[id]?.value === true) return false;
-    const t = templateOfUnit(id);
-    if (t === null) return true;
-    if (t.templateId !== sel.templateId || t.catalogVersion !== sel.catalogVersion) return false;
-    return books === null || books.has(id.slice(id.indexOf("/") + 1, id.indexOf("/") + 4));
-  });
-}
-
-// packages/core/src/workflow.ts
-function deriveWorkflow(state, laneId) {
-  const live = Object.values(state.workflowSteps).filter((s) => !s.removed && s.step.hlc !== "").map((s) => s.step.value);
-  const pick = (scoped) => live.filter((d) => scoped ? d.laneId === laneId : d.laneId === void 0);
-  const chosen = laneId !== void 0 && pick(true).length > 0 ? pick(true) : pick(false);
-  if (chosen.length === 0) return (state.config?.value ?? DEFAULT_CONFIG).workflow;
-  return chosen.sort((a, b) => a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1).map((d) => ({
-    id: d.stepId,
-    role: d.role,
-    required: d.required,
-    rule: d.rule,
-    ...d.teamId !== void 0 ? { teamId: d.teamId } : {},
-    ...d.label !== void 0 ? { label: d.label } : {}
-  }));
-}
-function deriveTakeStatus(state, takeId, idx = buildIndexes(state)) {
-  const take = state.takes[takeId];
-  if (!take) throw new Error(`Unknown take ${takeId}`);
-  const workflow = deriveWorkflow(state, take.laneId);
-  const steps = workflow.map((step) => deriveStep(state, takeId, step, idx));
-  const submitted = state.submissions[takeId] !== void 0;
-  let outcome;
-  if (take.archived) outcome = "archived";
-  else if (!submitted) outcome = "draft";
-  else if (steps.some((s) => s.required && s.outcome === "failed")) outcome = "changes_requested";
-  else if (steps.every((s) => !s.required || s.outcome === "passed")) outcome = "approved";
-  else outcome = "in_review";
-  return { takeId, archived: take.archived, submitted, steps, outcome };
-}
-function deriveStep(state, takeId, step, idx) {
-  const take = state.takes[takeId];
-  const eligible = eligibleReviewers(state, take.unitId, take.laneId, step, idx);
-  const reviews = state.reviews[takeId]?.[step.id] ?? {};
-  const approved = [];
-  const rejected = [];
-  for (const actorId of eligible) {
-    const review = reviews[actorId]?.value;
-    if (review?.decision === "approve") approved.push(actorId);
-    else if (review?.decision === "suggest_changes") rejected.push(actorId);
-  }
-  const waitingOn = eligible.filter((id) => !approved.includes(id) && !rejected.includes(id));
-  let outcome = "pending";
-  const n = eligible.length;
-  if (n === 0) {
-    outcome = step.required ? "pending" : "passed";
-  } else {
-    switch (step.rule) {
-      case "any":
-        if (approved.length > 0) outcome = "passed";
-        else if (rejected.length === n) outcome = "failed";
-        break;
-      case "majority": {
-        const needed = Math.floor(n / 2) + 1;
-        if (approved.length >= needed) outcome = "passed";
-        else if (rejected.length >= needed) outcome = "failed";
-        break;
-      }
-      case "unanimous":
-        if (rejected.length > 0) outcome = "failed";
-        else if (approved.length === n) outcome = "passed";
-        break;
-    }
-  }
-  return { stepId: step.id, required: step.required, eligible, approved, rejected, waitingOn, outcome };
-}
-function eligibleReviewers(state, unitId, laneId, step, idx = buildIndexes(state)) {
-  const active = (id) => {
-    const m = state.members[id];
-    return m !== void 0 && !m.removed.value;
-  };
-  const assigned = (idx.assignmentsByUnitLane.get(unitLaneKey(unitId, laneId)) ?? []).filter((a) => a.role === step.role).map((a) => a.profileId).filter(active);
-  if (assigned.length > 0) return [...new Set(assigned)].sort();
-  const team = step.teamId ? state.teams[step.teamId] : void 0;
-  if (team) {
-    const members = Object.entries(team.members).filter(([id, m]) => m.value && active(id)).map(([id]) => id).sort();
-    if (members.length > 0) return members;
-  }
-  return idx.activeMembersByRole.get(step.role) ?? [];
-}
-function takesFor(state, unitId, laneId, idx = buildIndexes(state)) {
-  return idx.takesByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [];
-}
-function currentTake(state, unitId, laneId, idx = buildIndexes(state)) {
-  const selected = state.selectedTakes[unitLaneKey(unitId, laneId)]?.value;
-  if (selected && state.takes[selected] && !state.takes[selected].archived) return selected;
-  const candidates = takesFor(state, unitId, laneId, idx);
-  const approved = candidates.find((id) => deriveTakeStatus(state, id, idx).outcome === "approved");
-  return approved ?? candidates[0] ?? null;
-}
-
-// packages/core/src/snapshot.ts
-function resume(snapshot, tail) {
-  if (snapshot.reducerVersion !== REDUCER_VERSION) {
-    throw new Error(
-      `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`
-    );
-  }
-  const state = structuredClone(snapshot.state);
-  const newer = [...tail].filter((e) => e.serverSeq === void 0 || e.serverSeq > snapshot.serverSeq);
-  return fold(newer, state);
-}
-
-// packages/core/src/tasks.ts
-var TRANSLATING_ROLES = ["owner", "coordinator", "translator"];
-function actorRole(state, actorId) {
-  const m = state.members[actorId];
-  return m && !m.removed.value ? m.role.value : null;
-}
-function deriveTasks(state, actorId, idx = buildIndexes(state)) {
-  const scope2 = taskScope(state, actorId, idx);
-  if (!scope2) return [];
-  const tasks = [];
-  for (const laneId of idx.lanes) {
-    const workflow = deriveWorkflow(state, laneId);
-    for (const unitId of laneLeafUnits(state, idx, laneId)) {
-      tasks.push(...tasksForUnitLane(state, scope2, unitId, laneId, workflow, idx));
-    }
-  }
-  return tasks;
-}
-function taskScope(state, actorId, idx) {
-  const role = actorRole(state, actorId);
-  if (!role) return null;
-  const mine = /* @__PURE__ */ new Map();
-  for (const a of idx.assignmentsByActor.get(actorId) ?? []) {
-    if (a.role === "reviewer") continue;
-    const key = unitLaneKey(a.unitId, a.laneId);
-    const prior = mine.get(key);
-    if (!prior || prior.hlc < a.hlc) mine.set(key, a);
-  }
-  return { actorId, mayTranslate: TRANSLATING_ROLES.includes(role), mine };
-}
-function tasksForUnitLane(state, scope2, unitId, laneId, workflow, idx) {
-  const tasks = [];
-  const takeId = currentTake(state, unitId, laneId, idx);
-  const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
-  const myAssignment = scope2.mine.get(unitLaneKey(unitId, laneId));
-  const extras = {
-    ...myAssignment?.dueDate !== void 0 ? { dueDate: myAssignment.dueDate } : {},
-    ...myAssignment?.instructions !== void 0 ? { instructions: myAssignment.instructions } : {}
-  };
-  if (scope2.mayTranslate) {
-    if (status?.outcome === "changes_requested") {
-      tasks.push(task("respond", unitId, laneId, takeId, "todo", extras));
-    } else {
-      const st = !takeId ? "todo" : status?.outcome === "draft" ? "doing" : "done";
-      tasks.push(task("translate", unitId, laneId, takeId, st, extras));
-    }
-  }
-  if (takeId && status && status.submitted && status.outcome !== "archived") {
-    for (const step of workflow) {
-      if (!eligibleReviewers(state, unitId, laneId, step, idx).includes(scope2.actorId)) continue;
-      const decided = state.reviews[takeId]?.[step.id]?.[scope2.actorId] !== void 0;
-      tasks.push({
-        ...task("review", unitId, laneId, takeId, decided ? "done" : "todo", {}),
-        id: `review:${unitId}:${laneId}:${step.id}`
-      });
-    }
-  }
-  return tasks;
-}
-function task(type, unitId, laneId, takeId, status, extras) {
-  return { id: `${type}:${unitId}:${laneId}`, type, unitId, laneId, takeId, status, done: status === "done", ...extras };
-}
-function deriveProgress(state, laneId, idx = buildIndexes(state)) {
-  const passages = laneLeafUnits(state, idx, laneId);
-  if (passages.length === 0) return { translatedPct: 0, approvedPct: 0, passages: 0 };
-  let translated = 0;
-  let approved = 0;
-  for (const unitId of passages) {
-    const takeId = currentTake(state, unitId, laneId, idx);
-    if (!takeId) continue;
-    const st = deriveTakeStatus(state, takeId, idx);
-    if (!st.submitted) continue;
-    translated += 1;
-    if (st.outcome === "approved") approved += 1;
-  }
-  return {
-    translatedPct: Math.round(100 * translated / passages.length),
-    approvedPct: Math.round(100 * approved / passages.length),
-    passages: passages.length
-  };
-}
-
-// packages/core/src/blockers.ts
-function deriveBlockers(state, idx = buildIndexes(state)) {
-  const out = [];
-  const removed = (id) => {
-    const m = state.members[id];
-    return m !== void 0 && m.removed.value;
-  };
-  const seenSteps = /* @__PURE__ */ new Set();
-  for (const laneId of idx.lanes.length ? idx.lanes : [void 0]) {
-    for (const step of deriveWorkflow(state, laneId)) {
-      if (seenSteps.has(step.id)) continue;
-      seenSteps.add(step.id);
-      const team = step.teamId ? state.teams[step.teamId] : void 0;
-      const teamMembers = team ? Object.entries(team.members).filter(([id, m]) => m.value && state.members[id] !== void 0 && !removed(id)) : [];
-      if (step.required && teamMembers.length === 0 && (idx.activeMembersByRole.get(step.role) ?? []).length === 0) {
-        out.push({ kind: "role_unfilled", stepId: step.id, fix: `Add a member with role ${step.role} or assign reviewers per passage` });
-      }
-    }
-  }
-  for (const laneId of idx.lanes) {
-    const workflow = deriveWorkflow(state, laneId);
-    for (const unitId of laneLeafUnits(state, idx, laneId)) {
-      const key = unitLaneKey(unitId, laneId);
-      for (const a of idx.assignmentsByUnitLane.get(key) ?? []) {
-        if (a.role !== "reviewer" && removed(a.profileId)) {
-          out.push({ kind: "assignee_removed", unitId, laneId, profileId: a.profileId, fix: "Reassign the passage" });
-        }
-      }
-      const takeId = currentTake(state, unitId, laneId, idx);
-      if (!takeId) continue;
-      const st = deriveTakeStatus(state, takeId, idx);
-      if (!st.submitted || st.outcome === "approved" || st.outcome === "archived") continue;
-      for (const step of st.steps) {
-        if (step.outcome !== "pending") continue;
-        const def = workflow.find((s) => s.id === step.stepId);
-        if (!def) continue;
-        if (step.eligible.length === 0 && step.required) {
-          out.push({ kind: "step_no_reviewers", unitId, laneId, takeId, stepId: step.stepId, fix: `Assign a ${def.role} to review this passage` });
-          continue;
-        }
-        const assignedRemoved = (idx.assignmentsByUnitLane.get(key) ?? []).filter((a) => a.role === def.role && removed(a.profileId)).map((a) => a.profileId);
-        if (assignedRemoved.length > 0 && eligibleReviewers(state, unitId, laneId, def, idx).length === 0) {
-          for (const profileId of assignedRemoved) {
-            out.push({ kind: "reviewer_removed", unitId, laneId, takeId, stepId: step.stepId, profileId, fix: "Assign another reviewer" });
-          }
-        }
-      }
-    }
-  }
-  return out;
-}
+// packages/core/src/libraryDocs.ts
+var LIBRARY_KINDS = ["template", "flow", "material", "versification"];
 
 // packages/core/src/library.ts
 var blank = { value: void 0, hlc: "", eventId: "" };
@@ -21979,7 +21025,26 @@ function applyLibraryEvent(library, e) {
   }
 }
 
+// packages/core/src/license.ts
+var LICENSES = [
+  "all-rights-reserved",
+  "CC-BY-NC-ND-4.0",
+  "CC-BY-NC-SA-4.0",
+  "CC-BY-SA-4.0",
+  "CC-BY-4.0",
+  "CC0-1.0"
+];
+var DEFAULT_LICENSE = "all-rights-reserved";
+function isLicense(v) {
+  return typeof v === "string" && LICENSES.includes(v);
+}
+function licenseRank(license) {
+  return LICENSES.indexOf(license);
+}
+
 // packages/core/src/org.ts
+var ORG_STREAM = "_org";
+var PERSON_ORG = "_person";
 var PRIVILEGES = [
   "manage_structure",
   "invite_members",
@@ -21997,25 +21062,28 @@ var PRIVILEGES = [
   "review",
   "view_status"
 ];
+var TARGET_SCOPES = ["gospels", "nt", "ot", "bible"];
 var ORG_EVENT_TYPES = [
   "v1.OrgCreated",
   "v1.RoleDefined",
   "v1.RoleRetired",
-  "v1.OrgMemberAdded",
-  "v1.OrgMemberRemoved",
-  "v1.CatalogItemToggled",
-  "v1.ProjectRegistered",
+  "v1.MemberAdded",
+  "v1.MemberRemoved",
   "v1.InviteIssued",
   "v1.InviteRedeemed",
   "v1.JoinDecided",
-  "v1.OrgLicenseSet",
+  "v1.LicenseSet",
+  "v1.LanguageAdded",
+  "v1.LanguageRenamed",
+  "v1.LanguageCountrySet",
+  "v1.LanguageTargetSet",
   "v1.ReferenceRecommended",
   ...LIBRARY_EVENT_TYPES
 ];
 var SEED_ROLES = [
   { roleId: "org_admin", name: "Organization Admin", privileges: [...PRIVILEGES], fixed: "owner" },
   {
-    roleId: "project_coordinator",
+    roleId: "coordinator",
     name: "Coordinator",
     fixed: "coordinator",
     privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
@@ -22033,25 +21101,25 @@ function effectiveRole(privs) {
   return null;
 }
 function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
+  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {} };
 }
 function scopeKey(s) {
-  return s.level === "org" ? "org" : s.level === "project" ? `project:${s.projectId}` : `lane:${s.projectId}/${s.laneId}`;
-}
-function catalogKey(kind, itemId, level, projectId) {
-  return `${kind}:${itemId}:${level}:${level === "project" ? projectId ?? "" : ""}`;
+  return s.level === "org" ? "org" : `language:${s.languageId}`;
 }
 var empty = { value: void 0, hlc: "", eventId: "" };
 function emptyInvite() {
   return { roleId: "", scope: { level: "org" }, expiresAt: "", issuedBy: "", hlc: "", redeemedBy: null };
 }
-function loses2(current, event) {
+function loses(current, event) {
   if (current.hlc !== event.hlc) return current.hlc > event.hlc;
   return current.eventId > event.id;
 }
 function set(current, event, value) {
-  if (current && current.hlc !== "" && loses2(current, event)) return current;
+  if (current && current.hlc !== "" && loses(current, event)) return current;
   return { value, hlc: event.hlc, eventId: event.id };
+}
+function language(state, languageId) {
+  return state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null };
 }
 function applyOrgEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
@@ -22064,7 +21132,7 @@ function applyOrgEvent(state, event) {
   if (state.redactions[event.id]) return state;
   switch (event.type) {
     case "v1.OrgCreated":
-      state.org = set(state.org ?? void 0, event, event.payload);
+      state.org = set(state.org, event, event.payload);
       break;
     case "v1.RoleDefined": {
       const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
@@ -22077,22 +21145,15 @@ function applyOrgEvent(state, event) {
       r.retired = true;
       break;
     }
-    case "v1.OrgMemberAdded": {
+    case "v1.MemberAdded": {
       const m = membership(state, event.payload.profileId, event.payload.scope);
       m.roleId = set(m.roleId, event, event.payload.roleId);
       m.removed = set(m.removed, event, false);
-      if (event.payload.displayName !== void 0) m.displayName = event.payload.displayName;
       break;
     }
-    case "v1.OrgMemberRemoved": {
+    case "v1.MemberRemoved": {
       const m = membership(state, event.payload.profileId, event.payload.scope);
       m.removed = set(m.removed, event, true);
-      break;
-    }
-    case "v1.CatalogItemToggled": {
-      const { kind, itemId, level, projectId, enabled } = event.payload;
-      const key = catalogKey(kind, itemId, level, projectId);
-      state.catalog[key] = set(state.catalog[key], event, enabled);
       break;
     }
     case "v1.InviteIssued": {
@@ -22100,7 +21161,7 @@ function applyOrgEvent(state, event) {
       const slot = state.invites[inviteId] ??= emptyInvite();
       if (slot.hlc === "" || slot.hlc < event.hlc) {
         slot.roleId = roleId;
-        slot.scope = scope2;
+        slot.scope = { ...scope2 };
         slot.expiresAt = expiresAt2;
         slot.issuedBy = event.actorId;
         slot.hlc = event.hlc;
@@ -22120,19 +21181,7 @@ function applyOrgEvent(state, event) {
       }
       break;
     }
-    case "v1.ProjectRegistered": {
-      const prior = state.projects[event.payload.projectId];
-      if (!prior || event.hlc < prior.hlc || event.hlc === prior.hlc && event.id < prior.eventId) {
-        state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
-      }
-      break;
-    }
-    case "v1.LaneNamed": {
-      const prior = state.languageNames[event.payload.laneId];
-      if (!prior || !loses2(prior, event)) state.languageNames[event.payload.laneId] = { value: event.payload.name, hlc: event.hlc, eventId: event.id };
-      break;
-    }
-    case "v1.OrgLicenseSet": {
+    case "v1.LicenseSet": {
       const prior = state.license;
       const next = licenseRank(event.payload.license);
       const was = prior ? licenseRank(prior.value) : -1;
@@ -22141,8 +21190,32 @@ function applyOrgEvent(state, event) {
       }
       break;
     }
+    case "v1.LanguageAdded": {
+      const { languageId, name, code, sourceCode } = event.payload;
+      const l = language(state, languageId);
+      if (!l.added || event.hlc < l.added.hlc || event.hlc === l.added.hlc && event.id < l.added.eventId) {
+        l.added = { name, code, sourceCode, hlc: event.hlc, eventId: event.id };
+      }
+      break;
+    }
+    case "v1.LanguageRenamed": {
+      const l = language(state, event.payload.languageId);
+      l.renamed = set(l.renamed, event, event.payload.name);
+      break;
+    }
+    case "v1.LanguageCountrySet": {
+      const l = language(state, event.payload.languageId);
+      l.country = set(l.country, event, event.payload.country);
+      break;
+    }
+    case "v1.LanguageTargetSet": {
+      const { languageId, scope: scope2, startDate, targetDate } = event.payload;
+      const l = language(state, languageId);
+      l.target = set(l.target, event, { scope: scope2, startDate, targetDate });
+      break;
+    }
     case "v1.ReferenceRecommended":
-      applyOrgRecommendation(state.recommendations ??= {}, event);
+      applyOrgRecommendation(state.recommendations, event);
       break;
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;
@@ -22174,19 +21247,39 @@ function foldOrg(events, initial = emptyOrgState()) {
   for (const event of rest) state = applyOrgEvent(state, event);
   return state;
 }
-function scopeCovers(scope2, target) {
-  if (scope2.level === "org") return true;
-  if (scope2.level === "project") return target.projectId === scope2.projectId;
-  return target.projectId === scope2.projectId && (target.laneId === void 0 || target.laneId === scope2.laneId);
+function languageInfo(org, languageId) {
+  const l = org?.languages[languageId];
+  if (!l?.added) return null;
+  return {
+    languageId,
+    name: l.renamed?.value ?? l.added.name,
+    code: l.added.code,
+    sourceCode: l.added.sourceCode,
+    country: l.country?.value ?? null,
+    target: l.target?.value ?? null
+  };
 }
-function privilegesFor(state, profileId, target = {}) {
+function scopeCovers(scope2, languageId) {
+  return scope2.level === "org" || languageId !== void 0 && scope2.languageId === languageId;
+}
+function privilegesFor(state, profileId, languageId) {
   const out = /* @__PURE__ */ new Set();
   for (const m of Object.values(state.members[profileId] ?? {})) {
     if (m.removed.value !== false) continue;
-    if (target.projectId !== void 0 && !scopeCovers(m.scope, target)) continue;
+    if (!scopeCovers(m.scope, languageId)) continue;
     const role = state.roles[m.roleId.value];
     if (!role || role.retired) continue;
     for (const p of role.privileges.value ?? []) out.add(p);
+  }
+  return out;
+}
+function languagePeople(org, languageId) {
+  const out = /* @__PURE__ */ new Map();
+  if (!org) return out;
+  for (const profileId of Object.keys(org.members)) {
+    const privileges = privilegesFor(org, profileId, languageId);
+    const role = effectiveRole(privileges);
+    if (role) out.set(profileId, { profileId, privileges, role });
   }
   return out;
 }
@@ -22194,70 +21287,809 @@ function orgLicense(state) {
   return state?.license?.value ?? DEFAULT_LICENSE;
 }
 
-// packages/core/src/version.ts
-var CLIENT_PROTOCOL_VERSION = 1;
+// packages/core/src/validate.ts
+function validateEvent(e) {
+  for (const k of ["id", "type", "orgId", "streamId", "actorId", "deviceId", "hlc"]) {
+    if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
+  }
+  if (!isObject(e.payload)) return "payload must be an object";
+  const p = e.payload;
+  const str = (...keys) => {
+    for (const k of keys) if (typeof p[k] !== "string" || p[k] === "") return `${k} must be a non-empty string`;
+    return null;
+  };
+  const optStr = (...keys) => {
+    for (const k of keys) if (p[k] !== void 0 && typeof p[k] !== "string") return `${k} must be a string`;
+    return null;
+  };
+  const cards = (k) => {
+    if (!Array.isArray(p[k])) return `${k} must be an array`;
+    for (const c of p[k]) {
+      if (!isObject(c)) return `${k} entries must be objects`;
+      if (typeof c["hash"] !== "string" || c["hash"] === "") return `${k} entries need a hash`;
+      if (typeof c["durationMs"] !== "number") return `${k} entries need durationMs`;
+    }
+    return null;
+  };
+  const strArray = (k) => Array.isArray(p[k]) && p[k].every((x) => typeof x === "string") ? null : `${k} must be a string array`;
+  const optBool = (k) => p[k] === void 0 || typeof p[k] === "boolean" ? null : `${k} must be a boolean`;
+  const bool = (k) => typeof p[k] === "boolean" ? null : `${k} must be a boolean`;
+  const hash = (v) => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+  const nonEmptyIn = (o, ...keys) => keys.every((k) => typeof o[k] === "string" && o[k] !== "");
+  const oneOf = (k, values) => values.includes(p[k]) ? null : `${k} must be one of ${values.join(", ")}`;
+  const libraryItem = () => str("itemId") ?? (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p["itemId"]) ? null : "itemId may use letters, digits, . _ and - only") ?? oneOf("kind", LIBRARY_KINDS);
+  const date = (k) => typeof p[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`;
+  const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
+  const nullableStr = (k) => p[k] === null || typeof p[k] === "string" && p[k] !== "" ? null : `${k} must be a string or null`;
+  switch (e.type) {
+    // ---- organization stream (org.ts)
+    case "v1.OrgCreated":
+      return str("name");
+    case "v1.RoleDefined":
+      return str("roleId", "name") ?? (Array.isArray(p["privileges"]) && p["privileges"].every((x) => PRIVILEGES.includes(x)) ? null : "privileges must be known privileges");
+    case "v1.RoleRetired":
+      return str("roleId");
+    case "v1.MemberAdded":
+      return str("profileId", "roleId") ?? scope(p["scope"]);
+    case "v1.MemberRemoved":
+      return str("profileId") ?? scope(p["scope"]);
+    case "v1.InviteIssued":
+      return str("inviteId", "roleId", "expiresAt") ?? scope(p["scope"]);
+    case "v1.InviteRedeemed":
+      return str("inviteId", "profileId");
+    case "v1.JoinDecided":
+      return str("requestId", "profileId") ?? bool("accepted");
+    case "v1.LicenseSet":
+      return isLicense(p["license"]) ? null : `license must be one of ${LICENSES.join(", ")}`;
+    case "v1.LanguageAdded":
+      return str("languageId", "name", "code", "sourceCode") ?? (/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(p["languageId"]) ? null : "languageId may use letters, digits, _ and - only") ?? (p["languageId"] === ORG_STREAM ? "languageId is reserved" : null);
+    case "v1.LanguageRenamed":
+      return str("languageId", "name");
+    case "v1.LanguageCountrySet":
+      return str("languageId") ?? (typeof p["country"] === "string" && /^[A-Z]{2}$/.test(p["country"]) ? null : "country must be an ISO 3166 alpha-2 code");
+    case "v1.LanguageTargetSet":
+      return str("languageId") ?? oneOf("scope", TARGET_SCOPES) ?? date("startDate") ?? date("targetDate") ?? (p["targetDate"] > p["startDate"] ? null : "targetDate must be after startDate");
+    case "v1.ReferenceRecommended":
+      return str("itemId") ?? bool("recommended");
+    case "v1.LibraryItemDefined":
+      return libraryItem() ?? str("name") ?? (typeof p["description"] === "string" ? null : "description must be a string") ?? (p["copiedFrom"] === void 0 || isObject(p["copiedFrom"]) && nonEmptyIn(p["copiedFrom"], "orgId", "orgName", "itemId") && hash(p["copiedFrom"]["docHash"]) ? null : "copiedFrom needs orgId, orgName, itemId and a docHash");
+    case "v1.LibraryVersionPublished":
+      return libraryItem() ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? optStr("note");
+    case "v1.LibrarySharingSet":
+      return libraryItem() ?? bool("shared") ?? bool("subscribable");
+    case "v1.LibraryItemArchived":
+      return libraryItem() ?? bool("archived");
+    case "v1.LibrarySubscribed":
+      return libraryItem() ?? str("sourceOrgId", "sourceOrgName", "sourceItemId", "name") ?? bool("autoUpdate") ?? bool("active");
+    case "v1.LibraryPinned":
+      return libraryItem() ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest");
+    // ---- either stream
+    case "v1.Redacted":
+      return str("eventId") ?? optStr("reason");
+    // ---- language stream
+    case "v1.TemplateSelected":
+      return str("itemId", "unitPrefix") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (/[/\s]/.test(p["unitPrefix"]) ? "unitPrefix may not contain / or spaces" : null) ?? (p["books"] === void 0 || Array.isArray(p["books"]) && p["books"].every((b) => typeof b === "string" && /^[A-Z0-9]{3}$/.test(b)) ? null : "books must be USFM book codes");
+    case "v1.UnitAdded":
+      return str("unitId", "kind", "label", "order") ?? (p["parentUnitId"] === null ? null : str("parentUnitId"));
+    case "v1.UnitHidden":
+      return str("unitId") ?? bool("hidden");
+    case "v1.FlowSelected":
+      return str("flowId") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null) ?? optStr("itemId", "name") ?? (p["docHash"] === void 0 || hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest");
+    case "v1.FlowStepSet":
+      return str("stepId", "order") ?? strArray("kindIds") ?? bool("checkpoint");
+    case "v1.FlowStepRemoved":
+      return str("stepId");
+    case "v1.ReviewKindDefined":
+      return str("kindId", "name") ?? optStr("description", "usualReviewer") ?? optBool("withholdsContext") ?? (p["produces"] === void 0 || produces(p["produces"]) ? null : "produces needs what, into, action, checkedBy");
+    case "v1.ReviewTeamDefined":
+      return str("teamId", "name");
+    case "v1.ReviewTeamMemberSet":
+      return str("teamId", "profileId") ?? bool("member");
+    case "v1.ReviewTeamKindSet":
+      return str("teamId") ?? nullableStr("kindId");
+    case "v1.RecordingAdded":
+      return str("recordingId", "unitId") ?? oneOf("kind", ["source", "target"]) ?? cards("cards");
+    case "v1.TakeComposed":
+      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId"));
+    case "v1.TakeArchived":
+      return str("takeId");
+    case "v1.TakeSubmitted":
+      return str("takeId") ?? (p["questionSetIds"] === void 0 ? null : strArray("questionSetIds"));
+    case "v1.ResponseRecorded":
+      return str("takeId", "respondsToTakeId") ?? optStr("note", "blobHash");
+    case "v1.ReviewRecorded":
+      return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
+    case "v1.DepartureRecorded":
+      return str("departureId", "unitId", "reason") ?? oneOf("type", ["skip", "override", "keep"]) ?? optStr("kindId", "stepId", "reviewId", "reasonBlobHash") ?? (p["type"] === "skip" && !p["kindId"] ? "skip needs kindId" : null) ?? (p["type"] === "override" && !p["stepId"] ? "override needs stepId" : null) ?? (p["type"] === "keep" && !p["reviewId"] ? "keep needs reviewId" : null);
+    case "v1.DepartureUndone":
+      return str("departureId");
+    case "v1.RequestMade":
+      return str("requestId", "unitId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "teamId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type") ?? (["profileId", "guest", "teamId"].filter((k) => p[k] !== void 0 && p[k] !== "").length === 1 ? null : "exactly one of profileId, guest, teamId");
+    case "v1.RequestWithdrawn":
+      return str("requestId");
+    case "v1.NoteAdded":
+      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
+    case "v1.StudyStepMarked":
+      return str("unitId", "guideId", "stepId") ?? bool("done");
+    case "v1.MaterialDefined":
+      return str("materialId", "kind", "title") ?? optStr("templateRef") ?? (isObject(p["scope"]) && Object.entries(p["scope"]).every(([k, v]) => (k === "unitId" || k === "stepId") && nonEmpty(v)) ? null : "scope may name a unitId and a stepId only");
+    case "v1.MaterialFieldSet":
+      return str("materialId", "fieldId") ?? optStr("text", "blobHash");
+    case "v1.MaterialLocked":
+      return str("materialId") ?? bool("locked");
+    case "v1.KeyTermDefined":
+      return str("termId", "term") ?? (typeof p["gloss"] === "string" ? null : "gloss must be a string") ?? strArray("unitScope");
+    case "v1.KeyTermRenderingAdded":
+      return str("termId", "renderingId", "rendering") ?? (typeof p["context"] === "string" ? null : "context must be a string");
+    case "v1.KeyTermAdjusted":
+      return str("termId", "adjustmentId") ?? (typeof p["note"] === "string" ? null : "note must be a string") ?? optStr("blobHash", "duringTakeId");
+    case "v1.KeyTermLinked":
+      return str("takeId", "termId") ?? optStr("note", "adjustmentId");
+    case "v1.ReferenceSet":
+      return str("itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
+    case "v1.PassageReferenceLinked":
+      return str("unitId", "itemId") ?? bool("linked");
+    case "v1.ReferencesUsed":
+      return str("unitId") ?? (["takeId", "reviewId"].filter((k) => p[k] !== void 0).length === 1 ? null : "exactly one of takeId, reviewId") ?? optStr("takeId", "reviewId") ?? (p["takeId"] === "" || p["reviewId"] === "" ? "takeId or reviewId must be non-empty" : null) ?? usedItems(p["items"]);
+    case "v1.BlobStored":
+      return str("hash") ?? (typeof p["size"] === "number" ? null : "size must be a number");
+    case "v1.BlobInvalidated":
+      return str("hash") ?? optStr("reason");
+    default:
+      return null;
+  }
+}
+var USED_KINDS = ["source", "guide", "note", "questions"];
+function usedItems(v) {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return "items must be a list of 1 to 200";
+  for (const x of v) {
+    if (!isObject(x)) return "items must be objects";
+    if (typeof x["itemId"] !== "string" || x["itemId"] === "" || typeof x["name"] !== "string" || x["name"] === "") return "items need an itemId and a name";
+    if (!USED_KINDS.includes(x["kind"])) return `item kind must be one of ${USED_KINDS.join(", ")}`;
+    if (typeof x["opened"] !== "boolean") return "opened must be a boolean";
+    for (const k of ["docHash", "ref", "detail", "copyright"]) if (x[k] !== void 0 && typeof x[k] !== "string") return `${k} must be a string`;
+  }
+  return null;
+}
+function scope(v) {
+  if (!isObject(v)) return "scope must be an object";
+  if (v["level"] === "org") return Object.keys(v).length === 1 ? null : "an org scope names nothing else";
+  if (v["level"] === "language") return nonEmpty(v["languageId"]) && Object.keys(v).length === 2 ? null : "a language scope names its languageId and nothing else";
+  return "scope.level must be org or language";
+}
+var nonEmpty = (v) => typeof v === "string" && v !== "";
+function produces(v) {
+  return isObject(v) && ["what", "into", "action", "checkedBy"].every((k) => nonEmpty(v[k]));
+}
+function guest(v) {
+  return isObject(v) && nonEmpty(v["name"]) && nonEmpty(v["contact"]) && (v["channel"] === "whatsapp" || v["channel"] === "sms");
+}
+function questions(v) {
+  return Array.isArray(v) && v.every((q) => isObject(q) && nonEmpty(q["id"]) && nonEmpty(q["text"]) && (q["type"] === "rating" || q["type"] === "yesno" || q["type"] === "text") && (q["required"] === void 0 || typeof q["required"] === "boolean"));
+}
+function anchor(v) {
+  if (!isObject(v)) return "anchor must be an object";
+  switch (v["kind"]) {
+    case "passage":
+      return null;
+    case "version":
+      return nonEmpty(v["takeId"]) ? null : "anchor.takeId required";
+    case "verse":
+      return nonEmpty(v["verse"]) ? null : "anchor.verse required";
+    case "study":
+      return nonEmpty(v["guideId"]) && nonEmpty(v["stepId"]) ? null : "anchor.guideId and stepId required";
+    case "term":
+      return nonEmpty(v["termId"]) ? null : "anchor.termId required";
+    default:
+      return "anchor.kind must be passage, version, verse, study or term";
+  }
+}
+function isObject(v) {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 
-// packages/core/src/inbox.ts
-function deriveInbox(state, actorId, idx = buildIndexes(state)) {
-  if (!actorRole(state, actorId)) return [];
-  const rows = deriveTasks(state, actorId, idx).filter((t) => t.status !== "done").map((t) => ({
-    id: `task:${t.id}:${t.takeId ?? "new"}`,
-    kind: t.type === "review" ? "review_requested" : t.type === "respond" ? "suggestions" : "assignment",
-    title: `${t.type === "review" ? "Review" : t.type === "respond" ? "Respond to suggestions" : "Translate"} \xB7 ${state.units[t.unitId]?.label ?? t.unitId}`,
-    taskId: t.id,
-    unitId: t.unitId,
-    laneId: t.laneId
-  }));
-  for (const [takeId, take] of Object.entries(state.takes)) {
-    if (take.actorId !== actorId || take.archived) continue;
-    for (const [step, reviews] of Object.entries(state.reviews[takeId] ?? {})) {
-      for (const [reviewer, review] of Object.entries(reviews)) {
-        rows.push({
-          id: `decision:${takeId}:${step}:${reviewer}:${review.hlc}`,
-          kind: review.value.decision === "approve" ? "decision" : "suggestions",
-          title: `${state.units[take.unitId]?.label ?? take.unitId} \xB7 ${review.value.decision === "approve" ? "Approved" : "Suggestions received"}`,
-          taskId: `translate:${take.unitId}:${take.laneId}`,
-          unitId: take.unitId,
-          laneId: take.laneId
-        });
+// packages/core/src/reducer.ts
+var REDUCER_VERSION = 10;
+var REVISIONS = /* @__PURE__ */ new WeakMap();
+function stateRevision(state) {
+  return REVISIONS.get(state) ?? 0;
+}
+function applyLanguageEvent(state, event) {
+  if (state.appliedEventIds[event.id]) return state;
+  state.appliedEventIds[event.id] = true;
+  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
+  const invalid = validateEvent(event);
+  if (invalid) {
+    state.invalidEvents[event.id] = invalid;
+    return state;
+  }
+  if (state.redactions[event.id]) return state;
+  switch (event.type) {
+    case "v1.TemplateSelected": {
+      const { itemId, docHash, unitPrefix, books } = event.payload;
+      state.template = set2(state.template, event, { itemId, docHash, unitPrefix, ...books ? { books: [...books].sort() } : {} });
+      break;
+    }
+    case "v1.UnitAdded": {
+      const { unitId, ...unit } = event.payload;
+      state.units[unitId] ??= unit;
+      break;
+    }
+    case "v1.UnitHidden":
+      lww(state.hiddenUnits, event.payload.unitId, event, event.payload.hidden);
+      break;
+    case "v1.FlowSelected": {
+      const { flowId, itemId, docHash, name } = event.payload;
+      state.flow = set2(state.flow, event, { flowId, ...itemId ? { itemId } : {}, ...docHash ? { docHash } : {}, ...name ? { name } : {} });
+      break;
+    }
+    case "v1.FlowStepSet": {
+      const { stepId, order, kindIds, checkpoint } = event.payload;
+      lww(state.flowSteps, stepId, event, { stepId, order, kindIds: [...kindIds], checkpoint });
+      break;
+    }
+    case "v1.FlowStepRemoved":
+      state.removedSteps[event.payload.stepId] = true;
+      break;
+    case "v1.ReviewKindDefined": {
+      const { kindId, name, description, usualReviewer, withholdsContext, produces: produces2 } = event.payload;
+      lww(state.reviewKinds, kindId, event, {
+        id: kindId,
+        name,
+        description: description ?? "",
+        usualReviewer: usualReviewer ?? "",
+        ...withholdsContext !== void 0 ? { withholdsContext } : {},
+        ...produces2 !== void 0 ? { produces: { ...produces2 } } : {}
+      });
+      break;
+    }
+    case "v1.ReviewTeamDefined": {
+      const { teamId, name } = event.payload;
+      const team = state.teams[teamId] ??= emptyTeam();
+      if (team.name.hlc === "" || !loses2(team.name, event)) team.name = { value: name, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+    case "v1.ReviewTeamMemberSet": {
+      const { teamId, profileId, member } = event.payload;
+      lww((state.teams[teamId] ??= emptyTeam()).members, profileId, event, member);
+      break;
+    }
+    case "v1.ReviewTeamKindSet": {
+      const team = state.teams[event.payload.teamId] ??= emptyTeam();
+      if (!team.kindId || !loses2(team.kindId, event)) team.kindId = { value: event.payload.kindId, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+    case "v1.RecordingAdded": {
+      const { recordingId, ...rest } = event.payload;
+      state.recordings[recordingId] ??= { ...rest, actorId: event.actorId, hlc: event.hlc };
+      break;
+    }
+    case "v1.TakeComposed": {
+      const { takeId, ...rest } = event.payload;
+      const prior = state.takes[takeId];
+      state.takes[takeId] = {
+        ...rest,
+        actorId: event.actorId,
+        hlc: event.hlc,
+        // Add-wins: an archive that arrived before the compose still sticks.
+        archived: prior?.archived ?? false
+      };
+      break;
+    }
+    case "v1.TakeArchived": {
+      const take = state.takes[event.payload.takeId];
+      if (take) {
+        take.archived = true;
+      } else {
+        state.takes[event.payload.takeId] = { unitId: "", cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true };
+      }
+      break;
+    }
+    case "v1.TakeSubmitted": {
+      const { takeId, questionSetIds } = event.payload;
+      const prior = state.submissions[takeId];
+      if (!prior || event.hlc < prior.hlc) {
+        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds: questionSetIds ?? [] };
+      }
+      break;
+    }
+    case "v1.ResponseRecorded": {
+      const { takeId, respondsToTakeId, note, blobHash } = event.payload;
+      state.responses[takeId] ??= {
+        respondsToTakeId,
+        ...note !== void 0 ? { note } : {},
+        ...blobHash !== void 0 ? { blobHash } : {},
+        actorId: event.actorId,
+        hlc: event.hlc
+      };
+      break;
+    }
+    case "v1.ReviewRecorded": {
+      const { reviewId, ...rest } = event.payload;
+      firstWins(state.kindReviews, reviewId, event, { ...rest, id: reviewId });
+      break;
+    }
+    case "v1.DepartureRecorded": {
+      const { departureId, ...rest } = event.payload;
+      firstWins(state.departures, departureId, event, { ...rest, id: departureId });
+      break;
+    }
+    case "v1.DepartureUndone":
+      earliestUndo(state.undoneDepartures, event.payload.departureId, event);
+      break;
+    case "v1.RequestMade": {
+      const { requestId, ...rest } = event.payload;
+      firstWins(state.requests, requestId, event, { ...rest, id: requestId });
+      break;
+    }
+    case "v1.RequestWithdrawn":
+      earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+    case "v1.NoteAdded": {
+      const { noteId, ...rest } = event.payload;
+      firstWins(state.notes, noteId, event, { ...rest, id: noteId });
+      break;
+    }
+    case "v1.StudyStepMarked": {
+      const { unitId, guideId, stepId, done } = event.payload;
+      lww(state.studyMarks, studyMarkKey(unitId, guideId, stepId), event, { done, by: event.actorId });
+      break;
+    }
+    case "v1.MaterialDefined": {
+      const { materialId, kind, title, scope: scope2, templateRef } = event.payload;
+      const m = state.materials[materialId] ??= {
+        kind,
+        title,
+        scope: { ...scope2 },
+        createdBy: event.actorId,
+        hlc: event.hlc,
+        fields: {},
+        locked: { value: false, hlc: "", eventId: "" },
+        ...templateRef !== void 0 ? { templateRef } : {}
+      };
+      if (m.hlc === "" || m.hlc > event.hlc) {
+        m.kind = kind;
+        m.title = title;
+        m.scope = { ...scope2 };
+        m.createdBy = event.actorId;
+        m.hlc = event.hlc;
+        if (templateRef !== void 0) m.templateRef = templateRef;
+        else delete m.templateRef;
+      }
+      break;
+    }
+    case "v1.MaterialFieldSet": {
+      const { materialId, fieldId, text, blobHash } = event.payload;
+      lww(material(state, materialId).fields, fieldId, event, { ...text !== void 0 ? { text } : {}, ...blobHash !== void 0 ? { blobHash } : {} });
+      break;
+    }
+    case "v1.MaterialLocked": {
+      const m = material(state, event.payload.materialId);
+      if (m.locked.hlc === "" || !loses2(m.locked, event)) m.locked = { value: event.payload.locked, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+    case "v1.KeyTermDefined": {
+      const { termId, term, gloss, unitScope } = event.payload;
+      const t = state.keyTerms[termId] ??= { term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} };
+      if (t.term === "") {
+        t.term = term;
+        t.gloss = gloss;
+        t.unitScope = [...unitScope];
+      }
+      break;
+    }
+    case "v1.KeyTermRenderingAdded": {
+      const { termId, renderingId, rendering, context } = event.payload;
+      keyTerm(state, termId).renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
+      break;
+    }
+    case "v1.KeyTermAdjusted": {
+      const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
+      keyTerm(state, termId).adjustments[adjustmentId] ??= {
+        note,
+        actorId: event.actorId,
+        hlc: event.hlc,
+        ...blobHash !== void 0 ? { blobHash } : {},
+        ...duringTakeId !== void 0 ? { duringTakeId } : {}
+      };
+      break;
+    }
+    case "v1.KeyTermLinked": {
+      const { takeId, termId, note, adjustmentId } = event.payload;
+      const byTerm = state.keyTermLinks[takeId] ??= {};
+      byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
+      break;
+    }
+    case "v1.ReferenceSet":
+    case "v1.PassageReferenceLinked":
+    case "v1.ReferencesUsed":
+      applyReferenceEvent(state, event);
+      break;
+    case "v1.BlobStored":
+      blobVerdict(state, event, { size: event.payload.size, stored: true });
+      break;
+    case "v1.BlobInvalidated":
+      blobVerdict(state, event, { size: 0, stored: false });
+      break;
+    case "v1.Redacted":
+      state.redactions[event.payload.eventId] = true;
+      break;
+    case "v1.OrgCreated":
+    case "v1.RoleDefined":
+    case "v1.RoleRetired":
+    case "v1.MemberAdded":
+    case "v1.MemberRemoved":
+    case "v1.InviteIssued":
+    case "v1.InviteRedeemed":
+    case "v1.JoinDecided":
+    case "v1.LicenseSet":
+    case "v1.LanguageAdded":
+    case "v1.LanguageRenamed":
+    case "v1.LanguageCountrySet":
+    case "v1.LanguageTargetSet":
+    case "v1.ReferenceRecommended":
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
+      break;
+    default: {
+      const _exhaustive = event;
+      void _exhaustive;
+    }
+  }
+  return state;
+}
+function foldLanguage(events, initial = emptyLanguageState()) {
+  let state = initial;
+  const rest = [];
+  for (const event of events) {
+    if (event.type === "v1.Redacted") state = applyLanguageEvent(state, event);
+    else rest.push(event);
+  }
+  for (const event of rest) state = applyLanguageEvent(state, event);
+  return state;
+}
+function firstWins(table, key, event, value) {
+  const prior = table[key];
+  if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.eventId <= event.id)) return;
+  table[key] = { ...value, by: event.actorId, hlc: event.hlc, eventId: event.id };
+}
+function earliestUndo(table, key, event) {
+  const prior = table[key];
+  if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.by <= event.actorId)) return;
+  table[key] = { by: event.actorId, hlc: event.hlc };
+}
+function blobVerdict(state, event, v) {
+  const hash = event.payload.hash;
+  const cur = state.blobs[hash];
+  if (cur && (cur.hlc > event.hlc || cur.hlc === event.hlc && cur.eventId > event.id)) return;
+  state.blobs[hash] = { ...v, hlc: event.hlc, eventId: event.id };
+}
+function emptyTeam() {
+  return { name: { value: "", hlc: "", eventId: "" }, members: {} };
+}
+function material(state, materialId) {
+  return state.materials[materialId] ??= { kind: "", title: "", scope: {}, createdBy: "", hlc: "", fields: {}, locked: { value: false, hlc: "", eventId: "" } };
+}
+function keyTerm(state, termId) {
+  return state.keyTerms[termId] ??= { term: "", gloss: "", unitScope: [], renderings: {}, adjustments: {} };
+}
+function lww(table, key, event, value) {
+  const current = table[key];
+  if (current && loses2(current, event)) return;
+  table[key] = { value, hlc: event.hlc, eventId: event.id };
+}
+function loses2(current, event) {
+  if (current.hlc !== event.hlc) return current.hlc > event.hlc;
+  return current.eventId > event.id;
+}
+function set2(current, event, value) {
+  if (current && loses2(current, event)) return current;
+  return { value, hlc: event.hlc, eventId: event.id };
+}
+
+// packages/core/src/snapshot.ts
+function resume(snapshot, tail) {
+  if (snapshot.reducerVersion !== REDUCER_VERSION) {
+    throw new Error(
+      `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`
+    );
+  }
+  const state = structuredClone(snapshot.state);
+  const newer = [...tail].filter((e) => e.serverSeq === void 0 || e.serverSeq > snapshot.serverSeq);
+  return foldLanguage(newer, state);
+}
+
+// packages/core/src/indexes.ts
+function unitPrefixOf(unitId) {
+  const cut = unitId.indexOf("/");
+  return cut > 0 ? unitId.slice(0, cut) : null;
+}
+function buildIndexes(state) {
+  const parents = /* @__PURE__ */ new Set();
+  for (const u of Object.values(state.units)) if (u.parentUnitId) parents.add(u.parentUnitId);
+  const sel = state.template?.value ?? null;
+  const books = sel?.books ? new Set(sel.books) : null;
+  const ordered = Object.entries(state.units).sort(([ia, a], [ib, b]) => a.order < b.order ? -1 : a.order > b.order ? 1 : ia < ib ? -1 : 1);
+  const passages = [];
+  const containers = [];
+  for (const [id] of ordered) {
+    if (parents.has(id)) {
+      containers.push(id);
+      continue;
+    }
+    if (state.hiddenUnits[id]?.value === true) continue;
+    const prefix = unitPrefixOf(id);
+    if (prefix !== null && sel) {
+      if (prefix !== sel.unitPrefix) continue;
+      if (books !== null && !books.has(id.slice(prefix.length + 1, prefix.length + 4))) continue;
+    }
+    passages.push(id);
+  }
+  return { passages, containers };
+}
+
+// packages/core/src/passage.ts
+function deriveKinds(state) {
+  const out = new Map(DEFAULT_KINDS.map((k) => [k.id, k]));
+  for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id].value);
+  return [...out.values()];
+}
+function humanize(id) {
+  const s = id.replace(/[_-]+/g, " ").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : id;
+}
+function deriveFlow(state) {
+  const selection = state.flow?.value ?? null;
+  if (!selection) return { flowId: null, itemId: null, docHash: null, name: "No review flow", steps: [] };
+  const prefix = flowStepPrefix(selection.flowId);
+  const steps = Object.values(state.flowSteps).map((r) => r.value).filter((d) => d.stepId.startsWith(prefix) && !state.removedSteps[d.stepId]).sort((a, b) => a.order < b.order ? -1 : a.order > b.order ? 1 : a.stepId < b.stepId ? -1 : 1).map((d) => ({ id: d.stepId, kindIds: [...d.kindIds], checkpoint: d.checkpoint }));
+  const name = selection.flowId === CUSTOM_FLOW ? "Custom flow" : selection.name ?? flowTemplate(selection.flowId)?.name ?? "Review flow";
+  return { flowId: selection.flowId, itemId: selection.itemId ?? null, docHash: selection.docHash ?? null, name, steps };
+}
+function stepName(kinds, step) {
+  return step.kindIds.map((id) => kinds.find((k) => k.id === id)?.name ?? humanize(id)).join(" + ");
+}
+var COMPLETE = ["approved", "addressed", "skipped"];
+var isCompleteState = (s) => COMPLETE.includes(s);
+var cache = /* @__PURE__ */ new WeakMap();
+function push(m, k, v) {
+  const list = m.get(k);
+  if (list) list.push(v);
+  else m.set(k, [v]);
+}
+var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
+function recordIndexes(state, idx) {
+  const revision = stateRevision(state);
+  const hit = cache.get(state);
+  if (hit && hit.revision === revision) return hit.ri;
+  const reviewsByTake = /* @__PURE__ */ new Map();
+  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  const versions = /* @__PURE__ */ new Map();
+  const drafts = /* @__PURE__ */ new Map();
+  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
+  const submittedAt = (id) => state.submissions[id]?.hlc ?? "";
+  for (const [id, t] of takes.filter(([id2]) => state.submissions[id2]).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
+    push(versions, t.unitId, id);
+  }
+  for (const [id, t] of takes.filter(([id2, t2]) => !state.submissions[id2] && !t2.archived && t2.cardHashes.length > 0).sort(([ia, a], [ib, b]) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1)) {
+    push(drafts, t.unitId, id);
+  }
+  const departures = /* @__PURE__ */ new Map();
+  for (const d of Object.values(state.departures).sort(byHlc)) push(departures, d.unitId, d);
+  const requests = /* @__PURE__ */ new Map();
+  const requestsTo = /* @__PURE__ */ new Map();
+  const requestsBy = /* @__PURE__ */ new Map();
+  for (const r of Object.values(state.requests).sort(byHlc)) {
+    push(requests, r.unitId, r);
+    if (r.profileId) push(requestsTo, r.profileId, r);
+    if (r.teamId) {
+      for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) push(requestsTo, id, r);
+    }
+    push(requestsBy, r.by, r);
+  }
+  const notes = /* @__PURE__ */ new Map();
+  const changeNotes = /* @__PURE__ */ new Map();
+  for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (n.anchor.kind === "version" && n.anchor.role === "change") {
+      if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
+      continue;
+    }
+    push(notes, n.unitId, n);
+  }
+  const out = {
+    idx: idx ?? buildIndexes(state),
+    kinds: deriveKinds(state),
+    flow: deriveFlow(state),
+    versions,
+    drafts,
+    reviewsByTake,
+    departures,
+    requests,
+    requestsTo,
+    requestsBy,
+    notes,
+    changeNotes,
+    passages: /* @__PURE__ */ new Map()
+  };
+  cache.set(state, { revision, ri: out });
+  return out;
+}
+function derivePassage(state, unitId, idx) {
+  const ri = recordIndexes(state, idx);
+  const key = unitId;
+  const hit = ri.passages.get(key);
+  if (hit) return hit;
+  const flow = ri.flow;
+  const versions = (ri.versions.get(key) ?? []).map((takeId, i) => {
+    const t = state.takes[takeId];
+    const response = state.responses[takeId];
+    const change = ri.changeNotes.get(takeId);
+    const note = response?.note ?? change?.text;
+    const blob = response?.blobHash ?? change?.blobHash;
+    return {
+      takeId,
+      n: i + 1,
+      by: state.submissions[takeId]?.actorId ?? t.actorId,
+      hlc: state.submissions[takeId].hlc,
+      cardHashes: t.cardHashes,
+      parentTakeId: t.parentTakeId,
+      ...note ? { changeNote: note } : {},
+      ...blob ? { changeBlobHash: blob } : {}
+    };
+  });
+  const departures = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
+    const undone = state.undoneDepartures[d.id];
+    return undone ? { ...d, undone } : d;
+  });
+  const active = (match) => [...departures].reverse().find((d) => match(d) && !d.undone);
+  const reviews = versions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc).map((r) => {
+    if (r.outcome !== "needs_changes") return r;
+    const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
+    const revised = versions.find((v) => v.n > r.versionN);
+    const keptResponse = kept && {
+      decision: "kept",
+      by: kept.by,
+      hlc: kept.hlc,
+      note: kept.reason,
+      departureId: kept.id,
+      ...kept.reasonBlobHash ? { blobHash: kept.reasonBlobHash } : {}
+    };
+    const revisedResponse = revised && {
+      decision: "revised",
+      by: revised.by,
+      hlc: revised.hlc,
+      revisedTakeId: revised.takeId,
+      ...revised.changeNote ? { note: revised.changeNote } : {},
+      ...revised.changeBlobHash ? { blobHash: revised.changeBlobHash } : {}
+    };
+    const response = keptResponse && revisedResponse ? keptResponse.hlc < revisedResponse.hlc ? keptResponse : revisedResponse : keptResponse ?? revisedResponse;
+    return response ? { ...r, response } : r;
+  });
+  const requests = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
+    let status = "open";
+    if (state.withdrawnRequests[r.id]) status = "withdrawn";
+    else if (r.what === "record" && versions.some((v) => v.hlc > r.hlc)) status = "done";
+    else if (r.what === "review" && reviews.some((x) => x.requestId === r.id || x.kindId === r.kindId && x.hlc > r.hlc)) status = "done";
+    const team = r.teamId ? { name: state.teams[r.teamId]?.name.value ?? "", memberIds: teamMemberIds(state, r.teamId).filter((id) => id !== r.by) } : void 0;
+    return { ...r, status, ...team ? { team } : {} };
+  });
+  const openRequests = requests.filter((r) => r.status === "open");
+  const kindStatus = (kindId) => {
+    const review = [...reviews].reverse().find((r) => r.kindId === kindId);
+    const request = openRequests.find((r) => r.what === "review" && r.kindId === kindId);
+    const departure = active((d) => d.type === "skip" && d.kindId === kindId);
+    const base = { kindId, ...review ? { review } : {} };
+    const producing = !!ri.kinds.find((k) => k.id === kindId)?.produces;
+    if (review && (review.outcome === "looks_good" || review.outcome === "recorded" && producing)) {
+      return { ...base, state: "approved", ...request ? { request } : {} };
+    }
+    if (review?.outcome === "recorded") return request ? { kindId, state: "asked", request } : { kindId, state: "todo" };
+    if (request) return { ...base, state: "asked", request };
+    if (review) return { ...base, state: review.response ? "addressed" : "suggestions" };
+    if (departure) return { kindId, state: "skipped", departure };
+    return { kindId, state: "todo" };
+  };
+  const steps = [];
+  let gate;
+  flow.steps.forEach((step, index) => {
+    const statuses = step.kindIds.map(kindStatus);
+    const override = active((d) => d.type === "override" && d.stepId === step.id);
+    const lockedBy = gate;
+    const kindsShown = lockedBy ? statuses.map((s) => s.state === "todo" ? { ...s, state: "locked" } : s) : statuses;
+    const clears = (s) => s.state === "approved" && s.review?.via !== "logged";
+    const complete = statuses.every((s) => step.checkpoint ? clears(s) : isCompleteState(s.state));
+    steps.push({ step, index, kinds: kindsShown, complete, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
+    if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
+  });
+  const recorded = versions.length > 0;
+  const open = steps.filter((s) => !s.complete && !s.lockedBy);
+  const latest = versions.at(-1);
+  const draftTakeId = ri.drafts.get(key)?.[0];
+  const next = recorded ? open.find((s) => !s.override) ?? open[0] : void 0;
+  const result = {
+    unitId,
+    flow,
+    versions,
+    recorded,
+    departures,
+    reviews,
+    requests,
+    openRequests,
+    steps,
+    drafting: draftTakeId !== void 0,
+    done: recorded && steps.every((s) => s.complete),
+    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
+    notes: ri.notes.get(key) ?? [],
+    ...latest ? { latest } : {},
+    ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
+    ...next ? { next } : {}
+  };
+  ri.passages.set(key, result);
+  return result;
+}
+function teamMemberIds(state, teamId) {
+  const team = state.teams[teamId];
+  if (!team) return [];
+  return Object.entries(team.members).filter(([, r]) => r.value).map(([id]) => id).sort();
+}
+function languageProgress(state, idx) {
+  const ri = recordIndexes(state, idx);
+  const flow = ri.flow;
+  const states = ri.idx.passages.map((u) => derivePassage(state, u, ri.idx));
+  return {
+    total: states.length,
+    recorded: states.filter((s) => s.recorded).length,
+    done: states.filter((s) => s.done).length,
+    steps: flow.steps.map((step, i) => ({
+      name: stepName(ri.kinds, step),
+      cleared: states.filter((s) => s.recorded && s.steps[i]?.complete).length,
+      checkpoint: step.checkpoint
+    })),
+    waiting: states.filter((s) => s.openRequests.some((r) => r.what === "review")).length,
+    feedback: states.filter((s) => s.awaitingResponse.length > 0).length
+  };
+}
+function unitTitle(state, unitId) {
+  return state.units[unitId]?.label ?? unitId;
+}
+function updatesFor(state, actorId, idx) {
+  const ri = recordIndexes(state, idx);
+  const keys = /* @__PURE__ */ new Set();
+  for (const r of ri.requestsTo.get(actorId) ?? []) keys.add(r.unitId);
+  for (const r of ri.requestsBy.get(actorId) ?? []) keys.add(r.unitId);
+  for (const [unitId, takeIds] of ri.versions) {
+    if (takeIds.some((t) => (state.submissions[t]?.actorId ?? state.takes[t]?.actorId) === actorId)) keys.add(unitId);
+    else if (takeIds.some((t) => (ri.reviewsByTake.get(t) ?? []).some((r) => r.by === actorId))) keys.add(unitId);
+  }
+  const out = [];
+  for (const unitId of keys) {
+    if (!state.units[unitId]) continue;
+    const s = derivePassage(state, unitId, ri.idx);
+    const base = { unitId };
+    for (const r of s.requests) {
+      if ((r.profileId === actorId || r.team?.memberIds.includes(actorId)) && r.by !== actorId) out.push({ ...base, id: `request:${r.id}`, kind: "request", by: r.by, hlc: r.hlc, request: r });
+      if (r.by === actorId && r.status === "done") {
+        const doneBy = r.what === "record" ? s.versions.find((v) => v.hlc > r.hlc) : s.reviews.find((x) => x.requestId === r.id || x.kindId === r.kindId && x.hlc > r.hlc);
+        if (doneBy && doneBy.by !== actorId) out.push({ ...base, id: `done:${r.id}`, kind: "request_done", by: doneBy.by, hlc: doneBy.hlc, request: r });
+      }
+    }
+    for (const r of s.reviews) {
+      const version5 = s.versions[r.versionN - 1];
+      if (version5?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: "review", by: r.by, hlc: r.hlc, review: r, version: version5 });
+      if (r.by === actorId && r.response && r.response.by !== actorId) {
+        out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === "revised" ? "revision" : "kept", by: r.response.by, hlc: r.response.hlc, review: r });
       }
     }
   }
-  if (["owner", "coordinator"].includes(actorRole(state, actorId) ?? "")) {
-    for (const b of deriveBlockers(state, idx)) {
-      rows.push({
-        id: `blocker:${b.kind}:${b.unitId ?? ""}:${b.laneId ?? ""}:${b.stepId ?? ""}:${b.profileId ?? ""}`,
-        kind: "blocker",
-        title: b.fix,
-        ...b.unitId ? { unitId: b.unitId } : {},
-        ...b.laneId ? { laneId: b.laneId } : {}
-      });
-    }
-  }
-  return rows;
+  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
 }
 
-// packages/core/src/orgProject.ts
-function withOrgMembers(project, org, projectId) {
-  const members = { ...project.members };
-  let changed = false;
-  for (const profileId of Object.keys(org.members)) {
-    if (members[profileId] && !members[profileId].removed.value) continue;
-    const broadMemberships = Object.fromEntries(Object.entries(org.members[profileId]).filter(([, member2]) => member2.scope.level !== "lane"));
-    const role = effectiveRole(privilegesFor({ ...org, members: {
-      [profileId]: broadMemberships
-    } }, profileId, { projectId }));
-    if (!role) continue;
-    const membership2 = Object.values(org.members[profileId]).find((m) => !m.removed.value);
-    if (!membership2) continue;
-    changed = true;
-    members[profileId] = {
-      role: { ...membership2.roleId, value: role },
-      removed: { ...membership2.removed, value: false }
-    };
-  }
-  return changed ? { ...project, members } : project;
-}
+// packages/core/src/version.ts
+var CLIENT_PROTOCOL_VERSION = 1;
 
 // packages/client/src/types.ts
 var OfflineError = class extends Error {
@@ -22286,20 +22118,20 @@ var SupabaseTransport = class {
       (r) => ({ id: r.id, accepted: r.accepted, serverSeq: r.server_seq, reason: r.reason })
     );
   }
-  async snapshotMeta(orgId, projectId, reducerVersion) {
+  async snapshotMeta(orgId, streamId, reducerVersion) {
     const { data, error } = await this.supabase.rpc("get_snapshot_meta", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_stream_id: streamId,
       p_reducer_version: reducerVersion
     });
     if (error) throw toError(error);
     const row = data?.[0];
     return row ? { serverSeq: row.server_seq, chunks: row.chunks, bytes: row.bytes } : null;
   }
-  async snapshotChunk(orgId, projectId, reducerVersion, serverSeq, index) {
+  async snapshotChunk(orgId, streamId, reducerVersion, serverSeq, index) {
     const { data, error } = await this.supabase.rpc("get_snapshot_chunk", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_stream_id: streamId,
       p_reducer_version: reducerVersion,
       p_server_seq: serverSeq,
       p_index: index
@@ -22309,20 +22141,20 @@ var SupabaseTransport = class {
   }
   /**
    * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
-   * an empty poke on `events:<org>/<project>` after every insert. The
-   * channel is public because the poke says only that the partition moved;
+   * an empty poke on `events:<org>/<stream>` after every insert. The
+   * channel is public because the poke says only that the stream moved;
    * the events themselves still come through the RPC and its checks.
    */
-  watch(orgId, projectId, handlers) {
-    const channel = this.supabase.channel(`events:${orgId}/${projectId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
+  watch(orgId, streamId, handlers) {
+    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
     return () => {
       void this.supabase.removeChannel(channel);
     };
   }
-  async pull(orgId, projectId, after, limit) {
+  async pull(orgId, streamId, after, limit) {
     const { data, error } = await this.supabase.rpc("pull_events", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_stream_id: streamId,
       p_after: after,
       p_limit: limit,
       p_client_version: CLIENT_PROTOCOL_VERSION
@@ -22333,7 +22165,7 @@ var SupabaseTransport = class {
         id: r.id,
         type: r.type,
         orgId: r.org_id,
-        projectId: r.project_id,
+        streamId: r.stream_id,
         actorId: r.actor_id,
         deviceId: r.device_id,
         hlc: r.hlc,
@@ -22356,38 +22188,38 @@ function toError(error) {
 }
 
 // packages/client/src/snapshotFetch.ts
-async function fetchSnapshot(transport, orgId, projectId, reducerVersion, opts = {}) {
-  const meta = await transport.snapshotMeta(orgId, projectId, reducerVersion);
+async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = {}) {
+  const meta = await transport.snapshotMeta(orgId, streamId, reducerVersion);
   if (!meta) return null;
   const pieces = [];
   for (let i = 0; i < meta.chunks; i++) {
     let text = opts.saved?.get(i);
     if (text === void 0) {
-      const fetched = await transport.snapshotChunk(orgId, projectId, reducerVersion, meta.serverSeq, i);
+      const fetched = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
       if (fetched === null) return null;
       text = fetched;
       await opts.onChunk?.(meta.serverSeq, i, text);
     }
     pieces.push(text);
   }
-  return { orgId, projectId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
 // packages/client/src/snapshotWorker.ts
 async function runSnapshotWorker(service, pageSize = 1e3, observe) {
   const transport = new SupabaseTransport(service);
-  const { data, error } = await service.rpc("list_partitions");
-  if (error) throw new Error(`list_partitions: ${error.message}`);
+  const { data, error } = await service.rpc("list_streams");
+  if (error) throw new Error(`list_streams: ${error.message}`);
   const out = [];
   for (const row of data ?? []) {
     const orgId = row.org_id;
-    const projectId = row.project_id;
-    if (projectId === "_org" || orgId === "_user") continue;
-    const existing = await fetchSnapshot(transport, orgId, projectId, REDUCER_VERSION);
-    const tail = await pullAll(transport, orgId, projectId, existing?.serverSeq ?? 0, pageSize);
+    const streamId = row.stream_id;
+    if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
+    const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
+    const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {
       if (existing && observe) await observe(existing);
-      out.push({ orgId, projectId, serverSeq: existing?.serverSeq ?? 0, updated: false });
+      out.push({ orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false });
       continue;
     }
     const tailIds = new Set(tail.map((e) => e.id));
@@ -22400,28 +22232,28 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe) {
       state.appliedEventIds = {};
       snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
     } else {
-      const all = existing || redactsSnapshot ? await pullAll(transport, orgId, projectId, 0, pageSize) : tail;
-      const state = fold(all, emptyState());
+      const all = existing || redactsSnapshot ? await pullAll(transport, orgId, streamId, 0, pageSize) : tail;
+      const state = foldLanguage(all, emptyLanguageState());
       state.appliedEventIds = {};
-      snapshot = { orgId, projectId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
+      snapshot = { orgId, streamId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
     }
     const put2 = await service.rpc("put_snapshot", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_stream_id: streamId,
       p_reducer_version: REDUCER_VERSION,
       p_server_seq: snapshot.serverSeq,
       p_state: snapshot.state
     });
-    if (put2.error) throw new Error(`put_snapshot ${orgId}/${projectId}: ${put2.error.message}`);
+    if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
     if (observe) await observe(snapshot);
-    out.push({ orgId, projectId, serverSeq: snapshot.serverSeq, updated: true });
+    out.push({ orgId, streamId, serverSeq: snapshot.serverSeq, updated: true });
   }
   return out;
 }
-async function pullAll(transport, orgId, projectId, after, pageSize) {
+async function pullAll(transport, orgId, streamId, after, pageSize) {
   const all = [];
   for (; ; ) {
-    const page = await transport.pull(orgId, projectId, after, pageSize);
+    const page = await transport.pull(orgId, streamId, after, pageSize);
     all.push(...page);
     if (page.length < pageSize) return all;
     after = page[page.length - 1].serverSeq;
@@ -22432,6 +22264,13 @@ async function pullAll(transport, orgId, projectId, after, pageSize) {
 function check(result) {
   if (result.error) throw new Error(result.error.message);
 }
+var UPDATE_TITLES = {
+  request: "You were asked to help",
+  review: "Your recording was reviewed",
+  revision: "Your feedback was answered with a new recording",
+  kept: "Your feedback was answered",
+  request_done: "What you asked for is done"
+};
 async function runProjections(service) {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
@@ -22450,40 +22289,40 @@ async function runProjections(service) {
     orgs.set(orgId, org);
     return org;
   }
-  const partitions = await service.rpc("list_partitions");
-  check(partitions);
-  for (const row of partitions.data ?? []) {
-    if (row.project_id === "_org") await orgState(row.org_id);
+  const streams = await service.rpc("list_streams");
+  check(streams);
+  for (const row of streams.data ?? []) {
+    if (row.stream_id === "_org" && row.org_id !== "_person") await orgState(row.org_id);
   }
   await runSnapshotWorker(service, 1e3, async (snapshot) => {
     const org = await orgState(snapshot.orgId);
-    const state = withOrgMembers(snapshot.state, org, snapshot.projectId);
+    const languageId = snapshot.streamId;
+    const state = snapshot.state;
     const idx = buildIndexes(state);
-    const notifications = Object.keys(state.members).flatMap((profileId) => deriveInbox(state, profileId, idx).map((item) => ({
-      id: JSON.stringify([snapshot.orgId, snapshot.projectId, profileId, item.id]),
+    const notifications = [...languagePeople(org, languageId).keys()].flatMap((profileId) => updatesFor(state, profileId, idx).map((update) => ({
+      id: JSON.stringify([snapshot.orgId, languageId, profileId, update.id]),
       profile_id: profileId,
-      kind: item.kind,
-      title: item.title,
-      task_id: item.taskId ?? null,
-      unit_id: item.unitId ?? null,
-      lane_id: item.laneId ?? null
+      kind: update.kind,
+      title: `${UPDATE_TITLES[update.kind]}: ${unitTitle(state, update.unitId)}`,
+      task_id: null,
+      unit_id: update.unitId
     })));
     check(await service.rpc("reconcile_notifications", {
       p_org: snapshot.orgId,
-      p_project: snapshot.projectId,
+      p_language: languageId,
       p_rows: notifications
     }));
-    const visibility = await service.from("project_visibility").select("listed").eq("org_id", snapshot.orgId).eq("project_id", snapshot.projectId).maybeSingle();
+    const visibility = await service.from("language_visibility").select("listed").eq("org_id", snapshot.orgId).eq("language_id", languageId).maybeSingle();
     check(visibility);
-    if (visibility.data?.listed && state.project) {
-      const lanes = Object.keys(state.lanes);
-      const percentages = lanes.map((lane) => deriveProgress(state, lane, idx).translatedPct);
-      check(await service.from("public_projects").upsert({
+    const info = languageInfo(org, languageId);
+    if (visibility.data?.listed && info) {
+      const progress = languageProgress(state, idx);
+      check(await service.from("public_languages").upsert({
         org_id: snapshot.orgId,
-        project_id: snapshot.projectId,
-        name: state.project.value.name,
-        languages: Object.values(state.lanes).map((lane) => lane.languoidId),
-        translated_pct: percentages.length ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
+        language_id: languageId,
+        name: info.name,
+        code: info.code,
+        translated_pct: progress.total ? 100 * progress.recorded / progress.total : 0,
         // What someone browsing may do with the work (docs/licensing.md).
         license: orgLicense(org),
         updated_at: (/* @__PURE__ */ new Date()).toISOString()
@@ -22503,26 +22342,23 @@ async function runProjections(service) {
     rows.push(...await reportNotifications(service, orgId, org));
     check(await service.rpc("reconcile_notifications", {
       p_org: orgId,
-      p_project: "_org",
+      p_language: null,
       p_rows: rows
     }));
   }
 }
 async function reportNotifications(service, orgId, org) {
-  const open = await service.from("content_reports").select("partition_id,target_kind,target_id,reported_profile").eq("org_id", orgId).is("resolved_at", null).limit(500);
-  if (open.error) {
-    if (["42P01", "PGRST205"].includes(open.error.code)) return [];
-    throw new Error(open.error.message);
-  }
+  const open = await service.from("content_reports").select("language_id,target_kind,target_id,reported_profile").eq("org_id", orgId).is("resolved_at", null).limit(500);
+  check(open);
   const seen = /* @__PURE__ */ new Set();
   const out = [];
   for (const r of open.data ?? []) {
     const person = r.target_kind === "person";
-    const target = person ? { projectId: "_org" } : { projectId: r.partition_id };
+    const languageId = person ? void 0 : r.language_id;
     for (const profileId of Object.keys(org.members)) {
       if (profileId === r.reported_profile) continue;
-      if (!privilegesFor(org, profileId, target).has(person ? "invite_members" : "manage_structure")) continue;
-      const id = JSON.stringify([orgId, "report", profileId, r.partition_id, r.target_kind, r.target_id]);
+      if (!privilegesFor(org, profileId, languageId).has(person ? "invite_members" : "manage_structure")) continue;
+      const id = JSON.stringify([orgId, "report", profileId, r.language_id, r.target_kind, r.target_id]);
       if (seen.has(id)) continue;
       seen.add(id);
       out.push({ id, profile_id: profileId, kind: "content_report", title: "Something was reported" });

@@ -1,6 +1,5 @@
 import { WriteQueue } from './writeQueue';
-import { tasksFromRow, passageRowKey, type PassageRow } from '@langquest-next/core';
-import type { EventStore, LocalEvent, PassageCursor, WriteBatch, TaskQuery, TaskMatch } from './types';
+import type { EventStore, LocalEvent, WriteBatch } from './types';
 
 /** In-memory EventStore for tests. The SQLite one mirrors this shape. */
 export class MemoryStore implements EventStore {
@@ -8,7 +7,6 @@ export class MemoryStore implements EventStore {
   private events = new Map<string, LocalEvent>();
   private cursors = new Map<string, number>();
   private metas = new Map<string, string>();
-  private rows = new Map<string, Map<string, PassageRow>>();
 
   commit(batch: WriteBatch): Promise<void> {
     return this.writer.run(() => this.commitNow(batch));
@@ -17,71 +15,10 @@ export class MemoryStore implements EventStore {
   private async commitNow(batch: WriteBatch): Promise<void> {
     // Not transactional: this store is for tests, and nothing here can fail
     // halfway. The SQLite store is where atomicity is real.
-    for (const l of batch.events ?? []) {
-      this.events.set(l.event.id, l);
-      this.metas.set(`projection:${l.event.orgId}/${l.event.projectId}`, '');
-    }
-    if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.projectId}`, batch.cursor.seq);
+    for (const l of batch.events ?? []) this.events.set(l.event.id, l);
+    if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.streamId}`, batch.cursor.seq);
     for (const [k, v] of Object.entries(batch.meta ?? {})) this.metas.set(k, v);
-    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
-    if (batch.rows) {
-      const key = `${batch.rows.orgId}/${batch.rows.projectId}`;
-      if (batch.rows.clear) this.rows.delete(key);
-      const table = this.rows.get(key) ?? new Map<string, PassageRow>();
-      this.rows.set(key, table);
-      for (const k of batch.rows.delete ?? []) table.delete(passageRowKey(k));
-      for (const r of batch.rows.put ?? []) table.set(passageRowKey(r), r);
-      if (batch.rows.version) this.metas.set(`projection:${key}`,
-        `${batch.rows.version}:${this.cursors.get(key) ?? 0}`);
-    }
-  }
-
-  async taskPage(orgId: string, projectId: string, q: TaskQuery): Promise<TaskMatch[]> {
-    const out: TaskMatch[] = [];
-    for (const row of this.rows.get(`${orgId}/${projectId}`)?.values() ?? []) {
-      if (q.laneId !== undefined && q.laneId !== row.laneId) continue;
-      for (const t of tasksFromRow(row, q.actorId, q.translate ? 'translator' : 'reviewer')) {
-        if (!q.status || q.status.includes(t.status)) out.push({ row, taskId: t.id });
-      }
-    }
-    const tuple = (r: TaskMatch) => [r.row.order, r.row.unitId, r.row.laneId, r.taskId];
-    const cmp = (a: string[], b: string[]) => {
-      for (let i = 0; i < a.length; i++) {
-        if (a[i]! < b[i]!) return -1;
-        if (a[i]! > b[i]!) return 1;
-      }
-      return 0;
-    };
-    const after = q.after && [q.after.order, q.after.unitId, q.after.laneId, q.after.taskId];
-    return out.filter((r) => !after || cmp(tuple(r), after) > 0)
-      .sort((a, b) => cmp(tuple(a), tuple(b))).slice(0, q.limit);
-  }
-
-  async laneCounts(orgId: string, projectId: string, laneId: string) {
-    const counts = { passages: 0, translated: 0, approved: 0 };
-    for (const row of this.rows.get(`${orgId}/${projectId}`)?.values() ?? []) {
-      if (row.laneId !== laneId) continue;
-      counts.passages++;
-      if (row.takeId && row.submitted) {
-        counts.translated++;
-        if (row.outcome === 'approved') counts.approved++;
-      }
-    }
-    return counts;
-  }
-
-  async passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
-    return this.rows.get(`${orgId}/${projectId}`)?.get(passageRowKey({ unitId, laneId }));
-  }
-
-  async passages(orgId: string, projectId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]> {
-    const after = opts.after ?? null;
-    const cmp = (a: PassageCursor, b: PassageCursor) =>
-      a.order < b.order ? -1 : a.order > b.order ? 1 : a.unitId < b.unitId ? -1 : a.unitId > b.unitId ? 1 : a.laneId < b.laneId ? -1 : a.laneId > b.laneId ? 1 : 0;
-    return [...(this.rows.get(`${orgId}/${projectId}`)?.values() ?? [])]
-      .filter((r) => (opts.laneId === undefined || r.laneId === opts.laneId) && (after === null || cmp(r, after) > 0))
-      .sort(cmp)
-      .slice(0, opts.limit);
+    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
   }
 
   async put(local: LocalEvent): Promise<void> {
@@ -96,56 +33,56 @@ export class MemoryStore implements EventStore {
     return this.events.get(id);
   }
 
-  async pending(orgId: string, projectId: string): Promise<LocalEvent[]> {
-    return this.partition(orgId, projectId)
+  async pending(orgId: string, streamId: string): Promise<LocalEvent[]> {
+    return this.stream(orgId, streamId)
       .filter((e) => e.status === 'pending')
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
-  async pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
-    const all = await this.pending(orgId, projectId);
+  async pendingPage(orgId: string, streamId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
+    const all = await this.pending(orgId, streamId);
     return all.filter((e) => afterHlc === null || e.event.hlc > afterHlc).slice(0, limit);
   }
 
-  async pendingCount(orgId: string, projectId: string): Promise<number> {
-    return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
+  async pendingCount(orgId: string, streamId: string): Promise<number> {
+    return this.stream(orgId, streamId).filter((e) => e.status === 'pending').length;
   }
 
-  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]> {
-    const seen = new Map<string, { orgId: string; projectId: string }>();
+  async pendingStreamsBy(actorId: string): Promise<{ orgId: string; streamId: string }[]> {
+    const seen = new Map<string, { orgId: string; streamId: string }>();
     for (const l of this.events.values()) {
-      if (l.status === 'pending' && l.event.actorId === actorId) seen.set(`${l.event.orgId}/${l.event.projectId}`, { orgId: l.event.orgId, projectId: l.event.projectId });
+      if (l.status === 'pending' && l.event.actorId === actorId) seen.set(`${l.event.orgId}/${l.event.streamId}`, { orgId: l.event.orgId, streamId: l.event.streamId });
     }
-    return [...seen.values()].sort((a, b) => (`${a.orgId}/${a.projectId}` < `${b.orgId}/${b.projectId}` ? -1 : 1));
+    return [...seen.values()].sort((a, b) => (`${a.orgId}/${a.streamId}` < `${b.orgId}/${b.streamId}` ? -1 : 1));
   }
 
-  async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
-    return this.partition(orgId, projectId).filter((e) => e.status === 'pending' && e.event.actorId === actorId).length;
+  async pendingCountBy(orgId: string, streamId: string, actorId: string): Promise<number> {
+    return this.stream(orgId, streamId).filter((e) => e.status === 'pending' && e.event.actorId === actorId).length;
   }
 
-  async count(orgId: string, projectId: string): Promise<number> {
-    return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected').length;
+  async count(orgId: string, streamId: string): Promise<number> {
+    return this.stream(orgId, streamId).filter((e) => e.status !== 'rejected').length;
   }
 
-  async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
-    return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected');
+  async all(orgId: string, streamId: string): Promise<LocalEvent[]> {
+    return this.stream(orgId, streamId).filter((e) => e.status !== 'rejected');
   }
 
-  async cursor(orgId: string, projectId: string): Promise<number> {
-    return this.cursors.get(`${orgId}/${projectId}`) ?? 0;
+  async cursor(orgId: string, streamId: string): Promise<number> {
+    return this.cursors.get(`${orgId}/${streamId}`) ?? 0;
   }
 
-  async setCursor(orgId: string, projectId: string, seq: number): Promise<void> {
-    await this.commit({ cursor: { orgId, projectId, seq } });
+  async setCursor(orgId: string, streamId: string, seq: number): Promise<void> {
+    await this.commit({ cursor: { orgId, streamId, seq } });
   }
 
-  async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.commit({ prune: { orgId, projectId, uptoSeq } });
+  async prune(orgId: string, streamId: string, uptoSeq: number): Promise<void> {
+    await this.commit({ prune: { orgId, streamId, uptoSeq } });
   }
 
-  private async pruneNow(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
+  private async pruneNow(orgId: string, streamId: string, uptoSeq: number): Promise<void> {
     for (const [id, e] of this.events) {
-      if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.projectId === projectId
+      if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.streamId === streamId
           && (e.event.serverSeq ?? Infinity) <= uptoSeq) this.events.delete(id);
     }
   }
@@ -158,16 +95,16 @@ export class MemoryStore implements EventStore {
     await this.commit({ meta: { [key]: value } });
   }
 
-  async rejected(orgId?: string, projectId?: string): Promise<LocalEvent[]> {
+  async rejected(orgId?: string, streamId?: string): Promise<LocalEvent[]> {
     return [...this.events.values()]
       .filter((e) => e.status === 'rejected')
-      .filter((e) => orgId === undefined || (e.event.orgId === orgId && e.event.projectId === projectId))
+      .filter((e) => orgId === undefined || (e.event.orgId === orgId && e.event.streamId === streamId))
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
-  private partition(orgId: string, projectId: string): LocalEvent[] {
+  private stream(orgId: string, streamId: string): LocalEvent[] {
     return [...this.events.values()].filter(
-      (e) => e.event.orgId === orgId && e.event.projectId === projectId
+      (e) => e.event.orgId === orgId && e.event.streamId === streamId
     );
   }
 }

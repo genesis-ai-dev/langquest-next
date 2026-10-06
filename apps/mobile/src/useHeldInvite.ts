@@ -9,7 +9,7 @@ import { noteExpected } from './report';
 import { supabase } from './supabase';
 
 /** What happened to the held invite last, for the screens to say. */
-export type InviteStatus =
+type InviteStatus =
   | { kind: 'idle' }
   | { kind: 'joining' }
   /** Not reached: kept, and tried again on reconnect or when the app comes back. */

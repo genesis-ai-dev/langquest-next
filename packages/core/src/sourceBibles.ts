@@ -1,6 +1,5 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
 import { bookIdOf, libraryUnitRange } from './versification';
-import { catalogEnabled, catalogKey, type OrgState } from './org';
 
 /** Audio editions are explicit opt-ins, unlike the legacy reference catalog. */
 export const SOURCE_BIBLES = [
@@ -9,14 +8,7 @@ export const SOURCE_BIBLES = [
   { id: 'berean-msb-fs', name: 'Majority Standard Bible', code: 'MSB',
     directory: 'msb_frederick_surrey', narrator: 'Frederick Surrey' }
 ] as const;
-export type SourceBible = typeof SOURCE_BIBLES[number];
-
-export function sourceBibleEnabled(
-  org: OrgState, id: string, projectId?: string
-): boolean {
-  return org.catalog[catalogKey('reference', id, 'org')]?.value === true &&
-    catalogEnabled(org, 'reference', id, projectId);
-}
+type SourceBible = typeof SOURCE_BIBLES[number];
 
 // OpenBible's filenames use these spellings, which differ from our book ids.
 const AUDIO_BOOKS = (
@@ -26,7 +18,7 @@ const AUDIO_BOOKS = (
   'Col 1Th 2Th 1Ti 2Ti Tts Phm Heb Jas 1Pe 2Pe 1Jn 2Jn 3Jn Jud Rev'
 ).split(' ');
 
-export type SourceChapter = { book: string; chapter: number; label: string };
+type SourceChapter = { book: string; chapter: number; label: string };
 
 /** Only resolve known template ids; never guess from a passage's display text. */
 export function sourceChapters(unitId: string): SourceChapter[] {

@@ -6,7 +6,7 @@ import type { Register } from './state';
 /**
  * An organization's library (docs/decisions.md 36): its content templates,
  * review flows, reference material and versifications, each an item with
- * published versions. It lives in the org partition, which every device
+ * published versions. It lives in the organization stream, which every device
  * pulls whole; the documents themselves are fetched by hash.
  *
  * An item is the organization's own (made here, or copied from another
@@ -52,11 +52,7 @@ export interface LibraryEvents {
   'v1.LibraryPinned': { itemId: string; kind: LibraryKind; docHash: string };
 }
 
-/**
- * Work-partition events that tie a language to library versions. The v1
- * forms stay readable for languages set up from the catalog that used to
- * ship in the app.
- */
+/** Language-stream events that tie a language to library versions. */
 export interface LibraryWorkEvents {
   /**
    * A language uses a version of a library template. `unitPrefix` is what
@@ -66,14 +62,18 @@ export interface LibraryWorkEvents {
    * to the books this language covers (a New Testament team on a whole-Bible
    * template); absent means all of them.
    */
-  'v2.LaneTemplateSelected': { laneId: string; itemId: string; docHash: string; unitPrefix: string; books?: string[] };
+  'v1.TemplateSelected': { itemId: string; docHash: string; unitPrefix: string; books?: string[] };
   /** A part of a language's template that its current version no longer has; hidden, never deleted (TPL-7). */
-  'v1.LaneUnitHidden': { laneId: string; unitId: string; hidden: boolean };
-  /** A language uses a version of a library flow; `flowId` is the step prefix, `name` what people read. */
-  'v2.LaneFlowSelected': { laneId: string; flowId: string; catalogVersion: number; itemId: string; docHash: string; name: string };
+  'v1.UnitHidden': { unitId: string; hidden: boolean };
+  /**
+   * The flow a language uses. `flowId` is its steps' prefix: a library
+   * flow's version (`libraryFlowId`, with the item, version and name), or
+   * `custom` for steps edited by hand.
+   */
+  'v1.FlowSelected': { flowId: string; itemId?: string; docHash?: string; name?: string };
 }
 
-export interface LibraryVersion {
+interface LibraryVersion {
   docHash: string;
   hlc: Hlc;
   eventId: string;
@@ -116,7 +116,7 @@ const earlier = (current: Register<unknown>, e: EventEnvelope) =>
   current.hlc === '' || e.hlc < current.hlc || (e.hlc === current.hlc && e.id < current.eventId);
 const reg = <V>(value: V, e: EventEnvelope): Register<V> => ({ value, hlc: e.hlc, eventId: e.id });
 
-export type LibraryEventType = keyof LibraryEvents;
+type LibraryEventType = keyof LibraryEvents;
 export const LIBRARY_EVENT_TYPES: readonly LibraryEventType[] = [
   'v1.LibraryItemDefined', 'v1.LibraryVersionPublished', 'v1.LibrarySharingSet', 'v1.LibraryItemArchived',
   'v1.LibrarySubscribed', 'v1.LibraryPinned'

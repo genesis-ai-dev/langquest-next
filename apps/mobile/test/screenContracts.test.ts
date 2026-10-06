@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { fold, privilegesOfFixedRole, type AnyEvent, type Privilege, type Role } from '@langquest-next/core';
+import { type AnyEvent, type Role } from '@langquest-next/core';
 import { SCREEN_IDS, EDGES, TAB_SCREENS, type ScreenId, type NodeId } from '../src/flow';
 import { SCREEN_CONTRACTS, screenMayEmit } from '../src/screenContracts';
-import { deriveSession, edgeAllowed } from '../src/session';
-import { buildFixture } from '../../../packages/core/test/fixtures';
+import { edgeAllowed } from '../src/session';
+import { buildFixture, buildOrgFixture } from '../../../packages/core/test/fixtures';
+import { roleSession } from './sessions';
 
 const root = path.resolve('apps/mobile');
 const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
@@ -81,14 +82,11 @@ describe('screen action contracts', () => {
   });
 
   it('walks every persona through allowed edges and checks emitted fixture actions', () => {
-    const fixture = buildFixture();
-    const project = fold(fixture);
+    const fixture = [...buildFixture(), ...buildOrgFixture()];
     const roles: Role[] = ['owner','coordinator','translator','reviewer','viewer'];
     let checked = 0;
     for (const role of roles) {
-      const session = deriveSession('persona',null,{ ...project, members:{
-        ...project.members,persona:{ role:{value:role,hlc:'',eventId:''},removed:{value:false,hlc:'',eventId:''} }
-      } },true);
+      const session = roleSession(role);
       const seen = new Set<NodeId>(['sign_in']);
       const queue: NodeId[] = ['sign_in'];
       while (queue.length) {
@@ -111,11 +109,8 @@ describe('screen action contracts', () => {
   });
 
   it('asking, reviewing and logging follow permissions, never the method', () => {
-    const state = fold(buildFixture());
-    const as = (role: Role) => deriveSession('persona', null, { ...state, members: {
-      ...state.members, persona: { role: { value: role, hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } }
-    } }, true);
-    const ask = { type: 'v1.RequestMade', payload: { requestId: 'q', unitId: 'luke1', laneId: 'L1', what: 'review', kindId: 'peer', profileId: 'r1' } } as AnyEvent;
+    const as = roleSession;
+    const ask = { type: 'v1.RequestMade', payload: { requestId: 'q', unitId: 'luke1', what: 'review', kindId: 'peer', profileId: 'r1' } } as AnyEvent;
     expect(screenMayEmit('ask_someone', as('translator'), ask)).toBe(true);
     expect(screenMayEmit('ask_someone', as('viewer'), ask)).toBe(false);
     const review = { type: 'v1.ReviewRecorded', payload: { reviewId: 'r', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' } } as AnyEvent;

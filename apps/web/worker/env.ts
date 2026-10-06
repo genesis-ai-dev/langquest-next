@@ -5,7 +5,7 @@ export interface Env {
   ASSETS: Fetcher;
   ORG_SNAPSHOTS: DurableObjectNamespace<OrgSnapshot>;
   SUPABASE_URL: string;
-  /** Reads every partition; never sent to the browser. */
+  /** Reads every stream; never sent to the browser. */
   SUPABASE_SERVICE_ROLE_KEY: string;
   /**
    * Faith Comes By Hearing's Bible Brain key, for /api/bible/* (bible.ts).

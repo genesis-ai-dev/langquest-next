@@ -81,7 +81,7 @@ const BOOK_ICONS: Record<string, ImageSourcePropType> = {
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
 
-export function bookIcon(bookId: string): ImageSourcePropType | undefined {
+function bookIcon(bookId: string): ImageSourcePropType | undefined {
   return BOOK_ICONS[bookId];
 }
 

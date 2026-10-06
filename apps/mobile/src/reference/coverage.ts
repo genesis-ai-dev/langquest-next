@@ -11,7 +11,7 @@ import { refKindOf, type RefKind } from './model';
 
 type Get = (hash: string | null | undefined) => LibraryDoc | null;
 
-export interface CoveragePassage {
+interface CoveragePassage {
   unitId: string;
   label: string;
   /** Its verses, from its unit id; null for an outline part. */
@@ -48,7 +48,7 @@ function linksOf(links: MaterialLink[] | undefined, v11n: VersificationDoc | nul
 }
 
 /** Where an item's document applies; null when it is not reference material or not loaded. */
-export function placementOf(doc: LibraryDoc | null, get: Get): Placement | null {
+function placementOf(doc: LibraryDoc | null, get: Get): Placement | null {
   const kind = refKindOf(doc);
   if (!doc || !kind) return null;
   const p: Placement = { kind, books: null, ranges: [], nodes: [] };
@@ -158,7 +158,7 @@ export function coverage(input: {
   return out;
 }
 
-export interface CoverageSummary {
+interface CoverageSummary {
   passages: number;
   withSource: number;
   withGuide: number;

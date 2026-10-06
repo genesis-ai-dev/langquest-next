@@ -42,8 +42,8 @@ function literal(value: string | undefined, what: string): string {
 }
 
 interface OpenRow {
-  id: string; created_at: string; org: string; partition_id: string; target_kind: string; target_id: string;
-  unit_id: string | null; lane_id: string | null; reported_profile: string; reported_name: string | null;
+  id: string; created_at: string; org: string; language_id: string | null; target_kind: string; target_id: string;
+  unit_id: string | null; reported_profile: string; reported_name: string | null;
   reported_email: string | null; reporter_id: string | null; reason: string; details: string | null;
   content: { type: string; payload: Record<string, unknown> }[] | null;
 }
@@ -51,21 +51,21 @@ interface OpenRow {
 function list(): void {
   const rows = query<OpenRow>(`
     select r.id, r.created_at,
-      coalesce((select e.payload->>'name' from public.events e where e.org_id = r.org_id and e.project_id = '_org'
+      coalesce((select e.payload->>'name' from public.events e where e.org_id = r.org_id and e.stream_id = '_org'
         and e.type = 'v1.OrgCreated' order by e.hlc desc limit 1), r.org_id) || ' (' || r.org_id || ')' as org,
-      r.partition_id, r.target_kind, r.target_id, r.unit_id, r.lane_id, r.reported_profile,
+      r.language_id, r.target_kind, r.target_id, r.unit_id, r.reported_profile,
       (select p.display_name from public.profiles p where p.id = r.reported_profile) as reported_name,
       (select u.email from auth.users u where u.id::text = r.reported_profile) as reported_email,
       r.reporter_id, r.reason, r.details,
       (select jsonb_agg(jsonb_build_object('type', e.type, 'payload', e.payload) order by e.server_seq)
-         from public._content_events(r.org_id, r.partition_id, r.target_kind, r.target_id) c
+         from public._content_events(r.org_id, r.language_id, r.target_kind, r.target_id) c
          join public.events e on e.id = c.event_id where not c.redacted) as content
     from public.content_reports r where r.resolved_at is null order by r.created_at`);
   if (asJson) { console.log(JSON.stringify(rows, null, 2)); return; }
   if (!rows.length) { console.log('No open reports.'); return; }
   for (const r of rows) {
     console.log(`\n${r.id}  ${r.created_at}  ${r.reason}`);
-    console.log(`  ${r.target_kind} ${r.target_id} in ${r.org}, partition ${r.partition_id}${r.unit_id ? `, unit ${r.unit_id}` : ''}`);
+    console.log(`  ${r.target_kind} ${r.target_id} in ${r.org}${r.language_id ? `, language ${r.language_id}` : ''}${r.unit_id ? `, unit ${r.unit_id}` : ''}`);
     console.log(`  made by ${r.reported_name ?? '(no name)'} <${r.reported_email ?? 'deleted'}> ${r.reported_profile}`);
     console.log(`  reported by ${r.reporter_id ?? '(account deleted)'}`);
     if (r.details) console.log(`  they said: ${r.details}`);

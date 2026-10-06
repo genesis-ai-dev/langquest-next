@@ -20,7 +20,7 @@ const AUDIO_TTL = 3 * 3600;
 type Testament = 'OT' | 'NT';
 export type Testaments = { OT?: string; NT?: string };
 
-export interface BibleSummary {
+interface BibleSummary {
   bibleId: string;
   name: string;
   abbreviation: string;
@@ -31,7 +31,7 @@ export interface BibleSummary {
   timestamps: { OT: boolean; NT: boolean };
 }
 
-export interface BibleDetail extends BibleSummary {
+interface BibleDetail extends BibleSummary {
   books: { book: string; name: string; chapters: number; testament: Testament }[];
   copyright: { text?: string; audio?: string };
   offline: { text: boolean; audio: boolean };
@@ -131,7 +131,7 @@ export function versesOf(rows: unknown): [number, number, string][] {
 }
 
 /** When a CloudFront signed link stops working (`Expires`, in seconds). */
-export function expiryOf(link: string, fallbackMs: number): number {
+function expiryOf(link: string, fallbackMs: number): number {
   try {
     const s = Number(new URL(link).searchParams.get('Expires'));
     return Number.isFinite(s) && s > 0 ? s * 1000 : fallbackMs;

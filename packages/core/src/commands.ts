@@ -1,10 +1,10 @@
 import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
-import type { ProjectState } from './state';
-import { currentTake, deriveTakeStatus } from './workflow';
+import { TG_MATERIAL_ID } from './materials';
+import type { FlowSelection, LanguageState } from './state';
 import { derivePassage } from './passage';
 import type { UsedReference } from './references';
-import { CUSTOM_FLOW, FLOW_CATALOG_VERSION, flowStepId, flowStepPrefix, flowTemplateV2, instantiateFlowV2, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
+import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
  * Commands: the business operations a screen may ask for, each turned into
@@ -29,28 +29,26 @@ export class CommandError extends Error {
 
 export interface Commands {
   /** Save one recorded card against a passage. Idempotent by recordingId. */
-  addRecording(c: { commandId: string; unitId: string; laneId: string; recordingId: string; kind: 'source' | 'target'; card: Card }): EventSpec[];
-  /** Compose the pending cards into the passage's current take, retiring a draft it replaces. */
-  keepTake(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[] }): EventSpec[];
+  addRecording(c: { commandId: string; unitId: string; recordingId: string; kind: 'source' | 'target'; card: Card }): EventSpec[];
+  /**
+   * Compose the pending cards into the person's draft of a passage. Their
+   * previous draft is retired; a teammate's draft is never touched (archiving
+   * is add-wins).
+   */
+  keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string }): EventSpec[];
   /** Record a deliberate discard of pending cards so recovery never resurrects them. */
-  discardCards(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[] }): EventSpec[];
-  /** Hand the passage's current draft to review, with an optional response note. */
-  submitTake(c: { commandId: string; unitId: string; laneId: string; questionSetIds: string[]; responseNote?: string }): EventSpec[];
-  /** A reviewer's decision on one workflow step of a take. */
-  reviewTake(c: { commandId: string; takeId: string; stepId: string; decision: 'approve' | 'suggest_changes'; comment?: string; answers?: Record<string, string> }): EventSpec[];
-  /** Attach a recorded pronunciation to a key term, saving the card too. */
-  adjustKeyTerm(c: { commandId: string; unitId: string; laneId: string; termId: string; recordingId: string; adjustmentId: string; card: Card }): EventSpec[];
-  /** Set a passage note in the lane's translation guidelines, defining the material on first use. */
-  savePassageNote(c: { commandId: string; materialId: string; laneId: string; unitId: string; text: string; card?: Card; recordingId?: string; blobHash?: string }): EventSpec[];
+  discardCards(c: { commandId: string; unitId: string; cardHashes: string[] }): EventSpec[];
+  /** Set a passage note in the language's translation guidelines, defining the material on first use. */
+  savePassageNote(c: { commandId: string; unitId: string; text: string; card?: Card; recordingId?: string; blobHash?: string }): EventSpec[];
 
   // ---- the passage record (record.ts, passage.ts) ----
 
   /**
    * Publish a new version (REC-W3, REC-W4): compose the cards in order,
-   * select and submit the take, and say what changed. A version exists only
-   * when content changes, so the same cards as the latest version refuse.
+   * submit the take, and say what changed. A version exists only when content
+   * changes, so the same cards as the latest version refuse.
    */
-  publishVersion(c: { commandId: string; unitId: string; laneId: string; cardHashes: string[]; note?: string; noteBlobHash?: string;
+  publishVersion(c: { commandId: string; unitId: string; cardHashes: string[]; note?: string; noteBlobHash?: string;
     /** The publisher: only their own draft is replaced, never a teammate's (archiving is add-wins). */
     actorId?: string }): EventSpec[];
   /** A review of a version for one kind; one per passage when a session covered several (REV-6). */
@@ -69,41 +67,36 @@ export interface Commands {
     givenBy?: string; people?: number; place?: string; answers?: Record<string, string>; skipped?: Record<string, string>; requestId?: string;
   }): EventSpec[];
   /** Comply or explain: set a step aside, move past a checkpoint, keep a version despite feedback. */
-  depart(c: { commandId: string; unitId: string; laneId: string; type: DepartureType; kindId?: string; stepId?: string; reviewId?: string; reason: string; reasonBlobHash?: string }): EventSpec[];
+  depart(c: { commandId: string; unitId: string; type: DepartureType; kindId?: string; stepId?: string; reviewId?: string; reason: string; reasonBlobHash?: string }): EventSpec[];
   undoDeparture(c: { commandId: string; departureId: string }): EventSpec[];
-  /**
-   * Ask someone (ASK-1..5): a teammate, a guest by link, or a review team
-   * (ADR-029). A team request is v2.RequestMade; the others stay v1.
-   */
-  ask(c: Omit<RecordEvents['v2.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
+  /** Ask someone (ASK-1..5): a teammate, a guest by link, or a review team (ADR-029). */
+  ask(c: Omit<RecordEvents['v1.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
   withdrawRequest(c: { commandId: string; requestId: string }): EventSpec[];
-  addNote(c: { commandId: string; unitId: string; laneId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string }): EventSpec[];
-  markStudyStep(c: { commandId: string; unitId: string; laneId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
+  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string }): EventSpec[];
+  markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
-  /** Use a catalog flow for a lane (FLOW-4): the lane's old steps go, the flow's steps come. */
-  useFlow(c: { commandId: string; laneId: string; flowId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
   linkKeyTerms(c: { commandId: string; takeId: string; termIds: string[]; note?: string; adjustmentId?: string }): EventSpec[];
   /** A new term (TERM-6): the term, its first rendering, and why, as its first adjustment. */
-  defineKeyTerm(c: { commandId: string; termId: string; laneId: string; term: string; gloss: string; unitScope: string[];
+  defineKeyTerm(c: { commandId: string; termId: string; term: string; gloss: string; unitScope: string[];
     rendering?: string; context?: string; note: string; blobHash?: string; duringTakeId?: string }): EventSpec[];
   /** Adjust a term or add a rendering (TERM-5): a why is required; the rendering is optional; ties to the draft when given. */
   adjustKeyTermRendering(c: { commandId: string; termId: string; rendering?: string; context?: string; note: string; blobHash?: string;
     duringTakeId?: string; tieToTakeId?: string }): EventSpec[];
-  /** A new reference material with its first fields. */
-  defineMaterial(c: { commandId: string; materialId: string; kind: string; title: string; scope: { laneId?: string; unitId?: string; stepId?: string };
+  /** A new reference material with its first fields; an empty scope is the whole language. */
+  defineMaterial(c: { commandId: string; materialId: string; kind: string; title: string; scope: { unitId?: string; stepId?: string };
     templateRef?: string; fields?: { fieldId: string; text: string }[] }): EventSpec[];
   /** Set fields of a material (each field is its own register, decision 26). */
   setMaterialFields(c: { commandId: string; materialId: string; fields: { fieldId: string; text?: string; blobHash?: string }[] }): EventSpec[];
   lockMaterial(c: { commandId: string; materialId: string; locked: boolean }): EventSpec[];
-  /** Save a lane's steps from the flow editor (FLOW-3). The lane then owns its steps, as a custom flow. */
-  saveFlowSteps(c: { commandId: string; laneId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[] }): EventSpec[];
+  /** Save the language's steps from the flow editor (FLOW-3). The language then owns its steps, as a custom flow. */
+  saveFlowSteps(c: { commandId: string; steps: { stepId?: string; kindIds: string[]; checkpoint: boolean }[] }): EventSpec[];
   /**
-   * Put a lane's flow back as it was (the Undo of useFlow or saveFlowSteps):
-   * the catalog flow it used when its steps still match it, else its steps
-   * as a custom flow.
+   * Put the language's flow back as it was (the Undo of choosing a flow or
+   * saving steps): the flow it had chosen, whose steps were never removed
+   * (decision 32), else its steps as a custom flow.
    */
-  restoreFlow(c: { commandId: string; laneId: string; previous: { flowId: string | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
+  restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 
   // ---- reference material (references.ts) ----
 
@@ -113,7 +106,7 @@ export interface Commands {
    * describes. One item per material: `opened` once anything says so, the
    * first description otherwise. Nothing offered, no event.
    */
-  referencesUsed(c: { commandId: string; laneId: string; unitId: string; takeId?: string; reviewId?: string; items: UsedReference[] }): EventSpec[];
+  referencesUsed(c: { commandId: string; unitId: string; takeId?: string; reviewId?: string; items: UsedReference[] }): EventSpec[];
 }
 
 /** The most items one `v1.ReferencesUsed` carries (validate.ts). */
@@ -121,15 +114,15 @@ export const MAX_USED_ITEMS = 200;
 
 export type { QuestionSpec };
 
-export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)): Commands {
+export function commands(state: LanguageState, idx: Indexes = buildIndexes(state)): Commands {
   const ids = (commandId: string) => {
     let n = 0;
     return () => `${commandId}:${n++}`;
   };
-  const cardEvent = (id: string, c: { recordingId: string; unitId: string; laneId: string; kind: 'source' | 'target'; card: Card }): EventSpec<'v1.RecordingAdded'> => ({
+  const cardEvent = (id: string, c: { recordingId: string; unitId: string; kind: 'source' | 'target'; card: Card }): EventSpec<'v1.RecordingAdded'> => ({
     id,
     type: 'v1.RecordingAdded',
-    payload: { recordingId: c.recordingId, unitId: c.unitId, laneId: c.laneId, kind: c.kind, cards: [{ hash: c.card.hash, durationMs: c.card.durationMs, ...(c.card.format ? { format: c.card.format } : {}) }] }
+    payload: { recordingId: c.recordingId, unitId: c.unitId, kind: c.kind, cards: [{ hash: c.card.hash, durationMs: c.card.durationMs, ...(c.card.format ? { format: c.card.format } : {}) }] }
   });
 
   return {
@@ -142,14 +135,12 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       if (c.cardHashes.length === 0) throw new CommandError('Nothing to keep.');
       const next = ids(c.commandId);
       const takeId = `take:${c.commandId}`;
-      const previous = currentTake(state, c.unitId, c.laneId, idx);
+      const passage = derivePassage(state, c.unitId, idx);
+      const mine = passage.draftTakeId && passage.draftBy === c.actorId ? passage.draftTakeId : undefined;
       const out: EventSpec[] = [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, laneId: c.laneId, cardHashes: c.cardHashes, parentTakeId: previous } },
-        { id: next(), type: 'v1.TakeSelected', payload: { takeId, unitId: c.unitId, laneId: c.laneId } }
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: mine ?? passage.latest?.takeId ?? null } }
       ];
-      if (previous && deriveTakeStatus(state, previous, idx).outcome === 'draft') {
-        out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: previous } });
-      }
+      if (mine) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: mine } });
       return out;
     },
 
@@ -157,66 +148,31 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       if (c.cardHashes.length === 0) return [];
       const next = ids(c.commandId);
       const takeId = `take:${c.commandId}`;
+      const passage = derivePassage(state, c.unitId, idx);
       return [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, laneId: c.laneId, cardHashes: c.cardHashes, parentTakeId: currentTake(state, c.unitId, c.laneId, idx) } },
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: c.cardHashes, parentTakeId: passage.draftTakeId ?? passage.latest?.takeId ?? null } },
         { id: next(), type: 'v1.TakeArchived', payload: { takeId } }
-      ];
-    },
-
-    submitTake(c) {
-      const takeId = currentTake(state, c.unitId, c.laneId, idx);
-      const take = takeId ? state.takes[takeId] : undefined;
-      if (!takeId || !take) throw new CommandError('Record a take before handing off.');
-      if (take.cardHashes.length === 0) throw new CommandError('The take has no audio.');
-      if (deriveTakeStatus(state, takeId, idx).outcome !== 'draft') throw new CommandError('This take was already handed off.');
-      const next = ids(c.commandId);
-      const out: EventSpec[] = [];
-      const respondsTo = take.parentTakeId;
-      const note = c.responseNote?.trim();
-      if (respondsTo && state.submissions[respondsTo] && note) {
-        out.push({ id: next(), type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: respondsTo, note } });
-      }
-      out.push({ id: next(), type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: c.questionSetIds } });
-      return out;
-    },
-
-    reviewTake(c) {
-      if (!state.takes[c.takeId]) throw new CommandError('Unknown take.');
-      if (!deriveTakeStatus(state, c.takeId, idx).submitted) throw new CommandError('This take was not handed off.');
-      return [{
-        id: ids(c.commandId)(),
-        type: 'v1.ReviewSubmitted',
-        payload: { takeId: c.takeId, stepId: c.stepId, decision: c.decision, ...(c.comment ? { comment: c.comment } : {}), ...(c.answers ? { answers: c.answers } : {}) }
-      }];
-    },
-
-    adjustKeyTerm(c) {
-      const next = ids(c.commandId);
-      const takeId = currentTake(state, c.unitId, c.laneId, idx);
-      return [
-        cardEvent(next(), { ...c, kind: 'source' }),
-        { id: next(), type: 'v1.KeyTermAdjusted', payload: { termId: c.termId, adjustmentId: c.adjustmentId, note: '', blobHash: c.card.hash, ...(takeId ? { duringTakeId: takeId } : {}) } }
       ];
     },
 
     savePassageNote(c) {
       const next = ids(c.commandId);
       const out: EventSpec[] = [];
-      if (!state.materials[c.materialId]) {
-        out.push({ id: next(), type: 'v1.MaterialDefined', payload: { materialId: c.materialId, kind: 'tg', title: 'Translation Guidelines', scope: { laneId: c.laneId } } });
+      if (!state.materials[TG_MATERIAL_ID]) {
+        out.push({ id: next(), type: 'v1.MaterialDefined', payload: { materialId: TG_MATERIAL_ID, kind: 'tg', title: 'Translation Guidelines', scope: {} } });
       }
       let blobHash = c.blobHash;
       if (c.card && c.recordingId) {
-        out.push(cardEvent(next(), { recordingId: c.recordingId, unitId: c.unitId, laneId: c.laneId, kind: 'source', card: c.card }));
+        out.push(cardEvent(next(), { recordingId: c.recordingId, unitId: c.unitId, kind: 'source', card: c.card }));
         blobHash = c.card.hash;
       }
-      out.push({ id: next(), type: 'v1.MaterialFieldSet', payload: { materialId: c.materialId, fieldId: c.unitId, text: c.text.trim(), ...(blobHash ? { blobHash } : {}) } });
+      out.push({ id: next(), type: 'v1.MaterialFieldSet', payload: { materialId: TG_MATERIAL_ID, fieldId: c.unitId, text: c.text.trim(), ...(blobHash ? { blobHash } : {}) } });
       return out;
     },
 
     publishVersion(c) {
       if (c.cardHashes.length === 0) throw new CommandError('Record something before publishing.');
-      const passage = derivePassage(state, c.unitId, c.laneId, idx);
+      const passage = derivePassage(state, c.unitId, idx);
       const latest = passage.latest;
       if (latest && same(latest.cardHashes, c.cardHashes)) throw new CommandError('Nothing changed since the last version.');
       const note = c.note?.trim();
@@ -225,15 +181,14 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       const takeId = `take:${c.commandId}`;
       const draft = passage.draftTakeId && (c.actorId === undefined || passage.draftBy === c.actorId) ? passage.draftTakeId : undefined;
       const out: EventSpec[] = [
-        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, laneId: c.laneId, cardHashes: [...c.cardHashes], parentTakeId: draft ?? latest?.takeId ?? null } },
-        { id: next(), type: 'v1.TakeSelected', payload: { takeId, unitId: c.unitId, laneId: c.laneId } }
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: [...c.cardHashes], parentTakeId: draft ?? latest?.takeId ?? null } }
       ];
       if (draft) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: draft } });
       out.push({ id: next(), type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: [] } });
       if (latest) {
         out.push({ id: next(), type: 'v1.ResponseRecorded', payload: { takeId, respondsToTakeId: latest.takeId, ...(note ? { note } : {}), ...(c.noteBlobHash ? { blobHash: c.noteBlobHash } : {}) } });
       } else if (note || c.noteBlobHash) {
-        out.push({ id: next(), type: 'v1.NoteAdded', payload: { noteId: `note:${c.commandId}`, unitId: c.unitId, laneId: c.laneId, anchor: { kind: 'version', takeId, role: 'change' }, ...(note ? { text: note } : {}), ...(c.noteBlobHash ? { blobHash: c.noteBlobHash } : {}) } });
+        out.push({ id: next(), type: 'v1.NoteAdded', payload: { noteId: `note:${c.commandId}`, unitId: c.unitId, anchor: { kind: 'version', takeId, role: 'change' }, ...(note ? { text: note } : {}), ...(c.noteBlobHash ? { blobHash: c.noteBlobHash } : {}) } });
       }
       return out;
     },
@@ -280,11 +235,9 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       if (!c.profileId && !c.guest && !c.teamId) throw new CommandError('Pick who to ask.');
       if (c.teamId && (c.profileId || c.guest)) throw new CommandError('Ask a team or a person, not both.');
       if (c.what === 'review' && !c.kindId) throw new CommandError('A review request names its kind.');
-      const { commandId, teamId, ...rest } = c;
+      const { commandId, ...rest } = c;
       const note = rest.note?.trim();
-      const payload = { ...clean(rest), ...(note ? { note } : {}), requestId: `req:${commandId}` };
-      if (teamId) return [{ id: ids(commandId)(), type: 'v2.RequestMade', payload: { ...payload, teamId } }];
-      return [{ id: ids(commandId)(), type: 'v1.RequestMade', payload }];
+      return [{ id: ids(commandId)(), type: 'v1.RequestMade', payload: { ...clean(rest), ...(note ? { note } : {}), requestId: `req:${commandId}` } }];
     },
 
     withdrawRequest(c) {
@@ -294,13 +247,13 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
     addNote(c) {
       const text = c.text?.trim();
       if (!text && !c.blobHash && !c.photoHash) throw new CommandError('A note needs words, a voice note or a photo.');
-      const latest = derivePassage(state, c.unitId, c.laneId, idx).latest;
+      const latest = derivePassage(state, c.unitId, idx).latest;
       const onTake = c.anchor.kind === 'study' ? undefined : latest?.takeId;
       return [{
         id: ids(c.commandId)(),
         type: 'v1.NoteAdded',
         payload: {
-          noteId: `note:${c.commandId}`, unitId: c.unitId, laneId: c.laneId, anchor: c.anchor,
+          noteId: `note:${c.commandId}`, unitId: c.unitId, anchor: c.anchor,
           ...(text ? { text } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(c.photoHash ? { photoHash: c.photoHash } : {}),
           ...(onTake ? { onTakeId: onTake } : {})
         }
@@ -318,38 +271,24 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       return [{ id: ids(commandId)(), type: 'v1.ReviewKindDefined', payload: clean(payload) as RecordEvents['v1.ReviewKindDefined'] }];
     },
 
-    useFlow(c) {
-      if (!flowTemplateV2(c.flowId)) throw new CommandError('That review flow is not in this version of the app.');
-      // Catalog steps are namespaced by lane and flow and never removed:
-      // choosing another flow only changes the selection (see flowStepPrefix).
-      const next = ids(c.commandId);
-      return [
-        { id: next(), type: 'v1.LaneFlowSelected', payload: { laneId: c.laneId, flowId: c.flowId, catalogVersion: FLOW_CATALOG_VERSION } },
-        ...instantiateFlowV2(c.flowId, c.laneId).map((payload) => ({ id: next(), type: 'v2.WorkflowStepSet' as const, payload }))
-      ];
-    },
-
     saveFlowSteps(c) {
       const next = ids(c.commandId);
-      const prefix = flowStepPrefix(c.laneId, CUSTOM_FLOW);
-      // Steps already under this lane's custom prefix keep their ids (and
-      // what the record says about them); anything else becomes a new step.
+      const prefix = flowStepPrefix(CUSTOM_FLOW);
+      // Steps already under the custom prefix keep their ids (and what the
+      // record says about them); anything else becomes a new step.
       const steps = c.steps.map((s, i) => ({
-        stepId: s.stepId?.startsWith(prefix) ? s.stepId : flowStepId(c.laneId, CUSTOM_FLOW, `${c.commandId}-${i}`),
-        laneId: c.laneId,
+        stepId: s.stepId?.startsWith(prefix) ? s.stepId : flowStepId(CUSTOM_FLOW, `${c.commandId}-${i}`),
         order: `s${String(i).padStart(2, '0')}`,
         kindIds: [...s.kindIds],
         checkpoint: s.checkpoint
       }));
       if (steps.some((s) => s.kindIds.length === 0)) throw new CommandError('Every step needs a kind of review.');
       const keep = new Set(steps.map((s) => s.stepId));
-      const dropped = Object.entries(state.flowSteps)
-        .filter(([id, reg]) => id.startsWith(prefix) && reg.value.laneId === c.laneId && !state.workflowSteps[id]?.removed && !keep.has(id))
-        .map(([id]) => id);
+      const dropped = Object.keys(state.flowSteps).filter((id) => id.startsWith(prefix) && !state.removedSteps[id] && !keep.has(id)).sort();
       return [
-        ...dropped.map((stepId) => ({ id: next(), type: 'v1.WorkflowStepRemoved' as const, payload: { stepId } })),
-        { id: next(), type: 'v1.LaneFlowSelected', payload: { laneId: c.laneId, flowId: CUSTOM_FLOW, catalogVersion: FLOW_CATALOG_VERSION } },
-        ...steps.map((payload) => ({ id: next(), type: 'v2.WorkflowStepSet' as const, payload }))
+        ...dropped.map((stepId) => ({ id: next(), type: 'v1.FlowStepRemoved' as const, payload: { stepId } })),
+        { id: next(), type: 'v1.FlowSelected', payload: { flowId: CUSTOM_FLOW } },
+        ...steps.map((payload) => ({ id: next(), type: 'v1.FlowStepSet' as const, payload }))
       ];
     },
 
@@ -365,7 +304,7 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       if (!c.term.trim()) throw new CommandError('Name the term.');
       if (!c.note.trim() && !c.blobHash) throw new CommandError('Say why.');
       const next = ids(c.commandId);
-      const out: EventSpec[] = [{ id: next(), type: 'v1.KeyTermDefined', payload: { termId: c.termId, laneId: c.laneId, term: c.term.trim(), gloss: c.gloss.trim(), unitScope: [...c.unitScope] } }];
+      const out: EventSpec[] = [{ id: next(), type: 'v1.KeyTermDefined', payload: { termId: c.termId, term: c.term.trim(), gloss: c.gloss.trim(), unitScope: [...c.unitScope] } }];
       if (c.rendering?.trim()) out.push({ id: next(), type: 'v1.KeyTermRenderingAdded', payload: { termId: c.termId, renderingId: `rendering:${c.commandId}`, rendering: c.rendering.trim(), context: c.context?.trim() ?? '' } });
       out.push({ id: next(), type: 'v1.KeyTermAdjusted', payload: {
         termId: c.termId, adjustmentId: `adjustment:${c.commandId}`, note: c.note.trim(),
@@ -426,14 +365,14 @@ export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)
       return [{
         id: `${c.commandId}:refs:${c.takeId ?? c.reviewId}`,
         type: 'v1.ReferencesUsed',
-        payload: { laneId: c.laneId, unitId: c.unitId, ...subject, items }
+        payload: { unitId: c.unitId, ...subject, items }
       }];
     },
 
     restoreFlow(c) {
-      const { flowId, steps } = c.previous;
-      if (flowId && flowId !== CUSTOM_FLOW && flowTemplateV2(flowId)) return this.useFlow({ commandId: c.commandId, laneId: c.laneId, flowId });
-      return this.saveFlowSteps({ commandId: c.commandId, laneId: c.laneId, steps: steps.map((s) => ({ stepId: s.id, kindIds: s.kindIds, checkpoint: s.checkpoint })) });
+      const { flow, steps } = c.previous;
+      if (flow && flow.flowId !== CUSTOM_FLOW) return [{ id: ids(c.commandId)(), type: 'v1.FlowSelected', payload: { ...flow } }];
+      return this.saveFlowSteps({ commandId: c.commandId, steps: steps.map((s) => ({ stepId: s.id, kindIds: s.kindIds, checkpoint: s.checkpoint })) });
     }
   };
 }

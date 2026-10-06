@@ -8,22 +8,25 @@ insert into auth.users (id, email, aud, role) values
   ('20000000-0000-0000-0000-00000000000b', 'keys-other-admin@example.org', 'authenticated', 'authenticated'),
   ('20000000-0000-0000-0000-00000000000c', 'nyibol-482@people.langquest.org', 'authenticated', 'authenticated'),
   ('20000000-0000-0000-0000-00000000000d', 'akol-117@people.langquest.org', 'authenticated', 'authenticated');
-select public._apply_org_event('keys-org','v1.RoleDefined',
-  '{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}', '999:1:test');
-select public._apply_org_event('keys-org','v1.RoleDefined',
-  '{"roleId":"translator","name":"Translator","privileges":["translate","invite_members"]}', '999:1:test');
-select public._apply_org_event('keys-org','v1.OrgMemberAdded',
-  '{"profileId":"20000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}','999:1:test');
-select public._apply_org_event('keys-org','v1.OrgMemberAdded',
-  '{"profileId":"20000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}','999:1:test');
-select public._append_event_as('keys-org-created','keys-org','_org','v1.OrgCreated','20000000-0000-0000-0000-00000000000a','server','{"name":"Keys test"}');
-select public._append_event_as('keys-lang','keys-org','_org','v1.ProjectRegistered','20000000-0000-0000-0000-00000000000a','server','{"projectId":"L-keys","name":"Keyish"}');
-
+-- The organization, its roles, its two admins and one language, in one batch.
 select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-00000000000a',true);
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"keys-o1","type":"v1.OrgCreated","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000001:000000:dK","payload":{"name":"Keys test"}},
+    {"id":"keys-o2","type":"v1.RoleDefined","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000002:000000:dK","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}},
+    {"id":"keys-o3","type":"v1.RoleDefined","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000003:000000:dK","payload":{"roleId":"translator","name":"Translator","privileges":["translate","invite_members"]}},
+    {"id":"keys-o4","type":"v1.MemberAdded","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000004:000000:dK","payload":{"profileId":"20000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}},
+    {"id":"keys-o5","type":"v1.MemberAdded","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000005:000000:dK","payload":{"profileId":"20000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}},
+    {"id":"keys-o6","type":"v1.LanguageAdded","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000006:000000:dK","payload":{"languageId":"L-keys","name":"Keyish","code":"kya","sourceCode":"eng"}}
+  ]'::jsonb, (select min_client_version from public.server_config)) loop
+    if not r.accepted then raise exception 'bootstrap event % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
+
 -- One person, scoped to one language, with a label; and a group of two.
 select public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000001',
   encode(extensions.digest(repeat('c',64),'sha256'),'hex'),'translator',
-  '{"level":"lane","projectId":"L-keys","laneId":"L-keys"}',now()+interval '1 day','Nyibol Deng',1);
+  '{"level":"language","languageId":"L-keys"}',now()+interval '1 day','Nyibol Deng',1);
 select public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000002',
   encode(extensions.digest(repeat('d',64),'sha256'),'hex'),'translator','{"level":"org"}',now()+interval '1 day','Workshop',2);
 
@@ -32,7 +35,7 @@ select set_config('request.jwt.claim.sub','',true);
 do $$ declare p jsonb := public.preview_invite(repeat('c',64)); begin
   if p->>'status' <> 'ok' then raise exception 'preview status %', p; end if;
   if p->>'label' <> 'Nyibol Deng' or p->>'roleName' <> 'Translator' or p->>'languageName' <> 'Keyish'
-     or p->>'orgName' <> 'Keys test' or p->>'scopeLevel' <> 'lane' then raise exception 'preview wrong: %', p; end if;
+     or p->>'orgName' <> 'Keys test' or p->>'scopeLevel' <> 'language' then raise exception 'preview wrong: %', p; end if;
   if public.preview_invite(repeat('9',64))->>'status' <> 'not_found' then raise exception 'unknown token should be not_found'; end if;
   if public.preview_invite('not a token')->>'status' <> 'not_found' then raise exception 'malformed token should be not_found'; end if;
 end $$;
@@ -43,8 +46,8 @@ do $$ begin
   if public.redeem_invite_v2(repeat('c',64)) <> 'keys-org' then raise exception 'wrong org'; end if;
   if public.redeem_invite_v2(repeat('c',64)) <> 'keys-org' then raise exception 'second use by the same person must succeed'; end if;
   if public.preview_invite(repeat('c',64))->>'status' <> 'joined' then raise exception 'preview should say joined'; end if;
-  if not ('translate' = any(public.org_privileges('keys-org','20000000-0000-0000-0000-00000000000c','L-keys',null))) then
-    raise exception 'lane membership missing'; end if;
+  if not ('translate' = any(public.org_privileges('keys-org','20000000-0000-0000-0000-00000000000c','L-keys'))) then
+    raise exception 'language membership missing'; end if;
   if (select steward_id::text from public.account_stewards where profile_id = '20000000-0000-0000-0000-00000000000c')
      <> '20000000-0000-0000-0000-00000000000a' then raise exception 'steward not recorded'; end if;
   if (select label from public.invites where id::text = '30000000-0000-0000-0000-000000000001') is not null then
@@ -54,11 +57,6 @@ do $$ begin
     perform public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000003',
       encode(extensions.digest(repeat('e',64),'sha256'),'hex'),'translator','{"level":"org"}',now()+interval '1 day',null,1);
     raise exception 'looked-after account invited';
-  exception when insufficient_privilege then null; end;
-  begin
-    perform public.issue_invite('keys-org','30000000-0000-0000-0000-000000000004',
-      encode(extensions.digest(repeat('f',64),'sha256'),'hex'),'translator','{"level":"org"}',now()+interval '1 day');
-    raise exception 'looked-after account invited through the old signature';
   exception when insufficient_privilege then null; end;
 end $$;
 

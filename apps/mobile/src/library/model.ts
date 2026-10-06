@@ -2,10 +2,10 @@
 // an action writes and which languages need to move to a newer version. Kept
 // free of React Native so it can be tested.
 import {
-  libraryItemView, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type ProjectState
+  libraryItemView, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState
 } from '@langquest-next/core';
 
-/** One org-partition write, in the order to apply it. */
+/** One organization-stream write, in the order to apply it. */
 export type LibraryOp = { [T in keyof EventPayloads]: { type: T; payload: EventPayloads[T] } }[
   'v1.LibraryItemDefined' | 'v1.LibraryVersionPublished' | 'v1.LibrarySharingSet' | 'v1.LibraryItemArchived' | 'v1.LibrarySubscribed' | 'v1.LibraryPinned'
 ];
@@ -91,9 +91,8 @@ export function followOps(library: Record<string, LibraryItemState>, itemId: str
   }];
 }
 
-/** Anything a language uses from the library that has since moved to another version. */
-export interface LaneBehind {
-  laneId: string;
+/** Something a language uses from the library that has since moved to another version. */
+interface Behind {
   kind: 'template' | 'flow';
   itemId: string;
   /** The version the item is at now. */
@@ -102,31 +101,28 @@ export interface LaneBehind {
 }
 
 /**
- * Languages whose template or flow comes from a library item that is now at
- * another version (edited here, or a subscription took an update). The app
- * applies these for someone who may (docs/library.md, "Languages").
+ * The language's template or flow when it comes from a library item that is
+ * now at another version (edited here, or a subscription took an update).
+ * The app applies these for someone who may (docs/library.md, "Languages").
  */
-export function lanesBehind(state: ProjectState, library: Record<string, LibraryItemState>): LaneBehind[] {
-  const out: LaneBehind[] = [];
-  for (const laneId of Object.keys(state.lanes).sort()) {
-    const t = state.laneTemplates[laneId]?.value;
-    if (t?.itemId && t.docHash) {
-      const current = libraryItemView(library, t.itemId)?.current;
-      if (current && current !== t.docHash) out.push({ laneId, kind: 'template', itemId: t.itemId, docHash: current, ...(t.books ? { books: t.books } : {}) });
-    }
-    const f = state.laneFlows[laneId]?.value;
-    if (f?.itemId && f.docHash) {
-      const current = libraryItemView(library, f.itemId)?.current;
-      if (current && current !== f.docHash) out.push({ laneId, kind: 'flow', itemId: f.itemId, docHash: current });
-    }
+export function behindLibrary(state: LanguageState, library: Record<string, LibraryItemState>): Behind[] {
+  const out: Behind[] = [];
+  const t = state.template?.value;
+  if (t?.itemId && t.docHash) {
+    const current = libraryItemView(library, t.itemId)?.current;
+    if (current && current !== t.docHash) out.push({ kind: 'template', itemId: t.itemId, docHash: current, ...(t.books ? { books: t.books } : {}) });
+  }
+  const f = state.flow?.value;
+  if (f?.itemId && f.docHash) {
+    const current = libraryItemView(library, f.itemId)?.current;
+    if (current && current !== f.docHash) out.push({ kind: 'flow', itemId: f.itemId, docHash: current });
   }
   return out;
 }
 
-/** Which languages use an item, for "used by" lines and the flow editor's warning (FLOW-3). */
-export function lanesUsing(state: ProjectState | null, itemId: string): string[] {
-  if (!state) return [];
-  return Object.keys(state.lanes).filter((l) => state.laneTemplates[l]?.value.itemId === itemId || state.laneFlows[l]?.value.itemId === itemId).sort();
+/** Whether the language uses an item as its template or flow, for "used by" lines and the flow editor's warning (FLOW-3). */
+export function usesItem(state: LanguageState | null, itemId: string): boolean {
+  return !!state && (state.template?.value.itemId === itemId || state.flow?.value.itemId === itemId);
 }
 
 /** "Version 3 · copied from LangQuest", "Following LangQuest · updates automatically", for a line under a name. */

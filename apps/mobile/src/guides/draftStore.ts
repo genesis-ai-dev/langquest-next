@@ -12,13 +12,13 @@ export function draftKey(orgId: string, c: { itemId?: string; from?: string }): 
   return `${PREFIX}${orgId}:${c.itemId ? `item:${c.itemId}` : c.from ? `copy:${c.from}` : 'new'}`;
 }
 
-export interface SavedDraft {
+interface SavedDraft {
   draft: GuideDraft;
   savedAt: number;
 }
 
 /** A stored draft, or null when there is none or it is not one this version reads. */
-export function parseSaved(raw: string | null): SavedDraft | null {
+function parseSaved(raw: string | null): SavedDraft | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw) as SavedDraft;

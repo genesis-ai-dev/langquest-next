@@ -1,12 +1,11 @@
-import { bookId, bookLabel, bookOfChapter, bookOfVerse, chapterOfVerse, inScope, SCOPE_VERSES, unitChapters, unitVerses } from './coverage';
-import { buildIndexes, laneLeafUnits, type Indexes } from './indexes';
+import { bookId, bookLabel, bookOfChapter, bookOfVerse, inScope, SCOPE_VERSES, unitChapters, unitVerses } from './coverage';
+import { buildIndexes, type Indexes } from './indexes';
 import {
-  deriveFlow, deriveKinds, derivePassage, laneName, languageProgress, stepName, unitPlace,
+  deriveFlow, deriveKinds, derivePassage, languageProgress, stepName, unitPlace,
   type LanguageProgress, type PassageState
 } from './passage';
-import { privilegesFor, privilegesOfFixedRole, type OrgState } from './org';
-import { TARGET_SCOPES, type TargetScope } from './record';
-import type { ProjectState } from './state';
+import { privilegesFor, TARGET_SCOPES, type LanguageInfo, type LanguageTarget, type OrgState, type TargetScope } from './org';
+import type { LanguageState } from './state';
 
 /**
  * Progress reports for the web dashboard: one per language, read from the
@@ -23,22 +22,22 @@ import type { ProjectState } from './state';
  */
 
 /** Bump when the report's shape or meaning changes. */
-export const REPORT_VERSION = 3;
+export const REPORT_VERSION = 4;
 
 /** Weeks of activity and coverage history a report carries, ending with the week that holds `now`. */
 export const REPORT_WEEKS = 53;
 /** Days of daily upload counts. */
-export const REPORT_DAYS = 35;
+const REPORT_DAYS = 35;
 /** Days of the progress line. */
 export const PROGRESS_DAYS = 90;
 /** Days of the chapter log. */
-export const LOG_DAYS = 14;
+const LOG_DAYS = 14;
 /** Months of the ledger, ending with the month that holds `now`. */
-export const LEDGER_MONTHS = 13;
+const LEDGER_MONTHS = 13;
 /** A recorded card not on the server after this long is stuck on a phone. */
-export const STUCK_AFTER_DAYS = 14;
+const STUCK_AFTER_DAYS = 14;
 /** Coverage thresholds that count as milestones. */
-export const MILESTONES = [25, 50, 75, 100] as const;
+const MILESTONES = [25, 50, 75, 100] as const;
 
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
@@ -48,7 +47,7 @@ const LOG_LIMIT = 120;
 export type PassageWork = 'not_started' | 'drafting' | 'in_review' | 'feedback' | 'done';
 export const PASSAGE_WORK: readonly PassageWork[] = ['not_started', 'drafting', 'in_review', 'feedback', 'done'];
 
-export interface StageCount {
+interface StageCount {
   stepId: string;
   name: string;
   checkpoint: boolean;
@@ -56,7 +55,7 @@ export interface StageCount {
   passages: number;
 }
 
-export interface BookReport {
+interface BookReport {
   bookId: string | null;
   label: string;
   total: number;
@@ -74,7 +73,7 @@ export interface ActivityWeek {
   requests: number;
 }
 
-export interface UploadDay {
+interface UploadDay {
   day: string;
   cards: number;
   /** Distinct Bible chapters that got audio this day. */
@@ -98,13 +97,13 @@ export interface LogEntry {
 export type Coverage = Record<TargetScope, number>;
 
 /** Passages recorded and done as of the end of a day. */
-export interface ProgressDay {
+interface ProgressDay {
   day: string;
   recorded: number;
   done: number;
 }
 
-export interface CoverageWeek {
+interface CoverageWeek {
   /** Sunday that ends the week, UTC. */
   weekEnd: string;
   recorded: Coverage;
@@ -117,7 +116,7 @@ export interface Milestone {
   at: string;
 }
 
-export interface LedgerMonth {
+interface LedgerMonth {
   /** `YYYY-MM`, UTC. */
   month: string;
   /** Chapters whose first audio reached the server this month; each chapter counts once, ever. */
@@ -125,20 +124,15 @@ export interface LedgerMonth {
   books: { bookId: string; label: string; chapters: number }[];
 }
 
-export interface LaneTarget {
-  scope: TargetScope;
-  startDate: string;
-  targetDate: string;
-}
-
-export interface LaneReport {
-  laneId: string;
+export interface LanguageReport {
+  languageId: string;
   name: string;
-  languoidId: string;
+  /** The target language's code ("din"). */
+  code: string;
   /** ISO 3166-1 alpha-2, or null when nobody set it. */
   country: string | null;
   flowName: string;
-  target: LaneTarget | null;
+  target: LanguageTarget | null;
   progress: LanguageProgress;
   work: Record<PassageWork, number>;
   /** Flow steps in order, with how many passages sit at each. */
@@ -185,7 +179,7 @@ export interface LaneReport {
   };
 }
 
-export function passageWork(s: PassageState): PassageWork {
+function passageWork(s: PassageState): PassageWork {
   if (s.done) return 'done';
   if (!s.recorded) return s.drafting ? 'drafting' : 'not_started';
   return s.awaitingResponse.length > 0 ? 'feedback' : 'in_review';
@@ -212,10 +206,11 @@ function monthsEndingAt(now: number, n: number): string[] {
   return out;
 }
 
-export function laneReport(state: ProjectState, laneId: string, now: number, idx: Indexes = buildIndexes(state)): LaneReport {
-  const flow = deriveFlow(state, laneId);
+/** A language's report: its work from its own stream, what defines it from the organization's (`languageInfo`). */
+export function languageReport(state: LanguageState, info: LanguageInfo, now: number, idx: Indexes = buildIndexes(state)): LanguageReport {
+  const flow = deriveFlow(state);
   const kinds = deriveKinds(state);
-  const passages = laneLeafUnits(state, idx, laneId).map((unitId) => derivePassage(state, unitId, laneId, idx));
+  const passages = idx.passages.map((unitId) => derivePassage(state, unitId, idx));
   const today = isoDay(now);
 
   const work = Object.fromEntries(PASSAGE_WORK.map((w) => [w, 0])) as Record<PassageWork, number>;
@@ -266,7 +261,7 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
 
     for (const v of s.versions) count(v.hlc, 'versions');
     for (const r of s.reviews) count(r.hlc, 'reviews');
-    for (const r of s.requests) if (!r.legacy) count(r.hlc, 'requests');
+    for (const r of s.requests) count(r.hlc, 'requests');
 
     const first = s.versions[0];
     if (first) {
@@ -334,7 +329,7 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
   const stuckBefore = now - STUCK_AFTER_DAYS * DAY_MS;
 
   for (const rec of Object.values(state.recordings)) {
-    if (rec.laneId !== laneId || rec.kind !== 'target') continue;
+    if (rec.kind !== 'target') continue;
     for (const card of rec.cards) {
       const blob = state.blobs[card.hash];
       if (!blob?.stored) {
@@ -394,15 +389,14 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
     };
   });
 
-  const target = state.laneTargets?.[laneId]?.value ?? null;
   return {
-    laneId,
-    name: laneName(state, laneId),
-    languoidId: state.lanes[laneId]?.languoidId ?? '',
-    country: state.laneCountries?.[laneId]?.value ?? null,
+    languageId: info.languageId,
+    name: info.name,
+    code: info.code,
+    country: info.country,
     flowName: flow.name,
-    target: target ? { ...target } : null,
-    progress: languageProgress(state, laneId, idx),
+    target: info.target ? { ...info.target } : null,
+    progress: languageProgress(state, idx),
     work,
     stages,
     bottleneck: top ? `${top.passages} in ${top.name}` : null,
@@ -441,20 +435,12 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
 }
 
 /**
- * May this person see a language's report? `view_status` from an org,
- * partition or that language's membership, or from a role in the
- * partition's own member list (the older way of joining). A member scoped to
- * one language sees only that language.
+ * May this person see a language's report? `view_status` from their org
+ * role or their role in that language: a member of one language sees only
+ * that language.
  */
-export function mayViewLane(org: OrgState, project: Pick<ProjectState, 'members'>, profileId: string, projectId: string, laneId: string): boolean {
-  if (privilegesFor(org, profileId, { projectId, laneId }).has('view_status')) return true;
-  const member = project.members[profileId];
-  return !!member && !member.removed.value && privilegesOfFixedRole(member.role.value).has('view_status');
-}
-
-/** Every language in the partition, by lane id. */
-export function laneReports(state: ProjectState, now: number, idx: Indexes = buildIndexes(state)): LaneReport[] {
-  return Object.keys(state.lanes).sort().map((laneId) => laneReport(state, laneId, now, idx));
+export function mayViewLanguage(org: OrgState, profileId: string, languageId: string): boolean {
+  return privilegesFor(org, profileId, languageId).has('view_status');
 }
 
 // ---- readings of a report at a moment -------------------------------------------
@@ -472,11 +458,11 @@ export const RECENCY_DAYS: Record<Exclude<RecencyBand, 'not_started'>, [number, 
   active: [0, 13], check_in: [14, 20], reminder: [21, 27], four_weeks: [28, 34], five_weeks: [35, 44], inactive: [45, Infinity]
 };
 
-export function daysSince(iso: string | null, now: number): number | null {
+function daysSince(iso: string | null, now: number): number | null {
   return iso === null ? null : Math.max(0, Math.floor((now - Date.parse(iso)) / DAY_MS));
 }
 
-export function recencyOf(r: LaneReport, now: number): { band: RecencyBand; days: number | null } {
+export function recencyOf(r: LanguageReport, now: number): { band: RecencyBand; days: number | null } {
   const days = daysSince(r.uploads.lastAt, now);
   if (days === null) return { band: 'not_started', days };
   const band = (Object.entries(RECENCY_DAYS) as [RecencyBand, [number, number]][]).find(([, [lo, hi]]) => days >= lo && days <= hi)![0];
@@ -510,7 +496,7 @@ export interface Pace {
  * ahead, ahead beyond that; behind languages whose recent rate still
  * finishes by the target date are "behind", the rest "stalled".
  */
-export function paceOf(r: LaneReport, now: number): Pace | null {
+export function paceOf(r: LanguageReport, now: number): Pace | null {
   if (!r.target) return null;
   const { scope, startDate, targetDate } = r.target;
   const start = Date.parse(`${startDate}T00:00:00Z`);
@@ -534,28 +520,27 @@ export function paceOf(r: LaneReport, now: number): Pace | null {
 
 /** `GET /api/orgs/:org/reports`: the languages this person may see. */
 export interface OrgReportsResponse {
-  rows: { projectId: string; laneId: string; report: LaneReport }[];
+  rows: { languageId: string; report: LanguageReport }[];
   /** When the dashboard's server last caught up with the log, ISO. */
   asOf: string;
 }
 
 /** One language's progress alone, for a phone's overview of languages it has not opened. */
-export interface LaneSummary {
-  projectId: string;
-  laneId: string;
+export interface LanguageSummary {
+  languageId: string;
   name: string;
   progress: LanguageProgress;
 }
 
 /** `GET /api/orgs/:org/reports?view=summary`. */
 export interface OrgSummaryResponse {
-  rows: LaneSummary[];
+  rows: LanguageSummary[];
   asOf: string;
 }
 
 export function summarizeReports(out: OrgReportsResponse): OrgSummaryResponse {
   return {
-    rows: out.rows.map(({ projectId, laneId, report }) => ({ projectId, laneId, name: report.name, progress: report.progress })),
+    rows: out.rows.map(({ languageId, report }) => ({ languageId, name: report.name, progress: report.progress })),
     asOf: out.asOf
   };
 }

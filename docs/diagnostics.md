@@ -96,7 +96,7 @@ it with any change to what is recorded or how long it is kept.
 - `public.diag_ingest(context, records)`: the one way in. Signed-in callers
   only, at most 200 records a call, 8 KB a record, 5000 records per install
   per day;
-- report functions for `diag_reader`: `diag.find`, `diag.partition_health`,
+- report functions for `diag_reader`: `diag.find`, `diag.language_health`,
   `diag.members`, `diag.summary`, `diag.timeline`, `diag.error`,
   `diag.rpc_stats` (server-side timings of the sync RPCs, all orgs, from
   `pg_stat_statements`).

@@ -50,7 +50,7 @@ any of them should update the mock too:
 - Blocked controls stay on screen. The grid never changes shape between
   passages.
 - Cross-session progress is visible: the key-terms ring counts terms with
-  audio anywhere in the project.
+  audio anywhere in the language.
 - Passage recording starts with one centered, yellow microphone button.
   Tap it to enter the full-screen voice-detected session; tap stop to review.
   Review places redo, the neutral microphone, and yellow keep in one row.
@@ -86,7 +86,7 @@ reference only — do not import from it.
 - Use the phone controls for setup → My Work → hub → task → hand-off.
 - Record terms by holding the microphone for at least 200 ms, then releasing.
   Space or Enter supports the same hold gesture. Cancellation adds no progress.
-- The reference run has two slides. Recorded terms update the project ring.
+- The reference run has two slides. Recorded terms update the key-terms ring.
 - Stop the simulated passage recorder, keep the take, then queue the hand-off.
   Cloud-off and a clock mean queued locally, not delivered or approved.
 - Drag the cutoff or use its arrow keys. Home and End select its limits.
@@ -109,7 +109,7 @@ reference only — do not import from it.
 | Hand-off ends at a blocked gate | Kept take → ready → locally queued | Show recovery and offline outcomes |
 | Cutoff only supports dragging | Keyboard slider with an accessible name | Support alternative input |
 
-The mobile app now implements this journey through real project events and
+The mobile app now implements this journey through real language-stream events and
 audio. See the [implementation notes](implementation.md) for coverage, content
 gaps, and device checks. The mock remains independent of the workflow engine.
 Before release, test icon comprehension and hold gestures with translators,

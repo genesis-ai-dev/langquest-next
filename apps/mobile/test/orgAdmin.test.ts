@@ -4,101 +4,91 @@
 // new language adds (ORG-2), and review teams (FLOW-5).
 import { describe, expect, it } from 'vitest';
 import {
-  BIBLE_BOOKS, fold, foldOrg, HlcClock, languageProgress, laneName, selectTemplateSpecs,
-  type AnyEvent, type EventPayloads, type EventSpec, type EventType, type LibraryItemView, type OrgState, type TemplateDoc, type VersificationDoc
+  BIBLE_BOOKS, emptyLanguageState, foldLanguage, foldOrg, HlcClock, languageName, languageProgress, ORG_STREAM, selectFlowSpecs,
+  selectTemplateSpecs,
+  type AnyEvent, type EventPayloads, type EventSpec, type EventType, type FlowDoc, type LibraryItemView, type OrgState, type TemplateDoc,
+  type VersificationDoc
 } from '@langquest-next/core';
 import type { LibraryChoice } from '../src/contentTemplates';
 import {
-  addLanguage, assignableLevels, booksInScope, changeMembership, editableAt, grantFloor, groupBelow, memberEntries, membersAbove,
-  membersAt, newLaneId, progressLine, removeMembership, reviewEligible, saveTeam, suggestedTemplate, sumProgress,
-  teamMembers
+  addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, mayGrantAt, memberEntries,
+  membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, STARTER_FLOW, suggestedChoice,
+  sumProgress, teamMembers
 } from '../src/orgAdmin';
+import { STARTER_TEMPLATE } from '../src/contentTemplates';
 
 let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);
-function ev<T extends EventType>(type: T, payload: EventPayloads[T], projectId = 'p1'): AnyEvent {
+function ev<T extends EventType>(type: T, payload: EventPayloads[T], streamId = 'L1'): AnyEvent {
   seq += 1;
-  return { id: `x${seq}`, type, orgId: 'o1', projectId, actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload } as AnyEvent;
+  return { id: `x${seq}`, type, orgId: 'o1', streamId, actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload } as AnyEvent;
 }
-const fromSpecs = (specs: EventSpec[]) => specs.map((s) => ev(s.type, s.payload as never));
+const fromSpecs = (specs: EventSpec[], streamId = 'L1') => specs.map((s) => ev(s.type, s.payload as never, streamId));
 /** Apply org writes on top of a base built first, so the writes carry the later clocks. */
-const applyOrg = (ops: { type: EventType; payload: unknown }[], base: OrgState) => foldOrg(ops.map((o) => ev(o.type, o.payload as never, '_org')), base);
+const applyOrg = (ops: { type: EventType; payload: unknown }[], base: OrgState) => foldOrg(ops.map((o) => ev(o.type, o.payload as never, ORG_STREAM)), base);
 
 function orgFixture(): OrgState {
+  const o = (type: EventType, payload: unknown) => ev(type, payload as never, ORG_STREAM);
   return foldOrg([
-    ev('v1.OrgCreated', { name: 'Wycliffe' }, '_org'),
-    ev('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_structure', 'invite_members', 'review'] }, '_org'),
-    ev('v1.RoleDefined', { roleId: 'reviewer', name: 'Reviewer', privileges: ['review', 'view_status'] }, '_org'),
-    ev('v1.RoleDefined', { roleId: 'translator', name: 'Translator', privileges: ['translate'] }, '_org'),
-    ev('v1.ProjectRegistered', { projectId: 'p1', name: 'Luke' }, '_org'),
-    ev('v1.ProjectRegistered', { projectId: 'p2', name: 'Psalms' }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'pat', roleId: 'reviewer', scope: { level: 'project', projectId: 'p1' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'lin', roleId: 'reviewer', scope: { level: 'lane', projectId: 'p1', laneId: 'L1' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'tom', roleId: 'translator', scope: { level: 'lane', projectId: 'p1', laneId: 'L1' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'sue', roleId: 'reviewer', scope: { level: 'project', projectId: 'p2' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'reviewer', scope: { level: 'org' } }, '_org'),
-    ev('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'org' } }, '_org')
-  ]);
-}
-
-function projectFixture() {
-  return fold([
-    ev('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
-    ev('v1.MemberAdded', { profileId: 'old', role: 'reviewer' }),
-    ev('v1.LaneAdded', { laneId: 'L1', languoidId: 'din' }),
-    ev('v1.LaneTemplateSelected', { laneId: 'L1', templateId: 'bible', catalogVersion: 1 })
+    o('v1.OrgCreated', { name: 'Wycliffe' }),
+    o('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_structure', 'invite_members', 'review'] }),
+    o('v1.RoleDefined', { roleId: 'lang_admin', name: 'Language Admin', privileges: ['manage_structure', 'invite_members'] }),
+    o('v1.RoleDefined', { roleId: 'reviewer', name: 'Reviewer', privileges: ['review', 'view_status'] }),
+    o('v1.RoleDefined', { roleId: 'translator', name: 'Translator', privileges: ['translate'] }),
+    o('v1.LanguageAdded', { languageId: 'L1', name: 'Dinka', code: 'din', sourceCode: 'eng' }),
+    o('v1.LanguageAdded', { languageId: 'L2', name: 'Nuer', code: 'nus', sourceCode: 'eng' }),
+    o('v1.MemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } }),
+    o('v1.MemberAdded', { profileId: 'pat', roleId: 'reviewer', scope: { level: 'org' } }),
+    o('v1.MemberAdded', { profileId: 'lin', roleId: 'reviewer', scope: { level: 'language', languageId: 'L1' } }),
+    o('v1.MemberAdded', { profileId: 'tom', roleId: 'translator', scope: { level: 'language', languageId: 'L1' } }),
+    o('v1.MemberAdded', { profileId: 'sue', roleId: 'reviewer', scope: { level: 'language', languageId: 'L2' } }),
+    o('v1.MemberAdded', { profileId: 'ada', roleId: 'lang_admin', scope: { level: 'language', languageId: 'L2' } }),
+    o('v1.MemberAdded', { profileId: 'gone', roleId: 'reviewer', scope: { level: 'org' } }),
+    o('v1.MemberRemoved', { profileId: 'gone', scope: { level: 'org' } })
   ]);
 }
 
 describe('what an admin may grant (ORG-6)', () => {
-  it('is the home level and below, never above your own scope, and never a project (decision 34)', () => {
-    expect(assignableLevels({ level: 'org' }, 'org')).toEqual(['org', 'lane']);
-    expect(assignableLevels({ level: 'org' }, 'lane')).toEqual(['lane']);
-    // Someone assigned to all languages the old way grants at a language.
-    expect(assignableLevels({ level: 'project', projectId: 'p1' }, 'org')).toEqual(['lane']);
-    expect(assignableLevels({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'org')).toEqual(['lane']);
-    expect(assignableLevels(null, 'org')).toEqual([]);
-    expect(grantFloor({ level: 'project', projectId: 'p1' }, 'lane')).toBe('lane');
+  const org = orgFixture();
+
+  it('is where they hold Invite: the organization and every language, or their own language', () => {
+    expect(assignableLevels(org, 'admin', 'org')).toEqual(['org', 'language']);
+    expect(assignableLevels(org, 'admin', 'language')).toEqual(['language']);
+    expect(grantableLanguages(org, 'admin')).toEqual(['L1', 'L2']);
+    // A language admin grants only in their language, even from the organization's home.
+    expect(assignableLevels(org, 'ada', 'org')).toEqual(['language']);
+    expect(grantFloor(org, 'ada', 'org')).toBe('language');
+    expect(grantableLanguages(org, 'ada')).toEqual(['L2']);
+    expect(mayGrantAt(org, 'ada', { level: 'language', languageId: 'L1' })).toBe(false);
+    expect(mayGrantAt(org, 'ada', { level: 'org' })).toBe(false);
+    expect(assignableLevels(org, 'tom', 'org')).toEqual([]);
+    expect(grantFloor(org, 'tom', 'org')).toBeNull();
   });
 });
 
 describe('members per level (ORG-5)', () => {
-  const org = orgFixture();
-  const project = projectFixture();
-  const entries = memberEntries(org, project, 'p1');
+  const entries = memberEntries(orgFixture());
 
-  it('lists active org memberships and project-log members, not removed ones', () => {
-    expect(entries.map((e) => e.profileId).sort()).toEqual(['admin', 'lin', 'old', 'pat', 'sue', 'tom']);
-    const old = entries.find((e) => e.profileId === 'old')!;
-    expect(old.legacyRole).toBe('reviewer');
-    expect(old.scope).toEqual({ level: 'project', projectId: 'p1' });
+  it('lists active memberships at every scope, not removed ones', () => {
+    expect(entries.map((e) => e.profileId).sort()).toEqual(['ada', 'admin', 'lin', 'pat', 'sue', 'tom']);
   });
 
-  it('puts each person at their own level, higher levels above as view only', () => {
-    // All languages of this organization's work partition read as the organization; p2 is not open.
-    expect(membersAt(entries, 'org', 'p1').map((e) => e.profileId).sort()).toEqual(['admin', 'old', 'pat']);
-    expect(membersAt(entries, 'lane', 'p1', 'L1').map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
-    expect(membersAbove(entries, 'org', 'p1')).toEqual([]);
-    expect(membersAbove(entries, 'lane', 'p1').map((e) => e.profileId).sort()).toEqual(['admin', 'old', 'pat']);
+  it('puts each person at their own level, the organization above a language as view only', () => {
+    expect(membersAt(entries, 'org').map((e) => e.profileId).sort()).toEqual(['admin', 'pat']);
+    expect(membersAt(entries, 'language', 'L1').map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
+    expect(membersAbove(entries, 'org')).toEqual([]);
+    expect(membersAbove(entries, 'language').map((e) => e.profileId).sort()).toEqual(['admin', 'pat']);
   });
 
   it('groups language members by language', () => {
-    // Every language counts, whichever partition is open (decisions.md 37).
-    expect([...groupBelow(entries).keys()]).toEqual(['L1']);
-    expect(groupBelow(entries).get('L1')!.map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
-  });
-
-  it('edits only at the home level and below', () => {
-    expect(editableAt({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'org')).toBe(true);
-    expect(editableAt({ level: 'project', projectId: 'p1' }, 'org')).toBe(true);
-    expect(editableAt({ level: 'org' }, 'lane')).toBe(false);
+    const groups = groupBelow(entries);
+    expect([...groups.keys()].sort()).toEqual(['L1', 'L2']);
+    expect(groups.get('L1')!.map((e) => e.profileId).sort()).toEqual(['lin', 'tom']);
   });
 });
 
 describe('changing a member (ORG-7)', () => {
-  const org = orgFixture();
-  const pat = memberEntries(org, null, 'p1').find((e) => e.profileId === 'pat')!;
+  const pat = memberEntries(orgFixture()).find((e) => e.profileId === 'pat')!;
 
   it('writes nothing when nothing changed', () => {
     expect(changeMembership(pat, { roleId: 'reviewer', scope: pat.scope }).apply).toEqual([]);
@@ -108,49 +98,50 @@ describe('changing a member (ORG-7)', () => {
     const base = orgFixture();
     const plan = changeMembership(pat, { roleId: 'translator', scope: pat.scope });
     const after = applyOrg(plan.apply, base);
-    expect(after.members['pat']!['project:p1']!.roleId.value).toBe('translator');
+    expect(after.members['pat']!['org']!.roleId.value).toBe('translator');
     const undone = applyOrg(plan.undo, after);
-    expect(undone.members['pat']!['project:p1']!.roleId.value).toBe('reviewer');
+    expect(undone.members['pat']!['org']!.roleId.value).toBe('reviewer');
   });
 
   it('moves a member to a new scope and back', () => {
-    const scope = { level: 'lane' as const, projectId: 'p1', laneId: 'L1' };
+    const scope = { level: 'language' as const, languageId: 'L1' };
     const base = orgFixture();
     const plan = changeMembership(pat, { roleId: 'reviewer', scope });
     const after = applyOrg(plan.apply, base);
-    expect(memberEntries(after, null, 'p1').filter((e) => e.profileId === 'pat').map((e) => e.scope)).toEqual([scope]);
+    expect(memberEntries(after).filter((e) => e.profileId === 'pat').map((e) => e.scope)).toEqual([scope]);
     const undone = applyOrg(plan.undo, after);
-    expect(memberEntries(undone, null, 'p1').filter((e) => e.profileId === 'pat').map((e) => e.scope)).toEqual([pat.scope]);
+    expect(memberEntries(undone).filter((e) => e.profileId === 'pat').map((e) => e.scope)).toEqual([pat.scope]);
   });
 
   it('removes and restores', () => {
     const base = orgFixture();
     const plan = removeMembership(pat);
     const after = applyOrg(plan.apply, base);
-    expect(memberEntries(after, null, 'p1').some((e) => e.profileId === 'pat')).toBe(false);
+    expect(memberEntries(after).some((e) => e.profileId === 'pat')).toBe(false);
     const undone = applyOrg(plan.undo, after);
-    expect(memberEntries(undone, null, 'p1').some((e) => e.profileId === 'pat')).toBe(true);
+    expect(memberEntries(undone).some((e) => e.profileId === 'pat')).toBe(true);
   });
 });
 
 describe('review teams (FLOW-5)', () => {
-  it('offers people holding Review over the language', () => {
-    expect(reviewEligible(orgFixture(), projectFixture(), 'p1', 'L1')).toEqual(['admin', 'lin', 'old', 'pat']);
+  it('offers people holding Review over the language, from the organization or that language', () => {
+    expect(reviewEligible(orgFixture(), 'L1')).toEqual(['admin', 'lin', 'pat']);
+    expect(reviewEligible(orgFixture(), 'L2')).toEqual(['admin', 'pat', 'sue']);
   });
 
   it('saves only what changed, and Undo restores the name and members', () => {
-    let state = projectFixture();
-    const created = saveTeam(state, { commandId: 'c1', teamId: 't1', laneId: 'L1', name: 'Elders', members: ['lin', 'pat'] });
+    let state = emptyLanguageState();
+    const created = saveTeam(state, { commandId: 'c1', teamId: 't1', name: 'Elders', members: ['lin', 'pat'] });
     expect(created.undo).toBeNull();
-    state = fold(fromSpecs(created.specs), state);
+    state = foldLanguage(fromSpecs(created.specs), state);
     expect(teamMembers(state, 't1')).toEqual(['lin', 'pat']);
-    expect(saveTeam(state, { commandId: 'c2', teamId: 't1', laneId: 'L1', name: 'Elders', members: ['pat', 'lin'] }).specs).toEqual([]);
+    expect(saveTeam(state, { commandId: 'c2', teamId: 't1', name: 'Elders', members: ['pat', 'lin'] }).specs).toEqual([]);
 
-    const edit = saveTeam(state, { commandId: 'c3', teamId: 't1', laneId: 'L1', name: 'Church elders', members: ['pat', 'old'] });
-    const after = fold(fromSpecs(edit.specs), state);
+    const edit = saveTeam(state, { commandId: 'c3', teamId: 't1', name: 'Church elders', members: ['pat', 'admin'] });
+    const after = foldLanguage(fromSpecs(edit.specs), state);
     expect(after.teams['t1']!.name.value).toBe('Church elders');
-    expect(teamMembers(after, 't1')).toEqual(['old', 'pat']);
-    const undone = fold(fromSpecs(edit.undo!()), after);
+    expect(teamMembers(after, 't1')).toEqual(['admin', 'pat']);
+    const undone = foldLanguage(fromSpecs(edit.undo!()), after);
     expect(undone.teams['t1']!.name.value).toBe('Elders');
     expect(teamMembers(undone, 't1')).toEqual(['lin', 'pat']);
   });
@@ -158,6 +149,7 @@ describe('review teams (FLOW-5)', () => {
 
 describe('a new language (ORG-2)', () => {
   const HASH = 'a'.repeat(64);
+  const FLOW_HASH = 'c'.repeat(64);
   const V11N = 'b'.repeat(64);
   const luke = BIBLE_BOOKS.find((b) => b.itemId === 'luk')!;
   const gen = BIBLE_BOOKS.find((b) => b.itemId === 'gen')!;
@@ -167,8 +159,14 @@ describe('a new language (ORG-2)', () => {
     bible: { versification: V11N, books: [{ book: 'GEN', name: 'Genesis' }, { book: 'LUK', name: 'Luke' }, { book: 'TOB', name: 'Tobit' }], divide: 'chapters' },
     deps: [V11N]
   };
-  const templateFor = (state: Parameters<typeof selectTemplateSpecs>[0], laneId: string, books?: string[]) =>
-    selectTemplateSpecs(state, { commandId: `t-${laneId}`, laneId, itemId: 'lq.bible', docHash: HASH, doc, versification: v11n, ...(books ? { books } : {}) });
+  const flowDoc: FlowDoc = {
+    format: 'flow@1', name: 'Quick Check', description: '', deps: [],
+    kinds: [{ id: 'peer', name: 'Peer Check', description: '', usualReviewer: 'peer' }],
+    steps: [{ stepId: 's1', kindIds: ['peer'] }]
+  };
+  const template = (books?: string[]) =>
+    selectTemplateSpecs(emptyLanguageState(), { commandId: 't', itemId: 'lq.bible', docHash: HASH, doc, versification: v11n, ...(books ? { books } : {}) });
+  const flow = () => selectFlowSpecs(emptyLanguageState(), { commandId: 'f', itemId: 'lq.quick', docHash: FLOW_HASH, doc: flowDoc });
 
   it('covers a testament of a Bible template, or all of it', () => {
     expect(booksInScope(doc, 'nt')).toEqual(['LUK']);
@@ -177,40 +175,38 @@ describe('a new language (ORG-2)', () => {
     expect(booksInScope({ ...doc, structure: 'outline', outline: [] }, 'nt')).toBeUndefined();
   });
 
-  it('starts the language\'s own partition, then adds the lane, its name, its template and its passages', () => {
-    const state = projectFixture();
-    const specs = addLanguage(state, { commandId: 'c9', laneId: 'L2', code: 'NUS', name: 'Nuer', template: templateFor(state, 'L2', booksInScope(doc, 'nt')) });
-    // Each language is its own partition (decisions.md 37), and its first event starts it.
-    expect(specs.slice(0, 4).map((s) => s.type)).toEqual(['v1.ProjectCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
-    expect(new Set(specs.map((s) => s.id)).size).toBe(specs.length);
-    const after = fold(fromSpecs(specs), state);
-    expect(laneName(after, 'L2')).toBe('Nuer');
-    expect(after.lanes['L2']!.languoidId).toBe('nus');
-    expect(after.laneTemplates['L2']!.value).toMatchObject({ itemId: 'lq.bible', docHash: HASH, books: ['LUK'] });
-    expect(languageProgress(after, 'L2').total).toBe(24);
-    // Within one partition, units already there are not added again.
-    const again = addLanguage(after, { commandId: 'c10', laneId: 'L3', code: 'shk', name: 'Shilluk', template: templateFor(after, 'L3', ['LUK']) });
-    expect(again.map((s) => s.type)).toEqual(['v1.ProjectCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
-    expect(() => addLanguage(after, { commandId: 'c11', laneId: 'L2', code: 'x', name: 'X', template: [] })).toThrow();
+  it('lists the language in the organization, then starts its own stream with a template and a flow', () => {
+    const org = orgFixture();
+    const plan = addLanguage(org, { languageId: 'L3', code: 'SHK', name: 'Shilluk', template: template(booksInScope(doc, 'nt')), flow: flow() });
+    expect(plan.added).toEqual({ languageId: 'L3', name: 'Shilluk', code: 'shk', sourceCode: 'eng' });
+    expect(languageName(applyOrg([{ type: 'v1.LanguageAdded', payload: plan.added }], org), 'L3')).toBe('Shilluk');
+    expect(new Set(plan.specs.map((s) => s.id)).size).toBe(plan.specs.length);
+    const after = foldLanguage(fromSpecs(plan.specs, 'L3'));
+    expect(after.template!.value).toMatchObject({ itemId: 'lq.bible', docHash: HASH, books: ['LUK'] });
+    expect(after.flow!.value).toMatchObject({ itemId: 'lq.quick', docHash: FLOW_HASH });
+    expect(languageProgress(after).total).toBe(24);
   });
 
-  it('starts from the template most languages use, else the LangQuest starter, else the first', () => {
+  it('refuses a language with no code, no template or no flow, or one already there', () => {
+    const org = orgFixture();
+    expect(() => addLanguage(org, { languageId: 'L3', code: ' ', name: 'X', template: template(), flow: flow() })).toThrow('code');
+    expect(() => addLanguage(org, { languageId: 'L3', code: 'x', name: 'X', template: template(), flow: [] })).toThrow('review flow');
+    expect(() => addLanguage(org, { languageId: 'L3', code: 'x', name: 'X', template: [], flow: flow() })).toThrow('template');
+    expect(() => addLanguage(org, { languageId: 'L1', code: 'x', name: 'X', template: template(), flow: flow() })).toThrow('already');
+  });
+
+  it('suggests what the open language uses, else the LangQuest starter, else the first', () => {
     const ours = (itemId: string): LibraryChoice => ({ key: `ours:${itemId}`, source: 'ours', item: { itemId } as LibraryItemView, name: itemId, hash: HASH });
     const shared = (org: string, name: string): LibraryChoice => ({
       key: `shared:${org}/${name}`, source: 'shared', name, hash: HASH,
       shared: { org_id: org, org_name: org, item_id: name, kind: 'template', name, description: '', subscribable: true, version_count: 1, latest_hash: HASH, updated_hlc: '1' }
     });
-    const starter = shared('langquest', 'FIA passages (English)');
-    const base = projectFixture();
-    const state = fold(fromSpecs([
-      ...templateFor(base, 'L1'),
-      { id: 'l9', type: 'v1.LaneAdded', payload: { laneId: 'L9', languoidId: 'nus' } } as EventSpec
-    ]), base);
-    expect(suggestedTemplate(state, [ours('mine'), ours('lq.bible'), starter])).toBe('ours:lq.bible');
-    expect(suggestedTemplate(projectFixture(), [ours('mine'), shared('wa', 'Acts'), starter])).toBe(starter.key);
-    expect(suggestedTemplate(null, [shared('wa', 'Acts')])).toBe('shared:wa/Acts');
-    expect(suggestedTemplate(null, [])).toBeNull();
-    expect(newLaneId('D I N', 'abcdef12-3456')).toBe('L-din-abcdef');
+    const starter = shared('langquest', STARTER_TEMPLATE.name);
+    expect(suggestedChoice('lq.bible', [ours('mine'), ours('lq.bible'), starter], STARTER_TEMPLATE)).toBe('ours:lq.bible');
+    expect(suggestedChoice(null, [ours('mine'), shared('wa', 'Acts'), starter], STARTER_TEMPLATE)).toBe(starter.key);
+    expect(suggestedChoice(undefined, [shared('wa', 'Acts')], STARTER_FLOW)).toBe('shared:wa/Acts');
+    expect(suggestedChoice(null, [], STARTER_FLOW)).toBeNull();
+    expect(newLanguageId('D I N', 'abcdef12-3456')).toBe('L-din-abcdef');
   });
 });
 

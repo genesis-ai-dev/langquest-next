@@ -31,7 +31,7 @@ import { abbreviationOf, chooseFilesets, type DbpFileset, type Testaments } from
 
 const LIBRARY = fileURLToPath(new URL('../library/', import.meta.url));
 
-export interface SourceSpec {
+interface SourceSpec {
   bibleId: string;
   /** `langquest.source.<slug>`. */
   slug: string;
@@ -45,7 +45,7 @@ export interface SourceSpec {
   gateway?: boolean;
 }
 
-export const BIBLE_BRAIN_SOURCES: SourceSpec[] = [
+const BIBLE_BRAIN_SOURCES: SourceSpec[] = [
   { bibleId: 'ENGESV', slug: 'esv', abbreviation: 'ESV', name: 'English Standard Version' },
   { bibleId: 'ENGKJV', slug: 'kjv', abbreviation: 'KJV', name: 'King James Version' },
   { bibleId: 'ENGWEB', slug: 'web', abbreviation: 'WEB', name: 'World English Bible' },
@@ -59,7 +59,7 @@ export const BIBLE_BRAIN_SOURCES: SourceSpec[] = [
  * or has no text). The Russian Synodal text is numbered as the Russian
  * Protestant versification (Psalm 3 has 9 verses, Romans 16 has 24).
  */
-export const GATEWAY_SOURCES: SourceSpec[] = [
+const GATEWAY_SOURCES: SourceSpec[] = [
   { bibleId: 'FRNTLS', slug: 'frntls', gateway: true },
   { bibleId: 'PORBBS', slug: 'porbbs', gateway: true },
   { bibleId: 'HINOHC', slug: 'hinohc', gateway: true },
@@ -81,15 +81,15 @@ export interface FetchedBible {
   offline: { text: boolean; audio: boolean };
 }
 
-export interface SourceBuild {
+interface SourceBuild {
   documents: { hash: string; body: LibraryDoc }[];
   items: { itemId: string; kind: 'material'; name: string; description: string; docHash: string }[];
 }
 
-export const hashOf = (doc: LibraryDoc) => createHash('sha256').update(canonicalJson(doc)).digest('hex');
+const hashOf = (doc: LibraryDoc) => createHash('sha256').update(canonicalJson(doc)).digest('hex');
 
 const BSB_FS = SOURCE_BIBLES.find((b) => b.id === 'berean-bsb-fs')!;
-export const BSB_TEXT_URL = 'https://bereanbible.com/bsb.txt';
+const BSB_TEXT_URL = 'https://bereanbible.com/bsb.txt';
 
 // ---- documents (pure) -------------------------------------------------------------------------
 
@@ -137,7 +137,7 @@ function bookCodes(): Map<string, string> {
   return out;
 }
 
-export type ParsedText = Map<string, Map<number, [number, number, string][]>>;
+type ParsedText = Map<string, Map<number, [number, number, string][]>>;
 
 /**
  * berean.bible's `bsb.txt`: a few lines of notice, a `Verse` header, then
@@ -206,7 +206,7 @@ export function timingsByChapter(docs: TimingDoc[]): Map<string, TimingDoc> {
  * that lists them. A timing that names another recording than the chapter's
  * MP3 (`audio.source.url`) is left out.
  */
-export function bsbDocuments(text: ParsedText, eng: string, timings: Map<string, TimingDoc>, warn: (m: string) => void = () => {}): {
+function bsbDocuments(text: ParsedText, eng: string, timings: Map<string, TimingDoc>, warn: (m: string) => void = () => {}): {
   timings: TimingDoc[]; books: SourceBookDoc[]; source: SourceDoc;
 } {
   const names = JSON.parse(readFileSync(join(LIBRARY, 'books.eng.json'), 'utf8')) as Record<string, string>;
@@ -292,7 +292,7 @@ export function buildSources(input: {
 type Get = (path: string, query?: Record<string, string>) => Promise<{ status: number; body: unknown }>;
 
 /** Bible Brain with the key from the environment; errors name the path, never the URL. */
-export function bibleBrainGet(key: string, fetchImpl: typeof fetch = fetch): Get {
+function bibleBrainGet(key: string, fetchImpl: typeof fetch = fetch): Get {
   return async (path, query = {}) => {
     const u = new URL(`https://4.dbt.io/api${path}`);
     u.searchParams.set('v', '4');
@@ -364,7 +364,7 @@ export async function fetchBible(spec: SourceSpec, get: Get, allowedBooks: Set<s
 }
 
 /** The Bible Brain editions to publish; gateway Bibles that do not qualify are reported and left out. */
-export async function fetchBibleBrainSources(key: string, versificationBooks: Record<string, Set<string>>, log: (m: string) => void): Promise<FetchedBible[]> {
+async function fetchBibleBrainSources(key: string, versificationBooks: Record<string, Set<string>>, log: (m: string) => void): Promise<FetchedBible[]> {
   const get = bibleBrainGet(key);
   const out: FetchedBible[] = [];
   for (const spec of [...BIBLE_BRAIN_SOURCES, ...GATEWAY_SOURCES]) {
@@ -386,7 +386,7 @@ export async function fetchBibleBrainSources(key: string, versificationBooks: Re
 }
 
 /** berean.bible's text, downloaded once into the OS temp directory (never into the repository). */
-export async function loadBsbText(path?: string): Promise<string> {
+async function loadBsbText(path?: string): Promise<string> {
   if (path) return readFileSync(path, 'utf8');
   const dir = join(tmpdir(), 'langquest-sources');
   const file = join(dir, 'bsb.txt');
@@ -400,7 +400,7 @@ export async function loadBsbText(path?: string): Promise<string> {
 }
 
 /** Every `*.json` in a directory of fia-align output: one `timing@1` each, or a list of them. */
-export function readTimings(dir: string, versifications: Record<string, string>): TimingDoc[] {
+function readTimings(dir: string, versifications: Record<string, string>): TimingDoc[] {
   if (!existsSync(dir)) throw new Error(`no timings directory at ${dir}`);
   return readdirSync(dir).filter((f) => f.endsWith('.json')).sort().flatMap((f) => {
     const json = JSON.parse(readFileSync(join(dir, f), 'utf8')) as unknown;

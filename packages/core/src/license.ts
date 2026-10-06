@@ -44,7 +44,7 @@ export function isMoreOpen(next: License, current: License): boolean {
  * What a license lets people outside the organization do. These are the
  * questions the app asks, so a feature checks a term rather than a license id.
  */
-export interface LicenseTerms {
+interface LicenseTerms {
   /** People outside the organization may look inside: listen to and read the work. */
   outsidersMayView: boolean;
   /** They may make something new from it (adapt, translate from it, re-record it). */
@@ -57,7 +57,7 @@ export interface LicenseTerms {
   attribution: boolean;
 }
 
-export interface LicenseInfo {
+interface LicenseInfo {
   license: License;
   /** The license's usual name. */
   name: string;

@@ -3,7 +3,7 @@
 // played, chose or opened, and appends `v1.ReferencesUsed` with the
 // version or review it describes. The passage record shows it again under
 // each version and each review.
-import { usedOn, type ProjectState, type UsedReference } from '@langquest-next/core';
+import { usedOn, type LanguageState, type UsedReference } from '@langquest-next/core';
 import { useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -34,7 +34,7 @@ export function useUsage(): Usage {
 const KIND: Record<UsedReference['kind'], string> = { source: 'Bible', guide: 'Study guide', note: 'Note', questions: 'Questions' };
 
 /** "Made with BSB (opened), FIA" under a version or a review; tap for the list. Nothing when nothing was recorded. */
-export function UsedLine(props: { ctx: Ctx; state: ProjectState; subject: { takeId?: string; reviewId?: string }; detailsKey: string }) {
+export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { takeId?: string; reviewId?: string }; detailsKey: string }) {
   const items = useMemo(() => usedOn(props.state, props.subject), [props.state, props.subject.takeId, props.subject.reviewId]); // eslint-disable-line react-hooks/exhaustive-deps
   const d = props.ctx.details(props.detailsKey);
   if (items.length === 0) return null;

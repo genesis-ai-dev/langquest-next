@@ -1,6 +1,8 @@
 # Flow coverage audit and gap architecture
 
 Implementation update: 2026-09-17. Section 6 records the current status.
+The names below predate decision 63: partitions and lanes are now an
+organization's languages, each its own stream (`docs/streams-and-languages.md`).
 The original findings below remain the design rationale. Local implementation
 does not mean hosted deployment; see `docs/invitation-rollout.md`.
 
@@ -94,7 +96,7 @@ lists, and the gate mapping in `edgeAllowed` collapses eight privileges onto
 **G3. Catalog templating is per project and whole-document.** Content
 templates, reference library kinds and review flows are system catalogs
 enabled at org, narrowed at project, and selected one-per-language (A42). The
-app has a per-project `ProjectConfig` set by one register. Two admins editing
+app has a per-project `PartitionConfig` set by one register. Two admins editing
 the workflow offline clobber each other with only a stale warning
 (`parentEventId`). No org level exists to enable anything at. Solve with the
 catalog bundle and deterministic instantiation (5.D) and per-step registers
@@ -247,7 +249,7 @@ The index is a view over the fold, built in one pass, never persisted or
 synced, and the equivalence test proves every derivation gives the same
 answer with and without it. Screens still call the derive functions without
 passing an index (they build one per call, which is fine at these sizes); the
-next step is for `useProject` to build it once per refresh and hand it to
+next step is for `usePartition` to build it once per refresh and hand it to
 screens, so the fraction of a second spent at fold time is paid once.
 
 ## 5. Architecture that fills the gaps
@@ -259,18 +261,18 @@ mint the same id and the grow-only set merges by construction.
 
 ### 5.A Org partition
 
-One extra partition per organization, `projectId = "_org"`, in the same
+One extra partition per organization, `partitionId = "_org"`, in the same
 `events` table with the same RPCs. It holds what the spec puts on org home
 and what must exist before a project does.
 
 | Event | Shape | Merge |
 | --- | --- | --- |
 | `v1.OrgCreated` | name | once |
-| `v1.OrgMemberAdded` / `v1.OrgMemberScopeChanged` / `v1.OrgMemberRemoved` | profileId, roleId, scope `{ level: org \| project \| lane, projectId?, laneId? }` | register per (profile, scope) |
+| `v1.OrgMemberAdded` / `v1.OrgMemberScopeChanged` / `v1.OrgMemberRemoved` | profileId, roleId, scope `{ level: org \| project \| lane, partitionId?, laneId? }` | register per (profile, scope) |
 | `v1.RoleDefined` | roleId, name, privileges[], definedAt scope | register per roleId |
 | `v1.RoleRetired` | roleId | flag, add-wins |
-| `v1.CatalogItemEnabled` / `v1.CatalogItemDisabled` | kind (template \| reference \| flow), itemId, level (org \| project), projectId? | register per (kind, item, level, project) |
-| `v1.ProjectRegistered` | projectId, name | grow-only |
+| `v1.CatalogItemEnabled` / `v1.CatalogItemDisabled` | kind (template \| reference \| flow), itemId, level (org \| project), partitionId? | register per (kind, item, level, partition) |
+| `v1.PartitionRegistered` | partitionId, name | grow-only |
 | `v1.JoinDecided` | requestId, profileId, roleId, scope, accepted | grow-only; the accept also emits `OrgMemberAdded` |
 | `v1.InviteIssued` | inviteId, roleId, scope, expiresAt | grow-only (the token itself never enters the log) |
 
@@ -282,9 +284,9 @@ mirror. The org log is small (members, roles, catalog toggles), so every
 device pulls it whole; it is what makes `org_home`, `roles_home`, `members_list`
 and the org switcher work offline.
 
-Rollups (`status_home` at org and project level, audits, `projectCount`,
+Rollups (`status_home` at org and project level, audits, `partitionCount`,
 `memberCount`) are server projections: the existing snapshot worker already
-folds every partition; add a `project_summaries (org, project, lane,
+folds every partition; add a `partition_summaries (org, project, lane,
 translatedPct, approvedPct, bottleneck, blockers, updatedAt)` table it writes,
 and a `get_org_summary(org)` RPC. Offline, the last pulled summary is shown
 with its `updatedAt`. Audits are the same worker listing `ReviewSubmitted`
@@ -315,7 +317,7 @@ member decides.
   are needed. This is how `scan_qr` and `create_account` with an invite land
   on a home instead of `intent_chooser`. Email delivery and the camera are
   not wired: the code is shown to the admin and pasted by the invitee.
-- `public_projects (org_id, project_id, name, languages, translated_pct)`:
+- `public_partitions (org_id, partition_id, name, languages, translated_pct)`:
   written by the summary worker for projects whose org enabled visibility;
   readable by anyone. `explore_home` reads this table; `pull_events` stays
   members-only. Q2, Q3, Q15 and Q27 in the spec's open questions resolve to:
@@ -469,7 +471,7 @@ and queues the write in `meta` otherwise.
 
 ### 5.I Per-user partition
 
-`orgId = "_user"`, `projectId = profileId`: `v1.TermsAccepted { version }`,
+`orgId = "_user"`, `partitionId = profileId`: `v1.TermsAccepted { version }`,
 `v1.VisionSeen`, `v1.WalkthroughDone`, and later preferences. Written by the
 user only, read by the user only; it turns first-run state into a durable
 record without a new table.
@@ -501,7 +503,7 @@ To append to PLAN.md section 11 after item 8:
 10. **Done.** Org partition, roles with privileges, catalog toggles (5.A,
     5.C) in core `org.ts` and migration 000009; session facets from
     privileges; `language_home` reachable; the dead-gate entry in the parity
-    test removed. Not yet: server summaries (`project_summaries`) and
+    test removed. Not yet: server summaries (`partition_summaries`) and
     audits, which need the worker.
 11. **Done.** Catalog bundle and deterministic instantiation (5.D);
     templates_home and flows_home select per lane; per-step workflow

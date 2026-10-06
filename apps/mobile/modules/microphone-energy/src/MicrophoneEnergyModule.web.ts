@@ -8,7 +8,7 @@ import {
   RING_FRAMES, SAMPLE_RATE, Vad
 } from './vadCore';
 
-export type { VADConfig, VADResult, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
+export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
 
 type Events = MicrophoneEnergyModuleEvents;
 const listeners = new Map<keyof Events, Set<(...args: never[]) => void>>();

@@ -8,9 +8,9 @@ import type { Page } from '@playwright/test';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 
-export interface AgentAction { kind: string; label: string; text: string | null }
+interface AgentAction { kind: string; label: string; text: string | null }
 
-export interface AgentRun {
+interface AgentRun {
   status: string;
   steps: Record<string, unknown>[];
   actions: AgentAction[];

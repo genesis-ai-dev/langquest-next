@@ -60,7 +60,7 @@ import { VoiceNote } from '../voiceNote';
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={TITLES.workspace} />;
-  return <WorkspaceBody key={`${v.unitId}:${v.laneId}`} ctx={ctx} v={v} />;
+  return <WorkspaceBody key={`${v.unitId}:${v.languageId}`} ctx={ctx} v={v} />;
 }
 
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {
@@ -72,7 +72,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
 }
 
 function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
-  const { state, unitId, laneId, p } = v;
+  const { state, unitId, languageId, p } = v;
   const me = ctx.session.actorId;
   const idx = indexesFor(state);
   const latest = p.latest;
@@ -80,9 +80,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const isFirst = !latest;
 
   // ---- the list of takes (REC-W2) ----
-  const pendingCards = useMemo(() => pendingPassageCards(state, unitId, laneId, me), [state, unitId, laneId, me]);
+  const pendingCards = useMemo(() => pendingPassageCards(state, unitId, me), [state, unitId, me]);
   const pending = useMemo(() => pendingCards.map((c) => c.hash), [pendingCards]);
-  const durations = useMemo(() => cardDurations(state, unitId, laneId), [state, unitId, laneId]);
+  const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const draftCards = p.draftTakeId ? state.takes[p.draftTakeId]?.cardHashes : undefined;
   const [cleared, setCleared] = useState(false);
   const list = useMemo(() => workingCards({
@@ -98,15 +98,15 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   latestCtx.current = ctx;
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latestCtx.current;
-    const s = current.project.state;
+    const s = current.language.state;
     if (!s) throw new Error('Your organization is still loading.');
-    await current.project.run(commands(s, indexesFor(s)).addRecording({
-      commandId: card.id, recordingId: card.id, unitId, laneId, kind: 'target',
+    await current.language.run(commands(s, indexesFor(s)).addRecording({
+      commandId: card.id, recordingId: card.id, unitId, kind: 'target',
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
     }));
-    current.project.triggerUpload();
-  }, [unitId, laneId]);
-  const rec = useRecorder(persist, { orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId, laneId });
+    current.language.triggerUpload();
+  }, [unitId]);
+  const rec = useRecorder(persist, { orgId: ctx.language.orgId, languageId, unitId });
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;
@@ -123,18 +123,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     setComposing(true);
     let specs: EventSpec[];
     try {
-      specs = commands(state, idx).keepTake({ commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: list });
+      specs = commands(state, idx).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: list, actorId: me });
     } catch (e) {
       composeLock.current = false;
       setComposing(false);
       setComposeError(problemText('workspace: compose draft', e));
       return;
     }
-    ctx.project.run(specs)
+    ctx.language.run(specs)
       .catch((e: unknown) => setComposeError(`Your takes are saved on this phone but not yet in your draft. ${problemText('workspace: save draft', e)}`))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
-  }, [state, pending, list, composing, composeError, ctx.project, idx, unitId, laneId]);
+  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me]);
 
   // ---- deleting a take ----
   const [working, setWorking] = useState(false);
@@ -148,7 +148,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const label = labels[at] ?? 'Take';
     const before = list;
     const { specs, cleared: nowCleared } = removeCardSpecs(state, idx, {
-      commandId: Crypto.randomUUID(), unitId, laneId, list, hash, pending: new Set(pending),
+      commandId: Crypto.randomUUID(), unitId, actorId: me, list, hash, pending: new Set(pending),
       ...(p.draftTakeId ? { draftTakeId: p.draftTakeId } : {}), ...(latest ? { latestCards: latest.cardHashes } : {})
     });
     const wasCleared = cleared;
@@ -160,7 +160,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         setCleared(false);
         if (latest && sameCards(before, latest.cardHashes)) return [];
         const s = stateRef.current;
-        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, laneId, cardHashes: before });
+        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me });
       });
     } catch {
       setCleared(wasCleared); // ctx.act said what went wrong
@@ -184,7 +184,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const [sourceWords, setSourceWords] = useState<string | null>(null);
   // What was offered and used here goes on the record with the version (docs/reference-material.md).
   const usage = useUsage();
-  const unitTerms = useMemo(() => keyTermsForUnit(state, laneId, unitId), [state, laneId, unitId]);
+  const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
   const tied = useMemo(() => tiedTermIds(state, p.draftTakeId ?? latest?.takeId), [state, p.draftTakeId, latest?.takeId]);
   // Tying a term is reference work (KeyTermLinked needs fill_reference), so
   // only someone who may tie carries ties onto the version they publish.
@@ -199,14 +199,14 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const [help, setHelp] = useState(false);
   const closeHelp = useCallback(() => setHelp(false), []);
   const [tab, setTab] = useState<TrayTab>('terms');
-  const guide = useStudyGuide(ctx, unitId, laneId);
+  const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
   useEffect(() => {
     if (guide) usage.offer([{ itemId: guide.id.split('~')[0] ?? guide.id, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
   }, [guide, usage]);
   useEffect(() => { if (help && tab === 'study' && guide) usage.open(guide.id.split('~')[0] ?? guide.id); }, [help, tab, guide, usage]);
-  const references = useMemo(() => getReferenceSlides(state, laneId, unitId), [state, laneId, unitId]);
+  const references = useMemo(() => getReferenceSlides(state, unitId), [state, unitId]);
   useEffect(() => {
     usage.offer(references.map((r) => ({ itemId: r.id, name: r.label, kind: r.id.startsWith('source:') ? 'source' as const : 'note' as const, opened: false })));
   }, [references, usage]);
@@ -219,12 +219,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     let specs: EventSpec[];
     try {
       specs = commands(state, idx).publishVersion({
-        commandId, unitId, laneId, cardHashes: list, actorId: me,
+        commandId, unitId, cardHashes: list, actorId: me,
         ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
       });
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
-      if (takeId) specs = [...specs, ...commands(state, idx).referencesUsed({ commandId, laneId, unitId, takeId: takeId.takeId, items: usage.items() })];
+      if (takeId) specs = [...specs, ...commands(state, idx).referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
     } catch (e) {
       ctx.toast(`Not published: ${problemText('workspace: publish', e)}`);
       return;
@@ -233,7 +233,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       await ctx.act(specs, `${versionTitle(nextN)} published.`);
       setConfirming(false);
-      ctx.go('passage_record', { unitId, laneId });
+      ctx.go('passage_record', { unitId, languageId });
     } catch { /* ctx.act said what went wrong */ }
     finally { setPublishing(false); }
   }
@@ -246,7 +246,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 
   return (
     <Screen fixed
-      header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.lane} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close
+      header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.language} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close
         action={<HelpButton onPress={() => setHelp(true)} disabled={recording} />} />}
       footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.actions}>
@@ -260,7 +260,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
         top={
           // The reader scrolls itself with the player kept on top, so Play and the verse playing never part.
-          <SourceReader ctx={ctx} unitId={unitId} laneId={laneId} layout="screen" listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
+          <SourceReader ctx={ctx} unitId={unitId} languageId={languageId} layout="screen" listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
             usage={usage}
             header={<View style={{ gap: space.sm }}>
               {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
@@ -283,10 +283,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 </Pressable>
               ) : null}
             </View>}
-            footer={<ReferenceRecordings ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+            footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
             {...(recording ? {} : {
-              onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, laneId, termId }),
-              onMoreBibles: () => ctx.go('bible_explore', { unitId, laneId })
+              onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, languageId, termId }),
+              onMoreBibles: () => ctx.go('bible_explore', { unitId, languageId })
             })} />
         }
         bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : (
@@ -320,7 +320,7 @@ function FeedbackBanner(props: { ctx: Ctx; review: ReviewView; kind: KindDef }) 
     <View style={{ gap: space.sm }}>
       <Banner icon="chat" tone="amber" title={`Revising after ${props.kind.name} feedback`}
         body={`${r.comment ? `“${r.comment}”\n` : ''}${feedbackSource(r, props.ctx.name)}`} />
-      {r.commentBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
+      {r.commentBlobHash ? <AudioClip language={props.ctx.language} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
     </View>
   );
 }
@@ -346,7 +346,7 @@ function PublishSheet(props: {
       <Text style={[txt.sm, { fontWeight: '700' }]}>
         {needsNote ? 'What changed?' : 'Anything reviewers should know?'}{needsNote ? '' : <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}> · optional</Text>}
       </Text>
-      <VoiceNote ctx={props.ctx} unitId={props.v.unitId} laneId={props.v.laneId} label={needsNote ? 'Say what changed' : 'Say it'} hash={hash} onChange={setHash} />
+      <VoiceNote ctx={props.ctx} label={needsNote ? 'Say what changed' : 'Say it'} hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
       {props.answers.length > 0 || props.tied > 0 ? (
         <View style={styles.checks}>
@@ -368,7 +368,7 @@ export function BackTranslation(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} title={TITLES.back_translation} />;
   const kind = v.kind(kindId);
   if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={TITLES.back_translation} text="There's no recording to back-translate yet." />;
-  return <BackTranslationBody key={`${v.unitId}:${v.laneId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
+  return <BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
 }
 
 /**
@@ -377,12 +377,12 @@ export function BackTranslation(ctx: Ctx) {
  * and the saved review names exactly the parts on screen.
  */
 function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
-  const { state, unitId, laneId, p } = v;
+  const { state, unitId, languageId, p } = v;
   const produces = kind.produces!;
   const me = ctx.session.actorId;
   const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
   const drafts = useBackTranslationDraft(
-    backTranslationDraftKey({ projectId: ctx.project.projectId, actorId: me, unitId, laneId, kindId: kind.id }), of.takeId);
+    backTranslationDraftKey({ languageId, actorId: me, unitId, kindId: kind.id }), of.takeId);
   const parts = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
   const madeFrom = drafts.draft && parts.length > 0 && drafts.draft.fromTakeId !== of.takeId
     ? p.versions.find((x) => x.takeId === drafts.draft!.fromTakeId) : undefined;
@@ -427,7 +427,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     try {
       specs = commands(state, indexesFor(state)).produceContent({
         commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: parts,
-        ...(note.trim() ? { note: note.trim() } : {}), ...(request && !request.legacy ? { requestId: request.id } : {})
+        ...(note.trim() ? { note: note.trim() } : {}), ...(request ? { requestId: request.id } : {})
       });
     } catch (e) {
       ctx.toast(`Not saved: ${problemText('back translation: save', e)}`);
@@ -444,7 +444,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
     setSaving(false);
     setConfirming(false);
-    ctx.go('passage_record', { unitId, laneId });
+    ctx.go('passage_record', { unitId, languageId });
   }
 
   const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));
@@ -453,7 +453,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     : rec.error ? <SaveProblem message={rec.error} /> : null;
   return (
     <Screen fixed
-      header={<Header title={capitalize(produces.what)} sub={`${v.lane} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
+      header={<Header title={capitalize(produces.what)} sub={`${v.language} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
       footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.actions}>
           <RecordButton recording={false} disabled={blocked || rec.failureCount > 0} onPress={() => void loop.toggle()} />
@@ -471,9 +471,9 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
               <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
                 body={`${versionTitle(of.n)} is out now, and saving puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
             ) : null}
-            <SectionLabel label={`Listen · ${v.lane} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
+            <SectionLabel label={`Listen · ${v.language} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
             <Card>
-              <SourcePlayer project={ctx.project} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} listen={loop.hooks} />
+              <SourcePlayer language={ctx.language} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} listen={loop.hooks} />
               <Text style={txt.xs}>Notes, key terms and earlier reviews are hidden on purpose, so only the recording shapes what you say.</Text>
             </Card>
             <Banner icon="swap" title="You're making new content"

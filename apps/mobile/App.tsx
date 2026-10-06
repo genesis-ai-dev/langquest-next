@@ -1,7 +1,5 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
-import { orgQueries } from './src/orgQueries';
-import { getStore } from './src/store';
-import { highlightsFor, orgLanguages, updatesFor, withOrgMembers, type EventSpec } from '@langquest-next/core';
+import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
@@ -44,7 +42,7 @@ import * as Work from './src/screens/work';
 import { StorageGate, useLeaveGuard } from './src/storageGate';
 import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, homeScreenFor, postSignInScreen, tabsFor, type TabId } from './src/session';
 import { supabase, supabaseConfigError } from './src/supabase';
-import { C, colors, space } from './src/theme';
+import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames } from './src/useAccount';
 import { useBlocks, useOpenReportCount } from './src/moderationData';
@@ -58,7 +56,7 @@ import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
-import { useProject } from './src/useProject';
+import { useLanguage } from './src/useLanguage';
 import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
 
@@ -275,8 +273,7 @@ export default function App() {
 
 /**
  * Which organization is open. An organization is the unit people switch
- * between and the unit that syncs: its own partition plus the one work
- * partition that holds its languages (decision 34).
+ * between: its own stream plus the open language's (decision 63).
  */
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
   const [orgId, setOrgId] = useState(ORG_ID);
@@ -291,7 +288,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     let active = true;
     void (async () => {
       const raw = await AsyncStorage.getItem(key);
-      // Saved before decision 34 as { orgId, projectId }: the org is what counts.
+      // Saved before decision 34 as { orgId, languageId }: the org is what counts.
       const saved = raw ? (JSON.parse(raw) as { orgId?: string }).orgId : undefined;
       if (saved) { if (active) setOrgId(saved); return; }
       if (!props.signedIn) return;
@@ -323,7 +320,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
 }
 
 /**
- * One organization: its partition, and the languages it lists there. Until
+ * One organization: its stream, and the languages it lists there. Until
  * the org fold is read (and, on a device that has never seen this org, until
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
@@ -336,49 +333,33 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
 }
 
 /**
- * The organization with one language open (docs/decisions.md 37). Each
- * language is its own partition: this phone syncs the org partition and the
- * open language's, and a screen about another language opens that one, in
+ * The organization with one language open (decision 63). Each language is
+ * its own stream: this phone syncs the organization's and the open
+ * language's, and a screen about another language opens that one, in
  * place, without leaving the screen.
  */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean;
   orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
-  // ---- the language this person works in (MAP-7), and so the partition open ----
-  const laneKey = `lane:${props.actorId}:${props.orgId}`;
-  const [savedLane, setSavedLane] = useState<string | null>(null);
-  useEffect(() => { AsyncStorage.getItem(laneKey).then(setSavedLane).catch(() => {}); }, [laneKey]);
-  const setLane = useCallback((id: string) => { setSavedLane(id); AsyncStorage.setItem(laneKey, id).catch(() => {}); }, [laneKey]);
-  const paramLane = nav.current.params?.['laneId'];
-  const open = useMemo(() => openLanguage(org.state, props.actorId, { param: paramLane, saved: savedLane }),
-    [org.state, props.actorId, paramLane, savedLane]);
+  // ---- the language this person works in (MAP-7), and so the stream open ----
+  const languageKey = `language:${props.actorId}:${props.orgId}`;
+  const [savedLanguage, setSavedLanguage] = useState<string | null>(null);
+  useEffect(() => { AsyncStorage.getItem(languageKey).then(setSavedLanguage).catch(() => {}); }, [languageKey]);
+  const setLanguage = useCallback((id: string) => { setSavedLanguage(id); AsyncStorage.setItem(languageKey, id).catch(() => {}); }, [languageKey]);
+  const paramLanguage = nav.current.params?.['languageId'];
+  const languageId = useMemo(() => openLanguage(org.state, props.actorId, { param: paramLanguage, saved: savedLanguage }),
+    [org.state, props.actorId, paramLanguage, savedLanguage]);
   // A screen about a language makes it the one this person works in.
-  useEffect(() => { if (open.laneId && open.laneId === paramLane && open.laneId !== savedLane) setLane(open.laneId); }, [open.laneId, paramLane, savedLane, setLane]);
-  const projectId = open.partitionId;
+  useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
   const languages = useMemo(() => orgLanguages(org.state), [org.state]);
-  const rawProject = useProject(props.orgId, projectId, props.actorId);
-  const projectedState = useMemo(() => rawProject.state && org.state
-    ? withOrgMembers(rawProject.state, org.state, projectId) : rawProject.state,
-    [rawProject.state, org.state, projectId]);
-  const queries = useMemo(() => rawProject.queries && projectedState && projectedState !== rawProject.state
-    ? orgQueries(rawProject.queries, getStore(), props.orgId, projectId, projectedState)
-    : rawProject.queries,
-    [rawProject.queries, projectedState, rawProject.state, props.orgId, projectId]);
-  const project = { ...rawProject, state: projectedState, queries };
+  const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
-  useLeaveGuard(!rawProject.refused && (rawProject.pending > 0 || rawProject.blobs.pendingUp > 0) || org.pending > 0);
+  useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
   const blocks = useBlocks(props.actorId);
   const profileNames = useDisplayNames(props.actorId);
-  const people = useMemo(() => {
-    const out: Record<string, string> = {};
-    for (const [id, scopes] of Object.entries(org.state?.members ?? {})) {
-      const name = Object.values(scopes)[0]?.displayName;
-      if (name) out[id] = name;
-    }
-    return { ...out, ...profileNames };
-  }, [org.state, profileNames]);
+  const people = profileNames;
   const [welcomed, setWelcomed] = useState(false);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
@@ -404,26 +385,21 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, [props.actorId]);
 
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, project.state, welcomed, org.state, projectId),
-    [props.actorId, props.email, project.state, welcomed, org.state, projectId]
+    () => deriveSession(props.actorId, props.email, welcomed, org.state, languageId),
+    [props.actorId, props.email, welcomed, org.state, languageId]
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
-  useLibraryFollow(project, org, session);
+  useLibraryFollow(language, org, session);
   // Sources phones may keep follow the offline scope (docs/reference-material.md).
-  useSourceOffline(project, org, session);
-
-  // The open language; an organization from before decision 37 opens its
-  // shared partition, whose own languages are known once it has loaded.
-  const lanes = useMemo(() => Object.keys(project.state?.lanes ?? {}).sort(), [project.state?.lanes]);
-  const laneId = open.laneId && (project.state?.lanes[open.laneId] || !project.state) ? open.laneId : lanes[0] ?? open.laneId;
+  useSourceOffline(language, org, session);
 
   // ---- passages opened lately (WORK-2) ----
   const recentKey = `recent:${props.actorId}:${props.orgId}`;
   const [recent, setRecent] = useState<RecentPassage[]>([]);
   useEffect(() => { AsyncStorage.getItem(recentKey).then((v) => setRecent(v ? JSON.parse(v) : [])).catch(() => {}); }, [recentKey]);
-  const remember = useCallback((unitId: string, lane: string) => {
+  const remember = useCallback((unitId: string, inLanguage: string) => {
     setRecent((prev) => {
-      const next = [{ unitId, laneId: lane, at: Date.now() }, ...prev.filter((r) => r.unitId !== unitId || r.laneId !== lane)].slice(0, 12);
+      const next = [{ unitId, languageId: inLanguage, at: Date.now() }, ...prev.filter((r) => r.unitId !== unitId || r.languageId !== inLanguage)].slice(0, 12);
       AsyncStorage.setItem(recentKey, JSON.stringify(next)).catch(() => {});
       return next;
     });
@@ -444,17 +420,17 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     const spec: ToastSpec = { id: Date.now(), message, ...(undo ? { undo } : {}) };
     showToast.current(spec);
   }, []);
-  const projectRef = useRef(project);
-  projectRef.current = project;
+  const languageRef = useRef(language);
+  languageRef.current = language;
   const act = useCallback(async (specs: EventSpec[], message: string, undo?: () => EventSpec[]) => {
     try {
-      await projectRef.current.run(specs);
+      await languageRef.current.run(specs);
     } catch (e) {
       toast(`Not saved: ${(e as Error).message}`);
       throw e;
     }
     toast(message, undo ? async () => {
-      try { await projectRef.current.run(undo()); toast('Undone.'); } catch (e) { toast(`Could not undo: ${(e as Error).message}`); }
+      try { await languageRef.current.run(undo()); toast('Undone.'); } catch (e) { toast(`Could not undo: ${(e as Error).message}`); }
     } : undefined);
   }, [toast]);
 
@@ -465,13 +441,13 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, [people, props.actorId]);
 
   // ---- what is waiting, and what happened (WORK-1, INBOX-1) ----
-  const forYou = useMemo(() => project.state
-    ? highlightsFor(project.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(project.state)).length
-    : 0, [project.state, props.actorId, session]);
+  const forYou = useMemo(() => language.state
+    ? highlightsFor(language.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(language.state)).length
+    : 0, [language.state, props.actorId, session]);
   // Nothing from someone this person blocked reaches their Inbox (decisions.md 48).
-  const updates = useMemo(() => project.state
-    ? updatesFor(project.state, props.actorId, indexesFor(project.state)).filter((u) => !blocks.has(u.by))
-    : [], [project.state, props.actorId, blocks]);
+  const updates = useMemo(() => language.state
+    ? updatesFor(language.state, props.actorId, indexesFor(language.state)).filter((u) => !blocks.has(u.by))
+    : [], [language.state, props.actorId, blocks]);
   const readKey = `inbox-read:${props.actorId}:${props.orgId}`;
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);
@@ -494,7 +470,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Both folds must be loaded first, the org synced once (foldsSettled):
   // postSignInScreen reads the role out of them, and routing early sends an
   // admin to the wrong home, or a new member to no home at all.
-  const loaded = foldsSettled(org.state !== null && org.settled, project.state !== null, props.noOrganizations);
+  const loaded = foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations);
   // Rendering must not wait on the log fold. The home screen for this
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.
@@ -537,7 +513,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useEffect(() => {
     if (!props.signedIn) {
       // Not "anything but sign_in": a guest legitimately walks to Create
-      // account, Browse public projects, the terms and the invite scanner.
+      // account, Browse public languages, the terms and the invite scanner.
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }
@@ -582,9 +558,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(nav.current.screen, undefined, to, params),
     [goFrom, nav.current.screen]);
 
-  const openPassage = useCallback((unitId: string, lane: string, extra?: Record<string, string>) => {
-    remember(unitId, lane);
-    go('passage_record', { unitId, laneId: lane, ...extra });
+  const openPassage = useCallback((unitId: string, inLanguage: string, extra?: Record<string, string>) => {
+    remember(unitId, inLanguage);
+    go('passage_record', { unitId, languageId: inLanguage, ...extra });
   }, [go, remember]);
 
   // A link that opens the app is a scan (docs/invites-and-accounts.md flow D).
@@ -638,15 +614,15 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
 
   const ctx: Ctx = {
-    project,
+    language,
     org,
     session,
     params: nav.current.params ?? {},
     go,
     back: nav.back,
     home: () => nav.reset({ screen: homeScreenFor(session) }),
-    laneId,
-    setLane,
+    languageId,
+    setLanguage,
     languages,
     act,
     toast,
@@ -703,9 +679,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     params: split.list.params ?? {},
     go: (to, params) => goFrom(split.list.screen, split.list.key, to, params),
     back: () => nav.fromRoute(split.list.key, 'back', split.list),
-    openPassage: (unitId, lane, extra) => {
-      remember(unitId, lane);
-      goFrom(split.list.screen, split.list.key, 'passage_record', { unitId, laneId: lane, ...extra });
+    openPassage: (unitId, inLanguage, extra) => {
+      remember(unitId, inLanguage);
+      goFrom(split.list.screen, split.list.key, 'passage_record', { unitId, languageId: inLanguage, ...extra });
     }
   } : null;
   // The toast on a wide window: over the content, just above the top screen's footer.
@@ -736,7 +712,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
                 initialRouteName={nav.initial.screen}
-                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}
+                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: C.bg } }}
               >
                 {SCREEN_IDS.map((id) => (
                   // Tab-level screens are only ever reached by reset, so they
@@ -758,7 +734,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       </PeopleContext.Provider>
       {wide ? null : toastHost(showTabs ? 96 : 24)}
       {canSwitchPersona ? (
-        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
+        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
     </View>
   );

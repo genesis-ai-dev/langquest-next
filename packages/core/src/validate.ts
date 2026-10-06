@@ -1,5 +1,6 @@
-import type { AnyEvent, Role } from './events';
-import { PRIVILEGES } from './org';
+import type { AnyEvent } from './events';
+import { LIBRARY_KINDS } from './libraryDocs';
+import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './org';
 import { isLicense, LICENSES } from './license';
 
 /**
@@ -9,10 +10,9 @@ import { isLicense, LICENSES } from './license';
  * never throw inside the fold. Unknown types pass: an older app must keep
  * folding when a newer app emits events it does not know.
  */
-const ROLES: readonly Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'];
 
 export function validateEvent(e: AnyEvent): string | null {
-  for (const k of ['id', 'type', 'orgId', 'projectId', 'actorId', 'deviceId', 'hlc'] as const) {
+  for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) {
     if (typeof e[k] !== 'string' || e[k] === '') return `${k} must be a non-empty string`;
   }
   if (!isObject(e.payload)) return 'payload must be an object';
@@ -25,14 +25,12 @@ export function validateEvent(e: AnyEvent): string | null {
     for (const k of keys) if (p[k] !== undefined && typeof p[k] !== 'string') return `${k} must be a string`;
     return null;
   };
-  const role = (k: string) => (ROLES.includes(p[k] as Role) ? null : `${k} must be a role`);
   const cards = (k: string) => {
     if (!Array.isArray(p[k])) return `${k} must be an array`;
     for (const c of p[k] as unknown[]) {
       if (!isObject(c)) return `${k} entries must be objects`;
-      const card = c as Record<string, unknown>;
-      if (typeof card['hash'] !== 'string' || card['hash'] === '') return `${k} entries need a hash`;
-      if (typeof card['durationMs'] !== 'number') return `${k} entries need durationMs`;
+      if (typeof c['hash'] !== 'string' || c['hash'] === '') return `${k} entries need a hash`;
+      if (typeof c['durationMs'] !== 'number') return `${k} entries need durationMs`;
     }
     return null;
   };
@@ -41,86 +39,109 @@ export function validateEvent(e: AnyEvent): string | null {
   const optBool = (k: string) => (p[k] === undefined || typeof p[k] === 'boolean' ? null : `${k} must be a boolean`);
   const bool = (k: string) => (typeof p[k] === 'boolean' ? null : `${k} must be a boolean`);
   const hash = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
-  const nonEmpty = (o: unknown, ...keys: string[]) => keys.every((k) => typeof (o as Record<string, unknown>)[k] === 'string' && (o as Record<string, unknown>)[k] !== '');
+  const nonEmptyIn = (o: unknown, ...keys: string[]) => keys.every((k) => typeof (o as Record<string, unknown>)[k] === 'string' && (o as Record<string, unknown>)[k] !== '');
+  const oneOf = (k: string, values: readonly string[]) => (values.includes(p[k] as string) ? null : `${k} must be one of ${values.join(', ')}`);
   const libraryItem = () =>
     str('itemId') ??
     (/^[a-z0-9][a-z0-9._-]{0,120}$/i.test(p['itemId'] as string) ? null : 'itemId may use letters, digits, . _ and - only') ??
-    oneOf('kind', ['template', 'flow', 'material', 'versification']);
-  const oneOf = (k: string, values: string[]) => (values.includes(p[k] as string) ? null : `${k} must be one of ${values.join(', ')}`);
+    oneOf('kind', LIBRARY_KINDS);
   const date = (k: string) => (typeof p[k] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p[k]) ? null : `${k} must be a YYYY-MM-DD date`);
   const optStrRecord = (k: string) =>
     p[k] === undefined || (isObject(p[k]) && Object.values(p[k] as object).every((v) => typeof v === 'string')) ? null : `${k} must map ids to strings`;
-
-  /** What v1.RequestMade and v2.RequestMade share; who it is for is checked per version. */
-  const request = () =>
-    str('requestId', 'unitId', 'laneId') ??
-    oneOf('what', ['record', 'review']) ??
-    optStr('kindId', 'profileId', 'dueDate', 'note', 'noteBlobHash') ??
-    (p['what'] === 'review' && !p['kindId'] ? 'a review request needs kindId' : null) ??
-    (p['guest'] === undefined || guest(p['guest']) ? null : 'guest needs name, channel, contact') ??
-    (p['questions'] === undefined || questions(p['questions']) ? null : 'questions must be id, text, type');
+  const nullableStr = (k: string) => (p[k] === null || (typeof p[k] === 'string' && p[k] !== '') ? null : `${k} must be a string or null`);
 
   switch (e.type) {
-    case 'v1.ProjectCreated':
-      return str('name', 'sourceLanguoidId');
-    case 'v1.ProjectConfigChanged':
-      return isObject(p['config']) ? null : 'config must be an object';
+    // ---- organization stream (org.ts)
+    case 'v1.OrgCreated':
+      return str('name');
+    case 'v1.RoleDefined':
+      return str('roleId', 'name') ??
+        (Array.isArray(p['privileges']) && (p['privileges'] as unknown[]).every((x) => (PRIVILEGES as readonly unknown[]).includes(x)) ? null : 'privileges must be known privileges');
+    case 'v1.RoleRetired':
+      return str('roleId');
     case 'v1.MemberAdded':
-    case 'v1.MemberRoleChanged':
-      return str('profileId') ?? role('role');
+      return str('profileId', 'roleId') ?? scope(p['scope']);
     case 'v1.MemberRemoved':
-      return str('profileId');
-    case 'v1.LaneAdded':
-      return str('laneId', 'languoidId');
-    case 'v1.UnitAdded':
+      return str('profileId') ?? scope(p['scope']);
+    case 'v1.InviteIssued':
+      return str('inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']);
+    case 'v1.InviteRedeemed':
+      return str('inviteId', 'profileId');
+    case 'v1.JoinDecided':
+      return str('requestId', 'profileId') ?? bool('accepted');
+    case 'v1.LicenseSet':
+      return isLicense(p['license']) ? null : `license must be one of ${LICENSES.join(', ')}`;
+    case 'v1.LanguageAdded':
+      return str('languageId', 'name', 'code', 'sourceCode') ??
+        (/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(p['languageId'] as string) ? null : 'languageId may use letters, digits, _ and - only') ??
+        (p['languageId'] === ORG_STREAM ? 'languageId is reserved' : null);
+    case 'v1.LanguageRenamed':
+      return str('languageId', 'name');
+    case 'v1.LanguageCountrySet':
+      return str('languageId') ?? (typeof p['country'] === 'string' && /^[A-Z]{2}$/.test(p['country']) ? null : 'country must be an ISO 3166 alpha-2 code');
+    case 'v1.LanguageTargetSet':
       return (
-        str('unitId', 'kind', 'label', 'order') ??
-        (p['parentUnitId'] === null || typeof p['parentUnitId'] === 'string' ? null : 'parentUnitId must be a string or null')
+        str('languageId') ?? oneOf('scope', TARGET_SCOPES) ?? date('startDate') ?? date('targetDate') ??
+        ((p['targetDate'] as string) > (p['startDate'] as string) ? null : 'targetDate must be after startDate')
       );
-    case 'v1.ReferenceAttached':
-      return str('unitId', 'refId', 'kind') ?? optStr('blobHash', 'text');
-    case 'v1.RecordingAdded':
-      return (
-        str('recordingId', 'unitId', 'laneId') ??
-        (p['kind'] === 'source' || p['kind'] === 'target' ? null : 'kind must be source or target') ??
-        cards('cards')
-      );
-    case 'v1.TakeComposed':
-      return (
-        str('takeId', 'unitId', 'laneId') ??
-        strArray('cardHashes') ??
-        (p['parentTakeId'] === null || typeof p['parentTakeId'] === 'string' ? null : 'parentTakeId must be a string or null')
-      );
-    case 'v1.TakeArchived':
-    case 'v1.TakeSubmitted':
-      return str('takeId');
-    case 'v1.TakeSelected':
-      return str('unitId', 'laneId', 'takeId');
-    case 'v1.ReviewSubmitted':
-      return (
-        str('takeId', 'stepId') ??
-        (p['decision'] === 'approve' || p['decision'] === 'suggest_changes' ? null : 'decision must be approve or suggest_changes') ??
-        optStr('comment')
-      );
-    case 'v1.AssignmentMade':
-      return str('unitId', 'laneId', 'profileId') ?? role('role') ?? optStr('dueDate', 'instructions');
-    case 'v1.SourceImported':
-      return str('sourceProjectId') ?? (typeof p['sourceSeq'] === 'number' ? null : 'sourceSeq must be a number') ?? strArray('unitIds');
-    case 'v1.BlobStored':
-      return str('hash') ?? (typeof p['size'] === 'number' ? null : 'size must be a number');
+    case 'v1.ReferenceRecommended':
+      return str('itemId') ?? bool('recommended');
+    case 'v1.LibraryItemDefined':
+      return libraryItem() ?? str('name') ?? (typeof p['description'] === 'string' ? null : 'description must be a string') ??
+        (p['copiedFrom'] === undefined || (isObject(p['copiedFrom']) && nonEmptyIn(p['copiedFrom'], 'orgId', 'orgName', 'itemId') && hash(p['copiedFrom']['docHash']))
+          ? null : 'copiedFrom needs orgId, orgName, itemId and a docHash');
+    case 'v1.LibraryVersionPublished':
+      return libraryItem() ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ?? optStr('note');
+    case 'v1.LibrarySharingSet':
+      return libraryItem() ?? bool('shared') ?? bool('subscribable');
+    case 'v1.LibraryItemArchived':
+      return libraryItem() ?? bool('archived');
+    case 'v1.LibrarySubscribed':
+      return libraryItem() ?? str('sourceOrgId', 'sourceOrgName', 'sourceItemId', 'name') ?? bool('autoUpdate') ?? bool('active');
+    case 'v1.LibraryPinned':
+      return libraryItem() ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');
+    // ---- either stream
     case 'v1.Redacted':
       return str('eventId') ?? optStr('reason');
-    case 'v1.BlobInvalidated':
-      return str('hash') ?? optStr('reason');
+    // ---- language stream
+    case 'v1.TemplateSelected':
+      return str('itemId', 'unitPrefix') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
+        (/[/\s]/.test(p['unitPrefix'] as string) ? 'unitPrefix may not contain / or spaces' : null) ??
+        (p['books'] === undefined || (Array.isArray(p['books']) && (p['books'] as unknown[]).every((b) => typeof b === 'string' && /^[A-Z0-9]{3}$/.test(b)))
+          ? null : 'books must be USFM book codes');
+    case 'v1.UnitAdded':
+      return str('unitId', 'kind', 'label', 'order') ?? (p['parentUnitId'] === null ? null : str('parentUnitId'));
+    case 'v1.UnitHidden':
+      return str('unitId') ?? bool('hidden');
+    case 'v1.FlowSelected':
+      return str('flowId') ?? (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null) ??
+        optStr('itemId', 'name') ?? (p['docHash'] === undefined || hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');
+    case 'v1.FlowStepSet':
+      return str('stepId', 'order') ?? strArray('kindIds') ?? bool('checkpoint');
+    case 'v1.FlowStepRemoved':
+      return str('stepId');
     case 'v1.ReviewKindDefined':
       return (
         str('kindId', 'name') ?? optStr('description', 'usualReviewer') ??
         optBool('withholdsContext') ??
         (p['produces'] === undefined || produces(p['produces']) ? null : 'produces needs what, into, action, checkedBy')
       );
-    case 'v2.WorkflowStepSet':
-      return str('stepId', 'order') ?? optStr('laneId') ?? strArray('kindIds') ??
-        (typeof p['checkpoint'] === 'boolean' ? null : 'checkpoint must be a boolean');
+    case 'v1.ReviewTeamDefined':
+      return str('teamId', 'name');
+    case 'v1.ReviewTeamMemberSet':
+      return str('teamId', 'profileId') ?? bool('member');
+    case 'v1.ReviewTeamKindSet':
+      return str('teamId') ?? nullableStr('kindId');
+    case 'v1.RecordingAdded':
+      return str('recordingId', 'unitId') ?? oneOf('kind', ['source', 'target']) ?? cards('cards');
+    case 'v1.TakeComposed':
+      return str('takeId', 'unitId') ?? strArray('cardHashes') ?? (p['parentTakeId'] === null ? null : str('parentTakeId'));
+    case 'v1.TakeArchived':
+      return str('takeId');
+    case 'v1.TakeSubmitted':
+      return str('takeId') ?? (p['questionSetIds'] === undefined ? null : strArray('questionSetIds'));
+    case 'v1.ResponseRecorded':
+      return str('takeId', 'respondsToTakeId') ?? optStr('note', 'blobHash');
     case 'v1.ReviewRecorded':
       return (
         str('reviewId', 'takeId', 'kindId') ??
@@ -134,7 +155,7 @@ export function validateEvent(e: AnyEvent): string | null {
       );
     case 'v1.DepartureRecorded':
       return (
-        str('departureId', 'unitId', 'laneId', 'reason') ??
+        str('departureId', 'unitId', 'reason') ??
         oneOf('type', ['skip', 'override', 'keep']) ??
         optStr('kindId', 'stepId', 'reviewId', 'reasonBlobHash') ??
         (p['type'] === 'skip' && !p['kindId'] ? 'skip needs kindId' : null) ??
@@ -145,85 +166,56 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('departureId');
     case 'v1.RequestMade':
       return (
-        request() ??
-        (p['profileId'] === undefined && p['guest'] === undefined ? 'profileId or guest required' : null)
-      );
-    case 'v2.RequestMade':
-      return (
-        request() ??
-        (p['teamId'] === undefined ? null : str('teamId')) ??
-        (['profileId', 'guest', 'teamId'].filter((k) => p[k] !== undefined).length === 1 ? null : 'exactly one of profileId, guest, teamId')
+        str('requestId', 'unitId') ??
+        oneOf('what', ['record', 'review']) ??
+        optStr('kindId', 'profileId', 'teamId', 'dueDate', 'note', 'noteBlobHash') ??
+        (p['what'] === 'review' && !p['kindId'] ? 'a review request needs kindId' : null) ??
+        (p['guest'] === undefined || guest(p['guest']) ? null : 'guest needs name, channel, contact') ??
+        (p['questions'] === undefined || questions(p['questions']) ? null : 'questions must be id, text, type') ??
+        (['profileId', 'guest', 'teamId'].filter((k) => p[k] !== undefined && p[k] !== '').length === 1 ? null : 'exactly one of profileId, guest, teamId')
       );
     case 'v1.RequestWithdrawn':
       return str('requestId');
     case 'v1.NoteAdded':
       return (
-        str('noteId', 'unitId', 'laneId') ??
+        str('noteId', 'unitId') ??
         optStr('text', 'blobHash', 'photoHash', 'onTakeId') ??
         anchor(p['anchor']) ??
         (!p['text'] && !p['blobHash'] && !p['photoHash'] ? 'a note needs text, audio or a photo' : null)
       );
     case 'v1.StudyStepMarked':
-      return str('unitId', 'laneId', 'guideId', 'stepId') ?? (typeof p['done'] === 'boolean' ? null : 'done must be a boolean');
-    case 'v1.LaneNamed':
-      return str('laneId', 'name');
-    case 'v1.LaneCountrySet':
-      return str('laneId') ?? (typeof p['country'] === 'string' && /^[A-Z]{2}$/.test(p['country']) ? null : 'country must be an ISO 3166 alpha-2 code');
-    case 'v1.LaneTargetSet':
-      return (
-        str('laneId') ?? oneOf('scope', ['gospels', 'nt', 'ot', 'bible']) ?? date('startDate') ?? date('targetDate') ??
-        ((p['targetDate'] as string) > (p['startDate'] as string) ? null : 'targetDate must be after startDate')
-      );
-    case 'v1.InviteIssued':
-      return str('inviteId', 'roleId', 'expiresAt') ?? scope(p['scope']);
-    case 'v1.InviteRedeemed':
-      return str('inviteId', 'profileId');
-    case 'v1.JoinDecided':
-      return str('requestId', 'profileId') ?? (typeof p['accepted'] === 'boolean' ? null : 'accepted must be a boolean');
-    case 'v1.OrgLicenseSet':
-      return isLicense(p['license']) ? null : `license must be one of ${LICENSES.join(', ')}`;
-    // ---- the library (library.ts, docs/decisions.md 36)
-    case 'v1.LibraryItemDefined':
-      return libraryItem() ?? str('name') ?? (typeof p['description'] === 'string' ? null : 'description must be a string') ??
-        (p['copiedFrom'] === undefined || (isObject(p['copiedFrom']) && nonEmpty(p['copiedFrom'], 'orgId', 'orgName', 'itemId') && hash((p['copiedFrom'] as Record<string, unknown>)['docHash']))
-          ? null : 'copiedFrom needs orgId, orgName, itemId and a docHash');
-    case 'v1.LibraryVersionPublished':
-      return libraryItem() ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ?? optStr('note');
-    case 'v1.LibrarySharingSet':
-      return libraryItem() ?? bool('shared') ?? bool('subscribable');
-    case 'v1.LibraryItemArchived':
-      return libraryItem() ?? bool('archived');
-    case 'v1.LibrarySubscribed':
-      return libraryItem() ?? str('sourceOrgId', 'sourceOrgName', 'sourceItemId', 'name') ?? bool('autoUpdate') ?? bool('active');
-    case 'v1.LibraryPinned':
-      return libraryItem() ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');
-    case 'v2.LaneTemplateSelected':
-      return str('laneId', 'itemId', 'unitPrefix') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
-        (/[/\s]/.test(p['unitPrefix'] as string) ? 'unitPrefix may not contain / or spaces' : null) ??
-        (p['books'] === undefined || (Array.isArray(p['books']) && (p['books'] as unknown[]).every((b) => typeof b === 'string' && /^[A-Z0-9]{3}$/.test(b)))
-          ? null : 'books must be USFM book codes');
-    case 'v1.LaneUnitHidden':
-      return str('laneId', 'unitId') ?? bool('hidden');
-    case 'v2.LaneFlowSelected':
-      return str('laneId', 'flowId', 'itemId', 'name') ?? (hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest') ??
-        (typeof p['catalogVersion'] === 'number' && p['catalogVersion'] >= 2 ? null : 'catalogVersion must be 2 or more') ??
-        (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null);
-    case 'v1.ReviewTeamKindSet':
-      return str('teamId', 'laneId') ?? (p['kindId'] === null ? null : str('kindId'));
-    // ---- reference material (references.ts)
-    case 'v1.ReferenceRecommended':
-      return str('itemId') ?? bool('recommended');
-    case 'v1.LaneReferenceRecommended':
-      return str('laneId', 'itemId') ?? oneOf('state', ['recommended', 'hidden', 'inherit']);
+      return str('unitId', 'guideId', 'stepId') ?? bool('done');
+    case 'v1.MaterialDefined':
+      return str('materialId', 'kind', 'title') ?? optStr('templateRef') ??
+        (isObject(p['scope']) && Object.entries(p['scope']).every(([k, v]) => (k === 'unitId' || k === 'stepId') && nonEmpty(v))
+          ? null : 'scope may name a unitId and a stepId only');
+    case 'v1.MaterialFieldSet':
+      return str('materialId', 'fieldId') ?? optStr('text', 'blobHash');
+    case 'v1.MaterialLocked':
+      return str('materialId') ?? bool('locked');
+    case 'v1.KeyTermDefined':
+      return str('termId', 'term') ?? (typeof p['gloss'] === 'string' ? null : 'gloss must be a string') ?? strArray('unitScope');
+    case 'v1.KeyTermRenderingAdded':
+      return str('termId', 'renderingId', 'rendering') ?? (typeof p['context'] === 'string' ? null : 'context must be a string');
+    case 'v1.KeyTermAdjusted':
+      return str('termId', 'adjustmentId') ?? (typeof p['note'] === 'string' ? null : 'note must be a string') ?? optStr('blobHash', 'duringTakeId');
+    case 'v1.KeyTermLinked':
+      return str('takeId', 'termId') ?? optStr('note', 'adjustmentId');
+    case 'v1.ReferenceSet':
+      return str('itemId') ?? oneOf('state', ['recommended', 'hidden', 'inherit']);
     case 'v1.PassageReferenceLinked':
-      return str('laneId', 'unitId', 'itemId') ?? bool('linked');
+      return str('unitId', 'itemId') ?? bool('linked');
     case 'v1.ReferencesUsed':
       return (
-        str('laneId', 'unitId') ??
+        str('unitId') ??
         (['takeId', 'reviewId'].filter((k) => p[k] !== undefined).length === 1 ? null : 'exactly one of takeId, reviewId') ??
         optStr('takeId', 'reviewId') ?? (p['takeId'] === '' || p['reviewId'] === '' ? 'takeId or reviewId must be non-empty' : null) ??
         usedItems(p['items'])
       );
+    case 'v1.BlobStored':
+      return str('hash') ?? (typeof p['size'] === 'number' ? null : 'size must be a number');
+    case 'v1.BlobInvalidated':
+      return str('hash') ?? optStr('reason');
     default:
       return null;
   }
@@ -242,15 +234,12 @@ function usedItems(v: unknown): string | null {
   return null;
 }
 
-/** A membership scope: org, or project with projectId, or lane with projectId and laneId. */
+/** A membership scope: the organization, or one language. */
 function scope(v: unknown): string | null {
   if (!isObject(v)) return 'scope must be an object';
-  const level = v['level'];
-  if (level === 'org') return null;
-  if (typeof v['projectId'] !== 'string' || v['projectId'] === '') return 'scope.projectId required';
-  if (level === 'project') return null;
-  if (level === 'lane') return typeof v['laneId'] === 'string' && v['laneId'] !== '' ? null : 'scope.laneId required';
-  return 'scope.level must be org, project or lane';
+  if (v['level'] === 'org') return Object.keys(v).length === 1 ? null : 'an org scope names nothing else';
+  if (v['level'] === 'language') return nonEmpty(v['languageId']) && Object.keys(v).length === 2 ? null : 'a language scope names its languageId and nothing else';
+  return 'scope.level must be org or language';
 }
 
 const nonEmpty = (v: unknown) => typeof v === 'string' && v !== '';
