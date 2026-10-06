@@ -70,6 +70,12 @@ export interface EventStore {
   pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
   /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
   pendingCount(orgId: string, projectId: string): Promise<number>;
+  /**
+   * How many of one person's events are pending. On a shared phone the log
+   * holds everyone's queued events, and only their author's session can send
+   * them (decisions.md 11), so "still to send" is counted per person.
+   */
+  pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number>;
   /** How many events all() returns, without loading them. */
   count(orgId: string, projectId: string): Promise<number>;
   /** Every non-rejected event for a partition (confirmed then pending is fine). */
