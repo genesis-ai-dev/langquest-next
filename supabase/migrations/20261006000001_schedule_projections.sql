@@ -13,7 +13,7 @@ create extension if not exists pg_net with schema extensions;
 do $$
 begin
   perform cron.unschedule(j.jobid) from cron.job j
-    where j.jobname in ('langquest-stream-projections', 'langquest-partition-projections');
+    where j.jobname in ('langquest-stream-projections', 'langquest-project-projections');
   if not exists (select 1 from vault.decrypted_secrets where name = 'langquest_project_url')
      or not exists (select 1 from vault.decrypted_secrets where name = 'langquest_projection_worker_secret') then
     raise notice 'Projection worker not scheduled: the LangQuest Vault secrets are not set in this database.';

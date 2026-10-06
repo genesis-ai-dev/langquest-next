@@ -23,7 +23,6 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'apps/mobile/src/study/chapterText.ts', words: /^lanes?$/i, why: 'Bible text ("the streets and lanes of the city")' },
   { path: 'scripts', words: /^projects?$/i, why: "Supabase and Cloudflare projects in deploy and environment scripts" },
   { path: 'scripts/linear-sync', words: /^lanes?$/i, why: 'deploy lanes (iOS, Android), not languages' },
-  { path: 'supabase/migrations/20261006000001_schedule_projections.sql', words: /^partition$/i, why: 'unscheduling the job by its old name' },
   { path: 'packages/client/src/sqliteStore.ts', words: /^lane$/i, why: 'dropping a table older apps made' }
 ];
 
