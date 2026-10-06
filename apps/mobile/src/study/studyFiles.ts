@@ -1,5 +1,5 @@
 // Study pictures, maps and step audio kept on this phone for passages kept
-// offline (decisions.md 59). They are web addresses in the guide (FIA sends
+// offline (decisions.md 61). They are web addresses in the guide (FIA sends
 // low-resolution copies), so they are kept by address: the file's name is a
 // hash of its address, and a screen asks `studyUri` for the local file
 // before falling back to the web. Films stay online: they are too large to

@@ -302,7 +302,7 @@ export function PassageRecord(ctx: Ctx) {
               )} />
           </Card>
 
-          {/* What comes along without a connection, before anyone finds out in the field (decisions.md 59). */}
+          {/* What comes along without a connection, before anyone finds out in the field (decisions.md 61). */}
           <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
 
           {showDetails ? <SectionLabel label="Details" /> : null}

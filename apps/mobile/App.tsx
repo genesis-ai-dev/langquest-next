@@ -56,6 +56,7 @@ import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useProject } from './src/useProject';
+import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
 
 // Initial selection, before the account's saved organization is restored.
@@ -239,6 +240,8 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
+  // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
+  useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
     if (supabaseConfigError) return;
     supabase.auth.getSession().then(({ data }) => setAuth(data.session));

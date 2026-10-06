@@ -744,6 +744,7 @@ export function EditMember(ctx: Ctx) {
         </>
       ) : undefined}>
       <Row leading={<Avatar id={memberId} size={48} />} label={who} sub={pending ? 'Asked to join' : v.target(entry!.scope)} />
+      {!pending && memberId ? <HelpSignIn memberId={memberId} who={who} /> : null}
       <Text style={txt.xs}>{pending
         ? 'This person created an account and asked to join. Assign a role to give them access; they join at organization scope, and you can narrow it here afterwards.'
         : legacy ? 'Added before organization roles. Their role applies to every language.'
@@ -757,20 +758,24 @@ export function EditMember(ctx: Ctx) {
         <LinkBtn label={`Remove from ${LEVEL_LABEL[entry!.scope.level].toLowerCase()}`} color={TINT.redText}
           onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
       ) : null}
-      {!pending && memberId ? <HelpSignIn memberId={memberId} who={who} /> : null}
     </Screen>
   );
 }
 
 /**
- * Help a looked-after member back in (docs/invites-and-accounts.md flow F):
- * their steward, or an organization admin, shows a one-time QR, and the
- * person scans it from Sign In to choose a new password. Shown only when the
- * server says this session may help this person.
+ * Help a member without email back in on a new phone (flow F, decisions.md
+ * 59): anyone who may invite them where they are shows a one-time code, and
+ * they scan it from Sign In and are in, with nothing to type. "Their old
+ * phone is lost" makes the code sign that phone out. Shown only when the
+ * server says this session may help this person, at the top of their page so
+ * a new invite (a second account) is not the first thing a helper reaches for.
  */
+const HELP_ROW = { flexDirection: 'row', alignItems: 'center', gap: space.md } as const;
+
 function HelpSignIn(props: { memberId: string; who: string }) {
   const [may, setMay] = useState(false);
-  const [key, setKey] = useState<{ code: string; signInName: string } | null>(null);
+  const [lost, setLost] = useState(false);
+  const [key, setKey] = useState<{ code: string; signInName: string; lost: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -779,26 +784,38 @@ function HelpSignIn(props: { memberId: string; who: string }) {
     return () => { active = false; };
   }, [props.memberId]);
   if (!may) return null;
+  const first = props.who.split(' ')[0] || props.who;
   async function make() {
     setBusy(true);
     setError('');
-    try { setKey(await issueSignInCode(props.memberId)); }
+    try { setKey({ ...(await issueSignInCode(props.memberId, lost)), lost }); }
     catch (e) { noteExpected('sign-in code', e); setError(e instanceof Error ? e.message : 'Try again when connected.'); }
     finally { setBusy(false); }
   }
   return (
     <>
-      <SectionLabel label="Signing in" />
       {key ? (
         <Card style={{ alignItems: 'center' }}>
           <QRCode value={signInUri(key.code, APP_URL)} size={200} backgroundColor={C.white} color={C.dark} />
-          <Text style={txt.h3}>Sign-in name: {key.signInName}</Text>
-          <Text style={[txt.xs, { textAlign: 'center' }]}>
-            On their phone, {props.who} taps Scan a code on Sign In, scans this, and chooses a new password. It works once, for one hour.
+          <Text style={txt.h3}>Sign-in code for {props.who}</Text>
+          <Text style={[txt.smMuted, { textAlign: 'center' }]}>
+            On their new phone, {first} opens LangQuest, taps Scan a code and points it here. It works once, for one hour.
+            {key.lost ? ' Using it signs their old phone out.' : ''}
           </Text>
+          <Text style={[txt.xs, { textAlign: 'center' }]}>{first} will see in Settings that you helped them sign in.</Text>
         </Card>
       ) : (
-        <GhostBtn label="Help them sign in" icon="lock" disabled={busy} onPress={() => void make()} />
+        <Card>
+          <View style={HELP_ROW}>
+            <Ico name="lock" size={22} color={C.primary} />
+            <Text style={[txt.body, { flex: 1 }]}>{first} has no email. On a new phone, show them a sign-in code.</Text>
+          </View>
+          <View style={HELP_ROW}>
+            <Text style={[txt.sm, { flex: 1 }]}>Their old phone is lost or stolen: sign it out</Text>
+            <Toggle on={lost} onToggle={() => setLost(!lost)} label="Their old phone is lost or stolen" />
+          </View>
+          <PrimaryBtn label="Help them sign in" icon="qr" busy={busy} disabled={busy} onPress={() => void make()} />
+        </Card>
       )}
       {error ? <Banner icon="flag" tone="amber" title="No code was made" body={error} /> : null}
     </>
@@ -862,6 +879,9 @@ export function InviteQr(ctx: Ctx) {
       {step === 0 ? (
         <>
           <Text style={txt.xs}>Pick the role this person should have. You don't need their email.</Text>
+          {/* A new invite for someone already on the team makes a second account (decisions.md 59). */}
+          <Banner icon="lock" title="Already on the team, with a new phone?"
+            body="Open them in Members and tap Help them sign in. A new invite would make a second account." />
           <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: plural(r.privileges, 'privilege') }))} value={roleId} onChoose={setRoleId}
             empty="No roles yet." />
           {ctx.session.can('manage_roles') ? (

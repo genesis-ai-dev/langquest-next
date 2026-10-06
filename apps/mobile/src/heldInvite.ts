@@ -24,18 +24,39 @@ export interface HeldInvite {
   /** When it was scanned (ms). */
   heldAt: number;
   claim: Claim;
+  /** When the invite itself expires (ms), once the server has said (`withExpiry`). */
+  expiresAt?: number;
+  /**
+   * The one id for joining with this invite as a new person (the `join`
+   * function, decisions.md 59): a retry after a lost reply signs the same
+   * account in instead of making a second.
+   */
+  joinId?: string;
 }
 
-/** A held invite nobody used is let go after a day: long enough to find a signal, short enough not to surprise. */
-export const HOLD_MS = 24 * 60 * 60 * 1000;
+/**
+ * How long an invite nobody has used is held when the server has not said
+ * when it expires (scanned offline): a week, as long as an invite lasts
+ * unless its maker chose otherwise. Someone who scans in a village and finds
+ * a signal days later still joins; claims keep it from surprising the next
+ * person on a shared phone.
+ */
+export const HOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Scanning holds the key. Scanning the one already held keeps who it is for
  * (a second scan is not a second decision); any other key replaces it.
  */
 export function holdScanned(prev: HeldInvite | null, key: { token: string; orgId?: string }, now: number): HeldInvite {
+  // The same key keeps what is known about it: who it is for, its expiry, its join id.
   if (prev && prev.token === key.token) return { ...prev, ...(key.orgId ? { orgId: key.orgId } : {}), heldAt: now };
   return { token: key.token, ...(key.orgId ? { orgId: key.orgId } : {}), heldAt: now, claim: { kind: 'unclaimed' } };
+}
+
+/** The server said when the invite expires: hold it until then, not a fixed time. */
+export function withExpiry(held: HeldInvite, expiresAtIso: string | undefined): HeldInvite {
+  const at = expiresAtIso ? Date.parse(expiresAtIso) : NaN;
+  return Number.isFinite(at) ? { ...held, expiresAt: at } : held;
 }
 
 /** The person said who is joining. */
@@ -60,7 +81,7 @@ export type Step =
  */
 export function nextStep(held: HeldInvite | null, actorId: string | null, now: number): Step {
   if (!held) return { step: 'none' };
-  if (now - held.heldAt > HOLD_MS || now < held.heldAt - HOLD_MS) return { step: 'drop' };
+  if (now > (held.expiresAt ?? held.heldAt + HOLD_MS) || now < held.heldAt - HOLD_MS) return { step: 'drop' };
   if (!actorId) return { step: 'none' };
   switch (held.claim.kind) {
     case 'unclaimed': return { step: 'ask', held };

@@ -1,5 +1,6 @@
 export * from './types';
 export * from './syncClient';
+export * from './courier';
 export * from './syncScheduler';
 export * from './memoryStore';
 export * from './supabaseTransport';

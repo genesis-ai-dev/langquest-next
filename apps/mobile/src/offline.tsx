@@ -1,5 +1,5 @@
 // What this phone has for use without a connection, said where people look:
-// on each passage, as a mark on the Map, and in Settings (decisions.md 59).
+// on each passage, as a mark on the Map, and in Settings (decisions.md 61).
 // Text, status and history of the open language are always here; audio
 // (core `offlineByUnit`) and, on a phone, study pictures and audio
 // (study/studyFiles.ts) are here only for passages kept offline. The worry this

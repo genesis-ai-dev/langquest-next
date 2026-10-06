@@ -18,7 +18,7 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined, laneI
 }
 
 /**
- * Guides for many passages at once (the offline prefetch, decisions.md 59).
+ * Guides for many passages at once (the offline prefetch, decisions.md 61).
  * A passage missing from the map has no guide, or its documents have not loaded.
  */
 export function useStudyGuides(ctx: Ctx, unitIds: readonly string[], laneId?: string | null): Map<string, StudyGuide> {

@@ -609,7 +609,7 @@ function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; o
   const { c } = props;
   const t = TONES[c.tone];
   const parts = c.list.length;
-  // Kept passages of this chapter (decisions.md 59): the mark is green only when every kept one is ready.
+  // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
   const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this phone${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
   const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;

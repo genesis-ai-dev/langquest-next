@@ -45,7 +45,7 @@ const guide = (urls: { step?: string; photo?: string; film?: string; term?: stri
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
-describe('study files kept for offline (decisions.md 59)', () => {
+describe('study files kept for offline (decisions.md 61)', () => {
   beforeEach(() => { disk.clear(); net.down.clear(); net.fetched = []; net.hold = null; vi.resetModules(); vi.useRealTimers(); });
 
   it('takes step audio, pictures and glossary audio along, but not films', async () => {

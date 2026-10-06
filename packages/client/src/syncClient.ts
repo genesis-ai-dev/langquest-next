@@ -109,6 +109,13 @@ export interface SyncClientOptions<S = ProjectState> {
    * sync, split into waiting on the network and working on the phone.
    */
   diag?: Diagnostics;
+  /**
+   * Push only, for a person who handed a shared phone on (`deliverQueued`,
+   * decisions.md 60): the client never folds, writes projections or
+   * re-stamps clocks, because the phone's own client owns those. An event
+   * refused for its clock stays queued for the person's own next session.
+   */
+  deliverOnly?: boolean;
 }
 
 /** A sync that moved nothing is recorded only when it took at least this long. */
@@ -165,7 +172,7 @@ export class SyncClient<S = ProjectState> {
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (PROJECT_MATERIALIZER as unknown as Materializer<S>);
-    this.projectRows = !opts.materializer;
+    this.projectRows = !opts.materializer && !opts.deliverOnly;
     this.state = this.m.empty();
     this.writer.onChange(() => this.publish());
     const base = opts.now ?? (() => Date.now());
@@ -623,11 +630,11 @@ export class SyncClient<S = ProjectState> {
         }
         await this.commit({ events: writes, rows: this.projectRows && writes.every((l) => l.status === 'confirmed') ? this.rowsBatch([]) : undefined });
       }
-      if (clockAhead.length > 0) await this.restamp(clockAhead);
+      if (clockAhead.length > 0 && !this.opts.deliverOnly) await this.restamp(clockAhead);
     } finally {
       // A rejection means the fold contains something the server refused.
       // Refold from the log; the rejected event is excluded by `all()`.
-      if (rejected > 0 || clockAhead.length > 0) await this.load();
+      if (!this.opts.deliverOnly && (rejected > 0 || clockAhead.length > 0)) await this.load();
     }
     return { accepted, rejected, more };
   }
@@ -904,7 +911,13 @@ export class SyncClient<S = ProjectState> {
     return { pending, rejected, total, cursor, checkpointSeq: snap?.serverSeq ?? null };
   }
 
+  /**
+   * This session's own unsent events: what it can still deliver. Another
+   * person's queued events on a shared phone are theirs to send (push skips
+   * them), so they are never "waiting to send" here and never hold up this
+   * person's sign-out (decisions.md 11, 12).
+   */
   async pendingCount(): Promise<number> {
-    return this.opts.store.pendingCount(this.opts.orgId, this.opts.projectId);
+    return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.projectId, this.opts.actorId);
   }
 }

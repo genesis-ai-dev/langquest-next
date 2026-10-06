@@ -102,13 +102,14 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
 }
 
 /**
- * A sign-in key for a looked-after member (flow F), made by their steward or
- * an organization admin. Only the hash leaves the phone; the code is shown
- * once, as a QR. Returns the person's sign-in name to read out with it.
+ * A sign-in key for a looked-after member (flow F), made by anyone who may
+ * invite them where they are (decisions.md 59). Only the hash leaves the
+ * phone; the code is shown once, as a QR. `lost`: the old phone is lost or
+ * stolen, and using the key signs it out. Returns the person's sign-in name.
  */
-export async function issueSignInCode(profileId: string): Promise<{ code: string; signInName: string }> {
+export async function issueSignInCode(profileId: string, lost = false): Promise<{ code: string; signInName: string }> {
   const code = newToken();
-  const { data, error } = await supabase.rpc('issue_sign_in_code', { p_profile: profileId, p_code_hash: await sha256Hex(code) });
+  const { data, error } = await supabase.rpc('issue_sign_in_code_v2', { p_profile: profileId, p_code_hash: await sha256Hex(code), p_lost: lost });
   if (error) throw new Error(error.message);
   return { code, signInName: data as string };
 }
@@ -119,19 +120,41 @@ export async function canHelpSignIn(profileId: string): Promise<boolean> {
   return !error && data === true;
 }
 
-/**
- * Use a sign-in key with a new password, signed out. Returns the sign-in
- * name; the caller signs in with it.
- */
-export async function redeemSignInCode(code: string, password: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke('sign-in-code', { body: { code, password } });
+/** What `join` and `sign-in-code` hand back: the session the phone signs in with. */
+export interface Tokens { access_token: string; refresh_token: string }
+
+/** An Edge Function's refusal, in the function's own words (they are in the response body). */
+export class FunctionError extends Error {
+  constructor(message: string, readonly needsName = false) { super(message); }
+}
+
+async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
-    // The function's own words are in the response body.
     const context = (error as { context?: Response }).context;
-    const body = context ? await context.json().catch(() => null) as { error?: string } | null : null;
-    throw new Error(body?.error ?? error.message);
+    const reply = context ? await context.json().catch(() => null) as { error?: string; needsName?: boolean } | null : null;
+    throw new FunctionError(reply?.error ?? error.message, reply?.needsName === true);
   }
-  return (data as { signInName: string }).signInName;
+  return data as T;
+}
+
+/**
+ * Join with an invite as a new person (flow A, decisions.md 59): no email, no
+ * password. The server makes the account, adds the membership and returns a
+ * session. `joinId` is the same for every try with this invite, so a retry
+ * after a lost reply signs the same account in. A group invite needs `name`
+ * (FunctionError.needsName says so).
+ */
+export async function joinByInvite(token: string, joinId: string, name?: string): Promise<{ session: Tokens; orgId: string; signInName: string }> {
+  return invoke('join', { token, requestId: joinId, ...(name?.trim() ? { name: name.trim() } : {}) });
+}
+
+/**
+ * Use a helper's sign-in key, signed out (flow F): nothing to type. Returns
+ * the session, who helped, and whether the old phone was signed out.
+ */
+export async function redeemSignInCode(code: string): Promise<{ session: Tokens; signInName: string; helper: string | null; oldPhoneSignedOut?: boolean }> {
+  return invoke('sign-in-code', { code });
 }
 
 /** Ask to join an org. One row per (org, requester); asking twice is not an error. */

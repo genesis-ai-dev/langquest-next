@@ -71,6 +71,8 @@ export interface ProjectHandle {
     keepOffline: (unitId: string, keep: boolean) => Promise<void>;
     /** Audio files on this phone now; a new set whenever one arrives or is reclaimed. */
     present: ReadonlySet<string>;
+    /** Recordings here the server has not confirmed: what a hand-over must still send (handOver.ts). */
+    unsent: () => BlobRef[];
   };
   /** Call after recording: clears upload backoff and starts a pass now. */
   triggerUpload: () => void;
@@ -411,7 +413,12 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
     present,
     peakUp,
     peakDown,
-    rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() })
+    rates: () => ({ up: upMeter.current.perSecond(), down: downMeter.current.perSecond() }),
+    unsent: () => {
+      const c = clientRef.current;
+      const store = storeRef.current;
+      return c && store ? deriveUploadWork(c.getState(), store.snapshot(), store.sizes()) : [];
+    }
   };
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);

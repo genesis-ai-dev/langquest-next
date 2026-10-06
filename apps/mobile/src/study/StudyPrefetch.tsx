@@ -1,4 +1,4 @@
-// Takes kept passages' study pictures and audio along (decisions.md 59):
+// Takes kept passages' study pictures and audio along (decisions.md 61):
 // mounted once with the app, it finds each kept passage's guide and hands
 // its addresses to `studyFiles.ts`, which downloads what is missing while
 // connected. Draws nothing.
