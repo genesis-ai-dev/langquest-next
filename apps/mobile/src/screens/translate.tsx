@@ -21,13 +21,13 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Banner, Card, EmptyState, Field, Header, PrimaryBtn, Screen, SectionLabel, Sheet, txt
+  Banner, Card, EmptyState, Field, Header, Ico, PrimaryBtn, Screen, SectionLabel, Sheet, txt
 } from '../kit';
 import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
 import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
@@ -50,7 +50,7 @@ import { contractsFor } from '../screenContracts';
 import { SourceReader } from '../sources/SourceReader';
 import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
-import { studyProgress } from '../study/progress';
+import { studyProgress, studySummary } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
@@ -270,6 +270,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 {sourceWords && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
               </View>
               {sourceWords && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
+              {/* The passage's study guide, one tap from the source, so reference material is seen while recording. */}
+              {guide && study && !recording ? (
+                <Pressable onPress={() => { setTab('study'); setHelp(true); }} accessibilityRole="button"
+                  accessibilityLabel={`Study guide, ${guide.pattern} ${guide.passage}, ${studySummary(study)}. Open`}
+                  style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.7 }]}>
+                  <Ico name="sparkle" size={18} color={C.primary} />
+                  <Text style={[txt.sm, { flex: 1 }]} numberOfLines={1}>
+                    <Text style={{ fontWeight: '700' }}>{guide.pattern} study guide</Text> · {studySummary(study)}
+                  </Text>
+                  <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
+                </Pressable>
+              ) : null}
             </View>}
             footer={<ReferenceRecordings ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
             {...(recording ? {} : {
@@ -505,6 +517,7 @@ function capitalize(s: string): string {
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  guideRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: C.card },
   checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
   // LAN-23: each half its own ground, so the two read as different places. The
   // source is cool (the brand's pale tint; the theme has no blue), your
