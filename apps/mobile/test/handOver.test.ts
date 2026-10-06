@@ -1,11 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { BlobRef } from '@langquest-next/core';
 import { afterAttempt, parseHandOvers, withHandOver, type Attempt, type HandOver } from '../src/handOverCore';
+import { sessionStorageKey } from '../src/sessionKey';
 
-vi.mock('react-native-url-polyfill/auto', () => ({}));
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} }
-}));
 
 const ref = (hash: string): BlobRef => ({ hash, format: 'm4a', unitId: 'u1' });
 const upload = (hash: string) => ({ orgId: 'org', projectId: 'luke', ref: ref(hash) });
@@ -47,8 +44,7 @@ describe('hand-over on a shared phone (decisions.md 60)', () => {
 });
 
 describe('what the hand-over relies on in supabase-js', () => {
-  it('the session key named in supabase.ts is the one supabase-js uses by default', async () => {
-    const { sessionStorageKey } = await import('../src/supabase');
+  it('the session key named in sessionKey.ts is the one supabase-js uses by default', () => {
     for (const url of ['https://abcdefgh.supabase.co', 'http://127.0.0.1:54321']) {
       const client = createClient(url, 'anon', { auth: { persistSession: false, autoRefreshToken: false } });
       expect(sessionStorageKey(url)).toBe((client.auth as unknown as { storageKey: string }).storageKey);
