@@ -12,7 +12,7 @@ import { buildFixture, buildStep11Fixture } from './fixtures';
  * for every actor, and (b) keeping rows current one event at a time, using
  * `affectedPassages` to choose which rows to touch, lands on the same rows a
  * from-scratch rebuild produces. (b) is the property that lets one review
- * update one row instead of the project.
+ * update one row instead of the partition.
  */
 function allRows(state: ReturnType<typeof emptyState>): Map<string, PassageRow> {
   const idx = buildIndexes(state);

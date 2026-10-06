@@ -11,7 +11,7 @@ describe('SupabaseTransport error classification', () => {
   it('reports a 42501 refusal as not authorized, never as offline', async () => {
     // Why: `raise exception 'not a member' using errcode = '42501'` in
     // supabase/migrations/20260914000009_org_partition.sql is what a device
-    // pointed at a project it is not a member of gets back. The server
+    // pointed at a partition it is not a member of gets back. The server
     // answered, so the device is online; calling it offline strands the user.
     const t = failingWith({ code: '42501', message: 'not a member' });
     await expect(t.pull('org1', 'p1', 0, 500)).rejects.toBeInstanceOf(NotAuthorizedError);

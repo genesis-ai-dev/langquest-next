@@ -3,7 +3,7 @@ import { templateOfUnit } from './catalog';
 import type { EventSpec } from './commands';
 import type { CollectionDoc, FlowDoc, MaterialDoc, StudyDoc, TemplateDoc } from './libraryDocs';
 import { FLOW_CATALOG_VERSION, flowStepPrefix } from './record';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 import {
   bookOrder, chaptersInBook, parseRef, refId, sharedVerses, versesInChapter, type VerseRange, type VersificationDoc
 } from './versification';
@@ -98,7 +98,7 @@ export function templateUnits(doc: TemplateDoc, unitPrefix: string, versificatio
  * again come back. Units already in the log are not repeated.
  */
 export function selectTemplateSpecs(
-  state: ProjectState,
+  state: PartitionState,
   c: { commandId: string; laneId: string; itemId: string; docHash: string; doc: TemplateDoc; versification: VersificationDoc | null; books?: string[] }
 ): EventSpec[] {
   const prefix = unitPrefixFor(c.itemId);
@@ -138,7 +138,7 @@ export function libraryFlowId(itemId: string, docHash: string): string {
  * (never removed, decision 32), and the selection.
  */
 export function selectFlowSpecs(
-  state: ProjectState,
+  state: PartitionState,
   c: { commandId: string; laneId: string; itemId: string; docHash: string; doc: FlowDoc }
 ): EventSpec[] {
   let n = 0;
@@ -172,7 +172,7 @@ export function selectFlowSpecs(
 // ---- study material that lines up with a passage --------------------------------------------
 
 /** A passage's verse range, from its unit id (library units) or its label (older units). */
-export function unitVerseRange(state: ProjectState, unitId: string, versification?: VersificationDoc | null): VerseRange | null {
+export function unitVerseRange(state: PartitionState, unitId: string, versification?: VersificationDoc | null): VerseRange | null {
   const node = unitId.slice(unitId.indexOf('/') + 1);
   const versesIn = versification ? (b: string, c: number) => versesInChapter(versification, b, c) : undefined;
   const fromId = /^[A-Z0-9]{3}(\.\d+)/.test(node) ? parseRef(node, versesIn) : null;

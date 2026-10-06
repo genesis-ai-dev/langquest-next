@@ -262,7 +262,7 @@ const short = (value: unknown) => createHash('sha256').update(canonicalJson(valu
 export function seedEvents(build: SeedBuild, now: number): AnyEvent[] {
   let counter = 0;
   const envelope = (id: string, type: string, payload: Record<string, unknown>) => ({
-    id, type, orgId: SEED_ORG.id, projectId: ORG_PARTITION, actorId: 'service', deviceId: 'library-seed',
+    id, type, orgId: SEED_ORG.id, partitionId: ORG_PARTITION, actorId: 'service', deviceId: 'library-seed',
     hlc: encodeHlc(now, counter++, 'library-seed'), payload
   }) as unknown as AnyEvent;
   const out: AnyEvent[] = [envelope(`seed:${SEED_ORG.id}:created`, 'v1.OrgCreated', { name: SEED_ORG.name })];

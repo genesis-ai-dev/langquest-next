@@ -6,7 +6,7 @@ import { bookOfChapter, chapterNumber, SCOPE_VERSES, unitChapters, unitVerses } 
 /** Coverage counts verses of the canon, so the parse of each unit kind decides what "90% of the Gospels" means. */
 
 const withUnits = (units: [string, string][]) => fold(units.map(([unitId, label], i) => ({
-  id: `u${i}`, type: 'v1.UnitAdded', orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'a', hlc: `00000000000000${i}:000000:a`,
+  id: `u${i}`, type: 'v1.UnitAdded', orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'a', hlc: `00000000000000${i}:000000:a`,
   payload: { unitId, parentUnitId: null, kind: 'passage', label, order: String(i) }
 }) as AnyEvent), emptyState());
 

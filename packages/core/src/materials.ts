@@ -1,7 +1,7 @@
 import { CATALOG_VERSION, QUESTION_TEMPLATES } from './catalog';
 import type { EventPayloads } from './events';
 import type { Indexes } from './indexes';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 
 /**
  * Reference material and key terms (docs/flow-coverage-audit.md 5.E).
@@ -96,7 +96,7 @@ export function templateFields(templateRef: string | undefined): string[] {
   return [];
 }
 
-export function materialView(state: ProjectState, materialId: string): MaterialView | null {
+export function materialView(state: PartitionState, materialId: string): MaterialView | null {
   const m = state.materials[materialId];
   if (!m) return null;
   const fields = Object.entries(m.fields)
@@ -119,7 +119,7 @@ export function materialView(state: ProjectState, materialId: string): MaterialV
 }
 
 /** Materials visible from a place: unscoped ones, the lane's, the unit's (and its ancestors'), the step's. */
-export function materialsFor(state: ProjectState, at: MaterialScope = {}): MaterialView[] {
+export function materialsFor(state: PartitionState, at: MaterialScope = {}): MaterialView[] {
   const ancestors = at.unitId ? unitAncestry(state, at.unitId) : new Set<string>();
   return Object.keys(state.materials)
     .map((id) => materialView(state, id)!)
@@ -134,7 +134,7 @@ export function materialsFor(state: ProjectState, at: MaterialScope = {}): Mater
 }
 
 /** Question sets: the step's default set (if linked) plus everything the translator attached. */
-export function questionSetsFor(state: ProjectState, takeId: string, stepId: string): MaterialView[] {
+export function questionSetsFor(state: PartitionState, takeId: string, stepId: string): MaterialView[] {
   const ids = new Set<string>(state.submissions[takeId]?.questionSetIds ?? []);
   const linked = state.stepQuestionSets[stepId]?.value;
   if (linked) ids.add(linked);
@@ -167,7 +167,7 @@ export interface KeyTermView {
   adjustments: { adjustmentId: string; note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: string }[];
 }
 
-export function keyTermView(state: ProjectState, termId: string): KeyTermView | null {
+export function keyTermView(state: PartitionState, termId: string): KeyTermView | null {
   const t = state.keyTerms[termId];
   if (!t) return null;
   return {
@@ -186,7 +186,7 @@ export function keyTermView(state: ProjectState, termId: string): KeyTermView | 
 }
 
 /** A lane's glossary, alphabetical. */
-export function keyTermsFor(state: ProjectState, laneId: string): KeyTermView[] {
+export function keyTermsFor(state: PartitionState, laneId: string): KeyTermView[] {
   return Object.entries(state.keyTerms)
     .filter(([, t]) => t.laneId === laneId)
     .map(([id]) => keyTermView(state, id)!)
@@ -198,13 +198,13 @@ export function keyTermsFor(state: ProjectState, laneId: string): KeyTermView[] 
  * term is relevant to a unit when its scope names the unit or an ancestor,
  * or when it has no scope at all.
  */
-export function keyTermsForUnit(state: ProjectState, laneId: string, unitId: string): KeyTermView[] {
+export function keyTermsForUnit(state: PartitionState, laneId: string, unitId: string): KeyTermView[] {
   const ancestors = unitAncestry(state, unitId);
   return keyTermsFor(state, laneId).filter((t) => t.unitScope.length === 0 || t.unitScope.some((u) => ancestors.has(u)));
 }
 
 /** The terms a submitted take relied on (reviewer's "terms the translator tied in"). */
-export function keyTermLinksFor(state: ProjectState, takeId: string): { term: KeyTermView; note?: string; adjustmentId?: string }[] {
+export function keyTermLinksFor(state: PartitionState, takeId: string): { term: KeyTermView; note?: string; adjustmentId?: string }[] {
   return Object.entries(state.keyTermLinks[takeId] ?? {})
     .map(([termId, l]) => {
       const term = keyTermView(state, termId);
@@ -214,7 +214,7 @@ export function keyTermLinksFor(state: ProjectState, takeId: string): { term: Ke
 }
 
 /** Inverse index: every take that tied in this term (key_term_detail's "linked translations"). */
-export function takesLinkingTerm(state: ProjectState, termId: string): { takeId: string; note?: string; adjustmentId?: string }[] {
+export function takesLinkingTerm(state: PartitionState, termId: string): { takeId: string; note?: string; adjustmentId?: string }[] {
   const out: { takeId: string; note?: string; adjustmentId?: string }[] = [];
   for (const [takeId, byTerm] of Object.entries(state.keyTermLinks)) {
     const l = byTerm[termId];
@@ -224,7 +224,7 @@ export function takesLinkingTerm(state: ProjectState, termId: string): { takeId:
 }
 
 /** The unit and every ancestor up to the root. */
-export function unitAncestry(state: ProjectState, unitId: string): Set<string> {
+export function unitAncestry(state: PartitionState, unitId: string): Set<string> {
   const out = new Set<string>();
   let cur: string | null = unitId;
   while (cur && !out.has(cur)) {

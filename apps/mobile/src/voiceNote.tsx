@@ -39,7 +39,7 @@ export function VoiceNote(props: {
     return (
       <View style={[styles.box, { backgroundColor: TINT.green, borderColor: `${C.green}55` }]}>
         <View style={{ flex: 1 }}>
-          <AudioClip project={props.ctx.project} hashes={[props.hash]} label="Play voice note" />
+          <AudioClip partition={props.ctx.partition} hashes={[props.hash]} label="Play voice note" />
         </View>
         <IconBtn name="trash" label="Delete voice note" onPress={() => props.onChange(null)} bg="transparent" color={TINT.greenText} />
       </View>

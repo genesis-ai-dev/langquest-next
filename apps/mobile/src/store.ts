@@ -95,7 +95,7 @@ export function getDiagStore(): Promise<SqliteDiagStore> {
   return diagPromise;
 }
 
-/** One local event log per device, shared by every open project. */
+/** One local event log per device, shared by every open partition. */
 export function getStore(): Promise<SqliteStore> {
   storePromise ??= allowed.then(() => open('langquest-next.db')).then(async (db) => {
     const driver = expoDriver(db);

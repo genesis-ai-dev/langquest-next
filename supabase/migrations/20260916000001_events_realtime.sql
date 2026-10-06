@@ -13,7 +13,7 @@ begin
     perform realtime.send(
       jsonb_build_object('server_seq', new.server_seq),
       'appended',
-      'events:' || new.org_id || '/' || new.project_id,
+      'events:' || new.org_id || '/' || new.partition_id,
       false
     );
   exception when others then

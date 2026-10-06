@@ -9,16 +9,16 @@ import { validateEvent } from './validate';
 /**
  * The organization partition (docs/flow-coverage-audit.md 5.A, 5.C).
  *
- * One extra partition per org, `projectId = ORG_PARTITION`, in the same log
- * with the same RPCs. It holds what must exist before a project does: the
+ * One extra partition per org, `partitionId = ORG_PARTITION`, in the same log
+ * with the same RPCs. It holds what must exist before a partition does: the
  * org, its roles (named privilege sets, UX spec A38), who holds which role
- * at which scope (org, project, or lane), which catalog items each level
- * has enabled (A42), and which projects exist. Every device pulls it whole;
+ * at which scope (org, partition, or lane), which catalog items each level
+ * has enabled (A42), and which partitions exist. Every device pulls it whole;
  * it is small.
  *
- * Authorization for a project partition is: the project's own membership
+ * Authorization for a partition partition is: the partition's own membership
  * (v1.MemberAdded, kept for compatibility) or an org membership whose scope
- * covers the project and whose role's privileges include the one the event
+ * covers the partition and whose role's privileges include the one the event
  * needs (`EVENT_PRIVILEGE`). The server runs the same table.
  */
 export const ORG_PARTITION = '_org';
@@ -36,7 +36,7 @@ export const WORK_PARTITION = 'work';
  */
 export function workPartitionOf(org: OrgState | null): string {
   let best: { id: string; hlc: string; eventId: string } | null = null;
-  for (const [id, p] of Object.entries(org?.projects ?? {})) {
+  for (const [id, p] of Object.entries(org?.partitions ?? {})) {
     if (!best || p.hlc < best.hlc || (p.hlc === best.hlc && p.eventId < best.eventId)) best = { id, hlc: p.hlc, eventId: p.eventId };
   }
   return best?.id ?? WORK_PARTITION;
@@ -44,14 +44,14 @@ export function workPartitionOf(org: OrgState | null): string {
 
 /**
  * An organization's languages (docs/decisions.md 37). Each one is its own
- * partition, registered in the org partition (`v1.ProjectRegistered`, with
+ * partition, registered in the org partition (`v1.PartitionRegistered`, with
  * the language's id as the partition id) so every member can see it exists
  * without pulling it; a phone pulls only the languages it opens. The name is
  * the latest `v1.LaneNamed` in the org partition, else the registered one.
  * Sorted by name, then id.
  */
 export function orgLanguages(org: OrgState | null): { laneId: string; name: string }[] {
-  return Object.entries(org?.projects ?? {})
+  return Object.entries(org?.partitions ?? {})
     .map(([laneId, p]) => ({ laneId, name: org?.languageNames[laneId]?.value ?? p.name }))
     .sort((a, b) => a.name.localeCompare(b.name) || (a.laneId < b.laneId ? -1 : 1));
 }
@@ -62,7 +62,7 @@ export function orgLanguages(org: OrgState | null): { laneId: string; name: stri
  * from before decision 37.
  */
 export function partitionOfLane(org: OrgState | null, laneId: string): string {
-  return org?.projects[laneId] ? laneId : workPartitionOf(org);
+  return org?.partitions[laneId] ? laneId : workPartitionOf(org);
 }
 
 /** The UX spec's privilege catalog (ROLE_PRIVILEGES), as stable ids. */
@@ -91,10 +91,10 @@ export const MANAGE_PRIVILEGES: readonly Privilege[] = [
   'manage_reference', 'manage_flows', 'manage_teams', 'assign_work', 'override_checkpoints'
 ];
 
-export type ScopeLevel = 'org' | 'project' | 'lane';
+export type ScopeLevel = 'org' | 'partition' | 'lane';
 export interface Scope {
   level: ScopeLevel;
-  projectId?: string;
+  partitionId?: string;
   laneId?: string;
 }
 
@@ -112,9 +112,9 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
    */
   'v1.OrgMemberAdded': { profileId: string; roleId: string; scope: Scope; displayName?: string };
   'v1.OrgMemberRemoved': { profileId: string; scope: Scope };
-  /** Org enables from the system catalog; a project narrows what the org enabled (A42). */
-  'v1.CatalogItemToggled': { kind: CatalogKind; itemId: string; level: 'org' | 'project'; projectId?: string; enabled: boolean };
-  'v1.ProjectRegistered': { projectId: string; name: string };
+  /** Org enables from the system catalog; a partition narrows what the org enabled (A42). */
+  'v1.CatalogItemToggled': { kind: CatalogKind; itemId: string; level: 'org' | 'partition'; partitionId?: string; enabled: boolean };
+  'v1.PartitionRegistered': { partitionId: string; name: string };
   /**
    * An invite that may be redeemed once, for a role at a scope (audit 5.B).
    * The token itself is never in the log: only its hash, in the `invites`
@@ -140,7 +140,7 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
 export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.OrgMemberAdded',
-  'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.ProjectRegistered',
+  'v1.OrgMemberRemoved', 'v1.CatalogItemToggled', 'v1.PartitionRegistered',
   'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.OrgLicenseSet', 'v1.ReferenceRecommended', ...LIBRARY_EVENT_TYPES
 ];
 
@@ -155,8 +155,8 @@ export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
 export type EventPrivilege = Privilege | readonly Privilege[] | 'bootstrap' | null;
 
 export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
-  'v1.ProjectCreated': 'bootstrap',
-  'v1.ProjectConfigChanged': 'manage_structure',
+  'v1.PartitionCreated': 'bootstrap',
+  'v1.PartitionConfigChanged': 'manage_structure',
   'v1.MemberAdded': 'invite_members',
   'v1.MemberRoleChanged': 'invite_members',
   'v1.MemberRemoved': 'invite_members',
@@ -197,7 +197,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.OrgMemberAdded': 'invite_members',
   'v1.OrgMemberRemoved': 'invite_members',
   'v1.CatalogItemToggled': 'by_kind',
-  'v1.ProjectRegistered': 'manage_structure',
+  'v1.PartitionRegistered': 'manage_structure',
   'v1.InviteIssued': 'invite_members',
   'v1.InviteRedeemed': null,
   'v1.JoinDecided': 'invite_members',
@@ -278,14 +278,14 @@ export function privilegeAllows(needed: EventPrivilege, privs: ReadonlySet<Privi
 }
 
 /**
- * The five fixed project roles as seed roles, with the UX spec's privilege
+ * The five fixed partition roles as seed roles, with the UX spec's privilege
  * sets, so an org created today behaves exactly as before (A38 role
  * matrix, A2: higher roles can do the work below them).
  */
 export const SEED_ROLES: { roleId: string; name: string; privileges: Privilege[]; fixed: Role }[] = [
   { roleId: 'org_admin', name: 'Organization Admin', privileges: [...PRIVILEGES], fixed: 'owner' },
   {
-    roleId: 'project_coordinator', name: 'Coordinator', fixed: 'coordinator',
+    roleId: 'coordinator', name: 'Coordinator', fixed: 'coordinator',
     privileges: PRIVILEGES.filter((p) => p !== 'manage_roles')
   },
   { roleId: 'translator', name: 'Translator', fixed: 'translator', privileges: ['translate', 'fill_reference', 'send_to_reviewers', 'view_status'] },
@@ -293,7 +293,7 @@ export const SEED_ROLES: { roleId: string; name: string; privileges: Privilege[]
   { roleId: 'viewer', name: 'Viewer', fixed: 'viewer', privileges: ['view_status'] }
 ];
 
-/** Privileges of a fixed project role, for members added the old way. */
+/** Privileges of a fixed partition role, for members added the old way. */
 export function privilegesOfFixedRole(role: Role): Set<Privilege> {
   return new Set(SEED_ROLES.find((r) => r.fixed === role)?.privileges ?? []);
 }
@@ -353,14 +353,14 @@ export interface OrgState {
   roles: Record<string, OrgRoleState>;
   /** profileId -> scopeKey -> membership */
   members: Record<string, Record<string, OrgMembership>>;
-  /** `${kind}:${itemId}:${level}:${projectId ?? ''}` -> enabled */
+  /** `${kind}:${itemId}:${level}:${partitionId ?? ''}` -> enabled */
   catalog: Record<string, Register<boolean>>;
   /**
    * Registered work partitions. The app runs one per org (decision 34);
    * orgs from before that may have several, and the earliest is the one
    * that is opened (`workPartitionOf`).
    */
-  projects: Record<string, { name: string; hlc: Hlc; eventId: string }>;
+  partitions: Record<string, { name: string; hlc: Hlc; eventId: string }>;
   /** inviteId -> invite. */
   invites: Record<string, OrgInvite>;
   /** requestId -> the verdict a coordinator recorded. */
@@ -383,15 +383,15 @@ export interface OrgState {
 }
 
 export function emptyOrgState(): OrgState {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, partitions: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
 }
 
 export function scopeKey(s: Scope): string {
-  return s.level === 'org' ? 'org' : s.level === 'project' ? `project:${s.projectId}` : `lane:${s.projectId}/${s.laneId}`;
+  return s.level === 'org' ? 'org' : s.level === 'partition' ? `partition:${s.partitionId}` : `lane:${s.partitionId}/${s.laneId}`;
 }
 
-export function catalogKey(kind: CatalogKind, itemId: string, level: 'org' | 'project', projectId?: string): string {
-  return `${kind}:${itemId}:${level}:${level === 'project' ? projectId ?? '' : ''}`;
+export function catalogKey(kind: CatalogKind, itemId: string, level: 'org' | 'partition', partitionId?: string): string {
+  return `${kind}:${itemId}:${level}:${level === 'partition' ? partitionId ?? '' : ''}`;
 }
 
 const empty: Register<never> = { value: undefined as never, hlc: '', eventId: '' };
@@ -410,7 +410,7 @@ function set<V>(current: Register<V> | undefined, event: EventEnvelope, value: V
   return { value, hlc: event.hlc, eventId: event.id };
 }
 
-/** Deterministic, order-independent, idempotent; same discipline as the project reducer. */
+/** Deterministic, order-independent, idempotent; same discipline as the partition reducer. */
 export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
@@ -449,8 +449,8 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       break;
     }
     case 'v1.CatalogItemToggled': {
-      const { kind, itemId, level, projectId, enabled } = event.payload;
-      const key = catalogKey(kind, itemId, level, projectId);
+      const { kind, itemId, level, partitionId, enabled } = event.payload;
+      const key = catalogKey(kind, itemId, level, partitionId);
       state.catalog[key] = set(state.catalog[key], event, enabled);
       break;
     }
@@ -484,11 +484,11 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       break;
     }
 
-    case 'v1.ProjectRegistered': {
+    case 'v1.PartitionRegistered': {
       // Earliest registration wins, so the name does not depend on arrival order.
-      const prior = state.projects[event.payload.projectId];
+      const prior = state.partitions[event.payload.partitionId];
       if (!prior || event.hlc < prior.hlc || (event.hlc === prior.hlc && event.id < prior.eventId)) {
-        state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
+        state.partitions[event.payload.partitionId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
       }
       break;
     }
@@ -525,7 +525,7 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       applyLibraryEvent(state.library, event);
       break;
     default:
-      // Project events in the org partition, or future types: ignored.
+      // Partition events in the org partition, or future types: ignored.
       break;
   }
   return state;
@@ -549,11 +549,11 @@ export function foldOrg(events: Iterable<AnyEvent>, initial: OrgState = emptyOrg
 
 // ---- derivations ---------------------------------------------------------
 
-/** Does a membership's scope cover a target project (and lane, if given)? */
-export function scopeCovers(scope: Scope, target: { projectId?: string; laneId?: string }): boolean {
+/** Does a membership's scope cover a target partition (and lane, if given)? */
+export function scopeCovers(scope: Scope, target: { partitionId?: string; laneId?: string }): boolean {
   if (scope.level === 'org') return true;
-  if (scope.level === 'project') return target.projectId === scope.projectId;
-  return target.projectId === scope.projectId && (target.laneId === undefined || target.laneId === scope.laneId);
+  if (scope.level === 'partition') return target.partitionId === scope.partitionId;
+  return target.partitionId === scope.partitionId && (target.laneId === undefined || target.laneId === scope.laneId);
 }
 
 /**
@@ -561,11 +561,11 @@ export function scopeCovers(scope: Scope, target: { projectId?: string; laneId?:
  * memberships whose scope covers it, through roles that are not retired.
  * With no target, the union over every membership (what they can do somewhere).
  */
-export function privilegesFor(state: OrgState, profileId: string, target: { projectId?: string; laneId?: string } = {}): Set<Privilege> {
+export function privilegesFor(state: OrgState, profileId: string, target: { partitionId?: string; laneId?: string } = {}): Set<Privilege> {
   const out = new Set<Privilege>();
   for (const m of Object.values(state.members[profileId] ?? {})) {
     if (m.removed.value !== false) continue;
-    if (target.projectId !== undefined && !scopeCovers(m.scope, target)) continue;
+    if (target.partitionId !== undefined && !scopeCovers(m.scope, target)) continue;
     const role = state.roles[m.roleId.value];
     if (!role || role.retired) continue;
     for (const p of role.privileges.value ?? []) out.add(p);
@@ -580,11 +580,11 @@ export function membershipsOf(state: OrgState, profileId: string): OrgMembership
 
 /**
  * The highest level at which the profile holds a manage privilege: where
- * their Home is (UX spec A34: org admin -> org home, project admin -> project
- * home, language admin -> language home). Null when they manage nothing.
+ * their Home is (UX spec A34: org admin -> org home, an admin of a whole
+ * partition -> its home, language admin -> language home). Null when they manage nothing.
  */
 export function adminScopeOf(state: OrgState, profileId: string): Scope | null {
-  const rank: Record<ScopeLevel, number> = { org: 0, project: 1, lane: 2 };
+  const rank: Record<ScopeLevel, number> = { org: 0, partition: 1, lane: 2 };
   let best: Scope | null = null;
   for (const m of membershipsOf(state, profileId)) {
     const role = state.roles[m.roleId.value];
@@ -596,11 +596,11 @@ export function adminScopeOf(state: OrgState, profileId: string): Scope | null {
 }
 
 /** Catalog items enabled at a level, after the org's own enabling (A42: disabled above is hidden below). */
-export function catalogEnabled(state: OrgState, kind: CatalogKind, itemId: string, projectId?: string): boolean {
+export function catalogEnabled(state: OrgState, kind: CatalogKind, itemId: string, partitionId?: string): boolean {
   const org = state.catalog[catalogKey(kind, itemId, 'org')]?.value ?? true;
   if (!org) return false;
-  if (projectId === undefined) return true;
-  return state.catalog[catalogKey(kind, itemId, 'project', projectId)]?.value ?? true;
+  if (partitionId === undefined) return true;
+  return state.catalog[catalogKey(kind, itemId, 'partition', partitionId)]?.value ?? true;
 }
 
 /** The license the organization's work is under; all rights reserved until one is set (license.ts). */
@@ -614,7 +614,7 @@ export function orgLicense(state: OrgState | null): License {
  * held at organization scope, as the server's check for the org partition does.
  */
 export function mayChangeLicense(state: OrgState | null, profileId: string): boolean {
-  return !!state && privilegesFor(state, profileId, { projectId: ORG_PARTITION }).has('manage_roles');
+  return !!state && privilegesFor(state, profileId, { partitionId: ORG_PARTITION }).has('manage_roles');
 }
 
 /** Register a payload's clock type for callers that need it. */

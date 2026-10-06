@@ -15,27 +15,27 @@ const ORG = 'org1';
 class FakeLog implements Source {
   readonly partitions = new Map<string, AnyEvent[]>();
   readonly snapshots = new Map<string, string>();
-  readonly pulls: { projectId: string; after: number }[] = [];
+  readonly pulls: { partitionId: string; after: number }[] = [];
   headCalls = 0;
   private seq = 0;
 
-  add(projectId: string, type: string, payload: unknown, id = `e${this.seq + 1}`): string {
-    const list = this.partitions.get(projectId) ?? [];
+  add(partitionId: string, type: string, payload: unknown, id = `e${this.seq + 1}`): string {
+    const list = this.partitions.get(partitionId) ?? [];
     this.seq += 1;
-    list.push({ id, type, orgId: ORG, projectId, actorId: 'admin', deviceId: 'd', hlc: encodeHlc(1_790_000_000_000 + this.seq, 0, 'd'), payload, serverSeq: list.length + 1 } as AnyEvent);
-    this.partitions.set(projectId, list);
+    list.push({ id, type, orgId: ORG, partitionId, actorId: 'admin', deviceId: 'd', hlc: encodeHlc(1_790_000_000_000 + this.seq, 0, 'd'), payload, serverSeq: list.length + 1 } as AnyEvent);
+    this.partitions.set(partitionId, list);
     return id;
   }
 
   /** What the projection worker would have stored for the partition as it stands. */
-  snapshot(projectId: string) {
-    this.snapshots.set(projectId, JSON.stringify(takeSnapshot(ORG, projectId, this.partitions.get(projectId) ?? [])));
+  snapshot(partitionId: string) {
+    this.snapshots.set(partitionId, JSON.stringify(takeSnapshot(ORG, partitionId, this.partitions.get(partitionId) ?? [])));
   }
 
-  async pull(orgId: string, projectId: string, after: number, limit: number) {
-    this.pulls.push({ projectId, after });
+  async pull(orgId: string, partitionId: string, after: number, limit: number) {
+    this.pulls.push({ partitionId, after });
     await Promise.resolve();
-    return (this.partitions.get(projectId) ?? []).filter((e) => orgId === ORG && e.serverSeq! > after).slice(0, limit);
+    return (this.partitions.get(partitionId) ?? []).filter((e) => orgId === ORG && e.serverSeq! > after).slice(0, limit);
   }
 
   /** What partition_heads answers; a log without it is pulled to find out. */
@@ -44,14 +44,14 @@ class FakeLog implements Source {
     return orgId === ORG ? Object.fromEntries([...this.partitions].map(([id, list]) => [id, list.length])) : {};
   }
 
-  async snapshotMeta(_org: string, projectId: string, reducerVersion: number) {
-    const s = this.snapshots.get(projectId);
+  async snapshotMeta(_org: string, partitionId: string, reducerVersion: number) {
+    const s = this.snapshots.get(partitionId);
     if (!s || reducerVersion !== REDUCER_VERSION) return null;
     return { serverSeq: (JSON.parse(s) as { serverSeq: number }).serverSeq, chunks: 1, bytes: s.length };
   }
 
-  async snapshotChunk(_org: string, projectId: string) {
-    const s = this.snapshots.get(projectId);
+  async snapshotChunk(_org: string, partitionId: string) {
+    const s = this.snapshots.get(partitionId);
     return s ? JSON.stringify((JSON.parse(s) as { state: unknown }).state) : null;
   }
 }
@@ -60,10 +60,10 @@ function orgLog(): FakeLog {
   const log = new FakeLog();
   log.add('_org', 'v1.OrgCreated', { name: 'Org' });
   for (const r of SEED_ROLES) log.add('_org', 'v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
-  log.add('_org', 'v1.ProjectRegistered', { projectId: 'din', name: 'Dinka' });
-  log.add('_org', 'v1.ProjectRegistered', { projectId: 'nus', name: 'Nuer' });
+  log.add('_org', 'v1.PartitionRegistered', { partitionId: 'din', name: 'Dinka' });
+  log.add('_org', 'v1.PartitionRegistered', { partitionId: 'nus', name: 'Nuer' });
   log.add('_org', 'v1.OrgMemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } });
-  log.add('_org', 'v1.OrgMemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'lane', projectId: 'din', laneId: 'din' } });
+  log.add('_org', 'v1.OrgMemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'lane', partitionId: 'din', laneId: 'din' } });
   log.add('din', 'v1.LaneAdded', { laneId: 'din', languoidId: 'din' });
   log.add('nus', 'v1.LaneAdded', { laneId: 'nus', languoidId: 'nus' });
   log.add('nus', 'v1.MemberAdded', { profileId: 'old', role: 'translator' });
@@ -94,7 +94,7 @@ describe('OrgFolder', () => {
     log.snapshot('din');
     log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Thuɔŋjäŋ' });
     const out = await new OrgFolder(log, ORG).reportsFor('admin');
-    expect(log.pulls.filter((p) => p.projectId === 'din')).toEqual([{ projectId: 'din', after: 1 }]);
+    expect(log.pulls.filter((p) => p.partitionId === 'din')).toEqual([{ partitionId: 'din', after: 1 }]);
     expect(out!.rows.find((r) => r.laneId === 'din')?.report.name).toBe('Thuɔŋjäŋ');
   });
 
@@ -111,7 +111,7 @@ describe('OrgFolder', () => {
     now += 31_000;
     const later = await folder.reportsFor('admin');
     expect(later!.rows[0]!.report.name).toBe('Renamed');
-    expect(log.pulls.slice(pulled).find((p) => p.projectId === 'din')).toEqual({ projectId: 'din', after: 1 });
+    expect(log.pulls.slice(pulled).find((p) => p.partitionId === 'din')).toEqual({ partitionId: 'din', after: 1 });
     expect(Date.parse(later!.asOf) - Date.parse(first!.asOf)).toBe(61_000);
   });
 
@@ -119,7 +119,7 @@ describe('OrgFolder', () => {
     const log = orgLog();
     const folder = new OrgFolder(log, ORG);
     await Promise.all([folder.reportsFor('admin'), folder.reportsFor('dinka'), folder.reportsFor('old')]);
-    expect(log.pulls.filter((p) => p.projectId === '_org')).toHaveLength(1);
+    expect(log.pulls.filter((p) => p.partitionId === '_org')).toHaveLength(1);
     expect(log.headCalls).toBe(1);
   });
 
@@ -141,7 +141,7 @@ describe('OrgFolder', () => {
     expect((await folder.reportsFor('admin'))!.rows[0]!.report.name).toBe('Mistake');
     log.add('din', 'v1.Redacted', { eventId: named });
     expect((await folder.reportsFor('admin', true))!.rows[0]!.report.name).toBe('DIN');
-    expect(log.pulls.filter((p) => p.projectId === 'din').map((p) => p.after)).toEqual([0, 2, 0]);
+    expect(log.pulls.filter((p) => p.partitionId === 'din').map((p) => p.after)).toEqual([0, 2, 0]);
   });
 });
 
@@ -157,7 +157,7 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
     log.add('nus', 'v1.LaneNamed', { laneId: 'nus', name: 'Naath' });
     now += 61_000;
     const out = await folder.reportsFor('admin');
-    expect(log.pulls).toEqual([{ projectId: 'nus', after: 2 }]);
+    expect(log.pulls).toEqual([{ partitionId: 'nus', after: 2 }]);
     expect(out!.rows.find((r) => r.laneId === 'nus')?.report.name).toBe('Naath');
   });
 
@@ -182,7 +182,7 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
     log.add('din', 'v1.LaneNamed', { laneId: 'din', name: 'Later' });
     log.pulls.length = 0;
     const out = await new OrgFolder(log, ORG, cache, () => at).reportsFor('admin');
-    expect(log.pulls).toEqual([{ projectId: 'din', after: 1 }]);
+    expect(log.pulls).toEqual([{ partitionId: 'din', after: 1 }]);
     expect(out!.rows[0]!.report.name).toBe('Later');
   });
 
@@ -307,9 +307,9 @@ describe('the reports API', () => {
 
   it('answers a summary view with each language\'s progress alone', async () => {
     const report = { name: 'Dinka', progress: { total: 3, recorded: 1, done: 0, steps: [], waiting: 0, feedback: 0 } };
-    const d = deps({ reports: async () => ({ rows: [{ projectId: 'p', laneId: 'din', report: report as never }], asOf: body.asOf }) });
+    const d = deps({ reports: async () => ({ rows: [{ partitionId: 'p', laneId: 'din', report: report as never }], asOf: body.asOf }) });
     const res = await handleApi(get('/api/orgs/o/reports?view=summary', 'good'), d);
-    expect(await res.json()).toEqual({ rows: [{ projectId: 'p', laneId: 'din', name: 'Dinka', progress: report.progress }], asOf: body.asOf });
+    expect(await res.json()).toEqual({ rows: [{ partitionId: 'p', laneId: 'din', name: 'Dinka', progress: report.progress }], asOf: body.asOf });
   });
 
   it('answers an unchanged request with a 304 that still says how fresh it is', async () => {

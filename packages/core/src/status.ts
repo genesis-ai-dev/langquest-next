@@ -1,9 +1,9 @@
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, type TakeOutcome } from './workflow';
 
 /**
- * The project-manager view of progress (UX spec status_home → language_status
+ * The partition-manager view of progress (UX spec status_home → language_status
  * → book_status → piece_status). Derived from the fold; nothing stored.
  */
 
@@ -23,7 +23,7 @@ export interface Piece {
   assignee: string | null;
 }
 
-export function derivePieces(state: ProjectState, laneId: string, idx: Indexes = buildIndexes(state)): Piece[] {
+export function derivePieces(state: PartitionState, laneId: string, idx: Indexes = buildIndexes(state)): Piece[] {
   const workflow = deriveWorkflow(state, laneId);
 
   return laneLeafUnits(state, idx, laneId)
@@ -84,7 +84,7 @@ export function percentDone(pieces: Piece[]): number {
 }
 
 /** Books are the non-leaf units that hold pieces, in display order. */
-export function deriveBooks(state: ProjectState, idx: Indexes = buildIndexes(state)): { unitId: string; label: string; order: string }[] {
+export function deriveBooks(state: PartitionState, idx: Indexes = buildIndexes(state)): { unitId: string; label: string; order: string }[] {
   return idx.containerUnits.map((unitId) => {
     const u = state.units[unitId]!;
     return { unitId, label: u.label, order: u.order };
@@ -92,7 +92,7 @@ export function deriveBooks(state: ProjectState, idx: Indexes = buildIndexes(sta
 }
 
 /** The next thing an admin can do for a piece (UX spec nextAssignAction). */
-export function nextAction(piece: Piece, state: ProjectState): { kind: 'none' | 'translation' | 'review'; label: string; stepId?: string } {
+export function nextAction(piece: Piece, state: PartitionState): { kind: 'none' | 'translation' | 'review'; label: string; stepId?: string } {
   if (piece.status === 'done') return { kind: 'none', label: 'Complete' };
   if (piece.stage === 'Not started' || piece.status === 'unassigned') return { kind: 'translation', label: 'Assign translation' };
   const workflow = deriveWorkflow(state, piece.laneId);

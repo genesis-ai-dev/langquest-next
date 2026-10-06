@@ -33,7 +33,7 @@ describe('catalog: global reference data and deterministic instantiation', () =>
     const parents = new Set(a.map((u) => u.unitId));
     for (const u of a) if (u.parentUnitId) expect(parents.has(u.parentUnitId), u.unitId).toBe(true);
     const mk = (dev: string) => a.slice(0, 40).map((payload, i) => ({
-      id: `${dev}-${i}`, type: 'v1.UnitAdded', orgId: 'o', projectId: 'p', actorId: 'lead', deviceId: dev,
+      id: `${dev}-${i}`, type: 'v1.UnitAdded', orgId: 'o', partitionId: 'p', actorId: 'lead', deviceId: dev,
       hlc: encodeHlc(1_700_000_000_000 + i, 0, dev), payload
     }) as AnyEvent);
     const state = fold([...mk('dA'), ...mk('dB')], emptyState());
@@ -52,13 +52,13 @@ describe('catalog: global reference data and deterministic instantiation', () =>
 
   it('a lane sees its template\'s units plus hand-added ones; another lane sees everything', () => {
     // Why: content templates apply per language (UX spec A42) while units
-    // are project-wide. Filtering by template prefix is the whole rule.
+    // are partition-wide. Filtering by template prefix is the whole rule.
     const events = [...buildFixture(), ...buildStep11Fixture()];
     const extra = instantiateTemplate('book').slice(0, 3).map((payload, i) => ({
-      id: `bk-${i}`, type: 'v1.UnitAdded', orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA',
+      id: `bk-${i}`, type: 'v1.UnitAdded', orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA',
       hlc: encodeHlc(1_760_000_000_000 + i, 0, 'dA'), payload, serverSeq: 900 + i
     }) as AnyEvent);
-    const lane2 = { id: 'lane2', type: 'v1.LaneAdded', orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_760_000_001_000, 0, 'dA'), payload: { laneId: 'L2', languoidId: 'abc' }, serverSeq: 950 } as AnyEvent;
+    const lane2 = { id: 'lane2', type: 'v1.LaneAdded', orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_760_000_001_000, 0, 'dA'), payload: { laneId: 'L2', languoidId: 'abc' }, serverSeq: 950 } as AnyEvent;
     const state = fold([...events, ...extra, lane2], emptyState());
     const idx = buildIndexes(state);
     expect(laneLeafUnits(state, idx, 'L2').sort()).toEqual(['book@1/exo', 'book@1/gen', 'book@1/lev', 'luke1']);
@@ -80,7 +80,7 @@ describe('per-step workflow registers and review teams (audit 5.F)', () => {
     }
     expect(deriveWorkflow(state, 'L1').map((s) => s.id)).toEqual(['peer', 'consultant']);
     expect(deriveWorkflow(state, 'L1')[0]?.teamId).toBe('team1');
-    // No lane steps for L9 and no project-wide steps: the config workflow still applies.
+    // No lane steps for L9 and no partition-wide steps: the config workflow still applies.
     expect(deriveWorkflow(state, 'L9').map((s) => s.id)).toEqual(['peer']);
     expect(state.laneFlows['L1']?.value.flowId).toBe('quick_check');
   });
@@ -106,7 +106,7 @@ describe('per-step workflow registers and review teams (audit 5.F)', () => {
 
 describe('catalog: re-selecting a template or flow is idempotent', () => {
   const env = (i: number, dev: string, type: AnyEvent['type'], payload: unknown): AnyEvent =>
-    ({ id: `${dev}-${type}-${i}`, type, orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: dev, hlc: encodeHlc(1_780_000_000_000 + i, 0, dev), payload }) as AnyEvent;
+    ({ id: `${dev}-${type}-${i}`, type, orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: dev, hlc: encodeHlc(1_780_000_000_000 + i, 0, dev), payload }) as AnyEvent;
 
   it('selecting the same content template twice, from two devices, leaves one of each unit and one lane selection', () => {
     // Why: templates_home lets any admin tap the same template again, and two

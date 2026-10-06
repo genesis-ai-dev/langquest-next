@@ -17,13 +17,13 @@ select public._apply_org_event('keys-org','v1.OrgMemberAdded',
 select public._apply_org_event('keys-org','v1.OrgMemberAdded',
   '{"profileId":"20000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}','999:1:test');
 select public._append_event_as('keys-org-created','keys-org','_org','v1.OrgCreated','20000000-0000-0000-0000-00000000000a','server','{"name":"Keys test"}');
-select public._append_event_as('keys-lang','keys-org','_org','v1.ProjectRegistered','20000000-0000-0000-0000-00000000000a','server','{"projectId":"L-keys","name":"Keyish"}');
+select public._append_event_as('keys-lang','keys-org','_org','v1.PartitionRegistered','20000000-0000-0000-0000-00000000000a','server','{"partitionId":"L-keys","name":"Keyish"}');
 
 select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-00000000000a',true);
 -- One person, scoped to one language, with a label; and a group of two.
 select public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000001',
   encode(extensions.digest(repeat('c',64),'sha256'),'hex'),'translator',
-  '{"level":"lane","projectId":"L-keys","laneId":"L-keys"}',now()+interval '1 day','Nyibol Deng',1);
+  '{"level":"lane","partitionId":"L-keys","laneId":"L-keys"}',now()+interval '1 day','Nyibol Deng',1);
 select public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000002',
   encode(extensions.digest(repeat('d',64),'sha256'),'hex'),'translator','{"level":"org"}',now()+interval '1 day','Workshop',2);
 

@@ -24,9 +24,9 @@ test('translator answers feedback with Version 2', async ({ page }) => {
   const contract = { actorId: world.translator.id, unitId: passage.unitId, laneId: world.laneId,
     priorTakeIds: [world.version1.takeId], priorHashes: [world.version1.hash], respondsToTakeId: world.version1.takeId };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeSavedVersion(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeSavedVersion(contract, evidence), run.status);
   await reportRun(page, run, outcome);

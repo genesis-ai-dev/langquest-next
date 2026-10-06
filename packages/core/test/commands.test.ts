@@ -24,7 +24,7 @@ describe('commands', () => {
   function apply(state: ReturnType<typeof draft>, specs: ReturnType<typeof commands>['keepTake'] extends (...a: never[]) => infer R ? R : never) {
     let s = state;
     for (const [i, spec] of specs.entries()) {
-      s = fold([{ ...spec, orgId: 'o', projectId: 'p', actorId: 't1', deviceId: 'dB', hlc: `${900000000000000 + i}:000000:dB` } as AnyEvent], s);
+      s = fold([{ ...spec, orgId: 'o', partitionId: 'p', actorId: 't1', deviceId: 'dB', hlc: `${900000000000000 + i}:000000:dB` } as AnyEvent], s);
     }
     return s;
   }

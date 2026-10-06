@@ -21,7 +21,7 @@ select public._apply_org_event('mod-org','v1.OrgMemberAdded',
 select public._apply_org_event('mod-org','v1.OrgMemberAdded',
   '{"profileId":"e0000000-0000-0000-0000-00000000000c","roleId":"member","scope":{"level":"org"}}','000000000000002:000003:test');
 select public._apply_org_event('mod-org','v1.OrgMemberAdded',
-  '{"profileId":"e0000000-0000-0000-0000-00000000000d","roleId":"admin","scope":{"level":"project","projectId":"p2"}}','000000000000002:000004:test');
+  '{"profileId":"e0000000-0000-0000-0000-00000000000d","roleId":"admin","scope":{"level":"partition","partitionId":"p2"}}','000000000000002:000004:test');
 
 -- The translator's version (take, submission, what changed), a note, and the reviewer's review.
 select public._append_event_as('mod-take','mod-org','p1','v1.TakeComposed','e0000000-0000-0000-0000-00000000000b','dev-t',

@@ -20,7 +20,7 @@ describe('device identity and clock survive restarts', () => {
     // before the previous one and lose every register conflict.
     const store = new MemoryStore();
     const mk = (now: number) =>
-      new SyncClient({ orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'dA', store, transport: fakeTransport(), now: () => now });
+      new SyncClient({ orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'dA', store, transport: fakeTransport(), now: () => now });
     const first = mk(2_000_000);
     await first.load();
     const e1 = await first.append('v1.LaneAdded', { laneId: 'L1', languoidId: 'x' });
@@ -36,12 +36,12 @@ describe('device identity and clock survive restarts', () => {
     const store = new MemoryStore();
     const remote = new HlcClock('dB', () => 9_000_000).next();
     const transport = fakeTransport([
-      { id: 'r1', type: 'v1.LaneAdded', orgId: 'o', projectId: 'p', actorId: 'b', deviceId: 'dB', hlc: remote, payload: { laneId: 'L9', languoidId: 'x' }, serverSeq: 1 }
+      { id: 'r1', type: 'v1.LaneAdded', orgId: 'o', partitionId: 'p', actorId: 'b', deviceId: 'dB', hlc: remote, payload: { laneId: 'L9', languoidId: 'x' }, serverSeq: 1 }
     ]);
-    const c1 = new SyncClient({ orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'dA', store, transport, now: () => 100 });
+    const c1 = new SyncClient({ orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'dA', store, transport, now: () => 100 });
     await c1.load();
     await c1.pull();
-    const c2 = new SyncClient({ orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'dA', store, transport, now: () => 100 });
+    const c2 = new SyncClient({ orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'dA', store, transport, now: () => 100 });
     await c2.load();
     const e = await c2.append('v1.LaneAdded', { laneId: 'L1', languoidId: 'x' });
     expect(e.hlc > remote).toBe(true);

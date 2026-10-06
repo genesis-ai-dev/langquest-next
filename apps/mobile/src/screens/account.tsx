@@ -84,9 +84,9 @@ function useAccountLine(ctx: Ctx) {
  * organization open it.
  */
 export function InboxHome(ctx: Ctx) {
-  const { state } = ctx.project;
+  const { state } = ctx.partition;
   const me = ctx.session.actorId;
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.partition.orgId;
   const accountActions = useAccountActions(me).filter((a) => a.status !== 'sent');
   const names = useDisplayNames(me);
   const { orgName } = useAccountLine(ctx);
@@ -370,7 +370,7 @@ export function SettingsHome(ctx: Ctx) {
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = names[s.actorId] ?? memberName ?? s.email?.split('@')[0] ?? 'You';
-  const p = ctx.project;
+  const p = ctx.partition;
   const offline = useOfflineSummary(ctx);
   const syncSub = p.refused ? 'This account cannot sync this organization'
     : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
@@ -628,7 +628,7 @@ export function OrgSwitcher(ctx: Ctx) {
     <Screen header={<Header title="Switch Organization" onBack={ctx.back} />}>
       {error ? <Banner icon="cloud" tone="amber" title={error} /> : null}
       {rows.map((r) => {
-        const active = r.org_id === ctx.project.orgId;
+        const active = r.org_id === ctx.partition.orgId;
         return (
           <Card key={r.org_id} accessibilityLabel={active ? `${r.name}, active` : r.name}
             onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
@@ -671,7 +671,7 @@ export function OrgSwitcher(ctx: Ctx) {
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
  */
 export function SignOutConfirm(ctx: Ctx) {
-  const { online, refused } = ctx.project;
+  const { online, refused } = ctx.partition;
   const waiting = useUnsent(ctx);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -685,8 +685,8 @@ export function SignOutConfirm(ctx: Ctx) {
     setBusy(true);
     try {
       if (handsOver) {
-        const { orgId, projectId } = ctx.project;
-        await signOutHandingOver(ctx.session.actorId, ctx.project.blobs.unsent().map((ref) => ({ orgId, projectId, ref })));
+        const { orgId, partitionId } = ctx.partition;
+        await signOutHandingOver(ctx.session.actorId, ctx.partition.blobs.unsent().map((ref) => ({ orgId, partitionId, ref })));
         return;
       }
       await unregisterNotifications();
@@ -728,12 +728,12 @@ export function SignOutConfirm(ctx: Ctx) {
 
 /** What this session could still deliver from this phone; sign-out and deletion wait for it. */
 function useUnsent(ctx: Ctx): string[] {
-  const { pending, refused } = ctx.project;
+  const { pending, refused } = ctx.partition;
   const accountQueued = useAccountActions(ctx.session.actorId).filter((a) => a.status === 'queued').length;
   return [
     !refused && pending > 0 ? plural(pending, 'change') : null,
     ctx.org.pending > 0 ? plural(ctx.org.pending, 'organization change') : null,
-    !refused && ctx.project.blobs.pendingUp > 0 ? plural(ctx.project.blobs.pendingUp, 'recording') : null,
+    !refused && ctx.partition.blobs.pendingUp > 0 ? plural(ctx.partition.blobs.pendingUp, 'recording') : null,
     accountQueued > 0 ? plural(accountQueued, 'account change') : null
   ].filter((w): w is string => w !== null);
 }
@@ -749,7 +749,7 @@ function useUnsent(ctx: Ctx): string[] {
  */
 export function DeleteAccount(ctx: Ctx) {
   const waiting = useUnsent(ctx);
-  const offline = ctx.project.online === false;
+  const offline = ctx.partition.online === false;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function remove() {
@@ -796,7 +796,7 @@ export function DeleteAccount(ctx: Ctx) {
  * one line each so a developer can see the log move. Polled once a second.
  */
 export function SyncStatus(ctx: Ctx) {
-  const { project, org } = ctx;
+  const { partition, org } = ctx;
   const [ins, setIns] = useState<SyncInspection | null>(null);
   const [orgIns, setOrgIns] = useState<SyncInspection | null>(null);
   const [rates, setRates] = useState({ up: 0, down: 0 });
@@ -811,32 +811,32 @@ export function SyncStatus(ctx: Ctx) {
       ctx.toast(failure('sync inspect', e));
     };
     const tick = () => {
-      void project.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
+      void partition.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
       void org.inspect().then((i) => { if (alive) setOrgIns(i); }).catch(failed);
-      setRates(project.blobs.rates());
+      setRates(partition.blobs.rates());
     };
     tick();
     const timer = setInterval(tick, 1000);
     return () => { alive = false; clearInterval(timer); };
-    // ctx.toast is stable for the visit; project and org drive the poll.
+    // ctx.toast is stable for the visit; partition and org drive the poll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, org]);
-  const offline = project.online === false;
+  }, [partition, org]);
+  const offline = partition.online === false;
   const offlineSummaryNow = useOfflineSummary(ctx);
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = [...(ins?.rejected ?? []), ...(orgIns?.rejected ?? [])];
   const syncNow = async () => {
     setBusy(true);
-    try { await Promise.all([project.sync(), org.sync()]); project.triggerUpload(); }
+    try { await Promise.all([partition.sync(), org.sync()]); partition.triggerUpload(); }
     catch (e) { ctx.toast(failure('sync now', e)); }
     finally { setBusy(false); }
   };
   return (
     <Screen header={<Header title="Sync" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Syncing…' : 'Sync now'} icon="restart" onPress={() => void syncNow()} disabled={project.tooOld || busy} />}>
-      <Banner icon="cloud" tone={project.live ? 'green' : offline ? 'amber' : 'brand'}
-        title={project.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this phone' : 'Checking for changes now and then'}
-        body={project.refused ?? (project.tooOld ? 'Update the app to sync.' : undefined)} />
+      footer={<PrimaryBtn label={busy ? 'Syncing…' : 'Sync now'} icon="restart" onPress={() => void syncNow()} disabled={partition.tooOld || busy} />}>
+      <Banner icon="cloud" tone={partition.live ? 'green' : offline ? 'amber' : 'brand'}
+        title={partition.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this phone' : 'Checking for changes now and then'}
+        body={partition.refused ?? (partition.tooOld ? 'Update the app to sync.' : undefined)} />
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <View style={styles.tiles}>
@@ -845,8 +845,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat icon="check" color={C.green} value={ins?.cursor ?? 0} label="latest confirmed" />
         <Stat icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label="local checkpoint" />
       </View>
-      <Transfer icon="up" pending={project.blobs.pendingUp} peak={project.blobs.peakUp} rate={rates.up} label="Audio uploading" />
-      <Transfer icon="download" pending={project.blobs.pendingDown} peak={project.blobs.peakDown} rate={rates.down} label="Audio downloading" />
+      <Transfer icon="up" pending={partition.blobs.pendingUp} peak={partition.blobs.peakUp} rate={rates.up} label="Audio uploading" />
+      <Transfer icon="download" pending={partition.blobs.pendingDown} peak={partition.blobs.peakDown} rate={rates.down} label="Audio downloading" />
       {ins && ins.pending.length ? (
         <>
           <SectionLabel label={`Waiting · ${ins.pending.length}`} />

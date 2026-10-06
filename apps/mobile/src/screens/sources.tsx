@@ -43,11 +43,11 @@ function languageOf(bibles: BibleSummary[] | null): string {
 type Picked = { kind: 'biblebrain'; bibleId: string } | { kind: 'library'; itemId: string };
 
 export function BibleExplore(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const laneId = ctx.params['laneId'] ?? ctx.laneId ?? null;
   const unitId = ctx.params['unitId'];
-  const mine = useMyBibles(ctx.session.actorId, ctx.project.orgId, laneId);
-  const sourceLanguage = state?.project?.value.sourceLanguoidId ?? 'eng';
+  const mine = useMyBibles(ctx.session.actorId, ctx.partition.orgId, laneId);
+  const sourceLanguage = state?.partition?.value.sourceLanguoidId ?? 'eng';
   const [lang, setLang] = useState<{ code: string; name: string }>({ code: ctx.params['lang'] ?? sourceLanguage, name: '' });
   const [query, setQuery] = useState('');
   const [languages, setLanguages] = useState<BibleLanguage[] | null>(null);
@@ -77,7 +77,7 @@ export function BibleExplore(ctx: Ctx) {
 
   // Sources in this organization's library, to choose one nobody recommended.
   const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state?.library]);
-  const docs = useLibraryDocs(ctx.project.orgId, libraryItemsList.map((i) => i.current));
+  const docs = useLibraryDocs(ctx.partition.orgId, libraryItemsList.map((i) => i.current));
   const librarySources = libraryItemsList.flatMap((i) => {
     const doc = docs.get<SourceDoc>(i.current);
     return doc && doc.format === 'source@1' ? [{ itemId: i.itemId, doc, hash: i.current! }] : [];
@@ -173,7 +173,7 @@ function BibleDetailView(props: {
   const current = book ?? (books.find((b) => b.book === passageBook)?.book ?? books[0]?.book ?? null);
   const chapters = books.find((b) => b.book === current)?.chapters ?? 0;
   const range: VerseRange | null = current ? { book: current, start: { chapter, verse: 1 }, end: { chapter, verse: 999 } } : null;
-  const { get } = useLibraryDocs(ctx.project.orgId, []);
+  const { get } = useLibraryDocs(ctx.partition.orgId, []);
   const passage = { range, ref: range ? refText(range) : '', versification: null, options: option ? [option] : [], loading: !option, get };
 
   const has = option ? mine.has(option.itemId) : false;

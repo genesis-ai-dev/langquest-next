@@ -9,7 +9,7 @@ import {
   CommandError, commands, deriveFlow, deriveKinds, formatQuestionField, formatRef, laneName, materialView, parseQuestionField,
   parseRef, REFERENCE_KINDS, SEED_ROLES, unitAncestry,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type MaterialDoc, type MaterialView,
-  type OrgState, type Privilege, type ProjectState, type QuestionSpec, type Scope
+  type OrgState, type Privilege, type PartitionState, type QuestionSpec, type Scope
 } from '@langquest-next/core';
 
 // ---- roles (ORG-3, ORG-4) ----------------------------------------------------------
@@ -35,7 +35,7 @@ export const PRIVILEGE_INFO: Record<Privilege, { label: string; desc: string }> 
 
 export type ViewLevel = Scope['level'];
 /** No project level (decision 34): a membership scoped to the work partition covers every language. */
-export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', project: 'All languages', lane: 'Language' };
+export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', partition: 'All languages', lane: 'Language' };
 
 /**
  * Which home the roles screens are seen from (demo `roleViewLevel`): an
@@ -45,7 +45,7 @@ export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', pro
 export function viewLevelFrom(params: Record<string, string>, adminScope: Scope | null): ViewLevel {
   const level = params['level'];
   if (level === 'lane') return level;
-  if (level === 'org' || level === 'project') return 'org';
+  if (level === 'org' || level === 'partition') return 'org';
   if (params['laneId']) return 'lane';
   return adminScope?.level === 'lane' ? 'lane' : 'org';
 }
@@ -73,7 +73,7 @@ export interface RoleHolder {
 }
 
 /** Everyone holding a role: org memberships at any scope, plus work-partition members whose fixed role it is. */
-export function holdersOf(org: OrgState | null, project: ProjectState | null, roleId: string): RoleHolder[] {
+export function holdersOf(org: OrgState | null, partition: PartitionState | null, roleId: string): RoleHolder[] {
   const out: RoleHolder[] = [];
   const seen = new Set<string>();
   for (const [profileId, byScope] of Object.entries(org?.members ?? {})) {
@@ -85,7 +85,7 @@ export function holdersOf(org: OrgState | null, project: ProjectState | null, ro
   }
   const fixed = SEED_ROLES.find((r) => r.roleId === roleId)?.fixed;
   if (fixed) {
-    for (const [profileId, m] of Object.entries(project?.members ?? {})) {
+    for (const [profileId, m] of Object.entries(partition?.members ?? {})) {
       if (seen.has(profileId) || m.removed.value || m.role.value !== fixed) continue;
       out.push({ profileId, scope: null });
     }
@@ -94,7 +94,7 @@ export function holdersOf(org: OrgState | null, project: ProjectState | null, ro
 }
 
 /** The roles as the Roles screen lists them: the shipped ones first, in their order, then the organization's own by name. */
-export function roleRows(org: OrgState | null, project: ProjectState | null, level: ViewLevel): RoleRow[] {
+export function roleRows(org: OrgState | null, partition: PartitionState | null, level: ViewLevel): RoleRow[] {
   const seedOrder = SEED_ROLES.map((r) => r.roleId);
   return Object.entries(org?.roles ?? {})
     .filter(([, r]) => !r.retired && r.name.hlc !== '')
@@ -102,7 +102,7 @@ export function roleRows(org: OrgState | null, project: ProjectState | null, lev
       roleId,
       name: r.name.value,
       privileges: r.privileges.value ?? [],
-      members: holdersOf(org, project, roleId).length,
+      members: holdersOf(org, partition, roleId).length,
       builtIn: seedOrder.includes(roleId),
       inherited: level !== 'org'
     }))
@@ -114,10 +114,10 @@ export function roleRows(org: OrgState | null, project: ProjectState | null, lev
 }
 
 /** The organization's name, "All languages", or the language's name. */
-export function scopeName(scope: Scope | null, org: OrgState | null, project: ProjectState | null, projectId: string): string {
-  if (!scope || scope.level === 'project') return 'All languages';
+export function scopeName(scope: Scope | null, org: OrgState | null, partition: PartitionState | null, partitionId: string): string {
+  if (!scope || scope.level === 'partition') return 'All languages';
   if (scope.level === 'org') return org?.org?.value.name ?? 'Organization';
-  return project && scope.projectId === projectId && scope.laneId ? laneName(project, scope.laneId) : 'Language';
+  return partition && scope.partitionId === partitionId && scope.laneId ? laneName(partition, scope.laneId) : 'Language';
 }
 
 export function plural(n: number, one: string, many = `${one}s`): string {
@@ -143,7 +143,7 @@ export interface LaneFlowUse {
 }
 
 /** Every language and the flow it uses, by name (FLOW-4: "which languages use which"). */
-export function laneFlows(state: ProjectState): LaneFlowUse[] {
+export function laneFlows(state: PartitionState): LaneFlowUse[] {
   return Object.keys(state.lanes)
     .map((laneId) => {
       const flow = deriveFlow(state, laneId);
@@ -172,7 +172,7 @@ export type FlowUndo =
   | { kind: 'legacy'; previous: { flowId: string | null; steps: FlowStep[] } }
   | null;
 
-export function flowUndoFor(state: ProjectState, laneId: string): FlowUndo {
+export function flowUndoFor(state: PartitionState, laneId: string): FlowUndo {
   const selection = state.laneFlows[laneId]?.value;
   if (!selection) return null;
   if (selection.itemId && selection.docHash) return { kind: 'library', itemId: selection.itemId, docHash: selection.docHash };
@@ -194,7 +194,7 @@ export function draftFromDoc(doc: FlowDoc): DraftStep[] {
 }
 
 /** A new flow started from a language's steps as they read now (a legacy flow made a library one). */
-export function draftFromLane(state: ProjectState, laneId: string): DraftStep[] {
+export function draftFromLane(state: PartitionState, laneId: string): DraftStep[] {
   return deriveFlow(state, laneId).steps.map((s, i) => ({ key: `${s.id}#${i}`, kindIds: [...s.kindIds], checkpoint: s.checkpoint }));
 }
 
@@ -265,8 +265,8 @@ export function listNames(names: string[]): string {
 
 // ---- reference material (ORG-8) -----------------------------------------------------
 
-/** `project` is material shared by every language of the organization (decision 34 kept the id). */
-export type MaterialLevel = 'project' | 'language';
+/** `partition` is material shared by every language of the organization (decision 34 kept the id). */
+export type MaterialLevel = 'partition' | 'language';
 
 export interface ReferenceView {
   study: MaterialView[];
@@ -283,7 +283,7 @@ export interface ReferenceView {
 const isStudy = (m: MaterialView) => m.kind === 'fia_study' || m.templateRef === 'fia_study';
 
 /** Material a view sees: the organization's, plus one language's when viewed from it. Levels add up (ORG-8). */
-export function referenceView(state: ProjectState, laneId: string | null): ReferenceView {
+export function referenceView(state: PartitionState, laneId: string | null): ReferenceView {
   const all = Object.keys(state.materials)
     .map((id) => materialView(state, id))
     .filter((m): m is MaterialView => m !== null && m.kind !== '')
@@ -403,7 +403,7 @@ export function libraryQuestions(doc: MaterialDoc): QuestionSpec[] {
  * same set. Undo puts the fields back as they were (empty for a new set, so
  * reviewers stop seeing them).
  */
-export function questionSetToReviews(state: ProjectState, c: { commandId: string; itemId: string; doc: MaterialDoc }): { materialId: string; specs: EventSpec[]; undo: EventSpec[] } {
+export function questionSetToReviews(state: PartitionState, c: { commandId: string; itemId: string; doc: MaterialDoc }): { materialId: string; specs: EventSpec[]; undo: EventSpec[] } {
   const kindId = c.doc.reviewKindId;
   if (!kindId) throw new CommandError('This question set is not for a kind of review.');
   const questions = libraryQuestions(c.doc);
@@ -493,7 +493,7 @@ export function termWords(term: string): string[] {
  * "In this passage" (TERM-2): terms scoped to the passage or a part it
  * belongs to, and terms whose words appear in its source text.
  */
-export function termsInPassage(state: ProjectState, terms: KeyTermView[], unitId: string, source: string | null): Set<string> {
+export function termsInPassage(state: PartitionState, terms: KeyTermView[], unitId: string, source: string | null): Set<string> {
   const ancestors = unitAncestry(state, unitId);
   const text = source?.toLowerCase() ?? '';
   const out = new Set<string>();
@@ -505,7 +505,7 @@ export function termsInPassage(state: ProjectState, terms: KeyTermView[], unitId
 }
 
 /** The same concept's renderings in the organization's other languages (TERM-3 "Other languages"). */
-export function otherLanguageRenderings(state: ProjectState, term: KeyTermView): { laneId: string; lane: string; rendering: string; context: string }[] {
+export function otherLanguageRenderings(state: PartitionState, term: KeyTermView): { laneId: string; lane: string; rendering: string; context: string }[] {
   const key = term.term.trim().toLowerCase();
   const out: { laneId: string; lane: string; rendering: string; context: string }[] = [];
   for (const [termId, t] of Object.entries(state.keyTerms)) {
@@ -516,6 +516,6 @@ export function otherLanguageRenderings(state: ProjectState, term: KeyTermView):
 }
 
 /** Kinds known to the organization, for the flow editor's picker. */
-export function allKinds(state: ProjectState): KindDef[] {
+export function allKinds(state: PartitionState): KindDef[] {
   return deriveKinds(state);
 }

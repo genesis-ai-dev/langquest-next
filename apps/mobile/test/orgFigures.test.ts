@@ -9,8 +9,8 @@ const asOf = '2026-10-03T12:00:00.000Z';
 describe('laneFigures', () => {
   it('prefers the local fold, fills the rest from the server, and leaves out what neither knows', () => {
     const server = { asOf, rows: [
-      { projectId: 'din', laneId: 'din', name: 'Dinka', progress: p(9, 9) },
-      { projectId: 'nus', laneId: 'nus', name: 'Nuer', progress: p(5, 1) }
+      { partitionId: 'din', laneId: 'din', name: 'Dinka', progress: p(9, 9) },
+      { partitionId: 'nus', laneId: 'nus', name: 'Nuer', progress: p(5, 1) }
     ] };
     const out = laneFigures(['din', 'nus', 'shk'], new Map([['din', p(10, 2)]]), server);
     expect(out.get('din')).toEqual({ progress: p(10, 2), asOf: null });

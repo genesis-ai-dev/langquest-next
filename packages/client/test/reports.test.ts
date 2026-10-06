@@ -41,7 +41,7 @@ describe('fetching reports', () => {
 });
 
 describe('appendConfirmed', () => {
-  const who = { orgId: 'org1', projectId: 'p1', actorId: 'a1', deviceId: 'd1' };
+  const who = { orgId: 'org1', partitionId: 'p1', actorId: 'a1', deviceId: 'd1' };
 
   it('resolves only once the server has the event', async () => {
     const fake = new FakeServer();

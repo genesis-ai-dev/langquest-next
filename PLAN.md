@@ -67,7 +67,7 @@ rule. This app takes the same shape and extends it to true offline.
 
 Every organization has one **append-only event log** partitioned by
 organization and partition (its `_org` partition and one partition per
-language; the key is still called `projectId`, decisions 34 and 37). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
+language; decisions 37 and 59). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
 row mutations, and every event type is **commutative and idempotent** so any
 device applying any subset in any order converges. **Audio is immutable and
 content-addressed**: cards are blobs named by hash, a take is an ordered list
@@ -92,8 +92,8 @@ Agents: treat each of these as a test you must not break.
    new take that may reference existing cards.
 5. **Status is derived, never stored.** No `status` or `approved` column
    anywhere. Ask the reducer.
-6. **Partitions are self-contained.** An event in project P references only
-   entities in P, global reference data, or blobs by hash. Cross-project use
+6. **Partitions are self-contained.** An event in partition P references only
+   entities in P, global reference data, or blobs by hash. Cross-partition use
    is an explicit `SourceImported` pin, never a live foreign key.
 7. **One state schema.** No local versus synced tables. Pending versus
    confirmed is a column on the events table.
@@ -123,11 +123,11 @@ tenancy, indexing, caching, read/write separation, async processing, and the
 separation of business logic from infrastructure are not there on day one, the
 first mid-size customer finds the bottleneck. Applied here:
 
-- **Tenant on every row.** Every event carries `orgId` and `projectId`. Every
+- **Tenant on every row.** Every event carries `orgId` and `partitionId`. Every
   query, index, and authorization check is scoped by them. No global scans.
-- **Index plan is part of the schema.** Events: `(orgId, projectId,
-  serverSeq)` for pulls, `(id)` unique for idempotency, `(orgId, projectId,
-  parentEventId)` for stale detection. Snapshots: `(orgId, projectId,
+- **Index plan is part of the schema.** Events: `(orgId, partitionId,
+  serverSeq)` for pulls, `(id)` unique for idempotency, `(orgId, partitionId,
+  parentEventId)` for stale detection. Snapshots: `(orgId, partitionId,
   reducerVersion, serverSeq desc)`.
 - **Read/write separation is structural.** Writes are appends to the log.
   Reads are projections and snapshots. They never share a table.
@@ -147,8 +147,8 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 
 | Event | Shape | Merge rule |
 | --- | --- | --- |
-| `v1.ProjectCreated` | name, sourceLanguoidId | once |
-| `v1.ProjectConfigChanged` | config (full document) | register (LWW by HLC, parent pointer) |
+| `v1.PartitionCreated` | name, sourceLanguoidId | once |
+| `v1.PartitionConfigChanged` | config (full document) | register (LWW by HLC, parent pointer) |
 | `v1.MemberAdded` / `v1.MemberRoleChanged` / `v1.MemberRemoved` | profileId, role | register per member |
 | `v1.LaneAdded` | laneId, languoidId | grow-only set |
 | `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
@@ -159,17 +159,17 @@ Names are versioned (`v1.X`). Never change a shipped event's schema; add
 | `v1.TakeSelected` | unitId, laneId, takeId | register per (unit, lane) |
 | `v1.ReviewSubmitted` | takeId, stepId, decision (approve, suggest_changes), comment, answers | register per (take, step, actor) |
 | `v1.AssignmentMade` | unitId, laneId, profileId, role, dueDate, instructions | register per (unit, lane, person, role) |
-| `v1.SourceImported` | sourceProjectId, sourceSeq, units[] | grow-only set (pin) |
+| `v1.SourceImported` | sourcePartitionId, sourceSeq, units[] | grow-only set (pin) |
 | `v1.BlobStored` | hash, size | register per hash (LWW by clock); server-only; re-issued when the object's size changes |
 | `v1.BlobInvalidated` | hash, reason | register per hash; server-only; the reconciler's verdict that stored bytes do not match |
 | `v1.Redacted` | eventId, reason | grow-only set; the target is never folded (owner or coordinator) |
 | `v1.OrgCreated` | name | once (org partition `_org`) |
 | `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges[] | register per role; retired is add-wins |
-| `v1.OrgMemberAdded` / `v1.OrgMemberRemoved` | profileId, roleId, scope {level, projectId?, laneId?}, displayName? | register per (profile, scope) |
-| `v1.CatalogItemToggled` | kind, itemId, level, projectId?, enabled | register per (kind, item, level, project) |
-| `v1.ProjectRegistered` | projectId, name | grow-only set |
+| `v1.OrgMemberAdded` / `v1.OrgMemberRemoved` | profileId, roleId, scope {level, partitionId?, laneId?}, displayName? | register per (profile, scope) |
+| `v1.CatalogItemToggled` | kind, itemId, level, partitionId?, enabled | register per (kind, item, level, partition) |
+| `v1.PartitionRegistered` | partitionId, name | grow-only set |
 | `v1.LaneTemplateSelected` / `v1.LaneFlowSelected` | laneId, templateId or flowId, catalogVersion | register per lane; the selector emits the implied `UnitAdded` / `WorkflowStepSet` with ids derived from the catalog (`fia@1/gen-p1`) |
-| `v1.WorkflowStepSet` / `v1.WorkflowStepRemoved` | stepId, laneId?, order, label?, role, teamId?, required, rule | register per step; removal is add-wins; lane steps override project steps override `config.workflow` |
+| `v1.WorkflowStepSet` / `v1.WorkflowStepRemoved` | stepId, laneId?, order, label?, role, teamId?, required, rule | register per step; removal is add-wins; lane steps override partition steps override `config.workflow` |
 | `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` | teamId, laneId, name / teamId, profileId, member | register per team, register per (team, profile) |
 | `v1.ReviewTeamKindSet` | teamId, laneId, kindId (null = any kind) | register per team; the kind it usually reviews, so Send to … picks it (`usualTarget`) |
 | `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
@@ -215,7 +215,7 @@ Smells to catch in review:
   id: string;             // client-generated, unique, sortable
   type: 'v1.RecordingAdded';
   orgId: string;
-  projectId: string;      // partition key
+  partitionId: string;      // partition key
   actorId: string;
   deviceId: string;
   hlc: string;            // hybrid logical clock, lexically sortable
@@ -243,12 +243,12 @@ Current implementation is two Postgres RPCs on local Supabase
 (`append_events`, `pull_events`, see `server/README.md`). The HTTP shape
 below is the contract they satisfy; a Workers front end can wrap them later.
 
-- `POST /orgs/:org/projects/:project/events` with a batch of at most 500
+- `POST /orgs/:org/partitions/:partition/events` with a batch of at most 500
   pending events (`append_events`). Server checks membership fold and
   payload shape, assigns `serverSeq`, returns per-event accept or reject.
-- `GET /orgs/:org/projects/:project/events?after=<serverSeq>&limit=<n>`
+- `GET /orgs/:org/partitions/:partition/events?after=<serverSeq>&limit=<n>`
   (`pull_events`).
-- `GET /orgs/:org/projects/:project/snapshot?reducerVersion=<v>`
+- `GET /orgs/:org/partitions/:partition/snapshot?reducerVersion=<v>`
   (`get_snapshot`) returns the newest snapshot for exactly that version.
   `get_snapshot_meta` and `get_snapshot_chunk` serve the same snapshot in
   256 KB pieces; the client persists each piece so a dropped link resumes.
@@ -261,7 +261,7 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   is independent of presence of the events that reference it.
 
 Migration option: this protocol can be served by PowerSync syncing a single
-immutable `events` table bucketed by project, with the upload queue as the
+immutable `events` table bucketed by partition, with the upload queue as the
 outbox. Decide by cost, not architecture.
 
 ## 10. Repository layout
@@ -337,7 +337,7 @@ langquest-next/
    re-stamping, snapshot-first handling of a redaction inside a checkpoint
    (migration 000008, `syncClient.ts`, smoke section 7).
 10. **Done:** org partition (`_org`) with roles as privilege sets,
-    scoped memberships, catalog toggles and project registry (core `org.ts`,
+    scoped memberships, catalog toggles and partition registry (core `org.ts`,
     migration 000009, smoke section 8, `apps/mobile/src/useOrg.ts`);
     `SyncClient` is generic over a materializer; session facets are
     privileges and Home follows the admin scope, so `language_home` is
@@ -346,7 +346,7 @@ langquest-next/
     generated from v2's `template_structure` by `scripts/buildCatalog.ts`:
     FIA 1,352 pericopes, Chapter Units 1,189 chapters, Book Overview) with
     deterministic instantiation per lane; per-step workflow registers with
-    lane > project > config precedence; review teams with assignment > team
+    lane > partition > config precedence; review teams with assignment > team
     > role eligibility; the respond note and spoken review comment events
     (migration 000010, smoke section 9, `templates_home`, `flows_home`,
     `flow_editor`, `review_teams`, `review_team_editor`, `attach_questions`).
@@ -428,7 +428,7 @@ review steps describe v1 lanes, which still fold and read as kinds.
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Language | `orgId` › one partition per language (`projectId` = the language's id, listed by `ProjectRegistered` in `_org`; `orgLanguages`) › lane (`LaneAdded`) | no project level in the app (decision 34); a phone pulls the languages it opens (decision 37) |
+| Org › Language | `orgId` › one partition per language (`partitionId` = the language's id, listed by `PartitionRegistered` in `_org`; `orgLanguages`) › lane (`LaneAdded`) | no project level in the app (decision 34); a phone pulls the languages it opens (decision 37) |
 | Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used per lane (`v2.LaneTemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`LaneUnitHidden`) | pieces are leaf units; a lane shows its template's units in the books it covers, plus hand-added ones; older lanes keep the v1 catalog ids |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
@@ -446,7 +446,7 @@ review steps describe v1 lanes, which still fold and read as kinds.
 | Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
-| Roles with privilege switches, member scope (org / language; a project scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
+| Roles with privilege switches, member scope (org / language; a partition scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
 | Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; `CatalogItemToggled` remains for template suggestions |
 | Who may use an organization's work, and what outsiders see | `v1.OrgLicenseSet` in `_org` (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
 | Whether this phone sends field diagnostics | Settings › App › Send diagnostics, a switch row (`diag:off` in device meta, `src/diagnosticsSetting.ts`); diagnostics are never events | **added**, not in the demo (decision 39, docs/diagnostics.md); on by default, and off deletes what is waiting |
@@ -475,7 +475,7 @@ below was earned in production there.
    server says so. `PUT /blobs/:hash` is idempotent (content-addressed, so a
    re-upload is a byte-identical overwrite). Confirmation arrives as a
    `BlobStored {hash, size, storedAt}` event appended by the server into the
-   project log, so it reaches every device through the normal pull. Clients
+   partition log, so it reaches every device through the normal pull. Clients
    have no way to write it: `append_events` refuses `BlobStored` from any
    non-service caller.
 3. **Grace, not flags.** After a successful PUT the uploader leaves the hash
@@ -520,9 +520,9 @@ below was earned in production there.
 
 Cache eviction (closing a v2 gap): the device keeps 500 MB free for
 recording and caps the blob cache at 2 GB. Only files core `evictableBlobs`
-names may go: referenced by this project, confirmed intact on the server,
+names may go: referenced by this partition, confirmed intact on the server,
 outside the offline scope, and not upload work. Unsynced recordings, kept
-units, and other projects' files are never touched. Downloads land in a
+units, and other partitions' files are never touched. Downloads land in a
 `.part` staging name and are renamed only after their hash matches;
 startup deletes leftover staging files.
 
@@ -542,7 +542,7 @@ The gate is the same run on the slowest partner Android.
   team which is authoritative before step 10 ports more.
 
 - Caleb's workflow demo defines the review model; port its rules into
-  `ProjectConfig.workflow` and confirm the quorum semantics with him.
+  `PartitionConfig.workflow` and confirm the quorum semantics with him.
 - Content templates, flows and reference material are library documents in
   the database (decision 36, docs/library.md); the old static bundle
   (`catalog.ts`) remains only so lanes set up from it keep reading. The

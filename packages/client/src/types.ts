@@ -8,11 +8,11 @@ import type { AnyEvent, LocalEventStatus, PassageKey, PassageRow, TaskStatus } f
  */
 export interface WriteBatch {
   events?: LocalEvent[];
-  cursor?: { orgId: string; projectId: string; seq: number };
+  cursor?: { orgId: string; partitionId: string; seq: number };
   meta?: Record<string, string>;
   /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
-  prune?: { orgId: string; projectId: string; uptoSeq: number };
-  rows?: { orgId: string; projectId: string; clear?: boolean; version?: string; put?: PassageRow[]; delete?: PassageKey[] } | undefined;
+  prune?: { orgId: string; partitionId: string; uptoSeq: number };
+  rows?: { orgId: string; partitionId: string; clear?: boolean; version?: string; put?: PassageRow[]; delete?: PassageKey[] } | undefined;
 }
 
 /** A page position in a lane's rows: the last row seen, in display order. */
@@ -48,45 +48,45 @@ export interface LocalEvent {
 export interface EventStore {
   /** Apply one write batch atomically. All other writers are conveniences over this. */
   commit(batch: WriteBatch): Promise<void>;
-  taskPage(orgId: string, projectId: string, query: TaskQuery): Promise<TaskMatch[]>;
-  laneCounts(orgId: string, projectId: string, laneId: string): Promise<LaneCounts>;
+  taskPage(orgId: string, partitionId: string, query: TaskQuery): Promise<TaskMatch[]>;
+  laneCounts(orgId: string, partitionId: string, laneId: string): Promise<LaneCounts>;
   /** One read-model row, or undefined when the projection has none. */
-  passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined>;
+  passage(orgId: string, partitionId: string, unitId: string, laneId: string): Promise<PassageRow | undefined>;
   /** Rows in display order (unit order, unit id, lane id), strictly after `after`, optionally one lane. */
-  passages(orgId: string, projectId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]>;
+  passages(orgId: string, partitionId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]>;
   put(local: LocalEvent): Promise<void>;
   /** Upsert many in one transaction: one pull page, one bulk append. */
   putMany(locals: LocalEvent[]): Promise<void>;
   get(id: string): Promise<LocalEvent | undefined>;
   /** Rejected events for a partition, oldest first, so the UI can show them and the client can retry them. */
-  rejected(orgId: string, projectId: string): Promise<LocalEvent[]>;
+  rejected(orgId: string, partitionId: string): Promise<LocalEvent[]>;
   /** Pending events for a partition, oldest first. The sync status screen reads this; push reads pages. */
-  pending(orgId: string, projectId: string): Promise<LocalEvent[]>;
+  pending(orgId: string, partitionId: string): Promise<LocalEvent[]>;
   /**
    * One page of pending events, oldest first, strictly after `afterHlc`
    * (null for the first page). Push walks the outbox this way so a large
    * offline backlog is never materialized at once.
    */
-  pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
+  pendingPage(orgId: string, partitionId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]>;
   /** How many are pending, as a count: the UI asks after every change and must not deserialize the outbox to answer. */
-  pendingCount(orgId: string, projectId: string): Promise<number>;
+  pendingCount(orgId: string, partitionId: string): Promise<number>;
   /**
    * How many of one person's events are pending. On a shared phone the log
    * holds everyone's queued events, and only their author's session can send
    * them (decisions.md 11), so "still to send" is counted per person.
    */
-  pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number>;
+  pendingCountBy(orgId: string, partitionId: string, actorId: string): Promise<number>;
   /** Every partition holding pending events by one person: where a hand-over courier has work (decisions.md 60). */
-  pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]>;
+  pendingPartitionsBy(actorId: string): Promise<{ orgId: string; partitionId: string }[]>;
   /** How many events all() returns, without loading them. */
-  count(orgId: string, projectId: string): Promise<number>;
+  count(orgId: string, partitionId: string): Promise<number>;
   /** Every non-rejected event for a partition (confirmed then pending is fine). */
-  all(orgId: string, projectId: string): Promise<LocalEvent[]>;
+  all(orgId: string, partitionId: string): Promise<LocalEvent[]>;
   /** Highest confirmed server_seq seen for a partition, 0 if none. */
-  cursor(orgId: string, projectId: string): Promise<number>;
-  setCursor(orgId: string, projectId: string, seq: number): Promise<void>;
+  cursor(orgId: string, partitionId: string): Promise<number>;
+  setCursor(orgId: string, partitionId: string, seq: number): Promise<void>;
   /** Drop confirmed events at or below `uptoSeq`; they live in a checkpoint now. */
-  prune(orgId: string, projectId: string, uptoSeq: number): Promise<void>;
+  prune(orgId: string, partitionId: string, uptoSeq: number): Promise<void>;
   /** Small device-level key/value state: device id, persisted clocks. */
   meta(key: string): Promise<string | undefined>;
   setMeta(key: string, value: string): Promise<void>;
@@ -102,17 +102,17 @@ export interface AppendResult {
 /** The server calls from PLAN.md section 9. */
 export interface Transport {
   append(events: AnyEvent[]): Promise<AppendResult[]>;
-  pull(orgId: string, projectId: string, after: number, limit: number): Promise<AnyEvent[]>;
+  pull(orgId: string, partitionId: string, after: number, limit: number): Promise<AnyEvent[]>;
   /** Newest snapshot for exactly this reducer version: where it is and how big, or null. */
-  snapshotMeta(orgId: string, projectId: string, reducerVersion: number): Promise<SnapshotMeta | null>;
+  snapshotMeta(orgId: string, partitionId: string, reducerVersion: number): Promise<SnapshotMeta | null>;
   /** One piece of that snapshot's JSON state; null if the seq no longer exists. */
-  snapshotChunk(orgId: string, projectId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null>;
+  snapshotChunk(orgId: string, partitionId: string, reducerVersion: number, serverSeq: number, index: number): Promise<string | null>;
   /**
    * Be told when something was appended to a partition, and whether the
    * channel is up. Optional: a transport without it is polled. The poke
    * carries no data; the client pulls through the authorized RPC.
    */
-  watch?(orgId: string, projectId: string, handlers: WatchHandlers): () => void;
+  watch?(orgId: string, partitionId: string, handlers: WatchHandlers): () => void;
 }
 
 export interface WatchHandlers {

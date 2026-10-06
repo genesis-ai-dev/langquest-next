@@ -245,7 +245,7 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
     <Authored ctx={props.ctx} by={n.by}>
       <NoteCard anchor={n.photoHash ? `${anchor} · photo` : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
         icon={n.blobHash ? 'mic' : 'note'}
-        audio={n.blobHash ? <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play voice note" /> : undefined}
+        audio={n.blobHash ? <AudioClip partition={props.ctx.partition} hashes={[n.blobHash]} label="Play voice note" /> : undefined}
         action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
     </Authored>
   );
@@ -259,7 +259,7 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
  * A failed write was already shown by ctx.act.
  */
 export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId' | 'laneId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string): Promise<boolean> {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   if (!state) return false;
   let specs: EventSpec[];
   try {
@@ -370,7 +370,7 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
   );
 }
 
-/** A glossary term: its entry, read aloud when there is audio, and the project's key term when there is one. */
+/** A glossary term: its entry, read aloud when there is audio, and the partition's key term when there is one. */
 export function GlossarySheet(props: { entry: GlossaryEntry; source: string; orgId?: string | null; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void }) {
   const e = props.entry;
   const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;

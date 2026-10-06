@@ -8,7 +8,7 @@ import {
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
 import { sourceChapters } from './sourceBibles';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 import { deriveWorkflow } from './workflow';
 import { stateRevision } from './reducer';
 
@@ -36,11 +36,11 @@ export function kindOfV1Step(stepId: string): string {
 }
 
 /**
- * Every kind this project speaks: the shipped vocabulary, overridden or
+ * Every kind this partition speaks: the shipped vocabulary, overridden or
  * extended by `v1.ReviewKindDefined`, plus a kind for any v1 step that maps
  * to none (named by its label), so a lane configured before v2 still reads.
  */
-export function deriveKinds(state: ProjectState): KindDef[] {
+export function deriveKinds(state: PartitionState): KindDef[] {
   const out = new Map<string, KindDef>(DEFAULT_KINDS.map((k) => [k.id, k]));
   for (const slot of Object.entries(state.workflowSteps).sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v)) {
     if (slot.removed || slot.step.hlc === '') continue;
@@ -55,7 +55,7 @@ export function deriveKinds(state: ProjectState): KindDef[] {
   return [...out.values()];
 }
 
-export function kindOf(state: ProjectState, kindId: string): KindDef {
+export function kindOf(state: PartitionState, kindId: string): KindDef {
   return deriveKinds(state).find((k) => k.id === kindId) ?? { id: kindId, name: humanize(stageOf(kindId)), description: '', usualReviewer: '' };
 }
 
@@ -81,11 +81,11 @@ export interface LaneFlow {
 }
 
 /**
- * The flow in force for a lane. v2 steps (lane over project) win; a lane
+ * The flow in force for a lane. v2 steps (lane over partition) win; a lane
  * that selected a v2 flow reads only v2 steps, so choosing "Collect only"
  * really means no steps. Otherwise the v1 workflow, one kind per step.
  */
-export function deriveFlow(state: ProjectState, laneId: string): LaneFlow {
+export function deriveFlow(state: PartitionState, laneId: string): LaneFlow {
   const selection = state.laneFlows[laneId]?.value ?? null;
   const live = Object.values(state.flowSteps)
     .map((r) => r.value)
@@ -93,11 +93,11 @@ export function deriveFlow(state: ProjectState, laneId: string): LaneFlow {
   const v2Selection = selection !== null && selection.catalogVersion >= 2;
   // A lane that chose (or saved) its own v2 flow shows exactly that
   // selection's steps, even none: "Collect only" must not fall back to the
-  // project's steps, and a flow chosen before stays out of sight.
+  // partition's steps, and a flow chosen before stays out of sight.
   const prefix = v2Selection ? flowStepPrefix(laneId, selection.flowId, selection.catalogVersion) : null;
   const laneSteps = live.filter((d) => d.laneId === laneId && (prefix === null || d.stepId.startsWith(prefix)));
-  const projectSteps = live.filter((d) => d.laneId === undefined);
-  const v2 = laneSteps.length > 0 || v2Selection ? laneSteps : projectSteps;
+  const partitionSteps = live.filter((d) => d.laneId === undefined);
+  const v2 = laneSteps.length > 0 || v2Selection ? laneSteps : partitionSteps;
   const name = selection && selection.flowId !== CUSTOM_FLOW
     ? selection.name ?? flowTemplateV2(selection.flowId)?.name ?? flowTemplate(selection.flowId)?.name ?? 'Custom flow'
     : v2.length > 0 ? 'Custom flow' : 'Review flow';
@@ -246,7 +246,7 @@ interface RecordIndexes {
  * fresh top-level copy per change; a client's live state is mutated in
  * place and bumps its revision with every applied event.
  */
-const cache = new WeakMap<ProjectState, { revision: number; ri: RecordIndexes }>();
+const cache = new WeakMap<PartitionState, { revision: number; ri: RecordIndexes }>();
 
 function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   const list = m.get(k);
@@ -258,7 +258,7 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
 const byHlc = <T extends { hlc: string; id?: string }>(a: T, b: T) =>
   a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? '') < (b.id ?? '') ? -1 : (a.id ?? '') > (b.id ?? '') ? 1 : 0;
 
-function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
+function recordIndexes(state: PartitionState, idx?: Indexes): RecordIndexes {
   const revision = stateRevision(state);
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
@@ -331,7 +331,7 @@ function recordIndexes(state: ProjectState, idx?: Indexes): RecordIndexes {
 
 // ---- the passage -----------------------------------------------------------------
 
-export function derivePassage(state: ProjectState, unitId: string, laneId: string, idx?: Indexes): PassageState {
+export function derivePassage(state: PartitionState, unitId: string, laneId: string, idx?: Indexes): PassageState {
   const ri = recordIndexes(state, idx);
   const key = unitLaneKey(unitId, laneId);
   const hit = ri.passages.get(key);
@@ -455,7 +455,7 @@ export function feedbackIsMine(s: PassageState, actorId: string): boolean {
  * A review team's members, sorted. None when the team is unknown or, given
  * `laneId`, belongs to another lane: a request names a team in its own lane.
  */
-export function teamMemberIds(state: ProjectState, teamId: string, laneId?: string): string[] {
+export function teamMemberIds(state: PartitionState, teamId: string, laneId?: string): string[] {
   const team = state.teams[teamId];
   if (!team || (laneId !== undefined && team.laneId !== laneId)) return [];
   return Object.entries(team.members).filter(([, r]) => r.value).map(([id]) => id).sort();
@@ -468,7 +468,7 @@ type Addressed = Pick<PassageRequest, 'laneId' | 'profileId' | 'guest' | 'teamId
  * team in its lane they are on (and they did not send it). Use this, not a
  * profileId comparison, wherever "this request is mine" is decided.
  */
-export function requestIsFor(state: ProjectState, request: Addressed, profileId: string): boolean {
+export function requestIsFor(state: PartitionState, request: Addressed, profileId: string): boolean {
   if (request.profileId === profileId) return true;
   if (!request.teamId || request.by === profileId) return false;
   return teamMemberIds(state, request.teamId, request.laneId).includes(profileId);
@@ -480,7 +480,7 @@ export type RequestAddressee =
   | { kind: 'team'; teamId: string; name: string; memberIds: string[] };
 
 /** Who a request was sent to, for display: a teammate, a guest, or a review team (its name and members, not the asker). */
-export function requestAddressee(state: ProjectState, request: Addressed): RequestAddressee | undefined {
+export function requestAddressee(state: PartitionState, request: Addressed): RequestAddressee | undefined {
   if (request.teamId) {
     const memberIds = teamMemberIds(state, request.teamId, request.laneId).filter((id) => id !== request.by);
     return { kind: 'team', teamId: request.teamId, name: state.teams[request.teamId]?.name.value ?? '', memberIds };
@@ -491,7 +491,7 @@ export function requestAddressee(state: ProjectState, request: Addressed): Reque
 }
 
 /** The addressee's name: the team's ("Community reviewers"), the guest's, or `name(profileId)`. */
-export function requestAddresseeName(state: ProjectState, request: Addressed, name: (profileId: string) => string): string {
+export function requestAddresseeName(state: PartitionState, request: Addressed, name: (profileId: string) => string): string {
   const a = requestAddressee(state, request);
   if (!a) return '';
   return a.kind === 'team' ? a.name || 'the review team' : a.kind === 'guest' ? a.name : name(a.profileId);
@@ -511,12 +511,12 @@ export type UsualTarget = { teamId: string; name: string } | { profileId: string
  *   `me`. A team set to "any kind" is not the usual target of any one kind.
  * - Person: exactly one person other than `me` who reviewed this kind in
  *   the app in this lane before (v1.ReviewRecorded via app, or a v1 review
- *   of a step of this kind), not removed from the project.
+ *   of a step of this kind), not removed from the partition.
  *
  * `eligible` narrows both, for example to people holding Review here.
  */
 export function usualTarget(
-  state: ProjectState,
+  state: PartitionState,
   laneId: string,
   kindId: string,
   me: string,
@@ -588,7 +588,7 @@ export interface LanguageProgress {
   feedback: number;
 }
 
-export function languageProgress(state: ProjectState, laneId: string, idx?: Indexes): LanguageProgress {
+export function languageProgress(state: PartitionState, laneId: string, idx?: Indexes): LanguageProgress {
   const ri = recordIndexes(state, idx);
   const flow = deriveFlow(state, laneId);
   const states = laneLeafUnits(state, ri.idx, laneId).map((u) => derivePassage(state, u, laneId, ri.idx));
@@ -631,7 +631,7 @@ export interface Highlight {
  * person is involved in, never the whole lane.
  */
 export function highlightsFor(
-  state: ProjectState,
+  state: PartitionState,
   actorId: string,
   opts: { canRecord: boolean; canReview: boolean; laneIds?: string[] },
   idx?: Indexes
@@ -682,7 +682,7 @@ export interface Waiting {
 }
 
 /** What a person asked of someone else that is not done yet, most overdue first (WORK-3). */
-export function waitingOn(state: ProjectState, actorId: string, opts: { laneIds?: string[] } = {}, idx?: Indexes): Waiting[] {
+export function waitingOn(state: PartitionState, actorId: string, opts: { laneIds?: string[] } = {}, idx?: Indexes): Waiting[] {
   const ri = recordIndexes(state, idx);
   const out: Waiting[] = [];
   for (const r of ri.requestsBy.get(actorId) ?? []) {
@@ -699,7 +699,7 @@ export function waitingOn(state: ProjectState, actorId: string, opts: { laneIds?
  * the first passage nobody recorded; a reviewer the first recording nobody
  * checked.
  */
-export function upNext(state: ProjectState, laneId: string, opts: { canRecord: boolean; canReview: boolean }, idx?: Indexes): { kind: 'record' | 'review'; unitId: string } | null {
+export function upNext(state: PartitionState, laneId: string, opts: { canRecord: boolean; canReview: boolean }, idx?: Indexes): { kind: 'record' | 'review'; unitId: string } | null {
   const ri = recordIndexes(state, idx);
   const units = laneLeafUnits(state, ri.idx, laneId);
   if (opts.canRecord) {
@@ -717,16 +717,16 @@ export function upNext(state: ProjectState, laneId: string, opts: { canRecord: b
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  source: 'org' | 'project' | 'language' | 'request';
+  source: 'org' | 'partition' | 'language' | 'request';
   required: boolean;
 }
 
 /**
  * Questions for a kind of review (REV-2): the shipped set for the kind, then
  * question-set materials scoped to the kind (`scope.stepId` = kind id) at
- * project then language level, then the asker's own.
+ * partition then language level, then the asker's own.
  */
-export function questionsForKind(state: ProjectState, kindId: string, laneId: string, request?: RequestView): SourcedQuestion[] {
+export function questionsForKind(state: PartitionState, kindId: string, laneId: string, request?: RequestView): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
   for (const t of QUESTION_TEMPLATES) {
     if (!t.stageId || (V1_STAGE_KINDS[t.stageId] ?? t.stageId) !== kindId) continue;
@@ -734,7 +734,7 @@ export function questionsForKind(state: ProjectState, kindId: string, laneId: st
   }
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
     .sort(([a], [b]) => (a < b ? -1 : 1));
-  for (const level of ['project', 'language'] as const) {
+  for (const level of ['partition', 'language'] as const) {
     for (const [id, m] of sets) {
       if ((level === 'language') !== (m.scope.laneId !== undefined)) continue;
       if (level === 'language' && m.scope.laneId !== laneId) continue;
@@ -772,7 +772,7 @@ export type RecordEntry =
   | { type: 'study'; hlc: Hlc; by: string; guideId: string; stepId: string };
 
 /** Everything on the record, newest first (REC-8). Study notes stay with the study; finished steps are one entry each. */
-export function recordTimeline(state: ProjectState, s: PassageState): RecordEntry[] {
+export function recordTimeline(state: PartitionState, s: PassageState): RecordEntry[] {
   const out: RecordEntry[] = [
     ...s.versions.map((v) => ({ type: 'version' as const, hlc: v.hlc, by: v.by, version: v })),
     ...s.reviews.map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
@@ -806,7 +806,7 @@ export interface StudyMark {
 }
 
 /** Finished study steps for one passage (ADR-018); an un-finished mark is not listed. */
-export function studyMarksFor(state: ProjectState, unitId: string, laneId: string, guideId?: string): StudyMark[] {
+export function studyMarksFor(state: PartitionState, unitId: string, laneId: string, guideId?: string): StudyMark[] {
   const prefix = `${unitId}:${laneId}:`;
   const out: StudyMark[] = [];
   for (const [key, reg] of Object.entries(state.studyMarks)) {
@@ -840,7 +840,7 @@ export interface UnitPlace {
 }
 
 /** Book and chapters of a unit, for the Map (MAP-4, MAP-5). */
-export function unitPlace(state: ProjectState, unitId: string): UnitPlace {
+export function unitPlace(state: PartitionState, unitId: string): UnitPlace {
   const chapters = sourceChapters(unitId);
   let bookId: string | null = chapters[0]?.book ?? null;
   if (!bookId) {
@@ -868,7 +868,7 @@ export function unitPlace(state: ProjectState, unitId: string): UnitPlace {
 }
 
 /** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3". */
-export function unitTitle(state: ProjectState, unitId: string): string {
+export function unitTitle(state: PartitionState, unitId: string): string {
   return state.units[unitId]?.label ?? unitId;
 }
 
@@ -894,7 +894,7 @@ export interface Update {
  * them for something, reviewed a version they recorded, answered feedback
  * they gave, or did what they asked. Never their own acts. Newest first.
  */
-export function updatesFor(state: ProjectState, actorId: string, idx?: Indexes): Update[] {
+export function updatesFor(state: PartitionState, actorId: string, idx?: Indexes): Update[] {
   const ri = recordIndexes(state, idx);
   const keys = new Set<string>();
   for (const r of ri.requestsTo.get(actorId) ?? []) keys.add(unitLaneKey(r.unitId, r.laneId));
@@ -931,7 +931,7 @@ export function updatesFor(state: ProjectState, actorId: string, idx?: Indexes):
 }
 
 /** A language's name for people: its given name, else its code. */
-export function laneName(state: ProjectState, laneId: string): string {
+export function laneName(state: PartitionState, laneId: string): string {
   return state.laneNames[laneId]?.value ?? state.lanes[laneId]?.languoidId?.toUpperCase() ?? laneId;
 }
 
@@ -942,7 +942,7 @@ export function laneName(state: ProjectState, laneId: string): string {
  * are source-language cards like reference audio, so lists of "source
  * audio" must leave them out.
  */
-export function recordAudioHashes(state: ProjectState): Set<string> {
+export function recordAudioHashes(state: PartitionState): Set<string> {
   const out = new Set<string>();
   const add = (h?: string) => { if (h) out.add(h); };
   for (const n of Object.values(state.notes ?? {})) { add(n.blobHash); add(n.photoHash); }

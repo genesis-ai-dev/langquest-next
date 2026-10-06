@@ -1,12 +1,12 @@
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, eligibleReviewers } from './workflow';
 
 /**
  * Liveness check: states the workflow can reach but nobody can move out of.
  *
  * The flow machine proves every screen is reachable. It cannot prove every
- * task is completable, because that depends on who is in the project, not
+ * task is completable, because that depends on who is in the partition, not
  * on which screens exist. These are the ways a passage gets stuck after a
  * month offline, derived from the fold so a coordinator sees them on the
  * status screen instead of discovering them in a support ticket.
@@ -20,7 +20,7 @@ export type BlockerKind =
   | 'assignee_removed'
   /** A step waits on reviewers who were removed after being assigned. */
   | 'reviewer_removed'
-  /** A workflow step names a role nobody in the project holds. */
+  /** A workflow step names a role nobody in the partition holds. */
   | 'role_unfilled';
 
 export interface Blocker {
@@ -34,7 +34,7 @@ export interface Blocker {
   fix: string;
 }
 
-export function deriveBlockers(state: ProjectState, idx: Indexes = buildIndexes(state)): Blocker[] {
+export function deriveBlockers(state: PartitionState, idx: Indexes = buildIndexes(state)): Blocker[] {
   const out: Blocker[] = [];
   const removed = (id: string) => {
     const m = state.members[id];

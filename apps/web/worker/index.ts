@@ -9,7 +9,7 @@ export default {
   async fetch(request, env, ctx) {
     if (!new URL(request.url).pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     return handleApi(request, {
-      // Verified here against the project's signing keys when it has
+      // Verified here against the partition's signing keys when it has
       // asymmetric ones (the keys are fetched once and cached); otherwise
       // supabase-js asks Auth, as getUser did.
       profileOf: async (token) => {

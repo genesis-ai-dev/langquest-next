@@ -9,8 +9,8 @@ import {
 } from '../src/reviewing/capture';
 import { parseQuery } from '../src/canon';
 
-/** A small project: one language on the Standard Bible Flow and a few passages of John. */
-function project() {
+/** A small partition: one language on the Standard Bible Flow and a few passages of John. */
+function partition() {
   const events: AnyEvent[] = [];
   let wall = 1_700_000_000_000;
   let seq = 0;
@@ -20,7 +20,7 @@ function project() {
     clocks.set(actorId, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `x${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
+    events.push({ id: `x${seq}`, type, orgId: 'o', partitionId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
   };
   const state = () => fold(events, emptyState());
   const run = (actorId: string, build: (c: ReturnType<typeof commands>) => { type: EventType; payload: unknown }[]) => {
@@ -40,12 +40,12 @@ function project() {
   return { emit, run, state, publish };
 }
 
-const q = (id: string, required: boolean, source: SourcedQuestion['source'] = 'project'): SourcedQuestion =>
+const q = (id: string, required: boolean, source: SourcedQuestion['source'] = 'partition'): SourcedQuestion =>
   ({ q: { id, text: id, type: 'yesno', ...(required ? { required } : {}) }, source, required });
 
 describe('what a review hears and answers', () => {
   it('hears the version named, else the latest', () => {
-    const p = project();
+    const p = partition();
     p.publish('john3', ['a']);
     p.publish('john3', ['b'], 'Fixed verse 2.');
     const s = derivePassage(p.state(), 'john3', 'din');
@@ -55,7 +55,7 @@ describe('what a review hears and answers', () => {
   });
 
   it('answers the request made to you before one made to someone else; a logged session closes only yours', () => {
-    const p = project();
+    const p = partition();
     p.publish('john3', ['a']);
     p.run('lead', (c) => c.ask({ commandId: 'r-other', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'community', profileId: 'akol' }));
     p.run('lead', (c) => c.ask({ commandId: 'r-me', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'community', profileId: 'peter' }));
@@ -68,7 +68,7 @@ describe('what a review hears and answers', () => {
   });
 
   it('puts the back translation in front of the consultant, not among earlier reviews (REV-5)', () => {
-    const p = project();
+    const p = partition();
     p.publish('john3', ['a']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('peter', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
@@ -135,7 +135,7 @@ describe('a session that already happened (REV-6)', () => {
   });
 
   it('suggests the nearest recorded passages in the same book, and searches for the rest', () => {
-    const p = project();
+    const p = partition();
     for (const u of ['john1', 'john2', 'john3', 'john4', 'john5', 'john9', 'mark2']) p.publish(u, [`c-${u}`]);
     const all = recordedPassages(p.state(), 'din');
     expect(all.map((x) => x.unitId)).toEqual(['mark2', 'john1', 'john2', 'john3', 'john4', 'john5', 'john9']); // canon order: Mark before John
@@ -155,7 +155,7 @@ describe('a session that already happened (REV-6)', () => {
   });
 
   it('leaves out passages with no version, and caches the list per state', () => {
-    const p = project();
+    const p = partition();
     p.publish('john3', ['a']);
     const state = p.state();
     expect(recordedPassages(state, 'din').map((x) => x.unitId)).toEqual(['john3']);
@@ -163,7 +163,7 @@ describe('a session that already happened (REV-6)', () => {
   });
 
   it('saves to the version played here and the latest version of each other passage picked', () => {
-    const p = project();
+    const p = partition();
     p.publish('john3', ['a']);
     p.publish('john3', ['b'], 'Second.');
     p.publish('john4', ['c']);

@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { fold, type Role } from '@langquest-next/core';
-import { appendAll, audioNames, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport, type SeededProject } from '@langquest-next/client';
+import { appendAll, audioNames, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport, type SeededPartition } from '@langquest-next/client';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -99,19 +99,19 @@ function mp4DurationMs(bytes: Uint8Array): number {
 }
 
 const transport = new SupabaseTransport(service);
-const seeded: SeededProject[] = [];
+const seeded: SeededPartition[] = [];
 let orgOwner = '';
 let orgAt = new Date().toISOString();
 
-for (const projectId of projects) {
-  console.log(`\n== v2 project ${projectId}`);
-  const rows = await fetchV2Rows(v2, projectId);
+for (const partitionId of projects) {
+  console.log(`\n== v2 project ${partitionId}`);
+  const rows = await fetchV2Rows(v2, partitionId);
   console.log(`rows: ${rows.quests.length} quests, ${rows.assets.length} assets, ${rows.votes.length} votes, ${rows.members.length} member links`);
 
   // Blobs the log already confirms need no second upload.
   const alreadyStored = new Set<string>();
   for (let after = 0; ; ) {
-    const page = await transport.pull(orgId, projectId, after, 1000);
+    const page = await transport.pull(orgId, partitionId, after, 1000);
     for (const e of page) if (e.type === 'v1.BlobStored') alreadyStored.add((e.payload as { hash: string }).hash);
     if (page.length < 1000) break;
     after = page[page.length - 1]!.serverSeq!;
@@ -119,7 +119,7 @@ for (const projectId of projects) {
 
   const names = flag('skip-audio') ? [] : audioNames(rows);
   const t0 = Date.now();
-  const { blobs, failed } = await copyBlobs(names, orgId, projectId, {
+  const { blobs, failed } = await copyBlobs(names, orgId, partitionId, {
     download,
     digest: async (b) => createHash('sha256').update(b).digest('hex'),
     durationMs: async (bytes) => mp4DurationMs(bytes),
@@ -136,7 +136,7 @@ for (const projectId of projects) {
   for (const f of failed.slice(0, 10)) console.log(`  failed ${f.name}: ${f.reason}`);
 
   const { events, report, owner, roles } = mapV2Project(rows, { orgId, blobs, grant });
-  seeded.push({ projectId, name: rows.project.name, roles });
+  seeded.push({ partitionId, name: rows.project.name, roles });
   // Whoever you granted ownership to is the org's admin: that is the account
   // that will actually drive it. Otherwise fall back to v2's project owner.
   if (!orgOwner) {

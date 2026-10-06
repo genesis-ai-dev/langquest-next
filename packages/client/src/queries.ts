@@ -1,6 +1,6 @@
 import {
   actorRole, parseTaskId, tasksFromRow,
-  type PassageRow, type ProjectState, type Task, type TaskStatus
+  type PassageRow, type PartitionState, type Task, type TaskStatus
 } from '@langquest-next/core';
 import type { EventStore, PassageCursor, TaskCursor } from './types';
 
@@ -9,7 +9,7 @@ const ROW_PAGE = 200;
 
 /**
  * The query layer: what one screen needs, answered from persisted rows.
- * Each query costs the rows it returns, not the project. The fold is read
+ * Each query costs the rows it returns, not the partition. The fold is read
  * only for the actor's role, a one-key lookup.
  */
 export interface TaskFilter {
@@ -23,7 +23,7 @@ export interface TaskPage {
   cursor: string | null;
 }
 
-export interface ProjectQueries {
+export interface PartitionQueries {
   getPassageView(unitId: string, laneId: string): Promise<PassageRow | undefined>;
   /** By task id, with the translate/respond fallback `findTask` has. */
   getTask(taskId: string, actorId: string): Promise<Task | undefined>;
@@ -34,15 +34,15 @@ export interface ProjectQueries {
   listPendingRecordings(unitId: string, laneId: string, actorId: string): Promise<string[]>;
 }
 
-export function queriesFor(store: EventStore, orgId: string, projectId: string, state: () => ProjectState, pendingRecordings: (unitId: string, laneId: string, actorId: string) => string[]): ProjectQueries {
+export function queriesFor(store: EventStore, orgId: string, partitionId: string, state: () => PartitionState, pendingRecordings: (unitId: string, laneId: string, actorId: string) => string[]): PartitionQueries {
   const role = (actorId: string) => actorRole(state(), actorId);
   return {
-    getPassageView: (unitId, laneId) => store.passage(orgId, projectId, unitId, laneId),
+    getPassageView: (unitId, laneId) => store.passage(orgId, partitionId, unitId, laneId),
 
     async getTask(taskId, actorId) {
       const parsed = parseTaskId(taskId);
       if (!parsed) return undefined;
-      const row = await store.passage(orgId, projectId, parsed.unitId, parsed.laneId);
+      const row = await store.passage(orgId, partitionId, parsed.unitId, parsed.laneId);
       if (!row) return undefined;
       const tasks = tasksFromRow(row, actorId, role(actorId));
       const exact = tasks.find((t) => t.id === taskId);
@@ -54,7 +54,7 @@ export function queriesFor(store: EventStore, orgId: string, projectId: string, 
       const r = role(actorId);
       const size = Math.min(200, Math.max(1, Math.floor(limit) || 1));
       if (!r) return { tasks: [], cursor: null };
-      const matches = await store.taskPage(orgId, projectId, {
+      const matches = await store.taskPage(orgId, partitionId, {
         actorId, translate: ['owner', 'coordinator', 'translator'].includes(r),
         ...filter, after: cursor ? JSON.parse(cursor) as TaskCursor : null,
         limit: size + 1
@@ -75,7 +75,7 @@ export function queriesFor(store: EventStore, orgId: string, projectId: string, 
       if (!r) return counts;
       let after: PassageCursor | null = null;
       for (;;) {
-        const page = await store.passages(orgId, projectId, { ...(laneId ? { laneId } : {}), after, limit: ROW_PAGE });
+        const page = await store.passages(orgId, partitionId, { ...(laneId ? { laneId } : {}), after, limit: ROW_PAGE });
         for (const row of page) for (const t of tasksFromRow(row, actorId, r)) counts[t.status] += 1;
         if (page.length < ROW_PAGE) return counts;
         const last = page[page.length - 1]!;
@@ -84,7 +84,7 @@ export function queriesFor(store: EventStore, orgId: string, projectId: string, 
     },
 
     async getLaneProgress(laneId) {
-      const { passages, translated, approved } = await store.laneCounts(orgId, projectId, laneId);
+      const { passages, translated, approved } = await store.laneCounts(orgId, partitionId, laneId);
       return { passages,
         translatedPct: passages ? Math.round(100 * translated / passages) : 0,
         approvedPct: passages ? Math.round(100 * approved / passages) : 0 };

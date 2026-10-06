@@ -62,8 +62,8 @@ function useBibleDetails(ids: string[]): Record<string, BibleDetail> {
 
 /** The sources for one passage of one language, recommended first. */
 export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: string | null | undefined): PassageSources {
-  const state = ctx.project.state;
-  const orgId = ctx.project.orgId;
+  const state = ctx.partition.state;
+  const orgId = ctx.partition.orgId;
   const library = ctx.org.state?.library;
   const mine = useMyBibles(ctx.session.actorId, orgId, laneId);
 
@@ -101,7 +101,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: 
 
   const options = useMemo(() => {
     const out: SourceOption[] = [];
-    const sourceLanguage = state?.project?.value.sourceLanguoidId ?? 'eng';
+    const sourceLanguage = state?.partition?.value.sourceLanguoidId ?? 'eng';
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
       const doc = get<SourceDoc>(hash);
@@ -131,7 +131,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: 
       }
     }
     return orderOptions(out);
-  }, [recs, mine.list, shared.rows, get, details, library, range, state?.project]);
+  }, [recs, mine.list, shared.rows, get, details, library, range, state?.partition]);
 
   // Offline, a document not on the phone stops waiting: what is here is shown.
   const loading = !mine.loaded || (!error && itemHashes.some((h) => h && !get(h)));
@@ -194,21 +194,21 @@ async function bibleBrainAudio(store: ReturnType<typeof storeOf>, fileset: strin
   }
 }
 
-const storeOf = (ctx: Ctx) => ctx.project.blobs.store;
+const storeOf = (ctx: Ctx) => ctx.partition.blobs.store;
 
 /** A source's text, audio and timings for a passage, loaded as it is chosen. */
 export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, passage: PassageSources): PassageSource | null {
   const { get } = passage;
   const store = storeOf(ctx);
-  useLibraryDocs(ctx.project.orgId, [option?.doc?.versification], { deps: false });
+  useLibraryDocs(ctx.partition.orgId, [option?.doc?.versification], { deps: false });
   const sourceV11n = option?.doc ? get<VersificationDoc>(option.doc.versification) : null;
   const range = useMemo(() => (passage.range ? inSourceNumbering(passage.range, passage.versification, sourceV11n) : null), [passage.range, passage.versification, sourceV11n]);
   const bookHash = option?.doc && range ? option.doc.books.find((b) => b.book === range.book)?.doc : undefined;
-  const books = useLibraryDocs(ctx.project.orgId, [bookHash], { deps: false });
+  const books = useLibraryDocs(ctx.partition.orgId, [bookHash], { deps: false });
   const book = books.get<SourceBookDoc>(bookHash);
   // Only the passage's chapters' timings, not the whole book's.
   const timingHashes = useMemo(() => (book && range ? chaptersOf(range).map((c) => book.chapters.find((x) => x.chapter === c)?.timing) : []), [book, range]);
-  const timings = useLibraryDocs(ctx.project.orgId, timingHashes, { deps: false });
+  const timings = useLibraryDocs(ctx.partition.orgId, timingHashes, { deps: false });
   const [bb, setBb] = useState<{ key: string; verses: Map<number, [number, number, string][]>; stamps: Map<number, { verse: number; seconds: number }[] | null>; problem: string | null; done: boolean } | null>(null);
   const [files, setFiles] = useState(0);
   const keptTick = useKeptRevision();
@@ -322,7 +322,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
   const bookHashes = useMemo(() => passage.range
     ? passage.options.map((o) => o.doc?.provider.kind === 'library' ? o.doc.books.find((b) => b.book === passage.range!.book)?.doc : undefined)
     : [], [passage.options, passage.range]);
-  const books = useLibraryDocs(ctx.project.orgId, bookHashes);
+  const books = useLibraryDocs(ctx.partition.orgId, bookHashes);
   return useMemo(() => {
     const out: Record<string, string[]> = {};
     const range = passage.range;

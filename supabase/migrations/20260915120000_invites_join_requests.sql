@@ -59,20 +59,20 @@ create policy join_requests_read on public.join_requests for select to authentic
 -- append_events; the org partition is the only one these functions touch.
 -- ---------------------------------------------------------------------------
 create or replace function public._append_event_as(
-  p_id text, p_org text, p_project text, p_type text, p_actor text, p_device text, p_payload jsonb
+  p_id text, p_org text, p_partition text, p_type text, p_actor text, p_device text, p_payload jsonb
 ) returns text language plpgsql security definer set search_path = public as $$
 declare v_seq bigint; v_hlc text;
 begin
   if exists (select 1 from public.events e where e.id = p_id) then return null; end if;
-  insert into public.partition_cursors (org_id, project_id) values (p_org, p_project)
+  insert into public.partition_cursors (org_id, partition_id) values (p_org, p_partition)
     on conflict do nothing;
   update public.partition_cursors c set next_seq = c.next_seq + 1
-    where c.org_id = p_org and c.project_id = p_project
+    where c.org_id = p_org and c.partition_id = p_partition
     returning c.next_seq - 1 into v_seq;
   v_hlc := lpad((extract(epoch from clock_timestamp()) * 1000)::bigint::text, 15, '0')
            || ':' || lpad((v_seq % 1000000)::text, 6, '0') || ':' || p_device;
-  insert into public.events (id, org_id, project_id, server_seq, type, actor_id, device_id, hlc, payload)
-  values (p_id, p_org, p_project, v_seq, p_type, p_actor, p_device, v_hlc, p_payload);
+  insert into public.events (id, org_id, partition_id, server_seq, type, actor_id, device_id, hlc, payload)
+  values (p_id, p_org, p_partition, v_seq, p_type, p_actor, p_device, v_hlc, p_payload);
   return v_hlc;
 end $$;
 
@@ -149,7 +149,7 @@ returns void language plpgsql security definer set search_path = public as $$
 declare v_actor text := public.caller_id();
 begin
   if v_actor is null then raise exception 'sign in required' using errcode = '42501'; end if;
-  if not exists (select 1 from public.events e where e.org_id = p_org and e.project_id = '_org') then
+  if not exists (select 1 from public.events e where e.org_id = p_org and e.partition_id = '_org') then
     raise exception 'unknown organization' using errcode = '22023';
   end if;
   if public.org_privileges(p_org, v_actor, null, null) <> '{}' then
@@ -214,8 +214,8 @@ grant execute on function public.decide_join_request(text, boolean, text) to aut
 create or replace function public.event_privilege(p_type text, p jsonb)
 returns text language sql immutable as $$
   select case p_type
-    when 'v1.ProjectCreated' then 'bootstrap'
-    when 'v1.ProjectConfigChanged' then 'manage_structure'
+    when 'v1.PartitionCreated' then 'bootstrap'
+    when 'v1.PartitionConfigChanged' then 'manage_structure'
     when 'v1.MemberAdded' then 'invite_members'
     when 'v1.MemberRoleChanged' then 'invite_members'
     when 'v1.MemberRemoved' then 'invite_members'
@@ -254,7 +254,7 @@ returns text language sql immutable as $$
     when 'v1.OrgMemberRemoved' then 'invite_members'
     when 'v1.CatalogItemToggled' then case p->>'kind'
       when 'reference' then 'manage_reference' when 'flow' then 'manage_flows' else 'manage_templates' end
-    when 'v1.ProjectRegistered' then 'manage_structure'
+    when 'v1.PartitionRegistered' then 'manage_structure'
     when 'v1.InviteIssued' then 'invite_members'
     when 'v1.JoinDecided' then 'invite_members'
     else null
@@ -267,9 +267,9 @@ declare c jsonb;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return 'payload must be an object'; end if;
   case p_type
-    when 'v1.ProjectCreated' then
+    when 'v1.PartitionCreated' then
       if not (public._is_str(p->'name') and public._is_str(p->'sourceLanguoidId')) then return 'name and sourceLanguoidId must be non-empty strings'; end if;
-    when 'v1.ProjectConfigChanged' then
+    when 'v1.PartitionConfigChanged' then
       if jsonb_typeof(p->'config') is distinct from 'object' then return 'config must be an object'; end if;
     when 'v1.MemberAdded', 'v1.MemberRoleChanged' then
       if not public._is_str(p->'profileId') then return 'profileId must be a non-empty string'; end if;
@@ -307,7 +307,7 @@ begin
       if not (public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'profileId')) then return 'unitId, laneId, profileId must be non-empty strings'; end if;
       if not public._is_role(p->>'role') then return 'role must be a role'; end if;
     when 'v1.SourceImported' then
-      if not public._is_str(p->'sourceProjectId') then return 'sourceProjectId must be a non-empty string'; end if;
+      if not public._is_str(p->'sourcePartitionId') then return 'sourcePartitionId must be a non-empty string'; end if;
       if jsonb_typeof(p->'sourceSeq') is distinct from 'number' then return 'sourceSeq must be a number'; end if;
       if not public._is_str_array(p->'unitIds') then return 'unitIds must be a string array'; end if;
     when 'v1.BlobStored' then
@@ -376,11 +376,11 @@ begin
     when 'v1.CatalogItemToggled' then
       if not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if p->>'kind' not in ('template', 'reference', 'flow') then return 'kind must be template, reference or flow'; end if;
-      if p->>'level' not in ('org', 'project') then return 'level must be org or project'; end if;
-      if p->>'level' = 'project' and not public._is_str(p->'projectId') then return 'projectId required at project level'; end if;
+      if p->>'level' not in ('org', 'partition') then return 'level must be org or partition'; end if;
+      if p->>'level' = 'partition' and not public._is_str(p->'partitionId') then return 'partitionId required at partition level'; end if;
       if jsonb_typeof(p->'enabled') is distinct from 'boolean' then return 'enabled must be a boolean'; end if;
-    when 'v1.ProjectRegistered' then
-      if not (public._is_str(p->'projectId') and public._is_str(p->'name')) then return 'projectId and name must be non-empty strings'; end if;
+    when 'v1.PartitionRegistered' then
+      if not (public._is_str(p->'partitionId') and public._is_str(p->'name')) then return 'partitionId and name must be non-empty strings'; end if;
     when 'v1.InviteIssued' then
       if not (public._is_str(p->'inviteId') and public._is_str(p->'roleId') and public._is_str(p->'expiresAt')) then return 'inviteId, roleId, expiresAt must be non-empty strings'; end if;
       if jsonb_typeof(p->'scope') is distinct from 'object' then return 'scope must be an object'; end if;

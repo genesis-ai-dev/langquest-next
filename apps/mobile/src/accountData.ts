@@ -65,22 +65,22 @@ export async function recordUserEvent(actorId: string, type: UserEventType) {
     `${actorId}:${type}:${type === 'v1.TermsAccepted' ? TERMS_VERSION : '1'}`);
   if (type === 'v1.TermsAccepted') await AsyncStorage.setItem(`terms-version:${actorId}`, TERMS_VERSION);
 }
-export interface PublicProject {
-  org_id: string; project_id: string; name: string;
+export interface PublicPartition {
+  org_id: string; partition_id: string; name: string;
   languages: string[]; translated_pct: number; updated_at: string;
   /** Absent from servers before the license migration, and from older caches. */
   license?: string;
 }
-export async function publicProjects(): Promise<PublicProject[]> {
+export async function publicPartitions(): Promise<PublicPartition[]> {
   // `*` rather than a column list, so a server without the license column
   // (migration 20260929120000) still answers.
-  const { data, error } = await supabase.from('public_projects')
+  const { data, error } = await supabase.from('public_partitions')
     .select('*')
     .order('name').limit(100);
   if (error) throw new Error(error.message);
-  await AsyncStorage.setItem('public-projects', JSON.stringify(data));
-  return data as PublicProject[];
+  await AsyncStorage.setItem('public-partitions', JSON.stringify(data));
+  return data as PublicPartition[];
 }
-export async function cachedPublicProjects(): Promise<PublicProject[]> {
-  return JSON.parse(await AsyncStorage.getItem('public-projects') ?? '[]');
+export async function cachedPublicPartitions(): Promise<PublicPartition[]> {
+  return JSON.parse(await AsyncStorage.getItem('public-partitions') ?? '[]');
 }

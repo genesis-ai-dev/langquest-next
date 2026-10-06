@@ -13,7 +13,7 @@
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
   laneLeafUnits, laneName, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
-  type LibraryDoc, type ProjectState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
+  type LibraryDoc, type PartitionState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -50,7 +50,7 @@ function canActAt(ctx: Ctx, level: Level): boolean {
 }
 
 function levelName(ctx: Ctx, level: Level): string {
-  if (level.kind === 'lane' && ctx.project.state) return laneName(ctx.project.state, level.laneId);
+  if (level.kind === 'lane' && ctx.partition.state) return laneName(ctx.partition.state, level.laneId);
   return ctx.org.state?.org?.value.name ?? 'Organization';
 }
 
@@ -64,7 +64,7 @@ const recTone = (label: string) => (label.startsWith('Recommended') ? 'green' : 
 
 /** Recommend, stop, hide or follow the organization, for one item at this level. */
 function RecButtons(props: { ctx: Ctx; level: Level; itemId: string; name: string; rec: ReturnType<typeof useRecommend> }) {
-  const r = recState(props.ctx.org.state?.recommendations, props.ctx.project.state, props.level, props.itemId);
+  const r = recState(props.ctx.org.state?.recommendations, props.ctx.partition.state, props.level, props.itemId);
   return (
     <View style={styles.actions}>
       {recActions(r, props.level).map((a) => (
@@ -120,10 +120,10 @@ export function ReferenceBibles(ctx: Ctx) {
     return () => { active = false; };
   }, [bibleIds]);
 
-  if (!ctx.project.state || !ctx.org.state) return <Screen header={<Header title="Bibles" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
+  if (!ctx.partition.state || !ctx.org.state) return <Screen header={<Header title="Bibles" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
   const sources = rows.filter((r) => r.kind === 'source' && !r.it.archived);
   const loading = rows.some((r) => r.doc === null);
-  const withRec = sources.map((r) => ({ r, s: recState(ctx.org.state?.recommendations, ctx.project.state, level, r.it.itemId) }));
+  const withRec = sources.map((r) => ({ r, s: recState(ctx.org.state?.recommendations, ctx.partition.state, level, r.it.itemId) }));
   const on = withRec.filter((x) => x.s.effective);
   const hidden = withRec.filter((x) => !x.s.effective && x.s.lane === 'hidden');
   const off = withRec.filter((x) => !x.s.effective && x.s.lane !== 'hidden');
@@ -131,7 +131,7 @@ export function ReferenceBibles(ctx: Ctx) {
   const card = ({ r }: (typeof withRec)[number]) => {
     const doc = r.doc as SourceDoc;
     const facts = sourceFacts(doc, docs.get, doc.provider.kind === 'biblebrain' ? heldDetail(doc.provider.bibleId) : null);
-    const label = recLabel(recState(ctx.org.state?.recommendations, ctx.project.state, level, r.it.itemId), level);
+    const label = recLabel(recState(ctx.org.state?.recommendations, ctx.partition.state, level, r.it.itemId), level);
     return (
       <Card key={r.it.itemId} current={beside?.screen === 'reference_source' && beside.params['itemId'] === r.it.itemId}
         onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...laneParams(level) })} accessibilityLabel={`${r.it.name}. ${label}`}>
@@ -186,7 +186,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const readyDocs = useLibraryDocs(lib.orgId, shared.rows.map((s) => s.latest_hash));
   const ready = shared.rows.filter((s) => readyDocs.get(s.latest_hash)?.format === 'source@1')
     .filter((s) => !lib.items('material').some((it) => it.subscription?.sourceItemId === s.item_id && it.subscription.sourceOrgId === s.org_id && it.subscription.active));
-  const fallback = ctx.project.state?.project?.value.sourceLanguoidId ?? 'eng';
+  const fallback = ctx.partition.state?.partition?.value.sourceLanguoidId ?? 'eng';
   const [q, setQ] = useState(fallback);
   const [languages, setLanguages] = useState<BibleLanguage[]>([]);
   const [lang, setLang] = useState<string | null>(null);
@@ -368,7 +368,7 @@ export function ReferenceSource(ctx: Ctx) {
   }
   const facts = sourceFacts(source, (h) => bookDocs.get(h) ?? docs.get(h), detail);
   const need = timingsNeeded(source, facts, detail);
-  const r = recState(ctx.org.state?.recommendations, ctx.project.state, level, it.itemId);
+  const r = recState(ctx.org.state?.recommendations, ctx.partition.state, level, it.itemId);
   const label = recLabel(r, level);
   const open = jobs.filter((j) => !j.finished_at);
   const followed = it.source === 'subscription';
@@ -493,9 +493,9 @@ const KIND_FILTERS: { id: KindFilter; label: string }[] = [
 
 /** A language's passages with their verses, in its template's numbering. */
 function usePassages(ctx: Ctx, laneId: string | null) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const sel = laneId && state ? state.laneTemplates[laneId]?.value : undefined;
-  const tdocs = useLibraryDocs(ctx.project.orgId, [sel?.docHash]);
+  const tdocs = useLibraryDocs(ctx.partition.orgId, [sel?.docHash]);
   return useMemo(() => {
     if (!state || !laneId || !state.lanes[laneId]) return null;
     const template = sel?.docHash ? (tdocs.get(sel.docHash) as TemplateDoc | null) : null;
@@ -507,7 +507,7 @@ function usePassages(ctx: Ctx, laneId: string | null) {
 }
 
 /** Coverage of a language's passages by these items, with the language's links and hides. */
-function coverageFor(state: ProjectState, laneId: string, passages: NonNullable<ReturnType<typeof usePassages>>, offered: Map<string, RecommendationSource>, rows: RefItem[], get: (h: string | null | undefined) => LibraryDoc | null, honourHides = true) {
+function coverageFor(state: PartitionState, laneId: string, passages: NonNullable<ReturnType<typeof usePassages>>, offered: Map<string, RecommendationSource>, rows: RefItem[], get: (h: string | null | undefined) => LibraryDoc | null, honourHides = true) {
   const parents = (unitId: string) => {
     const out: string[] = [];
     let at = state.units[unitId]?.parentUnitId ?? null;
@@ -525,7 +525,7 @@ function coverageFor(state: ProjectState, laneId: string, passages: NonNullable<
 
 export function ReferenceGuides(ctx: Ctx) {
   const level = levelOf(ctx);
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const beside = useOpenDetail();
   const { rows, docs } = useRefItems(ctx);
   const canAct = canActAt(ctx, level);
@@ -651,7 +651,7 @@ function guideLine(r: RefItem, reaches: number | null): string {
 type CoverFilter = 'all' | 'bare' | 'notes';
 
 export function ReferenceCoverage(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const level = levelOf(ctx);
   const laneId = level.kind === 'lane' ? level.laneId : ctx.laneId && state?.lanes[ctx.laneId] ? ctx.laneId : Object.keys(state?.lanes ?? {})[0] ?? null;
   const beside = useOpenDetail();
@@ -728,7 +728,7 @@ const GROUPS: { kind: RefKind; label: string }[] = [
 ];
 
 export function PassageReference(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const unitId = ctx.params['unitId'] ?? '';
   const laneId = ctx.params['laneId'] ?? ctx.laneId ?? '';
   const { rows, docs } = useRefItems(ctx);
@@ -741,7 +741,7 @@ export function PassageReference(ctx: Ctx) {
     return { unitId, label: unitTitle(state, unitId), range: null as ReturnType<typeof libraryUnitRange> };
   }, [state, unitId, laneId]);
   const sel = state && laneId ? state.laneTemplates[laneId]?.value : undefined;
-  const tdocs = useLibraryDocs(ctx.project.orgId, [sel?.docHash]);
+  const tdocs = useLibraryDocs(ctx.partition.orgId, [sel?.docHash]);
   const offered = useMemo(() => {
     const have = new Set(rows.map((r) => r.it.itemId));
     return new Map([...recommendedFor(ctx.org.state?.recommendations, state, laneId)].filter(([id]) => have.has(id)));

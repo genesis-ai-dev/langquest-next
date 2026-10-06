@@ -1,23 +1,23 @@
-import type { ProjectQueries } from '@langquest-next/client';
+import type { PartitionQueries } from '@langquest-next/client';
 import { useEffect, useRef, useState } from 'react';
-import type { ProjectHandle } from './useProject';
+import type { PartitionHandle } from './usePartition';
 
 /**
- * Run one query against the project's persisted rows and keep it current.
+ * Run one query against the partition's persisted rows and keep it current.
  * The query re-runs after every publication (a fold change or a commit);
  * the result replaces the previous one only when it differs, so a screen
  * whose answer did not change does not re-render for it. Screens read
  * rows through this; they no longer derive from the fold.
  */
 export function useQuery<T>(
-  project: Pick<ProjectHandle, 'queries' | 'revision' | 'saving'>,
-  run: (q: ProjectQueries) => Promise<T>,
+  partition: Pick<PartitionHandle, 'queries' | 'revision' | 'saving'>,
+  run: (q: PartitionQueries) => Promise<T>,
   deps: unknown[],
   initial: T
 ): { data: T; ready: boolean } {
   const [result, setResult] = useState<{ data: T; ready: boolean }>({ data: initial, ready: false });
   const last = useRef<string | null>(null);
-  const { queries, revision, saving } = project;
+  const { queries, revision, saving } = partition;
   useEffect(() => {
     if (!queries) return;
     let live = true;

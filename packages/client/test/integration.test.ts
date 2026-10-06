@@ -36,7 +36,7 @@ async function signUp(email: string): Promise<{ sb: SupabaseClient; userId: stri
 const up = ANON ? await reachable() : false;
 
 describe.skipIf(!up)('integration: two real users against local Supabase', () => {
-  const projectId = `p-${Date.now()}`;
+  const partitionId = `p-${Date.now()}`;
 
   it('owner bootstraps, translator records, owner reviews, both converge', async () => {
     const stamp = Date.now();
@@ -45,7 +45,7 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
 
     const a = new SyncClient({
       orgId: ORG,
-      projectId,
+      partitionId,
       actorId: lead.userId,
       deviceId: 'dA',
       store: new MemoryStore(),
@@ -53,7 +53,7 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     });
     const b = new SyncClient({
       orgId: ORG,
-      projectId,
+      partitionId,
       actorId: trans.userId,
       deviceId: 'dB',
       store: new MemoryStore(),
@@ -62,7 +62,7 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     await a.load();
     await b.load();
 
-    await a.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await a.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     await a.append('v1.MemberAdded', { profileId: lead.userId, role: 'owner' });
     await a.append('v1.MemberAdded', { profileId: trans.userId, role: 'translator' });
     await a.append('v1.MemberAdded', { profileId: lead.userId, role: 'reviewer' });
@@ -72,7 +72,7 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
 
     // Translator cannot pull before membership landed? It has landed; pull works.
     await b.sync();
-    expect(b.getState().project?.value.name).toBe('Luke');
+    expect(b.getState().partition?.value.name).toBe('Luke');
 
     await b.append('v1.TakeComposed', {
       takeId: 'take1',
@@ -106,9 +106,9 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     const stamp = Date.now();
     const lead = await signUp(`snap-${stamp}@example.test`);
     const pid = `ps-${stamp}`;
-    const a = new SyncClient({ orgId: ORG, projectId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
+    const a = new SyncClient({ orgId: ORG, partitionId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
     await a.load();
-    await a.append('v1.ProjectCreated', { name: 'S', sourceLanguoidId: 'eng' });
+    await a.append('v1.PartitionCreated', { name: 'S', sourceLanguoidId: 'eng' });
     await a.append('v1.MemberAdded', { profileId: lead.userId, role: 'owner' });
     for (let i = 0; i < 5; i++) {
       await a.append('v1.UnitAdded', { unitId: `u${i}`, parentUnitId: null, kind: 'passage', label: `P${i}`, order: `a${i}` });
@@ -117,13 +117,13 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
 
     const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
     const done = await runSnapshotWorker(service);
-    expect(done.find((d) => d.projectId === pid)?.serverSeq).toBe(7);
+    expect(done.find((d) => d.partitionId === pid)?.serverSeq).toBe(7);
 
     await a.append('v1.LaneAdded', { laneId: 'L1', languoidId: 'x' });
     await a.sync();
 
     const store = new MemoryStore();
-    const b = new SyncClient({ orgId: ORG, projectId: pid, actorId: lead.userId, deviceId: 'dB', store, transport: new SupabaseTransport(lead.sb) });
+    const b = new SyncClient({ orgId: ORG, partitionId: pid, actorId: lead.userId, deviceId: 'dB', store, transport: new SupabaseTransport(lead.sb) });
     await b.load();
     const pulled = await b.pull();
     expect(pulled).toBe(1);
@@ -133,7 +133,7 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
 
     // A second worker pass with nothing new is a no-op for this partition.
     const again = await runSnapshotWorker(service);
-    expect(again.find((d) => d.projectId === pid)?.serverSeq).toBe(8);
+    expect(again.find((d) => d.partitionId === pid)?.serverSeq).toBe(8);
   });
 
   it('a member upload to the blobs bucket lands a BlobStored confirmation in the log', async () => {
@@ -142,9 +142,9 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     const stamp = Date.now();
     const lead = await signUp(`blob-${stamp}@example.test`);
     const pid = `pb-${stamp}`;
-    const a = new SyncClient({ orgId: ORG, projectId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
+    const a = new SyncClient({ orgId: ORG, partitionId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
     await a.load();
-    await a.append('v1.ProjectCreated', { name: 'B', sourceLanguoidId: 'eng' });
+    await a.append('v1.PartitionCreated', { name: 'B', sourceLanguoidId: 'eng' });
     await a.append('v1.MemberAdded', { profileId: lead.userId, role: 'owner' });
     await a.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', laneId: 'L1', kind: 'target', cards: [{ hash: 'deadbeef', durationMs: 10, format: 'wav' }] });
     await a.sync();
@@ -172,9 +172,9 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     const stamp = Date.now();
     const lead = await signUp(`recon-${stamp}@example.test`);
     const pid = `pr-${stamp}`;
-    const a = new SyncClient({ orgId: ORG, projectId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
+    const a = new SyncClient({ orgId: ORG, partitionId: pid, actorId: lead.userId, deviceId: 'dA', store: new MemoryStore(), transport: new SupabaseTransport(lead.sb) });
     await a.load();
-    await a.append('v1.ProjectCreated', { name: 'R', sourceLanguoidId: 'eng' });
+    await a.append('v1.PartitionCreated', { name: 'R', sourceLanguoidId: 'eng' });
     await a.append('v1.MemberAdded', { profileId: lead.userId, role: 'owner' });
     const good = new TextEncoder().encode('good bytes');
     const goodHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', good))).map((b) => b.toString(16).padStart(2, '0')).join('');

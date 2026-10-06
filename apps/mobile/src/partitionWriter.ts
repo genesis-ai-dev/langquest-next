@@ -12,12 +12,12 @@ import { supabase } from './supabase';
  * like any others and are sent now if the phone is connected; otherwise the
  * language's own sync sends them when it is opened.
  */
-export async function appendToPartition(c: { orgId: string; projectId: string; actorId: string; specs: EventSpec[] }): Promise<void> {
+export async function appendToPartition(c: { orgId: string; partitionId: string; actorId: string; specs: EventSpec[] }): Promise<void> {
   const store = await getStore();
   const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
   const client = new SyncClient({
     orgId: c.orgId,
-    projectId: c.projectId,
+    partitionId: c.partitionId,
     actorId: c.actorId,
     deviceId,
     store,

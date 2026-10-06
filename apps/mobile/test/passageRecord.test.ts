@@ -16,7 +16,7 @@ import { HIDDEN_TEXT } from '../src/moderation';
  * record reads against the Standard Bible Flow (peer + bt, community,
  * consultant checkpoint, final).
  */
-function project() {
+function partition() {
   const events: AnyEvent[] = [];
   let wall = 1_700_000_000_000;
   let seq = 0;
@@ -26,7 +26,7 @@ function project() {
     clocks.set(actorId, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `x${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
+    events.push({ id: `x${seq}`, type, orgId: 'o', partitionId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
   };
   const state = () => fold(events, emptyState());
   const run = (actorId: string, build: (c: ReturnType<typeof commands>) => { type: EventType; payload: unknown }[]) => {
@@ -47,20 +47,20 @@ function project() {
 /** ctx.name as seen by `me`: the viewer is always "you". */
 const nameFor = (me: string) => (id: string, lower = false) => (id === me ? (lower ? 'you' : 'You') : id.charAt(0).toUpperCase() + id.slice(1));
 const name = nameFor('akol');
-const record = (p: ReturnType<typeof project>, cmd: string, cards: string[], note?: string) =>
+const record = (p: ReturnType<typeof partition>, cmd: string, cards: string[], note?: string) =>
   p.run('akol', (c) => c.publishVersion({ commandId: cmd, unitId: 'john3', laneId: 'din', cardHashes: cards, ...(note ? { note } : {}) }));
 const all = { review: true, ask: true, log: true, skip: true };
 
 describe('the passage record hero', () => {
   it('says Not started, then Next with the open kinds of the first step', () => {
-    const p = project();
+    const p = partition();
     expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Not started');
     record(p, 'v1', ['c1']);
     expect(heroHeadline(p.passage(), p.kinds(), 'akol', name)).toBe('Next: Peer Review + Back Translation');
   });
 
   it('feedback belongs to the latest version’s author: theirs to answer, everyone else waits on them', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     const take = p.passage().latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [take], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 3 is unclear' }));
@@ -72,7 +72,7 @@ describe('the passage record hero', () => {
   });
 
   it('an asked kind reads as your turn for the person asked, waiting for anyone else', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen' }));
     p.run('akol', (c) => c.ask({ commandId: 'a2', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'bt', profileId: 'ayen' }));
@@ -85,7 +85,7 @@ describe('the passage record hero', () => {
 
 describe('the step path', () => {
   it('marks the next step current, a checkpoint’s later steps locked, and answered feedback as answered', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     let s = p.passage();
     expect(pathState(s.steps[0]!, true)).toBe('current');
@@ -109,7 +109,7 @@ describe('the step path', () => {
 
 describe('a kind’s actions', () => {
   it('the author gets Ask as the main button, a reviewer gets Review it now; set aside is not on checkpoints', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     const s = p.passage();
     const peer = s.steps[0]!.kinds[0]!;
@@ -128,7 +128,7 @@ describe('a kind’s actions', () => {
   });
 
   it('a producing kind offers its own action, and says it records content, not a verdict', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     const s = p.passage();
     const bt = s.steps[0]!.kinds[1]!;
@@ -139,7 +139,7 @@ describe('a kind’s actions', () => {
   });
 
   it('someone asked sees Review it now; everyone else sees who it waits on and no main button', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen', dueDate: '2099-01-02' }));
     const s = p.passage();
@@ -155,7 +155,7 @@ describe('a kind’s actions', () => {
   });
 
   it('while feedback is open, the other kinds are best after it (advice, not a gate)', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'x' }));
     const s = p.passage();
@@ -169,7 +169,7 @@ describe('a kind’s actions', () => {
 
 describe('the record’s details', () => {
   it('reads each entry the demo’s way, newest first, with set-asides and their reasons', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', laneId: 'din', type: 'skip', kindId: 'bt', reason: 'Not needed for this passage' }));
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'logged', givenBy: 'Pastor Garang' }));
@@ -186,7 +186,7 @@ describe('the record’s details', () => {
   });
 
   it('keeps a blocked person\'s words out of the record\'s lines, and nothing else (decisions.md 48)', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('ayen', (c) => c.depart({ commandId: 'd1', unitId: 'john3', laneId: 'din', type: 'skip', kindId: 'bt', reason: 'You are useless' }));
     const s = p.passage();
@@ -199,7 +199,7 @@ describe('the record’s details', () => {
   });
 
   it('drops a version a moderator removed, from the events remove_content redacts for it (decisions.md 48)', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1'], 'First try');
     record(p, 'v2', ['c2'], 'Clearer in verse 3');
     const [gone, kept] = p.passage().versions;
@@ -230,21 +230,21 @@ describe('the record’s details', () => {
 });
 
 describe('asking someone', () => {
-  it('lists project and org members with the needed permission, the usual reviewers first, never the asker', () => {
-    const p = project();
+  it('lists partition and org members with the needed permission, the usual reviewers first, never the asker', () => {
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('deng', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     const org: OrgState = emptyOrgState();
     org.roles['rev'] = { name: { value: 'Community Reviewer', hlc: '', eventId: '' }, privileges: { value: ['review'], hlc: '', eventId: '' }, retired: false };
-    org.members['nyibol'] = { 'lane:p/din': { roleId: { value: 'rev', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' }, scope: { level: 'lane', projectId: 'p', laneId: 'din' } } as never };
-    org.members['elsewhere'] = { 'lane:p/other': { roleId: { value: 'rev', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' }, scope: { level: 'lane', projectId: 'p', laneId: 'other' } } as never };
+    org.members['nyibol'] = { 'lane:p/din': { roleId: { value: 'rev', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' }, scope: { level: 'lane', partitionId: 'p', laneId: 'din' } } as never };
+    org.members['elsewhere'] = { 'lane:p/other': { roleId: { value: 'rev', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' }, scope: { level: 'lane', partitionId: 'p', laneId: 'other' } } as never };
 
-    const review = askCandidates(p.state(), org, { projectId: 'p', laneId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
+    const review = askCandidates(p.state(), org, { partitionId: 'p', laneId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
     expect(review.map((c) => c.profileId).sort()).toEqual(['ayen', 'deng', 'nyibol']);
     expect(review.find((c) => c.profileId === 'deng')).toMatchObject({ usual: true, sub: 'Reviewer · Has done this here before' });
     expect(review.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, sub: 'Community Reviewer' });
 
-    const rec = askCandidates(p.state(), org, { projectId: 'p', laneId: 'din', what: 'record', me: 'lead' });
+    const rec = askCandidates(p.state(), org, { partitionId: 'p', laneId: 'din', what: 'record', me: 'lead' });
     expect(rec.map((c) => c.profileId)).toEqual(['akol']);
   });
 
@@ -264,7 +264,7 @@ describe('asking someone', () => {
 
 describe('sending to the usual reviewer (ADR-029)', () => {
   it('the author’s main button sends to whoever usually does it, with Send to someone else beside it', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     const s = p.passage();
     const peer = s.steps[0]!.kinds[0]!;
@@ -281,11 +281,11 @@ describe('sending to the usual reviewer (ADR-029)', () => {
   });
 
   it('finds the one person who reviewed this kind here, and sends to them in one command', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
-    expect(usualTargetFor(p.state(), null, { projectId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
+    expect(usualTargetFor(p.state(), null, { partitionId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    const target = usualTargetFor(p.state(), null, { projectId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' });
+    const target = usualTargetFor(p.state(), null, { partitionId: 'p', laneId: 'din', kindId: 'peer', me: 'akol' });
     expect(target).toEqual({ profileId: 'ayen' });
     record(p, 'v2', ['c2'], 'Clearer');
     p.run('akol', (c) => c.ask(sendToInput({ commandId: 's1', unitId: 'john3', laneId: 'din', kindId: 'peer', target: target! })));
@@ -298,7 +298,7 @@ describe('sending to the usual reviewer (ADR-029)', () => {
 
 describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   it('opens on the next step, or on the step whose feedback waits for an answer', () => {
-    const p = project();
+    const p = partition();
     expect(currentStepId(p.passage())).toBeUndefined();
     record(p, 'v1', ['c1']);
     expect(currentStepId(p.passage())).toBe(p.passage().steps[0]!.step.id);
@@ -311,7 +311,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   });
 
   it('flips between versions: what each heard, which version answered it, and what a version was made after', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     const first = p.passage().latest!;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [first.takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Fix it' }));
@@ -334,7 +334,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
   });
 
   it('a kind’s line says who and on which version, and who it waits on', () => {
-    const p = project();
+    const p = partition();
     record(p, 'v1', ['c1']);
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     record(p, 'v2', ['c2'], 'Clearer');

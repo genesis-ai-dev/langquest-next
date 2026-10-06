@@ -6,7 +6,7 @@ import {
 } from './passage';
 import { privilegesFor, privilegesOfFixedRole, type OrgState } from './org';
 import { TARGET_SCOPES, type TargetScope } from './record';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 
 /**
  * Progress reports for the web dashboard: one per language, read from the
@@ -212,7 +212,7 @@ function monthsEndingAt(now: number, n: number): string[] {
   return out;
 }
 
-export function laneReport(state: ProjectState, laneId: string, now: number, idx: Indexes = buildIndexes(state)): LaneReport {
+export function laneReport(state: PartitionState, laneId: string, now: number, idx: Indexes = buildIndexes(state)): LaneReport {
   const flow = deriveFlow(state, laneId);
   const kinds = deriveKinds(state);
   const passages = laneLeafUnits(state, idx, laneId).map((unitId) => derivePassage(state, unitId, laneId, idx));
@@ -446,14 +446,14 @@ export function laneReport(state: ProjectState, laneId: string, now: number, idx
  * partition's own member list (the older way of joining). A member scoped to
  * one language sees only that language.
  */
-export function mayViewLane(org: OrgState, project: Pick<ProjectState, 'members'>, profileId: string, projectId: string, laneId: string): boolean {
-  if (privilegesFor(org, profileId, { projectId, laneId }).has('view_status')) return true;
-  const member = project.members[profileId];
+export function mayViewLane(org: OrgState, partition: Pick<PartitionState, 'members'>, profileId: string, partitionId: string, laneId: string): boolean {
+  if (privilegesFor(org, profileId, { partitionId, laneId }).has('view_status')) return true;
+  const member = partition.members[profileId];
   return !!member && !member.removed.value && privilegesOfFixedRole(member.role.value).has('view_status');
 }
 
 /** Every language in the partition, by lane id. */
-export function laneReports(state: ProjectState, now: number, idx: Indexes = buildIndexes(state)): LaneReport[] {
+export function laneReports(state: PartitionState, now: number, idx: Indexes = buildIndexes(state)): LaneReport[] {
   return Object.keys(state.lanes).sort().map((laneId) => laneReport(state, laneId, now, idx));
 }
 
@@ -534,14 +534,14 @@ export function paceOf(r: LaneReport, now: number): Pace | null {
 
 /** `GET /api/orgs/:org/reports`: the languages this person may see. */
 export interface OrgReportsResponse {
-  rows: { projectId: string; laneId: string; report: LaneReport }[];
+  rows: { partitionId: string; laneId: string; report: LaneReport }[];
   /** When the dashboard's server last caught up with the log, ISO. */
   asOf: string;
 }
 
 /** One language's progress alone, for a phone's overview of languages it has not opened. */
 export interface LaneSummary {
-  projectId: string;
+  partitionId: string;
   laneId: string;
   name: string;
   progress: LanguageProgress;
@@ -555,7 +555,7 @@ export interface OrgSummaryResponse {
 
 export function summarizeReports(out: OrgReportsResponse): OrgSummaryResponse {
   return {
-    rows: out.rows.map(({ projectId, laneId, report }) => ({ projectId, laneId, name: report.name, progress: report.progress })),
+    rows: out.rows.map(({ partitionId, laneId, report }) => ({ partitionId, laneId, name: report.name, progress: report.progress })),
     asOf: out.asOf
   };
 }

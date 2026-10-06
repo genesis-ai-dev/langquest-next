@@ -62,10 +62,10 @@ const failure = failureMessage;
  * from the dashboard's server when it can be reached (decision 44).
  */
 function useOrgView(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const org = ctx.org.state;
-  const projectId = ctx.project.projectId;
-  const summary = useOrgSummary(ctx.session.actorId, ctx.project.orgId);
+  const partitionId = ctx.partition.partitionId;
+  const summary = useOrgSummary(ctx.session.actorId, ctx.partition.orgId);
   const local = useMemo(() => {
     const out = new Map<string, LanguageProgress>();
     if (!state) return out;
@@ -76,10 +76,10 @@ function useOrgView(ctx: Ctx) {
   const names = useMemo(() => new Map(ctx.languages.map((l) => [l.laneId, l.name])), [ctx.languages]);
   const laneLabel = (laneId: string) => (state?.lanes[laneId] ? laneName(state, laneId) : names.get(laneId) ?? laneId);
   const lanes = useMemo(() => {
-    return languagesToList(ctx.languages, state, ctx.project.projectId).sort((a, b) => laneLabel(a).localeCompare(laneLabel(b)));
+    return languagesToList(ctx.languages, state, ctx.partition.partitionId).sort((a, b) => laneLabel(a).localeCompare(laneLabel(b)));
     // laneLabel reads state and names.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx.languages, state, names, ctx.project.projectId]);
+  }, [ctx.languages, state, names, ctx.partition.partitionId]);
   // The open language from this phone's fold, the others from the dashboard's server (decision 44).
   const progress = useMemo(() => new Map([...laneFigures(lanes, local, summary)].map(([laneId, f]) => [laneId, f.progress])), [lanes, local, summary]);
   const orgName = org?.org?.value.name ?? 'Organization';
@@ -89,8 +89,8 @@ function useOrgView(ctx: Ctx) {
   const orgProgress = allKnown ? sumProgress(lanes.map((l) => progress.get(l)!)) : null;
   /** "Dinka", "Wycliffe Associates" or "All languages": where a membership applies. */
   const target = (scope: Scope) => scope.level === 'lane' ? (scope.laneId ? laneLabel(scope.laneId) : 'Language')
-    : scope.level === 'project' ? LEVEL_LABEL.project : orgName;
-  return { state, org, projectId, orgName, lanes, laneLabel, laneProgress, orgProgress, target, partitionOf: (laneId: string) => partitionOfLane(org, laneId) };
+    : scope.level === 'partition' ? LEVEL_LABEL.partition : orgName;
+  return { state, org, partitionId, orgName, lanes, laneLabel, laneProgress, orgProgress, target, partitionOf: (laneId: string) => partitionOfLane(org, laneId) };
 }
 
 function roleName(ctx: Ctx, roleId: string): string {
@@ -105,7 +105,7 @@ function liveRoles(ctx: Ctx): { id: string; name: string; privileges: number }[]
 
 /** The lane a screen is about: its param, else the language this person works in. */
 function laneParam(ctx: Ctx): string {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const id = ctx.params['laneId'];
   if (id && (!state || state.lanes[id])) return id;
   return ctx.laneId ?? Object.keys(state?.lanes ?? {})[0] ?? '';
@@ -164,7 +164,7 @@ type HomeId = 'org_home' | 'language_home';
  */
 function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds: string[]; laneId?: string; extra?: { label: string; rows: ReactNode } }) {
   const { ctx, laneIds } = props;
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const can = ctx.session.can;
   const params = { level: props.level, ...(props.laneId ? { laneId: props.laneId } : {}) };
   const counts = useMemo(() => {
@@ -210,8 +210,8 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; laneIds: 
 /** People: who is assigned here (Members), and on a language its review teams. */
 function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; laneId?: string }) {
   const { ctx } = props;
-  const entries = useMemo(() => memberEntries(ctx.org.state, ctx.project.state, ctx.project.projectId), [ctx.org.state, ctx.project.state, ctx.project.projectId]);
-  const here = membersAt(entries, props.level, ctx.project.projectId, props.laneId).length;
+  const entries = useMemo(() => memberEntries(ctx.org.state, ctx.partition.state, ctx.partition.partitionId), [ctx.org.state, ctx.partition.state, ctx.partition.partitionId]);
+  const here = membersAt(entries, props.level, ctx.partition.partitionId, props.laneId).length;
   const people = new Set(entries.map((e) => e.profileId)).size;
   const sub = props.level === 'lane' ? `${here} assigned at this language` : `${here} at org level · ${people} total`;
   const params = { level: props.level, ...(props.laneId ? { laneId: props.laneId } : {}) };
@@ -247,7 +247,7 @@ export function OrgHome(ctx: Ctx) {
   const beside = useOpenDetail();
   if (!v.org || !v.state) return <Loading title="Organization" />;
   const mine = Object.values(v.org.members[ctx.session.actorId] ?? {}).find((m) => m.removed.value === false && m.scope.level === 'org');
-  const memberCount = new Set(memberEntries(v.org, v.state, v.projectId).map((e) => e.profileId)).size;
+  const memberCount = new Set(memberEntries(v.org, v.state, v.partitionId).map((e) => e.profileId)).size;
   // The demo's "Invite people" (gate assigner); a looked-after account may not invite (session.ts), so it asks both.
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
   return (
@@ -327,25 +327,25 @@ function LicenseSection(props: { ctx: Ctx }) {
  */
 function usePublicListing(ctx: Ctx) {
   const may = ctx.session.can('manage_structure');
-  const { orgId, projectId } = ctx.project;
+  const { orgId, partitionId } = ctx.partition;
   const [listed, setListed] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!may) return;
     let active = true;
-    void supabase.from('project_visibility').select('listed').eq('org_id', orgId).eq('project_id', projectId).maybeSingle()
+    void supabase.from('partition_visibility').select('listed').eq('org_id', orgId).eq('partition_id', partitionId).maybeSingle()
       .then(({ data, error: failed }) => {
         if (!active) return;
         // Offline or refused: say so rather than showing "not listed".
         if (failed) { noteExpected('read listing', failed); setError(failed.message); } else setListed(data?.listed ?? false);
       });
     return () => { active = false; };
-  }, [may, orgId, projectId]);
+  }, [may, orgId, partitionId]);
   async function set(value: boolean) {
     setBusy(true);
     try {
-      const { error: failed } = await supabase.rpc('set_project_visibility', { p_org: orgId, p_project: projectId, p_listed: value });
+      const { error: failed } = await supabase.rpc('set_partition_visibility', { p_org: orgId, p_partition: partitionId, p_listed: value });
       if (failed) { noteExpected('change listing', failed); setError(failed.message); } else { setListed(value); setError(''); }
     } catch (e) {
       setError(failure('change listing', e));
@@ -364,10 +364,10 @@ export function LanguageHome(ctx: Ctx) {
   const translators = useMemo(() => {
     const org = ctx.org.state;
     if (!org) return [];
-    return memberEntries(org, v.state, v.projectId)
+    return memberEntries(org, v.state, v.partitionId)
       .filter((e) => e.scope.level === 'lane' && e.scope.laneId === laneId && org.roles[e.roleId]?.privileges.value?.includes('translate'))
       .map((e) => e.profileId);
-  }, [ctx.org.state, v.state, v.projectId, laneId]);
+  }, [ctx.org.state, v.state, v.partitionId, laneId]);
   const listing = usePublicListing(ctx);
   if (!v.state) return <Loading title="Language" />;
   if (!v.state.lanes[laneId]) {
@@ -431,21 +431,21 @@ export function MembersList(ctx: Ctx) {
   const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
   const laneId = level === 'lane' ? laneParam(ctx) : undefined;
   const mayInvite = ctx.session.can('invite_members');
-  const entries = useMemo(() => memberEntries(v.org, v.state, v.projectId), [v.org, v.state, v.projectId]);
+  const entries = useMemo(() => memberEntries(v.org, v.state, v.partitionId), [v.org, v.state, v.partitionId]);
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [shown, setShown] = useState(30);
   const refresh = useCallback(async () => {
     if (!mayInvite) return;
-    try { setRequests(await pendingRequests(ctx.project.orgId)); } catch (e) {
+    try { setRequests(await pendingRequests(ctx.partition.orgId)); } catch (e) {
       // Offline: the list is a server read with no local mirror, so it stays
       // empty rather than claiming nobody asked.
       noteExpected('members join requests', e);
     }
-  }, [mayInvite, ctx.project.orgId]);
+  }, [mayInvite, ctx.partition.orgId]);
   useEffect(() => void refresh(), [refresh]);
 
-  const current = membersAt(entries, level, v.projectId, laneId);
-  const higher = membersAbove(entries, level, v.projectId);
+  const current = membersAt(entries, level, v.partitionId, laneId);
+  const higher = membersAbove(entries, level, v.partitionId);
   const params = { level, ...(laneId ? { laneId } : {}) };
   const edit = (e: MemberEntry) => mayInvite && editableAt(e.scope, level);
   const rows = (list: MemberEntry[]) => list.map((e, i) => (
@@ -527,8 +527,8 @@ function AssignmentForm(props: {
   ctx: Ctx;
   roles: { id: string; name: string; sub?: string }[];
   levels: ScopeLevel[];
-  value: { roleId: string; level: ScopeLevel; projectId: string; laneId: string };
-  onChange: (v: { roleId: string; level: ScopeLevel; projectId: string; laneId: string }) => void;
+  value: { roleId: string; level: ScopeLevel; partitionId: string; laneId: string };
+  onChange: (v: { roleId: string; level: ScopeLevel; partitionId: string; laneId: string }) => void;
 }) {
   const { ctx, value } = props;
   const v = useOrgView(ctx);
@@ -545,7 +545,7 @@ function AssignmentForm(props: {
           <Chip key={l} label={LEVEL_LABEL[l]} on={value.level === l} onPress={() => {
             const laneId = l === 'lane' ? value.laneId || (lanes.length === 1 ? lanes[0]! : '') : '';
             // A language's role names that language's own partition (decisions.md 37).
-            props.onChange({ ...value, level: l, laneId, projectId: l === 'org' ? '' : laneId ? v.partitionOf(laneId) : v.projectId });
+            props.onChange({ ...value, level: l, laneId, partitionId: l === 'org' ? '' : laneId ? v.partitionOf(laneId) : v.partitionId });
           }} />
         ))}
       </View>
@@ -555,18 +555,18 @@ function AssignmentForm(props: {
           <SectionLabel label="Language" />
           <Text style={txt.xs}>Which language this assignment applies to.</Text>
           <Choices items={lanes.map((id) => ({ id, label: v.laneLabel(id) }))} value={value.laneId}
-            onChoose={(laneId) => props.onChange({ ...value, laneId, projectId: v.partitionOf(laneId) })} empty="No languages yet." />
+            onChoose={(laneId) => props.onChange({ ...value, laneId, partitionId: v.partitionOf(laneId) })} empty="No languages yet." />
         </>
       ) : null}
     </>
   );
 }
 
-function scopeOf(value: { level: ScopeLevel; projectId: string; laneId: string }): Scope | null {
+function scopeOf(value: { level: ScopeLevel; partitionId: string; laneId: string }): Scope | null {
   if (value.level === 'org') return { level: 'org' };
-  if (!value.projectId) return null;
-  if (value.level === 'project') return { level: 'project', projectId: value.projectId };
-  return value.laneId ? { level: 'lane', projectId: value.projectId, laneId: value.laneId } : null;
+  if (!value.partitionId) return null;
+  if (value.level === 'partition') return { level: 'partition', partitionId: value.partitionId };
+  return value.laneId ? { level: 'lane', partitionId: value.partitionId, laneId: value.laneId } : null;
 }
 
 export function InviteMember(ctx: Ctx) {
@@ -577,7 +577,7 @@ export function InviteMember(ctx: Ctx) {
   const [email, setEmail] = useState('');
   const [form, setForm] = useState({
     roleId: '', level: floor ?? 'org' as ScopeLevel,
-    projectId: floor === 'lane' ? partitionOfLane(ctx.org.state, laneParam(ctx)) : floor && floor !== 'org' ? ctx.project.projectId : '',
+    partitionId: floor === 'lane' ? partitionOfLane(ctx.org.state, laneParam(ctx)) : floor && floor !== 'org' ? ctx.partition.partitionId : '',
     laneId: floor === 'lane' ? laneParam(ctx) : ''
   });
   const [busy, setBusy] = useState(false);
@@ -589,7 +589,7 @@ export function InviteMember(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      const invite = await issueInvite(ctx.project.orgId, form.roleId, scope);
+      const invite = await issueInvite(ctx.partition.orgId, form.roleId, scope);
       const { error: failed } = await supabase.functions.invoke('send-invite', { body: { inviteId: invite.inviteId, token: invite.token, email: email.trim() } });
       if (failed) {
         const details = failed.context instanceof Response ? await failed.context.json().catch(() => null) : null;
@@ -641,18 +641,18 @@ export function EditMember(ctx: Ctx) {
   const memberId = ctx.params['memberId'] ?? '';
   const requestId = ctx.params['requestId'];
   const viewLevel = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
-  const entries = useMemo(() => memberEntries(v.org, v.state, v.projectId).filter((e) => e.profileId === memberId), [v.org, v.state, v.projectId, memberId]);
+  const entries = useMemo(() => memberEntries(v.org, v.state, v.partitionId).filter((e) => e.profileId === memberId), [v.org, v.state, v.partitionId, memberId]);
   const entry = entries.find((e) => e.key === ctx.params['entry']) ?? entries[0];
   const legacy = entry?.legacyRole !== undefined;
   const pending = !!requestId;
   const roles = legacy
     ? SEED_ROLES.map((r) => ({ id: r.roleId, name: r.name }))
     : liveRoles(ctx);
-  const levels: ScopeLevel[] = pending ? ['org'] : legacy ? ['project'] : [...new Set([...(entry ? [entry.scope.level] : []), ...assignableLevels(ctx.session.adminScope, viewLevel)])];
+  const levels: ScopeLevel[] = pending ? ['org'] : legacy ? ['partition'] : [...new Set([...(entry ? [entry.scope.level] : []), ...assignableLevels(ctx.session.adminScope, viewLevel)])];
   const [form, setForm] = useState({
     roleId: entry?.roleId ?? '',
     level: (pending ? 'org' : entry?.scope.level ?? 'org') as ScopeLevel,
-    projectId: entry?.scope.projectId ?? '',
+    partitionId: entry?.scope.partitionId ?? '',
     laneId: entry?.scope.laneId ?? ''
   });
   const [busy, setBusy] = useState(false);
@@ -831,7 +831,7 @@ const GROUP_USES = 30;
 export function InviteQr(ctx: Ctx) {
   const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
   const floor = grantFloor(ctx.session.adminScope, level) ?? level;
-  const scope = floor === 'lane' ? scopeAt(floor, partitionOfLane(ctx.org.state, laneParam(ctx)), laneParam(ctx)) : scopeAt(floor, ctx.project.projectId);
+  const scope = floor === 'lane' ? scopeAt(floor, partitionOfLane(ctx.org.state, laneParam(ctx)), laneParam(ctx)) : scopeAt(floor, ctx.partition.partitionId);
   const roles = liveRoles(ctx);
   // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
   const preferred = ctx.params['roleId'];
@@ -852,7 +852,7 @@ export function InviteQr(ctx: Ctx) {
     try {
       // The name goes to the server with the invite, so the person scanning
       // sees whom it is for (docs/invites-and-accounts.md section 4).
-      setInvite(await issueInvite(ctx.project.orgId, roleId, scope, { label: name, maxUses: audience === 'group' ? GROUP_USES : 1 }));
+      setInvite(await issueInvite(ctx.partition.orgId, roleId, scope, { label: name, maxUses: audience === 'group' ? GROUP_USES : 1 }));
       setStep(2);
     } catch (e) {
       // Offline or refused by the server: its words say which.
@@ -865,7 +865,7 @@ export function InviteQr(ctx: Ctx) {
   const params = { level, ...(ctx.params['laneId'] ? { laneId: ctx.params['laneId'] } : {}) };
   // The link carries the org and the token only: a scanner shows nothing a
   // forwarded link could have altered. The name stays on this screen.
-  const uri = invite ? inviteUri(ctx.project.orgId, invite.token, APP_URL) : '';
+  const uri = invite ? inviteUri(ctx.partition.orgId, invite.token, APP_URL) : '';
   return (
     <Screen header={<Header title="Invite by QR" sub={role ? role.name : 'Role and name only'}
       onBack={step === 1 && !invite ? () => setStep(0) : ctx.back} />}
@@ -931,7 +931,7 @@ export function InviteQr(ctx: Ctx) {
 // ---- New language --------------------------------------------------------------------------
 
 export function NewLanguage(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
@@ -972,8 +972,8 @@ export function NewLanguage(ctx: Ctx) {
       const fresh = emptyState();
       const templateSpecs = await lib.applySpecs(laneId, itemId, { docHash: choice.hash, into: fresh, ...(books ? { books } : {}) });
       const specs = addLanguage(fresh, { commandId, laneId, code: languoid, name: title, template: templateSpecs });
-      await ctx.org.append('v1.ProjectRegistered', { projectId: laneId, name: title });
-      await appendToPartition({ orgId: ctx.project.orgId, projectId: laneId, actorId: ctx.session.actorId, specs });
+      await ctx.org.append('v1.PartitionRegistered', { partitionId: laneId, name: title });
+      await appendToPartition({ orgId: ctx.partition.orgId, partitionId: laneId, actorId: ctx.session.actorId, specs });
       ctx.toast(`${title} added to ${orgName} · uses ${choice.name}`);
       ctx.setLane(laneId);
       ctx.back();
@@ -1016,7 +1016,7 @@ export function NewLanguage(ctx: Ctx) {
 // ---- Review Teams (FLOW-5) --------------------------------------------------------------------------------
 
 export function ReviewTeams(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const beside = useOpenDetail();
   const laneId = laneParam(ctx);
   const canManage = ctx.session.can('manage_teams');
@@ -1054,7 +1054,7 @@ export function ReviewTeams(ctx: Ctx) {
 }
 
 export function ReviewTeamEditor(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const laneId = laneParam(ctx);
   const [newId] = useState(() => `team:${Crypto.randomUUID()}`);
   const teamId = ctx.params['teamId'] ?? newId;
@@ -1072,11 +1072,11 @@ export function ReviewTeamEditor(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const eligible = useMemo(() => {
-    const ids = new Set([...reviewEligible(ctx.org.state, state, ctx.project.projectId, laneId), ...before]);
+    const ids = new Set([...reviewEligible(ctx.org.state, state, ctx.partition.partitionId, laneId), ...before]);
     return [...ids].sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
     // ctx.name reads the same people map for the whole visit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx.org.state, state, ctx.project.projectId, laneId, before]);
+  }, [ctx.org.state, state, ctx.partition.partitionId, laneId, before]);
   const toggle = (id: string) => setChosen((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   async function save() {
     const title = name.trim();

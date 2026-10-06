@@ -97,7 +97,7 @@ export function useOfferedSources(ctx: Ctx, unitId: string | undefined, laneId: 
 export function SourceReader(props: SourceReaderProps) {
   const { ctx, unitId, laneId } = props;
   const passage = useSources(ctx, unitId, laneId);
-  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.project.orgId, laneId));
+  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.partition.orgId, laneId));
   const option = passage.options.find((o) => o.itemId === chosen) ?? passage.options[0];
 
   // Everything offered goes on the record; choosing a version is using it.

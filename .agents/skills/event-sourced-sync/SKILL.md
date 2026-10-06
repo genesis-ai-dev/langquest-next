@@ -12,7 +12,7 @@ file and PLAN.md disagree, PLAN.md wins; fix this file.
 
 ## The model in five lines
 
-1. The only write is **appending an intent event** to a project partition's log.
+1. The only write is **appending an intent event** to a partition's log.
 2. Every event type is **commutative and idempotent**. Any subset, in any order,
    applied any number of times, folds to the same state.
 3. **State is derived** by the pure reducer in `packages/core`, identically on
@@ -39,7 +39,7 @@ Ask these in order. If an answer is "no", redesign before writing code.
   existing state to decide what to write breaks order independence (the
   `MemberRemoved` bug in PLAN.md section 6). Derive combinations at read time instead.
 - **Is it self-contained in its partition?** It references entities in the same
-  project, global catalog data, or blobs by hash. Cross-project use is a
+  partition, global catalog data, or blobs by hash. Cross-partition use is a
   `SourceImported` pin (invariant 6).
 - **Who may emit it?** Add it to the SQL `event_privilege`; the server's
   membership fold is the only authorization on the write path.
@@ -82,7 +82,7 @@ permutation and idempotence tests then cover it), and
   rebuildable** from the log; they may lag, and they can be thrown away.
 - **No trigger-maintained rollups.** Async workers consume the log (PLAN.md
   section 5); the write path is append plus the membership check only.
-- **Tenant on every row and every query**: `orgId`, `projectId`. Index plans
+- **Tenant on every row and every query**: `orgId`, `partitionId`. Index plans
   are part of the migration (PLAN.md section 5).
 - **Snapshots are tagged with the reducer version**; a client folds the log
   rather than loading a snapshot from another version (invariant 10).

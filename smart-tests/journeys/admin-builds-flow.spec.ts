@@ -19,9 +19,9 @@ test('admin builds a flow with two kinds together and a checkpoint', async ({ pa
 
   const contract = { adminId: world.owner.id, laneId: world.laneId };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeFlow(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeFlow(contract, evidence), run.status);
   await reportRun(page, run, outcome);

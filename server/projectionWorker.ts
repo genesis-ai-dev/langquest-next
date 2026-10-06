@@ -28,31 +28,31 @@ export async function runProjections(service: SupabaseClient) {
   const partitions = await service.rpc('list_partitions');
   check(partitions);
   for (const row of partitions.data ?? []) {
-    if (row.project_id === '_org') await orgState(row.org_id);
+    if (row.partition_id === '_org') await orgState(row.org_id);
   }
   await runSnapshotWorker(service, 1000, async (snapshot) => {
     const org = await orgState(snapshot.orgId);
-    const state = withOrgMembers(snapshot.state, org, snapshot.projectId);
+    const state = withOrgMembers(snapshot.state, org, snapshot.partitionId);
     const idx = buildIndexes(state);
     const notifications = Object.keys(state.members).flatMap((profileId) =>
       deriveInbox(state, profileId, idx).map((item) => ({
-        id: JSON.stringify([snapshot.orgId,snapshot.projectId,profileId,item.id]),
+        id: JSON.stringify([snapshot.orgId,snapshot.partitionId,profileId,item.id]),
         profile_id: profileId, kind: item.kind, title: item.title,
         task_id: item.taskId ?? null, unit_id: item.unitId ?? null,
         lane_id: item.laneId ?? null
       })));
     check(await service.rpc('reconcile_notifications', {
-      p_org: snapshot.orgId, p_project: snapshot.projectId, p_rows: notifications
+      p_org: snapshot.orgId, p_partition: snapshot.partitionId, p_rows: notifications
     }));
-    const visibility = await service.from('project_visibility').select('listed')
-      .eq('org_id', snapshot.orgId).eq('project_id', snapshot.projectId).maybeSingle();
+    const visibility = await service.from('partition_visibility').select('listed')
+      .eq('org_id', snapshot.orgId).eq('partition_id', snapshot.partitionId).maybeSingle();
     check(visibility);
-    if (visibility.data?.listed && state.project) {
+    if (visibility.data?.listed && state.partition) {
       const lanes = Object.keys(state.lanes);
       const percentages = lanes.map((lane) => deriveProgress(state, lane, idx).translatedPct);
-      check(await service.from('public_projects').upsert({
-        org_id: snapshot.orgId, project_id: snapshot.projectId,
-        name: state.project.value.name,
+      check(await service.from('public_partitions').upsert({
+        org_id: snapshot.orgId, partition_id: snapshot.partitionId,
+        name: state.partition.value.name,
         languages: Object.values(state.lanes).map((lane) => lane.languoidId),
         translated_pct: percentages.length
           ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
@@ -74,7 +74,7 @@ export async function runProjections(service: SupabaseClient) {
     })));
     rows.push(...await reportNotifications(service, orgId, org));
     check(await service.rpc('reconcile_notifications', {
-      p_org: orgId, p_project: '_org', p_rows: rows
+      p_org: orgId, p_partition: '_org', p_rows: rows
     }));
   }
 }
@@ -99,7 +99,7 @@ async function reportNotifications(service: SupabaseClient, orgId: string, org: 
   const out: { id: string; profile_id: string; kind: string; title: string }[] = [];
   for (const r of open.data ?? []) {
     const person = r.target_kind === 'person';
-    const target = person ? { projectId: '_org' } : { projectId: r.partition_id as string };
+    const target = person ? { partitionId: '_org' } : { partitionId: r.partition_id as string };
     for (const profileId of Object.keys(org.members)) {
       if (profileId === r.reported_profile) continue;
       if (!privilegesFor(org, profileId, target).has(person ? 'invite_members' : 'manage_structure')) continue;
@@ -112,7 +112,7 @@ async function reportNotifications(service: SupabaseClient, orgId: string, org: 
   return out;
 }
 
-/** Push contains no project title or personal content on the lock screen. */
+/** Push contains no partition title or personal content on the lock screen. */
 export async function deliverPushes(service: SupabaseClient, fetcher = fetch) {
   const claimed = await service.rpc('claim_notification_pushes');
   check(claimed);

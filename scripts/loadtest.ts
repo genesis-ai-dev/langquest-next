@@ -16,11 +16,11 @@ function synth(n: number): AnyEvent[] {
   const emit = (type: string, payload: unknown, actorId = 't1', deviceId = 'dB') => {
     seq += 1;
     out.push({
-      id: `e${seq}`, type, orgId: 'org1', projectId: 'p1', actorId, deviceId,
+      id: `e${seq}`, type, orgId: 'org1', partitionId: 'p1', actorId, deviceId,
       hlc: encodeHlc(1_700_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq
     } as AnyEvent);
   };
-  emit('v1.ProjectCreated', { name: 'Bible', sourceLanguoidId: 'eng' }, 'lead', 'dA');
+  emit('v1.PartitionCreated', { name: 'Bible', sourceLanguoidId: 'eng' }, 'lead', 'dA');
   emit('v1.MemberAdded', { profileId: 'lead', role: 'owner' }, 'lead', 'dA');
   emit('v1.MemberAdded', { profileId: 't1', role: 'translator' }, 'lead', 'dA');
   emit('v1.MemberAdded', { profileId: 'r1', role: 'reviewer' }, 'lead', 'dA');
@@ -66,7 +66,7 @@ resume(JSON.parse(snapJson), events.slice(-500));
 const resumeMs = performance.now() - t;
 
 // Stage 3 gate: rows must equal the derivation at scale, and a task page
-// must cost its rows, not the project.
+// must cost its rows, not the partition.
 t = performance.now();
 const idx = buildIndexes(state);
 const rows = passageKeys(state, idx).map((k) => passageRow(state, k.unitId, k.laneId, idx));

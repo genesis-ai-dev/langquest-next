@@ -60,10 +60,10 @@ returns table(event_id text, actor_id text, redacted boolean)
 language sql stable security definer set search_path = public as $$
   select e.id, e.actor_id, exists (
     select 1 from public.events r
-     where r.org_id = e.org_id and r.project_id = e.project_id
+     where r.org_id = e.org_id and r.partition_id = e.partition_id
        and r.type = 'v1.Redacted' and r.payload->>'eventId' = e.id)
   from public.events e
-  where e.org_id = p_org and e.project_id = p_partition and (
+  where e.org_id = p_org and e.partition_id = p_partition and (
     (p_kind = 'note' and e.type = 'v1.NoteAdded' and e.payload->>'noteId' = p_target)
     or (p_kind = 'request' and e.type in ('v1.RequestMade', 'v2.RequestMade') and e.payload->>'requestId' = p_target)
     or (p_kind = 'review' and e.type = 'v1.ReviewRecorded' and e.payload->>'reviewId' = p_target)

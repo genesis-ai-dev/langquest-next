@@ -14,7 +14,7 @@ describe('status drill-down (P avatar)', () => {
   });
 
   it('an approved piece is done at the last step; bottleneck reads the pending step', () => {
-    // Why: coordinators need "where is work stuck" without opening projects,
+    // Why: coordinators need "where is work stuck" without opening partitions,
     // the v2 pain that closure tables tried to answer with triggers.
     const pieces = derivePieces(state, 'L1');
     expect(pieces[0]!.status).toBe('done');

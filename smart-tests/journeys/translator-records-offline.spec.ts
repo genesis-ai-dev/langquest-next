@@ -28,15 +28,15 @@ test('translator records offline, restarts offline, and the take syncs on reconn
   const passage = world.passages[0]!;
   const contract = { actorId: world.translator.id, unitIds: [passage.unitId], laneId: world.laneId };
   await openAs(page, world, world.translator);
-  // Local-first starts with one sync: wait until the project is on the device.
-  await settle(() => deviceLog(page, world.orgId, world.projectId),
+  // Local-first starts with one sync: wait until the partition is on the device.
+  await settle(() => deviceLog(page, world.orgId, world.partitionId),
     (rows) => rows.some((r) => r.event.type === 'v1.AssignmentMade'), 30_000);
   const blobsBefore = await deviceBlobs(page);
 
   const reconnect = await cutServer(context);
   const read = async (): Promise<RecordingEvidence> => ({
-    device: await deviceLog(page, world.orgId, world.projectId), blobsBefore,
-    blobsAfter: await deviceBlobs(page), server: await serverEvents(world.projectId)
+    device: await deviceLog(page, world.orgId, world.partitionId), blobsBefore,
+    blobsAfter: await deviceBlobs(page), server: await serverEvents(world.partitionId)
   });
 
   const run = await runJev(page, recordPassage(passage.label), { timeoutMs: 60_000, maxDecisions: 25 });

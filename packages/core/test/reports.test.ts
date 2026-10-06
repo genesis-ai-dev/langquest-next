@@ -18,7 +18,7 @@ import { buildFixture, buildRecordFixture, buildStep11Fixture, shuffle } from '.
 
 const DAY = 86_400_000;
 
-function project() {
+function partition() {
   const events: AnyEvent[] = [];
   let wall = Date.UTC(2026, 8, 1);
   let seq = 0;
@@ -28,7 +28,7 @@ function project() {
     clocks.set(actorId, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `x${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
+    events.push({ id: `x${seq}`, type, orgId: 'o', partitionId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
   };
   const state = () => fold(events, emptyState());
   const run = (actorId: string, build: (c: ReturnType<typeof commands>) => { type: EventType; payload: unknown }[]) => {
@@ -52,12 +52,12 @@ function project() {
   };
 }
 
-const publish = (p: ReturnType<typeof project>, unitId: string, cards: string[]) =>
+const publish = (p: ReturnType<typeof partition>, unitId: string, cards: string[]) =>
   p.run('akol', (c) => c.publishVersion({ commandId: `v:${unitId}:${cards.join('')}`, unitId, laneId: 'din', cardHashes: cards }));
 
 describe('language report', () => {
   it('counts each passage once, by where its record stands', () => {
-    const p = project();
+    const p = partition();
     publish(p, 'john3', ['c1']);
     const r = laneReport(p.state(), 'din', p.now());
     expect(r.name).toBe('Dinka');
@@ -68,7 +68,7 @@ describe('language report', () => {
   });
 
   it('names the step most recorded passages wait at, earliest step on a tie', () => {
-    const p = project();
+    const p = partition();
     publish(p, 'john3', ['c1']);
     publish(p, 'luke15', ['c2']);
     const r = laneReport(p.state(), 'din', p.now());
@@ -78,7 +78,7 @@ describe('language report', () => {
   });
 
   it('feedback nobody answered is its own bucket and needs attention', () => {
-    const p = project();
+    const p = partition();
     publish(p, 'john3', ['c1']);
     const takeId = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'rv', takeIds: [takeId], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 3 is unclear.' }));
@@ -89,7 +89,7 @@ describe('language report', () => {
   });
 
   it('a request is overdue only when its due date is before the report day', () => {
-    const p = project();
+    const p = partition();
     publish(p, 'john3', ['c1']);
     p.run('lead', (c) => c.ask({ commandId: 'late', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'community', profileId: 'ayen', dueDate: '2026-08-15' }));
     p.run('lead', (c) => c.ask({ commandId: 'soon', unitId: 'john4', laneId: 'din', what: 'record', profileId: 'akol', dueDate: '2026-12-01' }));
@@ -99,7 +99,7 @@ describe('language report', () => {
   });
 
   it('with no review steps a recorded passage is done and nothing is a bottleneck', () => {
-    const p = project();
+    const p = partition();
     p.run('lead', (c) => c.useFlow({ commandId: 'collect', laneId: 'din', flowId: 'collect_only' }));
     publish(p, 'john3', ['c1']);
     const r = laneReport(p.state(), 'din', p.now());
@@ -109,14 +109,14 @@ describe('language report', () => {
   });
 
   it('groups passages by book in canon order', () => {
-    const p = project();
+    const p = partition();
     publish(p, 'john3', ['c1']);
     const r = laneReport(p.state(), 'din', p.now());
     expect(r.books.map((b) => [b.label, b.total, b.recorded, b.done])).toEqual([['Luke', 1, 0, 0], ['John', 2, 1, 0]]);
   });
 
   it('buckets activity into Monday-starting weeks and drops what is older than the window', () => {
-    const p = project();
+    const p = partition();
     const now = Date.UTC(2026, 8, 30, 12);
     p.at(now - 7 * DAY * REPORT_WEEKS - DAY);
     publish(p, 'luke15', ['old']);
@@ -133,7 +133,7 @@ describe('language report', () => {
   });
 
   it('a language with no passages reports zeros, not errors', () => {
-    const events: AnyEvent[] = [{ id: 'l', type: 'v1.LaneAdded', orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'a', hlc: '001790000000000:000000:a', payload: { laneId: 'nus', languoidId: 'nus' } } as AnyEvent];
+    const events: AnyEvent[] = [{ id: 'l', type: 'v1.LaneAdded', orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'a', hlc: '001790000000000:000000:a', payload: { laneId: 'nus', languoidId: 'nus' } } as AnyEvent];
     const r = laneReport(fold(events, emptyState()), 'nus', Date.UTC(2026, 8, 30));
     expect(r.name).toBe('NUS');
     expect(r.progress.total).toBe(0);
@@ -155,12 +155,12 @@ describe('language report', () => {
 
 describe('coverage, uploads and the ledger', () => {
   const card = (hash: string) => ({ hash, durationMs: 4000 });
-  const record = (p: ReturnType<typeof project>, unitId: string, hash: string) =>
+  const record = (p: ReturnType<typeof partition>, unitId: string, hash: string) =>
     p.run('akol', (c) => c.addRecording({ commandId: `rec:${hash}`, unitId, laneId: 'din', recordingId: `r:${hash}`, kind: 'target', card: card(hash) }));
-  const stored = (p: ReturnType<typeof project>, hash: string) => p.emit('server', 'v1.BlobStored', { hash, size: 100 });
+  const stored = (p: ReturnType<typeof partition>, hash: string) => p.emit('server', 'v1.BlobStored', { hash, size: 100 });
 
   it('weights coverage by verses of the canon, recorded and done separately', () => {
-    const p = project();
+    const p = partition();
     publish(p, 'john3', ['c1']);
     const r = laneReport(p.state(), 'din', p.now());
     expect(r.coverage.recorded.gospels).toBe(Math.round((1000 * 21) / SCOPE_VERSES.gospels) / 10);
@@ -172,7 +172,7 @@ describe('coverage, uploads and the ledger', () => {
   });
 
   it('dates a milestone by the version that crossed it', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.UnitAdded', { unitId: 'mark', parentUnitId: null, kind: 'passage', label: 'Mark 1-16', order: 'c1' });
     p.emit('lead', 'v1.UnitAdded', { unitId: 'johnAll', parentUnitId: null, kind: 'passage', label: 'John 1-21', order: 'c2' });
     publish(p, 'mark', ['m']);
@@ -186,7 +186,7 @@ describe('coverage, uploads and the ledger', () => {
   });
 
   it('times uploads by the server confirmation and counts each chapter once, in its first month', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.UnitAdded', { unitId: 'john3b', parentUnitId: 'john', kind: 'passage', label: 'John 3:22-36', order: 'b3' });
     p.at(Date.UTC(2026, 7, 30));
     record(p, 'john3', 'h1');
@@ -206,7 +206,7 @@ describe('coverage, uploads and the ledger', () => {
   });
 
   it('raises audio recorded weeks ago that never reached the server', () => {
-    const p = project();
+    const p = partition();
     const now = Date.UTC(2026, 8, 30);
     p.at(now - 20 * DAY);
     record(p, 'john3', 'old');
@@ -218,7 +218,7 @@ describe('coverage, uploads and the ledger', () => {
   });
 
   it('draws the progress line from when passages were first published and when they were finished', () => {
-    const p = project();
+    const p = partition();
     const now = Date.UTC(2026, 8, 30, 12);
     p.at(now - 200 * DAY);
     publish(p, 'luke15', ['old']);
@@ -242,7 +242,7 @@ describe('coverage, uploads and the ledger', () => {
   });
 
   it('carries the country and target an admin set', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.LaneCountrySet', { laneId: 'din', country: 'SS' });
     p.emit('lead', 'v1.LaneTargetSet', { laneId: 'din', scope: 'nt', startDate: '2026-01-01', targetDate: '2027-07-01' });
     const r = laneReport(p.state(), 'din', p.now());
@@ -252,7 +252,7 @@ describe('coverage, uploads and the ledger', () => {
 });
 
 describe('reading a report at a moment', () => {
-  const base = () => laneReport(project().state(), 'din', Date.UTC(2026, 8, 30));
+  const base = () => laneReport(partition().state(), 'din', Date.UTC(2026, 8, 30));
   const now = Date.UTC(2026, 8, 30);
 
   it('bands a language by days since its last upload', () => {
@@ -300,43 +300,43 @@ describe('mayViewLane', () => {
     let seq = 0;
     const ev = (type: string, payload: unknown) => {
       seq += 1;
-      return { id: `o${seq}`, type, orgId: 'o', projectId: '_org', actorId: 'lead', deviceId: 'd', hlc: encodeHlc(1_700_000_000_000 + seq, 0, 'd'), payload } as AnyEvent;
+      return { id: `o${seq}`, type, orgId: 'o', partitionId: '_org', actorId: 'lead', deviceId: 'd', hlc: encodeHlc(1_700_000_000_000 + seq, 0, 'd'), payload } as AnyEvent;
     };
     return foldOrg([
       ev('v1.OrgCreated', { name: 'Org' }),
       ...SEED_ROLES.map((r) => ev('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
       ev('v1.RoleDefined', { roleId: 'recorder', name: 'Recorder', privileges: ['translate'] }),
       ev('v1.OrgMemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } }),
-      ev('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'project_coordinator', scope: { level: 'project', projectId: 'p' } }),
-      ev('v1.OrgMemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'lane', projectId: 'p', laneId: 'din' } }),
+      ev('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'coordinator', scope: { level: 'partition', partitionId: 'p' } }),
+      ev('v1.OrgMemberAdded', { profileId: 'dinka', roleId: 'viewer', scope: { level: 'lane', partitionId: 'p', laneId: 'din' } }),
       ev('v1.OrgMemberAdded', { profileId: 'recorder', roleId: 'recorder', scope: { level: 'org' } }),
       ev('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'viewer', scope: { level: 'org' } }),
       ev('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'org' } })
     ]);
   })();
-  const partition = project().state();
+  const state = partition().state();
 
   it('lets org and partition members see every language in the partition', () => {
     for (const id of ['admin', 'coord']) {
-      expect(mayViewLane(org, partition, id, 'p', 'din')).toBe(true);
-      expect(mayViewLane(org, partition, id, 'p', 'nus')).toBe(true);
+      expect(mayViewLane(org, state, id, 'p', 'din')).toBe(true);
+      expect(mayViewLane(org, state, id, 'p', 'nus')).toBe(true);
     }
-    expect(mayViewLane(org, partition, 'coord', 'q', 'din')).toBe(false);
+    expect(mayViewLane(org, state, 'coord', 'q', 'din')).toBe(false);
   });
 
   it('shows a member scoped to one language only that language', () => {
-    expect(mayViewLane(org, partition, 'dinka', 'p', 'din')).toBe(true);
-    expect(mayViewLane(org, partition, 'dinka', 'p', 'nus')).toBe(false);
+    expect(mayViewLane(org, state, 'dinka', 'p', 'din')).toBe(true);
+    expect(mayViewLane(org, state, 'dinka', 'p', 'nus')).toBe(false);
   });
 
   it('counts a role in the partition member list, the older way of joining', () => {
-    expect(mayViewLane(org, partition, 'ayen', 'p', 'din')).toBe(true);
-    const p = project();
+    expect(mayViewLane(org, state, 'ayen', 'p', 'din')).toBe(true);
+    const p = partition();
     p.emit('lead', 'v1.MemberRemoved', { profileId: 'ayen' });
     expect(mayViewLane(org, p.state(), 'ayen', 'p', 'din')).toBe(false);
   });
 
   it('refuses a stranger, a removed member and a role without view_status', () => {
-    for (const id of ['stranger', 'gone', 'recorder']) expect(mayViewLane(org, partition, id, 'p', 'din')).toBe(false);
+    for (const id of ['stranger', 'gone', 'recorder']) expect(mayViewLane(org, state, id, 'p', 'din')).toBe(false);
   });
 });

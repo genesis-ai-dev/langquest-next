@@ -22,7 +22,7 @@ export async function createOrganization(c: { actorId: string; name: string; lic
   const client = new SyncClient<OrgState>({
     materializer: ORG_MATERIALIZER,
     orgId,
-    projectId: ORG_PARTITION,
+    partitionId: ORG_PARTITION,
     actorId: c.actorId,
     deviceId,
     store,

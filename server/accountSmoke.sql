@@ -59,12 +59,12 @@ do $$ begin
 end $$;
 reset role;
 select set_config('request.jwt.claim.sub','audit-admin',true);
-select public.set_project_visibility('audit-test-org','p1',true);
-insert into public.public_projects(org_id,project_id,name) values('audit-test-org','p1','Public test'),('audit-private','p1','Private test');
+select public.set_partition_visibility('audit-test-org','p1',true);
+insert into public.public_partitions(org_id,partition_id,name) values('audit-test-org','p1','Public test'),('audit-private','p1','Private test');
 set local role anon;
 do $$ begin
-  if not exists(select 1 from public.public_projects where org_id='audit-test-org') then raise exception 'public project invisible'; end if;
-  if exists(select 1 from public.public_projects where org_id='audit-private') then raise exception 'private project leaked'; end if;
+  if not exists(select 1 from public.public_partitions where org_id='audit-test-org') then raise exception 'public partition invisible'; end if;
+  if exists(select 1 from public.public_partitions where org_id='audit-private') then raise exception 'private partition leaked'; end if;
 end $$;
 reset role;
 select set_config('request.jwt.claim.sub','audit-stranger',true);

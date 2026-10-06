@@ -5,7 +5,7 @@ import { libraryItemView } from '@langquest-next/core';
 const H = (c: string) => c.repeat(64);
 let seq = 0;
 const fold = (ops: LibraryOp[], prior: AnyEvent[] = []) => {
-  const events = [...prior, ...ops.map((op) => ({ ...op, id: `e${++seq}`, orgId: 'o', projectId: '_org', actorId: 'a', deviceId: 'd', hlc: `${String(seq).padStart(15, '0')}:000000:d` }) as AnyEvent)];
+  const events = [...prior, ...ops.map((op) => ({ ...op, id: `e${++seq}`, orgId: 'o', partitionId: '_org', actorId: 'a', deviceId: 'd', hlc: `${String(seq).padStart(15, '0')}:000000:d` }) as AnyEvent)];
   return { events, library: foldOrg(events).library };
 };
 

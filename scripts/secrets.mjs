@@ -47,7 +47,7 @@ const inviteEmailName = parseJsonc(readFileSync(join(root, WORKERS['invite-email
 export const relayUrl = (environment) =>
   `https://${inviteEmailName}${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
 
-export const CRON_JOB = 'langquest-project-projections';
+export const CRON_JOB = 'langquest-partition-projections';
 /** Schedules CRON_JOB where the Vault secrets exist; safe to run again (decision 42). */
 export const SCHEDULE_MIGRATION = 'supabase/migrations/20261001000000_schedule_projections.sql';
 

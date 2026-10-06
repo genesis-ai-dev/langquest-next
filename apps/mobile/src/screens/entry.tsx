@@ -11,7 +11,7 @@ import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { cachedPublicProjects, publicProjects, queueAccountAction, TERMS_VERSION, type PublicProject } from '../accountData';
+import { cachedPublicPartitions, publicPartitions, queueAccountAction, TERMS_VERSION, type PublicPartition } from '../accountData';
 import { firstName, VISION_STEPS } from '../accountText';
 import { isSignInName, signInAddress, signInName } from '../accounts';
 import { recordHelp } from '../signInHelp';
@@ -221,17 +221,17 @@ const EXPLORE_STEP = 25;
 
 /** Organizations that list their work publicly, without an account: name, languages, progress. */
 export function ExploreHome(ctx: Ctx) {
-  const [projects, setProjects] = useState<PublicProject[]>([]);
+  const [partitions, setPartitions] = useState<PublicPartition[]>([]);
   const [message, setMessage] = useState('Loading…');
   const [shown, setShown] = useState(EXPLORE_STEP);
   useEffect(() => {
     let active = true;
     void (async () => {
-      const cached = await cachedPublicProjects().catch((e: unknown) => { reportError('explore cache', e); return []; });
-      if (active) setProjects(cached);
+      const cached = await cachedPublicPartitions().catch((e: unknown) => { reportError('explore cache', e); return []; });
+      if (active) setPartitions(cached);
       try {
-        const rows = await publicProjects();
-        if (active) { setProjects(rows); setMessage(''); }
+        const rows = await publicPartitions();
+        if (active) { setPartitions(rows); setMessage(''); }
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
         noteExpected('explore refresh', e);
@@ -245,13 +245,13 @@ export function ExploreHome(ctx: Ctx) {
     <Screen header={<Header title="Explore" onBack={ctx.back}
       action={guest ? <SmallBtn label="Sign In" tone="primary" onPress={() => ctx.go('sign_in')} /> : undefined} />}>
       {message ? <Banner icon="cloud" title={message} /> : null}
-      {projects.length ? <SectionLabel label="Listed publicly" /> : null}
-      {projects.slice(0, shown).map((p) => {
+      {partitions.length ? <SectionLabel label="Listed publicly" /> : null}
+      {partitions.slice(0, shown).map((p) => {
         const pct = Math.round(p.translated_pct);
         // A license this build does not know yet is simply not shown.
         const license = isLicense(p.license) ? LICENSE_INFO[p.license] : null;
         return (
-          <Card key={`${p.org_id}:${p.project_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
+          <Card key={`${p.org_id}:${p.partition_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
             onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
             <View style={{ gap: 2 }}>
               <Text style={txt.h3}>{p.name}</Text>
@@ -266,8 +266,8 @@ export function ExploreHome(ctx: Ctx) {
           </Card>
         );
       })}
-      <ShowMore remaining={projects.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-      {!projects.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
+      <ShowMore remaining={partitions.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
+      {!partitions.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
     </Screen>
   );
 }

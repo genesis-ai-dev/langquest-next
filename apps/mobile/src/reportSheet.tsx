@@ -17,7 +17,7 @@ import { C, radius, space, TINT } from './theme';
 /** A piece of the open language's record, as something to report. */
 export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: string, by: string, unitId?: string, laneId?: string): ReportTarget {
   return {
-    kind, id, profileId: by, orgId: ctx.project.orgId, partitionId: ctx.project.projectId,
+    kind, id, profileId: by, orgId: ctx.partition.orgId, partitionId: ctx.partition.partitionId,
     ...(unitId ? { unitId } : {}), ...(laneId ? { laneId } : {})
   };
 }

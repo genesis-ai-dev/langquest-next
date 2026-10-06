@@ -1,5 +1,5 @@
 import {
-  accountForDriver, judgeBackTranslation, judgeNewProject, judgeCheck, judgeFlow, judgeLoggedCheck, judgeStudyNote, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
+  accountForDriver, judgeBackTranslation, judgeNewLanguage, judgeCheck, judgeFlow, judgeLoggedCheck, judgeStudyNote, judgeKept, judgeMapSearch, judgeOfflineRecording, judgeRecording, judgeRequest, judgeReview, judgeSavedVersion, judgeSetAside,
   type DeviceRow, type LogEvidence, type RecordingEvidence, type ServerRow
 } from './outcome';
 
@@ -64,7 +64,7 @@ describe('recording journey oracle', () => {
 
 describe('offline recording journey oracle', () => {
   const offline = (): RecordingEvidence => ({ device: [recording({ status: 'pending' })], blobsBefore: [], blobsAfter: ['h1'],
-    server: serverHas({ type: 'v1.ProjectCreated' }) });
+    server: serverHas({ type: 'v1.PartitionCreated' }) });
   const all = () => ({ offline: offline(), afterRestart: offline(), online: good() });
 
   it('passes when the take waits offline, survives a restart, then syncs', () => {
@@ -134,7 +134,7 @@ const row = (id: string, type: string, actorId: string, payload: Record<string, 
   ({ status: 'confirmed', rejectReason: null, event: { id, type, actorId, payload }, ...over });
 /** The server holds every device event (confirmed means the server has it). */
 const onServer = (device: DeviceRow[]): ServerRow[] => [
-  { id: 'seed', type: 'v1.ProjectCreated', actor_id: 'owner', payload: {} },
+  { id: 'seed', type: 'v1.PartitionCreated', actor_id: 'owner', payload: {} },
   ...device.map((r) => ({ id: r.event.id, type: r.event.type, actor_id: r.event.actorId, payload: r.event.payload }))
 ];
 const log = (device: DeviceRow[], blobsAfter: string[] = []): LogEvidence => ({ device, server: onServer(device), blobsAfter });
@@ -373,7 +373,7 @@ describe('map search oracle', () => {
   });
 
   it('fails when search opened a passage the query does not mean', () => {
-    // Luke 2:1-7 is in the seeded project; "luk 1" must not lead there.
+    // Luke 2:1-7 is in the seeded partition; "luk 1" must not lead there.
     expect(judgeMapSearch(contract, { typed: ['luk 1'], recentBefore: [], recentAfter: opened('luke-2') }).verdict).toBe('product_failure');
     expect(judgeMapSearch(contract, { typed: ['luk 1'], recentBefore: [], recentAfter: opened('luke-0', 'L2') }).verdict).toBe('product_failure');
   });
@@ -557,31 +557,31 @@ describe('study note at a moment oracle (J-STUDY-2)', () => {
   });
 });
 
-describe('new project is one language oracle', () => {
+describe('new language oracle', () => {
   const contract = { adminId: 'owner', name: 'Mark in Dinka', languoidId: 'din' };
-  const org = (over: Partial<DeviceRow> = {}) => [row('reg', 'v1.ProjectRegistered', 'owner', { projectId: 'p9', name: 'Mark in Dinka' }, over)];
-  const project = (lanes: [string, string][] = [['L-din', 'din']]) => [
-    row('pc', 'v1.ProjectCreated', 'owner', { name: 'Mark in Dinka', sourceLanguoidId: 'eng' }),
+  const org = (over: Partial<DeviceRow> = {}) => [row('reg', 'v1.PartitionRegistered', 'owner', { partitionId: 'p9', name: 'Mark in Dinka' }, over)];
+  const partition = (lanes: [string, string][] = [['L-din', 'din']]) => [
+    row('pc', 'v1.PartitionCreated', 'owner', { name: 'Mark in Dinka', sourceLanguoidId: 'eng' }),
     ...lanes.map(([laneId, languoidId], i) => row(`lane${i}`, 'v1.LaneAdded', 'owner', { laneId, languoidId }))
   ];
   const evidence = (device: DeviceRow[], orgRows = org()) => ({ org: orgRows, device, server: onServer([...orgRows, ...device]) });
 
-  it('passes on a registered project born with its one language, synced', () => {
-    expect(judgeNewProject(contract, evidence(project())).verdict).toBe('passed');
+  it('passes on a registered partition born with its one language, synced', () => {
+    expect(judgeNewLanguage(contract, evidence(partition())).verdict).toBe('passed');
   });
-  it('fails a project with no language or two languages', () => {
-    // Why: the project is the sync and permission bucket (decision 28).
-    expect(judgeNewProject(contract, evidence(project([]))).verdict).toBe('product_failure');
-    expect(judgeNewProject(contract, evidence(project([['L-din', 'din'], ['L-nus', 'nus']]))).verdict).toBe('product_failure');
+  it('fails a partition with no language or two languages', () => {
+    // Why: the partition is the sync and permission bucket (decision 28).
+    expect(judgeNewLanguage(contract, evidence(partition([]))).verdict).toBe('product_failure');
+    expect(judgeNewLanguage(contract, evidence(partition([['L-din', 'din'], ['L-nus', 'nus']]))).verdict).toBe('product_failure');
   });
   it('fails the wrong language, a rejected event, or events that never reached the server', () => {
-    expect(judgeNewProject(contract, evidence(project([['L-nus', 'nus']]))).verdict).toBe('product_failure');
-    const rejected = project(); rejected[1] = { ...rejected[1]!, status: 'rejected', rejectReason: 'a project has one language' };
-    expect(judgeNewProject(contract, evidence(rejected)).verdict).toBe('product_failure');
-    expect(judgeNewProject(contract, { org: org(), device: project(), server: onServer(org()) }).verdict).toBe('product_failure');
+    expect(judgeNewLanguage(contract, evidence(partition([['L-nus', 'nus']]))).verdict).toBe('product_failure');
+    const rejected = partition(); rejected[1] = { ...rejected[1]!, status: 'rejected', rejectReason: 'a partition has one language' };
+    expect(judgeNewLanguage(contract, evidence(rejected)).verdict).toBe('product_failure');
+    expect(judgeNewLanguage(contract, { org: org(), device: partition(), server: onServer(org()) }).verdict).toBe('product_failure');
   });
-  it('is inconclusive when no project was registered under that name', () => {
-    expect(judgeNewProject(contract, evidence([], [])).verdict).toBe('inconclusive');
-    expect(judgeNewProject(contract, evidence(project(), org({ event: { id: 'reg', type: 'v1.ProjectRegistered', actorId: 'owner', payload: { projectId: 'p9', name: 'Something else' } } }))).verdict).toBe('inconclusive');
+  it('is inconclusive when no partition was registered under that name', () => {
+    expect(judgeNewLanguage(contract, evidence([], [])).verdict).toBe('inconclusive');
+    expect(judgeNewLanguage(contract, evidence(partition(), org({ event: { id: 'reg', type: 'v1.PartitionRegistered', actorId: 'owner', payload: { partitionId: 'p9', name: 'Something else' } } }))).verdict).toBe('inconclusive');
   });
 });

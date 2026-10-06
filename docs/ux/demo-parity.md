@@ -43,7 +43,7 @@ The per-domain briefs the port was done from are in git history
   `export const contracts = contractsFor(...)` naming its screens
   (`src/screenContracts.ts` declares what each screen may emit; the test
   fails when a screen's code names an event its contract does not).
-- **Reading.** Screens read the fold (`ctx.project.state`) through core
+- **Reading.** Screens read the fold (`ctx.partition.state`) through core
   derivations with `indexesFor(state)`: `usePassage(ctx)` from
   `src/passageView.ts` for anything under a passage. Never store a status.
 - **Writing.** Screens call core `commands(state, indexesFor(state))` and
@@ -127,8 +127,8 @@ Demo-only tools are out of scope (see above). Beyond those:
 **Events built without a core command**
 - Org partition (no core commands exist for it): `v1.OrgCreated`,
   `v1.RoleDefined`, `v1.OrgMemberAdded`/`Removed`, `v1.CatalogItemToggled`,
-  `v1.ProjectRegistered` (New Language lists the language in the org and
-  starts its own partition with `v1.ProjectCreated`, decision 37).
+  `v1.PartitionRegistered` (New Language lists the language in the org and
+  starts its own partition with `v1.PartitionCreated`, decision 37).
 - Legacy project roles in Edit Member: `v1.MemberRoleChanged`,
   `v1.MemberRemoved`.
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),

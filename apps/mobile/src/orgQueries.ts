@@ -1,13 +1,13 @@
 import { actorRole, buildIndexes, passageRow, tasksFromRow,
-  type ProjectState, type Task } from '@langquest-next/core';
-import type { ProjectQueries, TaskCursor, EventStore } from '@langquest-next/client';
+  type PartitionState, type Task } from '@langquest-next/core';
+import type { PartitionQueries, TaskCursor, EventStore } from '@langquest-next/client';
 
-/** Org grants are a view over the project log. Adapt persisted passage pages
- * without writing that view into the authoritative project snapshot. */
+/** Org grants are a view over the partition log. Adapt persisted passage pages
+ * without writing that view into the authoritative partition snapshot. */
 export function orgQueries(
-  base: ProjectQueries, store: Promise<EventStore>, orgId: string,
-  projectId: string, state: ProjectState
-): ProjectQueries {
+  base: PartitionQueries, store: Promise<EventStore>, orgId: string,
+  partitionId: string, state: PartitionState
+): PartitionQueries {
   const idx = buildIndexes(state);
   const view = (unitId: string, laneId: string) =>
     passageRow(state, unitId, laneId, idx);
@@ -17,11 +17,11 @@ export function orgQueries(
     const db = await store;
     let after = cursor;
     if (cursor) {
-      const row = await db.passage(orgId, projectId, cursor.unitId, cursor.laneId);
+      const row = await db.passage(orgId, partitionId, cursor.unitId, cursor.laneId);
       if (row) yield row;
     }
     for (;;) {
-      const page = await db.passages(orgId, projectId, { after, limit: 100, ...(laneId ? { laneId } : {}) });
+      const page = await db.passages(orgId, partitionId, { after, limit: 100, ...(laneId ? { laneId } : {}) });
       for (const row of page) yield row;
       if (page.length < 100) break;
       const last = page.at(-1)!;

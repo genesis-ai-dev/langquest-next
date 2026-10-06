@@ -114,7 +114,7 @@ export interface TransferTimings {
 /** Time one blob transfer and tally it, failure or not. Rethrows so the worker's backoff still applies. */
 export async function timedTransfer(
   dir: 'up' | 'down',
-  where: { orgId: string; projectId: string },
+  where: { orgId: string; partitionId: string },
   run: (timings: TransferTimings) => Promise<number>
 ): Promise<void> {
   const started = Date.now();

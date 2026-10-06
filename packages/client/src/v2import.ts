@@ -9,7 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * is derived from the v2 row it came from and every clock from the row's
  * `created_at`, and `append_events` treats a known id as a duplicate.
  *
- *   project                     -> ProjectCreated, one LaneAdded per target language
+ *   project                     -> PartitionCreated, one LaneAdded per target language
  *   profile_project_link        -> MemberAdded (owner -> owner, member -> translator)
  *   quest                       -> UnitAdded kind "book"
  *   source asset (via quest_asset_link) -> UnitAdded kind "passage" under its first quest
@@ -75,7 +75,7 @@ const STEP = 'community';
 const ROLE_RANK: Record<Role, number> = { viewer: 1, translator: 2, reviewer: 3, coordinator: 4, owner: 5 };
 
 export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent[]; report: MapReport; owner: string; roles: ReadonlyMap<string, Role> } {
-  const projectId = rows.project.id;
+  const partitionId = rows.project.id;
   const report: MapReport = {
     events: 0, books: 0, passages: 0, references: 0, takes: 0, reviews: 0, members: 0,
     unlinkedAssets: 0, textOnlyTranslations: 0, missingAudio: []
@@ -83,14 +83,14 @@ export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent
   const events: AnyEvent[] = [];
   const clock = (iso: string) => encodeHlc(Date.parse(iso), 0, DEVICE);
   const emit = <T extends EventType>(id: string, type: T, actorId: string, at: string, payload: EventPayloads[T]) => {
-    events.push({ id: `v2:${id}`, type, orgId: opts.orgId, projectId, actorId, deviceId: DEVICE, hlc: clock(at), payload } as AnyEvent);
+    events.push({ id: `v2:${id}`, type, orgId: opts.orgId, partitionId, actorId, deviceId: DEVICE, hlc: clock(at), payload } as AnyEvent);
   };
 
   // Roles come from what people did, since v2 only knows owner and member:
   // owners stay owners; someone who both recorded and voted needs a role that
   // may do both (coordinator); a voter is a reviewer; everyone else who was a
   // member or recorded is a translator. The first owner bootstraps, because
-  // the server lets a project's first two events come from one actor only.
+  // the server lets a partition's first two events come from one actor only.
   const translations = rows.assets.filter((a) => a.source_asset_id !== null);
   const recorded = new Set(translations.flatMap((t) => (t.creator_id ? [t.creator_id] : [])));
   const voted = new Set(rows.votes.flatMap((v) => (v.creator_id ? [v.creator_id] : [])));
@@ -107,13 +107,13 @@ export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent
 
   const sourceLanguoid = rows.languages.find((l) => l.language_type === 'source' && l.active)?.languoid_id ?? 'unknown';
   const t0 = rows.project.created_at;
-  emit(`project:${projectId}`, 'v1.ProjectCreated', owner, t0, { name: rows.project.name, sourceLanguoidId: sourceLanguoid });
+  emit(`project:${partitionId}`, 'v1.PartitionCreated', owner, t0, { name: rows.project.name, sourceLanguoidId: sourceLanguoid });
   // The role is part of the id and of the clock, so a later run that derives
   // a stronger role for someone appends a new register that wins the fold
   // instead of colliding with the old event id.
   const member = (profileId: string, role: Role) => {
     events.push({
-      id: `v2:member:${projectId}:${profileId}:${role}`, type: 'v1.MemberAdded', orgId: opts.orgId, projectId, actorId: owner,
+      id: `v2:member:${partitionId}:${profileId}:${role}`, type: 'v1.MemberAdded', orgId: opts.orgId, partitionId, actorId: owner,
       deviceId: DEVICE, hlc: encodeHlc(Date.parse(t0), ROLE_RANK[role], DEVICE), payload: { profileId, role }
     });
   };
@@ -126,7 +126,7 @@ export function mapV2Project(rows: V2Rows, opts: MapOptions): { events: AnyEvent
     if (l.language_type !== 'target' || !l.active || !l.languoid_id || lanes.has(l.languoid_id)) continue;
     const laneId = `lane:${l.languoid_id}`;
     lanes.set(l.languoid_id, laneId);
-    emit(`lane:${projectId}:${l.languoid_id}`, 'v1.LaneAdded', owner, t0, { laneId, languoidId: l.languoid_id });
+    emit(`lane:${partitionId}:${l.languoid_id}`, 'v1.LaneAdded', owner, t0, { laneId, languoidId: l.languoid_id });
   }
   const defaultLane = [...lanes.values()][0];
 
@@ -244,22 +244,22 @@ async function pageAll<T>(src: V2Source, path: string): Promise<T[]> {
   }
 }
 
-export async function fetchV2Rows(src: V2Source, projectId: string): Promise<V2Rows> {
-  const p = encodeURIComponent(projectId);
+export async function fetchV2Rows(src: V2Source, partitionId: string): Promise<V2Rows> {
+  const p = encodeURIComponent(partitionId);
   const [projects, languages, members, quests, questAssets, assets] = await Promise.all([
     pageAll<V2Rows['project']>(src, `project?select=id,name,description,created_at,creator_id&id=eq.${p}`),
-    pageAll<V2Rows['languages'][number]>(src, `project_language_link?select=language_type,languoid_id,active&project_id=eq.${p}`),
-    pageAll<V2Rows['members'][number]>(src, `profile_project_link?select=profile_id,membership,active,created_at&project_id=eq.${p}`),
-    pageAll<V2Rows['quests'][number]>(src, `quest?select=id,name,created_at&project_id=eq.${p}&active=eq.true&order=created_at,id`),
+    pageAll<V2Rows['languages'][number]>(src, `project_language_link?select=language_type,languoid_id,active&partition_id=eq.${p}`),
+    pageAll<V2Rows['members'][number]>(src, `profile_project_link?select=profile_id,membership,active,created_at&partition_id=eq.${p}`),
+    pageAll<V2Rows['quests'][number]>(src, `quest?select=id,name,created_at&partition_id=eq.${p}&active=eq.true&order=created_at,id`),
     pageAll<{ quest_id: string; asset_id: string; order_index: number | null }>(
-      src, `quest_asset_link?select=quest_id,asset_id,order_index,quest!inner(project_id)&quest.project_id=eq.${p}&active=eq.true&order=quest_id,order_index`
+      src, `quest_asset_link?select=quest_id,asset_id,order_index,quest!inner(partition_id)&quest.partition_id=eq.${p}&active=eq.true&order=quest_id,order_index`
     ),
     pageAll<{ id: string; name: string | null; source_asset_id: string | null; creator_id: string | null; created_at: string; asset_content_link: { text: string | null; audio: string[] | null; active: boolean; order_index: number }[] }>(
-      src, `asset?select=id,name,source_asset_id,creator_id,created_at,asset_content_link(text,audio,active,order_index)&project_id=eq.${p}&active=eq.true&order=created_at,id`
+      src, `asset?select=id,name,source_asset_id,creator_id,created_at,asset_content_link(text,audio,active,order_index)&partition_id=eq.${p}&active=eq.true&order=created_at,id`
     )
   ]);
   const project = projects[0];
-  if (!project) throw new Error(`v2 project ${projectId} not found`);
+  if (!project) throw new Error(`v2 project ${partitionId} not found`);
   const ids = new Set(assets.map((a) => a.id));
   const votes: V2Rows['votes'] = [];
   for (const chunk of chunks([...ids], 200)) {
@@ -300,7 +300,7 @@ export interface BlobCopyDeps {
   download(name: string): Promise<Uint8Array | null>;
   digest(bytes: Uint8Array): Promise<string>;
   durationMs(bytes: Uint8Array, name: string): Promise<number>;
-  upload(orgId: string, projectId: string, hash: string, bytes: Uint8Array): Promise<void>;
+  upload(orgId: string, partitionId: string, hash: string, bytes: Uint8Array): Promise<void>;
   /** Hashes already stored in the target log (skip re-upload). */
   alreadyStored?: ReadonlySet<string>;
   onProgress?(done: number, total: number): void;
@@ -311,7 +311,7 @@ export interface BlobCopyDeps {
 }
 
 export async function copyBlobs(
-  names: string[], orgId: string, projectId: string, deps: BlobCopyDeps, concurrency = 8
+  names: string[], orgId: string, partitionId: string, deps: BlobCopyDeps, concurrency = 8
 ): Promise<{ blobs: Map<string, CopiedBlob>; failed: { name: string; reason: string }[] }> {
   const blobs = new Map<string, CopiedBlob>();
   const failed: { name: string; reason: string }[] = [];
@@ -336,7 +336,7 @@ export async function copyBlobs(
           }
           const hash = await deps.digest(bytes);
           const durationMs = await deps.durationMs(bytes, name);
-          if (!deps.alreadyStored?.has(hash)) await deps.upload(orgId, projectId, hash, bytes);
+          if (!deps.alreadyStored?.has(hash)) await deps.upload(orgId, partitionId, hash, bytes);
           blobs.set(name, { hash, durationMs });
           break;
         } catch (err) {
@@ -383,14 +383,14 @@ export async function appendAll(service: SupabaseClient, events: AnyEvent[]): Pr
 /** Project role -> the seeded org role that carries the same privileges. */
 const ORG_ROLE_OF: Record<Role, string> = {
   owner: 'org_admin',
-  coordinator: 'project_coordinator',
+  coordinator: 'coordinator',
   translator: 'translator',
   reviewer: 'reviewer',
   viewer: 'viewer'
 };
 
-export interface SeededProject {
-  projectId: string;
+export interface SeededPartition {
+  partitionId: string;
   name: string;
   /** Project memberships as the mapper derived them. */
   roles: ReadonlyMap<string, Role>;
@@ -403,25 +403,25 @@ export interface SeededProject {
  * else's. Ids derive from the org and profile, so re-running appends
  * nothing new.
  */
-export function mapOrgSeed(orgId: string, orgName: string, owner: string, projects: SeededProject[], at: string): AnyEvent[] {
+export function mapOrgSeed(orgId: string, orgName: string, owner: string, partitions: SeededPartition[], at: string): AnyEvent[] {
   const events: AnyEvent[] = [];
   const clock = (n: number) => encodeHlc(Date.parse(at), n, DEVICE);
   let n = 0;
   const emit = <T extends EventType>(id: string, type: T, payload: EventPayloads[T]) => {
-    events.push({ id: `v2:${id}`, type, orgId, projectId: ORG_PARTITION, actorId: owner, deviceId: DEVICE, hlc: clock(n++), payload } as AnyEvent);
+    events.push({ id: `v2:${id}`, type, orgId, partitionId: ORG_PARTITION, actorId: owner, deviceId: DEVICE, hlc: clock(n++), payload } as AnyEvent);
   };
 
   emit(`org:${orgId}`, 'v1.OrgCreated', { name: orgName });
   for (const r of SEED_ROLES) emit(`role:${orgId}:${r.roleId}`, 'v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
   emit(`orgmember:${orgId}:${owner}:org`, 'v1.OrgMemberAdded', { profileId: owner, roleId: 'org_admin', scope: { level: 'org' } });
 
-  for (const p of projects) {
-    emit(`projreg:${orgId}:${p.projectId}`, 'v1.ProjectRegistered', { projectId: p.projectId, name: p.name });
+  for (const p of partitions) {
+    emit(`projreg:${orgId}:${p.partitionId}`, 'v1.PartitionRegistered', { partitionId: p.partitionId, name: p.name });
     for (const [profileId, role] of p.roles) {
       if (profileId === owner) continue;
       // Scope follows where the person actually worked, never the role (A38).
-      const scope: Scope = { level: 'project', projectId: p.projectId };
-      emit(`orgmember:${orgId}:${profileId}:${p.projectId}`, 'v1.OrgMemberAdded', { profileId, roleId: ORG_ROLE_OF[role], scope });
+      const scope: Scope = { level: 'partition', partitionId: p.partitionId };
+      emit(`orgmember:${orgId}:${profileId}:${p.partitionId}`, 'v1.OrgMemberAdded', { profileId, roleId: ORG_ROLE_OF[role], scope });
     }
   }
   return events;

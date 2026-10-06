@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/client';
 import {
   applyEvent, buildIndexes, commands, deriveFlow, deriveKinds, derivePassage, encodeHlc, laneLeafUnits, unitPlace,
-  type AnyEvent, type EventSpec, type ProjectState
+  type AnyEvent, type EventSpec, type PartitionState
 } from '@langquest-next/core';
 import { HISTORY_PROFILES, planHistory, seeded, silentWav, uploadedAt } from './sample-history-plan';
 
@@ -38,7 +38,7 @@ interface Ctx {
   now?: number;
 }
 
-interface Blob { projectId: string; hash: string; bytes: Uint8Array; at: number }
+interface Blob { partitionId: string; hash: string; bytes: Uint8Array; at: number }
 
 function localDbContainer(): string {
   const toml = readFileSync(new URL('../supabase/config.toml', import.meta.url), 'utf8');
@@ -61,9 +61,9 @@ export async function addHistory(c: Ctx): Promise<void> {
     const profile = HISTORY_PROFILES[laneId];
     if (!profile) continue;
     // The partition id is the language's (decision 37).
-    const projectId = laneId;
-    const reader = new SyncClient<ProjectState>({
-      orgId: c.orgId, projectId, actorId: c.actorId, deviceId: 'sample-history', store: new MemoryStore(), transport, newId: () => randomUUID()
+    const partitionId = laneId;
+    const reader = new SyncClient<PartitionState>({
+      orgId: c.orgId, partitionId, actorId: c.actorId, deviceId: 'sample-history', store: new MemoryStore(), transport, newId: () => randomUUID()
     });
     await reader.load();
     for (let page = 0; page < 50; page++) if (!(await reader.sync()).more) break;
@@ -94,7 +94,7 @@ export async function addHistory(c: Ctx): Promise<void> {
     const append = async (specs: EventSpec[], at: number) => {
       for (const s of specs) {
         const event = {
-          id: s.id, type: s.type, orgId: c.orgId, projectId, actorId: c.actorId, deviceId: 'sample-history',
+          id: s.id, type: s.type, orgId: c.orgId, partitionId, actorId: c.actorId, deviceId: 'sample-history',
           hlc: encodeHlc(Math.floor(at), counter++ % 1_000_000, 'sample-history'), payload: s.payload
         } as AnyEvent;
         state = applyEvent(state, event);
@@ -124,7 +124,7 @@ export async function addHistory(c: Ctx): Promise<void> {
           } } as EventSpec,
           ...commands(state).publishVersion({ commandId: randomUUID(), unitId, laneId, cardHashes: cards.map((w) => w.hash), actorId: c.actorId })
         ], a.at);
-        if (a.uploaded) cards.forEach((w, k) => blobs.push({ projectId, hash: w.hash, bytes: w.bytes, at: uploadedAt(a.at, k) }));
+        if (a.uploaded) cards.forEach((w, k) => blobs.push({ partitionId, hash: w.hash, bytes: w.bytes, at: uploadedAt(a.at, k) }));
         recordings += cards.length;
         continue;
       }
@@ -157,21 +157,21 @@ export async function addHistory(c: Ctx): Promise<void> {
     // Back-dated confirmations first, written exactly as _append_service_event writes the storage
     // trigger's (the same id, with the size, so the trigger finds it and adds nothing; the same seq
     // counter and clock shape), only with the time the audio "arrived"…
-    const rows = blobs.map((b) => `('blob:${c.orgId}:${b.projectId}:${b.hash}:${b.bytes.byteLength}', '${c.orgId}', '${b.projectId}', ${Math.floor(b.at)}::bigint, '{"hash":"${b.hash}","size":${b.bytes.byteLength}}')`);
+    const rows = blobs.map((b) => `('blob:${c.orgId}:${b.partitionId}:${b.hash}:${b.bytes.byteLength}', '${c.orgId}', '${b.partitionId}', ${Math.floor(b.at)}::bigint, '{"hash":"${b.hash}","size":${b.bytes.byteLength}}')`);
     psql(`do $$ declare r record; v_seq bigint; begin
-  for r in select * from (values ${rows.join(',\n')}) as t(id, org, project, ms, payload) loop
+  for r in select * from (values ${rows.join(',\n')}) as t(id, org, partition, ms, payload) loop
     continue when exists (select 1 from public.events e where e.id = r.id);
-    insert into public.partition_cursors (org_id, project_id) values (r.org, r.project) on conflict do nothing;
-    update public.partition_cursors c set next_seq = c.next_seq + 1 where c.org_id = r.org and c.project_id = r.project returning c.next_seq - 1 into v_seq;
-    insert into public.events (id, org_id, project_id, server_seq, type, actor_id, device_id, hlc, payload)
-      values (r.id, r.org, r.project, v_seq, 'v1.BlobStored', 'service', 'storage',
+    insert into public.partition_cursors (org_id, partition_id) values (r.org, r.partition) on conflict do nothing;
+    update public.partition_cursors c set next_seq = c.next_seq + 1 where c.org_id = r.org and c.partition_id = r.partition returning c.next_seq - 1 into v_seq;
+    insert into public.events (id, org_id, partition_id, server_seq, type, actor_id, device_id, hlc, payload)
+      values (r.id, r.org, r.partition, v_seq, 'v1.BlobStored', 'service', 'storage',
               lpad(r.ms::text, 15, '0') || ':' || lpad((v_seq % 1000000)::text, 6, '0') || ':storage', r.payload::jsonb);
   end loop;
 end $$;`);
     // …then the audio itself, so a phone that opens the sample can play it.
     for (let i = 0; i < blobs.length; i += 8) {
       await Promise.all(blobs.slice(i, i + 8).map(async (b) => {
-        const { error } = await c.sb.storage.from('blobs').upload(`${c.orgId}/${b.projectId}/${b.hash}.wav`, b.bytes, { contentType: 'audio/wav', upsert: true });
+        const { error } = await c.sb.storage.from('blobs').upload(`${c.orgId}/${b.partitionId}/${b.hash}.wav`, b.bytes, { contentType: 'audio/wav', upsert: true });
         if (error) throw new Error(`upload ${b.hash}: ${error.message}`);
       }));
     }

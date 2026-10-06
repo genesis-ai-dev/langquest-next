@@ -271,7 +271,7 @@ function VersionCard(props: {
         </View>
       ) : null}
       <View style={styles.rowCenter}>
-        <AudioClip project={ctx.project} hashes={version.cardHashes} label={`Play ${versionTitle(version.n)}`} />
+        <AudioClip partition={ctx.partition} hashes={version.cardHashes} label={`Play ${versionTitle(version.n)}`} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{ctx.name(version.by)} · {when(version.hlc)}</Text>
           <Text style={txt.xs}>{plural(version.cardHashes.length, 'take')}</Text>
@@ -329,7 +329,7 @@ function ReviewAttachments(props: { ctx: Ctx; v: PassageView; review: ReviewView
 function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string }) {
   return (
     <View style={styles.rowCenter}>
-      <AudioClip project={props.ctx.project} hashes={props.hashes} label={`Play ${props.label.toLowerCase()}`} />
+      <AudioClip partition={props.ctx.partition} hashes={props.hashes} label={`Play ${props.label.toLowerCase()}`} />
       <Text style={[txt.sm, { fontWeight: '600', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
     </View>
   );

@@ -20836,7 +20836,7 @@ var studyMarkKey = (unitId, laneId, guideId, stepId) => `${unitId}:${laneId}:${g
 // packages/core/src/state.ts
 function emptyState() {
   return {
-    project: null,
+    partition: null,
     config: null,
     members: {},
     lanes: {},
@@ -20896,7 +20896,7 @@ function licenseRank(license) {
 // packages/core/src/validate.ts
 var ROLES = ["owner", "coordinator", "translator", "reviewer", "viewer"];
 function validateEvent(e) {
-  for (const k of ["id", "type", "orgId", "projectId", "actorId", "deviceId", "hlc"]) {
+  for (const k of ["id", "type", "orgId", "partitionId", "actorId", "deviceId", "hlc"]) {
     if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
   }
   if (!isObject(e.payload)) return "payload must be an object";
@@ -20931,9 +20931,9 @@ function validateEvent(e) {
   const optStrRecord = (k) => p[k] === void 0 || isObject(p[k]) && Object.values(p[k]).every((v) => typeof v === "string") ? null : `${k} must map ids to strings`;
   const request = () => str("requestId", "unitId", "laneId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type");
   switch (e.type) {
-    case "v1.ProjectCreated":
+    case "v1.PartitionCreated":
       return str("name", "sourceLanguoidId");
-    case "v1.ProjectConfigChanged":
+    case "v1.PartitionConfigChanged":
       return isObject(p["config"]) ? null : "config must be an object";
     case "v1.MemberAdded":
     case "v1.MemberRoleChanged":
@@ -20960,7 +20960,7 @@ function validateEvent(e) {
     case "v1.AssignmentMade":
       return str("unitId", "laneId", "profileId") ?? role("role") ?? optStr("dueDate", "instructions");
     case "v1.SourceImported":
-      return str("sourceProjectId") ?? (typeof p["sourceSeq"] === "number" ? null : "sourceSeq must be a number") ?? strArray("unitIds");
+      return str("sourcePartitionId") ?? (typeof p["sourceSeq"] === "number" ? null : "sourceSeq must be a number") ?? strArray("unitIds");
     case "v1.BlobStored":
       return str("hash") ?? (typeof p["size"] === "number" ? null : "size must be a number");
     case "v1.Redacted":
@@ -21051,10 +21051,10 @@ function scope(v) {
   if (!isObject(v)) return "scope must be an object";
   const level = v["level"];
   if (level === "org") return null;
-  if (typeof v["projectId"] !== "string" || v["projectId"] === "") return "scope.projectId required";
-  if (level === "project") return null;
+  if (typeof v["partitionId"] !== "string" || v["partitionId"] === "") return "scope.partitionId required";
+  if (level === "partition") return null;
   if (level === "lane") return typeof v["laneId"] === "string" && v["laneId"] !== "" ? null : "scope.laneId required";
-  return "scope.level must be org, project or lane";
+  return "scope.level must be org, partition or lane";
 }
 var nonEmpty = (v) => typeof v === "string" && v !== "";
 function produces(v) {
@@ -21101,10 +21101,10 @@ function applyEvent(state, event) {
   }
   if (state.redactions[event.id]) return state;
   switch (event.type) {
-    case "v1.ProjectCreated":
-      setRegister(state, "project", event, event.payload);
+    case "v1.PartitionCreated":
+      setRegister(state, "partition", event, event.payload);
       break;
-    case "v1.ProjectConfigChanged":
+    case "v1.PartitionConfigChanged":
       setRegister(state, "config", event, event.payload.config);
       break;
     case "v1.MemberAdded": {
@@ -21222,7 +21222,7 @@ function applyEvent(state, event) {
       break;
     }
     case "v1.SourceImported":
-      state.sourcePins[`${event.payload.sourceProjectId}:${event.payload.sourceSeq}`] ??= event.payload;
+      state.sourcePins[`${event.payload.sourcePartitionId}:${event.payload.sourceSeq}`] ??= event.payload;
       break;
     case "v1.BlobStored":
       blobVerdict(state, event, { size: event.payload.size, stored: true });
@@ -21459,7 +21459,7 @@ function applyEvent(state, event) {
     case "v1.OrgMemberAdded":
     case "v1.OrgMemberRemoved":
     case "v1.CatalogItemToggled":
-    case "v1.ProjectRegistered":
+    case "v1.PartitionRegistered":
     case "v1.InviteIssued":
     case "v1.InviteRedeemed":
     case "v1.JoinDecided":
@@ -21584,7 +21584,7 @@ function bookTemplate() {
     name: "Book Overview",
     description: "Whole-book chunks for introductions, outlines, and book-level drafting.",
     // Its own kind id: 'book' is a container in every other template and in
-    // DEFAULT_CONFIG, and kind ids are shared project-wide.
+    // DEFAULT_CONFIG, and kind ids are shared partition-wide.
     unitKinds: [{ id: "book_unit", label: "Book", childKinds: [] }],
     items: BIBLE_BOOKS.map((b, i) => ({ itemId: b.itemId, parentItemId: null, kind: "book_unit", label: b.label, order: `b${pad(i)}` }))
   };
@@ -22004,7 +22004,7 @@ var ORG_EVENT_TYPES = [
   "v1.OrgMemberAdded",
   "v1.OrgMemberRemoved",
   "v1.CatalogItemToggled",
-  "v1.ProjectRegistered",
+  "v1.PartitionRegistered",
   "v1.InviteIssued",
   "v1.InviteRedeemed",
   "v1.JoinDecided",
@@ -22015,7 +22015,7 @@ var ORG_EVENT_TYPES = [
 var SEED_ROLES = [
   { roleId: "org_admin", name: "Organization Admin", privileges: [...PRIVILEGES], fixed: "owner" },
   {
-    roleId: "project_coordinator",
+    roleId: "coordinator",
     name: "Coordinator",
     fixed: "coordinator",
     privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
@@ -22033,13 +22033,13 @@ function effectiveRole(privs) {
   return null;
 }
 function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
+  return { org: null, roles: {}, members: {}, catalog: {}, partitions: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
 }
 function scopeKey(s) {
-  return s.level === "org" ? "org" : s.level === "project" ? `project:${s.projectId}` : `lane:${s.projectId}/${s.laneId}`;
+  return s.level === "org" ? "org" : s.level === "partition" ? `partition:${s.partitionId}` : `lane:${s.partitionId}/${s.laneId}`;
 }
-function catalogKey(kind, itemId, level, projectId) {
-  return `${kind}:${itemId}:${level}:${level === "project" ? projectId ?? "" : ""}`;
+function catalogKey(kind, itemId, level, partitionId) {
+  return `${kind}:${itemId}:${level}:${level === "partition" ? partitionId ?? "" : ""}`;
 }
 var empty = { value: void 0, hlc: "", eventId: "" };
 function emptyInvite() {
@@ -22090,8 +22090,8 @@ function applyOrgEvent(state, event) {
       break;
     }
     case "v1.CatalogItemToggled": {
-      const { kind, itemId, level, projectId, enabled } = event.payload;
-      const key = catalogKey(kind, itemId, level, projectId);
+      const { kind, itemId, level, partitionId, enabled } = event.payload;
+      const key = catalogKey(kind, itemId, level, partitionId);
       state.catalog[key] = set(state.catalog[key], event, enabled);
       break;
     }
@@ -22120,10 +22120,10 @@ function applyOrgEvent(state, event) {
       }
       break;
     }
-    case "v1.ProjectRegistered": {
-      const prior = state.projects[event.payload.projectId];
+    case "v1.PartitionRegistered": {
+      const prior = state.partitions[event.payload.partitionId];
       if (!prior || event.hlc < prior.hlc || event.hlc === prior.hlc && event.id < prior.eventId) {
-        state.projects[event.payload.projectId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
+        state.partitions[event.payload.partitionId] = { name: event.payload.name, hlc: event.hlc, eventId: event.id };
       }
       break;
     }
@@ -22176,14 +22176,14 @@ function foldOrg(events, initial = emptyOrgState()) {
 }
 function scopeCovers(scope2, target) {
   if (scope2.level === "org") return true;
-  if (scope2.level === "project") return target.projectId === scope2.projectId;
-  return target.projectId === scope2.projectId && (target.laneId === void 0 || target.laneId === scope2.laneId);
+  if (scope2.level === "partition") return target.partitionId === scope2.partitionId;
+  return target.partitionId === scope2.partitionId && (target.laneId === void 0 || target.laneId === scope2.laneId);
 }
 function privilegesFor(state, profileId, target = {}) {
   const out = /* @__PURE__ */ new Set();
   for (const m of Object.values(state.members[profileId] ?? {})) {
     if (m.removed.value !== false) continue;
-    if (target.projectId !== void 0 && !scopeCovers(m.scope, target)) continue;
+    if (target.partitionId !== void 0 && !scopeCovers(m.scope, target)) continue;
     const role = state.roles[m.roleId.value];
     if (!role || role.retired) continue;
     for (const p of role.privileges.value ?? []) out.add(p);
@@ -22237,16 +22237,16 @@ function deriveInbox(state, actorId, idx = buildIndexes(state)) {
   return rows;
 }
 
-// packages/core/src/orgProject.ts
-function withOrgMembers(project, org, projectId) {
-  const members = { ...project.members };
+// packages/core/src/orgPartition.ts
+function withOrgMembers(partition, org, partitionId) {
+  const members = { ...partition.members };
   let changed = false;
   for (const profileId of Object.keys(org.members)) {
     if (members[profileId] && !members[profileId].removed.value) continue;
     const broadMemberships = Object.fromEntries(Object.entries(org.members[profileId]).filter(([, member2]) => member2.scope.level !== "lane"));
     const role = effectiveRole(privilegesFor({ ...org, members: {
       [profileId]: broadMemberships
-    } }, profileId, { projectId }));
+    } }, profileId, { partitionId }));
     if (!role) continue;
     const membership2 = Object.values(org.members[profileId]).find((m) => !m.removed.value);
     if (!membership2) continue;
@@ -22256,7 +22256,7 @@ function withOrgMembers(project, org, projectId) {
       removed: { ...membership2.removed, value: false }
     };
   }
-  return changed ? { ...project, members } : project;
+  return changed ? { ...partition, members } : partition;
 }
 
 // packages/client/src/types.ts
@@ -22286,20 +22286,20 @@ var SupabaseTransport = class {
       (r) => ({ id: r.id, accepted: r.accepted, serverSeq: r.server_seq, reason: r.reason })
     );
   }
-  async snapshotMeta(orgId, projectId, reducerVersion) {
+  async snapshotMeta(orgId, partitionId, reducerVersion) {
     const { data, error } = await this.supabase.rpc("get_snapshot_meta", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_partition_id: partitionId,
       p_reducer_version: reducerVersion
     });
     if (error) throw toError(error);
     const row = data?.[0];
     return row ? { serverSeq: row.server_seq, chunks: row.chunks, bytes: row.bytes } : null;
   }
-  async snapshotChunk(orgId, projectId, reducerVersion, serverSeq, index) {
+  async snapshotChunk(orgId, partitionId, reducerVersion, serverSeq, index) {
     const { data, error } = await this.supabase.rpc("get_snapshot_chunk", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_partition_id: partitionId,
       p_reducer_version: reducerVersion,
       p_server_seq: serverSeq,
       p_index: index
@@ -22309,20 +22309,20 @@ var SupabaseTransport = class {
   }
   /**
    * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
-   * an empty poke on `events:<org>/<project>` after every insert. The
+   * an empty poke on `events:<org>/<partition>` after every insert. The
    * channel is public because the poke says only that the partition moved;
    * the events themselves still come through the RPC and its checks.
    */
-  watch(orgId, projectId, handlers) {
-    const channel = this.supabase.channel(`events:${orgId}/${projectId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
+  watch(orgId, partitionId, handlers) {
+    const channel = this.supabase.channel(`events:${orgId}/${partitionId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
     return () => {
       void this.supabase.removeChannel(channel);
     };
   }
-  async pull(orgId, projectId, after, limit) {
+  async pull(orgId, partitionId, after, limit) {
     const { data, error } = await this.supabase.rpc("pull_events", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_partition_id: partitionId,
       p_after: after,
       p_limit: limit,
       p_client_version: CLIENT_PROTOCOL_VERSION
@@ -22333,7 +22333,7 @@ var SupabaseTransport = class {
         id: r.id,
         type: r.type,
         orgId: r.org_id,
-        projectId: r.project_id,
+        partitionId: r.partition_id,
         actorId: r.actor_id,
         deviceId: r.device_id,
         hlc: r.hlc,
@@ -22356,21 +22356,21 @@ function toError(error) {
 }
 
 // packages/client/src/snapshotFetch.ts
-async function fetchSnapshot(transport, orgId, projectId, reducerVersion, opts = {}) {
-  const meta = await transport.snapshotMeta(orgId, projectId, reducerVersion);
+async function fetchSnapshot(transport, orgId, partitionId, reducerVersion, opts = {}) {
+  const meta = await transport.snapshotMeta(orgId, partitionId, reducerVersion);
   if (!meta) return null;
   const pieces = [];
   for (let i = 0; i < meta.chunks; i++) {
     let text = opts.saved?.get(i);
     if (text === void 0) {
-      const fetched = await transport.snapshotChunk(orgId, projectId, reducerVersion, meta.serverSeq, i);
+      const fetched = await transport.snapshotChunk(orgId, partitionId, reducerVersion, meta.serverSeq, i);
       if (fetched === null) return null;
       text = fetched;
       await opts.onChunk?.(meta.serverSeq, i, text);
     }
     pieces.push(text);
   }
-  return { orgId, projectId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
+  return { orgId, partitionId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
 }
 
 // packages/client/src/snapshotWorker.ts
@@ -22381,13 +22381,13 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe) {
   const out = [];
   for (const row of data ?? []) {
     const orgId = row.org_id;
-    const projectId = row.project_id;
-    if (projectId === "_org" || orgId === "_user") continue;
-    const existing = await fetchSnapshot(transport, orgId, projectId, REDUCER_VERSION);
-    const tail = await pullAll(transport, orgId, projectId, existing?.serverSeq ?? 0, pageSize);
+    const partitionId = row.partition_id;
+    if (partitionId === "_org" || orgId === "_user") continue;
+    const existing = await fetchSnapshot(transport, orgId, partitionId, REDUCER_VERSION);
+    const tail = await pullAll(transport, orgId, partitionId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {
       if (existing && observe) await observe(existing);
-      out.push({ orgId, projectId, serverSeq: existing?.serverSeq ?? 0, updated: false });
+      out.push({ orgId, partitionId, serverSeq: existing?.serverSeq ?? 0, updated: false });
       continue;
     }
     const tailIds = new Set(tail.map((e) => e.id));
@@ -22400,28 +22400,28 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe) {
       state.appliedEventIds = {};
       snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
     } else {
-      const all = existing || redactsSnapshot ? await pullAll(transport, orgId, projectId, 0, pageSize) : tail;
+      const all = existing || redactsSnapshot ? await pullAll(transport, orgId, partitionId, 0, pageSize) : tail;
       const state = fold(all, emptyState());
       state.appliedEventIds = {};
-      snapshot = { orgId, projectId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
+      snapshot = { orgId, partitionId, reducerVersion: REDUCER_VERSION, serverSeq: all[all.length - 1].serverSeq, state };
     }
     const put2 = await service.rpc("put_snapshot", {
       p_org_id: orgId,
-      p_project_id: projectId,
+      p_partition_id: partitionId,
       p_reducer_version: REDUCER_VERSION,
       p_server_seq: snapshot.serverSeq,
       p_state: snapshot.state
     });
-    if (put2.error) throw new Error(`put_snapshot ${orgId}/${projectId}: ${put2.error.message}`);
+    if (put2.error) throw new Error(`put_snapshot ${orgId}/${partitionId}: ${put2.error.message}`);
     if (observe) await observe(snapshot);
-    out.push({ orgId, projectId, serverSeq: snapshot.serverSeq, updated: true });
+    out.push({ orgId, partitionId, serverSeq: snapshot.serverSeq, updated: true });
   }
   return out;
 }
-async function pullAll(transport, orgId, projectId, after, pageSize) {
+async function pullAll(transport, orgId, partitionId, after, pageSize) {
   const all = [];
   for (; ; ) {
-    const page = await transport.pull(orgId, projectId, after, pageSize);
+    const page = await transport.pull(orgId, partitionId, after, pageSize);
     all.push(...page);
     if (page.length < pageSize) return all;
     after = page[page.length - 1].serverSeq;
@@ -22453,14 +22453,14 @@ async function runProjections(service) {
   const partitions = await service.rpc("list_partitions");
   check(partitions);
   for (const row of partitions.data ?? []) {
-    if (row.project_id === "_org") await orgState(row.org_id);
+    if (row.partition_id === "_org") await orgState(row.org_id);
   }
   await runSnapshotWorker(service, 1e3, async (snapshot) => {
     const org = await orgState(snapshot.orgId);
-    const state = withOrgMembers(snapshot.state, org, snapshot.projectId);
+    const state = withOrgMembers(snapshot.state, org, snapshot.partitionId);
     const idx = buildIndexes(state);
     const notifications = Object.keys(state.members).flatMap((profileId) => deriveInbox(state, profileId, idx).map((item) => ({
-      id: JSON.stringify([snapshot.orgId, snapshot.projectId, profileId, item.id]),
+      id: JSON.stringify([snapshot.orgId, snapshot.partitionId, profileId, item.id]),
       profile_id: profileId,
       kind: item.kind,
       title: item.title,
@@ -22470,18 +22470,18 @@ async function runProjections(service) {
     })));
     check(await service.rpc("reconcile_notifications", {
       p_org: snapshot.orgId,
-      p_project: snapshot.projectId,
+      p_partition: snapshot.partitionId,
       p_rows: notifications
     }));
-    const visibility = await service.from("project_visibility").select("listed").eq("org_id", snapshot.orgId).eq("project_id", snapshot.projectId).maybeSingle();
+    const visibility = await service.from("partition_visibility").select("listed").eq("org_id", snapshot.orgId).eq("partition_id", snapshot.partitionId).maybeSingle();
     check(visibility);
-    if (visibility.data?.listed && state.project) {
+    if (visibility.data?.listed && state.partition) {
       const lanes = Object.keys(state.lanes);
       const percentages = lanes.map((lane) => deriveProgress(state, lane, idx).translatedPct);
-      check(await service.from("public_projects").upsert({
+      check(await service.from("public_partitions").upsert({
         org_id: snapshot.orgId,
-        project_id: snapshot.projectId,
-        name: state.project.value.name,
+        partition_id: snapshot.partitionId,
+        name: state.partition.value.name,
         languages: Object.values(state.lanes).map((lane) => lane.languoidId),
         translated_pct: percentages.length ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
         // What someone browsing may do with the work (docs/licensing.md).
@@ -22503,7 +22503,7 @@ async function runProjections(service) {
     rows.push(...await reportNotifications(service, orgId, org));
     check(await service.rpc("reconcile_notifications", {
       p_org: orgId,
-      p_project: "_org",
+      p_partition: "_org",
       p_rows: rows
     }));
   }
@@ -22518,7 +22518,7 @@ async function reportNotifications(service, orgId, org) {
   const out = [];
   for (const r of open.data ?? []) {
     const person = r.target_kind === "person";
-    const target = person ? { projectId: "_org" } : { projectId: r.partition_id };
+    const target = person ? { partitionId: "_org" } : { partitionId: r.partition_id };
     for (const profileId of Object.keys(org.members)) {
       if (profileId === r.reported_profile) continue;
       if (!privilegesFor(org, profileId, target).has(person ? "invite_members" : "manage_structure")) continue;

@@ -415,7 +415,7 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
 # Both handlers validate authorization explicitly before any service access.
-[functions.project-projections]
+[functions.partition-projections]
 verify_jwt = false
 [functions.send-invite]
 verify_jwt = false

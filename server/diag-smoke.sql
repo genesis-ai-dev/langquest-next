@@ -10,12 +10,12 @@ update public.server_config set min_client_version = 0;
 select set_config('request.jwt.claim.sub', 'dg_lead', false);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
-  {"id":"dg1","type":"v1.OrgCreated","orgId":"dg_org","projectId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000000:dg_dA","payload":{"name":"Diagnostics Test Org"}},
-  {"id":"dg1a","type":"v1.RoleDefined","orgId":"dg_org","projectId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000001:dg_dA","payload":{"roleId":"org_admin","name":"Organization Admin","privileges":["manage_structure","invite_members","manage_roles","manage_templates","manage_reference","manage_flows","manage_teams","assign_work","translate","fill_reference","send_to_reviewers","review","view_status"]}},
-  {"id":"dg1b","type":"v1.RoleDefined","orgId":"dg_org","projectId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000002:dg_dA","payload":{"roleId":"translator","name":"Translator","privileges":["translate","fill_reference","send_to_reviewers","view_status"]}},
-  {"id":"dg2","type":"v1.OrgMemberAdded","orgId":"dg_org","projectId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000102:000000:dg_dA","payload":{"profileId":"dg_lead","roleId":"org_admin","scope":{"level":"org"}}},
-  {"id":"dg3","type":"v1.ProjectRegistered","orgId":"dg_org","projectId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000103:000000:dg_dA","payload":{"projectId":"dg_lang","name":"Dinka Test"}},
-  {"id":"dg4","type":"v1.OrgMemberAdded","orgId":"dg_org","projectId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000104:000000:dg_dA","payload":{"profileId":"dg_t1","roleId":"translator","scope":{"level":"org"}}}
+  {"id":"dg1","type":"v1.OrgCreated","orgId":"dg_org","partitionId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000000:dg_dA","payload":{"name":"Diagnostics Test Org"}},
+  {"id":"dg1a","type":"v1.RoleDefined","orgId":"dg_org","partitionId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000001:dg_dA","payload":{"roleId":"org_admin","name":"Organization Admin","privileges":["manage_structure","invite_members","manage_roles","manage_templates","manage_reference","manage_flows","manage_teams","assign_work","translate","fill_reference","send_to_reviewers","review","view_status"]}},
+  {"id":"dg1b","type":"v1.RoleDefined","orgId":"dg_org","partitionId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000101:000002:dg_dA","payload":{"roleId":"translator","name":"Translator","privileges":["translate","fill_reference","send_to_reviewers","view_status"]}},
+  {"id":"dg2","type":"v1.OrgMemberAdded","orgId":"dg_org","partitionId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000102:000000:dg_dA","payload":{"profileId":"dg_lead","roleId":"org_admin","scope":{"level":"org"}}},
+  {"id":"dg3","type":"v1.PartitionRegistered","orgId":"dg_org","partitionId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000103:000000:dg_dA","payload":{"partitionId":"dg_lang","name":"Dinka Test"}},
+  {"id":"dg4","type":"v1.OrgMemberAdded","orgId":"dg_org","partitionId":"_org","actorId":"dg_lead","deviceId":"dg_dA","hlc":"000000000000104:000000:dg_dA","payload":{"profileId":"dg_t1","roleId":"translator","scope":{"level":"org"}}}
 ]'::jsonb) loop
     if not r.accepted then raise exception 'seed event % refused: %', r.id, r.reason; end if;
   end loop;
@@ -31,14 +31,14 @@ begin
   v_n := public.diag_ingest(
     jsonb_build_object('installId', 'dg_dT', 'os', 'android', 'model', 'SM-A105F', 'updateId', 'u-123', 'email', 'x@y.z'),
     jsonb_build_array(
-      jsonb_build_object('id', 'dgr1', 'kind', 'sync', 'at', v_now - 60000, 'orgId', 'dg_org', 'projectId', 'dg_lang',
+      jsonb_build_object('id', 'dgr1', 'kind', 'sync', 'at', v_now - 60000, 'orgId', 'dg_org', 'partitionId', 'dg_lang',
         'n', jsonb_build_object('ms', 5000.4, 'pullNetMs', 4000, 'secret', 1), 't', jsonb_build_object('outcome', 'ok', 'note', 'free text')),
-      jsonb_build_object('id', 'dgr2', 'kind', 'transfer', 'at', v_now - 50000, 'orgId', 'dg_org', 'projectId', 'dg_lang',
+      jsonb_build_object('id', 'dgr2', 'kind', 'transfer', 'at', v_now - 50000, 'orgId', 'dg_org', 'partitionId', 'dg_lang',
         'n', jsonb_build_object('count', 3, 'bytes', 300000, 'ms', 30000, 'verifyMs', 20000), 't', jsonb_build_object('dir', 'down')),
       jsonb_build_object('id', 'dgr3', 'kind', 'error', 'at', v_now - 40000,
         'stack', E'TypeError: cannot read "In the beginning"\n    at save (/Users/someone/app/recording.ts:10:5)',
         't', jsonb_build_object('name', 'TypeError', 'where', 'screen passage', 'errorId', 'E-DGTST1', 'fatal', 'no')),
-      jsonb_build_object('id', 'dgr4', 'kind', 'load', 'at', v_now - 30000, 'orgId', 'someone_elses_org', 'projectId', 'p', 'n', jsonb_build_object('ms', 10)),
+      jsonb_build_object('id', 'dgr4', 'kind', 'load', 'at', v_now - 30000, 'orgId', 'someone_elses_org', 'partitionId', 'p', 'n', jsonb_build_object('ms', 10)),
       jsonb_build_object('id', 'dgr5', 'kind', 'transcript', 'at', v_now, 't', jsonb_build_object('text', 'no')),
       jsonb_build_object('id', 'dgr6', 'kind', 'sync', 'at', 'yesterday')
     )
@@ -60,7 +60,7 @@ begin
   select * into r from diag.records where id = 'dgr3';
   if r.stack <> 'at save (recording.ts:10:5)' then raise exception 'stack kept more than frames: %', r.stack; end if;
   select * into r from diag.records where id = 'dgr4';
-  if r.org_id is not null or r.project_id is not null then raise exception 'filed under an org the caller is not in'; end if;
+  if r.org_id is not null or r.partition_id is not null then raise exception 'filed under an org the caller is not in'; end if;
   if (select context from diag.installs where install_id = 'dg_dT') ? 'email' then raise exception 'context kept an unknown key'; end if;
 end $$;
 
@@ -82,7 +82,7 @@ end $$;
 do $$
 declare v jsonb;
 begin
-  if not exists (select 1 from diag.find('Dinka Test') where kind = 'language' and org_id = 'dg_org' and project_id = 'dg_lang') then
+  if not exists (select 1 from diag.find('Dinka Test') where kind = 'language' and org_id = 'dg_org' and partition_id = 'dg_lang') then
     raise exception 'find by language name failed';
   end if;
   if not exists (select 1 from diag.find('Diagnostics Test') where kind = 'org' and org_id = 'dg_org') then

@@ -12,10 +12,10 @@ export const SOURCE_BIBLES = [
 export type SourceBible = typeof SOURCE_BIBLES[number];
 
 export function sourceBibleEnabled(
-  org: OrgState, id: string, projectId?: string
+  org: OrgState, id: string, partitionId?: string
 ): boolean {
   return org.catalog[catalogKey('reference', id, 'org')]?.value === true &&
-    catalogEnabled(org, 'reference', id, projectId);
+    catalogEnabled(org, 'reference', id, partitionId);
 }
 
 // OpenBible's filenames use these spellings, which differ from our book ids.

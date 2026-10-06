@@ -29,8 +29,8 @@ function useStudyRevision(): number {
 
 /** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
 export function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
-  const state = ctx.project.state;
-  const { present, keptUnits } = ctx.project.blobs;
+  const state = ctx.partition.state;
+  const { present, keptUnits } = ctx.partition.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   const key = unitIds.join(',');
@@ -50,8 +50,8 @@ export function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<strin
  * from the map is not kept. Shared by every row drawn from the same inputs.
  */
 export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
-  const state = ctx.project.state;
-  const { present, keptUnits } = ctx.project.blobs;
+  const state = ctx.partition.state;
+  const { present, keptUnits } = ctx.partition.blobs;
   const me = ctx.session.actorId;
   if (!state) return new Map();
   const rev = studyRevision();
@@ -70,8 +70,8 @@ let keptCache: { state: object; present: ReadonlySet<string>; kept: ReadonlySet<
 export type OfflineOverview = OfflineSummary & { studyToFetch: number };
 
 export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
-  const state = ctx.project.state;
-  const { present, keptUnits } = ctx.project.blobs;
+  const state = ctx.partition.state;
+  const { present, keptUnits } = ctx.partition.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   return useMemo(() => {
@@ -133,7 +133,7 @@ function passageOfflineView(u: KeptOffline, offline: boolean, hasStudy: boolean)
 export function PassageOfflineLine(props: { ctx: Ctx; unitId: string }) {
   const u = useOfflineUnits(props.ctx, [props.unitId]).get(props.unitId);
   if (!u) return null;
-  const v = passageOfflineView(u, props.ctx.project.online === false, false);
+  const v = passageOfflineView(u, props.ctx.partition.online === false, false);
   return (
     <View style={styles.line} accessible accessibilityLabel={v.short}>
       <Ico name={v.icon} size={16} color={v.tint} />
@@ -147,9 +147,9 @@ export function PassageOffline(props: { ctx: Ctx; unitId: string; hasStudy: bool
   const { ctx, unitId } = props;
   const u = useOfflineUnits(ctx, [unitId]).get(unitId);
   if (!u) return null;
-  const v = passageOfflineView(u, ctx.project.online === false, props.hasStudy);
+  const v = passageOfflineView(u, ctx.partition.online === false, props.hasStudy);
   const keep = (on: boolean) => {
-    void ctx.project.blobs.keepOffline(unitId, on);
+    void ctx.partition.blobs.keepOffline(unitId, on);
     ctx.toast(on ? 'Kept on this phone. It downloads while you are connected.' : 'No longer kept. Its audio may be removed to make room.');
   };
   return (
@@ -191,9 +191,9 @@ export function offlineLine(s: OfflineOverview | null): string {
 /** The Sync screen's card: how ready this phone is, and what never comes along. */
 export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
   const { ctx, s } = props;
-  const offline = ctx.project.online === false;
+  const offline = ctx.partition.online === false;
   const ready = !!s && s.kept > 0 && s.ready === s.kept;
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const language = state && ctx.laneId ? laneName(state, ctx.laneId) : 'this language';
   const head = ready
     ? { icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green }

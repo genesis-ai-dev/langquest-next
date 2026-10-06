@@ -167,7 +167,7 @@ declare
   v_inv record;
   v_me text := public.caller_id();
   v_used int;
-  v_project text;
+  v_partition text;
   v_status text;
 begin
   if p_token is null or p_token !~ '^[0-9a-fA-F]{32,128}$' then return jsonb_build_object('status', 'not_found'); end if;
@@ -175,7 +175,7 @@ begin
     where token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex');
   if not found then return jsonb_build_object('status', 'not_found'); end if;
   select count(*) into v_used from public.invite_redemptions r where r.invite_id = v_inv.id;
-  v_project := v_inv.scope->>'projectId';
+  v_partition := v_inv.scope->>'partitionId';
   v_status := case
     when v_me is not null and exists (select 1 from public.invite_redemptions r
       where r.invite_id = v_inv.id and r.profile_id = v_me) then 'joined'
@@ -187,12 +187,12 @@ begin
     'status', v_status,
     'orgId', v_inv.org_id,
     'orgName', (select e.payload->>'name' from public.events e
-      where e.org_id = v_inv.org_id and e.project_id = '_org' and e.type = 'v1.OrgCreated' order by e.hlc desc limit 1),
+      where e.org_id = v_inv.org_id and e.partition_id = '_org' and e.type = 'v1.OrgCreated' order by e.hlc desc limit 1),
     'roleName', (select r.name from public.org_roles r where r.org_id = v_inv.org_id and r.role_id = v_inv.role_id),
     'scopeLevel', v_inv.scope->>'level',
-    'languageName', case when v_project is null then null else (select e.payload->>'name' from public.events e
-      where e.org_id = v_inv.org_id and e.project_id = '_org' and e.type = 'v1.ProjectRegistered'
-        and e.payload->>'projectId' = v_project order by e.hlc desc limit 1) end,
+    'languageName', case when v_partition is null then null else (select e.payload->>'name' from public.events e
+      where e.org_id = v_inv.org_id and e.partition_id = '_org' and e.type = 'v1.PartitionRegistered'
+        and e.payload->>'partitionId' = v_partition order by e.hlc desc limit 1) end,
     'label', v_inv.label,
     'invitedBy', (select p.display_name from public.profiles p where p.id = v_inv.issued_by),
     'group', v_inv.max_uses > 1,

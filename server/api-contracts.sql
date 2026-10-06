@@ -13,7 +13,7 @@ from (values
   ('public.record_user_event(text,text,jsonb)'),
   ('public.get_user_state()'),
   ('public.my_organizations()'),
-  ('public.set_project_visibility(text,text,boolean)'),
+  ('public.set_partition_visibility(text,text,boolean)'),
   ('public.register_push_token(text)'),
   ('public.delete_my_account()')
 ) expected(signature)

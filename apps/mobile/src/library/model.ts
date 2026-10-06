@@ -2,7 +2,7 @@
 // an action writes and which languages need to move to a newer version. Kept
 // free of React Native so it can be tested.
 import {
-  libraryItemView, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type ProjectState
+  libraryItemView, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type PartitionState
 } from '@langquest-next/core';
 
 /** One org-partition write, in the order to apply it. */
@@ -106,7 +106,7 @@ export interface LaneBehind {
  * another version (edited here, or a subscription took an update). The app
  * applies these for someone who may (docs/library.md, "Languages").
  */
-export function lanesBehind(state: ProjectState, library: Record<string, LibraryItemState>): LaneBehind[] {
+export function lanesBehind(state: PartitionState, library: Record<string, LibraryItemState>): LaneBehind[] {
   const out: LaneBehind[] = [];
   for (const laneId of Object.keys(state.lanes).sort()) {
     const t = state.laneTemplates[laneId]?.value;
@@ -124,7 +124,7 @@ export function lanesBehind(state: ProjectState, library: Record<string, Library
 }
 
 /** Which languages use an item, for "used by" lines and the flow editor's warning (FLOW-3). */
-export function lanesUsing(state: ProjectState | null, itemId: string): string[] {
+export function lanesUsing(state: PartitionState | null, itemId: string): string[] {
   if (!state) return [];
   return Object.keys(state.lanes).filter((l) => state.laneTemplates[l]?.value.itemId === itemId || state.laneFlows[l]?.value.itemId === itemId).sort();
 }

@@ -1,7 +1,7 @@
 import { buildIndexes, type Indexes } from './indexes';
 import { actorRole, deriveTasks } from './tasks';
 import { deriveBlockers } from './blockers';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 
 export interface InboxItem {
   id: string;
@@ -13,7 +13,7 @@ export interface InboxItem {
 }
 /** Shared by the phone and notification worker: identical eligibility. */
 export function deriveInbox(
-  state: ProjectState, actorId: string, idx: Indexes = buildIndexes(state)
+  state: PartitionState, actorId: string, idx: Indexes = buildIndexes(state)
 ): InboxItem[] {
   if (!actorRole(state, actorId)) return [];
   const rows: InboxItem[] = deriveTasks(state, actorId, idx)

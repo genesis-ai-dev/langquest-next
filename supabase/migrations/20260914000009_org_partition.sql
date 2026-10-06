@@ -1,12 +1,12 @@
 -- Org partition and privilege roles (docs/flow-coverage-audit.md 5.A, 5.C;
 -- packages/core/src/org.ts is the client twin of everything here).
 --
--- One extra partition per org, project_id = '_org', in the same events
+-- One extra partition per org, partition_id = '_org', in the same events
 -- table. Its fold is kept as two rows tables by append_events, the one
 -- fold allowed on the write path (invariant 9): org_roles (privilege sets)
 -- and org_memberships (who holds which role at which scope). Authorization
--- for any partition is then: the project's own membership row, or an org
--- membership whose scope covers the project and whose role holds the
+-- for any partition is then: the partition's own membership row, or an org
+-- membership whose scope covers the partition and whose role holds the
 -- privilege the event type needs (event_privilege, same table as core's
 -- EVENT_PRIVILEGE). effective_role maps privileges back onto the fixed role
 -- set so storage policies and workflow steps keep working unchanged.
@@ -27,7 +27,7 @@ create table if not exists public.org_memberships (
   profile_id text not null,
   scope_key text not null,
   scope_level text not null,
-  project_id text,
+  partition_id text,
   lane_id text,
   role_id text,
   removed boolean not null default false,
@@ -51,18 +51,18 @@ create or replace function public._scope_error(v jsonb) returns text language sq
   select case
     when v is null or jsonb_typeof(v) <> 'object' then 'scope must be an object'
     when v->>'level' = 'org' then null
-    when not public._is_str(v->'projectId') then 'scope.projectId required'
-    when v->>'level' = 'project' then null
+    when not public._is_str(v->'partitionId') then 'scope.partitionId required'
+    when v->>'level' = 'partition' then null
     when v->>'level' = 'lane' then case when public._is_str(v->'laneId') then null else 'scope.laneId required' end
-    else 'scope.level must be org, project or lane'
+    else 'scope.level must be org, partition or lane'
   end;
 $$;
 
 create or replace function public._scope_key(v jsonb) returns text language sql immutable as $$
   select case v->>'level'
     when 'org' then 'org'
-    when 'project' then 'project:' || (v->>'projectId')
-    else 'lane:' || (v->>'projectId') || '/' || (v->>'laneId')
+    when 'partition' then 'partition:' || (v->>'partitionId')
+    else 'lane:' || (v->>'partitionId') || '/' || (v->>'laneId')
   end;
 $$;
 
@@ -72,9 +72,9 @@ declare c jsonb;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return 'payload must be an object'; end if;
   case p_type
-    when 'v1.ProjectCreated' then
+    when 'v1.PartitionCreated' then
       if not (public._is_str(p->'name') and public._is_str(p->'sourceLanguoidId')) then return 'name and sourceLanguoidId must be non-empty strings'; end if;
-    when 'v1.ProjectConfigChanged' then
+    when 'v1.PartitionConfigChanged' then
       if jsonb_typeof(p->'config') is distinct from 'object' then return 'config must be an object'; end if;
     when 'v1.MemberAdded', 'v1.MemberRoleChanged' then
       if not public._is_str(p->'profileId') then return 'profileId must be a non-empty string'; end if;
@@ -112,7 +112,7 @@ begin
       if not (public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'profileId')) then return 'unitId, laneId, profileId must be non-empty strings'; end if;
       if not public._is_role(p->>'role') then return 'role must be a role'; end if;
     when 'v1.SourceImported' then
-      if not public._is_str(p->'sourceProjectId') then return 'sourceProjectId must be a non-empty string'; end if;
+      if not public._is_str(p->'sourcePartitionId') then return 'sourcePartitionId must be a non-empty string'; end if;
       if jsonb_typeof(p->'sourceSeq') is distinct from 'number' then return 'sourceSeq must be a number'; end if;
       if not public._is_str_array(p->'unitIds') then return 'unitIds must be a string array'; end if;
     when 'v1.BlobStored' then
@@ -137,11 +137,11 @@ begin
     when 'v1.CatalogItemToggled' then
       if not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if p->>'kind' not in ('template', 'reference', 'flow') then return 'kind must be template, reference or flow'; end if;
-      if p->>'level' not in ('org', 'project') then return 'level must be org or project'; end if;
-      if p->>'level' = 'project' and not public._is_str(p->'projectId') then return 'projectId required at project level'; end if;
+      if p->>'level' not in ('org', 'partition') then return 'level must be org or partition'; end if;
+      if p->>'level' = 'partition' and not public._is_str(p->'partitionId') then return 'partitionId required at partition level'; end if;
       if jsonb_typeof(p->'enabled') is distinct from 'boolean' then return 'enabled must be a boolean'; end if;
-    when 'v1.ProjectRegistered' then
-      if not (public._is_str(p->'projectId') and public._is_str(p->'name')) then return 'projectId and name must be non-empty strings'; end if;
+    when 'v1.PartitionRegistered' then
+      if not (public._is_str(p->'partitionId') and public._is_str(p->'name')) then return 'partitionId and name must be non-empty strings'; end if;
     else null;
   end case;
   return null;
@@ -164,8 +164,8 @@ begin
     on conflict (org_id, role_id) do update set retired = true;
   elsif p_type in ('v1.OrgMemberAdded', 'v1.OrgMemberRemoved') then
     v_key := public._scope_key(p->'scope');
-    insert into public.org_memberships (org_id, profile_id, scope_key, scope_level, project_id, lane_id)
-    values (p_org, p->>'profileId', v_key, p->'scope'->>'level', p->'scope'->>'projectId', p->'scope'->>'laneId')
+    insert into public.org_memberships (org_id, profile_id, scope_key, scope_level, partition_id, lane_id)
+    values (p_org, p->>'profileId', v_key, p->'scope'->>'level', p->'scope'->>'partitionId', p->'scope'->>'laneId')
     on conflict do nothing;
     if p_type = 'v1.OrgMemberAdded' then
       update public.org_memberships m set role_id = p->>'roleId', role_hlc = p_hlc
@@ -182,7 +182,7 @@ end $$;
 -- Backfill any org events already in the log.
 do $$ declare e record; begin
   for e in select org_id, type, payload, hlc from public.events
-           where project_id = '_org' and type in ('v1.RoleDefined','v1.RoleRetired','v1.OrgMemberAdded','v1.OrgMemberRemoved')
+           where partition_id = '_org' and type in ('v1.RoleDefined','v1.RoleRetired','v1.OrgMemberAdded','v1.OrgMemberRemoved')
            order by hlc loop
     perform public._apply_org_event(e.org_id, e.type, e.payload, e.hlc);
   end loop;
@@ -192,8 +192,8 @@ end $$;
 create or replace function public.event_privilege(p_type text, p jsonb)
 returns text language sql immutable as $$
   select case p_type
-    when 'v1.ProjectCreated' then 'bootstrap'
-    when 'v1.ProjectConfigChanged' then 'manage_structure'
+    when 'v1.PartitionCreated' then 'bootstrap'
+    when 'v1.PartitionConfigChanged' then 'manage_structure'
     when 'v1.MemberAdded' then 'invite_members'
     when 'v1.MemberRoleChanged' then 'invite_members'
     when 'v1.MemberRemoved' then 'invite_members'
@@ -216,15 +216,15 @@ returns text language sql immutable as $$
     when 'v1.OrgMemberRemoved' then 'invite_members'
     when 'v1.CatalogItemToggled' then case p->>'kind'
       when 'reference' then 'manage_reference' when 'flow' then 'manage_flows' else 'manage_templates' end
-    when 'v1.ProjectRegistered' then 'manage_structure'
+    when 'v1.PartitionRegistered' then 'manage_structure'
     else null  -- server-only (BlobStored, BlobInvalidated) or unknown
   end;
 $$;
 
--- Privileges a profile holds over a project (and lane, when the event names
+-- Privileges a profile holds over a partition (and lane, when the event names
 -- one): union over live memberships whose scope covers it, through roles
 -- that are not retired. core privilegesFor.
-create or replace function public.org_privileges(p_org text, p_profile text, p_project text, p_lane text)
+create or replace function public.org_privileges(p_org text, p_profile text, p_partition text, p_lane text)
 returns text[] language sql stable security definer set search_path = public as $$
   select coalesce(array_agg(distinct priv), '{}')
   from public.org_memberships m
@@ -232,8 +232,8 @@ returns text[] language sql stable security definer set search_path = public as 
   cross join lateral unnest(r.privileges) as priv
   where m.org_id = p_org and m.profile_id = p_profile and not m.removed
     and (m.scope_level = 'org'
-      or (m.scope_level = 'project' and m.project_id = p_project)
-      or (m.scope_level = 'lane' and m.project_id = p_project and (p_lane is null or m.lane_id = p_lane)));
+      or (m.scope_level = 'partition' and m.partition_id = p_partition)
+      or (m.scope_level = 'lane' and m.partition_id = p_partition and (p_lane is null or m.lane_id = p_lane)));
 $$;
 
 -- core effectiveRole.
@@ -250,21 +250,21 @@ returns text language sql immutable as $$
 $$;
 
 -- Same signature the storage policies and pull_events already call: the
--- project's own role if any, else the role the org privileges amount to.
+-- partition's own role if any, else the role the org privileges amount to.
 create or replace function public.member_role(
-  p_org_id text, p_project_id text, p_profile_id text
+  p_org_id text, p_partition_id text, p_profile_id text
 ) returns text language sql stable security definer set search_path = public as $$
   select coalesce(
     (select case when m.removed then null else m.role end
        from public.memberships m
-       where m.org_id = p_org_id and m.project_id = p_project_id and m.profile_id = p_profile_id),
-    public.effective_role_of(public.org_privileges(p_org_id, p_profile_id, p_project_id, null)));
+       where m.org_id = p_org_id and m.partition_id = p_partition_id and m.profile_id = p_profile_id),
+    public.effective_role_of(public.org_privileges(p_org_id, p_profile_id, p_partition_id, null)));
 $$;
 
 -- May this profile emit this event into this partition? The whole
 -- authorization rule in one place; append_events only adds the as-of
 -- fallback and the bootstrap exceptions around it.
-create or replace function public.may_emit(p_org text, p_project text, p_profile text, p_type text, p jsonb)
+create or replace function public.may_emit(p_org text, p_partition text, p_profile text, p_type text, p jsonb)
 returns boolean language plpgsql stable security definer set search_path = public as $$
 declare
   v_priv text := public.event_privilege(p_type, p);
@@ -272,13 +272,13 @@ declare
 begin
   if v_priv is null then return false; end if;             -- server-only
   if v_priv = 'bootstrap' then return false; end if;       -- caller handles
-  if p_project <> '_org' then
+  if p_partition <> '_org' then
     select case when m.removed then null else m.role end into v_role
       from public.memberships m
-      where m.org_id = p_org and m.project_id = p_project and m.profile_id = p_profile;
+      where m.org_id = p_org and m.partition_id = p_partition and m.profile_id = p_profile;
     if v_role is not null and public.role_may_emit(v_role, p_type) then return true; end if;
   end if;
-  return v_priv = any(public.org_privileges(p_org, p_profile, p_project, p->>'laneId'));
+  return v_priv = any(public.org_privileges(p_org, p_profile, p_partition, p->>'laneId'));
 end $$;
 
 create or replace function public.append_events(p_events jsonb, p_client_version int default 0)
@@ -287,7 +287,7 @@ language plpgsql security definer set search_path = public as $$
 declare
   ev jsonb;
   v_actor text := public.caller_id();
-  v_org text; v_project text; v_type text; v_id text; v_hlc text;
+  v_org text; v_partition text; v_type text; v_id text; v_hlc text;
   v_role text; v_seq bigint; v_existing bigint; v_count bigint; v_invalid text;
   v_now_ms bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
   v_wall_ms bigint;
@@ -304,9 +304,9 @@ begin
   end if;
 
   for ev in select * from jsonb_array_elements(p_events) loop
-    v_id := ev->>'id'; v_org := ev->>'orgId'; v_project := ev->>'projectId'; v_type := ev->>'type'; v_hlc := ev->>'hlc';
+    v_id := ev->>'id'; v_org := ev->>'orgId'; v_partition := ev->>'partitionId'; v_type := ev->>'type'; v_hlc := ev->>'hlc';
 
-    if v_id is null or v_org is null or v_project is null or v_type is null or ev->'payload' is null
+    if v_id is null or v_org is null or v_partition is null or v_type is null or ev->'payload' is null
        or not public._is_str(ev->'hlc') or not public._is_str(ev->'deviceId') or not public._is_str(ev->'actorId') then
       id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope';
       return next; continue;
@@ -335,43 +335,43 @@ begin
     end if;
 
     -- Authorization: privileges now; else as of the event's clock within the
-    -- window (project membership only; org roles are small and rarely
+    -- window (partition membership only; org roles are small and rarely
     -- change); else the bootstrap exceptions.
-    v_ok := public.may_emit(v_org, v_project, ev->>'actorId', v_type, ev->'payload');
-    if not v_ok and v_project <> '_org' and v_wall_ms >= v_now_ms - v_cfg.asof_window_ms then
-      v_role := public.member_role_at(v_org, v_project, ev->>'actorId', v_hlc);
+    v_ok := public.may_emit(v_org, v_partition, ev->>'actorId', v_type, ev->'payload');
+    if not v_ok and v_partition <> '_org' and v_wall_ms >= v_now_ms - v_cfg.asof_window_ms then
+      v_role := public.member_role_at(v_org, v_partition, ev->>'actorId', v_hlc);
       v_ok := v_role is not null and public.role_may_emit(v_role, v_type);
     end if;
     if not v_ok then
-      if v_project = '_org' then
+      if v_partition = '_org' then
         -- An org with no members accepts OrgCreated and the creator's own admin membership.
         select count(*) into v_count from public.events e
-          where e.org_id = v_org and e.project_id = '_org' and e.type = 'v1.OrgMemberAdded';
+          where e.org_id = v_org and e.partition_id = '_org' and e.type = 'v1.OrgMemberAdded';
         v_ok := v_count = 0 and (
           v_type = 'v1.OrgCreated' or v_type = 'v1.RoleDefined'
           or (v_type = 'v1.OrgMemberAdded' and ev->'payload'->>'profileId' = ev->>'actorId'));
       else
-        -- A project with no members accepts ProjectCreated and the creator
+        -- A partition with no members accepts PartitionCreated and the creator
         -- adding themselves, unless the org already governs it.
         select count(*) into v_count from public.events e
-          where e.org_id = v_org and e.project_id = v_project and e.type = 'v1.MemberAdded';
+          where e.org_id = v_org and e.partition_id = v_partition and e.type = 'v1.MemberAdded';
         v_ok := v_count = 0
-          and cardinality(public.org_privileges(v_org, ev->>'actorId', v_project, null)) = 0
+          and cardinality(public.org_privileges(v_org, ev->>'actorId', v_partition, null)) = 0
           and not exists (select 1 from public.org_memberships m where m.org_id = v_org and not m.removed)
-          and (v_type = 'v1.ProjectCreated'
+          and (v_type = 'v1.PartitionCreated'
             or (v_type = 'v1.MemberAdded' and ev->'payload'->>'profileId' = ev->>'actorId'));
-        -- An org member with manage_structure may create a project under the org.
-        if not v_ok and v_count = 0 and v_type in ('v1.ProjectCreated', 'v1.MemberAdded')
-           and 'manage_structure' = any(public.org_privileges(v_org, ev->>'actorId', v_project, null)) then
+        -- An org member with manage_structure may create a partition under the org.
+        if not v_ok and v_count = 0 and v_type in ('v1.PartitionCreated', 'v1.MemberAdded')
+           and 'manage_structure' = any(public.org_privileges(v_org, ev->>'actorId', v_partition, null)) then
           v_ok := true;
         end if;
       end if;
       if not v_ok then
         id := v_id; accepted := false; server_seq := null;
         reason := case
-          when public.member_role(v_org, v_project, ev->>'actorId') is null
-            and cardinality(public.org_privileges(v_org, ev->>'actorId', v_project, null)) = 0 then 'not a member'
-          else format('role %s may not emit %s', coalesce(public.member_role(v_org, v_project, ev->>'actorId'), 'member'), v_type)
+          when public.member_role(v_org, v_partition, ev->>'actorId') is null
+            and cardinality(public.org_privileges(v_org, ev->>'actorId', v_partition, null)) = 0 then 'not a member'
+          else format('role %s may not emit %s', coalesce(public.member_role(v_org, v_partition, ev->>'actorId'), 'member'), v_type)
         end;
         return next; continue;
       end if;
@@ -383,20 +383,20 @@ begin
       return next; continue;
     end if;
 
-    insert into public.partition_cursors (org_id, project_id) values (v_org, v_project)
+    insert into public.partition_cursors (org_id, partition_id) values (v_org, v_partition)
       on conflict do nothing;
     update public.partition_cursors c set next_seq = c.next_seq + 1
-      where c.org_id = v_org and c.project_id = v_project
+      where c.org_id = v_org and c.partition_id = v_partition
       returning c.next_seq - 1 into v_seq;
 
-    insert into public.events (id, org_id, project_id, server_seq, type, actor_id, device_id,
+    insert into public.events (id, org_id, partition_id, server_seq, type, actor_id, device_id,
                                hlc, parent_event_id, payload)
-    values (v_id, v_org, v_project, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
+    values (v_id, v_org, v_partition, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
             v_hlc, ev->>'parentEventId', ev->'payload');
 
     if v_type in ('v1.MemberAdded', 'v1.MemberRoleChanged', 'v1.MemberRemoved') then
-      perform public._apply_member_event(v_org, v_project, v_type, ev->'payload', v_hlc);
-    elsif v_project = '_org' then
+      perform public._apply_member_event(v_org, v_partition, v_type, ev->'payload', v_hlc);
+    elsif v_partition = '_org' then
       perform public._apply_org_event(v_org, v_type, ev->'payload', v_hlc);
     end if;
 
@@ -406,10 +406,10 @@ begin
 end $$;
 
 -- Pull: the org partition is readable by anyone with a live org membership;
--- a project by its members or by org members whose scope covers it
+-- a partition by its members or by org members whose scope covers it
 -- (member_role now folds both).
 create or replace function public.pull_events(
-  p_org_id text, p_project_id text, p_after bigint default 0, p_limit int default 500, p_client_version int default 0
+  p_org_id text, p_partition_id text, p_after bigint default 0, p_limit int default 500, p_client_version int default 0
 ) returns setof public.events
 language plpgsql security definer set search_path = public stable as $$
 declare
@@ -418,18 +418,18 @@ declare
 begin
   perform public.require_client_version(p_client_version);
   if v_actor is not null then
-    if p_project_id = '_org' then
+    if p_partition_id = '_org' then
       v_ok := exists (select 1 from public.org_memberships m where m.org_id = p_org_id and m.profile_id = v_actor and not m.removed);
     else
-      v_ok := public.member_role(p_org_id, p_project_id, v_actor) is not null;
+      v_ok := public.member_role(p_org_id, p_partition_id, v_actor) is not null;
     end if;
-    if not v_ok and exists (select 1 from public.events e where e.org_id = p_org_id and e.project_id = p_project_id) then
+    if not v_ok and exists (select 1 from public.events e where e.org_id = p_org_id and e.partition_id = p_partition_id) then
       raise exception 'not a member' using errcode = '42501';
     end if;
   end if;
   return query
     select * from public.events e
-    where e.org_id = p_org_id and e.project_id = p_project_id and e.server_seq > p_after
+    where e.org_id = p_org_id and e.partition_id = p_partition_id and e.server_seq > p_after
     order by e.server_seq
     limit least(greatest(p_limit, 1), 1000);
 end $$;

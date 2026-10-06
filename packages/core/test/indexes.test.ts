@@ -9,21 +9,21 @@ import type { AnyEvent } from '../src/events';
 import { buildFixture } from './fixtures';
 
 /**
- * A larger, messier project than the fixture: several lanes, assignments
+ * A larger, messier partition than the fixture: several lanes, assignments
  * that override role membership, archived and superseded takes, removed
  * members. Deterministic so the two derivation paths can be compared.
  */
-function bigProject(): AnyEvent[] {
+function bigPartition(): AnyEvent[] {
   const out: AnyEvent[] = [];
   let seq = 0;
   const emit = (type: string, payload: unknown, actorId = 'lead', deviceId = 'dA') => {
     seq += 1;
     out.push({
-      id: `e${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId,
+      id: `e${seq}`, type, orgId: 'o', partitionId: 'p', actorId, deviceId,
       hlc: encodeHlc(1_700_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq
     } as AnyEvent);
   };
-  emit('v1.ProjectCreated', { name: 'B', sourceLanguoidId: 'eng' });
+  emit('v1.PartitionCreated', { name: 'B', sourceLanguoidId: 'eng' });
   emit('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
   for (let i = 0; i < 5; i++) emit('v1.MemberAdded', { profileId: `t${i}`, role: 'translator' });
   for (let i = 0; i < 3; i++) emit('v1.MemberAdded', { profileId: `r${i}`, role: 'reviewer' });
@@ -56,7 +56,7 @@ function bigProject(): AnyEvent[] {
 }
 
 describe('read indexes', () => {
-  const cases = { fixture: buildFixture(), big: bigProject() };
+  const cases = { fixture: buildFixture(), big: bigPartition() };
 
   for (const [name, events] of Object.entries(cases)) {
     it(`${name}: every derivation gives the same answer with a prebuilt index as with none`, () => {
@@ -90,7 +90,7 @@ describe('read indexes', () => {
   }
 
   it('leaves out archived takes and removed members, in display order', () => {
-    const state = fold(bigProject(), emptyState());
+    const state = fold(bigPartition(), emptyState());
     const idx = buildIndexes(state);
     for (const ids of idx.takesByUnitLane.values()) {
       for (const id of ids) expect(state.takes[id]!.archived).toBe(false);
@@ -107,7 +107,7 @@ describe('read indexes', () => {
     // Why: at Bible scale (1,200 pericopes, 3 lanes, 40 translators) the
     // unindexed path took 27 s on a laptop. This is a coarse guard, not a
     // benchmark: the indexed path must stay well under a second here.
-    const events = bigProject();
+    const events = bigPartition();
     const state = fold(events, emptyState());
     const t0 = performance.now();
     const idx = buildIndexes(state);

@@ -7,19 +7,19 @@ Implemented in `supabase/migrations/20260914000001_event_log.sql`:
 
 - `events`: append-only. Triggers refuse UPDATE and DELETE for every role.
   Indexes per PLAN.md section 5.
-- `snapshots`: keyed by org, project, reducer version, server_seq.
-- `partition_cursors`: one row per project; the append RPC locks it, which
-  serializes writes per project and only per project.
-- `member_role(org, project, profile)`: the project's `memberships` row
+- `snapshots`: keyed by org, partition, reducer version, server_seq.
+- `partition_cursors`: one row per partition; the append RPC locks it, which
+  serializes writes per partition and only per partition.
+- `member_role(org, partition, profile)`: the partition's `memberships` row
   (maintained by `append_events` from the three member events, migration
   000008), else the fixed role the caller's org privileges amount to
   (`effective_role_of(org_privileges(...))`, migration 000009).
 - `memberships`, `org_roles`, `org_memberships`: the only folds on the write
   path, kept as rows in the same transaction as the events they come from,
   always derivable from the log (backfilled on migration).
-- Org partition `project_id = '_org'` (migration 000009): `OrgCreated`,
+- Org partition `partition_id = '_org'` (migration 000009): `OrgCreated`,
   `RoleDefined`, `RoleRetired`, `OrgMemberAdded/Removed` with a scope (org,
-  project, lane), `CatalogItemToggled`, `ProjectRegistered`. `may_emit`
+  partition, lane), `CatalogItemToggled`, `PartitionRegistered`. `may_emit`
   checks the event's privilege (`event_privilege`, same table as core
   `EVENT_PRIVILEGE`) against the caller's privileges over the partition.
 - Step 11 events (migration 000010): `LaneTemplateSelected`,
@@ -39,9 +39,9 @@ Implemented in `supabase/migrations/20260914000001_event_log.sql`:
 - `append_events(jsonb[])`: the entire synchronous write path. Checks the
   caller matches `actorId`, checks membership and role-to-event-type
   permission, assigns `server_seq`, inserts. Duplicate ids return the existing
-  seq. Bootstrap exception: an empty project accepts `ProjectCreated` and
+  seq. Bootstrap exception: an empty partition accepts `PartitionCreated` and
   `MemberAdded`.
-- `pull_events(org, project, after, limit)`: bounded, ordered page for members.
+- `pull_events(org, partition, after, limit)`: bounded, ordered page for members.
 
 `smoke.sql` exercises all of it; `npm run db:test` resets the db and runs it.
 
@@ -52,7 +52,7 @@ See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
 Run it locally, not against production without explicit authorization.
 
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `project-projections` Edge Function. Migration 20261001000000 schedules
+the `partition-projections` Edge Function. Migration 20261001000000 schedules
 it every five minutes wherever the Vault secrets `langquest_project_url` and
 `langquest_projection_worker_secret` exist (production), and nowhere else;
 it replaces the hand-run `schedule-projections.sql`. `npm run secrets` runs it
@@ -82,7 +82,7 @@ A language's country and target (migration 20260930000001, decision 41):
 `v1.LaneCountrySet` and `v1.LaneTargetSet` need `manage_structure`;
 `validate_payload` and `event_privilege` wrap the versions before it
 (kept as `_validate_payload_before_20260930`, `_event_privilege_before_20260930`).
-`my_privileges(org, project, lane)` returns the caller's own privileges so
+`my_privileges(org, partition, lane)` returns the caller's own privileges so
 the dashboard can hide edits the server would refuse.
 
 Reports and blocks (migration 20260930220000, decision 48) are rows, not

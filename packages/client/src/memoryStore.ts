@@ -19,13 +19,13 @@ export class MemoryStore implements EventStore {
     // halfway. The SQLite store is where atomicity is real.
     for (const l of batch.events ?? []) {
       this.events.set(l.event.id, l);
-      this.metas.set(`projection:${l.event.orgId}/${l.event.projectId}`, '');
+      this.metas.set(`projection:${l.event.orgId}/${l.event.partitionId}`, '');
     }
-    if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.projectId}`, batch.cursor.seq);
+    if (batch.cursor) this.cursors.set(`${batch.cursor.orgId}/${batch.cursor.partitionId}`, batch.cursor.seq);
     for (const [k, v] of Object.entries(batch.meta ?? {})) this.metas.set(k, v);
-    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
+    if (batch.prune) await this.pruneNow(batch.prune.orgId, batch.prune.partitionId, batch.prune.uptoSeq);
     if (batch.rows) {
-      const key = `${batch.rows.orgId}/${batch.rows.projectId}`;
+      const key = `${batch.rows.orgId}/${batch.rows.partitionId}`;
       if (batch.rows.clear) this.rows.delete(key);
       const table = this.rows.get(key) ?? new Map<string, PassageRow>();
       this.rows.set(key, table);
@@ -36,9 +36,9 @@ export class MemoryStore implements EventStore {
     }
   }
 
-  async taskPage(orgId: string, projectId: string, q: TaskQuery): Promise<TaskMatch[]> {
+  async taskPage(orgId: string, partitionId: string, q: TaskQuery): Promise<TaskMatch[]> {
     const out: TaskMatch[] = [];
-    for (const row of this.rows.get(`${orgId}/${projectId}`)?.values() ?? []) {
+    for (const row of this.rows.get(`${orgId}/${partitionId}`)?.values() ?? []) {
       if (q.laneId !== undefined && q.laneId !== row.laneId) continue;
       for (const t of tasksFromRow(row, q.actorId, q.translate ? 'translator' : 'reviewer')) {
         if (!q.status || q.status.includes(t.status)) out.push({ row, taskId: t.id });
@@ -57,9 +57,9 @@ export class MemoryStore implements EventStore {
       .sort((a, b) => cmp(tuple(a), tuple(b))).slice(0, q.limit);
   }
 
-  async laneCounts(orgId: string, projectId: string, laneId: string) {
+  async laneCounts(orgId: string, partitionId: string, laneId: string) {
     const counts = { passages: 0, translated: 0, approved: 0 };
-    for (const row of this.rows.get(`${orgId}/${projectId}`)?.values() ?? []) {
+    for (const row of this.rows.get(`${orgId}/${partitionId}`)?.values() ?? []) {
       if (row.laneId !== laneId) continue;
       counts.passages++;
       if (row.takeId && row.submitted) {
@@ -70,15 +70,15 @@ export class MemoryStore implements EventStore {
     return counts;
   }
 
-  async passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
-    return this.rows.get(`${orgId}/${projectId}`)?.get(passageRowKey({ unitId, laneId }));
+  async passage(orgId: string, partitionId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
+    return this.rows.get(`${orgId}/${partitionId}`)?.get(passageRowKey({ unitId, laneId }));
   }
 
-  async passages(orgId: string, projectId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]> {
+  async passages(orgId: string, partitionId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]> {
     const after = opts.after ?? null;
     const cmp = (a: PassageCursor, b: PassageCursor) =>
       a.order < b.order ? -1 : a.order > b.order ? 1 : a.unitId < b.unitId ? -1 : a.unitId > b.unitId ? 1 : a.laneId < b.laneId ? -1 : a.laneId > b.laneId ? 1 : 0;
-    return [...(this.rows.get(`${orgId}/${projectId}`)?.values() ?? [])]
+    return [...(this.rows.get(`${orgId}/${partitionId}`)?.values() ?? [])]
       .filter((r) => (opts.laneId === undefined || r.laneId === opts.laneId) && (after === null || cmp(r, after) > 0))
       .sort(cmp)
       .slice(0, opts.limit);
@@ -96,56 +96,56 @@ export class MemoryStore implements EventStore {
     return this.events.get(id);
   }
 
-  async pending(orgId: string, projectId: string): Promise<LocalEvent[]> {
-    return this.partition(orgId, projectId)
+  async pending(orgId: string, partitionId: string): Promise<LocalEvent[]> {
+    return this.partition(orgId, partitionId)
       .filter((e) => e.status === 'pending')
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
-  async pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
-    const all = await this.pending(orgId, projectId);
+  async pendingPage(orgId: string, partitionId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
+    const all = await this.pending(orgId, partitionId);
     return all.filter((e) => afterHlc === null || e.event.hlc > afterHlc).slice(0, limit);
   }
 
-  async pendingCount(orgId: string, projectId: string): Promise<number> {
-    return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
+  async pendingCount(orgId: string, partitionId: string): Promise<number> {
+    return this.partition(orgId, partitionId).filter((e) => e.status === 'pending').length;
   }
 
-  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]> {
-    const seen = new Map<string, { orgId: string; projectId: string }>();
+  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; partitionId: string }[]> {
+    const seen = new Map<string, { orgId: string; partitionId: string }>();
     for (const l of this.events.values()) {
-      if (l.status === 'pending' && l.event.actorId === actorId) seen.set(`${l.event.orgId}/${l.event.projectId}`, { orgId: l.event.orgId, projectId: l.event.projectId });
+      if (l.status === 'pending' && l.event.actorId === actorId) seen.set(`${l.event.orgId}/${l.event.partitionId}`, { orgId: l.event.orgId, partitionId: l.event.partitionId });
     }
-    return [...seen.values()].sort((a, b) => (`${a.orgId}/${a.projectId}` < `${b.orgId}/${b.projectId}` ? -1 : 1));
+    return [...seen.values()].sort((a, b) => (`${a.orgId}/${a.partitionId}` < `${b.orgId}/${b.partitionId}` ? -1 : 1));
   }
 
-  async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
-    return this.partition(orgId, projectId).filter((e) => e.status === 'pending' && e.event.actorId === actorId).length;
+  async pendingCountBy(orgId: string, partitionId: string, actorId: string): Promise<number> {
+    return this.partition(orgId, partitionId).filter((e) => e.status === 'pending' && e.event.actorId === actorId).length;
   }
 
-  async count(orgId: string, projectId: string): Promise<number> {
-    return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected').length;
+  async count(orgId: string, partitionId: string): Promise<number> {
+    return this.partition(orgId, partitionId).filter((e) => e.status !== 'rejected').length;
   }
 
-  async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
-    return this.partition(orgId, projectId).filter((e) => e.status !== 'rejected');
+  async all(orgId: string, partitionId: string): Promise<LocalEvent[]> {
+    return this.partition(orgId, partitionId).filter((e) => e.status !== 'rejected');
   }
 
-  async cursor(orgId: string, projectId: string): Promise<number> {
-    return this.cursors.get(`${orgId}/${projectId}`) ?? 0;
+  async cursor(orgId: string, partitionId: string): Promise<number> {
+    return this.cursors.get(`${orgId}/${partitionId}`) ?? 0;
   }
 
-  async setCursor(orgId: string, projectId: string, seq: number): Promise<void> {
-    await this.commit({ cursor: { orgId, projectId, seq } });
+  async setCursor(orgId: string, partitionId: string, seq: number): Promise<void> {
+    await this.commit({ cursor: { orgId, partitionId, seq } });
   }
 
-  async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.commit({ prune: { orgId, projectId, uptoSeq } });
+  async prune(orgId: string, partitionId: string, uptoSeq: number): Promise<void> {
+    await this.commit({ prune: { orgId, partitionId, uptoSeq } });
   }
 
-  private async pruneNow(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
+  private async pruneNow(orgId: string, partitionId: string, uptoSeq: number): Promise<void> {
     for (const [id, e] of this.events) {
-      if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.projectId === projectId
+      if (e.status === 'confirmed' && e.event.orgId === orgId && e.event.partitionId === partitionId
           && (e.event.serverSeq ?? Infinity) <= uptoSeq) this.events.delete(id);
     }
   }
@@ -158,16 +158,16 @@ export class MemoryStore implements EventStore {
     await this.commit({ meta: { [key]: value } });
   }
 
-  async rejected(orgId?: string, projectId?: string): Promise<LocalEvent[]> {
+  async rejected(orgId?: string, partitionId?: string): Promise<LocalEvent[]> {
     return [...this.events.values()]
       .filter((e) => e.status === 'rejected')
-      .filter((e) => orgId === undefined || (e.event.orgId === orgId && e.event.projectId === projectId))
+      .filter((e) => orgId === undefined || (e.event.orgId === orgId && e.event.partitionId === partitionId))
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
   }
 
-  private partition(orgId: string, projectId: string): LocalEvent[] {
+  private partition(orgId: string, partitionId: string): LocalEvent[] {
     return [...this.events.values()].filter(
-      (e) => e.event.orgId === orgId && e.event.projectId === projectId
+      (e) => e.event.orgId === orgId && e.event.partitionId === partitionId
     );
   }
 }

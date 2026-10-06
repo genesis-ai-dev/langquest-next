@@ -65,7 +65,7 @@ export class RecordingJournal {
   }
 
   /** Finish unfinished saves for one partition; entries that succeed or are unrecoverable leave the journal. */
-  async resume(partition: { orgId: string; projectId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
+  async resume(partition: { orgId: string; partitionId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
     const result = await resumeEntries([...(await this.all())], partition, {
       ...deps,
       // On the web a recording's blob: URL does not outlive the page. Once

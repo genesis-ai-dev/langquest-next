@@ -32,8 +32,8 @@ export const ORG_MATERIALIZER: Materializer<OrgState> = {
 
 /**
  * The organization partition on this device (docs/flow-coverage-audit.md
- * 5.A): roles, memberships, catalog toggles, project list. Same sync
- * client as a project, different fold. Small enough to pull whole.
+ * 5.A): roles, memberships, catalog toggles, partition list. Same sync
+ * client as a partition, different fold. Small enough to pull whole.
  */
 export function useOrg(orgId: string, actorId: string): OrgHandle {
   const clientRef = useRef<SyncClient<OrgState> | null>(null);
@@ -82,7 +82,7 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
       const client = new SyncClient<OrgState>({
         materializer: ORG_MATERIALIZER,
         orgId,
-        projectId: ORG_PARTITION,
+        partitionId: ORG_PARTITION,
         actorId,
         deviceId,
         store,

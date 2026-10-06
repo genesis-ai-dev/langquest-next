@@ -70,8 +70,8 @@ begin
   v_out := jsonb_build_object('id', p_record->'id', 'kind', v_kind, 'at', round((p_record->>'at')::numeric), 'n', v_n, 't', v_t);
   if diag.is_token(p_record->>'orgId') then
     v_out := v_out || jsonb_build_object('orgId', p_record->'orgId');
-    if diag.is_token(p_record->>'projectId') then
-      v_out := v_out || jsonb_build_object('projectId', p_record->'projectId');
+    if diag.is_token(p_record->>'partitionId') then
+      v_out := v_out || jsonb_build_object('partitionId', p_record->'partitionId');
     end if;
   end if;
   -- Frames only (the message line can carry what someone typed), paths cut to file names.
@@ -112,7 +112,7 @@ create table if not exists diag.records (
   install_id text not null,
   delivered_by text not null,
   org_id text,
-  project_id text,
+  partition_id text,
   kind text not null,
   -- The phone's wall clock at capture. Compare with received_at: a record
   -- from the future says the phone's clock runs ahead.
@@ -123,13 +123,13 @@ create table if not exists diag.records (
   t jsonb not null default '{}',
   stack text
 );
-create index if not exists diag_records_partition_idx on diag.records (org_id, project_id, at desc);
+create index if not exists diag_records_partition_idx on diag.records (org_id, partition_id, at desc);
 create index if not exists diag_records_install_idx on diag.records (install_id, at desc);
 create index if not exists diag_records_received_idx on diag.records (received_at);
 create index if not exists diag_records_error_idx on diag.records ((t->>'errorId')) where kind = 'error';
 
 -- Names of orgs and languages, for diag.find; the org partition only.
-create index if not exists events_org_names_idx on public.events (type, org_id) where project_id = '_org';
+create index if not exists events_org_names_idx on public.events (type, org_id) where partition_id = '_org';
 
 -- Delete what is past retention, a bounded amount per call.
 create or replace function diag.prune(p_limit int default 1000) returns int
@@ -170,7 +170,7 @@ declare
   v_record jsonb;
   v_clean jsonb;
   v_org text;
-  v_project text;
+  v_partition text;
   v_inserted int := 0;
   v_row int;
   v_day_count int;
@@ -206,14 +206,14 @@ begin
     v_clean := diag.clean(v_record);
     continue when v_clean is null;
     v_org := v_clean->>'orgId';
-    v_project := v_clean->>'projectId';
+    v_partition := v_clean->>'partitionId';
     if v_org is not null and not diag.may_tag(v_actor, v_org) then
       v_org := null;
-      v_project := null;
+      v_partition := null;
     end if;
-    insert into diag.records (id, install_id, delivered_by, org_id, project_id, kind, at, update_id, n, t, stack)
+    insert into diag.records (id, install_id, delivered_by, org_id, partition_id, kind, at, update_id, n, t, stack)
     values (
-      v_clean->>'id', v_install, v_actor, v_org, v_project, v_clean->>'kind',
+      v_clean->>'id', v_install, v_actor, v_org, v_partition, v_clean->>'kind',
       to_timestamp((v_clean->>'at')::numeric / 1000.0), v_context->>'updateId',
       v_clean->'n', v_clean->'t', v_clean->>'stack'
     )
@@ -234,55 +234,55 @@ grant execute on function public.diag_ingest(jsonb, jsonb) to authenticated;
 
 -- Orgs and languages whose id or any past name matches, with their current name.
 create or replace function diag.find(p_query text)
-returns table (kind text, org_id text, project_id text, name text)
+returns table (kind text, org_id text, partition_id text, name text)
 language sql stable security definer set search_path = public, pg_catalog as $$
   with names as (
-    select 'org'::text as kind, e.org_id, null::text as project_id, e.payload->>'name' as name, e.hlc
-      from public.events e where e.project_id = '_org' and e.type = 'v1.OrgCreated'
+    select 'org'::text as kind, e.org_id, null::text as partition_id, e.payload->>'name' as name, e.hlc
+      from public.events e where e.partition_id = '_org' and e.type = 'v1.OrgCreated'
     union all
-    select 'language', e.org_id, e.payload->>'projectId', e.payload->>'name', e.hlc
-      from public.events e where e.project_id = '_org' and e.type = 'v1.ProjectRegistered'
+    select 'language', e.org_id, e.payload->>'partitionId', e.payload->>'name', e.hlc
+      from public.events e where e.partition_id = '_org' and e.type = 'v1.PartitionRegistered'
     union all
     select 'language', e.org_id, e.payload->>'laneId', e.payload->>'name', e.hlc
-      from public.events e where e.project_id = '_org' and e.type = 'v1.LaneNamed'
+      from public.events e where e.partition_id = '_org' and e.type = 'v1.LaneNamed'
   ),
   hits as (
-    select distinct n.kind, n.org_id, n.project_id from names n
-    where n.name ilike '%' || p_query || '%' or n.org_id = p_query or n.project_id = p_query
+    select distinct n.kind, n.org_id, n.partition_id from names n
+    where n.name ilike '%' || p_query || '%' or n.org_id = p_query or n.partition_id = p_query
   )
-  select distinct on (n.kind, n.org_id, n.project_id) n.kind, n.org_id, n.project_id, n.name
-  from names n join hits h on h.kind = n.kind and h.org_id = n.org_id and h.project_id is not distinct from n.project_id
-  order by n.kind, n.org_id, n.project_id, n.hlc desc
+  select distinct on (n.kind, n.org_id, n.partition_id) n.kind, n.org_id, n.partition_id, n.name
+  from names n join hits h on h.kind = n.kind and h.org_id = n.org_id and h.partition_id is not distinct from n.partition_id
+  order by n.kind, n.org_id, n.partition_id, n.hlc desc
 $$;
 
 -- The partition as a cold phone meets it: how much there is to pull,
 -- whether a snapshot for its reducer exists and how far behind the tail it
 -- is, how much audio, and who is in it (by role, as counts).
-create or replace function diag.partition_health(p_org text, p_project text, p_reducer_version int)
+create or replace function diag.partition_health(p_org text, p_partition text, p_reducer_version int)
 returns jsonb
 language sql stable security definer set search_path = public, pg_catalog as $$
   with ev as (
     select count(*) as events, coalesce(max(server_seq), 0) as "maxSeq",
            count(*) filter (where received_at > now() - interval '7 days') as "events7d",
            max(received_at) as "lastEventAt"
-    from public.events where org_id = p_org and project_id = p_project
+    from public.events where org_id = p_org and partition_id = p_partition
   ),
   snap as (
     select reducer_version, max(server_seq) as seq, max(created_at) as created_at
-    from public.snapshots where org_id = p_org and project_id = p_project
+    from public.snapshots where org_id = p_org and partition_id = p_partition
     group by reducer_version
   ),
   blobs as (
     select count(*) as count, coalesce(sum((payload->>'size')::bigint), 0) as bytes,
            coalesce(max((payload->>'size')::bigint), 0) as "maxBytes"
-    from public.events where org_id = p_org and project_id = p_project and type = 'v1.BlobStored'
+    from public.events where org_id = p_org and partition_id = p_partition and type = 'v1.BlobStored'
   ),
   roles as (
     select coalesce(role, 'none') as role, count(*) as n from public.memberships
-    where org_id = p_org and project_id = p_project and not removed group by 1
+    where org_id = p_org and partition_id = p_partition and not removed group by 1
     union all
     select coalesce(role_id, 'none') || ' (' || scope_level || ' scope)', count(*) from public.org_memberships
-    where org_id = p_org and not removed and (scope_level = 'org' or project_id = p_project or lane_id = p_project)
+    where org_id = p_org and not removed and (scope_level = 'org' or partition_id = p_partition or lane_id = p_partition)
     group by 1
   )
   select jsonb_build_object(
@@ -294,7 +294,7 @@ language sql stable security definer set search_path = public, pg_catalog as $$
         'tail', (select "maxSeq" from ev) - s.seq,
         'bytes', case when s.reducer_version = p_reducer_version then (
           select length(x.state::text) from public.snapshots x
-          where x.org_id = p_org and x.project_id = p_project and x.reducer_version = s.reducer_version and x.server_seq = s.seq
+          where x.org_id = p_org and x.partition_id = p_partition and x.reducer_version = s.reducer_version and x.server_seq = s.seq
         ) end
       ) order by s.reducer_version desc) from snap s), '[]'::jsonb),
     'blobs', (select to_jsonb(blobs) from blobs),
@@ -305,19 +305,19 @@ $$;
 -- Everyone who can open the partition, by profile id only, with what their
 -- phones last did: last event pushed here, which devices pushed it, and
 -- whether any install of theirs has delivered diagnostics.
-create or replace function diag.members(p_org text, p_project text)
+create or replace function diag.members(p_org text, p_partition text)
 returns table (profile_id text, roles text, devices text[], last_event_at timestamptz, installs text[], last_diag_at timestamptz)
 language sql stable security definer set search_path = public, diag, pg_catalog as $$
   with people as (
     select m.profile_id, coalesce(m.role, 'none') as role from public.memberships m
-    where m.org_id = p_org and m.project_id = p_project and not m.removed
+    where m.org_id = p_org and m.partition_id = p_partition and not m.removed
     union
     select m.profile_id, coalesce(m.role_id, 'none') from public.org_memberships m
-    where m.org_id = p_org and not m.removed and (m.scope_level = 'org' or m.project_id = p_project or m.lane_id = p_project)
+    where m.org_id = p_org and not m.removed and (m.scope_level = 'org' or m.partition_id = p_partition or m.lane_id = p_partition)
   ),
   pushed as (
     select e.actor_id, array_agg(distinct e.device_id) as devices, max(e.received_at) as last_at
-    from public.events e where e.org_id = p_org and e.project_id = p_project group by e.actor_id
+    from public.events e where e.org_id = p_org and e.partition_id = p_partition group by e.actor_id
   )
   select p.profile_id,
          string_agg(distinct p.role, ','),
@@ -333,18 +333,18 @@ $$;
 -- What each install that worked in this partition reported over the window,
 -- aggregated per kind. Errors are per install, not per partition: a crash
 -- is not tagged with the language that was open.
-create or replace function diag.summary(p_org text, p_project text, p_since interval default interval '14 days', p_install text default null)
+create or replace function diag.summary(p_org text, p_partition text, p_since interval default interval '14 days', p_install text default null)
 returns jsonb
 language sql stable security definer set search_path = diag, public, pg_catalog as $$
   with scope as (
     select distinct r.install_id from diag.records r
-    where r.org_id = p_org and r.project_id = p_project and r.at > now() - p_since
+    where r.org_id = p_org and r.partition_id = p_partition and r.at > now() - p_since
       and (p_install is null or r.install_id = p_install)
   ),
   r as (
     select r.* from diag.records r join scope using (install_id)
     where r.at > now() - p_since
-      and ((r.org_id = p_org and r.project_id = p_project) or r.kind in ('error', 'device'))
+      and ((r.org_id = p_org and r.partition_id = p_partition) or r.kind in ('error', 'device'))
   ),
   sync as (
     select install_id, jsonb_build_object(
@@ -426,9 +426,9 @@ $$;
 
 -- One install's records in order: the timeline around a complaint.
 create or replace function diag.timeline(p_install text, p_since interval default interval '2 days', p_limit int default 200)
-returns table (at timestamptz, received_at timestamptz, kind text, org_id text, project_id text, update_id text, n jsonb, t jsonb, stack text)
+returns table (at timestamptz, received_at timestamptz, kind text, org_id text, partition_id text, update_id text, n jsonb, t jsonb, stack text)
 language sql stable security definer set search_path = diag, pg_catalog as $$
-  select r.at, r.received_at, r.kind, r.org_id, r.project_id, r.update_id, r.n, r.t, r.stack
+  select r.at, r.received_at, r.kind, r.org_id, r.partition_id, r.update_id, r.n, r.t, r.stack
   from diag.records r
   where r.install_id = p_install and r.at > now() - p_since
   order by r.at desc
@@ -449,7 +449,7 @@ language sql stable security definer set search_path = diag, pg_catalog as $$
     'stack', e.stack,
     'context', (select i.context from diag.installs i where i.install_id = e.install_id),
     'before', (
-      select jsonb_agg(jsonb_build_object('at', b.at, 'kind', b.kind, 'projectId', b.project_id, 'n', b.n, 't', b.t) order by b.at)
+      select jsonb_agg(jsonb_build_object('at', b.at, 'kind', b.kind, 'partitionId', b.partition_id, 'n', b.n, 't', b.t) order by b.at)
       from (select * from diag.records b where b.install_id = e.install_id and b.at <= e.at and b.id <> e.id order by b.at desc limit 30) b
     )
   ) order by e.at desc), '[]'::jsonb)

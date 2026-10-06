@@ -5,13 +5,13 @@
 // uses for it.
 import {
   decodeHlc, deriveKinds, derivePassage, kindOf, laneName, unitTitle,
-  type KindDef, type PassageState, type ProjectState, type ReviewView
+  type KindDef, type PassageState, type PartitionState, type ReviewView
 } from '@langquest-next/core';
 import type { Ctx } from './ctx';
 import { indexesFor } from './indexes';
 
 export interface PassageView {
-  state: ProjectState;
+  state: PartitionState;
   unitId: string;
   laneId: string;
   /** "Luke 15:11-32" */
@@ -25,14 +25,14 @@ export interface PassageView {
 
 /** The passage a screen is about, from its `unitId`/`laneId` params; null while loading or when unknown. */
 export function usePassage(ctx: Ctx): PassageView | null {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const unitId = ctx.params['unitId'];
   const laneId = ctx.params['laneId'] ?? ctx.laneId ?? undefined;
   if (!state || !unitId || !laneId || !state.units[unitId]) return null;
   return passageView(state, unitId, laneId);
 }
 
-export function passageView(state: ProjectState, unitId: string, laneId: string): PassageView {
+export function passageView(state: PartitionState, unitId: string, laneId: string): PassageView {
   const idx = indexesFor(state);
   const kinds = deriveKinds(state);
   return {

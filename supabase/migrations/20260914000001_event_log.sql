@@ -7,7 +7,7 @@
 create table public.events (
   id text primary key,
   org_id text not null,
-  project_id text not null,
+  partition_id text not null,
   server_seq bigint not null,
   type text not null,
   actor_id text not null,
@@ -16,32 +16,32 @@ create table public.events (
   parent_event_id text,
   payload jsonb not null,
   received_at timestamptz not null default now(),
-  unique (org_id, project_id, server_seq)
+  unique (org_id, partition_id, server_seq)
 );
 
 -- Index plan from PLAN.md section 5.
-create index events_pull_idx on public.events (org_id, project_id, server_seq);
-create index events_parent_idx on public.events (org_id, project_id, parent_event_id)
+create index events_pull_idx on public.events (org_id, partition_id, server_seq);
+create index events_parent_idx on public.events (org_id, partition_id, parent_event_id)
   where parent_event_id is not null;
-create index events_type_idx on public.events (org_id, project_id, type);
+create index events_type_idx on public.events (org_id, partition_id, type);
 
 create table public.snapshots (
   org_id text not null,
-  project_id text not null,
+  partition_id text not null,
   reducer_version int not null,
   server_seq bigint not null,
   state jsonb not null,
   created_at timestamptz not null default now(),
-  primary key (org_id, project_id, reducer_version, server_seq)
+  primary key (org_id, partition_id, reducer_version, server_seq)
 );
 
--- Per-project sequence counter. One row per partition; the append RPC locks
--- it, which serializes writes per project (and only per project).
+-- Per-partition sequence counter. One row per partition; the append RPC locks
+-- it, which serializes writes per partition (and only per partition).
 create table public.partition_cursors (
   org_id text not null,
-  project_id text not null,
+  partition_id text not null,
   next_seq bigint not null default 1,
-  primary key (org_id, project_id)
+  primary key (org_id, partition_id)
 );
 
 create or replace function public.events_immutable()
@@ -76,19 +76,19 @@ $$;
 -- Returns the actor's role, or null if not a member or removed.
 -- ---------------------------------------------------------------------------
 create or replace function public.member_role(
-  p_org_id text, p_project_id text, p_profile_id text
+  p_org_id text, p_partition_id text, p_profile_id text
 ) returns text language sql stable as $$
   with role_events as (
     select payload->>'role' as role, hlc
     from public.events
-    where org_id = p_org_id and project_id = p_project_id
+    where org_id = p_org_id and partition_id = p_partition_id
       and type in ('v1.MemberAdded', 'v1.MemberRoleChanged')
       and payload->>'profileId' = p_profile_id
   ),
   removed_events as (
     select (type = 'v1.MemberRemoved') as removed, hlc
     from public.events
-    where org_id = p_org_id and project_id = p_project_id
+    where org_id = p_org_id and partition_id = p_partition_id
       and type in ('v1.MemberAdded', 'v1.MemberRemoved')
       and payload->>'profileId' = p_profile_id
   )
@@ -99,7 +99,7 @@ create or replace function public.member_role(
 $$;
 
 -- Which roles may emit which event types. Bootstrapping is handled in
--- append_events: a project with no members accepts ProjectCreated and the
+-- append_events: a partition with no members accepts PartitionCreated and the
 -- creator adding themselves.
 create or replace function public.role_may_emit(p_role text, p_type text)
 returns boolean language sql immutable as $$
@@ -124,7 +124,7 @@ language plpgsql security definer set search_path = public as $$
 declare
   ev jsonb;
   v_actor text := public.caller_id();
-  v_org text; v_project text; v_type text; v_id text;
+  v_org text; v_partition text; v_type text; v_id text;
   v_role text; v_seq bigint; v_existing bigint; v_count bigint;
 begin
   if jsonb_typeof(p_events) <> 'array' then
@@ -132,9 +132,9 @@ begin
   end if;
 
   for ev in select * from jsonb_array_elements(p_events) loop
-    v_id := ev->>'id'; v_org := ev->>'orgId'; v_project := ev->>'projectId'; v_type := ev->>'type';
+    v_id := ev->>'id'; v_org := ev->>'orgId'; v_partition := ev->>'partitionId'; v_type := ev->>'type';
 
-    if v_id is null or v_org is null or v_project is null or v_type is null or ev->'payload' is null then
+    if v_id is null or v_org is null or v_partition is null or v_type is null or ev->'payload' is null then
       id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope';
       return next; continue;
     end if;
@@ -151,14 +151,14 @@ begin
     end if;
 
     -- Authorization: membership fold, with the bootstrap exception.
-    v_role := public.member_role(v_org, v_project, ev->>'actorId');
+    v_role := public.member_role(v_org, v_partition, ev->>'actorId');
     if v_role is null then
-      -- Bootstrap: while the project has no members, the creator may create
+      -- Bootstrap: while the partition has no members, the creator may create
       -- it and add exactly themselves. Everything else needs a role.
       select count(*) into v_count from public.events e
-        where e.org_id = v_org and e.project_id = v_project and e.type = 'v1.MemberAdded';
+        where e.org_id = v_org and e.partition_id = v_partition and e.type = 'v1.MemberAdded';
       if not (v_count = 0 and (
-        v_type = 'v1.ProjectCreated'
+        v_type = 'v1.PartitionCreated'
         or (v_type = 'v1.MemberAdded' and ev->'payload'->>'profileId' = ev->>'actorId')
       )) then
         id := v_id; accepted := false; server_seq := null; reason := 'not a member';
@@ -170,16 +170,16 @@ begin
       return next; continue;
     end if;
 
-    -- Assign the next sequence for this partition (row lock serializes per project).
-    insert into public.partition_cursors (org_id, project_id) values (v_org, v_project)
+    -- Assign the next sequence for this partition (row lock serializes per partition).
+    insert into public.partition_cursors (org_id, partition_id) values (v_org, v_partition)
       on conflict do nothing;
     update public.partition_cursors c set next_seq = c.next_seq + 1
-      where c.org_id = v_org and c.project_id = v_project
+      where c.org_id = v_org and c.partition_id = v_partition
       returning c.next_seq - 1 into v_seq;
 
-    insert into public.events (id, org_id, project_id, server_seq, type, actor_id, device_id,
+    insert into public.events (id, org_id, partition_id, server_seq, type, actor_id, device_id,
                                hlc, parent_event_id, payload)
-    values (v_id, v_org, v_project, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
+    values (v_id, v_org, v_partition, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
             ev->>'hlc', ev->>'parentEventId', ev->'payload');
 
     id := v_id; accepted := true; server_seq := v_seq; reason := null;
@@ -191,22 +191,22 @@ end $$;
 -- pull_events: bounded page of a partition after a cursor. Members only.
 -- ---------------------------------------------------------------------------
 create or replace function public.pull_events(
-  p_org_id text, p_project_id text, p_after bigint default 0, p_limit int default 500
+  p_org_id text, p_partition_id text, p_after bigint default 0, p_limit int default 500
 ) returns setof public.events
 language plpgsql security definer set search_path = public stable as $$
 declare
   v_actor text := public.caller_id();
 begin
   -- An empty partition is readable by anyone (there is nothing to read); a
-  -- populated one only by members. Lets a device open a project before the
+  -- populated one only by members. Lets a device open a partition before the
   -- creator's bootstrap has synced without treating that as an error.
-  if v_actor is not null and public.member_role(p_org_id, p_project_id, v_actor) is null
-     and exists (select 1 from public.events e where e.org_id = p_org_id and e.project_id = p_project_id) then
+  if v_actor is not null and public.member_role(p_org_id, p_partition_id, v_actor) is null
+     and exists (select 1 from public.events e where e.org_id = p_org_id and e.partition_id = p_partition_id) then
     raise exception 'not a member' using errcode = '42501';
   end if;
   return query
     select * from public.events e
-    where e.org_id = p_org_id and e.project_id = p_project_id and e.server_seq > p_after
+    where e.org_id = p_org_id and e.partition_id = p_partition_id and e.server_seq > p_after
     order by e.server_seq
     limit least(greatest(p_limit, 1), 1000);
 end $$;

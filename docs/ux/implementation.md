@@ -6,7 +6,7 @@ before it followed the partner demo (docs/decisions.md 28); see
 
 The mobile app implemented the connected journey from `one-next-action.html`.
 The HTML remains an isolated design reference. Mobile screens derive progress
-from project events and use the existing local store and sync queue.
+from partition events and use the existing local store and sync queue.
 
 ## Connected journey
 
@@ -28,10 +28,10 @@ includes inherited reference audio and relevant glossary recordings from other
 passages. Audio controls show when a file still needs downloading.
 
 Reference listening completion stays on the current phone. Its key includes
-organization, project, actor, lane, and passage. Changing reference content
-invalidates completion. Term progress and takes come from shared project events.
+organization, partition, actor, lane, and passage. Changing reference content
+invalidates completion. Term progress and takes come from shared partition events.
 
-The setup wizard configures the active project. It does not add project switching.
+The setup wizard configures the open language. It does not add language switching.
 Its reference step selects existing source recordings or accepts written content.
 It does not record or import new reference audio.
 

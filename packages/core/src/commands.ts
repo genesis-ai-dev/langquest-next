@@ -1,6 +1,6 @@
 import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 import { currentTake, deriveTakeStatus } from './workflow';
 import { derivePassage } from './passage';
 import type { UsedReference } from './references';
@@ -121,7 +121,7 @@ export const MAX_USED_ITEMS = 200;
 
 export type { QuestionSpec };
 
-export function commands(state: ProjectState, idx: Indexes = buildIndexes(state)): Commands {
+export function commands(state: PartitionState, idx: Indexes = buildIndexes(state)): Commands {
   const ids = (commandId: string) => {
     let n = 0;
     return () => `${commandId}:${n++}`;

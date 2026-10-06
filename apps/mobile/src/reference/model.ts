@@ -5,7 +5,7 @@
 // the old "Source Bibles" toggles. Pure: no React Native, so it is tested.
 import {
   catalogKey, libraryItemView, recommendedFor, subscriptionItemId, testamentOf,
-  type LaneRecommendation, type LibraryDoc, type LibraryItemState, type OrgState, type Privilege, type ProjectState,
+  type LaneRecommendation, type LibraryDoc, type LibraryItemState, type OrgState, type Privilege, type PartitionState,
   type RecommendationSource, type Register, type SourceBookDoc, type SourceDoc, type TimingDoc
 } from '@langquest-next/core';
 import type { SharedItem } from '../library/model';
@@ -37,7 +37,7 @@ export interface RecState {
   effective: RecommendationSource | null;
 }
 
-export function recState(orgRecs: Record<string, Register<boolean>> | undefined, state: ProjectState | null, level: Level, itemId: string): RecState {
+export function recState(orgRecs: Record<string, Register<boolean>> | undefined, state: PartitionState | null, level: Level, itemId: string): RecState {
   const org = orgRecs?.[itemId]?.value === true;
   if (level.kind === 'org') return { org, lane: null, effective: org ? 'organization' : null };
   const say = state?.laneReferences[level.laneId]?.[itemId]?.value;

@@ -99,7 +99,7 @@ describe('a language using library versions', () => {
 
   it('hides the parts a new version drops and brings them back when a later one has them again (TPL-7)', () => {
     const apply = (state: ReturnType<typeof emptyState>, specs: EventSpec[], at: number) =>
-      fold(specs.map((s, i) => ({ ...s, orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'd', hlc: `${String(at + i).padStart(15, '0')}:000000:d` }) as AnyEvent), state);
+      fold(specs.map((s, i) => ({ ...s, orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'd', hlc: `${String(at + i).padStart(15, '0')}:000000:d` }) as AnyEvent), state);
     let state = apply(emptyState(), [{ id: 'lane', type: 'v1.LaneAdded', payload: { laneId: 'L1', languoidId: 'din' } } as EventSpec], 1);
     state = apply(state, selectTemplateSpecs(state, { commandId: 'c1', laneId: 'L1', itemId: 'ruth', docHash: H('1'), doc: v1, versification: eng }), 10);
     const leaves = () => laneLeafUnits(state, buildIndexes(state), 'L1');
@@ -132,7 +132,7 @@ describe('a language using library versions', () => {
     };
     expect(validateDoc(flow)).toBeNull();
     const specs = selectFlowSpecs(emptyState(), { commandId: 'f', laneId: 'L1', itemId: 'elders', docHash: H('9'), doc: flow });
-    const state = fold(specs.map((s, i) => ({ ...s, orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent));
+    const state = fold(specs.map((s, i) => ({ ...s, orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent));
     const f = deriveFlow(state, 'L1');
     expect(f.name).toBe('Elders first');
     expect(f.itemId).toBe('elders');

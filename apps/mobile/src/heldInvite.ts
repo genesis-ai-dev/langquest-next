@@ -119,7 +119,7 @@ export interface InvitePreview {
   orgId?: string;
   orgName?: string | null;
   roleName?: string | null;
-  scopeLevel?: 'org' | 'project' | 'lane' | null;
+  scopeLevel?: 'org' | 'partition' | 'lane' | null;
   languageName?: string | null;
   label?: string | null;
   invitedBy?: string | null;

@@ -16,9 +16,9 @@ import {
 
 let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);
-function ev<T extends EventType>(type: T, payload: EventPayloads[T], projectId = 'p1'): AnyEvent {
+function ev<T extends EventType>(type: T, payload: EventPayloads[T], partitionId = 'p1'): AnyEvent {
   seq += 1;
-  return { id: `x${seq}`, type, orgId: 'o1', projectId, actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload } as AnyEvent;
+  return { id: `x${seq}`, type, orgId: 'o1', partitionId, actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload } as AnyEvent;
 }
 const fromSpecs = (specs: EventSpec[]) => specs.map((s) => ev(s.type, s.payload as never));
 /** Apply org writes on top of a base built first, so the writes carry the later clocks. */
@@ -30,21 +30,21 @@ function orgFixture(): OrgState {
     ev('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_structure', 'invite_members', 'review'] }, '_org'),
     ev('v1.RoleDefined', { roleId: 'reviewer', name: 'Reviewer', privileges: ['review', 'view_status'] }, '_org'),
     ev('v1.RoleDefined', { roleId: 'translator', name: 'Translator', privileges: ['translate'] }, '_org'),
-    ev('v1.ProjectRegistered', { projectId: 'p1', name: 'Luke' }, '_org'),
-    ev('v1.ProjectRegistered', { projectId: 'p2', name: 'Psalms' }, '_org'),
+    ev('v1.PartitionRegistered', { partitionId: 'p1', name: 'Luke' }, '_org'),
+    ev('v1.PartitionRegistered', { partitionId: 'p2', name: 'Psalms' }, '_org'),
     ev('v1.OrgMemberAdded', { profileId: 'admin', roleId: 'org_admin', scope: { level: 'org' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'pat', roleId: 'reviewer', scope: { level: 'project', projectId: 'p1' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'lin', roleId: 'reviewer', scope: { level: 'lane', projectId: 'p1', laneId: 'L1' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'tom', roleId: 'translator', scope: { level: 'lane', projectId: 'p1', laneId: 'L1' } }, '_org'),
-    ev('v1.OrgMemberAdded', { profileId: 'sue', roleId: 'reviewer', scope: { level: 'project', projectId: 'p2' } }, '_org'),
+    ev('v1.OrgMemberAdded', { profileId: 'pat', roleId: 'reviewer', scope: { level: 'partition', partitionId: 'p1' } }, '_org'),
+    ev('v1.OrgMemberAdded', { profileId: 'lin', roleId: 'reviewer', scope: { level: 'lane', partitionId: 'p1', laneId: 'L1' } }, '_org'),
+    ev('v1.OrgMemberAdded', { profileId: 'tom', roleId: 'translator', scope: { level: 'lane', partitionId: 'p1', laneId: 'L1' } }, '_org'),
+    ev('v1.OrgMemberAdded', { profileId: 'sue', roleId: 'reviewer', scope: { level: 'partition', partitionId: 'p2' } }, '_org'),
     ev('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'reviewer', scope: { level: 'org' } }, '_org'),
     ev('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'org' } }, '_org')
   ]);
 }
 
-function projectFixture() {
+function partitionFixture() {
   return fold([
-    ev('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
+    ev('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
     ev('v1.MemberAdded', { profileId: 'old', role: 'reviewer' }),
     ev('v1.LaneAdded', { laneId: 'L1', languoidId: 'din' }),
     ev('v1.LaneTemplateSelected', { laneId: 'L1', templateId: 'bible', catalogVersion: 1 })
@@ -52,27 +52,27 @@ function projectFixture() {
 }
 
 describe('what an admin may grant (ORG-6)', () => {
-  it('is the home level and below, never above your own scope, and never a project (decision 34)', () => {
+  it('is the home level and below, never above your own scope, and never a partition (decision 34)', () => {
     expect(assignableLevels({ level: 'org' }, 'org')).toEqual(['org', 'lane']);
     expect(assignableLevels({ level: 'org' }, 'lane')).toEqual(['lane']);
     // Someone assigned to all languages the old way grants at a language.
-    expect(assignableLevels({ level: 'project', projectId: 'p1' }, 'org')).toEqual(['lane']);
-    expect(assignableLevels({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'org')).toEqual(['lane']);
+    expect(assignableLevels({ level: 'partition', partitionId: 'p1' }, 'org')).toEqual(['lane']);
+    expect(assignableLevels({ level: 'lane', partitionId: 'p1', laneId: 'L1' }, 'org')).toEqual(['lane']);
     expect(assignableLevels(null, 'org')).toEqual([]);
-    expect(grantFloor({ level: 'project', projectId: 'p1' }, 'lane')).toBe('lane');
+    expect(grantFloor({ level: 'partition', partitionId: 'p1' }, 'lane')).toBe('lane');
   });
 });
 
 describe('members per level (ORG-5)', () => {
   const org = orgFixture();
-  const project = projectFixture();
-  const entries = memberEntries(org, project, 'p1');
+  const partition = partitionFixture();
+  const entries = memberEntries(org, partition, 'p1');
 
-  it('lists active org memberships and project-log members, not removed ones', () => {
+  it('lists active org memberships and partition-log members, not removed ones', () => {
     expect(entries.map((e) => e.profileId).sort()).toEqual(['admin', 'lin', 'old', 'pat', 'sue', 'tom']);
     const old = entries.find((e) => e.profileId === 'old')!;
     expect(old.legacyRole).toBe('reviewer');
-    expect(old.scope).toEqual({ level: 'project', projectId: 'p1' });
+    expect(old.scope).toEqual({ level: 'partition', partitionId: 'p1' });
   });
 
   it('puts each person at their own level, higher levels above as view only', () => {
@@ -90,8 +90,8 @@ describe('members per level (ORG-5)', () => {
   });
 
   it('edits only at the home level and below', () => {
-    expect(editableAt({ level: 'lane', projectId: 'p1', laneId: 'L1' }, 'org')).toBe(true);
-    expect(editableAt({ level: 'project', projectId: 'p1' }, 'org')).toBe(true);
+    expect(editableAt({ level: 'lane', partitionId: 'p1', laneId: 'L1' }, 'org')).toBe(true);
+    expect(editableAt({ level: 'partition', partitionId: 'p1' }, 'org')).toBe(true);
     expect(editableAt({ level: 'org' }, 'lane')).toBe(false);
   });
 });
@@ -108,13 +108,13 @@ describe('changing a member (ORG-7)', () => {
     const base = orgFixture();
     const plan = changeMembership(pat, { roleId: 'translator', scope: pat.scope });
     const after = applyOrg(plan.apply, base);
-    expect(after.members['pat']!['project:p1']!.roleId.value).toBe('translator');
+    expect(after.members['pat']!['partition:p1']!.roleId.value).toBe('translator');
     const undone = applyOrg(plan.undo, after);
-    expect(undone.members['pat']!['project:p1']!.roleId.value).toBe('reviewer');
+    expect(undone.members['pat']!['partition:p1']!.roleId.value).toBe('reviewer');
   });
 
   it('moves a member to a new scope and back', () => {
-    const scope = { level: 'lane' as const, projectId: 'p1', laneId: 'L1' };
+    const scope = { level: 'lane' as const, partitionId: 'p1', laneId: 'L1' };
     const base = orgFixture();
     const plan = changeMembership(pat, { roleId: 'reviewer', scope });
     const after = applyOrg(plan.apply, base);
@@ -135,11 +135,11 @@ describe('changing a member (ORG-7)', () => {
 
 describe('review teams (FLOW-5)', () => {
   it('offers people holding Review over the language', () => {
-    expect(reviewEligible(orgFixture(), projectFixture(), 'p1', 'L1')).toEqual(['admin', 'lin', 'old', 'pat']);
+    expect(reviewEligible(orgFixture(), partitionFixture(), 'p1', 'L1')).toEqual(['admin', 'lin', 'old', 'pat']);
   });
 
   it('saves only what changed, and Undo restores the name and members', () => {
-    let state = projectFixture();
+    let state = partitionFixture();
     const created = saveTeam(state, { commandId: 'c1', teamId: 't1', laneId: 'L1', name: 'Elders', members: ['lin', 'pat'] });
     expect(created.undo).toBeNull();
     state = fold(fromSpecs(created.specs), state);
@@ -178,10 +178,10 @@ describe('a new language (ORG-2)', () => {
   });
 
   it('starts the language\'s own partition, then adds the lane, its name, its template and its passages', () => {
-    const state = projectFixture();
+    const state = partitionFixture();
     const specs = addLanguage(state, { commandId: 'c9', laneId: 'L2', code: 'NUS', name: 'Nuer', template: templateFor(state, 'L2', booksInScope(doc, 'nt')) });
     // Each language is its own partition (decisions.md 37), and its first event starts it.
-    expect(specs.slice(0, 4).map((s) => s.type)).toEqual(['v1.ProjectCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
+    expect(specs.slice(0, 4).map((s) => s.type)).toEqual(['v1.PartitionCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
     expect(new Set(specs.map((s) => s.id)).size).toBe(specs.length);
     const after = fold(fromSpecs(specs), state);
     expect(laneName(after, 'L2')).toBe('Nuer');
@@ -190,7 +190,7 @@ describe('a new language (ORG-2)', () => {
     expect(languageProgress(after, 'L2').total).toBe(24);
     // Within one partition, units already there are not added again.
     const again = addLanguage(after, { commandId: 'c10', laneId: 'L3', code: 'shk', name: 'Shilluk', template: templateFor(after, 'L3', ['LUK']) });
-    expect(again.map((s) => s.type)).toEqual(['v1.ProjectCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
+    expect(again.map((s) => s.type)).toEqual(['v1.PartitionCreated', 'v1.LaneAdded', 'v1.LaneNamed', 'v2.LaneTemplateSelected']);
     expect(() => addLanguage(after, { commandId: 'c11', laneId: 'L2', code: 'x', name: 'X', template: [] })).toThrow();
   });
 
@@ -201,13 +201,13 @@ describe('a new language (ORG-2)', () => {
       shared: { org_id: org, org_name: org, item_id: name, kind: 'template', name, description: '', subscribable: true, version_count: 1, latest_hash: HASH, updated_hlc: '1' }
     });
     const starter = shared('langquest', 'FIA passages (English)');
-    const base = projectFixture();
+    const base = partitionFixture();
     const state = fold(fromSpecs([
       ...templateFor(base, 'L1'),
       { id: 'l9', type: 'v1.LaneAdded', payload: { laneId: 'L9', languoidId: 'nus' } } as EventSpec
     ]), base);
     expect(suggestedTemplate(state, [ours('mine'), ours('lq.bible'), starter])).toBe('ours:lq.bible');
-    expect(suggestedTemplate(projectFixture(), [ours('mine'), shared('wa', 'Acts'), starter])).toBe(starter.key);
+    expect(suggestedTemplate(partitionFixture(), [ours('mine'), shared('wa', 'Acts'), starter])).toBe(starter.key);
     expect(suggestedTemplate(null, [shared('wa', 'Acts')])).toBe('shared:wa/Acts');
     expect(suggestedTemplate(null, [])).toBeNull();
     expect(newLaneId('D I N', 'abcdef12-3456')).toBe('L-din-abcdef');

@@ -6,8 +6,8 @@ import { emptyState } from '../src/state';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture, shuffle } from './fixtures';
 
 const CATALOG: EventType[] = [
-  'v1.ProjectCreated',
-  'v1.ProjectConfigChanged',
+  'v1.PartitionCreated',
+  'v1.PartitionConfigChanged',
   'v1.MemberAdded',
   'v1.MemberRoleChanged',
   'v1.MemberRemoved',
@@ -31,7 +31,7 @@ const CATALOG: EventType[] = [
   'v1.OrgMemberAdded',
   'v1.OrgMemberRemoved',
   'v1.CatalogItemToggled',
-  'v1.ProjectRegistered',
+  'v1.PartitionRegistered',
   'v1.LaneTemplateSelected',
   'v1.LaneFlowSelected',
   'v1.WorkflowStepSet',
@@ -137,7 +137,7 @@ describe('reducer tie-breaking', () => {
   });
 });
 
-describe('reducer survives bad input (invariant: one bad event never bricks a project)', () => {
+describe('reducer survives bad input (invariant: one bad event never bricks a partition)', () => {
   it('skips a malformed event, counts it, and derived views still work', () => {
     const events = buildFixture();
     const rec = events.find((e) => e.type === 'v1.RecordingAdded')!;

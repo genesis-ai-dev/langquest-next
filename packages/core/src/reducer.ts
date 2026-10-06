@@ -1,5 +1,5 @@
 import type { AnyEvent, EventEnvelope } from './events';
-import type { Member, ProjectState, Register } from './state';
+import type { Member, PartitionState, Register } from './state';
 import { emptyState } from './state';
 import { validateEvent } from './validate';
 import { studyMarkKey, type Undo } from './record';
@@ -28,7 +28,7 @@ export function stateRevision(state: object): number {
  * (PLAN.md invariants 2 and 3). Mutates and returns `state` for speed; callers
  * that need immutability clone first.
  */
-export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
+export function applyEvent(state: PartitionState, event: AnyEvent): PartitionState {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
   REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
@@ -41,11 +41,11 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
   if (state.redactions[event.id]) return state;
 
   switch (event.type) {
-    case 'v1.ProjectCreated':
-      setRegister(state, 'project', event, event.payload);
+    case 'v1.PartitionCreated':
+      setRegister(state, 'partition', event, event.payload);
       break;
 
-    case 'v1.ProjectConfigChanged':
+    case 'v1.PartitionConfigChanged':
       setRegister(state, 'config', event, event.payload.config);
       break;
 
@@ -182,7 +182,7 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     }
 
     case 'v1.SourceImported':
-      state.sourcePins[`${event.payload.sourceProjectId}:${event.payload.sourceSeq}`] ??=
+      state.sourcePins[`${event.payload.sourcePartitionId}:${event.payload.sourceSeq}`] ??=
         event.payload;
       break;
 
@@ -448,7 +448,7 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.OrgMemberAdded':
     case 'v1.OrgMemberRemoved':
     case 'v1.CatalogItemToggled':
-    case 'v1.ProjectRegistered':
+    case 'v1.PartitionRegistered':
     case 'v1.InviteIssued':
     case 'v1.InviteRedeemed':
     case 'v1.JoinDecided':
@@ -459,7 +459,7 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
     case 'v1.LibraryItemArchived':
     case 'v1.LibrarySubscribed':
     case 'v1.LibraryPinned':
-      // Org partition events (org.ts). Nothing to fold into project state.
+      // Org partition events (org.ts). Nothing to fold into partition state.
       break;
 
     default: {
@@ -472,7 +472,7 @@ export function applyEvent(state: ProjectState, event: AnyEvent): ProjectState {
   return state;
 }
 
-export function fold(events: Iterable<AnyEvent>, initial: ProjectState = emptyState()): ProjectState {
+export function fold(events: Iterable<AnyEvent>, initial: PartitionState = emptyState()): PartitionState {
   let state = initial;
   // Redactions first so their targets are never applied, whatever the order.
   const rest: AnyEvent[] = [];
@@ -508,14 +508,14 @@ function earliestUndo(table: Record<string, Undo>, key: string, event: EventEnve
 }
 
 /** Latest server verdict on a blob wins; ties by event id. */
-function blobVerdict(state: ProjectState, event: EventEnvelope, v: { size: number; stored: boolean }): void {
+function blobVerdict(state: PartitionState, event: EventEnvelope, v: { size: number; stored: boolean }): void {
   const hash = (event.payload as { hash: string }).hash;
   const cur = state.blobs[hash];
   if (cur && (cur.hlc > event.hlc || (cur.hlc === event.hlc && cur.eventId > event.id))) return;
   state.blobs[hash] = { ...v, hlc: event.hlc, eventId: event.id };
 }
 
-function member(state: ProjectState, profileId: string): Member {
+function member(state: PartitionState, profileId: string): Member {
   return (state.members[profileId] ??= {
     role: { value: 'viewer', hlc: '', eventId: '' },
     removed: { value: false, hlc: '', eventId: '' }
@@ -556,13 +556,13 @@ function loses(current: Register<unknown>, event: EventEnvelope): boolean {
   return current.eventId > event.id;
 }
 
-function setRegister<K extends 'project' | 'config'>(
-  state: ProjectState,
+function setRegister<K extends 'partition' | 'config'>(
+  state: PartitionState,
   key: K,
   event: EventEnvelope,
-  value: NonNullable<ProjectState[K]>['value']
+  value: NonNullable<PartitionState[K]>['value']
 ): void {
   const current = state[key];
   if (current && loses(current, event)) return;
-  state[key] = { value, hlc: event.hlc, eventId: event.id } as ProjectState[K];
+  state[key] = { value, hlc: event.hlc, eventId: event.id } as PartitionState[K];
 }

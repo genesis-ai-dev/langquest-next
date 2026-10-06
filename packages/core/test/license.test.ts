@@ -6,7 +6,7 @@ import { validateEvent } from '../src/validate';
 import { buildOrgFixture, shuffle } from './fixtures';
 
 const ev = (seq: number, type: string, payload: unknown, deviceId = 'dA', actorId = 'lead'): AnyEvent =>
-  ({ id: `l${seq}`, type, orgId: 'org1', projectId: '_org', actorId, deviceId, hlc: encodeHlc(1_800_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq }) as AnyEvent;
+  ({ id: `l${seq}`, type, orgId: 'org1', partitionId: '_org', actorId, deviceId, hlc: encodeHlc(1_800_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq }) as AnyEvent;
 const set = (seq: number, license: string, deviceId = 'dA') => ev(seq, 'v1.OrgLicenseSet', { license }, deviceId);
 
 describe('organization license (docs/decisions.md 38)', () => {
@@ -66,8 +66,8 @@ describe('organization license (docs/decisions.md 38)', () => {
     const org = foldOrg([
       ...SEED_ROLES.map((r, i) => ev(10 + i, 'v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
       ev(20, 'v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' } }),
-      ev(21, 'v1.OrgMemberAdded', { profileId: 'coord', roleId: 'project_coordinator', scope: { level: 'org' } }),
-      ev(22, 'v1.OrgMemberAdded', { profileId: 'langAdmin', roleId: 'org_admin', scope: { level: 'lane', projectId: 'L1', laneId: 'L1' } })
+      ev(21, 'v1.OrgMemberAdded', { profileId: 'coord', roleId: 'coordinator', scope: { level: 'org' } }),
+      ev(22, 'v1.OrgMemberAdded', { profileId: 'langAdmin', roleId: 'org_admin', scope: { level: 'lane', partitionId: 'L1', laneId: 'L1' } })
     ]);
     expect(mayChangeLicense(org, 'lead')).toBe(true);
     expect(mayChangeLicense(org, 'coord')).toBe(false);

@@ -1,7 +1,7 @@
-import { applyEvent, emptyState, deriveTasks, HlcClock, buildIndexes, passageKeys, passageRow, passageRowKey, type PassageRow, type ProjectState } from '@langquest-next/core';
+import { applyEvent, emptyState, deriveTasks, HlcClock, buildIndexes, passageKeys, passageRow, passageRowKey, type PassageRow, type PartitionState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
-import { ProjectIndexes } from '../src/projectIndexes';
+import { PartitionIndexes } from '../src/partitionIndexes';
 import { buildFixture, buildStep11Fixture } from '../../core/test/fixtures';
 import { FakeServer } from './fakeServer';
 
@@ -15,7 +15,7 @@ function device(server: FakeServer, deviceId: string, actorId: string, wall: { t
   const store = new MemoryStore();
   let n = 0;
   const client = new SyncClient({
-    orgId: 'org1', projectId: 'p1', actorId, deviceId, store,
+    orgId: 'org1', partitionId: 'p1', actorId, deviceId, store,
     transport: server.transportFor(),
     clock: new HlcClock(deviceId, () => (wall.t += 1)),
     newId: () => `${deviceId}-${++n}`
@@ -23,7 +23,7 @@ function device(server: FakeServer, deviceId: string, actorId: string, wall: { t
   return { client, store };
 }
 
-function rebuilt(state: ProjectState): Map<string, PassageRow> {
+function rebuilt(state: PartitionState): Map<string, PassageRow> {
   const idx = buildIndexes(state);
   return new Map(passageKeys(state, idx).map((k) => [passageRowKey(k), passageRow(state, k.unitId, k.laneId, idx)]));
 }
@@ -38,7 +38,7 @@ async function expectRowsCurrent(c: { client: SyncClient; store: MemoryStore }) 
 }
 
 async function seed(a: { client: SyncClient }) {
-  await a.client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+  await a.client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
   await a.client.append('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
   await a.client.append('v1.MemberAdded', { profileId: 't1', role: 'translator' });
   await a.client.append('v1.MemberAdded', { profileId: 'r1', role: 'reviewer' });
@@ -51,8 +51,8 @@ async function seed(a: { client: SyncClient }) {
 
 describe('read models on the client', () => {
   it('a device catching up rebuilds every row once, at the tail, not on every page that adds a unit', async () => {
-    // Why: each unit added is a project-wide input, so a page holding one
-    // rebuilt every row. A project that adds 36k units rebuilt a growing row
+    // Why: each unit added is a partition-wide input, so a page holding one
+    // rebuilt every row. A partition that adds 36k units rebuilt a growing row
     // set on nearly every page: 1.8M row writes for 150k events, minutes on a
     // laptop. Rows may lag during catch-up; they must be exact at the tail,
     // and a crash mid-catch-up must not leave stale rows marked current.
@@ -79,7 +79,7 @@ describe('read models on the client', () => {
       return commit(batch);
     };
     const mk = () => new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dR', store,
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dR', store,
       transport: server.transportFor(), pullPageSize: 5
     });
     const r = mk();
@@ -110,7 +110,7 @@ describe('read models on the client', () => {
       return freshCommit(batch);
     };
     const f = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dF', store: fresh,
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dF', store: fresh,
       transport: server.transportFor(), pullPageSize: 5
     });
     await f.load();
@@ -134,7 +134,7 @@ describe('read models on the client', () => {
     ]);
     await expectRowsCurrent(a);
     expect(await a.client.verifyRows()).toEqual({ rows: 5, mismatches: [] });
-    await a.store.commit({ rows: { orgId: 'org1', projectId: 'p1', delete: [{ unitId: 'luke5', laneId: 'L1' }] } });
+    await a.store.commit({ rows: { orgId: 'org1', partitionId: 'p1', delete: [{ unitId: 'luke5', laneId: 'L1' }] } });
     expect((await a.client.verifyRows()).mismatches).toEqual(['missing: luke5:L1']);
     await a.client.load();
     expect((await a.client.verifyRows()).mismatches).toEqual([]);
@@ -163,7 +163,7 @@ describe('read models on the client', () => {
     expect(await b.client.queries().getTask('review:luke3:L1:community', 'r1')).toMatchObject({ type: 'review', status: 'todo' });
 
     // A fresh client on the same store rebuilds rows from its fold on load.
-    const again = new SyncClient({ orgId: 'org1', projectId: 'p1', actorId: 'r1', deviceId: 'dB', store: b.store, transport: server.transportFor() });
+    const again = new SyncClient({ orgId: 'org1', partitionId: 'p1', actorId: 'r1', deviceId: 'dB', store: b.store, transport: server.transportFor() });
     await again.load();
     expect(await persisted(b.store)).toEqual(rebuilt(again.getState()));
 
@@ -205,15 +205,15 @@ describe('read models on the client', () => {
     const gate = new Promise<void>((r) => { release = r; });
     const store = new MemoryStore();
     const slow = Object.assign(store, { commit: async (b: Parameters<MemoryStore['commit']>[0]) => { await gate; await MemoryStore.prototype.commit.call(store, b); } });
-    const client = new SyncClient({ orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA', store: slow, transport: new FakeServer().transportFor() });
+    const client = new SyncClient({ orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA', store: slow, transport: new FakeServer().transportFor() });
     const seen: { revision: number; saving: number; name: string | undefined }[] = [];
-    client.subscribe((s) => seen.push({ revision: s.revision, saving: s.saving, name: s.state.project?.value.name }));
+    client.subscribe((s) => seen.push({ revision: s.revision, saving: s.saving, name: s.state.partition?.value.name }));
     const loadDone = client.load();
     release();
     await loadDone;
     seen.length = 0;
-    const written = client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-    expect(client.getState().project?.value.name).toBe('Luke');
+    const written = client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    expect(client.getState().partition?.value.name).toBe('Luke');
     expect(client.saving).toBe(1);
     expect(seen[0]).toMatchObject({ name: 'Luke', saving: 1 });
     await written;
@@ -233,11 +233,11 @@ describe('read models on the client', () => {
       order.push(`end:${b.events?.[0]?.event.id ?? 'meta'}`);
     };
     let n = 0;
-    const client = new SyncClient({ orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport: new FakeServer().transportFor(), newId: () => `dA-${++n}` });
+    const client = new SyncClient({ orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport: new FakeServer().transportFor(), newId: () => `dA-${++n}` });
     await client.load();
     order.length = 0;
     await Promise.all([
-      client.append('v1.ProjectCreated', { name: 'A', sourceLanguoidId: 'eng' }),
+      client.append('v1.PartitionCreated', { name: 'A', sourceLanguoidId: 'eng' }),
       client.append('v1.LaneAdded', { laneId: 'L1', languoidId: 'x' })
     ]);
     expect(order).toEqual(['start:dA-1', 'end:dA-1', 'start:dA-2', 'end:dA-2']);
@@ -256,7 +256,7 @@ it('reuses committed projections on restart but rebuilds stale versions', async 
     if (batch.rows?.clear) rebuilds++;
     await commit(batch);
   };
-  const restart = () => new SyncClient({ orgId: 'org1', projectId: 'p1',
+  const restart = () => new SyncClient({ orgId: 'org1', partitionId: 'p1',
     actorId: 'lead', deviceId: 'dA', store: a.store, transport: server.transportFor() });
   await restart().load();
   expect(rebuilds).toBe(0);
@@ -288,7 +288,7 @@ it('incremental indexes give the same tasks as fresh indexes after each event', 
   for (const fixture of [buildFixture(), buildStep11Fixture()]) {
     for (const events of [fixture, [...fixture].reverse()]) {
       const state = emptyState();
-      const indexes = new ProjectIndexes(state);
+      const indexes = new PartitionIndexes(state);
       for (const event of events) {
         indexes.get(); // Exercise an already-built cache, not only lazy rebuilding.
         applyEvent(state, event);
@@ -301,13 +301,13 @@ it('incremental indexes give the same tasks as fresh indexes after each event', 
   }
 });
 
-it('a take edit and recording lookup do not enumerate unrelated project entities', async () => {
+it('a take edit and recording lookup do not enumerate unrelated partition entities', async () => {
   const a = device(new FakeServer(), 'dA', 'lead', { t: 0 });
   await a.client.load();
   await seed(a);
   const state = a.client.getState();
   const blockScan = <T extends object>(object: T): T => new Proxy(object, {
-    ownKeys: () => { throw new Error('project-wide scan'); }
+    ownKeys: () => { throw new Error('partition-wide scan'); }
   });
   state.units = blockScan(state.units);
   state.takes = blockScan(state.takes);
@@ -335,7 +335,7 @@ it('a redaction commit remains invalid until its refold is durable', async () =>
   await expect(a.client.append('v1.Redacted', { eventId: composed.id })).rejects.toThrow();
   expect(await a.store.meta('projection:org1/p1')).toBe('');
   a.client.load = load;
-  const restarted = new SyncClient({ orgId: 'org1', projectId: 'p1', actorId: 'lead',
+  const restarted = new SyncClient({ orgId: 'org1', partitionId: 'p1', actorId: 'lead',
     deviceId: 'dA', store: a.store, transport: server.transportFor() });
   await restarted.load();
   expect((await restarted.queries().getPassageView('luke1', 'L1'))?.takeId).toBeNull();

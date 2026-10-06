@@ -28,12 +28,12 @@ const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
 export interface Person { id: string; email: string; sb: SupabaseClient; session: Session }
 export interface World {
   orgId: string;
-  projectId: string;
+  partitionId: string;
   laneId: string;
   passages: { unitId: string; label: string }[];
   owner: Person;
   translator: Person;
-  /** In the project but assigned to nobody: a passage someone still has to be asked to record. */
+  /** In the partition but assigned to nobody: a passage someone still has to be asked to record. */
   unassigned: { unitId: string; label: string };
   /** Present only when asked for (seedTranslatorWorld options). */
   reviewer?: Person;
@@ -74,16 +74,16 @@ async function commit<S>(client: SyncClient<S>, intents: Intent[], what: string)
 }
 
 /**
- * An org and project exactly as CreateOrg (apps/mobile/src/screens/entry.tsx)
- * makes them, plus a translator with an org role, a project membership and
+ * An org and partition exactly as CreateOrg (apps/mobile/src/screens/entry.tsx)
+ * makes them, plus a translator with an org role, a partition membership and
  * every passage assigned — what DevMenu's "Seed demo team" gives one — and
  * one more passage nobody is asked to record. A reviewer or coordinator
- * joins (org role and project membership) only when asked for.
+ * joins (org role and partition membership) only when asked for.
  */
 export async function seedTranslatorWorld(options: { reviewer?: boolean; coordinator?: boolean } = {}): Promise<World> {
   const [owner, translator, reviewer, coordinator] = await Promise.all([person('owner'), person('translator'),
     options.reviewer ? person('reviewer') : undefined, options.coordinator ? person('coordinator') : undefined]);
-  const orgId = randomUUID(), projectId = randomUUID(), laneId = 'L1';
+  const orgId = randomUUID(), partitionId = randomUUID(), laneId = 'L1';
   const passages = ['Luke 1:1-4', 'Luke 1:5-25'].map((label, i) => ({ unitId: `luke-${i}`, label }));
   const unassigned = { unitId: 'luke-2', label: 'Luke 2:1-7' };
   const client = <S,>(partition: string, materializer?: Materializer<S>) => clientFor(owner, orgId, partition, materializer);
@@ -94,18 +94,18 @@ export async function seedTranslatorWorld(options: { reviewer?: boolean; coordin
     intent('v1.OrgCreated', { name: 'Smart test org' }),
     ...SEED_ROLES.map((r) => intent('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
     intent('v1.OrgMemberAdded', { profileId: owner.id, roleId: 'org_admin', scope: { level: 'org' }, displayName: 'owner' }),
-    intent('v1.ProjectRegistered', { projectId, name: 'Luke' }),
+    intent('v1.PartitionRegistered', { partitionId, name: 'Luke' }),
     intent('v1.OrgMemberAdded', { profileId: translator.id, roleId: 'translator', scope: { level: 'org' }, displayName: 'translator' }),
     ...(reviewer ? [intent('v1.OrgMemberAdded', { profileId: reviewer.id, roleId: 'reviewer', scope: { level: 'org' }, displayName: 'reviewer' })] : []),
-    ...(coordinator ? [intent('v1.OrgMemberAdded', { profileId: coordinator.id, roleId: 'project_coordinator', scope: { level: 'org' }, displayName: 'coordinator' })] : [])
+    ...(coordinator ? [intent('v1.OrgMemberAdded', { profileId: coordinator.id, roleId: 'coordinator', scope: { level: 'org' }, displayName: 'coordinator' })] : [])
   ], 'org');
 
-  const project = client(projectId);
-  await project.load();
-  await commit(project, [
-    intent('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
+  const partition = client(partitionId);
+  await partition.load();
+  await commit(partition, [
+    intent('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
     intent('v1.MemberAdded', { profileId: owner.id, role: 'owner' }),
-    intent('v1.ProjectConfigChanged', { config: {
+    intent('v1.PartitionConfigChanged', { config: {
       unitKinds: [{ id: 'book', label: 'Book', childKinds: ['passage'] }, { id: 'passage', label: 'Passage', childKinds: [] }],
       workflow: [{ id: 'community', role: 'reviewer', required: true, rule: 'any' }]
     } }),
@@ -116,17 +116,17 @@ export async function seedTranslatorWorld(options: { reviewer?: boolean; coordin
     ...(reviewer ? [intent('v1.MemberAdded', { profileId: reviewer.id, role: 'reviewer' })] : []),
     ...(coordinator ? [intent('v1.MemberAdded', { profileId: coordinator.id, role: 'coordinator' })] : []),
     ...passages.map((p) => intent('v1.AssignmentMade', { unitId: p.unitId, laneId, profileId: translator.id, role: 'translator' }))
-  ], 'project');
+  ], 'partition');
 
   for (const p of [owner, translator, reviewer, coordinator]) if (p) await firstRunDone(p);
-  return { orgId, projectId, laneId, passages, owner, translator, unassigned,
+  return { orgId, partitionId, laneId, passages, owner, translator, unassigned,
     ...(reviewer ? { reviewer } : {}), ...(coordinator ? { coordinator } : {}) };
 }
 
 function clientFor<S>(who: Person, orgId: string, partition: string, materializer?: Materializer<S>): SyncClient<S> {
   return new SyncClient<S>({
     ...(materializer ? { materializer } : {}),
-    orgId, projectId: partition, actorId: who.id, deviceId: `seed-${who.id}`,
+    orgId, partitionId: partition, actorId: who.id, deviceId: `seed-${who.id}`,
     store: new MemoryStore(), transport: new SupabaseTransport(who.sb), newId: () => randomUUID()
   });
 }
@@ -155,7 +155,7 @@ export async function seedSubmittedWorld(options: {
 } = {}): Promise<SubmittedWorld> {
   const world = await seedTranslatorWorld({ reviewer: true });
   const reviewer = world.reviewer!;
-  const { orgId, projectId, laneId, owner, translator } = world;
+  const { orgId, partitionId, laneId, owner, translator } = world;
   const unitId = world.passages[0]!.unitId;
   // v2Flow: the lane runs the ready-made "One check" flow (one v2 step, Peer Review).
   const flowId = options.flowId ?? (options.v2Flow ? 'one_check' : undefined);
@@ -166,7 +166,7 @@ export async function seedSubmittedWorld(options: {
   const materialId = questionSetMaterialId('community_check');
   const template = QUESTION_TEMPLATES.find((q) => q.id === 'community_check')!;
 
-  const owners = clientFor(owner, orgId, projectId);
+  const owners = clientFor(owner, orgId, partitionId);
   await owners.load();
   await commit(owners, [
     ...(flowId ? [intent('v1.LaneFlowSelected', { laneId, flowId, catalogVersion: CATALOG_VERSION }),
@@ -180,11 +180,11 @@ export async function seedSubmittedWorld(options: {
   const bytes = readFileSync(VOICE_WAV);
   const hash = createHash('sha256').update(bytes).digest('hex');
   const { error: uploadError } = await translator.sb.storage.from('blobs')
-    .upload(`${orgId}/${projectId}/${hash}.wav`, bytes, { contentType: 'audio/wav', upsert: true });
+    .upload(`${orgId}/${partitionId}/${hash}.wav`, bytes, { contentType: 'audio/wav', upsert: true });
   if (uploadError) throw new Error(`seed audio upload: ${uploadError.message}`);
 
   const takeId = `take:seed-${randomUUID()}`;
-  const translators = clientFor(translator, orgId, projectId);
+  const translators = clientFor(translator, orgId, partitionId);
   await translators.load();
   await commit(translators, [
     intent('v1.RecordingAdded', { recordingId: `rec:${randomUUID()}`, unitId, laneId, kind: 'target', cards: [{ hash, durationMs: 4000, format: 'wav' }] }),
@@ -207,7 +207,7 @@ export async function seedSubmittedWorld(options: {
   // Org template questions are never required here (core passage.ts), so feedback needs no answers.
   const requiredQuestionIds: string[] = [];
   if (options.feedback) {
-    const reviewers = clientFor(reviewer, orgId, projectId);
+    const reviewers = clientFor(reviewer, orgId, partitionId);
     await reviewers.load();
     await commit(reviewers, [intent('v1.ReviewSubmitted', { takeId, stepId, decision: 'suggest_changes', comment: options.feedback,
       answers: Object.fromEntries(requiredQuestionIds.map((id) => [id, '2'])) })], 'feedback');
@@ -226,14 +226,14 @@ export interface StudyWorld extends World { studyMaterialId: string; stepId: 'st
  */
 export async function seedStudyWorld(): Promise<StudyWorld> {
   const world = await seedTranslatorWorld();
-  const { orgId, projectId, laneId, owner } = world;
+  const { orgId, partitionId, laneId, owner } = world;
   const bytes = readFileSync(VOICE_WAV);
   const audioHash = createHash('sha256').update(bytes).digest('hex');
   const { error } = await owner.sb.storage.from('blobs')
-    .upload(`${orgId}/${projectId}/${audioHash}.m4a`, bytes, { contentType: 'audio/wav', upsert: true });
+    .upload(`${orgId}/${partitionId}/${audioHash}.m4a`, bytes, { contentType: 'audio/wav', upsert: true });
   if (error) throw new Error(`seed study audio upload: ${error.message}`);
   const studyMaterialId = `fia-study-seed-${randomUUID()}`;
-  const owners = clientFor(owner, orgId, projectId);
+  const owners = clientFor(owner, orgId, partitionId);
   await owners.load();
   await commit(owners, [
     intent('v1.MaterialDefined', { materialId: studyMaterialId, kind: 'fia_study', title: 'FIA guidance', scope: { laneId } }),
@@ -242,7 +242,7 @@ export async function seedStudyWorld(): Promise<StudyWorld> {
   return { ...world, studyMaterialId, stepId: 'stage', audioHash };
 }
 
-/** Open the app signed in as `who`, on the seeded project, and wait for the device log. */
+/** Open the app signed in as `who`, on the seeded partition, and wait for the device log. */
 export async function openAs(page: Page, world: World, who: Person): Promise<void> {
   // Only on first load: the app refreshes the session itself afterwards.
   await page.addInitScript((entries) => {
@@ -256,11 +256,11 @@ export async function waitForLog(page: Page): Promise<void> {
   await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 60_000 });
 }
 
-/** localStorage the app reads at startup: the signed-in session and the open project. */
+/** localStorage the app reads at startup: the signed-in session and the open partition. */
 export function browserStateFor(world: World, who: Person): Record<string, string> {
   const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
   return {
     [`sb-${ref}-auth-token`]: JSON.stringify(who.session),
-    [`selection:${who.id}`]: JSON.stringify({ orgId: world.orgId, projectId: world.projectId })
+    [`selection:${who.id}`]: JSON.stringify({ orgId: world.orgId, partitionId: world.partitionId })
   };
 }

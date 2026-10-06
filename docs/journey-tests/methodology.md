@@ -213,7 +213,7 @@ Screen emissions (grep for v1.*'):
   1x v1.ReviewSubmitted (reviewer approve/suggest)
   1x v1.ResponseRecorded (respond to suggestions)
   1x v1.RecordingAdded (audio card)
-  1x v1.ProjectCreated (org setup)
+  1x v1.PartitionCreated (org setup)
   1x v1.OrgCreated (org setup)
   1x v1.KeyTermDefined (glossary)
   1x v1.KeyTermAdjusted (translator adjusts term)

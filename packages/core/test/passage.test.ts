@@ -3,7 +3,7 @@ import { HlcClock } from '../src/hlc';
 import { commands } from '../src/commands';
 import { applyEvent, fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
-import { emptyState, type ProjectState } from '../src/state';
+import { emptyState, type PartitionState } from '../src/state';
 import {
   deriveFlow, deriveKinds, derivePassage, highlightsFor, languageProgress, passageSummary,
   questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, upNext, updatesFor, waitingOn
@@ -18,7 +18,7 @@ import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures
  * translation that completes its step by being recorded.
  */
 
-function project() {
+function partition() {
   const events: AnyEvent[] = [];
   let wall = 1_700_000_000_000;
   let seq = 0;
@@ -28,7 +28,7 @@ function project() {
     clocks.set(actorId, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `x${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
+    events.push({ id: `x${seq}`, type, orgId: 'o', partitionId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
   };
   const state = () => fold(events, emptyState());
   /** Run a command as someone against the fold so far. */
@@ -46,7 +46,7 @@ function project() {
   return { emit, run, state, events };
 }
 
-const record = (p: ReturnType<typeof project>, cards: string[], note?: string) =>
+const record = (p: ReturnType<typeof partition>, cards: string[], note?: string) =>
   p.run('akol', (c) => c.publishVersion({ commandId: `v${cards.join('')}`, unitId: 'john3', laneId: 'din', cardHashes: cards, ...(note ? { note } : {}) }));
 
 describe('passage record', () => {
@@ -57,7 +57,7 @@ describe('passage record', () => {
   });
 
   it('a lane that chose a flow reads its steps, kinds in parallel, the checkpoint marked', () => {
-    const s = project().state();
+    const s = partition().state();
     const flow = deriveFlow(s, 'din');
     expect(flow.name).toBe('Standard Bible Flow');
     expect(flow.steps.map((x) => [x.kindIds, x.checkpoint])).toEqual([
@@ -66,7 +66,7 @@ describe('passage record', () => {
   });
 
   it('Collect only means no steps, so recorded is done', () => {
-    const p = project();
+    const p = partition();
     p.run('lead', (c) => c.useFlow({ commandId: 'collect', laneId: 'din', flowId: 'collect_only' }));
     expect(deriveFlow(p.state(), 'din').steps).toEqual([]);
     record(p, ['c1']);
@@ -76,7 +76,7 @@ describe('passage record', () => {
   });
 
   it('before a recording nothing is suggested; after one, the first step is', () => {
-    const p = project();
+    const p = partition();
     expect(derivePassage(p.state(), 'john3', 'din').next).toBeUndefined();
     record(p, ['c1', 'c2']);
     const s = derivePassage(p.state(), 'john3', 'din');
@@ -86,7 +86,7 @@ describe('passage record', () => {
   });
 
   it('a version exists only when content changes, and later versions say what changed', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const s = p.state();
     expect(() => commands(s).publishVersion({ commandId: 'same', unitId: 'john3', laneId: 'din', cardHashes: ['c1'], note: 'x' })).toThrow(/Nothing changed/);
@@ -94,7 +94,7 @@ describe('passage record', () => {
   });
 
   it('set aside with a reason completes the kind, and undo brings it back', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     p.run('akol', (c) => c.depart({ commandId: 'skip', unitId: 'john3', laneId: 'din', type: 'skip', kindId: 'peer', reason: 'No peer to ask.' }));
     let s = derivePassage(p.state(), 'john3', 'din');
@@ -106,7 +106,7 @@ describe('passage record', () => {
   });
 
   it('a back translation is recorded, not judged, and is never a version', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [{ hash: 'b1', durationMs: 4000, format: 'wav' }], note: 'Verse 5 was hard.' }));
@@ -120,7 +120,7 @@ describe('passage record', () => {
   });
 
   it('feedback waits on the latest version’s author; a new version answers all of it', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 5 is fast.' }));
@@ -140,7 +140,7 @@ describe('passage record', () => {
   });
 
   it('keeping a version despite feedback needs a reason and answers it', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'Verse 5 is fast.' }));
@@ -153,7 +153,7 @@ describe('passage record', () => {
   });
 
   it('a checkpoint holds the steps after it until approved or overridden', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     for (const kindId of ['peer', 'community']) {
@@ -182,7 +182,7 @@ describe('passage record', () => {
   });
 
   it('asking is a record: it shows as asked, on the other person’s list, and closes when done', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen', dueDate: '2026-10-01' }));
     let s = derivePassage(p.state(), 'john3', 'din');
@@ -200,7 +200,7 @@ describe('passage record', () => {
   });
 
   it('a withdrawn request is not waiting on anyone', () => {
-    const p = project();
+    const p = partition();
     p.run('lead', (c) => c.ask({ commandId: 'rec', unitId: 'john4', laneId: 'din', what: 'record', profileId: 'akol' }));
     expect(highlightsFor(p.state(), 'akol', { canRecord: true, canReview: false }).map((h) => h.kind)).toEqual(['record']);
     p.run('lead', (c) => c.withdrawRequest({ commandId: 'w', requestId: 'req:rec' }));
@@ -208,7 +208,7 @@ describe('passage record', () => {
   });
 
   it('logged feedback from a session covering several passages lands on each', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     p.run('akol', (c) => c.publishVersion({ commandId: 'j4', unitId: 'john4', laneId: 'din', cardHashes: ['d1'] }));
     const s = p.state();
@@ -221,7 +221,7 @@ describe('passage record', () => {
   });
 
   it('progress is several counts, not one number', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
@@ -233,14 +233,14 @@ describe('passage record', () => {
   });
 
   it('suggests something real when nothing is waiting', () => {
-    const p = project();
+    const p = partition();
     expect(upNext(p.state(), 'din', { canRecord: true, canReview: false })).toEqual({ kind: 'record', unitId: 'john3' });
     record(p, ['c1']);
     expect(upNext(p.state(), 'din', { canRecord: false, canReview: true })).toEqual({ kind: 'review', unitId: 'john3' });
   });
 
   it('the timeline and the reviews-by-version grid read the whole record', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'peer', takeIds: [v1], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'x' }));
@@ -258,7 +258,7 @@ describe('passage record', () => {
   });
 
   it('questions come as one list labelled by source, the asker’s last', () => {
-    const p = project();
+    const p = partition();
     p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'community', profileId: 'ayen', questions: [{ id: 'own', text: 'Did the children follow?', type: 'yesno', required: true }] }));
     const req = derivePassage(p.state(), 'john3', 'din').requests[0]!;
     const qs = questionsForKind(p.state(), 'community', 'din', req);
@@ -267,7 +267,7 @@ describe('passage record', () => {
   });
 
   it('places units by book and chapter for the Map', () => {
-    const s: ProjectState = fold([...buildFixture(), ...buildStep11Fixture()], emptyState());
+    const s: PartitionState = fold([...buildFixture(), ...buildStep11Fixture()], emptyState());
     expect(unitPlace(s, 'luke1')).toMatchObject({ bookId: 'luk', chapters: [1], testament: 'nt' });
     expect(unitPlace(s, 'fia@1/gen-p1')).toMatchObject({ bookId: 'gen', chapters: [1, 2], testament: 'ot' });
   });
@@ -282,7 +282,7 @@ describe('passage record', () => {
 
 describe('updates for the inbox', () => {
   it('tell people what concerns them, never their own acts', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen' }));
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
@@ -307,7 +307,7 @@ describe('study marks', () => {
 
 describe('flows per language', () => {
   it('two languages choosing the same flow keep their own steps', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.LaneAdded', { laneId: 'nus', languoidId: 'nus' });
     p.run('lead', (c) => c.useFlow({ commandId: 'f2', laneId: 'nus', flowId: 'standard_bible' }));
     p.run('lead', (c) => c.useFlow({ commandId: 'f3', laneId: 'din', flowId: 'quick_check' }));
@@ -316,7 +316,7 @@ describe('flows per language', () => {
   });
 
   it('switching back to a flow brings its steps back, and what the record says about them', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const checkpoint = derivePassage(p.state(), 'john3', 'din').steps[2]!.step.id;
     p.run('lead', (c) => c.depart({ commandId: 'ovr', unitId: 'john3', laneId: 'din', type: 'override', stepId: checkpoint, reason: 'Visit next year.' }));
@@ -330,7 +330,7 @@ describe('flows per language', () => {
   });
 
   it('a hand-edited flow is the language’s own, and Collect only means none', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v2.WorkflowStepSet', { stepId: 'proj/s1', order: 's00', kindIds: ['community'], checkpoint: false });
     p.run('lead', (c) => c.saveFlowSteps({ commandId: 'edit', laneId: 'din', steps: [{ kindIds: ['peer', 'retell'], checkpoint: true }] }));
     let flow = deriveFlow(p.state(), 'din');
@@ -348,7 +348,7 @@ describe('flows per language', () => {
 
 describe('audit follow-ups', () => {
   it('a check logged afterwards completes an ordinary step but never a checkpoint', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('akol', (c) => c.recordReview({ commandId: 'logged', takeIds: [v1], kindId: 'consultant', outcome: 'looks_good', via: 'logged', givenBy: 'Peter' }));
@@ -363,7 +363,7 @@ describe('audit follow-ups', () => {
   });
 
   it('"recorded" completes only a kind that makes content', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.produceContent({ commandId: 'odd', fromTakeId: v1, kindId: 'peer', cards: [{ hash: 'x', durationMs: 1 }] }));
@@ -371,14 +371,14 @@ describe('audit follow-ups', () => {
   });
 
   it('publishing replaces only the publisher\'s own draft', () => {
-    const p = project();
+    const p = partition();
     p.run('ayen', (c) => c.keepTake({ commandId: 'theirs', unitId: 'john3', laneId: 'din', cardHashes: ['o1'] }));
     const specs = commands(p.state()).publishVersion({ commandId: 'mine', unitId: 'john3', laneId: 'din', cardHashes: ['m1'], actorId: 'akol' });
     expect(specs.some((x) => x.type === 'v1.TakeArchived')).toBe(false);
   });
 
   it('record audio is uploaded because the record names it, not because it was a recording', () => {
-    const p = project();
+    const p = partition();
     record(p, ['c1']);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('akol', (c) => c.addNote({ commandId: 'vn', unitId: 'john3', laneId: 'din', anchor: { kind: 'passage' }, blobHash: 'voice1' }));
@@ -389,7 +389,7 @@ describe('audit follow-ups', () => {
   });
 
   it('derived views stay current on a state the fold keeps mutating', () => {
-    const p = project();
+    const p = partition();
     const live = emptyState();
     for (const e of p.events) applyEvent(live, e);
     expect(derivePassage(live, 'john3', 'din').recorded).toBe(false);
@@ -399,7 +399,7 @@ describe('audit follow-ups', () => {
   });
 
   it('kinds read the same whatever order their definitions arrived in', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.ReviewKindDefined', { kindId: 'zeta', name: 'Zeta' });
     p.emit('lead', 'v1.ReviewKindDefined', { kindId: 'alpha', name: 'Alpha' });
     const forward = deriveKinds(fold(p.events, emptyState())).map((k) => k.id);

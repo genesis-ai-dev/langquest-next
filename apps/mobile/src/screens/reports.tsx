@@ -31,7 +31,7 @@ import {
 const COLUMN = measure.report;
 
 export function ReportsHome(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.partition.orgId;
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const reports = useReports(orgId);
   const [section, setSection] = useState<SectionId>(SECTIONS.some((s) => s.id === ctx.params['section']) ? ctx.params['section'] as SectionId : 'overview');
@@ -46,7 +46,7 @@ export function ReportsHome(ctx: Ctx) {
   const alerts = reports.status === 'ready' ? openAlerts(all, reports.asOf, now) : 0;
   const props: SectionProps = {
     rows, all, now, orgName, asOf: reports.status === 'ready' ? reports.asOf : new Date(now).toISOString(),
-    open: (row) => ctx.go('reports_language', { projectId: row.projectId, laneId: row.laneId }),
+    open: (row) => ctx.go('reports_language', { partitionId: row.partitionId, laneId: row.laneId }),
     show: (to, c) => { setSection(to); if (c !== undefined) setCountry(c); }
   };
   const header = (
@@ -90,12 +90,12 @@ export function ReportsHome(ctx: Ctx) {
 
 /** One language's report: coverage, uploads, pace, its flow, books, and its settings for admins. */
 export function ReportsLanguage(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.partition.orgId;
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const reports = useReports(orgId);
-  const projectId = ctx.params['projectId'] ?? '';
+  const partitionId = ctx.params['partitionId'] ?? '';
   const laneId = ctx.params['laneId'] ?? '';
-  const row = reports.status === 'ready' ? reports.rows.find((r) => r.projectId === projectId && r.laneId === laneId) : undefined;
+  const row = reports.status === 'ready' ? reports.rows.find((r) => r.partitionId === partitionId && r.laneId === laneId) : undefined;
   const title = row?.report.name ?? 'Language';
   const header = (
     <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: 'Reports', onPress: ctx.back }]}
@@ -129,7 +129,7 @@ function LanguageBody(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
   const pace = paceOf(r, now);
   const sevenAgo = new Date(now - 6 * 86_400_000).toISOString().slice(0, 10);
   const org = ctx.org.state;
-  const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, { projectId: row.projectId, laneId: row.laneId }).has('manage_structure');
+  const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, { partitionId: row.partitionId, laneId: row.laneId }).has('manage_structure');
   return (
     <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
@@ -258,7 +258,7 @@ function SettingsPanel(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
     setStatus(null);
     try {
       const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, projectId: row.projectId, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
+      const who = { orgId: row.orgId, partitionId: row.partitionId, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
       if (what === 'country') await appendConfirmed(who, 'v1.LaneCountrySet', { laneId: r.laneId, country });
       else await appendConfirmed(who, 'v1.LaneTargetSet', { laneId: r.laneId, scope, startDate: start, targetDate: end });
       setStatus({ tone: 'green', text: 'Saved.' });

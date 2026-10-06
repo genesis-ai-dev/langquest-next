@@ -4,7 +4,7 @@ import type { Blocks } from './moderationData';
 import type { Session } from './session';
 import type { InviteHandle } from './useHeldInvite';
 import type { OrgHandle } from './useOrg';
-import type { ProjectHandle } from './useProject';
+import type { PartitionHandle } from './usePartition';
 
 /** A passage someone opened lately (WORK-2), newest first. */
 export interface RecentPassage {
@@ -15,7 +15,7 @@ export interface RecentPassage {
 
 /** Everything a screen gets. Screens never own shared state or navigate directly. */
 export interface Ctx {
-  project: ProjectHandle;
+  partition: PartitionHandle;
   /** The organization partition: roles, memberships, catalog, its work partition. */
   org: OrgHandle;
   session: Session;
@@ -28,14 +28,14 @@ export interface Ctx {
   /**
    * The language (lane) this person is working in: the Map, My Work's
    * suggestions and new requests default to it (MAP-7). Remembered per
-   * account on this device; null only when the project has no languages.
+   * account on this device; null only when the partition has no languages.
    */
   laneId: string | null;
   setLane: (laneId: string) => void;
   /**
    * Every language the organization has, from its partition (docs/decisions.md
    * 37), whether or not this phone has it: each is its own partition, and
-   * `project` is the open one. A screen about another language opens it.
+   * `partition` is the open one. A screen about another language opens it.
    */
   languages: { laneId: string; name: string }[];
   /**

@@ -1,4 +1,4 @@
--- Account data does not require project membership. Every mutation derives
+-- Account data does not require partition membership. Every mutation derives
 -- its owner from the JWT; no caller supplies another profile's identity.
 create table public.profiles (
   id text primary key,
@@ -38,7 +38,7 @@ end $$;
 revoke all on function public.save_profile(text) from public, anon;
 grant execute on function public.save_profile(text) to authenticated;
 
--- Small, append-only private partition. Generic project pulls cannot read it.
+-- Small, append-only private partition. Generic partition pulls cannot read it.
 create or replace function public.record_user_event(p_id text, p_type text, p_payload jsonb)
 returns void language plpgsql security definer set search_path = '' as $$
 declare v_actor text := public.caller_id();
@@ -61,28 +61,28 @@ create or replace function public.get_user_state()
 returns jsonb language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     'termsVersion', (select payload->>'version' from public.events
-      where org_id = '_user' and project_id = public.caller_id()
+      where org_id = '_user' and partition_id = public.caller_id()
         and type = 'v1.TermsAccepted' order by server_seq desc limit 1),
     'visionSeen', exists(select 1 from public.events where org_id = '_user'
-      and project_id = public.caller_id() and type = 'v1.VisionSeen'),
+      and partition_id = public.caller_id() and type = 'v1.VisionSeen'),
     'walkthroughDone', exists(select 1 from public.events where org_id = '_user'
-      and project_id = public.caller_id() and type = 'v1.WalkthroughDone'));
+      and partition_id = public.caller_id() and type = 'v1.WalkthroughDone'));
 $$;
 revoke all on function public.record_user_event(text,text,jsonb), public.get_user_state() from public, anon;
 grant execute on function public.record_user_event(text,text,jsonb), public.get_user_state() to authenticated;
 
 -- Navigation exposes only organizations the caller belongs to.
 create or replace function public.my_organizations()
-returns table(org_id text, project_id text, name text)
+returns table(org_id text, partition_id text, name text)
 language sql stable security definer set search_path = '' as $$
-  select distinct m.org_id, p.payload->>'projectId',
+  select distinct m.org_id, p.payload->>'partitionId',
     coalesce((select e.payload->>'name' from public.events e
-      where e.org_id=m.org_id and e.project_id='_org' and e.type='v1.OrgCreated'
+      where e.org_id=m.org_id and e.partition_id='_org' and e.type='v1.OrgCreated'
       order by e.hlc desc limit 1), m.org_id)
   from public.org_memberships m
-  left join public.events p on p.org_id=m.org_id and p.project_id='_org'
-    and p.type='v1.ProjectRegistered'
-    and (m.scope_level='org' or m.project_id=p.payload->>'projectId')
+  left join public.events p on p.org_id=m.org_id and p.partition_id='_org'
+    and p.type='v1.PartitionRegistered'
+    and (m.scope_level='org' or m.partition_id=p.payload->>'partitionId')
   where m.profile_id=public.caller_id() and not m.removed;
 $$;
 revoke all on function public.my_organizations() from public, anon;
@@ -90,41 +90,41 @@ grant execute on function public.my_organizations() to authenticated;
 
 -- Public means explicitly listed. No raw event, membership or recording
 -- becomes public. The worker writes only these safe aggregate columns.
-create table public.project_visibility (
-  org_id text not null, project_id text not null,
+create table public.partition_visibility (
+  org_id text not null, partition_id text not null,
   listed boolean not null default false,
-  primary key(org_id, project_id)
+  primary key(org_id, partition_id)
 );
-alter table public.project_visibility enable row level security;
-create table public.public_projects (
-  org_id text not null, project_id text not null, name text not null,
+alter table public.partition_visibility enable row level security;
+create table public.public_partitions (
+  org_id text not null, partition_id text not null, name text not null,
   languages text[] not null default '{}', translated_pct double precision not null default 0,
-  updated_at timestamptz not null default now(), primary key(org_id, project_id)
+  updated_at timestamptz not null default now(), primary key(org_id, partition_id)
 );
-alter table public.public_projects enable row level security;
-create policy visibility_read on public.project_visibility for select to anon, authenticated using (listed);
-grant select on public.project_visibility to anon, authenticated;
-create policy public_projects_read on public.public_projects for select to anon, authenticated
-  using (exists(select 1 from public.project_visibility v
-    where v.org_id=public_projects.org_id and v.project_id=public_projects.project_id and v.listed));
-grant select on public.public_projects to anon, authenticated;
-create or replace function public.set_project_visibility(p_org text, p_project text, p_listed boolean)
+alter table public.public_partitions enable row level security;
+create policy visibility_read on public.partition_visibility for select to anon, authenticated using (listed);
+grant select on public.partition_visibility to anon, authenticated;
+create policy public_partitions_read on public.public_partitions for select to anon, authenticated
+  using (exists(select 1 from public.partition_visibility v
+    where v.org_id=public_partitions.org_id and v.partition_id=public_partitions.partition_id and v.listed));
+grant select on public.public_partitions to anon, authenticated;
+create or replace function public.set_partition_visibility(p_org text, p_partition text, p_listed boolean)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
   if public.caller_id() is null or not ('manage_structure'=any(
-    public.org_privileges(p_org, public.caller_id(), p_project, null))) then
-    raise exception 'Project management permission required.' using errcode='42501';
+    public.org_privileges(p_org, public.caller_id(), p_partition, null))) then
+    raise exception 'Structure management permission required.' using errcode='42501';
   end if;
-  insert into public.project_visibility values(p_org,p_project,p_listed)
-    on conflict(org_id,project_id) do update set listed=excluded.listed;
-  if not p_listed then delete from public.public_projects where org_id=p_org and project_id=p_project; end if;
+  insert into public.partition_visibility values(p_org,p_partition,p_listed)
+    on conflict(org_id,partition_id) do update set listed=excluded.listed;
+  if not p_listed then delete from public.public_partitions where org_id=p_org and partition_id=p_partition; end if;
 end $$;
-revoke all on function public.set_project_visibility(text,text,boolean) from public, anon;
-grant execute on function public.set_project_visibility(text,text,boolean) to authenticated;
+revoke all on function public.set_partition_visibility(text,text,boolean) from public, anon;
+grant execute on function public.set_partition_visibility(text,text,boolean) to authenticated;
 
 create table public.notifications (
   id text primary key, seq bigint generated always as identity unique,
-  profile_id text not null, org_id text not null, project_id text not null,
+  profile_id text not null, org_id text not null, partition_id text not null,
   kind text not null, title text not null, task_id text, unit_id text, lane_id text,
   active boolean not null default true,
   created_at timestamptz not null default now(), pushed_at timestamptz
@@ -157,20 +157,20 @@ returns void language sql security definer set search_path = '' as $$
 $$;
 revoke all on function public.register_push_token(text),public.unregister_push_token(text) from public,anon;
 grant execute on function public.register_push_token(text),public.unregister_push_token(text) to authenticated;
-grant all on public.profiles,public.project_visibility,public.public_projects,public.notifications,public.push_tokens to service_role;
+grant all on public.profiles,public.partition_visibility,public.public_partitions,public.notifications,public.push_tokens to service_role;
 grant usage, select on sequence public.notifications_seq_seq to service_role;
 notify pgrst, 'reload schema';
 
 -- A projection pass changes inbox rows atomically. The sequence advances
 -- only when a row changes, including becoming inactive, for cursor pulls.
-create or replace function public.reconcile_notifications(p_org text,p_project text,p_rows jsonb)
+create or replace function public.reconcile_notifications(p_org text,p_partition text,p_rows jsonb)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
   update public.notifications n set active=false,seq=default
-    where n.org_id=p_org and n.project_id=p_project and n.active
+    where n.org_id=p_org and n.partition_id=p_partition and n.active
       and not exists(select 1 from jsonb_array_elements(p_rows) r where r->>'id'=n.id);
-  insert into public.notifications(id,profile_id,org_id,project_id,kind,title,task_id,unit_id,lane_id)
-    select r->>'id',r->>'profile_id',p_org,p_project,r->>'kind',r->>'title',
+  insert into public.notifications(id,profile_id,org_id,partition_id,kind,title,task_id,unit_id,lane_id)
+    select r->>'id',r->>'profile_id',p_org,p_partition,r->>'kind',r->>'title',
       r->>'task_id',r->>'unit_id',r->>'lane_id'
     from jsonb_array_elements(p_rows) r
     on conflict(id) do update set active=true,title=excluded.title,seq=default
@@ -204,7 +204,7 @@ alter table public.invites add column if not exists email text;
 alter table public.invites add column if not exists email_sent_at timestamptz;
 
 -- Open work permits translators to assign themselves, never someone else.
-create or replace function public.may_emit(p_org text, p_project text, p_profile text, p_type text, p jsonb)
+create or replace function public.may_emit(p_org text, p_partition text, p_profile text, p_type text, p jsonb)
 returns boolean language plpgsql stable security definer set search_path = public as $$
 declare
   v_priv text := public.event_privilege(p_type, p);
@@ -212,16 +212,16 @@ declare
 begin
   if v_priv is null then return false; end if;
   if v_priv = 'bootstrap' then return false; end if;
-  if p_project <> '_org' then
+  if p_partition <> '_org' then
     select case when m.removed then null else m.role end into v_role
       from public.memberships m
-      where m.org_id = p_org and m.project_id = p_project and m.profile_id = p_profile;
+      where m.org_id = p_org and m.partition_id = p_partition and m.profile_id = p_profile;
     if p_type='v1.AssignmentMade' and p->>'profileId'=p_profile
       and p->>'role'='translator' and (
         'translate'=any(public.fixed_role_privileges(v_role)) or
-        'translate'=any(public.org_privileges(p_org,p_profile,p_project,p->>'laneId'))
+        'translate'=any(public.org_privileges(p_org,p_profile,p_partition,p->>'laneId'))
       ) then return true; end if;
     if v_role is not null and public.role_may_emit_event(v_role, p_type, p) then return true; end if;
   end if;
-  return v_priv = any(public.org_privileges(p_org, p_profile, p_project, p->>'laneId'));
+  return v_priv = any(public.org_privileges(p_org, p_profile, p_partition, p->>'laneId'));
 end $$;

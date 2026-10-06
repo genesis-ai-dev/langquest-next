@@ -44,31 +44,31 @@ export class FakeServer {
         if (events.length > this.maxBatch) throw new Error('57014: statement timeout');
         return events.map((e) => this.accept(e));
       },
-      snapshotMeta: async (orgId, projectId, reducerVersion) => {
+      snapshotMeta: async (orgId, partitionId, reducerVersion) => {
         if (this.offline) throw new OfflineError('offline');
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
-        const s = this.snapshots.get(`${orgId}/${projectId}`);
+        const s = this.snapshots.get(`${orgId}/${partitionId}`);
         if (!s || s.reducerVersion !== reducerVersion) return null;
         const text = JSON.stringify(s.state);
         return { serverSeq: s.serverSeq, chunks: Math.max(1, Math.ceil(text.length / this.chunkChars)), bytes: text.length };
       },
-      snapshotChunk: async (orgId, projectId, reducerVersion, serverSeq, index) => {
+      snapshotChunk: async (orgId, partitionId, reducerVersion, serverSeq, index) => {
         if (this.offline) throw new OfflineError('offline');
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
         this.chunkCalls += 1;
         if (this.chunkCalls > this.failChunkAfter) throw new OfflineError('fetch failed');
-        const s = this.snapshots.get(`${orgId}/${projectId}`);
+        const s = this.snapshots.get(`${orgId}/${partitionId}`);
         if (!s || s.reducerVersion !== reducerVersion || s.serverSeq !== serverSeq) return null;
         const text = JSON.stringify(s.state);
         return text.slice(index * this.chunkChars, (index + 1) * this.chunkChars);
       },
-      pull: async (orgId, projectId, after, limit) => {
+      pull: async (orgId, partitionId, after, limit) => {
         if (this.offline) throw new OfflineError('offline');
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
         if (this.minClientVersion > CLIENT_PROTOCOL_VERSION) throw new ClientTooOldError('client too old');
         this.pullCalls += 1;
         return this.log
-          .filter((e) => e.orgId === orgId && e.projectId === projectId && (e.serverSeq ?? 0) > after)
+          .filter((e) => e.orgId === orgId && e.partitionId === partitionId && (e.serverSeq ?? 0) > after)
           .sort((a, b) => a.serverSeq! - b.serverSeq!)
           .slice(0, limit);
       }
@@ -80,15 +80,15 @@ export class FakeServer {
     const seq = (this.seqs.get('org1/p1') ?? 0) + 1;
     this.seqs.set('org1/p1', seq);
     this.log.push({
-      id: `svc${seq}`, type, orgId: 'org1', projectId: 'p1', actorId: 'service', deviceId: 'storage',
+      id: `svc${seq}`, type, orgId: 'org1', partitionId: 'p1', actorId: 'service', deviceId: 'storage',
       hlc: `${String(1_800_000_000_000 + seq).padStart(15, '0')}:000000:storage`, payload, serverSeq: seq
     } as AnyEvent);
   }
 
   /** What the snapshot worker does: fold the whole partition and store it. */
-  makeSnapshot(orgId: string, projectId: string): Snapshot {
-    const s = takeSnapshot(orgId, projectId, this.log.filter((e) => e.orgId === orgId && e.projectId === projectId));
-    this.snapshots.set(`${orgId}/${projectId}`, s);
+  makeSnapshot(orgId: string, partitionId: string): Snapshot {
+    const s = takeSnapshot(orgId, partitionId, this.log.filter((e) => e.orgId === orgId && e.partitionId === partitionId));
+    this.snapshots.set(`${orgId}/${partitionId}`, s);
     return s;
   }
 
@@ -97,7 +97,7 @@ export class FakeServer {
     if (existing) return { id: e.id, accepted: true, serverSeq: existing.serverSeq!, reason: 'duplicate' };
     const reason = this.authorize(e);
     if (reason) return { id: e.id, accepted: false, serverSeq: null, reason };
-    const key = `${e.orgId}/${e.projectId}`;
+    const key = `${e.orgId}/${e.partitionId}`;
     const seq = (this.seqs.get(key) ?? 0) + 1;
     this.seqs.set(key, seq);
     this.log.push({ ...e, serverSeq: seq } as AnyEvent);

@@ -6,7 +6,7 @@ import {
   type AnyEvent,
   type EventPayloads,
   type EventType,
-  type ProjectState,
+  type PartitionState,
   type Snapshot,
   HlcClock,
   affectedPassages,
@@ -17,15 +17,15 @@ import {
   type PassageRow
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
-import { ProjectIndexes } from './projectIndexes';
+import { PartitionIndexes } from './partitionIndexes';
 import { WriteQueue } from './writeQueue';
-import { queriesFor, type ProjectQueries } from './queries';
+import { queriesFor, type PartitionQueries } from './queries';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
 import { fetchSnapshot } from './snapshotFetch';
 import type { Diagnostics } from './diagnostics';
 
 /**
- * How a partition's events become state. The project materializer is the
+ * How a partition's events become state. The partition materializer is the
  * default; the org partition (core `org.ts`) supplies its own. Everything
  * else in the client (log, outbox, cursor, checkpoints, snapshots) is the
  * same for both, which is the point: one sync path, two folds.
@@ -40,7 +40,7 @@ export interface Materializer<S> {
   version: number;
 }
 
-export const PROJECT_MATERIALIZER: Materializer<ProjectState> = {
+export const PARTITION_MATERIALIZER: Materializer<PartitionState> = {
   empty: emptyState,
   apply: applyEvent,
   fold,
@@ -51,7 +51,7 @@ export const PROJECT_MATERIALIZER: Materializer<ProjectState> = {
 };
 
 /** What screens subscribe to: the fold, its revision, and how many local writes are not yet on disk. */
-export interface PublishedState<S = ProjectState> {
+export interface PublishedState<S = PartitionState> {
   state: S;
   revision: number;
   saving: number;
@@ -72,11 +72,11 @@ export interface SyncResult {
   more: boolean;
 }
 
-export interface SyncClientOptions<S = ProjectState> {
-  /** Defaults to the project reducer. */
+export interface SyncClientOptions<S = PartitionState> {
+  /** Defaults to the partition reducer. */
   materializer?: Materializer<S>;
   orgId: string;
-  projectId: string;
+  partitionId: string;
   actorId: string;
   deviceId: string;
   store: EventStore;
@@ -124,7 +124,7 @@ const SLOW_SYNC_MS = 2_000;
 const REPEAT_OUTCOME_MS = 60 * 60 * 1000;
 
 /**
- * One partition (project) on one device.
+ * One partition (partition) on one device.
  *
  * - `append` writes to the local log and folds immediately (PLAN.md section 3:
  *   clients materialize alone; no waiting for a projection).
@@ -136,7 +136,7 @@ const REPEAT_OUTCOME_MS = 60 * 60 * 1000;
  *   time budget. It reports `more` when it stopped short, and the scheduler
  *   runs it again. A month offline drains in slices, never one long pass.
  */
-export class SyncClient<S = ProjectState> {
+export class SyncClient<S = PartitionState> {
   private readonly m: Materializer<S>;
   private state: S;
   private loaded = false;
@@ -153,8 +153,8 @@ export class SyncClient<S = ProjectState> {
   private readonly wall: () => number;
   /** Per-client save tracking; the shared store owns database serialization. */
   private readonly writer = new WriteQueue();
-  /** Rows are maintained only for the project materializer. */
-  private readonly projectRows: boolean;
+  /** Rows are maintained only for the partition materializer. */
+  private readonly partitionRows: boolean;
   /** A catch-up deferred a full row rebuild; until one lands, no rows batch may mark rows current. */
   private rowsOwed = false;
   private revision = 0;
@@ -164,15 +164,15 @@ export class SyncClient<S = ProjectState> {
   private net = { push: 0, pull: 0, pages: 0 };
   private lastOutcome: { outcome: string; at: number } | null = null;
   private offlineSince: number | null = null;
-  private indexes: ProjectIndexes | undefined;
+  private indexes: PartitionIndexes | undefined;
   /** Bump when persisted passage/task/count semantics change. */
   private projectionVersion(): string { return `3:${this.m.version}`; }
-  private projectionKey(): string { return `projection:${this.opts.orgId}/${this.opts.projectId}`; }
+  private projectionKey(): string { return `projection:${this.opts.orgId}/${this.opts.partitionId}`; }
   private readonly listeners = new Set<(s: PublishedState<S>) => void>();
 
   constructor(private readonly opts: SyncClientOptions<S>) {
-    this.m = opts.materializer ?? (PROJECT_MATERIALIZER as unknown as Materializer<S>);
-    this.projectRows = !opts.materializer && !opts.deliverOnly;
+    this.m = opts.materializer ?? (PARTITION_MATERIALIZER as unknown as Materializer<S>);
+    this.partitionRows = !opts.materializer && !opts.deliverOnly;
     this.state = this.m.empty();
     this.writer.onChange(() => this.publish());
     const base = opts.now ?? (() => Date.now());
@@ -197,7 +197,7 @@ export class SyncClient<S = ProjectState> {
       this.clock = new HlcClock(this.opts.deviceId, this.wall, seed ?? null);
     }
     // fold() applies redactions first, so the store's order does not matter.
-    const locals = await this.opts.store.all(this.opts.orgId, this.opts.projectId);
+    const locals = await this.opts.store.all(this.opts.orgId, this.opts.partitionId);
     const events = locals.map((l) => l.event);
     const snapshot = await this.localSnapshot();
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
@@ -206,10 +206,10 @@ export class SyncClient<S = ProjectState> {
       ...this.partition(),
       n: { ms: this.elapsed() - started, events: events.length, fromSnapshot: snapshot ? 1 : 0 }
     });
-    if (this.projectRows) {
-      this.indexes = new ProjectIndexes(this.state as unknown as ProjectState);
+    if (this.partitionRows) {
+      this.indexes = new PartitionIndexes(this.state as unknown as PartitionState);
       const marker = await this.opts.store.meta(this.projectionKey());
-      const cursor = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
+      const cursor = await this.opts.store.cursor(this.opts.orgId, this.opts.partitionId);
       if (refold || marker !== `${this.projectionVersion()}:${cursor}`) {
         await this.commit({ rows: this.allRows() });
       }
@@ -267,7 +267,7 @@ export class SyncClient<S = ProjectState> {
     const have = new Map<string, string>();
     let after: { order: string; unitId: string; laneId: string } | null = null;
     for (;;) {
-      const page = await this.opts.store.passages(this.opts.orgId, this.opts.projectId, { after, limit: 500 });
+      const page = await this.opts.store.passages(this.opts.orgId, this.opts.partitionId, { after, limit: 500 });
       for (const r of page) have.set(passageRowKey(r), JSON.stringify(r));
       if (page.length < 500) break;
       const last = page[page.length - 1]!;
@@ -280,34 +280,34 @@ export class SyncClient<S = ProjectState> {
   }
 
   /** Queries over the persisted rows (queries.ts). */
-  queries(): ProjectQueries {
-    return queriesFor(this.opts.store, this.opts.orgId, this.opts.projectId, () => this.state as unknown as ProjectState,
+  queries(): PartitionQueries {
+    return queriesFor(this.opts.store, this.opts.orgId, this.opts.partitionId, () => this.state as unknown as PartitionState,
       (unitId, laneId, actorId) => this.indexes!.pendingRecordings(unitId, laneId, actorId));
   }
 
   private rowsBatch(put: PassageRow[], clear = false): NonNullable<WriteBatch['rows']> {
-    return { orgId: this.opts.orgId, projectId: this.opts.projectId, put, clear, version: this.projectionVersion() };
+    return { orgId: this.opts.orgId, partitionId: this.opts.partitionId, put, clear, version: this.projectionVersion() };
   }
 
-  /** Every row of the project, from the current fold. */
+  /** Every row of the partition, from the current fold. */
   private allRows(): NonNullable<WriteBatch['rows']> | undefined {
-    if (!this.projectRows) return undefined;
-    const state = this.state as unknown as ProjectState;
+    if (!this.partitionRows) return undefined;
+    const state = this.state as unknown as PartitionState;
     const idx = this.indexes!.get();
     return this.rowsBatch(passageKeys(state, idx).map((k) => passageRow(state, k.unitId, k.laneId, idx)), true);
   }
 
   /**
    * The rows these just-applied events changed. One passage's events cost
-   * one row; a project-wide input (membership, workflow, units) costs a
+   * one row; a partition-wide input (membership, workflow, units) costs a
    * rebuild, which is still one pass over the passages, not one per event.
    * `deferAll` (a catch-up page with more to come) owes that rebuild to the
-   * tail instead: a project that adds a unit on most pages would otherwise
+   * tail instead: a partition that adds a unit on most pages would otherwise
    * rebuild a growing row set on every page.
    */
   private rowsFor(events: AnyEvent[], deferAll = false): NonNullable<WriteBatch['rows']> | undefined {
-    if (!this.projectRows || events.length === 0) return undefined;
-    const state = this.state as unknown as ProjectState;
+    if (!this.partitionRows || events.length === 0) return undefined;
+    const state = this.state as unknown as PartitionState;
     const keys = new Map<string, PassageKey>();
     for (const e of events) {
       const hit = affectedPassages(e, state);
@@ -334,14 +334,14 @@ export class SyncClient<S = ProjectState> {
   // A checkpoint is a snapshot held locally (PLAN.md invariant 10). Cold start
   // takes the server's; afterwards the device rolls its own every
   // `checkpointEvery` confirmed events and prunes what the checkpoint covers,
-  // so replay on launch is bounded by recent history, not project age.
+  // so replay on launch is bounded by recent history, not partition age.
 
   private snapshotKey(): string {
-    return `snapshot:${this.opts.orgId}/${this.opts.projectId}`;
+    return `snapshot:${this.opts.orgId}/${this.opts.partitionId}`;
   }
 
   private minSnapshotKey(): string {
-    return `snapshotMinSeq:${this.opts.orgId}/${this.opts.projectId}`;
+    return `snapshotMinSeq:${this.opts.orgId}/${this.opts.partitionId}`;
   }
 
   private async localSnapshot(): Promise<Snapshot | null> {
@@ -352,18 +352,18 @@ export class SyncClient<S = ProjectState> {
   }
 
   private async saveSnapshot(snap: Snapshot, invalidateRows = true): Promise<void> {
-    const { orgId, projectId } = this.opts;
-    const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, projectId));
+    const { orgId, partitionId } = this.opts;
+    const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, partitionId));
     await this.commit({
       meta: { ...(invalidateRows ? { [this.projectionKey()]: '' } : {}), [this.snapshotKey()]: JSON.stringify(snap) },
-      cursor: { orgId, projectId, seq },
-      prune: { orgId, projectId, uptoSeq: snap.serverSeq }
+      cursor: { orgId, partitionId, seq },
+      prune: { orgId, partitionId, uptoSeq: snap.serverSeq }
     });
   }
 
   /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
   private chunkKey(): string {
-    return `snapchunks:${this.opts.orgId}/${this.opts.projectId}`;
+    return `snapchunks:${this.opts.orgId}/${this.opts.partitionId}`;
   }
 
   /** One piece, stored on its own so saving piece N never rewrites pieces 0..N-1. */
@@ -381,7 +381,7 @@ export class SyncClient<S = ProjectState> {
   private async adoptServerSnapshot(): Promise<number> {
     const started = this.elapsed();
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
-    const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.projectId, this.m.version);
+    const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.partitionId, this.m.version);
     if (!meta) {
       // A cold device with no snapshot for its reducer folds the whole log: the first thing to check when a first download is slow.
       this.opts.diag?.record('snapshot', { ...this.partition(), n: { ms: this.elapsed() - started }, t: { outcome: 'none' } });
@@ -400,7 +400,7 @@ export class SyncClient<S = ProjectState> {
         if (text) savedMap.set(i, text);
       }
     }
-    const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.projectId, this.m.version, {
+    const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.partitionId, this.m.version, {
       saved: savedMap,
       onChunk: async (serverSeq, i, text) => {
         if (index.seq !== serverSeq) {
@@ -440,34 +440,34 @@ export class SyncClient<S = ProjectState> {
     // the state four times over. A local append during the await, or one not
     // yet on disk, would put a pending event in it; then take the slow path.
     const revision = this.revision;
-    const pending = await this.opts.store.pendingCount(this.opts.orgId, this.opts.projectId);
+    const pending = await this.opts.store.pendingCount(this.opts.orgId, this.opts.partitionId);
     if (pending === 0 && this.writer.size === 0 && revision === this.revision) {
       const state = { ...this.state };
       this.m.compact(state);
       const snap: Snapshot = {
-        orgId: this.opts.orgId, projectId: this.opts.projectId, reducerVersion: this.m.version,
-        serverSeq: cursor, state: state as unknown as ProjectState
+        orgId: this.opts.orgId, partitionId: this.opts.partitionId, reducerVersion: this.m.version,
+        serverSeq: cursor, state: state as unknown as PartitionState
       };
-      const { orgId, projectId } = this.opts;
+      const { orgId, partitionId } = this.opts;
       await this.commit({
         meta: { [this.snapshotKey()]: JSON.stringify(snap) },
-        prune: { orgId, projectId, uptoSeq: cursor }
+        prune: { orgId, partitionId, uptoSeq: cursor }
       });
       return;
     }
     const base = (await this.localSnapshot()) ?? {
       orgId: this.opts.orgId,
-      projectId: this.opts.projectId,
+      partitionId: this.opts.partitionId,
       reducerVersion: this.m.version,
       serverSeq: 0,
-      state: this.m.empty() as unknown as ProjectState
+      state: this.m.empty() as unknown as PartitionState
     };
-    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.projectId))
+    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.partitionId))
       .filter((l) => l.status === 'confirmed')
       .map((l) => l.event);
     const state = this.resume(base, confirmed);
     this.m.compact(state);
-    await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as ProjectState }, false);
+    await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as PartitionState }, false);
   }
 
   getState(): S {
@@ -486,7 +486,7 @@ export class SyncClient<S = ProjectState> {
       id: this.newId(),
       type,
       orgId: this.opts.orgId,
-      projectId: this.opts.projectId,
+      partitionId: this.opts.partitionId,
       actorId: this.opts.actorId,
       deviceId: this.opts.deviceId,
       hlc: this.clock.next(),
@@ -504,10 +504,10 @@ export class SyncClient<S = ProjectState> {
    * is durable ("saved locally"); until then `saving` is above zero.
    */
   private applyIndexed(event: AnyEvent): void {
-    const state = this.state as unknown as ProjectState;
-    const duplicate = this.projectRows && !!state.appliedEventIds[event.id];
+    const state = this.state as unknown as PartitionState;
+    const duplicate = this.partitionRows && !!state.appliedEventIds[event.id];
     this.state = this.m.apply(this.state, event);
-    if (!duplicate && this.projectRows && !state.invalidEvents[event.id] && !state.redactions[event.id]) {
+    if (!duplicate && this.partitionRows && !state.invalidEvents[event.id] && !state.redactions[event.id]) {
       this.indexes?.applied(event);
     }
   }
@@ -546,7 +546,7 @@ export class SyncClient<S = ProjectState> {
           id: id ?? this.newId(),
           type,
           orgId: this.opts.orgId,
-          projectId: this.opts.projectId,
+          partitionId: this.opts.partitionId,
           actorId: this.opts.actorId,
           deviceId: this.opts.deviceId,
           hlc: this.clock.next(),
@@ -566,7 +566,7 @@ export class SyncClient<S = ProjectState> {
   }
 
   private redactionKey(): string {
-    return `redactionPending:${this.opts.orgId}/${this.opts.projectId}`;
+    return `redactionPending:${this.opts.orgId}/${this.opts.partitionId}`;
   }
 
   /** The clock's last stamp, for the commit that carries the events it stamped. */
@@ -595,7 +595,7 @@ export class SyncClient<S = ProjectState> {
         // Only this actor's events. A shared device may hold another user's
         // queued events; pushing them under this session would be rejected
         // (actorId must match the caller) and wrongly marked as refused.
-        const page = await this.opts.store.pendingPage(this.opts.orgId, this.opts.projectId, afterHlc, this.pushBatchSize);
+        const page = await this.opts.store.pendingPage(this.opts.orgId, this.opts.partitionId, afterHlc, this.pushBatchSize);
         if (page.length === 0) break;
         afterHlc = page[page.length - 1]!.event.hlc;
         const batch = page.filter((p) => p.event.actorId === this.opts.actorId);
@@ -628,7 +628,7 @@ export class SyncClient<S = ProjectState> {
             writes.push({ event: local.event, status: 'rejected', rejectReason: r.reason ?? 'rejected' });
           }
         }
-        await this.commit({ events: writes, rows: this.projectRows && writes.every((l) => l.status === 'confirmed') ? this.rowsBatch([]) : undefined });
+        await this.commit({ events: writes, rows: this.partitionRows && writes.every((l) => l.status === 'confirmed') ? this.rowsBatch([]) : undefined });
       }
       if (clockAhead.length > 0 && !this.opts.deliverOnly) await this.restamp(clockAhead);
     } finally {
@@ -670,7 +670,7 @@ export class SyncClient<S = ProjectState> {
    * for a manual retry. Invalid payloads are never retried.
    */
   async retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'UNKNOWN']): Promise<number> {
-    const mine = (await this.opts.store.rejected(this.opts.orgId, this.opts.projectId)).filter(
+    const mine = (await this.opts.store.rejected(this.opts.orgId, this.opts.partitionId)).filter(
       (l) => l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
     );
     if (mine.length === 0) return 0;
@@ -697,7 +697,7 @@ export class SyncClient<S = ProjectState> {
   async pullSlice(budgetMs: number = this.pullBudgetMs): Promise<{ pulled: number; more: boolean }> {
     if (await this.resolvePendingRedaction()) return await this.pullSlice(budgetMs);
     const started = this.wall();
-    let after = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
+    let after = await this.opts.store.cursor(this.opts.orgId, this.opts.partitionId);
     if (after === 0 && !(await this.localSnapshot())) after = await this.adoptServerSnapshot();
     let total = 0;
     let more = false;
@@ -708,7 +708,7 @@ export class SyncClient<S = ProjectState> {
       const asked = this.elapsed();
       const page = await this.opts.transport.pull(
         this.opts.orgId,
-        this.opts.projectId,
+        this.opts.partitionId,
         after,
         this.pullPageSize
       );
@@ -746,7 +746,7 @@ export class SyncClient<S = ProjectState> {
       const rows = this.rowsFor(folded, page.length >= this.pullPageSize);
       await this.commit({
         events: writes,
-        cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: after },
+        cursor: { orgId: this.opts.orgId, partitionId: this.opts.partitionId, seq: after },
         // Owed rows are not current: a restart before the tail must rebuild them.
         meta: { ...this.clockMeta(), ...(this.rowsOwed ? { [this.projectionKey()]: '' } : {}) },
         rows
@@ -814,7 +814,7 @@ export class SyncClient<S = ProjectState> {
     if (this.wall() - since < SyncClient.REDACTION_SNAPSHOT_WAIT_MS) return false;
     await this.commit({
       meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '' },
-      cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: 0 }
+      cursor: { orgId: this.opts.orgId, partitionId: this.opts.partitionId, seq: 0 }
     });
     await this.load();
     return true;
@@ -894,18 +894,18 @@ export class SyncClient<S = ProjectState> {
     } catch { /* diagnostics never fail a sync */ }
   }
 
-  private partition(): { orgId: string; projectId: string } {
-    return { orgId: this.opts.orgId, projectId: this.opts.projectId };
+  private partition(): { orgId: string; partitionId: string } {
+    return { orgId: this.opts.orgId, partitionId: this.opts.partitionId };
   }
 
   /** The local log as the sync status screen shows it. */
   async inspect(): Promise<SyncInspection> {
-    const { orgId, projectId } = this.opts;
+    const { orgId, partitionId } = this.opts;
     const [pending, rejected, total, cursor, snap] = await Promise.all([
-      this.opts.store.pending(orgId, projectId),
-      this.opts.store.rejected(orgId, projectId),
-      this.opts.store.count(orgId, projectId),
-      this.opts.store.cursor(orgId, projectId),
+      this.opts.store.pending(orgId, partitionId),
+      this.opts.store.rejected(orgId, partitionId),
+      this.opts.store.count(orgId, partitionId),
+      this.opts.store.cursor(orgId, partitionId),
       this.localSnapshot()
     ]);
     return { pending, rejected, total, cursor, checkpointSeq: snap?.serverSeq ?? null };
@@ -918,6 +918,6 @@ export class SyncClient<S = ProjectState> {
    * person's sign-out (decisions.md 11, 12).
    */
   async pendingCount(): Promise<number> {
-    return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.projectId, this.opts.actorId);
+    return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.partitionId, this.opts.actorId);
   }
 }

@@ -88,7 +88,7 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
   const [shown, setShown] = useState(TERM_STEP);
   const [tying, setTying] = useState<string | null>(null);
   async function tie(termId: string) {
-    const state = ctx.project.state;
+    const state = ctx.partition.state;
     if (!state || !props.draftTakeId || !props.canTie || tying) return;
     setTying(termId);
     try {
@@ -191,7 +191,7 @@ function NotesTab(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disab
           <Authored key={n.id} ctx={ctx} by={n.by}>
             <NoteCard anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
               {...(older ? { olderVersion: versionTitle(older) } : {})}
-              {...(n.blobHash ? { audio: <AudioClip project={ctx.project} hashes={[n.blobHash]} label="Play voice note" /> } : {})}
+              {...(n.blobHash ? { audio: <AudioClip partition={ctx.partition} hashes={[n.blobHash]} label="Play voice note" /> } : {})}
               action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
           </Authored>
         );
@@ -208,7 +208,7 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   async function save() {
-    const state = ctx.project.state;
+    const state = ctx.partition.state;
     if (!state || busy) return;
     setBusy(true);
     try {
@@ -243,7 +243,7 @@ function HistoryTab(props: { ctx: Ctx; v: PassageView }) {
         <View key={x.takeId} style={styles.history}>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{versionTitle(x.n)} <Text style={[txt.sm, { fontWeight: '400', color: C.muted }]}>· {ctx.name(x.by)} · {when(x.hlc)}</Text></Text>
           <Text style={[txt.sm, { marginTop: 2 }]}>{x.changeNote ?? (x.n === 1 ? 'First recording.' : 'Said in a voice note.')}</Text>
-          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip project={ctx.project} hashes={[x.changeBlobHash]} label={`Play what changed in ${versionTitle(x.n)}`} /></View> : null}
+          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip partition={ctx.partition} hashes={[x.changeBlobHash]} label={`Play what changed in ${versionTitle(x.n)}`} /></View> : null}
         </View>
       ))}
       <ShowMore remaining={versions.length - shown} step={HISTORY_STEP} onMore={() => setShown((n) => n + HISTORY_STEP)} />

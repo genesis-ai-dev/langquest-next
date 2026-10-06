@@ -57,12 +57,12 @@ const blobs = new Map([
 ]);
 
 describe('mapV2Project', () => {
-  it('produces valid events that fold into the expected project', () => {
+  it('produces valid events that fold into the expected partition', () => {
     const { events, report } = mapV2Project(rows(), { orgId: 'org1', blobs });
     for (const e of events) expect(validateEvent(e), e.type).toBeNull();
     const state = fold(events);
     expect(Object.keys(state.invalidEvents)).toHaveLength(0);
-    expect(state.project?.value.name).toBe('Demo');
+    expect(state.partition?.value.name).toBe('Demo');
     expect(Object.keys(state.lanes)).toHaveLength(1);
     const laneId = Object.keys(state.lanes)[0]!;
     expect(state.lanes[laneId]?.languoidId).toBe('lang-tgt');
@@ -105,16 +105,16 @@ describe('mapV2Project', () => {
     expect(new Set(a.map((e) => e.id)).size).toBe(a.length);
   });
 
-  it('bootstraps in an order the server accepts: project, then the owner, then everything else', () => {
+  it('bootstraps in an order the server accepts: partition, then the owner, then everything else', () => {
     const { events } = mapV2Project(rows(), { orgId: 'org1', blobs });
-    expect(events[0]?.type).toBe('v1.ProjectCreated');
+    expect(events[0]?.type).toBe('v1.PartitionCreated');
     expect(events[1]).toMatchObject({ type: 'v1.MemberAdded', actorId: OWNER, payload: { profileId: OWNER, role: 'owner' } });
     const firstByOther = events.findIndex((e) => e.actorId !== OWNER);
     const memberAddedForThat = events.findIndex((e) => e.type === 'v1.MemberAdded' && (e.payload as { profileId: string }).profileId === events[firstByOther]!.actorId);
     expect(memberAddedForThat).toBeLessThan(firstByOther);
   });
 
-  it('grants extra members so a demo account can open the project', () => {
+  it('grants extra members so a demo account can open the partition', () => {
     const { events } = mapV2Project(rows(), { orgId: 'org1', blobs, grant: [{ profileId: 'demo', role: 'owner' }] });
     const state = fold(events);
     expect(state.members['demo']?.role.value).toBe('owner');

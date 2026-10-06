@@ -25,7 +25,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.OrgMemberAdded','v1.OrgLicenseSet','v1.VisionSeen'],rpcs:['record_user_event','save_profile'],reads:['profiles'] },
   request_access: { rpcs:['create_join_request'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
-  explore_home: { reads:['public_projects'] },
+  explore_home: { reads:['public_partitions'] },
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext'] },
   status_home: { reads:['languageProgress'] },
   map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
@@ -55,11 +55,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
   // Registers the language in the org and starts its own partition (decisions.md 37).
-  new_language: { emits:['v1.ProjectRegistered','v1.ProjectCreated','v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
+  new_language: { emits:['v1.PartitionRegistered','v1.PartitionCreated','v1.LaneAdded','v1.LaneNamed','v2.LaneTemplateSelected','v1.UnitAdded','v1.LaneUnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // The public listing is keyed by partition; an org has one (decision 34).
   // Opening the organization's license (docs/licensing.md).
-  org_home: { emits:['v1.OrgLicenseSet'],rpcs:['set_project_visibility'],reads:['project_visibility','orgLicense'] },
+  org_home: { emits:['v1.OrgLicenseSet'],rpcs:['set_partition_visibility'],reads:['partition_visibility','orgLicense'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },

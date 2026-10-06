@@ -34,7 +34,7 @@ const positional = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--
 const [command, ...rest] = positional;
 const asJson = process.argv.includes('--json');
 
-interface Found { kind: 'org' | 'language'; org_id: string; project_id: string | null; name: string }
+interface Found { kind: 'org' | 'language'; org_id: string; partition_id: string | null; name: string }
 
 function find(text: string): Found[] {
   return query<Found[]>(`select coalesce(jsonb_agg(f), '[]') from diag.find(:'q') f`, { q: text });
@@ -46,8 +46,8 @@ function resolve(orgText: string, langText: string): { org: Found; lang: Found }
   const org = orgs.find((f) => f.org_id === orgText) ?? (orgs.length === 1 ? orgs[0] : undefined);
   if (!org) throw new Error(orgs.length ? `"${orgText}" matches several orgs:\n${orgs.map((o) => `  ${o.org_id}  ${o.name}`).join('\n')}` : `No org matches "${orgText}".`);
   const langs = find(langText).filter((f) => f.kind === 'language' && f.org_id === org.org_id);
-  const lang = langs.find((f) => f.project_id === langText) ?? (langs.length === 1 ? langs[0] : undefined);
-  if (!lang) throw new Error(langs.length ? `"${langText}" matches several languages in ${org.name}:\n${langs.map((l) => `  ${l.project_id}  ${l.name}`).join('\n')}` : `No language in ${org.name} matches "${langText}".`);
+  const lang = langs.find((f) => f.partition_id === langText) ?? (langs.length === 1 ? langs[0] : undefined);
+  if (!lang) throw new Error(langs.length ? `"${langText}" matches several languages in ${org.name}:\n${langs.map((l) => `  ${l.partition_id}  ${l.name}`).join('\n')}` : `No language in ${org.name} matches "${langText}".`);
   return { org, lang };
 }
 
@@ -57,7 +57,7 @@ const s = (ms?: number | null) => (ms ? `${(ms / 1000).toFixed(1)} s` : '-');
 function report(orgText: string, langText: string): void {
   const { org, lang } = resolve(orgText, langText);
   const days = flag('days', '14')!;
-  const vars = { org: org.org_id, lang: lang.project_id!, since: `${Number(days)} days`, install: flag('install') ?? '' };
+  const vars = { org: org.org_id, lang: lang.partition_id!, since: `${Number(days)} days`, install: flag('install') ?? '' };
   const health = query<PartitionHealth>(`select diag.partition_health(:'org', :'lang', ${REDUCER_VERSION})`, vars);
   const members = query<Member[]>(`select coalesce(jsonb_agg(m), '[]') from diag.members(:'org', :'lang') m`, vars);
   const summary = query<Record<string, InstallSummary>>(`select diag.summary(:'org', :'lang', :'since'::interval, nullif(:'install', ''))`, vars);
@@ -68,7 +68,7 @@ function report(orgText: string, langText: string): void {
     return;
   }
   const out: string[] = [];
-  out.push(`# ${org.name} / ${lang.name}`, '', `org ${org.org_id} · language ${lang.project_id} · last ${days} days · reducer ${REDUCER_VERSION}`, '');
+  out.push(`# ${org.name} / ${lang.name}`, '', `org ${org.org_id} · language ${lang.partition_id} · last ${days} days · reducer ${REDUCER_VERSION}`, '');
   out.push('## Signals', '');
   if (found.length === 0) out.push('Nothing stands out.');
   for (const f of found) out.push(`- **${f.level}**${f.install ? ` [${f.install}]` : ''} ${f.text}`);

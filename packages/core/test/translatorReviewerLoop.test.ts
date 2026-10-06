@@ -20,14 +20,14 @@ function loop() {
   const emit = <T extends EventType>(actorId: string, type: T, payload: EventPayloads[T]) => {
     seq += 1;
     events.push({
-      id: `loop${seq}`, type, orgId: 'org1', projectId: 'p1', actorId, deviceId: 'dA',
+      id: `loop${seq}`, type, orgId: 'org1', partitionId: 'p1', actorId, deviceId: 'dA',
       hlc: encodeHlc(1_700_000_000_000 + seq * 1000, 0, 'dA'), payload, serverSeq: seq
     } as AnyEvent);
   };
   const mark = (name: string) => { marks[name] = events.length; };
 
-  emit('lead', 'v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-  emit('lead', 'v1.ProjectConfigChanged', {
+  emit('lead', 'v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+  emit('lead', 'v1.PartitionConfigChanged', {
     config: {
       unitKinds: [
         { id: 'book', label: 'Book', childKinds: ['passage'] },

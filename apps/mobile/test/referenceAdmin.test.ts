@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   canonicalJson, catalogKey, emptyOrgState, emptyState, foldOrg, libraryUnitRange, validateDoc, withDeps,
-  type AnyEvent, type LibraryDoc, type MaterialDoc, type ProjectState, type SourceBookDoc, type SourceDoc, type StudyDoc,
+  type AnyEvent, type LibraryDoc, type MaterialDoc, type PartitionState, type SourceBookDoc, type SourceDoc, type StudyDoc,
   type TimingDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { coverage, coverageSummary, itemReaches } from '../src/reference/coverage';
@@ -34,10 +34,10 @@ const ORG = H('0');
 
 let seq = 0;
 const envelope = (type: string, payload: unknown, actorId = 'admin'): AnyEvent =>
-  ({ id: `e${++seq}`, orgId: 'o', projectId: '_org', actorId, deviceId: 'd', hlc: `${String(++seq).padStart(15, '0')}:000000:d`, type, payload }) as AnyEvent;
-const laneEnvelope = (type: string, payload: unknown): AnyEvent => ({ ...envelope(type, payload), projectId: 'L1' }) as AnyEvent;
+  ({ id: `e${++seq}`, orgId: 'o', partitionId: '_org', actorId, deviceId: 'd', hlc: `${String(++seq).padStart(15, '0')}:000000:d`, type, payload }) as AnyEvent;
+const laneEnvelope = (type: string, payload: unknown): AnyEvent => ({ ...envelope(type, payload), partitionId: 'L1' }) as AnyEvent;
 
-function laneState(events: AnyEvent[]): ProjectState {
+function laneState(events: AnyEvent[]): PartitionState {
   const state = emptyState();
   for (const e of events) {
     const p = e.payload as { laneId: string; itemId: string; state?: 'recommended' | 'hidden' | 'inherit'; unitId?: string; linked?: boolean };
@@ -86,7 +86,7 @@ describe('recommendations at a level', () => {
     const o = foldOrg([
       envelope('v1.RoleDefined', { roleId: 'ref', name: 'Reference', privileges: ['manage_reference'] }),
       envelope('v1.OrgMemberAdded', { profileId: 'ana', roleId: 'ref', scope: { level: 'org' } }),
-      envelope('v1.OrgMemberAdded', { profileId: 'ben', roleId: 'ref', scope: { level: 'lane', projectId: 'L1', laneId: 'L1' } })
+      envelope('v1.OrgMemberAdded', { profileId: 'ben', roleId: 'ref', scope: { level: 'lane', partitionId: 'L1', laneId: 'L1' } })
     ]);
     expect(orgLevelCan(o, 'ana', 'manage_reference')).toBe(true);
     expect(orgLevelCan(o, 'ben', 'manage_reference')).toBe(false);

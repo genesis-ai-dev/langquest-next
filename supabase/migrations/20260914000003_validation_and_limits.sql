@@ -14,9 +14,9 @@ begin
 
   -- Helper predicates inline: nonempty string, role, string array.
   case p_type
-    when 'v1.ProjectCreated' then
+    when 'v1.PartitionCreated' then
       if not (public._is_str(p->'name') and public._is_str(p->'sourceLanguoidId')) then return 'name and sourceLanguoidId must be non-empty strings'; end if;
-    when 'v1.ProjectConfigChanged' then
+    when 'v1.PartitionConfigChanged' then
       if jsonb_typeof(p->'config') is distinct from 'object' then return 'config must be an object'; end if;
     when 'v1.MemberAdded', 'v1.MemberRoleChanged' then
       if not public._is_str(p->'profileId') then return 'profileId must be a non-empty string'; end if;
@@ -54,7 +54,7 @@ begin
       if not (public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'profileId')) then return 'unitId, laneId, profileId must be non-empty strings'; end if;
       if not public._is_role(p->>'role') then return 'role must be a role'; end if;
     when 'v1.SourceImported' then
-      if not public._is_str(p->'sourceProjectId') then return 'sourceProjectId must be a non-empty string'; end if;
+      if not public._is_str(p->'sourcePartitionId') then return 'sourcePartitionId must be a non-empty string'; end if;
       if jsonb_typeof(p->'sourceSeq') is distinct from 'number' then return 'sourceSeq must be a number'; end if;
       if not public._is_str_array(p->'unitIds') then return 'unitIds must be a string array'; end if;
     when 'v1.BlobStored' then
@@ -98,7 +98,7 @@ language plpgsql security definer set search_path = public as $$
 declare
   ev jsonb;
   v_actor text := public.caller_id();
-  v_org text; v_project text; v_type text; v_id text;
+  v_org text; v_partition text; v_type text; v_id text;
   v_role text; v_seq bigint; v_existing bigint; v_count bigint; v_invalid text;
 begin
   if jsonb_typeof(p_events) <> 'array' then
@@ -109,9 +109,9 @@ begin
   end if;
 
   for ev in select * from jsonb_array_elements(p_events) loop
-    v_id := ev->>'id'; v_org := ev->>'orgId'; v_project := ev->>'projectId'; v_type := ev->>'type';
+    v_id := ev->>'id'; v_org := ev->>'orgId'; v_partition := ev->>'partitionId'; v_type := ev->>'type';
 
-    if v_id is null or v_org is null or v_project is null or v_type is null or ev->'payload' is null
+    if v_id is null or v_org is null or v_partition is null or v_type is null or ev->'payload' is null
        or not public._is_str(ev->'hlc') or not public._is_str(ev->'deviceId') or not public._is_str(ev->'actorId') then
       id := v_id; accepted := false; server_seq := null; reason := 'malformed envelope';
       return next; continue;
@@ -128,12 +128,12 @@ begin
       return next; continue;
     end if;
 
-    v_role := public.member_role(v_org, v_project, ev->>'actorId');
+    v_role := public.member_role(v_org, v_partition, ev->>'actorId');
     if v_role is null then
       select count(*) into v_count from public.events e
-        where e.org_id = v_org and e.project_id = v_project and e.type = 'v1.MemberAdded';
+        where e.org_id = v_org and e.partition_id = v_partition and e.type = 'v1.MemberAdded';
       if not (v_count = 0 and (
-        v_type = 'v1.ProjectCreated'
+        v_type = 'v1.PartitionCreated'
         or (v_type = 'v1.MemberAdded' and ev->'payload'->>'profileId' = ev->>'actorId')
       )) then
         id := v_id; accepted := false; server_seq := null; reason := 'not a member';
@@ -151,15 +151,15 @@ begin
       return next; continue;
     end if;
 
-    insert into public.partition_cursors (org_id, project_id) values (v_org, v_project)
+    insert into public.partition_cursors (org_id, partition_id) values (v_org, v_partition)
       on conflict do nothing;
     update public.partition_cursors c set next_seq = c.next_seq + 1
-      where c.org_id = v_org and c.project_id = v_project
+      where c.org_id = v_org and c.partition_id = v_partition
       returning c.next_seq - 1 into v_seq;
 
-    insert into public.events (id, org_id, project_id, server_seq, type, actor_id, device_id,
+    insert into public.events (id, org_id, partition_id, server_seq, type, actor_id, device_id,
                                hlc, parent_event_id, payload)
-    values (v_id, v_org, v_project, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
+    values (v_id, v_org, v_partition, v_seq, v_type, ev->>'actorId', ev->>'deviceId',
             ev->>'hlc', ev->>'parentEventId', ev->'payload');
 
     id := v_id; accepted := true; server_seq := v_seq; reason := null;

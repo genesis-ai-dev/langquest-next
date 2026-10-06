@@ -15,12 +15,12 @@ import { subscribeOps, type SharedItem } from './library/model';
 import { reportError } from './report';
 import { supabase } from './supabase';
 import type { OrgHandle } from './useOrg';
-import type { ProjectHandle } from './useProject';
+import type { PartitionHandle } from './usePartition';
 
 export function DevMenu(props: {
   open: boolean;
   onClose: () => void;
-  project: ProjectHandle;
+  partition: PartitionHandle;
   org: OrgHandle;
   currentEmail: string | null;
   isOwner: boolean;
@@ -63,7 +63,7 @@ export function DevMenu(props: {
    * seeded (`npm run library:seed`).
    */
   async function useStandardFlow(laneId: string) {
-    const orgId = props.project.orgId;
+    const orgId = props.partition.orgId;
     const { data, error: failed } = await supabase.rpc('library_shared_items', { p_kind: 'flow', p_query: 'Standard Bible Flow', p_limit: 5, p_offset: 0 });
     if (failed) throw new Error(failed.message);
     const shared = ((data ?? []) as SharedItem[]).find((r) => r.org_id === 'langquest');
@@ -73,13 +73,13 @@ export function DevMenu(props: {
     const { itemId, ops } = subscribeOps(shared, true);
     for (const op of ops) await props.org.append(op.type, op.payload as never);
     const doc = (await loadDocs(orgId, [shared.latest_hash])).get(shared.latest_hash) as FlowDoc | undefined;
-    const state = props.project.state;
+    const state = props.partition.state;
     if (!doc || !state) throw new Error('The flow could not be read.');
-    await props.project.run(selectFlowSpecs(state, { commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, itemId, docHash: shared.latest_hash, doc }));
+    await props.partition.run(selectFlowSpecs(state, { commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, itemId, docHash: shared.latest_hash, doc }));
   }
 
   async function seed() {
-    const { state, append } = props.project;
+    const { state, append } = props.partition;
     if (!state || !maySeedDemoTeam(props.isDev)) return;
     const laneId = Object.keys(state.lanes)[0];
     // A handful of passages, in canon order: enough to show For you and the
@@ -99,12 +99,12 @@ export function DevMenu(props: {
       if (laneId && p.role === 'translator') {
         const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
         const c = commands(state, indexesFor(state));
-        for (const unitId of units) await props.project.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, laneId, what: 'record', profileId: id, dueDate: due }));
+        for (const unitId of units) await props.partition.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, laneId, what: 'record', profileId: id, dueDate: due }));
       }
     }
     if (laneId && !state.laneNames[laneId]) await append('v1.LaneNamed', { laneId, name: 'Dinka' });
     if (laneId && !state.laneFlows[laneId]) await useStandardFlow(laneId);
-    await props.project.sync();
+    await props.partition.sync();
     await props.org.sync();
   }
 

@@ -4,12 +4,12 @@ import { emptyState } from '../src/state';
 import type { AnyEvent } from '../src/events';
 import { buildFixture } from './fixtures';
 
-/** The fixture is a healthy project; every case below breaks it one way. */
+/** The fixture is a healthy partition; every case below breaks it one way. */
 const base = buildFixture().filter((e) => e.parentEventId === undefined);
 const at = (id: string, suffix: string) => ({ id: `${id}-${suffix}`, hlc: `999999999999${suffix.padStart(3, '0')}:000000:dZ` });
 
 describe('blockers: reachable states nobody can leave', () => {
-  it('a healthy project has none', () => {
+  it('a healthy partition has none', () => {
     expect(deriveBlockers(fold(base, emptyState()))).toEqual([]);
   });
 

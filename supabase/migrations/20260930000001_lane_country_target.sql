@@ -48,15 +48,15 @@ $$;
 -- The caller's own privileges over a partition, optionally one language:
 -- what the dashboard asks before offering an edit. The server still
 -- decides on append (may_emit); this only hides controls that would fail.
-create or replace function public.my_privileges(p_org text, p_project text, p_lane text default null)
+create or replace function public.my_privileges(p_org text, p_partition text, p_lane text default null)
 returns text[] language sql stable security definer set search_path = '' as $$
   select coalesce(array(
     select distinct x from unnest(
-      public.org_privileges(p_org, public.caller_id(), p_project, p_lane)
+      public.org_privileges(p_org, public.caller_id(), p_partition, p_lane)
       || public.fixed_role_privileges((
         select case when m.removed then null else m.role end
         from public.memberships m
-        where m.org_id = p_org and m.project_id = p_project and m.profile_id = public.caller_id()))
+        where m.org_id = p_org and m.partition_id = p_partition and m.profile_id = public.caller_id()))
     ) as x order by x
   ), '{}'::text[])
   where public.caller_id() is not null;

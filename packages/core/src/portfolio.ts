@@ -9,7 +9,7 @@ import { TARGET_SCOPES, type TargetScope } from './record';
 /** One language's report, as an app holds it after asking the dashboard's server. */
 export interface LaneRow {
   orgId: string;
-  projectId: string;
+  partitionId: string;
   laneId: string;
   /** When the server last caught up with the log (the response's `asOf`). */
   updatedAt: string;

@@ -51,11 +51,11 @@ begin
   select u.email into v_email from auth.users u where u.id::text = p_actor;
 
   -- Organization memberships, at every scope still held.
-  for m in select om.org_id, om.scope_key, om.scope_level, om.project_id, om.lane_id
+  for m in select om.org_id, om.scope_key, om.scope_level, om.partition_id, om.lane_id
              from public.org_memberships om
             where om.profile_id = p_actor and not om.removed loop
     v_payload := jsonb_build_object('profileId', p_actor, 'scope', jsonb_strip_nulls(jsonb_build_object(
-      'level', m.scope_level, 'projectId', m.project_id, 'laneId', m.lane_id)));
+      'level', m.scope_level, 'partitionId', m.partition_id, 'laneId', m.lane_id)));
     v_hlc := public._append_event_as('accountdeleted:' || p_actor || ':' || m.scope_key,
       m.org_id, '_org', 'v1.OrgMemberRemoved', 'service', 'server', v_payload);
     if v_hlc is not null then
@@ -63,27 +63,27 @@ begin
     end if;
   end loop;
 
-  -- Language (project) memberships.
-  for m in select pm.org_id, pm.project_id from public.memberships pm
+  -- Language (partition) memberships.
+  for m in select pm.org_id, pm.partition_id from public.memberships pm
             where pm.profile_id = p_actor and not pm.removed loop
     v_payload := jsonb_build_object('profileId', p_actor);
-    v_hlc := public._append_event_as('accountdeleted:' || p_actor || ':' || m.org_id || '/' || m.project_id,
-      m.org_id, m.project_id, 'v1.MemberRemoved', 'service', 'server', v_payload);
+    v_hlc := public._append_event_as('accountdeleted:' || p_actor || ':' || m.org_id || '/' || m.partition_id,
+      m.org_id, m.partition_id, 'v1.MemberRemoved', 'service', 'server', v_payload);
     if v_hlc is not null then
-      perform public._apply_member_event(m.org_id, m.project_id, 'v1.MemberRemoved', v_payload, v_hlc);
+      perform public._apply_member_event(m.org_id, m.partition_id, 'v1.MemberRemoved', v_payload, v_hlc);
     end if;
   end loop;
 
   -- The name an organization's creator was added with: redact the event
   -- (phones that hold it stop showing it), drop that partition's snapshots,
   -- then erase the field itself.
-  for m in select e.id, e.org_id, e.project_id from public.events e
+  for m in select e.id, e.org_id, e.partition_id from public.events e
             where e.type = 'v1.OrgMemberAdded' and e.payload->>'profileId' = p_actor
               and e.payload ? 'displayName' loop
     perform public._append_event_as('accountdeleted:' || p_actor || ':redact:' || m.id,
-      m.org_id, m.project_id, 'v1.Redacted', 'service', 'server',
+      m.org_id, m.partition_id, 'v1.Redacted', 'service', 'server',
       jsonb_build_object('eventId', m.id, 'reason', 'account deleted'));
-    delete from public.snapshots s where s.org_id = m.org_id and s.project_id = m.project_id;
+    delete from public.snapshots s where s.org_id = m.org_id and s.partition_id = m.partition_id;
   end loop;
   perform set_config('langquest.erase_profile', p_actor, true);
   update public.events set payload = payload - 'displayName'

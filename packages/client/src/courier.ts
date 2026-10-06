@@ -38,16 +38,16 @@ export async function deliverQueued(o: {
   let accepted = 0;
   let rejected = 0;
   let left = 0;
-  for (const { orgId, projectId } of await o.store.pendingPartitionsBy(o.actorId)) {
+  for (const { orgId, partitionId } of await o.store.pendingPartitionsBy(o.actorId)) {
     const client = new SyncClient<null>({
-      orgId, projectId, actorId: o.actorId, deviceId: o.deviceId, store: o.store, transport: o.transport,
+      orgId, partitionId, actorId: o.actorId, deviceId: o.deviceId, store: o.store, transport: o.transport,
       materializer: NO_FOLD, deliverOnly: true, ...(o.pushBatchSize ? { pushBatchSize: o.pushBatchSize } : {})
     });
     for (let before = -1; ;) {
       const r = await client.push();
       accepted += r.accepted;
       rejected += r.rejected;
-      const now = await o.store.pendingCountBy(orgId, projectId, o.actorId);
+      const now = await o.store.pendingCountBy(orgId, partitionId, o.actorId);
       // Done, or stuck (a clock refusal leaves events queued): stop either way.
       if (!r.more || now === before) { left += now; break; }
       before = now;

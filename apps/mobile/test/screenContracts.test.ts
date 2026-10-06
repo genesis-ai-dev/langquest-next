@@ -82,12 +82,12 @@ describe('screen action contracts', () => {
 
   it('walks every persona through allowed edges and checks emitted fixture actions', () => {
     const fixture = buildFixture();
-    const project = fold(fixture);
+    const partition = fold(fixture);
     const roles: Role[] = ['owner','coordinator','translator','reviewer','viewer'];
     let checked = 0;
     for (const role of roles) {
-      const session = deriveSession('persona',null,{ ...project, members:{
-        ...project.members,persona:{ role:{value:role,hlc:'',eventId:''},removed:{value:false,hlc:'',eventId:''} }
+      const session = deriveSession('persona',null,{ ...partition, members:{
+        ...partition.members,persona:{ role:{value:role,hlc:'',eventId:''},removed:{value:false,hlc:'',eventId:''} }
       } },true);
       const seen = new Set<NodeId>(['sign_in']);
       const queue: NodeId[] = ['sign_in'];

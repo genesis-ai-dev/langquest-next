@@ -1,6 +1,6 @@
 import type { AnyEvent, Role } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 import { actorRole, type Task, type TaskStatus } from './tasks';
 import { currentTake, deriveTakeStatus, deriveWorkflow, type TakeOutcome } from './workflow';
 
@@ -10,7 +10,7 @@ import { currentTake, deriveTakeStatus, deriveWorkflow, type TakeOutcome } from 
  * time (PLAN.md invariant 5 still holds: nothing here is authoritative, and
  * no user writes a row). The client keeps rows current after each commit;
  * `affectedPassages` says which rows one event can change, so a review
- * updates one row instead of re-deriving every passage in the project.
+ * updates one row instead of re-deriving every passage in the partition.
  */
 
 export interface PassageKey {
@@ -50,13 +50,13 @@ export interface PassageRow extends PassageKey {
 export const passageRowKey = (k: PassageKey): string => unitLaneKey(k.unitId, k.laneId);
 
 /** Every (lane, leaf unit) pair that has a row. */
-export function passageKeys(state: ProjectState, idx: Indexes = buildIndexes(state)): PassageKey[] {
+export function passageKeys(state: PartitionState, idx: Indexes = buildIndexes(state)): PassageKey[] {
   const keys: PassageKey[] = [];
   for (const laneId of idx.lanes) for (const unitId of laneLeafUnits(state, idx, laneId)) keys.push({ unitId, laneId });
   return keys;
 }
 
-export function passageRow(state: ProjectState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): PassageRow {
+export function passageRow(state: PartitionState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): PassageRow {
   const unit = state.units[unitId];
   const takeId = currentTake(state, unitId, laneId, idx);
   const status = takeId ? deriveTakeStatus(state, takeId, idx) : null;
@@ -145,18 +145,18 @@ export function progressFromRows(rows: Iterable<PassageRow>): { translatedPct: n
 
 /**
  * Which rows one applied event can change. `'all'` means the row set or a
- * project-wide input (membership, workflow, unit tree, templates) moved and
+ * partition-wide input (membership, workflow, unit tree, templates) moved and
  * every row must be rebuilt. Read after the event is folded, so take lookups
  * see the take the event created. Anything not listed is treated as
- * project-wide: a new event type can only be too conservative, never wrong.
+ * partition-wide: a new event type can only be too conservative, never wrong.
  */
-export function affectedPassages(event: AnyEvent, state: ProjectState): 'all' | PassageKey[] {
+export function affectedPassages(event: AnyEvent, state: PartitionState): 'all' | PassageKey[] {
   const ofTake = (takeId: string): 'all' | PassageKey[] => {
     const t = state.takes[takeId];
     return t?.unitId && t.laneId ? [{ unitId: t.unitId, laneId: t.laneId }] : [];
   };
   switch (event.type) {
-    case 'v1.ProjectCreated':
+    case 'v1.PartitionCreated':
     case 'v1.ReferenceAttached':
     case 'v1.RecordingAdded':
     case 'v1.SourceImported':

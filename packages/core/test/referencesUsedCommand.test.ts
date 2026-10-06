@@ -29,7 +29,7 @@ describe('commands.referencesUsed', () => {
     const state = emptyState();
     const [spec] = commands(state).referencesUsed({ commandId: 'c2', laneId: 'L1', unitId: 'u1', reviewId: 'review:c2:0', items: [item('esv', false)] });
     const envelope = {
-      id: spec!.id, orgId: 'o', projectId: 'p', actorId: 'me', deviceId: 'd', hlc: '0000000000001:0000:d', type: spec!.type,
+      id: spec!.id, orgId: 'o', partitionId: 'p', actorId: 'me', deviceId: 'd', hlc: '0000000000001:0000:d', type: spec!.type,
       payload: spec!.payload, schemaVersion: 1
     } as never;
     expect(validateEvent(envelope)).toBeNull();

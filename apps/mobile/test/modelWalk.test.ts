@@ -21,14 +21,14 @@ it('walks two devices through recording and review with randomized connection lo
     let now = 1_700_000_000_000;
     const device = (actorId: string) => {
       let id = 0;
-      return new SyncClient({ orgId: 'walk', projectId: 'p', actorId, deviceId: actorId,
+      return new SyncClient({ orgId: 'walk', partitionId: 'p', actorId, deviceId: actorId,
         store: new MemoryStore(), transport: server.transportFor(),
         clock: new HlcClock(actorId, () => ++now), newId: () => `${seed}:${actorId}:${++id}` });
     };
     const translator = device('translator'), reviewer = device('reviewer');
     await translator.load(); await reviewer.load();
-    await translator.append('v1.ProjectCreated', { name: 'Walk', sourceLanguoidId: 'eng' });
-    await translator.append('v1.ProjectConfigChanged', { config: { unitKinds: [{ id: 'passage', label: 'Passage', childKinds: [] }], workflow: [] } });
+    await translator.append('v1.PartitionCreated', { name: 'Walk', sourceLanguoidId: 'eng' });
+    await translator.append('v1.PartitionConfigChanged', { config: { unitKinds: [{ id: 'passage', label: 'Passage', childKinds: [] }], workflow: [] } });
     await translator.append('v1.MemberAdded', { profileId: 'translator', role: 'translator' });
     await translator.append('v1.MemberAdded', { profileId: 'reviewer', role: 'reviewer' });
     await translator.append('v1.LaneAdded', { laneId: 'L', languoidId: 'xyz' });

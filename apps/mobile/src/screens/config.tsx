@@ -17,7 +17,7 @@ import {
   materialView, parseQuestionField, PRIVILEGES, recommendedFor, REFERENCE_KINDS, subscriptionItemId,
   takesLinkingTerm, templateFields, templateOfUnit, unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialDoc,
-  type MaterialView, type Privilege, type ProjectState, type QuestionSpec, type VersificationDoc
+  type MaterialView, type Privilege, type PartitionState, type QuestionSpec, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -127,7 +127,7 @@ export function RolesHome(ctx: Ctx) {
   const level = viewLevelFrom(ctx.params, ctx.session.adminScope);
   const beside = useOpenDetail();
   const org = ctx.org.state;
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const rows = useMemo(() => roleRows(org, state, level), [org, state, level]);
   const canManage = ctx.session.can('manage_roles') && level === 'org';
   return (
@@ -177,7 +177,7 @@ export function RoleEditor(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const label = name ?? existing?.name.value ?? '';
   const privileges = picked ?? existing?.privileges.value ?? [];
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const holders = useMemo(() => (isNew ? [] : holdersOf(org, state, roleId)), [isNew, org, state, roleId]);
   const canAssign = ctx.session.can('assign_work');
   const dirty = isNew
@@ -225,7 +225,7 @@ export function RoleEditor(ctx: Ctx) {
           <Capped items={holders} empty="No members have this role yet." render={(h, last) => (
             <Row key={`${h.profileId}-${h.scope ? JSON.stringify(h.scope) : 'legacy'}`} icon="user"
               label={h.profileId === ctx.session.actorId ? 'You' : h.displayName ?? ctx.name(h.profileId)}
-              sub={scopeName(h.scope, org, state, ctx.project.projectId)}
+              sub={scopeName(h.scope, org, state, ctx.partition.partitionId)}
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
         </>
@@ -457,7 +457,7 @@ function DocSteps(props: { doc: FlowDoc | null; kinds: KindDef[] }) {
 }
 
 export function FlowsHome(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const fixedLane = ctx.params['laneId'];
   const [picked, setPicked] = useState<string | null>(null);
@@ -496,7 +496,7 @@ export function FlowsHome(ctx: Ctx) {
         if (back) undo = () => back;
       } else if (plan?.kind === 'legacy') {
         undo = () => {
-          const s = live.current.project.state;
+          const s = live.current.partition.state;
           return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), laneId: lane, previous: plan.previous }) : [];
         };
       }
@@ -613,7 +613,7 @@ export function FlowsHome(ctx: Ctx) {
 }
 
 export function FlowEditor(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const requested = ctx.params['itemId'] ?? 'new';
   const isNew = requested === 'new';
@@ -795,7 +795,7 @@ export function FlowEditor(ctx: Ctx) {
 
 // ─── Reference library (ORG-8) ─────────────────────────────────────────────────────
 
-function materialScopeName(state: ProjectState, m: Pick<MaterialView, 'scope'>): string {
+function materialScopeName(state: PartitionState, m: Pick<MaterialView, 'scope'>): string {
   if (m.scope.unitId) return unitTitle(state, m.scope.unitId);
   if (m.scope.laneId) return `${laneName(state, m.scope.laneId)} team`;
   return 'All languages';
@@ -808,7 +808,7 @@ function versificationNameOf(docs: ReturnType<typeof useLibraryDocs>, doc: Libra
 }
 
 export function ReferenceHome(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const beside = useOpenDetail();
   const lib = useLibrary(ctx);
   const laneId = ctx.params['laneId'] ?? null;
@@ -928,12 +928,12 @@ function OfferedRows(props: { ctx: Ctx; laneId: string | null; offered: Map<stri
   const bibles = count(['source@1']);
   const guides = count(['study@1', 'study@2', 'collection@1']);
   const notes = count(['material@1'], 'note');
-  const lane = laneId ?? (ctx.laneId && ctx.project.state?.lanes[ctx.laneId] ? ctx.laneId : null);
+  const lane = laneId ?? (ctx.laneId && ctx.partition.state?.lanes[ctx.laneId] ? ctx.laneId : null);
   return (
     <Group>
       <Row icon="sound" label="Bibles" sub={`${bibles} recommended · text, audio, offline use and timings`} onPress={() => ctx.go('reference_bibles', params)} />
       <Row icon="sparkle" label="Guides and notes" sub={`${guides} recommended guide${guides === 1 ? '' : 's'} · ${plural(notes, 'note')}`} onPress={() => ctx.go('reference_guides', params)} last={!lane} />
-      {lane ? <Row icon="map" label="Coverage" sub={`What reaches each passage in ${ctx.project.state ? laneName(ctx.project.state, lane) : 'this language'}`}
+      {lane ? <Row icon="map" label="Coverage" sub={`What reaches each passage in ${ctx.partition.state ? laneName(ctx.partition.state, lane) : 'this language'}`}
         onPress={() => ctx.go('reference_coverage', { laneId: lane })} last /> : null}
     </Group>
   );
@@ -960,7 +960,7 @@ export function MaterialEditor(ctx: Ctx) {
 }
 
 function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const materialId = ctx.params['materialId'];
   const laneParam = ctx.params['laneId'];
@@ -1196,7 +1196,7 @@ const LIBRARY_MATERIAL_KINDS = ['note', 'tg', 'tmf', 'brief', 'document'];
 interface VersificationChoice { key: string; label: string; hash: string | null; shared?: SharedItem }
 
 function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const requested = ctx.params['itemId'] ?? 'new';
   const isNew = requested === 'new';
@@ -1420,7 +1420,7 @@ function TermRow(props: { t: KeyTermView; lane: string; onPress: () => void; las
 }
 
 export function KeyTerms(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const laneId = ctx.params['laneId'] ?? ctx.laneId ?? '';
   const unitId = ctx.params['unitId'];
   const takeId = ctx.params['takeId'];
@@ -1492,7 +1492,7 @@ export function KeyTerms(ctx: Ctx) {
 }
 
 export function KeyTermDetail(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const termId = ctx.params['termId'] ?? '';
   const unitId = ctx.params['unitId'];
   const t = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
@@ -1615,7 +1615,7 @@ export function KeyTermDetail(ctx: Ctx) {
               <View key={a.adjustmentId} style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
                 <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
                 <Text style={txt.sm}>{a.note}</Text>
-                {a.blobHash ? <AudioClip project={ctx.project} hashes={[a.blobHash]} label="Play the explanation" /> : null}
+                {a.blobHash ? <AudioClip partition={ctx.partition} hashes={[a.blobHash]} label="Play the explanation" /> : null}
                 {v && v.n !== null ? <SmallBtn label={`Open Version ${v.n}`} icon="mic" onPress={() => openVersion(v)} /> : null}
               </View>
             );

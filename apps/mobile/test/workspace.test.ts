@@ -13,7 +13,7 @@ function history() {
   let n = 0;
   const push = (type: string, payload: unknown, id: string, actorId = 'me') => {
     n++;
-    events.push({ type, payload, id, actorId, orgId: 'org', projectId: 'project', deviceId: 'device',
+    events.push({ type, payload, id, actorId, orgId: 'org', partitionId: 'partition', deviceId: 'device',
       hlc: `${String(n).padStart(15, '0')}:000000:device` } as AnyEvent);
   };
   const add = <T extends EventType>(type: T, payload: EventPayloads[T], actorId = 'me') => push(type, payload, `event-${n}`, actorId);
@@ -22,7 +22,7 @@ function history() {
   const cmd = () => { const s = state(); return commands(s, buildIndexes(s)); };
   const record = (hash: string, kind: 'source' | 'target' = 'target', actorId = 'me') =>
     add('v1.RecordingAdded', { recordingId: `rec-${hash}`, unitId: 'passage', laneId: 'lane', kind, cards: [{ hash, durationMs: 7200 }] }, actorId);
-  add('v1.ProjectCreated', { name: 'Test', sourceLanguoidId: 'eng' });
+  add('v1.PartitionCreated', { name: 'Test', sourceLanguoidId: 'eng' });
   add('v1.LaneAdded', { laneId: 'lane', languoidId: 'target' });
   add('v1.UnitAdded', { unitId: 'passage', parentUnitId: null, kind: 'passage', label: '1:1', order: 'a' });
   return { add, run, state, cmd, record, hlc: () => `${String(n).padStart(15, '0')}:000000:device` };
@@ -174,10 +174,10 @@ describe('key terms', () => {
 describe('a back translation in progress', () => {
   const card = (hash: string) => ({ hash, durationMs: 4000, format: 'wav' as const });
 
-  it('is kept per project, person, passage, language and kind', () => {
-    const k = { projectId: 'p', actorId: 'me', unitId: 'u', laneId: 'l', kindId: 'bt' };
+  it('is kept per partition, person, passage, language and kind', () => {
+    const k = { partitionId: 'p', actorId: 'me', unitId: 'u', laneId: 'l', kindId: 'bt' };
     expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, actorId: 'you' }));
-    expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, projectId: 'q' }));
+    expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, partitionId: 'q' }));
     expect(backTranslationDraftKey(k)).not.toBe(backTranslationDraftKey({ ...k, kindId: 'retell' }));
   });
 

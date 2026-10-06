@@ -1,6 +1,6 @@
 import {
   actorRole, adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, privilegesFor, privilegesOfFixedRole,
-  type OrgState, type Privilege, type ProjectState, type Role, type Scope
+  type OrgState, type Privilege, type PartitionState, type Role, type Scope
 } from '@langquest-next/core';
 import { isManagedEmail } from './accounts';
 import type { Edge, ScreenId } from './flow';
@@ -40,25 +40,25 @@ export interface Session {
 export function deriveSession(
   actorId: string,
   email: string | null,
-  state: ProjectState | null,
+  state: PartitionState | null,
   seenVision: boolean,
   org: OrgState | null = null,
-  projectId?: string
+  partitionId?: string
 ): Session {
-  const projectRole = state ? actorRole(state, actorId) : null;
-  const privileges = new Set<Privilege>(projectRole ? privilegesOfFixedRole(projectRole) : []);
-  if (org) for (const p of privilegesFor(org, actorId, projectId ? { projectId } : {})) privileges.add(p);
+  const partitionRole = state ? actorRole(state, actorId) : null;
+  const privileges = new Set<Privilege>(partitionRole ? privilegesOfFixedRole(partitionRole) : []);
+  if (org) for (const p of privilegesFor(org, actorId, partitionId ? { partitionId } : {})) privileges.add(p);
   // The server refuses it too (issue_invite_v3); removing it here hides
   // every Invite button by the same `can` the screens already ask.
   const isManaged = isManagedEmail(email);
   if (isManaged) privileges.delete('invite_members');
-  const role = projectRole ?? effectiveRole(privileges);
+  const role = partitionRole ?? effectiveRole(privileges);
   const isAdmin = MANAGE_PRIVILEGES.some((p) => privileges.has(p));
   const isWorker = privileges.has('translate') || privileges.has('review') || privileges.has('fill_reference');
   const isViewer = !isAdmin && !isWorker && privileges.has('view_status');
   let adminScope: Scope | null = org ? adminScopeOf(org, actorId) : null;
-  if (!adminScope && projectRole === 'owner') adminScope = { level: 'org' };
-  if (!adminScope && projectRole === 'coordinator' && projectId) adminScope = { level: 'project', projectId };
+  if (!adminScope && partitionRole === 'owner') adminScope = { level: 'org' };
+  if (!adminScope && partitionRole === 'coordinator' && partitionId) adminScope = { level: 'partition', partitionId };
   return {
     actorId,
     email,
@@ -116,7 +116,7 @@ export function homeScreenFor(s: Session): ScreenId {
  * the organization.
  */
 export function manageHomeFor(s: Session): ScreenId | null {
-  if (s.adminScope?.level === 'org' || s.adminScope?.level === 'project') return 'org_home';
+  if (s.adminScope?.level === 'org' || s.adminScope?.level === 'partition') return 'org_home';
   if (s.adminScope?.level === 'lane') return 'language_home';
   return null;
 }
@@ -153,8 +153,8 @@ export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_
  * Sign In for ever. A returning person is not held up: they are routed to
  * the home remembered from last time meanwhile.
  */
-export function foldsSettled(orgSynced: boolean, projectLoaded: boolean, noOrganizations: boolean): boolean {
-  return orgSynced && (projectLoaded || noOrganizations);
+export function foldsSettled(orgSynced: boolean, partitionLoaded: boolean, noOrganizations: boolean): boolean {
+  return orgSynced && (partitionLoaded || noOrganizations);
 }
 
 /** Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to yet. */

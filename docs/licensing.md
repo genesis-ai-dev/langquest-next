@@ -66,7 +66,7 @@ visible to outsiders by upgrading.
   they are identified (the demo's "Visibility" open tension; the ETEN meeting
   notes). Keeping the organization closed is the answer for them today.
 - **Explore** listings carry the license of the organization behind them
-  (`public_projects.license`, written by the projection worker).
+  (`public_partitions.license`, written by the projection worker).
 
 ## What the license covers
 
@@ -94,7 +94,7 @@ does not change it.
 | Any Creative Commons rung | everything, by role (unchanged) | the work, read-only, for every language; listed languages also appear on Explore |
 
 Listing and licensing are separate. **Listing** (per language, reversible,
-`set_project_visibility`) is about being found on Explore. **The license**
+`set_partition_visibility`) is about being found on Explore. **The license**
 (per organization, one way) is about what people may do with the work. An
 open organization's unlisted language is not on Explore, but someone with a
 link may still look inside it.

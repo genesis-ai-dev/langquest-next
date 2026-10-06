@@ -34,20 +34,20 @@ export function Welcome(ctx: Ctx) {
   const who = useMemo(() => {
     // Your membership here: the role's name and the scope it covers.
     const mine = Object.values(org?.members[me] ?? {}).filter((m) => !m.removed.value);
-    const scoped = mine.find((m) => m.scope.level === 'lane') ?? mine.find((m) => m.scope.level === 'project') ?? mine[0];
+    const scoped = mine.find((m) => m.scope.level === 'lane') ?? mine.find((m) => m.scope.level === 'partition') ?? mine[0];
     const roleName = (scoped && org?.roles[scoped.roleId.value]?.name.value)
       ?? (ctx.session.role ? ROLE_WORDS[ctx.session.role] : undefined) ?? 'member';
     // Who invited you: the invite you redeemed, when the log has it.
     const invite = Object.values(org?.invites ?? {}).find((i) => i.redeemedBy === me);
     const invitedBy = invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
     const displayName = profiles[me] ?? mine.find((m) => m.displayName)?.displayName ?? ctx.session.email?.split('@')[0] ?? '';
-    const state = ctx.project.state;
+    const state = ctx.partition.state;
     const team = teamLabel(scoped?.scope, {
       org: org?.org?.value.name ?? 'your organization',
       lane: (id) => (state?.lanes[id] ? laneName(state, id) : ctx.languages.find((l) => l.laneId === id)?.name)
     });
     return { roleName, invitedBy, inviterId: invite?.issuedBy, displayName, team };
-  }, [org, me, profiles, ctx.project.state, ctx.languages, ctx.session.role, ctx.session.email, ctx.name]);
+  }, [org, me, profiles, ctx.partition.state, ctx.languages, ctx.session.role, ctx.session.email, ctx.name]);
 
   const role = welcomeRoleFor(ctx.session);
   const points = WELCOME_POINTS[role];

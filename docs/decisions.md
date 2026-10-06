@@ -476,6 +476,11 @@ visible; moving the others' lanes into it needs a server migration. Reverse
 if: one organization needs two separately synced bodies of work; then a
 second work partition is a registry entry, not a new event.
 
+Amended (2026-10-05, Carl Sauder): storage no longer keeps its shape:
+the partition key, the work partition's events and everything else named
+for the project now say partition, with the databases reset to rename
+them (63).
+
 ## 35. This file is the one ADR log, and agents keep it for every developer
 
 Date: 2026-09-29 · By: Caleb Koster · Status: accepted
@@ -1553,3 +1558,39 @@ Reverse if: FCBH objects to our timings or to on-device caching (then their
 audio plays with FCBH timings only and streams), or field teams find three
 levels of recommendation confusing (then the language level goes and
 translators pick from the organization's list).
+
+## 63. The project is gone from the code: partitions everywhere, with the databases reset to rename it
+
+Date: 2026-10-05 · By: Carl Sauder · Status: accepted
+
+Reason: the code still named the project level between organization and
+language that 34 dropped (`projectId`, `ProjectState`, `v1.ProjectCreated`,
+the `project` scope level); since 37 that thing is a partition (a language's,
+`_org` or `_user`), and the old name sent readers looking for a project that
+does not exist (Carl, 2026-10-05). 34 kept the names because shipped events
+and the partition key must not change; with three developers on the app and
+nobody else's data on the server, we reset the databases and update every
+installed build instead (Carl, 2026-10-05). So the event envelope, every
+Postgres and SQLite column (`partition_id`) and RPC parameter
+(`p_partition_id`, `p_partition`), the payload keys (`scope.partitionId`,
+`CatalogItemToggled.partitionId`, `PartitionRegistered.partitionId`,
+`SourceImported.sourcePartitionId`), the event types (`v1.PartitionCreated`,
+`v1.PartitionRegistered`, `v1.PartitionConfigChanged`), the scope and
+catalog level (`partition`), the fold (`PartitionState`), the tables
+(`public_partitions`, `partition_visibility`, `partition_summaries`), the
+coordinator role (`coordinator`), the app's handle (`usePartition`,
+`ctx.partition`) and the projection Edge Function (`partition-projections`)
+all say partition. The migrations were edited in place rather than followed
+by renaming ones, so the hosted database is reset before this ships. A phone
+whose log still has `project_id` drops its log, cursors, read models and
+device id when it opens the store (`SqliteStore.open`), since they belong to
+the old server. `PartitionRegistered` carries `partitionId`, not `laneId`:
+the app registers one language per partition, but the v2 importer registers
+a partition holding several lanes. Kept: Supabase's and EAS's own project
+(`[remotes.*] project_id`, `--project-ref`, `langquest_project_url`, the EAS
+`projectId`), LangQuest v2's `project` table in the importer, the partner
+demo's screen ids (`project_home`, `new_project`, recorded as dropped), and
+notes that say the project level was dropped. Partly supersedes 34 (storage
+keeps its shape). Reverse if: never as such; once anyone outside the team
+holds data, a rename like this needs new versioned events and a migration,
+not an edit in place.

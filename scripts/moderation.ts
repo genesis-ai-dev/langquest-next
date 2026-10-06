@@ -51,7 +51,7 @@ interface OpenRow {
 function list(): void {
   const rows = query<OpenRow>(`
     select r.id, r.created_at,
-      coalesce((select e.payload->>'name' from public.events e where e.org_id = r.org_id and e.project_id = '_org'
+      coalesce((select e.payload->>'name' from public.events e where e.org_id = r.org_id and e.partition_id = '_org'
         and e.type = 'v1.OrgCreated' order by e.hlc desc limit 1), r.org_id) || ' (' || r.org_id || ')' as org,
       r.partition_id, r.target_kind, r.target_id, r.unit_id, r.lane_id, r.reported_profile,
       (select p.display_name from public.profiles p where p.id = r.reported_profile) as reported_name,

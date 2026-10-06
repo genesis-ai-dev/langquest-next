@@ -19,9 +19,9 @@ test('coordinator asks the translator to record, with a due date', async ({ page
   const contract = { askerId: coordinator.id, unitId: world.unassigned.unitId, laneId: world.laneId,
     assigneeId: world.translator.id, what: 'record' as const };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeRequest(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeRequest(contract, evidence), run.status);
   await reportRun(page, run, outcome);

@@ -27,7 +27,7 @@ export function buildFixture(): AnyEvent[] {
       id: `e${String(seq).padStart(4, '0')}`,
       type,
       orgId: 'org1',
-      projectId: 'p1',
+      partitionId: 'p1',
       actorId,
       deviceId: device,
       hlc: clock.next(),
@@ -39,8 +39,8 @@ export function buildFixture(): AnyEvent[] {
     return e;
   }
 
-  emit('dA', 'lead', 'v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-  const cfg = emit('dA', 'lead', 'v1.ProjectConfigChanged', {
+  emit('dA', 'lead', 'v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+  const cfg = emit('dA', 'lead', 'v1.PartitionConfigChanged', {
     config: {
       unitKinds: [
         { id: 'book', label: 'Book', childKinds: ['passage'] },
@@ -93,7 +93,7 @@ export function buildFixture(): AnyEvent[] {
     profileId: 'r2',
     role: 'reviewer'
   });
-  emit('dA', 'lead', 'v1.SourceImported', { sourceProjectId: 'src', sourceSeq: 42, unitIds: ['luke1'] });
+  emit('dA', 'lead', 'v1.SourceImported', { sourcePartitionId: 'src', sourceSeq: 42, unitIds: ['luke1'] });
   // The storage trigger confirms c1 after it lands (server actor). An earlier
   // corrupt upload of c1 was invalidated by the reconciler; the later
   // confirmation wins.
@@ -155,7 +155,7 @@ export function buildFixture(): AnyEvent[] {
   emit(
     'dA',
     'lead',
-    'v1.ProjectConfigChanged',
+    'v1.PartitionConfigChanged',
     {
       config: {
         unitKinds: [
@@ -172,7 +172,7 @@ export function buildFixture(): AnyEvent[] {
 }
 
 /**
- * Step 11 events on top of the project fixture: lane L1 picks the Quick
+ * Step 11 events on top of the partition fixture: lane L1 picks the Quick
  * Check flow, its peer step is owned by a review team, a removed step, lane
  * L2 picks a content template, the translator answers suggestions with a
  * note, and a reviewer leaves a spoken comment. Kept apart from
@@ -188,7 +188,7 @@ export function buildStep11Fixture(): AnyEvent[] {
     clocks.set(device, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `s${seq}`, type, orgId: 'org1', projectId: 'p1', actorId, deviceId: device, hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
+    events.push({ id: `s${seq}`, type, orgId: 'org1', partitionId: 'p1', actorId, deviceId: device, hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
   };
   emit('dA', 'lead', 'v1.LaneFlowSelected', { laneId: 'L1', flowId: 'quick_check', catalogVersion: 1 });
   emit('dA', 'lead', 'v1.WorkflowStepSet', { stepId: 'peer', laneId: 'L1', order: 's00', label: 'Peer', role: 'reviewer', teamId: 'team1', required: true, rule: 'unanimous' });
@@ -228,7 +228,7 @@ export function buildStep11Fixture(): AnyEvent[] {
 }
 
 /**
- * The passage record (record.ts) on top of the project fixture: lane L1
+ * The passage record (record.ts) on top of the partition fixture: lane L1
  * uses the Standard Bible Flow as v2 steps, a renamed kind, a peer step set
  * aside and brought back, requests (one withdrawn), a back translation,
  * logged community feedback kept with a reason, notes, study marks. Two
@@ -244,7 +244,7 @@ export function buildRecordFixture(): AnyEvent[] {
     clocks.set(device, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `r${seq}`, type, orgId: 'org1', projectId: 'p1', actorId, deviceId: device, hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
+    events.push({ id: `r${seq}`, type, orgId: 'org1', partitionId: 'p1', actorId, deviceId: device, hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
   };
   emit('dA', 'lead', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elder Review', description: 'Elders listen together.', usualReviewer: 'Village elders' });
   emit('dE', 'lead2', 'v1.ReviewKindDefined', { kindId: 'elder', name: 'Elders Review' });
@@ -313,7 +313,7 @@ export function buildRecordFixture(): AnyEvent[] {
   // once at the same clock; an undo that arrives for a departure never seen.
   const raw = (id: string, actorId: string, deviceId: string, hlc: string, type: EventType, payload: unknown) => {
     seq += 1;
-    events.push({ id, type, orgId: 'org1', projectId: 'p1', actorId, deviceId, hlc, payload, serverSeq: seq } as AnyEvent);
+    events.push({ id, type, orgId: 'org1', partitionId: 'p1', actorId, deviceId, hlc, payload, serverSeq: seq } as AnyEvent);
   };
   const tie = '001760000900000:000000:';
   raw('tie-a', 'r1', 'dC', `${tie}dC`, 'v1.ReviewRecorded', { reviewId: 'rvTie', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' });
@@ -326,7 +326,7 @@ export function buildRecordFixture(): AnyEvent[] {
 }
 
 /**
- * One of each org partition event (org.ts). Separate from the project
+ * One of each org partition event (org.ts). Separate from the partition
  * fixture so snapshot tests keep their cut, and appended to it wherever a
  * test must see every catalog type.
  */
@@ -338,17 +338,17 @@ export function buildOrgFixture(): AnyEvent[] {
   const emit = <T extends EventType>(type: T, payload: EventPayloads[T]) => {
     wall += 1000;
     seq += 1;
-    events.push({ id: `o${seq}`, type, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
+    events.push({ id: `o${seq}`, type, orgId: 'org1', partitionId: '_org', actorId: 'lead', deviceId: 'dA', hlc: clock.next(), payload, serverSeq: seq } as AnyEvent);
   };
   emit('v1.OrgCreated', { name: 'Wycliffe Associates' });
   emit('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_roles', 'invite_members', 'manage_structure', 'assign_work', 'view_status'] });
   emit('v1.RoleDefined', { roleId: 'translator', name: 'Translator', privileges: ['translate', 'view_status'] });
   emit('v1.RoleRetired', { roleId: 'old_role' });
   emit('v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' }, displayName: 'Lead' });
-  emit('v1.OrgMemberAdded', { profileId: 't1', roleId: 'translator', scope: { level: 'lane', projectId: 'p1', laneId: 'L1' } });
-  emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'project', projectId: 'p1' } });
+  emit('v1.OrgMemberAdded', { profileId: 't1', roleId: 'translator', scope: { level: 'lane', partitionId: 'p1', laneId: 'L1' } });
+  emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'partition', partitionId: 'p1' } });
   emit('v1.CatalogItemToggled', { kind: 'flow', itemId: 'quick_check', level: 'org', enabled: false });
-  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Luke' });
+  emit('v1.PartitionRegistered', { partitionId: 'p1', name: 'Luke' });
   // One of each library event (library.ts), with the ties the merge rules settle.
   emit('v1.LibraryItemDefined', { itemId: 'health', kind: 'template', name: 'Health lessons', description: 'Community health notices.' });
   emit('v1.LibraryVersionPublished', { itemId: 'health', kind: 'template', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
@@ -361,7 +361,7 @@ export function buildOrgFixture(): AnyEvent[] {
   emit('v1.LibraryPinned', { itemId: 'sub.langquest.langquest.standard', kind: 'flow', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
   const raw = (id: string, deviceId: string, hlc: string, type: EventType, payload: unknown) => {
     seq += 1;
-    events.push({ id, type, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId, hlc, payload, serverSeq: seq } as AnyEvent);
+    events.push({ id, type, orgId: 'org1', partitionId: '_org', actorId: 'lead', deviceId, hlc, payload, serverSeq: seq } as AnyEvent);
   };
   const tie = '001800000900000:000000:';
   // The same version published from two devices at the same clock: one version, the lower id.

@@ -1,8 +1,8 @@
-import { materialsFor, recordAudioHashes, unitAncestry, type BlobRef, type ProjectState } from '@langquest-next/core';
+import { materialsFor, recordAudioHashes, unitAncestry, type BlobRef, type PartitionState } from '@langquest-next/core';
 
 export type AudioItem = { id: string; label: string; hash: string; format: BlobRef['format'] };
 
-function formatFor(state: ProjectState, hash: string): BlobRef['format'] {
+function formatFor(state: PartitionState, hash: string): BlobRef['format'] {
   for (const recording of Object.values(state.recordings)) {
     const card = recording.cards.find((c) => c.hash === hash);
     if (card) return card.format ?? 'wav';
@@ -10,7 +10,7 @@ function formatFor(state: ProjectState, hash: string): BlobRef['format'] {
   return 'm4a';
 }
 
-export function getReferenceSlides(state: ProjectState, laneId: string, unitId: string): AudioItem[] {
+export function getReferenceSlides(state: PartitionState, laneId: string, unitId: string): AudioItem[] {
   const items: AudioItem[] = [];
   for (const material of materialsFor(state, { laneId, unitId }).filter((m) => !m.scope.laneId || m.scope.laneId === laneId)) {
     if (material.kind === 'questions') continue;

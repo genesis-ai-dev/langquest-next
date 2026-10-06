@@ -79,7 +79,7 @@ export type RecordEvents = {
    * One flow step (ADR-016): kinds in parallel, a suggested order, and a
    * checkpoint flag. Replaces v1.WorkflowStepSet's role and quorum, which
    * gated; this only advises. Register per step, sharing step ids and
-   * `v1.WorkflowStepRemoved` with v1. laneId absent = project-wide.
+   * `v1.WorkflowStepRemoved` with v1. laneId absent = partition-wide.
    */
   'v2.WorkflowStepSet': { stepId: string; laneId?: string; order: string; kindIds: string[]; checkpoint: boolean };
   /**
@@ -219,7 +219,7 @@ export interface Undo {
   hlc: Hlc;
 }
 
-/** The record's part of ProjectState. Each map is written by exactly one event type. */
+/** The record's part of PartitionState. Each map is written by exactly one event type. */
 export interface RecordState {
   /** kindId -> definition register (overrides the shipped kind of the same id) */
   reviewKinds: Record<string, { value: KindDef; hlc: Hlc; eventId: string }>;
@@ -274,7 +274,7 @@ export const DEFAULT_KINDS: KindDef[] = [
     description: 'Play it for people in the community and capture what they understood.' },
   { id: 'consultant', name: 'Consultant Check', usualReviewer: 'A translation consultant',
     description: 'A consultant checks meaning against the source, verse by verse.' },
-  { id: 'final', name: 'Final Approval', usualReviewer: 'The project coordinator',
+  { id: 'final', name: 'Final Approval', usualReviewer: 'The language coordinator',
     description: 'Sign-off that the passage is ready to share.' },
   { id: 'retell', name: 'Retell Check', usualReviewer: 'A listener',
     description: 'A listener retells the passage in their own words.' },

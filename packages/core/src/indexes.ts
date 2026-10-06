@@ -1,6 +1,6 @@
 import { effectiveUnitKinds, templateOfUnit } from './catalog';
 import type { Role } from './events';
-import type { Assignment, ProjectState } from './state';
+import type { Assignment, PartitionState } from './state';
 import { DEFAULT_CONFIG } from './state';
 
 /**
@@ -11,7 +11,7 @@ import { DEFAULT_CONFIG } from './state';
  * Why this exists: `deriveTasks` at Bible scale (1,200 passages, 3 lanes,
  * 40 translators) took 27 s without it and `deriveProgress` 19 s, because
  * `currentTake`, `eligibleReviewers` and the assignment lookups each walked
- * every take or assignment in the project for every (unit, lane) pair. With
+ * every take or assignment in the partition for every (unit, lane) pair. With
  * the index both run in tens of milliseconds. The state itself is unchanged;
  * this is a view, never persisted, never synced.
  *
@@ -37,7 +37,7 @@ export interface Indexes {
 
 export const unitLaneKey = (unitId: string, laneId: string): string => `${unitId}:${laneId}`;
 
-export function buildIndexes(state: ProjectState): Indexes {
+export function buildIndexes(state: PartitionState): Indexes {
   const kinds = effectiveUnitKinds(state, (state.config?.value ?? DEFAULT_CONFIG).unitKinds);
   const known = new Set(kinds.map((k) => k.id));
   const leafKinds = new Set(kinds.filter((k) => k.childKinds.length === 0).map((k) => k.id));
@@ -98,7 +98,7 @@ export function buildIndexes(state: ProjectState): Indexes {
  * units plus any hand-added unit, less the parts its current version has
  * hidden (TPL-7); without one, every leaf unit.
  */
-export function laneLeafUnits(state: ProjectState, idx: Indexes, laneId: string): string[] {
+export function laneLeafUnits(state: PartitionState, idx: Indexes, laneId: string): string[] {
   const sel = state.laneTemplates[laneId]?.value;
   if (!sel) return idx.leafUnits;
   const hidden = state.laneHiddenUnits?.[laneId] ?? {};

@@ -11,7 +11,7 @@ In **Reference material**, an organization manager adds either source Bible:
 - Berean Standard Bible (BSB), Frederick Surrey.
 - Majority Standard Bible (MSB), Frederick Surrey.
 
-Sources require explicit organization opt-in. Projects can disable an added
+Sources require explicit organization opt-in. Languages can disable an added
 source. Settings use existing `v1.CatalogItemToggled` events and permissions;
 no database migration is required. The app does not enable either source
 on behalf of an organization.

@@ -1,10 +1,10 @@
 import { emptyReferenceState, type ReferenceState } from './references';
-import type { Card, ProjectConfig, QuorumRule, Role } from './events';
+import type { Card, PartitionConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 import { emptyRecordState, type RecordState } from './record';
 
 /**
- * Projected state of one project partition. Plain JSON so it can be
+ * Projected state of one partition. Plain JSON so it can be
  * snapshotted and compared structurally. Nothing here is written directly;
  * only the reducer produces it.
  */
@@ -84,7 +84,7 @@ export interface Assignment {
 }
 
 export interface SourcePin {
-  sourceProjectId: string;
+  sourcePartitionId: string;
   sourceSeq: number;
   unitIds: string[];
 }
@@ -130,9 +130,9 @@ export interface KeyTerm {
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
 
-export interface ProjectState extends RecordState, ReferenceState {
-  project: Register<{ name: string; sourceLanguoidId: string }> | null;
-  config: Register<ProjectConfig> | null;
+export interface PartitionState extends RecordState, ReferenceState {
+  partition: Register<{ name: string; sourceLanguoidId: string }> | null;
+  config: Register<PartitionConfig> | null;
   members: Record<string, Member>;
   lanes: Record<string, { languoidId: string }>;
   units: Record<string, Unit>;
@@ -184,9 +184,9 @@ export interface ProjectState extends RecordState, ReferenceState {
   keyTermLinks: Record<string, Record<string, { note?: string; adjustmentId?: string; actorId: string; hlc: Hlc }>>;
 }
 
-export function emptyState(): ProjectState {
+export function emptyState(): PartitionState {
   return {
-    project: null,
+    partition: null,
     config: null,
     members: {},
     lanes: {},
@@ -219,7 +219,7 @@ export function emptyState(): ProjectState {
   };
 }
 
-export const DEFAULT_CONFIG: ProjectConfig = {
+export const DEFAULT_CONFIG: PartitionConfig = {
   unitKinds: [
     { id: 'book', label: 'Book', childKinds: ['passage'] },
     { id: 'passage', label: 'Passage', childKinds: [] }

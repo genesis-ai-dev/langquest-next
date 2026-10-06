@@ -8,7 +8,7 @@
 // gates the work; every passage is still reachable from the Map.
 import {
   derivePassage, deriveFlow, deriveKinds, highlightsFor, laneName, passageSummary, unitTitle, upNext, waitingOn,
-  type Highlight, type KindDef, type ProjectState, type Waiting
+  type Highlight, type KindDef, type PartitionState, type Waiting
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -48,7 +48,7 @@ function highlightStyle(kind: Highlight['kind']): { icon: IconName; bg: string; 
 }
 
 /** The demo's card wording for one highlight (domain/record.ts `highlightsFor`). */
-function highlightText(state: ProjectState, kinds: KindDef[], h: Highlight, name: Ctx['name']): { title: string; sub: string } {
+function highlightText(state: PartitionState, kinds: KindDef[], h: Highlight, name: Ctx['name']): { title: string; sub: string } {
   const title = unitTitle(state, h.unitId);
   const kind = (id?: string) => kinds.find((k) => k.id === id);
   const asked = () => {
@@ -78,7 +78,7 @@ function askedWhen(hlc: string): string {
   return w === 'Just now' ? 'just now' : w;
 }
 
-function waitingText(state: ProjectState, kinds: KindDef[], w: Waiting, name: Ctx['name']): { title: string; sub: string } {
+function waitingText(state: PartitionState, kinds: KindDef[], w: Waiting, name: Ctx['name']): { title: string; sub: string } {
   const r = w.request;
   const what = r.what === 'record' ? 'Recording' : kinds.find((k) => k.id === r.kindId)?.name ?? 'Review';
   const who = r.profileId ? name(r.profileId) : r.guest?.name ?? 'someone';
@@ -128,7 +128,7 @@ function useFirstDay(actorId: string, show: boolean): { hidden: boolean; hide: (
 }
 
 /** Everyone the organization has, not counting removed members. */
-function memberCount(ctx: Ctx, state: ProjectState): number {
+function memberCount(ctx: Ctx, state: PartitionState): number {
   const ids = new Set<string>();
   for (const [id, m] of Object.entries(state.members)) if (!m.removed.value) ids.add(id);
   for (const [id, scopes] of Object.entries(ctx.org.state?.members ?? {})) {
@@ -137,7 +137,7 @@ function memberCount(ctx: Ctx, state: ProjectState): number {
   return ids.size;
 }
 
-function startRows(ctx: Ctx, state: ProjectState): { title: string; promise: string; rows: StartRow[] } | null {
+function startRows(ctx: Ctx, state: PartitionState): { title: string; promise: string; rows: StartRow[] } | null {
   const s = ctx.session;
   const idx = indexesFor(state);
   const laneId = ctx.laneId;
@@ -376,7 +376,7 @@ function UpNextCard(props: { icon: IconName; title: string; sub: string; action?
 
 /** The sync state, small, beside the title: what is still on this phone only, and whether the live channel is up. */
 function SyncChip(ctx: Ctx) {
-  const p = ctx.project;
+  const p = ctx.partition;
   const label = p.pending > 0 ? `${p.pending.toLocaleString('en-US')} to send` : p.online === false ? 'Offline' : p.live ? 'Live' : 'Saved';
   if (!canGo(ctx, 'sync_status')) return null;
   return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
@@ -385,7 +385,7 @@ function SyncChip(ctx: Ctx) {
 // ---- the screen -------------------------------------------------------------------------
 
 export function MyWork(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const actorId = ctx.session.actorId;
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
@@ -407,7 +407,7 @@ export function MyWork(ctx: Ctx) {
     return { forYou, waiting, recent, kinds: deriveKinds(state), spansLanes: lanes.size > 1 };
   }, [state, actorId, canRecord, canReview, ctx.recent]);
 
-  const orgName = ctx.org.state?.org?.value.name ?? state?.project?.value.name ?? '';
+  const orgName = ctx.org.state?.org?.value.name ?? state?.partition?.value.name ?? '';
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
     <Header title="My Work" sub={orgName || undefined}

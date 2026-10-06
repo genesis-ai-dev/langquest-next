@@ -1,6 +1,6 @@
 import {
   emptyOrgState, emptyState, fold, foldOrg, laneReports, mayViewLane, ORG_PARTITION, partitionOfLane, REDUCER_VERSION,
-  REPORT_VERSION, workPartitionOf, type AnyEvent, type LaneReport, type OrgState, type ProjectState
+  REPORT_VERSION, workPartitionOf, type AnyEvent, type LaneReport, type OrgState, type PartitionState
 } from '@langquest-next/core';
 import { fetchSnapshot, type Transport } from '@langquest-next/client';
 import type { OrgReportsResponse } from '@langquest-next/core';
@@ -53,7 +53,7 @@ interface Held<S> {
 interface Summary {
   cursor: number;
   day: string;
-  members: ProjectState['members'];
+  members: PartitionState['members'];
   reports: LaneReport[];
 }
 
@@ -73,7 +73,7 @@ const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 export class OrgFolder {
   private org: Held<OrgState> | null = null;
   private readonly summaries = new Map<string, Summary>();
-  private readonly states = new Map<string, Held<ProjectState>>();
+  private readonly states = new Map<string, Held<PartitionState>>();
   /** Cursor of each partition's fold as last written to the cache. */
   private readonly saved = new Map<string, number>();
   private restored = false;
@@ -97,12 +97,12 @@ export class OrgFolder {
     await this.refresh(fresh);
     const org = this.org!.state;
     const rows: OrgReportsResponse['rows'] = [];
-    for (const [projectId, s] of [...this.summaries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    for (const [partitionId, s] of [...this.summaries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       for (const report of s.reports) {
         // A language copied out of the shared partition shows once, from where it syncs now.
-        if (partitionOfLane(org, report.laneId) !== projectId) continue;
-        if (!mayViewLane(org, s, profileId, projectId, report.laneId)) continue;
-        rows.push({ projectId, laneId: report.laneId, report });
+        if (partitionOfLane(org, report.laneId) !== partitionId) continue;
+        if (!mayViewLane(org, s, profileId, partitionId, report.laneId)) continue;
+        rows.push({ partitionId, laneId: report.laneId, report });
       }
     }
     if (rows.length === 0 && !this.knows(profileId)) return null;
@@ -152,7 +152,7 @@ export class OrgFolder {
       this.org = next;
     }
     const org = this.org!.state;
-    const ids = [...new Set([...Object.keys(org.projects), workPartitionOf(org)])];
+    const ids = [...new Set([...Object.keys(org.partitions), workPartitionOf(org)])];
     for (let i = 0; i < ids.length; i += PARALLEL) {
       await Promise.all(ids.slice(i, i + PARALLEL).map((id) => this.refreshPartition(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt)));
     }
@@ -190,10 +190,10 @@ export class OrgFolder {
   }
 
   /** A partition's fold: from memory, else the cache, else the server snapshot, else nothing (fold from zero). */
-  private async stateOf(id: string): Promise<Held<ProjectState> | null> {
+  private async stateOf(id: string): Promise<Held<PartitionState> | null> {
     const inMemory = this.states.get(id);
     if (inMemory) return inMemory;
-    const cached = await this.restore<ProjectState>(`state:${id}`);
+    const cached = await this.restore<PartitionState>(`state:${id}`);
     if (cached) {
       this.saved.set(id, cached.cursor);
       return cached;
@@ -203,7 +203,7 @@ export class OrgFolder {
   }
 
   /** Hold a fold in memory, dropping the least recently used beyond the limit. */
-  private keep(id: string, held: Held<ProjectState>): void {
+  private keep(id: string, held: Held<PartitionState>): void {
     this.states.delete(id);
     this.states.set(id, held);
     while (this.states.size > STATES_IN_MEMORY) this.states.delete(this.states.keys().next().value!);
@@ -232,23 +232,23 @@ export class OrgFolder {
    * folded refolds the whole log, so what it targets really disappears.
    */
   private async catchUp<S extends { appliedEventIds: Record<string, boolean> }>(
-    projectId: string, known: Held<S> | null, empty: () => S, apply: (events: AnyEvent[], state: S) => S, pulled?: AnyEvent[]
+    partitionId: string, known: Held<S> | null, empty: () => S, apply: (events: AnyEvent[], state: S) => S, pulled?: AnyEvent[]
   ): Promise<Held<S>> {
-    const tail = pulled ?? await this.pullAll(projectId, known?.cursor ?? 0);
+    const tail = pulled ?? await this.pullAll(partitionId, known?.cursor ?? 0);
     if (known && tail.length === 0) return known;
     const inTail = new Set(tail.map((e) => e.id));
     const redactsFolded = !!known && tail.some((e) => e.type === 'v1.Redacted' && !inTail.has(e.payload.eventId));
-    const events = redactsFolded ? await this.pullAll(projectId, 0) : tail;
+    const events = redactsFolded ? await this.pullAll(partitionId, 0) : tail;
     const state = apply(events, known && !redactsFolded ? known.state : empty());
     // Events at or below the cursor are never pulled again, so their ids need not be kept.
     state.appliedEventIds = {};
     return { state, cursor: events.at(-1)?.serverSeq ?? known?.cursor ?? 0, refolded: redactsFolded };
   }
 
-  private async pullAll(projectId: string, after: number): Promise<AnyEvent[]> {
+  private async pullAll(partitionId: string, after: number): Promise<AnyEvent[]> {
     const all: AnyEvent[] = [];
     for (;;) {
-      const page = await this.source.pull(this.orgId, projectId, after, PAGE);
+      const page = await this.source.pull(this.orgId, partitionId, after, PAGE);
       all.push(...page);
       if (page.length < PAGE) return all;
       after = page[page.length - 1]!.serverSeq!;

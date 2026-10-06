@@ -16,7 +16,7 @@ import { privilegeFor } from '../src/org';
  * language's team for a kind, else the one person who usually does it.
  */
 
-function project() {
+function partition() {
   const events: AnyEvent[] = [];
   let wall = 1_700_000_000_000;
   let seq = 0;
@@ -26,7 +26,7 @@ function project() {
     clocks.set(actorId, clock);
     wall += 1000;
     seq += 1;
-    events.push({ id: `x${seq}`, type, orgId: 'o', projectId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
+    events.push({ id: `x${seq}`, type, orgId: 'o', partitionId: 'p', actorId, deviceId: actorId, hlc: clock.next(), payload } as AnyEvent);
   };
   const state = () => fold(events, emptyState());
   const run = (actorId: string, build: (c: ReturnType<typeof commands>) => { type: EventType; payload: unknown }[]) => {
@@ -50,13 +50,13 @@ function project() {
   return { emit, run, state, events };
 }
 
-const askTeam = (p: ReturnType<typeof project>, teamId = 'peers') =>
+const askTeam = (p: ReturnType<typeof partition>, teamId = 'peers') =>
   p.run('akol', (c) => c.ask({ commandId: 'ask', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', teamId }));
 const name = (id: string) => id;
 
 describe('requests to a review team', () => {
   it('ask with a team emits v2.RequestMade; without one, v1 exactly as before', () => {
-    const s = project().state();
+    const s = partition().state();
     const team = commands(s).ask({ commandId: 'a', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', teamId: 'peers' });
     expect(team.map((e) => [e.type, e.payload])).toEqual([['v2.RequestMade', { requestId: 'req:a', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', teamId: 'peers' }]]);
     const person = commands(s).ask({ commandId: 'b', unitId: 'john3', laneId: 'din', what: 'review', kindId: 'peer', profileId: 'ayen' });
@@ -65,7 +65,7 @@ describe('requests to a review team', () => {
   });
 
   it('v2 takes exactly one of profileId, guest, teamId, and needs the same privilege as v1', () => {
-    const base = { id: 'e', orgId: 'o', projectId: 'p', actorId: 'a', deviceId: 'd', hlc: 'h' };
+    const base = { id: 'e', orgId: 'o', partitionId: 'p', actorId: 'a', deviceId: 'd', hlc: 'h' };
     const payload = { requestId: 'r', unitId: 'u', laneId: 'l', what: 'review', kindId: 'peer' };
     const v = (p: object) => validateEvent({ ...base, type: 'v2.RequestMade', payload: { ...payload, ...p } } as AnyEvent);
     expect(v({ teamId: 't' })).toBeNull();
@@ -79,7 +79,7 @@ describe('requests to a review team', () => {
   });
 
   it('is open to every member but the asker, and on their My Work', () => {
-    const p = project();
+    const p = partition();
     askTeam(p);
     const s = p.state();
     const req = derivePassage(s, 'john3', 'din').openRequests[0]!;
@@ -101,7 +101,7 @@ describe('requests to a review team', () => {
   });
 
   it('names its addressee: the team, a person, or a guest', () => {
-    const p = project();
+    const p = partition();
     askTeam(p);
     const s = p.state();
     const req = derivePassage(s, 'john3', 'din').openRequests[0]!;
@@ -112,7 +112,7 @@ describe('requests to a review team', () => {
   });
 
   it('a team from another lane is open to nobody', () => {
-    const p = project();
+    const p = partition();
     askTeam(p, 'nuer');
     const s = p.state();
     const req = derivePassage(s, 'john3', 'din').openRequests[0]!;
@@ -121,7 +121,7 @@ describe('requests to a review team', () => {
   });
 
   it('the first member who reviews closes it for everyone; anyone else may still do it', () => {
-    const p = project();
+    const p = partition();
     askTeam(p);
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('deng', (c) => c.recordReview({ commandId: 'r', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app', requestId: 'req:ask' }));
@@ -130,7 +130,7 @@ describe('requests to a review team', () => {
     expect(highlightsFor(s, 'ayen', { canRecord: false, canReview: true })).toEqual([]);
     expect(updatesFor(s, 'akol').map((u) => [u.kind, u.by])).toContainEqual(['request_done', 'deng']);
 
-    const q = project();
+    const q = partition();
     askTeam(q);
     q.run('nyibol', (c) => c.recordReview({ commandId: 'r', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     expect(derivePassage(q.state(), 'john3', 'din').requests[0]!.status).toBe('done');
@@ -139,11 +139,11 @@ describe('requests to a review team', () => {
 
 describe('usualTarget', () => {
   it('nothing clear: no team for the kind and nobody has done it here', () => {
-    expect(usualTarget(project().state(), 'din', 'peer', 'akol')).toBeUndefined();
+    expect(usualTarget(partition().state(), 'din', 'peer', 'akol')).toBeUndefined();
   });
 
   it('the one person who reviewed this kind here before, in the app', () => {
-    const p = project();
+    const p = partition();
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     // A check logged afterwards is the typist's act, not the reviewer's.
@@ -157,7 +157,7 @@ describe('usualTarget', () => {
   });
 
   it('a team a v1 step of this kind names, with someone on it besides me', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.WorkflowStepSet', { stepId: 'quick_check@1/peer_review', laneId: 'din', order: 's00', role: 'reviewer', teamId: 'peers', required: true, rule: 'any' });
     expect(usualTarget(p.state(), 'din', 'peer', 'akol')).toEqual({ teamId: 'peers', name: 'Dinka peers' });
     expect(usualTarget(p.state(), 'din', 'community', 'akol')).toBeUndefined();
@@ -168,7 +168,7 @@ describe('usualTarget', () => {
   });
 
   it('a team that usually does this kind comes first, before a v1 step or a person', () => {
-    const p = project();
+    const p = partition();
     const v1 = derivePassage(p.state(), 'john3', 'din').latest!.takeId;
     p.run('nyibol', (c) => c.recordReview({ commandId: 'r1', takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
     expect(usualTarget(p.state(), 'din', 'peer', 'akol')).toEqual({ profileId: 'nyibol' });
@@ -183,7 +183,7 @@ describe('usualTarget', () => {
   });
 
   it('the kind is a register: the later clock wins whatever order events arrive in', () => {
-    const p = project();
+    const p = partition();
     p.emit('lead', 'v1.ReviewTeamKindSet', { teamId: 'peers', laneId: 'din', kindId: 'peer' });
     p.emit('deng', 'v1.ReviewTeamKindSet', { teamId: 'peers', laneId: 'din', kindId: 'community' });
     const forward = fold(p.events, emptyState());

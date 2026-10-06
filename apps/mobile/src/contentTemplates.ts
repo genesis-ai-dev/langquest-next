@@ -11,7 +11,7 @@
 import {
   bookIdOf, bookOrder, canonicalJson, contentTemplate, laneLeafUnits, libraryUnitRange, subscriptionItemId, templateOfUnit,
   unitPlace, USFM_BOOKS,
-  type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type ProjectState,
+  type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type PartitionState,
   type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
@@ -110,7 +110,7 @@ export type LaneTemplate =
   | { source: 'library'; itemId: string; docHash: string; books: string[] | null }
   | { source: 'legacy'; templateId: string; catalogVersion: number; name: string; levels: string[] };
 
-export function laneTemplateOf(state: ProjectState, laneId: string): LaneTemplate | null {
+export function laneTemplateOf(state: PartitionState, laneId: string): LaneTemplate | null {
   const sel = state.laneTemplates[laneId]?.value;
   if (!sel) return null;
   if (sel.itemId && sel.docHash) return { source: 'library', itemId: sel.itemId, docHash: sel.docHash, books: sel.books ?? null };
@@ -127,7 +127,7 @@ export function docLevels(doc: TemplateDoc): string[] {
 }
 
 /** The word for what a language records: its template's last level ("Passage", "Chapter"). */
-export function partName(state: ProjectState, laneId: string, doc?: TemplateDoc | null): string {
+export function partName(state: PartitionState, laneId: string, doc?: TemplateDoc | null): string {
   const t = laneTemplateOf(state, laneId);
   const levels = t?.source === 'legacy' ? t.levels : doc ? docLevels(doc) : [];
   return levels.at(-1) ?? 'Passage';
@@ -146,7 +146,7 @@ export function versionNumber(item: LibraryItemView | null, docHash: string | nu
 }
 
 /** "FIA passages (English) · version 2", "Bible · from the app", or "No template yet", for a language's row. */
-export function laneTemplateLine(state: ProjectState, item: (itemId: string) => LibraryItemView | null, laneId: string): string {
+export function laneTemplateLine(state: PartitionState, item: (itemId: string) => LibraryItemView | null, laneId: string): string {
   const t = laneTemplateOf(state, laneId);
   if (!t) return 'No template yet';
   if (t.source === 'legacy') return `${t.name} · from the app`;
@@ -161,7 +161,7 @@ export function laneTemplateLine(state: ProjectState, item: (itemId: string) => 
  * version dropped them, or it narrowed its books. Switching back brings them
  * back; nothing was deleted.
  */
-export function setAsideCount(state: ProjectState, laneId: string): number {
+export function setAsideCount(state: PartitionState, laneId: string): number {
   const sel = state.laneTemplates[laneId]?.value;
   if (!sel) return 0;
   const hidden = state.laneHiddenUnits[laneId] ?? {};
@@ -180,7 +180,7 @@ export function setAsideCount(state: ProjectState, laneId: string): number {
 }
 
 /** Parts of a language that already have a recording: they never move on their own. */
-export function recordedCount(state: ProjectState, laneId: string): number {
+export function recordedCount(state: PartitionState, laneId: string): number {
   const units = new Set<string>();
   for (const t of Object.values(state.takes)) if (t.laneId === laneId && !t.archived) units.add(t.unitId);
   return units.size;
@@ -395,10 +395,10 @@ export function countOutline(list: OutlineNode[]): { folders: number; items: num
 
 // ---- a language's books ------------------------------------------------------------------
 
-const booksCache = new WeakMap<ProjectState, Map<string, Map<string, string[]>>>();
+const booksCache = new WeakMap<PartitionState, Map<string, Map<string, string[]>>>();
 
 /** A language's units grouped by Bible book, in canon order within each book. Cached per fold revision. */
-export function laneUnitsByBook(state: ProjectState, idx: Indexes, laneId: string): Map<string, string[]> {
+export function laneUnitsByBook(state: PartitionState, idx: Indexes, laneId: string): Map<string, string[]> {
   let perLane = booksCache.get(state);
   if (!perLane) {
     perLane = new Map();
@@ -426,7 +426,7 @@ export interface BookRow {
 }
 
 /** The books a language divides, in canon order, with how many parts each has. */
-export function bookRows(state: ProjectState, idx: Indexes, laneId: string): BookRow[] {
+export function bookRows(state: PartitionState, idx: Indexes, laneId: string): BookRow[] {
   const byBook = laneUnitsByBook(state, idx, laneId);
   return BIBLE_BOOKS.filter((b) => byBook.has(b.itemId)).map((book) => {
     const units = byBook.get(book.itemId)!;
@@ -468,7 +468,7 @@ export function toSegments(book: BibleBook, units: { unitId: string; label: stri
   return out;
 }
 
-export function bookSegments(state: ProjectState, idx: Indexes, laneId: string, book: BibleBook): Segment[] {
+export function bookSegments(state: PartitionState, idx: Indexes, laneId: string, book: BibleBook): Segment[] {
   const units = laneUnitsByBook(state, idx, laneId).get(book.itemId) ?? [];
   return toSegments(book, units.map((unitId) => ({ unitId, label: state.units[unitId]?.label ?? '' })));
 }

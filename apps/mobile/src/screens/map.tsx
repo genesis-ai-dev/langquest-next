@@ -10,7 +10,7 @@
 import {
   contentTemplate, deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, laneLeafUnits, laneName, languageProgress,
   passageSummary, percent, timeAgo, unitPlace, unitTitle,
-  type KindDef, type LanguageProgress, type PassageState, type ProjectState, type UnitPlace
+  type KindDef, type LanguageProgress, type PassageState, type PartitionState, type UnitPlace
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -53,10 +53,10 @@ interface Entry {
   s: PassageState;
 }
 
-const laneCache = new WeakMap<ProjectState, Map<string, Entry[]>>();
+const laneCache = new WeakMap<PartitionState, Map<string, Entry[]>>();
 
 /** Every passage a language works on, with where it sits and where it stands; shared by the map and its books. */
-function laneEntries(state: ProjectState, laneId: string): Entry[] {
+function laneEntries(state: PartitionState, laneId: string): Entry[] {
   let byLane = laneCache.get(state);
   if (!byLane) { byLane = new Map(); laneCache.set(state, byLane); }
   const hit = byLane.get(laneId);
@@ -68,7 +68,7 @@ function laneEntries(state: ProjectState, laneId: string): Entry[] {
 }
 
 /** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). */
-function useForYou(ctx: Ctx, state: ProjectState | null, laneId: string | null): Set<string> {
+function useForYou(ctx: Ctx, state: PartitionState | null, laneId: string | null): Set<string> {
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
   return useMemo(() => new Set(state && laneId
@@ -76,12 +76,12 @@ function useForYou(ctx: Ctx, state: ProjectState | null, laneId: string | null):
     : []), [state, laneId, ctx.session.actorId, canRecord, canReview]);
 }
 
-function flowLabel(state: ProjectState, laneId: string): string {
+function flowLabel(state: PartitionState, laneId: string): string {
   const flow = deriveFlow(state, laneId);
   return flow.steps.length ? flow.name : 'No review flow';
 }
 
-function laneCode(state: ProjectState, laneId: string): string {
+function laneCode(state: PartitionState, laneId: string): string {
   return (state.lanes[laneId]?.languoidId ?? laneId).slice(0, 3).toUpperCase();
 }
 
@@ -129,7 +129,7 @@ function PassageDisc(props: { s: PassageState }) {
   );
 }
 
-function PassageRow(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
+function PassageRow(props: { ctx: Ctx; state: PartitionState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
   const { e, ctx } = props;
   const me = ctx.session.actorId;
   const title = unitTitle(props.state, e.unitId);
@@ -239,18 +239,18 @@ function FunnelRows(props: { progress: LanguageProgress }) {
 }
 
 export function StatusHome(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const beside = useOpenDetail();
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   // Every language the organization has; each is its own partition
   // (decisions.md 37). This phone folds the one it has open; the dashboard's
   // server answers for the rest (decision 44), as of when it last caught up.
-  const summary = useOrgSummary(ctx.session.actorId, ctx.project.orgId);
+  const summary = useOrgSummary(ctx.session.actorId, ctx.partition.orgId);
   const languages = useMemo(() => {
     const idx = state ? indexesFor(state) : null;
     const names = new Map(ctx.languages.map((l) => [l.laneId, l.name]));
-    const ids = languagesToList(ctx.languages, state, ctx.project.projectId);
+    const ids = languagesToList(ctx.languages, state, ctx.partition.partitionId);
     const local = new Map(state ? ids.filter((laneId) => state.lanes[laneId]).map((laneId) => [laneId, languageProgress(state, laneId, idx!)]) : []);
     const figures = laneFigures(ids, local, summary);
     return ids.map((laneId) => {
@@ -261,7 +261,7 @@ export function StatusHome(ctx: Ctx) {
         flow: here ? flowLabel(state!, laneId) : '', progress: f?.progress ?? null, asOf: f?.asOf ?? null
       };
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [state, ctx.languages, ctx.project.projectId, summary]);
+  }, [state, ctx.languages, ctx.partition.partitionId, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title="Progress" sub={[orgName, 'All languages'].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title="Loading…" /></Screen>;
@@ -416,7 +416,7 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
 }
 
 /** An outline language (lessons, stories): its folders and their items instead of books and chapters (MAP-6). */
-function OutlineMap(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; laneId: string; entries: Entry[]; forYou: Set<string> }) {
+function OutlineMap(props: { ctx: Ctx; state: PartitionState; kinds: KindDef[]; laneId: string; entries: Entry[]; forYou: Set<string> }) {
   const [limits, setLimits] = useState<Record<string, number>>({});
   const sections = useMemo(() => {
     const by = new Map<string, Entry[]>();
@@ -450,7 +450,7 @@ function OutlineMap(props: { ctx: Ctx; state: ProjectState; kinds: KindDef[]; la
 }
 
 export function MapHome(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const [picked, setPicked] = useState<string | null>(null);
   const lanes = state ? indexesFor(state).lanes : [];
   const wanted = picked ?? ctx.params['laneId'] ?? ctx.laneId;
@@ -702,7 +702,7 @@ function Legend(props: { none: boolean }) {
 }
 
 export function BookMap(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const offline = keptOfflineMap(ctx);
   const laneId = ctx.params['laneId'] ?? ctx.laneId;
   const bookId = ctx.params['bookId'] ?? '';

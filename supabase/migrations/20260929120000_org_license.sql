@@ -8,7 +8,7 @@
 -- "closing" event: it is accepted and changes nothing, exactly as on every
 -- phone. Nothing on the write path reads it.
 --
--- Explore's listing (public_projects) now says which license the work is
+-- Explore's listing (public_partitions) now says which license the work is
 -- under; the projection worker writes it from the org fold (orgLicense).
 -- Who outside the organization may look inside follows from the license
 -- (docs/licensing.md "Access"); that read path is not built yet, so nothing
@@ -24,8 +24,8 @@ $$;
 create or replace function public.event_privilege(p_type text, p jsonb)
 returns text language sql immutable as $$
   select case p_type
-    when 'v1.ProjectCreated' then 'bootstrap'
-    when 'v1.ProjectConfigChanged' then 'manage_structure'
+    when 'v1.PartitionCreated' then 'bootstrap'
+    when 'v1.PartitionConfigChanged' then 'manage_structure'
     when 'v1.MemberAdded' then 'invite_members'
     when 'v1.MemberRoleChanged' then 'invite_members'
     when 'v1.MemberRemoved' then 'invite_members'
@@ -64,7 +64,7 @@ returns text language sql immutable as $$
     when 'v1.OrgMemberRemoved' then 'invite_members'
     when 'v1.CatalogItemToggled' then case p->>'kind'
       when 'reference' then 'manage_reference' when 'flow' then 'manage_flows' else 'manage_templates' end
-    when 'v1.ProjectRegistered' then 'manage_structure'
+    when 'v1.PartitionRegistered' then 'manage_structure'
     when 'v1.InviteIssued' then 'invite_members'
     when 'v1.JoinDecided' then 'invite_members'
     -- The passage record.
@@ -102,9 +102,9 @@ declare c jsonb;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return 'payload must be an object'; end if;
   case p_type
-    when 'v1.ProjectCreated' then
+    when 'v1.PartitionCreated' then
       if not (public._is_str(p->'name') and public._is_str(p->'sourceLanguoidId')) then return 'name and sourceLanguoidId must be non-empty strings'; end if;
-    when 'v1.ProjectConfigChanged' then
+    when 'v1.PartitionConfigChanged' then
       if jsonb_typeof(p->'config') is distinct from 'object' then return 'config must be an object'; end if;
     when 'v1.MemberAdded', 'v1.MemberRoleChanged' then
       if not public._is_str(p->'profileId') then return 'profileId must be a non-empty string'; end if;
@@ -142,7 +142,7 @@ begin
       if not (public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'profileId')) then return 'unitId, laneId, profileId must be non-empty strings'; end if;
       if not public._is_role(p->>'role') then return 'role must be a role'; end if;
     when 'v1.SourceImported' then
-      if not public._is_str(p->'sourceProjectId') then return 'sourceProjectId must be a non-empty string'; end if;
+      if not public._is_str(p->'sourcePartitionId') then return 'sourcePartitionId must be a non-empty string'; end if;
       if jsonb_typeof(p->'sourceSeq') is distinct from 'number' then return 'sourceSeq must be a number'; end if;
       if not public._is_str_array(p->'unitIds') then return 'unitIds must be a string array'; end if;
     when 'v1.BlobStored' then
@@ -211,11 +211,11 @@ begin
     when 'v1.CatalogItemToggled' then
       if not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if coalesce(p->>'kind', '') not in ('template', 'reference', 'flow') then return 'kind must be template, reference or flow'; end if;
-      if coalesce(p->>'level', '') not in ('org', 'project') then return 'level must be org or project'; end if;
-      if p->>'level' = 'project' and not public._is_str(p->'projectId') then return 'projectId required at project level'; end if;
+      if coalesce(p->>'level', '') not in ('org', 'partition') then return 'level must be org or partition'; end if;
+      if p->>'level' = 'partition' and not public._is_str(p->'partitionId') then return 'partitionId required at partition level'; end if;
       if jsonb_typeof(p->'enabled') is distinct from 'boolean' then return 'enabled must be a boolean'; end if;
-    when 'v1.ProjectRegistered' then
-      if not (public._is_str(p->'projectId') and public._is_str(p->'name')) then return 'projectId and name must be non-empty strings'; end if;
+    when 'v1.PartitionRegistered' then
+      if not (public._is_str(p->'partitionId') and public._is_str(p->'name')) then return 'partitionId and name must be non-empty strings'; end if;
     when 'v1.InviteIssued' then
       if not (public._is_str(p->'inviteId') and public._is_str(p->'roleId') and public._is_str(p->'expiresAt')) then return 'inviteId, roleId, expiresAt must be non-empty strings'; end if;
       if jsonb_typeof(p->'scope') is distinct from 'object' then return 'scope must be an object'; end if;
@@ -239,7 +239,7 @@ begin
   return null;
 end $$;
 
-alter table public.public_projects
+alter table public.public_partitions
   add column if not exists license text not null default 'all-rights-reserved';
 
 notify pgrst, 'reload schema';

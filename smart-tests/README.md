@@ -26,7 +26,7 @@ Run: `npm run smart` (needs local Supabase up and `~/.bash_profile` exporting
 8091 (`SMART_PORT`) or starts one. Start it from a shell, not the preview pane:
 here only a shell-started Metro picks up edits.
 
-- `world.ts` seeds a fresh org, project and translator through the real
+- `world.ts` seeds a fresh org, language and translator through the real
   server, then hands the browser a signed-in session. No sign-in screens.
   `seedSubmittedWorld` adds a reviewer and a submitted Version 1 whose audio
   is uploaded the way the app uploads it (optionally with feedback on it).

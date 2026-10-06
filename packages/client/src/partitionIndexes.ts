@@ -1,17 +1,17 @@
 import {
   affectedPassages, buildIndexes, unitLaneKey,
-  type AnyEvent, type Indexes, type ProjectState
+  type AnyEvent, type Indexes, type PartitionState
 } from '@langquest-next/core';
 
 /** Owned by a client, never by React. Ordinary edits update only their bucket. */
-export class ProjectIndexes {
+export class PartitionIndexes {
   private index: Indexes | undefined;
   private recordings = new Map<string, Set<string>>();
   private composed = new Map<string, number>();
   private takeCards = new Map<string, string[]>();
   private takeKeys = new Map<string, string>();
 
-  constructor(private readonly state: ProjectState) {
+  constructor(private readonly state: PartitionState) {
     for (const [id, r] of Object.entries(state.recordings)) {
       this.addRecording(id, r.unitId, r.laneId);
     }

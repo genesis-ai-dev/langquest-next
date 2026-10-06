@@ -1,8 +1,8 @@
-import type { ProjectState } from '@langquest-next/core';
+import type { PartitionState } from '@langquest-next/core';
 
 /** Recover durable, uncomposed recordings after navigating away or restarting. */
 export function pendingPassageCards(
-  state: ProjectState, unitId: string, laneId: string, actorId: string
+  state: PartitionState, unitId: string, laneId: string, actorId: string
 ) {
   const composed = new Set(Object.values(state.takes).flatMap((t) => t.cardHashes));
   return Object.values(state.recordings)

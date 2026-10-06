@@ -1,5 +1,5 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type ProjectQueries, type SyncInspection } from '@langquest-next/client';
-import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type ProjectState } from '@langquest-next/core';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type PartitionQueries, type SyncInspection } from '@langquest-next/client';
+import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type PartitionState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -12,10 +12,10 @@ import { getStore } from './store';
 import { onWake } from './wake';
 import { supabase } from './supabase';
 
-export interface ProjectHandle {
+export interface PartitionHandle {
   orgId: string;
-  projectId: string;
-  state: ProjectState | null;
+  partitionId: string;
+  state: PartitionState | null;
   pending: number;
   lastSync: string;
   /**
@@ -50,7 +50,7 @@ export interface ProjectHandle {
    * Queries over the persisted rows (client queries.ts); null before load.
    * Screens read through `useQuery`, which re-runs on every publication.
    */
-  queries: ProjectQueries | null;
+  queries: PartitionQueries | null;
   /** Fold revision, bumped on every local or pulled change. */
   revision: number;
   /** Compare persisted rows with a rebuild from the fold (dev menu). */
@@ -93,16 +93,16 @@ export interface ProjectHandle {
 const MIN_FREE_BYTES = 500 * 1024 * 1024;
 const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
 
-/** One budget per device, shared by every project's workers. */
+/** One budget per device, shared by every partition's workers. */
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
 
 /**
- * Owns one SyncClient for one project on this device. Screens read `state`
+ * Owns one SyncClient for one partition on this device. Screens read `state`
  * and call `append`; nothing else in the app touches events or sync.
  */
-export function useProject(orgId: string, projectId: string, actorId: string): ProjectHandle {
+export function usePartition(orgId: string, partitionId: string, actorId: string): PartitionHandle {
   const clientRef = useRef<SyncClient | null>(null);
-  const [state, setState] = useState<ProjectState | null>(null);
+  const [state, setState] = useState<PartitionState | null>(null);
   const [pending, setPending] = useState(0);
   const [lastSync, setLastSync] = useState('never');
   const [online, setOnline] = useState<boolean | null>(null);
@@ -113,7 +113,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [pulled, setPulled] = useState(false);
   const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
   const keptRef = useRef<ReadonlySet<string>>(new Set());
-  const keepKey = `keep:${orgId}/${projectId}`;
+  const keepKey = `keep:${orgId}/${partitionId}`;
   const [present, setPresent] = useState<ReadonlySet<string>>(new Set());
   const [pendingUp, setPendingUp] = useState(0);
   const [pendingDown, setPendingDown] = useState(0);
@@ -122,7 +122,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const [live, setLive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [queries, setQueries] = useState<ProjectQueries | null>(null);
+  const [queries, setQueries] = useState<PartitionQueries | null>(null);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const upMeter = useRef(new RateMeter());
   const downMeter = useRef(new RateMeter());
@@ -216,7 +216,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       const transport = new SupabaseTransport(supabase);
       const client = new SyncClient({
         orgId,
-        projectId,
+        partitionId,
         actorId,
         deviceId,
         store,
@@ -273,16 +273,16 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         ...common,
         // Size from the confirmation versus the file here: a mismatch reopens the upload.
         work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
-        transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, projectId }, (t) => uploadBlob(orgId, projectId, ref, blobStore, t)),
+        transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, partitionId }, (t) => uploadBlob(orgId, partitionId, ref, blobStore, t)),
         onChange: (n) => { pendingUpRef.current = n; setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       const down = new TransferWorker({
         ...DOWNLOAD_DEFAULTS,
         ...common,
-        // Rule 10: by scope, never the whole project. Scope is the actor's
+        // Rule 10: by scope, never the whole partition. Scope is the actor's
         // own units plus what they explicitly chose to keep offline.
         work: () => deriveDownloadWork(client.getState(), blobStore.snapshot(), scopeNow()),
-        transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, projectId }, (t) => downloadBlob(orgId, projectId, ref, blobStore, t)),
+        transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, partitionId }, (t) => downloadBlob(orgId, partitionId, ref, blobStore, t)),
         onChange: (n) => { pendingDownRef.current = n; setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       upRef.current = up;
@@ -306,7 +306,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
         run: async () => { const { more } = await sync(); return { offline: onlineRef.current === false, more }; }
       });
       schedulerRef.current = scheduler;
-      const unwatch = transport.watch(orgId, projectId, {
+      const unwatch = transport.watch(orgId, partitionId, {
         onPoke: () => scheduler.nudge(),
         onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
       });
@@ -328,7 +328,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       // Finish any save a crash or kill interrupted (recordingJournalCore.ts).
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
-      const resumed = await getRecordingJournal().resume({ orgId, projectId }, {
+      const resumed = await getRecordingJournal().resume({ orgId, partitionId }, {
         blobExists: (hash, format) => blobStore.exists({ hash, format }),
         ingest: async (uri, format, beforeMove) => {
           const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
@@ -354,7 +354,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
       upRef.current = null;
       downRef.current = null;
     };
-  }, [orgId, projectId, actorId, refresh, sync, keepKey]);
+  }, [orgId, partitionId, actorId, refresh, sync, keepKey]);
 
   const append = useCallback(
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
@@ -424,7 +424,7 @@ export function useProject(orgId: string, projectId: string, actorId: string): P
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
   const verifyRows = useCallback(() => clientRef.current?.verifyRows() ?? Promise.resolve({ rows: 0, mismatches: ['not loaded'] }), []);
 
-  return { orgId, projectId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, partitionId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */
@@ -433,7 +433,7 @@ async function metered(
   store: BlobStore,
   ref: BlobRef,
   dir: 'up' | 'down',
-  where: { orgId: string; projectId: string },
+  where: { orgId: string; partitionId: string },
   run: (timings: TransferTimings) => Promise<void>
 ): Promise<void> {
   await timedTransfer(dir, where, async (timings) => {

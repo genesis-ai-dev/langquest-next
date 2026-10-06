@@ -102,8 +102,8 @@ async function main(argv: string[]) {
   }
   const { sb, userId } = await signIn(url, supabaseKey('SUPABASE_ANON_KEY', url), supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url));
   const transport = new SupabaseTransport(sb);
-  const client = <S>(projectId: string, materializer?: typeof orgMaterializer) => new SyncClient<S>({
-    orgId: SAMPLE_ORG.id, projectId, actorId: userId, deviceId: 'sample-script', store: new MemoryStore(), transport,
+  const client = <S>(partitionId: string, materializer?: typeof orgMaterializer) => new SyncClient<S>({
+    orgId: SAMPLE_ORG.id, partitionId, actorId: userId, deviceId: 'sample-script', store: new MemoryStore(), transport,
     newId: () => randomUUID(), ...(materializer ? { materializer } : {})
   } as never);
 
@@ -150,17 +150,17 @@ async function main(argv: string[]) {
   // 3. Each language: listed in the org, its own partition started with its template and flow.
   const languages = history ? [...SAMPLE_LANGUAGES, ...HISTORY_LANGUAGES] : SAMPLE_LANGUAGES;
   for (const lang of languages) {
-    if (orgState().projects[lang.laneId]) continue;
+    if (orgState().partitions[lang.laneId]) continue;
     const template = await follow(find('template', lang.template));
     await load([template.hash]);
     const tdoc = docs.get(template.hash) as TemplateDoc;
     if (tdoc.bible) await load([tdoc.bible.versification]);
     const v11n = tdoc.bible ? (docs.get(tdoc.bible.versification) as VersificationDoc) : null;
-    await org.append('v1.ProjectRegistered', { projectId: lang.laneId, name: lang.name });
+    await org.append('v1.PartitionRegistered', { partitionId: lang.laneId, name: lang.name });
     await org.sync();
     const fresh = emptyState();
     const specs: EventSpec[] = [
-      { id: randomUUID(), type: 'v1.ProjectCreated', payload: { name: lang.name, sourceLanguoidId: 'eng' } } as EventSpec,
+      { id: randomUUID(), type: 'v1.PartitionCreated', payload: { name: lang.name, sourceLanguoidId: 'eng' } } as EventSpec,
       { id: randomUUID(), type: 'v1.LaneAdded', payload: { laneId: lang.laneId, languoidId: lang.code } } as EventSpec,
       { id: randomUUID(), type: 'v1.LaneNamed', payload: { laneId: lang.laneId, name: lang.name } } as EventSpec,
       ...selectTemplateSpecs(fresh, { commandId: randomUUID(), laneId: lang.laneId, itemId: template.itemId, docHash: template.hash, doc: tdoc, versification: v11n }),

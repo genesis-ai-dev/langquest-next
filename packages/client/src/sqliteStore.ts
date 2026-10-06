@@ -44,10 +44,16 @@ export class SqliteStore implements EventStore {
     // rows on some drivers, so read them rather than run them.
     await db.all(`pragma journal_mode = wal`);
     await db.all(`pragma synchronous = normal`);
+    // A phone from before the partition key was renamed (decisions.md 63)
+    // holds a log from a server that was reset with it, so it starts empty.
+    const stale = await db.all(`select name from pragma_table_info('events') where name = 'project_id'`);
+    if (stale.length) {
+      for (const t of ['events', 'cursors', 'meta', 'passage_rows', 'task_rows', 'lane_counts']) await db.run(`drop table if exists ${t}`);
+    }
     await db.run(`create table if not exists events (
       id text primary key,
       org_id text not null,
-      project_id text not null,
+      partition_id text not null,
       status text not null,
       reject_reason text,
       hlc text not null,
@@ -55,28 +61,28 @@ export class SqliteStore implements EventStore {
       json text not null
     )`);
     await db.run(
-      `create index if not exists events_partition_status on events (org_id, project_id, status, hlc)`
+      `create index if not exists events_partition_status on events (org_id, partition_id, status, hlc)`
     );
     await db.run(`create table if not exists cursors (
       org_id text not null,
-      project_id text not null,
+      partition_id text not null,
       seq integer not null,
-      primary key (org_id, project_id)
+      primary key (org_id, partition_id)
     )`);
     await db.run(`create table if not exists meta (key text primary key, value text not null)`);
     // Read-model rows (PLAN.md invariant 5 still holds: derived, rebuildable,
     // never written by a user). `ord` is the unit's order key for paging.
     await db.run(`create table if not exists passage_rows (
       org_id text not null,
-      project_id text not null,
+      partition_id text not null,
       unit_id text not null,
       lane_id text not null,
       ord text not null,
       json text not null,
-      primary key (org_id, project_id, unit_id, lane_id)
+      primary key (org_id, partition_id, unit_id, lane_id)
     )`);
     await db.run(
-      `create index if not exists passage_rows_order on passage_rows (org_id, project_id, lane_id, ord, unit_id)`
+      `create index if not exists passage_rows_order on passage_rows (org_id, partition_id, lane_id, ord, unit_id)`
     );
     await openReadModels(db);
     return new SqliteStore(db);
@@ -85,30 +91,30 @@ export class SqliteStore implements EventStore {
   async commit(batch: WriteBatch): Promise<void> {
     const write = async (tx: SqlDriver) => {
       for (const l of batch.events ?? []) await this.putOn(tx, l);
-      for (const key of new Set((batch.events ?? []).map((l) => `projection:${l.event.orgId}/${l.event.projectId}`))) {
+      for (const key of new Set((batch.events ?? []).map((l) => `projection:${l.event.orgId}/${l.event.partitionId}`))) {
         await this.setMetaOn(tx, key, '');
       }
-      if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.projectId, batch.cursor.seq);
+      if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.partitionId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
-      if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.projectId, batch.prune.uptoSeq);
+      if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.partitionId, batch.prune.uptoSeq);
       const rows = batch.rows;
       if (rows) {
         await updateReadModels(tx, rows);
-        if (rows.clear) await tx.run(`delete from passage_rows where org_id = ? and project_id = ?`, [rows.orgId, rows.projectId]);
+        if (rows.clear) await tx.run(`delete from passage_rows where org_id = ? and partition_id = ?`, [rows.orgId, rows.partitionId]);
         for (const k of rows.delete ?? []) {
-          await tx.run(`delete from passage_rows where org_id = ? and project_id = ? and unit_id = ? and lane_id = ?`, [rows.orgId, rows.projectId, k.unitId, k.laneId]);
+          await tx.run(`delete from passage_rows where org_id = ? and partition_id = ? and unit_id = ? and lane_id = ?`, [rows.orgId, rows.partitionId, k.unitId, k.laneId]);
         }
         for (const r of rows.put ?? []) {
           await tx.run(
-            `insert into passage_rows (org_id, project_id, unit_id, lane_id, ord, json) values (?, ?, ?, ?, ?, ?)
-             on conflict(org_id, project_id, unit_id, lane_id) do update set ord = excluded.ord, json = excluded.json`,
-            [rows.orgId, rows.projectId, r.unitId, r.laneId, r.order, JSON.stringify(r)]
+            `insert into passage_rows (org_id, partition_id, unit_id, lane_id, ord, json) values (?, ?, ?, ?, ?, ?)
+             on conflict(org_id, partition_id, unit_id, lane_id) do update set ord = excluded.ord, json = excluded.json`,
+            [rows.orgId, rows.partitionId, r.unitId, r.laneId, r.order, JSON.stringify(r)]
           );
         }
         if (rows.version) {
           const cursor = await tx.all<{ seq: number }>(
-            'select seq from cursors where org_id = ? and project_id = ?', [rows.orgId, rows.projectId]);
-          await this.setMetaOn(tx, `projection:${rows.orgId}/${rows.projectId}`,
+            'select seq from cursors where org_id = ? and partition_id = ?', [rows.orgId, rows.partitionId]);
+          await this.setMetaOn(tx, `projection:${rows.orgId}/${rows.partitionId}`,
             `${rows.version}:${cursor[0]?.seq ?? 0}`);
         }
       }
@@ -119,30 +125,30 @@ export class SqliteStore implements EventStore {
     });
   }
 
-  taskPage(orgId: string, projectId: string, query: TaskQuery) {
-    return taskPage(this.db, orgId, projectId, query);
+  taskPage(orgId: string, partitionId: string, query: TaskQuery) {
+    return taskPage(this.db, orgId, partitionId, query);
   }
 
-  laneCounts(orgId: string, projectId: string, laneId: string) {
-    return laneCounts(this.db, orgId, projectId, laneId);
+  laneCounts(orgId: string, partitionId: string, laneId: string) {
+    return laneCounts(this.db, orgId, partitionId, laneId);
   }
 
-  async passage(orgId: string, projectId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
+  async passage(orgId: string, partitionId: string, unitId: string, laneId: string): Promise<PassageRow | undefined> {
     const rows = await this.db.all<{ json: string }>(
-      `select json from passage_rows where org_id = ? and project_id = ? and unit_id = ? and lane_id = ?`,
-      [orgId, projectId, unitId, laneId]
+      `select json from passage_rows where org_id = ? and partition_id = ? and unit_id = ? and lane_id = ?`,
+      [orgId, partitionId, unitId, laneId]
     );
     return rows[0] ? (JSON.parse(rows[0].json) as PassageRow) : undefined;
   }
 
-  async passages(orgId: string, projectId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]> {
+  async passages(orgId: string, partitionId: string, opts: { laneId?: string; after?: PassageCursor | null; limit: number }): Promise<PassageRow[]> {
     const after = opts.after ?? null;
     const rows = await this.db.all<{ json: string }>(
-      `select json from passage_rows where org_id = ? and project_id = ?
+      `select json from passage_rows where org_id = ? and partition_id = ?
          and (? is null or lane_id = ?)
          and (? is null or (ord, unit_id, lane_id) > (?, ?, ?))
        order by ord, unit_id, lane_id limit ?`,
-      [orgId, projectId, opts.laneId ?? null, opts.laneId ?? null, after ? 1 : null, after?.order ?? '', after?.unitId ?? '', after?.laneId ?? '', opts.limit]
+      [orgId, partitionId, opts.laneId ?? null, opts.laneId ?? null, after ? 1 : null, after?.order ?? '', after?.unitId ?? '', after?.laneId ?? '', opts.limit]
     );
     return rows.map((r) => JSON.parse(r.json) as PassageRow);
   }
@@ -154,7 +160,7 @@ export class SqliteStore implements EventStore {
   private async putOn(db: SqlDriver, local: LocalEvent): Promise<void> {
     const e = local.event;
     await db.run(
-      `insert into events (id, org_id, project_id, status, reject_reason, hlc, server_seq, json)
+      `insert into events (id, org_id, partition_id, status, reject_reason, hlc, server_seq, json)
        values (?, ?, ?, ?, ?, ?, ?, ?)
        on conflict(id) do update set
          hlc = excluded.hlc,
@@ -165,7 +171,7 @@ export class SqliteStore implements EventStore {
       [
         e.id,
         e.orgId,
-        e.projectId,
+        e.partitionId,
         local.status,
         local.rejectReason ?? null,
         e.hlc,
@@ -186,96 +192,96 @@ export class SqliteStore implements EventStore {
     return row ? toLocal(row) : undefined;
   }
 
-  async pending(orgId: string, projectId: string): Promise<LocalEvent[]> {
+  async pending(orgId: string, partitionId: string): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(
-      `select * from events where org_id = ? and project_id = ? and status = 'pending' order by hlc`,
-      [orgId, projectId]
+      `select * from events where org_id = ? and partition_id = ? and status = 'pending' order by hlc`,
+      [orgId, partitionId]
     );
     return rows.map(toLocal);
   }
 
-  async pendingPage(orgId: string, projectId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
+  async pendingPage(orgId: string, partitionId: string, afterHlc: string | null, limit: number): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(
-      `select * from events where org_id = ? and project_id = ? and status = 'pending' and hlc > ?
+      `select * from events where org_id = ? and partition_id = ? and status = 'pending' and hlc > ?
        order by hlc limit ?`,
-      [orgId, projectId, afterHlc ?? '', limit]
+      [orgId, partitionId, afterHlc ?? '', limit]
     );
     return rows.map(toLocal);
   }
 
-  async pendingCount(orgId: string, projectId: string): Promise<number> {
+  async pendingCount(orgId: string, partitionId: string): Promise<number> {
     const rows = await this.db.all<{ n: number }>(
-      `select count(*) as n from events where org_id = ? and project_id = ? and status = 'pending'`,
-      [orgId, projectId]
+      `select count(*) as n from events where org_id = ? and partition_id = ? and status = 'pending'`,
+      [orgId, partitionId]
     );
     return Number(rows[0]?.n ?? 0);
   }
 
-  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]> {
-    const rows = await this.db.all<{ org_id: string; project_id: string }>(
-      `select distinct org_id, project_id from events where status = 'pending' and json_extract(json, '$.actorId') = ?
-       order by org_id, project_id`,
+  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; partitionId: string }[]> {
+    const rows = await this.db.all<{ org_id: string; partition_id: string }>(
+      `select distinct org_id, partition_id from events where status = 'pending' and json_extract(json, '$.actorId') = ?
+       order by org_id, partition_id`,
       [actorId]
     );
-    return rows.map((r) => ({ orgId: r.org_id, projectId: r.project_id }));
+    return rows.map((r) => ({ orgId: r.org_id, partitionId: r.partition_id }));
   }
 
-  async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
+  async pendingCountBy(orgId: string, partitionId: string, actorId: string): Promise<number> {
     // The outbox is small and already narrowed by the index, so reading the
     // author out of the stored event costs less than a column and a migration.
     const rows = await this.db.all<{ n: number }>(
-      `select count(*) as n from events where org_id = ? and project_id = ? and status = 'pending'
+      `select count(*) as n from events where org_id = ? and partition_id = ? and status = 'pending'
        and json_extract(json, '$.actorId') = ?`,
-      [orgId, projectId, actorId]
+      [orgId, partitionId, actorId]
     );
     return Number(rows[0]?.n ?? 0);
   }
 
-  async count(orgId: string, projectId: string): Promise<number> {
+  async count(orgId: string, partitionId: string): Promise<number> {
     const rows = await this.db.all<{ n: number }>(
-      `select count(*) as n from events where org_id = ? and project_id = ? and status <> 'rejected'`,
-      [orgId, projectId]
+      `select count(*) as n from events where org_id = ? and partition_id = ? and status <> 'rejected'`,
+      [orgId, partitionId]
     );
     return Number(rows[0]?.n ?? 0);
   }
 
-  async all(orgId: string, projectId: string): Promise<LocalEvent[]> {
+  async all(orgId: string, partitionId: string): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(
-      `select * from events where org_id = ? and project_id = ? and status <> 'rejected'
+      `select * from events where org_id = ? and partition_id = ? and status <> 'rejected'
        order by server_seq is null, server_seq, hlc`,
-      [orgId, projectId]
+      [orgId, partitionId]
     );
     return rows.map(toLocal);
   }
 
-  async cursor(orgId: string, projectId: string): Promise<number> {
+  async cursor(orgId: string, partitionId: string): Promise<number> {
     const rows = await this.db.all<{ seq: number }>(
-      `select seq from cursors where org_id = ? and project_id = ?`,
-      [orgId, projectId]
+      `select seq from cursors where org_id = ? and partition_id = ?`,
+      [orgId, partitionId]
     );
     return rows[0]?.seq ?? 0;
   }
 
-  async setCursor(orgId: string, projectId: string, seq: number): Promise<void> {
-    await this.commit({ cursor: { orgId, projectId, seq } });
+  async setCursor(orgId: string, partitionId: string, seq: number): Promise<void> {
+    await this.commit({ cursor: { orgId, partitionId, seq } });
   }
 
-  private async setCursorOn(db: SqlDriver, orgId: string, projectId: string, seq: number): Promise<void> {
+  private async setCursorOn(db: SqlDriver, orgId: string, partitionId: string, seq: number): Promise<void> {
     await db.run(
-      `insert into cursors (org_id, project_id, seq) values (?, ?, ?)
-       on conflict(org_id, project_id) do update set seq = excluded.seq`,
-      [orgId, projectId, seq]
+      `insert into cursors (org_id, partition_id, seq) values (?, ?, ?)
+       on conflict(org_id, partition_id) do update set seq = excluded.seq`,
+      [orgId, partitionId, seq]
     );
   }
 
-  async prune(orgId: string, projectId: string, uptoSeq: number): Promise<void> {
-    await this.commit({ prune: { orgId, projectId, uptoSeq } });
+  async prune(orgId: string, partitionId: string, uptoSeq: number): Promise<void> {
+    await this.commit({ prune: { orgId, partitionId, uptoSeq } });
   }
 
-  private async pruneOn(db: SqlDriver, orgId: string, projectId: string, uptoSeq: number): Promise<void> {
+  private async pruneOn(db: SqlDriver, orgId: string, partitionId: string, uptoSeq: number): Promise<void> {
     await db.run(
-      `delete from events where org_id = ? and project_id = ? and status = 'confirmed' and server_seq <= ?`,
-      [orgId, projectId, uptoSeq]
+      `delete from events where org_id = ? and partition_id = ? and status = 'confirmed' and server_seq <= ?`,
+      [orgId, partitionId, uptoSeq]
     );
   }
 
@@ -296,10 +302,10 @@ export class SqliteStore implements EventStore {
   }
 
   /** Rejected events for a partition, for the UI to show what was refused. */
-  async rejected(orgId: string, projectId: string): Promise<LocalEvent[]> {
+  async rejected(orgId: string, partitionId: string): Promise<LocalEvent[]> {
     const rows = await this.db.all<Row>(
-      `select * from events where org_id = ? and project_id = ? and status = 'rejected' order by hlc`,
-      [orgId, projectId]
+      `select * from events where org_id = ? and partition_id = ? and status = 'rejected' order by hlc`,
+      [orgId, partitionId]
     );
     return rows.map(toLocal);
   }

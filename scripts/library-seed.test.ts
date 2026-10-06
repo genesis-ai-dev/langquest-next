@@ -111,7 +111,7 @@ describe('LangQuest library seed', () => {
     expect(b.map((e) => e.id)).toEqual(a.map((e) => e.id));
     expect(new Set(a.map((e) => e.id)).size).toBe(a.length);
     expect(a.map((e) => validateEvent(e)).filter(Boolean)).toEqual([]);
-    expect(a.every((e) => e.orgId === SEED_ORG.id && e.projectId === '_org')).toBe(true);
+    expect(a.every((e) => e.orgId === SEED_ORG.id && e.partitionId === '_org')).toBe(true);
     expect(a.map((e) => e.hlc)).toEqual([...a.map((e) => e.hlc)].sort());
 
     const org = foldOrg(a);

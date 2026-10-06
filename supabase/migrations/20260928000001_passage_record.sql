@@ -41,8 +41,8 @@ $$;
 create or replace function public.event_privilege(p_type text, p jsonb)
 returns text language sql immutable as $$
   select case p_type
-    when 'v1.ProjectCreated' then 'bootstrap'
-    when 'v1.ProjectConfigChanged' then 'manage_structure'
+    when 'v1.PartitionCreated' then 'bootstrap'
+    when 'v1.PartitionConfigChanged' then 'manage_structure'
     when 'v1.MemberAdded' then 'invite_members'
     when 'v1.MemberRoleChanged' then 'invite_members'
     when 'v1.MemberRemoved' then 'invite_members'
@@ -81,7 +81,7 @@ returns text language sql immutable as $$
     when 'v1.OrgMemberRemoved' then 'invite_members'
     when 'v1.CatalogItemToggled' then case p->>'kind'
       when 'reference' then 'manage_reference' when 'flow' then 'manage_flows' else 'manage_templates' end
-    when 'v1.ProjectRegistered' then 'manage_structure'
+    when 'v1.PartitionRegistered' then 'manage_structure'
     when 'v1.InviteIssued' then 'invite_members'
     when 'v1.JoinDecided' then 'invite_members'
     -- The passage record.
@@ -105,7 +105,7 @@ returns boolean language sql immutable as $$
   select coalesce(string_to_array(public.event_privilege(p_type, p), ',') && public.fixed_role_privileges(p_role), false);
 $$;
 
-create or replace function public.may_emit(p_org text, p_project text, p_profile text, p_type text, p jsonb)
+create or replace function public.may_emit(p_org text, p_partition text, p_profile text, p_type text, p jsonb)
 returns boolean language plpgsql stable security definer set search_path = '' as $$
 declare
   v_priv text := public.event_privilege(p_type, p);
@@ -113,18 +113,18 @@ declare
 begin
   if v_priv is null then return false; end if;
   if v_priv = 'bootstrap' then return false; end if;
-  if p_project <> '_org' then
+  if p_partition <> '_org' then
     select case when m.removed then null else m.role end into v_role
       from public.memberships m
-      where m.org_id = p_org and m.project_id = p_project and m.profile_id = p_profile;
+      where m.org_id = p_org and m.partition_id = p_partition and m.profile_id = p_profile;
     if p_type='v1.AssignmentMade' and p->>'profileId'=p_profile
       and p->>'role'='translator' and (
         'translate'=any(public.fixed_role_privileges(v_role)) or
-        'translate'=any(public.org_privileges(p_org,p_profile,p_project,p->>'laneId'))
+        'translate'=any(public.org_privileges(p_org,p_profile,p_partition,p->>'laneId'))
       ) then return true; end if;
     if v_role is not null and public.role_may_emit_event(v_role, p_type, p) then return true; end if;
   end if;
-  return string_to_array(v_priv, ',') && public.org_privileges(p_org, p_profile, p_project, p->>'laneId');
+  return string_to_array(v_priv, ',') && public.org_privileges(p_org, p_profile, p_partition, p->>'laneId');
 end $$;
 
 -- Only the append path calls it. Anyone else could probe another profile's
@@ -254,9 +254,9 @@ declare c jsonb;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return 'payload must be an object'; end if;
   case p_type
-    when 'v1.ProjectCreated' then
+    when 'v1.PartitionCreated' then
       if not (public._is_str(p->'name') and public._is_str(p->'sourceLanguoidId')) then return 'name and sourceLanguoidId must be non-empty strings'; end if;
-    when 'v1.ProjectConfigChanged' then
+    when 'v1.PartitionConfigChanged' then
       if jsonb_typeof(p->'config') is distinct from 'object' then return 'config must be an object'; end if;
     when 'v1.MemberAdded', 'v1.MemberRoleChanged' then
       if not public._is_str(p->'profileId') then return 'profileId must be a non-empty string'; end if;
@@ -294,7 +294,7 @@ begin
       if not (public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'profileId')) then return 'unitId, laneId, profileId must be non-empty strings'; end if;
       if not public._is_role(p->>'role') then return 'role must be a role'; end if;
     when 'v1.SourceImported' then
-      if not public._is_str(p->'sourceProjectId') then return 'sourceProjectId must be a non-empty string'; end if;
+      if not public._is_str(p->'sourcePartitionId') then return 'sourcePartitionId must be a non-empty string'; end if;
       if jsonb_typeof(p->'sourceSeq') is distinct from 'number' then return 'sourceSeq must be a number'; end if;
       if not public._is_str_array(p->'unitIds') then return 'unitIds must be a string array'; end if;
     when 'v1.BlobStored' then
@@ -363,11 +363,11 @@ begin
     when 'v1.CatalogItemToggled' then
       if not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if coalesce(p->>'kind', '') not in ('template', 'reference', 'flow') then return 'kind must be template, reference or flow'; end if;
-      if coalesce(p->>'level', '') not in ('org', 'project') then return 'level must be org or project'; end if;
-      if p->>'level' = 'project' and not public._is_str(p->'projectId') then return 'projectId required at project level'; end if;
+      if coalesce(p->>'level', '') not in ('org', 'partition') then return 'level must be org or partition'; end if;
+      if p->>'level' = 'partition' and not public._is_str(p->'partitionId') then return 'partitionId required at partition level'; end if;
       if jsonb_typeof(p->'enabled') is distinct from 'boolean' then return 'enabled must be a boolean'; end if;
-    when 'v1.ProjectRegistered' then
-      if not (public._is_str(p->'projectId') and public._is_str(p->'name')) then return 'projectId and name must be non-empty strings'; end if;
+    when 'v1.PartitionRegistered' then
+      if not (public._is_str(p->'partitionId') and public._is_str(p->'name')) then return 'partitionId and name must be non-empty strings'; end if;
     when 'v1.InviteIssued' then
       if not (public._is_str(p->'inviteId') and public._is_str(p->'roleId') and public._is_str(p->'expiresAt')) then return 'inviteId, roleId, expiresAt must be non-empty strings'; end if;
       if jsonb_typeof(p->'scope') is distinct from 'object' then return 'scope must be an object'; end if;

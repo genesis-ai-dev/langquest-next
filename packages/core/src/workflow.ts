@@ -1,14 +1,14 @@
 import type { WorkflowStep } from './events';
 import { buildIndexes, unitLaneKey, type Indexes } from './indexes';
-import { DEFAULT_CONFIG, type ProjectState } from './state';
+import { DEFAULT_CONFIG, type PartitionState } from './state';
 
 /**
  * The workflow in force for a lane: the lane's own step registers if any,
- * else the project-wide step registers, else the whole-document config
- * (kept for projects created before per-step registers). Steps are sorted
+ * else the partition-wide step registers, else the whole-document config
+ * (kept for partitions created before per-step registers). Steps are sorted
  * by their order key; removed steps are gone.
  */
-export function deriveWorkflow(state: ProjectState, laneId?: string): WorkflowStep[] {
+export function deriveWorkflow(state: PartitionState, laneId?: string): WorkflowStep[] {
   const live = Object.values(state.workflowSteps).filter((s) => !s.removed && s.step.hlc !== '').map((s) => s.step.value);
   const pick = (scoped: boolean) => live.filter((d) => (scoped ? d.laneId === laneId : d.laneId === undefined));
   const chosen = laneId !== undefined && pick(true).length > 0 ? pick(true) : pick(false);
@@ -51,7 +51,7 @@ export interface TakeStatus {
   outcome: TakeOutcome;
 }
 
-export function deriveTakeStatus(state: ProjectState, takeId: string, idx: Indexes = buildIndexes(state)): TakeStatus {
+export function deriveTakeStatus(state: PartitionState, takeId: string, idx: Indexes = buildIndexes(state)): TakeStatus {
   const take = state.takes[takeId];
   if (!take) throw new Error(`Unknown take ${takeId}`);
   const workflow = deriveWorkflow(state, take.laneId);
@@ -68,7 +68,7 @@ export function deriveTakeStatus(state: ProjectState, takeId: string, idx: Index
   return { takeId, archived: take.archived, submitted, steps, outcome };
 }
 
-function deriveStep(state: ProjectState, takeId: string, step: WorkflowStep, idx: Indexes): StepStatus {
+function deriveStep(state: PartitionState, takeId: string, step: WorkflowStep, idx: Indexes): StepStatus {
   const take = state.takes[takeId]!;
   const eligible = eligibleReviewers(state, take.unitId, take.laneId, step, idx);
   const reviews = state.reviews[takeId]?.[step.id] ?? {};
@@ -110,12 +110,12 @@ function deriveStep(state: ProjectState, takeId: string, step: WorkflowStep, idx
 
 /**
  * Reviewers for a step. If anyone is assigned to this unit and lane for the
- * step's role, the assignment is the reviewer set (whatever their project
+ * step's role, the assignment is the reviewer set (whatever their partition
  * role, so an owner can be assigned to review). Otherwise every active
  * member holding the step's role is eligible.
  */
 export function eligibleReviewers(
-  state: ProjectState,
+  state: PartitionState,
   unitId: string,
   laneId: string,
   step: WorkflowStep,
@@ -147,7 +147,7 @@ export function eligibleReviewers(
 }
 
 /** Active takes for a unit and lane, newest first. */
-export function takesFor(state: ProjectState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): string[] {
+export function takesFor(state: PartitionState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): string[] {
   return idx.takesByUnitLane.get(unitLaneKey(unitId, laneId)) ?? [];
 }
 
@@ -156,7 +156,7 @@ export function takesFor(state: ProjectState, unitId: string, laneId: string, id
  * and is not archived, else the newest approved take, else the newest take
  * (which may be a draft).
  */
-export function currentTake(state: ProjectState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): string | null {
+export function currentTake(state: PartitionState, unitId: string, laneId: string, idx: Indexes = buildIndexes(state)): string | null {
   const selected = state.selectedTakes[unitLaneKey(unitId, laneId)]?.value;
   if (selected && state.takes[selected] && !state.takes[selected]!.archived) return selected;
   const candidates = takesFor(state, unitId, laneId, idx);

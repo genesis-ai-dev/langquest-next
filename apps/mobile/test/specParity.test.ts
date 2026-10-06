@@ -23,7 +23,7 @@ const APP_ONLY: Record<string, string> = {
   'scan_qr->create_account': 'a group invite asks the new person their name before the invite makes the account (flow A, decisions.md 59)',
   'create_account->welcome': 'an email account made while an invite is held (Scan, I already have an account, then Create Account) joins at once and is welcomed (flow B); the demo has no held invite',
   'scan_qr->sign_out_confirm': 'someone else is joining on a signed-in phone: sign out first, and the invite waits for them (flow C)',
-  'explore_home->request_access': 'request membership from a public project listing',
+  'explore_home->request_access': 'request membership from a public partition listing',
   'inbox_home->members_list': 'administrators see every pending join request from the inbox',
   'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In',
   'scan_qr->terms_privacy': 'joining by invite makes an account, so its terms are one tap away there too (decisions.md 59)',
@@ -96,7 +96,7 @@ describe('UX spec parity', () => {
 
   it('every role can reach its home and every gated edge is open to at least one role', () => {
     // Why: a gate nobody satisfies is a dead affordance; a home nobody can
-    // reach is a sign-in that lands nowhere. Fixed project roles and
+    // reach is a sign-in that lands nowhere. Fixed partition roles and
     // org-scoped memberships (core org.ts) both count.
     const roles = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'] as const;
     const sessions = roles.map((role) => {
@@ -114,8 +114,8 @@ describe('UX spec parity', () => {
       [
         ...SEED_ROLES.map((r) => ({ type: 'v1.RoleDefined', payload: { roleId: r.roleId, name: r.name, privileges: r.privileges } })),
         { type: 'v1.RoleDefined', payload: { roleId: 'lang_lead', name: 'Team Leader', privileges: ['assign_work', 'manage_teams', 'translate', 'view_status'] } },
-        { type: 'v1.OrgMemberAdded', payload: { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'lane', projectId: 'p1', laneId: 'din' } } }
-      ].map((e) => ({ ...e, id: `o${++seq}`, orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'd', hlc: `00000000000000${seq}:000000:d` }) as AnyEvent)
+        { type: 'v1.OrgMemberAdded', payload: { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'lane', partitionId: 'p1', laneId: 'din' } } }
+      ].map((e) => ({ ...e, id: `o${++seq}`, orgId: 'org1', partitionId: '_org', actorId: 'lead', deviceId: 'd', hlc: `00000000000000${seq}:000000:d` }) as AnyEvent)
     );
     const langAdmin = deriveSession('akol', 'a@x', null, true, org, 'p1');
     // Everyone who does or asks for work lands on My Work, admins included;

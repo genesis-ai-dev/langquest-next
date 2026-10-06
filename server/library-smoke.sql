@@ -11,7 +11,7 @@ create temp table lib_docs (k text primary key, hash text not null, body text no
 
 create function pg_temp.ev(p_id text, p_org text, p_actor text, p_type text, p_payload jsonb, p_hlc text default null)
 returns jsonb language sql as $$
-  select jsonb_build_object('id', p_id, 'orgId', p_org, 'projectId', '_org', 'actorId', p_actor, 'deviceId', 'd-' || p_actor,
+  select jsonb_build_object('id', p_id, 'orgId', p_org, 'partitionId', '_org', 'actorId', p_actor, 'deviceId', 'd-' || p_actor,
     'hlc', coalesce(p_hlc, lpad(nextval('lib_clock')::text, 15, '0') || ':000000:d-' || p_actor), 'type', p_type, 'payload', p_payload);
 $$;
 create function pg_temp.push(p_events jsonb) returns void language plpgsql as $$
@@ -39,7 +39,7 @@ create function pg_temp.readable(p_org text, variadic p_keys text[]) returns int
 $$;
 create function pg_temp.pins(p_org text, p_k text) returns int language sql as $$
   select count(*)::int from public.events e
-  where e.org_id = p_org and e.project_id = '_org' and e.type = 'v1.LibraryPinned' and e.payload->>'docHash' = pg_temp.h(p_k);
+  where e.org_id = p_org and e.partition_id = '_org' and e.type = 'v1.LibraryPinned' and e.payload->>'docHash' = pg_temp.h(p_k);
 $$;
 
 -- 1. Three organizations, each bootstrapped by its creator. libB also has a
@@ -234,7 +234,7 @@ select pg_temp.put('libA', 'T2');
 select pg_temp.push1(pg_temp.ev('a-tpl-5', 'libA', 'alice', 'v1.LibraryVersionPublished', jsonb_build_object('itemId', 'tpl', 'kind', 'template', 'docHash', pg_temp.h('T2'))));
 do $$ declare r record; begin
   select * into r from public.events where id = 'pin:libB:sub.libA.tpl:' || pg_temp.h('T2');
-  if not found or r.org_id <> 'libB' or r.project_id <> '_org' or r.actor_id <> 'server' or r.device_id <> 'server'
+  if not found or r.org_id <> 'libB' or r.partition_id <> '_org' or r.actor_id <> 'server' or r.device_id <> 'server'
      or r.payload <> jsonb_build_object('itemId', 'sub.libA.tpl', 'kind', 'template', 'docHash', pg_temp.h('T2')) then
     raise exception 'automatic pin wrong: %', r;
   end if;

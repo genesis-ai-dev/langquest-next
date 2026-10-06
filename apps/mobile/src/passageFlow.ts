@@ -1,6 +1,6 @@
 import {
   currentTake, deriveTakeStatus, keyTermsFor, keyTermsForUnit,
-  type ProjectState
+  type PartitionState
 } from '@langquest-next/core';
 import { indexesFor } from './indexes';
 
@@ -8,7 +8,7 @@ export type PassageAction = 'reference' | 'terms' | 'record' | 'submit' | 'done'
 
 /** UI guidance is derived, not a second persisted workflow status. */
 export function passageProgress(
-  state: ProjectState,
+  state: PartitionState,
   laneId: string,
   unitId: string,
   referencePending: boolean

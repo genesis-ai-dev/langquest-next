@@ -7,7 +7,7 @@
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
 import {
   derivePassage, unitPlace, unitTitle,
-  type KindDef, type NoteAnchor, type PassageState, type ProjectState,
+  type KindDef, type NoteAnchor, type PassageState, type PartitionState,
   type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { bookMatches, canonBook, parseQuery } from '../canon';
@@ -143,7 +143,7 @@ export function cleanSkips(questions: SourcedQuestion[], answers: Answers, skipp
 export function questionSource(q: SourcedQuestion, asker?: string): string {
   switch (q.source) {
     case 'org': return 'Organization';
-    case 'project': return 'Project';
+    case 'partition': return 'All languages';
     case 'language': return 'Language team';
     case 'request': return asker ? `From ${asker}` : 'From whoever asked';
   }
@@ -182,7 +182,7 @@ export interface PassageChoice {
   order: number;
 }
 
-function choiceOf(state: ProjectState, unitId: string): PassageChoice {
+function choiceOf(state: PartitionState, unitId: string): PassageChoice {
   const place = unitPlace(state, unitId);
   const title = unitTitle(state, unitId);
   const verse = /:(\d+)/.exec(title);
@@ -192,14 +192,14 @@ function choiceOf(state: ProjectState, unitId: string): PassageChoice {
   };
 }
 
-const recordedCache = new WeakMap<ProjectState, Map<string, PassageChoice[]>>();
+const recordedCache = new WeakMap<PartitionState, Map<string, PassageChoice[]>>();
 
 /**
  * Every passage in a language with at least one published version, in canon
  * order. One pass over the submissions, cached per state, so a whole Bible
  * costs nothing to reopen.
  */
-export function recordedPassages(state: ProjectState, laneId: string): PassageChoice[] {
+export function recordedPassages(state: PartitionState, laneId: string): PassageChoice[] {
   let byLane = recordedCache.get(state);
   if (!byLane) { byLane = new Map(); recordedCache.set(state, byLane); }
   const hit = byLane.get(laneId);
@@ -259,7 +259,7 @@ export function searchPassages(all: PassageChoice[], query: string, exceptUnitId
  * on this passage, and the latest version of every other passage picked.
  * Passages with no version are left out.
  */
-export function loggedTargets(state: ProjectState, laneId: string, main: { unitId: string; takeId: string }, alsoUnitIds: string[]): { unitId: string; takeId: string }[] {
+export function loggedTargets(state: PartitionState, laneId: string, main: { unitId: string; takeId: string }, alsoUnitIds: string[]): { unitId: string; takeId: string }[] {
   const out = [main];
   for (const unitId of alsoUnitIds) {
     if (unitId === main.unitId || out.some((t) => t.unitId === unitId)) continue;

@@ -46,7 +46,7 @@ function stepBadge(st: StudyStepStatus, isNext: boolean): string | undefined {
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
   const v = usePassage(ctx);
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
   const sp = useMemo(() => (state && v && guide ? studyProgress(state, v.p, guide) : null), [state, v?.p, guide]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!v || !guide || !sp) return { v, guide: null, sp: null };
@@ -57,7 +57,7 @@ function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.ctx.back}
       {...(props.v ? { crumbs: [{ label: props.v.title, onPress: () => props.ctx.go('passage_record', { unitId: props.v!.unitId, laneId: props.v!.laneId }) }] } : {})} />}>
-      <EmptyState icon="sparkle" title={props.v ? "There's no study guide for this passage." : 'This passage is not in the project.'}
+      <EmptyState icon="sparkle" title={props.v ? "There's no study guide for this passage." : 'This passage is not in this language.'}
         {...(props.v ? { sub: 'Study guides come with the reference material your organization uses. FIA covers more passages as its material grows.' } : {})} />
     </Screen>
   );
@@ -181,10 +181,10 @@ export function StudyStep(ctx: Ctx) {
   const toGuide = () => ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId });
 
   async function done() {
-    const state = ctx.project.state;
+    const state = ctx.partition.state;
     if (!state || !guide || !sp || status.done) return;
     const mark = (isDone: boolean): EventSpec[] => {
-      const now = ctx.project.state ?? state;
+      const now = ctx.partition.state ?? state;
       return commands(now, indexesFor(now)).markStudyStep({
         commandId: Crypto.randomUUID(), unitId: v!.unitId, laneId: v!.laneId, guideId: guide.id, stepId: status.step.id, done: isDone
       });
@@ -258,7 +258,7 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
   const { ctx, v, guide, status } = props;
   const step = status.step;
   const sections = useMemo(() => studySections(step.text), [step.text]);
-  const { uri: audioUri } = useStudyFileUri(ctx.project.orgId, step.audio.file, step.audio.url);
+  const { uri: audioUri } = useStudyFileUri(ctx.partition.orgId, step.audio.file, step.audio.url);
   const audio = useStudyAudio(audioUri, step.audio.seconds);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ sectionId?: string; at?: string; quote: string; answer: boolean } | null>(null);
@@ -276,7 +276,7 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
     if (r) { audio.pause(); setResource(r); }
   };
   const keyTerm = (r: StudyResource | null) => {
-    const state = ctx.project.state;
+    const state = ctx.partition.state;
     if (!state || r?.kind !== 'term') return null;
     const t = r.title.trim().toLowerCase();
     return keyTermsFor(state, v.laneId).find((k) => k.term.trim().toLowerCase() === t) ?? null;
@@ -319,7 +319,7 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
               </Pressable>
               {n.blobHash ? (
                 <View style={{ paddingLeft: 72, paddingRight: space.lg, paddingBottom: space.sm }}>
-                  <AudioClip project={ctx.project} hashes={[n.blobHash]} label="Play voice note" />
+                  <AudioClip partition={ctx.partition} hashes={[n.blobHash]} label="Play voice note" />
                 </View>
               ) : null}
             </View>
@@ -365,10 +365,10 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
           }, c, adding.at ? `Note added at ${adding.at} — it stays with the study` : 'Added to the study — reviewers will see it with the passage')} />
       ) : null}
       {resource && resource.kind !== 'term' ? (
-        <MediaSheet resource={resource} source={`${guide.pattern} media`} orgId={ctx.project.orgId} onClose={() => setResource(null)} />
+        <MediaSheet resource={resource} source={`${guide.pattern} media`} orgId={ctx.partition.orgId} onClose={() => setResource(null)} />
       ) : null}
       {resource && entry ? (
-        <GlossarySheet entry={entry} source={guide.source} orgId={ctx.project.orgId} hasKeyTerm={!!term} onClose={() => setResource(null)}
+        <GlossarySheet entry={entry} source={guide.source} orgId={ctx.partition.orgId} hasKeyTerm={!!term} onClose={() => setResource(null)}
           onOpenTerm={() => {
             if (!term) return;
             setResource(null);

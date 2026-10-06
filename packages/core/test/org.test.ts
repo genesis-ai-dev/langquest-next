@@ -11,27 +11,27 @@ function orgFixture(): AnyEvent[] {
   let seq = 0;
   const emit = (type: string, payload: unknown, deviceId = 'dA', actorId = 'lead') => {
     seq += 1;
-    out.push({ id: `o${seq}`, type, orgId: 'org1', projectId: '_org', actorId, deviceId, hlc: encodeHlc(1_700_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq } as AnyEvent);
+    out.push({ id: `o${seq}`, type, orgId: 'org1', partitionId: '_org', actorId, deviceId, hlc: encodeHlc(1_700_000_000_000 + seq, 0, deviceId), payload, serverSeq: seq } as AnyEvent);
   };
   emit('v1.OrgCreated', { name: 'Wycliffe Associates' });
   for (const r of SEED_ROLES) emit('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges });
   emit('v1.RoleDefined', { roleId: 'lang_lead', name: 'Translation Team Leader', privileges: ['assign_work', 'manage_teams', 'translate', 'review', 'view_status'] });
-  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'East Africa NT' });
-  emit('v1.ProjectRegistered', { projectId: 'p2', name: 'SE Asia Gospels' });
+  emit('v1.PartitionRegistered', { partitionId: 'p1', name: 'East Africa NT' });
+  emit('v1.PartitionRegistered', { partitionId: 'p2', name: 'SE Asia Gospels' });
   // Registered again from another device, later: the first name stands.
-  emit('v1.ProjectRegistered', { projectId: 'p1', name: 'Renamed later' }, 'dB');
+  emit('v1.PartitionRegistered', { partitionId: 'p1', name: 'Renamed later' }, 'dB');
   emit('v1.OrgMemberAdded', { profileId: 'lead', roleId: 'org_admin', scope: { level: 'org' }, displayName: 'Lead' });
-  emit('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'project_coordinator', scope: { level: 'project', projectId: 'p1' } });
-  emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'lane', projectId: 'p1', laneId: 'din' } });
-  emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'translator', scope: { level: 'lane', projectId: 'p1', laneId: 'nus' } });
+  emit('v1.OrgMemberAdded', { profileId: 'coord', roleId: 'coordinator', scope: { level: 'partition', partitionId: 'p1' } });
+  emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'lang_lead', scope: { level: 'lane', partitionId: 'p1', laneId: 'din' } });
+  emit('v1.OrgMemberAdded', { profileId: 'akol', roleId: 'translator', scope: { level: 'lane', partitionId: 'p1', laneId: 'nus' } });
   emit('v1.OrgMemberAdded', { profileId: 'viewer', roleId: 'viewer', scope: { level: 'org' } });
-  emit('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'translator', scope: { level: 'project', projectId: 'p1' } });
-  emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'project', projectId: 'p1' } }, 'dB');
+  emit('v1.OrgMemberAdded', { profileId: 'gone', roleId: 'translator', scope: { level: 'partition', partitionId: 'p1' } });
+  emit('v1.OrgMemberRemoved', { profileId: 'gone', scope: { level: 'partition', partitionId: 'p1' } }, 'dB');
   // Role edited later from another device: privileges register wins by clock.
   emit('v1.RoleDefined', { roleId: 'lang_lead', name: 'Translation Team Leader', privileges: ['assign_work', 'manage_teams', 'manage_reference', 'translate', 'review', 'view_status'] }, 'dC');
   emit('v1.RoleRetired', { roleId: 'unused' });
   emit('v1.CatalogItemToggled', { kind: 'flow', itemId: 'quick_check', level: 'org', enabled: false });
-  emit('v1.CatalogItemToggled', { kind: 'template', itemId: 'fia', level: 'project', projectId: 'p2', enabled: false });
+  emit('v1.CatalogItemToggled', { kind: 'template', itemId: 'fia', level: 'partition', partitionId: 'p2', enabled: false });
   // A language renamed from two devices: the later clock names it in the org's list.
   emit('v1.LaneNamed', { laneId: 'din', name: 'Dinka' });
   emit('v1.LaneNamed', { laneId: 'din', name: 'Thuɔŋjäŋ' }, 'dB');
@@ -47,17 +47,17 @@ describe('org partition fold', () => {
     expect(foldOrg([...events, ...shuffle(events, 3)])).toEqual(canonical);
   });
 
-  it('ignores project events, and a project fold ignores org events', () => {
+  it('ignores partition events, and a partition fold ignores org events', () => {
     const mixed = foldOrg([...buildFixture(), ...events]);
     const strip = (s: typeof mixed) => ({ ...s, appliedEventIds: {}, invalidEvents: {}, redactions: {} });
     expect(strip(mixed)).toEqual(strip(canonical));
-    expect(Object.keys(mixed.projects)).toEqual(['p1', 'p2']);
+    expect(Object.keys(mixed.partitions)).toEqual(['p1', 'p2']);
   });
 
   it('an org opens one work partition, the earliest registered, whatever the arrival order (decision 34)', () => {
     // Why: an organization holds languages directly. Orgs from before that
-    // may have several registered projects; every device must open the same.
-    expect(canonical.projects['p1']?.name).toBe('East Africa NT');
+    // may have several registered partitions; every device must open the same.
+    expect(canonical.partitions['p1']?.name).toBe('East Africa NT');
     expect(workPartitionOf(canonical)).toBe('p1');
     for (let seed = 1; seed <= 20; seed++) expect(workPartitionOf(foldOrg(shuffle(events, seed)))).toBe('p1');
     expect(workPartitionOf(emptyOrgState())).toBe(WORK_PARTITION);
@@ -69,9 +69,9 @@ describe('org partition fold', () => {
     // is where everyone learns which languages exist and what they are called.
     const withLanguages = foldOrg([
       ...events,
-      { id: 'lang-1', type: 'v1.ProjectRegistered', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_100_000, 0, 'dA'), payload: { projectId: 'L-din-1', name: 'Dinka' } },
-      { id: 'lang-2', type: 'v1.LaneNamed', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_200_000, 0, 'dA'), payload: { laneId: 'L-din-1', name: 'Thuɔŋjäŋ' } },
-      { id: 'lang-3', type: 'v1.LaneNamed', orgId: 'org1', projectId: '_org', actorId: 'lead', deviceId: 'dB', hlc: encodeHlc(1_700_000_150_000, 0, 'dB'), payload: { laneId: 'L-din-1', name: 'Dinka (older)' } }
+      { id: 'lang-1', type: 'v1.PartitionRegistered', orgId: 'org1', partitionId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_100_000, 0, 'dA'), payload: { partitionId: 'L-din-1', name: 'Dinka' } },
+      { id: 'lang-2', type: 'v1.LaneNamed', orgId: 'org1', partitionId: '_org', actorId: 'lead', deviceId: 'dA', hlc: encodeHlc(1_700_000_200_000, 0, 'dA'), payload: { laneId: 'L-din-1', name: 'Thuɔŋjäŋ' } },
+      { id: 'lang-3', type: 'v1.LaneNamed', orgId: 'org1', partitionId: '_org', actorId: 'lead', deviceId: 'dB', hlc: encodeHlc(1_700_000_150_000, 0, 'dB'), payload: { laneId: 'L-din-1', name: 'Dinka (older)' } }
     ] as AnyEvent[]);
     expect(orgLanguages(withLanguages).find((l) => l.laneId === 'L-din-1')?.name).toBe('Thuɔŋjäŋ');
     expect(partitionOfLane(withLanguages, 'L-din-1')).toBe('L-din-1');
@@ -82,30 +82,30 @@ describe('org partition fold', () => {
   it('privileges are the union over covering scopes through live roles', () => {
     // Why: this is the spec's model (A38): scope is on the membership, the
     // role is only a privilege set, and a person may hold several.
-    expect(privilegesFor(canonical, 'lead', { projectId: 'p2' }).has('manage_roles')).toBe(true);
-    expect(privilegesFor(canonical, 'coord', { projectId: 'p1' }).has('assign_work')).toBe(true);
-    expect(privilegesFor(canonical, 'coord', { projectId: 'p1' }).has('manage_roles')).toBe(false);
-    expect(privilegesFor(canonical, 'coord', { projectId: 'p2' }).size).toBe(0);
-    const din = privilegesFor(canonical, 'akol', { projectId: 'p1', laneId: 'din' });
+    expect(privilegesFor(canonical, 'lead', { partitionId: 'p2' }).has('manage_roles')).toBe(true);
+    expect(privilegesFor(canonical, 'coord', { partitionId: 'p1' }).has('assign_work')).toBe(true);
+    expect(privilegesFor(canonical, 'coord', { partitionId: 'p1' }).has('manage_roles')).toBe(false);
+    expect(privilegesFor(canonical, 'coord', { partitionId: 'p2' }).size).toBe(0);
+    const din = privilegesFor(canonical, 'akol', { partitionId: 'p1', laneId: 'din' });
     expect(din.has('assign_work')).toBe(true);
     expect(din.has('manage_reference')).toBe(true); // the later role edit won
-    const nus = privilegesFor(canonical, 'akol', { projectId: 'p1', laneId: 'nus' });
+    const nus = privilegesFor(canonical, 'akol', { partitionId: 'p1', laneId: 'nus' });
     expect(nus.has('assign_work')).toBe(false);
     expect(nus.has('translate')).toBe(true);
-    // No lane given: anything they hold anywhere in the project.
-    expect(privilegesFor(canonical, 'akol', { projectId: 'p1' }).has('assign_work')).toBe(true);
-    expect(privilegesFor(canonical, 'gone', { projectId: 'p1' }).size).toBe(0);
+    // No lane given: anything they hold anywhere in the partition.
+    expect(privilegesFor(canonical, 'akol', { partitionId: 'p1' }).has('assign_work')).toBe(true);
+    expect(privilegesFor(canonical, 'gone', { partitionId: 'p1' }).size).toBe(0);
   });
 
   it('home follows the highest scope with a manage privilege (A34), so a language admin exists', () => {
     expect(adminScopeOf(canonical, 'lead')).toEqual({ level: 'org' });
-    expect(adminScopeOf(canonical, 'coord')).toEqual({ level: 'project', projectId: 'p1' });
-    expect(adminScopeOf(canonical, 'akol')).toEqual({ level: 'lane', projectId: 'p1', laneId: 'din' });
+    expect(adminScopeOf(canonical, 'coord')).toEqual({ level: 'partition', partitionId: 'p1' });
+    expect(adminScopeOf(canonical, 'akol')).toEqual({ level: 'lane', partitionId: 'p1', laneId: 'din' });
     expect(adminScopeOf(canonical, 'viewer')).toBeNull();
     expect(adminScopeOf(canonical, 'gone')).toBeNull();
   });
 
-  it('catalog: disabled at org hides below; project may narrow', () => {
+  it('catalog: disabled at org hides below; partition may narrow', () => {
     expect(catalogEnabled(canonical, 'flow', 'quick_check')).toBe(false);
     expect(catalogEnabled(canonical, 'flow', 'quick_check', 'p1')).toBe(false);
     expect(catalogEnabled(canonical, 'template', 'fia')).toBe(true);
@@ -115,10 +115,10 @@ describe('org partition fold', () => {
 
   it('seed roles reproduce the fixed roles exactly, in both directions', () => {
     // Why: an org created today must authorize exactly what the fixed
-    // role set did, or existing projects change behaviour on upgrade.
+    // role set did, or existing partitions change behaviour on upgrade.
     for (const r of SEED_ROLES) expect(effectiveRole(new Set(r.privileges))).toBe(r.fixed);
     expect(privilegesOfFixedRole('reviewer')).toEqual(new Set(['review', 'view_status']));
-    expect(effectiveRole(privilegesFor(canonical, 'akol', { projectId: 'p1', laneId: 'din' }))).toBe('coordinator');
+    expect(effectiveRole(privilegesFor(canonical, 'akol', { partitionId: 'p1', laneId: 'din' }))).toBe('coordinator');
     expect(effectiveRole(new Set())).toBeNull();
   });
 
@@ -137,7 +137,7 @@ describe('org partition fold', () => {
 
 describe('invites and join requests (audit 5.B)', () => {
   const ev = (seq: number, type: string, payload: unknown, actorId = 'lead'): AnyEvent =>
-    ({ id: `i${seq}`, type, orgId: 'org1', projectId: '_org', actorId, deviceId: 'dA', hlc: encodeHlc(1_800_000_000_000 + seq, 0, 'dA'), payload, serverSeq: seq }) as AnyEvent;
+    ({ id: `i${seq}`, type, orgId: 'org1', partitionId: '_org', actorId, deviceId: 'dA', hlc: encodeHlc(1_800_000_000_000 + seq, 0, 'dA'), payload, serverSeq: seq }) as AnyEvent;
 
   const scope = { level: 'org' as const };
 

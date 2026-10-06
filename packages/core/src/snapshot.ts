@@ -1,6 +1,6 @@
 import type { AnyEvent } from './events';
 import { REDUCER_VERSION, fold } from './reducer';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 
 /**
  * A snapshot is the fold of a partition up to `serverSeq`, produced by a
@@ -8,15 +8,15 @@ import type { ProjectState } from './state';
  */
 export interface Snapshot {
   orgId: string;
-  projectId: string;
+  partitionId: string;
   reducerVersion: number;
   serverSeq: number;
-  state: ProjectState;
+  state: PartitionState;
 }
 
 export function takeSnapshot(
   orgId: string,
-  projectId: string,
+  partitionId: string,
   confirmedEvents: AnyEvent[]
 ): Snapshot {
   const ordered = [...confirmedEvents].sort((a, b) => (a.serverSeq ?? 0) - (b.serverSeq ?? 0));
@@ -27,7 +27,7 @@ export function takeSnapshot(
   const last = ordered[ordered.length - 1];
   return {
     orgId,
-    projectId,
+    partitionId,
     reducerVersion: REDUCER_VERSION,
     serverSeq: last?.serverSeq ?? 0,
     state
@@ -35,7 +35,7 @@ export function takeSnapshot(
 }
 
 /** Resume from a snapshot: only events after its sequence are applied. */
-export function resume(snapshot: Snapshot, tail: Iterable<AnyEvent>): ProjectState {
+export function resume(snapshot: Snapshot, tail: Iterable<AnyEvent>): PartitionState {
   if (snapshot.reducerVersion !== REDUCER_VERSION) {
     throw new Error(
       `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`

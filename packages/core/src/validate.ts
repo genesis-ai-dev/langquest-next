@@ -12,7 +12,7 @@ import { isLicense, LICENSES } from './license';
 const ROLES: readonly Role[] = ['owner', 'coordinator', 'translator', 'reviewer', 'viewer'];
 
 export function validateEvent(e: AnyEvent): string | null {
-  for (const k of ['id', 'type', 'orgId', 'projectId', 'actorId', 'deviceId', 'hlc'] as const) {
+  for (const k of ['id', 'type', 'orgId', 'partitionId', 'actorId', 'deviceId', 'hlc'] as const) {
     if (typeof e[k] !== 'string' || e[k] === '') return `${k} must be a non-empty string`;
   }
   if (!isObject(e.payload)) return 'payload must be an object';
@@ -61,9 +61,9 @@ export function validateEvent(e: AnyEvent): string | null {
     (p['questions'] === undefined || questions(p['questions']) ? null : 'questions must be id, text, type');
 
   switch (e.type) {
-    case 'v1.ProjectCreated':
+    case 'v1.PartitionCreated':
       return str('name', 'sourceLanguoidId');
-    case 'v1.ProjectConfigChanged':
+    case 'v1.PartitionConfigChanged':
       return isObject(p['config']) ? null : 'config must be an object';
     case 'v1.MemberAdded':
     case 'v1.MemberRoleChanged':
@@ -105,7 +105,7 @@ export function validateEvent(e: AnyEvent): string | null {
     case 'v1.AssignmentMade':
       return str('unitId', 'laneId', 'profileId') ?? role('role') ?? optStr('dueDate', 'instructions');
     case 'v1.SourceImported':
-      return str('sourceProjectId') ?? (typeof p['sourceSeq'] === 'number' ? null : 'sourceSeq must be a number') ?? strArray('unitIds');
+      return str('sourcePartitionId') ?? (typeof p['sourceSeq'] === 'number' ? null : 'sourceSeq must be a number') ?? strArray('unitIds');
     case 'v1.BlobStored':
       return str('hash') ?? (typeof p['size'] === 'number' ? null : 'size must be a number');
     case 'v1.Redacted':
@@ -242,15 +242,15 @@ function usedItems(v: unknown): string | null {
   return null;
 }
 
-/** A membership scope: org, or project with projectId, or lane with projectId and laneId. */
+/** A membership scope: org, or partition with partitionId, or lane with partitionId and laneId. */
 function scope(v: unknown): string | null {
   if (!isObject(v)) return 'scope must be an object';
   const level = v['level'];
   if (level === 'org') return null;
-  if (typeof v['projectId'] !== 'string' || v['projectId'] === '') return 'scope.projectId required';
-  if (level === 'project') return null;
+  if (typeof v['partitionId'] !== 'string' || v['partitionId'] === '') return 'scope.partitionId required';
+  if (level === 'partition') return null;
   if (level === 'lane') return typeof v['laneId'] === 'string' && v['laneId'] !== '' ? null : 'scope.laneId required';
-  return 'scope.level must be org, project or lane';
+  return 'scope.level must be org, partition or lane';
 }
 
 const nonEmpty = (v: unknown) => typeof v === 'string' && v !== '';

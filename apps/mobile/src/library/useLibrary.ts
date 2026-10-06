@@ -1,6 +1,6 @@
 import {
   CommandError, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
-  type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type ProjectState, type TemplateDoc, type VersificationDoc
+  type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type PartitionState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -18,7 +18,7 @@ import { copyOps, followOps, newItemId, publishOps, subscribeOps, type LibraryOp
  * structure and flow go through `ctx.act`, so they offer Undo.
  */
 export function useLibrary(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.partition.orgId;
   const library = ctx.org.state?.library;
   const items = useCallback((kind?: LibraryKind) => libraryItems(library ?? {}, kind), [library]);
   const item = useCallback((itemId: string) => libraryItemView(library ?? {}, itemId), [library]);
@@ -92,8 +92,8 @@ export function useLibrary(ctx: Ctx) {
 
   /** The events that make a language use an item's current version (template or flow). */
   /** `into`: the partition's state when it is not the open one (a new language's, decisions.md 37). */
-  const applySpecs = useCallback(async (laneId: string, itemId: string, opts: { books?: string[]; docHash?: string; into?: ProjectState } = {}) => {
-    const state = opts.into ?? ctx.project.state;
+  const applySpecs = useCallback(async (laneId: string, itemId: string, opts: { books?: string[]; docHash?: string; into?: PartitionState } = {}) => {
+    const state = opts.into ?? ctx.partition.state;
     // With `docHash`, the item may be one this phone has only just followed (not folded yet).
     const hash = opts.docHash ?? libraryItemView(library ?? {}, itemId)?.current;
     if (!state || !hash) throw new CommandError('That item has no version to use yet.');
@@ -108,7 +108,7 @@ export function useLibrary(ctx: Ctx) {
     }
     if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, laneId, itemId, docHash: hash, doc: doc as FlowDoc });
     throw new CommandError('Only templates and flows are used by a language.');
-  }, [ctx.project.state, library, orgId]);
+  }, [ctx.partition.state, library, orgId]);
 
   return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs };
 }

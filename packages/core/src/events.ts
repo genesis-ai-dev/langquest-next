@@ -34,7 +34,7 @@ export interface UnitKind {
   childKinds: string[];
 }
 
-export interface ProjectConfig {
+export interface PartitionConfig {
   unitKinds: UnitKind[];
   workflow: WorkflowStep[];
 }
@@ -48,8 +48,8 @@ export interface Card {
 }
 
 export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents, LibraryWorkEvents, ReferenceWorkEvents {
-  'v1.ProjectCreated': { name: string; sourceLanguoidId: string };
-  'v1.ProjectConfigChanged': { config: ProjectConfig };
+  'v1.PartitionCreated': { name: string; sourceLanguoidId: string };
+  'v1.PartitionConfigChanged': { config: PartitionConfig };
   'v1.MemberAdded': { profileId: string; role: Role };
   'v1.MemberRoleChanged': { profileId: string; role: Role };
   'v1.MemberRemoved': { profileId: string };
@@ -110,7 +110,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
     dueDate?: string;
     instructions?: string;
   };
-  'v1.SourceImported': { sourceProjectId: string; sourceSeq: number; unitIds: string[] };
+  'v1.SourceImported': { sourcePartitionId: string; sourceSeq: number; unitIds: string[] };
   /**
    * Server-only. Appended by the storage trigger when a blob lands, so every
    * device learns a card is safely stored through the normal pull. Clients
@@ -137,7 +137,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   'v1.LaneTemplateSelected': { laneId: string; templateId: string; catalogVersion: number };
   /** A lane picks one review flow; the selector also emits the WorkflowStepSet events it implies. */
   'v1.LaneFlowSelected': { laneId: string; flowId: string; catalogVersion: number };
-  /** One workflow step as its own register, so two admins editing offline merge per step. laneId absent = project-wide. */
+  /** One workflow step as its own register, so two admins editing offline merge per step. laneId absent = partition-wide. */
   'v1.WorkflowStepSet': { stepId: string; laneId?: string; order: string; label?: string; role: Role; teamId?: string; required: boolean; rule: QuorumRule };
   'v1.WorkflowStepRemoved': { stepId: string };
   /** A named group of reviewers on one lane (UX spec review teams). */
@@ -161,7 +161,7 @@ export interface EventEnvelope<T extends EventType = EventType> {
   id: string;
   type: T;
   orgId: string;
-  projectId: string;
+  partitionId: string;
   actorId: string;
   deviceId: string;
   hlc: Hlc;

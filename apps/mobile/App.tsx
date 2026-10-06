@@ -58,7 +58,7 @@ import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
 import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
-import { useProject } from './src/useProject';
+import { usePartition } from './src/usePartition';
 import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
 
@@ -291,7 +291,7 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     let active = true;
     void (async () => {
       const raw = await AsyncStorage.getItem(key);
-      // Saved before decision 34 as { orgId, projectId }: the org is what counts.
+      // Saved before decision 34 as { orgId, partitionId }: the org is what counts.
       const saved = raw ? (JSON.parse(raw) as { orgId?: string }).orgId : undefined;
       if (saved) { if (active) setOrgId(saved); return; }
       if (!props.signedIn) return;
@@ -355,19 +355,19 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     [org.state, props.actorId, paramLane, savedLane]);
   // A screen about a language makes it the one this person works in.
   useEffect(() => { if (open.laneId && open.laneId === paramLane && open.laneId !== savedLane) setLane(open.laneId); }, [open.laneId, paramLane, savedLane, setLane]);
-  const projectId = open.partitionId;
+  const partitionId = open.partitionId;
   const languages = useMemo(() => orgLanguages(org.state), [org.state]);
-  const rawProject = useProject(props.orgId, projectId, props.actorId);
-  const projectedState = useMemo(() => rawProject.state && org.state
-    ? withOrgMembers(rawProject.state, org.state, projectId) : rawProject.state,
-    [rawProject.state, org.state, projectId]);
-  const queries = useMemo(() => rawProject.queries && projectedState && projectedState !== rawProject.state
-    ? orgQueries(rawProject.queries, getStore(), props.orgId, projectId, projectedState)
-    : rawProject.queries,
-    [rawProject.queries, projectedState, rawProject.state, props.orgId, projectId]);
-  const project = { ...rawProject, state: projectedState, queries };
+  const rawPartition = usePartition(props.orgId, partitionId, props.actorId);
+  const projectedState = useMemo(() => rawPartition.state && org.state
+    ? withOrgMembers(rawPartition.state, org.state, partitionId) : rawPartition.state,
+    [rawPartition.state, org.state, partitionId]);
+  const queries = useMemo(() => rawPartition.queries && projectedState && projectedState !== rawPartition.state
+    ? orgQueries(rawPartition.queries, getStore(), props.orgId, partitionId, projectedState)
+    : rawPartition.queries,
+    [rawPartition.queries, projectedState, rawPartition.state, props.orgId, partitionId]);
+  const partition = { ...rawPartition, state: projectedState, queries };
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
-  useLeaveGuard(!rawProject.refused && (rawProject.pending > 0 || rawProject.blobs.pendingUp > 0) || org.pending > 0);
+  useLeaveGuard(!rawPartition.refused && (rawPartition.pending > 0 || rawPartition.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
   const blocks = useBlocks(props.actorId);
   const profileNames = useDisplayNames(props.actorId);
@@ -404,18 +404,18 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, [props.actorId]);
 
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, project.state, welcomed, org.state, projectId),
-    [props.actorId, props.email, project.state, welcomed, org.state, projectId]
+    () => deriveSession(props.actorId, props.email, partition.state, welcomed, org.state, partitionId),
+    [props.actorId, props.email, partition.state, welcomed, org.state, partitionId]
   );
   // Languages follow the library versions their template and flow are at (docs/library.md).
-  useLibraryFollow(project, org, session);
+  useLibraryFollow(partition, org, session);
   // Sources phones may keep follow the offline scope (docs/reference-material.md).
-  useSourceOffline(project, org, session);
+  useSourceOffline(partition, org, session);
 
   // The open language; an organization from before decision 37 opens its
   // shared partition, whose own languages are known once it has loaded.
-  const lanes = useMemo(() => Object.keys(project.state?.lanes ?? {}).sort(), [project.state?.lanes]);
-  const laneId = open.laneId && (project.state?.lanes[open.laneId] || !project.state) ? open.laneId : lanes[0] ?? open.laneId;
+  const lanes = useMemo(() => Object.keys(partition.state?.lanes ?? {}).sort(), [partition.state?.lanes]);
+  const laneId = open.laneId && (partition.state?.lanes[open.laneId] || !partition.state) ? open.laneId : lanes[0] ?? open.laneId;
 
   // ---- passages opened lately (WORK-2) ----
   const recentKey = `recent:${props.actorId}:${props.orgId}`;
@@ -444,17 +444,17 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     const spec: ToastSpec = { id: Date.now(), message, ...(undo ? { undo } : {}) };
     showToast.current(spec);
   }, []);
-  const projectRef = useRef(project);
-  projectRef.current = project;
+  const partitionRef = useRef(partition);
+  partitionRef.current = partition;
   const act = useCallback(async (specs: EventSpec[], message: string, undo?: () => EventSpec[]) => {
     try {
-      await projectRef.current.run(specs);
+      await partitionRef.current.run(specs);
     } catch (e) {
       toast(`Not saved: ${(e as Error).message}`);
       throw e;
     }
     toast(message, undo ? async () => {
-      try { await projectRef.current.run(undo()); toast('Undone.'); } catch (e) { toast(`Could not undo: ${(e as Error).message}`); }
+      try { await partitionRef.current.run(undo()); toast('Undone.'); } catch (e) { toast(`Could not undo: ${(e as Error).message}`); }
     } : undefined);
   }, [toast]);
 
@@ -465,13 +465,13 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   }, [people, props.actorId]);
 
   // ---- what is waiting, and what happened (WORK-1, INBOX-1) ----
-  const forYou = useMemo(() => project.state
-    ? highlightsFor(project.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(project.state)).length
-    : 0, [project.state, props.actorId, session]);
+  const forYou = useMemo(() => partition.state
+    ? highlightsFor(partition.state, props.actorId, { canRecord: session.can('translate'), canReview: session.can('review') }, indexesFor(partition.state)).length
+    : 0, [partition.state, props.actorId, session]);
   // Nothing from someone this person blocked reaches their Inbox (decisions.md 48).
-  const updates = useMemo(() => project.state
-    ? updatesFor(project.state, props.actorId, indexesFor(project.state)).filter((u) => !blocks.has(u.by))
-    : [], [project.state, props.actorId, blocks]);
+  const updates = useMemo(() => partition.state
+    ? updatesFor(partition.state, props.actorId, indexesFor(partition.state)).filter((u) => !blocks.has(u.by))
+    : [], [partition.state, props.actorId, blocks]);
   const readKey = `inbox-read:${props.actorId}:${props.orgId}`;
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => { AsyncStorage.getItem(readKey).then((v) => setReadIds(new Set(v ? JSON.parse(v) as string[] : []))).catch(() => {}); }, [readKey]);
@@ -494,7 +494,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Both folds must be loaded first, the org synced once (foldsSettled):
   // postSignInScreen reads the role out of them, and routing early sends an
   // admin to the wrong home, or a new member to no home at all.
-  const loaded = foldsSettled(org.state !== null && org.settled, project.state !== null, props.noOrganizations);
+  const loaded = foldsSettled(org.state !== null && org.settled, partition.state !== null, props.noOrganizations);
   // Rendering must not wait on the log fold. The home screen for this
   // actor is remembered from the last session and routed to at once; every
   // screen already renders a light placeholder while its state is null.
@@ -537,7 +537,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useEffect(() => {
     if (!props.signedIn) {
       // Not "anything but sign_in": a guest legitimately walks to Create
-      // account, Browse public projects, the terms and the invite scanner.
+      // account, Browse public partitions, the terms and the invite scanner.
       if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
       return;
     }
@@ -638,7 +638,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
 
   const ctx: Ctx = {
-    project,
+    partition,
     org,
     session,
     params: nav.current.params ?? {},
@@ -758,7 +758,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       </PeopleContext.Provider>
       {wide ? null : toastHost(showTabs ? 96 : 24)}
       {canSwitchPersona ? (
-        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} project={project} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
+        <DevMenu open={devOpen} onClose={() => setDevOpen(false)} partition={partition} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
     </View>
   );

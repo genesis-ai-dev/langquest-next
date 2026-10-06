@@ -1,6 +1,6 @@
 import type { Role } from './events';
 import { buildIndexes, laneLeafUnits, unitLaneKey, type Indexes } from './indexes';
-import type { Assignment, ProjectState } from './state';
+import type { Assignment, PartitionState } from './state';
 import { currentTake, deriveTakeStatus, deriveWorkflow, eligibleReviewers } from './workflow';
 
 /**
@@ -35,12 +35,12 @@ export interface Task {
 
 const TRANSLATING_ROLES: Role[] = ['owner', 'coordinator', 'translator'];
 
-export function actorRole(state: ProjectState, actorId: string): Role | null {
+export function actorRole(state: PartitionState, actorId: string): Role | null {
   const m = state.members[actorId];
   return m && !m.removed.value ? m.role.value : null;
 }
 
-export function deriveTasks(state: ProjectState, actorId: string, idx: Indexes = buildIndexes(state)): Task[] {
+export function deriveTasks(state: PartitionState, actorId: string, idx: Indexes = buildIndexes(state)): Task[] {
   const scope = taskScope(state, actorId, idx);
   if (!scope) return [];
   const tasks: Task[] = [];
@@ -56,11 +56,11 @@ export function deriveTasks(state: ProjectState, actorId: string, idx: Indexes =
 /**
  * One actor's tasks on one passage and lane: the same rows `deriveTasks`
  * would produce for that (unit, lane), without visiting the rest of the
- * project. Screens that show one passage read this; the dashboard reads the
+ * partition. Screens that show one passage read this; the dashboard reads the
  * full list.
  */
 export function deriveTasksFor(
-  state: ProjectState,
+  state: PartitionState,
   actorId: string,
   unitId: string,
   laneId: string,
@@ -83,13 +83,13 @@ export function parseTaskId(taskId: string): { type: TaskType; unitId: string; l
 
 /**
  * Find one task by id. Equals `deriveTasks(...).find((t) => t.id === taskId)`
- * but costs one passage, not the project. A `translate` or `respond` id also
+ * but costs one passage, not the partition. A `translate` or `respond` id also
  * resolves to the other type on the same passage: recording a response turns
  * the respond task into a translation draft, and the open screen must keep
  * working while the fold changes its task type.
  */
 export function findTask(
-  state: ProjectState,
+  state: PartitionState,
   actorId: string,
   taskId: string,
   idx: Indexes = buildIndexes(state)
@@ -109,7 +109,7 @@ interface TaskScope {
   mine: Map<string, Assignment>;
 }
 
-function taskScope(state: ProjectState, actorId: string, idx: Indexes): TaskScope | null {
+function taskScope(state: PartitionState, actorId: string, idx: Indexes): TaskScope | null {
   const role = actorRole(state, actorId);
   if (!role) return null;
   // Latest by clock wins when one person holds two non-reviewer roles on a
@@ -125,7 +125,7 @@ function taskScope(state: ProjectState, actorId: string, idx: Indexes): TaskScop
 }
 
 function tasksForUnitLane(
-  state: ProjectState,
+  state: PartitionState,
   scope: TaskScope,
   unitId: string,
   laneId: string,
@@ -177,7 +177,7 @@ function task(
 
 /** Progress per lane: share of passages with a submitted take, and with an approved take. */
 export function deriveProgress(
-  state: ProjectState,
+  state: PartitionState,
   laneId: string,
   idx: Indexes = buildIndexes(state)
 ): { translatedPct: number; approvedPct: number; passages: number } {

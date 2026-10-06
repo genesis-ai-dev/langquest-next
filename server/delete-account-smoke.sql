@@ -15,7 +15,7 @@ select public._append_event_as('del-test-add-a','del-test-org','_org','v1.OrgMem
 select public._apply_org_event('del-test-org','v1.OrgMemberAdded',
   '{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}','000000000000002:000001:test');
 select public._apply_org_event('del-test-org','v1.OrgMemberAdded',
-  '{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"lane","projectId":"p1","laneId":"l1"}}','000000000000002:000001:test');
+  '{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"lane","partitionId":"p1","laneId":"l1"}}','000000000000002:000001:test');
 select public._apply_org_event('del-test-org','v1.OrgMemberAdded',
   '{"profileId":"d0000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}','000000000000002:000001:test');
 select public._apply_member_event('del-test-org','p1','v1.MemberAdded',
@@ -24,7 +24,7 @@ select public._apply_member_event('del-test-org','p1','v1.MemberAdded',
 select public._append_event_as('del-test-work','del-test-org','p1','v1.NoteAdded',
   'd0000000-0000-0000-0000-00000000000a','dev-a','{"noteId":"n1","unitId":"u1","laneId":"l1","anchor":"passage","text":"kept"}');
 -- Snapshots of the organization fold the creator's name in; another partition's do not.
-insert into public.snapshots (org_id, project_id, reducer_version, server_seq, state) values
+insert into public.snapshots (org_id, partition_id, reducer_version, server_seq, state) values
   ('del-test-org','_org',1,1,'{"members":{"d0000000-0000-0000-0000-00000000000a":{"displayName":"leaver"}}}'),
   ('del-test-org','p1',1,1,'{}');
 insert into public.profiles (id, display_name) values
@@ -32,7 +32,7 @@ insert into public.profiles (id, display_name) values
 insert into public.push_tokens (token, profile_id) values
   ('ExponentPushToken[leaver]','d0000000-0000-0000-0000-00000000000a'),
   ('ExponentPushToken[stayer]','d0000000-0000-0000-0000-00000000000b');
-insert into public.notifications (id, profile_id, org_id, project_id, kind, title) values
+insert into public.notifications (id, profile_id, org_id, partition_id, kind, title) values
   ('del-test-n1','d0000000-0000-0000-0000-00000000000a','del-test-org','p1','request','Record this'),
   ('del-test-n2','d0000000-0000-0000-0000-00000000000b','del-test-org','p1','request','Record this');
 insert into public.push_receipts (ticket_id, token, notification_id) values
@@ -103,7 +103,7 @@ begin
     raise exception 'expected one removal per scope, once';
   end if;
   if not exists (select 1 from public.events where type = 'v1.OrgMemberRemoved'
-      and payload = jsonb_build_object('profileId', a, 'scope', '{"level":"lane","projectId":"p1","laneId":"l1"}'::jsonb)) then
+      and payload = jsonb_build_object('profileId', a, 'scope', '{"level":"lane","partitionId":"p1","laneId":"l1"}'::jsonb)) then
     raise exception 'lane scope not rebuilt';
   end if;
   if (select count(*) from public.events where type = 'v1.Redacted' and payload->>'eventId' = 'del-test-add-a') <> 1 then
@@ -112,8 +112,8 @@ begin
   if not exists (select 1 from public.events where id = 'del-test-work') then raise exception 'authored work lost'; end if;
   if (select payload ? 'displayName' from public.events where id = 'del-test-add-a') then raise exception 'creator name kept in the log'; end if;
   if (select payload->>'roleId' from public.events where id = 'del-test-add-a') is distinct from 'admin' then raise exception 'erasure changed more than the name'; end if;
-  if exists (select 1 from public.snapshots where org_id = 'del-test-org' and project_id = '_org') then raise exception 'snapshot with the name kept'; end if;
-  if not exists (select 1 from public.snapshots where org_id = 'del-test-org' and project_id = 'p1') then raise exception 'unrelated snapshot dropped'; end if;
+  if exists (select 1 from public.snapshots where org_id = 'del-test-org' and partition_id = '_org') then raise exception 'snapshot with the name kept'; end if;
+  if not exists (select 1 from public.snapshots where org_id = 'del-test-org' and partition_id = 'p1') then raise exception 'unrelated snapshot dropped'; end if;
   -- Nobody else is touched.
   if not exists (select 1 from auth.users where id::text = b) or not exists (select 1 from public.profiles where id = b)
      or not exists (select 1 from public.push_tokens where profile_id = b) or not exists (select 1 from public.notifications where profile_id = b)

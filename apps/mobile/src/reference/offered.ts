@@ -5,7 +5,7 @@
 // share. A language's hide and a passage's hide take an item out. Pure.
 import {
   libraryItems, linkedTo, passageLink, recommendedFor,
-  type LibraryItemState, type ProjectState, type Register
+  type LibraryItemState, type PartitionState, type Register
 } from '@langquest-next/core';
 
 export interface OfferedSource {
@@ -22,7 +22,7 @@ export interface OfferedSource {
 export function offeredGuideSources(
   library: Record<string, LibraryItemState>,
   orgRecs: Record<string, Register<boolean>> | undefined,
-  state: ProjectState | null,
+  state: PartitionState | null,
   laneId: string | null | undefined,
   unitId: string | null | undefined
 ): { recommended: OfferedSource[]; own: OfferedSource[] } {

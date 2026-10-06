@@ -112,8 +112,8 @@ returns boolean language sql stable security definer set search_path = public as
       where m.profile_id = p_profile and not m.removed
         and 'invite_members' = any(r.privileges)
         and (h.scope_level = 'org'
-          or (h.scope_level = 'project' and m.scope_level in ('project', 'lane') and h.project_id = m.project_id)
-          or (h.scope_level = 'lane' and m.scope_level = 'lane' and h.project_id = m.project_id and h.lane_id = m.lane_id))
+          or (h.scope_level = 'partition' and m.scope_level in ('partition', 'lane') and h.partition_id = m.partition_id)
+          or (h.scope_level = 'lane' and m.scope_level = 'lane' and h.partition_id = m.partition_id and h.lane_id = m.lane_id))
     );
 $$;
 revoke all on function public.may_help_sign_in(text, text) from public, anon, authenticated;

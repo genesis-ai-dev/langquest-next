@@ -4,7 +4,7 @@
 // means. No React, no I/O, so the rules are tested in test/workspace.test.ts.
 import {
   commands,
-  type Card, type EventSpec, type Indexes, type KeyTermView, type ProjectState
+  type Card, type EventSpec, type Indexes, type KeyTermView, type PartitionState
 } from '@langquest-next/core';
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {
@@ -49,7 +49,7 @@ export function cardLabels(list: readonly string[], latestCards: readonly string
 }
 
 /** Card lengths for one passage, by hash. */
-export function cardDurations(state: ProjectState, unitId: string, laneId: string): Map<string, number> {
+export function cardDurations(state: PartitionState, unitId: string, laneId: string): Map<string, number> {
   const out = new Map<string, number>();
   for (const r of Object.values(state.recordings)) {
     if (r.unitId !== unitId || r.laneId !== laneId) continue;
@@ -71,7 +71,7 @@ export function mmss(ms: number | undefined): string {
  * started from: ties made earlier in the draft, or on the latest version,
  * still count.
  */
-export function tiedTermIds(state: ProjectState, startTakeId: string | undefined): Set<string> {
+export function tiedTermIds(state: PartitionState, startTakeId: string | undefined): Set<string> {
   const out = new Set<string>();
   const seen = new Set<string>();
   let id: string | null | undefined = startTakeId;
@@ -132,7 +132,7 @@ export function termsInText<T extends Pick<KeyTermView, 'termId' | 'term'>>(text
  * kept as a copy of the version. A card that was never composed is
  * discarded on the record, so recovery does not bring it back.
  */
-export function removeCardSpecs(state: ProjectState, idx: Indexes, c: {
+export function removeCardSpecs(state: PartitionState, idx: Indexes, c: {
   commandId: string;
   unitId: string;
   laneId: string;
@@ -166,7 +166,7 @@ export function removeCardSpecs(state: ProjectState, idx: Indexes, c: {
  * `linkKeyTerms` under its own command id, so its event ids never collide
  * with the publish's.
  */
-export function tieTermsSpecs(state: ProjectState, publishSpecs: readonly EventSpec[], termIds: Iterable<string>, commandId: string): EventSpec[] {
+export function tieTermsSpecs(state: PartitionState, publishSpecs: readonly EventSpec[], termIds: Iterable<string>, commandId: string): EventSpec[] {
   const submitted = publishSpecs.find((s) => s.type === 'v1.TakeSubmitted');
   const takeId = submitted ? (submitted.payload as { takeId: string }).takeId : undefined;
   const ids = [...termIds];
@@ -188,9 +188,9 @@ export interface BackTranslationDraft {
   cards: Card[];
 }
 
-/** Where a draft is kept: per project, person, passage, language and kind. */
-export function backTranslationDraftKey(k: { projectId: string; actorId: string; unitId: string; laneId: string; kindId: string }): string {
-  return `bt-draft:v1:${k.projectId}:${k.actorId}:${k.unitId}:${k.laneId}:${k.kindId}`;
+/** Where a draft is kept: per partition, person, passage, language and kind. */
+export function backTranslationDraftKey(k: { partitionId: string; actorId: string; unitId: string; laneId: string; kindId: string }): string {
+  return `bt-draft:v1:${k.partitionId}:${k.actorId}:${k.unitId}:${k.laneId}:${k.kindId}`;
 }
 
 const isCard = (x: unknown): x is Card => {
@@ -230,7 +230,7 @@ export function withoutPart(d: BackTranslationDraft | null, hash: string): BackT
  * record already names (a save whose draft could not be cleared afterwards
  * never offers the same parts twice).
  */
-export function unsavedParts(state: ProjectState, d: BackTranslationDraft | null): Card[] {
+export function unsavedParts(state: PartitionState, d: BackTranslationDraft | null): Card[] {
   if (!d) return [];
   const named = new Set<string>();
   for (const r of Object.values(state.kindReviews ?? {})) for (const c of r.artifacts ?? []) named.add(c.hash);

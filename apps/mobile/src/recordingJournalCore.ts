@@ -12,7 +12,7 @@
  */
 export interface JournalTarget {
   orgId: string;
-  projectId: string;
+  partitionId: string;
   unitId: string;
   laneId: string;
 }
@@ -79,13 +79,13 @@ export interface ResumeResult {
  */
 export async function resumeEntries(
   entries: JournalEntry[],
-  partition: { orgId: string; projectId: string },
+  partition: { orgId: string; partitionId: string },
   deps: ResumeDeps
 ): Promise<ResumeResult> {
   const result: ResumeResult = { resumed: [], dropped: [], failed: [] };
   for (const original of entries) {
     const t = original.target;
-    if (!t || t.orgId !== partition.orgId || t.projectId !== partition.projectId) continue;
+    if (!t || t.orgId !== partition.orgId || t.partitionId !== partition.partitionId) continue;
     let entry = original;
     try {
       if (deps.hasRecording(entry.id)) {

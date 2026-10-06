@@ -295,7 +295,7 @@ function LanguageTable(props: { rows: LaneRow[]; now: number; open: (row: LaneRo
             const weeks = weeklyCards(r);
             const attention = attentionCount(r);
             return (
-              <View key={`${row.projectId}/${row.laneId}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
+              <View key={`${row.partitionId}/${row.laneId}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
                 {cell(2, <><LaneLink row={row} open={props.open} /><Text style={txt.xs}>{r.languoidId.toUpperCase()} · {r.country ? countryName(r.country) : 'No country'}</Text></>)}
                 {cell(1.5, <><View style={{ alignSelf: 'flex-start' }}><RecencyBadge report={r} now={props.now} /></View>
                   <Text style={txt.xs}>{r.uploads.lastAt ? `${shortDate(r.uploads.lastAt.slice(0, 10))} · ${timeAgo(r.uploads.lastAt, props.now)}` : 'Never'}</Text></>)}
@@ -520,7 +520,7 @@ export function Ledger(p: SectionProps) {
   const groups = paceGroups(rows, now);
   const pace = groups.filter((g) => g.band !== 'no_target');
   const noTarget = groups.find((g) => g.band === 'no_target')!.items.length;
-  const idle = rows.filter((r) => !l.lines.some((x) => x.row.laneId === r.laneId && x.row.projectId === r.projectId));
+  const idle = rows.filter((r) => !l.lines.some((x) => x.row.laneId === r.laneId && x.row.partitionId === r.partitionId));
   const countries = new Map<string, typeof l.lines>();
   for (const line of l.lines) {
     const k = line.row.report.country ?? '';

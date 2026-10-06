@@ -13,17 +13,17 @@ import {
   viewLevelFrom
 } from '../src/screens/configModel';
 
-function project() {
+function partition() {
   const log: AnyEvent[] = [];
   let wall = 1_700_000_000_000;
   let seq = 0;
   const clock = new HlcClock('d', () => wall);
   const add = <T extends EventType>(type: T, payload: EventPayloads[T], id = `e${++seq}`) => {
     wall += 1000;
-    log.push({ id, type, orgId: 'o', projectId: 'p', actorId: 'admin', deviceId: 'd', hlc: clock.next(), payload, serverSeq: log.length + 1 } as AnyEvent);
+    log.push({ id, type, orgId: 'o', partitionId: 'p', actorId: 'admin', deviceId: 'd', hlc: clock.next(), payload, serverSeq: log.length + 1 } as AnyEvent);
   };
-  add('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-  add('v1.ProjectConfigChanged', { config: { unitKinds: [{ id: 'book', label: 'Book', childKinds: ['passage'] }, { id: 'passage', label: 'Passage', childKinds: [] }], workflow: [] } });
+  add('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+  add('v1.PartitionConfigChanged', { config: { unitKinds: [{ id: 'book', label: 'Book', childKinds: ['passage'] }, { id: 'passage', label: 'Passage', childKinds: [] }], workflow: [] } });
   add('v1.MemberAdded', { profileId: 'admin', role: 'owner' });
   add('v1.MemberAdded', { profileId: 't1', role: 'translator' });
   add('v1.LaneAdded', { laneId: 'L1', languoidId: 'din' });
@@ -54,9 +54,9 @@ describe('roles', () => {
     expect(roleRows(org, null, 'lane').every((r) => r.inherited)).toBe(true);
   });
 
-  it('counts holders at any scope and project members with the matching fixed role, once each', () => {
+  it('counts holders at any scope and partition members with the matching fixed role, once each', () => {
     const org = foldOrg(buildOrgFixture());
-    const p = project().state();
+    const p = partition().state();
     const translators = holdersOf(org, p, 'translator');
     expect(translators.map((h) => h.profileId)).toEqual(['t1']);
     expect(translators[0]!.scope).toMatchObject({ level: 'lane', laneId: 'L1' });
@@ -64,10 +64,10 @@ describe('roles', () => {
   });
 
   it('reads the level the roles are seen from', () => {
-    // No project level (decision 34): a project reads as the organization.
-    expect(viewLevelFrom({ level: 'project' }, { level: 'org' })).toBe('org');
+    // No project level (decision 34): a partition reads as the organization.
+    expect(viewLevelFrom({ level: 'partition' }, { level: 'org' })).toBe('org');
     expect(viewLevelFrom({ laneId: 'L1' }, { level: 'org' })).toBe('lane');
-    expect(viewLevelFrom({}, { level: 'project', projectId: 'p' })).toBe('org');
+    expect(viewLevelFrom({}, { level: 'partition', partitionId: 'p' })).toBe('org');
     expect(viewLevelFrom({}, null)).toBe('org');
   });
 });
@@ -81,7 +81,7 @@ describe('review flows', () => {
   };
 
   it('names each language\'s flow: a library one by its name, a legacy one by the catalog\'s', () => {
-    const p = project();
+    const p = partition();
     const s0 = p.state();
     expect(laneFlows(s0).map((l) => flowLabel(l))).toEqual(['No flow chosen yet', 'No flow chosen yet']);
     p.run(commands(s0).useFlow({ commandId: 'a', laneId: 'L2', flowId: 'oral_review' }));
@@ -92,7 +92,7 @@ describe('review flows', () => {
   });
 
   it('Undo re-applies a library flow at its version, and restores a legacy one', () => {
-    const p = project();
+    const p = partition();
     p.run(selectFlowSpecs(p.state(), { commandId: 'a', laneId: 'L1', itemId: 'quick.x1', docHash: H1, doc: quick }));
     const lib = flowUndoFor(p.state(), 'L1');
     expect(lib).toEqual({ kind: 'library', itemId: 'quick.x1', docHash: H1 });
@@ -110,7 +110,7 @@ describe('review flows', () => {
     if (legacy?.kind !== 'legacy') throw new Error('legacy');
     p.run(commands(p.state()).restoreFlow({ commandId: 'e', laneId: 'L2', previous: legacy.previous }));
     expect(flowLabel(laneFlows(p.state()).find((l) => l.laneId === 'L2')!)).toBe('Oral Review Path');
-    expect(flowUndoFor(project().state(), 'L1')).toBeNull();
+    expect(flowUndoFor(partition().state(), 'L1')).toBeNull();
   });
 
   it('publishes a valid flow document: empty steps dropped, ids kept, kinds carried whole', () => {
@@ -127,7 +127,7 @@ describe('review flows', () => {
     ]);
     expect(doc.kinds.map((k) => k.id)).toEqual(['final', 'peer', 'elder_review']);
     // A language using it gets the new kind and the steps.
-    const p = project();
+    const p = partition();
     p.run(selectFlowSpecs(p.state(), { commandId: 'a', laneId: 'L1', itemId: 'elders.x1', docHash: H1, doc }));
     const s = p.state();
     expect(deriveFlow(s, 'L1').steps.map((x) => x.kindIds)).toEqual([['final'], ['peer'], ['elder_review', 'peer']]);
@@ -135,7 +135,7 @@ describe('review flows', () => {
   });
 
   it('starts a new flow from a legacy language\'s steps, with fresh ids', () => {
-    const p = project();
+    const p = partition();
     p.run(commands(p.state()).useFlow({ commandId: 'a', laneId: 'L1', flowId: 'quick_check' }));
     const draft = draftFromLane(p.state(), 'L1');
     expect(draft.map((d) => [d.stepId, d.kindIds])).toEqual([[undefined, ['peer']], [undefined, ['final']]]);
@@ -152,8 +152,8 @@ describe('review flows', () => {
 });
 
 describe('reference material', () => {
-  it('adds levels up: a language sees its own and the project\'s, the project sees each language\'s', () => {
-    const p = project();
+  it('adds levels up: a language sees its own and the partition\'s, the partition sees each language\'s', () => {
+    const p = partition();
     p.add('v1.MaterialDefined', { materialId: 'tmf', kind: 'tmf', title: 'Framework', scope: {} });
     p.add('v1.MaterialDefined', { materialId: 'tg1', kind: 'tg', title: 'Dinka guidelines', scope: { laneId: 'L1' } });
     p.add('v1.MaterialDefined', { materialId: 'tg2', kind: 'tg', title: 'Nuer guidelines', scope: { laneId: 'L2' } });
@@ -177,7 +177,7 @@ describe('reference material', () => {
 
 describe('reference material in the library', () => {
   it('publishes an in-app question set as a valid material document, under an id taken from the material', () => {
-    const p = project();
+    const p = partition();
     p.add('v1.MaterialDefined', { materialId: 'questions-9F3/x', kind: 'questions', title: 'Peer questions', scope: { stepId: 'peer' } });
     p.add('v1.MaterialFieldSet', { materialId: 'questions-9F3/x', fieldId: 'q1', text: formatQuestionField({ text: 'Is it clear?', type: 'yesno', required: true }) });
     p.add('v1.MaterialFieldSet', { materialId: 'questions-9F3/x', fieldId: 'q2', text: 'Anything missing?' });
@@ -194,7 +194,7 @@ describe('reference material in the library', () => {
   });
 
   it('links a material scoped to a template part by that part, and keeps a lone body as the body', () => {
-    const p = project();
+    const p = partition();
     p.add('v1.MaterialDefined', { materialId: 'tg1', kind: 'tg', title: 'Names', scope: { unitId: 'fia-eng.ab12/LUK.15.11-32' } });
     p.add('v1.MaterialFieldSet', { materialId: 'tg1', fieldId: 'body', text: 'Say the names slowly.' });
     const doc = materialDocFrom(materialView(p.state(), 'tg1')!, (f) => f);
@@ -204,7 +204,7 @@ describe('reference material in the library', () => {
   });
 
   it('Use in reviews: reviewers of the kind see the questions; again updates the same set; Undo empties it', () => {
-    const p = project();
+    const p = partition();
     const doc: MaterialDoc = {
       format: 'material@1', kind: 'questions', title: 'Community questions', reviewKindId: 'community', deps: [],
       questions: [{ id: 'c1', text: 'Did they understand?', type: 'yesno', required: true }, { id: 'c2', text: 'What did they retell?', type: 'text' }]
@@ -244,7 +244,7 @@ describe('reference material in the library', () => {
 
 describe('key terms', () => {
   it('finds terms by their words, in the passage by scope or by the source text', () => {
-    const p = project();
+    const p = partition();
     p.add('v1.KeyTermDefined', { termId: 'kt1', laneId: 'L1', term: 'Word (Logos)', gloss: 'The eternal Word', unitScope: [] });
     p.add('v1.KeyTermDefined', { termId: 'kt2', laneId: 'L1', term: 'grace', gloss: 'Undeserved favour', unitScope: ['luke'] });
     p.add('v1.KeyTermDefined', { termId: 'fia:t63', laneId: 'L1', term: 'Sabbath', gloss: 'Day of rest', unitScope: [] });

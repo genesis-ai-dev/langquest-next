@@ -19,7 +19,7 @@ import { timingPublication, type TimingPublication, type TimingResultRow } from 
 /** The level a screen is at: the language in its params (when this phone has it open), else the organization. */
 export function levelOf(ctx: Ctx): Level {
   const laneId = ctx.params['laneId'];
-  return laneId && ctx.project.state?.lanes[laneId] ? { kind: 'lane', laneId } : { kind: 'org' };
+  return laneId && ctx.partition.state?.lanes[laneId] ? { kind: 'lane', laneId } : { kind: 'org' };
 }
 
 /** Say "not connected" plainly for a server action, else the fault with a code. */
@@ -59,7 +59,7 @@ export function useRecommend(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const run = useCallback(async (level: Level, itemId: string, name: string, action: RecAction, quiet = false) => {
     setBusy(true);
-    const before = recState(ctx.org.state?.recommendations, ctx.project.state, level, itemId);
+    const before = recState(ctx.org.state?.recommendations, ctx.partition.state, level, itemId);
     const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level), quiet ? undefined : recUndo(before, level, itemId));
     setBusy(false);
     return ok;

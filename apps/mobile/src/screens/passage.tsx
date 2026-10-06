@@ -77,7 +77,7 @@ async function perform(
   message: string,
   undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[]
 ): Promise<boolean> {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   if (!state) return false;
   let specs: EventSpec[];
   try {
@@ -89,7 +89,7 @@ async function perform(
   }
   try {
     await ctx.act(specs, message, undo ? () => {
-      const now = ctx.project.state ?? state;
+      const now = ctx.partition.state ?? state;
       return undo(specs)(commands(now, indexesFor(now)));
     } : undefined);
     return true;
@@ -110,7 +110,7 @@ function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?:
   const { ctx } = props;
   return (
     <Screen header={<Header title={TITLES[props.id]} onBack={ctx.back} {...(props.crumbsOf ? { crumbs: passageCrumbs(ctx, props.crumbsOf, TITLES[props.id]) } : {})} />}>
-      <EmptyState icon="book" title={props.text ?? (ctx.project.state ? "This passage isn't in the project." : 'Loading the project…')} />
+      <EmptyState icon="book" title={props.text ?? (ctx.partition.state ? "This passage isn't in this language." : 'Loading the language…')} />
     </Screen>
   );
 }
@@ -118,7 +118,7 @@ function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?:
 function PlayRow(props: { ctx: Ctx; hashes: string[]; label: string; sub?: string }) {
   return (
     <View style={styles.playRow}>
-      <AudioClip project={props.ctx.project} hashes={props.hashes} label={props.label} />
+      <AudioClip partition={props.ctx.partition} hashes={props.hashes} label={props.label} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{props.label}</Text>
         {props.sub ? <Text style={txt.xs} numberOfLines={1}>{props.sub}</Text> : null}
@@ -176,10 +176,10 @@ export function PassageRecord(ctx: Ctx) {
     const out: Record<string, UsualTarget | undefined> = {};
     if (!v || !isAuthor) return out;
     for (const kindId of new Set(v.p.flow.steps.flatMap((st) => st.kindIds))) {
-      out[kindId] = usualTargetFor(v.state, ctx.org.state, { projectId: ctx.project.projectId, laneId: v.laneId, kindId, me });
+      out[kindId] = usualTargetFor(v.state, ctx.org.state, { partitionId: ctx.partition.partitionId, laneId: v.laneId, kindId, me });
     }
     return out;
-  }, [v?.state, v?.laneId, v?.p.flow, ctx.org.state, ctx.project.projectId, me, isAuthor]);
+  }, [v?.state, v?.laneId, v?.p.flow, ctx.org.state, ctx.partition.partitionId, me, isAuthor]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
   const { p, kinds, unitId, laneId } = v;
@@ -1073,8 +1073,8 @@ export function AskSomeone(ctx: Ctx) {
   const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
-  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { projectId: ctx.project.projectId, laneId: v.laneId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [v?.state, v?.laneId, ctx.org.state, ctx.project.projectId, what, kindId, me]);
+  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { partitionId: ctx.partition.partitionId, laneId: v.laneId, what, ...(kindId ? { kindId } : {}), me }) : []),
+    [v?.state, v?.laneId, ctx.org.state, ctx.partition.partitionId, what, kindId, me]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text="Ask for a review from its step on the passage record." />;

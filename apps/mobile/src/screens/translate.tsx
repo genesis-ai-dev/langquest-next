@@ -98,15 +98,15 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   latestCtx.current = ctx;
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latestCtx.current;
-    const s = current.project.state;
+    const s = current.partition.state;
     if (!s) throw new Error('Your organization is still loading.');
-    await current.project.run(commands(s, indexesFor(s)).addRecording({
+    await current.partition.run(commands(s, indexesFor(s)).addRecording({
       commandId: card.id, recordingId: card.id, unitId, laneId, kind: 'target',
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
     }));
-    current.project.triggerUpload();
+    current.partition.triggerUpload();
   }, [unitId, laneId]);
-  const rec = useRecorder(persist, { orgId: ctx.project.orgId, projectId: ctx.project.projectId, unitId, laneId });
+  const rec = useRecorder(persist, { orgId: ctx.partition.orgId, partitionId: ctx.partition.partitionId, unitId, laneId });
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;
@@ -130,11 +130,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       setComposeError(problemText('workspace: compose draft', e));
       return;
     }
-    ctx.project.run(specs)
+    ctx.partition.run(specs)
       .catch((e: unknown) => setComposeError(`Your takes are saved on this phone but not yet in your draft. ${problemText('workspace: save draft', e)}`))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
-  }, [state, pending, list, composing, composeError, ctx.project, idx, unitId, laneId]);
+  }, [state, pending, list, composing, composeError, ctx.partition, idx, unitId, laneId]);
 
   // ---- deleting a take ----
   const [working, setWorking] = useState(false);
@@ -308,7 +308,7 @@ function FeedbackBanner(props: { ctx: Ctx; review: ReviewView; kind: KindDef }) 
     <View style={{ gap: space.sm }}>
       <Banner icon="chat" tone="amber" title={`Revising after ${props.kind.name} feedback`}
         body={`${r.comment ? `“${r.comment}”\n` : ''}${feedbackSource(r, props.ctx.name)}`} />
-      {r.commentBlobHash ? <AudioClip project={props.ctx.project} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
+      {r.commentBlobHash ? <AudioClip partition={props.ctx.partition} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
     </View>
   );
 }
@@ -370,7 +370,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
   const me = ctx.session.actorId;
   const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
   const drafts = useBackTranslationDraft(
-    backTranslationDraftKey({ projectId: ctx.project.projectId, actorId: me, unitId, laneId, kindId: kind.id }), of.takeId);
+    backTranslationDraftKey({ partitionId: ctx.partition.partitionId, actorId: me, unitId, laneId, kindId: kind.id }), of.takeId);
   const parts = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
   const madeFrom = drafts.draft && parts.length > 0 && drafts.draft.fromTakeId !== of.takeId
     ? p.versions.find((x) => x.takeId === drafts.draft!.fromTakeId) : undefined;
@@ -461,7 +461,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
             ) : null}
             <SectionLabel label={`Listen · ${v.lane} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
             <Card>
-              <SourcePlayer project={ctx.project} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} listen={loop.hooks} />
+              <SourcePlayer partition={ctx.partition} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} listen={loop.hooks} />
               <Text style={txt.xs}>Notes, key terms and earlier reviews are hidden on purpose, so only the recording shapes what you say.</Text>
             </Card>
             <Banner icon="swap" title="You're making new content"

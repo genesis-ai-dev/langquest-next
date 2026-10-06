@@ -106,8 +106,8 @@ end $$;
 create or replace function public.event_privilege(p_type text, p jsonb)
 returns text language sql immutable as $$
   select case p_type
-    when 'v1.ProjectCreated' then 'bootstrap'
-    when 'v1.ProjectConfigChanged' then 'manage_structure'
+    when 'v1.PartitionCreated' then 'bootstrap'
+    when 'v1.PartitionConfigChanged' then 'manage_structure'
     when 'v1.MemberAdded' then 'invite_members'
     when 'v1.MemberRoleChanged' then 'invite_members'
     when 'v1.MemberRemoved' then 'invite_members'
@@ -146,7 +146,7 @@ returns text language sql immutable as $$
     when 'v1.OrgMemberRemoved' then 'invite_members'
     when 'v1.CatalogItemToggled' then case p->>'kind'
       when 'reference' then 'manage_reference' when 'flow' then 'manage_flows' else 'manage_templates' end
-    when 'v1.ProjectRegistered' then 'manage_structure'
+    when 'v1.PartitionRegistered' then 'manage_structure'
     when 'v1.InviteIssued' then 'invite_members'
     when 'v1.JoinDecided' then 'invite_members'
     -- The passage record.
@@ -182,9 +182,9 @@ declare c jsonb;
 begin
   if p is null or jsonb_typeof(p) <> 'object' then return 'payload must be an object'; end if;
   case p_type
-    when 'v1.ProjectCreated' then
+    when 'v1.PartitionCreated' then
       if not (public._is_str(p->'name') and public._is_str(p->'sourceLanguoidId')) then return 'name and sourceLanguoidId must be non-empty strings'; end if;
-    when 'v1.ProjectConfigChanged' then
+    when 'v1.PartitionConfigChanged' then
       if jsonb_typeof(p->'config') is distinct from 'object' then return 'config must be an object'; end if;
     when 'v1.MemberAdded', 'v1.MemberRoleChanged' then
       if not public._is_str(p->'profileId') then return 'profileId must be a non-empty string'; end if;
@@ -222,7 +222,7 @@ begin
       if not (public._is_str(p->'unitId') and public._is_str(p->'laneId') and public._is_str(p->'profileId')) then return 'unitId, laneId, profileId must be non-empty strings'; end if;
       if not public._is_role(p->>'role') then return 'role must be a role'; end if;
     when 'v1.SourceImported' then
-      if not public._is_str(p->'sourceProjectId') then return 'sourceProjectId must be a non-empty string'; end if;
+      if not public._is_str(p->'sourcePartitionId') then return 'sourcePartitionId must be a non-empty string'; end if;
       if jsonb_typeof(p->'sourceSeq') is distinct from 'number' then return 'sourceSeq must be a number'; end if;
       if not public._is_str_array(p->'unitIds') then return 'unitIds must be a string array'; end if;
     when 'v1.BlobStored' then
@@ -291,11 +291,11 @@ begin
     when 'v1.CatalogItemToggled' then
       if not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if coalesce(p->>'kind', '') not in ('template', 'reference', 'flow') then return 'kind must be template, reference or flow'; end if;
-      if coalesce(p->>'level', '') not in ('org', 'project') then return 'level must be org or project'; end if;
-      if p->>'level' = 'project' and not public._is_str(p->'projectId') then return 'projectId required at project level'; end if;
+      if coalesce(p->>'level', '') not in ('org', 'partition') then return 'level must be org or partition'; end if;
+      if p->>'level' = 'partition' and not public._is_str(p->'partitionId') then return 'partitionId required at partition level'; end if;
       if jsonb_typeof(p->'enabled') is distinct from 'boolean' then return 'enabled must be a boolean'; end if;
-    when 'v1.ProjectRegistered' then
-      if not (public._is_str(p->'projectId') and public._is_str(p->'name')) then return 'projectId and name must be non-empty strings'; end if;
+    when 'v1.PartitionRegistered' then
+      if not (public._is_str(p->'partitionId') and public._is_str(p->'name')) then return 'partitionId and name must be non-empty strings'; end if;
     when 'v1.InviteIssued' then
       if not (public._is_str(p->'inviteId') and public._is_str(p->'roleId') and public._is_str(p->'expiresAt')) then return 'inviteId, roleId, expiresAt must be non-empty strings'; end if;
       if jsonb_typeof(p->'scope') is distinct from 'object' then return 'scope must be an object'; end if;
@@ -556,8 +556,8 @@ begin
     on conflict (org_id, role_id) do update set retired = true;
   elsif p_type in ('v1.OrgMemberAdded', 'v1.OrgMemberRemoved') then
     v_key := public._scope_key(p->'scope');
-    insert into public.org_memberships (org_id, profile_id, scope_key, scope_level, project_id, lane_id)
-    values (p_org, p->>'profileId', v_key, p->'scope'->>'level', p->'scope'->>'projectId', p->'scope'->>'laneId')
+    insert into public.org_memberships (org_id, profile_id, scope_key, scope_level, partition_id, lane_id)
+    values (p_org, p->>'profileId', v_key, p->'scope'->>'level', p->'scope'->>'partitionId', p->'scope'->>'laneId')
     on conflict do nothing;
     if p_type = 'v1.OrgMemberAdded' then
       update public.org_memberships m set role_id = p->>'roleId', role_hlc = p_hlc
@@ -571,7 +571,7 @@ begin
   elsif p_type in ('v1.LibraryItemDefined', 'v1.LibraryVersionPublished', 'v1.LibrarySharingSet',
                    'v1.LibraryItemArchived', 'v1.LibrarySubscribed', 'v1.LibraryPinned') then
     select e.id, e.actor_id into v_id, v_actor from public.events e
-      where e.org_id = p_org and e.project_id = '_org' and e.type = p_type and e.hlc = p_hlc and e.payload = p
+      where e.org_id = p_org and e.partition_id = '_org' and e.type = p_type and e.hlc = p_hlc and e.payload = p
       order by e.server_seq desc limit 1;
     if v_id is not null then
       perform public._apply_library_event(p_org, v_id, p_type, p, p_hlc, v_actor);
@@ -582,7 +582,7 @@ end $$;
 -- Backfill any library events already in the log.
 do $$ declare e record; begin
   for e in select ev.id, ev.org_id, ev.type, ev.payload, ev.hlc, ev.actor_id from public.events ev
-           where ev.project_id = '_org'
+           where ev.partition_id = '_org'
              and ev.type in ('v1.LibraryItemDefined', 'v1.LibraryVersionPublished', 'v1.LibrarySharingSet',
                              'v1.LibraryItemArchived', 'v1.LibrarySubscribed', 'v1.LibraryPinned')
              and public.validate_payload(ev.type, ev.payload) is null
@@ -706,7 +706,7 @@ begin
   return query
     select i.org_id,
       coalesce((select e.payload->>'name' from public.events e
-                where e.org_id = i.org_id and e.project_id = '_org' and e.type = 'v1.OrgCreated'
+                where e.org_id = i.org_id and e.partition_id = '_org' and e.type = 'v1.OrgCreated'
                 order by e.server_seq limit 1), i.org_id),
       i.item_id, i.kind, coalesce(i.name, i.item_id), coalesce(i.description, ''), i.subscribable,
       (select count(*)::int from public.library_versions v where v.org_id = i.org_id and v.item_id = i.item_id),

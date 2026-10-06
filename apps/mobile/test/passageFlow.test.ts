@@ -5,11 +5,11 @@ function history() {
   const events: AnyEvent[] = [];
   const add = <T extends EventType>(type: T, payload: EventPayloads[T]) => {
     events.push({ type, payload, id: `event-${events.length}`, actorId: 'me',
-      orgId: 'org', projectId: 'project', deviceId: 'device',
+      orgId: 'org', partitionId: 'partition', deviceId: 'device',
       hlc: `${String(events.length + 1).padStart(15, '0')}:000000:device`
     } as AnyEvent);
   };
-  add('v1.ProjectCreated', { name: 'Test', sourceLanguoidId: 'eng' });
+  add('v1.PartitionCreated', { name: 'Test', sourceLanguoidId: 'eng' });
   add('v1.MemberAdded', { profileId: 'me', role: 'translator' });
   add('v1.LaneAdded', { laneId: 'lane', languoidId: 'target' });
   add('v1.UnitAdded', { unitId: 'passage', parentUnitId: null, kind: 'passage', label: '1:1', order: 'a' });
@@ -30,7 +30,7 @@ describe('passage next action', () => {
     expect(passageProgress(h.state(), 'lane', 'passage', false).next).toBe('done');
   });
 
-  it('credits project glossary audio, but only relevant missing terms block guidance', () => {
+  it('credits partition glossary audio, but only relevant missing terms block guidance', () => {
     const h = history();
     h.add('v1.KeyTermDefined', { termId: 'other', laneId: 'lane', term: 'other', gloss: '', unitScope: ['another-passage'] });
     h.add('v1.KeyTermAdjusted', { termId: 'other', adjustmentId: 'audio', note: '', blobHash: 'other-audio' });
@@ -51,7 +51,7 @@ describe('passage next action', () => {
 
   it('uses the newly selected draft even when an earlier take is approved', () => {
     const h = history();
-    h.add('v1.ProjectConfigChanged', { config: { unitKinds: [], workflow: [] } });
+    h.add('v1.PartitionConfigChanged', { config: { unitKinds: [], workflow: [] } });
     h.add('v1.TakeComposed', { takeId: 'approved', laneId: 'lane', unitId: 'passage', parentTakeId: null, cardHashes: ['old'] });
     h.add('v1.TakeSubmitted', { takeId: 'approved' });
     h.add('v1.TakeComposed', { takeId: 'draft', laneId: 'lane', unitId: 'passage', parentTakeId: 'approved', cardHashes: ['new'] });

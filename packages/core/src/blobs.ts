@@ -1,5 +1,5 @@
 import { unitAncestry } from './materials';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 
 /**
  * Blob work lists, derived on every pass (PLAN.md section 14 rule 1).
@@ -14,8 +14,8 @@ export interface BlobRef {
   unitId: string;
 }
 
-/** Every blob the project references: recording cards and reference audio. */
-export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
+/** Every blob the partition references: recording cards and reference audio. */
+export function referencedBlobs(state: PartitionState): Map<string, BlobRef> {
   const out = new Map<string, BlobRef>();
   for (const r of Object.values(state.recordings)) {
     for (const c of r.cards) {
@@ -65,7 +65,7 @@ export function referencedBlobs(state: ProjectState): Map<string, BlobRef> {
 }
 
 /** The server's latest verdict says the bytes are there. */
-export function isStored(state: ProjectState, hash: string): boolean {
+export function isStored(state: PartitionState, hash: string): boolean {
   return state.blobs[hash]?.stored === true;
 }
 
@@ -76,7 +76,7 @@ export function isStored(state: ProjectState, hash: string): boolean {
  * did not land intact and is uploaded again (idempotent overwrite).
  */
 export function deriveUploadWork(
-  state: ProjectState,
+  state: PartitionState,
   present: ReadonlySet<string>,
   localSizes?: ReadonlyMap<string, number>
 ): BlobRef[] {
@@ -99,7 +99,7 @@ export function deriveUploadWork(
  * offline; null means everything, which only a coordinator on wifi wants.
  */
 export function deriveDownloadWork(
-  state: ProjectState,
+  state: PartitionState,
   present: ReadonlySet<string>,
   scope: ReadonlySet<string> | null = null
 ): BlobRef[] {
@@ -120,7 +120,7 @@ export function deriveDownloadWork(
  * Every blob a set of units needs offline: their own audio plus the
  * reference audio, materials and key terms they inherit (rule 10).
  */
-function scopedHashes(state: ProjectState, scope: ReadonlySet<string>, refs = referencedBlobs(state)): Set<string> {
+function scopedHashes(state: PartitionState, scope: ReadonlySet<string>, refs = referencedBlobs(state)): Set<string> {
   const needed = new Set<string>();
   // Preserve every directly scoped blob, including review comments and
   // responses, then add resources inherited by these passages.
@@ -168,7 +168,7 @@ function scopedHashes(state: ProjectState, scope: ReadonlySet<string>, refs = re
  * to, plus everything they have recorded or composed in. Explicit "keep
  * offline" choices are unioned in by the app.
  */
-export function defaultOfflineScope(state: ProjectState, actorId: string): Set<string> {
+export function defaultOfflineScope(state: PartitionState, actorId: string): Set<string> {
   const scope = new Set<string>();
   for (const a of Object.values(state.assignments)) if (a.profileId === actorId) scope.add(a.unitId);
   for (const r of Object.values(state.recordings)) if (r.actorId === actorId) scope.add(r.unitId);
@@ -177,19 +177,19 @@ export function defaultOfflineScope(state: ProjectState, actorId: string): Set<s
 }
 
 /** Referenced but neither confirmed nor present anywhere we can see: visibly missing. */
-export function deriveMissingBlobs(state: ProjectState, present: ReadonlySet<string>): BlobRef[] {
+export function deriveMissingBlobs(state: PartitionState, present: ReadonlySet<string>): BlobRef[] {
   return [...referencedBlobs(state).values()].filter((r) => !isStored(state, r.hash) && !present.has(r.hash));
 }
 
 /**
  * Local files this device may delete to reclaim space: referenced by this
- * project, confirmed intact on the server (so they can come back), outside
+ * partition, confirmed intact on the server (so they can come back), outside
  * the offline scope, and not upload work. Everything else is protected:
  * unsynced recordings, explicit offline selections, and files of other
- * projects (which this state cannot see, so it never names them).
+ * partitions (which this state cannot see, so it never names them).
  */
 export function evictableBlobs(
-  state: ProjectState,
+  state: PartitionState,
   present: ReadonlySet<string>,
   scope: ReadonlySet<string> | null,
   localSizes?: ReadonlyMap<string, number>
@@ -231,7 +231,7 @@ export interface UnitOffline {
 
 /** Counts for one passage's audio on this phone, kept or not. */
 export function unitOffline(
-  state: ProjectState,
+  state: PartitionState,
   unitId: string,
   present: ReadonlySet<string>,
   actorId: string,
@@ -240,9 +240,9 @@ export function unitOffline(
   return offlineByUnit(state, [unitId], present, actorId, chosen).get(unitId)!;
 }
 
-/** `unitOffline` for many passages (a map's rows), reading the project's audio once. */
+/** `unitOffline` for many passages (a map's rows), reading the partition's audio once. */
 export function offlineByUnit(
-  state: ProjectState,
+  state: PartitionState,
   unitIds: Iterable<string>,
   present: ReadonlySet<string>,
   actorId: string,
@@ -261,7 +261,7 @@ export function offlineByUnit(
   return out;
 }
 
-function countUnit(state: ProjectState, unitId: string, reason: OfflineReason | null, present: ReadonlySet<string>, refs: Map<string, BlobRef>): UnitOffline {
+function countUnit(state: PartitionState, unitId: string, reason: OfflineReason | null, present: ReadonlySet<string>, refs: Map<string, BlobRef>): UnitOffline {
   let here = 0;
   let toFetch = 0;
   let bytesToFetch = 0;
@@ -288,7 +288,7 @@ export interface OfflineSummary {
 }
 
 export function offlineSummary(
-  state: ProjectState,
+  state: PartitionState,
   present: ReadonlySet<string>,
   actorId: string,
   chosen: ReadonlySet<string>

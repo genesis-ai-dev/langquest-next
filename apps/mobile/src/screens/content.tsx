@@ -17,7 +17,7 @@
 // name and levels, read-only.
 //
 // There is no project level (docs/decisions.md 34). templates_home params:
-// `level` ('org' | 'language'; an old 'project' reads as 'org') and/or
+// `level` ('org' | 'language'; an old 'partition' reads as 'org') and/or
 // `laneId`. template_picker: `laneId`. template_editor: `itemId` (a library
 // template), `new` (start one), or `laneId` (a language on a catalog
 // template, read-only). book_structure: `laneId`, `bookId`.
@@ -76,10 +76,10 @@ type Lib = ReturnType<typeof useLibrary>;
 function levelOf(ctx: Ctx): { level: Level; laneId: string | null } {
   const level = ctx.params['level'];
   const laneParam = ctx.params['laneId'];
-  if (level === 'org' || level === 'project') return { level: 'org', laneId: null };
+  if (level === 'org' || level === 'partition') return { level: 'org', laneId: null };
   if (level === 'language' || level === 'lane' || laneParam) return { level: 'language', laneId: laneParam ?? ctx.laneId };
   const scope = ctx.session.adminScope;
-  if (scope?.level === 'org' || scope?.level === 'project') return { level: 'org', laneId: null };
+  if (scope?.level === 'org' || scope?.level === 'partition') return { level: 'org', laneId: null };
   return { level: 'language', laneId: scope?.laneId ?? ctx.laneId };
 }
 
@@ -151,7 +151,7 @@ export function TemplatesHome(ctx: Ctx) {
 
 /** The organization: its templates, what others share, and what each language uses (TPL-1). */
 function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
   const canManage = ctx.session.can('manage_templates');
@@ -401,7 +401,7 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
 
 /** A language: its template and version, its levels and counts, Change, and the books (TPL-1, TPL-7). */
 function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null }) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const lib = useLibrary(ctx);
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(8);
@@ -531,7 +531,7 @@ function LanguageTemplateView({ ctx, laneId }: { ctx: Ctx; laneId: string | null
 // ---- Choose a Template ------------------------------------------------------------------------
 
 export function TemplatePicker(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const laneId = ctx.params['laneId'] ?? ctx.laneId;
   const lib = useLibrary(ctx);
   const library = ctx.org.state?.library;
@@ -652,7 +652,7 @@ export function TemplateEditor(ctx: Ctx) {
 
 /** A language on a template from the catalog that used to ship in the app: its name and levels, read-only. */
 function AppTemplate({ ctx }: { ctx: Ctx }) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const laneId = ctx.params['laneId'] ?? ctx.laneId;
   if (!state) return <Loading title="Template Outline" onBack={ctx.back} />;
   const sel = laneId && state.lanes[laneId] ? laneTemplateOf(state, laneId) : null;
@@ -777,7 +777,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
  * Save publishes the next version. A followed template opens read-only.
  */
 function TemplateEditorForm({ ctx, lib, item, initial }: { ctx: Ctx; lib: Lib; item: LibraryItemView | null; initial: TemplateForm }) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const [f, setF] = useState<TemplateForm>(initial);
   const [editingLevel, setEditingLevel] = useState<number | null>(null);
   const [editingBook, setEditingBook] = useState<string | null>(null);
@@ -1108,7 +1108,7 @@ function NodeSheet(props: {
 // ---- Divide a Book ------------------------------------------------------------------------------
 
 export function BookStructure(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const laneId = ctx.params['laneId'] ?? ctx.laneId;
   const bookId = ctx.params['bookId'];
   const book = bookId ? bibleBook(bookId) : undefined;
@@ -1116,7 +1116,7 @@ export function BookStructure(ctx: Ctx) {
   const [picking, setPicking] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
   const sel = state && laneId && state.lanes[laneId] ? laneTemplateOf(state, laneId) : null;
-  const docs = useLibraryDocs(ctx.project.orgId, [sel?.source === 'library' ? sel.docHash : null]);
+  const docs = useLibraryDocs(ctx.partition.orgId, [sel?.source === 'library' ? sel.docHash : null]);
   const doc = sel?.source === 'library' ? docs.get<TemplateDoc>(sel.docHash) : null;
 
   const data = useMemo(() => {

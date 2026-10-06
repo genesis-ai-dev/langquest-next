@@ -82,7 +82,7 @@ export class NotSavedError extends Error {
  * language's country or target) where the partition is not open here.
  */
 export async function appendConfirmed<T extends EventType>(
-  c: { orgId: string; projectId: string; actorId: string; deviceId: string; transport: Transport },
+  c: { orgId: string; partitionId: string; actorId: string; deviceId: string; transport: Transport },
   type: T,
   payload: EventPayloads[T]
 ): Promise<void> {

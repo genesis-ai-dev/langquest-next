@@ -22,23 +22,23 @@ select public._apply_org_event('join-org','v1.RoleDefined',
 select public._apply_org_event('join-org','v1.OrgMemberAdded',
   '{"profileId":"21000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}','999:1:test');
 select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"lane","projectId":"L-one","laneId":"L-one"}}','999:1:test');
+  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"lane","partitionId":"L-one","laneId":"L-one"}}','999:1:test');
 select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000c","roleId":"lead","scope":{"level":"lane","projectId":"L-two","laneId":"L-two"}}','999:1:test');
+  '{"profileId":"21000000-0000-0000-0000-00000000000c","roleId":"lead","scope":{"level":"lane","partitionId":"L-two","laneId":"L-two"}}','999:1:test');
 select public._apply_org_event('join-org','v1.OrgMemberAdded',
   '{"profileId":"21000000-0000-0000-0000-00000000000d","roleId":"admin","scope":{"level":"org"}}','999:1:test');
 select public._append_event_as('join-org-created','join-org','_org','v1.OrgCreated','21000000-0000-0000-0000-00000000000a','server','{"name":"Join test"}');
-select public._append_event_as('join-lang-one','join-org','_org','v1.ProjectRegistered','21000000-0000-0000-0000-00000000000a','server','{"projectId":"L-one","name":"Languish"}');
+select public._append_event_as('join-lang-one','join-org','_org','v1.PartitionRegistered','21000000-0000-0000-0000-00000000000a','server','{"partitionId":"L-one","name":"Languish"}');
 
 -- The admin invites Achol to the first language; the admin who will leave invites Deng.
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
 select public.issue_invite_v3('join-org','31000000-0000-0000-0000-000000000001',
   encode(extensions.digest(repeat('a',64),'sha256'),'hex'),'translator',
-  '{"level":"lane","projectId":"L-one","laneId":"L-one"}',now()+interval '1 day','Achol Mabior',1);
+  '{"level":"lane","partitionId":"L-one","laneId":"L-one"}',now()+interval '1 day','Achol Mabior',1);
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000d',true);
 select public.issue_invite_v3('join-org','31000000-0000-0000-0000-000000000002',
   encode(extensions.digest(repeat('b',64),'sha256'),'hex'),'translator',
-  '{"level":"lane","projectId":"L-one","laneId":"L-one"}',now()+interval '1 day','Deng',1);
+  '{"level":"lane","partitionId":"L-one","laneId":"L-one"}',now()+interval '1 day','Deng',1);
 
 -- `join` (the service role) redeems for the account it just made.
 select set_config('request.jwt.claim.sub','',true);
@@ -103,7 +103,7 @@ end $$;
 select public._apply_org_event('join-org','v1.OrgMemberRemoved',
   '{"profileId":"21000000-0000-0000-0000-00000000000d","scope":{"level":"org"}}','999:2:test');
 select public._apply_org_event('join-org','v1.OrgMemberRemoved',
-  '{"profileId":"21000000-0000-0000-0000-00000000000b","scope":{"level":"lane","projectId":"L-one","laneId":"L-one"}}','999:2:test');
+  '{"profileId":"21000000-0000-0000-0000-00000000000b","scope":{"level":"lane","partitionId":"L-one","laneId":"L-one"}}','999:2:test');
 do $$ begin
   if public.may_help_sign_in('21000000-0000-0000-0000-00000000000d','21000000-0000-0000-0000-00000000000f') then
     raise exception 'the inviter who left must not help'; end if;
@@ -115,7 +115,7 @@ end $$;
 
 -- A code that says the old phone is lost, and who helped.
 select public._apply_org_event('join-org','v1.OrgMemberAdded',
-  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"lane","projectId":"L-one","laneId":"L-one"}}','999:3:test');
+  '{"profileId":"21000000-0000-0000-0000-00000000000b","roleId":"lead","scope":{"level":"lane","partitionId":"L-one","laneId":"L-one"}}','999:3:test');
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000b',true);
 do $$ begin
   if public.issue_sign_in_code_v2('21000000-0000-0000-0000-00000000000e', repeat('5',64), true) <> 'achol-201' then

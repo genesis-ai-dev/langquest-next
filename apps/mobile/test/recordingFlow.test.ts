@@ -5,11 +5,11 @@ function history() {
   const events: AnyEvent[] = [];
   const add = <T extends EventType>(type: T, payload: EventPayloads[T], actorId = 'me') => {
     events.push({ type, payload, id: `event-${events.length}`, actorId,
-      orgId: 'org', projectId: 'project', deviceId: 'device',
+      orgId: 'org', partitionId: 'partition', deviceId: 'device',
       hlc: `${String(events.length + 1).padStart(15, '0')}:000000:device`
     } as AnyEvent);
   };
-  add('v1.ProjectCreated', { name: 'Test', sourceLanguoidId: 'eng' });
+  add('v1.PartitionCreated', { name: 'Test', sourceLanguoidId: 'eng' });
   add('v1.LaneAdded', { laneId: 'lane', languoidId: 'target' });
   add('v1.UnitAdded', { unitId: 'passage', parentUnitId: null, kind: 'passage', label: '1:1', order: 'a' });
   return { add, state: () => fold(events, emptyState()) };

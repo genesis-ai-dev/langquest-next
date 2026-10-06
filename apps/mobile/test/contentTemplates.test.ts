@@ -1,6 +1,6 @@
 import {
   emptyState, buildIndexes, fold, HlcClock, instantiateTemplate, selectTemplateSpecs, validateDoc, withDeps,
-  type AnyEvent, type EventSpec, type LibraryItemState, type LibraryItemView, type ProjectState, type TemplateDoc, type VersificationDoc
+  type AnyEvent, type EventSpec, type LibraryItemState, type LibraryItemView, type PartitionState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import {
   addNode, bibleBook, bookRows, bookSegments, chapterBlocks, chipLabel, continuesInto, countOutline, defaultBooks, docFromForm, fiaStarts,
@@ -19,7 +19,7 @@ let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);
 const fromSpecs = (specs: EventSpec[]) => specs.map((s) => {
   seq += 1;
-  return { id: s.id, type: s.type, orgId: 'o1', projectId: 'p1', actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload: s.payload } as AnyEvent;
+  return { id: s.id, type: s.type, orgId: 'o1', partitionId: 'p1', actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload: s.payload } as AnyEvent;
 });
 
 /** English numbering for Luke and Mark only, enough for these tests. */
@@ -40,18 +40,18 @@ const passagesDoc: TemplateDoc = {
 };
 
 /** A language on a legacy catalog template, as the app used to set one up. */
-function withCatalogTemplate(templateId: string, laneId = 'L'): ProjectState {
+function withCatalogTemplate(templateId: string, laneId = 'L'): PartitionState {
   const s = emptyState();
   s.lanes[laneId] = { languoidId: 'din' };
   s.laneTemplates[laneId] = reg({ templateId, catalogVersion: 1 });
   for (const p of instantiateTemplate(templateId)) {
-    s.units[p.unitId] = { parentUnitId: p.parentUnitId, kind: p.kind, label: p.label, order: p.order } as ProjectState['units'][string];
+    s.units[p.unitId] = { parentUnitId: p.parentUnitId, kind: p.kind, label: p.label, order: p.order } as PartitionState['units'][string];
   }
   return s;
 }
 
 /** A language on a version of a library template. */
-function withLibraryTemplate(doc: TemplateDoc, base?: ProjectState, books?: string[]): ProjectState {
+function withLibraryTemplate(doc: TemplateDoc, base?: PartitionState, books?: string[]): PartitionState {
   const start = base ?? fold(fromSpecs([{ id: 'lane', type: 'v1.LaneAdded', payload: { laneId: 'L', languoidId: 'din' } } as EventSpec]));
   const specs = selectTemplateSpecs(start, { commandId: `c${seq}`, laneId: 'L', itemId: 'stories.abc', docHash: HASH, doc, versification: v11n, ...(books ? { books } : {}) });
   return fold(fromSpecs(specs), start);

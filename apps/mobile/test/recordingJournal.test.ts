@@ -1,6 +1,6 @@
 import { parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recordingJournalCore';
 
-const target = { orgId: 'org', projectId: 'project', unitId: 'passage', laneId: 'lane' };
+const target = { orgId: 'org', partitionId: 'partition', unitId: 'passage', laneId: 'lane' };
 const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   id: 'rec-1', uri: 'file:///staging/a.wav', format: 'wav', durationMs: 900, stage: 'recorded', target, ...over
 });
@@ -63,7 +63,7 @@ describe('recording journal', () => {
   it('keeps a failing entry for the next pass and touches other partitions not at all', async () => {
     let attempts = 0;
     const { d, calls } = deps({ ingest: async () => { attempts += 1; throw new Error('disk full'); } });
-    const other = entry({ id: 'rec-2', target: { ...target, projectId: 'elsewhere' } });
+    const other = entry({ id: 'rec-2', target: { ...target, partitionId: 'elsewhere' } });
     const r = await resumeEntries([entry(), other, entry({ id: 'rec-3', target: undefined })], target, d);
     expect(r.failed).toEqual([{ id: 'rec-1', error: 'disk full' }]);
     expect(r.resumed).toEqual([]);

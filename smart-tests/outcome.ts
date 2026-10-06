@@ -13,12 +13,12 @@ export interface ServerRow { id: string; type: string; actor_id: string; payload
 
 export interface RecordingContract { actorId: string; unitIds: string[]; laneId: string }
 export interface RecordingEvidence {
-  /** Every event in the project partition on the device, after the journey. */
+  /** Every event in the partition partition on the device, after the journey. */
   device: DeviceRow[];
   /** Hashes with a trusted file in the device blob store, before and after the journey. */
   blobsBefore: string[];
   blobsAfter: string[];
-  /** Server events for the project, read after sync had time to run. */
+  /** Server events for the partition, read after sync had time to run. */
   server: ServerRow[];
 }
 
@@ -551,47 +551,47 @@ export function judgeMapSearch(contract: SearchContract, evidence: SearchEvidenc
   return { verdict: searched && fresh ? 'product_failure' : 'inconclusive', checks };
 }
 
-// ---- Decision 28: a project is one language --------------------------------
+// ---- New Language: a language is its own partition (decision 37) -----------
 
-export interface NewProjectContract { adminId: string; name: string; languoidId: string }
-export interface NewProjectEvidence {
-  /** The org partition on the device, where the project is registered. */
+export interface NewLanguageContract { adminId: string; name: string; languoidId: string }
+export interface NewLanguageEvidence {
+  /** The org partition on the device, where the partition is registered. */
   org: DeviceRow[];
-  /** The registered project's own partition on the device, empty if none was registered. */
+  /** The registered partition's own partition on the device, empty if none was registered. */
   device: DeviceRow[];
   server: ServerRow[];
 }
 
-/** The project this admin registered under this name, if any (device log order is append order). */
-export function registeredProjectId(contract: NewProjectContract, org: DeviceRow[]): string | null {
-  const mine = org.filter((r) => r.event.type === 'v1.ProjectRegistered' && r.event.actorId === contract.adminId
+/** The partition this admin registered under this name, if any (device log order is append order). */
+export function registeredPartitionId(contract: NewLanguageContract, org: DeviceRow[]): string | null {
+  const mine = org.filter((r) => r.event.type === 'v1.PartitionRegistered' && r.event.actorId === contract.adminId
     && String(r.event.payload['name'] ?? '').trim() === contract.name);
-  return mine.length ? String(mine[mine.length - 1]!.event.payload['projectId']) : null;
+  return mine.length ? String(mine[mine.length - 1]!.event.payload['partitionId']) : null;
 }
 
 /**
- * An admin created a project for one language: it is registered in the org,
+ * An admin created a partition for one language: it is registered in the org,
  * born with its name, and holds exactly one lane, for the language asked
- * for, all confirmed on the server with nothing rejected. Why: the project
- * is the sync and permission bucket, so a project with no language or two
+ * for, all confirmed on the server with nothing rejected. Why: the partition
+ * is the sync and permission bucket, so a partition with no language or two
  * languages breaks what everyone downstream is scoped by.
  */
-export function judgeNewProject(contract: NewProjectContract, evidence: NewProjectEvidence): Outcome {
-  const projectId = registeredProjectId(contract, evidence.org);
-  const created = evidence.device.filter((r) => r.event.type === 'v1.ProjectCreated'
+export function judgeNewLanguage(contract: NewLanguageContract, evidence: NewLanguageEvidence): Outcome {
+  const partitionId = registeredPartitionId(contract, evidence.org);
+  const created = evidence.device.filter((r) => r.event.type === 'v1.PartitionCreated'
     && String(r.event.payload['name'] ?? '').trim() === contract.name);
   const lanes = evidence.device.filter((r) => r.event.type === 'v1.LaneAdded');
   const laneIds = new Set(lanes.map((r) => String(r.event.payload['laneId'])));
   const languages = lanes.map((r) => String(r.event.payload['languoidId']));
   const checks: Check[] = [
-    { name: 'project-registered-in-org', ok: projectId !== null },
-    { name: 'project-created-with-name', ok: created.length > 0 },
-    { name: 'project-has-one-language', ok: laneIds.size === 1, detail: `${laneIds.size} lane(s): ${languages.join(', ') || 'none'}` },
+    { name: 'partition-registered-in-org', ok: partitionId !== null },
+    { name: 'partition-created-with-name', ok: created.length > 0 },
+    { name: 'partition-has-one-language', ok: laneIds.size === 1, detail: `${laneIds.size} lane(s): ${languages.join(', ') || 'none'}` },
     { name: 'language-is-the-one-asked-for', ok: languages.length > 0 && languages.every((l) => l === contract.languoidId) },
     rejectedCheck([...evidence.org, ...evidence.device]),
-    { name: 'project-reached-server', ok: synced([...created, ...lanes], evidence.server),
+    { name: 'partition-reached-server', ok: synced([...created, ...lanes], evidence.server),
       detail: `device status: ${[...created, ...lanes].map((r) => r.status).join(', ') || 'none'}` }
   ];
   if (checks.every((c) => c.ok)) return { verdict: 'passed', checks };
-  return { verdict: projectId !== null ? 'product_failure' : 'inconclusive', checks };
+  return { verdict: partitionId !== null ? 'product_failure' : 'inconclusive', checks };
 }

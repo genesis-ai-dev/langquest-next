@@ -22,9 +22,9 @@ test('translator logs a community check for two passages', async ({ page }) => {
   const contract = { loggerId: world.translator.id, kindId: catalogKindId('community'), outcome: 'looks_good' as const,
     takeIds: [world.version1.takeId, world.version1b!.takeId] };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeLoggedCheck(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeLoggedCheck(contract, evidence), run.status);
   await reportRun(page, run, outcome);

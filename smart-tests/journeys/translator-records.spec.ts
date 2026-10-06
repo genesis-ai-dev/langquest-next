@@ -20,10 +20,10 @@ test('translator records their assigned passage', async ({ page }) => {
   const contract = { actorId: world.translator.id, unitIds: [passage.unitId], laneId: world.laneId };
   // Give the device time to sync the take and upload its audio, as it would on a phone.
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsBefore,
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeRecording(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeRecording(contract, evidence), run.status);
 

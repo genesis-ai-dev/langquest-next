@@ -52,7 +52,7 @@ export function loadReports(orgId: string, fresh = false): Promise<void> {
       if (answer.status === 'changed') {
         e.etag = answer.etag;
         const { rows, asOf } = answer.body;
-        set(e, { status: 'ready', asOf, refreshing: false, rows: rows.map((r) => ({ orgId, projectId: r.projectId, laneId: r.laneId, updatedAt: asOf, report: r.report })) });
+        set(e, { status: 'ready', asOf, refreshing: false, rows: rows.map((r) => ({ orgId, partitionId: r.partitionId, laneId: r.laneId, updatedAt: asOf, report: r.report })) });
       } else if (e.state.status === 'ready') {
         const asOf = answer.asOf;
         set(e, { ...e.state, asOf, refreshing: false, rows: e.state.rows.map((r) => ({ ...r, updatedAt: asOf })) });

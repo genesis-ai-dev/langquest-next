@@ -115,7 +115,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   if (!v || !kind) {
     return (
       <Screen header={<Header title={logged ? TITLES.add_record : TITLES.review_capture} onBack={ctx.back} close />}>
-        <EmptyState icon="book" title={ctx.project.state ? "This passage isn't in the project" : 'Loading…'} />
+        <EmptyState icon="book" title={ctx.partition.state ? "This passage isn't in this language" : 'Loading…'} />
       </Screen>
     );
   }
@@ -146,7 +146,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const otherPassages = !!here && all.some((p) => p.unitId !== here.unitId);
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
-    const state = ctx.project.state;
+    const state = ctx.partition.state;
     if (!state || !v || !version || !kind || busy) return;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
@@ -372,7 +372,7 @@ function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string,
  * a labelled preview: answers can be tried, nothing is sent or recorded.
  */
 export function GuestReview(ctx: Ctx) {
-  const state = ctx.project.state;
+  const state = ctx.partition.state;
   const requestId = ctx.params['requestId'];
   const named = requestId && state ? state.requests[requestId] : undefined;
   const unitId = named?.unitId ?? ctx.params['unitId'];
@@ -418,11 +418,11 @@ export function GuestReview(ctx: Ctx) {
         <Text style={txt.xs}>{v.lane} · {kind.name}</Text>
       </Card>
       {request?.note ? <Card style={{ backgroundColor: C.light }}><Text style={txt.body}>“{request.note}”</Text></Card> : null}
-      {request?.noteBlobHash ? <AudioClip project={ctx.project} hashes={[request.noteBlobHash]} label="Play their directions" /> : null}
+      {request?.noteBlobHash ? <AudioClip partition={ctx.partition} hashes={[request.noteBlobHash]} label="Play their directions" /> : null}
       {version ? (
         <Card>
           <Text style={txt.h3}>Listen</Text>
-          <AudioClip project={ctx.project} hashes={version.cardHashes} label={`Play ${v.title}`} />
+          <AudioClip partition={ctx.partition} hashes={version.cardHashes} label={`Play ${v.title}`} />
         </Card>
       ) : <EmptyState icon="mic" title="There's no recording to listen to yet." />}
       {questions.map((q) => (
@@ -432,7 +432,7 @@ export function GuestReview(ctx: Ctx) {
         </Card>
       ))}
       <Block label="Tell us what you understood">
-        {/* A voice reply would be saved to the project's record; a preview must not write, so it is shown, not live. */}
+        {/* A voice reply would be saved to the partition's record; a preview must not write, so it is shown, not live. */}
         <View style={styles.voiceOff} accessibilityState={{ disabled: true }}>
           <View style={styles.micDot}><Ico name="mic" size={18} color={C.white} /></View>
           <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: C.muted }]}>Tap to reply by voice</Text>

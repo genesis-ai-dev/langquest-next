@@ -27,8 +27,8 @@ export function useStudyGuide(ctx: Ctx, unitId: string | null | undefined, laneI
  * A passage missing from the map has no guide, or its documents have not loaded.
  */
 export function useStudyGuides(ctx: Ctx, unitIds: readonly string[], laneId?: string | null): Map<string, StudyGuide> {
-  const state = ctx.project.state;
-  const orgId = ctx.project.orgId;
+  const state = ctx.partition.state;
+  const orgId = ctx.partition.orgId;
   const lane = laneId ?? ctx.laneId;
   // What each passage is offered: recommended or linked to it first, then the organization's own (reference/offered.ts).
   const offered = useMemo(() => {

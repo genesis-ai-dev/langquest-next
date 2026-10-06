@@ -22,7 +22,7 @@ const DOMAIN = 'example.test';
 
 export const PERSONAS: Persona[] = [
   { id: 'owner', label: 'Org admin', role: 'owner', roleId: 'org_admin', email: `lq-owner@${DOMAIN}` },
-  { id: 'coordinator', label: 'Coordinator', role: 'coordinator', roleId: 'project_coordinator', email: `lq-coordinator@${DOMAIN}` },
+  { id: 'coordinator', label: 'Coordinator', role: 'coordinator', roleId: 'coordinator', email: `lq-coordinator@${DOMAIN}` },
   { id: 'translator', label: 'Translator', role: 'translator', roleId: 'translator', email: `lq-translator@${DOMAIN}` },
   { id: 'reviewer', label: 'Reviewer', role: 'reviewer', roleId: 'reviewer', email: `lq-reviewer@${DOMAIN}` },
   { id: 'viewer', label: 'Viewer', role: 'viewer', roleId: 'viewer', email: `lq-viewer@${DOMAIN}` },

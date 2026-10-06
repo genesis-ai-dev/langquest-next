@@ -1,6 +1,6 @@
 import { BIBLE_BOOKS, FIA_PERICOPES } from './catalogData';
 import type { EventPayloads, QuorumRule, Role, UnitKind } from './events';
-import type { ProjectState } from './state';
+import type { PartitionState } from './state';
 
 /**
  * Global reference data (docs/flow-coverage-audit.md 5.D): content
@@ -50,7 +50,7 @@ export interface ReferenceKind {
   code: string;
   name: string;
   /** Where the material lives (UX spec RefMaterial.scope). */
-  scope: 'org' | 'project' | 'lane';
+  scope: 'org' | 'partition' | 'lane';
 }
 
 export interface QuestionTemplate {
@@ -113,7 +113,7 @@ function bookTemplate(): ContentTemplate {
     name: 'Book Overview',
     description: 'Whole-book chunks for introductions, outlines, and book-level drafting.',
     // Its own kind id: 'book' is a container in every other template and in
-    // DEFAULT_CONFIG, and kind ids are shared project-wide.
+    // DEFAULT_CONFIG, and kind ids are shared partition-wide.
     unitKinds: [{ id: 'book_unit', label: 'Book', childKinds: [] }],
     items: BIBLE_BOOKS.map((b, i) => ({ itemId: b.itemId, parentItemId: null, kind: 'book_unit', label: b.label, order: `b${pad(i)}` }))
   };
@@ -176,7 +176,7 @@ export function flowTemplate(id: string): FlowTemplate | undefined {
 /** UX spec reference codes (Q7): TMF, Brief, TG, FIA study, question sets. */
 export const REFERENCE_KINDS: ReferenceKind[] = [
   { id: 'tmf', code: 'TMF', name: 'Translation Management Framework', scope: 'org' },
-  { id: 'brief', code: 'Brief', name: 'Translation Brief', scope: 'project' },
+  { id: 'brief', code: 'Brief', name: 'Translation Brief', scope: 'partition' },
   { id: 'tg', code: 'TG', name: 'Translation Guidelines', scope: 'lane' },
   { id: 'fia_study', code: 'FIA', name: 'FIA Study Material', scope: 'lane' },
   { id: 'key_terms', code: 'KT', name: 'Key Terms', scope: 'lane' },
@@ -262,7 +262,7 @@ export function instantiateFlow(flowId: string, laneId: string, catalogVersion =
 }
 
 /** Unit kinds in force: the config's plus those of every selected template. */
-export function effectiveUnitKinds(state: ProjectState, base: UnitKind[]): UnitKind[] {
+export function effectiveUnitKinds(state: PartitionState, base: UnitKind[]): UnitKind[] {
   const out = new Map(base.map((k) => [k.id, k]));
   for (const sel of Object.values(state.laneTemplates)) {
     const t = contentTemplate(sel.value.templateId);

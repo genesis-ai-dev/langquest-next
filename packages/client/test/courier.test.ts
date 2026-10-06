@@ -13,10 +13,10 @@ function phone() {
   const server = new FakeServer();
   const store = new MemoryStore();
   const wall = { t: 0 };
-  const client = (actorId: string, projectId = 'p1') =>
+  const client = (actorId: string, partitionId = 'p1') =>
     new SyncClient({
-      orgId: 'org1', projectId, actorId, deviceId: 'shared', store, transport: server.transportFor(),
-      clock: new HlcClock('shared', () => (wall.t += 1)), newId: () => `${actorId}-${projectId}-${(wall.t += 1)}`
+      orgId: 'org1', partitionId, actorId, deviceId: 'shared', store, transport: server.transportFor(),
+      clock: new HlcClock('shared', () => (wall.t += 1)), newId: () => `${actorId}-${partitionId}-${(wall.t += 1)}`
     });
   return { server, store, client };
 }
@@ -27,14 +27,14 @@ describe('deliverQueued (a shared phone handed on)', () => {
     server.offline = true;
     const akol = client('akol');
     await akol.load();
-    await akol.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await akol.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     const akolElsewhere = client('akol', 'p2');
     await akolElsewhere.load();
-    await akolElsewhere.append('v1.ProjectCreated', { name: 'John', sourceLanguoidId: 'eng' });
+    await akolElsewhere.append('v1.PartitionCreated', { name: 'John', sourceLanguoidId: 'eng' });
     const mary = client('mary');
     await mary.load();
-    await mary.append('v1.ProjectCreated', { name: 'Mark', sourceLanguoidId: 'eng' });
-    expect(await store.pendingPartitionsBy('akol')).toEqual([{ orgId: 'org1', projectId: 'p1' }, { orgId: 'org1', projectId: 'p2' }]);
+    await mary.append('v1.PartitionCreated', { name: 'Mark', sourceLanguoidId: 'eng' });
+    expect(await store.pendingPartitionsBy('akol')).toEqual([{ orgId: 'org1', partitionId: 'p1' }, { orgId: 'org1', partitionId: 'p2' }]);
 
     server.offline = false;
     const sent = await deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared' });
@@ -50,7 +50,7 @@ describe('deliverQueued (a shared phone handed on)', () => {
     server.offline = true;
     const akol = client('akol');
     await akol.load();
-    await akol.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await akol.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     await expect(deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared' })).rejects.toThrow();
     expect(await store.pendingCountBy('org1', 'p1', 'akol')).toBe(1);
     server.offline = false;
@@ -62,8 +62,8 @@ describe('deliverQueued (a shared phone handed on)', () => {
     server.offline = true;
     const akol = client('akol');
     await akol.load();
-    await akol.append('v1.ProjectCreated', { name: 'Refused', sourceLanguoidId: 'eng' });
-    await akol.append('v1.ProjectCreated', { name: 'Too early', sourceLanguoidId: 'eng' });
+    await akol.append('v1.PartitionCreated', { name: 'Refused', sourceLanguoidId: 'eng' });
+    await akol.append('v1.PartitionCreated', { name: 'Too early', sourceLanguoidId: 'eng' });
     server.offline = false;
     server.authorize = (e) => {
       const name = (e.payload as { name?: string }).name;

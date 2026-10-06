@@ -9,7 +9,7 @@ import {
   feedbackIsMine, isCompleteState, KIND_STATE_LABEL, keyTermView, kindOfV1Step, membershipsOf, privilegesFor,
   privilegesOfFixedRole, scopeCovers, stepName,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
-  type Privilege, type ProjectState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type Role, type SourcedQuestion,
+  type Privilege, type PartitionState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type Role, type SourcedQuestion,
   type Version
 } from '@langquest-next/core';
 import type { IconName } from '../kit';
@@ -304,7 +304,7 @@ export interface EntryText {
 }
 
 /** Where a note points, as a label ("Whole passage", "Version 2", "Verse 3 · NIV"). */
-export function anchorLabel(note: Pick<PassageNote, 'anchor'>, o: { state: ProjectState; p: PassageState; guide?: StudyGuide | null }): string {
+export function anchorLabel(note: Pick<PassageNote, 'anchor'>, o: { state: PartitionState; p: PassageState; guide?: StudyGuide | null }): string {
   const a = note.anchor;
   switch (a.kind) {
     case 'passage': return 'Whole passage';
@@ -423,7 +423,7 @@ export function formatAnswer(type: QuestionSpec['type'], value: string): string 
 }
 
 export const QUESTION_SOURCE: Record<SourcedQuestion['source'], string> = {
-  org: 'Organization', project: 'Project', language: 'Language', request: 'Asked for this review'
+  org: 'Organization', partition: 'All languages', language: 'Language', request: 'Asked for this review'
 };
 
 /** Answers paired with their questions; answers whose question is gone still show. */
@@ -446,8 +446,8 @@ const ROLE_LABEL: Record<Role, string> = {
   owner: 'Organization Admin', coordinator: 'Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
 };
 
-/** Does this person hold `need` for the language: by their project role, or an org role whose scope covers it. */
-export function holdsIn(state: ProjectState, org: OrgState | null, profileId: string, target: { projectId: string; laneId: string }, need: Privilege): boolean {
+/** Does this person hold `need` for the language: by their partition role, or an org role whose scope covers it. */
+export function holdsIn(state: PartitionState, org: OrgState | null, profileId: string, target: { partitionId: string; laneId: string }, need: Privilege): boolean {
   const member = state.members[profileId];
   if (member && !member.removed.value && privilegesOfFixedRole(member.role.value).has(need)) return true;
   return !!org && privilegesFor(org, profileId, target).has(need);
@@ -462,18 +462,18 @@ export interface AskCandidate {
 }
 
 /**
- * Teammates who may be asked: project members and org members whose scope
- * covers the project and language, holding Translate (to record) or Review
+ * Teammates who may be asked: partition members and org members whose scope
+ * covers the partition and language, holding Translate (to record) or Review
  * (to review). Not the person asking. For a review, those on the language's
  * review team or who did this kind here before come first ("Usually does").
  */
 export function askCandidates(
-  state: ProjectState,
+  state: PartitionState,
   org: OrgState | null,
-  o: { projectId: string; laneId: string; what: 'record' | 'review'; kindId?: string; me: string }
+  o: { partitionId: string; laneId: string; what: 'record' | 'review'; kindId?: string; me: string }
 ): AskCandidate[] {
   const need: Privilege = o.what === 'record' ? 'translate' : 'review';
-  const target = { projectId: o.projectId, laneId: o.laneId };
+  const target = { partitionId: o.partitionId, laneId: o.laneId };
   const ids = new Set<string>([
     ...Object.entries(state.members).filter(([, m]) => !m.removed.value).map(([id]) => id),
     ...Object.keys(org?.members ?? {})

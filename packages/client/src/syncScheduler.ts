@@ -14,7 +14,7 @@
  * - A run that reports offline backs off geometrically, with jitter so a
  *   room full of phones does not reconnect in lockstep; nothing here polls
  *   a dead radio every fifteen seconds. Any success resets the backoff.
- * - A steady stream of nudges (a busy project) cannot postpone a run
+ * - A steady stream of nudges (a busy partition) cannot postpone a run
  *   forever: `maxDelayMs` after the first unserved nudge the run happens
  *   regardless of further nudges.
  * - A run that reports `more` (it hit its push or pull budget) is followed

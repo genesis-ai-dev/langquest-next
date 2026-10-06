@@ -36,7 +36,7 @@ function report(over: Partial<LaneReport> & { name: string }): LaneReport {
   };
 }
 
-const row = (r: LaneReport, updatedAt = '2026-09-30T11:00:00Z'): LaneRow => ({ orgId: 'o', projectId: 'work', laneId: r.laneId, updatedAt, report: r });
+const row = (r: LaneReport, updatedAt = '2026-09-30T11:00:00Z'): LaneRow => ({ orgId: 'o', partitionId: 'work', laneId: r.laneId, updatedAt, report: r });
 const uploadedDaysAgo = (d: number) => ({ cards: 1, chapters: 1, firstAt: null, lastAt: new Date(NOW - d * DAY).toISOString(), daily: [], log: [] });
 
 describe('orgTotals', () => {

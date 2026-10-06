@@ -1,4 +1,4 @@
-import { HlcClock, applyOrgEvent, deriveTakeStatus, emptyOrgState, foldOrg, REDUCER_VERSION, type OrgState, type ProjectState } from '@langquest-next/core';
+import { HlcClock, applyOrgEvent, deriveTakeStatus, emptyOrgState, foldOrg, REDUCER_VERSION, type OrgState, type PartitionState } from '@langquest-next/core';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
 import { FakeServer } from './fakeServer';
@@ -9,7 +9,7 @@ function device(server: FakeServer, deviceId: string, actorId: string, wall: { t
   let n = 0;
   const client = new SyncClient({
     orgId: 'org1',
-    projectId: 'p1',
+    partitionId: 'p1',
     actorId,
     deviceId,
     store,
@@ -25,8 +25,8 @@ describe('SyncClient', () => {
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'lead', { t: 0 });
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-    expect(client.getState().project?.value.name).toBe('Luke');
+    await client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    expect(client.getState().partition?.value.name).toBe('Luke');
     expect(await client.pendingCount()).toBe(1);
   });
 
@@ -40,7 +40,7 @@ describe('SyncClient', () => {
     await a.client.load();
     await b.client.load();
 
-    await a.client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await a.client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     await a.client.append('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
     await a.client.append('v1.MemberAdded', { profileId: 't1', role: 'translator' });
     await a.client.append('v1.LaneAdded', { laneId: 'L1', languoidId: 'xyz' });
@@ -80,11 +80,11 @@ describe('SyncClient', () => {
 
   it('a rejected event stays in the log, marked, and leaves the fold (invariant 1)', async () => {
     const server = new FakeServer();
-    server.authorize = (e) => (e.type === 'v1.ProjectConfigChanged' ? 'role translator may not emit' : null);
+    server.authorize = (e) => (e.type === 'v1.PartitionConfigChanged' ? 'role translator may not emit' : null);
     const { client, store } = device(server, 'dB', 't1', { t: 0 });
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
-    const bad = await client.append('v1.ProjectConfigChanged', {
+    await client.append('v1.PartitionCreated', { name: 'x', sourceLanguoidId: 'eng' });
+    const bad = await client.append('v1.PartitionConfigChanged', {
       config: { unitKinds: [], workflow: [] }
     });
     expect(client.getState().config).not.toBeNull();
@@ -102,7 +102,7 @@ describe('SyncClient', () => {
     const server = new FakeServer();
     const { client, store } = device(server, 'dA', 'lead', { t: 0 });
     await client.load();
-    const e = await client.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
+    const e = await client.append('v1.PartitionCreated', { name: 'x', sourceLanguoidId: 'eng' });
     await client.push();
     // Simulate the ack never reaching the device.
     await store.put({ event: e, status: 'pending' });
@@ -131,7 +131,7 @@ describe('SyncClient', () => {
     const store = new MemoryStore();
     const b = new SyncClient({
       orgId: 'org1',
-      projectId: 'p1',
+      partitionId: 'p1',
       actorId: 'r1',
       deviceId: 'dB',
       store,
@@ -152,7 +152,7 @@ describe('SyncClient', () => {
     const r = device(server, 'dR', 'r1', wall);
     await a.client.load();
     await r.client.load();
-    await a.client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await a.client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     await a.client.append('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
     await a.client.append('v1.MemberAdded', { profileId: 'r1', role: 'reviewer' });
     await a.client.append('v1.TakeComposed', {
@@ -181,7 +181,7 @@ describe('SyncClient', () => {
     const mk = (actorId: string) =>
       new SyncClient({
         orgId: 'org1',
-        projectId: 'p1',
+        partitionId: 'p1',
         actorId,
         deviceId: 'shared',
         store,
@@ -191,7 +191,7 @@ describe('SyncClient', () => {
       });
     const a = mk('a');
     await a.load();
-    await a.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
+    await a.append('v1.PartitionCreated', { name: 'x', sourceLanguoidId: 'eng' });
     const b = mk('b');
     await b.load();
     expect((await b.push()).accepted).toBe(0);
@@ -212,7 +212,7 @@ describe('SyncClient push batching (PLAN.md section 2: small deltas succeed)', (
     let k = 0;
     const client = new SyncClient({
       orgId: 'org1',
-      projectId: 'p1',
+      partitionId: 'p1',
       actorId: 'lead',
       deviceId: 'dA',
       store,
@@ -268,7 +268,7 @@ describe('SyncClient push batching (PLAN.md section 2: small deltas succeed)', (
     let t = 0;
     const store = new MemoryStore();
     const b = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 't1', deviceId: 'dB', store,
+      orgId: 'org1', partitionId: 'p1', actorId: 't1', deviceId: 'dB', store,
       transport: server.transportFor(),
       pullPageSize: 100, pullBudgetMs: 10, now: () => t,
       // Every page costs 6 ms of wall time; two pages exceed the budget.
@@ -353,7 +353,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
   }
 
   it('a new device cold-starts from the server snapshot and pulls only the tail', async () => {
-    // Why: a phone joining a project with years of history must not replay
+    // Why: a phone joining a partition with years of history must not replay
     // every event. Snapshot plus tail, one page, done.
     const server = new FakeServer();
     const a = await seeded(server, 7);
@@ -371,7 +371,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
 
     // Relaunch on the same device: the local checkpoint carries the state.
     const b2 = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'r1', deviceId: 'dB', store: b.store, transport: server.transportFor()
+      orgId: 'org1', partitionId: 'p1', actorId: 'r1', deviceId: 'dB', store: b.store, transport: server.transportFor()
     });
     const pullsBefore = server.pullCalls;
     await b2.load();
@@ -381,14 +381,14 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
 
   it('a device checkpoints locally after enough confirmed events and prunes its log', async () => {
     // Why: replay on launch must be bounded by history since the last
-    // checkpoint, not by the age of the project.
+    // checkpoint, not by the age of the partition.
     const server = new FakeServer();
     const store = new MemoryStore();
     const wall = { t: 0 };
     let k = 0;
     const mk = () =>
       new SyncClient({
-        orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+        orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA', store,
         transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
         newId: () => `e${++k}`, checkpointEvery: 5
       });
@@ -405,15 +405,15 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(await again.pendingCount()).toBe(0);
   });
 
-  it('a device catching up on a big project checkpoints once, when caught up, and the checkpoint equals the full fold', async () => {
+  it('a device catching up on a big partition checkpoints once, when caught up, and the checkpoint equals the full fold', async () => {
     // Why: every checkpoint serializes the whole state. Taking one per 2000
-    // events while a new device pulls a 268k-event project ran it out of
+    // events while a new device pulls a 268k-event partition ran it out of
     // memory at 512 MB and made the pull quadratic. Checkpoints are only a
     // cache, so the catch-up can skip them; the one it writes must still be
     // exactly what folding the raw log gives.
     const server = new FakeServer();
     const writer = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dW', store: new MemoryStore(),
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dW', store: new MemoryStore(),
       transport: server.transportFor(), newId: (() => { let k = 0; return () => `w${++k}`; })()
     });
     await writer.load();
@@ -431,7 +431,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
       return commit(batch);
     };
     const reader = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dR', store,
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dR', store,
       transport: server.transportFor(), checkpointEvery: 5, pullPageSize: 5
     });
     await reader.load();
@@ -445,7 +445,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(saves.length).toBe(1);
 
     const again = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dR', store,
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dR', store,
       transport: server.transportFor()
     });
     await again.load();
@@ -453,7 +453,7 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     expect(again.getState().units).toEqual(writer.getState().units);
     expect(Object.keys(again.getState().units).length).toBe(30);
     // The live state keeps its duplicate guard; only the saved copy is compacted.
-    expect(Object.keys((reader.getState() as ProjectState).appliedEventIds).length).toBe(30);
+    expect(Object.keys((reader.getState() as PartitionState).appliedEventIds).length).toBe(30);
   });
 
   it('redacting an event that lives inside the snapshot refetches from the server', async () => {
@@ -483,7 +483,7 @@ describe('SyncClient minimum client version (cutover gate 5)', () => {
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'lead', { t: 0 });
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
+    await client.append('v1.PartitionCreated', { name: 'x', sourceLanguoidId: 'eng' });
     server.minClientVersion = 99;
     const r = await client.sync();
     expect(r.tooOld).toBe(true);
@@ -496,7 +496,7 @@ describe('SyncClient minimum client version (cutover gate 5)', () => {
 });
 
 describe('SyncClient snapshot download in chunks (weak links make progress)', () => {
-  async function bigProject(server: FakeServer) {
+  async function bigPartition(server: FakeServer) {
     const wall = { t: 0 };
     const a = device(server, 'dA', 'lead', wall);
     await a.client.load();
@@ -512,7 +512,7 @@ describe('SyncClient snapshot download in chunks (weak links make progress)', ()
     // Why: a 12 MB snapshot as one response fails on the links our users
     // have. Pieces of a few hundred KB each succeed or fail alone.
     const server = new FakeServer();
-    await bigProject(server);
+    await bigPartition(server);
     server.chunkChars = 4000;
     const b = device(server, 'dB', 'r1', { t: 0 });
     await b.client.load();
@@ -523,7 +523,7 @@ describe('SyncClient snapshot download in chunks (weak links make progress)', ()
 
   it('a link that drops mid-snapshot resumes from the pieces already saved', async () => {
     const server = new FakeServer();
-    await bigProject(server);
+    await bigPartition(server);
     server.chunkChars = 4000;
     server.failChunkAfter = 2;
     const b = device(server, 'dB', 'r1', { t: 0 });
@@ -556,13 +556,13 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     // coordinator adds them back, the next sync must carry it, not a support call.
     const server = new FakeServer();
     const members = new Set(['lead', 't1']);
-    server.authorize = (e) => (members.has(e.actorId) || e.type === 'v1.ProjectCreated' ? null : 'not a member');
+    server.authorize = (e) => (members.has(e.actorId) || e.type === 'v1.PartitionCreated' ? null : 'not a member');
     const wall = { t: 0 };
     const a = device(server, 'dA', 'lead', wall);
     const b = device(server, 'dB', 't1', wall);
     await a.client.load();
     await b.client.load();
-    await a.client.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
+    await a.client.append('v1.PartitionCreated', { name: 'x', sourceLanguoidId: 'eng' });
     await a.client.append('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
     await a.client.append('v1.MemberAdded', { profileId: 't1', role: 'translator' });
     await a.client.sync();
@@ -604,11 +604,11 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     let n = 0;
     const YEAR = 365 * 24 * 3600 * 1000;
     const client = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport: server.transportFor(),
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport: server.transportFor(),
       now: () => SERVER_NOW + 5 * YEAR, newId: () => `dA-${++n}`
     });
     await client.load();
-    const e1 = await client.append('v1.ProjectCreated', { name: 'x', sourceLanguoidId: 'eng' });
+    const e1 = await client.append('v1.PartitionCreated', { name: 'x', sourceLanguoidId: 'eng' });
     const e2 = await client.append('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
     const first = await client.sync();
     expect(first.pushed).toBe(0);
@@ -624,7 +624,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     expect(server.log.map((e) => e.id)).toEqual([e1.id, e2.id]);
     // The offset survives a relaunch, so new events are honest from the start.
     const again = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport: server.transportFor(),
+      orgId: 'org1', partitionId: 'p1', actorId: 'lead', deviceId: 'dA', store, transport: server.transportFor(),
       now: () => SERVER_NOW + 5 * YEAR, newId: () => `dA-${++n}`
     });
     await again.load();
@@ -642,7 +642,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     const store = new MemoryStore();
     const clock = { t: 1_000 };
     const b = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'r1', deviceId: 'dB', store, transport: server.transportFor(),
+      orgId: 'org1', partitionId: 'p1', actorId: 'r1', deviceId: 'dB', store, transport: server.transportFor(),
       now: () => clock.t
     });
     await b.load();
@@ -670,7 +670,7 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
     const store = new MemoryStore();
     const clock = { t: 1_000 };
     const b = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'r1', deviceId: 'dB', store, transport: server.transportFor(),
+      orgId: 'org1', partitionId: 'p1', actorId: 'r1', deviceId: 'dB', store, transport: server.transportFor(),
       now: () => clock.t
     });
     await b.load();
@@ -690,14 +690,14 @@ describe('SyncClient after a long offline stretch (audit L1, L2, L3)', () => {
 describe('SyncClient with the org materializer (core org.ts)', () => {
   it('folds the org partition on two devices to the same roles and memberships', async () => {
     // Why: one sync path, two folds. The org partition must converge with
-    // exactly the machinery the project partition uses.
+    // exactly the machinery the partition partition uses.
     const m = { empty: emptyOrgState, apply: applyOrgEvent, fold: foldOrg, compact: (s: OrgState) => { s.appliedEventIds = {}; }, version: REDUCER_VERSION };
     const server = new FakeServer();
     const wall = { t: 0 };
     const mk = (deviceId: string, actorId: string) => {
       let n = 0;
       return new SyncClient<OrgState>({
-        materializer: m, orgId: 'org1', projectId: '_org', actorId, deviceId, store: new MemoryStore(),
+        materializer: m, orgId: 'org1', partitionId: '_org', actorId, deviceId, store: new MemoryStore(),
         transport: server.transportFor(), clock: new HlcClock(deviceId, () => (wall.t += 1)), newId: () => `${deviceId}-${++n}`
       });
     };
@@ -711,7 +711,7 @@ describe('SyncClient with the org materializer (core org.ts)', () => {
     await a.sync();
     await b.sync();
     server.offline = true;
-    await b.append('v1.ProjectRegistered', { projectId: 'p9', name: 'Ruth' });
+    await b.append('v1.PartitionRegistered', { partitionId: 'p9', name: 'Ruth' });
     await a.append('v1.RoleDefined', { roleId: 'org_admin', name: 'Organization Admin', privileges: ['manage_roles', 'invite_members', 'view_status'] });
     server.offline = false;
     await b.sync();
@@ -721,14 +721,14 @@ describe('SyncClient with the org materializer (core org.ts)', () => {
     const sb = b.getState();
     expect(sa.org?.value.name).toBe('Wycliffe');
     expect(sa.roles['org_admin']?.privileges.value).toEqual(['invite_members', 'manage_roles', 'view_status']);
-    expect(Object.keys(sb.projects)).toEqual(['p9']);
+    expect(Object.keys(sb.partitions)).toEqual(['p9']);
     expect({ ...sa, appliedEventIds: {} }).toEqual({ ...sb, appliedEventIds: {} });
   });
 });
 
 describe('SyncClient when the server refuses this actor', () => {
   it('reports a refusal as refused, not offline, and keeps the work queued', async () => {
-    // Why: pointing a signed-in account at a project it has no membership row
+    // Why: pointing a signed-in account at a partition it has no membership row
     // for makes pull_events raise `not a member` (errcode 42501). Reporting
     // that as offline is what stranded users: the app hid a fixable
     // authorization problem behind a cloud-off icon and blocked the escapes
@@ -736,7 +736,7 @@ describe('SyncClient when the server refuses this actor', () => {
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'outsider', { t: 0 });
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     server.refuse = 'not a member';
 
     const r = await client.sync();
@@ -755,7 +755,7 @@ describe('SyncClient when the server refuses this actor', () => {
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'lead', { t: 0 });
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     server.offline = true;
 
     const r = await client.sync();
@@ -771,7 +771,7 @@ describe('SyncClient when the server refuses this actor', () => {
     const server = new FakeServer();
     const { client } = device(server, 'dA', 'lead', { t: 0 });
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
+    await client.append('v1.PartitionCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
     server.refuse = 'not a member';
     await client.sync();
     server.refuse = null;

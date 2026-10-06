@@ -33,7 +33,7 @@ describe('download scope (PLAN.md section 14 rule 10)', () => {
   const state = fold(buildFixture(), emptyState());
 
   it('downloads only blobs of units in scope, reference audio included', () => {
-    // Why: joining a project on a metered link must not fetch every card of
+    // Why: joining a partition on a metered link must not fetch every card of
     // every take in every lane. Scope is the passages the user keeps offline.
     const inScope = deriveDownloadWork(state, new Set(), new Set(['luke1']));
     expect(inScope.map((r) => r.hash).sort()).toEqual(['c1']);
@@ -82,7 +82,7 @@ describe('eviction candidates (cache quota)', () => {
   it('offers only confirmed, out-of-scope, referenced files; unsynced and kept-offline files are protected', () => {
     // Why: reclaiming space must never delete the only copy of a recording
     // (c2 is unconfirmed) or something the user chose to keep (luke1 scope).
-    const present = new Set(['c1', 'c2', 'unrelated-project-file']);
+    const present = new Set(['c1', 'c2', 'unrelated-partition-file']);
     expect(evictableBlobs(state, present, new Set(['elsewhere'])).map((r) => r.hash)).toEqual(['c1']);
     expect(evictableBlobs(state, present, new Set(['luke1']))).toEqual([]);
     expect(evictableBlobs(state, present, null)).toEqual([]);
