@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { File, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { BlobStore, mimeOf, type StoredFile } from './blobs';
@@ -18,10 +19,11 @@ export function objectPath(orgId: string, projectId: string, ref: StoredFile): s
 /**
  * Native streaming upload: the file never enters the JS heap. Same request
  * supabase-js would make (POST object, x-upsert), with the session token,
- * so bucket policies apply unchanged.
+ * so bucket policies apply unchanged. `as` is the session to send under:
+ * a hand-over sends a signed-out person's recordings as them (handOver.ts).
  */
-export async function uploadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
-  const { data, error: authError } = await supabase.auth.getSession();
+export async function uploadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
+  const { data, error: authError } = await as.auth.getSession();
   if (authError) throw new Error(authError.message);
   const token = data.session?.access_token;
   if (!token) throw new Error('Not signed in.');
@@ -38,7 +40,13 @@ export async function uploadBlob(orgId: string, projectId: string, ref: StoredFi
     ? await uploadFromWeb(url, headers, ref, store)
     : await store.fileFor(ref).upload(url, { httpMethod: 'POST', uploadType: UploadType.BINARY_CONTENT, headers });
   timings.fetchMs = Date.now() - sent;
-  if (res.status < 200 || res.status >= 300) throw new Error(`Upload failed (${res.status}): ${res.body.slice(0, 200)}`);
+  if (res.status < 200 || res.status >= 300) throw new UploadError(res.status, res.body.slice(0, 200));
+}
+
+/** The server answered and did not take the file; `refused` means trying again will not help. */
+export class UploadError extends Error {
+  constructor(readonly status: number, body: string) { super(`Upload failed (${status}): ${body}`); }
+  get refused(): boolean { return this.status >= 400 && this.status < 500 && this.status !== 408 && this.status !== 429; }
 }
 
 /**

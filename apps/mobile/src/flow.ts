@@ -91,11 +91,14 @@ export const EDGES: Edge[] = [
   e('sign_in', 'home_hub', 'replace'), // Sign In
   e('sign_in', 'create_account', undefined, 'guest'), // tap Create Account
   e('sign_in', 'explore_home', undefined, 'guest'), // tap Browse public projects
-  e('create_account', 'scan_qr', undefined, 'guest'), // tap Scan org invite
-  e('create_account', 'welcome', 'replace'), // tap Create Account · with an invite
+  e('sign_in', 'scan_qr', undefined, 'guest'), // tap Scan a code
+  e('create_account', 'scan_qr', undefined, 'guest'), // tap Scan an invite
   e('create_account', 'home_hub', 'replace'), // tap Create Account
   e('create_account', 'sign_in', 'back', 'guest'), // tap Back
-  e('scan_qr', 'welcome', 'replace'), // tap Capture
+  e('scan_qr', 'welcome', 'replace'), // tap Join as …
+  e('scan_qr', 'home_hub', 'replace'), // tap Sign in as … (a helper's sign-in code)
+  e('scan_qr', 'sign_in', 'reset', 'guest'), // tap I already have an account (guest only)
+  e('scan_qr', 'sign_in', 'back', 'guest'), // tap Back (from sign-in)
   e('scan_qr', 'create_account', 'back', 'guest'), // tap Back (from create account)
   e('scan_qr', 'intent_chooser', 'back'), // tap Back (from intent)
   e('terms_privacy', 'sign_in', 'back', 'guest'), // tap Back
@@ -261,13 +264,13 @@ export const EDGES: Edge[] = [
   e('settings_home', 'sync_status'),
   e('my_work', 'sync_status'),
   e('sync_status', 'settings_home', 'back'),
-  e('scan_qr', 'sign_in', 'reset', 'guest'),
   e('scan_qr', 'create_account', undefined, 'guest'),
-  e('sign_in', 'scan_qr', undefined, 'guest'),
+  e('create_account', 'welcome', 'replace'),
   e('scan_qr', 'sign_out_confirm'),
   e('explore_home', 'request_access'),
   e('inbox_home', 'members_list', undefined, 'assigner'),
   e('create_account', 'terms_privacy', undefined, 'guest'),
+  e('scan_qr', 'terms_privacy', undefined, 'guest'),
   e('org_home', 'new_language'),
   e('org_home', 'language_home'),
   e('new_language', 'org_home', 'back'),

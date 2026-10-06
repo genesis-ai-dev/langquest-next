@@ -2,7 +2,8 @@
 
 Status: design, 2026-10-01 (Caleb Koster). Decision 54 records it. Built in
 the `invite-onboarding` branch; section 8 says what is built and what is
-next.
+next. Updated 2026-10-05 for decision 59: joining by invite needs no
+password, and a helper's code signs the person straight in.
 
 ## 1. What went wrong on 2026-10-01
 
@@ -58,9 +59,9 @@ Every account has somebody who can get it back in.
 
 | | Own email | Looked after |
 | --- | --- | --- |
-| Signs in with | email and password | sign-in name and password |
-| Made by | Create Account | joining with an invite, as a new person |
-| Gets back in through | a sign-in key sent to their email (section 8: next) | a sign-in key from their steward, shown as a QR |
+| Signs in with | email and password | nothing: the phone stays signed in (a sign-in name and an optional password, for a shared phone) |
+| Made by | Create Account | joining with an invite, as a new person, with no password (59) |
+| Gets back in through | a sign-in key sent to their email (section 8: next) | a sign-in key from anyone who can invite them where they are, shown as a QR (59) |
 | May invite others | yes, once the address is proven (section 8) | no |
 | Becomes the other kind | n/a | by adding and proving their own email (section 8) |
 
@@ -73,9 +74,11 @@ not collide.
 
 The **steward** is the person whose invite made the account (stored in
 `account_stewards`, set by the server when that account redeems its first
-invite). An organization admin (`invite_members` at organization scope) of
-any organization the person belongs to can also help, so nobody is stranded
-when their inviter leaves.
+invite). Since decision 59 it only says who to ask. Who may help is whoever
+holds Invite (`invite_members`) at a scope that covers one of the person's
+memberships, the organization or the person's language, while they hold it:
+the inviter can help because they could invite there, and stops when they
+leave or lose the role (`may_help_sign_in`).
 
 ### Why not `inviter+username@inviter's-domain`
 
@@ -125,10 +128,20 @@ Server functions:
   too.
 - `redeem_invite_v2(token)`: the same contract, now counting uses and
   recording the steward. Idempotent per person.
-- `sign-in-code` Edge Function: a steward or admin asks for a sign-in key for
-  a looked-after member; the function checks `may_help_sign_in` and returns a
-  one-time key (Supabase's own magic-link token, valid one hour, never
-  emailed).
+- `sign-in-code` Edge Function: a helper makes a one-time key for a
+  looked-after member (`issue_sign_in_code_v2`, checked by
+  `may_help_sign_in`, valid one hour, optionally marking the old phone
+  lost). The person's phone sends the key, and the function signs them in
+  with Supabase's own one-time sign-in token, made and used on the server
+  and never emailed, and returns the session and who helped. A key marked
+  lost signs every other session of the account out. Builds from before 59
+  send a password with the key; the function then sets it, as before.
+- `join` Edge Function (59): a signed-out phone sends an invite, a request
+  id and, for a group invite, the person's name. It makes the looked-after
+  account (a random password nobody sees), adds the membership with
+  `redeem_invite_for` (redeem_invite_v2's body for a named account, service
+  role only), and returns a session. A repeat of the same request id
+  (`invite_join_requests`) signs the same account in again.
 
 Phone state: one value, the **held key**, in `AsyncStorage` under
 `held-invite`:
@@ -145,7 +158,9 @@ Phone state: one value, the **held key**, in `AsyncStorage` under
   account". The next account to sign in on this phone takes it.
 - `<profileId>`: that account joins, now or when the phone is next online.
 - A held key is dropped after it is used, when the server says it is
-  expired, used up or unknown, or 24 hours after it was scanned.
+  expired, used up or unknown, or when the invite expires (a week after it
+  was scanned, if the phone never reached the server; it was 24 hours
+  before decision 59).
 
 ## 5. Flows
 
@@ -153,10 +168,12 @@ Each is the whole sequence the person sees.
 
 **A. Signed out, scans an invite (the field case).**
 Scan → "Invite for Nyibol · Translator · Anglish · Ryder's Translation
-Organization · from Ryder" → **Join as a new person** (primary) → name
-(filled in from the invite) and a password → the app creates the account,
-joins, and opens the Welcome: "Ryder invited you. You're a Translator on
-Anglish." The welcome shows the sign-in name once, with "write this down".
+Organization · from Ryder" → **Join as Nyibol** (primary) → the `join`
+function makes the account and the membership, and the phone is signed in
+→ Welcome: "Ryder invited you. You're a Translator on Anglish." Nothing to
+remember: on a new phone, they ask for help (F). A group invite asks for
+their name first. (Before 59: a name, a password twice, and a sign-in name
+to write down.)
 
 **B. Signed out, already has an account.**
 Scan → same card → **I already have an account** → Sign In, with a line
@@ -174,10 +191,11 @@ when you're connected" for an existing account; a new person needs a
 connection to create the account, and the button says so. The key stays
 held across restarts until it can be used.
 
-**F. Lost password or new phone (looked-after account).**
-The steward opens Members → the person → **Help them sign in** → a QR and
-the person's sign-in name. The person taps **Scan a code** on Sign In →
-signed in → asked to choose a new password.
+**F. New phone, reinstalled, or signed out (looked-after account).**
+A helper opens Members → the person → **Help them sign in** (with "Their
+old phone is lost" when it is) → a QR. The person taps **Scan a code** on
+Sign In → signed in, with nothing to type; their Settings says who helped.
+(Before 59: they chose a new password.)
 
 **G. Lost password (own email).** Section 8: a sign-in key emailed through
 the existing Cloudflare email worker, using the same `sign-in-code`
@@ -196,9 +214,12 @@ and the steward row is removed.
 | Caleb's case: one-language invite, signed out | A, lands on Welcome in that language | PR 22, and the key is claimed by the new account |
 | Leaves the scan screen, signs up elsewhere | Still joins | The key is held, not the screen |
 | Translator without email | A: a looked-after account | Section 3 |
-| Forgets password, or a new phone | F, from their steward or an org admin | Every account has someone who can get it back in |
-| Inviter leaves the organization | An org admin helps instead | `may_help_sign_in` |
-| Shared phone, several translators | Each has a sign-in name and password; signing out keeps nobody's key | Claims bind to one account |
+| A new phone, or signed out | F, from anyone who can invite them where they are | Every account has someone who can get it back in |
+| Phone lost or stolen | F with "Their old phone is lost": the old phone is signed out | The code ends every other session (59) |
+| Inviter leaves the organization | They can no longer help; anyone else with Invite there can | `may_help_sign_in` follows current roles (59) |
+| The reply to Join is lost | Tapping Join again signs the same account in | One request id per join (59) |
+| Shared phone, several translators | Each can set a password for it; signing out keeps nobody's key | Claims bind to one account |
+| Signs out of a shared phone with work unsent | Signs out anyway; the work still goes, as them, when the phone is online | The hand-over keeps their session only until it has gone (60) |
 | Someone else signed in when a key is scanned | Asked "Join as X?", with "Not X?" | `unclaimed` never joins on its own |
 | Scans the same code twice | Joins once, the second scan says "You're already in" | Redemption is idempotent per person |
 | Someone else's used code | "This invite has been used. Ask for a new one." | `preview_invite` says `used` |

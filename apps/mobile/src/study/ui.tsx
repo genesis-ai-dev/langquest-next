@@ -12,6 +12,7 @@ import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, type La
 import { openContentLink } from '../share';
 import { AudioClip } from '../audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
+import { studyUri } from './studyFiles';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { Field, Ico, NoteCard, PrimaryBtn, Sheet, txt, type IconName } from '../kit';
@@ -48,7 +49,9 @@ export interface StudyAudio {
  * (offline), so the screen behaves the same either way. The file is only
  * fetched on the first Play, to spare field data.
  */
-export function useStudyAudio(url: string | undefined, estimate: number): StudyAudio {
+export function useStudyAudio(address: string | undefined, estimate: number): StudyAudio {
+  // The phone's copy when the passage is kept offline (studyFiles.ts), else the web.
+  const url = studyUri(address);
   const player = useRef<AudioPlayer | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -330,7 +333,8 @@ function MediaImage(props: { item: StudyMedia; orgId?: string | null }) {
       </View>
     );
   }
-  return <Image source={{ uri }} accessibilityLabel={it.title} onError={() => setFailed(true)}
+  // A kept copy of a picture known only by its address plays from the phone (studyFiles.ts); a stored file is already local.
+  return <Image source={{ uri: it.file ? uri : studyUri(uri) }} accessibilityLabel={it.title} onError={() => setFailed(true)}
     resizeMode={it.kind === 'map' ? 'contain' : 'cover'} style={styles.image} />;
 }
 

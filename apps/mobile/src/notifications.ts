@@ -23,6 +23,19 @@ export async function unregisterNotifications(): Promise<void> {
   if (error) throw new Error('Connect once to disconnect notifications before signing out.');
   await AsyncStorage.removeItem('push-token');
 }
+/**
+ * Sign-out on a shared phone (handOver.ts): disconnect notifications now if
+ * the server answers, else return the token so the hand-over disconnects
+ * it as this person later. Either way the phone forgets it, so the next
+ * person here starts without it.
+ */
+export async function handOverPushToken(): Promise<string | undefined> {
+  const token = await AsyncStorage.getItem('push-token');
+  if (!token) return undefined;
+  const { error } = await supabase.rpc('unregister_push_token', { p_token: token });
+  await AsyncStorage.removeItem('push-token');
+  return error ? token : undefined;
+}
 export interface RemoteNotification {
   id: string; seq: number; org_id: string; project_id: string;
   kind: string; title: string; task_id: string | null;

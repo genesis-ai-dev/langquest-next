@@ -84,7 +84,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | --- | --- |
 | Collects or shares required data types | Yes |
 | Encrypted in transit | Yes: Supabase, the reports server (a Cloudflare Worker, decisions.md 44), Bible text and audio (Bible Brain's CDN, OpenBible) and guide media over HTTPS; no cleartext allowed |
-| Account creation | Username and password: an email and password, or, for someone joining by invite with no email, a sign-in name and password (docs/invites-and-accounts.md); no OAuth, no other authentication |
+| Account creation | Username, password and other authentication: an email and password; or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
@@ -114,7 +114,7 @@ The Reports section's map and country names (`d3-geo`, `topojson-client`,
 `world-atlas`, `i18n-iso-countries`) are code and data inside the app: they
 make no network calls and collect nothing.
 
-Bible text and audio (docs/reference-material.md, decisions.md 59) come
+Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from
 Bible Brain's CDN or openbible.com by plain links, as a browser fetches a

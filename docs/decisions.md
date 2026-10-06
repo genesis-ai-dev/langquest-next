@@ -165,6 +165,11 @@ Amended (2026-10-03, Carl Sauder): on the web, signing out from "What brings
 you here?" waits for queued account changes too, since there sign-out
 forgets the browser (11, amended); a phone signs out there as before.
 
+Amended (2026-10-05, Caleb Koster): on a phone, unsent work no longer
+refuses sign-out; it is handed over and still goes as its author (60). The
+count is only the signed-in person's own work, never another person's on the
+same phone (`pendingCountBy`). The web keeps the refusal.
+
 ## 13. Two recorders, on purpose
 
 Date: 2026-09-14 · By: Ryder Wishart · Status: accepted
@@ -1151,7 +1156,7 @@ synced, or we need percentage rollouts that organizations cannot override.
 
 ## 54. Getting in is a key the phone holds, and an account without email has a steward
 
-Date: 2026-10-01 · By: Caleb Koster · Status: accepted
+Date: 2026-10-01 · By: Caleb Koster · Status: partly superseded by 59
 
 Reason: a signed-out person who scanned a QR invite was sent to Sign In with
 no account, had to find the invite again after signing up, and an invite
@@ -1376,7 +1381,133 @@ both `.well-known` files are unchanged. To turn it on: enable Associated
 Domains on `com.frontierrnd.langquestnext` in the developer portal, make a
 new App Store profile (`eas credentials`), and put `associatedDomains` back.
 
-## 59. Reference material is library documents placed by coordinates, recommended at three levels, and recorded where it was used
+## 59. Joining by invite needs no password, and whoever can invite you can get you back in
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: supersedes part of 54. People invited by QR in the field often have
+no email and will not remember a sign-in name or a password, so 54's join
+(a name, a password twice, a sign-in name to write down) asked them for what
+they would lose, and its recovery made them choose a new password anyway.
+Caleb chose (2026-10-05) the direction tried in the partner demo (its
+ADR-031, branch `caleb-qr-onboarding`):
+- Joining by invite makes the account with no password. The `join` Edge
+  Function takes the invite from a signed-out phone, makes a looked-after
+  account named as the inviter typed (a group invite asks for the name),
+  adds the membership through `redeem_invite_for`, and returns a session.
+  It is safe to repeat: the phone sends one request id per join
+  (`invite_join_requests`). The account's password is random and never
+  shown; the person may set one later, for a shared phone.
+- Getting back in is a helper's code that signs the person straight in
+  (`sign-in-code` without a password returns a session). Whoever holds
+  Invite at a scope that covers one of the person's memberships may help,
+  while they hold it (`may_help_sign_in`); the steward row now only says
+  who to ask. A helper can mark the old phone lost
+  (`issue_sign_in_code_v2`), and the code then signs every other session of
+  the account out.
+- Adding a proven email ends help codes for that person
+  (`take_sign_in_code_v2` refuses accounts with their own email); the
+  emailed codes that prove an address come next.
+Builds from before keep working: `redeem_invite_v2`, `issue_sign_in_code`
+and the password path of `sign-in-code` keep their contracts. Migration
+`20261005120000_join_without_password.sql`, tests `server/joinSmoke.sql`,
+design in `docs/invites-and-accounts.md`.
+Reverse if: people lose their way back in more often than helpers can bring
+them back (then joining asks for an optional password again), or help codes
+are misused (then help narrows to organization admins, as 54 said).
+
+Amended (2026-10-05, Caleb Koster): the app side. Sign In and Create Account
+put their fields first, then "or", then the scanner, and the scanner opens
+its camera by itself. A one-person invite joins with "Join as {name}"; a
+group invite asks the name first. The Welcome says there is nothing to
+remember and who helps on a new phone; Settings says who helped and when
+(kept on the phone, `signInHelp.ts`), and offers Set a password for a shared
+phone (`has_password` in the account's metadata, set false by `join`). A
+scanned invite is now held until the invite itself expires, or a week when
+it was scanned offline, instead of 24 hours (`heldInvite.ts`): someone who
+scans in a village may find a signal days later, and claims already keep it
+from the next person on a shared phone.
+
+## 60. Signing out of a shared phone hands unsent work over, and it still goes as its author
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: amends 12. A family or a team often shares one phone, and the
+people 59 brings in by QR are the least able to wait for a signal before
+handing it on. Under 12 the phone refused sign-out while anything was
+queued, so the next person could not sign in until the first person's work
+had gone, and offline that could be days. Caleb asked (2026-10-05) that
+several people's work on one phone be accounted for, and chose this:
+- Signing out with work still to send moves the session to its own key on
+  the phone with no server call (`signOutHandingOver` in `handOver.ts`), so
+  it works offline and the session stays good. The app then shows the
+  signed-out screen as for any sign-out; nothing on screen can use the
+  kept session.
+- A courier runs for the whole app, whoever is signed in
+  (`useHandOvers`). When the phone is online it sends that person's queued
+  events in every partition (`deliverQueued`, a push-only `SyncClient` that
+  never folds or re-stamps), their account changes, the recordings the
+  server had not confirmed at sign-out, and the disconnect of their
+  notifications, all under their own session, so the server's rule that an
+  event comes from its author holds. Then it signs the kept session out and
+  forgets it.
+- If they sign back in on this phone first, their own session takes over
+  and the courier forgets theirs. If the server will not renew the kept
+  session, the courier forgets it and the work waits, still queued, for
+  their next sign-in; nothing is ever deleted unsent (events are pruned
+  only once confirmed, recordings evicted only once the server has them).
+- Everyone's events share the phone's one log as before; each session
+  pushes and counts only its own (`pendingPage` filtered by actor,
+  `pendingCountBy`). A browser forgets everything on sign-out (11), so the
+  web keeps 12's refusal.
+The kept session is the same kind of secret supabase-js already keeps on
+the phone (AsyncStorage), and lasts only until the work has gone.
+Recordings in a language other than the one open at sign-out are not
+listed; they go when anyone who works in that language opens it here, as
+before. Tests `packages/client/test/courier.test.ts`,
+`apps/mobile/test/handOver.test.ts`.
+Reverse if: kept sessions outlive their work in the field (then they
+expire after a set time), or a phone signs work in as the wrong person.
+
+## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
+
+Date: 2026-10-05 · By: Caleb Koster · Status: accepted
+
+Reason: a person can read and play passages while connected and assume they
+will still have them in the field, then find out after a long trip that the
+audio never came along. The offline scope was already precise (PLAN.md
+section 14 rule 10: assigned, worked in, or chosen with `keepOffline`), but
+nothing on screen showed it and nothing let anyone choose a passage. Core
+`offlineByUnit` and `offlineSummary` (`packages/core/src/blobs.ts`) count, per
+passage and for the whole scope, the audio a passage plays (its own and what
+it inherits, the same set the downloader fetches), how much is here, what is
+still to fetch and what nobody has sent yet. The app shows it in three places
+(`apps/mobile/src/offline.tsx`): a line on each passage ("On this phone",
+"Downloading for offline" with progress, or "Not kept on this phone" with
+Keep offline), a mark on the Map's passage discs and chapter tiles for kept
+passages, and a
+"Ready for offline" row in Settings that opens the Sync screen, which lists
+what is always here and what always needs a connection (unkept audio and
+study material, study films, reports, other languages). On a phone, a kept
+passage also takes its study guide along: step audio, glossary audio,
+pictures and maps (`study/StudyPrefetch.tsx` finds the guides,
+`study/studyFiles.ts` keeps the files by a hash of their address and screens
+play the local copy first). Films stay online because of their size, and the
+web app keeps none, since it needs a connection to open (decision 58). Study
+files are not evicted; FIA's are low-resolution copies. A passage is ready when
+it is kept and every file the server has is on the phone; a recording not yet
+sent from the phone that made it cannot block that, and is named instead.
+Text, status and history are not counted: the open language's partition is
+always whole on the phone. Keep offline works on the content template's own
+units, so it is a chapter where the template splits by chapter and a passage
+where it splits by passage; there is no separate chapter-wide switch
+(Caleb's call, 2026-10-05).
+Reverse if: people keep so many passages that the 2 GB cache evicts kept
+audio's neighbours in practice (then the Settings line needs a size budget),
+the study file folder grows past what phones can spare (then it needs the
+same eviction rules as audio), or teams need films in the field.
+
+## 62. Reference material is library documents placed by coordinates, recommended at three levels, and recorded where it was used
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
 

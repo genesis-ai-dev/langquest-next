@@ -91,9 +91,9 @@ export function Welcome(ctx: Ctx) {
         </Text>
       </View>
       {handle ? (
-        // A looked-after account signs in with this, not an email (docs/invites-and-accounts.md).
-        <Banner icon="lock" title={`Your sign-in name is ${handle}`}
-          body="Write it down. You'll need it with your password. If you forget either, the person who invited you can help you back in." />
+        // Joined by invite with no email or password: nothing to remember (decisions.md 59).
+        <Banner icon="lock" title="Nothing to remember"
+          body={`This phone keeps you signed in. On a new phone, ask ${who.invitedBy ?? 'the person who invited you'} to help you sign in.`} />
       ) : null}
       <Group>
         {points.map((p, i) => <Row key={p.text} icon={p.icon} label={p.text} last={i === points.length - 1} />)}

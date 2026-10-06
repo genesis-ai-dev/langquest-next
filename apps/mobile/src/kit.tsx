@@ -7,7 +7,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
   ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
-  ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, Download, Filter, Flag, Folder, Globe, History,
+  ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
@@ -36,7 +36,7 @@ export const ICONS = {
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, up: ChevronUp, user: User, video: Video,
-  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers
+  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, onPhone: CloudCheck, notOnPhone: CloudOff
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
@@ -231,6 +231,21 @@ export function SectionLabel(props: { label: string; action?: ReactNode }) {
     <View style={styles.sectionLabel}>
       <Text style={txt.label}>{props.label}</Text>
       {props.action}
+    </View>
+  );
+}
+
+/**
+ * "──── or ────" between two ways to do one thing that never combine, such as
+ * typing an email or scanning a code (the demo's ADR-031): nothing above it
+ * carries below.
+ */
+export function OrDivider() {
+  return (
+    <View style={styles.orDivider} accessibilityRole="text" accessibilityLabel="or">
+      <View style={styles.orRule} />
+      <Text style={[txt.smMuted, { fontWeight: '600' }]}>or</Text>
+      <View style={styles.orRule} />
     </View>
   );
 }
@@ -721,6 +736,8 @@ const styles = StyleSheet.create({
   cardCurrent: { borderColor: C.primary, borderWidth: 2 },
   group: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden', ...shadow },
   sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xs, paddingTop: space.md },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
+  orRule: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: C.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   rowCurrent: { backgroundColor: C.light },

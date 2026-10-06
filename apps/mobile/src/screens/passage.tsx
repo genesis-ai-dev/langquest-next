@@ -32,6 +32,7 @@ import {
 import { Journey } from '../passage/journey';
 import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarget } from '../passage/sendTarget';
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
+import { PassageOffline, PassageOfflineLine } from '../offline';
 import { noteExpected, reportError } from '../report';
 import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
 import { UsedLine } from '../sources/used';
@@ -286,6 +287,7 @@ export function PassageRecord(ctx: Ctx) {
         <View ref={content} collapsable={false} style={{ gap: space.md }}>
           <Card>
             <Hero ctx={ctx} v={v} mine={mine} {...(latest ? { latest: { text: describe(latest), hlc: latest.hlc } } : {})} />
+            <PassageOfflineLine ctx={ctx} unitId={unitId} />
             <Journey ctx={ctx} v={v} versionIdx={Math.min(versionIdx, Math.max(0, p.versions.length - 1))} onVersion={setVersionIdx}
               canAct={can.ask || can.log || can.review} teamName={teamName}
               onOpenStep={setOpenStepId} onCurrentLayout={scrollToCurrent}
@@ -301,6 +303,9 @@ export function PassageRecord(ctx: Ctx) {
                   onRecord={() => go('workspace')} onStudy={() => go('study_guide')} onAskRecord={() => go('ask_someone', { what: 'record' })} />
               )} />
           </Card>
+
+          {/* What comes along without a connection, before anyone finds out in the field (decisions.md 61). */}
+          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
 
           {showDetails ? <SectionLabel label="Details" /> : null}
           {study ? (

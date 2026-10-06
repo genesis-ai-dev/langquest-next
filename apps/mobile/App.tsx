@@ -1,3 +1,4 @@
+import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { orgQueries } from './src/orgQueries';
 import { getStore } from './src/store';
 import { highlightsFor, orgLanguages, updatesFor, withOrgMembers, type EventSpec } from '@langquest-next/core';
@@ -58,6 +59,7 @@ import { useOrg, type OrgHandle } from './src/useOrg';
 import { useLibraryFollow } from './src/library/follow';
 import { useSourceOffline } from './src/sources/offline';
 import { useProject } from './src/useProject';
+import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
 
 // Initial selection, before the account's saved organization is restored.
@@ -244,6 +246,8 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
+  // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
+  useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   useEffect(() => {
     if (supabaseConfigError) return;
     supabase.auth.getSession().then(({ data }) => setAuth(data.session));
@@ -724,6 +728,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
           <PaneKeyContext.Provider value={paneKey}>
           <FooterReportContext.Provider value={wide ? reportFooter : null}>
           <CtxContext.Provider value={ctx}>
+            <StudyPrefetch ctx={ctx} />
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>

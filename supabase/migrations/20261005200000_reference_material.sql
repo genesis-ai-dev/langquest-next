@@ -1,4 +1,4 @@
--- Reference material (docs/reference-material.md, decisions.md 59).
+-- Reference material (docs/reference-material.md, decisions.md 62).
 --
 --   v1.ReferenceRecommended      { itemId, recommended }                 org partition
 --   v1.LaneReferenceRecommended  { laneId, itemId, state }               state: recommended | hidden | inherit

@@ -2,7 +2,7 @@
 
 Everything a translator consults beside the recorder: Bible text and audio
 to read and hear, study guides (FIA and guides an organization writes), and
-notes for translators. Decision 59 in `docs/decisions.md` says why it is
+notes for translators. Decision 62 in `docs/decisions.md` says why it is
 shaped this way; the review behind it is the Claude Doc "LangQuest Next:
 reference material review and design" (2026-10-05).
 

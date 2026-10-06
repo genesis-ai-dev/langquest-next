@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
       - run: npx vitest run
@@ -58,14 +58,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
       - name: Start Supabase (applies every migration)
         run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor
+      # A new language needs a template, and templates live in the LangQuest
+      # library (docs/library.md), which migrations do not create.
+      - name: Publish the LangQuest library
+        run: npm run library:seed
       - name: Smoke-test the web app
         shell: bash
         run: source smart-tests/env.sh && npx playwright test -c smart-tests/web-smoke.config.ts
+      # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
+      - name: Keep the smoke results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-smoke-results
+          path: smart-tests/results
+          if-no-files-found: ignore
 
   journeys:
     # Manual until smart-tests/world.ts seeds main's org > language model
@@ -87,7 +99,7 @@ jobs:
           [ -n "$OPENROUTER_API_KEY" ] \
             || { echo "::error::Set the OPENROUTER_API_KEY repo secret; journeys cannot judge without it."; exit 1; }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       - uses: astral-sh/setup-uv@v6
         with: { python-version: '3.12' }
       - run: npm ci
