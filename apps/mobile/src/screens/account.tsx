@@ -35,6 +35,7 @@ import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
 import { homeScreenFor } from '../session';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
+import { HANDS_OVER, signOutHandingOver } from '../handOver';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
@@ -664,25 +665,35 @@ export function SignOutConfirm(ctx: Ctx) {
   const inviter = useInviterName(ctx);
   const [hasPassword] = useHasPassword();
   const needsHelp = ctx.session.isManaged && hasPassword === false;
+  // A phone hands unsent work over and sends it as you later (decisions.md 60); a browser waits for it.
+  const handsOver = HANDS_OVER && waiting.length > 0;
   async function signOut() {
     setBusy(true);
     try {
+      if (handsOver) {
+        const { orgId, projectId } = ctx.project;
+        await signOutHandingOver(ctx.session.actorId, ctx.project.blobs.unsent().map((ref) => ({ orgId, projectId, ref })));
+        return;
+      }
       await unregisterNotifications();
       const result = await supabase.auth.signOut();
       if (result.error) throw result.error;
       await forgetThisBrowser();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
-  const blocked = waiting.length > 0;
-  const why = blocked
-    ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
-    : refused
-      ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this phone.'
-      : needsHelp
-        ? `To sign back in, you'll need a code from ${inviter ?? 'the person who invited you'} or an admin. If other people use this phone, set a password in Edit Profile first.`
-        : FORGETS_ON_SIGN_OUT
-          ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
-          : 'You can sign back in anytime.';
+  const blocked = waiting.length > 0 && !handsOver;
+  const helpLine = `To sign back in, you'll need a code from ${inviter ?? 'the person who invited you'} or an admin.`;
+  const why = handsOver
+    ? `Still to send: ${waiting.join(', ')}. All of it will still be sent, as you, when this phone is online.${needsHelp ? ` ${helpLine}` : ''}`
+    : blocked
+      ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
+      : refused
+        ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this phone.'
+        : needsHelp
+          ? `${helpLine} If other people use this phone, set a password in Edit Profile first.`
+          : FORGETS_ON_SIGN_OUT
+            ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
+            : 'You can sign back in anytime.';
   return (
     <Screen bodyStyle={styles.centered}
       footer={
@@ -691,8 +702,8 @@ export function SignOutConfirm(ctx: Ctx) {
           <GhostBtn label="Cancel" onPress={ctx.back} />
         </>
       }>
-      <View style={[styles.bigTile, { backgroundColor: blocked ? TINT.amber : TINT.red }]}>
-        <Ico name={blocked ? 'cloud' : 'user'} size={32} color={blocked ? TINT.amberText : C.red} />
+      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
+        <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
       </View>
       <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? 'Not yet' : 'Sign out?'}</Text>
       <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>

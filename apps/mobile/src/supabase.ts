@@ -27,13 +27,35 @@ export const supabaseConfigError: string | null = !url || !anon
 export const supabaseUrl = url ?? 'https://unconfigured.invalid';
 export const supabaseAnonKey = anon ?? 'unconfigured';
 
+/**
+ * Where the session is kept: supabase-js's own default, named here so a
+ * hand-over (handOver.ts) can move it to another key without a server call.
+ * Changing it would sign everyone out.
+ */
+export function sessionStorageKey(serverUrl: string): string {
+  return `sb-${new URL(serverUrl).hostname.split('.')[0]}-auth-token`;
+}
+export const SESSION_KEY = sessionStorageKey(supabaseUrl);
+
 // A placeholder keeps `createClient` from throwing when the config is
 // missing; nothing calls it, because App shows the error instead.
-export const supabase = createClient(url ?? 'https://unconfigured.invalid', anon ?? 'unconfigured', {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
+    storageKey: SESSION_KEY,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false
   }
 });
+
+/**
+ * A client for someone signed out of this phone whose work is still to
+ * go (decisions.md 60). Its session lives under `storageKey`, so a renewed
+ * token is kept there and survives a restart; it renews only when used.
+ */
+export function clientKeptAt(storageKey: string) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { storage: AsyncStorage, storageKey, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false }
+  });
+}

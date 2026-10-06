@@ -111,6 +111,14 @@ export class MemoryStore implements EventStore {
     return this.partition(orgId, projectId).filter((e) => e.status === 'pending').length;
   }
 
+  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]> {
+    const seen = new Map<string, { orgId: string; projectId: string }>();
+    for (const l of this.events.values()) {
+      if (l.status === 'pending' && l.event.actorId === actorId) seen.set(`${l.event.orgId}/${l.event.projectId}`, { orgId: l.event.orgId, projectId: l.event.projectId });
+    }
+    return [...seen.values()].sort((a, b) => (`${a.orgId}/${a.projectId}` < `${b.orgId}/${b.projectId}` ? -1 : 1));
+  }
+
   async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
     return this.partition(orgId, projectId).filter((e) => e.status === 'pending' && e.event.actorId === actorId).length;
   }

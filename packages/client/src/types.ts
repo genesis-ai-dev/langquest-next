@@ -76,6 +76,8 @@ export interface EventStore {
    * them (decisions.md 11), so "still to send" is counted per person.
    */
   pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number>;
+  /** Every partition holding pending events by one person: where a hand-over courier has work (decisions.md 60). */
+  pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]>;
   /** How many events all() returns, without loading them. */
   count(orgId: string, projectId: string): Promise<number>;
   /** Every non-rejected event for a partition (confirmed then pending is fine). */

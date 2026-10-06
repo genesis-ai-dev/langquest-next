@@ -211,6 +211,15 @@ export class SqliteStore implements EventStore {
     return Number(rows[0]?.n ?? 0);
   }
 
+  async pendingPartitionsBy(actorId: string): Promise<{ orgId: string; projectId: string }[]> {
+    const rows = await this.db.all<{ org_id: string; project_id: string }>(
+      `select distinct org_id, project_id from events where status = 'pending' and json_extract(json, '$.actorId') = ?
+       order by org_id, project_id`,
+      [actorId]
+    );
+    return rows.map((r) => ({ orgId: r.org_id, projectId: r.project_id }));
+  }
+
   async pendingCountBy(orgId: string, projectId: string, actorId: string): Promise<number> {
     // The outbox is small and already narrowed by the index, so reading the
     // author out of the stored event costs less than a column and a migration.
