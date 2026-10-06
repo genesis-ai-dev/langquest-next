@@ -91,18 +91,18 @@
    "label": "tap Browse public projects"
   },
   {
+   "from": "sign_in",
+   "to": "scan_qr",
+   "mode": "push",
+   "when": "guest",
+   "label": "tap Scan a code"
+  },
+  {
    "from": "create_account",
    "to": "scan_qr",
    "mode": "push",
    "when": "guest",
-   "label": "tap Scan org invite"
-  },
-  {
-   "from": "create_account",
-   "to": "welcome",
-   "mode": "replace",
-   "when": null,
-   "label": "tap Create Account · with an invite"
+   "label": "tap Scan an invite"
   },
   {
    "from": "create_account",
@@ -123,7 +123,28 @@
    "to": "welcome",
    "mode": "replace",
    "when": null,
-   "label": "tap Capture"
+   "label": "tap Join as …"
+  },
+  {
+   "from": "scan_qr",
+   "to": "home_hub",
+   "mode": "replace",
+   "when": null,
+   "label": "tap Sign in as … (a helper's sign-in code)"
+  },
+  {
+   "from": "scan_qr",
+   "to": "sign_in",
+   "mode": "reset",
+   "when": "guest",
+   "label": "tap I already have an account (guest only)"
+  },
+  {
+   "from": "scan_qr",
+   "to": "sign_in",
+   "mode": "back",
+   "when": "guest",
+   "label": "tap Back (from sign-in)"
   },
   {
    "from": "scan_qr",

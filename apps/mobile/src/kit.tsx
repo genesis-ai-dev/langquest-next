@@ -235,6 +235,21 @@ export function SectionLabel(props: { label: string; action?: ReactNode }) {
   );
 }
 
+/**
+ * "──── or ────" between two ways to do one thing that never combine, such as
+ * typing an email or scanning a code (the demo's ADR-031): nothing above it
+ * carries below.
+ */
+export function OrDivider() {
+  return (
+    <View style={styles.orDivider} accessibilityRole="text" accessibilityLabel="or">
+      <View style={styles.orRule} />
+      <Text style={[txt.smMuted, { fontWeight: '600' }]}>or</Text>
+      <View style={styles.orRule} />
+    </View>
+  );
+}
+
 /** A tappable row: icon tile, label, sub, and a chevron (or `right`). 64pt tall. */
 export function Row(props: {
   icon?: IconName;
@@ -721,6 +736,8 @@ const styles = StyleSheet.create({
   cardCurrent: { borderColor: C.primary, borderWidth: 2 },
   group: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden', ...shadow },
   sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xs, paddingTop: space.md },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
+  orRule: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: C.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   rowCurrent: { backgroundColor: C.light },

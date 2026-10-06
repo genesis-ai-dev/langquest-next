@@ -1410,3 +1410,15 @@ design in `docs/invites-and-accounts.md`.
 Reverse if: people lose their way back in more often than helpers can bring
 them back (then joining asks for an optional password again), or help codes
 are misused (then help narrows to organization admins, as 54 said).
+
+Amended (2026-10-05, Caleb Koster): the app side. Sign In and Create Account
+put their fields first, then "or", then the scanner, and the scanner opens
+its camera by itself. A one-person invite joins with "Join as {name}"; a
+group invite asks the name first. The Welcome says there is nothing to
+remember and who helps on a new phone; Settings says who helped and when
+(kept on the phone, `signInHelp.ts`), and offers Set a password for a shared
+phone (`has_password` in the account's metadata, set false by `join`). A
+scanned invite is now held until the invite itself expires, or a week when
+it was scanned offline, instead of 24 hours (`heldInvite.ts`): someone who
+scans in a village may find a signal days later, and claims already keep it
+from the next person on a shared phone.

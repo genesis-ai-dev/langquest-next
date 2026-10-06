@@ -10,17 +10,18 @@
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { cachedPublicProjects, publicProjects, queueAccountAction, TERMS_VERSION, type PublicProject } from '../accountData';
-import { VISION_STEPS } from '../accountText';
-import { isSignInName, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../accounts';
+import { firstName, VISION_STEPS } from '../accountText';
+import { isSignInName, signInAddress, signInName } from '../accounts';
+import { recordHelp } from '../signInHelp';
 import { deadMessage, inviteCard, type DeadReason, type InvitePreview } from '../heldInvite';
 import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
 import { previewInvite, redeemSignInCode } from '../invites';
 import {
-  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Screen, SectionLabel,
+  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, Screen, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
 import { PRIVACY_URL } from '../legal';
@@ -97,6 +98,7 @@ export function SignIn(ctx: Ctx) {
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>Coordinating Bible translation — draft to approval</Text>
       </View>
       {joining ? <Banner icon="people" title="Sign in to join" body="Your invite is saved. You'll join as soon as you sign in." /> : null}
+      {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder="Email or sign-in name" keyboardType="email-address" autoCapitalize="none" />
         <Field value={password} onChangeText={setPassword} placeholder="Password" secure autoCapitalize="none" />
@@ -107,13 +109,14 @@ export function SignIn(ctx: Ctx) {
             By signing in you accept the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
           </Text>
         </Pressable>
-        <View style={styles.inline}>
-          <Text style={txt.smMuted}>Don't have an account?</Text>
-          <LinkBtn label="Create Account" onPress={() => ctx.go('create_account')} />
-        </View>
       </Card>
+      <OrDivider />
       <GhostBtn label="Scan a code" icon="qr" onPress={() => ctx.go('scan_qr')} />
-      <Text style={[txt.xs, { textAlign: 'center' }]}>An invite to join a team, or a code from the person helping you sign in.</Text>
+      <Text style={[txt.xs, { textAlign: 'center' }]}>An invite, or a code from someone helping you sign in</Text>
+      <View style={styles.inline}>
+        <Text style={txt.smMuted}>Don't have an account?</Text>
+        <LinkBtn label="Create Account" onPress={() => ctx.go('create_account')} />
+      </View>
       <GhostBtn label="Browse public work" icon="globe" onPress={() => ctx.go('explore_home')} />
       {ctx.canSwitchPersona ? (
         <LinkBtn label="Switch persona" color={C.muted} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
@@ -272,79 +275,54 @@ export function ExploreHome(ctx: Ctx) {
 // ---- Create Account (AUTH-2) ------------------------------------------------------------------------
 
 export function CreateAccount(ctx: Ctx) {
-  // Joining by invite as a new person (docs/invites-and-accounts.md flow A).
+  // Joining by invite as a new person, when the invite needs a name (a group invite).
   if (ctx.params['as'] === 'new') return <NewPerson {...ctx} />;
   return <EmailAccount {...ctx} />;
 }
 
 /**
- * A new person joining by invite: a name and a password, no email. The
- * account is looked after by whoever made the invite (accounts.ts), and the
- * held invite is used as soon as it exists, so there is no second Join.
+ * A new person joining by an invite that does not name them (a group invite,
+ * or an older one): their name, and nothing else. No email, no password: the
+ * invite makes the account and the phone stays signed in (decisions.md 59).
  */
 function NewPerson(ctx: Ctx) {
   const [name, setName] = useState(ctx.params['name'] ?? '');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const ready = name.trim().length > 0 && password.length >= 6 && password === confirm;
 
-  async function create() {
+  async function join() {
     setBusy(true);
     setError('');
-    try {
-      // Three digits keep sign-in names apart; on the rare clash, new digits.
-      for (let attempt = 0; attempt < 4; attempt++) {
-        const handle = makeSignInName(name, Math.floor(Math.random() * 1000));
-        const { data, error } = await supabase.auth.signUp({ email: `${handle}@${MANAGED_DOMAIN}`, password });
-        if (error && /already registered|already exists/i.test(error.message)) continue;
-        if (error) {
-          noteExpected('sign up by invite', error);
-          setError(/fetch|network/i.test(error.message)
-            ? 'Creating an account needs a connection. Your invite is saved on this phone.'
-            : error.message);
-          return;
-        }
-        if (data.user) {
-          // Members see them by this name (decisions.md 47), and creating the account accepts the terms.
-          await queueAccountAction(data.user.id, 'profile', { displayName: name.trim() })
-            .catch((e: unknown) => { reportError('new person profile', e); });
-          await ctx.acceptTerms(data.user.id).catch((e: unknown) => { ctx.toast(failure('accept terms', e)); });
-        }
-        // The session starts the app over as this account; the held invite does the rest.
-        return;
-      }
-      setError('Please try again.');
-    } catch (e) {
-      setError(failure('sign up by invite', e));
-    } finally {
-      setBusy(false);
-    }
+    // Joining accepts the terms, as creating an account does (AUTH-1).
+    const refused = await ctx.invite.joinAsNew(name.trim(), (id) => ctx.acceptTerms(id));
+    // Signed in: the session starts the app over as this account.
+    if (refused) { setError(refused.message); setBusy(false); }
   }
 
   return (
     <Screen
-      header={<Header title="Join as a new person" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Creating…' : 'Create my account and join'} onPress={() => void create()} disabled={!ready || busy} />}
+      header={<Header title="Join with your invite" onBack={ctx.back} />}
+      footer={<PrimaryBtn label={busy ? 'Joining…' : 'Join'} icon="check" onPress={() => void join()} disabled={!name.trim() || busy} />}
     >
       <Text style={txt.bodyMuted}>
-        No email needed. You'll get a sign-in name to use with your password. If you forget it, the person who invited you can help you back in.
+        No email or password needed. Your team sees you by this name.
       </Text>
       <Field label="Your name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
-      <Field label="Password" value={password} onChangeText={setPassword} placeholder="Choose a password (6 or more characters)" secure autoCapitalize="none" />
-      <Field label="Confirm password" value={confirm} onChangeText={setConfirm} placeholder="Re-enter password" secure autoCapitalize="none" />
-      {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>Passwords do not match.</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
         <Text style={[txt.xs, { textAlign: 'center' }]}>
-          Creating an account accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
+          Joining accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
         </Text>
       </Pressable>
     </Screen>
   );
 }
 
+/**
+ * An account with an email, or an invite instead: two doors that never
+ * combine (the demo's ADR-031). The fields and their button come first, then
+ * "or", then the scanner. Scanning takes nothing typed above it.
+ */
 function EmailAccount(ctx: Ctx) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -390,33 +368,21 @@ function EmailAccount(ctx: Ctx) {
   }
 
   return (
-    <Screen
-      header={<Header title="Create Account" onBack={ctx.back} />}
-      footer={<PrimaryBtn label={busy ? 'Creating…' : 'Create Account'} onPress={() => void create()} disabled={!emailOk || !matches || busy} />}
-    >
-      <Text style={txt.bodyMuted}>
-        Got an invite QR code? Tap Scan org invite below: no email needed. Otherwise, create an email account and ask to join an organization.
-      </Text>
+    <Screen header={<Header title="Create Account" onBack={ctx.back} />}>
       <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" />
       <Field label="Password" value={password} onChangeText={setPassword} placeholder="Choose a password (6 or more characters)" secure autoCapitalize="none" />
       <Field label="Confirm password" value={confirm} onChangeText={setConfirm} placeholder="Re-enter password" secure autoCapitalize="none" />
       {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>Passwords do not match.</Text> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <Card onPress={() => ctx.go('scan_qr')} accessibilityLabel="Scan org invite">
-        <View style={styles.optionRow}>
-          <View style={styles.tile}><Ico name="qr" size={24} color={C.primary} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={[txt.body, { fontWeight: '600' }]}>Scan org invite</Text>
-            <Text style={txt.smMuted}>Join a team as a new person, with no email</Text>
-          </View>
-          <Ico name="right" size={22} color={C.muted} />
-        </View>
-      </Card>
+      <PrimaryBtn label={busy ? 'Creating…' : 'Create Account'} onPress={() => void create()} disabled={!emailOk || !matches || busy} />
       <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
         <Text style={[txt.xs, { textAlign: 'center' }]}>
           Creating an account accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
         </Text>
       </Pressable>
+      <OrDivider />
+      <GhostBtn label="Scan an invite" icon="qr" onPress={() => ctx.go('scan_qr')} />
+      <Text style={[txt.xs, { textAlign: 'center' }]}>No email or password needed. The invite makes your account and puts you on the team.</Text>
     </Screen>
   );
 }
@@ -425,10 +391,11 @@ function EmailAccount(ctx: Ctx) {
 
 /**
  * The one scanner (docs/invites-and-accounts.md). It reads both kinds of
- * key: an invite, which it holds and then asks who is joining, and a
- * steward's sign-in key, which sets a new password. It never remembers an
- * invite itself: the held invite (ctx.invite) survives this screen, sign-up
- * and restarts. What the card says comes from the server's preview only.
+ * key: an invite, which it holds and then asks who is joining, and a helper's
+ * sign-in key, which signs the person straight in (decisions.md 59). It never
+ * remembers an invite itself: the held invite (ctx.invite) survives this
+ * screen, sign-up and restarts. What the card says comes from the server's
+ * preview only. On a phone the camera starts by itself.
  */
 export function ScanQr(ctx: Ctx) {
   const { invite } = ctx;
@@ -440,6 +407,7 @@ export function ScanQr(ctx: Ctx) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const scanned = useRef(false);
+  const autoStarted = useRef(false);
   const [error, setError] = useState('');
   const guest = ctx.session.isGuest;
   const held = invite.held ?? null;
@@ -453,6 +421,17 @@ export function ScanQr(ctx: Ctx) {
     void previewInvite(held.token).then((p) => { if (active) setPreview(p); });
     return () => { active = false; };
   }, [held?.token, invite.status.kind]);
+  // Hold the invite as long as it lasts, now the server has said.
+  const { learn } = invite;
+  useEffect(() => { void learn(preview); }, [preview, learn]);
+
+  // Nothing read yet: open the camera, so pointing it is the only step.
+  useEffect(() => {
+    if (autoStarted.current || Platform.OS === 'web' || !permission || held || signinCode) return;
+    autoStarted.current = true;
+    if (permission.granted) { setScanning(true); return; }
+    if (permission.canAskAgain) void requestPermission().then((r) => { if (r.granted) setScanning(true); });
+  }, [permission, held, signinCode, requestPermission]);
 
   async function read(value: string) {
     const key = parseKey(value);
@@ -481,20 +460,39 @@ export function ScanQr(ctx: Ctx) {
   const claimedHere = held?.claim.kind === 'next-account';
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId]
     ?? signInName(ctx.session.email) ?? ctx.session.email?.split('@')[0] ?? 'you';
+  // A one-person invite names who it is for: they join with one tap. Any
+  // other (a group, or no name on it) asks their name first.
+  const named = preview?.status === 'ok' && preview.label && !preview.group ? preview.label : null;
+  const joining = invite.status.kind === 'joining';
+
+  async function joinNamed() {
+    setError('');
+    const refused = await invite.joinAsNew(undefined, (id) => ctx.acceptTerms(id));
+    if (!refused) return; // signed in: the session starts the app over as this account
+    if (refused.needsName) ctx.go('create_account', { as: 'new', name: '' });
+    else setError(refused.message);
+  }
 
   let footer: ReactNode = null;
   if (signinCode) footer = null;
   else if (held && !dead && !alreadyIn) {
     footer = guest ? (
       <>
-        <PrimaryBtn label="Join as a new person" icon="plus" onPress={() => void invite.choose('next-account').then(() =>
-          ctx.go('create_account', { as: 'new', ...(preview?.label && !preview.group ? { name: preview.label } : {}) }))} />
-        <GhostBtn label="I already have an account" onPress={() => void invite.choose('next-account').then(() => ctx.go('sign_in'))} />
+        {named ? (
+          <PrimaryBtn label={joining ? 'Joining…' : `Join as ${firstName(named) || named}`} icon="check" busy={joining} disabled={joining}
+            onPress={() => void joinNamed()} />
+        ) : (
+          <PrimaryBtn label="Join" icon="check" disabled={joining}
+            // A group invite's label names the group, not the person: they type their own name
+            // (an empty name, so no earlier visit's name carries over).
+            onPress={() => ctx.go('create_account', { as: 'new', name: '' })} />
+        )}
+        <GhostBtn label="I already have an account" disabled={joining} onPress={() => void invite.choose('next-account').then(() => ctx.go('sign_in'))} />
       </>
     ) : (
       <>
-        <PrimaryBtn label={invite.status.kind === 'joining' ? 'Joining…' : `Join as ${me}`} icon="check"
-          busy={invite.status.kind === 'joining'} disabled={invite.status.kind !== 'idle' && invite.status.kind !== 'dead'}
+        <PrimaryBtn label={joining ? 'Joining…' : `Join as ${me}`} icon="check"
+          busy={joining} disabled={invite.status.kind !== 'idle' && invite.status.kind !== 'dead'}
           onPress={() => void invite.choose('me')} />
         <GhostBtn label={`Not ${me}? Sign out first`} onPress={() => ctx.go('sign_out_confirm')} />
       </>
@@ -503,7 +501,7 @@ export function ScanQr(ctx: Ctx) {
 
   return (
     <Screen
-      header={<Header title="Scan QR code" sub={signinCode ? 'Choose a new password' : guest ? 'No email needed: an invite can make your account' : 'Invite includes organization, role, and scope'} onBack={ctx.back} />}
+      header={<Header title="Scan a code" sub={signinCode ? 'A code from someone helping you sign in' : guest ? 'No email or password needed' : 'Invite includes organization, role, and scope'} onBack={ctx.back} />}
       footer={footer}
     >
       {signinCode ? <SignInKey ctx={ctx} code={signinCode} onCancel={() => setSigninCode(null)} /> : (
@@ -530,7 +528,7 @@ export function ScanQr(ctx: Ctx) {
               }]} />
             ))}
             <Text style={styles.viewfinderHint}>
-              {scanning ? 'Point the camera at the code' : held ? 'Invite read' : 'Tap Scan to use the camera'}
+              {scanning ? 'Point the camera at the code' : held ? 'Code read' : 'Tap Scan to use the camera'}
             </Text>
           </View>
           {held ? (
@@ -541,7 +539,7 @@ export function ScanQr(ctx: Ctx) {
                   <Text style={[txt.body, { fontWeight: '700' }]}>{card.title}</Text>
                   {card.detail ? <Text style={txt.smMuted}>{card.detail}</Text> : null}
                   {card.from ? <Text style={txt.xs}>From {card.from}</Text> : null}
-                  {!preview ? <Text style={txt.xs}>Your role shows once you join.</Text> : null}
+                  {!preview ? <Text style={txt.xs}>Your role shows once you're connected.</Text> : null}
                 </View>
               </View>
             </Card>
@@ -551,8 +549,15 @@ export function ScanQr(ctx: Ctx) {
           {invite.status.kind === 'waiting' ? (
             <Banner icon="cloud" title="Saved on this phone" body="You'll join as soon as there's a connection. You can leave this screen." />
           ) : null}
-          {guest && claimedHere ? (
-            <Text style={txt.xs}>Saved on this phone: you'll join as soon as you have an account.</Text>
+          {guest && claimedHere && !joining ? (
+            <Text style={txt.xs}>Saved on this phone: you'll join as soon as you sign in.</Text>
+          ) : null}
+          {guest && held && !dead && !alreadyIn ? (
+            <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
+              <Text style={[txt.xs, { textAlign: 'center' }]}>
+                Joining accepts the <Text style={styles.termsLink}>Terms of Use and Privacy Policy</Text>
+              </Text>
+            </Pressable>
           ) : null}
           <GhostBtn label={scanning ? 'Stop camera' : held ? 'Scan a different code' : 'Scan QR code'} icon="camera" onPress={toggleCamera} />
           <Field label="Or paste the code or link" value={text} autoCapitalize="none" placeholder="Invite or sign-in code"
@@ -567,17 +572,15 @@ export function ScanQr(ctx: Ctx) {
 }
 
 /**
- * A steward's sign-in key (flow F): choose a new password, and the phone
- * signs in with it. Only for someone signed out; a signed-in phone would
- * otherwise hand its own session over by surprise.
+ * A helper's sign-in key (flow F, decisions.md 59): it signs the person
+ * straight in, with nothing to type, and Settings later says who helped.
+ * Only for someone signed out; a signed-in phone would otherwise hand its
+ * own session over by surprise.
  */
 function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   const { ctx } = props;
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const ok = password.length >= 6 && password === confirm;
   if (!ctx.session.isGuest) {
     return (
       <>
@@ -590,10 +593,15 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
     setBusy(true);
     setError('');
     try {
-      const name = await redeemSignInCode(props.code, password);
-      const { data, error } = await supabase.auth.signInWithPassword({ email: signInAddress(name), password });
+      const help = await redeemSignInCode(props.code);
+      const { data, error } = await supabase.auth.setSession(help.session);
       if (error) { noteExpected('sign in with code', error); setError(error.message); return; }
-      if (data.user) await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
+      if (data.user) {
+        await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
+        await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
+      }
+      ctx.toast(help.oldPhoneSignedOut ? 'Signed in. Your old phone is signed out.'
+        : help.helper ? `Signed in with ${help.helper}'s help` : 'Signed in');
     } catch (e) {
       noteExpected('sign-in code', e);
       setError(e instanceof Error ? e.message : 'Try again when connected.');
@@ -603,12 +611,9 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   }
   return (
     <>
-      <Banner icon="lock" title="Someone is helping you sign in" body="Choose a new password. Your sign-in name stays the same." />
-      <Field label="New password" value={password} onChangeText={setPassword} placeholder="6 or more characters" secure autoCapitalize="none" />
-      <Field label="Confirm password" value={confirm} onChangeText={setConfirm} placeholder="Re-enter password" secure autoCapitalize="none" />
-      {confirm.length > 0 && password !== confirm ? <Text style={txt.error}>Passwords do not match.</Text> : null}
+      <Banner icon="lock" title="Someone is helping you sign in" body="Nothing to type: this signs you in on this phone, with all your work." />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
-      <PrimaryBtn label="Save and sign in" busy={busy} disabled={!ok || busy} onPress={() => void go()} />
+      <PrimaryBtn label={busy ? 'Signing in…' : 'Sign in'} icon="check" busy={busy} disabled={busy} onPress={() => void go()} />
       <LinkBtn label="Cancel" color={C.muted} onPress={props.onCancel} style={{ alignSelf: 'center' }} />
     </>
   );

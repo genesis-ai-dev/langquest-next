@@ -52,5 +52,9 @@ always a way back to a home.
 ## Getting in
 
 The sign-in, invite and welcome screens follow `docs/invites-and-accounts.md`
-(decision 54): "Join as a new person" is the main action, "I already have an
-account" the secondary one.
+(decisions 54 and 59, the demo's ADR-031). Sign In and Create Account each
+put their fields and button first, then "or", then the scanner: two ways in
+that never combine. On the scan screen a one-person invite's main action is
+"Join as {name}" (no email, no password), a group invite's is "Join" (their
+name next), and "I already have an account" is the secondary one. A helper's
+sign-in code has one action, "Sign in".
