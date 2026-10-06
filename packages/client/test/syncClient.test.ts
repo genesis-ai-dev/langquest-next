@@ -196,7 +196,12 @@ describe('SyncClient', () => {
     await b.load();
     expect((await b.push()).accepted).toBe(0);
     expect(server.log.length).toBe(0);
+    // A's queued event is not B's to send, so B has nothing waiting: B's
+    // sign-out must not be held up by it, and A still sees it as unsent.
+    expect(await b.pendingCount()).toBe(0);
+    expect(await a.pendingCount()).toBe(1);
     expect((await a.push()).accepted).toBe(1);
+    expect(await a.pendingCount()).toBe(0);
   });
 });
 
