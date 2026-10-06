@@ -34,7 +34,7 @@ export interface VerseExtras {
 export interface SourceReaderProps {
   ctx: Ctx;
   unitId: string;
-  laneId: string;
+  languageId: string;
   /** 'pane': part of a scrolling pane (recorder, review). 'screen': its own scroll view, the player kept on top (study). */
   layout?: 'pane' | 'screen';
   header?: ReactNode;
@@ -56,7 +56,7 @@ export interface SourceReaderProps {
   scrollRef?: RefObject<ScrollView | null>;
 }
 
-const choiceKey = (actorId: string, orgId: string, laneId: string) => `source-choice:${actorId}:${orgId}:${laneId}`;
+const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
 const choices = new Map<string, string>();
 
 /** The version chosen last for this language on this phone, shared by the recorder, the study and the review. */
@@ -89,15 +89,15 @@ function useOffer(usage: Usage | undefined, passage: PassageSources): void {
  * screen where the reader sits behind a disclosure (the reviewer's
  * Background), so what was offered is recorded whether or not it was opened.
  */
-export function useOfferedSources(ctx: Ctx, unitId: string | undefined, laneId: string | undefined, usage: Usage | undefined): void {
-  const passage = useSources(ctx, unitId, laneId);
+export function useOfferedSources(ctx: Ctx, unitId: string | undefined, languageId: string | undefined, usage: Usage | undefined): void {
+  const passage = useSources(ctx, unitId, languageId);
   useOffer(usage, passage);
 }
 
 export function SourceReader(props: SourceReaderProps) {
-  const { ctx, unitId, laneId } = props;
-  const passage = useSources(ctx, unitId, laneId);
-  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.partition.orgId, laneId));
+  const { ctx, unitId, languageId } = props;
+  const passage = useSources(ctx, unitId, languageId);
+  const [chosen, choose] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId));
   const option = passage.options.find((o) => o.itemId === chosen) ?? passage.options[0];
 
   // Everything offered goes on the record; choosing a version is using it.

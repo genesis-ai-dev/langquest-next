@@ -1,15 +1,15 @@
 // Avatar U. Local and remote playback, paused before recording starts.
-import type { BlobRef, PartitionState } from '@langquest-next/core';
+import type { BlobRef, LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import type { PartitionHandle } from './usePartition';
+import type { LanguageHandle } from './useLanguage';
 import { IconBtn, txt } from './kit';
 import { reportError } from './report';
 import { C, target } from './theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 
-export function audioFormat(state: PartitionState, hash: string): BlobRef['format'] {
+export function audioFormat(state: LanguageState, hash: string): BlobRef['format'] {
   for (const recording of Object.values(state.recordings)) {
     const card = recording.cards.find((c) => c.hash === hash);
     if (card) return card.format ?? 'wav';
@@ -23,7 +23,7 @@ function playbackFailed(where: string, err: unknown): string {
 }
 
 export function AudioClip(props: {
-  partition: PartitionHandle;
+  language: LanguageHandle;
   hashes: string[];
   label?: string;
   uri?: string;
@@ -37,9 +37,9 @@ export function AudioClip(props: {
   const generation = useRef(0);
   const wantsPlayback = useRef(false);
   const signature = props.uri ?? props.hashes.join(':');
-  const partitionRef = useRef(props.partition);
-  partitionRef.current = props.partition;
-  useEffect(() => props.partition.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.partition.blobs.store]);
+  const languageRef = useRef(props.language);
+  languageRef.current = props.language;
+  useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
   useEffect(() => registerPlayback(() => {
     generation.current++;
     wantsPlayback.current = false;
@@ -64,9 +64,9 @@ export function AudioClip(props: {
       player.current = null;
     };
   }, [signature]);
-  const state = props.partition.state;
+  const state = props.language.state;
   const available = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.partition.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
 
   async function toggle() {
     if (props.disabled) return;
@@ -98,8 +98,8 @@ export function AudioClip(props: {
           wantsPlayback.current = false; setPlaying(false); return;
         }
         const hash = props.hashes[index]!;
-        const partition = partitionRef.current;
-        const uri = props.uri ?? (partition.state && partition.blobs.uriFor({ hash, format: audioFormat(partition.state, hash) }));
+        const language = languageRef.current;
+        const uri = props.uri ?? (language.state && language.blobs.uriFor({ hash, format: audioFormat(language.state, hash) }));
         if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });

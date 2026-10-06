@@ -3,7 +3,7 @@
 // guides and passage text are matched to units by book and verse overlap
 // (STUDY-1, STUDY-5), so a chapter unit, a FIA pericope and a hand-added
 // passage all find the same material. Pure: no I/O.
-import { unitPlace, type PartitionState } from '@langquest-next/core';
+import { unitPlace, type LanguageState } from '@langquest-next/core';
 
 export interface VerseRange {
   /** Core's book id ("gen", "luk", "joh"). */
@@ -37,7 +37,7 @@ export function parseRange(book: string, ref: string): VerseRange | null {
 const cache = new Map<string, VerseRange | null>();
 
 /** The verses a unit covers; null for a whole book or a label that names no chapter. */
-export function unitRange(state: PartitionState, unitId: string): VerseRange | null {
+export function unitRange(state: LanguageState, unitId: string): VerseRange | null {
   const label = state.units[unitId]?.label ?? '';
   const key = `${unitId}\u0000${label}`;
   if (cache.has(key)) return cache.get(key)!;

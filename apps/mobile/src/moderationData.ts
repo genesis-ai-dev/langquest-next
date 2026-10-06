@@ -102,7 +102,7 @@ export function useOpenReportCount(orgId: string, enabled: boolean): number {
 /** Take something out of the record for everyone (`v1.Redacted`, appended by the server as the caller). */
 export async function removeContent(t: ReportTarget, reason: string): Promise<number> {
   const { data, error } = await supabase.rpc('remove_content', {
-    p_org: t.orgId, p_partition: t.partitionId, p_kind: t.kind, p_target: t.id, p_reason: reason
+    p_org: t.orgId, p_language: t.languageId ?? null, p_kind: t.kind, p_target: t.id, p_reason: reason
   });
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
@@ -111,7 +111,7 @@ export async function removeContent(t: ReportTarget, reason: string): Promise<nu
 /** Looked at it and leaving it: closes every open report about it. */
 export async function dismissReports(t: ReportTarget): Promise<void> {
   const { error } = await supabase.rpc('dismiss_reports', {
-    p_org: t.orgId, p_partition: t.partitionId, p_kind: t.kind, p_target: t.id
+    p_org: t.orgId, p_language: t.languageId ?? null, p_kind: t.kind, p_target: t.id
   });
   if (error) throw new Error(error.message);
 }

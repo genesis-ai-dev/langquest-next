@@ -10,8 +10,8 @@ import { setStudyWanted, STUDY_FILES_OFFLINE, studyUrls } from './studyFiles';
 
 export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
-  const state = ctx.partition.state;
-  const kept = ctx.partition.blobs.keptUnits;
+  const state = ctx.language.state;
+  const kept = ctx.language.blobs.keptUnits;
   const me = ctx.session.actorId;
   let key = '';
   if (state && STUDY_FILES_OFFLINE) {
@@ -22,7 +22,7 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   // Keyed by the scope's members, so a new fold with the same scope finds the same guides.
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
   const guides = useStudyGuides(ctx, unitIds);
-  const online = ctx.partition.online !== false;
+  const online = ctx.language.online !== false;
   useEffect(() => {
     if (!STUDY_FILES_OFFLINE) return;
     const next = new Map<string, string[]>();

@@ -11,9 +11,9 @@ import { supabase } from './supabase';
 export interface Persona {
   id: string;
   label: string;
-  /** Membership role seeded into the org's work partition; null = not a member. */
+  /** The fixed role this persona plays (the seeded roles' `fixed`); null = not a member. */
   role: Role | null;
-  /** Org role id seeded into the org partition (core SEED_ROLES). */
+  /** Org role id seeded in the organization stream (core SEED_ROLES). */
   roleId: string | null;
   email: string;
 }

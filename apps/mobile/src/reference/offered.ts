@@ -5,7 +5,7 @@
 // share. A language's hide and a passage's hide take an item out. Pure.
 import {
   libraryItems, linkedTo, passageLink, recommendedFor,
-  type LibraryItemState, type PartitionState, type Register
+  type LibraryItemState, type LanguageState, type Register
 } from '@langquest-next/core';
 
 export interface OfferedSource {
@@ -22,19 +22,18 @@ export interface OfferedSource {
 export function offeredGuideSources(
   library: Record<string, LibraryItemState>,
   orgRecs: Record<string, Register<boolean>> | undefined,
-  state: PartitionState | null,
-  laneId: string | null | undefined,
+  state: LanguageState | null,
   unitId: string | null | undefined
 ): { recommended: OfferedSource[]; own: OfferedSource[] } {
   const items = libraryItems(library, 'material').filter((i) => i.current && !i.archived);
   const byId = new Map(items.map((i) => [i.itemId, i]));
-  const rec = recommendedFor(orgRecs, state, laneId);
-  const laneSay = laneId && state ? state.laneReferences[laneId] ?? {} : {};
-  const hiddenHere = (id: string) => !!(state && laneId && unitId && passageLink(state, laneId, unitId, id) === false);
-  const linked = state && laneId && unitId ? linkedTo(state, laneId, unitId) : [];
+  const rec = recommendedFor(orgRecs, state);
+  const languageSay = state?.languageReferences ?? {};
+  const hiddenHere = (id: string) => !!(state && unitId && passageLink(state, unitId, id) === false);
+  const linked = state && unitId ? linkedTo(state, unitId) : [];
   const first = [...new Set([...linked, ...[...rec.keys()].sort()])].filter((id) => byId.has(id) && !hiddenHere(id));
   const taken = new Set(first);
-  const own = items.filter((i) => !taken.has(i.itemId) && laneSay[i.itemId]?.value !== 'hidden' && !hiddenHere(i.itemId));
+  const own = items.filter((i) => !taken.has(i.itemId) && languageSay[i.itemId]?.value !== 'hidden' && !hiddenHere(i.itemId));
   const src = (id: string) => {
     const it = byId.get(id)!;
     const sub = it.subscription;

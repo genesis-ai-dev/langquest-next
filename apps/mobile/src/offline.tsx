@@ -5,7 +5,7 @@
 // (study/studyFiles.ts) are here only for passages kept offline. The worry this
 // answers: someone browses passages online, plays their audio, and finds out
 // in the field that none of it came along.
-import { defaultOfflineScope, laneName, offlineByUnit, offlineSummary, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
+import { defaultOfflineScope, languageName, offlineByUnit, offlineSummary, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
 import { useMemo, useSyncExternalStore } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from './ctx';
@@ -29,8 +29,8 @@ function useStudyRevision(): number {
 
 /** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
 export function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
-  const state = ctx.partition.state;
-  const { present, keptUnits } = ctx.partition.blobs;
+  const state = ctx.language.state;
+  const { present, keptUnits } = ctx.language.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   const key = unitIds.join(',');
@@ -50,8 +50,8 @@ export function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<strin
  * from the map is not kept. Shared by every row drawn from the same inputs.
  */
 export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
-  const state = ctx.partition.state;
-  const { present, keptUnits } = ctx.partition.blobs;
+  const state = ctx.language.state;
+  const { present, keptUnits } = ctx.language.blobs;
   const me = ctx.session.actorId;
   if (!state) return new Map();
   const rev = studyRevision();
@@ -70,8 +70,8 @@ let keptCache: { state: object; present: ReadonlySet<string>; kept: ReadonlySet<
 export type OfflineOverview = OfflineSummary & { studyToFetch: number };
 
 export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
-  const state = ctx.partition.state;
-  const { present, keptUnits } = ctx.partition.blobs;
+  const state = ctx.language.state;
+  const { present, keptUnits } = ctx.language.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   return useMemo(() => {
@@ -91,7 +91,7 @@ export function sizeText(bytes: number): string {
 }
 
 const REASON: Record<NonNullable<UnitOffline['reason']>, string> = {
-  assigned: "Kept because it's assigned to you.",
+  asked: "Kept because you were asked to work on it.",
   worked: "Kept because you've worked on it.",
   chosen: 'Kept because you chose to keep it.'
 };
@@ -133,7 +133,7 @@ function passageOfflineView(u: KeptOffline, offline: boolean, hasStudy: boolean)
 export function PassageOfflineLine(props: { ctx: Ctx; unitId: string }) {
   const u = useOfflineUnits(props.ctx, [props.unitId]).get(props.unitId);
   if (!u) return null;
-  const v = passageOfflineView(u, props.ctx.partition.online === false, false);
+  const v = passageOfflineView(u, props.ctx.language.online === false, false);
   return (
     <View style={styles.line} accessible accessibilityLabel={v.short}>
       <Ico name={v.icon} size={16} color={v.tint} />
@@ -147,9 +147,9 @@ export function PassageOffline(props: { ctx: Ctx; unitId: string; hasStudy: bool
   const { ctx, unitId } = props;
   const u = useOfflineUnits(ctx, [unitId]).get(unitId);
   if (!u) return null;
-  const v = passageOfflineView(u, ctx.partition.online === false, props.hasStudy);
+  const v = passageOfflineView(u, ctx.language.online === false, props.hasStudy);
   const keep = (on: boolean) => {
-    void ctx.partition.blobs.keepOffline(unitId, on);
+    void ctx.language.blobs.keepOffline(unitId, on);
     ctx.toast(on ? 'Kept on this phone. It downloads while you are connected.' : 'No longer kept. Its audio may be removed to make room.');
   };
   return (
@@ -191,10 +191,9 @@ export function offlineLine(s: OfflineOverview | null): string {
 /** The Sync screen's card: how ready this phone is, and what never comes along. */
 export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
   const { ctx, s } = props;
-  const offline = ctx.partition.online === false;
+  const offline = ctx.language.online === false;
   const ready = !!s && s.kept > 0 && s.ready === s.kept;
-  const state = ctx.partition.state;
-  const language = state && ctx.laneId ? laneName(state, ctx.laneId) : 'this language';
+  const language = ctx.languageId ? languageName(ctx.org.state, ctx.languageId) : 'this language';
   const head = ready
     ? { icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green }
     : s?.kept && !offline ? { icon: 'download' as IconName, tint: C.primary, bg: C.light }
@@ -205,7 +204,7 @@ export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
       <Block icon={head.icon} tint={head.tint} bg={head.bg} title="Ready for offline" body={`${offlineLine(s).replace(/\.$/, '')}.${finish}`} />
       {s && s.kept ? <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} /> : null}
       <Block icon="check" tint={onColor.green} bg={TINT.green} title="Always on this phone"
-        body={`Every passage's text, status and history in ${language}. Audio${STUDY_FILES_OFFLINE ? ', study pictures, maps and study audio' : ''} of passages you are assigned to, have worked on, or chose to keep.`} />
+        body={`Every passage's text, status and history in ${language}. Audio${STUDY_FILES_OFFLINE ? ', study pictures, maps and study audio' : ''} of passages you were asked to work on, have worked on, or chose to keep.`} />
       <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title="Needs a connection"
         body={[
           `Audio${STUDY_FILES_OFFLINE ? ' and study material' : ''} of passages you have not kept. Open a passage and tap Keep offline to take it with you.`,

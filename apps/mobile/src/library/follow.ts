@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import { noteExpected, reportError } from '../report';
 import type { Session } from '../session';
 import type { OrgHandle } from '../useOrg';
-import type { PartitionHandle } from '../usePartition';
+import type { LanguageHandle } from '../useLanguage';
 import { flushOutbox, loadDocs } from './docStore';
-import { lanesBehind } from './model';
+import { behindLibrary } from './model';
 
 /**
  * Keep languages on the versions their library items are at
@@ -15,17 +15,17 @@ import { lanesBehind } from './model';
  * someone who may apply it does. Also sends documents made on this phone
  * that the server does not have yet. Nothing here asks anyone anything.
  */
-export function useLibraryFollow(partition: PartitionHandle, org: OrgHandle, session: Session): void {
-  const orgId = partition.orgId;
+export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, session: Session): void {
+  const orgId = language.orgId;
   const behind = useMemo(
-    () => (partition.state && org.state ? lanesBehind(partition.state, org.state.library) : []),
-    [partition.state, org.state]
+    () => (language.state && org.state ? behindLibrary(language.state, org.state.library) : []),
+    [language.state, org.state]
   );
   const busy = useRef(false);
-  const key = behind.map((b) => `${b.laneId}:${b.kind}:${b.docHash}`).join('|');
+  const key = behind.map((b) => `${b.kind}:${b.docHash}`).join('|');
 
   useEffect(() => {
-    if (!key || busy.current || !partition.state) return;
+    if (!key || busy.current || !language.state) return;
     const mine = behind.filter((b) => session.can(b.kind === 'template' ? 'manage_templates' : 'manage_flows'));
     if (mine.length === 0) return;
     busy.current = true;
@@ -33,17 +33,17 @@ export function useLibraryFollow(partition: PartitionHandle, org: OrgHandle, ses
       const docs = await loadDocs(orgId, mine.map((b) => b.docHash));
       for (const b of mine) {
         const doc = docs.get(b.docHash);
-        const state = partition.state;
+        const state = language.state;
         if (!doc || !state) continue;
         const commandId = Crypto.randomUUID();
         if (doc.format === 'template@1') {
           const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
           if (doc.bible && !v11n) continue;
-          await partition.run(selectTemplateSpecs(state, {
-            commandId, laneId: b.laneId, itemId: b.itemId, docHash: b.docHash, doc: doc as TemplateDoc, versification: v11n, ...(b.books ? { books: b.books } : {})
+          await language.run(selectTemplateSpecs(state, {
+            commandId, itemId: b.itemId, docHash: b.docHash, doc: doc as TemplateDoc, versification: v11n, ...(b.books ? { books: b.books } : {})
           }));
         } else if (doc.format === 'flow@1') {
-          await partition.run(selectFlowSpecs(state, { commandId, laneId: b.laneId, itemId: b.itemId, docHash: b.docHash, doc: doc as FlowDoc }));
+          await language.run(selectFlowSpecs(state, { commandId, itemId: b.itemId, docHash: b.docHash, doc: doc as FlowDoc }));
         }
       }
     })().catch((e: unknown) => {

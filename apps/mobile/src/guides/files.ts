@@ -9,7 +9,7 @@
 // Web only: a phone records step audio with the recorder and leaves big
 // uploads to the web app. Uploading goes to the organization's guide files
 // (`<org>/_org/<hash>.<ext>`), where study/media.ts fetches them.
-import { ORG_PARTITION, type MediaRef } from '@langquest-next/core';
+import { ORG_STREAM, type MediaRef } from '@langquest-next/core';
 import { Platform } from 'react-native';
 import { getBlobStore, isStoredFormat, type StoredFile, type StoredFormat } from '../blobs';
 import { uploadBlob } from '../blobTransport';
@@ -156,7 +156,7 @@ export function storedFilesOfMedia(m: MediaRef, kind: PickKind): StoredFile[] {
  */
 export async function uploadMedia(orgId: string, m: MediaRef, kind: PickKind): Promise<void> {
   const store = await getBlobStore();
-  for (const f of storedFilesOfMedia(m, kind)) if (store.has(f.hash)) await uploadBlob(orgId, ORG_PARTITION, f, store);
+  for (const f of storedFilesOfMedia(m, kind)) if (store.has(f.hash)) await uploadBlob(orgId, ORG_STREAM, f, store);
 }
 
 /** The stored name of each file the draft's document names (phone copies are always JPEG pictures or MP4 films). */
@@ -182,7 +182,7 @@ export async function uploadDraftFiles(orgId: string, d: GuideDraft, onProgress?
   let done = 0;
   for (const f of here) {
     onProgress?.(done, here.length);
-    await uploadBlob(orgId, ORG_PARTITION, f, store);
+    await uploadBlob(orgId, ORG_STREAM, f, store);
     done++;
   }
   onProgress?.(done, here.length);

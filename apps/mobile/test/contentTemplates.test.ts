@@ -1,17 +1,16 @@
 import {
-  emptyState, buildIndexes, fold, HlcClock, instantiateTemplate, selectTemplateSpecs, validateDoc, withDeps,
-  type AnyEvent, type EventSpec, type LibraryItemState, type LibraryItemView, type PartitionState, type TemplateDoc, type VersificationDoc
+  buildIndexes, emptyLanguageState, foldLanguage, HlcClock, selectTemplateSpecs, validateDoc, withDeps,
+  type AnyEvent, type EventSpec, type LibraryItemState, type LibraryItemView, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import {
   addNode, bibleBook, bookRows, bookSegments, chapterBlocks, chipLabel, continuesInto, countOutline, defaultBooks, docFromForm, fiaStarts,
-  formChanged, formFromDoc, laneTemplateLine, laneTemplateOf, levelsForDivide, levelsForOutline, libraryChoices, moveNode, newTemplateForm,
-  parseRange, partName, pluralOf, rangeOfLabel, rangeOfUnit, recordedCount, removeNode, renameNode, setAsideCount, siblingsOf, toSegments,
+  formChanged, formFromDoc, levelsForDivide, levelsForOutline, libraryChoices, moveNode, newTemplateForm, parseRange, partName, pluralOf,
+  rangeOfLabel, rangeOfUnit, recordedCount, removeNode, renameNode, setAsideCount, siblingsOf, templateLine, templateOf, toSegments,
   verseKey, versesText, versificationBooks
 } from '../src/contentTemplates';
 import type { SharedItem } from '../src/library/model';
 
 const luke = bibleBook('luk')!;
-const reg = <T,>(value: T) => ({ value, hlc: '1', eventId: 'e' });
 const HASH = 'a'.repeat(64);
 const V11N_HASH = 'b'.repeat(64);
 
@@ -19,7 +18,7 @@ let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);
 const fromSpecs = (specs: EventSpec[]) => specs.map((s) => {
   seq += 1;
-  return { id: s.id, type: s.type, orgId: 'o1', partitionId: 'p1', actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload: s.payload } as AnyEvent;
+  return { id: s.id, type: s.type, orgId: 'o1', streamId: 'L', actorId: 'admin', deviceId: 'dev1', hlc: clock.next(), payload: s.payload } as AnyEvent;
 });
 
 /** English numbering for Luke and Mark only, enough for these tests. */
@@ -39,22 +38,11 @@ const passagesDoc: TemplateDoc = {
   deps: [V11N_HASH]
 };
 
-/** A language on a legacy catalog template, as the app used to set one up. */
-function withCatalogTemplate(templateId: string, laneId = 'L'): PartitionState {
-  const s = emptyState();
-  s.lanes[laneId] = { languoidId: 'din' };
-  s.laneTemplates[laneId] = reg({ templateId, catalogVersion: 1 });
-  for (const p of instantiateTemplate(templateId)) {
-    s.units[p.unitId] = { parentUnitId: p.parentUnitId, kind: p.kind, label: p.label, order: p.order } as PartitionState['units'][string];
-  }
-  return s;
-}
-
 /** A language on a version of a library template. */
-function withLibraryTemplate(doc: TemplateDoc, base?: PartitionState, books?: string[]): PartitionState {
-  const start = base ?? fold(fromSpecs([{ id: 'lane', type: 'v1.LaneAdded', payload: { laneId: 'L', languoidId: 'din' } } as EventSpec]));
-  const specs = selectTemplateSpecs(start, { commandId: `c${seq}`, laneId: 'L', itemId: 'stories.abc', docHash: HASH, doc, versification: v11n, ...(books ? { books } : {}) });
-  return fold(fromSpecs(specs), start);
+function withLibraryTemplate(doc: TemplateDoc, base?: LanguageState, books?: string[]): LanguageState {
+  const start = base ?? emptyLanguageState();
+  const specs = selectTemplateSpecs(start, { commandId: `c${seq}`, itemId: 'stories.abc', docHash: HASH, doc, versification: v11n, ...(books ? { books } : {}) });
+  return foldLanguage(fromSpecs(specs), start);
 }
 
 describe('verse ranges', () => {
@@ -120,40 +108,27 @@ describe('segments and blocks', () => {
   });
 });
 
-describe('a language on a template from the app (legacy)', () => {
-  it('reads its name, levels, books and a book as segments', () => {
-    const s = withCatalogTemplate('bible');
-    expect(laneTemplateOf(s, 'L')).toMatchObject({ source: 'legacy', name: 'Chapter Units', levels: ['Book', 'Chapter'] });
-    expect(laneTemplateLine(s, () => null, 'L')).toBe('Chapter Units · from the app');
-    const idx = buildIndexes(s);
-    const rows = bookRows(s, idx, 'L');
-    expect(rows).toHaveLength(66);
-    expect(rows.find((r) => r.book.itemId === 'luk')).toMatchObject({ label: 'Luke', parts: 24 });
-    const segs = bookSegments(s, idx, 'L', luke);
-    expect(segs).toHaveLength(24);
-    expect(segs[14]).toMatchObject({ from: { c: 15, v: 1 }, to: { c: 15, v: 32 } });
-    expect(partName(s, 'L')).toBe('Chapter');
-  });
-
-  it('reads FIA passages, spelling Mark and John the canon way', () => {
-    const s = withCatalogTemplate('fia');
-    const mark = bookSegments(s, buildIndexes(s), 'L', bibleBook('mar')!);
-    expect(mark.length).toBeGreaterThan(5);
-    expect(mark[0]!.from).toEqual({ c: 1, v: 1 });
-    expect(partName(s, 'L')).toBe('Passage');
-  });
-});
-
 describe('a language on a library template', () => {
   it('reads its passages from their ids, whatever the language calls them', () => {
     const s = withLibraryTemplate(passagesDoc);
-    expect(laneTemplateOf(s, 'L')).toEqual({ source: 'library', itemId: 'stories.abc', docHash: HASH, books: null });
+    expect(templateOf(s)).toEqual({ itemId: 'stories.abc', docHash: HASH, books: null });
+    expect(templateOf(emptyLanguageState())).toBeNull();
     const idx = buildIndexes(s);
-    expect(bookRows(s, idx, 'L')).toEqual([{ book: luke, label: 'Luka', parts: 2 }]);
-    const segs = bookSegments(s, idx, 'L', luke);
+    expect(bookRows(s, idx)).toEqual([{ book: luke, label: 'Luka', parts: 2 }]);
+    const segs = bookSegments(s, idx, luke);
     expect(segs.map(versesText)).toEqual(['15:1–10', '15:11–32']);
-    expect(partName(s, 'L', passagesDoc)).toBe('Story');
-    expect(partName(s, 'L')).toBe('Passage');
+    expect(partName(passagesDoc)).toBe('Story');
+    expect(partName()).toBe('Passage');
+  });
+
+  it('reads Mark under the canon spelling the app knows it by', () => {
+    const markDoc: TemplateDoc = {
+      ...passagesDoc,
+      bible: { versification: V11N_HASH, books: [{ book: 'MRK', name: 'Mark' }], divide: 'passages', passages: [{ ref: 'MRK 1:1-8' }, { ref: 'MRK 1:9-13' }] }
+    };
+    const s = withLibraryTemplate(markDoc);
+    const mark = bookSegments(s, buildIndexes(s), bibleBook('mar')!);
+    expect(mark.map(versesText)).toEqual(['1:1–8', '1:9–13']);
   });
 
   it('reads a book or a chapter unit as all of it', () => {
@@ -166,22 +141,28 @@ describe('a language on a library template', () => {
   it('names its version on the language row', () => {
     const s = withLibraryTemplate(passagesDoc);
     const item = { itemId: 'stories.abc', name: 'Story units', versions: [{ docHash: 'c'.repeat(64), n: 1 }, { docHash: HASH, n: 2 }] } as LibraryItemView;
-    expect(laneTemplateLine(s, () => null, 'L')).toBe('A template');
-    expect(laneTemplateLine(s, (id) => (id === item.itemId ? item : null), 'L')).toBe('Story units · version 2');
+    expect(templateLine(s, () => null)).toBe('A template');
+    expect(templateLine(s, (id) => (id === item.itemId ? item : null))).toBe('Story units · version 2');
+    expect(templateLine(emptyLanguageState(), () => item)).toBe('No template yet');
   });
 
   it('counts recordings set aside by another template, a dropped part, or narrowed books', () => {
     const s = withLibraryTemplate(passagesDoc);
-    const take = (unitId: string) => ({ unitId, laneId: 'L', cardHashes: ['h'], parentTakeId: null, actorId: 'a', hlc: '1', archived: false });
+    const take = (unitId: string) => ({ unitId, cardHashes: ['h'], parentTakeId: null, actorId: 'a', hlc: '1', archived: false });
     s.takes['t1'] = take('stories.abc/LUK.15.1-10');
-    s.takes['t2'] = take('bible@1/luk-15');
+    s.takes['t2'] = take('other.xyz/LUK.15');
     s.takes['t3'] = take('hand-added');
-    expect(setAsideCount(s, 'L')).toBe(1);
+    expect(setAsideCount(s)).toBe(1);
     // The next version drops the lost sheep: hidden, never deleted (TPL-7).
     const next = withLibraryTemplate({ ...passagesDoc, bible: { ...passagesDoc.bible!, passages: passagesDoc.bible!.passages!.slice(1) } }, s);
-    expect(next.laneHiddenUnits['L']?.['stories.abc/LUK.15.1-10']?.value).toBe(true);
-    expect(setAsideCount(next, 'L')).toBe(2);
-    expect(recordedCount(next, 'L')).toBe(3);
+    expect(next.hiddenUnits['stories.abc/LUK.15.1-10']?.value).toBe(true);
+    expect(setAsideCount(next)).toBe(2);
+    expect(recordedCount(next)).toBe(3);
+    // Narrowing the books sets aside what is outside them.
+    next.takes['t4'] = take('stories.abc/LUK.15.11-32');
+    expect(setAsideCount(next)).toBe(2);
+    const narrowed = withLibraryTemplate(passagesDoc, next, ['MRK']);
+    expect(setAsideCount(narrowed)).toBe(3);
   });
 });
 

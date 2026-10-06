@@ -4,19 +4,20 @@ import type { Blocks } from './moderationData';
 import type { Session } from './session';
 import type { InviteHandle } from './useHeldInvite';
 import type { OrgHandle } from './useOrg';
-import type { PartitionHandle } from './usePartition';
+import type { LanguageHandle } from './useLanguage';
 
 /** A passage someone opened lately (WORK-2), newest first. */
 export interface RecentPassage {
   unitId: string;
-  laneId: string;
+  languageId: string;
   at: number;
 }
 
 /** Everything a screen gets. Screens never own shared state or navigate directly. */
 export interface Ctx {
-  partition: PartitionHandle;
-  /** The organization partition: roles, memberships, catalog, its work partition. */
+  /** The open language's stream (decision 63). */
+  language: LanguageHandle;
+  /** The organization stream: roles, memberships, languages, library. */
   org: OrgHandle;
   session: Session;
   params: Record<string, string>;
@@ -26,18 +27,19 @@ export interface Ctx {
   home: () => void;
 
   /**
-   * The language (lane) this person is working in: the Map, My Work's
-   * suggestions and new requests default to it (MAP-7). Remembered per
-   * account on this device; null only when the partition has no languages.
+   * The language this person is working in, which is the open stream: the
+   * Map, My Work's suggestions and new requests default to it (MAP-7).
+   * Remembered per account on this device; null only when the organization
+   * has no languages yet.
    */
-  laneId: string | null;
-  setLane: (laneId: string) => void;
+  languageId: string | null;
+  setLanguage: (languageId: string) => void;
   /**
-   * Every language the organization has, from its partition (docs/decisions.md
-   * 37), whether or not this phone has it: each is its own partition, and
-   * `partition` is the open one. A screen about another language opens it.
+   * Every language the organization has, from its stream (decision 63),
+   * whether or not this phone has it: each is its own stream, and
+   * `language` is the open one. A screen about another language opens it.
    */
-  languages: { laneId: string; name: string }[];
+  languages: { languageId: string; name: string }[];
   /**
    * Apply a command's events (core `commands()`), then say what changed
    * (CORE-5). With `undo`, the toast offers Undo for about 7 seconds; undo
@@ -51,7 +53,7 @@ export interface Ctx {
   /** Passages this person opened lately, newest first (WORK-2). */
   recent: RecentPassage[];
   /** Open a passage's record and remember it under Recent. Follows the declared edge from the current screen. */
-  openPassage: (unitId: string, laneId: string, extra?: Record<string, string>) => void;
+  openPassage: (unitId: string, languageId: string, extra?: Record<string, string>) => void;
   /** A person's display name; the signed-in person is always "You" (CORE-6). */
   name: (profileId: string, lower?: boolean) => string;
   /**
@@ -74,7 +76,7 @@ export interface Ctx {
    * the app uses it.
    */
   invite: InviteHandle;
-  /** Switch to another organization: its partition and its one work partition (decision 34). */
+  /** Switch to another organization: its stream, and the language it opens to. */
   openOrganization: (orgId: string) => Promise<void>;
   openDev: () => void;
   isDev: boolean;

@@ -15,11 +15,8 @@ import { failureMessage, noteExpected } from './report';
 import { C, radius, space, TINT } from './theme';
 
 /** A piece of the open language's record, as something to report. */
-export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: string, by: string, unitId?: string, laneId?: string): ReportTarget {
-  return {
-    kind, id, profileId: by, orgId: ctx.partition.orgId, partitionId: ctx.partition.partitionId,
-    ...(unitId ? { unitId } : {}), ...(laneId ? { laneId } : {})
-  };
+export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: string, by: string, unitId?: string): ReportTarget {
+  return { kind, id, profileId: by, orgId: ctx.language.orgId, languageId: ctx.language.languageId, ...(unitId ? { unitId } : {}) };
 }
 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
@@ -198,7 +195,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       ) : (
         <>
           <PrimaryBtn label="Remove from the record" icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
-          {target.unitId && target.laneId ? <GhostBtn label="Open the passage" onPress={props.onOpen} /> : null}
+          {target.unitId ? <GhostBtn label="Open the passage" onPress={props.onOpen} /> : null}
         </>
       )}
       <GhostBtn label={target.kind === 'person' ? 'Close the report' : 'Keep it'} disabled={busy} onPress={() => void run('keep')} />

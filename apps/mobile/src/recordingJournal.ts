@@ -64,9 +64,9 @@ export class RecordingJournal {
     return this.change((entries) => removeEntry(entries, id));
   }
 
-  /** Finish unfinished saves for one partition; entries that succeed or are unrecoverable leave the journal. */
-  async resume(partition: { orgId: string; partitionId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
-    const result = await resumeEntries([...(await this.all())], partition, {
+  /** Finish unfinished saves for one language; entries that succeed or are unrecoverable leave the journal. */
+  async resume(language: { orgId: string; languageId: string }, deps: Omit<ResumeDeps, 'save' | 'fileExists'>): Promise<ResumeResult> {
+    const result = await resumeEntries([...(await this.all())], language, {
       ...deps,
       // On the web a recording's blob: URL does not outlive the page. Once
       // ingested its bytes are in the browser's files (blobs.ts) and it

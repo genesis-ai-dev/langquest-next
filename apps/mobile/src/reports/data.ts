@@ -1,5 +1,5 @@
 import { fetchOrgReports, ReportsError } from '@langquest-next/client';
-import type { LaneRow } from '@langquest-next/core';
+import type { LanguageRow } from '@langquest-next/core';
 import { useEffect, useSyncExternalStore } from 'react';
 import { reportsServer } from '../useOrgSummary';
 
@@ -11,7 +11,7 @@ import { reportsServer } from '../useOrgSummary';
  */
 export type Loaded =
   | { status: 'loading' }
-  | { status: 'ready'; rows: LaneRow[]; asOf: string; refreshing: boolean }
+  | { status: 'ready'; rows: LanguageRow[]; asOf: string; refreshing: boolean }
   | { status: 'error'; message: string; offline: boolean };
 
 interface Entry {
@@ -52,7 +52,7 @@ export function loadReports(orgId: string, fresh = false): Promise<void> {
       if (answer.status === 'changed') {
         e.etag = answer.etag;
         const { rows, asOf } = answer.body;
-        set(e, { status: 'ready', asOf, refreshing: false, rows: rows.map((r) => ({ orgId, partitionId: r.partitionId, laneId: r.laneId, updatedAt: asOf, report: r.report })) });
+        set(e, { status: 'ready', asOf, refreshing: false, rows: rows.map((r) => ({ orgId, languageId: r.languageId, updatedAt: asOf, report: r.report })) });
       } else if (e.state.status === 'ready') {
         const asOf = answer.asOf;
         set(e, { ...e.state, asOf, refreshing: false, rows: e.state.rows.map((r) => ({ ...r, updatedAt: asOf })) });

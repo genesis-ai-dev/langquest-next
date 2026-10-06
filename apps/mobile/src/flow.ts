@@ -8,7 +8,7 @@
  * runtime (session.ts). App-only edges sit at the end, each with a reason in
  * the parity test's drift log. The demo's project level (Project Home, New
  * Project) is not here: an organization holds languages directly
- * (docs/decisions.md 34), and the parity test lists what that drops.
+ * (docs/decisions.md 63), and the parity test lists what that drops.
  */
 
 export const SCREEN_IDS = [
@@ -48,8 +48,8 @@ export type ScreenId = (typeof SCREEN_IDS)[number];
  * edge to or from one of them goes with it; the parity tests hold the rest.
  */
 export const DROPPED_SCREENS: Record<string, string> = {
-  project_home: 'no project level (docs/decisions.md 34): an organization holds languages directly',
-  new_project: 'no project level (docs/decisions.md 34): an organization gets its one work partition when it is created'
+  project_home: 'no project level (docs/decisions.md 63): an organization holds languages directly',
+  new_project: 'no project level (docs/decisions.md 63): languages are added from the organization (New Language)'
 };
 export type NodeId = ScreenId | 'home_hub';
 

@@ -14,8 +14,8 @@ export interface UpdateWords {
   name: (profileId: string) => string;
   /** "Luke 15:11-32" */
   passage: string;
-  /** "Dinka" */
-  lane: string;
+  /** The language it happened in: "Dinka" */
+  language: string;
   /** A review kind's name ("Community Check"); "review" when unknown. */
   kindName: (kindId: string | undefined) => string;
   /** Does this kind make content (a back translation) rather than give a verdict? */
@@ -31,7 +31,7 @@ export function firstName(name: string): string {
 /** One update as the demo words it: a title, a line under it, and its icon. */
 export function updateText(u: Update, w: UpdateWords): { title: string; body: string; icon: UpdateIcon } {
   const who = firstName(w.name(u.by));
-  const where = `${w.passage} (${w.lane})`;
+  const where = `${w.passage} (${w.language})`;
   switch (u.kind) {
     case 'request': {
       const r = u.request;
@@ -123,11 +123,11 @@ export const WELCOME_POINTS: Record<WelcomeRole, { icon: 'mic' | 'people' | 'wor
   ]
 };
 
-/** "the Dinka team at Wycliffe Associates", or "Wycliffe Associates" (no project level: decision 34). */
-export function teamLabel(scope: Scope | undefined, names: { org: string; lane?: (laneId: string) => string | undefined }): string {
-  if (scope?.level === 'lane' && scope.laneId) {
-    const lane = names.lane?.(scope.laneId);
-    if (lane) return `the ${lane} team at ${names.org}`;
+/** "the Dinka team at Wycliffe Associates" for a language's member, else "Wycliffe Associates". */
+export function teamLabel(scope: Scope | undefined, names: { org: string; language?: (languageId: string) => string | undefined }): string {
+  if (scope?.level === 'language') {
+    const language = names.language?.(scope.languageId);
+    if (language) return `the ${language} team at ${names.org}`;
   }
   return names.org;
 }

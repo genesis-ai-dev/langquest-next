@@ -2,19 +2,18 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  canonicalJson, catalogKey, emptyOrgState, emptyState, foldOrg, libraryUnitRange, validateDoc, withDeps,
-  type AnyEvent, type LibraryDoc, type MaterialDoc, type PartitionState, type SourceBookDoc, type SourceDoc, type StudyDoc,
+  canonicalJson, foldLanguage, foldOrg, libraryUnitRange, linkedTo, passageLink, validateDoc, withDeps,
+  type AnyEvent, type LibraryDoc, type MaterialDoc, type LanguageState, type SourceBookDoc, type SourceDoc, type StudyDoc,
   type TimingDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { coverage, coverageSummary, itemReaches } from '../src/reference/coverage';
 import {
-  biblebrainItemId, legacyMigration, LEGACY_SOURCE, orgLevelCan, recActions, recLabel, recState, recUndo, recWrite, sourceFacts,
+  biblebrainItemId, orgLevelCan, recActions, recLabel, recState, recUndo, recWrite, sourceFacts,
   sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../src/reference/model';
 import { timingPublication, type TimingResultRow } from '@langquest-next/core';
 import { offeredGuideSources } from '../src/reference/offered';
 import type { BibleDetail } from '../src/sources/bibleBrain';
-import type { SharedItem } from '../src/library/model';
 
 const H = (c: string) => c.repeat(64);
 const sha = async (text: string) => crypto.createHash('sha256').update(text, 'utf8').digest('hex');
@@ -34,34 +33,25 @@ const ORG = H('0');
 
 let seq = 0;
 const envelope = (type: string, payload: unknown, actorId = 'admin'): AnyEvent =>
-  ({ id: `e${++seq}`, orgId: 'o', partitionId: '_org', actorId, deviceId: 'd', hlc: `${String(++seq).padStart(15, '0')}:000000:d`, type, payload }) as AnyEvent;
-const laneEnvelope = (type: string, payload: unknown): AnyEvent => ({ ...envelope(type, payload), partitionId: 'L1' }) as AnyEvent;
-
-function laneState(events: AnyEvent[]): PartitionState {
-  const state = emptyState();
-  for (const e of events) {
-    const p = e.payload as { laneId: string; itemId: string; state?: 'recommended' | 'hidden' | 'inherit'; unitId?: string; linked?: boolean };
-    if (e.type === 'v1.LaneReferenceRecommended') ((state.laneReferences[p.laneId] ??= {})[p.itemId] = { value: p.state!, hlc: e.hlc, eventId: e.id });
-    if (e.type === 'v1.PassageReferenceLinked') ((state.passageLinks[`${p.laneId}\u0000${p.unitId}`] ??= {})[p.itemId] = { value: p.linked!, hlc: e.hlc, eventId: e.id });
-  }
-  return state;
-}
+  ({ id: `e${++seq}`, orgId: 'o', streamId: '_org', actorId, deviceId: 'd', hlc: `${String(++seq).padStart(15, '0')}:000000:d`, type, payload }) as AnyEvent;
+const languageEnvelope = (type: string, payload: unknown): AnyEvent => ({ ...envelope(type, payload), streamId: 'L1' }) as AnyEvent;
+const languageState = (events: AnyEvent[]): LanguageState => foldLanguage(events);
 
 describe('recommendations at a level', () => {
   const orgState = foldOrg([
     envelope('v1.ReferenceRecommended', { itemId: 'bsb', recommended: true }),
     envelope('v1.ReferenceRecommended', { itemId: 'fia', recommended: true })
   ]);
-  const lane = laneState([
-    laneEnvelope('v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'fia', state: 'hidden' }),
-    laneEnvelope('v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'esv', state: 'recommended' })
+  const language = languageState([
+    languageEnvelope('v1.ReferenceSet', { itemId: 'fia', state: 'hidden' }),
+    languageEnvelope('v1.ReferenceSet', { itemId: 'esv', state: 'recommended' })
   ]);
   const atOrg: Level = { kind: 'org' };
-  const atLane: Level = { kind: 'lane', laneId: 'L1' };
+  const atLane: Level = { kind: 'language', languageId: 'L1' };
 
   it('reads who recommends an item and what an admin may do, at each level', () => {
     const rows = ['bsb', 'fia', 'esv', 'web'].map((id) => {
-      const r = recState(orgState.recommendations, lane, atLane, id);
+      const r = recState(orgState.recommendations, language, atLane, id);
       return [id, recLabel(r, atLane), recActions(r, atLane).map((a) => a.label).join()];
     });
     expect(rows).toEqual([
@@ -70,23 +60,23 @@ describe('recommendations at a level', () => {
       ['esv', 'Recommended for this language', 'Stop recommending'],
       ['web', 'Not recommended', 'Recommend']
     ]);
-    const o = recState(orgState.recommendations, lane, atOrg, 'fia');
+    const o = recState(orgState.recommendations, language, atOrg, 'fia');
     expect([recLabel(o, atOrg), recActions(o, atOrg)[0]!.id]).toEqual(['Recommended', 'stop']);
   });
 
   it('writes the org event at the organization and the language event in a language, and undoes to what was there', () => {
-    expect(recWrite(atOrg, 'web', 'recommend')).toEqual({ partition: 'org', type: 'v1.ReferenceRecommended', payload: { itemId: 'web', recommended: true } });
-    expect(recWrite(atLane, 'bsb', 'hide').payload).toEqual({ laneId: 'L1', itemId: 'bsb', state: 'hidden' });
-    expect(recWrite(atLane, 'fia', 'inherit').payload).toEqual({ laneId: 'L1', itemId: 'fia', state: 'inherit' });
-    expect(recUndo(recState(orgState.recommendations, lane, atLane, 'fia'), atLane, 'fia').payload).toEqual({ laneId: 'L1', itemId: 'fia', state: 'hidden' });
-    expect(recUndo(recState(orgState.recommendations, lane, atOrg, 'web'), atOrg, 'web').payload).toEqual({ itemId: 'web', recommended: false });
+    expect(recWrite(atOrg, 'web', 'recommend')).toEqual({ to: 'org', type: 'v1.ReferenceRecommended', payload: { itemId: 'web', recommended: true } });
+    expect(recWrite(atLane, 'bsb', 'hide')).toEqual({ to: 'language', languageId: 'L1', type: 'v1.ReferenceSet', payload: { itemId: 'bsb', state: 'hidden' } });
+    expect(recWrite(atLane, 'fia', 'inherit').payload).toEqual({ itemId: 'fia', state: 'inherit' });
+    expect(recUndo(recState(orgState.recommendations, language, atLane, 'fia'), atLane, 'fia').payload).toEqual({ itemId: 'fia', state: 'hidden' });
+    expect(recUndo(recState(orgState.recommendations, language, atOrg, 'web'), atOrg, 'web').payload).toEqual({ itemId: 'web', recommended: false });
   });
 
   it('counts only organization-wide memberships for organization recommendations', () => {
     const o = foldOrg([
       envelope('v1.RoleDefined', { roleId: 'ref', name: 'Reference', privileges: ['manage_reference'] }),
-      envelope('v1.OrgMemberAdded', { profileId: 'ana', roleId: 'ref', scope: { level: 'org' } }),
-      envelope('v1.OrgMemberAdded', { profileId: 'ben', roleId: 'ref', scope: { level: 'lane', partitionId: 'L1', laneId: 'L1' } })
+      envelope('v1.MemberAdded', { profileId: 'ana', roleId: 'ref', scope: { level: 'org' } }),
+      envelope('v1.MemberAdded', { profileId: 'ben', roleId: 'ref', scope: { level: 'language', languageId: 'L1' } })
     ]);
     expect(orgLevelCan(o, 'ana', 'manage_reference')).toBe(true);
     expect(orgLevelCan(o, 'ben', 'manage_reference')).toBe(false);
@@ -254,17 +244,17 @@ describe('coverage of a language’s passages', () => {
   const docs = new Map<string, LibraryDoc | null>([['fia-mal4', study], ['ruth-note', note], ['pdv', bible], ['ot', ot], ['extra', note]]);
   const v = new Map<string, LibraryDoc>([[ENG, eng], [ORG, org]]);
   const get = (h: string | null | undefined) => (h ? v.get(h) ?? null : null);
-  const state = laneState([
-    laneEnvelope('v1.PassageReferenceLinked', { laneId: 'L1', unitId: `${MAL}/RUT.1`, itemId: 'ruth-note', linked: false }),
-    laneEnvelope('v1.PassageReferenceLinked', { laneId: 'L1', unitId: `${MAL}/MAL.3.1-18`, itemId: 'extra', linked: true })
+  const state = languageState([
+    languageEnvelope('v1.PassageReferenceLinked', { unitId: `${MAL}/RUT.1`, itemId: 'ruth-note', linked: false }),
+    languageEnvelope('v1.PassageReferenceLinked', { unitId: `${MAL}/MAL.3.1-18`, itemId: 'extra', linked: true })
   ]);
 
   it('reaches passages by verses across numberings, by template part and by hand, and honours a hide', () => {
     const offered = new Map([['fia-mal4', 'organization'], ['ruth-note', 'language'], ['ot', 'organization']] as const);
     const map = coverage({
       passages, versification: org, offered: new Map(offered), docs, get,
-      link: (u, i) => state.passageLinks[`L1\u0000${u}`]?.[i]?.value,
-      linkedHere: (u) => Object.entries(state.passageLinks[`L1\u0000${u}`] ?? {}).filter(([, r]) => r.value).map(([i]) => i)
+      link: (u, i) => passageLink(state, u, i),
+      linkedHere: (u) => linkedTo(state, u)
     });
     const show = (u: string) => map.get(u)!.map((r) => `${r.itemId}:${r.why}:${r.match}`);
     // English MAL 4:1-6 is org MAL 3:19-24.
@@ -287,37 +277,6 @@ describe('coverage of a language’s passages', () => {
   });
 });
 
-describe('the old Source Bibles toggles', () => {
-  const toggled = (id: string) => {
-    const o = emptyOrgState();
-    o.catalog[catalogKey('reference', id, 'org')] = { value: true, hlc: 'x', eventId: 'x' };
-    return o;
-  };
-  const shared: SharedItem = {
-    org_id: 'langquest', org_name: 'LangQuest', item_id: LEGACY_SOURCE.itemId, kind: 'material', name: 'Berean Standard Bible',
-    description: '', subscribable: true, version_count: 1, latest_hash: H('b'), updated_hlc: ''
-  };
-
-  it('follows and recommends LangQuest’s BSB once for an organization that had BSB or MSB on', () => {
-    expect(legacyMigration(emptyOrgState(), {}, [shared])).toBeNull();
-    const plan = legacyMigration(toggled('berean-msb-fs'), {}, [shared]);
-    expect(plan).toEqual({ itemId: 'sub.langquest.langquest.source.bsb-fs', follow: shared });
-    // Without LangQuest's item at hand there is nothing to do yet.
-    expect(legacyMigration(toggled('berean-bsb-fs'), {}, [])).toBeNull();
-  });
-
-  it('only recommends when the organization already follows it, and never again once it said anything about it', () => {
-    const o = toggled('berean-bsb-fs');
-    const library = foldOrg([
-      envelope('v1.LibrarySubscribed', { itemId: 'sub.langquest.langquest.source.bsb-fs', kind: 'material', sourceOrgId: 'langquest', sourceOrgName: 'LangQuest', sourceItemId: LEGACY_SOURCE.itemId, name: 'BSB', autoUpdate: true, active: true }),
-      envelope('v1.LibraryPinned', { itemId: 'sub.langquest.langquest.source.bsb-fs', kind: 'material', docHash: H('b') })
-    ]).library;
-    expect(legacyMigration(o, library, [])).toEqual({ itemId: 'sub.langquest.langquest.source.bsb-fs', follow: null });
-    o.recommendations['sub.langquest.langquest.source.bsb-fs'] = { value: false, hlc: 'y', eventId: 'y' };
-    expect(legacyMigration(o, library, [shared])).toBeNull();
-  });
-});
-
 describe('where a passage’s study guide may come from', () => {
   const lib = foldOrg([
     ...['fia', 'notes', 'old', 'mine'].flatMap((id, i) => [
@@ -328,13 +287,13 @@ describe('where a passage’s study guide may come from', () => {
     envelope('v1.ReferenceRecommended', { itemId: 'fia', recommended: true })
   ]);
   it('puts recommended and linked items first, then the organization’s own, and honours hides; never other organizations’ shared items', () => {
-    const state = laneState([
-      laneEnvelope('v1.LaneReferenceRecommended', { laneId: 'L1', itemId: 'mine', state: 'hidden' }),
-      laneEnvelope('v1.PassageReferenceLinked', { laneId: 'L1', unitId: 'u1', itemId: 'notes', linked: true }),
-      laneEnvelope('v1.PassageReferenceLinked', { laneId: 'L1', unitId: 'u2', itemId: 'fia', linked: false })
+    const state = languageState([
+      languageEnvelope('v1.ReferenceSet', { itemId: 'mine', state: 'hidden' }),
+      languageEnvelope('v1.PassageReferenceLinked', { unitId: 'u1', itemId: 'notes', linked: true }),
+      languageEnvelope('v1.PassageReferenceLinked', { unitId: 'u2', itemId: 'fia', linked: false })
     ]);
     const on = (unitId: string) => {
-      const o = offeredGuideSources(lib.library, lib.recommendations, state, 'L1', unitId);
+      const o = offeredGuideSources(lib.library, lib.recommendations, state, unitId);
       return [o.recommended.map((s) => s.key), o.own.map((s) => s.key)];
     };
     expect(on('u1')).toEqual([['notes', 'fia'], []]);

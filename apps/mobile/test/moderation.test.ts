@@ -25,25 +25,27 @@ describe('the block list', () => {
   });
 });
 
-const note: ReportTarget = { kind: 'note', id: 'n1', profileId: 'deng', orgId: 'org', partitionId: 'din', unitId: 'john3', laneId: 'din' };
+const note: ReportTarget = { kind: 'note', id: 'n1', profileId: 'deng', orgId: 'org', languageId: 'din', unitId: 'john3' };
 
 describe('a report', () => {
   it('sends what the server checks, trimmed, and leaves out what is empty', () => {
     expect(reportPayload(note, 'offensive', '  rude  ')).toEqual({
-      orgId: 'org', partitionId: 'din', kind: 'note', targetId: 'n1', profileId: 'deng', reason: 'offensive',
-      details: 'rude', unitId: 'john3', laneId: 'din'
+      orgId: 'org', languageId: 'din', kind: 'note', targetId: 'n1', profileId: 'deng', reason: 'offensive',
+      details: 'rude', unitId: 'john3'
     });
     expect(reportPayload(note, 'spam', '   ')).not.toHaveProperty('details');
     expect(String(reportPayload(note, 'other', 'x'.repeat(2000)).details)).toHaveLength(1000);
   });
 
-  it('about a person goes in the organization\'s partition', () => {
-    expect(personTarget(note)).toEqual({ kind: 'person', id: 'deng', profileId: 'deng', orgId: 'org', partitionId: '_org' });
+  it('about a person belongs to the organization, not a language', () => {
+    const person = personTarget(note);
+    expect(person).toEqual({ kind: 'person', id: 'deng', profileId: 'deng', orgId: 'org' });
+    expect(reportPayload(person, 'harassment', '')).toMatchObject({ languageId: null, kind: 'person', targetId: 'deng' });
   });
 });
 
 const row = (id: string, over: Partial<OpenReport>): OpenReport => ({
-  id, partition_id: 'din', target_kind: 'note', target_id: 'n1', unit_id: null, lane_id: null,
+  id, language_id: 'din', target_kind: 'note', target_id: 'n1', unit_id: null,
   reported_profile: 'deng', reason: 'offensive', details: null, created_at: '2026-09-30T10:00:00Z', ...over
 });
 
@@ -51,9 +53,9 @@ describe('open reports for a moderator', () => {
   it('are one item per thing reported, with the reasons most given first and never who reported', () => {
     const groups = groupReports('org', [
       row('r1', { reason: 'spam', details: 'first' }),
-      row('r2', { created_at: '2026-09-30T12:00:00Z', details: 'second', unit_id: 'john3', lane_id: 'din' }),
+      row('r2', { created_at: '2026-09-30T12:00:00Z', details: 'second', unit_id: 'john3' }),
       row('r3', { created_at: '2026-09-30T11:00:00Z' }),
-      row('r4', { target_kind: 'person', target_id: 'ayen', reported_profile: 'ayen', partition_id: '_org', created_at: '2026-09-29T00:00:00Z' })
+      row('r4', { target_kind: 'person', target_id: 'ayen', reported_profile: 'ayen', language_id: null, created_at: '2026-09-29T00:00:00Z' })
     ]);
     expect(groups).toHaveLength(2);
     const [n, person] = groups;
@@ -61,7 +63,7 @@ describe('open reports for a moderator', () => {
     expect(n!.reasons).toEqual(['offensive', 'spam']);
     expect(n!.details).toEqual(['second', 'first']);
     // A later report said where it was.
-    expect(n!.target).toMatchObject({ kind: 'note', id: 'n1', profileId: 'deng', unitId: 'john3', laneId: 'din' });
+    expect(n!.target).toMatchObject({ kind: 'note', id: 'n1', profileId: 'deng', unitId: 'john3', languageId: 'din' });
     expect(reportSummary(n!)).toBe('Hateful or offensive, Spam or unrelated · 3 reports');
     expect(reportTitle(n!.target, (id) => id)).toBe('A note was reported');
     expect(reportTitle(person!.target, () => 'Ayen')).toBe('Ayen was reported');

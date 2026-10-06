@@ -1,45 +1,49 @@
 // Shared reading of one passage for the screens under it (record, version,
 // review, ask, review it, already happened, workspace, back translation,
-// study). Screens take `unitId` and `laneId` from their params; this is the
+// study). Screens take `unitId` and `languageId` from their params; this is the
 // one place that turns them into the derived record and the words the demo
 // uses for it.
 import {
-  decodeHlc, deriveKinds, derivePassage, kindOf, laneName, unitTitle,
-  type KindDef, type PassageState, type PartitionState, type ReviewView
+  decodeHlc, deriveKinds, derivePassage, kindOf, languageName, unitTitle,
+  type KindDef, type PassageState, type LanguageState, type ReviewView
 } from '@langquest-next/core';
 import type { Ctx } from './ctx';
 import { indexesFor } from './indexes';
 
 export interface PassageView {
-  state: PartitionState;
+  state: LanguageState;
   unitId: string;
-  laneId: string;
+  languageId: string;
   /** "Luke 15:11-32" */
   title: string;
   /** "Dinka" */
-  lane: string;
+  language: string;
   p: PassageState;
   kinds: KindDef[];
   kind: (id: string) => KindDef;
 }
 
-/** The passage a screen is about, from its `unitId`/`laneId` params; null while loading or when unknown. */
+/**
+ * The passage a screen is about, from its `unitId`/`languageId` params; null
+ * while loading or when unknown. A `languageId` param opens that language's
+ * stream, so the open language is the one the passage is in.
+ */
 export function usePassage(ctx: Ctx): PassageView | null {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const unitId = ctx.params['unitId'];
-  const laneId = ctx.params['laneId'] ?? ctx.laneId ?? undefined;
-  if (!state || !unitId || !laneId || !state.units[unitId]) return null;
-  return passageView(state, unitId, laneId);
+  const languageId = ctx.params['languageId'] ?? ctx.languageId ?? undefined;
+  if (!state || !unitId || !languageId || languageId !== ctx.language.languageId || !state.units[unitId]) return null;
+  return passageView(state, unitId, languageId, languageName(ctx.org.state, languageId));
 }
 
-export function passageView(state: PartitionState, unitId: string, laneId: string): PassageView {
+export function passageView(state: LanguageState, unitId: string, languageId: string, language: string): PassageView {
   const idx = indexesFor(state);
   const kinds = deriveKinds(state);
   return {
-    state, unitId, laneId,
+    state, unitId, languageId,
     title: unitTitle(state, unitId),
-    lane: laneName(state, laneId),
-    p: derivePassage(state, unitId, laneId, idx),
+    language,
+    p: derivePassage(state, unitId, idx),
     kinds,
     kind: (id) => kinds.find((k) => k.id === id) ?? kindOf(state, id)
   };
@@ -49,9 +53,9 @@ export function passageView(state: PartitionState, unitId: string, laneId: strin
  * The trail above the title on every screen you read under a passage
  * (ADR-021): the passage, tappable back to its record however deep you are.
  */
-export function passageCrumbs(ctx: Ctx, v: Pick<PassageView, 'unitId' | 'laneId' | 'title'>, current: string): { label: string; onPress?: () => void }[] {
+export function passageCrumbs(ctx: Ctx, v: Pick<PassageView, 'unitId' | 'languageId' | 'title'>, current: string): { label: string; onPress?: () => void }[] {
   return [
-    { label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId }) },
+    { label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId }) },
     { label: current }
   ];
 }

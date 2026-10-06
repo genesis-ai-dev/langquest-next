@@ -61,7 +61,7 @@ export interface MyBible {
   bibleId?: string;
 }
 
-const myKey = (actorId: string, orgId: string, laneId: string) => `my-bibles:${actorId}:${orgId}:${laneId}`;
+const myKey = (actorId: string, orgId: string, languageId: string) => `my-bibles:${actorId}:${orgId}:${languageId}`;
 const myListeners = new Set<() => void>();
 
 async function readMine(key: string): Promise<MyBible[]> {
@@ -75,8 +75,8 @@ async function readMine(key: string): Promise<MyBible[]> {
 }
 
 /** The person's own Bibles for one language, on this phone. */
-export function useMyBibles(actorId: string, orgId: string, laneId: string | null | undefined) {
-  const key = laneId ? myKey(actorId, orgId, laneId) : null;
+export function useMyBibles(actorId: string, orgId: string, languageId: string | null | undefined) {
+  const key = languageId ? myKey(actorId, orgId, languageId) : null;
   const [list, setList] = useState<MyBible[]>([]);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {

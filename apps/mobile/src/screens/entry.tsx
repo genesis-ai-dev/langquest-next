@@ -11,7 +11,7 @@ import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { cachedPublicPartitions, publicPartitions, queueAccountAction, TERMS_VERSION, type PublicPartition } from '../accountData';
+import { cachedPublicLanguages, publicLanguages, queueAccountAction, TERMS_VERSION, type PublicLanguage } from '../accountData';
 import { firstName, VISION_STEPS } from '../accountText';
 import { isSignInName, signInAddress, signInName } from '../accounts';
 import { recordHelp } from '../signInHelp';
@@ -221,17 +221,17 @@ const EXPLORE_STEP = 25;
 
 /** Organizations that list their work publicly, without an account: name, languages, progress. */
 export function ExploreHome(ctx: Ctx) {
-  const [partitions, setPartitions] = useState<PublicPartition[]>([]);
+  const [listed, setListed] = useState<PublicLanguage[]>([]);
   const [message, setMessage] = useState('Loading…');
   const [shown, setShown] = useState(EXPLORE_STEP);
   useEffect(() => {
     let active = true;
     void (async () => {
-      const cached = await cachedPublicPartitions().catch((e: unknown) => { reportError('explore cache', e); return []; });
-      if (active) setPartitions(cached);
+      const cached = await cachedPublicLanguages().catch((e: unknown) => { reportError('explore cache', e); return []; });
+      if (active) setListed(cached);
       try {
-        const rows = await publicPartitions();
-        if (active) { setPartitions(rows); setMessage(''); }
+        const rows = await publicLanguages();
+        if (active) { setListed(rows); setMessage(''); }
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
         noteExpected('explore refresh', e);
@@ -245,29 +245,29 @@ export function ExploreHome(ctx: Ctx) {
     <Screen header={<Header title="Explore" onBack={ctx.back}
       action={guest ? <SmallBtn label="Sign In" tone="primary" onPress={() => ctx.go('sign_in')} /> : undefined} />}>
       {message ? <Banner icon="cloud" title={message} /> : null}
-      {partitions.length ? <SectionLabel label="Listed publicly" /> : null}
-      {partitions.slice(0, shown).map((p) => {
+      {listed.length ? <SectionLabel label="Listed publicly" /> : null}
+      {listed.slice(0, shown).map((p) => {
         const pct = Math.round(p.translated_pct);
         // A license this build does not know yet is simply not shown.
         const license = isLicense(p.license) ? LICENSE_INFO[p.license] : null;
         return (
-          <Card key={`${p.org_id}:${p.partition_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
+          <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
             onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
             <View style={{ gap: 2 }}>
               <Text style={txt.h3}>{p.name}</Text>
-              {p.languages.length ? <Text style={txt.smMuted} numberOfLines={2}>{p.languages.join(', ')}</Text> : null}
+              {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
             </View>
             {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
             <ProgressBar value={pct} />
             <View style={styles.between}>
-              <Text style={txt.xs}>{p.languages.length} {p.languages.length === 1 ? 'language' : 'languages'}</Text>
+              <Text style={txt.xs}>Recorded</Text>
               <Text style={[txt.xsStrong, { color: C.primary }]}>{pct}%</Text>
             </View>
           </Card>
         );
       })}
-      <ShowMore remaining={partitions.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-      {!partitions.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
+      <ShowMore remaining={listed.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
+      {!listed.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
     </Screen>
   );
 }
@@ -704,8 +704,8 @@ export function IntentChooser(ctx: Ctx) {
 /**
  * Creating an organization starts a new one under a fresh id
  * (`createOrganization`): the org, the seed roles with their privilege sets,
- * you as Organization Admin at org scope, and its one work partition
- * (decision 34). Its languages and how passages get checked are set up next
+ * you as Organization Admin at org scope, and its license. Its languages,
+ * each with how its passages get checked (decision 63), are added next
  * from My Work's Getting started (ONB-5), so nothing here is sample content.
  */
 export function CreateOrg(ctx: Ctx) {
@@ -778,7 +778,7 @@ export function CreateOrg(ctx: Ctx) {
  */
 export function RequestAccess(ctx: Ctx) {
   const [orgId, setOrgId] = useState(ctx.params['orgId'] ?? '');
-  // The name the organization listed its work under on Explore.
+  // The language this person found on Explore, which names who they are asking.
   const orgName = ctx.params['orgName'] || undefined;
   const [message, setMessage] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);

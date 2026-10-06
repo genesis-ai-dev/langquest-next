@@ -4,7 +4,7 @@
 // means. No React, no I/O, so the rules are tested in test/workspace.test.ts.
 import {
   commands,
-  type Card, type EventSpec, type Indexes, type KeyTermView, type PartitionState
+  type Card, type EventSpec, type Indexes, type KeyTermView, type LanguageState
 } from '@langquest-next/core';
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {
@@ -49,10 +49,10 @@ export function cardLabels(list: readonly string[], latestCards: readonly string
 }
 
 /** Card lengths for one passage, by hash. */
-export function cardDurations(state: PartitionState, unitId: string, laneId: string): Map<string, number> {
+export function cardDurations(state: LanguageState, unitId: string): Map<string, number> {
   const out = new Map<string, number>();
   for (const r of Object.values(state.recordings)) {
-    if (r.unitId !== unitId || r.laneId !== laneId) continue;
+    if (r.unitId !== unitId) continue;
     for (const c of r.cards) out.set(c.hash, c.durationMs);
   }
   return out;
@@ -71,7 +71,7 @@ export function mmss(ms: number | undefined): string {
  * started from: ties made earlier in the draft, or on the latest version,
  * still count.
  */
-export function tiedTermIds(state: PartitionState, startTakeId: string | undefined): Set<string> {
+export function tiedTermIds(state: LanguageState, startTakeId: string | undefined): Set<string> {
   const out = new Set<string>();
   const seen = new Set<string>();
   let id: string | null | undefined = startTakeId;
@@ -132,10 +132,11 @@ export function termsInText<T extends Pick<KeyTermView, 'termId' | 'term'>>(text
  * kept as a copy of the version. A card that was never composed is
  * discarded on the record, so recovery does not bring it back.
  */
-export function removeCardSpecs(state: PartitionState, idx: Indexes, c: {
+export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
   commandId: string;
   unitId: string;
-  laneId: string;
+  /** Who is recording: the draft is theirs. */
+  actorId: string;
   list: readonly string[];
   hash: string;
   draftTakeId?: string;
@@ -152,10 +153,10 @@ export function removeCardSpecs(state: PartitionState, idx: Indexes, c: {
     // declared in the workspace's screen contract.
     if (c.draftTakeId) specs.push({ id: `${c.commandId}:archive`, type: 'v1.TakeArchived', payload: { takeId: c.draftTakeId } });
   } else {
-    specs.push(...cmd.keepTake({ commandId: c.commandId, unitId: c.unitId, laneId: c.laneId, cardHashes: next }));
+    specs.push(...cmd.keepTake({ commandId: c.commandId, unitId: c.unitId, cardHashes: next, actorId: c.actorId }));
   }
   if (c.pending.has(c.hash)) {
-    specs.push(...cmd.discardCards({ commandId: `${c.commandId}:discard`, unitId: c.unitId, laneId: c.laneId, cardHashes: [c.hash] }));
+    specs.push(...cmd.discardCards({ commandId: `${c.commandId}:discard`, unitId: c.unitId, cardHashes: [c.hash] }));
   }
   return { specs, cleared: next.length === 0 };
 }
@@ -166,7 +167,7 @@ export function removeCardSpecs(state: PartitionState, idx: Indexes, c: {
  * `linkKeyTerms` under its own command id, so its event ids never collide
  * with the publish's.
  */
-export function tieTermsSpecs(state: PartitionState, publishSpecs: readonly EventSpec[], termIds: Iterable<string>, commandId: string): EventSpec[] {
+export function tieTermsSpecs(state: LanguageState, publishSpecs: readonly EventSpec[], termIds: Iterable<string>, commandId: string): EventSpec[] {
   const submitted = publishSpecs.find((s) => s.type === 'v1.TakeSubmitted');
   const takeId = submitted ? (submitted.payload as { takeId: string }).takeId : undefined;
   const ids = [...termIds];
@@ -188,9 +189,9 @@ export interface BackTranslationDraft {
   cards: Card[];
 }
 
-/** Where a draft is kept: per partition, person, passage, language and kind. */
-export function backTranslationDraftKey(k: { partitionId: string; actorId: string; unitId: string; laneId: string; kindId: string }): string {
-  return `bt-draft:v1:${k.partitionId}:${k.actorId}:${k.unitId}:${k.laneId}:${k.kindId}`;
+/** Where a draft is kept: per language, person, passage and kind. */
+export function backTranslationDraftKey(k: { languageId: string; actorId: string; unitId: string; kindId: string }): string {
+  return `bt-draft:v1:${k.languageId}:${k.actorId}:${k.unitId}:${k.kindId}`;
 }
 
 const isCard = (x: unknown): x is Card => {
@@ -230,7 +231,7 @@ export function withoutPart(d: BackTranslationDraft | null, hash: string): BackT
  * record already names (a save whose draft could not be cleared afterwards
  * never offers the same parts twice).
  */
-export function unsavedParts(state: PartitionState, d: BackTranslationDraft | null): Card[] {
+export function unsavedParts(state: LanguageState, d: BackTranslationDraft | null): Card[] {
   if (!d) return [];
   const named = new Set<string>();
   for (const r of Object.values(state.kindReviews ?? {})) for (const c of r.artifacts ?? []) named.add(c.hash);

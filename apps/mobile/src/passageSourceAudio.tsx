@@ -18,14 +18,14 @@ import { Card, IconBtn, Ico, txt } from './kit';
 import type { ListenHooks } from './recording/useListenLoop';
 import { reportError } from './report';
 import { C, space, target, TINT } from './theme';
-import type { PartitionHandle } from './usePartition';
+import type { LanguageHandle } from './useLanguage';
 
 /** The passage's reference recordings, each with its own player; nothing when there are none. */
-export function ReferenceRecordings({ ctx, unitId, laneId, disabled, listen, onPlay }: {
-  ctx: Ctx; unitId: string; laneId: string; disabled: boolean; listen?: ListenHooks; onPlay?: (id: string) => void;
+export function ReferenceRecordings({ ctx, unitId, disabled, listen, onPlay }: {
+  ctx: Ctx; unitId: string; disabled: boolean; listen?: ListenHooks; onPlay?: (id: string) => void;
 }) {
-  const references = ctx.partition.state
-    ? getReferenceSlides(ctx.partition.state, laneId, unitId) : [];
+  const references = ctx.language.state
+    ? getReferenceSlides(ctx.language.state, unitId) : [];
   if (references.length === 0) return null;
   return <View style={{ gap: space.sm }}>
     {references.map((item) => <Card key={item.id}>
@@ -33,7 +33,7 @@ export function ReferenceRecordings({ ctx, unitId, laneId, disabled, listen, onP
         <Ico name="listen" size={22} color={TINT.amberText} />
         <Text style={[txt.sm, { flex: 1 }]}>{item.label}</Text>
       </View>
-      <SourcePlayer partition={ctx.partition} hashes={[item.hash]} {...(listen ? { listen } : {})}
+      <SourcePlayer language={ctx.language} hashes={[item.hash]} {...(listen ? { listen } : {})}
         label={`Play ${item.label}`} disabled={disabled} {...(onPlay ? { onPlay: () => onPlay(item.id) } : {})} />
     </Card>)}
   </View>;
@@ -50,7 +50,7 @@ function playbackFailed(where: string, err: unknown): string {
  * and every way playback stops is reported so recording can resume.
  */
 export function SourcePlayer(props: {
-  partition: PartitionHandle;
+  language: LanguageHandle;
   hashes: string[];
   uri?: string;
   label: string;
@@ -66,8 +66,8 @@ export function SourcePlayer(props: {
   const generation = useRef(0);
   const wants = useRef(false);
   const signature = props.uri ?? props.hashes.join(':');
-  const partitionRef = useRef(props.partition);
-  partitionRef.current = props.partition;
+  const languageRef = useRef(props.language);
+  languageRef.current = props.language;
   const listenRef = useRef(props.listen);
   listenRef.current = props.listen;
   // Report only real changes, so a stop that was already stopped never resumes recording twice.
@@ -84,7 +84,7 @@ export function SourcePlayer(props: {
     player.current?.pause();
     setPlaying(false);
   };
-  useEffect(() => props.partition.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.partition.blobs.store]);
+  useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => registerPlayback(halt), []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,9 +99,9 @@ export function SourcePlayer(props: {
       player.current = null;
     };
   }, [signature]);
-  const state = props.partition.state;
+  const state = props.language.state;
   const available = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.partition.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
 
   async function toggle() {
     if (props.disabled) return;
@@ -130,9 +130,9 @@ export function SourcePlayer(props: {
         player.current?.remove();
         player.current = null;
         if (index >= (props.uri ? 1 : props.hashes.length)) { wants.current = false; setPlaying(false); return; }
-        const partition = partitionRef.current;
+        const language = languageRef.current;
         const hash = props.hashes[index];
-        const uri = props.uri ?? (hash && partition.state ? partition.blobs.uriFor({ hash, format: audioFormat(partition.state, hash) }) : null);
+        const uri = props.uri ?? (hash && language.state ? language.blobs.uriFor({ hash, format: audioFormat(language.state, hash) }) : null);
         if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });

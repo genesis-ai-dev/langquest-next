@@ -6,7 +6,7 @@ import { accountOutbox } from './accountData';
 import type { AccountAction } from './durableOutbox';
 import { supabase } from './supabase';
 
-/** One scheduler for durable writes outside partition membership. */
+/** One scheduler for durable writes outside any organization or language. */
 export function useAccountSync(actorId: string) {
   useEffect(() => {
     if (actorId === 'guest') return;

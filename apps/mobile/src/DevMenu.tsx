@@ -2,7 +2,7 @@
 // a dev build jump to any screen. Personas exist only on a local Supabase
 // (dev.ts `personasAvailable`); seeding is for dev builds on a local server,
 // so it can never write personas into a real organization.
-import { commands, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
+import { commands, membershipsOf, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { Text } from 'react-native';
@@ -15,12 +15,12 @@ import { subscribeOps, type SharedItem } from './library/model';
 import { reportError } from './report';
 import { supabase } from './supabase';
 import type { OrgHandle } from './useOrg';
-import type { PartitionHandle } from './usePartition';
+import type { LanguageHandle } from './useLanguage';
 
 export function DevMenu(props: {
   open: boolean;
   onClose: () => void;
-  partition: PartitionHandle;
+  language: LanguageHandle;
   org: OrgHandle;
   currentEmail: string | null;
   isOwner: boolean;
@@ -51,19 +51,12 @@ export function DevMenu(props: {
   }
 
   /**
-   * Owner-only: create every persona account, give it its org role (so it
-   * sees the org and its own home) and its membership of the org's work,
-   * then assign the translator and reviewer some work to look at. The
-   * language gets a name and the standard Bible flow, so the Map and the
-   * passage record have steps to show.
-   */
-  /**
    * The language follows LangQuest's Standard Bible Flow (docs/library.md):
    * the flow comes from the library now, so the local server must have been
    * seeded (`npm run library:seed`).
    */
-  async function useStandardFlow(laneId: string) {
-    const orgId = props.partition.orgId;
+  async function useStandardFlow() {
+    const orgId = props.language.orgId;
     const { data, error: failed } = await supabase.rpc('library_shared_items', { p_kind: 'flow', p_query: 'Standard Bible Flow', p_limit: 5, p_offset: 0 });
     if (failed) throw new Error(failed.message);
     const shared = ((data ?? []) as SharedItem[]).find((r) => r.org_id === 'langquest');
@@ -73,38 +66,37 @@ export function DevMenu(props: {
     const { itemId, ops } = subscribeOps(shared, true);
     for (const op of ops) await props.org.append(op.type, op.payload as never);
     const doc = (await loadDocs(orgId, [shared.latest_hash])).get(shared.latest_hash) as FlowDoc | undefined;
-    const state = props.partition.state;
+    const state = props.language.state;
     if (!doc || !state) throw new Error('The flow could not be read.');
-    await props.partition.run(selectFlowSpecs(state, { commandId: `seed-flow:${Crypto.randomUUID()}`, laneId, itemId, docHash: shared.latest_hash, doc }));
+    await props.language.run(selectFlowSpecs(state, { commandId: `seed-flow:${Crypto.randomUUID()}`, itemId, docHash: shared.latest_hash, doc }));
   }
 
+  /**
+   * Owner-only: create every persona account and give it its role across
+   * the organization, then ask the translator to record some of the open
+   * language's work. The language gets the standard Bible flow, so the Map
+   * and the passage record have steps to show.
+   */
   async function seed() {
-    const { state, append } = props.partition;
+    const { state, languageId } = props.language;
     if (!state || !maySeedDemoTeam(props.isDev)) return;
-    const laneId = Object.keys(state.lanes)[0];
     // A handful of passages, in canon order: enough to show For you and the
     // Map without flooding a whole Bible with requests.
     const units = Object.entries(state.units).filter(([, u]) => u.parentUnitId !== null)
       .sort(([, a], [, b]) => (a.order < b.order ? -1 : 1)).slice(0, 5).map(([id]) => id);
     for (const p of PERSONAS) {
-      if (!p.role) continue;
+      if (!p.roleId) continue;
       const id = await ensurePersonaAccount(p);
-      if (p.roleId && props.org.state && !Object.values(props.org.state.members[id] ?? {}).some((m) => m.removed.value === false)) {
-        await props.org.append('v1.OrgMemberAdded', {
-          profileId: id, roleId: p.roleId, scope: { level: 'org' }, displayName: p.email.split('@')[0]!
-        });
-      }
-      if (state.members[id] && !state.members[id]!.removed.value) continue;
-      await append('v1.MemberAdded', { profileId: id, role: p.role });
-      if (laneId && p.role === 'translator') {
+      if (props.org.state && membershipsOf(props.org.state, id).length > 0) continue;
+      await props.org.append('v1.MemberAdded', { profileId: id, roleId: p.roleId, scope: { level: 'org' } });
+      if (languageId && p.role === 'translator') {
         const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
         const c = commands(state, indexesFor(state));
-        for (const unitId of units) await props.partition.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, laneId, what: 'record', profileId: id, dueDate: due }));
+        for (const unitId of units) await props.language.run(c.ask({ commandId: `seed-ask:${Crypto.randomUUID()}`, unitId, what: 'record', profileId: id, dueDate: due }));
       }
     }
-    if (laneId && !state.laneNames[laneId]) await append('v1.LaneNamed', { laneId, name: 'Dinka' });
-    if (laneId && !state.laneFlows[laneId]) await useStandardFlow(laneId);
-    await props.partition.sync();
+    if (languageId && !state.flow) await useStandardFlow();
+    if (languageId) await props.language.sync();
     await props.org.sync();
   }
 

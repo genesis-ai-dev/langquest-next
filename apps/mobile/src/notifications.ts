@@ -37,7 +37,7 @@ export async function handOverPushToken(): Promise<string | undefined> {
   return error ? token : undefined;
 }
 export interface RemoteNotification {
-  id: string; seq: number; org_id: string; partition_id: string;
+  id: string; seq: number; org_id: string; language_id: string | null;
   kind: string; title: string; task_id: string | null;
   active: boolean;
 }

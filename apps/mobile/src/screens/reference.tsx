@@ -12,11 +12,11 @@
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  laneLeafUnits, laneName, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
-  type LibraryDoc, type PartitionState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
+  languageInfo, languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
+  type LibraryDoc, type LanguageState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
@@ -30,7 +30,7 @@ import { noteExpected } from '../report';
 import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../bibleBrain';
 import { coverage, coverageSummary, itemReaches, type Reach, type ReachWhy } from '../reference/coverage';
 import {
-  biblebrainItemId, booksOf, languageOf, legacyMigration, offlineLine, orgLevelCan, recActions, recLabel, recState, REF_KIND_LABEL,
+  biblebrainItemId, booksOf, languageOf, offlineLine, orgLevelCan, recActions, recLabel, recState, REF_KIND_LABEL,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level, type RefKind
 } from '../reference/model';
 import {
@@ -50,11 +50,11 @@ function canActAt(ctx: Ctx, level: Level): boolean {
 }
 
 function levelName(ctx: Ctx, level: Level): string {
-  if (level.kind === 'lane' && ctx.partition.state) return laneName(ctx.partition.state, level.laneId);
+  if (level.kind === 'language') return languageName(ctx.org.state, level.languageId);
   return ctx.org.state?.org?.value.name ?? 'Organization';
 }
 
-const laneParams = (level: Level): Record<string, string> => (level.kind === 'lane' ? { laneId: level.laneId } : {});
+const levelParams = (level: Level): Record<string, string> => (level.kind === 'language' ? { languageId: level.languageId } : {});
 
 function Intro(props: { children: ReactNode }) {
   return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{props.children}</Text>;
@@ -64,7 +64,7 @@ const recTone = (label: string) => (label.startsWith('Recommended') ? 'green' : 
 
 /** Recommend, stop, hide or follow the organization, for one item at this level. */
 function RecButtons(props: { ctx: Ctx; level: Level; itemId: string; name: string; rec: ReturnType<typeof useRecommend> }) {
-  const r = recState(props.ctx.org.state?.recommendations, props.ctx.partition.state, props.level, props.itemId);
+  const r = recState(props.ctx.org.state?.recommendations, props.ctx.language.state, props.level, props.itemId);
   return (
     <View style={styles.actions}>
       {recActions(r, props.level).map((a) => (
@@ -82,32 +82,10 @@ export function ReferenceBibles(ctx: Ctx) {
   const beside = useOpenDetail();
   const { lib, rows, docs } = useRefItems(ctx);
   const canAct = canActAt(ctx, level);
-  const canOrg = orgLevelCan(ctx.org.state, ctx.session.actorId, 'manage_reference');
   const rec = useRecommend(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const [adding, setAdding] = useState(false);
   const [n, setN] = useState(STEP);
-
-  // The old Source Bibles toggles, once: BSB or MSB on means LangQuest's BSB recommended (reference/model.ts).
-  const migrating = useRef(false);
-  useEffect(() => {
-    const org = ctx.org.state;
-    if (migrating.current || !canOrg || !org || !shared.loaded) return;
-    const plan = legacyMigration(org, org.library, shared.rows);
-    if (!plan) return;
-    migrating.current = true;
-    void (async () => {
-      try {
-        if (plan.follow) await lib.subscribe(plan.follow, true);
-        const name = plan.follow?.name ?? lib.item(plan.itemId)?.name ?? 'Berean Standard Bible';
-        if (await rec.run({ kind: 'org' }, plan.itemId, name, 'recommend', true)) {
-          ctx.toast(`${name} is recommended to every language, in place of the old Source Bibles setting.`);
-        }
-      } catch (e) {
-        noteExpected('source bibles migration', e);
-      }
-    })();
-  }, [ctx, canOrg, shared.loaded, shared.rows, lib, rec]);
 
   // Bible Brain's detail says whether FCBH has timings and what may be kept offline; asked once a session.
   const [, setDetails] = useState(0);
@@ -120,21 +98,21 @@ export function ReferenceBibles(ctx: Ctx) {
     return () => { active = false; };
   }, [bibleIds]);
 
-  if (!ctx.partition.state || !ctx.org.state) return <Screen header={<Header title="Bibles" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
+  if (!ctx.language.state || !ctx.org.state) return <Screen header={<Header title="Bibles" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
   const sources = rows.filter((r) => r.kind === 'source' && !r.it.archived);
   const loading = rows.some((r) => r.doc === null);
-  const withRec = sources.map((r) => ({ r, s: recState(ctx.org.state?.recommendations, ctx.partition.state, level, r.it.itemId) }));
+  const withRec = sources.map((r) => ({ r, s: recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId) }));
   const on = withRec.filter((x) => x.s.effective);
-  const hidden = withRec.filter((x) => !x.s.effective && x.s.lane === 'hidden');
-  const off = withRec.filter((x) => !x.s.effective && x.s.lane !== 'hidden');
+  const hidden = withRec.filter((x) => !x.s.effective && x.s.language === 'hidden');
+  const off = withRec.filter((x) => !x.s.effective && x.s.language !== 'hidden');
 
   const card = ({ r }: (typeof withRec)[number]) => {
     const doc = r.doc as SourceDoc;
     const facts = sourceFacts(doc, docs.get, doc.provider.kind === 'biblebrain' ? heldDetail(doc.provider.bibleId) : null);
-    const label = recLabel(recState(ctx.org.state?.recommendations, ctx.partition.state, level, r.it.itemId), level);
+    const label = recLabel(recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId), level);
     return (
       <Card key={r.it.itemId} current={beside?.screen === 'reference_source' && beside.params['itemId'] === r.it.itemId}
-        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...laneParams(level) })} accessibilityLabel={`${r.it.name}. ${label}`}>
+        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={`${r.it.name}. ${label}`}>
         <View style={styles.titleRow}>
           <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
           <Badge label={label} tone={recTone(label)} />
@@ -186,7 +164,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const readyDocs = useLibraryDocs(lib.orgId, shared.rows.map((s) => s.latest_hash));
   const ready = shared.rows.filter((s) => readyDocs.get(s.latest_hash)?.format === 'source@1')
     .filter((s) => !lib.items('material').some((it) => it.subscription?.sourceItemId === s.item_id && it.subscription.sourceOrgId === s.org_id && it.subscription.active));
-  const fallback = ctx.partition.state?.partition?.value.sourceLanguoidId ?? 'eng';
+  const fallback = languageInfo(ctx.org.state, ctx.language.languageId)?.sourceCode ?? 'eng';
   const [q, setQ] = useState(fallback);
   const [languages, setLanguages] = useState<BibleLanguage[]>([]);
   const [lang, setLang] = useState<string | null>(null);
@@ -368,7 +346,7 @@ export function ReferenceSource(ctx: Ctx) {
   }
   const facts = sourceFacts(source, (h) => bookDocs.get(h) ?? docs.get(h), detail);
   const need = timingsNeeded(source, facts, detail);
-  const r = recState(ctx.org.state?.recommendations, ctx.partition.state, level, it.itemId);
+  const r = recState(ctx.org.state?.recommendations, ctx.language.state, level, it.itemId);
   const label = recLabel(r, level);
   const open = jobs.filter((j) => !j.finished_at);
   const followed = it.source === 'subscription';
@@ -491,23 +469,24 @@ const KIND_FILTERS: { id: KindFilter; label: string }[] = [
   { id: 'all', label: 'All' }, { id: 'guide', label: 'Guides' }, { id: 'note', label: 'Notes' }, { id: 'other', label: 'Other' }
 ];
 
-/** A language's passages with their verses, in its template's numbering. */
-function usePassages(ctx: Ctx, laneId: string | null) {
-  const state = ctx.partition.state;
-  const sel = laneId && state ? state.laneTemplates[laneId]?.value : undefined;
-  const tdocs = useLibraryDocs(ctx.partition.orgId, [sel?.docHash]);
+/** The open language's passages with their verses, in its template's numbering; null when `enabled` is false or no language is open. */
+function usePassages(ctx: Ctx, enabled: boolean) {
+  const state = ctx.language.state;
+  const open = enabled && !!ctx.language.languageId;
+  const sel = open ? state?.template?.value : undefined;
+  const tdocs = useLibraryDocs(ctx.language.orgId, [sel?.docHash]);
   return useMemo(() => {
-    if (!state || !laneId || !state.lanes[laneId]) return null;
+    if (!state || !open) return null;
     const template = sel?.docHash ? (tdocs.get(sel.docHash) as TemplateDoc | null) : null;
     const v11n = template?.bible ? (tdocs.get(template.bible.versification) as VersificationDoc | null) : null;
     const versesIn = v11n ? (b: string, c: number) => versesInChapter(v11n, b, c) : undefined;
-    const passages = laneLeafUnits(state, indexesFor(state), laneId).map((unitId) => ({ unitId, label: unitTitle(state, unitId), range: libraryUnitRange(unitId, versesIn) }));
+    const passages = languagePassages(state, indexesFor(state)).map((unitId) => ({ unitId, label: unitTitle(state, unitId), range: libraryUnitRange(unitId, versesIn) }));
     return { passages, versification: v11n };
-  }, [state, laneId, sel?.docHash, tdocs]);
+  }, [state, open, sel?.docHash, tdocs]);
 }
 
 /** Coverage of a language's passages by these items, with the language's links and hides. */
-function coverageFor(state: PartitionState, laneId: string, passages: NonNullable<ReturnType<typeof usePassages>>, offered: Map<string, RecommendationSource>, rows: RefItem[], get: (h: string | null | undefined) => LibraryDoc | null, honourHides = true) {
+function coverageFor(state: LanguageState, passages: NonNullable<ReturnType<typeof usePassages>>, offered: Map<string, RecommendationSource>, rows: RefItem[], get: (h: string | null | undefined) => LibraryDoc | null, honourHides = true) {
   const parents = (unitId: string) => {
     const out: string[] = [];
     let at = state.units[unitId]?.parentUnitId ?? null;
@@ -517,15 +496,15 @@ function coverageFor(state: PartitionState, laneId: string, passages: NonNullabl
   return coverage({
     passages: passages.passages, versification: passages.versification, offered,
     docs: new Map(rows.map((r) => [r.it.itemId, r.doc])), get,
-    link: (u, i) => (honourHides ? passageLink(state, laneId, u, i) : passageLink(state, laneId, u, i) === true ? true : undefined),
-    linkedHere: (u) => linkedTo(state, laneId, u),
+    link: (u, i) => (honourHides ? passageLink(state, u, i) : passageLink(state, u, i) === true ? true : undefined),
+    linkedHere: (u) => linkedTo(state, u),
     ancestors: parents
   });
 }
 
 export function ReferenceGuides(ctx: Ctx) {
   const level = levelOf(ctx);
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const beside = useOpenDetail();
   const { rows, docs } = useRefItems(ctx);
   const canAct = canActAt(ctx, level);
@@ -536,17 +515,18 @@ export function ReferenceGuides(ctx: Ctx) {
   const [book, setBook] = useState<string | null>(null);
   const [covers, setCovers] = useState(false);
   const [n, setN] = useState(STEP);
-  const laneId = level.kind === 'lane' ? level.laneId : null;
-  const passages = usePassages(ctx, covers ? laneId : null);
+  const languageId = level.kind === 'language' ? level.languageId : null;
+  const passages = usePassages(ctx, covers && !!languageId);
   const items = rows.filter((r) => r.kind === 'guide' || r.kind === 'note' || r.kind === 'other').filter((r) => !r.it.archived);
   const reach = useMemo(() => {
-    if (!covers || !passages || !state || !laneId) return null;
+    if (!covers || !passages || !state) return null;
     const all = new Map<string, RecommendationSource>(items.map((r) => [r.it.itemId, 'organization']));
-    return coverageFor(state, laneId, passages, all, items, docs.get);
+    return coverageFor(state, passages, all, items, docs.get);
     // items changes with rows
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [covers, passages, state, laneId, rows, docs.get]);
-  const inApp = useMemo(() => (state ? materialsFor(state, laneId ? { laneId } : {}).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, laneId]);
+  }, [covers, passages, state, rows, docs.get]);
+  // Material written in the app belongs to a language: shown at that language's level.
+  const inApp = useMemo(() => (state && languageId ? materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, languageId]);
 
   if (!state) return <Screen header={<Header title="Guides and Notes" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
   const languages = [...new Set(items.map((r) => languageOf(r.doc)).filter((l): l is string => !!l))].sort();
@@ -561,7 +541,7 @@ export function ReferenceGuides(ctx: Ctx) {
 
   return (
     <Screen header={<Header title="Guides and Notes" sub={levelName(ctx, level)} onBack={ctx.back} />}
-      footer={ctx.session.can('manage_reference') ? <PrimaryBtn label="New note for translators" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', kind: 'note', ...laneParams(level) })} /> : undefined}>
+      footer={ctx.session.can('manage_reference') ? <PrimaryBtn label="New note for translators" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', kind: 'note', ...levelParams(level) })} /> : undefined}>
       <Intro>Study guides and notes reach the passages they are placed on, by verses or by a part of a content template. Recommended ones come first for translators.</Intro>
       <ChipRow>
         <Chip label={active ? `Filter · ${active}` : 'Filter'} icon="filter" on={active > 0} onPress={() => setFiltering(true)} />
@@ -574,8 +554,8 @@ export function ReferenceGuides(ctx: Ctx) {
       ) : withRec.slice(0, n).map(({ r, label }) => (
         <Card key={r.it.itemId} current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
           onPress={() => (r.doc?.format === 'study@2' && r.it.source !== 'subscription'
-            ? ctx.go('guide_editor', { itemId: r.it.itemId, ...laneParams(level) })
-            : ctx.go('material_editor', { itemId: r.it.itemId, ...laneParams(level) }))} accessibilityLabel={`${r.it.name}. ${label}`}>
+            ? ctx.go('guide_editor', { itemId: r.it.itemId, ...levelParams(level) })
+            : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={`${r.it.name}. ${label}`}>
           <View style={styles.titleRow}>
             <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(label)} />
@@ -592,7 +572,7 @@ export function ReferenceGuides(ctx: Ctx) {
           <Group>
             {inApp.slice(0, STEP).map((m, i) => (
               <Row key={m.materialId} icon="note" label={m.title} last={i === Math.min(inApp.length, STEP) - 1}
-                sub={m.scope.unitId ? `On ${unitTitle(state, m.scope.unitId)}` : m.scope.laneId ? `For the ${laneName(state, m.scope.laneId)} team` : 'For every language'} />
+                sub={m.scope.unitId ? `On ${unitTitle(state, m.scope.unitId)}` : 'For this language’s team'} />
             ))}
           </Group>
           <Intro>These are offered wherever they are placed; edit them under Reference Material.</Intro>
@@ -620,7 +600,7 @@ export function ReferenceGuides(ctx: Ctx) {
             </ChipRow>
           </>
         ) : null}
-        {laneId ? (
+        {languageId ? (
           <Group>
             <Row label="Covers this language’s passages" sub="Only what reaches at least one passage of its content template." role="switch" checked={covers} onPress={() => setCovers(!covers)} last />
           </Group>
@@ -651,24 +631,25 @@ function guideLine(r: RefItem, reaches: number | null): string {
 type CoverFilter = 'all' | 'bare' | 'notes';
 
 export function ReferenceCoverage(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const level = levelOf(ctx);
-  const laneId = level.kind === 'lane' ? level.laneId : ctx.laneId && state?.lanes[ctx.laneId] ? ctx.laneId : Object.keys(state?.lanes ?? {})[0] ?? null;
+  // Coverage is read against a language's template: the one in the params, else the open one.
+  const languageId = level.kind === 'language' ? level.languageId : ctx.language.languageId || null;
   const beside = useOpenDetail();
   const { rows, docs } = useRefItems(ctx);
-  const passages = usePassages(ctx, laneId);
+  const passages = usePassages(ctx, !!languageId);
   const [filter, setFilter] = useState<CoverFilter>('all');
   const [n, setN] = useState(STEP);
   const offered = useMemo(() => {
     const have = new Set(rows.map((r) => r.it.itemId));
-    return new Map([...recommendedFor(ctx.org.state?.recommendations, state, laneId)].filter(([id]) => have.has(id)));
-  }, [ctx.org.state, state, laneId, rows]);
-  const map = useMemo(() => (state && laneId && passages ? coverageFor(state, laneId, passages, offered, rows, docs.get) : null),
-    [state, laneId, passages, offered, rows, docs.get]);
+    return new Map([...recommendedFor(ctx.org.state?.recommendations, state)].filter(([id]) => have.has(id)));
+  }, [ctx.org.state, state, rows]);
+  const map = useMemo(() => (state && passages ? coverageFor(state, passages, offered, rows, docs.get) : null),
+    [state, passages, offered, rows, docs.get]);
   const names = useMemo(() => new Map(rows.map((r) => [r.it.itemId, r.doc?.format === 'source@1' ? r.doc.abbreviation : r.it.name])), [rows]);
 
   if (!state) return <Screen header={<Header title="Coverage" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
-  if (!laneId || !passages) {
+  if (!languageId || !passages) {
     return <Screen header={<Header title="Coverage" onBack={ctx.back} />}><EmptyState icon="map" title="No language open" sub="Open a language first: coverage is read against its content template." /></Screen>;
   }
   const summary = map ? coverageSummary(map) : null;
@@ -679,7 +660,7 @@ export function ReferenceCoverage(ctx: Ctx) {
     return true;
   });
   return (
-    <Screen header={<Header title="Coverage" sub={laneName(state, laneId)} onBack={ctx.back} />}>
+    <Screen header={<Header title="Coverage" sub={languageName(ctx.org.state, languageId)} onBack={ctx.back} />}>
       <Intro>What reaches each passage: recommended Bibles by book, guides and notes by verses or template part, and anything placed by hand.</Intro>
       {summary ? (
         <Card>
@@ -706,7 +687,7 @@ export function ReferenceCoverage(ctx: Ctx) {
                 current={beside?.screen === 'passage_reference' && beside.params['unitId'] === p.unitId}
                 sub={what.length ? what.join(' · ') : 'Nothing recommended reaches it'}
                 badge={bare ? 'No guide' : undefined} badgeTone={bare ? 'amber' : undefined}
-                onPress={() => ctx.go('passage_reference', { unitId: p.unitId, laneId })} />
+                onPress={() => ctx.go('passage_reference', { unitId: p.unitId, languageId })} />
             );
           })}
         </Group>
@@ -728,36 +709,36 @@ const GROUPS: { kind: RefKind; label: string }[] = [
 ];
 
 export function PassageReference(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const unitId = ctx.params['unitId'] ?? '';
-  const laneId = ctx.params['laneId'] ?? ctx.laneId ?? '';
+  const languageId = ctx.params['languageId'] ?? ctx.languageId ?? '';
   const { rows, docs } = useRefItems(ctx);
   const canManage = ctx.session.can('manage_reference');
   const [adding, setAdding] = useState(false);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const passage = useMemo(() => {
-    if (!state || !state.units[unitId] || !state.lanes[laneId]) return null;
+    if (!state || !state.units[unitId] || languageId !== ctx.language.languageId) return null;
     return { unitId, label: unitTitle(state, unitId), range: null as ReturnType<typeof libraryUnitRange> };
-  }, [state, unitId, laneId]);
-  const sel = state && laneId ? state.laneTemplates[laneId]?.value : undefined;
-  const tdocs = useLibraryDocs(ctx.partition.orgId, [sel?.docHash]);
+  }, [state, unitId, languageId, ctx.language.languageId]);
+  const sel = state?.template?.value;
+  const tdocs = useLibraryDocs(ctx.language.orgId, [sel?.docHash]);
   const offered = useMemo(() => {
     const have = new Set(rows.map((r) => r.it.itemId));
-    return new Map([...recommendedFor(ctx.org.state?.recommendations, state, laneId)].filter(([id]) => have.has(id)));
-  }, [ctx.org.state, state, laneId, rows]);
+    return new Map([...recommendedFor(ctx.org.state?.recommendations, state)].filter(([id]) => have.has(id)));
+  }, [ctx.org.state, state, rows]);
   const result = useMemo(() => {
     if (!state || !passage) return null;
     const template = sel?.docHash ? (tdocs.get(sel.docHash) as TemplateDoc | null) : null;
     const v11n = template?.bible ? (tdocs.get(template.bible.versification) as VersificationDoc | null) : null;
     const range = libraryUnitRange(unitId, v11n ? (b, c) => versesInChapter(v11n, b, c) : undefined);
     const ps = { passages: [{ ...passage, range }], versification: v11n };
-    const here = coverageFor(state, laneId, ps, offered, rows, docs.get).get(unitId) ?? [];
-    const all = coverageFor(state, laneId, ps, offered, rows, docs.get, false).get(unitId) ?? [];
+    const here = coverageFor(state, ps, offered, rows, docs.get).get(unitId) ?? [];
+    const all = coverageFor(state, ps, offered, rows, docs.get, false).get(unitId) ?? [];
     const hidden = all.filter((r) => !here.some((h) => h.itemId === r.itemId));
     return { here, hidden };
-  }, [state, passage, sel?.docHash, tdocs, unitId, laneId, offered, rows, docs.get]);
-  const inApp = useMemo(() => (state && passage ? materialsFor(state, { unitId }).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && (!m.scope.laneId || m.scope.laneId === laneId)) : []), [state, passage, unitId, laneId]);
+  }, [state, passage, sel?.docHash, tdocs, unitId, offered, rows, docs.get]);
+  const inApp = useMemo(() => (state && passage ? materialsFor(state, { unitId }).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, passage, unitId]);
 
   if (!state || !passage || !result) {
     return <Screen header={<Header title="Reference" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'This passage is not here' : 'Loading…'} /></Screen>;
@@ -767,7 +748,7 @@ export function PassageReference(ctx: Ctx) {
   async function link(itemId: string, linked: boolean, message: string, undo: boolean | null) {
     if (busy) return;
     setBusy(true);
-    const spec = (value: boolean) => [{ id: Crypto.randomUUID(), type: 'v1.PassageReferenceLinked' as const, payload: { laneId, unitId, itemId, linked: value } }];
+    const spec = (value: boolean) => [{ id: Crypto.randomUUID(), type: 'v1.PassageReferenceLinked' as const, payload: { unitId, itemId, linked: value } }];
     try {
       await ctx.act(spec(linked), message, undo === null ? undefined : () => spec(undo));
     } catch {
@@ -781,7 +762,7 @@ export function PassageReference(ctx: Ctx) {
     const item = byId.get(r.itemId);
     const name = item?.it.name ?? r.itemId;
     const facts = item?.doc?.format === 'source@1' ? sourceSummary(sourceFacts(item.doc, docs.get, item.doc.provider.kind === 'biblebrain' ? heldDetail(item.doc.provider.bibleId) : null)) : null;
-    const prior = passageLink(state, laneId, unitId, r.itemId);
+    const prior = passageLink(state, unitId, r.itemId);
     return (
       <Row key={r.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={name} last={last} muted={hidden}
         sub={hidden ? 'Hidden here' : [WHY[r.why], facts].filter(Boolean).join(' · ')}
@@ -794,7 +775,7 @@ export function PassageReference(ctx: Ctx) {
     .filter((r) => !q.trim() || r.it.name.toLowerCase().includes(q.trim().toLowerCase()));
 
   return (
-    <Screen header={<Header title="Reference" sub={`${passage.label} · ${laneName(state, laneId)}`} onBack={ctx.back} />}
+    <Screen header={<Header title="Reference" sub={`${passage.label} · ${languageName(ctx.org.state, languageId)}`} onBack={ctx.back} />}
       footer={canManage ? <PrimaryBtn label="Add" icon="plus" onPress={() => setAdding(true)} /> : undefined}>
       <Intro>What translators are offered on this passage, and why. They can still explore any Bible online and choose for themselves.</Intro>
       {GROUPS.map((g) => {

@@ -112,9 +112,9 @@ export function ListenCard(props: { ctx: Ctx; version: Version }) {
       <SectionLabel label="Listen" />
       <Card>
         <Text style={txt.h3}>{versionTitle(v.n)}</Text>
-        <AudioClip partition={props.ctx.partition} hashes={v.cardHashes} label={`Play ${versionTitle(v.n)}`} />
+        <AudioClip language={props.ctx.language} hashes={v.cardHashes} label={`Play ${versionTitle(v.n)}`} />
         {change ? <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>What changed:</Text> {change}</Text> : null}
-        {v.changeBlobHash ? <AudioClip partition={props.ctx.partition} hashes={[v.changeBlobHash]} label="Play what changed" /> : null}
+        {v.changeBlobHash ? <AudioClip language={props.ctx.language} hashes={[v.changeBlobHash]} label="Play what changed" /> : null}
         <Text style={txt.xs}>Published by {props.ctx.name(v.by)} · {when(v.hlc)}</Text>
       </Card>
     </View>
@@ -130,12 +130,12 @@ export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
       <Banner icon={r.guest ? 'link' : 'assign'} title={`${who} asked${r.dueDate ? ` · ${dueText(r.dueDate)}` : ''}`} {...(r.note ? { body: authoredText(props.ctx, r.by, r.note) } : {})} />
       {r.noteBlobHash ? (
         <Authored ctx={props.ctx} by={r.by}>
-          <AudioClip partition={props.ctx.partition} hashes={[r.noteBlobHash]} label="Play their directions" />
+          <AudioClip language={props.ctx.language} hashes={[r.noteBlobHash]} label="Play their directions" />
         </Authored>
       ) : null}
       {r.by && (r.note || r.noteBlobHash) ? (
         <View style={{ alignSelf: 'flex-end' }}>
-          <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'request', r.id, r.by, r.unitId, r.laneId)} size={36} />
+          <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'request', r.id, r.by, r.unitId)} size={36} />
         </View>
       ) : null}
     </View>
@@ -165,12 +165,12 @@ export function CompareCard(props: { ctx: Ctx; review: ReviewView; kind: KindDef
         <Banner icon="history" tone="amber" title={`Made from ${versionTitle(r.versionN)} — you're reviewing ${versionTitle(props.version.n)}. Check what changed.`} />
       ) : null}
       <Authored ctx={props.ctx} by={r.by}>
-        {recordings.length ? <AudioClip partition={props.ctx.partition} hashes={recordings} label={`Play the ${k.produces?.what ?? 'recording'}`} /> : <Text style={txt.xs}>No recording attached.</Text>}
+        {recordings.length ? <AudioClip language={props.ctx.language} hashes={recordings} label={`Play the ${k.produces?.what ?? 'recording'}`} /> : <Text style={txt.xs}>No recording attached.</Text>}
         {r.comment || r.commentBlobHash ? (
           <View style={styles.inset}>
             <Text style={txt.xsStrong}>{k.produces?.what === 'back translation' ? "Back translator's note" : 'Their note'}</Text>
             {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
-            {r.commentBlobHash ? <AudioClip partition={props.ctx.partition} hashes={[r.commentBlobHash]} label="Play their note" /> : null}
+            {r.commentBlobHash ? <AudioClip language={props.ctx.language} hashes={[r.commentBlobHash]} label="Play their note" /> : null}
           </View>
         ) : null}
       </Authored>
@@ -209,7 +209,7 @@ function EarlierReview(props: { ctx: Ctx; review: ReviewView; kind: KindDef | un
         <View style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm }}>
           <Authored ctx={props.ctx} by={r.by}>
             {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
-            {recordings.length ? <AudioClip partition={props.ctx.partition} hashes={recordings} label="Play what they recorded" /> : null}
+            {recordings.length ? <AudioClip language={props.ctx.language} hashes={recordings} label="Play what they recorded" /> : null}
           </Authored>
           {r.response ? (
             <Text style={txt.smMuted}>
@@ -270,8 +270,8 @@ function FromTranslatorPart(props: {
           <Authored key={n.id} ctx={props.ctx} by={n.by}>
             <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
               {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-              {...(n.blobHash ? { audio: <AudioClip partition={props.ctx.partition} hashes={[n.blobHash]} label="Play note" /> } : {})}
-              action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+              {...(n.blobHash ? { audio: <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label="Play note" /> } : {})}
+              action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
           </Authored>
         );
       })}

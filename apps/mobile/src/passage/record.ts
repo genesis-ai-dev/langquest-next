@@ -1,15 +1,15 @@
 // The passage record's wording and choices, as pure functions of the fold
-// (demo `screens/passage.tsx` helpers: heroHeadline, pathState, laneState,
+// (demo `screens/passage.tsx` helpers: heroHeadline, pathState and its per-kind form,
 // KindActionRow, describeEvent, the summaries, askPeopleFor). Screens in
 // `screens/passage.tsx` draw these; keeping them here lets tests hold the
 // words and the "who gets which button" rules without a renderer.
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  feedbackIsMine, isCompleteState, KIND_STATE_LABEL, keyTermView, kindOfV1Step, membershipsOf, privilegesFor,
-  privilegesOfFixedRole, scopeCovers, stepName,
+  feedbackIsMine, isCompleteState, KIND_STATE_LABEL, keyTermView, languagePeople, membershipsOf, privilegesFor,
+  scopeCovers, stepName,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
-  type Privilege, type PartitionState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type Role, type SourcedQuestion,
+  type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
 } from '@langquest-next/core';
 import type { IconName } from '../kit';
@@ -55,7 +55,7 @@ export function heroHeadline(p: PassageState, kinds: KindDef[], me: string, name
   }
   const next = p.next;
   if (!next) return 'In review';
-  // Only the kinds still open: a finished lane beside an asked one doesn't make it "Next".
+  // Only the kinds still open: a finished kind beside an asked one doesn't make it "Next".
   const open = next.kinds.filter((k) => !isCompleteState(k.state));
   const openName = open.map((k) => kindName(kinds, k.kindId)).join(' + ') || stepName(kinds, next.step);
   if (open.length && open.every((k) => k.state === 'asked')) {
@@ -77,8 +77,8 @@ export function pathState(s: FlowStepStatus, isNext: boolean): PathState {
   return isNext ? 'current' : 'todo';
 }
 
-/** One kind's lane in a step with several kinds, so separate pieces of work never read as one review. */
-export function laneState(k: KindStatus, s: FlowStepStatus, isNext: boolean): PathState {
+/** One kind's path within a step with several kinds, so separate pieces of work never read as one review. */
+export function kindPathState(k: KindStatus, s: FlowStepStatus, isNext: boolean): PathState {
   if (s.override && s.complete) return 'complete';
   if (s.step.checkpoint ? k.state === 'approved' : isCompleteState(k.state)) return k.state === 'addressed' ? 'answered' : 'complete';
   if (s.lockedBy || k.state === 'locked') return 'locked';
@@ -304,7 +304,7 @@ export interface EntryText {
 }
 
 /** Where a note points, as a label ("Whole passage", "Version 2", "Verse 3 · NIV"). */
-export function anchorLabel(note: Pick<PassageNote, 'anchor'>, o: { state: PartitionState; p: PassageState; guide?: StudyGuide | null }): string {
+export function anchorLabel(note: Pick<PassageNote, 'anchor'>, o: { state: LanguageState; p: PassageState; guide?: StudyGuide | null }): string {
   const a = note.anchor;
   switch (a.kind) {
     case 'passage': return 'Whole passage';
@@ -423,7 +423,7 @@ export function formatAnswer(type: QuestionSpec['type'], value: string): string 
 }
 
 export const QUESTION_SOURCE: Record<SourcedQuestion['source'], string> = {
-  org: 'Organization', partition: 'All languages', language: 'Language', request: 'Asked for this review'
+  org: 'Organization', language: 'Language', request: 'Asked for this review'
 };
 
 /** Answers paired with their questions; answers whose question is gone still show. */
@@ -442,15 +442,9 @@ export function answeredQuestions(questions: SourcedQuestion[], answers: Record<
 
 // ---- asking someone (ASK-2, ASK-4) -------------------------------------------------
 
-const ROLE_LABEL: Record<Role, string> = {
-  owner: 'Organization Admin', coordinator: 'Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
-};
-
-/** Does this person hold `need` for the language: by their partition role, or an org role whose scope covers it. */
-export function holdsIn(state: PartitionState, org: OrgState | null, profileId: string, target: { partitionId: string; laneId: string }, need: Privilege): boolean {
-  const member = state.members[profileId];
-  if (member && !member.removed.value && privilegesOfFixedRole(member.role.value).has(need)) return true;
-  return !!org && privilegesFor(org, profileId, target).has(need);
+/** Does this person hold `need` in the language, through an org-scope role or one in that language. */
+export function holdsIn(org: OrgState | null, profileId: string, languageId: string, need: Privilege): boolean {
+  return !!org && privilegesFor(org, profileId, languageId).has(need);
 }
 
 export interface AskCandidate {
@@ -462,48 +456,33 @@ export interface AskCandidate {
 }
 
 /**
- * Teammates who may be asked: partition members and org members whose scope
- * covers the partition and language, holding Translate (to record) or Review
- * (to review). Not the person asking. For a review, those on the language's
- * review team or who did this kind here before come first ("Usually does").
+ * Teammates who may be asked: everyone whose role covers the language and
+ * holds Translate (to record) or Review (to review). Not the person asking.
+ * For a review, those on one of the language's review teams or who did this
+ * kind here before come first ("Usually does").
  */
 export function askCandidates(
-  state: PartitionState,
+  state: LanguageState,
   org: OrgState | null,
-  o: { partitionId: string; laneId: string; what: 'record' | 'review'; kindId?: string; me: string }
+  o: { languageId: string; what: 'record' | 'review'; kindId?: string; me: string }
 ): AskCandidate[] {
   const need: Privilege = o.what === 'record' ? 'translate' : 'review';
-  const target = { partitionId: o.partitionId, laneId: o.laneId };
-  const ids = new Set<string>([
-    ...Object.entries(state.members).filter(([, m]) => !m.removed.value).map(([id]) => id),
-    ...Object.keys(org?.members ?? {})
-  ]);
   const reviewedHere = new Set<string>();
   if (o.what === 'review' && o.kindId) {
-    for (const r of Object.values(state.kindReviews)) {
-      if (r.kindId === o.kindId && state.takes[r.takeId]?.laneId === o.laneId) reviewedHere.add(r.by);
-    }
-    for (const [takeId, bySteps] of Object.entries(state.reviews)) {
-      if (state.takes[takeId]?.laneId !== o.laneId) continue;
-      for (const [stepId, byActor] of Object.entries(bySteps)) {
-        if (kindOfV1Step(stepId) === o.kindId) for (const actorId of Object.keys(byActor)) reviewedHere.add(actorId);
-      }
-    }
+    for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId) reviewedHere.add(r.by);
   }
   const onTeam = new Set<string>();
   if (o.what === 'review') {
     for (const t of Object.values(state.teams)) {
-      if (t.laneId !== o.laneId) continue;
       for (const [id, reg] of Object.entries(t.members)) if (reg.value) onTeam.add(id);
     }
   }
   const out: AskCandidate[] = [];
-  for (const id of ids) {
-    if (id === o.me) continue;
-    if (!holdsIn(state, org, id, target, need)) continue;
-    const member = state.members[id];
-    const covering = org ? membershipsOf(org, id).find((m) => scopeCovers(m.scope, target) && org.roles[m.roleId.value] && !org.roles[m.roleId.value]!.retired) : undefined;
-    const role = covering ? org!.roles[covering.roleId.value]!.name.value : member && !member.removed.value ? ROLE_LABEL[member.role.value] : 'Member';
+  for (const person of languagePeople(org, o.languageId).values()) {
+    const id = person.profileId;
+    if (id === o.me || !person.privileges.has(need)) continue;
+    const covering = membershipsOf(org!, id).find((m) => scopeCovers(m.scope, o.languageId) && org!.roles[m.roleId.value] && !org!.roles[m.roleId.value]!.retired);
+    const role = covering ? org!.roles[covering.roleId.value]!.name.value : 'Member';
     const why = onTeam.has(id) ? 'On the review team' : reviewedHere.has(id) ? 'Has done this here before' : '';
     out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: !!why });
   }

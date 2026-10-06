@@ -6,7 +6,7 @@
 // none yet and screens say so. It is the readers' last resort
 // (sources/useSources.ts), labelled as built in: the sources an
 // organization recommends come first. No timings are made up for it.
-import type { PartitionState } from '@langquest-next/core';
+import type { LanguageState } from '@langquest-next/core';
 import { CHAPTER_TEXT } from './study/chapterText';
 import { PASSAGE_TEXTS } from './study/passageTexts';
 import { unitRange, versesOf, type VerseRange } from './study/range';
@@ -62,7 +62,7 @@ export function readingsForRange(range: VerseRange): Reading[] {
 const cache = new Map<string, Reading[]>();
 
 /** Translations of a passage the app can show, first is the default (STUDY-5). */
-export function readingsFor(state: PartitionState, unitId: string): Reading[] {
+export function readingsFor(state: LanguageState, unitId: string): Reading[] {
   const range = unitRange(state, unitId);
   if (!range) return [];
   const key = `${range.book} ${range.start.chapter}:${range.start.verse}-${range.end.chapter}:${range.end.verse ?? ''}`;
@@ -75,7 +75,7 @@ export function readingsFor(state: PartitionState, unitId: string): Reading[] {
 }
 
 /** The passage's source text as one paragraph (for key-term matching and the workspace), or null. */
-export function sourceText(state: PartitionState, unitId: string): string | null {
+export function sourceText(state: LanguageState, unitId: string): string | null {
   const first = readingsFor(state, unitId)[0];
   return first ? first.verses.map((v) => v.text).join(' ') : null;
 }

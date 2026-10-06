@@ -1,3 +1,4 @@
+import { foldOrg, ORG_STREAM, type AnyEvent } from '@langquest-next/core';
 import { deriveSession } from '../src/session';
 import { claim, deadMessage, HOLD_MS, holdScanned, inviteCard, nextStep, outcomeOfError, withExpiry, type HeldInvite } from '../src/heldInvite';
 import { inviteUri, parseKey, signInUri } from '../src/inviteCode';
@@ -94,7 +95,7 @@ describe('what a failed redemption means', () => {
 
 describe('the invite card', () => {
   it("shows the server's word: who it is for, the role and the language", () => {
-    expect(inviteCard({ status: 'ok', label: 'Nyibol Deng', roleName: 'Translator', scopeLevel: 'lane',
+    expect(inviteCard({ status: 'ok', label: 'Nyibol Deng', roleName: 'Translator', scopeLevel: 'language',
       languageName: 'Anglish', orgName: "Ryder's Translation Organization", invitedBy: 'ryderwishart' }))
       .toEqual({ title: 'Invite for Nyibol Deng', detail: "Translator · Anglish · Ryder's Translation Organization", from: 'ryderwishart' });
   });
@@ -149,18 +150,20 @@ describe('looked-after accounts', () => {
 });
 
 describe('who may invite', () => {
-  const ownerState = {
-    members: { me: { role: { value: 'owner', hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } } }
-  } as unknown as Parameters<typeof deriveSession>[2];
+  const at = (n: number) => ({ id: `e${n}`, orgId: 'o1', streamId: ORG_STREAM, actorId: 'me', deviceId: 'd', hlc: `0000000000${n}` });
+  const org = foldOrg([
+    { ...at(1), type: 'v1.RoleDefined', payload: { roleId: 'owner', name: 'Organization Admin', privileges: ['invite_members', 'manage_structure'] } },
+    { ...at(2), type: 'v1.MemberAdded', payload: { profileId: 'me', roleId: 'owner', scope: { level: 'org' } } }
+  ] as AnyEvent[]);
 
   it('a looked-after account never may, whatever its role says', () => {
     // Why: inviting hands out other people's access; someone with no email of
     // their own cannot be reached if that goes wrong. The server refuses too.
-    const managed = deriveSession('me', `nyibol-482@${MANAGED_DOMAIN}`, ownerState, true);
+    const managed = deriveSession('me', `nyibol-482@${MANAGED_DOMAIN}`, true, org);
     expect(managed.isManaged).toBe(true);
     expect(managed.can('invite_members')).toBe(false);
     expect(managed.can('manage_structure')).toBe(true);
-    const own = deriveSession('me', 'ryder@example.org', ownerState, true);
+    const own = deriveSession('me', 'ryder@example.org', true, org);
     expect(own.can('invite_members')).toBe(true);
   });
 });

@@ -77,7 +77,7 @@ async function perform(
   message: string,
   undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[]
 ): Promise<boolean> {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   if (!state) return false;
   let specs: EventSpec[];
   try {
@@ -89,7 +89,7 @@ async function perform(
   }
   try {
     await ctx.act(specs, message, undo ? () => {
-      const now = ctx.partition.state ?? state;
+      const now = ctx.language.state ?? state;
       return undo(specs)(commands(now, indexesFor(now)));
     } : undefined);
     return true;
@@ -110,7 +110,7 @@ function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?:
   const { ctx } = props;
   return (
     <Screen header={<Header title={TITLES[props.id]} onBack={ctx.back} {...(props.crumbsOf ? { crumbs: passageCrumbs(ctx, props.crumbsOf, TITLES[props.id]) } : {})} />}>
-      <EmptyState icon="book" title={props.text ?? (ctx.partition.state ? "This passage isn't in this language." : 'Loading the language…')} />
+      <EmptyState icon="book" title={props.text ?? (ctx.language.state ? "This passage isn't in this language." : 'Loading the language…')} />
     </Screen>
   );
 }
@@ -118,7 +118,7 @@ function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?:
 function PlayRow(props: { ctx: Ctx; hashes: string[]; label: string; sub?: string }) {
   return (
     <View style={styles.playRow}>
-      <AudioClip partition={props.ctx.partition} hashes={props.hashes} label={props.label} />
+      <AudioClip language={props.ctx.language} hashes={props.hashes} label={props.label} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{props.label}</Text>
         {props.sub ? <Text style={txt.xs} numberOfLines={1}>{props.sub}</Text> : null}
@@ -162,12 +162,12 @@ export function PassageRecord(ctx: Ctx) {
   // Which version the path shows: the latest unless someone flipped back (‹ ›, the dots, a swipe).
   const versionCount = v?.p.versions.length ?? 0;
   const [versionIdx, setVersionIdx] = useState(Math.max(0, versionCount - 1));
-  useEffect(() => { setVersionIdx(Math.max(0, versionCount - 1)); }, [v?.unitId, v?.laneId, versionCount]);
+  useEffect(() => { setVersionIdx(Math.max(0, versionCount - 1)); }, [v?.unitId, v?.languageId, versionCount]);
   const scroll = useRef<ScrollView>(null);
   const content = useRef<View>(null);
   const scrolledFor = useRef<string | null>(null);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
-  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
+  const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
@@ -176,13 +176,13 @@ export function PassageRecord(ctx: Ctx) {
     const out: Record<string, UsualTarget | undefined> = {};
     if (!v || !isAuthor) return out;
     for (const kindId of new Set(v.p.flow.steps.flatMap((st) => st.kindIds))) {
-      out[kindId] = usualTargetFor(v.state, ctx.org.state, { partitionId: ctx.partition.partitionId, laneId: v.laneId, kindId, me });
+      out[kindId] = usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me });
     }
     return out;
-  }, [v?.state, v?.laneId, v?.p.flow, ctx.org.state, ctx.partition.partitionId, me, isAuthor]);
+  }, [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, isAuthor]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
-  const { p, kinds, unitId, laneId } = v;
+  const { p, kinds, unitId, languageId } = v;
   const s = ctx.session;
   const can: RecordCan = {
     record: canGo(ctx, 'passage_record', 'workspace'),
@@ -196,7 +196,7 @@ export function PassageRecord(ctx: Ctx) {
     note: s.can('translate') || s.can('review') || s.can('fill_reference'),
     keep: s.can('translate')
   };
-  const params = { unitId, laneId };
+  const params = { unitId, languageId };
   const mine = requestIsMine(v.state, me);
   const teamName = teamNameIn(v.state);
   const answersMine = can.record && can.keep && feedbackIsMine(p, me);
@@ -226,7 +226,7 @@ export function PassageRecord(ctx: Ctx) {
     if (!target) return go('ask_someone', { what: 'review', kindId });
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
-    void perform(ctx, (c) => c.ask(sendToInput({ commandId: newId(), unitId, laneId, kindId, target })),
+    void perform(ctx, (c) => c.ask(sendToInput({ commandId: newId(), unitId, kindId, target })),
       `Sent to ${label} — ${'teamId' in target ? 'anyone on it' : 'they'} will see it on My Work`,
       (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
   };
@@ -251,7 +251,7 @@ export function PassageRecord(ctx: Ctx) {
   };
   /** Open where the work is: the current step, with the path above it to scroll back through (ADR-030, amended). */
   const scrollToCurrent = (row: View) => {
-    const key = `${unitId}:${laneId}:${currentStepId(p) ?? ''}`;
+    const key = `${unitId}:${languageId}:${currentStepId(p) ?? ''}`;
     const into = content.current;
     if (scrolledFor.current === key || !into) return;
     scrolledFor.current = key;
@@ -282,7 +282,7 @@ export function PassageRecord(ctx: Ctx) {
   const latest = timeline[0];
 
   return (
-    <Screen fixed header={<Header title={v.title} sub={`${v.lane} · ${flowLabel}`} onBack={ctx.back} {...(moreAction ? { action: moreAction } : {})} />} footer={footer}>
+    <Screen fixed header={<Header title={v.title} sub={`${v.language} · ${flowLabel}`} onBack={ctx.back} {...(moreAction ? { action: moreAction } : {})} />} footer={footer}>
       <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View ref={content} collapsable={false} style={{ gap: space.md }}>
           <Card>
@@ -311,19 +311,19 @@ export function PassageRecord(ctx: Ctx) {
           {study ? (
             <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
               summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
-              {...ctx.details(`passage:${unitId}:${laneId}:study`)}>
+              {...ctx.details(`passage:${unitId}:${languageId}:study`)}>
               <StudyRows ctx={ctx} study={study} onOpen={(stepId) => go('study_step', { stepId })} />
               <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
             </Disclosure>
           ) : null}
           {p.versions.length > 0 && gridIds.length > 0 ? (
-            <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${laneId}:reviews`)}>
+            <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
               <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
                 onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
             </Disclosure>
           ) : null}
           {timeline.length > 0 ? (
-            <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${laneId}:history`)}>
+            <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${languageId}:history`)}>
               {timeline.slice(0, historyShown).map((e, i) => {
                 const t = describe(e);
                 let onPress: (() => void) | undefined;
@@ -340,10 +340,10 @@ export function PassageRecord(ctx: Ctx) {
                 // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
                 // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
                 if (!trailing && e.type === 'note') {
-                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId, laneId)} size={36} />;
+                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId)} size={36} />;
                 }
                 if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
-                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId, laneId)} size={36} />;
+                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId)} size={36} />;
                 }
                 return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
               })}
@@ -383,22 +383,22 @@ export function PassageRecord(ctx: Ctx) {
       {skipping ? (
         <ReasonSheet visible title={`Set aside ${v.kind(skipping.kindId).name}?`}
           sub="The flow suggests this step. Setting it aside is fine — say why so the next person understands."
-          quickReasons={SKIP_REASONS} confirmLabel="Set aside" voice={voiceFor(ctx, unitId, laneId)} onClose={() => setSkipping(null)}
+          quickReasons={SKIP_REASONS} confirmLabel="Set aside" voice={voiceFor(ctx)} onClose={() => setSkipping(null)}
           onConfirm={(r) => {
             const { kindId, stepId } = skipping;
             setSkipping(null);
-            void perform(ctx, (c) => c.depart({ commandId: newId(), unitId, laneId, type: 'skip', kindId, stepId, reason: r.reason, ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {}) }),
+            void perform(ctx, (c) => c.depart({ commandId: newId(), unitId, type: 'skip', kindId, stepId, reason: r.reason, ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {}) }),
               `${v.kind(kindId).name} set aside · reason saved`, undoDepart);
           }} />
       ) : null}
       {overriding ? (
         <ReasonSheet visible title="Move past the checkpoint?" tone="red"
           sub="Checkpoints are the flow's hard stops. Your reason is recorded with your name, and anyone can see it on the record."
-          quickReasons={OVERRIDE_REASONS} confirmLabel="Move past checkpoint" voice={voiceFor(ctx, unitId, laneId)} onClose={() => setOverriding(null)}
+          quickReasons={OVERRIDE_REASONS} confirmLabel="Move past checkpoint" voice={voiceFor(ctx)} onClose={() => setOverriding(null)}
           onConfirm={(r) => {
             const stepId = overriding;
             setOverriding(null);
-            void perform(ctx, (c) => c.depart({ commandId: newId(), unitId, laneId, type: 'override', stepId, reason: r.reason, ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {}) }),
+            void perform(ctx, (c) => c.depart({ commandId: newId(), unitId, type: 'override', stepId, reason: r.reason, ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {}) }),
               'Moved past the checkpoint · reason saved', undoDepart);
           }} />
       ) : null}
@@ -416,11 +416,11 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
   return (
     <ReasonSheet visible title="Keep it as it is?" tone="amber"
       sub="No new version is made. Your reason goes back to the reviewer and into the record."
-      quickReasons={KEEP_REASONS} confirmLabel="Keep and send reason" voice={voiceFor(ctx, v.unitId, v.laneId)} onClose={props.onClose}
+      quickReasons={KEEP_REASONS} confirmLabel="Keep and send reason" voice={voiceFor(ctx)} onClose={props.onClose}
       onConfirm={(r) => {
         props.onClose();
         void perform(ctx, (c) => c.depart({
-          commandId: newId(), unitId: v.unitId, laneId: v.laneId, type: 'keep', reviewId: props.reviewId, reason: r.reason,
+          commandId: newId(), unitId: v.unitId, type: 'keep', reviewId: props.reviewId, reason: r.reason,
           ...(r.blobHash ? { reasonBlobHash: r.blobHash } : {})
         }), 'Kept · your reason is on the record', undoDepart);
       }} />
@@ -435,7 +435,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) 
   const save = async () => {
     setBusy(true);
     const ok = await perform(ctx, (c) => c.addNote({
-      commandId: newId(), unitId: v.unitId, laneId: v.laneId, anchor: { kind: 'passage' },
+      commandId: newId(), unitId: v.unitId, anchor: { kind: 'passage' },
       ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
     }), 'Note added — it follows this passage');
     setBusy(false);
@@ -444,7 +444,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) 
   return (
     <Sheet visible title="Add a note" sub="On the whole passage. It follows the passage into reviews and later versions." onClose={props.onClose}
       footer={<PrimaryBtn label="Add note" disabled={!text.trim() && !hash} busy={busy} onPress={() => void save()} />}>
-      <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label="Say it" hash={hash} onChange={setHash} />
+      <VoiceNote ctx={ctx} label="Say it" hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
     </Sheet>
   );
@@ -836,9 +836,9 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 /** One version: what changed and why, its takes, the key terms tied to it, its reviews and notes. */
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
-  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
+  const guide = useStudyGuide(ctx, v?.unitId);
   if (!v) return <Missing ctx={ctx} id="version_detail" />;
-  const { p, unitId, laneId } = v;
+  const { p, unitId, languageId } = v;
   const version = p.versions.find((x) => x.takeId === ctx.params['takeId']) ?? p.latest;
   if (!version) return <Missing ctx={ctx} id="version_detail" crumbsOf={v} text="Nothing recorded for this passage yet." />;
   const title = versionTitle(version.n);
@@ -846,11 +846,11 @@ export function VersionDetail(ctx: Ctx) {
   const prompted = p.reviews.filter((r) => r.response?.revisedTakeId === version.takeId);
   const terms = keyTermLinksFor(v.state, version.takeId);
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && (n.onTakeId === version.takeId || (n.anchor.kind === 'version' && n.anchor.takeId === version.takeId)));
-  const key = (part: string) => `version:${unitId}:${laneId}:${version.takeId}:${part}`;
-  const params = { unitId, laneId };
+  const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
+  const params = { unitId, languageId };
   return (
     <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
-      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId, laneId)} />} />}>
+      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? 'Note' : 'What changed'} />
         <Authored ctx={ctx} by={version.by}>
@@ -913,7 +913,7 @@ export function VersionDetail(ctx: Ctx) {
                 <NoteCard anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
                   {...(n.text ? { text: n.text } : {})}
                   {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label="Voice note" /> } : {})}
-                  action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId, laneId)} size={36} />} />
+                  action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId)} size={36} />} />
               </Authored>
             ))}
           </View>
@@ -930,17 +930,17 @@ export function ReviewDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const [keeping, setKeeping] = useState(false);
   if (!v) return <Missing ctx={ctx} id="review_detail" />;
-  const { p, unitId, laneId } = v;
+  const { p, unitId, languageId } = v;
   const review = p.reviews.find((r) => r.id === ctx.params['reviewId']) ?? p.reviews.at(-1);
   if (!review) return <Missing ctx={ctx} id="review_detail" crumbsOf={v} text="No reviews on this passage yet." />;
   const me = ctx.session.actorId;
-  const params = { unitId, laneId };
+  const params = { unitId, languageId };
   const kind = v.kind(review.kindId);
   const makes = kind.produces;
   const checkedBy = makes ? v.kind(makes.checkedBy).name : undefined;
   const good = review.outcome !== 'needs_changes';
   const request = review.requestId ? p.requests.find((r) => r.id === review.requestId) : undefined;
-  const questions = questionsForKind(v.state, review.kindId, laneId, request);
+  const questions = questionsForKind(v.state, review.kindId, request);
   const answers = answeredQuestions(questions, review.answers);
   const skipped = Object.entries(review.skipped ?? {});
   const source = feedbackSource(review, ctx.name);
@@ -958,7 +958,7 @@ export function ReviewDetail(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={kind.name} crumbs={passageCrumbs(ctx, v, kind.name)} sub={when(review.hlc)} onBack={ctx.back}
-      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId, laneId)} />} />}
+      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId)} />} />}
       footer={answerable ? (
         <View style={styles.btnRow}>
           <View style={{ width: '44%' }}><GhostBtn label="Keep it" onPress={() => setKeeping(true)} /></View>
@@ -993,7 +993,7 @@ export function ReviewDetail(ctx: Ctx) {
             onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })} last />
         </Group>
       ) : null}
-      <UsedLine ctx={ctx} state={v.state} subject={{ reviewId: review.id }} detailsKey={`review:${unitId}:${laneId}:${review.id}:used`} />
+      <UsedLine ctx={ctx} state={v.state} subject={{ reviewId: review.id }} detailsKey={`review:${unitId}:${languageId}:${review.id}:used`} />
       {review.comment || review.commentBlobHash ? (
         <Card>
           <Label text={makes ? 'Note from the back translator' : 'Feedback'} />
@@ -1007,7 +1007,7 @@ export function ReviewDetail(ctx: Ctx) {
       {answers.length > 0 || skipped.length > 0 ? (
         <Disclosure icon="help" title="Answers to the questions"
           summary={`${plural(answers.length, 'answer')}${skipped.length ? ` · ${skipped.length} left unanswered` : ''}`}
-          {...ctx.details(`review:${unitId}:${laneId}:${review.id}:questions`)}>
+          {...ctx.details(`review:${unitId}:${languageId}:${review.id}:questions`)}>
           <Authored ctx={ctx} by={review.by}>
             {answers.map((a, i) => (
               <View key={a.id} style={[styles.answer, i > 0 && styles.topBorder]}>
@@ -1073,8 +1073,8 @@ export function AskSomeone(ctx: Ctx) {
   const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
-  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { partitionId: ctx.partition.partitionId, laneId: v.laneId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [v?.state, v?.laneId, ctx.org.state, ctx.partition.partitionId, what, kindId, me]);
+  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me }) : []),
+    [v?.state, v?.languageId, ctx.org.state, what, kindId, me]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text="Ask for a review from its step on the passage record." />;
@@ -1086,7 +1086,7 @@ export function AskSomeone(ctx: Ctx) {
   const byName = (a: { profileId: string }, b: { profileId: string }) => ctx.name(a.profileId).localeCompare(ctx.name(b.profileId));
   const usual = candidates.filter((c) => c.usual).sort(byName);
   const others = candidates.filter((c) => !c.usual).sort(byName);
-  const existingQuestions = kindId ? questionsForKind(v.state, kindId, v.laneId).length : 0;
+  const existingQuestions = kindId ? questionsForKind(v.state, kindId).length : 0;
   const dueErr = dueError(dueTyped, today);
   const due = dueTyped.trim() ? (dueErr ? null : dueTyped.trim()) : dueDays === null ? null : addDays(today, dueDays);
   const outside = mode === 'outside' && !isRecord;
@@ -1097,7 +1097,7 @@ export function AskSomeone(ctx: Ctx) {
     if (!ready) return;
     setBusy(true);
     const ok = await perform(ctx, (c) => c.ask({
-      commandId: newId(), unitId: v.unitId, laneId: v.laneId, what,
+      commandId: newId(), unitId: v.unitId, what,
       ...(kindId ? { kindId } : {}),
       ...(outside ? { guest: { name: guestName.trim(), channel, contact: contact.trim() } } : who ? { profileId: who } : {}),
       ...(due ? { dueDate: due } : {}),
@@ -1107,7 +1107,7 @@ export function AskSomeone(ctx: Ctx) {
     }), outside ? `Asked ${target} · the request is on the record` : `${target} will see it on their My Work`,
     (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
     setBusy(false);
-    if (ok) ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId });
+    if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId });
   };
   const addQuestion = () => {
     const text = qDraft.trim();
@@ -1125,7 +1125,7 @@ export function AskSomeone(ctx: Ctx) {
   };
 
   return (
-    <Screen header={<Header title={title} sub={`${v.title} · ${v.lane}`} onBack={ctx.back} close />}
+    <Screen header={<Header title={title} sub={`${v.title} · ${v.language}`} onBack={ctx.back} close />}
       footer={<PrimaryBtn label={target ? `Ask ${target.split(' ')[0]}` : 'Choose someone'} disabled={!ready} busy={busy} onPress={() => void send()} />}>
       <Card style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {kindId ? <KindIcon kindId={kindId} size={44} /> : <View style={[styles.roundTile, { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light }]}><Ico name="mic" size={22} color={C.primary} /></View>}
@@ -1169,7 +1169,7 @@ export function AskSomeone(ctx: Ctx) {
           <Field value={contact} onChangeText={setContact} placeholder="Phone number" keyboardType="phone-pad" />
           <View style={styles.preview}>
             <Label text={`${channelLabel(channel)} preview`} color={TINT.greenText} />
-            <Text style={txt.sm}>{guestMessage({ name: guestName, passage: v.title, language: v.lane })}</Text>
+            <Text style={txt.sm}>{guestMessage({ name: guestName, passage: v.title, language: v.language })}</Text>
             <Text style={[txt.xs, { color: TINT.greenText }]}>
               The request is saved on the record with their name and number. Sending the no-account link from the app is not ready yet.
             </Text>
@@ -1178,7 +1178,7 @@ export function AskSomeone(ctx: Ctx) {
       )}
 
       <SectionLabel label="Directions · optional" />
-      <VoiceNote ctx={ctx} unitId={v.unitId} laneId={v.laneId} label={isRecord ? 'Say what to keep in mind' : 'Say what to listen for'} hash={noteHash} onChange={setNoteHash} />
+      <VoiceNote ctx={ctx} label={isRecord ? 'Say what to keep in mind' : 'Say what to listen for'} hash={noteHash} onChange={setNoteHash} />
       <Field value={note} onChangeText={setNote} placeholder="Or type them" multiline />
 
       {!isRecord ? (

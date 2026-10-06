@@ -1,5 +1,5 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type PartitionQueries, type SyncInspection } from '@langquest-next/client';
-import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type PartitionState } from '@langquest-next/core';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
+import { defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
@@ -12,10 +12,10 @@ import { getStore } from './store';
 import { onWake } from './wake';
 import { supabase } from './supabase';
 
-export interface PartitionHandle {
+export interface LanguageHandle {
   orgId: string;
-  partitionId: string;
-  state: PartitionState | null;
+  languageId: string;
+  state: LanguageState | null;
   pending: number;
   lastSync: string;
   /**
@@ -26,15 +26,15 @@ export interface PartitionHandle {
   /** The server refuses this app version; work is kept locally until an upgrade. */
   tooOld: boolean;
   /**
-   * The server answered and refused this actor for this partition (not a
+   * The server answered and refused this actor for this language (not a
    * member), with its reason. Syncing again will not clear it; only a
    * membership change or a different account will.
    */
   refused: string | null;
   /**
-   * This session has read the partition up to date from the server at least
+   * This session has read the language up to date from the server at least
    * once. Writes that must not race what others already wrote (starting a
-   * partition) wait for it.
+   * language) wait for it.
    */
   pulled: boolean;
   /** Blob transfer state (PLAN.md section 14). Downloads follow `keptUnits` plus the actor's own work. */
@@ -46,15 +46,8 @@ export interface PartitionHandle {
    * locally (it may still be pending upload: see `pending`).
    */
   saving: boolean;
-  /**
-   * Queries over the persisted rows (client queries.ts); null before load.
-   * Screens read through `useQuery`, which re-runs on every publication.
-   */
-  queries: PartitionQueries | null;
   /** Fold revision, bumped on every local or pulled change. */
   revision: number;
-  /** Compare persisted rows with a rebuild from the fold (dev menu). */
-  verifyRows: () => Promise<{ rows: number; mismatches: string[] }>;
   /** The local log as the sync screen shows it; null before load. */
   inspect: () => Promise<SyncInspection | null>;
   blobs: {
@@ -93,16 +86,19 @@ export interface PartitionHandle {
 const MIN_FREE_BYTES = 500 * 1024 * 1024;
 const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
 
-/** One budget per device, shared by every partition's workers. */
+/** One budget per device, shared by every language's workers. */
 const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
 
 /**
- * Owns one SyncClient for one partition on this device. Screens read `state`
+ * Owns one SyncClient for one language stream on this device. Screens read `state`
  * and call `append`; nothing else in the app touches events or sync.
  */
-export function usePartition(orgId: string, partitionId: string, actorId: string): PartitionHandle {
+export function useLanguage(orgId: string, openId: string | null, actorId: string, membershipEpoch = 0): LanguageHandle {
+  // Before the organization has a language there is no stream to sync: an
+  // empty language, and every write a no-op.
+  const languageId = openId ?? '';
   const clientRef = useRef<SyncClient | null>(null);
-  const [state, setState] = useState<PartitionState | null>(null);
+  const [state, setState] = useState<LanguageState | null>(null);
   const [pending, setPending] = useState(0);
   const [lastSync, setLastSync] = useState('never');
   const [online, setOnline] = useState<boolean | null>(null);
@@ -113,7 +109,7 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
   const [pulled, setPulled] = useState(false);
   const [keptUnits, setKeptUnits] = useState<ReadonlySet<string>>(new Set());
   const keptRef = useRef<ReadonlySet<string>>(new Set());
-  const keepKey = `keep:${orgId}/${partitionId}`;
+  const keepKey = `keep:${orgId}/${languageId}`;
   const [present, setPresent] = useState<ReadonlySet<string>>(new Set());
   const [pendingUp, setPendingUp] = useState(0);
   const [pendingDown, setPendingDown] = useState(0);
@@ -122,7 +118,6 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
   const [live, setLive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [revision, setRevision] = useState(0);
-  const [queries, setQueries] = useState<PartitionQueries | null>(null);
   const schedulerRef = useRef<SyncScheduler | null>(null);
   const upMeter = useRef(new RateMeter());
   const downMeter = useRef(new RateMeter());
@@ -196,15 +191,31 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
   // Back on screen or back online: sync now rather than at the end of a backoff.
   useEffect(() => onWake(() => schedulerRef.current?.wake()), []);
 
+  // The organization stream changed someone's membership or a role: work
+  // the server refused for want of one may be accepted now (NOT_MEMBER).
+  useEffect(() => {
+    if (membershipEpoch === 0) return;
+    const c = clientRef.current;
+    if (!c) return;
+    void c.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']).then((n) => {
+      if (n > 0) schedulerRef.current?.nudge();
+    }).catch(() => {});
+  }, [membershipEpoch]);
+
   useEffect(() => {
     let cancelled = false;
     let cleanupBlobs = () => {};
     // Another language opened (docs/decisions.md 37): nothing from the last
-    // partition may show under this one while it loads.
+    // language may show under this one while it loads.
     setState(null);
     setPulled(false);
     setOnline(null);
     onlineRef.current = null;
+    if (!openId) {
+      setState(emptyLanguageState());
+      setPulled(true);
+      return;
+    }
     (async () => {
       const store = await getStore();
       // One random id per install, persisted. Every device must differ or
@@ -216,7 +227,7 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
       const transport = new SupabaseTransport(supabase);
       const client = new SyncClient({
         orgId,
-        partitionId,
+        streamId: languageId,
         actorId,
         deviceId,
         store,
@@ -234,7 +245,6 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
       if (cancelled) return;
       clientRef.current = client;
       storeRef.current = blobStore;
-      setQueries(client.queries());
       // The client publishes after every fold change and every commit; the
       // screen follows that, not the call sites. The fold mutates in place,
       // so copy the top level: identity is the revision.
@@ -273,16 +283,16 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
         ...common,
         // Size from the confirmation versus the file here: a mismatch reopens the upload.
         work: () => deriveUploadWork(client.getState(), blobStore.snapshot(), blobStore.sizes()),
-        transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, partitionId }, (t) => uploadBlob(orgId, partitionId, ref, blobStore, t)),
+        transfer: (ref) => metered(upMeter.current, blobStore, ref, 'up', { orgId, streamId: languageId }, (t) => uploadBlob(orgId, languageId, ref, blobStore, t)),
         onChange: (n) => { pendingUpRef.current = n; setPendingUp(n); setPeakUp((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       const down = new TransferWorker({
         ...DOWNLOAD_DEFAULTS,
         ...common,
-        // Rule 10: by scope, never the whole partition. Scope is the actor's
+        // Rule 10: by scope, never the whole language. Scope is the actor's
         // own units plus what they explicitly chose to keep offline.
         work: () => deriveDownloadWork(client.getState(), blobStore.snapshot(), scopeNow()),
-        transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, partitionId }, (t) => downloadBlob(orgId, partitionId, ref, blobStore, t)),
+        transfer: (ref) => metered(downMeter.current, blobStore, ref, 'down', { orgId, streamId: languageId }, (t) => downloadBlob(orgId, languageId, ref, blobStore, t)),
         onChange: (n) => { pendingDownRef.current = n; setPendingDown(n); setPeakDown((p) => (n === 0 ? 0 : Math.max(p, n))); }
       });
       upRef.current = up;
@@ -306,7 +316,7 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
         run: async () => { const { more } = await sync(); return { offline: onlineRef.current === false, more }; }
       });
       schedulerRef.current = scheduler;
-      const unwatch = transport.watch(orgId, partitionId, {
+      const unwatch = transport.watch(orgId, languageId, {
         onPoke: () => scheduler.nudge(),
         onStatus: (connected) => { setLive(connected); scheduler.connection(connected); }
       });
@@ -328,7 +338,7 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
       // Finish any save a crash or kill interrupted (recordingJournalCore.ts).
       // Idempotent by recordingId; runs after the workers so the upload
       // pass sees the recovered card.
-      const resumed = await getRecordingJournal().resume({ orgId, partitionId }, {
+      const resumed = await getRecordingJournal().resume({ orgId, languageId }, {
         blobExists: (hash, format) => blobStore.exists({ hash, format }),
         ingest: async (uri, format, beforeMove) => {
           const { ref, size } = await blobStore.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
@@ -337,7 +347,7 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
         hasRecording: (id) => !!client.getState().recordings[id],
         append: async (e) => {
           await client.append('v1.RecordingAdded', {
-            recordingId: e.id, unitId: e.target.unitId, laneId: e.target.laneId, kind: 'target',
+            recordingId: e.id, unitId: e.target.unitId, kind: 'target',
             cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
           });
         }
@@ -350,11 +360,10 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
       cancelled = true;
       cleanupBlobs();
       clientRef.current = null;
-      setQueries(null);
       upRef.current = null;
       downRef.current = null;
     };
-  }, [orgId, partitionId, actorId, refresh, sync, keepKey]);
+  }, [orgId, languageId, openId, actorId, refresh, sync, keepKey]);
 
   const append = useCallback(
     async <T extends EventType>(type: T, payload: EventPayloads[T], parentEventId?: string) => {
@@ -422,9 +431,8 @@ export function usePartition(orgId: string, partitionId: string, actorId: string
   };
   const triggerUpload = useCallback(() => upRef.current?.trigger(), []);
   const inspect = useCallback(() => clientRef.current?.inspect() ?? Promise.resolve(null), []);
-  const verifyRows = useCallback(() => clientRef.current?.verifyRows() ?? Promise.resolve({ rows: 0, mismatches: ['not loaded'] }), []);
 
-  return { orgId, partitionId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, queries, revision, verifyRows, inspect, blobs, triggerUpload, append, appendMany, run, sync };
+  return { orgId, languageId, state, pending, lastSync, online, tooOld, refused, pulled, live, saving, revision, inspect, blobs, triggerUpload, append, appendMany, run, sync };
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */
@@ -433,7 +441,7 @@ async function metered(
   store: BlobStore,
   ref: BlobRef,
   dir: 'up' | 'down',
-  where: { orgId: string; partitionId: string },
+  where: { orgId: string; streamId: string },
   run: (timings: TransferTimings) => Promise<void>
 ): Promise<void> {
   await timedTransfer(dir, where, async (timings) => {

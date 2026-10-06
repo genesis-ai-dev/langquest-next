@@ -119,7 +119,7 @@ export interface InvitePreview {
   orgId?: string;
   orgName?: string | null;
   roleName?: string | null;
-  scopeLevel?: 'org' | 'partition' | 'lane' | null;
+  scopeLevel?: 'org' | 'language' | null;
   languageName?: string | null;
   label?: string | null;
   invitedBy?: string | null;
@@ -145,7 +145,7 @@ export function deadMessage(reason: DeadReason, from?: string | null): string {
 export function inviteCard(p: InvitePreview | null): { title: string; detail: string | null; from: string | null } {
   if (!p || p.status === 'not_found') return { title: 'Invitation to join an organization', detail: null, from: null };
   const title = p.label && !p.group ? `Invite for ${p.label}` : p.label ? p.label : `Invitation to ${p.orgName ?? 'an organization'}`;
-  const where = p.scopeLevel === 'lane' && p.languageName ? `${p.languageName} · ${p.orgName ?? ''}`.replace(/ · $/, '') : p.orgName ?? null;
+  const where = p.scopeLevel === 'language' && p.languageName ? `${p.languageName} · ${p.orgName ?? ''}`.replace(/ · $/, '') : p.orgName ?? null;
   const detail = [p.roleName, where].filter(Boolean).join(' · ') || null;
   return { title, detail, from: p.invitedBy ?? null };
 }

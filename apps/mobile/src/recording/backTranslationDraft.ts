@@ -2,7 +2,7 @@
 // the recorded parts are cards in the blob store that nothing on the record
 // names until Save puts them in one `produceContent`. So deleting a part is
 // final, and nothing half-made ever reaches the grow-only review. The list
-// is in AsyncStorage (keyed by partition, person, passage, language and kind;
+// is in AsyncStorage (keyed by language, person, passage and kind;
 // see workspaceModel.ts) so it survives leaving the screen or a restart.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Card } from '@langquest-next/core';

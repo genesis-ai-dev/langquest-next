@@ -1,54 +1,48 @@
 // What the reference screens show and write (docs/reference-material.md):
 // who recommends an item at this level and what an admin may do about it,
 // the facts of a source (text, audio, timings, offline, copyright), a new
-// Bible Brain source as a `source@1` document, and the one-time move from
-// the old "Source Bibles" toggles. Pure: no React Native, so it is tested.
+// Bible Brain source as a `source@1` document. Pure: no React Native, so it
+// is tested.
 import {
-  catalogKey, libraryItemView, recommendedFor, subscriptionItemId, testamentOf,
-  type LaneRecommendation, type LibraryDoc, type LibraryItemState, type OrgState, type Privilege, type PartitionState,
+  privilegesFor, recommendedFor, testamentOf,
+  type LanguageRecommendation, type LibraryDoc, type OrgState, type Privilege, type LanguageState,
   type RecommendationSource, type Register, type SourceBookDoc, type SourceDoc, type TimingDoc
 } from '@langquest-next/core';
-import type { SharedItem } from '../library/model';
 import type { BibleDetail } from '../sources/bibleBrain';
 
 // ---- who may recommend ----------------------------------------------------------
 
-/** Does this person hold a privilege through an organization-wide membership (what the server asks of org-partition writes)? */
+/** Does this person hold a privilege through an organization-wide membership (what the server asks of organization writes)? */
 export function orgLevelCan(org: OrgState | null, profileId: string, p: Privilege): boolean {
-  if (!org) return false;
-  return Object.values(org.members[profileId] ?? {}).some((m) => {
-    if (m.removed.value !== false || m.scope.level !== 'org') return false;
-    const role = org.roles[m.roleId.value];
-    return !!role && !role.retired && (role.privileges.value ?? []).includes(p);
-  });
+  return !!org && privilegesFor(org, profileId).has(p);
 }
 
 // ---- recommendations ------------------------------------------------------------
 
-/** Where a screen is: the organization, or one language. */
-export type Level = { kind: 'org' } | { kind: 'lane'; laneId: string };
+/** Where a screen is: the organization, or one language (whose state is the open language's). */
+export type Level = { kind: 'org' } | { kind: 'language'; languageId: string };
 
 export interface RecState {
   /** The organization recommends it. */
   org: boolean;
   /** The language's own say, when it has one other than following the organization. */
-  lane: Exclude<LaneRecommendation, 'inherit'> | null;
+  language: Exclude<LanguageRecommendation, 'inherit'> | null;
   /** Whether it reaches translators at this level, and from whom. */
   effective: RecommendationSource | null;
 }
 
-export function recState(orgRecs: Record<string, Register<boolean>> | undefined, state: PartitionState | null, level: Level, itemId: string): RecState {
+export function recState(orgRecs: Record<string, Register<boolean>> | undefined, state: LanguageState | null, level: Level, itemId: string): RecState {
   const org = orgRecs?.[itemId]?.value === true;
-  if (level.kind === 'org') return { org, lane: null, effective: org ? 'organization' : null };
-  const say = state?.laneReferences[level.laneId]?.[itemId]?.value;
-  const lane = say === 'recommended' || say === 'hidden' ? say : null;
-  return { org, lane, effective: recommendedFor(orgRecs, state, level.laneId).get(itemId) ?? null };
+  if (level.kind === 'org') return { org, language: null, effective: org ? 'organization' : null };
+  const say = state?.languageReferences[itemId]?.value;
+  const language = say === 'recommended' || say === 'hidden' ? say : null;
+  return { org, language, effective: recommendedFor(orgRecs, state).get(itemId) ?? null };
 }
 
 /** "Recommended by the organization", "Hidden for this language", for a line or badge. */
 export function recLabel(r: RecState, level: Level): string {
   if (level.kind === 'org') return r.org ? 'Recommended' : 'Not recommended';
-  if (r.lane === 'hidden') return 'Hidden for this language';
+  if (r.language === 'hidden') return 'Hidden for this language';
   if (r.effective === 'language') return 'Recommended for this language';
   if (r.effective === 'organization') return 'Recommended by the organization';
   return 'Not recommended';
@@ -59,26 +53,26 @@ export type RecAction = 'recommend' | 'stop' | 'hide' | 'inherit';
 /** What an admin may do at this level: the organization recommends or stops; a language recommends, hides or follows the organization. */
 export function recActions(r: RecState, level: Level): { id: RecAction; label: string }[] {
   if (level.kind === 'org') return [r.org ? { id: 'stop', label: 'Stop recommending' } : { id: 'recommend', label: 'Recommend' }];
-  if (r.lane === 'hidden') return [{ id: 'inherit', label: 'Follow organization' }];
-  if (r.lane === 'recommended') return [{ id: 'inherit', label: r.org ? 'Follow organization' : 'Stop recommending' }];
+  if (r.language === 'hidden') return [{ id: 'inherit', label: 'Follow organization' }];
+  if (r.language === 'recommended') return [{ id: 'inherit', label: r.org ? 'Follow organization' : 'Stop recommending' }];
   return [r.org ? { id: 'hide', label: 'Hide' } : { id: 'recommend', label: 'Recommend' }];
 }
 
-/** The write an action makes: an org event, or a language event. */
+/** The write an action makes: an organization event, or an event in the language's own log. */
 export type RecWrite =
-  | { partition: 'org'; type: 'v1.ReferenceRecommended'; payload: { itemId: string; recommended: boolean } }
-  | { partition: 'lane'; type: 'v1.LaneReferenceRecommended'; payload: { laneId: string; itemId: string; state: LaneRecommendation } };
+  | { to: 'org'; type: 'v1.ReferenceRecommended'; payload: { itemId: string; recommended: boolean } }
+  | { to: 'language'; languageId: string; type: 'v1.ReferenceSet'; payload: { itemId: string; state: LanguageRecommendation } };
 
 export function recWrite(level: Level, itemId: string, action: RecAction): RecWrite {
-  if (level.kind === 'org') return { partition: 'org', type: 'v1.ReferenceRecommended', payload: { itemId, recommended: action === 'recommend' } };
-  const state: LaneRecommendation = action === 'recommend' ? 'recommended' : action === 'hide' ? 'hidden' : 'inherit';
-  return { partition: 'lane', type: 'v1.LaneReferenceRecommended', payload: { laneId: level.laneId, itemId, state } };
+  if (level.kind === 'org') return { to: 'org', type: 'v1.ReferenceRecommended', payload: { itemId, recommended: action === 'recommend' } };
+  const state: LanguageRecommendation = action === 'recommend' ? 'recommended' : action === 'hide' ? 'hidden' : 'inherit';
+  return { to: 'language', languageId: level.languageId, type: 'v1.ReferenceSet', payload: { itemId, state } };
 }
 
 /** The write that puts things back as they were before `action` (Undo). */
 export function recUndo(r: RecState, level: Level, itemId: string): RecWrite {
-  if (level.kind === 'org') return { partition: 'org', type: 'v1.ReferenceRecommended', payload: { itemId, recommended: r.org } };
-  return { partition: 'lane', type: 'v1.LaneReferenceRecommended', payload: { laneId: level.laneId, itemId, state: r.lane ?? 'inherit' } };
+  if (level.kind === 'org') return { to: 'org', type: 'v1.ReferenceRecommended', payload: { itemId, recommended: r.org } };
+  return { to: 'language', languageId: level.languageId, type: 'v1.ReferenceSet', payload: { itemId, state: r.language ?? 'inherit' } };
 }
 
 /** What the toast says after an action. */
@@ -313,32 +307,4 @@ export function sourceFromBible(detail: BibleDetail, versification: string): Sou
     books,
     deps: []
   };
-}
-
-// ---- the old Source Bibles toggles -----------------------------------------------------
-
-/** LangQuest's ready source that replaces the BSB and MSB toggles (Frederick Surrey's readings). */
-export const LEGACY_SOURCE = { orgId: 'langquest', itemId: 'langquest.source.bsb-fs' } as const;
-const LEGACY_TOGGLES = ['berean-bsb-fs', 'berean-msb-fs'];
-
-/**
- * The one-time move from the old toggles: an organization that turned on
- * BSB or MSB gets LangQuest's BSB source recommended, once. Null when there
- * is nothing to do: no toggle was on, or the organization has already said
- * something about that source (recommended it or stopped), or LangQuest's
- * source cannot be reached yet. `follow` is set when it must be followed first.
- */
-export function legacyMigration(org: OrgState | null, library: Record<string, LibraryItemState>, shared: SharedItem[]): { itemId: string; follow: SharedItem | null } | null {
-  if (!org) return null;
-  const toggled = LEGACY_TOGGLES.some((id) => org.catalog[catalogKey('reference', id, 'org')]?.value === true);
-  if (!toggled) return null;
-  const subId = subscriptionItemId(LEGACY_SOURCE.orgId, LEGACY_SOURCE.itemId);
-  const copy = Object.keys(library).map((id) => libraryItemView(library, id))
-    .find((it) => it?.copiedFrom?.orgId === LEGACY_SOURCE.orgId && it.copiedFrom.itemId === LEGACY_SOURCE.itemId);
-  const local = libraryItemView(library, subId) ? subId : copy?.itemId ?? null;
-  const candidates = [subId, ...(copy ? [copy.itemId] : [])];
-  if (candidates.some((id) => org.recommendations[id] !== undefined)) return null;
-  if (local) return { itemId: local, follow: null };
-  const row = shared.find((s) => s.org_id === LEGACY_SOURCE.orgId && s.item_id === LEGACY_SOURCE.itemId);
-  return row ? { itemId: subId, follow: row } : null;
 }

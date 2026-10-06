@@ -16,10 +16,10 @@ import { BibleError } from '../bibleBrain';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
 
-/** The level a screen is at: the language in its params (when this phone has it open), else the organization. */
+/** The level a screen is at: the language in its params (when it is the open language), else the organization. */
 export function levelOf(ctx: Ctx): Level {
-  const laneId = ctx.params['laneId'];
-  return laneId && ctx.partition.state?.lanes[laneId] ? { kind: 'lane', laneId } : { kind: 'org' };
+  const languageId = ctx.params['languageId'];
+  return languageId && ctx.language.languageId === languageId ? { kind: 'language', languageId } : { kind: 'org' };
 }
 
 /** Say "not connected" plainly for a server action, else the fault with a code. */
@@ -32,7 +32,7 @@ export function referenceFailure(where: string, e: unknown): string {
 }
 
 async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): Promise<boolean> {
-  if (w.partition === 'lane') {
+  if (w.to === 'language') {
     const spec = (x: RecWrite) => [{ id: Crypto.randomUUID(), type: x.type, payload: x.payload }] as Parameters<Ctx['act']>[0];
     try {
       await ctx.act(spec(w), message, undo ? () => spec(undo) : undefined);
@@ -59,7 +59,7 @@ export function useRecommend(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const run = useCallback(async (level: Level, itemId: string, name: string, action: RecAction, quiet = false) => {
     setBusy(true);
-    const before = recState(ctx.org.state?.recommendations, ctx.partition.state, level, itemId);
+    const before = recState(ctx.org.state?.recommendations, ctx.language.state, level, itemId);
     const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level), quiet ? undefined : recUndo(before, level, itemId));
     setBusy(false);
     return ok;

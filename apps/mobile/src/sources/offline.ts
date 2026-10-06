@@ -15,7 +15,7 @@
 // bounded (`SOURCE_CACHE_BYTES`): files outside the scope go first, oldest
 // first, and nothing new is fetched past the cap. Like every transfer, this
 // waits while the microphone is open and while offline.
-import { defaultOfflineScope, isHash, recommendedFor, libraryItemView, type PartitionState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
+import { defaultOfflineScope, isHash, recommendedFor, libraryItemView, type LanguageState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
@@ -26,7 +26,7 @@ import { loadDocs } from '../library/docStore';
 import { noteExpected } from '../report';
 import type { Session } from '../session';
 import type { OrgHandle } from '../useOrg';
-import type { PartitionHandle } from '../usePartition';
+import type { LanguageHandle } from '../useLanguage';
 import { isRecording } from '../useRecorder';
 import { BibleError } from './bibleBrain';
 import { chaptersOf, filesetsFor, offlineAllowed, sourceEvictions, unitCoordinates, type SourceOption } from './model';
@@ -167,10 +167,10 @@ interface Want {
 }
 
 /** The source options a language offers for downloading: recommended library sources and the person's own picks. */
-function offlineOptions(org: OrgHandle, state: PartitionState, laneId: string, mine: MyBible[], getDoc: (h: string) => SourceDoc | null): SourceOption[] {
+function offlineOptions(org: OrgHandle, state: LanguageState, mine: MyBible[], getDoc: (h: string) => SourceDoc | null): SourceOption[] {
   const out: SourceOption[] = [];
   const library = org.state?.library ?? {};
-  const recs = recommendedFor(org.state?.recommendations, state, laneId);
+  const recs = recommendedFor(org.state?.recommendations, state);
   const ids = new Set([...recs.keys(), ...mine.filter((m) => m.kind === 'library').map((m) => m.itemId)]);
   for (const itemId of ids) {
     const hash = libraryItemView(library, itemId)?.current;
@@ -186,14 +186,14 @@ function offlineOptions(org: OrgHandle, state: PartitionState, laneId: string, m
  * the record or the library changes, a few seconds later, one file at a
  * time.
  */
-export function useSourceOffline(partition: PartitionHandle, org: OrgHandle, session: Session): void {
+export function useSourceOffline(language: LanguageHandle, org: OrgHandle, session: Session): void {
   const running = useRef(false);
   const again = useRef(false);
-  const latest = useRef({ partition, org, session });
-  latest.current = { partition, org, session };
-  const revision = partition.revision;
+  const latest = useRef({ language, org, session });
+  latest.current = { language, org, session };
+  const revision = language.revision;
   const libraryKey = org.state ? Object.keys(org.state.recommendations ?? {}).length + ':' + Object.keys(org.state.library ?? {}).length : '';
-  const kept = [...partition.blobs.keptUnits].sort().join(',');
+  const kept = [...language.blobs.keptUnits].sort().join(',');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -202,71 +202,70 @@ export function useSourceOffline(partition: PartitionHandle, org: OrgHandle, ses
       void (async () => {
         do {
           again.current = false;
-          await pass(latest.current.partition, latest.current.org, latest.current.session).catch((e: unknown) => noteExpected('sources offline', e));
+          await pass(latest.current.language, latest.current.org, latest.current.session).catch((e: unknown) => noteExpected('sources offline', e));
         } while (again.current);
       })().finally(() => { running.current = false; });
     }, 4000);
     return () => clearTimeout(timer);
     // Revision covers the record; the key covers recommendations and items.
-  }, [revision, libraryKey, kept, partition.online]);
+  }, [revision, libraryKey, kept, language.online]);
 }
 
 const checkedFilesets = new Set<string>();
 /** Links that failed this session (on the web, a host that does not allow cross-origin reads); not tried again until the app restarts. */
 const failedLinks = new Set<string>();
 
-async function pass(partition: PartitionHandle, org: OrgHandle, session: Session): Promise<void> {
-  const state = partition.state;
-  if (!state || partition.online === false || isRecording()) return;
-  const store = partition.blobs.store ?? (await getBlobStore());
+async function pass(language: LanguageHandle, org: OrgHandle, session: Session): Promise<void> {
+  const state = language.state;
+  if (!state || !language.languageId || language.online === false || isRecording()) return;
+  const store = language.blobs.store ?? (await getBlobStore());
   const idx = await loadIndex();
   const scope = defaultOfflineScope(state, session.actorId);
-  for (const u of partition.blobs.keptUnits) scope.add(u);
+  for (const u of language.blobs.keptUnits) scope.add(u);
 
   const wants: Want[] = [];
-  for (const laneId of Object.keys(state.lanes)) {
-    const mineRaw = await AsyncStorage.getItem(`my-bibles:${session.actorId}:${partition.orgId}:${laneId}`).catch(() => null);
-    const mine: MyBible[] = mineRaw ? (JSON.parse(mineRaw) as MyBible[]) : [];
-    const hashes = new Set<string>();
-    for (const itemId of [...recommendedFor(org.state?.recommendations, state, laneId).keys(), ...mine.map((m) => m.itemId)]) {
-      const h = libraryItemView(org.state?.library ?? {}, itemId)?.current;
-      if (h) hashes.add(h);
+  const languageId = language.languageId;
+  const mineRaw = await AsyncStorage.getItem(`my-bibles:${session.actorId}:${language.orgId}:${languageId}`).catch(() => null);
+  const mine: MyBible[] = mineRaw ? (JSON.parse(mineRaw) as MyBible[]) : [];
+  const hashes = new Set<string>();
+  for (const itemId of [...recommendedFor(org.state?.recommendations, state).keys(), ...mine.map((m) => m.itemId)]) {
+    const h = libraryItemView(org.state?.library ?? {}, itemId)?.current;
+    if (h) hashes.add(h);
+  }
+  const docs: Map<string, unknown> = hashes.size ? await loadDocs(language.orgId, [...hashes], { deps: false }).catch(() => new Map()) : new Map();
+  const getDoc = (h: string) => (docs.get(h) as SourceDoc | undefined) ?? null;
+  const options = offlineOptions(org, state, mine, getDoc);
+  // Only the books the scope's passages are in (a source lists all it has).
+  const bookHashes = new Set<string>();
+  for (const unitId of scope) {
+    const book = unitCoordinates(unitId)?.book;
+    for (const o of options) { const h = book ? o.doc?.books.find((b) => b.book === book)?.doc : undefined; if (h) bookHashes.add(h); }
+  }
+  if (bookHashes.size) for (const [h, d] of await loadDocs(language.orgId, [...bookHashes], { deps: false }).catch(() => new Map())) docs.set(h, d);
+  // Bible Brain picks phones may keep (the Worker said so when they were added; it says again at download).
+  for (const m of mine.filter((x) => x.kind === 'biblebrain' && x.bibleId)) {
+    const bible = await bibleBrain?.keptBible(m.bibleId!);
+    if (bible) {
+      const o: SourceOption = { itemId: m.itemId, kind: 'biblebrain', from: 'mine', name: m.name, abbreviation: m.abbreviation, language: m.language, bible };
+      if (offlineAllowed(o)) options.push(o);
     }
-    const docs: Map<string, unknown> = hashes.size ? await loadDocs(partition.orgId, [...hashes], { deps: false }).catch(() => new Map()) : new Map();
-    const getDoc = (h: string) => (docs.get(h) as SourceDoc | undefined) ?? null;
-    const options = offlineOptions(org, state, laneId, mine, getDoc);
-    // Only the books the scope's passages are in (a source lists all it has).
-    const bookHashes = new Set<string>();
-    for (const unitId of scope) {
-      const book = unitCoordinates(unitId)?.book;
-      for (const o of options) { const h = book ? o.doc?.books.find((b) => b.book === book)?.doc : undefined; if (h) bookHashes.add(h); }
-    }
-    if (bookHashes.size) for (const [h, d] of await loadDocs(partition.orgId, [...bookHashes], { deps: false }).catch(() => new Map())) docs.set(h, d);
-    // Bible Brain picks phones may keep (the Worker said so when they were added; it says again at download).
-    for (const m of mine.filter((x) => x.kind === 'biblebrain' && x.bibleId)) {
-      const bible = await bibleBrain?.keptBible(m.bibleId!);
-      if (bible) {
-        const o: SourceOption = { itemId: m.itemId, kind: 'biblebrain', from: 'mine', name: m.name, abbreviation: m.abbreviation, language: m.language, bible };
-        if (offlineAllowed(o)) options.push(o);
-      }
-    }
-    for (const unitId of scope) {
-      const range = unitCoordinates(unitId);
-      if (!range) continue;
-      for (const o of options) {
-        const chapters = chaptersOf(range);
-        if (o.doc?.provider.kind === 'library') {
-          const bookHash = o.doc.books.find((b) => b.book === range.book)?.doc;
-          const book = bookHash ? (docs.get(bookHash) as SourceBookDoc | undefined) : undefined;
-          for (const c of chapters) {
-            const a = book?.chapters.find((x) => x.chapter === c)?.audio;
-            // TODO(sources): audio carried only by hash (no URL) needs the library media route the guide editor adds.
-            if (a?.url) wants.push({ key: libAudioKey(a), url: a.url, ...(isHash(a.hash) ? { hash: a.hash } : {}), format: audioFormatOf(a.format), book: range.book, chapter: c });
-          }
-        } else {
-          const fileset = filesetsFor(o, range.book).audio;
-          if (fileset) for (const c of chapters) wants.push({ key: bbKey(fileset, range.book, c), fileset, book: range.book, chapter: c });
+  }
+  for (const unitId of scope) {
+    const range = unitCoordinates(unitId);
+    if (!range) continue;
+    for (const o of options) {
+      const chapters = chaptersOf(range);
+      if (o.doc?.provider.kind === 'library') {
+        const bookHash = o.doc.books.find((b) => b.book === range.book)?.doc;
+        const book = bookHash ? (docs.get(bookHash) as SourceBookDoc | undefined) : undefined;
+        for (const c of chapters) {
+          const a = book?.chapters.find((x) => x.chapter === c)?.audio;
+          // TODO(sources): audio carried only by hash (no URL) needs the library media route the guide editor adds.
+          if (a?.url) wants.push({ key: libAudioKey(a), url: a.url, ...(isHash(a.hash) ? { hash: a.hash } : {}), format: audioFormatOf(a.format), book: range.book, chapter: c });
         }
+      } else {
+        const fileset = filesetsFor(o, range.book).audio;
+        if (fileset) for (const c of chapters) wants.push({ key: bbKey(fileset, range.book, c), fileset, book: range.book, chapter: c });
       }
     }
   }

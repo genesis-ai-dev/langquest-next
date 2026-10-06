@@ -105,7 +105,7 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     eventsLeft = (await deliverQueued({ store, transport: new SupabaseTransport(client), actorId: h.actorId, deviceId })).left;
   } catch (e) {
     offline = true;
-    eventsLeft = (await store.pendingPartitionsBy(h.actorId)).length;
+    eventsLeft = (await store.pendingStreamsBy(h.actorId)).length;
     noteExpected('hand-over events', e);
   }
   let unregistered = false;
@@ -123,7 +123,7 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     // Still unconfirmed, so nothing evicts it; gone only if the app's data was cleared.
     if (!blobs.exists(u.ref)) { finished.push(u.ref.hash); continue; }
     try {
-      await uploadBlob(u.orgId, u.partitionId, u.ref, blobs, {}, client);
+      await uploadBlob(u.orgId, u.languageId, u.ref, blobs, {}, client);
       finished.push(u.ref.hash);
     } catch (e) {
       // Refused (no longer a member of that language): the file stays on the phone.

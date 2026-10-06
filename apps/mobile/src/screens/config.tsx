@@ -13,11 +13,11 @@
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
 // Pure reading lives in configModel.ts.
 import {
-  CommandError, commands, deriveFlow, deriveKinds, derivePassage, formatQuestionField, keyTermsFor, keyTermView, laneName,
-  materialView, parseQuestionField, PRIVILEGES, recommendedFor, REFERENCE_KINDS, subscriptionItemId,
-  takesLinkingTerm, templateFields, templateOfUnit, unitTitle,
+  CommandError, commands, deriveFlow, deriveKinds, derivePassage, formatQuestionField, keyTermsFor, keyTermView, languageName,
+  materialView, parseQuestionField, PRIVILEGES, privilegesFor, recommendedFor, subscriptionItemId,
+  takesLinkingTerm, templateFields, unitPrefixOf, unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialDoc,
-  type MaterialView, type Privilege, type PartitionState, type QuestionSpec, type VersificationDoc
+  type MaterialView, type Privilege, type LanguageState, type QuestionSpec, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -29,19 +29,19 @@ import {
   Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon,
   PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail
 } from '../kit';
-import { lanesUsing, sourceLine, type SharedItem } from '../library/model';
+import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { when } from '../passageView';
-import { reportError, failureMessage } from '../report';
+import { failureMessage } from '../report';
 import { contractsFor } from '../screenContracts';
 import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import {
-  draftChanged, draftFromDoc, draftFromLane, fieldLabel, flowDocFrom, flowLabel, flowUndoFor, holdersOf, isFiaTerm, LEVEL_LABEL,
-  laneFlows, libraryMaterialLine, libraryQuestions, listNames, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
-  nextFieldId, otherLanguageRenderings, parseRefLinks, plural, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts,
-  questionSetToReviews, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
+  draftChanged, draftFromDoc, draftFromLanguage, fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
+  LEVEL_LABEL, libraryMaterialLine, libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
+  nextFieldId, parseRefLinks, plural, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
+  REFERENCE_KINDS, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
 } from './configModel';
 
@@ -116,9 +116,15 @@ function ToggleRow(props: { label: string; desc: string; on: boolean; disabled?:
   );
 }
 
-/** What a view without a language covers: the organization, which holds its languages directly (decision 34). */
+/** What a view without a language covers: the organization, which holds its languages directly (decision 63). */
 function orgName(ctx: Ctx): string {
   return ctx.org.state?.org?.value.name ?? 'Organization';
+}
+
+/** The open language's name, or null when the organization has none yet. */
+function openLanguageName(ctx: Ctx): string | null {
+  const id = ctx.language.languageId;
+  return id ? languageName(ctx.org.state, id) : null;
 }
 
 // ─── Roles (ORG-3, ORG-4) ──────────────────────────────────────────────────────────
@@ -127,8 +133,7 @@ export function RolesHome(ctx: Ctx) {
   const level = viewLevelFrom(ctx.params, ctx.session.adminScope);
   const beside = useOpenDetail();
   const org = ctx.org.state;
-  const state = ctx.partition.state;
-  const rows = useMemo(() => roleRows(org, state, level), [org, state, level]);
+  const rows = useMemo(() => roleRows(org, level), [org, level]);
   const canManage = ctx.session.can('manage_roles') && level === 'org';
   return (
     <Screen header={<Header title="Roles" sub={LEVEL_LABEL[level]} onBack={ctx.back}
@@ -177,8 +182,7 @@ export function RoleEditor(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const label = name ?? existing?.name.value ?? '';
   const privileges = picked ?? existing?.privileges.value ?? [];
-  const state = ctx.partition.state;
-  const holders = useMemo(() => (isNew ? [] : holdersOf(org, state, roleId)), [isNew, org, state, roleId]);
+  const holders = useMemo(() => (isNew ? [] : holdersOf(org, roleId)), [isNew, org, roleId]);
   const canAssign = ctx.session.can('assign_work');
   const dirty = isNew
     ? label.trim() !== ''
@@ -223,9 +227,9 @@ export function RoleEditor(ctx: Ctx) {
           <SectionLabel label="Members with this role" />
           {canAssign ? <GhostBtn label={`Invite someone as ${label || 'this role'}`} icon="qr" onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
           <Capped items={holders} empty="No members have this role yet." render={(h, last) => (
-            <Row key={`${h.profileId}-${h.scope ? JSON.stringify(h.scope) : 'legacy'}`} icon="user"
-              label={h.profileId === ctx.session.actorId ? 'You' : h.displayName ?? ctx.name(h.profileId)}
-              sub={scopeName(h.scope, org, state, ctx.partition.partitionId)}
+            <Row key={`${h.profileId}-${JSON.stringify(h.scope)}`} icon="user"
+              label={h.profileId === ctx.session.actorId ? 'You' : ctx.name(h.profileId)}
+              sub={scopeName(h.scope, org)}
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
         </>
@@ -457,13 +461,11 @@ function DocSteps(props: { doc: FlowDoc | null; kinds: KindDef[] }) {
 }
 
 export function FlowsHome(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const lib = useLibrary(ctx);
-  const fixedLane = ctx.params['laneId'];
-  const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [shown, setShown] = useState(STEP);
-  const uses = useMemo(() => (state ? laneFlows(state) : []), [state]);
+  const current = useMemo(() => (state ? flowUse(state) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const live = useLatest(ctx);
   const canManage = ctx.session.can('manage_flows');
@@ -471,45 +473,38 @@ export function FlowsHome(ctx: Ctx) {
   const shared = useSharedItems('flow', lib.orgId);
   const { updates } = useLibraryUpdates(lib.orgId);
   const docs = useLibraryDocs(lib.orgId, [...flows.map((f) => f.current), ...shared.rows.map((s) => s.latest_hash)]);
-  const laneId = fixedLane ?? picked ?? (ctx.laneId && state?.lanes[ctx.laneId] ? ctx.laneId : uses[0]?.laneId) ?? null;
-  const current = uses.find((u) => u.laneId === laneId) ?? null;
-  const byLanguage = ctx.details('flows:by-language');
+  const language = openLanguageName(ctx);
 
   /**
    * Use a flow for the language: one of this organization's, or a shared
    * one, followed with automatic updates first (copied when its owner does
-   * not allow following). Undo goes back to the flow it had.
+   * not allow following). Undo goes back to the flow it had, whose steps
+   * were never removed (core `restoreFlow`).
    */
   async function use(target: { itemId: string } | { shared: SharedItem }) {
-    if (!state || !current || busy) return;
-    const lane = current.laneId;
+    if (!state || !language || busy) return;
     setBusy(true);
     let specs: EventSpec[];
     let name: string;
     let undo: (() => EventSpec[]) | undefined;
     try {
-      const plan = flowUndoFor(state, lane);
-      if (plan?.kind === 'library') {
-        // Computed now, from the version it was on; the steps under that version's prefix are never removed.
-        // Without its document on this phone there is simply no Undo.
-        const back = await lib.applySpecs(lane, plan.itemId, { docHash: plan.docHash }).catch(() => null);
-        if (back) undo = () => back;
-      } else if (plan?.kind === 'legacy') {
+      const previous = flowUndoFor(state);
+      if (previous) {
         undo = () => {
-          const s = live.current.partition.state;
-          return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), laneId: lane, previous: plan.previous }) : [];
+          const s = live.current.language.state;
+          return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
         };
       }
       if ('shared' in target) {
         const s = target.shared;
         const itemId = s.subscribable ? await lib.subscribe(s, true) : await lib.copy(s);
         name = s.name;
-        specs = await lib.applySpecs(lane, itemId, { docHash: s.latest_hash });
+        specs = await lib.applySpecs(itemId, { docHash: s.latest_hash });
       } else {
         const it = lib.item(target.itemId);
         if (!it?.current) throw new CommandError('That flow has no version to use yet.');
         name = it.name;
-        specs = await lib.applySpecs(lane, it.itemId, { docHash: it.current });
+        specs = await lib.applySpecs(it.itemId, { docHash: it.current });
       }
     } catch (e) {
       ctx.toast(`Not saved. ${libraryFailure('use flow', e)}`);
@@ -517,7 +512,7 @@ export function FlowsHome(ctx: Ctx) {
       return;
     }
     try {
-      await ctx.act(specs, `${current.name} now uses ${name}.`, undo);
+      await ctx.act(specs, `${language} now uses ${name}.`, undo);
     } catch {
       // ctx.act has already said "Not saved" and why.
     }
@@ -529,27 +524,17 @@ export function FlowsHome(ctx: Ctx) {
   const versionOf = currentItem?.versions.find((v) => v.docHash === current?.docHash)?.n;
 
   return (
-    <Screen header={<Header title="Review Flows" sub={fixedLane && state ? laneName(state, fixedLane) : orgName(ctx)} onBack={ctx.back}
+    <Screen header={<Header title="Review Flows" sub={language ?? orgName(ctx)} onBack={ctx.back}
       action={canManage ? <SmallBtn label="Flow" icon="plus" tone="primary" onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
       <Intro>
-        {fixedLane
-          ? 'The flow is advice: it suggests what should happen next. Steps can be done in any order or set aside with a reason; only checkpoints are required.'
-          : `Each language runs one review flow. This view covers the ${plural(uses.length, 'language')} in ${orgName(ctx)}. Flows are advice; checkpoints are the only hard stops.`}
+        The flow is advice: it suggests what should happen next. Steps can be done in any order or set aside with a reason; only checkpoints are required.
       </Intro>
       {!state ? <EmptyState icon="flow" title="Loading…" /> : (
         <>
-          {uses.length === 0 ? <EmptyState icon="globe" title="No languages yet" sub="Add a language, then choose how its passages get checked." /> : null}
-          {!fixedLane && uses.length > 1 ? (
-            <>
-              <SectionLabel label="Choose for" />
-              <ChipRow>
-                {uses.map((u) => <Chip key={u.laneId} label={u.name} on={u.laneId === laneId} onPress={() => setPicked(u.laneId)} />)}
-              </ChipRow>
-            </>
-          ) : null}
-          {current ? (
+          {!language ? <EmptyState icon="globe" title="No languages yet" sub="Add a language, then choose how its passages get checked." /> : null}
+          {language && current ? (
             <Card>
-              <Text style={txt.xsStrong}>{current.name} uses</Text>
+              <Text style={txt.xsStrong}>{language} uses</Text>
               <Text style={txt.h3}>{flowLabel(current)}</Text>
               {currentItem ? (
                 <Text style={txt.xs}>
@@ -559,7 +544,7 @@ export function FlowsHome(ctx: Ctx) {
               <FlowStepsInline steps={current.steps} kinds={kinds} />
               {canManage && currentItem ? <SmallBtn label="Open flow" icon="edit" onPress={() => ctx.go('flow_editor', { itemId: currentItem.itemId })} /> : null}
               {canManage && !current.itemId && current.chosen && current.steps.length ? (
-                <SmallBtn label="Save as a flow" icon="plus" onPress={() => ctx.go('flow_editor', { itemId: 'new', laneId: current.laneId })} />
+                <SmallBtn label="Save as a flow" icon="plus" onPress={() => ctx.go('flow_editor', { itemId: 'new', languageId: ctx.language.languageId })} />
               ) : null}
             </Card>
           ) : null}
@@ -570,7 +555,6 @@ export function FlowsHome(ctx: Ctx) {
           ) : null}
           {flows.slice(0, shown).map((f) => {
             const on = !!current && current.itemId === f.itemId;
-            const users = lanesUsing(state, f.itemId).filter((l) => l !== laneId).map((l) => laneName(state, l));
             return (
               <Card key={f.itemId} onPress={open(f.itemId)} accessibilityLabel={`Open ${f.name}`}
                 style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
@@ -584,10 +568,9 @@ export function FlowsHome(ctx: Ctx) {
                     : updates[f.itemId] ? <Badge label="Update" tone="amber" /> : null}
                   {on
                     ? <SmallBtn label="In use" icon="check" tone="primary" onPress={() => {}} />
-                    : current && !f.archived ? <SmallBtn label="Use" onPress={() => void use({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
+                    : language && !f.archived ? <SmallBtn label="Use" onPress={() => void use({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                 </View>
                 <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} />
-                {users.length ? <Text style={[txt.xsStrong, { color: C.primary }]}>{`${on ? 'Also used by' : 'Used by'} ${listNames(users)}`}</Text> : null}
               </Card>
             );
           })}
@@ -595,17 +578,7 @@ export function FlowsHome(ctx: Ctx) {
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
             detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} />}
-            {...(current ? { use: { label: 'Use', onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
-
-          {uses.length > 1 ? (
-            <Disclosure icon="globe" title="By language" summary={`${plural(uses.length, 'language')} · ${[...new Set(uses.map(flowLabel))].slice(0, 2).join(', ')}`}
-              open={byLanguage.open} onToggle={byLanguage.onToggle}>
-              {uses.map((u, i) => (
-                <Row key={u.laneId} icon="globe" label={u.name} sub={flowLabel(u)} last={i === uses.length - 1}
-                  onPress={fixedLane ? undefined : () => setPicked(u.laneId)} />
-              ))}
-            </Disclosure>
-          ) : null}
+            {...(language ? { use: { label: 'Use', onUse: (s: SharedItem) => void use({ shared: s }), disabled: busy } } : {})} />
         </>
       )}
     </Screen>
@@ -613,7 +586,7 @@ export function FlowsHome(ctx: Ctx) {
 }
 
 export function FlowEditor(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const requested = ctx.params['itemId'] ?? 'new';
   const isNew = requested === 'new';
@@ -621,11 +594,10 @@ export function FlowEditor(ctx: Ctx) {
   const docs = useLibraryDocs(lib.orgId, [it?.current]);
   const doc = docs.get<FlowDoc>(it?.current);
   const { updates } = useLibraryUpdates(lib.orgId);
-  // A new flow may start from a language's steps (a legacy flow made a library one).
-  const [seed] = useState(() => {
-    const lane = isNew ? ctx.params['laneId'] : undefined;
-    return lane && state?.lanes[lane] ? { name: deriveFlow(state, lane).name, description: '', steps: draftFromLane(state, lane) } : { name: '', description: '', steps: [] as DraftStep[] };
-  });
+  // A new flow may start from the language's own steps (made a library flow).
+  const [seed] = useState(() => (isNew && ctx.params['languageId'] && state?.flow
+    ? { name: deriveFlow(state).name, description: '', steps: draftFromLanguage(state) }
+    : { name: '', description: '', steps: [] as DraftStep[] }));
   const base = useMemo(() => (isNew ? seed : doc ? { name: doc.name, description: doc.description, steps: draftFromDoc(doc) } : null), [isNew, seed, doc]);
   const [name, setName] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
@@ -650,7 +622,8 @@ export function FlowEditor(ctx: Ctx) {
   const desc = description ?? base?.description ?? '';
   const dirty = !readOnly && base !== null
     && (label.trim() !== base.name || desc.trim() !== base.description || draftChanged(base.steps, steps) || added.length > 0);
-  const users = state && it ? lanesUsing(state, it.itemId).map((l) => laneName(state, l)) : [];
+  const language = openLanguageName(ctx);
+  const usedHere = !!it && !!language && usesItem(state, it.itemId);
 
   if (!state || (!isNew && !it)) {
     return (
@@ -676,7 +649,7 @@ export function FlowEditor(ctx: Ctx) {
     setBusy(true);
     const saved = await libraryAct(ctx, 'save flow',
       () => lib.publish({ kind: 'flow', ...(it ? { itemId: it.itemId } : {}), name: flowDoc.name, description: flowDoc.description, doc: flowDoc }),
-      users.length ? `${flowDoc.name} saved. ${listNames(users)} ${users.length === 1 ? 'moves' : 'move'} to it.` : `${flowDoc.name} saved.`);
+      usedHere ? `${flowDoc.name} saved. ${language} moves to it.` : `${flowDoc.name} saved.`);
     if (saved) ctx.back();
     else setBusy(false);
   }
@@ -755,9 +728,9 @@ export function FlowEditor(ctx: Ctx) {
             </View>
           ) : null}
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-            {users.length
-              ? `Used by ${listNames(users)}. Changes apply to their passages right away; nothing already recorded is lost.`
-              : 'No language uses it yet. Choose it for a language from Review Flows.'}
+            {usedHere
+              ? `${language} uses it. Changes apply to its passages right away; nothing already recorded is lost.`
+              : 'Languages using it move to each version you save. Choose it for a language from Review Flows.'}
           </Text>
         </>
       )}
@@ -795,10 +768,8 @@ export function FlowEditor(ctx: Ctx) {
 
 // ─── Reference library (ORG-8) ─────────────────────────────────────────────────────
 
-function materialScopeName(state: PartitionState, m: Pick<MaterialView, 'scope'>): string {
-  if (m.scope.unitId) return unitTitle(state, m.scope.unitId);
-  if (m.scope.laneId) return `${laneName(state, m.scope.laneId)} team`;
-  return 'All languages';
+function materialScopeName(state: LanguageState, m: Pick<MaterialView, 'scope'>, language: string): string {
+  return m.scope.unitId ? unitTitle(state, m.scope.unitId) : `${language} team`;
 }
 
 /** The versification a study or material document names, by name, once loaded. */
@@ -808,30 +779,32 @@ function versificationNameOf(docs: ReturnType<typeof useLibraryDocs>, doc: Libra
 }
 
 export function ReferenceHome(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const beside = useOpenDetail();
   const lib = useLibrary(ctx);
-  const laneId = ctx.params['laneId'] ?? null;
-  const view = useMemo(() => (state ? referenceView(state, laneId) : null), [state, laneId]);
+  // From a language's Home it is that language's view; from Organization Home, the organization's: its library and recommendations.
+  const languageView = !!ctx.params['languageId'];
+  const languageId = ctx.language.languageId || null;
+  const language = openLanguageName(ctx);
+  const view = useMemo(() => (state ? referenceView(state) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const canManage = ctx.session.can('manage_reference');
   const materials = lib.items('material');
   const shared = useSharedItems('material', lib.orgId);
   const { updates } = useLibraryUpdates(lib.orgId);
   const docs = useLibraryDocs(lib.orgId, [...materials.map((m) => m.current), ...shared.rows.map((s) => s.latest_hash)]);
-  const termLane = laneId ?? (ctx.laneId && state?.lanes[ctx.laneId] ? ctx.laneId : Object.keys(state?.lanes ?? {})[0]) ?? null;
-  const termCount = useMemo(() => (state && termLane ? keyTermsFor(state, termLane).length : 0), [state, termLane]);
-  const byLanguage = ctx.details('reference:by-language');
+  const termCount = useMemo(() => (state && languageId ? keyTermsFor(state).length : 0), [state, languageId]);
   // What translators are offered at this level (screens/reference.tsx).
-  const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, state, laneId), [ctx.org.state, state, laneId]);
+  const offered = useMemo(() => recommendedFor(ctx.org.state?.recommendations, languageView ? state : null), [ctx.org.state, state, languageView]);
   if (!state || !view) return <Screen header={<Header title="Reference Material" onBack={ctx.back} />}><EmptyState title="Loading…" /></Screen>;
 
-  const levelName = laneId ? laneName(state, laneId) : orgName(ctx);
-  const open = (m: MaterialView) => (canManage ? () => ctx.go('material_editor', { materialId: m.materialId, ...(laneId ? { laneId } : {}) }) : undefined);
+  const own = languageView && language ? language : null;
+  const params: Record<string, string> = own && languageId ? { languageId } : {};
+  const open = (m: MaterialView) => (canManage ? () => ctx.go('material_editor', { materialId: m.materialId, ...params }) : undefined);
   const generalRow = (m: MaterialView, last: boolean) => (
     <Row key={m.materialId} icon="book" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
       current={beside?.screen === 'material_editor' && beside.params['materialId'] === m.materialId}
-      sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m)}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
+      sub={`${referenceKindName(m.kind)} · ${materialScopeName(state, m, own ?? '')}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
   );
   const sets = [...view.questionSets].sort((a, b) => {
     const ia = kinds.findIndex((k) => k.id === a.scope.stepId), ib = kinds.findIndex((k) => k.id === b.scope.stepId);
@@ -845,33 +818,35 @@ export function ReferenceHome(ctx: Ctx) {
         sub={`${what?.line ?? 'Loading…'} · ${sourceLine(m)}`} muted={m.archived}
         current={beside?.screen === 'material_editor' && beside.params['itemId'] === m.itemId}
         badge={m.archived ? 'Archived' : updates[m.itemId] ? 'Update' : undefined} badgeTone={updates[m.itemId] && !m.archived ? 'amber' : undefined}
-        onPress={canManage ? () => ctx.go('material_editor', { itemId: m.itemId, ...(laneId ? { laneId } : {}) }) : undefined} />
+        onPress={canManage ? () => ctx.go('material_editor', { itemId: m.itemId, ...params }) : undefined} />
     );
   };
 
   return (
-    <Screen header={<Header title="Reference Material" sub={levelName} onBack={ctx.back} />}
-      footer={canManage ? <PrimaryBtn label="Add material" icon="plus" onPress={() => ctx.go('material_editor', laneId ? { laneId } : {})} /> : undefined}>
+    <Screen header={<Header title="Reference Material" sub={own ?? orgName(ctx)} onBack={ctx.back} />}
+      footer={canManage ? <PrimaryBtn label="Add material" icon="plus" onPress={() => ctx.go('material_editor', params)} /> : undefined}>
       <Intro>
-        Context lives at the level it holds and adds up; nothing is copied. Translators see it in the workspace tray; reviewers see the questions for their kind of review.
+        {own
+          ? `${own}'s own material adds to what the organization recommends; nothing is copied. Translators see it in the workspace tray; reviewers see the questions for their kind of review.`
+          : 'Material for every language lives in your library, and the organization recommends it to them. Each language adds its own from its Home.'}
       </Intro>
 
       <SectionLabel label="What translators are offered" />
-      <OfferedRows ctx={ctx} laneId={laneId} offered={offered} materials={materials} get={docs.get} />
+      <OfferedRows ctx={ctx} languageId={own ? languageId : null} offered={offered} materials={materials} get={docs.get} />
 
       <SectionLabel label="Key terms" />
       <Group>
         <Row icon="book" label="Key Terms" last
-          sub={termLane ? `${plural(termCount, 'concept')} · ${laneName(state, termLane)} renderings` : 'Add a language first'}
-          onPress={termLane ? () => ctx.go('key_terms', { laneId: termLane }) : undefined} />
+          sub={languageId && language ? `${plural(termCount, 'concept')} · ${language} renderings` : 'Add a language first'}
+          onPress={languageId ? () => ctx.go('key_terms', { languageId }) : undefined} />
       </Group>
 
       <SectionLabel label={`Library · your organization · ${materials.length}`}
-        action={canManage ? <SmallBtn label="New" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...(laneId ? { laneId } : {}) })} /> : undefined} />
+        action={canManage ? <SmallBtn label="New" icon="plus" onPress={() => ctx.go('material_editor', { itemId: 'new', ...params })} /> : undefined} />
       <Capped items={materials} render={libraryRow}
         empty="Nothing in your library yet. Follow or copy what other organizations share, or publish your own." />
       {canManage ? <Group><Row icon="sparkle" label="Write a guide" sub="Steps with text and audio, pictures, maps and key terms" last
-        onPress={() => ctx.go('guide_editor', laneId ? { laneId } : {})} /></Group> : null}
+        onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
       <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
@@ -879,35 +854,25 @@ export function ReferenceHome(ctx: Ctx) {
           return <Text style={txt.xs}>{what?.line ?? 'Loading…'}</Text>;
         }} />
 
-      <SectionLabel label={`Study material · ${view.study.length}`} />
-      <Capped items={view.study} empty="No study material written in the app for this view." render={(m, last) => (
-        <Row key={m.materialId} icon="sparkle" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
-          sub={`Study guide · ${materialScopeName(state, m)}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
-      )} />
-
-      <SectionLabel label={`Review questions · ${sets.length}`} />
-      <Capped items={sets} empty="No question sets yet. Use one from the library, or add your own." render={(m, last) => (
-        <Row key={m.materialId} icon="chat" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
-          sub={`${setKindName(kinds, m) ?? 'Not tied to a kind of review'} · ${questionCountLabel(questionCount(m))} · ${materialScopeName(state, m)}`}
-          onPress={open(m)} />
-      )} />
-      <Intro>Question sets for the same kind add up: a reviewer sees the organization's and the language team's together, labelled by source.</Intro>
-
-      <SectionLabel label={`General · ${levelName} · ${view.atLevel.length}`} />
-      <Capped items={view.atLevel} empty="No general materials at this level yet." render={generalRow} />
-
-      {view.higher.length > 0 ? (
+      {own ? (
         <>
-          <SectionLabel label="From higher levels · available here" />
-          <Capped items={view.higher} render={generalRow} />
-        </>
-      ) : null}
+          <SectionLabel label={`Study material · ${view.study.length}`} />
+          <Capped items={view.study} empty="No study material written in the app for this language." render={(m, last) => (
+            <Row key={m.materialId} icon="sparkle" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
+              sub={`Study guide · ${materialScopeName(state, m, own)}${m.blanks > 0 ? ` · ${plural(m.blanks, 'blank')}` : ''}`} onPress={open(m)} />
+          )} />
 
-      {!laneId && view.byLanguage.length > 0 ? (
-        <Disclosure icon="globe" title="By language" summary={view.byLanguage.map((g) => `${laneName(state, g.laneId)} · ${g.items.length}`).join(' · ')}
-          open={byLanguage.open} onToggle={byLanguage.onToggle}>
-          {view.byLanguage.flatMap((g, gi) => g.items.map((m, i) => generalRow(m, gi === view.byLanguage.length - 1 && i === g.items.length - 1)))}
-        </Disclosure>
+          <SectionLabel label={`Review questions · ${sets.length}`} />
+          <Capped items={sets} empty="No question sets yet. Use one from the library, or add your own." render={(m, last) => (
+            <Row key={m.materialId} icon="chat" label={m.title} last={last} badge={m.locked ? 'Locked' : undefined}
+              sub={`${setKindName(kinds, m) ?? 'Not tied to a kind of review'} · ${questionCountLabel(questionCount(m))} · ${materialScopeName(state, m, own)}`}
+              onPress={open(m)} />
+          )} />
+          <Intro>Question sets for the same kind add up: a reviewer sees the shipped questions and the language team's together, labelled by source.</Intro>
+
+          <SectionLabel label={`General · ${own} · ${view.general.length}`} />
+          <Capped items={view.general} empty="No general materials for this language yet." render={generalRow} />
+        </>
       ) : null}
     </Screen>
   );
@@ -915,12 +880,11 @@ export function ReferenceHome(ctx: Ctx) {
 
 /**
  * Bibles, guides and notes at this level, and coverage against a language's
- * passages, each one tap away (screens/reference.tsx). The old Source Bibles
- * toggles became recommendations: the Bibles screen moves them over once.
+ * passages, each one tap away (screens/reference.tsx).
  */
-function OfferedRows(props: { ctx: Ctx; laneId: string | null; offered: Map<string, string>; materials: LibraryItemView[]; get: (h: string | null | undefined) => LibraryDoc | null }) {
-  const { ctx, laneId, offered, materials, get } = props;
-  const params: Record<string, string> = laneId ? { laneId } : {};
+function OfferedRows(props: { ctx: Ctx; languageId: string | null; offered: Map<string, string>; materials: LibraryItemView[]; get: (h: string | null | undefined) => LibraryDoc | null }) {
+  const { ctx, languageId, offered, materials, get } = props;
+  const params: Record<string, string> = languageId ? { languageId } : {};
   const count = (formats: string[], kind?: string) => materials.filter((m) => {
     const doc = get(m.current);
     return offered.has(m.itemId) && !!doc && formats.includes(doc.format) && (!kind || (doc.format === 'material@1' && doc.kind === kind));
@@ -928,13 +892,13 @@ function OfferedRows(props: { ctx: Ctx; laneId: string | null; offered: Map<stri
   const bibles = count(['source@1']);
   const guides = count(['study@1', 'study@2', 'collection@1']);
   const notes = count(['material@1'], 'note');
-  const lane = laneId ?? (ctx.laneId && ctx.partition.state?.lanes[ctx.laneId] ? ctx.laneId : null);
+  const open = ctx.language.languageId || null;
   return (
     <Group>
       <Row icon="sound" label="Bibles" sub={`${bibles} recommended · text, audio, offline use and timings`} onPress={() => ctx.go('reference_bibles', params)} />
-      <Row icon="sparkle" label="Guides and notes" sub={`${guides} recommended guide${guides === 1 ? '' : 's'} · ${plural(notes, 'note')}`} onPress={() => ctx.go('reference_guides', params)} last={!lane} />
-      {lane ? <Row icon="map" label="Coverage" sub={`What reaches each passage in ${ctx.partition.state ? laneName(ctx.partition.state, lane) : 'this language'}`}
-        onPress={() => ctx.go('reference_coverage', { laneId: lane })} last /> : null}
+      <Row icon="sparkle" label="Guides and notes" sub={`${guides} recommended guide${guides === 1 ? '' : 's'} · ${plural(notes, 'note')}`} onPress={() => ctx.go('reference_guides', params)} last={!open} />
+      {open ? <Row icon="map" label="Coverage" sub={`What reaches each passage in ${languageName(ctx.org.state, open)}`}
+        onPress={() => ctx.go('reference_coverage', { languageId: open })} last /> : null}
     </Group>
   );
 }
@@ -960,18 +924,20 @@ export function MaterialEditor(ctx: Ctx) {
 }
 
 function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const materialId = ctx.params['materialId'];
-  const laneParam = ctx.params['laneId'];
   const isNew = !materialId;
+  const language = openLanguageName(ctx);
+  // Material for every language is a library item the organization recommends, which needs manage_reference at org scope.
+  const mayRecommend = !!ctx.org.state && privilegesFor(ctx.org.state, ctx.session.actorId).has('manage_reference');
   const existing = useMemo(() => (state && materialId ? materialView(state, materialId) : null), [state, materialId]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const canManage = ctx.session.can('manage_reference');
   // A new material: what it is, where it applies, and which review its questions are for.
   const [kind, setKind] = useState(canManage ? 'tg' : 'questions');
   const [title, setTitle] = useState('');
-  const [forLane, setForLane] = useState(!!laneParam);
+  const [forLanguage, setForLanguage] = useState(!!ctx.params['languageId'] || !mayRecommend);
   const [reviewKind, setReviewKind] = useState('peer');
   // Edits: only touched fields are written (each field is its own register, so two people filling different blanks both land).
   const [texts, setTexts] = useState<Record<string, string>>({});
@@ -990,6 +956,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const isQuestions = materialKind === 'questions';
   const locked = !!existing?.locked;
   const canFill = canManage || (ctx.session.can('fill_reference') && !locked && (existing !== null || isQuestions));
+  // Question sets stay in the language: reviewers read the language's sets (core `questionsForKind`).
+  const toLibrary = isNew && !isQuestions && mayRecommend && (!forLanguage || !language);
   const qs = questions ?? baseQuestions;
   const before = (fieldId: string) => existing?.fields.find((f) => f.fieldId === fieldId)?.text ?? '';
   // A new FIA study follows its template (summary, key ideas, scenes, discussion); other new material starts with one section.
@@ -1014,10 +982,13 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
       if (draft !== undefined && draft.trim() !== before(fieldId)) changes.push({ fieldId, text: draft.trim(), before: before(fieldId) });
     }
   }
-  const ready = isNew ? title.trim() !== '' && (!isQuestions || changes.some((c) => c.text)) : changes.length > 0;
+  const ready = isNew
+    ? title.trim() !== '' && (!isQuestions || changes.some((c) => c.text)) && (toLibrary || !!language)
+    : changes.length > 0;
 
   async function save() {
     if (!canFill || busy || !ready) return;
+    if (toLibrary) return saveToLibrary();
     const s = state!;
     const id = existing?.materialId ?? `${materialKind}-${Crypto.randomUUID()}`;
     const c = commands(s, indexesFor(s));
@@ -1027,11 +998,24 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
       ? c.defineMaterial({
         commandId: Crypto.randomUUID(), materialId: id, kind: materialKind, title: title.trim(), fields,
         ...(newTemplateRef ? { templateRef: newTemplateRef } : {}),
-        scope: { ...(forLane && laneParam ? { laneId: laneParam } : {}), ...(isQuestions ? { stepId: reviewKind } : {}) }
+        scope: isQuestions ? { stepId: reviewKind } : {}
       })
       : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
     isNew ? `${title.trim()} added.` : 'Saved.',
     isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.before })) }));
+    if (saved) ctx.back();
+    else setBusy(false);
+  }
+
+  /** New material for every language: a library item, recommended to every language (decision 63). */
+  async function saveToLibrary() {
+    const name = title.trim();
+    const doc = materialDocFrom({ kind: materialKind, title: name, scope: {}, fields: changes.map((f) => ({ fieldId: f.fieldId, text: f.text })) }, fieldTitle);
+    setBusy(true);
+    const saved = await libraryAct(ctx, 'save material', async () => {
+      const { itemId } = await lib.publish({ kind: 'material', name, description: referenceKindName(materialKind), doc });
+      await ctx.org.append('v1.ReferenceRecommended', { itemId, recommended: true });
+    }, `${name} is in your library, recommended to every language.`);
     if (saved) ctx.back();
     else setBusy(false);
   }
@@ -1065,7 +1049,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen
-      header={<Header title={existing?.title ?? 'New material'} sub={existing ? materialScopeName(state, existing) : laneParam ? laneName(state, laneParam) : orgName(ctx)} onBack={ctx.back}
+      header={<Header title={existing?.title ?? 'New material'} sub={existing ? materialScopeName(state, existing, language ?? '') : toLibrary ? orgName(ctx) : language ?? orgName(ctx)} onBack={ctx.back}
         action={existing && canManage ? <SmallBtn label={locked ? 'Locked' : 'Unlocked'} icon="lock" tone={locked ? 'dark' : undefined} onPress={toggleLock} />
           : existing && locked ? <Badge label="Locked" tone="red" /> : undefined} />}
       footer={canFill ? <PrimaryBtn label={isNew ? 'Add material' : 'Save Changes'} onPress={() => void save()} disabled={!ready} busy={busy} /> : undefined}>
@@ -1088,15 +1072,17 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
             ))}
           </Group>
           <Field label="Title" value={title} onChangeText={setTitle} placeholder={isQuestions ? 'e.g. Peer Review questions' : 'e.g. Dinka translation guidelines'} autoCapitalize="sentences" />
-          {laneParam ? (
+          {language && mayRecommend && !isQuestions ? (
             <>
               <SectionLabel label="Where it applies" />
               <ChipRow>
-                <Chip label={laneName(state, laneParam)} icon="globe" on={forLane} onPress={() => setForLane(true)} />
-                <Chip label="All languages" icon="folder" on={!forLane} onPress={() => setForLane(false)} />
+                <Chip label={language} icon="globe" on={forLanguage} onPress={() => setForLanguage(true)} />
+                <Chip label="All languages" icon="folder" on={!forLanguage} onPress={() => setForLanguage(false)} />
               </ChipRow>
             </>
           ) : null}
+          {toLibrary ? <Text style={txt.xs}>Saved to your library and recommended to every language.</Text> : null}
+          {!language && !toLibrary ? <Text style={txt.smMuted}>{isQuestions ? 'Question sets belong to a language. Add a language first.' : 'Add a language first.'}</Text> : null}
           {isQuestions ? (
             <>
               <SectionLabel label="For which kind of review" />
@@ -1196,7 +1182,7 @@ const LIBRARY_MATERIAL_KINDS = ['note', 'tg', 'tmf', 'brief', 'document'];
 interface VersificationChoice { key: string; label: string; hash: string | null; shared?: SharedItem }
 
 function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const requested = ctx.params['itemId'] ?? 'new';
   const isNew = requested === 'new';
@@ -1242,7 +1228,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (!state || !picking) return [];
     const needle = q.trim().toLowerCase();
     return Object.keys(state.units)
-      .filter((u) => templateOfUnit(u)?.catalogVersion === 0)
+      .filter((u) => unitPrefixOf(u) !== null)
       .map((u) => ({ unitId: u, label: unitTitle(state, u) }))
       .filter((u) => !needle || u.label.toLowerCase().includes(needle))
       .sort((x, y) => x.label.localeCompare(y.label));
@@ -1407,49 +1393,49 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
 
 // ─── Key terms (TERM-1..6) ─────────────────────────────────────────────────────────
 
-function TermRow(props: { t: KeyTermView; lane: string; onPress: () => void; last: boolean }) {
+function TermRow(props: { t: KeyTermView; language: string; onPress: () => void; last: boolean }) {
   const { t } = props;
   const has = t.renderings.length > 0;
   const beside = useOpenDetail();
   return (
     <Row icon="book" iconColor={has ? C.primary : TINT.amberText} iconBg={has ? undefined : TINT.amber}
       label={t.term} badge={isFiaTerm(t) ? 'FIA' : undefined}
-      sub={has ? t.renderings.map((r) => r.rendering).join(' · ') : `No ${props.lane} rendering yet`}
+      sub={has ? t.renderings.map((r) => r.rendering).join(' · ') : `No ${props.language} rendering yet`}
       onPress={props.onPress} last={props.last} current={beside?.screen === 'key_term_detail' && beside.params['termId'] === t.termId} />
   );
 }
 
 export function KeyTerms(ctx: Ctx) {
-  const state = ctx.partition.state;
-  const laneId = ctx.params['laneId'] ?? ctx.laneId ?? '';
+  const state = ctx.language.state;
+  const languageId = ctx.language.languageId;
   const unitId = ctx.params['unitId'];
   const takeId = ctx.params['takeId'];
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ term: '', gloss: '', rendering: '', context: '' });
   const [busy, setBusy] = useState(false);
-  const terms = useMemo(() => (state && laneId ? keyTermsFor(state, laneId) : []), [state, laneId]);
+  const terms = useMemo(() => (state ? keyTermsFor(state) : []), [state]);
   const here = useMemo(() => (state && unitId && state.units[unitId] ? termsInPassage(state, terms, unitId, sourceText(state, unitId)) : new Set<string>()), [state, terms, unitId]);
   const canAdd = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
-  if (!state || !laneId || !state.lanes[laneId]) {
+  if (!state || !languageId) {
     return <Screen header={<Header title="Key Terms" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'Choose a language first' : 'Loading…'} /></Screen>;
   }
-  const lane = laneName(state, laneId);
+  const language = languageName(ctx.org.state, languageId);
   const matching = terms.filter((t) => matchesTerm(t, q));
   const inPassage = matching.filter((t) => here.has(t.termId));
   const rest = matching.filter((t) => !here.has(t.termId));
-  const open = (t: KeyTermView) => ctx.go('key_term_detail', { termId: t.termId, laneId, ...(unitId ? { unitId } : {}), ...(takeId ? { takeId } : {}) });
+  const open = (t: KeyTermView) => ctx.go('key_term_detail', { termId: t.termId, languageId, ...(unitId ? { unitId } : {}), ...(takeId ? { takeId } : {}) });
 
   async function add() {
     if (!state || busy || !draft.term.trim() || !draft.rendering.trim()) return;
     const termId = `kt-${Crypto.randomUUID()}`;
     const book = unitId ? state.units[unitId]?.parentUnitId ?? unitId : null;
-    const during = unitId ? derivePassage(state, unitId, laneId, indexesFor(state)) : null;
+    const during = unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null;
     const duringTakeId = during?.draftTakeId ?? during?.latest?.takeId;
     setBusy(true);
     // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
     const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm({
-      commandId: Crypto.randomUUID(), termId, laneId, term: draft.term, gloss: draft.gloss, unitScope: book ? [book] : [],
+      commandId: Crypto.randomUUID(), termId, term: draft.term, gloss: draft.gloss, unitScope: book ? [book] : [],
       rendering: draft.rendering, context: draft.context,
       note: draft.context.trim() || `First rendering: ${draft.rendering.trim()}.`, ...(duringTakeId ? { duringTakeId } : {})
     }), `${draft.term.trim()} added.`);
@@ -1461,7 +1447,7 @@ export function KeyTerms(ctx: Ctx) {
   }
 
   return (
-    <Screen header={<Header title="Key Terms" sub={unitId && state.units[unitId] ? `${unitTitle(state, unitId)} · ${lane}` : `${lane} renderings`} onBack={ctx.back}
+    <Screen header={<Header title="Key Terms" sub={unitId && state.units[unitId] ? `${unitTitle(state, unitId)} · ${language}` : `${language} renderings`} onBack={ctx.back}
       action={canAdd ? <SmallBtn label="New term" icon="plus" onPress={() => setAdding(true)} /> : undefined} />}>
       <SearchField value={q} onChangeText={setQ} placeholder="Search terms" />
       {terms.length === 0 ? (
@@ -1471,20 +1457,20 @@ export function KeyTerms(ctx: Ctx) {
           {inPassage.length > 0 ? (
             <>
               <SectionLabel label={`In this passage · ${inPassage.length}`} />
-              <Capped items={inPassage} render={(t, last) => <TermRow key={t.termId} t={t} lane={lane} onPress={() => open(t)} last={last} />} />
+              <Capped items={inPassage} render={(t, last) => <TermRow key={t.termId} t={t} language={language} onPress={() => open(t)} last={last} />} />
             </>
           ) : null}
           <SectionLabel label={`${inPassage.length ? 'Other terms' : 'All terms'} · ${rest.length}`} />
-          <Capped items={rest} empty={q ? `Nothing matches “${q}”.` : 'No other terms.'} render={(t, last) => <TermRow key={t.termId} t={t} lane={lane} onPress={() => open(t)} last={last} />} />
+          <Capped items={rest} empty={q ? `Nothing matches “${q}”.` : 'No other terms.'} render={(t, last) => <TermRow key={t.termId} t={t} language={language} onPress={() => open(t)} last={last} />} />
         </>
       )}
-      <Intro>Concepts come from your organization's list (like FIA key terms) or your own. Each language keeps its own renderings and the reasons behind them.</Intro>
+      <Intro>Concepts come from a shared list (like FIA key terms) or your own. {language} keeps its own renderings and the reasons behind them.</Intro>
 
-      <Sheet visible={adding} title="New key term" sub="Added to your organization's list. Other languages can add their own renderings." onClose={() => setAdding(false)}
+      <Sheet visible={adding} title="New key term" sub={`Added to ${language}'s key terms, with its first rendering.`} onClose={() => setAdding(false)}
         footer={<PrimaryBtn label="Add Term" onPress={() => void add()} disabled={!draft.term.trim() || !draft.rendering.trim()} busy={busy} />}>
         <Field value={draft.term} onChangeText={(v) => setDraft({ ...draft, term: v })} placeholder="Source term, e.g. grace (charis)" />
         <Field value={draft.gloss} onChangeText={(v) => setDraft({ ...draft, gloss: v })} placeholder="Meaning, briefly" autoCapitalize="sentences" />
-        <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={`${lane} rendering`} />
+        <Field value={draft.rendering} onChangeText={(v) => setDraft({ ...draft, rendering: v })} placeholder={`${language} rendering`} />
         <Field value={draft.context} onChangeText={(v) => setDraft({ ...draft, context: v })} placeholder="When to use it, and why" multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>
@@ -1492,23 +1478,22 @@ export function KeyTerms(ctx: Ctx) {
 }
 
 export function KeyTermDetail(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const termId = ctx.params['termId'] ?? '';
   const unitId = ctx.params['unitId'];
   const t = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
-  const laneId = t?.laneId || ctx.params['laneId'] || ctx.laneId || '';
-  const passage = useMemo(() => (state && unitId && laneId && state.units[unitId] ? derivePassage(state, unitId, laneId, indexesFor(state)) : null), [state, unitId, laneId]);
+  const languageId = ctx.language.languageId;
+  const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
   const usedIn = useMemo(() => {
     if (!state) return [];
     const idx = indexesFor(state);
     return takesLinkingTerm(state, termId).flatMap((l) => {
       const take = state.takes[l.takeId];
       if (!take) return [];
-      const v = derivePassage(state, take.unitId, take.laneId, idx).versions.find((x) => x.takeId === l.takeId);
-      return v ? [{ ...l, unitId: take.unitId, laneId: take.laneId, title: unitTitle(state, take.unitId), n: v.n, by: v.by, hlc: v.hlc }] : [];
+      const v = derivePassage(state, take.unitId, idx).versions.find((x) => x.takeId === l.takeId);
+      return v ? [{ ...l, unitId: take.unitId, title: unitTitle(state, take.unitId), n: v.n, by: v.by, hlc: v.hlc }] : [];
     });
   }, [state, termId]);
-  const others = useMemo(() => (state && t ? otherLanguageRenderings(state, t) : []), [state, t]);
   const [adjusting, setAdjusting] = useState(false);
   const [rendering, setRendering] = useState('');
   const [context, setContext] = useState('');
@@ -1518,12 +1503,11 @@ export function KeyTermDetail(ctx: Ctx) {
   const [usedShown, setUsedShown] = useState(STEP);
   const why = ctx.details(`term:${termId}:why`);
   const used = ctx.details(`term:${termId}:used`);
-  const other = ctx.details(`term:${termId}:others`);
 
   if (!state || !t) {
     return <Screen header={<Header title="Key Term" onBack={ctx.back} />}><EmptyState icon="book" title={state ? 'This term is not here any more' : 'Loading…'} /></Screen>;
   }
-  const lane = laneName(state, laneId);
+  const language = languageName(ctx.org.state, languageId);
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
   const draftTakeId = passage?.draftTakeId;
   // TERM-4 is offered from the workspace, which passes the draft (or no take); a version's page passes that version.
@@ -1535,10 +1519,10 @@ export function KeyTermDetail(ctx: Ctx) {
   const versionOf = (takeId?: string) => {
     const take = takeId ? state.takes[takeId] : undefined;
     if (!take || !takeId) return null;
-    const v = derivePassage(state, take.unitId, take.laneId, indexesFor(state)).versions.find((x) => x.takeId === takeId);
-    return { unitId: take.unitId, laneId: take.laneId, takeId, title: unitTitle(state, take.unitId), n: v?.n ?? null };
+    const v = derivePassage(state, take.unitId, indexesFor(state)).versions.find((x) => x.takeId === takeId);
+    return { unitId: take.unitId, takeId, title: unitTitle(state, take.unitId), n: v?.n ?? null };
   };
-  const openVersion = (v: { unitId: string; laneId: string; takeId: string }) => ctx.go('version_detail', { unitId: v.unitId, laneId: v.laneId, takeId: v.takeId });
+  const openVersion = (v: { unitId: string; takeId: string }) => ctx.go('version_detail', { unitId: v.unitId, languageId, takeId: v.takeId });
 
   async function tie() {
     if (!draftTakeId || isLinked || busy) return;
@@ -1564,7 +1548,7 @@ export function KeyTermDetail(ctx: Ctx) {
 
   const scopeTitles = t.unitScope.map((u) => unitTitle(state, u));
   return (
-    <Screen header={<Header title={t.term} sub={isFiaTerm(t) ? 'FIA key term · shared across the organization' : `${lane} · organization term`} onBack={ctx.back} />}>
+    <Screen header={<Header title={t.term} sub={isFiaTerm(t) ? `FIA key term · ${language}` : `${language} key term`} onBack={ctx.back} />}>
       <Card style={{ backgroundColor: C.light }}>
         <Text style={txt.body}>{t.gloss || 'No meaning written yet.'}</Text>
         <Text style={[txt.xsStrong, { color: C.primary }]}>{scopeTitles.length ? `Appears in ${scopeTitles.join(', ')}` : 'Applies to every passage'}</Text>
@@ -1587,11 +1571,11 @@ export function KeyTermDetail(ctx: Ctx) {
         </Card>
       ) : null}
 
-      <SectionLabel label={`In ${lane}`} />
+      <SectionLabel label={`In ${language}`} />
       {t.renderings.length === 0 ? (
         <Card onPress={canEdit ? () => setAdjusting(true) : undefined} style={{ backgroundColor: TINT.amber, borderStyle: 'dashed', borderWidth: 1.5, borderColor: `${C.amber}99` }}>
           <Text style={[txt.body, { fontWeight: '700', color: TINT.amberText }]}>No rendering yet</Text>
-          <Text style={[txt.sm, { color: TINT.amberText }]}>Add how {lane} says this, and when to use it.</Text>
+          <Text style={[txt.sm, { color: TINT.amberText }]}>Add how {language} says this, and when to use it.</Text>
         </Card>
       ) : (
         <Group>
@@ -1605,7 +1589,7 @@ export function KeyTermDetail(ctx: Ctx) {
       )}
       {canEdit ? <GhostBtn label={t.renderings.length ? 'Adjust or add a rendering' : 'Add a rendering'} icon="edit" onPress={() => setAdjusting(true)} /> : null}
 
-      {adjustments.length || usedIn.length || others.length ? <SectionLabel label="Details" /> : null}
+      {adjustments.length || usedIn.length ? <SectionLabel label="Details" /> : null}
       {adjustments.length ? (
         <Disclosure icon="history" title="Why it's rendered this way" open={why.open} onToggle={why.onToggle}
           summary={`${plural(adjustments.length, 'change')} · latest by ${ctx.name(adjustments[0]!.actorId)}, ${when(adjustments[0]!.hlc)}`}>
@@ -1615,7 +1599,7 @@ export function KeyTermDetail(ctx: Ctx) {
               <View key={a.adjustmentId} style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
                 <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
                 <Text style={txt.sm}>{a.note}</Text>
-                {a.blobHash ? <AudioClip partition={ctx.partition} hashes={[a.blobHash]} label="Play the explanation" /> : null}
+                {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label="Play the explanation" /> : null}
                 {v && v.n !== null ? <SmallBtn label={`Open Version ${v.n}`} icon="mic" onPress={() => openVersion(v)} /> : null}
               </View>
             );
@@ -1632,25 +1616,12 @@ export function KeyTermDetail(ctx: Ctx) {
           <ShowMore remaining={usedIn.length - usedShown} step={STEP} onMore={() => setUsedShown(usedShown + STEP)} />
         </Disclosure>
       ) : null}
-      {others.length ? (
-        <Disclosure icon="globe" title="Other languages" open={other.open} onToggle={other.onToggle}
-          summary={others.slice(0, 3).map((r) => `${r.lane}: ${r.rendering}`).join(' · ')}>
-          {others.map((r, i) => (
-            <View key={`${r.laneId}-${i}`} style={[styles.rendering, i < others.length - 1 && styles.rowBorder]}>
-              <Text style={txt.xsStrong}>{r.lane}</Text>
-              <Text style={[txt.body, { fontWeight: '700' }]}>{r.rendering}</Text>
-              {r.context ? <Text style={txt.xs}>{r.context}</Text> : null}
-            </View>
-          ))}
-        </Disclosure>
-      ) : null}
-
-      <Sheet visible={adjusting} title={`${lane} · “${t.term}”`} onClose={() => setAdjusting(false)}
+      <Sheet visible={adjusting} title={`${language} · “${t.term}”`} onClose={() => setAdjusting(false)}
         sub={canTie ? `Recorded as part of ${passageLabel}, and tied to your draft.` : 'Every change is recorded with your reason.'}
         footer={<PrimaryBtn label="Save" onPress={() => void saveAdjustment()} disabled={!note.trim() && !hash} busy={busy} />}>
         <Field value={rendering} onChangeText={setRendering} placeholder="New rendering (optional)" />
         {rendering.trim() ? <Field value={context} onChangeText={setContext} placeholder="When to use it" multiline autoCapitalize="sentences" /> : null}
-        {passage ? <VoiceNote ctx={ctx} unitId={passage.unitId} laneId={passage.laneId} label="Say why" hash={hash} onChange={setHash} /> : null}
+        {passage ? <VoiceNote ctx={ctx} label="Say why" hash={hash} onChange={setHash} /> : null}
         <Field value={note} onChangeText={setNote} placeholder={passage ? 'Or type what changed, and why' : 'What changed, and why'} multiline autoCapitalize="sentences" />
       </Sheet>
     </Screen>

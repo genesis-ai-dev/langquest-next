@@ -1,5 +1,6 @@
 import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, TITLES, type NodeId } from '../src/flow';
-import { deriveSession, edgeAllowed, tabsFor } from '../src/session';
+import { edgeAllowed, tabsFor } from '../src/session';
+import { roleSession } from './sessions';
 import spec from './spec-flow.json';
 
 describe('UX flow coverage', () => {
@@ -53,9 +54,7 @@ describe('UX flow coverage', () => {
   it('people with a My Work reach updates from its bell; viewers keep the Inbox tab (NAV-1, ADR-029)', () => {
     // Why: one place for what's next. Dropping the Inbox tab without the bell
     // would leave updates unreachable for everyone who has a My Work.
-    const as = (role: string) => deriveSession('me', 'me@x', {
-      members: { me: { role: { value: role, hlc: '', eventId: '' }, removed: { value: false, hlc: '', eventId: '' } } }
-    } as unknown as Parameters<typeof deriveSession>[2], true, null, 'p1');
+    const as = roleSession;
     const bell = EDGES.find((e) => e.from === 'my_work' && e.to === 'inbox_home');
     for (const role of ['owner', 'coordinator', 'translator', 'reviewer']) {
       const s = as(role);

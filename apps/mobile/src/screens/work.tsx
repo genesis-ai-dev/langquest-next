@@ -7,8 +7,8 @@
 // your versions, your unsaved drafts, what you asked of others. Nothing here
 // gates the work; every passage is still reachable from the Map.
 import {
-  derivePassage, deriveFlow, deriveKinds, highlightsFor, laneName, passageSummary, unitTitle, upNext, waitingOn,
-  type Highlight, type KindDef, type PartitionState, type Waiting
+  derivePassage, deriveFlow, deriveKinds, highlightsFor, languageName, membershipsOf, passageSummary, unitTitle, upNext, waitingOn,
+  type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -48,7 +48,7 @@ function highlightStyle(kind: Highlight['kind']): { icon: IconName; bg: string; 
 }
 
 /** The demo's card wording for one highlight (domain/record.ts `highlightsFor`). */
-function highlightText(state: PartitionState, kinds: KindDef[], h: Highlight, name: Ctx['name']): { title: string; sub: string } {
+function highlightText(state: LanguageState, kinds: KindDef[], h: Highlight, name: Ctx['name']): { title: string; sub: string } {
   const title = unitTitle(state, h.unitId);
   const kind = (id?: string) => kinds.find((k) => k.id === id);
   const asked = () => {
@@ -78,7 +78,7 @@ function askedWhen(hlc: string): string {
   return w === 'Just now' ? 'just now' : w;
 }
 
-function waitingText(state: PartitionState, kinds: KindDef[], w: Waiting, name: Ctx['name']): { title: string; sub: string } {
+function waitingText(state: LanguageState, kinds: KindDef[], w: Waiting, name: Ctx['name']): { title: string; sub: string } {
   const r = w.request;
   const what = r.what === 'record' ? 'Recording' : kinds.find((k) => k.id === r.kindId)?.name ?? 'Review';
   const who = r.profileId ? name(r.profileId) : r.guest?.name ?? 'someone';
@@ -127,33 +127,25 @@ function useFirstDay(actorId: string, show: boolean): { hidden: boolean; hide: (
   return { hidden: hidden !== false, hide };
 }
 
-/** Everyone the organization has, not counting removed members. */
-function memberCount(ctx: Ctx, state: PartitionState): number {
-  const ids = new Set<string>();
-  for (const [id, m] of Object.entries(state.members)) if (!m.removed.value) ids.add(id);
-  for (const [id, scopes] of Object.entries(ctx.org.state?.members ?? {})) {
-    if (Object.values(scopes).some((m) => !m.removed.value)) ids.add(id);
-  }
-  return ids.size;
+/** Everyone the organization has, at any scope, not counting removed members. */
+function memberCount(org: OrgState | null): number {
+  if (!org) return 0;
+  return Object.keys(org.members).filter((id) => membershipsOf(org, id).length > 0).length;
 }
 
-function startRows(ctx: Ctx, state: PartitionState): { title: string; promise: string; rows: StartRow[] } | null {
+function startRows(ctx: Ctx, state: LanguageState): { title: string; promise: string; rows: StartRow[] } | null {
   const s = ctx.session;
   const idx = indexesFor(state);
-  const laneId = ctx.laneId;
-  const lane = laneId ? laneName(state, laneId) : null;
+  const languageId = ctx.languageId;
+  const language = languageId ? languageName(ctx.org.state, languageId) : null;
   const orgName = ctx.org.state?.org?.value.name ?? 'your organization';
   const open = (to: ScreenId, label: string, params?: Record<string, string>) =>
     canGo(ctx, to) ? { label, onPress: () => ctx.go(to, params) } : undefined;
 
   if (s.isAdmin) {
-    const lanes = idx.lanes;
-    // Each language is its own partition (decisions.md 37): the organization's list says whether there is one.
-    const languageDone = ctx.languages.length > 0 || lanes.length > 0;
-    const lastLane = lanes.at(-1);
-    const flowLane = laneId ?? lastLane;
-    const flowLaneName = flowLane ? laneName(state, flowLane) : null;
-    const members = memberCount(ctx, state);
+    // The organization's list says whether there is a language; the open one is the one set up next.
+    const languageDone = ctx.languages.length > 0;
+    const members = memberCount(ctx.org.state);
     const teamDone = members > 1;
     return {
       title: `Let's get ${orgName} recording`,
@@ -162,16 +154,16 @@ function startRows(ctx: Ctx, state: PartitionState): { title: string; promise: s
         { id: 'org', icon: 'building', label: 'Name your organization', sub: orgName, body: '', done: true },
         {
           id: 'language', icon: 'globe', label: 'Add a language', done: languageDone,
-          sub: lastLane ? laneName(state, lastLane) : 'The language your team speaks',
+          sub: language ?? 'The language your team speaks',
           body: `Which language will your first team record? It goes in ${orgName}, with every passage ready to record.`,
           action: open('new_language', 'Add a language')
         },
         {
           id: 'flow', icon: 'flow', label: 'Choose how passages get checked', disabled: !languageDone,
-          done: !!(flowLane && state.laneFlows[flowLane]),
-          sub: flowLane ? `${deriveFlow(state, flowLane).name} for ${flowLaneName}` : 'The checks a passage goes through',
-          body: `Every passage in ${flowLaneName ?? 'the language'} goes through a few checks before it's done. Keep the standard ones, or pick others.`,
-          action: open('flows_home', "Choose how it's checked", flowLane ? { laneId: flowLane } : undefined)
+          done: !!(languageId && state.flow),
+          sub: languageId && state.flow ? `${deriveFlow(state).name} for ${language}` : 'The checks a passage goes through',
+          body: `Every passage in ${language ?? 'the language'} goes through a few checks before it's done. Keep the standard ones, or pick others.`,
+          action: open('flows_home', "Choose how it's checked", languageId ? { languageId } : undefined)
         },
         {
           // Nothing on the record says roles were "decided"; putting someone in one is the real sign.
@@ -195,36 +187,35 @@ function startRows(ctx: Ctx, state: PartitionState): { title: string; promise: s
   if (!canRecord && !canReview) return null;
   const rows: StartRow[] = [{
     id: 'map', icon: 'map', label: 'Find your passages on the Map', done: ctx.recent.length > 0,
-    sub: lane ? `Every passage in ${lane}` : 'Every passage, and how far it has come',
-    body: `Every passage in ${lane ?? 'your language'}, and how far each one has come.${canRecord ? ' Anyone can start one — no need to be asked.' : ''}`,
+    sub: language ? `Every passage in ${language}` : 'Every passage, and how far it has come',
+    body: `Every passage in ${language ?? 'your language'}, and how far each one has come.${canRecord ? ' Anyone can start one — no need to be asked.' : ''}`,
     action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(s)) }
   }];
   if (canRecord) {
     const mine = Object.values(state.submissions).some((x) => x.actorId === s.actorId);
-    const first = laneId && !mine ? upNext(state, laneId, { canRecord: true, canReview: false }, idx) : null;
+    const first = languageId && !mine ? upNext(state, { canRecord: true, canReview: false }, idx) : null;
     const title = first ? unitTitle(state, first.unitId) : null;
     rows.push({
       id: 'record', icon: 'mic', label: 'Record your first passage', done: mine,
       sub: mine ? 'Saved to the record' : 'Your first version, saved to the record',
       body: title ? `Nobody has recorded ${title} yet. Open it and tap Record.` : 'Open any passage on the Map and tap Record.',
-      ...(first && laneId ? { action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, laneId) } } : {})
+      ...(first && languageId ? { action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, languageId) } } : {})
     });
   }
   if (canReview) {
-    const mine = Object.values(state.kindReviews).some((r) => r.by === s.actorId)
-      || Object.values(state.reviews).some((bySteps) => Object.values(bySteps).some((byActor) => !!byActor[s.actorId]));
-    const first = laneId && !mine ? upNext(state, laneId, { canRecord: false, canReview: true }, idx) : null;
-    const by = first && laneId ? derivePassage(state, first.unitId, laneId, idx).latest?.by : undefined;
+    const mine = Object.values(state.kindReviews).some((r) => r.by === s.actorId);
+    const first = languageId && !mine ? upNext(state, { canRecord: false, canReview: true }, idx) : null;
+    const by = first ? derivePassage(state, first.unitId, idx).latest?.by : undefined;
     const title = first ? unitTitle(state, first.unitId) : null;
     rows.push({
       id: 'review', icon: 'listen', label: 'Give your first review', done: mine,
       sub: mine ? 'Saved to the record' : 'Listen, and say what you heard',
       body: title ? `${by ? ctx.name(by) : 'Someone'} recorded ${title}, and nobody has checked it yet.` : 'When someone asks you to review, it shows here under For you.',
-      ...(first && laneId ? { action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, laneId) } } : {})
+      ...(first && languageId ? { action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, languageId) } } : {})
     });
   }
   return {
-    title: lane ? `Welcome to the ${lane} team` : 'Welcome',
+    title: language ? `Welcome to the ${language} team` : 'Welcome',
     promise: "A few minutes, and you'll know your way around.",
     rows
   };
@@ -376,7 +367,7 @@ function UpNextCard(props: { icon: IconName; title: string; sub: string; action?
 
 /** The sync state, small, beside the title: what is still on this phone only, and whether the live channel is up. */
 function SyncChip(ctx: Ctx) {
-  const p = ctx.partition;
+  const p = ctx.language;
   const label = p.pending > 0 ? `${p.pending.toLocaleString('en-US')} to send` : p.online === false ? 'Offline' : p.live ? 'Live' : 'Saved';
   if (!canGo(ctx, 'sync_status')) return null;
   return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
@@ -385,7 +376,7 @@ function SyncChip(ctx: Ctx) {
 // ---- the screen -------------------------------------------------------------------------
 
 export function MyWork(ctx: Ctx) {
-  const state = ctx.partition.state;
+  const state = ctx.language.state;
   const actorId = ctx.session.actorId;
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
@@ -393,21 +384,22 @@ export function MyWork(ctx: Ctx) {
   const [waitingShown, setWaitingShown] = useState(WAITING_CAP);
   const firstDay = useFirstDay(actorId, ctx.params['showGettingStarted'] === '1');
 
+  // Everything here is in the open language: its stream is the one on this phone.
+  const languageId = ctx.languageId;
   const lists = useMemo(() => {
     if (!state) return null;
     const idx = indexesFor(state);
     const forYou = highlightsFor(state, actorId, { canRecord, canReview }, idx);
-    const waiting = waitingOn(state, actorId, {}, idx);
-    const listed = new Set([...forYou, ...waiting].map((x) => `${x.unitId}:${x.laneId}`));
+    const waiting = waitingOn(state, actorId, idx);
+    const listed = new Set([...forYou, ...waiting].map((x) => x.unitId));
     const recent = ctx.recent
-      .filter((r) => state.units[r.unitId] && state.lanes[r.laneId] && !listed.has(`${r.unitId}:${r.laneId}`))
+      .filter((r) => r.languageId === languageId && state.units[r.unitId] && !listed.has(r.unitId))
       .slice(0, RECENT_CAP)
-      .map((r) => ({ ...r, s: derivePassage(state, r.unitId, r.laneId, idx) }));
-    const lanes = new Set([...forYou, ...waiting, ...recent].map((x) => x.laneId));
-    return { forYou, waiting, recent, kinds: deriveKinds(state), spansLanes: lanes.size > 1 };
-  }, [state, actorId, canRecord, canReview, ctx.recent]);
+      .map((r) => ({ ...r, s: derivePassage(state, r.unitId, idx) }));
+    return { forYou, waiting, recent, kinds: deriveKinds(state) };
+  }, [state, actorId, canRecord, canReview, ctx.recent, languageId]);
 
-  const orgName = ctx.org.state?.org?.value.name ?? state?.partition?.value.name ?? '';
+  const orgName = ctx.org.state?.org?.value.name ?? '';
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
     <Header title="My Work" sub={orgName || undefined}
@@ -417,50 +409,48 @@ export function MyWork(ctx: Ctx) {
     return <Screen header={header}><Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xxl }]}>Loading your work…</Text></Screen>;
   }
 
-  const { forYou, waiting, recent, kinds, spansLanes } = lists;
-  const withLanguage = (laneId: string, sub: string) => (spansLanes ? `${laneName(state, laneId)} · ${sub}` : sub);
+  const { forYou, waiting, recent, kinds } = lists;
   const start = firstDay.hidden ? null : startRows(ctx, state);
   const setupOpen = !!start && ctx.session.isAdmin && start.rows.some((r) => !r.done);
 
-  function openHighlight(h: Highlight) {
-    const base: Record<string, string> = { unitId: h.unitId, laneId: h.laneId };
+  function openHighlight(h: Highlight, languageId: string) {
+    const base: Record<string, string> = { unitId: h.unitId, languageId };
     const requestId: Record<string, string> = h.request ? { requestId: h.request.id } : {};
     const kindId: Record<string, string> = h.request?.kindId ? { kindId: h.request.kindId } : {};
     if (h.kind === 'record' && canGo(ctx, 'workspace')) return ctx.go('workspace', { ...base, ...requestId });
     if (h.kind === 'draft' && canGo(ctx, 'workspace')) return ctx.go('workspace', base);
     if (h.kind === 'review' && canGo(ctx, 'review_capture')) return ctx.go('review_capture', { ...base, ...kindId, ...requestId });
     if (h.kind === 'produce' && canGo(ctx, 'back_translation')) return ctx.go('back_translation', { ...base, ...kindId, ...requestId });
-    ctx.openPassage(h.unitId, h.laneId);
+    ctx.openPassage(h.unitId, languageId);
   }
 
   // ONB-7: something real to do when nothing is waiting, instead of an empty list.
   const suggestions: { id: string; icon: IconName; title: string; sub: string; action?: { label: string; onPress: () => void } }[] = [];
-  if (forYou.length === 0 && !setupOpen && ctx.laneId) {
-    const laneId = ctx.laneId;
-    const lane = laneName(state, laneId);
+  if (forYou.length === 0 && !setupOpen && languageId) {
+    const language = languageName(ctx.org.state, languageId);
     const idx = indexesFor(state);
     if (ctx.session.isAdmin && !canRecord && !canReview) {
-      const first = upNext(state, laneId, { canRecord: true, canReview: false }, idx);
+      const first = upNext(state, { canRecord: true, canReview: false }, idx);
       if (first) {
         const title = unitTitle(state, first.unitId);
-        suggestions.push({ id: 'first', icon: 'mic', title: `Get ${lane} started`, sub: `Ask someone to record ${title} — or let your team pick any passage.`,
-          action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, laneId) } });
+        suggestions.push({ id: 'first', icon: 'mic', title: `Get ${language} started`, sub: `Ask someone to record ${title} — or let your team pick any passage.`,
+          action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, languageId) } });
       }
       suggestions.push({ id: 'map', icon: 'progress', title: 'See how every language is doing', sub: 'Recorded, checked, done — for each language, as your teams work.',
         action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(ctx.session)) } });
     } else {
-      const next = upNext(state, laneId, { canRecord, canReview }, idx);
+      const next = upNext(state, { canRecord, canReview }, idx);
       if (next) {
         const title = unitTitle(state, next.unitId);
-        const open = { label: 'Open it', onPress: () => ctx.openPassage(next.unitId, laneId) };
+        const open = { label: 'Open it', onPress: () => ctx.openPassage(next.unitId, languageId) };
         if (next.kind === 'record') {
           suggestions.push({ id: 'record', icon: 'mic', title: `Start ${title}`, sub: "Nobody has recorded it yet. You don't need to be asked — anyone on the team can start.", action: open });
         } else {
-          const by = derivePassage(state, next.unitId, laneId, idx).latest?.by;
+          const by = derivePassage(state, next.unitId, idx).latest?.by;
           suggestions.push({ id: 'listen', icon: 'play', title: `Listen to ${title}`, sub: `${by ? ctx.name(by) : 'Someone'} recorded it, and nobody has checked it yet.`, action: open });
         }
       }
-      suggestions.push({ id: 'map', icon: 'map', title: `Everything in ${lane}`, sub: "Every passage, and how far it's come.",
+      suggestions.push({ id: 'map', icon: 'map', title: `Everything in ${language}`, sub: "Every passage, and how far it's come.",
         action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(ctx.session)) } });
     }
   }
@@ -488,14 +478,14 @@ export function MyWork(ctx: Ctx) {
             </Text>
           </View>
         </Card>
-      ) : shownForYou.map((h, i) => {
+      ) : languageId ? shownForYou.map((h, i) => {
         const st = highlightStyle(h.kind);
         const t = highlightText(state, kinds, h, ctx.name);
         if (i === 0) {
-          return <NextCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={withLanguage(h.laneId, t.sub)} onPress={() => openHighlight(h)} />;
+          return <NextCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={t.sub} onPress={() => openHighlight(h, languageId)} />;
         }
-        return <AskCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={withLanguage(h.laneId, t.sub)} onPress={() => openHighlight(h)} />;
-      })}
+        return <AskCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={t.sub} onPress={() => openHighlight(h, languageId)} />;
+      }) : null}
       <ShowMore remaining={forYou.length - forYouShown} step={MORE_STEP} onMore={() => setForYouShown((n) => n + MORE_STEP)} />
 
       {recent.length > 0 ? (
@@ -503,19 +493,19 @@ export function MyWork(ctx: Ctx) {
           <SectionLabel label="Recent" />
           <Group>
             {recent.map((r, i) => (
-              <Row key={`${r.unitId}:${r.laneId}`} icon="history" iconColor={C.muted} iconBg={C.bg} last={i === recent.length - 1}
+              <Row key={`${r.unitId}:${r.languageId}`} icon="history" iconColor={C.muted} iconBg={C.bg} last={i === recent.length - 1}
                 label={unitTitle(state, r.unitId)}
-                sub={withLanguage(r.laneId, passageSummary(r.s, kinds, actorId, (id) => ctx.name(id, true)))}
+                sub={passageSummary(r.s, kinds, actorId, (id) => ctx.name(id, true))}
                 right={r.s.recorded && r.s.steps.length > 0
                   ? <StepMarks steps={r.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} />
                   : undefined}
-                onPress={() => ctx.openPassage(r.unitId, r.laneId)} />
+                onPress={() => ctx.openPassage(r.unitId, r.languageId)} />
             ))}
           </Group>
         </>
       ) : null}
 
-      {waiting.length > 0 ? (
+      {waiting.length > 0 && languageId ? (
         <>
           <SectionLabel label={`Waiting on others · ${waiting.length}`} />
           <Group>
@@ -523,7 +513,7 @@ export function MyWork(ctx: Ctx) {
               const t = waitingText(state, kinds, w, ctx.name);
               return (
                 <Row key={w.id} icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === shownWaiting.length - 1}
-                  label={t.title} sub={withLanguage(w.laneId, t.sub)} onPress={() => ctx.openPassage(w.unitId, w.laneId)} />
+                  label={t.title} sub={t.sub} onPress={() => ctx.openPassage(w.unitId, languageId)} />
               );
             })}
           </Group>

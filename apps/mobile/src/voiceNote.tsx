@@ -13,8 +13,6 @@ import { useRecorder, type RecordedCard } from './useRecorder';
 
 export function VoiceNote(props: {
   ctx: Ctx;
-  unitId: string;
-  laneId: string;
   label: string;
   hash: string | null;
   /** The hash, and the card's length and format for events that keep them (review artifacts). */
@@ -39,7 +37,7 @@ export function VoiceNote(props: {
     return (
       <View style={[styles.box, { backgroundColor: TINT.green, borderColor: `${C.green}55` }]}>
         <View style={{ flex: 1 }}>
-          <AudioClip partition={props.ctx.partition} hashes={[props.hash]} label="Play voice note" />
+          <AudioClip language={props.ctx.language} hashes={[props.hash]} label="Play voice note" />
         </View>
         <IconBtn name="trash" label="Delete voice note" onPress={() => props.onChange(null)} bg="transparent" color={TINT.greenText} />
       </View>
@@ -63,10 +61,10 @@ export function VoiceNote(props: {
   );
 }
 
-/** The `voice` slot of ReasonSheet, bound to one passage. */
-export function voiceFor(ctx: Ctx, unitId: string, laneId: string, label = 'Say why instead') {
+/** The `voice` slot of ReasonSheet. */
+export function voiceFor(ctx: Ctx, label = 'Say why instead') {
   return ({ hash, onChange }: { hash: string | null; onChange: (h: string | null) => void }) => (
-    <VoiceNote ctx={ctx} unitId={unitId} laneId={laneId} label={label} hash={hash} onChange={onChange} />
+    <VoiceNote ctx={ctx} label={label} hash={hash} onChange={onChange} />
   );
 }
 

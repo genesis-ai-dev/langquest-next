@@ -111,10 +111,10 @@ export interface TransferTimings {
   verifyMs?: number;
 }
 
-/** Time one blob transfer and tally it, failure or not. Rethrows so the worker's backoff still applies. */
+/** Time one blob transfer and tally it under its stream, failure or not. Rethrows so the worker's backoff still applies. */
 export async function timedTransfer(
   dir: 'up' | 'down',
-  where: { orgId: string; partitionId: string },
+  where: { orgId: string; streamId: string },
   run: (timings: TransferTimings) => Promise<number>
 ): Promise<void> {
   const started = Date.now();

@@ -15,7 +15,7 @@ export interface HandOver {
   pushToken?: string;
   savedAt: string;
 }
-export interface PendingUpload { orgId: string; partitionId: string; ref: BlobRef }
+export interface PendingUpload { orgId: string; languageId: string; ref: BlobRef }
 
 /** What one attempt to send their work found. */
 export interface Attempt {
