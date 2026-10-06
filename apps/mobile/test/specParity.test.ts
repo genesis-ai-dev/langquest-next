@@ -20,18 +20,38 @@ const APP_ONLY: Record<string, string> = {
   'org_home->language_home': 'no project level (decision 34): the organization lists its languages',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
   'my_work->sync_status': 'the cloud chip on My Work opens the sync status screen',
-  'scan_qr->sign_in': 'a signed-out person who already has an account signs in, and the held invite joins them (docs/invites-and-accounts.md flow B)',
-  'scan_qr->create_account': 'a signed-out person joins as a new person: the invite makes their account, with no email (flow A; the demo says "No email needed: this creates your account")',
-  'sign_in->scan_qr': 'Scan a code: an invite, or a sign-in key from the person helping you back in (flows A, B, F)',
+  'scan_qr->create_account': 'a group invite asks the new person their name before the invite makes the account (flow A, decisions.md 59)',
+  'create_account->welcome': 'an email account made while an invite is held (Scan, I already have an account, then Create Account) joins at once and is welcomed (flow B); the demo has no held invite',
   'scan_qr->sign_out_confirm': 'someone else is joining on a signed-in phone: sign out first, and the invite waits for them (flow C)',
   'explore_home->request_access': 'request membership from a public project listing',
   'inbox_home->members_list': 'administrators see every pending join request from the inbox',
   'create_account->terms_privacy': 'the terms are one tap away before an account exists, as under Sign In',
+  'scan_qr->terms_privacy': 'joining by invite makes an account, so its terms are one tap away there too (decisions.md 59)',
   'settings_home->delete_account': 'app stores require deleting an account from inside the app (decisions.md 46)',
   'intent_chooser->delete_account': 'someone who never joined an organization can delete their account too',
   'delete_account->sign_in': 'a deleted account is signed out',
-  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)'
+  'reports_home->reports_language': 'the Reports section on a wide window opens one language\'s report (decisions.md 57; the web dashboard moved into the app)',
+  // Reference material by level (docs/reference-material.md): the demo's one reference library splits
+  // into Bibles (with each source's facts and timings), guides and notes, coverage, and one passage's.
+  'reference_home->reference_bibles': 'Bibles recommended at this level, and adding one from LangQuest or Bible Brain',
+  'reference_bibles->reference_source': "one source's text, audio, timings, offline rule and copyright, and generating verse timings",
+  'reference_home->reference_guides': 'guides and notes with recommendations and a filter',
+  'reference_guides->material_editor': 'a new note for translators, or an item to edit',
+  'reference_home->reference_coverage': "which recommended material reaches each of a language's passages",
+  'reference_coverage->passage_reference': "one passage's reference, to place or hide an item there",
+  'passage_record->passage_reference': 'what a translator is offered on this passage and why (Details)',
+  'reference_home->guide_editor': 'Write a guide: an organization writes study material as rich as FIA\'s (docs/reference-material.md, guide editor)',
+  'study_guide->guide_editor': 'Edit a guide the organization controls, or Copy to adapt FIA\'s or another organization\'s',
+  'reference_guides->guide_editor': 'Open a guide the organization wrote in the guide editor',
+  'workspace->bible_explore': 'More Bibles beside the recorder: explore Bible Brain and add a Bible for yourself (docs/reference-material.md)',
+  'study_guide->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
+  'study_step->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
+  'review_capture->bible_explore': 'More Bibles from the reviewer\'s Background (docs/reference-material.md)',
+  'add_record->bible_explore': 'More Bibles from Already happened\'s Background (docs/reference-material.md)'
 };
+
+/** App-only reference screens (docs/reference-material.md). */
+const REFERENCE_SCREENS = ['reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference'];
 
 type SpecEdge = { from: string; to: string; mode: string; when: string | null; label: string };
 const key = (e: { from: string; to: string; mode?: string }) => `${e.from}->${e.to}`;
@@ -42,8 +62,8 @@ const specEdges = (spec.edges as SpecEdge[]).filter(machine).filter(kept);
 const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
-  it('the screen set is the demo screen set plus sync status, account deletion and the Reports section, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language'].sort());
+  it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor and More Bibles, less the dropped screens', () => {
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

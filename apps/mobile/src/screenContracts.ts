@@ -36,14 +36,18 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v2.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
-  review_capture: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
-  add_record: { emits:['v1.ReviewRecorded'],reads:['derivePassage','questionsForKind'] },
+  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
+  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'] },
+  // What was offered and used goes on the record with the version (docs/reference-material.md).
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeSelected','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked'],reads:['derivePassage','keyTermsForUnit'],rpcs:REPORTS },
+    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.ReferencesUsed'],reads:['derivePassage','keyTermsForUnit','recommendedFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
   study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
   study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'],rpcs:REPORTS },
+  // Publishes a study@2 guide as a library version; its files go to the organization's guide files (guides/files.ts).
+  guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   invite_qr: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
   invite_member: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
   members_list: { rpcs:['decide_join_request'],reads:['org.members','join_requests','profiles'] },
@@ -63,8 +67,17 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Publishes template versions; languages move to them by themselves (library/follow.ts).
   template_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Library items (docs/library.md): the organization's, and what others share.
-  reference_home: { emits:['v1.CatalogItemToggled','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
-    reads:['materialsFor','sourceBibleEnabled','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
+  reference_home: { emits:['v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['materialsFor','library','recommendedFor'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
+  // Reference material by level (docs/reference-material.md). Bible Brain is read through the Worker's /api/bible routes.
+  reference_bibles: { emits:['v1.ReferenceRecommended','v1.LaneReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['library','recommendedFor','sourceOffers'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
+  // Publishing a timing job's results is the source's next version (reference/timings.ts).
+  reference_source: { emits:['v1.ReferenceRecommended','v1.LaneReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['library','recommendedFor','sourceOffers'],rpcs:['library_get_documents','library_put_document','request_timings','timing_jobs_for','timing_job_results'] },
+  reference_guides: { emits:['v1.ReferenceRecommended','v1.LaneReferenceRecommended'],reads:['library','recommendedFor','materialsFor'],rpcs:['library_get_documents'] },
+  reference_coverage: { reads:['library','recommendedFor','passageLink','laneLeafUnits'],rpcs:['library_get_documents'] },
+  passage_reference: { emits:['v1.PassageReferenceLinked'],reads:['library','recommendedFor','passageLink','linkedTo','materialsFor'],rpcs:['library_get_documents'] },
   key_terms: { emits:['v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],reads:['keyTermsFor'] },
   key_term_detail: { emits:['v1.KeyTermAdjusted','v1.KeyTermLinked','v1.KeyTermRenderingAdded'],reads:['keyTermView'] },
   // Using a library flow for a language; Undo of an older catalog or custom flow restores it.
@@ -87,7 +100,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // A language's country and target go straight to the server: its
   // partition need not be on this device.
   reports_home: { reads:['orgReports'] },
-  reports_language: { emits:['v1.LaneCountrySet','v1.LaneTargetSet'],reads:['orgReports'] }
+  reports_language: { emits:['v1.LaneCountrySet','v1.LaneTargetSet'],reads:['orgReports'] },
+  // Bible Brain through the Worker (docs/reference-material.md); My Bibles are kept on the phone.
+  bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

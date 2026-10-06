@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  FILE_KEYS, OPTIONAL_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -19,9 +19,24 @@ describe('secrets', () => {
     }
   });
 
+  it('passes the Bible Brain key to the dashboard only when the file has it, and never requires it', () => {
+    const withKey = destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'service');
+    expect(withKey.workers.dashboard).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service', BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: '' }, 'ref', 'service').workers.dashboard).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service' });
+    for (const key of OPTIONAL_KEYS) {
+      expect(FILE_KEYS).toContain(key);
+      expect(REQUIRED_KEYS).not.toContain(key);
+      for (const env of ['production', 'preview']) expect(wranglerFor(parseJsonc(read(WORKERS.dashboard)), env).secrets?.required ?? []).not.toContain(key);
+    }
+  });
+
   it('sets every secret an Edge Function reads, except the ones Supabase sets itself', () => {
+    // Every function folder, and the `_shared` code they import.
     const names = readdirSync(new URL('../supabase/functions', import.meta.url))
-      .flatMap((fn) => [...read(`supabase/functions/${fn}/index.ts`).matchAll(/Deno\.env\.get\(['"]([A-Z_]+)['"]\)/g)].map((m) => m[1]))
+      .flatMap((dir) => readdirSync(new URL(`../supabase/functions/${dir}`, import.meta.url))
+        .filter((file) => file.endsWith('.ts'))
+        .map((file) => `supabase/functions/${dir}/${file}`))
+      .flatMap((file) => [...read(file).matchAll(/Deno\.env\.get\(['"]([A-Z_]+)['"]\)/g)].map((m) => m[1]))
       .filter((name) => !name.startsWith('SUPABASE_'));
     expect(Object.keys(destinations('production', values, 'ref', 'k').functions).sort()).toEqual([...new Set(names)].sort());
   });

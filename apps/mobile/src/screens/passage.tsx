@@ -32,8 +32,10 @@ import {
 import { Journey } from '../passage/journey';
 import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarget } from '../passage/sendTarget';
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
+import { PassageOffline, PassageOfflineLine } from '../offline';
 import { noteExpected, reportError } from '../report';
 import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
+import { UsedLine } from '../sources/used';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed } from '../session';
 import { useStudyGuide } from '../study/libraryGuides';
@@ -273,7 +275,8 @@ export function PassageRecord(ctx: Ctx) {
     </Pressable>
   ) : undefined;
 
-  const showDetails = timeline.length > 0 || p.versions.length > 0 || !!study || can.note;
+  // Details always has Reference: what translators are offered here and why (screens/reference.tsx).
+  const showDetails = true;
   const gridIds = gridKindIds(p);
   const flowLabel = p.flow.steps.length === 0 && !p.flow.flowId ? 'No review flow' : p.flow.name;
   const latest = timeline[0];
@@ -284,6 +287,7 @@ export function PassageRecord(ctx: Ctx) {
         <View ref={content} collapsable={false} style={{ gap: space.md }}>
           <Card>
             <Hero ctx={ctx} v={v} mine={mine} {...(latest ? { latest: { text: describe(latest), hlc: latest.hlc } } : {})} />
+            <PassageOfflineLine ctx={ctx} unitId={unitId} />
             <Journey ctx={ctx} v={v} versionIdx={Math.min(versionIdx, Math.max(0, p.versions.length - 1))} onVersion={setVersionIdx}
               canAct={can.ask || can.log || can.review} teamName={teamName}
               onOpenStep={setOpenStepId} onCurrentLayout={scrollToCurrent}
@@ -299,6 +303,9 @@ export function PassageRecord(ctx: Ctx) {
                   onRecord={() => go('workspace')} onStudy={() => go('study_guide')} onAskRecord={() => go('ask_someone', { what: 'record' })} />
               )} />
           </Card>
+
+          {/* What comes along without a connection, before anyone finds out in the field (decisions.md 61). */}
+          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
 
           {showDetails ? <SectionLabel label="Details" /> : null}
           {study ? (
@@ -351,6 +358,9 @@ export function PassageRecord(ctx: Ctx) {
                 onPress={() => setNoting(true)} last />
             </Group>
           ) : null}
+          <Group>
+            <Row icon="book" label="Reference" sub="Bibles, guides and notes offered here, and why" onPress={() => go('passage_reference')} last />
+          </Group>
         </View>
       </ScrollView>
 
@@ -865,6 +875,7 @@ export function VersionDetail(ctx: Ctx) {
           )) : null}
         </Card>
       </Authored>
+      <UsedLine ctx={ctx} state={v.state} subject={{ takeId: version.takeId }} detailsKey={key('used')} />
 
       {terms.length > 0 || reviews.length > 0 || notes.length > 0 ? <SectionLabel label="Details" /> : null}
       {terms.length > 0 ? (
@@ -982,6 +993,7 @@ export function ReviewDetail(ctx: Ctx) {
             onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })} last />
         </Group>
       ) : null}
+      <UsedLine ctx={ctx} state={v.state} subject={{ reviewId: review.id }} detailsKey={`review:${unitId}:${laneId}:${review.id}:used`} />
       {review.comment || review.commentBlobHash ? (
         <Card>
           <Label text={makes ? 'Note from the back translator' : 'Feedback'} />

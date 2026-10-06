@@ -2,7 +2,8 @@
 
 What the official LangQuest organization (`langquest`) publishes for every
 other organization to copy or subscribe to: versifications, content
-templates, review flows, question sets and FIA study material. None of it
+templates, review flows, question sets, FIA study material and sources to
+read and hear (Bibles with text and audio). None of it
 ships in the app. `scripts/library-seed.ts` builds it into library documents
 and publishes them; `docs/library.md` explains items, versions and documents.
 
@@ -36,6 +37,26 @@ Item ids are `langquest.<kind>.<slug>`:
   guides written for the partner demo (not FIA's content). Published
   locally; a hosted seed leaves it out unless given `--with-examples`.
 
+- `langquest.source.<abbr>`: sources to read and hear (`source@1`,
+  docs/reference-material.md), built by `scripts/sources-seed.ts` with
+  `--sources`:
+  - Bible Brain editions, linked, with none of their text or audio stored:
+    `esv`, `kjv`, `web` (New Testament audio only), `bsb` (FCBH's ENGBER),
+    and one gateway-language Bible each where FCBH has text and Old and New
+    Testament audio that `/download` allows for our key, by FCBH id:
+    `frntls` (French, Louis Segond 1910, drama), `porbbs` (Portuguese, NAA;
+    its text may not be downloaded, so it streams), `hinohc` (Hindi),
+    `indasv` (Indonesian, 1974; streams), `russyn` (Russian Synodal,
+    numbered as `rsc`), `arbbib` (Arabic). Spanish and Swahili had none
+    (2026-10-05). The seed reads FCBH's API each run: the filesets per
+    testament, books, copyright lines, and `offline: 'allowed'` only when
+    `/download` allows both text and audio. A gateway Bible that no longer
+    qualifies is left out and said so.
+  - `bsb-fs`: the Berean Standard Bible read by Frederick Surrey, ours to
+    keep (text public domain since April 30, 2023; audio CC0): one
+    `sourceBook@1` per book with each chapter's verses and its MP3 on
+    openbible.com, and the verse timings fia-align made for it.
+
 Every item is shared and subscribable.
 
 ## Seeding
@@ -56,6 +77,32 @@ npm run library:seed
 Running it again changes nothing: document names and event ids come from
 their content. A changed source publishes a new version of its item.
 
+The sources need the network (even with `--dry-run`) and Faith Comes By
+Hearing's key in the environment; without the key only `bsb-fs` is built.
+Load the key inside the command so it is never shown, and never put it in a
+file here:
+
+```sh
+export BIBLE_BRAIN_ACCESS_KEY="$(set -a; . ../fia/.env; printf %s "$BIBLE_BRAIN_ACCESS_KEY")"
+npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
+```
+
+The BSB text is berean.bible's `bsb.txt`, downloaded once into
+`$TMPDIR/langquest-sources/` (or given with `--bsb-text`). `--timings`
+takes a directory of fia-align `timing@1` JSON files (one document, or a
+list, per file) whose `versification` is a code (`eng`); the seed replaces
+it with that versification's document hash and attaches each timing to its
+chapter. A timing whose `audio.source.url` names another recording than
+the chapter's MP3 is left out.
+
 Seeding a hosted project needs its service role key and the owner's
 go-ahead. The script refuses a non-local `SUPABASE_URL` unless it is given
 `--hosted`; never put the key in a file here.
+
+## Verse timings
+
+`timings/bsb-fs/` holds fia-align `timing@1` output for the BSB read by
+Frederick Surrey (OpenBible's CC0 audio, BSB text from berean.bible), made
+on 2026-10-05 with `fia-align chapter --text-file … --audio-file …`; every
+chapter passed the proportion check. Seed them with
+`npm run library:seed -- --sources --timings library/timings/bsb-fs`.

@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { sessionStorageKey } from './sessionKey';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -27,13 +28,28 @@ export const supabaseConfigError: string | null = !url || !anon
 export const supabaseUrl = url ?? 'https://unconfigured.invalid';
 export const supabaseAnonKey = anon ?? 'unconfigured';
 
+/** Where the session is kept (sessionKey.ts). */
+export const SESSION_KEY = sessionStorageKey(supabaseUrl);
+
 // A placeholder keeps `createClient` from throwing when the config is
 // missing; nothing calls it, because App shows the error instead.
-export const supabase = createClient(url ?? 'https://unconfigured.invalid', anon ?? 'unconfigured', {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
+    storageKey: SESSION_KEY,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false
   }
 });
+
+/**
+ * A client for someone signed out of this phone whose work is still to
+ * go (decisions.md 60). Its session lives under `storageKey`, so a renewed
+ * token is kept there and survives a restart; it renews only when used.
+ */
+export function clientKeptAt(storageKey: string) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { storage: AsyncStorage, storageKey, autoRefreshToken: false, persistSession: true, detectSessionInUrl: false }
+  });
+}

@@ -136,11 +136,16 @@ export async function flushOutbox(orgId: string): Promise<number> {
  * The documents for these hashes, and everything they depend on: from
  * memory, then disk, then the server (which gives only what this
  * organization may read). Missing ones are simply absent from the result.
+ * `deps: false` fetches only the documents named: a source lists every
+ * book it has, and only the book being read is wanted.
  */
-export async function loadDocs(orgId: string, hashes: (string | null | undefined)[]): Promise<Map<string, LibraryDoc>> {
+export async function loadDocs(orgId: string, hashes: (string | null | undefined)[], opts: { deps?: boolean } = {}): Promise<Map<string, LibraryDoc>> {
   const out = new Map<string, LibraryDoc>();
   let want = [...new Set(hashes.filter((h): h is string => !!h))];
   const seen = new Set<string>();
+  // Offline, the server's refusal must not hide what is on disk: keep walking
+  // the documents here (and their deps), tell the screens, then report it.
+  let failed: Error | null = null;
   while (want.length) {
     const missing: string[] = [];
     for (const h of want) {
@@ -149,10 +154,18 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
       if (doc) out.set(h, doc);
       else missing.push(h);
     }
-    for (let i = 0; i < missing.length; i += 100) {
-      const { data, error } = await supabase.rpc('library_get_documents', { p_org: orgId, p_hashes: missing.slice(i, i + 100) });
-      if (error) throw new Error(error.message);
-      for (const row of (data ?? []) as { hash: string; body: string }[]) {
+    // One refusal is enough to know the server is away this time.
+    for (let i = 0; i < missing.length && !failed; i += 100) {
+      let rows: { hash: string; body: string }[];
+      try {
+        const { data, error } = await supabase.rpc('library_get_documents', { p_org: orgId, p_hashes: missing.slice(i, i + 100) });
+        if (error) throw new Error(error.message);
+        rows = (data ?? []) as { hash: string; body: string }[];
+      } catch (e) {
+        failed ??= e instanceof Error ? e : new Error(String(e));
+        continue;
+      }
+      for (const row of rows) {
         const doc = await admit(row.hash, row.body);
         if (!doc) continue;
         await toDisk(row.hash, row.body);
@@ -160,13 +173,17 @@ export async function loadDocs(orgId: string, hashes: (string | null | undefined
       }
     }
     const next = new Set<string>();
+    if (opts.deps === false) break;
     for (const doc of out.values()) {
-      if (doc.format === 'versification@1') continue;
-      for (const d of doc.deps) if (!seen.has(d)) next.add(d);
+      if (doc.format === 'versification@1' || doc.format === 'sourceBook@1') continue;
+      // A source's books (and their timings) load when a passage reads them; only its numbering comes along.
+      const deps = doc.format === 'source@1' ? [doc.versification] : doc.deps;
+      for (const d of deps) if (!seen.has(d)) next.add(d);
     }
     want = [...next];
   }
   if (out.size) notify();
+  if (failed) throw failed;
   return out;
 }
 

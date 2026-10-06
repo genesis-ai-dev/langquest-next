@@ -29,7 +29,7 @@ import { indexesFor } from '../indexes';
 import {
   Banner, Card, EmptyState, Field, Header, PrimaryBtn, Screen, SectionLabel, Sheet, txt
 } from '../kit';
-import { PassageSourceAudio, SourcePlayer } from '../passageSourceAudio';
+import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
 import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
@@ -38,18 +38,20 @@ import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
 import { VadControls, VadPanel } from '../recording/VadTakeover';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cardLabels, markTerms, removeCardSpecs, sameCards,
+  backTranslationDraftKey, canPublish, cardDurations, cardLabels, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { HelpButton, HelpSheet, type TrayTab } from '../recording/WorkspaceTray';
+import { getReferenceSlides } from '../passageResources';
 import { pendingPassageCards } from '../recordingFlow';
 import { reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
-import { readingsFor, type Reading } from '../scripture';
+import { SourceReader } from '../sources/SourceReader';
+import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress } from '../study/progress';
-import { C, radius, space, TINT, type as T, withAlpha } from '../theme';
+import { C, radius, space, TINT, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
 
@@ -178,20 +180,20 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     return out;
   }, [p.awaitingResponse, revising]);
 
-  // ---- source and key terms (REC-W1) ----
-  const readings = useMemo(() => readingsFor(state, unitId), [state, unitId]);
-  const reading = readings[0];
+  // ---- source and key terms (REC-W1): the source reader says what text it shows ----
+  const [sourceWords, setSourceWords] = useState<string | null>(null);
+  // What was offered and used here goes on the record with the version (docs/reference-material.md).
+  const usage = useUsage();
   const unitTerms = useMemo(() => keyTermsForUnit(state, laneId, unitId), [state, laneId, unitId]);
-  const sourceWords = useMemo(() => reading?.verses.map((x) => x.text).join(' ') ?? '', [reading]);
   const tied = useMemo(() => tiedTermIds(state, p.draftTakeId ?? latest?.takeId), [state, p.draftTakeId, latest?.takeId]);
   // Tying a term is reference work (KeyTermLinked needs fill_reference), so
   // only someone who may tie carries ties onto the version they publish.
   const canTie = ctx.session.can('fill_reference');
   const trayTerms = useMemo(() => {
-    const shown = reading ? termsInText(sourceWords, unitTerms) : unitTerms;
+    const shown = sourceWords ? termsInText(sourceWords, unitTerms) : unitTerms;
     const extra = unitTerms.filter((t) => tied.has(t.termId) && !shown.includes(t));
     return [...shown, ...extra];
-  }, [reading, sourceWords, unitTerms, tied]);
+  }, [sourceWords, unitTerms, tied]);
 
   // ---- Help: the study tray as one sheet (REC-W5, ADR-029) ----
   const [help, setHelp] = useState(false);
@@ -200,6 +202,14 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const guide = useStudyGuide(ctx, unitId, laneId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
+  useEffect(() => {
+    if (guide) usage.offer([{ itemId: guide.id.split('~')[0] ?? guide.id, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
+  }, [guide, usage]);
+  useEffect(() => { if (help && tab === 'study' && guide) usage.open(guide.id.split('~')[0] ?? guide.id); }, [help, tab, guide, usage]);
+  const references = useMemo(() => getReferenceSlides(state, laneId, unitId), [state, laneId, unitId]);
+  useEffect(() => {
+    usage.offer(references.map((r) => ({ itemId: r.id, name: r.label, kind: r.id.startsWith('source:') ? 'source' as const : 'note' as const, opened: false })));
+  }, [references, usage]);
 
   // ---- publishing (REC-W3, REC-W4) ----
   const [confirming, setConfirming] = useState(false);
@@ -213,6 +223,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
       });
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
+      const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
+      if (takeId) specs = [...specs, ...commands(state, idx).referencesUsed({ commandId, laneId, unitId, takeId: takeId.takeId, items: usage.items() })];
     } catch (e) {
       ctx.toast(`Not published: ${problemText('workspace: publish', e)}`);
       return;
@@ -247,21 +259,23 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
         topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
         top={
-          <ScrollView contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled" accessibilityLabel="Source">
-            {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
-              : request ? <RequestBanner ctx={ctx} request={request} /> : null}
-            <PassageSourceAudio ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} />
-            <Card>
+          // The reader scrolls itself with the player kept on top, so Play and the verse playing never part.
+          <SourceReader ctx={ctx} unitId={unitId} laneId={laneId} layout="screen" listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
+            usage={usage}
+            header={<View style={{ gap: space.sm }}>
+              {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
+                : request ? <RequestBanner ctx={ctx} request={request} /> : null}
               <View style={styles.labelRow}>
-                <Text style={[txt.label, { flex: 1 }]}>Source{reading ? ` · ${reading.code}` : ''}</Text>
-                {reading && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
+                <Text style={[txt.label, { flex: 1 }]}>Source</Text>
+                {sourceWords && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
               </View>
-              {reading && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
-              {reading ? <SourceText reading={reading} terms={unitTerms} tied={tied}
-                {...(recording ? {} : { onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, laneId, termId }) })} />
-                : <Text style={txt.smMuted}>There's no source text for this passage in the app yet. Listen to the source, then record.</Text>}
-            </Card>
-          </ScrollView>
+              {sourceWords && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
+            </View>}
+            footer={<ReferenceRecordings ctx={ctx} unitId={unitId} laneId={laneId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+            {...(recording ? {} : {
+              onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, laneId, termId }),
+              onMoreBibles: () => ctx.go('bible_explore', { unitId, laneId })
+            })} />
         }
         bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : (
           <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel="Your recording">
@@ -285,37 +299,6 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           onClose={() => setConfirming(false)} onPublish={(note, hash) => void publish(note, hash)} />
       ) : null}
     </Screen>
-  );
-}
-
-/**
- * Verses with their numbers inline; key-term words underlined (REC-W1). A
- * term tied to the draft is green with a solid underline and a ✓, and says
- * "tied" to a screen reader, so the tie never rests on colour alone. While
- * recording, the words stay marked but do not open the term (that would leave
- * the recording running behind another screen).
- */
-function SourceText(props: { reading: Reading; terms: { termId: string; term: string }[]; tied: ReadonlySet<string>; onTerm?: (termId: string) => void }) {
-  const onTerm = props.onTerm;
-  const verses = useMemo(() => props.reading.verses.map((x) => ({ verse: x, parts: markTerms(x.text, props.terms) })), [props.reading, props.terms]);
-  return (
-    <Text style={styles.source}>
-      {verses.map(({ verse, parts }) => (
-        <Text key={verse.ref}>
-          <Text style={styles.verseNum}>{verse.verse} </Text>
-          {parts.map((part, i) => {
-            if (!part.termId) return <Text key={i}>{part.text}</Text>;
-            const tied = props.tied.has(part.termId);
-            return (
-              <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                accessibilityLabel={`${part.text}, key term${tied ? ', tied to your draft' : ''}`}
-                style={[styles.term, tied ? styles.termTied : null]}>{part.text}{tied ? ' ✓' : ''}</Text>
-            );
-          })}
-          {' '}
-        </Text>
-      ))}
-    </Text>
   );
 }
 
@@ -522,10 +505,6 @@ function capitalize(s: string): string {
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  source: { fontSize: T.base, lineHeight: 28, color: C.dark },
-  verseNum: { fontSize: T.xs, fontWeight: '700', color: C.primary },
-  term: { fontWeight: '600', color: C.primary, backgroundColor: C.light, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
-  termTied: { color: TINT.greenText, backgroundColor: TINT.green, textDecorationStyle: 'solid' },
   checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
   // LAN-23: each half its own ground, so the two read as different places. The
   // source is cool (the brand's pale tint; the theme has no blue), your

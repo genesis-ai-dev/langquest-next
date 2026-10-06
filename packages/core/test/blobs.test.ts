@@ -1,4 +1,4 @@
-import { defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, referencedBlobs } from '../src/blobs';
+import { defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import { fold } from '../src/reducer';
 import { emptyState } from '../src/state';
 import { buildFixture } from './fixtures';
@@ -86,5 +86,43 @@ describe('eviction candidates (cache quota)', () => {
     expect(evictableBlobs(state, present, new Set(['elsewhere'])).map((r) => r.hash)).toEqual(['c1']);
     expect(evictableBlobs(state, present, new Set(['luke1']))).toEqual([]);
     expect(evictableBlobs(state, present, null)).toEqual([]);
+  });
+});
+
+describe('what is on this phone for offline use (shown per passage and in Settings)', () => {
+  const state = fold(buildFixture(), emptyState());
+  const none = new Set<string>();
+
+  it('a passage someone only browses is not kept, even with its text here', () => {
+    // Why: a person reading passages online must not assume their audio comes along to the field.
+    const u = unitOffline(state, 'luke1', new Set(), 'nobody', none);
+    expect(u.reason).toBeNull();
+    expect(u.ready).toBe(false);
+    expect(u.toFetch).toBe(1); // c1 is on the server
+    expect(u.notSent).toBe(2); // c2 and the reference audio are not
+  });
+
+  it('assignment, own work and an explicit choice keep a passage, in that order of reason', () => {
+    expect(unitOffline(state, 'luke1', none, 'r1', none).reason).toBe('assigned');
+    expect(unitOffline(state, 'luke1', none, 't1', none).reason).toBe('worked');
+    expect(unitOffline(state, 'luke1', none, 'nobody', new Set(['luke1'])).reason).toBe('chosen');
+  });
+
+  it('ready means kept and every file the server has is here; unsent files cannot block it', () => {
+    expect(unitOffline(state, 'luke1', none, 'r1', none).ready).toBe(false);
+    const u = unitOffline(state, 'luke1', new Set(['c1']), 'r1', none);
+    expect(u).toMatchObject({ here: 1, toFetch: 0, bytesToFetch: 0, ready: true });
+  });
+
+  it('the summary counts kept passages, ready ones, and bytes still to fetch', () => {
+    expect(offlineSummary(state, none, 'nobody', none)).toEqual({ kept: 0, ready: 0, chosen: 0, filesToFetch: 0, bytesToFetch: 0, notSent: 0 });
+    expect(offlineSummary(state, none, 'nobody', new Set(['luke1']))).toMatchObject({ kept: 1, ready: 0, chosen: 1, filesToFetch: 1, bytesToFetch: 12345 });
+    expect(offlineSummary(state, new Set(['c1']), 'r1', none)).toMatchObject({ kept: 1, ready: 1, chosen: 0, filesToFetch: 0 });
+  });
+
+  it('agrees with the downloader: what a kept passage still fetches is download work', () => {
+    const scope = new Set(['luke1']);
+    const fetch = deriveDownloadWork(state, none, scope).length;
+    expect(offlineByUnit(state, scope, none, 'nobody', scope).get('luke1')!.toFetch).toBe(fetch);
   });
 });

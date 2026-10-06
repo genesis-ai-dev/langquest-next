@@ -1,5 +1,5 @@
 import { deriveSession } from '../src/session';
-import { claim, deadMessage, HOLD_MS, holdScanned, inviteCard, nextStep, outcomeOfError, type HeldInvite } from '../src/heldInvite';
+import { claim, deadMessage, HOLD_MS, holdScanned, inviteCard, nextStep, outcomeOfError, withExpiry, type HeldInvite } from '../src/heldInvite';
 import { inviteUri, parseKey, signInUri } from '../src/inviteCode';
 import { isManagedEmail, makeSignInName, MANAGED_DOMAIN, signInAddress, signInName } from '../src/accounts';
 
@@ -48,12 +48,26 @@ describe('the held invite', () => {
     expect(other.claim).toEqual({ kind: 'unclaimed' });
   });
 
-  it('is let go after a day, signed in or not', () => {
+  it('is held until the invite expires, signed in or not', () => {
+    // Why: invites last a week, and someone who scans offline may find a signal days later.
     const held = claim(scanned(), 'next-account');
+    expect(nextStep(held, null, t0 + 3 * 86_400_000)).toEqual({ step: 'none' });
     expect(nextStep(held, 'caleb', t0 + HOLD_MS + 1)).toEqual({ step: 'drop' });
     expect(nextStep(held, null, t0 + HOLD_MS + 1)).toEqual({ step: 'drop' });
+    // Once the server has said when it expires, that date decides.
+    const known = withExpiry(held, new Date(t0 + 2 * 86_400_000).toISOString());
+    expect(nextStep(known, 'caleb', t0 + 86_400_000).step).toBe('redeem');
+    expect(nextStep(known, 'caleb', t0 + 2 * 86_400_000 + 1)).toEqual({ step: 'drop' });
+    expect(withExpiry(held, 'not a date')).toEqual(held);
     // A phone whose clock jumped far backwards does not keep it forever either.
     expect(nextStep(held, 'caleb', t0 - HOLD_MS - 1)).toEqual({ step: 'drop' });
+  });
+
+  it('scanning the same code again keeps its expiry and its join id', () => {
+    const held = { ...withExpiry(scanned(), new Date(t0 + 86_400_000).toISOString()), joinId: 'j1' };
+    const again = holdScanned(held, { token }, t0 + 5000);
+    expect(again.expiresAt).toBe(held.expiresAt);
+    expect(again.joinId).toBe('j1');
   });
 });
 

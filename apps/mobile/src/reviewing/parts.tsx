@@ -322,16 +322,20 @@ export function Background(props: {
   onOpenStudy: () => void;
   reviews: ReviewView[];
   kind: (id: string) => KindDef;
+  /** The passage's Bible text and audio (sources/SourceReader.tsx). */
+  source?: ReactNode;
 }) {
   const d = props.ctx.details(props.detailsKey);
   const fromTranslator = props.terms.length > 0 || props.notes.length > 0;
-  if (!fromTranslator && !props.study && props.reviews.length === 0) return null;
+  if (!fromTranslator && !props.study && props.reviews.length === 0 && !props.source) return null;
   const summary = summaryLine([
+    !!props.source && 'the source',
     fromTranslator && `${plural(props.terms.length, 'term')} · ${plural(props.notes.length, 'note')}`,
     props.study && "the team's study",
     props.reviews.length > 0 && plural(props.reviews.length, 'earlier review')
   ]);
   const parts: ReactNode[] = [];
+  if (props.source) parts.push(<View key="source" style={{ padding: space.md }}>{props.source}</View>);
   if (fromTranslator) {
     parts.push(<FromTranslatorPart key="translator" ctx={props.ctx} terms={props.terms} notes={props.notes}
       anchor={props.anchor} olderVersion={props.olderVersion} onOpenTerm={props.onOpenTerm} />);

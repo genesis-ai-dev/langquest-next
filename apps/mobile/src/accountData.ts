@@ -1,7 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
 import { DurableOutbox, DeliveryError, type AccountAction } from './durableOutbox';
 import { supabase } from './supabase';
+
+/** Sessions kept for people signed out of this phone with work still to go (handOver.ts). */
+const keptFor = new Map<string, SupabaseClient>();
+export function sendAs(actorId: string, client: SupabaseClient | null) {
+  if (client) keptFor.set(actorId, client);
+  else keptFor.delete(actorId);
+}
 
 const outboxes = new Map<string, DurableOutbox>();
 export function accountOutbox(actorId: string): DurableOutbox {
@@ -9,26 +17,27 @@ export function accountOutbox(actorId: string): DurableOutbox {
   if (!outbox) {
     outbox = new DurableOutbox(actorId, AsyncStorage, async (action) => {
       const { data } = await supabase.auth.getSession();
-      if (data.session?.user.id !== actorId) {
+      const client = data.session?.user.id === actorId ? supabase : keptFor.get(actorId);
+      if (!client) {
         throw new DeliveryError('Sign in again to send your saved changes.', true);
       }
       const p = action.payload;
       const { error } = action.kind === 'join_request'
-        ? await supabase.rpc('create_join_request', {
+        ? await client.rpc('create_join_request', {
           p_request_id: action.id, p_org: p.orgId, p_message: p.message
         })
         : action.kind === 'profile'
-          ? await supabase.rpc('save_profile', { p_display_name: p.displayName })
+          ? await client.rpc('save_profile', { p_display_name: p.displayName })
           : action.kind === 'report'
             // Reports and blocks (decisions.md 48): rows on the server, never events.
-            ? await supabase.rpc('report_content', {
+            ? await client.rpc('report_content', {
               p_id: action.id, p_org: p.orgId, p_partition: p.partitionId, p_kind: p.kind,
               p_target: p.targetId, p_profile: p.profileId, p_reason: p.reason,
               p_details: p.details ?? null, p_unit: p.unitId ?? null, p_lane: p.laneId ?? null
             })
             : action.kind === 'block'
-              ? await supabase.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
-              : await supabase.rpc('record_user_event', {
+              ? await client.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
+              : await client.rpc('record_user_event', {
                 p_id: action.id, p_type: p.type, p_payload: p.payload
               });
       if (error) {

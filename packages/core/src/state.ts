@@ -1,3 +1,4 @@
+import { emptyReferenceState, type ReferenceState } from './references';
 import type { Card, ProjectConfig, QuorumRule, Role } from './events';
 import type { Hlc } from './hlc';
 import { emptyRecordState, type RecordState } from './record';
@@ -129,7 +130,7 @@ export interface KeyTerm {
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
 
-export interface ProjectState extends RecordState {
+export interface ProjectState extends RecordState, ReferenceState {
   project: Register<{ name: string; sourceLanguoidId: string }> | null;
   config: Register<ProjectConfig> | null;
   members: Record<string, Member>;
@@ -213,7 +214,8 @@ export function emptyState(): ProjectState {
     stepQuestionSets: {},
     keyTerms: {},
     keyTermLinks: {},
-    ...emptyRecordState()
+    ...emptyRecordState(),
+    ...emptyReferenceState()
   };
 }
 

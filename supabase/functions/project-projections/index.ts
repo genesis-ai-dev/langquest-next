@@ -4380,7 +4380,7 @@ Suggested solution: ${env.workaround}`;
 var websocket_factory_default = WebSocketFactory;
 
 // node_modules/@supabase/realtime-js/dist/module/lib/version.js
-var version = "2.116.0";
+var version = "2.117.2";
 
 // node_modules/@supabase/realtime-js/dist/module/lib/constants.js
 var DEFAULT_VERSION = `realtime-js/${version}`;
@@ -8094,6 +8094,10 @@ var RealtimeClient = class {
    * the client remains in callback mode and continues to refresh from it on heartbeat,
    * even after a bootstrap/override `setAuth(token)` call.
    *
+   * The callback is called on connect and on every heartbeat (`heartbeatIntervalMs`,
+   * default 25000ms). Its token must stay valid past the next call, or the server closes
+   * the channel at expiry with no automatic resubscribe.
+   *
    * @param token A JWT string to override the token set on the client.
    *
    * @example Setting the authorization header
@@ -10352,7 +10356,7 @@ var StorageFileApi = class extends BaseApiClient {
     return query;
   }
 };
-var version2 = "2.116.0";
+var version2 = "2.117.2";
 var DEFAULT_HEADERS = { "X-Client-Info": `storage-js/${version2}` };
 var StorageBucketApi = class extends BaseApiClient {
   constructor(url, headers = {}, fetch$1, opts) {
@@ -11910,7 +11914,7 @@ var StorageClient = class extends StorageBucketApi {
 };
 
 // node_modules/@supabase/auth-js/dist/module/lib/version.js
-var version3 = "2.116.0";
+var version3 = "2.117.2";
 
 // node_modules/@supabase/auth-js/dist/module/lib/constants.js
 var AUTO_REFRESH_TICK_DURATION_MS = 30 * 1e3;
@@ -12536,11 +12540,6 @@ var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 function validateUUID(str) {
   if (!UUID_REGEX.test(str)) {
     throw new Error("@supabase/auth-js: Expected parameter to be UUID but is not");
-  }
-}
-function assertPasskeyExperimentalEnabled(experimental) {
-  if (!experimental.passkey) {
-    throw new Error("@supabase/auth-js: the passkey API is experimental and disabled by default. Enable it by passing `auth: { experimental: { passkey: true } }` to createClient (or to the GoTrueClient constructor).");
   }
 }
 function assertRecoveryCodesExperimentalEnabled(experimental) {
@@ -13803,11 +13802,8 @@ var GoTrueAdminApi = class {
    * Lists all passkeys for a user.
    *
    * This function should only be called on a server. Never expose your secret key in the browser.
-   *
-   * Requires `auth.experimental.passkey: true`.
    */
   async _adminListPasskeys(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     validateUUID(params.userId);
     try {
       return await _request(this.fetch, "GET", `${this.url}/admin/users/${params.userId}/passkeys`, { headers: this.headers, xform: (data) => ({ data, error: null }) });
@@ -13822,11 +13818,8 @@ var GoTrueAdminApi = class {
    * Deletes a user's passkey.
    *
    * This function should only be called on a server. Never expose your secret key in the browser.
-   *
-   * Requires `auth.experimental.passkey: true`.
    */
   async _adminDeletePasskey(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     validateUUID(params.userId);
     validateUUID(params.passkeyId);
     try {
@@ -16965,31 +16958,16 @@ var GoTrueClient = class _GoTrueClient {
       const hasExpired = currentSession.expires_at ? currentSession.expires_at * 1e3 - Date.now() < EXPIRY_MARGIN_MS : false;
       this._debug("#__loadSession()", `session has${hasExpired ? "" : " not"} expired`, "expires_at", currentSession.expires_at);
       if (!hasExpired) {
-        if (this.userStorage) {
-          const maybeUser = await getItemAsync(this.userStorage, this.storageKey + "-user");
-          if (maybeUser === null || maybeUser === void 0 ? void 0 : maybeUser.user) {
-            currentSession.user = maybeUser.user;
-          } else {
-            currentSession.user = userNotAvailableProxy();
-          }
-        }
-        if (this.storage.isServer && currentSession.user && !currentSession.user.__isUserNotAvailableProxy) {
-          const suppressWarningRef = { value: this.suppressGetSessionWarning };
-          currentSession.user = insecureUserWarningProxy(currentSession.user, suppressWarningRef);
-          if (suppressWarningRef.value) {
-            this.suppressGetSessionWarning = true;
-          }
-        }
-        return { data: { session: currentSession }, error: null };
+        return { data: { session: await this._hydrateSessionUser(currentSession) }, error: null };
       }
       const { data: session, error } = await this._callRefreshToken(currentSession.refresh_token);
       if (error) {
-        const accessTokenStillValid = !!(currentSession.expires_at && currentSession.expires_at * 1e3 > Date.now());
-        if (accessTokenStillValid) {
-          const stillStored = await getItemAsync(this.storage, this.storageKey);
-          if (stillStored && stillStored.refresh_token === currentSession.refresh_token) {
-            return this._returnResult({ data: { session: currentSession }, error: null });
-          }
+        const stored = await getItemAsync(this.storage, this.storageKey);
+        if (stored && this._isValidSession(stored) && stored.expires_at && stored.expires_at * 1e3 > Date.now()) {
+          return this._returnResult({
+            data: { session: await this._hydrateSessionUser(stored) },
+            error: null
+          });
         }
         return this._returnResult({ data: { session: null }, error });
       }
@@ -16997,6 +16975,26 @@ var GoTrueClient = class _GoTrueClient {
     } finally {
       this._debug("#__loadSession()", "end");
     }
+  }
+  /**
+   * Completes a session read back from storage so it matches what callers of
+   * `getSession()` expect: fills in `session.user` from `userStorage` when the
+   * client keeps the user in split storage, and wraps the user in the
+   * insecure-access warning proxy on the server.
+   */
+  async _hydrateSessionUser(session) {
+    if (this.userStorage) {
+      const maybeUser = await getItemAsync(this.userStorage, this.storageKey + "-user");
+      session.user = (maybeUser === null || maybeUser === void 0 ? void 0 : maybeUser.user) ? maybeUser.user : userNotAvailableProxy();
+    }
+    if (this.storage.isServer && session.user && !session.user.__isUserNotAvailableProxy) {
+      const suppressWarningRef = { value: this.suppressGetSessionWarning };
+      session.user = insecureUserWarningProxy(session.user, suppressWarningRef);
+      if (suppressWarningRef.value) {
+        this.suppressGetSessionWarning = true;
+      }
+    }
+    return session;
   }
   /**
    * Gets the current user details if there is an existing session. This method
@@ -19705,13 +19703,35 @@ var GoTrueClient = class _GoTrueClient {
    * 2. Prompts user via navigator.credentials.get()
    * 3. Verifies credential with server and creates session
    *
-   * Requires `auth.experimental.passkey: true`.
+   * Pass `options.mediation: 'conditional'` to use WebAuthn Conditional UI
+   * (passkey autofill) instead of the modal picker; the value is forwarded to
+   * `navigator.credentials.get()` unchanged.
+   *
+   * The challenge fetched in step 1 expires after the server's
+   * GOTRUE_WEBAUTHN_CHALLENGE_EXPIRY_DURATION (5 minutes by default). With
+   * `mediation: 'conditional'` the autofill prompt can stay pending for longer
+   * than that: the browser ceremony then still succeeds, but verification fails
+   * with `error_code: "webauthn_challenge_expired"`. Recover by calling
+   * `signInWithPasskey()` again. It fetches a fresh challenge and, unless you
+   * passed your own `options.signal`, cancels the pending ceremony first, so
+   * the browser never sees two concurrent WebAuthn requests; the earlier call
+   * resolves with a `WebAuthnError` whose code is `ERROR_CEREMONY_ABORTED`. If
+   * you pass your own `signal`, abort it before retrying.
    *
    * @category Auth
+   *
+   * @example Sign in with Conditional UI (passkey autofill)
+   * ```js
+   * // <input autocomplete="username webauthn" /> somewhere on the page
+   * const { data, error } = await supabase.auth.signInWithPasskey({
+   *   options: {
+   *     mediation: 'conditional'
+   *   }
+   * });
+   * ```
    */
   async signInWithPasskey(credentials) {
-    var _a, _b, _c;
-    assertPasskeyExperimentalEnabled(this.experimental);
+    var _a, _b, _c, _d;
     try {
       if (!browserSupportsWebAuthn()) {
         return this._returnResult({
@@ -19729,7 +19749,8 @@ var GoTrueClient = class _GoTrueClient {
       const signal = (_c = (_b = credentials === null || credentials === void 0 ? void 0 : credentials.options) === null || _b === void 0 ? void 0 : _b.signal) !== null && _c !== void 0 ? _c : webAuthnAbortService.createNewAbortSignal();
       const { data: credential, error: credentialError } = await getCredential({
         publicKey: publicKeyOptions,
-        signal
+        signal,
+        mediation: (_d = credentials === null || credentials === void 0 ? void 0 : credentials.options) === null || _d === void 0 ? void 0 : _d.mediation
       });
       if (credentialError || !credential) {
         return this._returnResult({
@@ -19755,13 +19776,12 @@ var GoTrueClient = class _GoTrueClient {
    * 2. Prompts user via navigator.credentials.create()
    * 3. Verifies credential with server
    *
-   * Requires an active session. Requires `auth.experimental.passkey: true`.
+   * Requires an active session.
    *
    * @category Auth
    */
   async registerPasskey(credentials) {
     var _a, _b;
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       if (!browserSupportsWebAuthn()) {
         return this._returnResult({
@@ -19802,7 +19822,6 @@ var GoTrueClient = class _GoTrueClient {
    * Returns WebAuthn credential creation options to pass to navigator.credentials.create().
    */
   async _startPasskeyRegistration() {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19834,7 +19853,6 @@ var GoTrueClient = class _GoTrueClient {
    * The credentialResponse should be the serialized output of navigator.credentials.create().
    */
   async _verifyPasskeyRegistration(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19870,7 +19888,6 @@ var GoTrueClient = class _GoTrueClient {
    */
   async _startPasskeyAuthentication(params) {
     var _a;
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       const { data, error } = await _request(this.fetch, "POST", `${this.url}/passkeys/authentication/options`, {
         headers: this.headers,
@@ -19894,7 +19911,6 @@ var GoTrueClient = class _GoTrueClient {
    * The credential should be the serialized output of navigator.credentials.get().
    */
   async _verifyPasskeyAuthentication(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       const { data, error } = await _request(this.fetch, "POST", `${this.url}/passkeys/authentication/verify`, {
         headers: this.headers,
@@ -19923,7 +19939,6 @@ var GoTrueClient = class _GoTrueClient {
    * List all passkeys for the current user.
    */
   async _listPasskeys() {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19954,7 +19969,6 @@ var GoTrueClient = class _GoTrueClient {
    * Update a passkey.
    */
   async _updatePasskey(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -19985,7 +19999,6 @@ var GoTrueClient = class _GoTrueClient {
    * Delete a passkey.
    */
   async _deletePasskey(params) {
-    assertPasskeyExperimentalEnabled(this.experimental);
     try {
       return await this._useSession(async (result) => {
         const { data: { session }, error: sessionError } = result;
@@ -20021,7 +20034,7 @@ var AuthClient = GoTrueClient_default;
 var AuthClient_default = AuthClient;
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
-var version4 = "2.116.0";
+var version4 = "2.117.2";
 var JS_ENV = "";
 var JS_RUNTIME_VERSION;
 if (typeof Deno !== "undefined") {
@@ -20762,6 +20775,45 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
+// packages/core/src/references.ts
+function emptyReferenceState() {
+  return { laneReferences: {}, passageLinks: {}, referencesUsed: {} };
+}
+var passageKey = (laneId, unitId) => `${laneId}\0${unitId}`;
+var usedKey = (s) => s.takeId ? `take:${s.takeId}` : `review:${s.reviewId}`;
+var later = (current, e) => !current || current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+function applyReferenceEvent(state, e) {
+  switch (e.type) {
+    case "v1.LaneReferenceRecommended": {
+      const p = e.payload;
+      const lane = state.laneReferences[p.laneId] ??= {};
+      if (later(lane[p.itemId], e)) lane[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case "v1.PassageReferenceLinked": {
+      const p = e.payload;
+      const links = state.passageLinks[passageKey(p.laneId, p.unitId)] ??= {};
+      if (later(links[p.itemId], e)) links[p.itemId] = { value: p.linked, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case "v1.ReferencesUsed": {
+      const p = e.payload;
+      const used = state.referencesUsed[usedKey(p)] ??= {};
+      for (const item of p.items) {
+        const prior = used[item.itemId];
+        const earliest = !prior || e.hlc < prior.hlc || e.hlc === prior.hlc && e.id < prior.eventId;
+        const opened = item.opened || (prior?.opened ?? false);
+        used[item.itemId] = earliest ? { ...item, opened, by: e.actorId, hlc: e.hlc, eventId: e.id } : { ...prior, opened };
+      }
+      break;
+    }
+  }
+}
+function applyOrgRecommendation(recs, e) {
+  const p = e.payload;
+  if (later(recs[p.itemId], e)) recs[p.itemId] = { value: p.recommended, hlc: e.hlc, eventId: e.id };
+}
+
 // packages/core/src/record.ts
 function emptyRecordState() {
   return {
@@ -20812,7 +20864,8 @@ function emptyState() {
     stepQuestionSets: {},
     keyTerms: {},
     keyTermLinks: {},
-    ...emptyRecordState()
+    ...emptyRecordState(),
+    ...emptyReferenceState()
   };
 }
 var DEFAULT_CONFIG = {
@@ -20969,9 +21022,30 @@ function validateEvent(e) {
       return str("laneId", "flowId", "itemId", "name") ?? (hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest") ?? (typeof p["catalogVersion"] === "number" && p["catalogVersion"] >= 2 ? null : "catalogVersion must be 2 or more") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null);
     case "v1.ReviewTeamKindSet":
       return str("teamId", "laneId") ?? (p["kindId"] === null ? null : str("kindId"));
+    // ---- reference material (references.ts)
+    case "v1.ReferenceRecommended":
+      return str("itemId") ?? bool("recommended");
+    case "v1.LaneReferenceRecommended":
+      return str("laneId", "itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
+    case "v1.PassageReferenceLinked":
+      return str("laneId", "unitId", "itemId") ?? bool("linked");
+    case "v1.ReferencesUsed":
+      return str("laneId", "unitId") ?? (["takeId", "reviewId"].filter((k) => p[k] !== void 0).length === 1 ? null : "exactly one of takeId, reviewId") ?? optStr("takeId", "reviewId") ?? (p["takeId"] === "" || p["reviewId"] === "" ? "takeId or reviewId must be non-empty" : null) ?? usedItems(p["items"]);
     default:
       return null;
   }
+}
+var USED_KINDS = ["source", "guide", "note", "questions"];
+function usedItems(v) {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return "items must be a list of 1 to 200";
+  for (const x of v) {
+    if (!isObject(x)) return "items must be objects";
+    if (typeof x["itemId"] !== "string" || x["itemId"] === "" || typeof x["name"] !== "string" || x["name"] === "") return "items need an itemId and a name";
+    if (!USED_KINDS.includes(x["kind"])) return `item kind must be one of ${USED_KINDS.join(", ")}`;
+    if (typeof x["opened"] !== "boolean") return "opened must be a boolean";
+    for (const k of ["docHash", "ref", "detail", "copyright"]) if (x[k] !== void 0 && typeof x[k] !== "string") return `${k} must be a string`;
+  }
+  return null;
 }
 function scope(v) {
   if (!isObject(v)) return "scope must be an object";
@@ -21014,7 +21088,7 @@ function isObject(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 8;
+var REDUCER_VERSION = 9;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function applyEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
@@ -21373,7 +21447,13 @@ function applyEvent(state, event) {
       lww(state.laneTargets, laneId, event, { scope: scope2, startDate, targetDate });
       break;
     }
+    case "v1.LaneReferenceRecommended":
+    case "v1.PassageReferenceLinked":
+    case "v1.ReferencesUsed":
+      applyReferenceEvent(state, event);
+      break;
     case "v1.OrgCreated":
+    case "v1.ReferenceRecommended":
     case "v1.RoleDefined":
     case "v1.RoleRetired":
     case "v1.OrgMemberAdded":
@@ -21847,7 +21927,7 @@ function newItem() {
     pinned: { value: null, hlc: "", eventId: "" }
   };
 }
-var later = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+var later2 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
 var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
 var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
 var LIBRARY_EVENT_TYPES = [
@@ -21865,8 +21945,8 @@ function applyLibraryEvent(library, e) {
   switch (e.type) {
     case "v1.LibraryItemDefined": {
       const d = p;
-      if (later(item.name, e)) item.name = reg(d.name, e);
-      if (later(item.description, e)) item.description = reg(d.description, e);
+      if (later2(item.name, e)) item.name = reg(d.name, e);
+      if (later2(item.description, e)) item.description = reg(d.description, e);
       if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
       break;
     }
@@ -21880,21 +21960,21 @@ function applyLibraryEvent(library, e) {
     }
     case "v1.LibrarySharingSet": {
       const d = p;
-      if (later(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
+      if (later2(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
       break;
     }
     case "v1.LibraryItemArchived":
-      if (later(item.archived, e)) item.archived = reg(p.archived, e);
+      if (later2(item.archived, e)) item.archived = reg(p.archived, e);
       break;
     case "v1.LibrarySubscribed": {
       const d = p;
-      if (later(item.subscription, e)) {
+      if (later2(item.subscription, e)) {
         item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
       }
       break;
     }
     case "v1.LibraryPinned":
-      if (later(item.pinned, e)) item.pinned = reg(p.docHash, e);
+      if (later2(item.pinned, e)) item.pinned = reg(p.docHash, e);
       break;
   }
 }
@@ -21929,6 +22009,7 @@ var ORG_EVENT_TYPES = [
   "v1.InviteRedeemed",
   "v1.JoinDecided",
   "v1.OrgLicenseSet",
+  "v1.ReferenceRecommended",
   ...LIBRARY_EVENT_TYPES
 ];
 var SEED_ROLES = [
@@ -21952,7 +22033,7 @@ function effectiveRole(privs) {
   return null;
 }
 function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null };
+  return { org: null, roles: {}, members: {}, catalog: {}, projects: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, languageNames: {}, license: null, recommendations: {} };
 }
 function scopeKey(s) {
   return s.level === "org" ? "org" : s.level === "project" ? `project:${s.projectId}` : `lane:${s.projectId}/${s.laneId}`;
@@ -22060,6 +22141,9 @@ function applyOrgEvent(state, event) {
       }
       break;
     }
+    case "v1.ReferenceRecommended":
+      applyOrgRecommendation(state.recommendations ??= {}, event);
+      break;
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;
       break;

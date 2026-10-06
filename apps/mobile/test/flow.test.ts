@@ -12,8 +12,13 @@ describe('UX flow coverage', () => {
     // The app-only screens: the local log, realtime state and transfers;
     // account deletion, which the app stores require (decisions.md 46); and
     // the Reports section on a wide window (decisions.md 57).
-    expect(SCREEN_IDS.length).toBe(kept.length + 4);
-    for (const id of ['sync_status', 'delete_account', 'reports_home', 'reports_language'] as const) expect(TITLES[id]).toBeTruthy();
+    // And the reference screens by level and the guide editor (docs/reference-material.md).
+    const appOnly = ['sync_status', 'delete_account', 'reports_home', 'reports_language',
+      'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference', 'guide_editor',
+      // More Bibles beside a passage (docs/reference-material.md).
+      'bible_explore'] as const;
+    expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
+    for (const id of appOnly) expect(TITLES[id]).toBeTruthy();
   });
 
   it('every screen is reachable from sign_in through declared edges and tabs', () => {

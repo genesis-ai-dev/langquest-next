@@ -57,7 +57,8 @@ export function chapterColumns(contentWidth: number, kind: LayoutKind): number {
 export const WIDE_CHROME: readonly ScreenId[] = [
   'members_list', 'edit_member', 'invite_member', 'invite_qr', 'new_language', 'review_teams', 'review_team_editor',
   'roles_home', 'role_editor', 'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
-  'reference_home', 'material_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status',
+  'reference_home', 'material_editor', 'guide_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status',
+  'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage',
   // The Reports tab exists only on a wide window (decisions.md 57).
   'reports_home', 'reports_language'
 ];

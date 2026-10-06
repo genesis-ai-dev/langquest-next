@@ -137,7 +137,110 @@ export interface MaterialDoc {
   deps: string[];
 }
 
-export type LibraryDoc = TemplateDoc | FlowDoc | StudyDoc | CollectionDoc | MaterialDoc | VersificationDoc;
+/** Callout kinds a guide's text may use (`> [!kind] text`); FIA writes `action` ("Stop here"). */
+export const CALLOUT_KINDS = ['action', 'note', 'question', 'culture', 'warning'] as const;
+export type CalloutKind = (typeof CALLOUT_KINDS)[number];
+
+/** Audio or a picture that is a URL elsewhere, a blob here (by SHA-256), or both. */
+export interface MediaRef {
+  url?: string;
+  /** SHA-256 of the bytes in the blob store; what an authored guide uses, and what goes offline. */
+  hash?: string;
+  /** A smaller copy for phones (pictures 500px, video 360p). */
+  lowHash?: string;
+  format?: string;
+  seconds?: number;
+}
+
+/**
+ * A study guide an organization writes (the guide editor), or FIA's
+ * material carried with its media as blobs: `study@1` plus a hash beside
+ * every URL, callout kinds, a license and credit, and placement by template
+ * node for projects that are not numbered by verse.
+ */
+export interface StudyDoc2 {
+  format: 'study@2';
+  title: string;
+  pattern: string;
+  about: string;
+  source: string;
+  language: string;
+  /** The passage, in `versification`; absent when the guide is placed only by `links`. */
+  ref?: string;
+  versification?: string;
+  links?: MaterialLink[];
+  license?: string;
+  credit?: string;
+  steps: { id: string; title: string; phase?: string; purpose?: string; text: string; audio?: MediaRef }[];
+  resources: { ref: string; kind: 'media' | 'map' | 'term'; title: string; description?: string; media?: { id: string; kind: 'photo' | 'map' | 'illustration' | 'video'; title: string; caption: string; file: MediaRef }[] }[];
+  terms: { id: string; term: string; hint?: string; body: string; audio?: MediaRef }[];
+  deps: string[];
+}
+
+/**
+ * A source to read and hear: a Bible edition, or any text with audio keyed
+ * by coordinates (docs/reference-material.md). Text and audio come from our
+ * blob store (`provider.kind: 'library'`, open licenses) or live from Bible
+ * Brain through our server (`'biblebrain'`), where `offline` says whether
+ * phones may keep them (only filesets `/download` allows, inside the app).
+ */
+export interface SourceDoc {
+  format: 'source@1';
+  name: string;
+  abbreviation: string;
+  /** ISO 639-3. */
+  language: string;
+  description?: string;
+  versification: string;
+  provider:
+    | { kind: 'library' }
+    | { kind: 'biblebrain'; bibleId: string; text?: { OT?: string; NT?: string }; audio?: { OT?: string; NT?: string } };
+  offline: 'allowed' | 'stream';
+  copyright: { text?: string; audio?: string };
+  license?: string;
+  /** The books it has, in canon order; `doc` is the book's `sourceBook@1` when it carries text, audio or timings here. */
+  books: { book: string; name: string; doc?: string }[];
+  deps: string[];
+}
+
+/** One book of a source: per chapter its verses (open text), its audio and the verse timings for that audio. */
+export interface SourceBookDoc {
+  format: 'sourceBook@1';
+  book: string;
+  chapters: {
+    chapter: number;
+    /** `[verseStart, verseEnd, text]`; a bridge is one row (`[38, 39, "…"]`). */
+    verses?: [number, number, string][];
+    audio?: MediaRef & { durationMs?: number };
+    /** The `timing@1` document for this chapter's audio. */
+    timing?: string;
+  }[];
+  deps: string[];
+}
+
+/**
+ * Where each verse starts and ends in one recording. Named by the
+ * recording's SHA-256 and the versification, so any text with the same
+ * verse numbers can be highlighted against it: text and audio stay
+ * independent. Written by fia-align (`source: 'ctc'`), copied from FCBH
+ * (`'fcbh'`), or corrected by a person (`'manual'`).
+ */
+export interface TimingDoc {
+  format: 'timing@1';
+  book: string;
+  chapter: number;
+  versification: string;
+  audio: { sha256: string; durationMs: number; bytes?: number; codec?: string; source?: Record<string, string> };
+  text?: { sha256: string; source?: Record<string, string> };
+  introEndMs: number;
+  segments: { verseStart: number; verseEnd: number; startMs: number; endMs: number; score?: number }[];
+  source: 'ctc' | 'fcbh' | 'manual';
+  aligner?: Record<string, string>;
+  check?: { ok: boolean; maxDeviation?: number; meanDeviation?: number; flags?: { verseStart: number; reason: string }[] };
+  deps: string[];
+}
+
+export type LibraryDoc = TemplateDoc | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc;
 
 /** The library kind a document is published under. */
 export function kindOfDoc(doc: LibraryDoc): LibraryKind {
@@ -190,6 +293,15 @@ export function referencedDocs(doc: LibraryDoc): string[] {
       for (const e of doc.entries) out.add(e.doc);
       break;
     case 'material@1': if (doc.versification) out.add(doc.versification); break;
+    case 'study@2': if (doc.versification) out.add(doc.versification); break;
+    case 'source@1':
+      out.add(doc.versification);
+      for (const b of doc.books) if (b.doc) out.add(b.doc);
+      break;
+    case 'sourceBook@1':
+      for (const c of doc.chapters) if (c.timing) out.add(c.timing);
+      break;
+    case 'timing@1': out.add(doc.versification); break;
     default: break;
   }
   return [...out].sort();
@@ -209,6 +321,10 @@ function outlineError(nodes: unknown, seen: Set<string>): string | null {
   }
   return null;
 }
+
+const mediaOk = (m: unknown) => isObj(m) && (str(m['url']) || isHash(m['hash'])) && (m['lowHash'] === undefined || isHash(m['lowHash']));
+const linksOk = (links: unknown) => Array.isArray(links) &&
+  links.every((l) => isObj(l) && ((str(l['ref']) && parseRef(l['ref'] as string) !== null) || (str(l['template']) && str(l['node']))));
 
 /** Why a document is not a valid library document, or null. Checked before publishing and after fetching. */
 export function validateDoc(value: unknown): string | null {
@@ -282,6 +398,61 @@ export function validateDoc(value: unknown): string | null {
         }
       }
       break;
+    case 'study@2': {
+      if (!str(d['title'])) return 'a study guide needs a title';
+      const placed = d['ref'] !== undefined || d['links'] !== undefined;
+      if (!placed) return 'a study guide needs a ref or links';
+      if (d['ref'] !== undefined && (!str(d['ref']) || !parseRef(d['ref'] as string) || !isHash(d['versification']))) return 'a ref needs a versification';
+      if (d['links'] !== undefined && !linksOk(d['links'])) return 'links are a ref or a template node';
+      if (!Array.isArray(d['steps']) || !(d['steps'] as unknown[]).every((s) => isObj(s) && str(s['id']) && str(s['title']) && typeof s['text'] === 'string' && (s['audio'] === undefined || mediaOk(s['audio'])))) {
+        return 'study steps need an id, a title and text';
+      }
+      if (!Array.isArray(d['resources']) || !Array.isArray(d['terms'])) return 'resources and terms must be arrays';
+      for (const r of d['resources'] as unknown[]) {
+        if (!isObj(r) || !str(r['ref']) || !str(r['title'])) return 'resources need a ref and a title';
+        if (r['media'] !== undefined && !(Array.isArray(r['media']) && (r['media'] as unknown[]).every((m) => isObj(m) && str(m['id']) && mediaOk(m['file'])))) return 'media need an id and a file';
+      }
+      if (!(d['terms'] as unknown[]).every((t) => isObj(t) && str(t['id']) && str(t['term']) && typeof t['body'] === 'string' && (t['audio'] === undefined || mediaOk(t['audio'])))) return 'terms need an id, a term and a body';
+      break;
+    }
+    case 'source@1': {
+      if (!str(d['name']) || !str(d['abbreviation']) || !str(d['language'])) return 'a source needs a name, an abbreviation and a language';
+      if (!isHash(d['versification'])) return 'a source names its versification';
+      const pv = d['provider'];
+      if (!isObj(pv) || (pv['kind'] !== 'library' && !(pv['kind'] === 'biblebrain' && str(pv['bibleId'])))) return 'provider must be library or biblebrain with a bibleId';
+      if (d['offline'] !== 'allowed' && d['offline'] !== 'stream') return 'offline must be allowed or stream';
+      if (!isObj(d['copyright'])) return 'copyright must be an object';
+      if (!Array.isArray(d['books']) || !(d['books'] as unknown[]).every((b) => isObj(b) && /^[A-Z0-9]{3}$/.test(String(b['book'])) && str(b['name']) && (b['doc'] === undefined || isHash(b['doc'])))) {
+        return 'books need a USFM code and a name';
+      }
+      break;
+    }
+    case 'sourceBook@1': {
+      if (!/^[A-Z0-9]{3}$/.test(String(d['book']))) return 'a source book needs a USFM code';
+      if (!Array.isArray(d['chapters'])) return 'chapters must be an array';
+      for (const c of d['chapters'] as unknown[]) {
+        if (!isObj(c) || !Number.isInteger(c['chapter'])) return 'chapters need a number';
+        if (c['verses'] !== undefined && !(Array.isArray(c['verses']) && (c['verses'] as unknown[]).every((v) => Array.isArray(v) && v.length === 3 && Number.isInteger(v[0]) && Number.isInteger(v[1]) && typeof v[2] === 'string'))) {
+          return 'verses are [verseStart, verseEnd, text]';
+        }
+        if (c['audio'] !== undefined && !mediaOk(c['audio'])) return 'audio needs a url or a hash';
+        if (c['timing'] !== undefined && !isHash(c['timing'])) return 'timing must be a hash';
+      }
+      break;
+    }
+    case 'timing@1': {
+      if (!/^[A-Z0-9]{3}$/.test(String(d['book'])) || !Number.isInteger(d['chapter'])) return 'a timing names its book and chapter';
+      if (!isHash(d['versification'])) return 'a timing names its versification';
+      const a = d['audio'];
+      if (!isObj(a) || !isHash(a['sha256']) || typeof a['durationMs'] !== 'number') return 'a timing names its audio by SHA-256 and duration';
+      if (typeof d['introEndMs'] !== 'number') return 'introEndMs must be a number';
+      if (!['ctc', 'fcbh', 'manual'].includes(d['source'] as string)) return 'source must be ctc, fcbh or manual';
+      if (!Array.isArray(d['segments']) || !(d['segments'] as unknown[]).every((g) => isObj(g) && Number.isInteger(g['verseStart']) && Number.isInteger(g['verseEnd']) &&
+        typeof g['startMs'] === 'number' && typeof g['endMs'] === 'number' && (g['endMs'] as number) >= (g['startMs'] as number))) {
+        return 'segments need verseStart, verseEnd, startMs and endMs';
+      }
+      break;
+    }
     case 'versification@1':
       if (!str(d['code']) || !str(d['name'])) return 'a versification needs a code and a name';
       if (!isObj(d['maxVerses']) || !Object.values(d['maxVerses']).every((vs) => Array.isArray(vs) && vs.every((n) => Number.isInteger(n) && n >= 0))) {

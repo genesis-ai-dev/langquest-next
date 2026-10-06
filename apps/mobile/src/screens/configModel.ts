@@ -347,6 +347,8 @@ export function fieldLabel(fieldId: string): string {
 
 /** A reference kind's name ("Translation Guidelines"), or its id as words for a partner's own. */
 export function referenceKindName(kind: string): string {
+  // Notes for translators are library material only (docs/reference-material.md).
+  if (kind === 'note') return 'Note for translators';
   return REFERENCE_KINDS.find((k) => k.id === kind)?.name ?? fieldLabel(kind);
 }
 
@@ -452,6 +454,11 @@ export function libraryMaterialLine(doc: LibraryDoc | null, versificationName: s
       }
       return { type: 'material', line: referenceKindName(doc.kind) };
     }
+    case 'study@2': {
+      const where = doc.ref ?? (doc.links?.length ? plural(doc.links.length, 'place') : 'Not placed yet');
+      return { type: 'study', line: `Study guide · ${where} · ${plural(doc.steps.length, 'step')}${doc.ref ? v : ''}` };
+    }
+    case 'source@1': return { type: 'material', line: `Bible · ${doc.abbreviation} · ${doc.language}` };
     default: return { type: 'material', line: 'Not reference material' };
   }
 }
