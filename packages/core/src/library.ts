@@ -6,7 +6,7 @@ import type { Register } from './state';
 /**
  * An organization's library (docs/decisions.md 36): its content templates,
  * review flows, reference material and versifications, each an item with
- * published versions. It lives in the org partition, which every device
+ * published versions. It lives in the organization stream, which every device
  * pulls whole; the documents themselves are fetched by hash.
  *
  * An item is the organization's own (made here, or copied from another

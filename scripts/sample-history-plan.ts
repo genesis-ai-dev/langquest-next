@@ -28,7 +28,7 @@ export interface HistoryProfile {
   stuck?: [number, number];
 }
 
-/** Keyed by lane id; the two languages every sample has, then the four --history adds. */
+/** Keyed by language id; the two languages every sample has, then the four --history adds. */
 export const HISTORY_PROFILES: Record<string, HistoryProfile> = {
   'L-din-sample': { country: 'SS', startBook: 'mat', target: { scope: 'nt', startDaysAgo: 70, targetDaysAhead: 600 }, fromDaysAgo: 70, toDaysAgo: 0, passagesPerWeek: 7, reviewShare: 0.5 },
   'L-nus-sample': { country: 'SS', startBook: 'mar', target: { scope: 'gospels', startDaysAgo: 150, targetDaysAhead: 200 }, fromDaysAgo: 84, toDaysAgo: 1, passagesPerWeek: 9, reviewShare: 0.7 },

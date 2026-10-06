@@ -10,7 +10,7 @@
 // prints is content: ids, counts, timings, error class names and frames.
 import { spawnSync } from 'node:child_process';
 import { REDUCER_VERSION } from '../packages/core/src/index';
-import { signals, throughput, type InstallSummary, type Member, type PartitionHealth, type RpcStat } from './diagSignals';
+import { signals, throughput, type InstallSummary, type Member, type LanguageHealth, type RpcStat } from './diagSignals';
 
 const LOCAL = 'postgresql://postgres:postgres@127.0.0.1:54422/postgres';
 const url = process.env.DIAG_DATABASE_URL ?? LOCAL;
@@ -34,7 +34,7 @@ const positional = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--
 const [command, ...rest] = positional;
 const asJson = process.argv.includes('--json');
 
-interface Found { kind: 'org' | 'language'; org_id: string; partition_id: string | null; name: string }
+interface Found { kind: 'org' | 'language'; org_id: string; language_id: string | null; name: string }
 
 function find(text: string): Found[] {
   return query<Found[]>(`select coalesce(jsonb_agg(f), '[]') from diag.find(:'q') f`, { q: text });
@@ -46,8 +46,8 @@ function resolve(orgText: string, langText: string): { org: Found; lang: Found }
   const org = orgs.find((f) => f.org_id === orgText) ?? (orgs.length === 1 ? orgs[0] : undefined);
   if (!org) throw new Error(orgs.length ? `"${orgText}" matches several orgs:\n${orgs.map((o) => `  ${o.org_id}  ${o.name}`).join('\n')}` : `No org matches "${orgText}".`);
   const langs = find(langText).filter((f) => f.kind === 'language' && f.org_id === org.org_id);
-  const lang = langs.find((f) => f.partition_id === langText) ?? (langs.length === 1 ? langs[0] : undefined);
-  if (!lang) throw new Error(langs.length ? `"${langText}" matches several languages in ${org.name}:\n${langs.map((l) => `  ${l.partition_id}  ${l.name}`).join('\n')}` : `No language in ${org.name} matches "${langText}".`);
+  const lang = langs.find((f) => f.language_id === langText) ?? (langs.length === 1 ? langs[0] : undefined);
+  if (!lang) throw new Error(langs.length ? `"${langText}" matches several languages in ${org.name}:\n${langs.map((l) => `  ${l.language_id}  ${l.name}`).join('\n')}` : `No language in ${org.name} matches "${langText}".`);
   return { org, lang };
 }
 
@@ -57,8 +57,8 @@ const s = (ms?: number | null) => (ms ? `${(ms / 1000).toFixed(1)} s` : '-');
 function report(orgText: string, langText: string): void {
   const { org, lang } = resolve(orgText, langText);
   const days = flag('days', '14')!;
-  const vars = { org: org.org_id, lang: lang.partition_id!, since: `${Number(days)} days`, install: flag('install') ?? '' };
-  const health = query<PartitionHealth>(`select diag.partition_health(:'org', :'lang', ${REDUCER_VERSION})`, vars);
+  const vars = { org: org.org_id, lang: lang.language_id!, since: `${Number(days)} days`, install: flag('install') ?? '' };
+  const health = query<LanguageHealth>(`select diag.language_health(:'org', :'lang', ${REDUCER_VERSION})`, vars);
   const members = query<Member[]>(`select coalesce(jsonb_agg(m), '[]') from diag.members(:'org', :'lang') m`, vars);
   const summary = query<Record<string, InstallSummary>>(`select diag.summary(:'org', :'lang', :'since'::interval, nullif(:'install', ''))`, vars);
   const rpc = query<RpcStat[]>(`select coalesce(jsonb_agg(r), '[]') from diag.rpc_stats() r`);
@@ -68,12 +68,12 @@ function report(orgText: string, langText: string): void {
     return;
   }
   const out: string[] = [];
-  out.push(`# ${org.name} / ${lang.name}`, '', `org ${org.org_id} · language ${lang.partition_id} · last ${days} days · reducer ${REDUCER_VERSION}`, '');
+  out.push(`# ${org.name} / ${lang.name}`, '', `org ${org.org_id} · language ${lang.language_id} · last ${days} days · reducer ${REDUCER_VERSION}`, '');
   out.push('## Signals', '');
   if (found.length === 0) out.push('Nothing stands out.');
   for (const f of found) out.push(`- **${f.level}**${f.install ? ` [${f.install}]` : ''} ${f.text}`);
   const snap = health.snapshots.find((x) => x.reducerVersion === REDUCER_VERSION);
-  out.push('', '## Partition', '',
+  out.push('', '## Language stream', '',
     `- ${health.events.events} events (${health.events.events7d} in 7 days), last at ${health.events.lastEventAt ?? 'never'}`,
     `- snapshot for reducer ${REDUCER_VERSION}: ${snap ? `seq ${snap.seq}, ${snap.tail} behind, ${mb(snap.bytes)}, made ${snap.createdAt}` : 'none'}`,
     `- audio: ${health.blobs.count} files, ${mb(health.blobs.bytes)} (largest ${mb(health.blobs.maxBytes)})`,

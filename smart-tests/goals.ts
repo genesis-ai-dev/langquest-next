@@ -74,7 +74,7 @@ export const addStudyNoteAtMoment = (label: string, note: string) =>
   `You are a translator studying "${label}". Open its study and go to the "Setting the Stage" step. Play the step's audio, ` +
   `pause it after a second or two, and add a note at that moment that says exactly: ${note}. Save the note. Stop when it is saved.`;
 
-// ---- New Language: a language is its own partition (decision 37) ---------
+// ---- New Language: a language and its own stream (decision 63) ------------
 
 export const createLanguage = (name: string, languageCode: string) =>
   `You are an organization admin. Add a new language called "${name}" with the language code ` +

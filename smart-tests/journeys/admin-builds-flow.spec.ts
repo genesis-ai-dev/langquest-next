@@ -17,11 +17,11 @@ test('admin builds a flow with two kinds together and a checkpoint', async ({ pa
 
   const run = await runJev(page, buildFlow(), { timeoutMs: 150_000, maxDecisions: 45 });
 
-  const contract = { adminId: world.owner.id, laneId: world.laneId };
+  const contract = { adminId: world.owner.id };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.partitionId),
+    device: await deviceLog(page, world.orgId, world.languageId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.partitionId)
+    server: await serverEvents(world.languageId)
   }), (e) => judgeFlow(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeFlow(contract, evidence), run.status);
   await reportRun(page, run, outcome);

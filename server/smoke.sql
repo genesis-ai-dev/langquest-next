@@ -173,7 +173,7 @@ do $$ declare r record; begin
   ]'::jsonb);
   if r.accepted then raise exception 'non-object payload should be refused'; end if;
   select * into r from public.append_events('[
-    {"id":"bad3","type":"v1.TakeComposed","orgId":"org1","partitionId":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000018:000000:dB","payload":{}}
+    {"id":"bad3","type":"v1.TakeComposed","orgId":"org1","stream":"L1","actorId":"t1","deviceId":"dB","hlc":"000000000000018:000000:dB","payload":{}}
   ]'::jsonb);
   if r.accepted or r.reason <> 'malformed envelope' then raise exception 'an envelope without streamId should be refused, got %', r; end if;
 end $$;

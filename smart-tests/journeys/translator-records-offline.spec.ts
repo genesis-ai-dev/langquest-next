@@ -26,17 +26,17 @@ async function cutServer(context: BrowserContext): Promise<() => Promise<void>> 
 test('translator records offline, restarts offline, and the take syncs on reconnect', async ({ page, context }) => {
   const world = await seedTranslatorWorld();
   const passage = world.passages[0]!;
-  const contract = { actorId: world.translator.id, unitIds: [passage.unitId], laneId: world.laneId };
+  const contract = { actorId: world.translator.id, unitIds: [passage.unitId] };
   await openAs(page, world, world.translator);
-  // Local-first starts with one sync: wait until the partition is on the device.
-  await settle(() => deviceLog(page, world.orgId, world.partitionId),
-    (rows) => rows.some((r) => r.event.type === 'v1.AssignmentMade'), 30_000);
+  // Local-first starts with one sync: wait until the language is on the device.
+  await settle(() => deviceLog(page, world.orgId, world.languageId),
+    (rows) => rows.some((r) => r.event.type === 'v1.RequestMade'), 30_000);
   const blobsBefore = await deviceBlobs(page);
 
   const reconnect = await cutServer(context);
   const read = async (): Promise<RecordingEvidence> => ({
-    device: await deviceLog(page, world.orgId, world.partitionId), blobsBefore,
-    blobsAfter: await deviceBlobs(page), server: await serverEvents(world.partitionId)
+    device: await deviceLog(page, world.orgId, world.languageId), blobsBefore,
+    blobsAfter: await deviceBlobs(page), server: await serverEvents(world.languageId)
   });
 
   const run = await runJev(page, recordPassage(passage.label), { timeoutMs: 60_000, maxDecisions: 25 });

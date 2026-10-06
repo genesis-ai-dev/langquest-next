@@ -68,8 +68,8 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     for (const k of Object.keys(anchor)) { const { [k]: _, ...rest } = anchor; variants.push({ ...p, anchor: rest }); }
   }
   if (SCOPED.has(e.type)) {
-    for (const scope of [{ level: 'lane' }, { level: 'language' }, { level: 'language', languageId: '' }, { level: 'org', languageId: 'x' },
-      { level: 'language', languageId: 'x', laneId: 'y' }, { level: 'language', languageId: 5 }, [], 'org']) variants.push({ ...p, scope });
+    for (const scope of [{ level: 'team' }, { level: 'language' }, { level: 'language', languageId: '' }, { level: 'org', languageId: 'x' },
+      { level: 'language', languageId: 'x', teamId: 'y' }, { level: 'language', languageId: 5 }, [], 'org']) variants.push({ ...p, scope });
   }
   switch (e.type) {
     case 'v1.ReviewRecorded':
@@ -107,7 +107,7 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       variants.push({ ...p, docHash: 'abc' }, { ...p, docHash: HASH });
       break;
     case 'v1.MaterialDefined':
-      variants.push({ ...p, scope: { laneId: 'x' } }, { ...p, scope: { unitId: '' } }, { ...p, scope: [] }, { ...p, scope: { unitId: 5 } },
+      variants.push({ ...p, scope: { teamId: 'x' } }, { ...p, scope: { unitId: '' } }, { ...p, scope: [] }, { ...p, scope: { unitId: 5 } },
         { ...p, scope: { unitId: 'u', stepId: 's' } });
       break;
     case 'v1.ReferencesUsed': {

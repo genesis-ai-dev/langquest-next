@@ -23,9 +23,9 @@ test('reviewer asks for changes on a submitted version', async ({ page }) => {
   const contract = { reviewerId: world.reviewer.id, takeId: world.version1.takeId, stepId: world.stepId,
     decision: 'suggest_changes' as const, requiredQuestionIds: world.requiredQuestionIds };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.partitionId),
+    device: await deviceLog(page, world.orgId, world.languageId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.partitionId)
+    server: await serverEvents(world.languageId)
   }), (e) => judgeReview(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeReview(contract, evidence), run.status);
   await reportRun(page, run, outcome);

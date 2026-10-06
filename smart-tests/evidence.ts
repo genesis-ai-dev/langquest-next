@@ -3,12 +3,12 @@ import type { Page } from '@playwright/test';
 import type { DeviceRow, ServerRow } from './outcome';
 
 /** The device's own event log (dev web builds expose a read-only probe; see apps/mobile/src/store.ts). */
-export async function deviceLog(page: Page, orgId: string, partitionId: string): Promise<DeviceRow[]> {
-  const rows = await page.evaluate(async ([org, partition]) => {
+export async function deviceLog(page: Page, orgId: string, streamId: string): Promise<DeviceRow[]> {
+  const rows = await page.evaluate(async ([org, stream]) => {
     const log = (globalThis as { __langquestLog?: { select(sql: string, p?: unknown[]): Promise<unknown[]> } }).__langquestLog;
     if (!log) throw new Error('No __langquestLog: not a dev web build, or the store never opened.');
-    return log.select('select status, reject_reason, json from events where org_id = ? and partition_id = ? order by hlc', [org, partition]);
-  }, [orgId, partitionId] as const) as { status: DeviceRow['status']; reject_reason: string | null; json: string }[];
+    return log.select('select status, reject_reason, json from events where org_id = ? and stream_id = ? order by hlc', [org, stream]);
+  }, [orgId, streamId] as const) as { status: DeviceRow['status']; reject_reason: string | null; json: string }[];
   return rows.map((r) => ({ status: r.status, rejectReason: r.reject_reason, event: JSON.parse(r.json) }));
 }
 
@@ -27,18 +27,18 @@ export async function deviceBlobs(page: Page): Promise<string[]> {
   });
 }
 
-/** Server events for a partition, read with the service role (never from the page). */
-export async function serverEvents(partitionId: string): Promise<ServerRow[]> {
+/** Server events for a stream, read with the service role (never from the page). */
+export async function serverEvents(streamId: string): Promise<ServerRow[]> {
   const url = process.env['EXPO_PUBLIC_SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
   const key = process.env['SUPABASE_SERVICE_ROLE_KEY'];
   if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set (smart-tests/run.sh reads it from supabase status).');
-  const res = await fetch(`${url}/rest/v1/events?partition_id=eq.${encodeURIComponent(partitionId)}&select=id,type,actor_id,payload`,
+  const res = await fetch(`${url}/rest/v1/events?stream_id=eq.${encodeURIComponent(streamId)}&select=id,type,actor_id,payload`,
     { headers: { apikey: key, Authorization: `Bearer ${key}` } });
   if (!res.ok) throw new Error(`server events: ${res.status} ${await res.text()}`);
   const rows = await res.json() as ServerRow[];
   // A reader that cannot see the seed would turn every run into a false product failure.
-  if (!rows.some((r) => r.type === 'v1.PartitionCreated')) {
-    throw new Error('The server reader cannot see this partition (wrong SUPABASE_SERVICE_ROLE_KEY?). Not judging the product.');
+  if (rows.length === 0) {
+    throw new Error('The server reader cannot see this stream (wrong SUPABASE_SERVICE_ROLE_KEY?). Not judging the product.');
   }
   return rows;
 }
@@ -54,8 +54,8 @@ export async function settle<T>(read: () => Promise<T>, done: (value: T) => bool
   return value;
 }
 
-/** The device-local Recent list My Work reads (apps/mobile/src/recent.ts; AsyncStorage is localStorage on web). */
-export async function deviceRecent(page: Page, orgId: string, partitionId: string, actorId: string): Promise<{ unitId: string; laneId: string }[]> {
-  const raw = await page.evaluate((key) => localStorage.getItem(key), `recent:${orgId}:${partitionId}:${actorId}`);
-  return raw ? JSON.parse(raw) as { unitId: string; laneId: string }[] : [];
+/** The device-local Recent list My Work reads (App.tsx; AsyncStorage is localStorage on web). */
+export async function deviceRecent(page: Page, orgId: string, actorId: string): Promise<{ unitId: string; languageId: string }[]> {
+  const raw = await page.evaluate((key) => localStorage.getItem(key), `recent:${actorId}:${orgId}`);
+  return raw ? JSON.parse(raw) as { unitId: string; languageId: string }[] : [];
 }

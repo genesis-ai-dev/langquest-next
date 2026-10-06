@@ -4,9 +4,11 @@
 `project-is-one-language` branch. The app now loads on web (web SQLite driver,
 `__langquestLog` probe, web microphone module), but:
 
-- `world.ts` seeds that branch's model (open project in localStorage, the
-  `one_check` flow, its blob upload path). Main selects by organization, so
-  Jev lands where it cannot act (0 actions in every journey).
+- `world.ts` seeds main's model (an organization stream, one language
+  stream, the open organization and language in localStorage), but some
+  oracles in `outcome.ts` still judge events main no longer has
+  (`StepSetAside`, `CheckRecorded`, `ContentProduced`, `ContextItemAdded`),
+  and `judgeRequest` reads `assigneeId` where a request names `profileId`.
 - The blob store has no web implementation (expo-file-system `Directory`
   throws in the browser); the old branch had `disk.web.ts` behind a `disk.ts`
   abstraction main does not have.

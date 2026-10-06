@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
-  bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_PARTITION, parseRef,
+  bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_STREAM, parseRef,
   QUESTION_TEMPLATES, usfmOf, validateDoc, withDeps,
   type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type MaterialDoc, type StudyDoc,
   type TemplateDoc, type VersificationDoc
@@ -262,7 +262,7 @@ const short = (value: unknown) => createHash('sha256').update(canonicalJson(valu
 export function seedEvents(build: SeedBuild, now: number): AnyEvent[] {
   let counter = 0;
   const envelope = (id: string, type: string, payload: Record<string, unknown>) => ({
-    id, type, orgId: SEED_ORG.id, partitionId: ORG_PARTITION, actorId: 'service', deviceId: 'library-seed',
+    id, type, orgId: SEED_ORG.id, streamId: ORG_STREAM, actorId: 'service', deviceId: 'library-seed',
     hlc: encodeHlc(now, counter++, 'library-seed'), payload
   }) as unknown as AnyEvent;
   const out: AnyEvent[] = [envelope(`seed:${SEED_ORG.id}:created`, 'v1.OrgCreated', { name: SEED_ORG.name })];

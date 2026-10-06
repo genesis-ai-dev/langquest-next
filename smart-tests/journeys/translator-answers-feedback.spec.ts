@@ -21,12 +21,12 @@ test('translator answers feedback with Version 2', async ({ page }) => {
 
   const run = await runJev(page, answerFeedback(passage.label, 'Slowed down the name Theophilus'), { timeoutMs: 120_000, maxDecisions: 35 });
 
-  const contract = { actorId: world.translator.id, unitId: passage.unitId, laneId: world.laneId,
+  const contract = { actorId: world.translator.id, unitId: passage.unitId,
     priorTakeIds: [world.version1.takeId], priorHashes: [world.version1.hash], respondsToTakeId: world.version1.takeId };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.partitionId),
+    device: await deviceLog(page, world.orgId, world.languageId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.partitionId)
+    server: await serverEvents(world.languageId)
   }), (e) => judgeSavedVersion(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeSavedVersion(contract, evidence), run.status);
   await reportRun(page, run, outcome);

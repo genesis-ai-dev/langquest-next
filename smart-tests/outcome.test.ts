@@ -5,11 +5,11 @@ import {
 
 // The oracle is what makes a Jev journey mean anything. These cases pin the
 // false passes and false alarms that would make the suite untrustworthy.
-const contract = { actorId: 'translator', unitIds: ['luke-0'], laneId: 'L1' };
+const contract = { actorId: 'translator', unitIds: ['luke-0'] };
 const recording = (over: Partial<DeviceRow> = {}, payload: Record<string, unknown> = {}): DeviceRow => ({
   status: 'confirmed', rejectReason: null,
   event: { id: 'r1', type: 'v1.RecordingAdded', actorId: 'translator',
-    payload: { recordingId: 'rec1', unitId: 'luke-0', laneId: 'L1', kind: 'target', cards: [{ hash: 'h1' }], ...payload } },
+    payload: { recordingId: 'rec1', unitId: 'luke-0', kind: 'target', cards: [{ hash: 'h1' }], ...payload } },
   ...over
 });
 const serverHas = (...rows: Partial<ServerRow>[]): ServerRow[] =>
@@ -53,8 +53,8 @@ describe('recording journey oracle', () => {
     expect(judgeRecording(contract, evidence).verdict).toBe('product_failure');
   });
 
-  it('does not count a recording on the wrong passage, lane or by someone else', () => {
-    for (const device of [[recording({}, { unitId: 'luke-1' })], [recording({}, { laneId: 'L2' })],
+  it('does not count a recording on the wrong passage or by someone else', () => {
+    for (const device of [[recording({}, { unitId: 'luke-1' })],
       [recording({ event: { ...recording().event, actorId: 'owner' } })], [recording({}, { kind: 'source' })]]) {
       const outcome = judgeRecording(contract, { ...good(), device });
       expect(outcome.verdict).not.toBe('passed');
@@ -64,7 +64,7 @@ describe('recording journey oracle', () => {
 
 describe('offline recording journey oracle', () => {
   const offline = (): RecordingEvidence => ({ device: [recording({ status: 'pending' })], blobsBefore: [], blobsAfter: ['h1'],
-    server: serverHas({ type: 'v1.PartitionCreated' }) });
+    server: serverHas({ type: 'v1.UnitAdded' }) });
   const all = () => ({ offline: offline(), afterRestart: offline(), online: good() });
 
   it('passes when the take waits offline, survives a restart, then syncs', () => {
@@ -134,15 +134,15 @@ const row = (id: string, type: string, actorId: string, payload: Record<string, 
   ({ status: 'confirmed', rejectReason: null, event: { id, type, actorId, payload }, ...over });
 /** The server holds every device event (confirmed means the server has it). */
 const onServer = (device: DeviceRow[]): ServerRow[] => [
-  { id: 'seed', type: 'v1.PartitionCreated', actor_id: 'owner', payload: {} },
+  { id: 'seed', type: 'v1.UnitAdded', actor_id: 'owner', payload: {} },
   ...device.map((r) => ({ id: r.event.id, type: r.event.type, actor_id: r.event.actorId, payload: r.event.payload }))
 ];
 const log = (device: DeviceRow[], blobsAfter: string[] = []): LogEvidence => ({ device, server: onServer(device), blobsAfter });
 
 describe('save a version oracle', () => {
-  const contract = { actorId: 'translator', unitId: 'luke-0', laneId: 'L1', priorTakeIds: [] as string[] };
+  const contract = { actorId: 'translator', unitId: 'luke-0', priorTakeIds: [] as string[] };
   const composed = (takeId = 't2', over: Partial<DeviceRow> = {}, payload: Record<string, unknown> = {}) =>
-    row(`c-${takeId}`, 'v1.TakeComposed', 'translator', { takeId, unitId: 'luke-0', laneId: 'L1', cardHashes: ['h2'], parentTakeId: null, ...payload }, over);
+    row(`c-${takeId}`, 'v1.TakeComposed', 'translator', { takeId, unitId: 'luke-0', cardHashes: ['h2'], parentTakeId: null, ...payload }, over);
   const submitted = (takeId = 't2', over: Partial<DeviceRow> = {}) => row(`s-${takeId}`, 'v1.TakeSubmitted', 'translator', { takeId, questionSetIds: [] }, over);
   const response = (respondsToTakeId = 't1', note = 'Slowed down') =>
     row('r', 'v1.ResponseRecorded', 'translator', { takeId: 't2', respondsToTakeId, note });
@@ -176,9 +176,8 @@ describe('save a version oracle', () => {
     expect(judgeSavedVersion(contract, log(device, ['h2'])).verdict).toBe('product_failure');
   });
 
-  it('does not count the seeded Version 1, another passage, lane or author', () => {
+  it('does not count the seeded Version 1, another passage or author', () => {
     for (const device of [[composed('t1'), submitted('t1')], [composed('t2', {}, { unitId: 'luke-1' }), submitted()],
-      [composed('t2', {}, { laneId: 'L2' }), submitted()],
       [row('c', 'v1.TakeComposed', 'owner', composed().event.payload), row('s', 'v1.TakeSubmitted', 'owner', { takeId: 't2' })]]) {
       expect(judgeSavedVersion({ ...contract, priorTakeIds: ['t1'] }, log(device, ['h2'])).verdict).not.toBe('passed');
     }
@@ -255,18 +254,18 @@ describe('review oracle', () => {
 });
 
 describe('ask someone oracle (RequestMade)', () => {
-  const contract = { askerId: 'coordinator', unitId: 'luke-2', laneId: 'L1', assigneeId: 'translator', what: 'record' as const };
+  const contract = { askerId: 'coordinator', unitId: 'luke-2', assigneeId: 'translator', what: 'record' as const };
   const ask = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'coordinator') =>
-    row(`a-${actorId}`, 'v1.RequestMade', actorId, { requestId: 'rq1', unitId: 'luke-2', laneId: 'L1', what: 'record', assigneeId: 'translator', dueDate: '2026-10-02', ...payload }, over);
+    row(`a-${actorId}`, 'v1.RequestMade', actorId, { requestId: 'rq1', unitId: 'luke-2', what: 'record', assigneeId: 'translator', dueDate: '2026-10-02', ...payload }, over);
 
   it('passes on a confirmed request with an ISO due date', () => {
     expect(judgeRequest(contract, log([ask()])).verdict).toBe('passed');
   });
 
   it('does not count the seed\'s assignment by the owner, and fails when the product sends the legacy fact', () => {
-    const seed = row('seed', 'v1.AssignmentMade', 'owner', { unitId: 'luke-2', laneId: 'L1', profileId: 'translator', role: 'translator' });
+    const seed = row('seed', 'v1.AssignmentMade', 'owner', { unitId: 'luke-2', profileId: 'translator', role: 'translator' });
     expect(judgeRequest(contract, log([seed])).verdict).toBe('inconclusive');
-    const legacy = row('a1', 'v1.AssignmentMade', 'coordinator', { unitId: 'luke-2', laneId: 'L1', profileId: 'translator', role: 'translator', dueDate: '2026-10-02' });
+    const legacy = row('a1', 'v1.AssignmentMade', 'coordinator', { unitId: 'luke-2', profileId: 'translator', role: 'translator', dueDate: '2026-10-02' });
     expect(judgeRequest(contract, log([legacy])).verdict).toBe('product_failure');
   });
 
@@ -295,9 +294,9 @@ describe('ask someone oracle (RequestMade)', () => {
 });
 
 describe('set aside with a reason oracle', () => {
-  const contract = { actorId: 'translator', unitId: 'luke-0', laneId: 'L1', stepId: 'one_check@1/s1', kindId: 'kind@1/peer' };
+  const contract = { actorId: 'translator', unitId: 'luke-0', stepId: 'one_check@1/s1', kindId: 'kind@1/peer' };
   const aside = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'translator') =>
-    row('sa', 'v1.StepSetAside', actorId, { departureId: 'd1', unitId: 'luke-0', laneId: 'L1', stepId: 'one_check@1/s1', kindId: 'kind@1/peer',
+    row('sa', 'v1.StepSetAside', actorId, { departureId: 'd1', unitId: 'luke-0', stepId: 'one_check@1/s1', kindId: 'kind@1/peer',
       reason: 'Not needed for this passage', ...payload }, over);
 
   it('passes on a confirmed set-aside of the step that says why, in words or voice', () => {
@@ -356,8 +355,8 @@ describe('keep it, say why oracle', () => {
 });
 
 describe('map search oracle', () => {
-  const contract = { query: 'luk 1', laneId: 'L1', matchingUnitIds: ['luke-0', 'luke-1'] };
-  const opened = (unitId = 'luke-0', laneId = 'L1') => [{ unitId, laneId }];
+  const contract = { query: 'luk 1', languageId: 'L1', matchingUnitIds: ['luke-0', 'luke-1'] };
+  const opened = (unitId = 'luke-0', languageId = 'L1') => [{ unitId, languageId }];
 
   it('passes when the typed query opened a passage it means', () => {
     expect(judgeMapSearch(contract, { typed: ['luk 1'], recentBefore: [], recentAfter: opened() }).verdict).toBe('passed');
@@ -373,7 +372,7 @@ describe('map search oracle', () => {
   });
 
   it('fails when search opened a passage the query does not mean', () => {
-    // Luke 2:1-7 is in the seeded partition; "luk 1" must not lead there.
+    // Luke 2:1-7 is in the seeded language; "luk 1" must not lead there.
     expect(judgeMapSearch(contract, { typed: ['luk 1'], recentBefore: [], recentAfter: opened('luke-2') }).verdict).toBe('product_failure');
     expect(judgeMapSearch(contract, { typed: ['luk 1'], recentBefore: [], recentAfter: opened('luke-0', 'L2') }).verdict).toBe('product_failure');
   });
@@ -384,9 +383,9 @@ describe('map search oracle', () => {
 });
 
 describe('flow with kinds together and a checkpoint oracle', () => {
-  const contract = { adminId: 'owner', laneId: 'L1' };
+  const contract = { adminId: 'owner' };
   const step = (id: string, payload: Record<string, unknown>, over: Partial<DeviceRow> = {}, actorId = 'owner') =>
-    row(id, 'v2.WorkflowStepSet', actorId, { stepId: payload['stepId'] ?? id, laneId: 'L1', order: 's00', kindIds: ['kind@1/peer'], checkpoint: false, ...payload }, over);
+    row(id, 'v1.FlowStepSet', actorId, { stepId: payload['stepId'] ?? id, order: 's00', kindIds: ['kind@1/peer'], checkpoint: false, ...payload }, over);
   const good = () => [step('a', { kindIds: ['kind@1/peer', 'kind@1/back_translation'] }), step('b', { order: 's01', kindIds: ['kind@1/consultant'], checkpoint: true })];
 
   it('passes on confirmed steps with two kinds together and a checkpoint', () => {
@@ -399,11 +398,10 @@ describe('flow with kinds together and a checkpoint oracle', () => {
     expect(judgeFlow(contract, log([good()[0]!])).verdict).toBe('product_failure');
   });
 
-  it('does not count a step later removed, a later edit that splits the kinds, another lane, or someone else', () => {
-    const removed = row('rm', 'v1.WorkflowStepRemoved', 'owner', { stepId: 'a' });
+  it('does not count a step later removed, a later edit that splits the kinds, or someone else', () => {
+    const removed = row('rm', 'v1.FlowStepRemoved', 'owner', { stepId: 'a' });
     expect(judgeFlow(contract, log([...good(), removed])).verdict).toBe('product_failure');
     expect(judgeFlow(contract, log([...good(), step('a2', { stepId: 'a', kindIds: ['kind@1/peer'] })])).verdict).toBe('product_failure');
-    expect(judgeFlow(contract, log(good().map((r) => ({ ...r, event: { ...r.event, payload: { ...r.event.payload, laneId: 'L2' } } })))).verdict).toBe('inconclusive');
     expect(judgeFlow(contract, log([step('a', { kindIds: ['kind@1/peer', 'x'] }, {}, 'other'), step('b', { checkpoint: true }, {}, 'other')])).verdict).toBe('inconclusive');
   });
 
@@ -421,7 +419,7 @@ describe('flow with kinds together and a checkpoint oracle', () => {
 describe('check of a kind oracle', () => {
   const contract = { reviewerId: 'reviewer', takeId: 't1', kindId: 'kind@1/peer', outcome: 'looks_good' as const, requiredQuestionIds: ['q#meaning'] };
   const check = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'reviewer') =>
-    row('ck', 'v1.CheckRecorded', actorId, { checkId: 'c1', unitId: 'luke-0', laneId: 'L1', takeId: 't1', kindId: 'kind@1/peer',
+    row('ck', 'v1.CheckRecorded', actorId, { checkId: 'c1', unitId: 'luke-0', takeId: 't1', kindId: 'kind@1/peer',
       outcome: 'looks_good', answers: { 'q#meaning': '5' }, ...payload }, over);
 
   it('passes on a confirmed check of the kind with the required answers', () => {
@@ -460,7 +458,7 @@ describe('check of a kind oracle', () => {
 describe('logged check oracle (J-REC-11)', () => {
   const contract = { loggerId: 'translator', kindId: 'kind@1/community', outcome: 'looks_good' as const, takeIds: ['t1', 't2'] };
   const logged = (id: string, takeId: string, payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}, actorId = 'translator') =>
-    row(id, 'v1.CheckLogged', actorId, { checkId: `c-${id}`, unitId: 'u', laneId: 'L1', takeId, kindId: 'kind@1/community',
+    row(id, 'v1.CheckLogged', actorId, { checkId: `c-${id}`, unitId: 'u', takeId, kindId: 'kind@1/community',
       outcome: 'looks_good', people: 12, place: 'Bor church', ...payload }, over);
 
   it('passes on one confirmed, credited check per passage, each with its own id', () => {
@@ -496,18 +494,18 @@ describe('logged check oracle (J-REC-11)', () => {
 });
 
 describe('back translation oracle (J-BT-1)', () => {
-  const contract = { makerId: 'reviewer', unitId: 'luke-0', laneId: 'L1', fromTakeId: 'v1', kindId: 'kind@1/back_translation' };
+  const contract = { makerId: 'reviewer', unitId: 'luke-0', fromTakeId: 'v1', kindId: 'kind@1/back_translation' };
   const produced = (payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}) =>
-    row('p', 'v1.ContentProduced', 'reviewer', { contentId: 'b1', unitId: 'luke-0', laneId: 'L1', fromTakeId: 'v1',
+    row('p', 'v1.ContentProduced', 'reviewer', { contentId: 'b1', unitId: 'luke-0', fromTakeId: 'v1',
       kindId: 'kind@1/back_translation', language: 'eng', cards: [{ hash: 'bt', durationMs: 1000 }], ...payload }, over);
 
   it('passes on confirmed content from the version with its audio on the device', () => {
     expect(judgeBackTranslation(contract, log([produced()], ['bt'])).verdict).toBe('passed');
   });
 
-  it('fails when the back translation was also composed as a take in the source lane', () => {
+  it('fails when the back translation was also composed as a take of the passage', () => {
     // Why (analysis row 21): an old client would show that take as the translator's newest version.
-    const take = row('t', 'v1.TakeComposed', 'reviewer', { takeId: 'x', unitId: 'luke-0', laneId: 'L1', cardHashes: ['bt'], parentTakeId: null });
+    const take = row('t', 'v1.TakeComposed', 'reviewer', { takeId: 'x', unitId: 'luke-0', cardHashes: ['bt'], parentTakeId: null });
     expect(judgeBackTranslation(contract, log([produced(), take], ['bt'])).verdict).toBe('product_failure');
     expect(judgeBackTranslation(contract, log([take], ['bt'])).verdict).toBe('product_failure');
   });
@@ -526,9 +524,9 @@ describe('back translation oracle (J-BT-1)', () => {
 });
 
 describe('study note at a moment oracle (J-STUDY-2)', () => {
-  const contract = { authorId: 'translator', unitId: 'luke-0', laneId: 'L1', materialId: 'fia', stepId: 'stage', text: 'Ask who the crowd is' };
+  const contract = { authorId: 'translator', unitId: 'luke-0', materialId: 'fia', stepId: 'stage', text: 'Ask who the crowd is' };
   const note = (anchor: Record<string, unknown> = {}, payload: Record<string, unknown> = {}, over: Partial<DeviceRow> = {}) =>
-    row('n', 'v1.ContextItemAdded', 'translator', { itemId: 'n1', kind: 'note', home: { level: 'unit', laneId: 'L1', unitId: 'luke-0' },
+    row('n', 'v1.ContextItemAdded', 'translator', { itemId: 'n1', kind: 'note', home: { level: 'unit', unitId: 'luke-0' },
       anchors: [{ type: 'study', materialId: 'fia', stepId: 'stage', atMs: 1800, ...anchor }], text: 'Ask who the crowd is', ...payload }, over);
 
   it('passes on a confirmed note at a whole-ms moment on the step', () => {
@@ -558,30 +556,28 @@ describe('study note at a moment oracle (J-STUDY-2)', () => {
 });
 
 describe('new language oracle', () => {
-  const contract = { adminId: 'owner', name: 'Mark in Dinka', languoidId: 'din' };
-  const org = (over: Partial<DeviceRow> = {}) => [row('reg', 'v1.PartitionRegistered', 'owner', { partitionId: 'p9', name: 'Mark in Dinka' }, over)];
-  const partition = (lanes: [string, string][] = [['L-din', 'din']]) => [
-    row('pc', 'v1.PartitionCreated', 'owner', { name: 'Mark in Dinka', sourceLanguoidId: 'eng' }),
-    ...lanes.map(([laneId, languoidId], i) => row(`lane${i}`, 'v1.LaneAdded', 'owner', { laneId, languoidId }))
-  ];
+  const contract = { adminId: 'owner', name: 'Mark in Dinka', code: 'din' };
+  const org = (payload: Record<string, unknown> = {}) =>
+    [row('add', 'v1.LanguageAdded', 'owner', { languageId: 'L9', name: 'Mark in Dinka', code: 'din', sourceCode: 'eng', ...payload })];
+  const language = (types = ['v1.TemplateSelected', 'v1.FlowSelected']) => types.map((type, i) => row(`l${i}`, type, 'owner', {}));
   const evidence = (device: DeviceRow[], orgRows = org()) => ({ org: orgRows, device, server: onServer([...orgRows, ...device]) });
 
-  it('passes on a registered partition born with its one language, synced', () => {
-    expect(judgeNewLanguage(contract, evidence(partition())).verdict).toBe('passed');
+  it('passes on an added language whose stream has its template and flow, synced', () => {
+    expect(judgeNewLanguage(contract, evidence(language())).verdict).toBe('passed');
   });
-  it('fails a partition with no language or two languages', () => {
-    // Why: the partition is the sync and permission bucket (decision 28).
-    expect(judgeNewLanguage(contract, evidence(partition([]))).verdict).toBe('product_failure');
-    expect(judgeNewLanguage(contract, evidence(partition([['L-din', 'din'], ['L-nus', 'nus']]))).verdict).toBe('product_failure');
+  it('fails a language with no template or no flow', () => {
+    // Why: without a flow it has no steps, without a template no passages.
+    expect(judgeNewLanguage(contract, evidence(language(['v1.FlowSelected']))).verdict).toBe('product_failure');
+    expect(judgeNewLanguage(contract, evidence(language(['v1.TemplateSelected']))).verdict).toBe('product_failure');
   });
   it('fails the wrong language, a rejected event, or events that never reached the server', () => {
-    expect(judgeNewLanguage(contract, evidence(partition([['L-nus', 'nus']]))).verdict).toBe('product_failure');
-    const rejected = partition(); rejected[1] = { ...rejected[1]!, status: 'rejected', rejectReason: 'a partition has one language' };
+    expect(judgeNewLanguage(contract, evidence(language(), org({ code: 'nus' }))).verdict).toBe('product_failure');
+    const rejected = language(); rejected[1] = { ...rejected[1]!, status: 'rejected', rejectReason: 'no flow' };
     expect(judgeNewLanguage(contract, evidence(rejected)).verdict).toBe('product_failure');
-    expect(judgeNewLanguage(contract, { org: org(), device: partition(), server: onServer(org()) }).verdict).toBe('product_failure');
+    expect(judgeNewLanguage(contract, { org: org(), device: language(), server: onServer(org()) }).verdict).toBe('product_failure');
   });
-  it('is inconclusive when no partition was registered under that name', () => {
+  it('is inconclusive when no language was added under that name', () => {
     expect(judgeNewLanguage(contract, evidence([], [])).verdict).toBe('inconclusive');
-    expect(judgeNewLanguage(contract, evidence(partition(), org({ event: { id: 'reg', type: 'v1.PartitionRegistered', actorId: 'owner', payload: { partitionId: 'p9', name: 'Something else' } } }))).verdict).toBe('inconclusive');
+    expect(judgeNewLanguage(contract, evidence(language(), org({ name: 'Something else' }))).verdict).toBe('inconclusive');
   });
 });
