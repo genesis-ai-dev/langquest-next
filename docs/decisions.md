@@ -1409,7 +1409,15 @@ MMS, CC BY-NC 4.0) suit a free app; the job takes audio only from filesets
 admin's app publishes the passing chapters as the source's next version.
 Organizations write guides as rich as FIA's in a web editor, as `study@2`
 (media by hash, callout kinds, placement by template node). The full design
-is `docs/reference-material.md`.
+is `docs/reference-material.md`. Details that follow from it: a passage's
+study guides come only from what is recommended, linked to it or the
+organization's own (never every shared item); a timing job never replaces
+a chapter's existing timing; a Bible added from Bible Brain is the library
+item `biblebrain.<bibleId>`; and an organization following one of
+LangQuest's sources may ask for its timings, which the web Worker's
+scheduled publisher adds to LangQuest's item for everyone who follows it
+(the server writes into no other organization's library). The Worker's key
+is an optional secret, so deploys never wait on it.
 Reverse if: FCBH objects to our timings or to on-device caching (then their
 audio plays with FCBH timings only and streams), or field teams find three
 levels of recommendation confusing (then the language level goes and
