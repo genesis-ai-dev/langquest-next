@@ -63,6 +63,10 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit
       - name: Start Supabase (applies every migration)
         run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor
+      # A new language needs a template, and templates live in the LangQuest
+      # library (docs/library.md), which migrations do not create.
+      - name: Publish the LangQuest library
+        run: npm run library:seed
       - name: Smoke-test the web app
         shell: bash
         run: source smart-tests/env.sh && npx playwright test -c smart-tests/web-smoke.config.ts
