@@ -22,7 +22,7 @@ import { deadMessage, inviteCard, type DeadReason, type InvitePreview } from '..
 import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
-import { previewInvite, redeemSignInCode } from '../invites';
+import { previewInvite, redeemSignInCode, useRequestOutcome } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, Screen, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
@@ -655,6 +655,17 @@ export function IntentChooser(ctx: Ctx) {
   // The name Explore knew, else a neutral phrase: never the org's id.
   const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : 'the organization';
   const [error, setError] = useState('');
+  // Once the server has it, watch for the answer: admitted opens the
+  // organization; turned away says so (useRequestOutcome).
+  const sentTo = waiting?.status === 'sent' && typeof waiting.payload.orgId === 'string'
+    ? { id: waiting.id, orgId: waiting.payload.orgId } : null;
+  const outcome = useRequestOutcome(ctx.session.actorId, sentTo);
+  const joinedOrg = outcome.kind === 'joined' ? outcome.orgId : null;
+  const declined = outcome.kind === 'declined';
+  useEffect(() => {
+    if (!joinedOrg) return;
+    ctx.openOrganization(joinedOrg).catch((e: unknown) => setError(failureMessage('open joined organization', e)));
+  }, [joinedOrg]);
   // A browser forgets everything at sign-out (forgetBrowser.ts), so there it
   // waits, as Sign Out does, for an account change still to send.
   const queued = actions.filter((a) => a.status === 'queued').length;
@@ -668,7 +679,7 @@ export function IntentChooser(ctx: Ctx) {
     await forgetThisBrowser();
   }
   return (
-    <Screen header={<Header title={waiting ? 'Request sent' : 'What brings you here?'} />}>
+    <Screen header={<Header title={waiting && !declined ? 'Request sent' : 'What brings you here?'} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
       {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title="Joining with your invite…" /> : null}
       {ctx.invite.status.kind === 'waiting' ? (
@@ -679,15 +690,17 @@ export function IntentChooser(ctx: Ctx) {
         <>
           <View style={styles.waiting}>
             <View style={styles.optionRow}>
-              <View style={[styles.tile, { borderRadius: 22 }]}><Ico name="clock" size={22} color={C.primary} /></View>
-              <Text style={[txt.body, { fontWeight: '700', flex: 1 }]}>Waiting for {waitingFor}</Text>
+              <View style={[styles.tile, { borderRadius: 22 }]}><Ico name={declined ? 'flag' : 'clock'} size={22} color={C.primary} /></View>
+              <Text style={[txt.body, { fontWeight: '700', flex: 1 }]}>{declined ? `${waitingFor} didn't add you` : `Waiting for ${waitingFor}`}</Text>
             </View>
             <Text style={txt.body}>
-              {waiting.status === 'sent'
-                ? "An admin will give you a role. Once they do, sign in again and you'll land on your work."
-                : 'Your request is saved on this device and sends when you have a connection.'}
+              {declined
+                ? 'An admin there turned down your request. You can ask again below, or ask someone there for an invite.'
+                : waiting.status === 'sent'
+                  ? "An admin will give you a role. Once they do, you'll be taken to your work."
+                  : 'Your request is saved on this device and sends when you have a connection.'}
             </Text>
-            <Text style={txt.smMuted}>There's nothing else you need to do.</Text>
+            {declined ? null : <Text style={txt.smMuted}>There's nothing else you need to do.</Text>}
           </View>
           <SectionLabel label="Meanwhile" />
         </>
