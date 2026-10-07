@@ -1710,3 +1710,24 @@ as one) or, if turned away, no longer visible. `pendingRequests`
 request can arrive after the app read everyone's names.
 Reverse if: requesters need to stay anonymous until admitted; then the
 request itself should carry the name the person chose to give.
+
+## 66. Request Access lists the organizations that list their work; others are joined by invite
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: opened from the intent chooser, Request Access asked for an
+"organization code", which was the organization's id (`org-` and a UUID).
+No screen shows anyone that id, so nobody could give it out or type it, and
+the demo has no code: it lists organizations to pick from. The screen now
+lists, by name and with their listed languages, the organizations that list
+at least one language on Explore (`listed_organizations`,
+`20261007160000_listed_organizations.sql`), to signed-in people only, as
+asking to join is. An organization that lists nothing is not found there;
+the screen says to ask its people for an invite. Listing a language already
+made it public with its organization behind it (docs/licensing.md, Access),
+so this names no organization that had not chosen to be found. A short
+code an admin could share was considered and not built: it needs a new
+column, a lookup, and protection against guessing, for organizations that
+chose not to be found and can invite instead.
+Reverse if: organizations that list nothing need people to find them
+without an invite; then give each a short code an admin can share.

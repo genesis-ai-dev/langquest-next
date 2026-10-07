@@ -81,3 +81,16 @@ export async function publicLanguages(): Promise<PublicLanguage[]> {
 export async function cachedPublicLanguages(): Promise<PublicLanguage[]> {
   return JSON.parse(await AsyncStorage.getItem('public-languages') ?? '[]');
 }
+/** An organization Request Access offers: one listing a language on Explore (`listed_organizations`, decisions.md 66). */
+export interface ListedOrganization {
+  org_id: string; name: string; languages: string[];
+}
+export async function listedOrganizations(): Promise<ListedOrganization[]> {
+  const { data, error } = await supabase.rpc('listed_organizations');
+  if (error) throw new Error(error.message);
+  await AsyncStorage.setItem('listed-organizations', JSON.stringify(data));
+  return data as ListedOrganization[];
+}
+export async function cachedListedOrganizations(): Promise<ListedOrganization[]> {
+  return JSON.parse(await AsyncStorage.getItem('listed-organizations') ?? '[]');
+}

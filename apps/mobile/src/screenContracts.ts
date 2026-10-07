@@ -23,7 +23,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // (markWelcomed). Its languages are added afterwards from Getting started
   // (ONB-5), each with a stream of its own (decisions.md 63).
   create_org: { emits:['v1.OrgCreated','v1.RoleDefined','v1.MemberAdded','v1.LicenseSet','v1.VisionSeen'],rpcs:['record_user_event','save_profile'],reads:['profiles'] },
-  request_access: { rpcs:['create_join_request'] },
+  request_access: { rpcs:['create_join_request','listed_organizations'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_languages'] },
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext'] },

@@ -11,7 +11,10 @@ import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { cachedPublicLanguages, publicLanguages, queueAccountAction, TERMS_VERSION, type PublicLanguage } from '../accountData';
+import {
+  cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
+  type ListedOrganization
+} from '../accountData';
 import { firstName, VISION_STEPS } from '../accountText';
 import { isSignInName, signInAddress, signInName } from '../accounts';
 import { recordHelp } from '../signInHelp';
@@ -220,27 +223,39 @@ export function Vision(ctx: Ctx) {
 
 const EXPLORE_STEP = 25;
 
-/** Organizations that list their work publicly, without an account: name, languages, progress. */
-export function ExploreHome(ctx: Ctx) {
-  const [listed, setListed] = useState<PublicLanguage[]>([]);
-  const [message, setMessage] = useState('Loading…');
-  const [shown, setShown] = useState(EXPLORE_STEP);
+/**
+ * A server list shown at once from what this device saved, then refreshed.
+ * The message is what to say over it: loading, or that it could not refresh.
+ */
+function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () => Promise<T[]>, enabled = true): [T[], string] {
+  const [rows, setRows] = useState<T[]>([]);
+  const [message, setMessage] = useState(enabled ? 'Loading…' : '');
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     void (async () => {
-      const cached = await cachedPublicLanguages().catch((e: unknown) => { reportError('explore cache', e); return []; });
-      if (active) setListed(cached);
+      const saved = await cached().catch((e: unknown) => { reportError(`${where} cache`, e); return []; });
+      if (active) setRows(saved);
       try {
-        const rows = await publicLanguages();
-        if (active) { setListed(rows); setMessage(''); }
+        const latest = await fresh();
+        if (active) { setRows(latest); setMessage(''); }
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
-        noteExpected('explore refresh', e);
+        noteExpected(`${where} refresh`, e);
         if (active) setMessage('Unable to refresh. Showing what was saved on this device.');
       }
     })();
     return () => { active = false; };
-  }, []);
+    // The loaders are module functions; only whether to load can change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+  return [rows, message];
+}
+
+/** Organizations that list their work publicly, without an account: name, languages, progress. */
+export function ExploreHome(ctx: Ctx) {
+  const [listed, message] = useRefreshed('explore', cachedPublicLanguages, publicLanguages);
+  const [shown, setShown] = useState(EXPLORE_STEP);
   const guest = ctx.session.isGuest;
   return (
     <Screen header={<Header title="Explore" onBack={ctx.back}
@@ -772,29 +787,43 @@ export function CreateOrg(ctx: Ctx) {
 
 // ---- Request Access (AUTH-5) -----------------------------------------------------------------------------
 
+const FIND_FROM = 8;
+
 /**
  * Ask an organization to let you in. The request is saved on this phone and
  * sent when there is a connection; until an admin accepts, you see nothing
- * of theirs.
+ * of theirs. Explore names the organization; otherwise the person picks one
+ * of those listing their work, as in the demo (decisions.md 66). One that
+ * lists nothing is joined by invite.
  */
 export function RequestAccess(ctx: Ctx) {
-  const [orgId, setOrgId] = useState(ctx.params['orgId'] ?? '');
+  const given = ctx.params['orgId'] ?? '';
   // The language this person found on Explore, which names who they are asking.
-  const orgName = ctx.params['orgName'] || undefined;
+  const givenName = ctx.params['orgName'] || undefined;
+  const [listed, loadMessage] = useRefreshed('request access', cachedListedOrganizations, listedOrganizations, !given);
+  const [picked, setPicked] = useState<ListedOrganization | null>(null);
+  const [find, setFind] = useState('');
+  const [shown, setShown] = useState(EXPLORE_STEP);
   const [message, setMessage] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
   const actions = useAccountActions(ctx.session.actorId);
   const request = actions.find((a) => a.id === requestId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const label = orgName ?? orgId.trim();
+  const orgId = given || picked?.org_id || '';
+  const orgName = given ? givenName : picked?.name;
+  const label = orgName ?? 'the organization';
+  const query = find.trim().toLowerCase();
+  const matches = query
+    ? listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)))
+    : listed;
 
   async function send() {
     setBusy(true);
     setError('');
     try {
       setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', {
-        orgId: orgId.trim(), message: message.trim(), ...(orgName ? { orgName } : {})
+        orgId, message: message.trim(), ...(orgName ? { orgName } : {})
       }));
     } catch (e) {
       setError(failure('request access', e));
@@ -822,19 +851,47 @@ export function RequestAccess(ctx: Ctx) {
   return (
     <Screen
       header={<Header title="Request access" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Send request" icon="arrowR" onPress={() => void send()} disabled={orgId.trim() === ''} busy={busy} />}
+      footer={<PrimaryBtn label="Send request" icon="arrowR" onPress={() => void send()} disabled={orgId === ''} busy={busy} />}
     >
       <Text style={txt.bodyMuted}>Ask to join an existing organization. An admin will review your request.</Text>
-      {orgName ? (
+      {given ? (
         <Card>
           <View style={styles.optionRow}>
             <View style={styles.tile}><Ico name="building" size={24} color={C.primary} /></View>
-            <Text style={[txt.body, { fontWeight: '600', flex: 1 }]}>{orgName}</Text>
+            <Text style={[txt.body, { fontWeight: '600', flex: 1 }]}>{label}</Text>
             <Ico name="check" size={22} color={C.primary} />
           </View>
         </Card>
       ) : (
-        <Field label="Organization code" value={orgId} onChangeText={setOrgId} placeholder="Ask the organization for its code" autoCapitalize="none" />
+        <View style={{ gap: space.sm }}>
+          <SectionLabel label="Organization" />
+          {loadMessage ? <Banner icon="cloud" title={loadMessage} /> : null}
+          {listed.length > FIND_FROM ? (
+            <Field value={find} onChangeText={(v) => { setFind(v); setShown(EXPLORE_STEP); }} placeholder="Find by organization or language" autoCapitalize="none" />
+          ) : null}
+          {matches.slice(0, shown).map((o) => {
+            const chosen = picked?.org_id === o.org_id;
+            return (
+              <Card key={o.org_id} current={chosen} accessibilityLabel={`${o.name}, ${o.languages.join(', ')}`} onPress={() => setPicked(o)}>
+                <View style={styles.optionRow}>
+                  <View style={styles.tile}><Ico name="building" size={24} color={C.primary} /></View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[txt.body, { fontWeight: '600' }]}>{o.name}</Text>
+                    <Text style={txt.smMuted} numberOfLines={2}>{o.languages.join(', ')}</Text>
+                  </View>
+                  {chosen ? <Ico name="check" size={22} color={C.primary} /> : null}
+                </View>
+              </Card>
+            );
+          })}
+          <ShowMore remaining={matches.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
+          {listed.length && !matches.length ? <Text style={txt.smMuted}>No organization or language matches “{find.trim()}”.</Text> : null}
+          {loadMessage === 'Loading…' ? null : (
+            <Text style={txt.smMuted}>
+              {listed.length ? 'Not listed? ' : 'No organizations are listed yet. '}Ask someone in the organization for an invite.
+            </Text>
+          )}
+        </View>
       )}
       <Field label="Message" value={message} onChangeText={setMessage} placeholder="Why you want to join" multiline />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
