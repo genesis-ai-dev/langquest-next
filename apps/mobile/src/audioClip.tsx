@@ -1,11 +1,11 @@
 // Avatar U. Local and remote playback, paused before recording starts.
-import type { BlobRef, LanguageState } from '@langquest-next/core';
+import { isStored, type BlobRef, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { LanguageHandle } from './useLanguage';
 import { IconBtn, txt } from './kit';
-import { reportError } from './report';
+import { noteExpected, reportError } from './report';
 import { C, target } from './theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 
@@ -65,8 +65,12 @@ export function AudioClip(props: {
     };
   }, [signature]);
   const state = props.language.state;
-  const available = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
+  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
     !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+  // Not on this phone (a passage outside the offline scope) but on the server: play it from there while connected.
+  const streamable = !here && !!state && props.hashes.length > 0 && props.language.online !== false
+    && props.hashes.every((hash) => isStored(state, hash));
+  const available = here || streamable;
 
   async function toggle() {
     if (props.disabled) return;
@@ -90,7 +94,7 @@ export function AudioClip(props: {
         if (generation.current === run) player.current?.play();
         return;
       }
-      const next = (index: number) => {
+      const next = async (index: number) => {
         if (!wantsPlayback.current) return;
         player.current?.remove();
         player.current = null;
@@ -99,7 +103,17 @@ export function AudioClip(props: {
         }
         const hash = props.hashes[index]!;
         const language = languageRef.current;
-        const uri = props.uri ?? (language.state && language.blobs.uriFor({ hash, format: audioFormat(language.state, hash) }));
+        const ref = language.state ? { hash, format: audioFormat(language.state, hash) } : null;
+        let uri = props.uri ?? (ref && language.blobs.uriFor(ref));
+        if (!uri && ref && language.state && isStored(language.state, hash)) {
+          try { uri = await language.blobs.streamUri(ref); }
+          catch (err) {
+            noteExpected('audio clip stream', err);
+            if (generation.current === run) { wantsPlayback.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+            return;
+          }
+          if (generation.current !== run || !wantsPlayback.current) return;
+        }
         if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });
@@ -112,7 +126,7 @@ export function AudioClip(props: {
               setError('Audio could not load. Check your connection and try again.');
               return;
             }
-            if (status.didJustFinish && player.current === p) next(index + 1);
+            if (status.didJustFinish && player.current === p) void next(index + 1);
           });
           p.play();
         } catch (err) {
@@ -121,7 +135,7 @@ export function AudioClip(props: {
           setPlaying(false); setError(playbackFailed('audio clip create player', err));
         }
       };
-      next(0);
+      await next(0);
     } catch (err) {
       if (generation.current === run) {
         wantsPlayback.current = false;

@@ -1,7 +1,7 @@
 import { DEFAULT_TRANSFER_BUDGET_BYTES, DOWNLOAD_DEFAULTS, SupabaseTransport, SyncClient, TransferBudget, TransferWorker, UPLOAD_DEFAULTS, ensureDeviceId, SyncScheduler, type SyncInspection } from '@langquest-next/client';
 import { defaultOfflineScope, emptyLanguageState, deriveDownloadWork, deriveUploadWork, evictableBlobs, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
-import { downloadBlob, uploadBlob } from './blobTransport';
+import { downloadBlob, streamUrl, uploadBlob } from './blobTransport';
 import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from './diagnostics';
 import { getRecordingJournal } from './recordingJournal';
 import { isRecording } from './useRecorder';
@@ -59,6 +59,8 @@ export interface LanguageHandle {
     /** Bytes per second over the last ten seconds. */
     rates: () => { up: number; down: number };
     uriFor: (ref: BlobFile) => string | null;
+    /** A link to play a file the server has, without keeping it here; rejects offline. */
+    streamUri: (ref: BlobFile) => Promise<string>;
     store: BlobStore | null;
     keptUnits: ReadonlySet<string>;
     keepOffline: (unitId: string, keep: boolean) => Promise<void>;
@@ -416,6 +418,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
     pendingUp,
     pendingDown,
     uriFor: (ref: BlobFile) => storeRef.current?.uriFor(ref) ?? null,
+    streamUri: (ref: BlobFile) => streamUrl(orgId, languageId, ref),
     store: storeRef.current,
     keptUnits,
     keepOffline,

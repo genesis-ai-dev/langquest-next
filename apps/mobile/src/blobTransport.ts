@@ -51,6 +51,17 @@ export class UploadError extends Error {
 }
 
 /**
+ * A link to play a file the server has without keeping it on this phone:
+ * audio of a passage outside the offline scope plays while connected
+ * (decisions.md 61). Valid for ten minutes; asked for at play time.
+ */
+export async function streamUrl(orgId: string, streamId: string, ref: StoredFile): Promise<string> {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, streamId, ref), 600);
+  if (error || !data) throw new Error(error?.message ?? 'no signed url');
+  return data.signedUrl;
+}
+
+/**
  * `timings` splits the time for field diagnostics: signing the URL, the
  * network fetch, and reading plus hashing on the phone, which on a slow
  * phone can outweigh the network.
