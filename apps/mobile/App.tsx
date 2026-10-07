@@ -366,7 +366,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
-  const memberIds = useMemo(() => Object.keys(org.state?.members ?? {}).sort().join(','), [org.state?.members]);
+  // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
+  const memberIds = useMemo(() => Object.keys(org.state?.members ?? {}).sort().join(','), [org.state]);
   const profileNames = useDisplayNames(props.actorId, memberIds);
   const people = profileNames;
   const [welcomed, setWelcomed] = useState(false);

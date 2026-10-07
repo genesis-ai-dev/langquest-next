@@ -76,7 +76,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
       for (const id of [...out.keys()]) if (passageLink(state, unitId, id) === false) out.delete(id);
     }
     return out;
-  }, [state, languageId, unitId, ctx.org.state?.recommendations]);
+  }, [state, languageId, unitId, ctx.org.state]);
 
   // Nothing recommended: other organizations' shared sources stand in (LangQuest's, once seeded).
   const shared = useSharedItems('material', orgId, !!unitId && recs.size === 0);

@@ -48,6 +48,7 @@ import { shareText } from '../share';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
+import { personLook } from '../people';
 import { PersonAvatar, usePerson } from '../UserChip';
 
 /**
@@ -167,7 +168,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
       templates: [template ? libraryItemView(ctx.org.state?.library ?? {}, template.itemId)?.name ?? 'A template' : 'None'],
       flows: [state.flow ? deriveFlow(state).name : 'None']
     };
-  }, [state, ctx.language.languageId, ctx.org.state?.library]);
+  }, [state, ctx.language.languageId, ctx.org.state]);
   const applied = (names: string[]) => props.level === 'language'
     ? `${names[0] ?? 'None'} applied`
     : languageIds.length === 0 ? 'No languages yet' : [names.join(', '), plural(languageIds.length, 'language')].filter(Boolean).join(' · ');
@@ -390,9 +391,9 @@ export function LanguageHome(ctx: Ctx) {
 
 // ---- Members ----------------------------------------------------------------------------------
 
-function Avatar(props: { id: string; size?: number }) {
+function Avatar(props: { id: string; name?: string | undefined; size?: number }) {
   const person = usePerson();
-  return <PersonAvatar look={person(props.id)} size={props.size ?? 40} />;
+  return <PersonAvatar look={props.name ? personLook(props.id, props.name) : person(props.id)} size={props.size ?? 40} />;
 }
 
 /** One member: role badge and edit, or view only with a lock (demo MemberRows). */
@@ -468,8 +469,8 @@ export function MembersList(ctx: Ctx) {
       <SectionLabel label={`${LEVEL_LABEL[level]} members · ${current.length + requests.length}`} />
       <Group>
         {requests.map((r) => (
-          <Row key={r.id} leading={<Avatar id={r.profileId} />} label={ctx.name(r.profileId)} sub={r.message || 'Asked to join'}
-            onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level })}
+          <Row key={r.id} leading={<Avatar id={r.profileId} name={r.name} />} label={r.name ?? ctx.name(r.profileId)} sub={r.message || 'Asked to join'}
+            onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level, ...(r.name ? { name: r.name } : {}) })}
             right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}><Badge label="Pending" tone="amber" /><Ico name="right" size={22} color={C.muted} /></View>} />
         ))}
         {rows(current.slice(0, shown))}
@@ -650,7 +651,9 @@ export function EditMember(ctx: Ctx) {
   const [error, setError] = useState('');
   const allowed = ctx.session.can('invite_members');
   const scope = scopeOf(form);
-  const who = ctx.name(memberId);
+  // A requester's name comes with the request (decisions.md 65), not from the members' names.
+  const requesterName = pending ? ctx.params['name'] : undefined;
+  const who = requesterName ?? ctx.name(memberId);
 
   async function runOrg(ops: OrgOp[]) {
     for (const op of ops) await ctx.org.append(op.type, op.payload as never);
@@ -717,7 +720,7 @@ export function EditMember(ctx: Ctx) {
           {pending ? <GhostBtn label="Decline" tone="red" onPress={() => void decline()} disabled={busy} /> : null}
         </>
       ) : undefined}>
-      <Row leading={<Avatar id={memberId} size={48} />} label={who} sub={pending ? 'Asked to join' : v.target(entry!.scope)} />
+      <Row leading={<Avatar id={memberId} name={requesterName} size={48} />} label={who} sub={pending ? 'Asked to join' : v.target(entry!.scope)} />
       {!pending && memberId ? <HelpSignIn memberId={memberId} who={who} /> : null}
       <Text style={txt.xs}>{pending
         ? 'This person created an account and asked to join. Assign a role to give them access; they join at organization scope, and you can narrow it here afterwards.'
