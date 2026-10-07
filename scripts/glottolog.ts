@@ -129,3 +129,35 @@ export function stageGlottolog(files: { languages: string; values: string; names
 
   return { languoids, names: [...byKey.values()] };
 }
+
+/**
+ * langquest v2 loaded Glottolog once, on 2025-10-01; every languoid it has
+ * from Glottolog was made then. Rows made on other days came from elsewhere (an ISO
+ * 639-3 list, a legacy "English", languoids users made) and are left behind.
+ */
+export const V2_GLOTTOLOG_LOAD = { from: '2025-10-01', before: '2025-10-02' };
+
+export interface V2Languoid {
+  id: string;
+  parent_id: string | null;
+  name: string | null;
+  level: string;
+}
+
+/** v2's Glottolog rows and their aliases -> the v2 staging tables. Aliases are tagged with their label language's ISO 639-3 code. */
+export function stageV2(
+  languoids: V2Languoid[],
+  iso: { languoid_id: string; unique_identifier: string }[],
+  aliases: { subject_languoid_id: string; label_languoid_id: string; name: string }[]
+) {
+  const ids = new Set(languoids.map((l) => l.id));
+  const isoOf = new Map(iso.filter((s) => /^[a-z]{3}$/.test(s.unique_identifier)).map((s) => [s.languoid_id, s.unique_identifier]));
+  return {
+    languoids: languoids.map((l) => ({
+      id: l.id, parent_id: l.parent_id && ids.has(l.parent_id) ? l.parent_id : null, name: l.name, level: l.level, iso639_3: isoOf.get(l.id) ?? null
+    })),
+    names: aliases
+      .filter((a) => ids.has(a.subject_languoid_id) && a.name.trim())
+      .map((a) => ({ languoid_id: a.subject_languoid_id, name: a.name.trim(), lang: isoOf.get(a.label_languoid_id) ?? null }))
+  };
+}

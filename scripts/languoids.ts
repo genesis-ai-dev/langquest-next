@@ -12,8 +12,8 @@
  * `apply` makes the changes in one transaction and records the release in
  * languoid_import.
  *
- * --v2 also stages langquest v2's Glottolog rows (creator_id is null; the
- * languoids v2 users made are left behind) read anonymously from
+ * --v2 also stages langquest v2's Glottolog rows (those its 2025-10-01
+ * Glottolog load made; languoids users or other lists added are left behind) read anonymously from
  * V2_SUPABASE_URL / V2_SUPABASE_ANON_KEY, as `npm run import:v2` does. Each
  * one matched to a glottocode keeps its v2 UUID, so imported v2 projects
  * keep pointing at their languages. Run it with the first import; once the
@@ -27,7 +27,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CLDF_FILES, cldfUrl, stageGlottolog } from './glottolog';
+import { CLDF_FILES, cldfUrl, stageGlottolog, stageV2, V2_GLOTTOLOG_LOAD, type V2Languoid } from './glottolog';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 
 const args = process.argv.slice(2);
@@ -91,9 +91,9 @@ async function v2All<T>(path: string): Promise<T[]> {
   }
 }
 
-async function stageV2() {
-  const languoids = await v2All<{ id: string; parent_id: string | null; name: string | null; level: string }>(
-    'languoid?select=id,parent_id,name,level&creator_id=is.null&active=is.true&order=id'
+async function stageV2Tables() {
+  const languoids = await v2All<V2Languoid>(
+    `languoid?select=id,parent_id,name,level&creator_id=is.null&active=is.true&created_at=gte.${V2_GLOTTOLOG_LOAD.from}&created_at=lt.${V2_GLOTTOLOG_LOAD.before}&order=id`
   );
   const iso = await v2All<{ languoid_id: string; unique_identifier: string }>(
     'languoid_source?select=languoid_id,unique_identifier&name=eq.iso639-3&active=is.true&order=id'
@@ -101,19 +101,10 @@ async function stageV2() {
   const aliases = await v2All<{ subject_languoid_id: string; label_languoid_id: string; name: string }>(
     'languoid_alias?select=subject_languoid_id,label_languoid_id,name&creator_id=is.null&active=is.true&order=id'
   );
-  const ids = new Set(languoids.map((l) => l.id));
-  const isoOf = new Map(iso.filter((s) => /^[a-z]{3}$/.test(s.unique_identifier)).map((s) => [s.languoid_id, s.unique_identifier]));
-  await insertAll(
-    db,
-    'languoid_staging_v2',
-    languoids.map((l) => ({ ...l, parent_id: l.parent_id && ids.has(l.parent_id) ? l.parent_id : null, iso639_3: isoOf.get(l.id) ?? null }))
-  );
-  await insertAll(
-    db,
-    'languoid_staging_v2_name',
-    aliases.filter((a) => ids.has(a.subject_languoid_id)).map((a) => ({ languoid_id: a.subject_languoid_id, name: a.name.trim(), lang: isoOf.get(a.label_languoid_id) ?? null }))
-  );
-  console.log(`staged v2: ${languoids.length} languoids, ${aliases.length} names`);
+  const staged = stageV2(languoids, iso, aliases);
+  await insertAll(db, 'languoid_staging_v2', staged.languoids);
+  await insertAll(db, 'languoid_staging_v2_name', staged.names);
+  console.log(`staged v2: ${staged.languoids.length} languoids, ${staged.names.length} names`);
 }
 
 const csvField = (v: unknown) => (v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
@@ -126,7 +117,7 @@ const staged = stageGlottolog({ languages: languages!, values: values!, names: n
 await insertAll(db, 'languoid_staging_glottolog', staged.languoids);
 await insertAll(db, 'languoid_staging_glottolog_name', staged.names);
 console.log(`staged Glottolog ${release}: ${staged.languoids.length} languoids, ${staged.names.length} names`);
-if (flag('v2')) await stageV2();
+if (flag('v2')) await stageV2Tables();
 
 if (command === 'preview') {
   const diff: Record<string, string | null>[] = [];

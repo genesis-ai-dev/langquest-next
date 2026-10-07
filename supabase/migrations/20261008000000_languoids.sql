@@ -334,12 +334,14 @@ begin
   where s.name <> l.name
   on conflict (languoid_id, name, lang) do update set providers = excluded.providers, source = 'glottolog';
 
-  -- 6. v2's names for the languoids it shares, where Glottolog has none like them.
+  -- 6. v2's names for the languoids it shares, where the languoid has no
+  --    name like it (most of v2's came from Glottolog too, tagged differently).
   insert into languoid_name (languoid_id, name, lang, source)
   select distinct n.languoid_id, n.name, n.lang, 'v2'
   from languoid_staging_v2_name n
   join languoid l on l.id = n.languoid_id
-  where n.name <> l.name
+  where lower(n.name) <> lower(l.name)
+    and not exists (select 1 from languoid_name x where x.languoid_id = n.languoid_id and lower(x.name) = lower(n.name))
   on conflict (languoid_id, name, lang) do nothing;
 
   insert into languoid_import (release, report) values (p_release, v_report);
