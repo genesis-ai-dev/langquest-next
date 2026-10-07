@@ -1,6 +1,8 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
 # checks:   the pre-push gate again (typecheck + unit and property tests).
+# server:   the SQL smokes, SQL parity and client integration test against a
+#           local Supabase started here from the migrations.
 # web-smoke: the release web build in three browser engines (smart-tests/web-smoke).
 # journeys: Jev walks the avatar journeys (smart-tests/journeys) against the
 #           web build and a local Supabase started here from the migrations.
@@ -43,6 +45,25 @@ jobs:
       # Deploying); refuse one that is behind its source.
       - name: Worker bundle matches its source
         run: npm run worker:build && git diff --exit-code -- supabase/functions
+
+  server:
+    # The server against a local Supabase built from the migrations: the SQL
+    # smokes, the SQL parity check against core's folds (npm run db:test), and
+    # the client integration test (npm run test:integration).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Start Supabase (applies every migration)
+        run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor
+      - name: SQL smokes and parity
+        run: npm run db:test
+      - name: Client integration test
+        run: npm run test:integration
 
   web-smoke:
     # The web as a published platform (decisions.md 58): the release web
