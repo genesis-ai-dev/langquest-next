@@ -7,6 +7,7 @@
 // pauses the microphone, and stopping (pause, end, failure) lets it resume.
 // It is AudioClip's player with those two hooks; AudioClip itself has no
 // way to wait before switching the audio session to playback.
+import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -16,7 +17,7 @@ import type { Ctx } from './ctx';
 import { getReferenceSlides } from './passageResources';
 import { Card, IconBtn, Ico, txt } from './kit';
 import type { ListenHooks } from './recording/useListenLoop';
-import { reportError } from './report';
+import { noteExpected, reportError } from './report';
 import { C, space, target, TINT } from './theme';
 import type { LanguageHandle } from './useLanguage';
 
@@ -100,8 +101,11 @@ export function SourcePlayer(props: {
     };
   }, [signature]);
   const state = props.language.state;
-  const available = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
+  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
     !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+  // As AudioClip: what the server has plays from there while connected.
+  const available = here || (!!state && props.hashes.length > 0 && props.language.online !== false
+    && props.hashes.every((hash) => isStored(state, hash)));
 
   async function toggle() {
     if (props.disabled) return;
@@ -125,14 +129,24 @@ export function SourcePlayer(props: {
         if (generation.current === run) player.current?.play();
         return;
       }
-      const next = (index: number) => {
+      const next = async (index: number) => {
         if (!wants.current || generation.current !== run) return;
         player.current?.remove();
         player.current = null;
         if (index >= (props.uri ? 1 : props.hashes.length)) { wants.current = false; setPlaying(false); return; }
         const language = languageRef.current;
         const hash = props.hashes[index];
-        const uri = props.uri ?? (hash && language.state ? language.blobs.uriFor({ hash, format: audioFormat(language.state, hash) }) : null);
+        const ref = hash && language.state ? { hash, format: audioFormat(language.state, hash) } : null;
+        let uri = props.uri ?? (ref ? language.blobs.uriFor(ref) : null);
+        if (!uri && ref && language.state && isStored(language.state, ref.hash)) {
+          try { uri = await language.blobs.streamUri(ref); }
+          catch (err) {
+            noteExpected('source player stream', err);
+            if (generation.current === run) { wants.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+            return;
+          }
+          if (!wants.current || generation.current !== run) return;
+        }
         if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });
@@ -145,7 +159,7 @@ export function SourcePlayer(props: {
               setError('Audio could not load. Check your connection and try again.');
               return;
             }
-            if (status.didJustFinish) next(index + 1);
+            if (status.didJustFinish) void next(index + 1);
           });
           p.play();
         } catch (err) {
@@ -154,7 +168,7 @@ export function SourcePlayer(props: {
           setPlaying(false); setError(playbackFailed('source player create', err));
         }
       };
-      next(0);
+      await next(0);
     } catch (err) {
       if (generation.current === run) {
         wants.current = false;
