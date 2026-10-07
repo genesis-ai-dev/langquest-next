@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SyncScheduler } from '@langquest-next/client';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { accountOutbox } from './accountData';
+import { reportError } from './report';
+import { accountOutbox, queueAccountAction } from './accountData';
+import { profileNameToSave } from './accounts';
 import type { AccountAction } from './durableOutbox';
 import { supabase } from './supabase';
 
@@ -36,7 +38,27 @@ export function useAccountActions(actorId: string) {
   }, [actorId]);
   return actions;
 }
-export function useDisplayNames(actorId: string) {
+/**
+ * Give this account a profile name when it has none, so the people it works
+ * with see a name (profileNameToSave). Read from the server, never the
+ * cache, so a name saved on another phone is not overwritten.
+ */
+export function useProfileName(actorId: string, email: string | null) {
+  useEffect(() => {
+    if (actorId === 'guest') return;
+    let active = true;
+    void (async () => {
+      const { data, error } = await supabase.from('profiles').select('display_name').eq('id', actorId).maybeSingle();
+      if (error || !active) return;
+      const name = profileNameToSave(data?.display_name, email);
+      if (name) await queueAccountAction(actorId, 'profile', { displayName: name });
+    })().catch((e: unknown) => { reportError('profile name', e); });
+    return () => { active = false; };
+  }, [actorId, email]);
+}
+
+/** Everyone's profile name this account may see; read again when `refresh` changes (someone joined). */
+export function useDisplayNames(actorId: string, refresh = '') {
   const [names, setNames] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
@@ -53,6 +75,6 @@ export function useDisplayNames(actorId: string) {
       }
     })().catch(() => {});
     return () => { active = false; };
-  }, [actorId]);
+  }, [actorId, refresh]);
   return names;
 }
