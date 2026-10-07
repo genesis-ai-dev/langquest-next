@@ -1,4 +1,4 @@
--- Languages (languoids): global reference data, not in any partition
+-- Languages (languoids): global reference data, not in any stream
 -- (docs/languoids.md). Every languoid has a UUID. A Glottolog one also has
 -- its glottocode, which is how a newer Glottolog release finds the row it
 -- already made; a language collected in the field has no glottocode until
@@ -30,7 +30,7 @@ create table public.languoid (
   latitude double precision,
   longitude double precision,
   macroareas text[] not null default '{}',
-  -- ISO 3166-1 alpha-2, as v1.LaneCountrySet
+  -- ISO 3166-1 alpha-2
   countries text[] not null default '{}',
   origin text not null check (origin in ('glottolog', 'field')),
   -- A Glottolog languoid a later release no longer has. Kept so anything

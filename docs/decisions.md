@@ -1870,7 +1870,7 @@ UUID and never kept the glottocode, so they could not be refreshed. Caleb
 chose UUIDs as the id, because languages collected in the field may not be
 in Glottolog yet, and chose not to bring over the languoids v2 users made,
 because many are junk or duplicates. So `languoid` and `languoid_name` are
-global reference tables (not in a partition; everyone reads, the service role
+global reference tables (not in any stream; everyone reads, the service role
 writes), keyed by UUID, with the glottocode as a unique second key that
 `npm run languoids` (`scripts/languoids.ts`, `scripts/glottolog.ts`) uses to
 merge each Glottolog CLDF release: preview the diff, then apply it in one
