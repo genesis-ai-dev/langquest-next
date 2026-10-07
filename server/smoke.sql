@@ -647,27 +647,27 @@ begin
 end $$;
 
 -- Accepting names the scope, as an invite does: here one language.
-select set_config('request.jwt.claim.sub', 'asker2', false);
-select public.create_join_request('org1', 'req2', '');
+select set_config('request.jwt.claim.sub', 'asker-scope', false);
+select public.create_join_request('org1', 'req-scope', '');
 select set_config('request.jwt.claim.sub', 'lead', false);
 do $$
 begin
   begin
-    perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language"}');
+    perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language"}');
     raise exception 'accepted with a scope that names no language';
   exception when sqlstate '22023' then null;
   end;
   begin
-    perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language","languageId":"nope"}');
+    perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language","languageId":"nope"}');
     raise exception 'accepted into an unknown language';
   exception when sqlstate '22023' then null;
   end;
-  perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language","languageId":"din"}');
-  if public.effective_role_of(public.org_privileges('org1', 'asker2', 'din')) is null then raise exception 'asker2 not admitted to din'; end if;
-  if public.effective_role_of(public.org_privileges('org1', 'asker2', 'nus')) is not null then raise exception 'asker2 admitted beyond din'; end if;
-  if public.effective_role_of(public.org_privileges('org1', 'asker2', null)) is not null then raise exception 'asker2 admitted org-wide'; end if;
+  perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language","languageId":"din"}');
+  if public.effective_role_of(public.org_privileges('org1', 'asker-scope', 'din')) is null then raise exception 'asker-scope not admitted to din'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker-scope', 'nus')) is not null then raise exception 'asker-scope admitted beyond din'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker-scope', null)) is not null then raise exception 'asker-scope admitted org-wide'; end if;
   -- Asking again after the decision is a no-op, as for the old signature.
-  perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language","languageId":"din"}');
+  perform public.decide_join_request_v2('req-scope', true, 'lang_lead', '{"level":"language","languageId":"din"}');
 end $$;
 
 -- 12. A language's country and target (decision 41) live in the
