@@ -177,7 +177,7 @@ function Editor(props: {
         description: `Study guide${doc.pattern ? ` · ${doc.pattern}` : ''}`, doc
       });
       await dropDraft(props.draftKey);
-      ctx.toast(`${doc.title} is published. Phones get it when they next sync.`);
+      ctx.toast(`${doc.title} is published. Devices get it when they next sync.`);
       ctx.back();
     } catch (e) {
       // The draft stays on the device; publishing again picks up where this stopped.
@@ -670,7 +670,7 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; se
       {section('map').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />)}
       {canPickFiles ? <SmallBtn label="Add a map" icon="map" onPress={() => void add('map', 'image')} disabled={busy} /> : null}
       <Text style={txt.xs}>
-        {busy ? 'Keeping the file and making a phone copy…' : 'Pictures get a small copy for phones (500 pixels, JPEG). Films are kept as they are: no small phone copy is made yet, so phones get the full film.'}
+        {busy ? 'Keeping the file and making a small copy…' : 'Pictures get a small copy for phones and tablets (500 pixels, JPEG). Films are kept as they are: no small copy is made yet, so phones and tablets get the full film.'}
       </Text>
       <Text style={txt.xs}>Link one from a step with Link, or by writing its ref: [the well](#m1).</Text>
     </View>
@@ -699,8 +699,8 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
   const file = m.file.lowHash ? { hash: m.file.lowHash, format: m.kind === 'video' ? 'mp4' : 'jpg' } : m.file.hash ? { hash: m.file.hash, format: m.file.format ?? 'jpg' } : undefined;
   const { uri } = useStudyFileUri(props.ctx.language.orgId, m.kind === 'video' ? undefined : file, m.file.url);
   const patch = (p: Partial<Omit<DraftMedia, 'id'>>) => dispatch({ type: 'updateMedia', ref: r.ref, id: m.id, patch: p });
-  const status = m.kind === 'video' ? (m.file.lowHash ? 'Film · phone copy ready' : 'Film · phone copy not made yet')
-    : m.file.lowHash ? 'Picture · phone copy ready' : m.file.url ? 'Picture from a link' : 'Picture';
+  const status = m.kind === 'video' ? (m.file.lowHash ? 'Film · small copy ready' : 'Film · small copy not made yet')
+    : m.file.lowHash ? 'Picture · small copy ready' : m.file.url ? 'Picture from a link' : 'Picture';
   return (
     <View style={s.mediaItem}>
       <View style={s.thumb}>

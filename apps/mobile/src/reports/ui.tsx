@@ -246,7 +246,7 @@ export function Freshness(props: { updatedAt: string | null; now: number }) {
   if (!props.updatedAt) return null;
   return (
     <Text style={txt.xs}>
-      Figures as of {dateTime(props.updatedAt)} ({timeAgo(props.updatedAt, props.now)}). Work recorded offline appears after the phone syncs.
+      Figures as of {dateTime(props.updatedAt)} ({timeAgo(props.updatedAt, props.now)}). Work recorded offline appears after the device syncs.
     </Text>
   );
 }

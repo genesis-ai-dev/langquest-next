@@ -87,7 +87,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     try {
       await removeContent(target, 'Removed by a moderator');
       reportsChanged();
-      ctx.toast('Removed from the record. Phones stop showing it when they next sync.');
+      ctx.toast('Removed from the record. Devices stop showing it when they next sync.');
       props.onClose();
     } catch (e) {
       // Offline or refused: the server's answer says which.
@@ -179,7 +179,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       if (what === 'remove') await removeContent(target, 'Removed after a report');
       else await dismissReports(target);
       reportsChanged();
-      ctx.toast(what === 'remove' ? 'Removed from the record. Phones stop showing it when they next sync.' : 'Kept. The report is closed.');
+      ctx.toast(what === 'remove' ? 'Removed from the record. Devices stop showing it when they next sync.' : 'Kept. The report is closed.');
       props.onDone();
     } catch (e) {
       noteExpected(`report ${what}`, e);

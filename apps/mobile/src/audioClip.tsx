@@ -114,7 +114,7 @@ export function AudioClip(props: {
           }
           if (generation.current !== run || !wantsPlayback.current) return;
         }
-        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
+        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -156,7 +156,7 @@ export function AudioClip(props: {
         {props.seekControls ? <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this phone yet'}
+          label={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this device yet'}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
         {props.seekControls ? <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}

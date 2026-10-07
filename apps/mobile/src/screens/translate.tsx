@@ -66,7 +66,7 @@ export function Workspace(ctx: Ctx) {
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.ctx.back} close />}>
-      <EmptyState icon="mic" title={props.text ?? "This passage isn't on this phone yet."} sub={props.text ? undefined : 'It may still be loading.'} />
+      <EmptyState icon="mic" title={props.text ?? "This passage isn't on this device yet."} sub={props.text ? undefined : 'It may still be loading.'} />
     </Screen>
   );
 }
@@ -131,7 +131,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       return;
     }
     ctx.language.run(specs)
-      .catch((e: unknown) => setComposeError(`Your takes are saved on this phone but not yet in your draft. ${problemText('workspace: save draft', e)}`))
+      .catch((e: unknown) => setComposeError(`Your takes are saved on this device but not yet in your draft. ${problemText('workspace: save draft', e)}`))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
   }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me]);
@@ -292,7 +292,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : (
           <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel="Your recording">
             {problem}
-            <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
+            <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this device</Text>} />
             <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h)}
               empty={isFirst ? 'No takes yet — tap the red button below to start.' : 'No takes yet — tap the red button below to record this version.'} />
             {!isFirst && !changed && list.length > 0 ? (
@@ -483,7 +483,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
         bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={cards.length} noun="part" onResume={loop.resumeNow} /> : (
           <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Your ${produces.what}`}>
             {problem}
-            <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this phone</Text>} />
+            <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this device</Text>} />
             <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
               empty={drafts.loaded ? 'No parts yet — listen to a part, then tap the red button and say it in your own words.' : 'Loading your parts…'} />
           </ScrollView>

@@ -292,7 +292,7 @@ export function StatusHome(ctx: Ctx) {
           <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>
             {known.length === languages.length ? `Across ${plural(languages.length, 'language')}` : `${known.length} of ${plural(languages.length, 'language')} counted`} · {plural(total, 'passage')}
           </Text>
-          {asOf ? <Text style={txt.smMuted}>Languages not on this phone as of {timeAgo(asOf, Date.now())}</Text> : null}
+          {asOf ? <Text style={txt.smMuted}>Languages not on this device as of {timeAgo(asOf, Date.now())}</Text> : null}
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl }}>
             <View>
               <Text style={[styles.bigNumber, { color: C.primary }]}>{percent(recorded, total)}%</Text>
@@ -329,13 +329,13 @@ export function StatusHome(ctx: Ctx) {
         // Not open on this phone: opening it brings it down (decision 63).
         // The server's figures, when it has them, show what it holds meanwhile.
         <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)}
-          accessibilityLabel={l.progress ? `${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded, as of ${timeAgo(l.asOf!, Date.now())}. Not on this phone yet. Open it.` : `${l.name}. Not on this phone yet. Open it.`}>
+          accessibilityLabel={l.progress ? `${l.name}: ${fmt(l.progress.recorded)} of ${fmt(l.progress.total)} recorded, as of ${timeAgo(l.asOf!, Date.now())}. Not on this device yet. Open it.` : `${l.name}. Not on this device yet. Open it.`}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
               <Text style={txt.smMuted} numberOfLines={1}>
-                {l.progress ? `${plural(l.progress.total, 'passage')} · as of ${timeAgo(l.asOf!, Date.now())}` : 'Open it to bring it onto this phone'}
+                {l.progress ? `${plural(l.progress.total, 'passage')} · as of ${timeAgo(l.asOf!, Date.now())}` : 'Open it to bring it onto this device'}
               </Text>
             </View>
             {l.progress && l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
@@ -651,7 +651,7 @@ function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; o
   const parts = c.list.length;
   // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
-  const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this phone${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
+  const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this device${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
   const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;
   // The tone's icon goes with its colour, even beside "N parts" (never colour alone).
   const toneIcon = c.tone === 'done' ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} />
@@ -703,7 +703,7 @@ function Legend(props: { none: boolean }) {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Ico name="onPhone" size={16} color={onColor.green} />
-          <Text style={txt.smMuted}>On this phone offline</Text>
+          <Text style={txt.smMuted}>On this device offline</Text>
         </View>
       </View>
     </View>

@@ -98,7 +98,7 @@ const REASON: Record<NonNullable<UnitOffline['reason']>, string> = {
 
 /** Where one passage stands: on this phone, coming, or not kept; with the words for each. */
 function passageOfflineView(u: KeptOffline, offline: boolean, hasStudy: boolean) {
-  const notSent = u.notSent ? ` ${plural(u.notSent, 'recording')} ${u.notSent === 1 ? "hasn't" : "haven't"} been sent from the phone that made ${u.notSent === 1 ? 'it' : 'them'} yet.` : '';
+  const notSent = u.notSent ? ` ${plural(u.notSent, 'recording')} ${u.notSent === 1 ? "hasn't" : "haven't"} been sent from the device that made ${u.notSent === 1 ? 'it' : 'them'} yet.` : '';
   // The web app opens online only (decisions.md 58), so its study media stay on the web.
   const studyOnline = hasStudy && !STUDY_FILES_OFFLINE ? ' Study pictures and study audio need a connection in the web app.' : '';
   const here = u.here + u.studyHere;
@@ -106,8 +106,8 @@ function passageOfflineView(u: KeptOffline, offline: boolean, hasStudy: boolean)
   if (u.reason && u.ready) {
     const what = u.studyTotal ? 'Its text, audio and study pictures work' : u.audio ? 'Its text and audio work' : 'Its text works';
     return {
-      icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green, short: 'On this phone',
-      label: 'On this phone',
+      icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green, short: 'On this device',
+      label: 'On this device',
       sub: `${what} without a connection${u.audio || u.studyTotal ? '' : ', and new audio downloads as it arrives'}. ${REASON[u.reason]}${notSent}${studyOnline}`
     };
   }
@@ -115,16 +115,16 @@ function passageOfflineView(u: KeptOffline, offline: boolean, hasStudy: boolean)
     const left = u.bytesToFetch ? `, ${sizeText(u.bytesToFetch)} of audio to go` : '';
     return {
       icon: 'download' as IconName, tint: offline ? TINT.amberText : C.primary, bg: offline ? TINT.amber : C.light,
-      short: offline ? `Only ${here} of ${total} files on this phone` : `Downloading for offline · ${here} of ${total}`,
-      label: offline ? 'Not all of it is on this phone yet' : 'Downloading for offline',
+      short: offline ? `Only ${here} of ${total} files on this device` : `Downloading for offline · ${here} of ${total}`,
+      label: offline ? 'Not all of it is on this device yet' : 'Downloading for offline',
       sub: `${here} of ${total} ${u.studyTotal ? 'audio and study files' : 'audio files'} are here${left}. ${offline ? 'Connect to finish before you travel.' : 'Stay connected until this finishes.'} ${REASON[u.reason]}${notSent}${studyOnline}`
     };
   }
   const needs = hasStudy && STUDY_FILES_OFFLINE ? 'its audio and study pictures need' : 'its audio needs';
   return {
     icon: 'notOnPhone' as IconName, tint: TINT.amberText, bg: TINT.amber,
-    short: offline ? 'Audio not on this phone' : 'Not kept on this phone',
-    label: offline ? 'Audio not on this phone' : 'Not kept on this phone',
+    short: offline ? 'Audio not on this device' : 'Not kept on this device',
+    label: offline ? 'Audio not on this device' : 'Not kept on this device',
     sub: `${offline ? `You can read it and record, but ${needs} a connection.` : `Its text is here, but ${needs} a connection. Keep it offline to take it with you.`}${studyOnline}`
   };
 }
@@ -150,7 +150,7 @@ export function PassageOffline(props: { ctx: Ctx; unitId: string; hasStudy: bool
   const v = passageOfflineView(u, ctx.language.online === false, props.hasStudy);
   const keep = (on: boolean) => {
     void ctx.language.blobs.keepOffline(unitId, on);
-    ctx.toast(on ? 'Kept on this phone. It downloads while you are connected.' : 'No longer kept. Its audio may be removed to make room.');
+    ctx.toast(on ? 'Kept on this device. It downloads while you are connected.' : 'No longer kept. Its audio may be removed to make room.');
   };
   return (
     <Card accessibilityLabel={`${v.label}. ${v.sub}`}>
@@ -175,15 +175,15 @@ export function OfflineMark(props: { u: KeptOffline | undefined; corner?: boolea
 
 /** Words for a Map row's screen reader label. */
 export function offlineWords(u: KeptOffline | undefined): string {
-  if (!u?.reason) return 'Audio not kept on this phone';
-  return u.ready ? 'On this phone' : 'Downloading for offline';
+  if (!u?.reason) return 'Audio not kept on this device';
+  return u.ready ? 'On this device' : 'Downloading for offline';
 }
 
 /** Settings' one line. */
 export function offlineLine(s: OfflineOverview | null): string {
-  if (!s) return 'Checking this phone…';
+  if (!s) return 'Checking this device…';
   if (s.kept === 0) return 'No passages kept yet. Keep one from its page.';
-  if (s.ready === s.kept) return `${s.kept === 1 ? 'Your 1 kept passage is' : `All ${s.kept} kept passages are`} on this phone`;
+  if (s.ready === s.kept) return `${s.kept === 1 ? 'Your 1 kept passage is' : `All ${s.kept} kept passages are`} on this device`;
   const left = [s.bytesToFetch ? `${sizeText(s.bytesToFetch)} of audio` : '', s.studyToFetch ? plural(s.studyToFetch, 'study file') : ''].filter(Boolean).join(' and ');
   return `${s.ready} of ${plural(s.kept, 'kept passage')} ready${left ? ` · ${left} to download` : ''}`;
 }
@@ -203,7 +203,7 @@ export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
     <Card>
       <Block icon={head.icon} tint={head.tint} bg={head.bg} title="Ready for offline" body={`${offlineLine(s).replace(/\.$/, '')}.${finish}`} />
       {s && s.kept ? <ProgressBar value={(s.ready / s.kept) * 100} {...(ready ? { color: onColor.green } : {})} /> : null}
-      <Block icon="check" tint={onColor.green} bg={TINT.green} title="Always on this phone"
+      <Block icon="check" tint={onColor.green} bg={TINT.green} title="Always on this device"
         body={`Every passage's text, status and history in ${language}. Audio${STUDY_FILES_OFFLINE ? ', study pictures, maps and study audio' : ''} of passages you were asked to work on, have worked on, or chose to keep.`} />
       <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title="Needs a connection"
         body={[
@@ -213,7 +213,7 @@ export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
           'Other languages. Open one while connected to bring it up to date.'
         ].map((l) => `• ${l}`).join('\n')} />
       {s && s.notSent ? (
-        <Text style={txt.xs}>{plural(s.notSent, 'recording')} in your kept passages {s.notSent === 1 ? "hasn't" : "haven't"} been sent from the phone that made {s.notSent === 1 ? 'it' : 'them'} yet, so no phone can download {s.notSent === 1 ? 'it' : 'them'}.</Text>
+        <Text style={txt.xs}>{plural(s.notSent, 'recording')} in your kept passages {s.notSent === 1 ? "hasn't" : "haven't"} been sent from the device that made {s.notSent === 1 ? 'it' : 'them'} yet, so no device can download {s.notSent === 1 ? 'it' : 'them'}.</Text>
       ) : null}
     </Card>
   );

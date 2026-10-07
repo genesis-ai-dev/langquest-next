@@ -20958,91 +20958,7 @@ function emptyLanguageState() {
 // packages/core/src/libraryDocs.ts
 var LIBRARY_KINDS = ["template", "flow", "material", "versification"];
 
-// packages/core/src/library.ts
-var blank = { value: void 0, hlc: "", eventId: "" };
-function newItem() {
-  return {
-    kind: blank,
-    name: blank,
-    description: blank,
-    copiedFrom: { value: null, hlc: "", eventId: "" },
-    versions: {},
-    sharing: { value: { shared: false, subscribable: false }, hlc: "", eventId: "" },
-    archived: { value: false, hlc: "", eventId: "" },
-    subscription: { value: null, hlc: "", eventId: "" },
-    pinned: { value: null, hlc: "", eventId: "" }
-  };
-}
-var later2 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
-var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
-var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
-var LIBRARY_EVENT_TYPES = [
-  "v1.LibraryItemDefined",
-  "v1.LibraryVersionPublished",
-  "v1.LibrarySharingSet",
-  "v1.LibraryItemArchived",
-  "v1.LibrarySubscribed",
-  "v1.LibraryPinned"
-];
-function applyLibraryEvent(library, e) {
-  const p = e.payload;
-  const item = library[p.itemId] ??= newItem();
-  if (earlier(item.kind, e)) item.kind = reg(p.kind, e);
-  switch (e.type) {
-    case "v1.LibraryItemDefined": {
-      const d = p;
-      if (later2(item.name, e)) item.name = reg(d.name, e);
-      if (later2(item.description, e)) item.description = reg(d.description, e);
-      if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
-      break;
-    }
-    case "v1.LibraryVersionPublished": {
-      const d = p;
-      const prior = item.versions[d.docHash];
-      if (!prior || e.hlc < prior.hlc || e.hlc === prior.hlc && e.id < prior.eventId) {
-        item.versions[d.docHash] = { docHash: d.docHash, hlc: e.hlc, eventId: e.id, actorId: e.actorId, ...d.note ? { note: d.note } : {} };
-      }
-      break;
-    }
-    case "v1.LibrarySharingSet": {
-      const d = p;
-      if (later2(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
-      break;
-    }
-    case "v1.LibraryItemArchived":
-      if (later2(item.archived, e)) item.archived = reg(p.archived, e);
-      break;
-    case "v1.LibrarySubscribed": {
-      const d = p;
-      if (later2(item.subscription, e)) {
-        item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
-      }
-      break;
-    }
-    case "v1.LibraryPinned":
-      if (later2(item.pinned, e)) item.pinned = reg(p.docHash, e);
-      break;
-  }
-}
-
-// packages/core/src/license.ts
-var LICENSES = [
-  "all-rights-reserved",
-  "CC-BY-NC-ND-4.0",
-  "CC-BY-NC-SA-4.0",
-  "CC-BY-SA-4.0",
-  "CC-BY-4.0",
-  "CC0-1.0"
-];
-var DEFAULT_LICENSE = "all-rights-reserved";
-function isLicense(v) {
-  return typeof v === "string" && LICENSES.includes(v);
-}
-function licenseRank(license) {
-  return LICENSES.indexOf(license);
-}
-
-// packages/core/src/org.ts
+// packages/core/src/orgTerms.ts
 var ORG_STREAM = "_org";
 var PERSON_ORG = "_person";
 var PRIVILEGES = [
@@ -21063,228 +20979,22 @@ var PRIVILEGES = [
   "view_status"
 ];
 var TARGET_SCOPES = ["gospels", "nt", "ot", "bible"];
-var ORG_EVENT_TYPES = [
-  "v1.OrgCreated",
-  "v1.RoleDefined",
-  "v1.RoleRetired",
-  "v1.MemberAdded",
-  "v1.MemberRemoved",
-  "v1.InviteIssued",
-  "v1.InviteRedeemed",
-  "v1.JoinDecided",
-  "v1.LicenseSet",
-  "v1.LanguageAdded",
-  "v1.LanguageRenamed",
-  "v1.LanguageCountrySet",
-  "v1.LanguageTargetSet",
-  "v1.ReferenceRecommended",
-  ...LIBRARY_EVENT_TYPES
+
+// packages/core/src/license.ts
+var LICENSES = [
+  "all-rights-reserved",
+  "CC-BY-NC-ND-4.0",
+  "CC-BY-NC-SA-4.0",
+  "CC-BY-SA-4.0",
+  "CC-BY-4.0",
+  "CC0-1.0"
 ];
-var SEED_ROLES = [
-  { roleId: "org_admin", name: "Organization Admin", privileges: [...PRIVILEGES], fixed: "owner" },
-  {
-    roleId: "coordinator",
-    name: "Coordinator",
-    fixed: "coordinator",
-    privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
-  },
-  { roleId: "translator", name: "Translator", fixed: "translator", privileges: ["translate", "fill_reference", "send_to_reviewers", "view_status"] },
-  { roleId: "reviewer", name: "Reviewer", fixed: "reviewer", privileges: ["review", "view_status"] },
-  { roleId: "viewer", name: "Viewer", fixed: "viewer", privileges: ["view_status"] }
-];
-function effectiveRole(privs) {
-  if (privs.has("manage_roles")) return "owner";
-  if (privs.has("assign_work")) return "coordinator";
-  if (privs.has("translate")) return "translator";
-  if (privs.has("review")) return "reviewer";
-  if (privs.has("view_status")) return "viewer";
-  return null;
+var DEFAULT_LICENSE = "all-rights-reserved";
+function isLicense(v) {
+  return typeof v === "string" && LICENSES.includes(v);
 }
-function emptyOrgState() {
-  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {} };
-}
-function scopeKey(s) {
-  return s.level === "org" ? "org" : `language:${s.languageId}`;
-}
-var empty = { value: void 0, hlc: "", eventId: "" };
-function emptyInvite() {
-  return { roleId: "", scope: { level: "org" }, expiresAt: "", issuedBy: "", hlc: "", redeemedBy: null };
-}
-function loses(current, event) {
-  if (current.hlc !== event.hlc) return current.hlc > event.hlc;
-  return current.eventId > event.id;
-}
-function set(current, event, value) {
-  if (current && current.hlc !== "" && loses(current, event)) return current;
-  return { value, hlc: event.hlc, eventId: event.id };
-}
-function language(state, languageId) {
-  return state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null };
-}
-function applyOrgEvent(state, event) {
-  if (state.appliedEventIds[event.id]) return state;
-  state.appliedEventIds[event.id] = true;
-  const invalid = validateEvent(event);
-  if (invalid) {
-    state.invalidEvents[event.id] = invalid;
-    return state;
-  }
-  if (state.redactions[event.id]) return state;
-  switch (event.type) {
-    case "v1.OrgCreated":
-      state.org = set(state.org, event, event.payload);
-      break;
-    case "v1.RoleDefined": {
-      const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
-      r.name = set(r.name, event, event.payload.name);
-      r.privileges = set(r.privileges, event, [...event.payload.privileges].sort());
-      break;
-    }
-    case "v1.RoleRetired": {
-      const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
-      r.retired = true;
-      break;
-    }
-    case "v1.MemberAdded": {
-      const m = membership(state, event.payload.profileId, event.payload.scope);
-      m.roleId = set(m.roleId, event, event.payload.roleId);
-      m.removed = set(m.removed, event, false);
-      break;
-    }
-    case "v1.MemberRemoved": {
-      const m = membership(state, event.payload.profileId, event.payload.scope);
-      m.removed = set(m.removed, event, true);
-      break;
-    }
-    case "v1.InviteIssued": {
-      const { inviteId, roleId, scope: scope2, expiresAt: expiresAt2 } = event.payload;
-      const slot = state.invites[inviteId] ??= emptyInvite();
-      if (slot.hlc === "" || slot.hlc < event.hlc) {
-        slot.roleId = roleId;
-        slot.scope = { ...scope2 };
-        slot.expiresAt = expiresAt2;
-        slot.issuedBy = event.actorId;
-        slot.hlc = event.hlc;
-      }
-      break;
-    }
-    case "v1.InviteRedeemed": {
-      const { inviteId, profileId } = event.payload;
-      (state.invites[inviteId] ??= emptyInvite()).redeemedBy = profileId;
-      break;
-    }
-    case "v1.JoinDecided": {
-      const { requestId, profileId, accepted } = event.payload;
-      const prior = state.joinDecisions[requestId];
-      if (!prior || prior.hlc < event.hlc) {
-        state.joinDecisions[requestId] = { profileId, accepted, decidedBy: event.actorId, hlc: event.hlc };
-      }
-      break;
-    }
-    case "v1.LicenseSet": {
-      const prior = state.license;
-      const next = licenseRank(event.payload.license);
-      const was = prior ? licenseRank(prior.value) : -1;
-      if (!prior || next > was || next === was && (event.hlc < prior.hlc || event.hlc === prior.hlc && event.id < prior.eventId)) {
-        state.license = { value: event.payload.license, hlc: event.hlc, eventId: event.id };
-      }
-      break;
-    }
-    case "v1.LanguageAdded": {
-      const { languageId, name, code, sourceCode } = event.payload;
-      const l = language(state, languageId);
-      if (!l.added || event.hlc < l.added.hlc || event.hlc === l.added.hlc && event.id < l.added.eventId) {
-        l.added = { name, code, sourceCode, hlc: event.hlc, eventId: event.id };
-      }
-      break;
-    }
-    case "v1.LanguageRenamed": {
-      const l = language(state, event.payload.languageId);
-      l.renamed = set(l.renamed, event, event.payload.name);
-      break;
-    }
-    case "v1.LanguageCountrySet": {
-      const l = language(state, event.payload.languageId);
-      l.country = set(l.country, event, event.payload.country);
-      break;
-    }
-    case "v1.LanguageTargetSet": {
-      const { languageId, scope: scope2, startDate, targetDate } = event.payload;
-      const l = language(state, languageId);
-      l.target = set(l.target, event, { scope: scope2, startDate, targetDate });
-      break;
-    }
-    case "v1.ReferenceRecommended":
-      applyOrgRecommendation(state.recommendations, event);
-      break;
-    case "v1.Redacted":
-      state.redactions[event.payload.eventId] = true;
-      break;
-    case "v1.LibraryItemDefined":
-    case "v1.LibraryVersionPublished":
-    case "v1.LibrarySharingSet":
-    case "v1.LibraryItemArchived":
-    case "v1.LibrarySubscribed":
-    case "v1.LibraryPinned":
-      applyLibraryEvent(state.library, event);
-      break;
-    default:
-      break;
-  }
-  return state;
-}
-function membership(state, profileId, scope2) {
-  const byScope = state.members[profileId] ??= {};
-  return byScope[scopeKey(scope2)] ??= { roleId: empty, removed: empty, scope: { ...scope2 } };
-}
-function foldOrg(events, initial = emptyOrgState()) {
-  let state = initial;
-  const rest = [];
-  for (const event of events) {
-    if (event.type === "v1.Redacted") state = applyOrgEvent(state, event);
-    else rest.push(event);
-  }
-  for (const event of rest) state = applyOrgEvent(state, event);
-  return state;
-}
-function languageInfo(org, languageId) {
-  const l = org?.languages[languageId];
-  if (!l?.added) return null;
-  return {
-    languageId,
-    name: l.renamed?.value ?? l.added.name,
-    code: l.added.code,
-    sourceCode: l.added.sourceCode,
-    country: l.country?.value ?? null,
-    target: l.target?.value ?? null
-  };
-}
-function scopeCovers(scope2, languageId) {
-  return scope2.level === "org" || languageId !== void 0 && scope2.languageId === languageId;
-}
-function privilegesFor(state, profileId, languageId) {
-  const out = /* @__PURE__ */ new Set();
-  for (const m of Object.values(state.members[profileId] ?? {})) {
-    if (m.removed.value !== false) continue;
-    if (!scopeCovers(m.scope, languageId)) continue;
-    const role = state.roles[m.roleId.value];
-    if (!role || role.retired) continue;
-    for (const p of role.privileges.value ?? []) out.add(p);
-  }
-  return out;
-}
-function languagePeople(org, languageId) {
-  const out = /* @__PURE__ */ new Map();
-  if (!org) return out;
-  for (const profileId of Object.keys(org.members)) {
-    const privileges = privilegesFor(org, profileId, languageId);
-    const role = effectiveRole(privileges);
-    if (role) out.set(profileId, { profileId, privileges, role });
-  }
-  return out;
-}
-function orgLicense(state) {
-  return state?.license?.value ?? DEFAULT_LICENSE;
+function licenseRank(license) {
+  return LICENSES.indexOf(license);
 }
 
 // packages/core/src/validate.ts
@@ -21507,7 +21217,7 @@ function applyLanguageEvent(state, event) {
   switch (event.type) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
-      state.template = set2(state.template, event, { itemId, docHash, unitPrefix, ...books ? { books: [...books].sort() } : {} });
+      state.template = set(state.template, event, { itemId, docHash, unitPrefix, ...books ? { books: [...books].sort() } : {} });
       break;
     }
     case "v1.UnitAdded": {
@@ -21520,7 +21230,7 @@ function applyLanguageEvent(state, event) {
       break;
     case "v1.FlowSelected": {
       const { flowId, itemId, docHash, name } = event.payload;
-      state.flow = set2(state.flow, event, { flowId, ...itemId ? { itemId } : {}, ...docHash ? { docHash } : {}, ...name ? { name } : {} });
+      state.flow = set(state.flow, event, { flowId, ...itemId ? { itemId } : {}, ...docHash ? { docHash } : {}, ...name ? { name } : {} });
       break;
     }
     case "v1.FlowStepSet": {
@@ -21546,7 +21256,7 @@ function applyLanguageEvent(state, event) {
     case "v1.ReviewTeamDefined": {
       const { teamId, name } = event.payload;
       const team = state.teams[teamId] ??= emptyTeam();
-      if (team.name.hlc === "" || !loses2(team.name, event)) team.name = { value: name, hlc: event.hlc, eventId: event.id };
+      if (team.name.hlc === "" || !loses(team.name, event)) team.name = { value: name, hlc: event.hlc, eventId: event.id };
       break;
     }
     case "v1.ReviewTeamMemberSet": {
@@ -21556,7 +21266,7 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.ReviewTeamKindSet": {
       const team = state.teams[event.payload.teamId] ??= emptyTeam();
-      if (!team.kindId || !loses2(team.kindId, event)) team.kindId = { value: event.payload.kindId, hlc: event.hlc, eventId: event.id };
+      if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: event.payload.kindId, hlc: event.hlc, eventId: event.id };
       break;
     }
     case "v1.RecordingAdded": {
@@ -21665,7 +21375,7 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.MaterialLocked": {
       const m = material(state, event.payload.materialId);
-      if (m.locked.hlc === "" || !loses2(m.locked, event)) m.locked = { value: event.payload.locked, hlc: event.hlc, eventId: event.id };
+      if (m.locked.hlc === "" || !loses(m.locked, event)) m.locked = { value: event.payload.locked, hlc: event.hlc, eventId: event.id };
       break;
     }
     case "v1.KeyTermDefined": {
@@ -21779,15 +21489,15 @@ function keyTerm(state, termId) {
 }
 function lww(table, key, event, value) {
   const current = table[key];
-  if (current && loses2(current, event)) return;
+  if (current && loses(current, event)) return;
   table[key] = { value, hlc: event.hlc, eventId: event.id };
 }
-function loses2(current, event) {
+function loses(current, event) {
   if (current.hlc !== event.hlc) return current.hlc > event.hlc;
   return current.eventId > event.id;
 }
-function set2(current, event, value) {
-  if (current && loses2(current, event)) return current;
+function set(current, event, value) {
+  if (current && loses(current, event)) return current;
   return { value, hlc: event.hlc, eventId: event.id };
 }
 
@@ -22086,6 +21796,298 @@ function updatesFor(state, actorId, idx) {
     }
   }
   return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
+}
+
+// packages/core/src/library.ts
+var blank = { value: void 0, hlc: "", eventId: "" };
+function newItem() {
+  return {
+    kind: blank,
+    name: blank,
+    description: blank,
+    copiedFrom: { value: null, hlc: "", eventId: "" },
+    versions: {},
+    sharing: { value: { shared: false, subscribable: false }, hlc: "", eventId: "" },
+    archived: { value: false, hlc: "", eventId: "" },
+    subscription: { value: null, hlc: "", eventId: "" },
+    pinned: { value: null, hlc: "", eventId: "" }
+  };
+}
+var later2 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
+var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
+var LIBRARY_EVENT_TYPES = [
+  "v1.LibraryItemDefined",
+  "v1.LibraryVersionPublished",
+  "v1.LibrarySharingSet",
+  "v1.LibraryItemArchived",
+  "v1.LibrarySubscribed",
+  "v1.LibraryPinned"
+];
+function applyLibraryEvent(library, e) {
+  const p = e.payload;
+  const item = library[p.itemId] ??= newItem();
+  if (earlier(item.kind, e)) item.kind = reg(p.kind, e);
+  switch (e.type) {
+    case "v1.LibraryItemDefined": {
+      const d = p;
+      if (later2(item.name, e)) item.name = reg(d.name, e);
+      if (later2(item.description, e)) item.description = reg(d.description, e);
+      if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
+      break;
+    }
+    case "v1.LibraryVersionPublished": {
+      const d = p;
+      const prior = item.versions[d.docHash];
+      if (!prior || e.hlc < prior.hlc || e.hlc === prior.hlc && e.id < prior.eventId) {
+        item.versions[d.docHash] = { docHash: d.docHash, hlc: e.hlc, eventId: e.id, actorId: e.actorId, ...d.note ? { note: d.note } : {} };
+      }
+      break;
+    }
+    case "v1.LibrarySharingSet": {
+      const d = p;
+      if (later2(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
+      break;
+    }
+    case "v1.LibraryItemArchived":
+      if (later2(item.archived, e)) item.archived = reg(p.archived, e);
+      break;
+    case "v1.LibrarySubscribed": {
+      const d = p;
+      if (later2(item.subscription, e)) {
+        item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
+      }
+      break;
+    }
+    case "v1.LibraryPinned":
+      if (later2(item.pinned, e)) item.pinned = reg(p.docHash, e);
+      break;
+  }
+}
+
+// packages/core/src/org.ts
+var ORG_EVENT_TYPES = [
+  "v1.OrgCreated",
+  "v1.RoleDefined",
+  "v1.RoleRetired",
+  "v1.MemberAdded",
+  "v1.MemberRemoved",
+  "v1.InviteIssued",
+  "v1.InviteRedeemed",
+  "v1.JoinDecided",
+  "v1.LicenseSet",
+  "v1.LanguageAdded",
+  "v1.LanguageRenamed",
+  "v1.LanguageCountrySet",
+  "v1.LanguageTargetSet",
+  "v1.ReferenceRecommended",
+  ...LIBRARY_EVENT_TYPES
+];
+var SEED_ROLES = [
+  { roleId: "org_admin", name: "Organization Admin", privileges: [...PRIVILEGES], fixed: "owner" },
+  {
+    roleId: "coordinator",
+    name: "Coordinator",
+    fixed: "coordinator",
+    privileges: PRIVILEGES.filter((p) => p !== "manage_roles")
+  },
+  { roleId: "translator", name: "Translator", fixed: "translator", privileges: ["translate", "fill_reference", "send_to_reviewers", "view_status"] },
+  { roleId: "reviewer", name: "Reviewer", fixed: "reviewer", privileges: ["review", "view_status"] },
+  { roleId: "viewer", name: "Viewer", fixed: "viewer", privileges: ["view_status"] }
+];
+function effectiveRole(privs) {
+  if (privs.has("manage_roles")) return "owner";
+  if (privs.has("assign_work")) return "coordinator";
+  if (privs.has("translate")) return "translator";
+  if (privs.has("review")) return "reviewer";
+  if (privs.has("view_status")) return "viewer";
+  return null;
+}
+function emptyOrgState() {
+  return { org: null, roles: {}, members: {}, languages: {}, invites: {}, joinDecisions: {}, appliedEventIds: {}, invalidEvents: {}, redactions: {}, library: {}, license: null, recommendations: {} };
+}
+function scopeKey(s) {
+  return s.level === "org" ? "org" : `language:${s.languageId}`;
+}
+var empty = { value: void 0, hlc: "", eventId: "" };
+function emptyInvite() {
+  return { roleId: "", scope: { level: "org" }, expiresAt: "", issuedBy: "", hlc: "", redeemedBy: null };
+}
+function loses2(current, event) {
+  if (current.hlc !== event.hlc) return current.hlc > event.hlc;
+  return current.eventId > event.id;
+}
+function set2(current, event, value) {
+  if (current && current.hlc !== "" && loses2(current, event)) return current;
+  return { value, hlc: event.hlc, eventId: event.id };
+}
+function language(state, languageId) {
+  return state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null };
+}
+function applyOrgEvent(state, event) {
+  if (state.appliedEventIds[event.id]) return state;
+  state.appliedEventIds[event.id] = true;
+  const invalid = validateEvent(event);
+  if (invalid) {
+    state.invalidEvents[event.id] = invalid;
+    return state;
+  }
+  if (state.redactions[event.id]) return state;
+  switch (event.type) {
+    case "v1.OrgCreated":
+      state.org = set2(state.org, event, event.payload);
+      break;
+    case "v1.RoleDefined": {
+      const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
+      r.name = set2(r.name, event, event.payload.name);
+      r.privileges = set2(r.privileges, event, [...event.payload.privileges].sort());
+      break;
+    }
+    case "v1.RoleRetired": {
+      const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
+      r.retired = true;
+      break;
+    }
+    case "v1.MemberAdded": {
+      const m = membership(state, event.payload.profileId, event.payload.scope);
+      m.roleId = set2(m.roleId, event, event.payload.roleId);
+      m.removed = set2(m.removed, event, false);
+      break;
+    }
+    case "v1.MemberRemoved": {
+      const m = membership(state, event.payload.profileId, event.payload.scope);
+      m.removed = set2(m.removed, event, true);
+      break;
+    }
+    case "v1.InviteIssued": {
+      const { inviteId, roleId, scope: scope2, expiresAt: expiresAt2 } = event.payload;
+      const slot = state.invites[inviteId] ??= emptyInvite();
+      if (slot.hlc === "" || slot.hlc < event.hlc) {
+        slot.roleId = roleId;
+        slot.scope = { ...scope2 };
+        slot.expiresAt = expiresAt2;
+        slot.issuedBy = event.actorId;
+        slot.hlc = event.hlc;
+      }
+      break;
+    }
+    case "v1.InviteRedeemed": {
+      const { inviteId, profileId } = event.payload;
+      (state.invites[inviteId] ??= emptyInvite()).redeemedBy = profileId;
+      break;
+    }
+    case "v1.JoinDecided": {
+      const { requestId, profileId, accepted } = event.payload;
+      const prior = state.joinDecisions[requestId];
+      if (!prior || prior.hlc < event.hlc) {
+        state.joinDecisions[requestId] = { profileId, accepted, decidedBy: event.actorId, hlc: event.hlc };
+      }
+      break;
+    }
+    case "v1.LicenseSet": {
+      const prior = state.license;
+      const next = licenseRank(event.payload.license);
+      const was = prior ? licenseRank(prior.value) : -1;
+      if (!prior || next > was || next === was && (event.hlc < prior.hlc || event.hlc === prior.hlc && event.id < prior.eventId)) {
+        state.license = { value: event.payload.license, hlc: event.hlc, eventId: event.id };
+      }
+      break;
+    }
+    case "v1.LanguageAdded": {
+      const { languageId, name, code, sourceCode } = event.payload;
+      const l = language(state, languageId);
+      if (!l.added || event.hlc < l.added.hlc || event.hlc === l.added.hlc && event.id < l.added.eventId) {
+        l.added = { name, code, sourceCode, hlc: event.hlc, eventId: event.id };
+      }
+      break;
+    }
+    case "v1.LanguageRenamed": {
+      const l = language(state, event.payload.languageId);
+      l.renamed = set2(l.renamed, event, event.payload.name);
+      break;
+    }
+    case "v1.LanguageCountrySet": {
+      const l = language(state, event.payload.languageId);
+      l.country = set2(l.country, event, event.payload.country);
+      break;
+    }
+    case "v1.LanguageTargetSet": {
+      const { languageId, scope: scope2, startDate, targetDate } = event.payload;
+      const l = language(state, languageId);
+      l.target = set2(l.target, event, { scope: scope2, startDate, targetDate });
+      break;
+    }
+    case "v1.ReferenceRecommended":
+      applyOrgRecommendation(state.recommendations, event);
+      break;
+    case "v1.Redacted":
+      state.redactions[event.payload.eventId] = true;
+      break;
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
+      applyLibraryEvent(state.library, event);
+      break;
+    default:
+      break;
+  }
+  return state;
+}
+function membership(state, profileId, scope2) {
+  const byScope = state.members[profileId] ??= {};
+  return byScope[scopeKey(scope2)] ??= { roleId: empty, removed: empty, scope: { ...scope2 } };
+}
+function foldOrg(events, initial = emptyOrgState()) {
+  let state = initial;
+  const rest = [];
+  for (const event of events) {
+    if (event.type === "v1.Redacted") state = applyOrgEvent(state, event);
+    else rest.push(event);
+  }
+  for (const event of rest) state = applyOrgEvent(state, event);
+  return state;
+}
+function languageInfo(org, languageId) {
+  const l = org?.languages[languageId];
+  if (!l?.added) return null;
+  return {
+    languageId,
+    name: l.renamed?.value ?? l.added.name,
+    code: l.added.code,
+    sourceCode: l.added.sourceCode,
+    country: l.country?.value ?? null,
+    target: l.target?.value ?? null
+  };
+}
+function scopeCovers(scope2, languageId) {
+  return scope2.level === "org" || languageId !== void 0 && scope2.languageId === languageId;
+}
+function privilegesFor(state, profileId, languageId) {
+  const out = /* @__PURE__ */ new Set();
+  for (const m of Object.values(state.members[profileId] ?? {})) {
+    if (m.removed.value !== false) continue;
+    if (!scopeCovers(m.scope, languageId)) continue;
+    const role = state.roles[m.roleId.value];
+    if (!role || role.retired) continue;
+    for (const p of role.privileges.value ?? []) out.add(p);
+  }
+  return out;
+}
+function languagePeople(org, languageId) {
+  const out = /* @__PURE__ */ new Map();
+  if (!org) return out;
+  for (const profileId of Object.keys(org.members)) {
+    const privileges = privilegesFor(org, profileId, languageId);
+    const role = effectiveRole(privileges);
+    if (role) out.set(profileId, { profileId, privileges, role });
+  }
+  return out;
+}
+function orgLicense(state) {
+  return state?.license?.value ?? DEFAULT_LICENSE;
 }
 
 // packages/core/src/version.ts

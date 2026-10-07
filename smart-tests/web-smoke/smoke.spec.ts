@@ -136,7 +136,7 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await button(page, 'Record a take').click();
     await page.waitForTimeout(5_000);
     await page.getByRole('button', { name: 'Stop recording', exact: true }).locator('visible=true').last().click({ force: true });
-    await expect(page.getByText(/1 takes? · saved on this phone/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/1 takes? · saved on this device/)).toBeVisible({ timeout: 30_000 });
     const [hash] = await settle(() => deviceBlobs(page), (b) => b.length > 0, 20_000);
     expect(hash, 'the take is in the browser\'s files').toBeTruthy();
     await page.reload({ waitUntil: 'networkidle' });

@@ -200,7 +200,7 @@ export function SourceView(props: SourceReaderProps & {
             <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>
               {player.loading ? 'Loading…' : player.playing ? (player.current ? `Playing ${player.current.key}` : 'Playing') : player.started ? 'Paused' : 'Play passage'}
             </Text>
-            <Text style={txt.xs} numberOfLines={1}>{abbr}{src?.chapters.some((c) => c.local) ? ' · on this phone' : ''}</Text>
+            <Text style={txt.xs} numberOfLines={1}>{abbr}{src?.chapters.some((c) => c.local) ? ' · on this device' : ''}</Text>
           </View>
         </View>
       ) : (

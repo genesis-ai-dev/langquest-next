@@ -162,7 +162,7 @@ export const textKey = (filesetId: string, book: string, chapter: number) => `te
 export function bibleErrorText(e: unknown): string {
   if (e instanceof BibleError) {
     switch (e.kind) {
-      case 'offline': return "You're offline, and this isn't on the phone yet.";
+      case 'offline': return "You're offline, and this isn't on this device yet.";
       case 'unavailable': return "Bible Brain isn't available on this server yet.";
       case 'not_found': return 'Not in this Bible.';
       case 'signed_out': return 'Sign in again to reach Bible Brain.';

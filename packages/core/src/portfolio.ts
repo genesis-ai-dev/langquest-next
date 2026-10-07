@@ -497,16 +497,16 @@ export function alertsFor(rows: LanguageRow[], asOf: string, now: number): Alert
     const cards = stuck.reduce((k, r) => k + r.report.alerts.stuckCards, 0);
     const serious = stuck.some((r) => r.report.alerts.stuckPassages >= 25 || (r.report.alerts.stuckSince !== null && now - Date.parse(r.report.alerts.stuckSince) > 30 * DAY_MS));
     out.push({
-      id: 'stuck', level: serious ? 'attention' : 'look', title: 'Recorded audio stuck on phones',
-      body: `${plural(cards, 'recording')} ${verb(cards, 'was', 'were')} made more than two weeks ago and have not reached the server. Until they upload, the phone holds the only copy: a lost, reset or reinstalled phone loses them.`,
-      action: 'Ask the team not to reinstall or clear the app, and to get the phone onto a reliable connection with LangQuest open.', rows: stuck
+      id: 'stuck', level: serious ? 'attention' : 'look', title: 'Recorded audio stuck on devices',
+      body: `${plural(cards, 'recording')} ${verb(cards, 'was', 'were')} made more than two weeks ago and have not reached the server. Until they upload, the device holds the only copy: a lost, reset or reinstalled device loses them.`,
+      action: 'Ask the team not to reinstall or clear the app, and to get their devices onto a reliable connection with LangQuest open.', rows: stuck
     });
   }
   const invalid = rows.filter((r) => r.report.alerts.invalidCards > 0);
   if (invalid.length) {
     out.push({
       id: 'invalid', level: 'attention', title: 'Uploaded audio failed its integrity check',
-      body: `${plural(invalid.reduce((k, r) => k + r.report.alerts.invalidCards, 0), 'recording')} on the server did not match their fingerprint and were removed. The phones that recorded them will upload them again if they still have them.`,
+      body: `${plural(invalid.reduce((k, r) => k + r.report.alerts.invalidCards, 0), 'recording')} on the server did not match their fingerprint and were removed. The devices that recorded them will upload them again if they still have them.`,
       action: 'Ask those teams to open LangQuest on a good connection; if it recurs, report it to the LangQuest team.', rows: invalid
     });
   }

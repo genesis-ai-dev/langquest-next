@@ -4,7 +4,7 @@
  */
 
 export async function requestPushToken(): Promise<string> {
-  throw new Error('Notifications work in the phone app.');
+  throw new Error('Notifications work in the app on a phone or tablet.');
 }
 
 export function onNotificationOpened(_open: () => void): () => void {

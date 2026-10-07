@@ -236,7 +236,7 @@ export function ExploreHome(ctx: Ctx) {
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
         noteExpected('explore refresh', e);
-        if (active) setMessage('Unable to refresh. Showing what was saved on this phone.');
+        if (active) setMessage('Unable to refresh. Showing what was saved on this device.');
       }
     })();
     return () => { active = false; };
@@ -548,10 +548,10 @@ export function ScanQr(ctx: Ctx) {
           {dead ? <Banner icon="flag" tone="amber" title="This invite can't be used" body={dead} /> : null}
           {alreadyIn ? <Banner icon="check" tone="green" title="You're already in" body="This invite was used by this account." /> : null}
           {invite.status.kind === 'waiting' ? (
-            <Banner icon="cloud" title="Saved on this phone" body="You'll join as soon as there's a connection. You can leave this screen." />
+            <Banner icon="cloud" title="Saved on this device" body="You'll join as soon as there's a connection. You can leave this screen." />
           ) : null}
           {guest && claimedHere && !joining ? (
-            <Text style={txt.xs}>Saved on this phone: you'll join as soon as you sign in.</Text>
+            <Text style={txt.xs}>Saved on this device: you'll join as soon as you sign in.</Text>
           ) : null}
           {guest && held && !dead && !alreadyIn ? (
             <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
@@ -601,7 +601,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
         await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
         await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
       }
-      ctx.toast(help.oldPhoneSignedOut ? 'Signed in. Your old phone is signed out.'
+      ctx.toast(help.oldPhoneSignedOut ? 'Signed in. Your old device is signed out.'
         : help.helper ? `Signed in with ${help.helper}'s help` : 'Signed in');
     } catch (e) {
       noteExpected('sign-in code', e);
@@ -612,7 +612,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   }
   return (
     <>
-      <Banner icon="lock" title="Someone is helping you sign in" body="Nothing to type: this signs you in on this phone, with all your work." />
+      <Banner icon="lock" title="Someone is helping you sign in" body="Nothing to type: this signs you in on this device, with all your work." />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <PrimaryBtn label={busy ? 'Signing in…' : 'Sign in'} icon="check" busy={busy} disabled={busy} onPress={() => void go()} />
       <LinkBtn label="Cancel" color={C.muted} onPress={props.onCancel} style={{ alignSelf: 'center' }} />
@@ -670,7 +670,7 @@ export function IntentChooser(ctx: Ctx) {
             <Text style={txt.body}>
               {waiting.status === 'sent'
                 ? "An admin will give you a role. Once they do, sign in again and you'll land on your work."
-                : 'Your request is saved on this phone and sends when you have a connection.'}
+                : 'Your request is saved on this device and sends when you have a connection.'}
             </Text>
             <Text style={txt.smMuted}>There's nothing else you need to do.</Text>
           </View>
@@ -814,7 +814,7 @@ export function RequestAccess(ctx: Ctx) {
           title={failed ? 'Request not sent' : `Waiting for ${label}`}
           sub={failed ? request?.error ?? 'The organization could not take the request.'
             : request?.status === 'sent' ? `Your request to join ${label} is on its way. An admin will review it.`
-            : 'Saved on this phone. It sends when you have a connection.'} />
+            : 'Saved on this device. It sends when you have a connection.'} />
       </Screen>
     );
   }

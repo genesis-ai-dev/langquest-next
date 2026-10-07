@@ -133,7 +133,7 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
       setStatus({ kind: 'idle' });
       if (e instanceof FunctionError && e.needsName) return { message, needsName: true };
       return { message: /fetch|network|failed to send|timed? ?out/i.test(message)
-        ? 'Joining needs a connection. Your invite is saved on this phone.'
+        ? 'Joining needs a connection. Your invite is saved on this device.'
         : message };
     }
   }, [held]);

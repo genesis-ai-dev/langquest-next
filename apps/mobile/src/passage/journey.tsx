@@ -106,7 +106,7 @@ export function Journey(props: {
         ) : (
           <View style={{ paddingTop: space.xs, gap: 2 }}>
             <Text style={[txt.body, { fontWeight: '700' }]}>Recording</Text>
-            <Text style={txt.xs}>{p.drafting ? 'Takes on the phone, not published yet' : 'Not recorded yet'}</Text>
+            <Text style={txt.xs}>{p.drafting ? 'Takes recorded, not published yet' : 'Not recorded yet'}</Text>
           </View>
         )}
         {!p.recorded ? <View style={{ marginTop: space.md }}>{props.nextSlot}</View> : null}

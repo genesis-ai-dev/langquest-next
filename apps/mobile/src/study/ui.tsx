@@ -364,8 +364,8 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
         </View>
       ))}
       <Text style={txt.xs}>
-        Low-resolution copies, sized for phones with little data.{items.some((i) => i.kind === 'map' && i.url) ? ' Tap the map to open it full size.' : ''}
-        {items.some((i) => i.noPhoneCopy) ? ' This film has no small phone copy yet.' : ''}
+        Low-resolution copies, to save data.{items.some((i) => i.kind === 'map' && i.url) ? ' Tap the map to open it full size.' : ''}
+        {items.some((i) => i.noPhoneCopy) ? ' This film has no small copy yet.' : ''}
       </Text>
     </Sheet>
   );

@@ -101,11 +101,11 @@ export function useLibrary(ctx: Ctx) {
     if (!state || !hash) throw new CommandError('That item has no version to use yet.');
     const docs = await loadDocs(orgId, [hash]);
     const doc = docs.get(hash);
-    if (!doc) throw new CommandError('Its document is not on this phone yet. Try again when connected.');
+    if (!doc) throw new CommandError('Its document is not on this device yet. Try again when connected.');
     const commandId = Crypto.randomUUID();
     if (doc.format === 'template@1') {
       const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
-      if (doc.bible && !v11n) throw new CommandError('Its versification is not on this phone yet. Try again when connected.');
+      if (doc.bible && !v11n) throw new CommandError('Its versification is not on this device yet. Try again when connected.');
       return selectTemplateSpecs(state, { commandId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}) });
     }
     if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, itemId, docHash: hash, doc: doc as FlowDoc });

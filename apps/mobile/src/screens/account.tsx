@@ -377,8 +377,8 @@ export function SettingsHome(ctx: Ctx) {
   const syncSub = p.refused ? 'This account cannot sync this organization'
     : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
     : p.live ? 'Live: changes arrive as they happen'
-    : p.online === false ? 'Offline: work is kept on this phone'
-    : p.lastSync ? `Last synced ${p.lastSync}` : 'Everything is saved on this phone';
+    : p.online === false ? 'Offline: work is kept on this device'
+    : p.lastSync ? `Last synced ${p.lastSync}` : 'Everything is saved on this device';
   // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
   const orgs = useOrganizations(s.actorId).rows;
   const canSwitch = orgs === null || orgs.length > 1;
@@ -406,9 +406,9 @@ export function SettingsHome(ctx: Ctx) {
         </View>
         {s.isManaged ? (
           <View style={{ gap: 2 }}>
-            <Text style={txt.xs}>New phone? {inviter ?? 'The person who invited you'} or an admin can help you sign in.</Text>
+            <Text style={txt.xs}>New device? {inviter ?? 'The person who invited you'} or an admin can help you sign in.</Text>
             {help ? (
-              <Text style={txt.xs}>Signed in on this phone with {help.helper ? `${help.helper}'s` : 'someone\'s'} help · {new Date(help.at).toLocaleDateString()}</Text>
+              <Text style={txt.xs}>Signed in on this device with {help.helper ? `${help.helper}'s` : 'someone\'s'} help · {new Date(help.at).toLocaleDateString()}</Text>
             ) : null}
           </View>
         ) : null}
@@ -418,7 +418,7 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
         {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
         {s.isManaged && hasPassword === false ? (
-          <Row icon="lock" label="Set a password" sub="If other people use this phone" onPress={() => ctx.go('profile_edit')} />
+          <Row icon="lock" label="Set a password" sub="If other people use this device" onPress={() => ctx.go('profile_edit')} />
         ) : null}
         {/* No push on the web yet: requests and feedback still reach the Inbox there. */}
         {Platform.OS !== 'web' ? (
@@ -607,12 +607,12 @@ export function ProfileEdit(ctx: Ctx) {
           <Text style={txt.xs}>
             {password || hasPassword
               ? `You sign in with ${handle ?? 'your sign-in name'} and this password. Write the name down.`
-              : 'Set one if other people use this phone, so you can sign back in after they do.'}
+              : 'Set one if other people use this device, so you can sign back in after they do.'}
           </Text>
         </View>
       ) : null}
       {pending?.status === 'failed' ? <Banner icon="flag" tone="amber" title="Your last change was not accepted" body={pending.error} /> : null}
-      {pending?.status === 'queued' ? <Banner icon="cloud" title="Saved on this phone" body="It sends when you are connected." /> : null}
+      {pending?.status === 'queued' ? <Banner icon="cloud" title="Saved on this device" body="It sends when you are connected." /> : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -699,13 +699,13 @@ export function SignOutConfirm(ctx: Ctx) {
   const blocked = waiting.length > 0 && !handsOver;
   const helpLine = `To sign back in, you'll need a code from ${inviter ?? 'the person who invited you'} or an admin.`;
   const why = handsOver
-    ? `Still to send: ${waiting.join(', ')}. All of it will still be sent, as you, when this phone is online.${needsHelp ? ` ${helpLine}` : ''}`
+    ? `Still to send: ${waiting.join(', ')}. All of it will still be sent, as you, when this device is online.${needsHelp ? ` ${helpLine}` : ''}`
     : blocked
-      ? `Still to send: ${waiting.join(', ')}${online === false ? '. This phone is offline' : ''}. Sign out once they have synced so they are not stranded here.`
+      ? `Still to send: ${waiting.join(', ')}${online === false ? '. This device is offline' : ''}. Sign out once they have synced so they are not stranded here.`
       : refused
-        ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this phone.'
+        ? 'This account cannot sync this organization: the server refused it. Signing out is safe; anything queued stays on this device.'
         : needsHelp
-          ? `${helpLine} If other people use this phone, set a password in Edit Profile first.`
+          ? `${helpLine} If other people use this device, set a password in Edit Profile first.`
           : FORGETS_ON_SIGN_OUT
             ? 'You can sign back in anytime. This browser forgets everything it kept for you, so the next person here sees none of it.'
             : 'You can sign back in anytime.';
@@ -836,7 +836,7 @@ export function SyncStatus(ctx: Ctx) {
     <Screen header={<Header title="Sync" onBack={ctx.back} />}
       footer={<PrimaryBtn label={busy ? 'Syncing…' : 'Sync now'} icon="restart" onPress={() => void syncNow()} disabled={language.tooOld || busy} />}>
       <Banner icon="cloud" tone={language.live ? 'green' : offline ? 'amber' : 'brand'}
-        title={language.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this phone' : 'Checking for changes now and then'}
+        title={language.live ? 'Live: changes arrive as they happen' : offline ? 'Offline: work is kept on this device' : 'Checking for changes now and then'}
         body={language.refused ?? (language.tooOld ? 'Update the app to sync.' : undefined)} />
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
@@ -868,7 +868,7 @@ export function SyncStatus(ctx: Ctx) {
           </Group>
         </>
       ) : null}
-      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? `${ins.total.toLocaleString('en-US')} events on this phone` : ''}</Text>
+      <Text style={[txt.xs, { textAlign: 'center' }]}>{ins ? `${ins.total.toLocaleString('en-US')} events on this device` : ''}</Text>
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
       </Text>
