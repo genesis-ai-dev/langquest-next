@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/client';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/client';
 import {
   applyLanguageEvent, commands, deriveFlow, deriveKinds, derivePassage, encodeHlc, languagePassages, ORG_STREAM, unitPlace,
   type AnyEvent, type EventSpec, type LanguageState
@@ -13,12 +13,13 @@ import { HISTORY_PROFILES, planHistory, seeded, silentWav, uploadedAt } from './
  * `npm run sample:org -- --history`: months of recording and review behind
  * each sample language, so every page of the web dashboard has something to
  * show (decisions 41 and 43). Local only, and for one reason: a real upload
- * is confirmed by the storage trigger at the moment it lands, and the
- * dashboard needs uploads from weeks ago. So the script writes each
+ * is confirmed by the Worker at the moment it lands (decisions.md 69), and
+ * the dashboard needs uploads from weeks ago. So the script writes each
  * `v1.BlobStored` itself, back-dated, straight into the local database
- * through Docker, then uploads the real (silent) audio; the trigger sees
- * the confirmation already there and adds nothing. No hosted database has
- * a way to do that, on purpose.
+ * through Docker, then uploads the real (silent) audio through the local
+ * Worker (`npm run web:dev`, or API_URL); its record_blob finds the
+ * confirmation already there and adds nothing. No hosted database has a
+ * way to do that, on purpose.
  *
  * Everything else goes through append_events as the sample admin, each
  * event stamped with when it "happened", so the server validates and
@@ -153,9 +154,9 @@ export async function addHistory(c: Ctx): Promise<void> {
   }
 
   if (blobs.length) {
-    // Back-dated confirmations first, written exactly as _append_event_as writes the storage
-    // trigger's (the same id, with the size, so the trigger finds it and adds nothing; the same seq
-    // counter and clock shape), only with the time the audio "arrived"…
+    // Back-dated confirmations first, written exactly as _append_event_as writes record_blob's
+    // (the same id, with the size, so the Worker's confirmation finds it and adds nothing; the same
+    // seq counter and clock shape), only with the time the audio "arrived"…
     const rows = blobs.map((b) => `('blob:${c.orgId}:${b.languageId}:${b.hash}:${b.bytes.byteLength}', '${c.orgId}', '${b.languageId}', ${Math.floor(b.at)}::bigint, '{"hash":"${b.hash}","size":${b.bytes.byteLength}}')`);
     psql(`do $$ declare r record; v_seq bigint; begin
   for r in select * from (values ${rows.join(',\n')}) as t(id, org, stream, ms, payload) loop
@@ -167,16 +168,16 @@ export async function addHistory(c: Ctx): Promise<void> {
   end loop;
 end $$;`);
     // …then the audio itself, so a phone that opens the sample can play it.
+    const token = (await c.sb.auth.getSession()).data.session?.access_token;
+    if (!token) throw new Error('the sample admin has no session');
+    const files = workerBlobs(process.env['API_URL'] ?? 'http://127.0.0.1:8787', token);
     for (let i = 0; i < blobs.length; i += 8) {
-      await Promise.all(blobs.slice(i, i + 8).map(async (b) => {
-        const { error } = await c.sb.storage.from('blobs').upload(`${c.orgId}/${b.languageId}/${b.hash}.wav`, b.bytes, { contentType: 'audio/wav', upsert: true });
-        if (error) throw new Error(`upload ${b.hash}: ${error.message}`);
-      }));
+      await Promise.all(blobs.slice(i, i + 8).map((b) => files.put(blobKey(c.orgId, b.languageId, b.hash, 'wav'), b.bytes)));
     }
     const confirmed = await c.service.from('events').select('id', { count: 'exact', head: true }).eq('org_id', c.orgId).eq('type', 'v1.BlobStored');
-    // One confirmation per file: a second means the trigger did not recognise ours and stamped "now".
+    // One confirmation per file: a second means record_blob did not recognise ours and stamped "now".
     if ((confirmed.count ?? 0) > blobs.length) {
-      throw new Error(`${confirmed.count} upload confirmations for ${blobs.length} files: the storage trigger's event id has changed; update sample-history.ts to match _append_event_as`);
+      throw new Error(`${confirmed.count} upload confirmations for ${blobs.length} files: record_blob's event id has changed; update sample-history.ts to match _append_event_as`);
     }
     console.log(`${blobs.length} recordings uploaded, confirmed as of when they were made`);
   }

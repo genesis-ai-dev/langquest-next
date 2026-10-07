@@ -6,8 +6,8 @@ import { FakeServer } from './fakeServer';
 
 /**
  * The reconciler is the server's own check on the bucket, independent of the
- * storage trigger: every object gets a confirmation even if the trigger
- * never fired, and bytes that do not match their name are invalidated.
+ * Worker's confirmation: every object gets one even if it was never
+ * recorded, and bytes that do not match their name are invalidated.
  */
 async function language(server: FakeServer) {
   const wall = { t: 0 };

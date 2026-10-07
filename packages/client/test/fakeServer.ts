@@ -75,7 +75,7 @@ export class FakeServer {
     };
   }
 
-  /** Append a server-issued event (what the storage trigger and reconciler do). */
+  /** Append a server-issued event (what the Worker and the reconciler do). */
   serviceEvent(type: 'v1.BlobStored' | 'v1.BlobInvalidated', payload: { hash: string; size?: number; reason?: string }): void {
     const seq = (this.seqs.get('org1/p1') ?? 0) + 1;
     this.seqs.set('org1/p1', seq);

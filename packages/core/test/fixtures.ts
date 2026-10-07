@@ -41,7 +41,7 @@ export function buildFixture(): AnyEvent[] {
 
   emit('dA', 'lead', 'v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Luke', order: 'a0' });
   emit('dA', 'lead', 'v1.UnitAdded', { unitId: 'luke1', parentUnitId: 'luke', kind: 'passage', label: 'Luke 1:1-4', order: 'a0' });
-  // The storage trigger confirms c1 after it lands (server actor). An earlier
+  // The Worker confirms c1 after it lands (server actor). An earlier
   // corrupt upload of c1 was invalidated by the reconciler; the later
   // confirmation wins.
   emit('storage', 'service', 'v1.BlobInvalidated', { hash: 'c1', reason: 'hash mismatch' });

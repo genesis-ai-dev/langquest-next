@@ -56,8 +56,9 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    */
   'v1.TakeSubmitted': { takeId: string; questionSetIds?: string[] };
   /**
-   * Server-only. Appended by the storage trigger when a blob lands, so every
-   * device learns a card is safely stored through the normal pull. Clients
+   * Server-only. Appended by the app's Worker when a blob lands in R2
+   * (decisions.md 69), so every device learns a card is safely stored
+   * through the normal pull. Clients
    * cannot emit it (append_events refuses it), which is what makes it the
    * confirmation of record (PLAN.md section 14).
    */

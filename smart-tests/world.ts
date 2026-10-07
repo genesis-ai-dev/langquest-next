@@ -9,11 +9,13 @@ import {
   applyOrgEvent, emptyOrgState, flowTemplate, foldOrg, instantiateFlow, instantiateQuestionSet, ORG_STREAM, REDUCER_VERSION, SEED_ROLES,
   type EventPayloads, type EventType, type OrgState
 } from '@langquest-next/core';
-import { MemoryStore, SupabaseTransport, SyncClient, type Materializer } from '@langquest-next/client';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/client';
 import { VOICE_WAV } from './fixtures/voice';
 
 const SUPABASE_URL = process.env['EXPO_PUBLIC_SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const ANON = process.env['EXPO_PUBLIC_SUPABASE_ANON_KEY'] ?? '';
+/** The local Worker, which keeps the audio (decisions.md 69); env.sh points the app at it too. */
+const API_URL = process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:8787';
 
 /** Same fold as apps/mobile/src/useOrg.ts (which imports Expo, so it cannot load here). */
 const ORG_MATERIALIZER: Materializer<OrgState> = {
@@ -138,7 +140,7 @@ async function firstRunDone(who: Person) {
  * The translator world plus a reviewer asked to review passages[0] for the
  * first step's kind, the community questions as a question set, and the
  * translator's Version 1 of that passage submitted with its audio uploaded
- * exactly as the app uploads it (so the storage trigger confirms it).
+ * exactly as the app uploads it (so the Worker confirms it).
  * With `feedback`, the reviewer has already asked for changes on it.
  */
 export async function seedSubmittedWorld(options: {
@@ -163,9 +165,7 @@ export async function seedSubmittedWorld(options: {
   // The same bytes Chrome plays as the microphone, stored where the app stores a take.
   const bytes = readFileSync(VOICE_WAV);
   const hash = createHash('sha256').update(bytes).digest('hex');
-  const { error: uploadError } = await translator.sb.storage.from('blobs')
-    .upload(`${orgId}/${languageId}/${hash}.wav`, bytes, { contentType: 'audio/wav', upsert: true });
-  if (uploadError) throw new Error(`seed audio upload: ${uploadError.message}`);
+  await workerBlobs(API_URL, translator.session.access_token).put(blobKey(orgId, languageId, hash, 'wav'), bytes);
 
   // What core's publishVersion appends for a first version.
   const publish = (passage: string, takeId: string) => [
@@ -207,9 +207,7 @@ export async function seedStudyWorld(): Promise<StudyWorld> {
   const { orgId, languageId, owner } = world;
   const bytes = readFileSync(VOICE_WAV);
   const audioHash = createHash('sha256').update(bytes).digest('hex');
-  const { error } = await owner.sb.storage.from('blobs')
-    .upload(`${orgId}/${languageId}/${audioHash}.m4a`, bytes, { contentType: 'audio/wav', upsert: true });
-  if (error) throw new Error(`seed study audio upload: ${error.message}`);
+  await workerBlobs(API_URL, owner.session.access_token).put(blobKey(orgId, languageId, audioHash, 'm4a'), bytes);
   const studyMaterialId = `fia-study-seed-${randomUUID()}`;
   const owners = clientFor(owner, orgId, languageId);
   await owners.load();

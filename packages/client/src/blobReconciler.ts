@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { fetchSnapshot } from './snapshotFetch';
 import type { Transport } from './types';
+import { blobKey, type BlobFiles } from './workerBlobs';
 
 export interface BlobObject {
   orgId: string;
@@ -36,10 +37,11 @@ interface ReconcileReport {
 }
 
 /**
- * The server's own check on the bucket, independent of the storage trigger.
+ * The server's own check on the bucket, independent of the Worker's
+ * confirmation after each upload (decisions.md 17, 69).
  *
  * - Every object under org/stream/ that the log does not consider stored
- *   gets a BlobStored confirmation (heals a trigger that never fired).
+ *   gets a BlobStored confirmation (heals a confirmation that never landed).
  * - With `verify`, each object's bytes are hashed; a mismatch with its name
  *   removes the object and appends BlobInvalidated, so devices holding the
  *   real file upload it again and nobody downloads garbage.
@@ -94,10 +96,9 @@ async function foldStream(transport: Transport, orgId: string, streamId: string,
   return snapshot ? resume(snapshot, tail) : foldLanguage(tail, emptyLanguageState());
 }
 
-/** Wire the reconciler to a service-role Supabase client. */
-function supabaseReconcilerDeps(service: SupabaseClient, bucket = 'blobs'): ReconcilerDeps {
-  const storage = service.storage.from(bucket);
-  const path = (o: BlobObject) => `${o.orgId}/${o.streamId}/${o.hash}.${o.format}`;
+/** Wire the reconciler to a service-role Supabase client and the files it checks. */
+function reconcilerDeps(service: SupabaseClient, files: BlobFiles): ReconcilerDeps {
+  const key = (o: BlobObject) => blobKey(o.orgId, o.streamId, o.hash, o.format);
   return {
     streams: async () => {
       const { data, error } = await service.rpc('list_streams');
@@ -107,26 +108,14 @@ function supabaseReconcilerDeps(service: SupabaseClient, bucket = 'blobs'): Reco
     transport: new SupabaseTransport(service),
     listObjects: async (orgId, streamId) => {
       const out: BlobObject[] = [];
-      for (let offset = 0; ; offset += 1000) {
-        const { data, error } = await storage.list(`${orgId}/${streamId}`, { limit: 1000, offset });
-        if (error) throw new Error(`list ${orgId}/${streamId}: ${error.message}`);
-        for (const f of data ?? []) {
-          const [hash, format] = f.name.split('.');
-          if (!hash || !format || !f.id) continue; // folders have no id
-          out.push({ orgId, streamId, hash, format, size: Number((f.metadata as { size?: number } | null)?.size ?? 0) });
-        }
-        if (!data || data.length < 1000) return out;
+      for (const f of await files.list(`${orgId}/${streamId}/`)) {
+        const [hash, format] = (f.key.split('/')[2] ?? '').split('.');
+        if (hash && format) out.push({ orgId, streamId, hash, format, size: f.size });
       }
+      return out;
     },
-    download: async (o) => {
-      const { data, error } = await storage.download(path(o));
-      if (error || !data) throw new Error(`download ${path(o)}: ${error?.message ?? 'no data'}`);
-      return new Uint8Array(await data.arrayBuffer());
-    },
-    remove: async (o) => {
-      const { error } = await storage.remove([path(o)]);
-      if (error) throw new Error(`remove ${path(o)}: ${error.message}`);
-    },
+    download: (o) => files.get(key(o)),
+    remove: (o) => files.remove(key(o)),
     recordBlob: async (orgId, streamId, hash, size) => {
       const { error } = await service.rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
       if (error) throw new Error(`record_blob: ${error.message}`);
@@ -142,6 +131,6 @@ function supabaseReconcilerDeps(service: SupabaseClient, bucket = 'blobs'): Reco
   };
 }
 
-export async function runBlobReconciler(service: SupabaseClient, opts: { verify: boolean }): Promise<ReconcileReport> {
-  return reconcileBlobs(supabaseReconcilerDeps(service), opts);
+export async function runBlobReconciler(service: SupabaseClient, files: BlobFiles, opts: { verify: boolean }): Promise<ReconcileReport> {
+  return reconcileBlobs(reconcilerDeps(service, files), opts);
 }

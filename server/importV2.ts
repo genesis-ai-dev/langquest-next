@@ -6,7 +6,8 @@
  *
  * Reads v2 anonymously (its tables are world-readable) from V2_SUPABASE_URL /
  * V2_SUPABASE_ANON_KEY, copies audio from the public V2_BUCKET (default
- * "assets") into this app's "blobs" bucket by content hash, then appends the
+ * "assets") into this app's R2 bucket by content hash, through the Worker at
+ * API_URL (local by default: `npm run web:dev`), then appends the
  * mapped events with the service role. Re-running is a no-op: ids are
  * derived from v2 rows and the server reports them as duplicates.
  *
@@ -21,7 +22,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { foldLanguage, type Role } from '@langquest-next/core';
-import { appendAll, audioNames, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport } from '@langquest-next/client';
+import { appendAll, audioNames, blobKey, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport, workerBlobs } from '@langquest-next/client';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -50,6 +51,7 @@ if (!key) {
   process.exit(1);
 }
 const service = createClient(url, key, { auth: { persistSession: false } });
+const files = workerBlobs(process.env['API_URL'] ?? 'http://127.0.0.1:8787', key);
 const cacheDir = process.env['V2_IMPORT_CACHE'] ?? join(tmpdir(), 'langquest-v2-import');
 await mkdir(cacheDir, { recursive: true });
 
@@ -138,10 +140,7 @@ for (const project of projects) {
     download,
     digest: async (b) => createHash('sha256').update(b).digest('hex'),
     durationMs: async (bytes) => mp4DurationMs(bytes),
-    upload: async (o, p, hash, bytes) => {
-      const { error } = await service.storage.from('blobs').upload(`${o}/${p}/${hash}.m4a`, bytes, { contentType: 'audio/mp4', upsert: false });
-      if (error && !/already exists|duplicate/i.test(error.message)) throw new Error(error.message);
-    },
+    upload: (o, p, hash, bytes) => files.put(blobKey(o, p, hash, 'm4a'), bytes),
     alreadyStored,
     onProgress: (done, total) => {
       if (done % 100 === 0 || done === total) process.stdout.write(`  audio ${done}/${total}\r`);

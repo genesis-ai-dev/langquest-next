@@ -316,8 +316,9 @@ langquest-next/
    takes, both microphone sessions open at once as in v2. Cards are ingested
    into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
-   run on `TransferWorker` (packages/client) per section 14, with the server
-   storage trigger appending `BlobStored` as the only confirmation. Needs a
+   run on `TransferWorker` (packages/client) per section 14, through the
+   app's Worker into R2 (decisions.md 69), which appends `BlobStored` as the
+   only confirmation. Needs a
    dev client (`npm run ios`, which decrypts the env file); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
@@ -325,7 +326,7 @@ langquest-next/
    dashboard: step 14, folded by the dashboard's own server (decision 44).
 8. **Done.** Import path from LangQuest v2 rows into v1 events:
    `server/importV2.ts` (`npm run import:v2`) reads v2 anonymously, copies
-   audio by content hash into the blobs bucket, and appends deterministic
+   audio by content hash into R2 through the Worker, and appends deterministic
    events (`packages/client/src/v2import.ts`), so re-runs are duplicates.
    Text-only v2 translations have no oral equivalent and are counted, not
    imported. Verified on three production projects in the simulator.
@@ -473,11 +474,13 @@ below was earned in production there.
    stored size; a device whose file differs in size uploads again. Every
    download is hashed before the file is trusted; a mismatch is deleted and
    retried. `server/blobReconciler.ts` (`npm run reconcile`, `--verify` to
-   hash every object) lists the bucket independently of the storage trigger,
-   confirms anything unconfirmed, and appends `v1.BlobInvalidated` for
-   objects whose bytes hash wrong, removing them. A blob is uploaded when the
-   server says so. `PUT /blobs/:hash` is idempotent (content-addressed, so a
-   re-upload is a byte-identical overwrite). Confirmation arrives as a
+   hash every object) lists R2 through the Worker independently of the
+   confirmation each upload gets, confirms anything unconfirmed, and appends
+   `v1.BlobInvalidated` for objects whose bytes hash wrong, removing them.
+   `PUT /api/blobs/<org>/<stream>/<hash>.<ext>` on the app's Worker is
+   idempotent (content-addressed, so a re-upload is a byte-identical
+   overwrite), and R2 refuses bytes that do not hash to their name
+   (decisions.md 69). Confirmation arrives as a
    `BlobStored {hash, size, storedAt}` event appended by the server into the
    language's stream, so it reaches every device through the normal pull. Clients
    have no way to write it: `append_events` refuses `BlobStored` from any

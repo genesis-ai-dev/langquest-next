@@ -4,6 +4,8 @@ import type { OrgSnapshot } from './orgSnapshot';
 export interface Env {
   ASSETS: Fetcher;
   ORG_SNAPSHOTS: DurableObjectNamespace<OrgSnapshot>;
+  /** Recordings and guide media (blobs.ts, decisions.md 69). */
+  BLOBS: R2Bucket;
   SUPABASE_URL: string;
   /** Reads every stream; never sent to the browser. */
   SUPABASE_SERVICE_ROLE_KEY: string;

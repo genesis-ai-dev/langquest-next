@@ -1,8 +1,9 @@
 # Cloudflare
 
 Cloudflare Workers Builds deploys the invite-email Worker and the web app's
-Worker, `langquest-next-dashboard`, which serves the app's web export and the
-reports API (decisions.md 43, 58): merging to `main` deploys the production Workers, and
+Worker, `langquest-next-dashboard`, which serves the app's web export, the
+reports API and every recording and guide file the app moves (decisions.md
+43, 58, 69): merging to `main` deploys the production Workers, and
 merging to `develop` deploys their `-preview` copies (decisions.md 50,
 `docs/environments.md`). There is no GitHub Actions workflow and no API token
 in GitHub. Cloudflare generates the build token. Builds have no secrets at
@@ -45,6 +46,27 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | dashboard | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+
+## Recordings and guide media (R2)
+
+The dashboard Worker binds one private R2 bucket as `BLOBS`
+(`apps/web/wrangler.jsonc`, decisions.md 69): `langquest-next-blobs` for
+production, `langquest-next-blobs-preview` for preview, both with the
+location hint Eastern North America (`enam`), beside the Supabase project.
+`npm run r2:buckets -- <environment>` creates whichever does not exist yet
+and leaves the rest alone; run it before the first deploy that binds one.
+Public access and the `r2.dev` address stay off: everything goes through
+`/api/blobs` (`apps/web/worker/blobs.ts`). Read links are signed with a key
+derived from `SUPABASE_SERVICE_ROLE_KEY`, so the bucket adds no secret; a
+rotated service-role key only ends the links already handed out (ten
+minutes at most). `wrangler dev` keeps a local bucket in
+`apps/web/.wrangler/state`, so `npm run web:dev` needs nothing from
+Cloudflare.
+
+The Supabase Storage bucket that held the files before is copied once with
+`npm run blobs:copy` (export `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
+`API_URL` for the environment), then emptied and deleted with
+`npm run blobs:copy -- --remove`.
 
 A deploy fails while a secret in `secrets.required` is missing on the
 Worker; run `npm run secrets -- <environment>`. The dashboard page reads

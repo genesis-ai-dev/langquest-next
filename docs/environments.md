@@ -91,6 +91,7 @@ never deploys over preview or production.
 | Apply secrets | `npm run secrets -- <env>` (shows what differs, asks); `--check` only compares |
 | Push the app's file to EAS | `npm run env:eas -- push <env>` |
 | Deploy a Worker by hand | `npm run web:deploy[:preview]`, `npm run email:deploy[:preview]` |
+| Create the R2 buckets the Worker binds | `npm run r2:buckets -- <env>` |
 | Check this machine | `npm run env:doctor` |
 
 `npm run secrets` compares Supabase values by digest. Worker secrets cannot be
@@ -119,7 +120,8 @@ apply.
    then `npm run secrets -- preview`. That also creates the two `-preview`
    Workers, so their first deploy finds its secrets.
 5. **Cloudflare.** Connect each `-preview` Worker to the repository in Workers
-   Builds as `docs/cloudflare.md` lists.
+   Builds as `docs/cloudflare.md` lists, and create its R2 bucket:
+   `npm run r2:buckets -- preview`.
 6. **EAS.** Nothing to set: `deploy-preview.yml` runs on the first push to
    `develop` that touches the app. iOS internal builds install only on
    registered devices (`npx eas device:create`).

@@ -1,4 +1,5 @@
 import { handleApi } from './api';
+import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
 import { publishLangQuestTimings } from './timings';
 
@@ -17,7 +18,20 @@ export default {
         return error ? null : data?.claims.sub ?? null;
       },
       reports: (orgId, profileId, fresh) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).reports(orgId, profileId, fresh),
-      bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) }
+      bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
+      blobs: {
+        bucket: r2Bucket(env.BLOBS),
+        serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+        mayUse: async (key, profileId, write) => {
+          const { data, error } = await serviceClient(env).rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
+          if (error) throw new Error(`blob_access: ${error.message}`);
+          return data === true;
+        },
+        record: async (orgId, streamId, hash, size) => {
+          const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
+          if (error) throw new Error(`record_blob: ${error.message}`);
+        }
+      }
     });
   },
   // Verse timings asked for LangQuest's own sources, published when fia-align finishes them (worker/timings.ts).
