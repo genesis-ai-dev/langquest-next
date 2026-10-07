@@ -197,14 +197,16 @@ export async function pendingRequests(orgId: string): Promise<PendingRequest[]> 
 
 /**
  * Admit or turn away one request. A role is required to accept, because a
- * membership without one would be a member who can do nothing.
+ * membership without one would be a member who can do nothing. The scope is
+ * the organization unless one language is named.
  */
-export async function decideRequest(id: string, accepted: boolean, roleId?: string): Promise<void> {
+export async function decideRequest(id: string, accepted: boolean, roleId?: string, scope: Scope = { level: 'org' }): Promise<void> {
   if (accepted && !roleId) throw new Error('Pick a role before admitting someone.');
-  const { error } = await supabase.rpc('decide_join_request', {
+  const { error } = await supabase.rpc('decide_join_request_v2', {
     p_request_id: id,
     p_accepted: accepted,
-    p_role_id: accepted ? roleId : null
+    p_role_id: accepted ? roleId : null,
+    p_scope: scope
   });
   if (error) throw new Error(error.message);
   for (const listener of requestListeners) listener();

@@ -646,6 +646,30 @@ begin
   if n <> 0 then raise exception 'decided request left open'; end if;
 end $$;
 
+-- Accepting names the scope, as an invite does: here one language.
+select set_config('request.jwt.claim.sub', 'asker2', false);
+select public.create_join_request('org1', 'req2', '');
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$
+begin
+  begin
+    perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language"}');
+    raise exception 'accepted with a scope that names no language';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language","languageId":"nope"}');
+    raise exception 'accepted into an unknown language';
+  exception when sqlstate '22023' then null;
+  end;
+  perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language","languageId":"din"}');
+  if public.effective_role_of(public.org_privileges('org1', 'asker2', 'din')) is null then raise exception 'asker2 not admitted to din'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker2', 'nus')) is not null then raise exception 'asker2 admitted beyond din'; end if;
+  if public.effective_role_of(public.org_privileges('org1', 'asker2', null)) is not null then raise exception 'asker2 admitted org-wide'; end if;
+  -- Asking again after the decision is a no-op, as for the old signature.
+  perform public.decide_join_request_v2('req2', true, 'lang_lead', '{"level":"language","languageId":"din"}');
+end $$;
+
 -- 12. A language's country and target (decision 41) live in the
 --     organization stream: an admin sets them, a language leader without
 --     manage_structure may not, and my_privileges says so.

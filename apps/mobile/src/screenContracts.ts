@@ -50,9 +50,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   invite_qr: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
   invite_member: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
-  members_list: { rpcs:['decide_join_request'],reads:['org.members','join_requests','profiles'] },
+  members_list: { rpcs:['decide_join_request_v2'],reads:['org.members','join_requests','profiles'] },
   // A new role at the same scope is another MemberAdded (one role per scope).
-  edit_member: { emits:['v1.MemberAdded','v1.MemberRemoved'],rpcs:['decide_join_request','can_help_sign_in','issue_sign_in_code'] },
+  edit_member: { emits:['v1.MemberAdded','v1.MemberRemoved'],rpcs:['decide_join_request_v2','can_help_sign_in','issue_sign_in_code'] },
   role_editor: { emits:['v1.RoleDefined'],reads:['org.roles'] },
   roles_home: { reads:['org.roles'] },
   // Adds the language to the organization's stream, then gives its own
@@ -92,7 +92,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.ReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   inbox_home: { reads:['updatesFor','notifications','join_requests','profiles'],
-    rpcs:['decide_join_request','org_content_reports','remove_content','dismiss_reports'] },
+    rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
   settings_home: { rpcs:['register_push_token','set_blocked'],reads:['user_blocks'] },
