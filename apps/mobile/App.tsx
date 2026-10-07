@@ -44,7 +44,7 @@ import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, foldsSettled, 
 import { supabase, supabaseConfigError } from './src/supabase';
 import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
-import { useAccountSync, useDisplayNames } from './src/useAccount';
+import { useAccountSync, useDisplayNames, useProfileName } from './src/useAccount';
 import { useBlocks, useOpenReportCount } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
 import { forgetKeyInAddress } from './src/appUrl';
@@ -357,8 +357,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Web: warn before the tab closes with work still to send (storageGate.tsx).
   useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
+  useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
-  const profileNames = useDisplayNames(props.actorId);
+  // Read names again when someone joins, or a new member shows as a placeholder until restart.
+  const memberIds = useMemo(() => Object.keys(org.state?.members ?? {}).sort().join(','), [org.state?.members]);
+  const profileNames = useDisplayNames(props.actorId, memberIds);
   const people = profileNames;
   const [welcomed, setWelcomed] = useState(false);
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
