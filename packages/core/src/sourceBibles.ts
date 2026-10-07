@@ -68,13 +68,6 @@ export function sourceAudioFile(bible: SourceBible, item: SourceChapter): string
     `${AUDIO_BOOKS[index]}_${String(item.chapter).padStart(3, '0')}_FS.mp3`;
 }
 
-export function sourceAudioUrl(
-  bible: SourceBible, item: SourceChapter, pilotBaseUrl?: string
-): string {
-  const file = sourceAudioFile(bible, item);
-  // The trial mirrors Jonah only. Other chapters stay on the publisher CDN.
-  if (pilotBaseUrl && item.book === 'jon') {
-    return `${pilotBaseUrl.replace(/\/$/, '')}/${bible.id}/${file}`;
-  }
-  return `https://openbible.com/audio/${bible.directory}/${file}`;
+export function sourceAudioUrl(bible: SourceBible, item: SourceChapter): string {
+  return `https://openbible.com/audio/${bible.directory}/${sourceAudioFile(bible, item)}`;
 }

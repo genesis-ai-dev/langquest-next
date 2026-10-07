@@ -58,7 +58,7 @@ declares:
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret` |
-| pg_cron | the projection job: its migration (`20261001000000_schedule_projections.sql`) schedules it only where Vault already has the secrets, so this runs that migration again |
+| pg_cron | the projection job: its migration (`20261006000001_schedule_projections.sql`) schedules it only where Vault already has the secrets, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a
 deploy while one in `secrets.required` is missing, so a forgotten secret
