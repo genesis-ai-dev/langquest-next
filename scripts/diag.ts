@@ -4,13 +4,30 @@
 //   npm run diag -- report <org> <language> [--days 14] [--install <id>] [--json]
 //   npm run diag -- error <E-XXXXXX>
 //   npm run diag -- timeline <installId> [--days 2]
+//   npm run diag -- --hosted …    the same against the hosted database
 //
 // Reads through the `diag` schema only, as `diag_reader` on a hosted
 // database (DIAG_DATABASE_URL) or as postgres on the local one. Nothing it
 // prints is content: ids, counts, timings, error class names and frames.
+// --hosted decrypts DIAG_DATABASE_URL from .env.production for this run
+// (scripts/diag-access.sh puts it there once).
 import { spawnSync } from 'node:child_process';
 import { REDUCER_VERSION } from '../packages/core/src/index';
 import { signals, throughput, type InstallSummary, type Member, type LanguageHealth, type RpcStat } from './diagSignals';
+
+if (process.argv.includes('--hosted')) {
+  const rest = process.argv.slice(1).filter((a) => a !== '--hosted');
+  if (process.env.DIAG_DATABASE_URL) process.argv = [process.argv[0]!, ...rest];
+  else if (process.env.DIAG_HOSTED_RUN) {
+    // Decrypted, and still none: never fall back to the local database.
+    console.error('x .env.production has no DIAG_DATABASE_URL; run scripts/diag-access.sh once (docs/diagnostics.md)');
+    process.exit(1);
+  } else {
+    const r = spawnSync('npx', ['dotenvx', 'run', '-f', '.env.production', '-fk', '.env.keys', '--strict', '--', 'npx', 'tsx', ...process.argv.slice(1)],
+      { stdio: 'inherit', env: { ...process.env, DIAG_HOSTED_RUN: '1' } });
+    process.exit(r.status ?? 1);
+  }
+}
 
 const LOCAL = 'postgresql://postgres:postgres@127.0.0.1:54422/postgres';
 const url = process.env.DIAG_DATABASE_URL ?? LOCAL;

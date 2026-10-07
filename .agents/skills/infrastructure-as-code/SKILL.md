@@ -56,9 +56,9 @@ reviewed, reproduced, rolled back, or noticed when it drifts.
 | Cloudflare dashboard | `apps/web/wrangler.jsonc` (`env.preview` likewise); the page reads `apps/mobile/.env.<environment>` | the same, `npm run web:deploy` / `web:deploy:preview` | the same |
 | Worker public settings | `vars` in the wrangler file, per environment | every deploy | `wrangler deploy --dry-run` lists them |
 | Worker secrets | encrypted root `.env.<environment>` (or read from Supabase: the service-role key); names in each environment's `secrets.required` | `npm run secrets -- <env>`, never a deploy; builds hold no key (decisions.md 51) | a deploy fails while one is missing; `npm run secrets -- <env> --check` |
-| Mobile build profiles, channels | `apps/mobile/eas.json`, `apps/mobile/app.json` (`runtimeVersion` policy, plugins, permissions) | `npm run ship:native` / `ship` | `npm run ship:check` (fingerprint) |
-| Mobile public config (`EXPO_PUBLIC_*`) | plain `apps/mobile/.env.<environment>` | `npm run env:push:eas -- <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |
-| EAS environment variables (builds and updates) | the same plain env files; `environment` on each `eas.json` profile | `npm run env:push:eas -- <env>` | `eas env:list --environment <env>` |
+| Mobile build profiles, channels | `apps/mobile/eas.json`, `apps/mobile/app.json` (`runtimeVersion` policy, plugins, permissions) | `npm run ship -- --native` / `ship` | `npm run ship -- --check` (fingerprint) |
+| Mobile public config (`EXPO_PUBLIC_*`) | plain `apps/mobile/.env.<environment>` | `npm run env:eas -- push <env>`; inlined at bundle time from that EAS environment | `supabaseConfigError` refuses a local URL in a release build |
+| EAS environment variables (builds and updates) | the same plain env files; `environment` on each `eas.json` profile | `npm run env:eas -- push <env>` | `eas env:list --environment <env>` |
 
 When something is not on this list (DNS, a new Cloudflare product, push
 credentials), look for its CLI or API first. If none exists, record the manual
@@ -81,9 +81,9 @@ applies secrets, and deploys never carry them.
 | File | Holds | Read by |
 | --- | --- | --- |
 | `apps/mobile/.env.development` | local Supabase URL and key, plain | `npm start`, `ios`, `android`, `web` (through `dotenvx run`, with Expo's own loader off) |
-| `apps/mobile/.env.preview`, `.env.production` | the app's hosted config, plain | `npm run env:push:eas -- <env>` copies it to the EAS environment, which EAS Build and `ship` read; the dashboard page's build |
+| `apps/mobile/.env.preview`, `.env.production` | the app's hosted config, plain | `npm run env:eas -- push <env>` copies it to the EAS environment, which EAS Build and `ship` read; the dashboard page's build |
 | `apps/mobile/.env.development.local` | a person's own dev login | `npm start`; ignored by git |
-| `.env.preview`, `.env.production` | secrets, encrypted | `npm run secrets -- <env>`; `npm run diag:hosted` |
+| `.env.preview`, `.env.production` | secrets, encrypted | `npm run secrets -- <env>`; `npm run diag -- --hosted` |
 | `apps/mobile/.env.example` | names only | people |
 
 Commands, all from the repository root:
@@ -92,14 +92,14 @@ Commands, all from the repository root:
 | --- | --- | --- |
 | Change a value | `npm run env:update -- <env> KEY ['value']` | The name picks the file: `EXPO_PUBLIC_*` goes plain into the app's file, then it shows the EAS diff and asks before pushing (preview and production); anything else is encrypted into `.env.<env>` (asks for the value, hidden, when it is left out). Commits that file alone |
 | Apply secrets | `npm run secrets -- <env> [--check]` | Sets Worker, Edge Function and Vault secrets and the projection job; compares first and asks |
-| Check EAS for drift | `npm run env:diff:eas -- <env>` | Names keys that differ between the committed file and EAS; exits 1 on any difference |
-| Push the file to EAS | `npm run env:push:eas -- <env>` | Refuses an uncommitted file, shows the diff, asks, pushes |
+| Check EAS for drift | `npm run env:eas -- diff <env>` | Names keys that differ between the committed file and EAS; exits 1 on any difference |
+| Push the file to EAS | `npm run env:eas -- push <env>` | Refuses an uncommitted file, shows the diff, asks, pushes |
 | Check a machine | `npm run env:doctor` | The app's files are plain; key file private and ignored; which secrets files this machine can read |
 | Run the app | `npm run app` | `npm start -- --dev-client` in `apps/mobile` |
 | Guard | `npm run env:check` | Fails on a plain or misplaced secret (`npm test` runs it too) |
 
 - **EAS is a copy.** The committed file is the truth. A value edited in the
-  EAS dashboard shows up as drift in `env:diff:eas` and is overwritten by the
+  EAS dashboard shows up as drift in `env:eas -- diff` and is overwritten by the
   next push. Keys that exist only in EAS are reported, never deleted.
 - New private keys go to `.env.keys` (not the OS keychain), so they can be
   shared. Never paste secrets into a definition file, a doc, a commit
@@ -113,7 +113,7 @@ Commands, all from the repository root:
 - Never print decrypted values. To check one, show its hostname, length or
   whether it is set.
 - Never hand-edit an encrypted env file or an EAS variable. Use `env:update`.
-- `env:update` of an app setting for preview or production, `env:push:eas`
+- `env:update` of an app setting for preview or production, `env:eas -- push`
   and `npm run secrets` change hosted systems. Ask before running them unless the user already said to, and let
   the user type secret values at the hidden prompt rather than passing them
   as arguments.

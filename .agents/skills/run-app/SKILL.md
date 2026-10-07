@@ -150,7 +150,7 @@ device's `cursors` table with `max(server_seq)` on the server. To clear:
 From a checkout linked to the hosted project (`npx supabase link`; the main
 checkout is): `npx supabase db query --linked -o json "select …"`. Compare
 secrets by hash, never print them. Staff views: `npm run moderation -- --hosted`,
-`npm run diag:hosted`.
+`npm run diag -- --hosted`.
 
 ## Cleaning up
 
