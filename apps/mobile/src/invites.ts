@@ -217,9 +217,10 @@ const requestListeners = new Set<() => void>();
 
 /**
  * How many people are asking to join, for the Inbox badge (the tab, or My
- * Work's bell), as the reports count does: read when the app comes forward,
- * every five minutes, and after someone decides; offline it keeps the last
- * count. Only org-wide Invite can read requests (`join_requests_read`).
+ * Work's bell): read when the app comes forward, every minute (as often as
+ * pushes go, decisions.md 68), and after someone decides; offline it keeps
+ * the last count. A count only, no rows. Only org-wide Invite can read
+ * requests (`join_requests_read`).
  */
 export function usePendingRequestCount(orgId: string, enabled: boolean): number {
   const [count, setCount] = useState(0);
@@ -227,13 +228,17 @@ export function usePendingRequestCount(orgId: string, enabled: boolean): number 
     if (!enabled) { setCount(0); return; }
     let active = true;
     const load = () => {
-      pendingRequests(orgId).then((rows) => { if (active) setCount(rows.length); })
-        .catch((e: unknown) => { noteExpected('pending request count', e); });
+      void (async () => {
+        const { count: open, error } = await supabase.from('join_requests')
+          .select('id', { count: 'exact', head: true }).eq('org_id', orgId);
+        if (error) throw new Error(error.message);
+        if (active) setCount(open ?? 0);
+      })().catch((e: unknown) => { noteExpected('pending request count', e); });
     };
     load();
     requestListeners.add(load);
     const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
-    const timer = setInterval(load, 5 * 60_000);
+    const timer = setInterval(load, 60_000);
     return () => { active = false; requestListeners.delete(load); app.remove(); clearInterval(timer); };
   }, [orgId, enabled]);
   return count;
