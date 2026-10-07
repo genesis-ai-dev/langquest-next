@@ -640,7 +640,8 @@ export function EditMember(ctx: Ctx) {
   const entry = entries.find((e) => e.key === ctx.params['entry']) ?? entries[0];
   const pending = !!requestId;
   const roles = liveRoles(ctx);
-  const levels: ScopeLevel[] = pending ? ['org']
+  // The demo's "Assign a role and scope": deciding needs org-scope Invite, so every level is open.
+  const levels: ScopeLevel[] = pending ? assignableLevels(v.org, ctx.session.actorId, 'org')
     : [...new Set([...(entry ? [entry.scope.level] : []), ...assignableLevels(v.org, ctx.session.actorId, viewLevel)])];
   const [form, setForm] = useState<Assignment>({
     roleId: entry?.roleId ?? '',
@@ -679,7 +680,7 @@ export function EditMember(ctx: Ctx) {
     if (!scope || !form.roleId) return;
     const role = roleName(ctx, form.roleId);
     if (pending) {
-      await decideRequest(requestId!, true, form.roleId);
+      await decideRequest(requestId!, true, form.roleId, scope);
       await ctx.org.sync();
       ctx.toast(`${who} is now ${role}`);
       return;
@@ -723,7 +724,7 @@ export function EditMember(ctx: Ctx) {
       <Row leading={<Avatar id={memberId} name={requesterName} size={48} />} label={who} sub={pending ? 'Asked to join' : v.target(entry!.scope)} />
       {!pending && memberId ? <HelpSignIn memberId={memberId} who={who} /> : null}
       <Text style={txt.xs}>{pending
-        ? 'This person created an account and asked to join. Assign a role to give them access; they join at organization scope, and you can narrow it here afterwards.'
+        ? 'This person created an account and asked to join. Assign a role and scope to give them access.'
         : 'Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.'}</Text>
       {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
         : <Banner icon="lock" title="View only" body="Only people who can invite members change roles." />}

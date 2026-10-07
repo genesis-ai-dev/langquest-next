@@ -8,6 +8,7 @@ from (values
   ('public.can_help_sign_in(text)'),
   ('public.create_join_request(text,text,text)'),
   ('public.decide_join_request(text,boolean,text)'),
+  ('public.decide_join_request_v2(text,boolean,text,jsonb)'),
   ('public.listed_organizations()'),
   ('public.save_profile(text)'),
   ('public.record_user_event(text,text,jsonb)'),
