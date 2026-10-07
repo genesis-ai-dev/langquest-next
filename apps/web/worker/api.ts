@@ -1,5 +1,6 @@
 import { summarizeReports, type OrgReportsResponse } from '@langquest-next/core';
 import { handleBible, type BibleDeps } from './bible';
+import { handleBlobs, type BlobDeps } from './blobs';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
@@ -8,6 +9,8 @@ export interface ApiDeps {
   reports(orgId: string, profileId: string, fresh: boolean): Promise<OrgReportsResponse | null>;
   /** Bible Brain (`/api/bible/*`, bible.ts); without it, or without its key, those routes answer 503. */
   bible?: Omit<BibleDeps, 'profileOf'>;
+  /** Recordings and guide media (`/api/blobs/*`, `/api/blob-urls/*`, blobs.ts); without it those routes answer 503. */
+  blobs?: Omit<BlobDeps, 'profileOf'>;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -34,8 +37,8 @@ function withCors(request: Request, res: Response): Response {
   if (!origin || !LOCAL_ORIGIN.test(origin)) return res;
   const headers = new Headers(res.headers);
   headers.set('access-control-allow-origin', origin);
-  headers.set('access-control-allow-headers', 'authorization, if-none-match');
-  headers.set('access-control-expose-headers', 'etag, x-as-of');
+  headers.set('access-control-allow-headers', 'authorization, if-none-match, content-type, range');
+  headers.set('access-control-expose-headers', 'etag, x-as-of, content-range, accept-ranges, content-length');
   headers.set('vary', 'origin');
   return new Response(res.body, { status: res.status, headers });
 }
@@ -49,13 +52,16 @@ function withCors(request: Request, res: Response): Response {
  * it is without downloading it again.
  */
 export async function handleApi(request: Request, deps: ApiDeps): Promise<Response> {
-  if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET' } }));
+  if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET, HEAD, PUT' } }));
   return withCors(request, await answer(request, deps));
 }
 
 async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname.startsWith('/api/bible/')) return handleBible(request, { key: undefined, ...deps.bible, profileOf: deps.profileOf });
+  if (url.pathname === '/api/blobs' || url.pathname.startsWith('/api/blobs/') || url.pathname.startsWith('/api/blob-urls/')) {
+    return deps.blobs ? handleBlobs(request, { ...deps.blobs, profileOf: deps.profileOf }) : json(503, { error: 'File storage is not set up here.' });
+  }
   const match = /^\/api\/orgs\/([^/]+)\/reports$/.exec(url.pathname);
   if (!match) return json(404, { error: 'Not found.' });
   if (request.method !== 'GET') return json(405, { error: 'Only GET is supported.' });

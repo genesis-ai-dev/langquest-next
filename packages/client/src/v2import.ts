@@ -302,8 +302,8 @@ export function audioNames(rows: V2Rows): string[] {
 
 // ---------------------------------------------------------------------------
 // Copying audio. Download by name from v2, hash, upload by hash here. The
-// storage trigger appends BlobStored, so the log learns of each blob the
-// same way it learns of a phone's upload.
+// Worker appends BlobStored, so the log learns of each blob the same way it
+// learns of a phone's upload.
 // ---------------------------------------------------------------------------
 
 interface BlobCopyDeps {

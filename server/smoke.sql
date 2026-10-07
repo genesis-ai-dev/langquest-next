@@ -108,37 +108,42 @@ do $$ declare n int; begin
   if n <> 0 then raise exception 'empty stream should pull 0 rows'; end if;
 end $$;
 
--- 5c. Clients cannot forge a blob confirmation, but a storage object lands one.
-do $$ declare r record; n int; begin
+-- 5c. Clients cannot forge a blob confirmation; the Worker records one
+-- (record_blob, decisions.md 69) after R2 has checked the bytes.
+do $$ declare r record; begin
   select * into r from public.append_events('[
     {"id":"forged","type":"v1.BlobStored","orgId":"org1","streamId":"L1","actorId":"lead","deviceId":"dA","hlc":"000000000000014:000000:dA","payload":{"hash":"h1","size":1}}
   ]'::jsonb);
   if r.accepted then raise exception 'client must not emit BlobStored'; end if;
-
-  insert into storage.objects (bucket_id, name, owner, metadata)
-  values ('blobs', 'org1/L1/abc123.wav', null, '{"size": 4321}'::jsonb);
+  begin
+    perform public.record_blob('org1', 'L1', 'abc123', 4321);
+    raise exception 'member must not call record_blob';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare n int; begin
+  perform public.record_blob('org1', 'L1', 'abc123', 4321);
   select count(*) into n from public.events e
     where e.stream_id = 'L1' and e.type = 'v1.BlobStored' and e.payload->>'hash' = 'abc123' and (e.payload->>'size')::int = 4321;
-  if n <> 1 then raise exception 'storage insert should append one BlobStored, got %', n; end if;
-
-  -- A second insert of the same object name (re-upload) must not duplicate it.
-  begin
-    insert into storage.objects (bucket_id, name, owner, metadata)
-    values ('blobs', 'org1/L1/abc123.wav', null, '{"size": 4321}'::jsonb);
-  exception when unique_violation then null;
-  end;
+  if n <> 1 then raise exception 'record_blob should append one BlobStored, got %', n; end if;
+  -- A re-upload records the same event id: no duplicate.
+  perform public.record_blob('org1', 'L1', 'abc123', 4321);
   select count(*) into n from public.events e where e.stream_id = 'L1' and e.type = 'v1.BlobStored';
   if n <> 1 then raise exception 'BlobStored must be idempotent'; end if;
-
-  -- An upsert that changed the bytes (different size) re-confirms with the new size.
-  update storage.objects set metadata = '{"size": 5000}'::jsonb where bucket_id = 'blobs' and name = 'org1/L1/abc123.wav';
+  -- Different bytes under the name (a different size) confirm again, with the new size.
+  perform public.record_blob('org1', 'L1', 'abc123', 5000);
   select count(*) into n from public.events e where e.stream_id = 'L1' and e.type = 'v1.BlobStored' and (e.payload->>'size')::int = 5000;
   if n <> 1 then raise exception 'size change should re-confirm, got %', n; end if;
-  -- Same size again: no new event.
-  update storage.objects set metadata = '{"size": 5000, "x": 1}'::jsonb where bucket_id = 'blobs' and name = 'org1/L1/abc123.wav';
-  select count(*) into n from public.events e where e.stream_id = 'L1' and e.type = 'v1.BlobStored';
-  if n <> 2 then raise exception 'same size must not re-confirm, got %', n; end if;
+
+  -- Who may use an object: the stream's readers read and upload; others neither.
+  if not public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', 'lead', true) then raise exception 'lead should upload to L1'; end if;
+  if not public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', 'lead', false) then raise exception 'lead should read L1'; end if;
+  if public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', 'nobody', false) then raise exception 'a stranger must not read L1'; end if;
+  if public.blob_access('org1/L1/' || repeat('a', 64) || '.wav', null, false) then raise exception 'no profile must read nothing'; end if;
+  if public.blob_access('org1/_org/' || repeat('a', 64) || '.jpg', 'nobody', false) then raise exception 'a stranger must not read guide media'; end if;
 end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
 
 -- 5c2. Reconciler verdicts: service only; clients cannot forge BlobInvalidated.
 do $$ declare r record; begin
@@ -735,7 +740,8 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges']) f
+  from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+                     '_library_media_readable']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));
   if v is not null then raise exception 'signed-in people may run service-role functions: %', v; end if;

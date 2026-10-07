@@ -72,7 +72,7 @@ function list(): void {
     for (const c of r.content ?? []) console.log(`  ${c.type} ${JSON.stringify(c.payload)}`);
     if (r.target_kind !== 'person' && !r.content?.length) console.log('  (already gone from the record)');
   }
-  console.log(`\n${rows.length} open. Audio is in the blobs bucket by hash (cardHashes, blobHash).`);
+  console.log(`\n${rows.length} open. Audio is in R2 by hash (cardHashes, blobHash).`);
 }
 
 function main(): void {

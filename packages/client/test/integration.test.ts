@@ -6,6 +6,8 @@ import {
 import { MemoryStore } from '../src/memoryStore';
 import { runSnapshotWorker } from '../src/snapshotWorker';
 import { runBlobReconciler } from '../src/blobReconciler';
+import type { BlobFiles } from '../src/workerBlobs';
+import { BadDigest, handleBlobs, type BlobBucket, type BlobDeps } from '../../../apps/web/worker/blobs';
 import { SupabaseTransport } from '../src/supabaseTransport';
 import { SyncClient, type Materializer } from '../src/syncClient';
 
@@ -65,6 +67,68 @@ async function newOrg(lead: { sb: SupabaseClient; userId: string }, orgId: strin
   expect(r.rejected).toBe(0);
   expect(r.pushed).toBe(SEED_ROLES.length + 3);
   return org;
+}
+
+const sha256 = async (bytes: Uint8Array) =>
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource))).map((b) => b.toString(16).padStart(2, '0')).join('');
+
+/** R2 in memory: the files the reconciler sees, and (`asBucket`) the bucket the Worker writes, which refuses bytes that do not hash to their name. */
+class MemoryFiles implements BlobFiles {
+  readonly objects = new Map<string, Uint8Array>();
+  async list(prefix: string) {
+    return [...this.objects].filter(([k]) => k.startsWith(prefix)).map(([key, b]) => ({ key, size: b.byteLength }));
+  }
+  async get(key: string) {
+    const bytes = this.objects.get(key);
+    if (!bytes) throw new Error(`no ${key}`);
+    return bytes;
+  }
+  async put(key: string, bytes: Uint8Array) { this.objects.set(key, bytes); }
+  async remove(key: string) { this.objects.delete(key); }
+  asBucket(): BlobBucket {
+    return {
+      get: async (key) => {
+        const bytes = this.objects.get(key);
+        return bytes ? { size: bytes.byteLength, body: new Response(bytes as BodyInit).body! } : null;
+      },
+      head: async (key) => (this.objects.has(key) ? { size: this.objects.get(key)!.byteLength } : null),
+      put: async (key, body, _length, hash) => {
+        const bytes = body instanceof Uint8Array ? body : new Uint8Array(await new Response(body).arrayBuffer());
+        if ((await sha256(bytes)) !== hash) throw new BadDigest('did not match what we received');
+        this.objects.set(key, bytes);
+        return { size: bytes.byteLength };
+      },
+      delete: async (key) => { this.objects.delete(key); },
+      list: async (prefix) => ({ objects: await this.list(prefix) })
+    };
+  }
+}
+
+/** The Worker's blob routes (apps/web/worker/blobs.ts) against the local database. */
+function blobWorker(files: MemoryFiles): BlobDeps {
+  const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
+  return {
+    bucket: files.asBucket(),
+    serviceKey: SERVICE,
+    profileOf: async (token) => (await service.auth.getUser(token)).data.user?.id ?? null,
+    mayUse: async (key, profileId, write) => {
+      const { data, error } = await service.rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
+      if (error) throw new Error(error.message);
+      return data === true;
+    },
+    record: async (orgId, streamId, hash, size) => {
+      const { error } = await service.rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
+      if (error) throw new Error(error.message);
+    }
+  };
+}
+
+async function putAs(worker: BlobDeps, user: { sb: SupabaseClient }, key: string, bytes: Uint8Array): Promise<number> {
+  const token = (await user.sb.auth.getSession()).data.session!.access_token;
+  const res = await handleBlobs(new Request(`http://worker.test/api/blobs/${key}`, {
+    method: 'PUT', body: bytes as BodyInit, headers: { authorization: `Bearer ${token}`, 'content-length': String(bytes.byteLength) }
+  }), worker);
+  return res.status;
 }
 
 const up = ANON ? await reachable() : false;
@@ -176,27 +240,33 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     expect(again.find((d) => d.streamId === languageId)?.serverSeq).toBe(6);
   });
 
-  it('a member upload to the blobs bucket lands a BlobStored confirmation in the log', async () => {
+  it('a member upload through the Worker lands a BlobStored confirmation in the log', async () => {
     // Why: PLAN.md section 14 rule 2. The client never declares completion;
-    // the storage trigger appends the confirmation and every device pulls it.
+    // the Worker appends the confirmation once R2 has the bytes, and every
+    // device pulls it (decisions.md 69).
     const stamp = Date.now();
     const lead = await signUp(`blob-${stamp}@example.test`);
+    const stranger = await signUp(`blob-x-${stamp}@example.test`);
     const orgId = `org-b-${stamp}`;
     const languageId = `lb-${stamp}`;
     await newOrg(lead, orgId, languageId);
     const a = languageClient(orgId, languageId, lead, 'dA');
     await a.load();
-    await a.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: [{ hash: 'deadbeef', durationMs: 10, format: 'wav' }] });
-    await a.sync();
-    expect(deriveUploadWork(a.getState(), new Set(['deadbeef'])).map((r) => r.hash)).toEqual(['deadbeef']);
-
     const bytes = new Uint8Array([82, 73, 70, 70, 0, 0, 0, 0]);
-    const { error } = await lead.sb.storage.from('blobs').upload(`${orgId}/${languageId}/deadbeef.wav`, bytes, { upsert: true, contentType: 'audio/wav' });
-    expect(error).toBeNull();
+    const hash = await sha256(bytes);
+    await a.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: [{ hash, durationMs: 10, format: 'wav' }] });
+    await a.sync();
+    expect(deriveUploadWork(a.getState(), new Set([hash])).map((r) => r.hash)).toEqual([hash]);
+
+    const worker = blobWorker(new MemoryFiles());
+    const key = `${orgId}/${languageId}/${hash}.wav`;
+    expect(await putAs(worker, stranger, key, bytes)).toBe(403);
+    expect(await putAs(worker, lead, `${orgId}/${languageId}/${'b'.repeat(64)}.wav`, bytes)).toBe(422);
+    expect(await putAs(worker, lead, key, bytes)).toBe(200);
 
     await a.sync();
-    expect(a.getState().blobs['deadbeef']?.size).toBe(bytes.byteLength);
-    expect(deriveUploadWork(a.getState(), new Set(['deadbeef']))).toEqual([]);
+    expect(a.getState().blobs[hash]?.size).toBe(bytes.byteLength);
+    expect(deriveUploadWork(a.getState(), new Set([hash]))).toEqual([]);
 
     // A client cannot forge the confirmation.
     await a.append('v1.BlobStored', { hash: 'forged', size: 1 });
@@ -205,9 +275,10 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     expect(a.getState().blobs['forged']).toBeUndefined();
   });
 
-  it('the reconciler invalidates an object whose bytes do not hash to its name', async () => {
-    // Why: nothing else verifies stored bytes. A corrupt upload must not be
-    // served to other devices, and the device holding the real file must
+  it('the reconciler confirms what was never confirmed and invalidates bytes that hash wrong', async () => {
+    // Why: decision 17. A confirmation can be lost after the bytes land, and
+    // bytes can rot; nothing else checks the bucket. A corrupt file must not
+    // be served to other devices, and the device holding the real file must
     // upload it again.
     const stamp = Date.now();
     const lead = await signUp(`recon-${stamp}@example.test`);
@@ -217,23 +288,23 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     const a = languageClient(orgId, languageId, lead, 'dA');
     await a.load();
     const good = new TextEncoder().encode('good bytes');
-    const goodHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', good))).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const goodHash = await sha256(good);
     const badName = 'b'.repeat(64);
     await a.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'u1', kind: 'target', cards: [{ hash: goodHash, durationMs: 10, format: 'wav' }, { hash: badName, durationMs: 10, format: 'wav' }] });
     await a.sync();
-    expect((await lead.sb.storage.from('blobs').upload(`${orgId}/${languageId}/${goodHash}.wav`, good, { upsert: true, contentType: 'audio/wav' })).error).toBeNull();
-    expect((await lead.sb.storage.from('blobs').upload(`${orgId}/${languageId}/${badName}.wav`, new TextEncoder().encode('garbage'), { upsert: true, contentType: 'audio/wav' })).error).toBeNull();
-    await a.sync();
-    expect(isStored(a.getState(), badName)).toBe(true); // the trigger trusts the name
+    // Straight into the bucket, past the Worker: no confirmation, no hash check.
+    const bucket = new MemoryFiles();
+    bucket.objects.set(`${orgId}/${languageId}/${goodHash}.wav`, good);
+    bucket.objects.set(`${orgId}/${languageId}/${badName}.wav`, new TextEncoder().encode('garbage'));
 
     const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
-    const report = await runBlobReconciler(service, { verify: true });
+    const report = await runBlobReconciler(service, bucket, { verify: true });
     expect(report.invalidated).toBeGreaterThanOrEqual(1);
 
     await a.sync();
     expect(isStored(a.getState(), goodHash)).toBe(true);
     expect(isStored(a.getState(), badName)).toBe(false);
     expect(deriveUploadWork(a.getState(), new Set([goodHash, badName])).map((r) => r.hash)).toEqual([badName]);
-    expect((await lead.sb.storage.from('blobs').download(`${orgId}/${languageId}/${badName}.wav`)).error).not.toBeNull();
+    expect(bucket.objects.has(`${orgId}/${languageId}/${badName}.wav`)).toBe(false);
   });
 });

@@ -37,6 +37,11 @@
     "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
+  // Recordings and guide media (worker/blobs.ts, decisions.md 69). Private:
+  // no public access and no r2.dev address; everything goes through
+  // /api/blobs. Created by scripts/r2-buckets.mjs; `wrangler dev` keeps a
+  // local copy in .wrangler/state.
+  "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs" }],
   // The preview stack (docs/environments.md): langquest-next-dashboard-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
   // they are repeated here. Add "vars": { "SUPABASE_URL": ... } with the
@@ -47,7 +52,8 @@
       "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
         "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
-      }
+      },
+      "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }]
     }
   }
 }

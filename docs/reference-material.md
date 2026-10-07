@@ -138,7 +138,7 @@ material has. Web first; on a phone it edits text and records step audio.
   the blob store by SHA-256, as recordings are. Pictures get a phone copy
   made in the browser (canvas, 500px longest side, JPEG) as `lowHash`;
   films have no phone copy yet. Publishing uploads the files to
-  `<org>/_org/<hash>.<ext>` in the blobs bucket, then publishes the version.
+  `<org>/_org/<hash>.<ext>` in R2 through the Worker (decisions.md 69), then publishes the version.
   Readers fetch a missing file from there once and keep it.
 - **License.** A new guide takes the organization's license. Adapting FIA
   keeps FIA's credit and CC BY-SA 4.0, which cannot be changed

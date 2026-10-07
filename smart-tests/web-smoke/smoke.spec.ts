@@ -127,7 +127,7 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   // A take recorded, kept through a reload before it could upload, then uploaded.
   if (mic) {
     let block = true;
-    await page.route('**/storage/v1/object/**', (route) => (block ? route.abort() : route.continue()));
+    await page.route('**/api/blobs/**', (route) => (block ? route.abort() : route.continue()));
     await page.getByRole('tab', { name: 'Map' }).click();
     await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
@@ -142,7 +142,7 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await page.reload({ waitUntil: 'networkidle' });
     expect(await deviceBlobs(page), 'still there after a reload').toContain(hash);
     block = false;
-    await page.unroute('**/storage/v1/object/**');
+    await page.unroute('**/api/blobs/**');
     expect(await settle(() => blobStored(hash!), Boolean, 90_000), 'uploaded after the reload').toBe(true);
   }
 

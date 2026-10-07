@@ -239,7 +239,7 @@ language, after the change:
 | `notifications` | — | `language_id`; null means an organization-level row |
 | `content_reports` | — | `language_id`; null for a person |
 | `diag.records` | — | `stream_id` |
-| storage bucket | `<org>/<stream>/<hash>.<ext>` | |
+| R2 bucket (decisions.md 69) | `<org>/<stream>/<hash>.<ext>` | |
 
 Realtime channel: `events:<org>/<stream>`.
 

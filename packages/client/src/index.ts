@@ -9,6 +9,7 @@ export * from './transferWorker';
 export * from './device';
 export * from './snapshotWorker';
 export * from './blobReconciler';
+export * from './workerBlobs';
 export * from './snapshotFetch';
 export * from './v2import';
 export * from './writeQueue';

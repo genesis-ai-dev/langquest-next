@@ -344,10 +344,10 @@ describe('the reports API', () => {
     const from = (origin: string, method = 'GET') => new Request('https://dash.example/api/orgs/o/reports', { method, headers: { origin, authorization: 'Bearer good' } });
     const local = await handleApi(from('http://localhost:8081'), deps());
     expect(local.headers.get('access-control-allow-origin')).toBe('http://localhost:8081');
-    expect(local.headers.get('access-control-expose-headers')).toBe('etag, x-as-of');
+    expect(local.headers.get('access-control-expose-headers')).toBe('etag, x-as-of, content-range, accept-ranges, content-length');
     const preflight = await handleApi(from('http://127.0.0.1:8081', 'OPTIONS'), deps());
     expect(preflight.status).toBe(204);
-    expect(preflight.headers.get('access-control-allow-headers')).toBe('authorization, if-none-match');
+    expect(preflight.headers.get('access-control-allow-headers')).toBe('authorization, if-none-match, content-type, range');
     expect((await handleApi(from('https://evil.example'), deps())).headers.get('access-control-allow-origin')).toBeNull();
   });
 
