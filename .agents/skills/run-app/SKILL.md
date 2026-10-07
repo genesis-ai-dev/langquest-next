@@ -43,7 +43,7 @@ runs that session's code. Check `metro.log` for `iOS Bundled` /
 ## iOS simulator
 
 ```sh
-UDID=$(xcrun simctl create "LQ <topic>" "iPhone 17" com.apple.CoreSimulator.SimRuntime.iOS-26-0)
+UDID=$(xcrun simctl create "LQ <topic>" "iPhone 17" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
 xcrun simctl boot $UDID
 ```
 
@@ -52,6 +52,9 @@ xcrun simctl boot $UDID
   the `.app` path under `Containers/Bundle/Application`), copy the `.app` to
   your scratch directory and `xcrun simctl install $UDID <copy>.app`. It must
   contain `EXDevLauncher.bundle`. Otherwise build: `LANG=en_US.UTF-8 npm run ios`.
+  A dev client built with Xcode 27 before the scene-lifecycle plugin
+  (`plugins/withSceneLifecycle.js`) stops at launch on iOS 27; check its
+  Info.plist has `UIApplicationSceneManifest`, or build a new one.
   JavaScript-only changes need no new build.
 - **Open on your Metro:** `xcrun simctl openurl $UDID "langquestnext://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8095"`, then tap Open.
 - **Turn off password AutoFill first** (Settings, General, AutoFill &
