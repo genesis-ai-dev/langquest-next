@@ -31,6 +31,8 @@ export interface PendingRequest {
   profileId: string;
   message: string;
   createdAt: string;
+  /** Their profile name, read with the request: it may be newer than the names the app read (decisions.md 65). */
+  name?: string;
 }
 
 const DEFAULT_TTL_DAYS = 7;
@@ -175,11 +177,18 @@ export async function pendingRequests(orgId: string): Promise<PendingRequest[]> 
     .eq('org_id', orgId)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
+  const ids = (data ?? []).map((r) => r.profile_id as string);
+  // Without names the requests still show, under placeholders.
+  const { data: profiles } = ids.length
+    ? await supabase.from('profiles').select('id,display_name').in('id', ids)
+    : { data: [] };
+  const names = new Map((profiles ?? []).map((p) => [p.id as string, p.display_name as string]));
   return (data ?? []).map((r) => ({
     id: r.id as string,
     profileId: r.profile_id as string,
     message: (r.message as string) ?? '',
-    createdAt: r.created_at as string
+    createdAt: r.created_at as string,
+    ...(names.has(r.profile_id as string) ? { name: names.get(r.profile_id as string)! } : {})
   }));
 }
 

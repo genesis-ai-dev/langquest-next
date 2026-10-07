@@ -76,7 +76,7 @@ export function BibleExplore(ctx: Ctx) {
   }, [query]);
 
   // Sources in this organization's library, to choose one nobody recommended.
-  const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state?.library]);
+  const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state]);
   const docs = useLibraryDocs(ctx.language.orgId, libraryItemsList.map((i) => i.current));
   const librarySources = libraryItemsList.flatMap((i) => {
     const doc = docs.get<SourceDoc>(i.current);

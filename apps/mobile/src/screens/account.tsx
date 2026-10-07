@@ -173,7 +173,7 @@ export function InboxHome(ctx: Ctx) {
     if (decided[r.id]) continue;
     items.push({
       id: `join:${r.id}`, icon: 'people', title: 'Join request', read: false,
-      body: `${names[r.profileId] ?? personLook(r.profileId).name} asked to join ${orgName}. Assign a role to give them access.`,
+      body: `${r.name ?? names[r.profileId] ?? personLook(r.profileId).name} asked to join ${orgName}. Assign a role to give them access.`,
       time: new Date(r.createdAt).toLocaleDateString(), onPress: () => setOpenRequest(r)
     });
   }
@@ -311,7 +311,7 @@ export function InboxHome(ctx: Ctx) {
               <PrimaryBtn label="Assign role & accept" icon="check" onPress={() => {
                 const r = openRequest;
                 setOpenRequest(null);
-                ctx.go('edit_member', { memberId: r.profileId, requestId: r.id });
+                ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}) });
               }} />
             ) : null}
             <GhostBtn label="Decline" tone="red" disabled={declining} onPress={() => void decline(openRequest)} />
@@ -320,7 +320,7 @@ export function InboxHome(ctx: Ctx) {
         {openRequest ? (
           <View style={styles.requestBody}>
             <Text style={txt.body}>
-              {names[openRequest.profileId] ?? personLook(openRequest.profileId).name} asked to join {orgName}. Assign a role to give them access.
+              {openRequest.name ?? names[openRequest.profileId] ?? personLook(openRequest.profileId).name} asked to join {orgName}. Assign a role to give them access.
             </Text>
             {openRequest.message ? <Text style={[txt.sm, { fontStyle: 'italic' }]}>"{openRequest.message}"</Text> : null}
           </View>

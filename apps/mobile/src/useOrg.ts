@@ -8,6 +8,11 @@ import { supabase } from './supabase';
 import { diagnostics } from './diagnostics';
 
 export interface OrgHandle {
+  /**
+   * A new object on every change, but its fields (members, library, ...) are
+   * the fold's own, changed in place. Hooks depend on `state`, never on a
+   * field of it, or they miss the change.
+   */
   state: OrgState | null;
   pending: number;
   append: <T extends OrgEventType>(type: T, payload: EventPayloads[T]) => Promise<void>;

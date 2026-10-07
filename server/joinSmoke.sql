@@ -142,4 +142,38 @@ do $$ begin
     raise exception 'a signed-in person took a code';
   exception when insufficient_privilege then null; end;
 end $$;
+
+-- Someone asking to join is named to whoever may admit them, and to nobody
+-- else, until the request is decided (decisions.md 65).
+insert into auth.users (id, email, aud, role) values
+  ('21000000-0000-0000-0000-000000000010', 'join-asker@example.org', 'authenticated', 'authenticated');
+insert into public.profiles (id, display_name) values ('21000000-0000-0000-0000-000000000010', 'Amira Asker');
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000010',true);
+select public.create_join_request('join-org','join-request-amira','Please let me help');
+set local role authenticated;
+-- The org admin; a member with no Invite; a lead who holds Invite only in a language.
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
+do $$ begin
+  if not exists (select 1 from public.profiles where id = '21000000-0000-0000-0000-000000000010') then
+    raise exception 'an admin must see who is asking to join'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000e',true);
+do $$ begin
+  if exists (select 1 from public.profiles where id = '21000000-0000-0000-0000-000000000010') then
+    raise exception 'a member who cannot admit saw a requester'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000b',true);
+do $$ begin
+  if exists (select 1 from public.profiles where id = '21000000-0000-0000-0000-000000000010') then
+    raise exception 'a language lead saw a requester to the organization'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
+select public.decide_join_request('join-request-amira', false);
+set local role authenticated;
+do $$ begin
+  if exists (select 1 from public.profiles where id = '21000000-0000-0000-0000-000000000010') then
+    raise exception 'a turned-away requester stayed visible'; end if;
+end $$;
+reset role;
 rollback;
