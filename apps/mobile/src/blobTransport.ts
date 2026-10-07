@@ -101,7 +101,7 @@ export async function downloadBlob(orgId: string, streamId: string, ref: StoredF
 async function uploadFromWeb(url: string, headers: Record<string, string>, ref: StoredFile, store: BlobStore): Promise<{ status: number; body: string }> {
   const bytes = await store.readBytes(ref);
   if (!bytes) throw new Error(`no bytes for ${ref.hash} in this browser`);
-  const res = await fetch(url, { method: 'POST', headers, body: bytes });
+  const res = await fetch(url, { method: 'PUT', headers, body: bytes });
   return { status: res.status, body: await res.text() };
 }
 
