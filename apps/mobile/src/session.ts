@@ -31,8 +31,9 @@ export interface Session {
   /** Not signed in at all (browsing public listings). */
   isGuest: boolean;
   /**
-   * A looked-after account (accounts.ts): no email of its own, so it may
-   * not invite anyone, whatever its role says (docs/invites-and-accounts.md).
+   * A looked-after account (accounts.ts): no email of its own. What it may
+   * do is still its role's; only helping others sign in needs an email
+   * (decisions.md 67, docs/invites-and-accounts.md).
    */
   isManaged: boolean;
 }
@@ -45,10 +46,7 @@ export function deriveSession(
   languageId?: string | null
 ): Session {
   const privileges = org ? privilegesFor(org, actorId, languageId ?? undefined) : new Set<Privilege>();
-  // The server refuses it too (issue_invite_v3); removing it here hides
-  // every Invite button by the same `can` the screens already ask.
   const isManaged = isManagedEmail(email);
-  if (isManaged) privileges.delete('invite_members');
   const role = effectiveRole(privileges);
   const isAdmin = MANAGE_PRIVILEGES.some((p) => privileges.has(p));
   const isWorker = privileges.has('translate') || privileges.has('review') || privileges.has('fill_reference');

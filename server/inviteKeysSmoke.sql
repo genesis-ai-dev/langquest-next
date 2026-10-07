@@ -52,11 +52,17 @@ do $$ begin
      <> '20000000-0000-0000-0000-00000000000a' then raise exception 'steward not recorded'; end if;
   if (select label from public.invites where id::text = '30000000-0000-0000-0000-000000000001') is not null then
     raise exception 'a used one-person label must be cleared'; end if;
-  -- A looked-after account may not invite, whatever its role says.
+  -- A looked-after account invites where its role holds Invite (decisions.md 67),
+  -- and nowhere else: its Translator role is at the language only.
+  perform public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000003',
+    encode(extensions.digest(repeat('e',64),'sha256'),'hex'),'translator',
+    '{"level":"language","languageId":"L-keys"}',now()+interval '1 day',null,1);
+  if (select issued_by from public.invites where id::text = '30000000-0000-0000-0000-000000000003')
+     <> '20000000-0000-0000-0000-00000000000c' then raise exception 'looked-after invite not recorded'; end if;
   begin
-    perform public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000003',
-      encode(extensions.digest(repeat('e',64),'sha256'),'hex'),'translator','{"level":"org"}',now()+interval '1 day',null,1);
-    raise exception 'looked-after account invited';
+    perform public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000004',
+      encode(extensions.digest(repeat('f',64),'sha256'),'hex'),'translator','{"level":"org"}',now()+interval '1 day',null,1);
+    raise exception 'invited beyond the role''s scope';
   exception when insufficient_privilege then null; end;
 end $$;
 
