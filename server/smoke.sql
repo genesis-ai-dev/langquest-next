@@ -750,4 +750,25 @@ do $$ begin
 end $$;
 reset role;
 
+-- 16. Request Access lists organizations by name, and only those listing a
+-- language on Explore (decisions.md 66). An unlisted language does not
+-- name its organization; signed out, nothing is listed.
+insert into public.language_visibility values ('org1', 'L1', true), ('org1', 'din', false);
+insert into public.public_languages (org_id, language_id, name) values ('org1', 'L1', 'Language One'), ('org1', 'din', 'Dinka');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'hopeful', false);
+do $$ declare r record; begin
+  select * into strict r from public.listed_organizations();
+  if r.org_id <> 'org1' or r.name <> 'Wycliffe' then raise exception 'a listed organization should be found by name: %', r; end if;
+  if r.languages <> array['Language One'] then raise exception 'only listed languages should name it: %', r.languages; end if;
+end $$;
+reset role;
+set role anon;
+do $$ begin
+  perform * from public.listed_organizations();
+  raise exception 'a signed-out caller must not list organizations';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
 select 'smoke ok' as result;
