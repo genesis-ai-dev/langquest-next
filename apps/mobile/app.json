@@ -101,7 +101,8 @@
           "cameraPermission": "LangQuest uses the camera to scan invite QR codes."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withSceneLifecycle"
     ],
     "scheme": "langquestnext",
     "extra": {
