@@ -156,12 +156,12 @@ describe('who may invite', () => {
     { ...at(2), type: 'v1.MemberAdded', payload: { profileId: 'me', roleId: 'owner', scope: { level: 'org' } } }
   ] as AnyEvent[]);
 
-  it('a looked-after account never may, whatever its role says', () => {
-    // Why: inviting hands out other people's access; someone with no email of
-    // their own cannot be reached if that goes wrong. The server refuses too.
+  it('the role decides, with or without an email of their own', () => {
+    // Why (decisions.md 67): field admins often join by QR with no email; if
+    // that took Invite away, nobody could invite or admit anyone there.
     const managed = deriveSession('me', `nyibol-482@${MANAGED_DOMAIN}`, true, org);
     expect(managed.isManaged).toBe(true);
-    expect(managed.can('invite_members')).toBe(false);
+    expect(managed.can('invite_members')).toBe(true);
     expect(managed.can('manage_structure')).toBe(true);
     const own = deriveSession('me', 'ryder@example.org', true, org);
     expect(own.can('invite_members')).toBe(true);

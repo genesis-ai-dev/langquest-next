@@ -236,7 +236,7 @@ export function OrgHome(ctx: Ctx) {
   const memberCount = new Set(memberEntries(v.org).map((e) => e.profileId)).size;
   // Adding a language is the organization's to do: org-scope Manage structure.
   const mayAdd = privilegesFor(v.org, ctx.session.actorId).has('manage_structure');
-  // The demo's "Invite people" (gate assigner); a looked-after account may not invite (session.ts), so it asks both.
+  // The demo's "Invite people" (gate assigner), and Invite itself, which a role may hold without assigning: it asks both.
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
   return (
     <Screen header={<Header title={v.orgName} />}>

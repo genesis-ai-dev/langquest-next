@@ -61,8 +61,9 @@ Every account has somebody who can get it back in.
 | --- | --- | --- |
 | Signs in with | email and password | nothing: the phone stays signed in (a sign-in name and an optional password, for a shared phone) |
 | Made by | Create Account | joining with an invite, as a new person, with no password (59) |
-| Gets back in through | a sign-in key sent to their email (section 8: next) | a sign-in key from anyone who can invite them where they are, shown as a QR (59) |
-| May invite others | yes, once the address is proven (section 8) | no |
+| Gets back in through | a sign-in key sent to their email (section 8: next) | a sign-in key from anyone with their own email who can invite them where they are, shown as a QR (59) |
+| May invite others | when their role holds Invite | when their role holds Invite (decisions.md 67) |
+| May help others sign in | when their role holds Invite where that person is | no |
 | Becomes the other kind | n/a | by adding and proving their own email (section 8) |
 
 A looked-after account's address is `<sign-in name>@people.langquest.org`.
@@ -123,9 +124,8 @@ Server functions:
   whether it is usable (`ok`, `expired`, `used`, `not_found`). This is what
   the scan screen shows. Offline, the screen says only "Invitation to join
   an organization", as today.
-- `issue_invite_v3(…, label, max_uses)`: refuses looked-after accounts.
-  `issue_invite` (the old signature, used by builds in review) refuses them
-  too.
+- `issue_invite_v3(…, label, max_uses)`: anyone whose role holds Invite at
+  the scope. It refused looked-after accounts until decision 67.
 - `redeem_invite_v2(token)`: the same contract, now counting uses and
   recording the steward. Idempotent per person.
 - `sign-in-code` Edge Function: a helper makes a one-time key for a
@@ -255,7 +255,8 @@ Built in this branch:
   organization lookup race fixed.
 - Flows A to F; the scan screen reads both kinds of key.
 - `preview_invite`, labels, group invites, `invite_redemptions`,
-  `account_stewards`, the invite refusal for looked-after accounts, and the
+  `account_stewards`, the invite refusal for looked-after accounts (lifted
+  by decision 67), and the
   `sign-in-code` function for stewards.
 - Sign in by sign-in name.
 
