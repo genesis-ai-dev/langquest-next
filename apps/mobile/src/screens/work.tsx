@@ -23,7 +23,8 @@ import { dueText, feedbackSource, plural, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
-import { C, radius, shadow, space, TINT } from '../theme';
+import { shadow } from '../shadow';
+import { C, radius, space, TINT } from '../theme';
 
 const FOR_YOU_CAP = 5;
 const WAITING_CAP = 3;
@@ -342,7 +343,7 @@ function Bell(props: { count: number; onPress: () => void }) {
     <View>
       <IconBtn name="notif" label={props.count ? `Updates, ${props.count} new` : 'Updates'} onPress={props.onPress} />
       {props.count > 0 ? (
-        <View pointerEvents="none" style={styles.bellBadge}>
+        <View style={[styles.bellBadge, { pointerEvents: 'none' }]}>
           <Text style={[txt.xsStrong, { color: C.white }]}>{props.count > 99 ? '99+' : props.count}</Text>
         </View>
       ) : null}

@@ -20,7 +20,8 @@ import { plural, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { SourceReader } from '../sources/SourceReader';
-import { C, onColor, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
+import { shadow } from '../shadow';
+import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
 import { useStudyFileUri } from './media';
@@ -159,10 +160,10 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
       accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: clock(props.value) }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => props.onSeek(props.value + (e.nativeEvent.actionName === 'increment' ? 10 : -10))}>
-      <View pointerEvents="none" style={styles.track}>
+      <View style={[styles.track, { pointerEvents: 'none' }]}>
         <View style={[styles.trackFill, { width: `${pct * 100}%` }]} />
       </View>
-      <View pointerEvents="none" style={[styles.thumb, { left: pct * width - 9 }]} />
+      <View style={[{ pointerEvents: 'none' }, styles.thumb, { left: pct * width - 9 }]} />
     </View>
   );
 }

@@ -1,17 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { requestPushToken } from './push';
 import { supabase } from './supabase';
 
 export async function enableNotifications(): Promise<void> {
-  if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('work', {
-    name: 'Work updates', importance: Notifications.AndroidImportance.DEFAULT
-  });
-  const permission = await Notifications.requestPermissionsAsync();
-  if (!permission.granted) throw new Error('Notifications are off. Your inbox still works.');
-  const token = (await Notifications.getExpoPushTokenAsync({
-    projectId: '582d3757-4245-419a-9087-e269e3bf4c4d'
-  })).data;
+  const token = await requestPushToken();
   const { error } = await supabase.rpc('register_push_token', { p_token: token });
   if (error) throw new Error(error.message);
   await AsyncStorage.setItem('push-token', token);

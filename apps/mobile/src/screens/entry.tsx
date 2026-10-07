@@ -31,6 +31,7 @@ import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { supabase } from '../supabase';
+import { lift } from '../shadow';
 import { C, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 
@@ -521,7 +522,7 @@ export function ScanQr(ctx: Ctx) {
               <Ico name={held ? 'check' : 'qr'} size={72} color={held ? C.green : C.faint} />
             )}
             {(['tl', 'tr', 'bl', 'br'] as const).map((k) => (
-              <View key={k} pointerEvents="none" style={[styles.corner, {
+              <View key={k} style={[{ pointerEvents: 'none' }, styles.corner, {
                 borderColor: held ? C.soft : C.white,
                 ...(k[0] === 't' ? { top: 16, borderTopWidth: 3 } : { bottom: 16, borderBottomWidth: 3 }),
                 ...(k[1] === 'l' ? { left: 16, borderLeftWidth: 3 } : { right: 16, borderRightWidth: 3 })
@@ -846,7 +847,7 @@ const styles = StyleSheet.create({
   signInBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   brand: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
   logo: { width: 64, height: 64, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+    ...lift({ color: C.primary, opacity: 0.25, radius: 12, y: 6, elevation: 4 }) },
   wordmark: { fontSize: T.display, fontWeight: '800', color: C.dark, letterSpacing: -0.5 },
   termsLine: { minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm },
   termsLink: { fontWeight: '700', textDecorationLine: 'underline', color: C.muted },
