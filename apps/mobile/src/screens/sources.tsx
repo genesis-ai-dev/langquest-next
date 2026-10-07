@@ -95,7 +95,7 @@ export function BibleExplore(ctx: Ctx) {
   return (
     <Screen header={header}>
       {!bibleBrain ? (
-        <EmptyState icon="globe" title="Bible Brain isn't set up on this phone" sub="Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server." />
+        <EmptyState icon="globe" title="Bible Brain isn't set up on this device" sub="Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server." />
       ) : (
         <>
           <SearchField value={query} onChangeText={setQuery} placeholder="Search for a language" />
@@ -135,7 +135,7 @@ export function BibleExplore(ctx: Ctx) {
         </>
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-        Bibles you add are yours, on this phone, for this language. Your team's recommended Bibles always come first.
+        Bibles you add are yours, on this device, for this language. Your team's recommended Bibles always come first.
       </Text>
     </Screen>
   );

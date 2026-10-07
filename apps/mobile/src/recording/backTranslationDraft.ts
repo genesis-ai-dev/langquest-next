@@ -30,7 +30,7 @@ export function useBackTranslationDraft(key: string, fromTakeId: string) {
       if (mounted.current) { setDraft(current.current); setLoaded(true); }
     }, (e: unknown) => {
       const id = reportError('back translation draft: read', e);
-      if (mounted.current) { setProblem(`Your earlier parts could not be read on this phone (code ${id}). Nothing was deleted.`); setLoaded(true); }
+      if (mounted.current) { setProblem(`Your earlier parts could not be read on this device (code ${id}). Nothing was deleted.`); setLoaded(true); }
       throw new DraftUnreadable('draft unreadable');
     });
     chain.current.catch(() => undefined); // reported above; writes see the refusal

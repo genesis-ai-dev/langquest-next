@@ -219,7 +219,7 @@ export function testamentLines(f: SourceFacts): { testament: Testament; label: s
 
 /** "Keep offline" or why not. */
 export function offlineLine(f: SourceFacts): string {
-  return f.offline ? 'Can be kept on the phone for offline use' : 'Stream only: needs a connection';
+  return f.offline ? 'Can be kept on this device for offline use' : 'Stream only: needs a connection';
 }
 
 /** One line for a list: "Text and audio (NT) · offline". */

@@ -129,7 +129,7 @@ function SharedOffline(props: { error: string; empty: boolean }) {
   if (!props.error) return null;
   return (
     <Banner icon="cloud" tone="amber" title="Could not refresh this list"
-      body={props.empty ? 'Connect to see what other organizations share.' : 'Showing the list this phone saved.'} />
+      body={props.empty ? 'Connect to see what other organizations share.' : 'Showing the list this device saved.'} />
   );
 }
 
@@ -680,7 +680,7 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
   if (!doc) {
     return (
       <Screen header={<Header title={item.name} sub={sourceLine(item)} onBack={ctx.back} />}>
-        {docs.error ? <Banner icon="cloud" tone="amber" title="Not on this phone yet" body="Connect to open this template." /> : <LoadingLine />}
+        {docs.error ? <Banner icon="cloud" tone="amber" title="Not on this device yet" body="Connect to open this template." /> : <LoadingLine />}
       </Screen>
     );
   }
@@ -709,7 +709,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
     setBusy(true);
     try {
       const doc = (await loadDocs(lib.orgId, [c.hash])).get(c.hash);
-      if (!doc || doc.format !== 'versification@1') throw new Error('Its versification is not on this phone yet. Try again when connected.');
+      if (!doc || doc.format !== 'versification@1') throw new Error('Its versification is not on this device yet. Try again when connected.');
       setForm(newTemplateForm('bible', { hash: c.hash, doc }));
     } catch (e) {
       ctx.toast(failure('new template versification', e));

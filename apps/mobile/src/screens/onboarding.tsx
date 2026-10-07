@@ -92,7 +92,7 @@ export function Welcome(ctx: Ctx) {
       {handle ? (
         // Joined by invite with no email or password: nothing to remember (decisions.md 59).
         <Banner icon="lock" title="Nothing to remember"
-          body={`This phone keeps you signed in. On a new phone, ask ${who.invitedBy ?? 'the person who invited you'} to help you sign in.`} />
+          body={`This device keeps you signed in. On a new device, ask ${who.invitedBy ?? 'the person who invited you'} to help you sign in.`} />
       ) : null}
       <Group>
         {points.map((p, i) => <Row key={p.text} icon={p.icon} label={p.text} last={i === points.length - 1} />)}

@@ -213,7 +213,7 @@ function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string })
 function Loading(props: { title: string; onBack?: () => void }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.onBack} />}>
-      <EmptyState icon="cloud" title="Loading" sub="Reading this organization from the phone." />
+      <EmptyState icon="cloud" title="Loading" sub="Reading this organization from this device." />
     </Screen>
   );
 }
@@ -264,7 +264,7 @@ export function OrgHome(ctx: Ctx) {
           return (
             <Row key={languageId} icon="globe" label={v.label(languageId)} onPress={() => ctx.go('language_home', { languageId })}
               current={beside?.screen === 'language_home' && beside.params['languageId'] === languageId}
-              sub={p ? `${flow}${progressLine(p)}` : 'Open it to bring it onto this phone'} />
+              sub={p ? `${flow}${progressLine(p)}` : 'Open it to bring it onto this device'} />
           );
         })}
       </HomeSection>
@@ -772,8 +772,8 @@ function HelpSignIn(props: { memberId: string; who: string }) {
           <QRCode value={signInUri(key.code, APP_URL)} size={200} backgroundColor={C.white} color={C.dark} />
           <Text style={txt.h3}>Sign-in code for {props.who}</Text>
           <Text style={[txt.smMuted, { textAlign: 'center' }]}>
-            On their new phone, {first} opens LangQuest, taps Scan a code and points it here. It works once, for one hour.
-            {key.lost ? ' Using it signs their old phone out.' : ''}
+            On their new device, {first} opens LangQuest, taps Scan a code and points it here. It works once, for one hour.
+            {key.lost ? ' Using it signs their old device out.' : ''}
           </Text>
           <Text style={[txt.xs, { textAlign: 'center' }]}>{first} will see in Settings that you helped them sign in.</Text>
         </Card>
@@ -781,11 +781,11 @@ function HelpSignIn(props: { memberId: string; who: string }) {
         <Card>
           <View style={HELP_ROW}>
             <Ico name="lock" size={22} color={C.primary} />
-            <Text style={[txt.body, { flex: 1 }]}>{first} has no email. On a new phone, show them a sign-in code.</Text>
+            <Text style={[txt.body, { flex: 1 }]}>{first} has no email. On a new device, show them a sign-in code.</Text>
           </View>
           <View style={HELP_ROW}>
-            <Text style={[txt.sm, { flex: 1 }]}>Their old phone is lost or stolen: sign it out</Text>
-            <Toggle on={lost} onToggle={() => setLost(!lost)} label="Their old phone is lost or stolen" />
+            <Text style={[txt.sm, { flex: 1 }]}>Their old device is lost or stolen: sign it out</Text>
+            <Toggle on={lost} onToggle={() => setLost(!lost)} label="Their old device is lost or stolen" />
           </View>
           <PrimaryBtn label="Help them sign in" icon="qr" busy={busy} disabled={busy} onPress={() => void make()} />
         </Card>
@@ -856,7 +856,7 @@ export function InviteQr(ctx: Ctx) {
         <>
           <Text style={txt.xs}>Pick the role this person should have. You don't need their email.</Text>
           {/* A new invite for someone already on the team makes a second account (decisions.md 59). */}
-          <Banner icon="lock" title="Already on the team, with a new phone?"
+          <Banner icon="lock" title="Already on the team, with a new device?"
             body="Open them in Members and tap Help them sign in. A new invite would make a second account." />
           <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: plural(r.privileges, 'privilege') }))} value={roleId} onChoose={setRoleId}
             empty="No roles yet." />
@@ -961,7 +961,7 @@ export function NewLanguage(ctx: Ctx) {
       const languoid = code.trim() || title.slice(0, 3);
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
       const loaded = (await loadDocs(lib.orgId, [template.hash])).get(template.hash);
-      if (!loaded || loaded.format !== 'template@1') throw new CommandError('Its template is not on this phone yet. Try again when connected.');
+      if (!loaded || loaded.format !== 'template@1') throw new CommandError('Its template is not on this device yet. Try again when connected.');
       const books = booksInScope(loaded, scope);
       const templateItem = await adoptChoice(lib, template);
       const flowItem = await adoptChoice(lib, flow);
@@ -1003,7 +1003,7 @@ export function NewLanguage(ctx: Ctx) {
       <SectionLabel label="Template" />
       {sharedTemplates.error ? (
         <Banner icon="cloud" tone="amber" title="Could not refresh the shared templates"
-          body={sharedTemplates.rows.length ? 'Showing the list this phone saved.' : 'Connect to see the ones other organizations share.'} />
+          body={sharedTemplates.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
       ) : null}
       <Choices items={shownTemplates.map((c) => ({ id: c.key, label: c.name, sub: choiceLine(c, sourceLine), ...(c.key === suggestedTemplate ? { badge: 'Suggested' } : {}) }))}
         value={template?.key ?? ''} onChoose={setPickedTemplate} empty={sharedTemplates.loaded ? 'No templates to choose from yet.' : 'Loading…'} />
@@ -1014,7 +1014,7 @@ export function NewLanguage(ctx: Ctx) {
       <SectionLabel label="Review flow" />
       {sharedFlows.error ? (
         <Banner icon="cloud" tone="amber" title="Could not refresh the shared flows"
-          body={sharedFlows.rows.length ? 'Showing the list this phone saved.' : 'Connect to see the ones other organizations share.'} />
+          body={sharedFlows.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
       ) : null}
       <Choices items={shownFlows.map((c) => ({ id: c.key, label: c.name, sub: choiceLine(c, sourceLine), ...(c.key === suggestedFlow ? { badge: 'Suggested' } : {}) }))}
         value={flow?.key ?? ''} onChoose={setPickedFlow} empty={sharedFlows.loaded ? 'No review flows to choose from yet.' : 'Loading…'} />

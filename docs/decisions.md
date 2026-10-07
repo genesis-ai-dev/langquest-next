@@ -1555,6 +1555,15 @@ audio's neighbours in practice (then the Settings line needs a size budget),
 the study file folder grows past what phones can spare (then it needs the
 same eviction rules as audio), or teams need films in the field.
 
+Amended (2026-10-07, Carl Sauder): the app runs on phones, tablets and the
+web (decisions 55, 58), so the screens say "device" where they said
+"phone": "On this device", "Not kept on this device", "Always on this
+device", and likewise in sign-in, sync, reports and errors. "Phone" stays
+only where it names phones on purpose: phone-number fields, and the guide
+editor's note that phones and tablets get a small copy of each picture. The
+demo already says "another device". Code identifiers (`onPhone`, the
+`'phone'` layout kind) keep their names.
+
 ## 62. Reference material is library documents placed by coordinates, recommended at three levels, and recorded where it was used
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted

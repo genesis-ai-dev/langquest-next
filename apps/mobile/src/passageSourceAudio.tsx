@@ -147,7 +147,7 @@ export function SourcePlayer(props: {
           }
           if (!wants.current || generation.current !== run) return;
         }
-        if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
+        if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -189,7 +189,7 @@ export function SourcePlayer(props: {
         <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} />
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? 'Pause playback' : props.label : 'Audio is not on this phone yet'}
+          label={available ? playing ? 'Pause playback' : props.label : 'Audio is not on this device yet'}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
         <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} />

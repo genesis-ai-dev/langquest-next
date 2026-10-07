@@ -181,7 +181,7 @@ async function bibleBrainAudio(store: ReturnType<typeof storeOf>, fileset: strin
     const uri = await playableUri(store, kept);
     if (uri) return uri;
   }
-  if (!bibleBrain) throw new Error("Bible Brain isn't set up on this phone.");
+  if (!bibleBrain) throw new Error("Bible Brain isn't set up on this device.");
   const key = `${fileset}:${book}:${chapter}`;
   const held = audioLinks.get(key);
   if (held && held.expires > Date.now() + 60_000) return held.url;
@@ -227,7 +227,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     setBb({ key: bbKeyNow, verses, stamps, problem: null, done: false });
     void (async () => {
       let problem: string | null = null;
-      if (!bibleBrain) problem = "Bible Brain isn't set up on this phone.";
+      if (!bibleBrain) problem = "Bible Brain isn't set up on this device.";
       else {
         for (const c of chaptersOf(range)) {
           if (filesets.text) {
@@ -281,7 +281,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
           resolve: async () => {
             if (ref && store?.has(ref.hash)) { const uri = await playableUri(store, ref); if (uri) return uri; }
             if (a.url) return a.url;
-            throw new Error("This recording isn't on the phone yet.");
+            throw new Error("This recording isn't on this device yet.");
           }
         });
       }

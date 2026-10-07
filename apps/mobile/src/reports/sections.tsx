@@ -537,7 +537,7 @@ export function Ledger(p: SectionProps) {
       </View>
       {!settled ? (
         <Notice tone="amber" title={`${monthName(month)} is still moving`}
-          body={`Phones that were offline keep delivering this month's work for a few days after it ends, so these figures settle ${SETTLE_DAYS} days into the next month. Use a settled month for invoices.`} />
+          body={`Devices that were offline keep delivering this month's work for a few days after it ends, so these figures settle ${SETTLE_DAYS} days into the next month. Use a settled month for invoices.`} />
       ) : null}
       <Panel eyebrow="Monthly ledger" title={monthName(month)}>
         <Columns>

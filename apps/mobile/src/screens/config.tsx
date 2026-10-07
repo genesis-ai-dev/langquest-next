@@ -315,7 +315,7 @@ function SharedItems(props: {
     <>
       <SectionLabel label={`From other organizations · ${rows.length}`} />
       {shared.error ? (
-        <Card><Text style={txt.smMuted}>{shared.rows.length ? 'Could not refresh this list. Showing the one saved on this phone.' : 'Could not load what other organizations share. Try again when you are online.'}</Text></Card>
+        <Card><Text style={txt.smMuted}>{shared.rows.length ? 'Could not refresh this list. Showing the one saved on this device.' : 'Could not load what other organizations share. Try again when you are online.'}</Text></Card>
       ) : null}
       {!shared.loaded ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Loading…</Text>
         : rows.length === 0 && !shared.error ? <Card><Text style={txt.smMuted}>Nothing shared by other organizations yet.</Text></Card> : null}

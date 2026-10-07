@@ -163,8 +163,8 @@ function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }
               sub={r.uploads.lastAt ? `${shortDate(r.uploads.lastAt.slice(0, 10))} ${r.uploads.lastAt.slice(0, 4)}` : undefined} />
           </Stats>
           {r.alerts.stuckCards > 0 ? (
-            <Notice tone="red" title={`${num(r.alerts.stuckCards)} recordings stuck on phones`}
-              body={`Recorded more than two weeks ago (the oldest ${r.alerts.stuckSince ? shortDate(r.alerts.stuckSince.slice(0, 10)) : ''}) and not yet on the server. Until they upload, the phone holds the only copy.`} />
+            <Notice tone="red" title={`${num(r.alerts.stuckCards)} recordings stuck on devices`}
+              body={`Recorded more than two weeks ago (the oldest ${r.alerts.stuckSince ? shortDate(r.alerts.stuckSince.slice(0, 10)) : ''}) and not yet on the server. Until they upload, the device holds the only copy.`} />
           ) : null}
           <DayBars days={r.uploads.daily.map((d) => ({ day: d.day, value: d.cards }))} highlightFrom={sevenAgo} label="The last 7 days" unit="uploads" />
         </Panel>
