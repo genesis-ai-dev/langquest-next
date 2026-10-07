@@ -2,9 +2,9 @@
 # Give `diag_reader` a login on the hosted project and keep its connection
 # string encrypted in .env.production (docs/diagnostics.md).
 #
-#   npm run diag:access              once, after the field diagnostics
-#                                    migration is on the hosted database
-#   npm run diag:hosted -- report …  then read hosted diagnostics
+#   scripts/diag-access.sh               once, after the field diagnostics
+#                                        migration is on the hosted database
+#   npm run diag -- --hosted report …    then read hosted diagnostics
 #
 # Running it again rotates the password. It prints no secret, and commits
 # .env.production alone. A support credential never goes in

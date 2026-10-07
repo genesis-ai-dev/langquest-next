@@ -114,20 +114,43 @@ Shrink with `sips -Z 800` before viewing.
 3. On the other device: create the second account, Join with QR code, paste
    the code.
 
-Bring the local database up with `npm run db:start`, not `supabase start`
-(and whoever owns it resets it with `npm run db:reset`): these also run the
+Bring the local stack up with `npm run dev:local`: `npm run db:start`, then
+the web Worker on :8787 in the foreground, which Reports needs (without it
+Reports says "You are offline"). Never plain `supabase start` (and whoever
+owns the database resets it with `npm run db:reset`): these also run the
 projection worker every minute (server Inbox rows, pushes, snapshots) and
-seed the library. The iOS simulator never receives pushes. After pulling a branch that adds or renames an Edge
+seed the library. If another session already serves :8787, `dev:local` uses
+it and returns. The iOS simulator never receives pushes. After pulling a branch that adds or renames an Edge
 Function, restart the local stack (`npx supabase stop && npx supabase
 start`, which keeps the database): the functions served are fixed when it
 starts, and a missing one answers 404 ("non-2xx status code" in the app).
+
+**Clear the app's data after a `db:reset`, or after pointing a dev client
+at the other server** (`npm start` and `npm run start:remote`). The device
+keeps its own copy of every stream in `langquest-next.db`, with how far it
+has pulled. The file is named the same for every server, and the sample
+org's id is the same on every seed. A reset log restarts at 1, so the
+device asks for events after a number the server has not reached yet and
+never hears of anything new. A member who just joined then lands on "What
+brings you here?", because the device's copy of the org does not list them;
+a wrong role or missing work are the same fault. Check it by comparing the
+device's `cursors` table with `max(server_seq)` on the server. To clear:
+
+- iOS simulator: quit the app, then delete `Documents/SQLite/langquest-next.db*`
+  under `xcrun simctl get_app_container $UDID com.frontierrnd.langquestnext data`.
+  This keeps the sign-in. Uninstalling also works, but an account made by
+  joining has no password to sign back in with.
+- Android: `adb shell pm clear com.frontierrnd.langquestnext` (signs out),
+  then open it on your Metro again.
+- Web: clear the site's data for that address (DevTools, Application,
+  Storage, Clear site data).
 
 ## Checking the server
 
 From a checkout linked to the hosted project (`npx supabase link`; the main
 checkout is): `npx supabase db query --linked -o json "select …"`. Compare
 secrets by hash, never print them. Staff views: `npm run moderation -- --hosted`,
-`npm run diag:hosted`.
+`npm run diag -- --hosted`.
 
 ## Cleaning up
 

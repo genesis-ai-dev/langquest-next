@@ -115,13 +115,13 @@ npm run diag -- timeline <installId> --days 3      # one phone, in order
 ```
 
 Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
-database, someone with access to the linked project runs `npm run
-diag:access` once, after this migration is deployed. It gives the role a
+database, someone with access to the linked project runs
+`scripts/diag-access.sh` once, after this migration is deployed. It gives the role a
 generated password and encrypts the connection string (Supavisor, user
 `diag_reader.<project-ref>`) into the root `.env.production` with dotenvx,
 printing nothing secret. It is a support credential, so never in
-`apps/mobile/.env.*`, which EAS receives. Then `npm run diag:hosted --
-report …` reads the hosted records; running `diag:access` again rotates
+`apps/mobile/.env.*`, which EAS receives. Then `npm run diag -- --hosted
+report …` reads the hosted records; running `diag-access.sh` again rotates
 the password.
 
 `diag_reader` can read the diag tables and run the report functions. It

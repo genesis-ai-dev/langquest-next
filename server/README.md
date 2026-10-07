@@ -37,7 +37,7 @@ projection schedule beside it. Later changes are new migrations as before.
   scope. `can_read_stream` gates every read; `my_privileges(org, language)`
   lets a screen hide edits the server would refuse.
 - `pull_events(org, stream, after, limit)`: bounded, ordered page for readers.
-- `scripts/record-parity-sql.ts` (`npm run db:parity`, part of `db:test`)
+- `scripts/record-parity-sql.ts` (part of `npm run db:test`; `node scripts/db-test.mjs --parity` alone)
   holds `validate_payload`, `event_privilege` and `language_of_org_event` to
   core for every event type and its broken variants.
 

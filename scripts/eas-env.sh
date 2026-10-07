@@ -2,9 +2,9 @@
 # Keep an EAS environment in step with apps/mobile/.env.<environment>, the
 # encrypted file in git that EAS copies. EAS Build and `npm run ship` read EAS.
 #
-#   npm run env:diff:eas -- preview          what differs (names only)
-#   npm run env:push:eas -- preview          push the committed file to EAS
-#   npm run env:push:eas -- preview --yes    same, without the question
+#   npm run env:eas -- diff preview          what differs (names only)
+#   npm run env:eas -- push preview          push the committed file to EAS
+#   npm run env:eas -- push preview --yes    same, without the question
 #
 # The app's files hold only public EXPO_PUBLIC_* values, kept plain, so no
 # key is needed (docs/environments.md). Copies exist only in a private temp
@@ -13,11 +13,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 cmd="${1:-}"; env="${2:-}"; yes="${3:-}"
-case "$cmd" in diff|push) ;; *) echo "usage: scripts/eas-env.sh <diff|push> <environment> [--yes]" >&2; exit 2 ;; esac
+case "$cmd" in diff|push) ;; *) echo "usage: npm run env:eas -- <diff|push> <preview|production> [--yes]" >&2; exit 2 ;; esac
 case "$env" in
   preview|production) ;;
   development) echo "development is local only (npm start reads the file directly); nothing to sync" >&2; exit 2 ;;
-  *) echo "usage: npm run env:$cmd:eas -- <preview|production>" >&2; exit 2 ;;
+  *) echo "usage: npm run env:eas -- $cmd <preview|production>" >&2; exit 2 ;;
 esac
 
 src="apps/mobile/.env.$env"

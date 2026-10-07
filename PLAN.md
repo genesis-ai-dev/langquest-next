@@ -534,7 +534,7 @@ Known v2 gap still open: no server-side garbage collection of blobs nothing
 references (a redacted recording's blobs stay in the bucket until that
 exists).
 
-Load harness: `npm run loadtest -- 100000` folds a synthetic Bible-scale log.
+Load harness: `npx tsx scripts/loadtest.ts 100000` folds a synthetic Bible-scale log.
 On a laptop, 100k events replay in 0.2 to 1.3 s with a 13 MB snapshot
 (1.1 MB gzipped, which is what HTTP compression sends) and a 250 MB heap.
 The gate is the same run on the slowest partner Android.

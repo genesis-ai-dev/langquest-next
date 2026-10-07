@@ -8,7 +8,7 @@ change; deploys never carry them, so no build system holds a key
 
 | Environment | Git branch | Supabase | Cloudflare Workers | App (EAS) |
 | --- | --- | --- | --- | --- |
-| development | your branch | local (`npm run db:start`) | `npm run web:dev` (the Worker, local) | `npm run app`, development channel |
+| development | your branch | local (`npm run db:start`) | `npm run web:dev` (the Worker, local); `npm run dev:local` starts both | `npm run app`, development channel |
 | preview | `develop` | persistent branch `develop` of the hosted project | `langquest-next-dashboard-preview`, `langquest-next-invite-email-preview` | `preview` channel and profile |
 | production | `main` | the hosted project `xymxnebdwtbkfxlbylch` | `langquest-next-dashboard`, `langquest-next-invite-email` | `production` channel, TestFlight and Play internal |
 
@@ -36,14 +36,14 @@ not the app.
 
 | Setting | File | Reaches the platform by |
 | --- | --- | --- |
-| The app's public config (`EXPO_PUBLIC_*`), plain | `apps/mobile/.env.<env>` | `npm run env:push:eas -- <env>` (EAS builds and updates); the web build (`npm run export:web`) reads it too |
+| The app's public config (`EXPO_PUBLIC_*`), plain | `apps/mobile/.env.<env>` | `npm run env:eas -- push <env>` (EAS builds and updates); the web build (`npm run export:web`) reads it too |
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
 | Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the dashboard's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PROJECTION_WORKER_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by
-`npm run diag:hosted`, never pushed). It may also hold
+`npm run diag -- --hosted`, never pushed). It may also hold
 `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By Hearing's key for the Worker's
 Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
@@ -89,7 +89,7 @@ never deploys over preview or production.
 | --- | --- |
 | Set one value | `npm run env:update -- <env> KEY ['value']`: `EXPO_PUBLIC_*` goes plain into the app's file and on to EAS; anything else is encrypted into `.env.<env>` (asks for the value, hidden, when it is left out) |
 | Apply secrets | `npm run secrets -- <env>` (shows what differs, asks); `--check` only compares |
-| Push the app's file to EAS | `npm run env:push:eas -- <env>` |
+| Push the app's file to EAS | `npm run env:eas -- push <env>` |
 | Deploy a Worker by hand | `npm run web:deploy[:preview]`, `npm run email:deploy[:preview]` |
 | Check this machine | `npm run env:doctor` |
 
