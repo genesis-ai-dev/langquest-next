@@ -60,8 +60,6 @@ import { useLanguage } from './src/useLanguage';
 import { useHandOvers } from './src/handOver';
 import { openLanguage } from './src/languages';
 
-// Initial selection, before the account's saved organization is restored.
-const ORG_ID = process.env.EXPO_PUBLIC_ORG_ID ?? 'org1';
 const IS_DEV = __DEV__;
 let initialLinkRead = false;
 
@@ -276,7 +274,11 @@ export default function App() {
  * between: its own stream plus the open language's (decision 63).
  */
 function Shell(props: { actorId: string; email: string | null; signedIn: boolean }) {
-  const [orgId, setOrgId] = useState(ORG_ID);
+  // None until this account's organization is known: a guest, or an account
+  // in no organization, syncs nothing. Opening a placeholder instead asked the
+  // server for an organization this person is not in.
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [decided, setDecided] = useState(false);
   const [selectionRevision, setSelectionRevision] = useState(0);
   const [noOrganizations, setNoOrganizations] = useState(false);
   const key = `selection:${props.actorId}`;
@@ -287,11 +289,11 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
   useEffect(() => {
     let active = true;
     void (async () => {
+      if (!props.signedIn) return;
       const raw = await AsyncStorage.getItem(key);
       // Saved before decision 34 as { orgId, languageId }: the org is what counts.
       const saved = raw ? (JSON.parse(raw) as { orgId?: string }).orgId : undefined;
       if (saved) { if (active) setOrgId(saved); return; }
-      if (!props.signedIn) return;
       // Nothing chosen on this device yet: open the first organization this
       // account belongs to, so someone just added to a team lands in it.
       const { data, error } = await supabase.rpc('my_organizations');
@@ -303,7 +305,8 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
       if (!first) return;
       await AsyncStorage.setItem(key, JSON.stringify({ orgId: first.org_id }));
       setOrgId(first.org_id);
-    })().catch((e: unknown) => { reportError('restore organization', e); });
+    })().catch((e: unknown) => { reportError('restore organization', e); })
+      .finally(() => { if (active) setDecided(true); });
     return () => { active = false; };
   }, [key, props.signedIn]);
   const openOrganization = useCallback(async (next: string) => {
@@ -311,11 +314,13 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
     await AsyncStorage.setItem(key, JSON.stringify({ orgId: next }));
     setNoOrganizations(false);
     setOrgId(next);
+    setDecided(true);
     setSelectionRevision((revision) => revision + 1);
   }, [key]);
   // The held invite is used here, above the organization, so opening the
   // organization it joined cannot interrupt it.
   const invite = useHeldInvite(props.signedIn ? props.actorId : null, openOrganization);
+  if (!decided) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
   return <Workspace key={`${orgId}:${selectionRevision}`} {...props} orgId={orgId} noOrganizations={noOrganizations} openOrganization={openOrganization} invite={invite} />;
 }
 
@@ -325,11 +330,12 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  * the first sync has had its chance), which languages it has is unknown, so
  * nothing is opened yet.
  */
-function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
+function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle }) {
   const org = useOrg(props.orgId, props.actorId);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel="Opening your organization" />;
-  return <OrgWork {...props} org={org} />;
+  // No organization: the screens still need an id for their keys; '' names none.
+  return <OrgWork {...props} orgId={props.orgId ?? ''} org={org} />;
 }
 
 /**

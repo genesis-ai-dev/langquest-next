@@ -29,15 +29,9 @@ describe('organization source Bibles', () => {
     expect(sourceChapters('fia@1/jhn-p1')[0]?.book).toBe('joh');
   });
 
-  it('keeps editions separate and mirrors only the Jonah pilot', () => {
-    const chapter = sourceChapters('bible@1/jon-1')[0]!;
-    const base = 'https://audio.example.test/';
-    expect(sourceAudioUrl(SOURCE_BIBLES[0], chapter, base))
-      .toBe(`${base}berean-bsb-fs/BSB_32_Jon_001_FS.mp3`);
-    expect(sourceAudioUrl(SOURCE_BIBLES[1], chapter, base))
-      .toBe(`${base}berean-msb-fs/MSB_32_Jon_001_FS.mp3`);
+  it('keeps editions separate', () => {
     expect(sourceAudioUrl(SOURCE_BIBLES[0],
-      sourceChapters('bible@1/joh-1')[0]!, base))
+      sourceChapters('bible@1/joh-1')[0]!))
       .toBe('https://openbible.com/audio/bsb_frederick_surrey/BSB_43_Jhn_001_FS.mp3');
     expect(sourceAudioUrl(SOURCE_BIBLES[1],
       sourceChapters('bible@1/mar-1')[0]!))

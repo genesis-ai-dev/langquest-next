@@ -163,7 +163,11 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   // Sign out: this browser keeps nothing (decisions.md 11, amended).
   await second.getByRole('tab', { name: 'Settings' }).click();
   await button(second, /^Sign Out/).click();
+  // Forgetting ends with a fresh page. The signed-out screen shows before
+  // that, while the databases are still being deleted (slow in WebKit).
+  const forgotten = second.waitForEvent('load', { timeout: 60_000 });
   await button(second, 'Sign Out').click();
+  await forgotten;
   await expect(second.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
   expect(await second.evaluate(() => localStorage.length)).toBe(0);
   expect(await appFiles(second), 'recordings and documents left in this browser').toEqual([]);
