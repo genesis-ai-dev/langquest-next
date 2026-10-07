@@ -1,7 +1,10 @@
+import { LABEL_ISO639_3 } from './glottologLabelCodes';
+
 /**
- * Glottolog's CLDF release -> rows for the languoid staging tables
+ * Glottolog's CLDF release -> rows for the languoid staging tables, and
+ * LangQuest v2's language and region rows -> the rows to copy here
  * (supabase/migrations/20261008000000_languoids.sql). Pure, so it can be
- * tested; scripts/languoids.ts fetches the files and loads the rows.
+ * tested; scripts/languoids.ts fetches and loads.
  *
  * The release is https://github.com/glottolog/glottolog-cldf, files under
  * cldf/: languages.csv (one row per languoid), values.csv (level, category
@@ -30,7 +33,8 @@ export interface StagedLanguoid {
 export interface StagedName {
   glottocode: string;
   name: string;
-  lang: string | null;
+  /** The ISO 639-3 code of the language the name is written in. */
+  label_iso639_3: string;
   providers: string[];
 }
 
@@ -88,7 +92,8 @@ export function stageGlottolog(files: { languages: string; values: string; names
     if (v['Parameter_ID'] === 'classification' && v['Value']) {
       parent.set(v['Language_ID']!, v['Value'].split('/').pop()!);
     } else if (v['Parameter_ID'] === 'category' && v['Value']) {
-      category.set(v['Language_ID']!, v['Value']);
+      // v2 wrote categories as Glottolog's site does: "Spoken L1 Language".
+      category.set(v['Language_ID']!, v['Value'].replace(/_/g, ' '));
     }
   }
 
@@ -111,16 +116,21 @@ export function stageGlottolog(files: { languages: string; values: string; names
     });
   }
 
-  // One row per (languoid, name, language), with every provider that gives it.
+  // One row per (languoid, name, label language), with every provider that
+  // gives it. As v2's loader did: a name with no language tag is English,
+  // and artificial languages get no names.
+  const artificial = new Set(languoids.filter((l) => l.category === 'Artificial Language').map((l) => l.glottocode));
   const known = new Set(languoids.map((l) => l.glottocode));
   const byKey = new Map<string, StagedName>();
   for (const n of parseCsv(files.names)) {
     const glottocode = n['Language_ID']!;
     const name = (n['Name'] ?? '').trim();
-    if (!known.has(glottocode) || !name || NOT_A_NAME.has(name.toLowerCase())) continue;
-    const lang = n['lang']?.trim() || null;
-    const key = `${glottocode}\u0000${name}\u0000${lang ?? ''}`;
-    const row = byKey.get(key) ?? { glottocode, name, lang, providers: [] };
+    if (!known.has(glottocode) || artificial.has(glottocode) || !name || NOT_A_NAME.has(name.toLowerCase())) continue;
+    const tag = n['lang']?.trim();
+    const label = tag ? LABEL_ISO639_3[tag] : 'eng';
+    if (!label) throw new Error(`${glottocode}: no ISO 639-3 code for the language tag "${tag}" (scripts/glottologLabelCodes.ts)`);
+    const key = `${glottocode}\u0000${name}\u0000${label}`;
+    const row = byKey.get(key) ?? { glottocode, name, label_iso639_3: label, providers: [] };
     const provider = n['Provider']?.trim();
     if (provider && !row.providers.includes(provider)) row.providers.push(provider);
     byKey.set(key, row);
@@ -130,34 +140,3 @@ export function stageGlottolog(files: { languages: string; values: string; names
   return { languoids, names: [...byKey.values()] };
 }
 
-/**
- * langquest v2 loaded Glottolog once, on 2025-10-01; every languoid it has
- * from Glottolog was made then. Rows made on other days came from elsewhere (an ISO
- * 639-3 list, a legacy "English", languoids users made) and are left behind.
- */
-export const V2_GLOTTOLOG_LOAD = { from: '2025-10-01', before: '2025-10-02' };
-
-export interface V2Languoid {
-  id: string;
-  parent_id: string | null;
-  name: string | null;
-  level: string;
-}
-
-/** v2's Glottolog rows and their aliases -> the v2 staging tables. Aliases are tagged with their label language's ISO 639-3 code. */
-export function stageV2(
-  languoids: V2Languoid[],
-  iso: { languoid_id: string; unique_identifier: string }[],
-  aliases: { subject_languoid_id: string; label_languoid_id: string; name: string }[]
-) {
-  const ids = new Set(languoids.map((l) => l.id));
-  const isoOf = new Map(iso.filter((s) => /^[a-z]{3}$/.test(s.unique_identifier)).map((s) => [s.languoid_id, s.unique_identifier]));
-  return {
-    languoids: languoids.map((l) => ({
-      id: l.id, parent_id: l.parent_id && ids.has(l.parent_id) ? l.parent_id : null, name: l.name, level: l.level, iso639_3: isoOf.get(l.id) ?? null
-    })),
-    names: aliases
-      .filter((a) => ids.has(a.subject_languoid_id) && a.name.trim())
-      .map((a) => ({ languoid_id: a.subject_languoid_id, name: a.name.trim(), lang: isoOf.get(a.label_languoid_id) ?? null }))
-  };
-}

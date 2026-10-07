@@ -1858,29 +1858,36 @@ Reverse if: Worker CPU or request costs approach what the egress saved, or
 films outgrow the request limit (then presigned multipart uploads for large
 files only), or Cloudflare availability costs more field time than it saves.
 
-## 70. Languages are a UUID-keyed table loaded from Glottolog, keeping v2's ids and none of v2's user-made languages
+## 70. Languages and regions are LangQuest v2's reference tables, kept outside the event log and refreshed from Glottolog
 
 Date: 2026-10-07 · By: Caleb Koster · Status: accepted
 
 Reason: the app had no list of languages. A new language took whatever code
 an admin typed (`addLanguage`, "din"), while `import:v2` carried v2's
-languoid UUIDs, so `LanguageAdded.code` already named languages two ways. v2's own tables
-came from a one-off SQL load of a Glottolog dump that gave every row a random
-UUID and never kept the glottocode, so they could not be refreshed. Caleb
-chose UUIDs as the id, because languages collected in the field may not be
-in Glottolog yet, and chose not to bring over the languoids v2 users made,
-because many are junk or duplicates. So `languoid` and `languoid_name` are
-global reference tables (not in any stream; everyone reads, the service role
-writes), keyed by UUID, with the glottocode as a unique second key that
-`npm run languoids` (`scripts/languoids.ts`, `scripts/glottolog.ts`) uses to
-merge each Glottolog CLDF release: preview the diff, then apply it in one
-transaction. A languoid a release drops is retired, never deleted. On the
-first import, v2's Glottolog rows are matched to glottocodes (ISO 639-3, then
-the chain of names, then a unique name and level) and keep their v2 UUIDs, so
-imported projects point at the same language. This replaces the "languoid
-list in a static `catalog@N` bundle" of `docs/flow-coverage-audit.md` 5.D:
-the list is about 27,000 languoids and 75,000 names, and it changes on
-Glottolog's schedule, not the app's. `docs/languoids.md` has the details.
+languoid UUIDs. v2 already has a carefully normalized model, which Caleb
+designed: languoids in a tree; aliases written in a label languoid and typed
+endonym or exonym (so a language's name can be shown in the reader's app
+language); sources (glottocode, ISO 639-3, Wikidata, WALS, …); open
+properties; regions with their own aliases and sources; and languoid–region
+links with majority, official and native. That model is what lets LangQuest
+map the world's languages and their regions from what people enter. So this
+app takes v2's nine tables as they are, with the same columns and
+constraints, and copies v2's Glottolog rows and regions into them with their
+ids, so imported v2 projects point at the same languages
+(`npm run languoids -- seed-v2`). Languoids v2 users made, which are often
+duplicates, are left behind (Caleb, 2026-10-05). Ids are UUIDs because
+languages collected in the field may not be in Glottolog yet. Two
+departures from v2: `download_profiles` is dropped (it was PowerSync's sync
+list; nothing syncs these tables here), and the glottocode, which v2 never
+kept, is a `languoid_source` row, so `npm run languoids -- preview / apply`
+can merge each Glottolog CLDF release in one transaction (`scripts/languoids.ts`,
+`scripts/glottolog.ts`): new languoids and names added, renamed or
+reclassified ones updated, dropped ones made inactive, never deleted. The
+tables are reference data, not events and not in any stream: a language in
+the app names its languoid's UUID in `LanguageAdded`, and nothing else
+reaches a phone. This replaces the "languoid list in a static `catalog@N`
+bundle" of `docs/flow-coverage-audit.md` 5.D. `docs/languoids.md` has the
+details.
 Reverse if: people need to pick a language they have never searched for while
-offline; then the app ships or caches a compact name index built from these
-tables, and the tables stay the source.
+offline; then phones keep a downloaded copy of these tables (about 2.7 MB
+gzipped with every name, code and region), and the tables stay the source.
