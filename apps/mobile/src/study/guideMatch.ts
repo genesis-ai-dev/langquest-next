@@ -7,7 +7,7 @@
 // Pure: documents in, a choice out.
 import {
   libraryUnitRange, parseRef, sharedVerses, studyEntriesFor, unitPrefixFor, usfmOf, versesInChapter,
-  type CollectionDoc, type LibraryDoc, type MediaRef, type ProjectState, type StudyDoc, type StudyDoc2, type TemplateDoc, type VerseRange, type VersificationDoc
+  type CollectionDoc, type LibraryDoc, type MediaRef, type LanguageState, type StudyDoc, type StudyDoc2, type TemplateDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import type { GlossaryEntry, GuideOrigin, StudyFile, StudyGuide, StudyMediaKind } from './guides';
 import { unitRange } from './range';
@@ -99,11 +99,11 @@ export function guideFromDoc(id: string, doc: StudyDoc | StudyDoc2, opts: { phon
 }
 
 /** A guide id from where it lives; never ':' (study mark keys are ':'-separated). */
-export const guideId = (source: string, ref: string) => `${source}~${ref}`.replace(/[:\s]/g, '.');
+const guideId = (source: string, ref: string) => `${source}~${ref}`.replace(/[:\s]/g, '.');
 
 /** The passage's verses and the versification they are in (null when its template names none). */
-export function passageVerses(state: ProjectState, unitId: string, laneId: string | null, get: Get): { range: VerseRange; versification: VersificationDoc | null } | null {
-  const sel = laneId ? state.laneTemplates[laneId]?.value : undefined;
+export function passageVerses(state: LanguageState, unitId: string, get: Get): { range: VerseRange; versification: VersificationDoc | null } | null {
+  const sel = state.template?.value;
   const template = sel?.docHash ? (get(sel.docHash) as TemplateDoc | null) : null;
   const v11n = template?.bible ? (get(template.bible.versification) as VersificationDoc | null) : null;
   const lib = libraryUnitRange(unitId, v11n ? (b, c) => versesInChapter(v11n, b, c) : undefined);

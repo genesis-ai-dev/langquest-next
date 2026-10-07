@@ -7,7 +7,7 @@
 // Sources in the organization's library that nobody recommended can be
 // added the same way. Every Bible says whether it has audio and whether it
 // can be kept offline.
-import { libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
+import { languageInfo, libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -43,11 +43,11 @@ function languageOf(bibles: BibleSummary[] | null): string {
 type Picked = { kind: 'biblebrain'; bibleId: string } | { kind: 'library'; itemId: string };
 
 export function BibleExplore(ctx: Ctx) {
-  const state = ctx.project.state;
-  const laneId = ctx.params['laneId'] ?? ctx.laneId ?? null;
+  const state = ctx.language.state;
+  const languageId = ctx.params['languageId'] ?? ctx.languageId ?? null;
   const unitId = ctx.params['unitId'];
-  const mine = useMyBibles(ctx.session.actorId, ctx.project.orgId, laneId);
-  const sourceLanguage = state?.project?.value.sourceLanguoidId ?? 'eng';
+  const mine = useMyBibles(ctx.session.actorId, ctx.language.orgId, languageId);
+  const sourceLanguage = (languageId ? languageInfo(ctx.org.state, languageId)?.sourceCode : undefined) ?? 'eng';
   const [lang, setLang] = useState<{ code: string; name: string }>({ code: ctx.params['lang'] ?? sourceLanguage, name: '' });
   const [query, setQuery] = useState('');
   const [languages, setLanguages] = useState<BibleLanguage[] | null>(null);
@@ -76,8 +76,8 @@ export function BibleExplore(ctx: Ctx) {
   }, [query]);
 
   // Sources in this organization's library, to choose one nobody recommended.
-  const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state?.library]);
-  const docs = useLibraryDocs(ctx.project.orgId, libraryItemsList.map((i) => i.current));
+  const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state]);
+  const docs = useLibraryDocs(ctx.language.orgId, libraryItemsList.map((i) => i.current));
   const librarySources = libraryItemsList.flatMap((i) => {
     const doc = docs.get<SourceDoc>(i.current);
     return doc && doc.format === 'source@1' ? [{ itemId: i.itemId, doc, hash: i.current! }] : [];
@@ -89,13 +89,13 @@ export function BibleExplore(ctx: Ctx) {
 
   if (picked) {
     const lib = picked.kind === 'library' ? librarySources.find((s) => s.itemId === picked.itemId) : undefined;
-    return <BibleDetailView ctx={ctx} picked={picked} lib={lib} laneId={laneId} unitId={unitId} mine={mine} header={header} />;
+    return <BibleDetailView ctx={ctx} picked={picked} lib={lib} languageId={languageId} unitId={unitId} mine={mine} header={header} />;
   }
 
   return (
     <Screen header={header}>
       {!bibleBrain ? (
-        <EmptyState icon="globe" title="Bible Brain isn't set up on this phone" sub="Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server." />
+        <EmptyState icon="globe" title="Bible Brain isn't set up on this device" sub="Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server." />
       ) : (
         <>
           <SearchField value={query} onChangeText={setQuery} placeholder="Search for a language" />
@@ -135,7 +135,7 @@ export function BibleExplore(ctx: Ctx) {
         </>
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-        Bibles you add are yours, on this phone, for this language. Your team's recommended Bibles always come first.
+        Bibles you add are yours, on this device, for this language. Your team's recommended Bibles always come first.
       </Text>
     </Screen>
   );
@@ -143,7 +143,7 @@ export function BibleExplore(ctx: Ctx) {
 
 /** One Bible: what it has, any chapter to read and hear, and Add to My Bibles. */
 function BibleDetailView(props: {
-  ctx: Ctx; picked: Picked; lib: { itemId: string; doc: SourceDoc; hash: string } | undefined; laneId: string | null; unitId: string | undefined;
+  ctx: Ctx; picked: Picked; lib: { itemId: string; doc: SourceDoc; hash: string } | undefined; languageId: string | null; unitId: string | undefined;
   mine: ReturnType<typeof useMyBibles>; header: React.ReactNode;
 }) {
   const { ctx, picked, lib, mine } = props;
@@ -173,13 +173,13 @@ function BibleDetailView(props: {
   const current = book ?? (books.find((b) => b.book === passageBook)?.book ?? books[0]?.book ?? null);
   const chapters = books.find((b) => b.book === current)?.chapters ?? 0;
   const range: VerseRange | null = current ? { book: current, start: { chapter, verse: 1 }, end: { chapter, verse: 999 } } : null;
-  const { get } = useLibraryDocs(ctx.project.orgId, []);
+  const { get } = useLibraryDocs(ctx.language.orgId, []);
   const passage = { range, ref: range ? refText(range) : '', versification: null, options: option ? [option] : [], loading: !option, get };
 
   const has = option ? mine.has(option.itemId) : false;
   const offers = option && current ? offersFor(option, current) : null;
   async function add() {
-    if (!option || !props.laneId) return;
+    if (!option || !props.languageId) return;
     setBusy(true);
     try {
       await mine.add({
@@ -193,7 +193,7 @@ function BibleDetailView(props: {
     } finally { setBusy(false); }
   }
 
-  const footer = option && props.laneId ? (
+  const footer = option && props.languageId ? (
     has ? <PrimaryBtn label="In My Bibles" icon="check" disabled onPress={() => undefined} />
       : <PrimaryBtn label="Add to My Bibles" icon="plus" busy={busy} onPress={() => void add()} />
   ) : undefined;
@@ -233,7 +233,7 @@ function BibleDetailView(props: {
                 <LinkBtn label="Next chapter" onPress={() => setChapter((c) => c + 1)} />
               </View>
             ) : null}
-            <SourceView ctx={ctx} unitId={props.unitId ?? ''} laneId={props.laneId ?? ''} passage={passage} option={option} chips={false} />
+            <SourceView ctx={ctx} unitId={props.unitId ?? ''} languageId={props.languageId ?? ''} passage={passage} option={option} chips={false} />
           </>
         )}
       </ScrollView>

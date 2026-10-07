@@ -34,7 +34,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 import {
-  bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_PARTITION, parseRef,
+  bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_STREAM, parseRef,
   QUESTION_TEMPLATES, usfmOf, validateDoc, withDeps,
   type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type MaterialDoc, type StudyDoc,
   type TemplateDoc, type VersificationDoc
@@ -45,7 +45,7 @@ import { sourcesFor } from './sources-seed';
 export const SEED_ORG = { id: 'langquest', name: 'LangQuest' } as const;
 
 const LIBRARY = fileURLToPath(new URL('../library/', import.meta.url));
-export const DEFAULT_FIA_DIR = join(LIBRARY, 'fia');
+const DEFAULT_FIA_DIR = join(LIBRARY, 'fia');
 
 /** The standard systems (library/versifications, from versification-tool), in the order people meet them. */
 const VERSIFICATIONS: { code: string; name: string; short: string; description: string }[] = [
@@ -63,12 +63,12 @@ const NT_LAST = bookOrder('REV');
 /** The review kind each question set is for. */
 const QUESTION_KIND: Record<string, string> = { community_check: 'community', consultant_check: 'consultant' };
 
-export interface SeedDocument {
+interface SeedDocument {
   hash: string;
   body: LibraryDoc;
 }
 
-export interface SeedItem {
+interface SeedItem {
   itemId: string;
   kind: LibraryKind;
   name: string;
@@ -76,13 +76,13 @@ export interface SeedItem {
   docHash: string;
 }
 
-export interface SeedBuild {
+interface SeedBuild {
   /** Every document, each after the documents it depends on. */
   documents: SeedDocument[];
   items: SeedItem[];
 }
 
-export const hashOf = (doc: LibraryDoc) => createHash('sha256').update(canonicalJson(doc)).digest('hex');
+const hashOf = (doc: LibraryDoc) => createHash('sha256').update(canonicalJson(doc)).digest('hex');
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
@@ -262,7 +262,7 @@ const short = (value: unknown) => createHash('sha256').update(canonicalJson(valu
 export function seedEvents(build: SeedBuild, now: number): AnyEvent[] {
   let counter = 0;
   const envelope = (id: string, type: string, payload: Record<string, unknown>) => ({
-    id, type, orgId: SEED_ORG.id, projectId: ORG_PARTITION, actorId: 'service', deviceId: 'library-seed',
+    id, type, orgId: SEED_ORG.id, streamId: ORG_STREAM, actorId: 'service', deviceId: 'library-seed',
     hlc: encodeHlc(now, counter++, 'library-seed'), payload
   }) as unknown as AnyEvent;
   const out: AnyEvent[] = [envelope(`seed:${SEED_ORG.id}:created`, 'v1.OrgCreated', { name: SEED_ORG.name })];

@@ -1,9 +1,9 @@
 import type { EventPayloads } from './events';
-import { templateOfUnit } from './catalog';
 import type { EventSpec } from './commands';
+import { unitPrefixOf } from './indexes';
 import type { CollectionDoc, FlowDoc, MaterialDoc, StudyDoc, TemplateDoc } from './libraryDocs';
-import { FLOW_CATALOG_VERSION, flowStepPrefix } from './record';
-import type { ProjectState } from './state';
+import { flowStepPrefix } from './record';
+import type { LanguageState } from './state';
 import {
   bookOrder, chaptersInBook, parseRef, refId, sharedVerses, versesInChapter, type VerseRange, type VersificationDoc
 } from './versification';
@@ -98,8 +98,8 @@ export function templateUnits(doc: TemplateDoc, unitPrefix: string, versificatio
  * again come back. Units already in the log are not repeated.
  */
 export function selectTemplateSpecs(
-  state: ProjectState,
-  c: { commandId: string; laneId: string; itemId: string; docHash: string; doc: TemplateDoc; versification: VersificationDoc | null; books?: string[] }
+  state: LanguageState,
+  c: { commandId: string; itemId: string; docHash: string; doc: TemplateDoc; versification: VersificationDoc | null; books?: string[] }
 ): EventSpec[] {
   const prefix = unitPrefixFor(c.itemId);
   const covered = c.books ? new Set(c.books) : null;
@@ -110,19 +110,19 @@ export function selectTemplateSpecs(
   const next = () => `${c.commandId}:${n++}`;
   const specs: EventSpec[] = [
     {
-      id: next(), type: 'v2.LaneTemplateSelected',
-      payload: { laneId: c.laneId, itemId: c.itemId, docHash: c.docHash, unitPrefix: prefix, ...(c.books ? { books: [...c.books].sort() } : {}) }
+      id: next(), type: 'v1.TemplateSelected',
+      payload: { itemId: c.itemId, docHash: c.docHash, unitPrefix: prefix, ...(c.books ? { books: [...c.books].sort() } : {}) }
     } as EventSpec
   ];
   for (const u of units) if (!state.units[u.unitId]) specs.push({ id: next(), type: 'v1.UnitAdded', payload: u } as EventSpec);
-  const hidden = state.laneHiddenUnits[c.laneId] ?? {};
+  const hidden = state.hiddenUnits;
   for (const unitId of Object.keys(state.units).sort()) {
-    if (templateOfUnit(unitId)?.templateId !== prefix) continue;
+    if (unitPrefixOf(unitId) !== prefix) continue;
     // Books outside the language's cover are left out by `books`, not hidden one by one.
     if (covered !== null && !covered.has(unitId.slice(prefix.length + 1, prefix.length + 4))) continue;
     const isHidden = hidden[unitId]?.value === true;
-    if (!inVersion.has(unitId) && !isHidden) specs.push({ id: next(), type: 'v1.LaneUnitHidden', payload: { laneId: c.laneId, unitId, hidden: true } } as EventSpec);
-    if (inVersion.has(unitId) && isHidden) specs.push({ id: next(), type: 'v1.LaneUnitHidden', payload: { laneId: c.laneId, unitId, hidden: false } } as EventSpec);
+    if (!inVersion.has(unitId) && !isHidden) specs.push({ id: next(), type: 'v1.UnitHidden', payload: { unitId, hidden: true } } as EventSpec);
+    if (inVersion.has(unitId) && isHidden) specs.push({ id: next(), type: 'v1.UnitHidden', payload: { unitId, hidden: false } } as EventSpec);
   }
   return specs;
 }
@@ -138,13 +138,13 @@ export function libraryFlowId(itemId: string, docHash: string): string {
  * (never removed, decision 32), and the selection.
  */
 export function selectFlowSpecs(
-  state: ProjectState,
-  c: { commandId: string; laneId: string; itemId: string; docHash: string; doc: FlowDoc }
+  state: LanguageState,
+  c: { commandId: string; itemId: string; docHash: string; doc: FlowDoc }
 ): EventSpec[] {
   let n = 0;
   const next = () => `${c.commandId}:${n++}`;
   const flowId = libraryFlowId(c.itemId, c.docHash);
-  const prefix = flowStepPrefix(c.laneId, flowId, FLOW_CATALOG_VERSION);
+  const prefix = flowStepPrefix(flowId);
   const specs: EventSpec[] = [];
   for (const k of c.doc.kinds) {
     if (state.reviewKinds[k.id]) continue;
@@ -158,13 +158,13 @@ export function selectFlowSpecs(
   }
   c.doc.steps.forEach((s, i) => {
     specs.push({
-      id: next(), type: 'v2.WorkflowStepSet',
-      payload: { stepId: `${prefix}${s.stepId}`, laneId: c.laneId, order: `s${pad(i, 2)}`, kindIds: [...s.kindIds], checkpoint: !!s.checkpoint }
+      id: next(), type: 'v1.FlowStepSet',
+      payload: { stepId: `${prefix}${s.stepId}`, order: `s${pad(i, 2)}`, kindIds: [...s.kindIds], checkpoint: !!s.checkpoint }
     } as EventSpec);
   });
   specs.push({
-    id: next(), type: 'v2.LaneFlowSelected',
-    payload: { laneId: c.laneId, flowId, catalogVersion: FLOW_CATALOG_VERSION, itemId: c.itemId, docHash: c.docHash, name: c.doc.name }
+    id: next(), type: 'v1.FlowSelected',
+    payload: { flowId, itemId: c.itemId, docHash: c.docHash, name: c.doc.name }
   } as EventSpec);
   return specs;
 }
@@ -172,7 +172,7 @@ export function selectFlowSpecs(
 // ---- study material that lines up with a passage --------------------------------------------
 
 /** A passage's verse range, from its unit id (library units) or its label (older units). */
-export function unitVerseRange(state: ProjectState, unitId: string, versification?: VersificationDoc | null): VerseRange | null {
+export function unitVerseRange(state: LanguageState, unitId: string, versification?: VersificationDoc | null): VerseRange | null {
   const node = unitId.slice(unitId.indexOf('/') + 1);
   const versesIn = versification ? (b: string, c: number) => versesInChapter(versification, b, c) : undefined;
   const fromId = /^[A-Z0-9]{3}(\.\d+)/.test(node) ? parseRef(node, versesIn) : null;

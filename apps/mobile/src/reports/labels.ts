@@ -24,7 +24,7 @@ export const RECENCY_ADVICE: Record<RecencyBand, string> = {
   active: 'Uploaded in the last two weeks.',
   check_in: 'Two weeks without an upload. Ask how it is going.',
   reminder: 'Three weeks without an upload. Send a clear reminder that you need an update.',
-  four_weeks: 'Four weeks without an upload. Find out what is blocking the team, and whether the phone is syncing.',
+  four_weeks: 'Four weeks without an upload. Find out what is blocking the team, and whether their devices are syncing.',
   five_weeks: 'Five weeks without an upload. Talk to the team lead this week.',
   inactive: 'No uploads in 45 days or more.',
   not_started: 'Nothing has reached the server yet: still onboarding.'

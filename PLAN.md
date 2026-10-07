@@ -20,8 +20,8 @@ Core workflows, in priority order:
    translator speaks the target live.
 2. **Review and approve.** Configurable review steps: who reviews, how many
    steps, optional or required, any / majority / unanimous.
-3. **Organize.** Organizations and the target languages (lanes) they hold
-   directly (no project level: docs/decisions.md 34), and a customizable
+3. **Organize.** Organizations and the target languages they hold
+   directly (no project level: docs/decisions.md 63), and a customizable
    structure (books, pericopes, passages) with
    configurable reference material per unit (audio overviews, text, key terms).
 4. **See status.** Translators see their passages and what is pending.
@@ -65,9 +65,11 @@ rule. This app takes the same shape and extends it to true offline.
 
 ## 3. The design in one paragraph
 
-Every organization has one **append-only event log** partitioned by
-organization and partition (its `_org` partition and one partition per
-language; the key is still called `projectId`, decisions 34 and 37). Events are **intents** (`RecordingAdded`, `ReviewSubmitted`), not
+Every organization keeps its history in **append-only event streams**: one
+organization stream (roles, members, library, and the list of its languages)
+and one stream per language (that language's work); each person also has a
+small stream of their own (decision 63, `docs/streams-and-languages.md`).
+Events are **intents** (`RecordingAdded`, `ReviewRecorded`), not
 row mutations, and every event type is **commutative and idempotent** so any
 device applying any subset in any order converges. **Audio is immutable and
 content-addressed**: cards are blobs named by hash, a take is an ordered list
@@ -75,7 +77,7 @@ of card hashes, editing produces a new take. **All status is derived** by a
 pure reducer that runs identically on device and server; nothing stores
 "approved". Clients materialize state locally the moment they append, so they
 never wait for a projection to come down. Sync is push my pending events, pull
-the partition tail from a cursor. Cold start is snapshot plus tail. There is
+the stream's tail from a cursor. Cold start is snapshot plus tail. There is
 one state schema, not two; sync status lives on events, not rows.
 
 ## 4. Invariants (the things we care about most)
@@ -92,9 +94,10 @@ Agents: treat each of these as a test you must not break.
    new take that may reference existing cards.
 5. **Status is derived, never stored.** No `status` or `approved` column
    anywhere. Ask the reducer.
-6. **Partitions are self-contained.** An event in project P references only
-   entities in P, global reference data, or blobs by hash. Cross-project use
-   is an explicit `SourceImported` pin, never a live foreign key.
+6. **Streams are self-contained.** An event in stream S references only
+   entities in S, the organization's library and identity (which every
+   member holds), or blobs by hash. A work event carries no language id: the
+   stream it is appended to says which language it belongs to.
 7. **One state schema.** No local versus synced tables. Pending versus
    confirmed is a column on the events table.
 8. **Reducer is pure TypeScript with no I/O**, shared byte-for-byte by the
@@ -123,11 +126,11 @@ tenancy, indexing, caching, read/write separation, async processing, and the
 separation of business logic from infrastructure are not there on day one, the
 first mid-size customer finds the bottleneck. Applied here:
 
-- **Tenant on every row.** Every event carries `orgId` and `projectId`. Every
+- **Tenant on every row.** Every event carries `orgId` and `streamId`. Every
   query, index, and authorization check is scoped by them. No global scans.
-- **Index plan is part of the schema.** Events: `(orgId, projectId,
-  serverSeq)` for pulls, `(id)` unique for idempotency, `(orgId, projectId,
-  parentEventId)` for stale detection. Snapshots: `(orgId, projectId,
+- **Index plan is part of the schema.** Events: `(orgId, streamId,
+  serverSeq)` for pulls, `(id)` unique for idempotency, `(orgId, streamId,
+  parentEventId)` for stale detection. Snapshots: `(orgId, streamId,
   reducerVersion, serverSeq desc)`.
 - **Read/write separation is structural.** Writes are appends to the log.
   Reads are projections and snapshots. They never share a table.
@@ -143,61 +146,62 @@ first mid-size customer finds the bottleneck. Applied here:
 ## 6. Event catalog v1
 
 Names are versioned (`v1.X`). Never change a shipped event's schema; add
-`v2.X` and keep the old materializer forever.
+`v2.X` and keep the old materializer forever. The catalog restarted at `v1`
+when the databases were reset (decision 63); nothing older survives.
+
+**Organization stream** (`streamId` `_org`):
 
 | Event | Shape | Merge rule |
 | --- | --- | --- |
-| `v1.ProjectCreated` | name, sourceLanguoidId | once |
-| `v1.ProjectConfigChanged` | config (full document) | register (LWW by HLC, parent pointer) |
-| `v1.MemberAdded` / `v1.MemberRoleChanged` / `v1.MemberRemoved` | profileId, role | register per member |
-| `v1.LaneAdded` | laneId, languoidId | grow-only set |
-| `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
-| `v1.ReferenceAttached` | unitId, refId, kind, blobHash or text | grow-only set |
-| `v1.RecordingAdded` | recordingId, unitId, laneId, cards[{hash, durationMs}], kind | grow-only set |
-| `v1.TakeComposed` | takeId, unitId, laneId, cardHashes[], parentTakeId | grow-only set |
-| `v1.TakeArchived` | takeId | flag, add-wins |
-| `v1.TakeSelected` | unitId, laneId, takeId | register per (unit, lane) |
-| `v1.ReviewSubmitted` | takeId, stepId, decision (approve, suggest_changes), comment, answers | register per (take, step, actor) |
-| `v1.AssignmentMade` | unitId, laneId, profileId, role, dueDate, instructions | register per (unit, lane, person, role) |
-| `v1.SourceImported` | sourceProjectId, sourceSeq, units[] | grow-only set (pin) |
-| `v1.BlobStored` | hash, size | register per hash (LWW by clock); server-only; re-issued when the object's size changes |
-| `v1.BlobInvalidated` | hash, reason | register per hash; server-only; the reconciler's verdict that stored bytes do not match |
-| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded (owner or coordinator) |
-| `v1.OrgCreated` | name | once (org partition `_org`) |
-| `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges[] | register per role; retired is add-wins |
-| `v1.OrgMemberAdded` / `v1.OrgMemberRemoved` | profileId, roleId, scope {level, projectId?, laneId?}, displayName? | register per (profile, scope) |
-| `v1.CatalogItemToggled` | kind, itemId, level, projectId?, enabled | register per (kind, item, level, project) |
-| `v1.ProjectRegistered` | projectId, name | grow-only set |
-| `v1.LaneTemplateSelected` / `v1.LaneFlowSelected` | laneId, templateId or flowId, catalogVersion | register per lane; the selector emits the implied `UnitAdded` / `WorkflowStepSet` with ids derived from the catalog (`fia@1/gen-p1`) |
-| `v1.WorkflowStepSet` / `v1.WorkflowStepRemoved` | stepId, laneId?, order, label?, role, teamId?, required, rule | register per step; removal is add-wins; lane steps override project steps override `config.workflow` |
-| `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` | teamId, laneId, name / teamId, profileId, member | register per team, register per (team, profile) |
-| `v1.ReviewTeamKindSet` | teamId, laneId, kindId (null = any kind) | register per team; the kind it usually reviews, so Send to … picks it (`usualTarget`) |
-| `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
-| `v1.ReviewCommentRecorded` | takeId, stepId, blobHash | grow-only per (take, step, actor) |
-| `v1.MaterialDefined` | materialId, kind, title, scope {laneId?, unitId?, stepId?}, templateRef? | grow-only (earliest wins); question sets from the catalog get `questions@1/<template>` ids |
-| `v1.MaterialFieldSet` | materialId, fieldId, text? / blobHash? | register per (material, field) |
-| `v1.MaterialLocked` | materialId, locked | register per material |
-| `v1.StepQuestionSetLinked` | stepId, materialId | register per step |
-| `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, laneId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
-| `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |
-| `v2.WorkflowStepSet` | stepId, laneId?, order, kindIds[], checkpoint | register per step; shares ids and `v1.WorkflowStepRemoved` with v1; kinds in one step run in parallel, a checkpoint is the only gate |
-| `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins); a producing kind (back translation) records its cards as artifacts with outcome `recorded` |
-| `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, laneId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo; comply or explain |
-| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, laneId, what (record, review), kindId?, profileId? or guest, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
-| `v2.RequestMade` | v1.RequestMade's fields plus teamId?; exactly one of profileId, guest, teamId | grow-only, sharing ids and `v1.RequestWithdrawn` with v1; a team request (a team in the same lane) is open to every member but the asker, and the first review of its kind closes it (`requestIsFor`) |
-| `v1.NoteAdded` | noteId, unitId, laneId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
-| `v1.StudyStepMarked` | unitId, laneId, guideId, stepId, done | register per (unit, lane, guide, step) |
-| `v1.LaneNamed` | laneId, name | register per lane |
-| `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification), name, description, copiedFrom? {orgId, orgName, itemId, docHash} | org partition; kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
-| `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock; the document is fetched by hash |
+| `v1.OrgCreated` | name | once |
+| `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges[] / roleId | register per role; retired is add-wins |
+| `v1.MemberAdded` / `v1.MemberRemoved` | profileId, roleId, scope / profileId, scope; scope is `{ level: 'org' }` or `{ level: 'language', languageId }` | register per (profile, scope); one role per scope |
+| `v1.InviteIssued` / `v1.InviteRedeemed` | inviteId, roleId, scope, expiresAt / inviteId, profileId | issue fields latest wins; redeemed is server-only |
+| `v1.JoinDecided` | requestId, profileId, accepted | latest wins |
+| `v1.LicenseSet` | license (all-rights-reserved, CC-BY-NC-ND-4.0, CC-BY-NC-SA-4.0, CC-BY-SA-4.0, CC-BY-4.0, CC0-1.0) | ratchet: the most open license ever set wins (docs/licensing.md, decision 38) |
+| `v1.LanguageAdded` | languageId, name, code, sourceCode | earliest wins; the language's stream accepts events only after this |
+| `v1.LanguageRenamed` | languageId, name | register per language |
+| `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; the dashboard's geography (decision 41) |
+| `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; the dashboard's pace (decision 41) |
+| `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
+| `v1.LibraryItemDefined` | itemId, kind (template, flow, material, versification, source, sourceBook, timing…), name, description, copiedFrom? | kind and copiedFrom earliest wins, name and description registers (docs/library.md) |
+| `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock |
 | `v1.LibrarySharingSet` / `v1.LibraryItemArchived` | itemId, kind, shared, subscribable / archived | register per item; subscribable implies shared |
 | `v1.LibrarySubscribed` / `v1.LibraryPinned` | itemId, kind, sourceOrgId, sourceOrgName, sourceItemId, name, autoUpdate, active / docHash | register per item; the server writes the pin for automatic updates |
-| `v2.LaneTemplateSelected` | laneId, itemId, docHash, unitPrefix, books? | register per lane (shared with v1); the selector emits `UnitAdded` (`<itemId>/GEN.1.1-2.3`) and `LaneUnitHidden` |
-| `v1.LaneUnitHidden` | laneId, unitId, hidden | register per (lane, unit); a part the language's template version no longer has |
-| `v2.LaneFlowSelected` | laneId, flowId, catalogVersion, itemId, docHash, name | register per lane (shared with v1); the selector emits kinds and `v2.WorkflowStepSet` under `<lane>/<itemId>~<hash12>@2/` |
-| `v1.OrgLicenseSet` | license (all-rights-reserved, CC-BY-NC-ND-4.0, CC-BY-NC-SA-4.0, CC-BY-SA-4.0, CC-BY-4.0, CC0-1.0) | org partition; ratchet: the most open license ever set wins, earliest event among equals (docs/licensing.md, decision 38) |
-| `v1.LaneCountrySet` | laneId, country (ISO 3166-1 alpha-2) | register per lane; the dashboard's geography (decision 41) |
-| `v1.LaneTargetSet` | laneId, scope (gospels, nt, ot, bible), startDate, targetDate | register per lane; the dashboard's pace (decision 41) |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
+
+**Language stream** (`streamId` the language id; no payload names a language):
+
+| Event | Shape | Merge rule |
+| --- | --- | --- |
+| `v1.TemplateSelected` | itemId, docHash, unitPrefix, books? | register; the selector emits `UnitAdded` (`<itemId>/GEN.1.1-2.3`) and `UnitHidden` |
+| `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
+| `v1.UnitHidden` | unitId, hidden | register per unit; a part the template's version no longer has |
+| `v1.FlowSelected` | flowId, itemId, docHash, name | register; the selector emits kinds and `FlowStepSet` under `<flowId>/` |
+| `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds[], checkpoint / stepId | register per step; removal is add-wins; kinds in one step run in parallel, a checkpoint is the only gate |
+| `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |
+| `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` / `v1.ReviewTeamKindSet` | teamId, name / teamId, profileId, member / teamId, kindId (null = any) | register per team, per (team, profile), per team |
+| `v1.RecordingAdded` | recordingId, unitId, cards[{hash, durationMs}], kind | grow-only set |
+| `v1.TakeComposed` / `v1.TakeArchived` | takeId, unitId, cardHashes[], parentTakeId / takeId | grow-only set / flag, add-wins |
+| `v1.TakeSelected` | unitId, takeId | register per unit |
+| `v1.TakeSubmitted` | takeId, questionSetIds? | grow-only; the first submission counts |
+| `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
+| `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins) |
+| `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
+| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
+| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
+| `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
+| `v1.MaterialDefined` / `v1.MaterialFieldSet` / `v1.MaterialLocked` | materialId, kind, title, scope {unitId?, stepId?}, templateRef? / materialId, fieldId, text? / blobHash? / materialId, locked | earliest wins / register per (material, field) / register per material |
+| `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
+| `v1.ReferenceSet` | itemId, state (recommended, hidden, inherit) | register per item; the language's say on a library item (decision 62) |
+| `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
+| `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
+| `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
+
+**Person stream** (org `_person`, `streamId` the profile id; written only by
+`record_user_event`): `v1.TermsAccepted`, `v1.VisionSeen`,
+`v1.WalkthroughDone`.
 
 Smells to catch in review:
 
@@ -215,7 +219,7 @@ Smells to catch in review:
   id: string;             // client-generated, unique, sortable
   type: 'v1.RecordingAdded';
   orgId: string;
-  projectId: string;      // partition key
+  streamId: string;       // '_org', a language id, or a profile id under org '_person'
   actorId: string;
   deviceId: string;
   hlc: string;            // hybrid logical clock, lexically sortable
@@ -243,16 +247,16 @@ Current implementation is two Postgres RPCs on local Supabase
 (`append_events`, `pull_events`, see `server/README.md`). The HTTP shape
 below is the contract they satisfy; a Workers front end can wrap them later.
 
-- `POST /orgs/:org/projects/:project/events` with a batch of at most 500
+- `POST /orgs/:org/streams/:stream/events` with a batch of at most 500
   pending events (`append_events`). Server checks membership fold and
   payload shape, assigns `serverSeq`, returns per-event accept or reject.
-- `GET /orgs/:org/projects/:project/events?after=<serverSeq>&limit=<n>`
+- `GET /orgs/:org/streams/:stream/events?after=<serverSeq>&limit=<n>`
   (`pull_events`).
-- `GET /orgs/:org/projects/:project/snapshot?reducerVersion=<v>`
+- `GET /orgs/:org/streams/:stream/snapshot?reducerVersion=<v>`
   (`get_snapshot`) returns the newest snapshot for exactly that version.
   `get_snapshot_meta` and `get_snapshot_chunk` serve the same snapshot in
   256 KB pieces; the client persists each piece so a dropped link resumes.
-  `put_snapshot` and `list_partitions` are service-role only and are what
+  `put_snapshot` and `list_streams` are service-role only and are what
   `server/snapshotWorker.ts` uses (`npm run snapshot`).
 - Every call carries `CLIENT_PROTOCOL_VERSION`; below
   `server_config.min_client_version` the server answers `LQ001` and the app
@@ -261,7 +265,7 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   is independent of presence of the events that reference it.
 
 Migration option: this protocol can be served by PowerSync syncing a single
-immutable `events` table bucketed by project, with the upload queue as the
+immutable `events` table bucketed by stream, with the upload queue as the
 outbox. Decide by cost, not architecture.
 
 ## 10. Repository layout
@@ -278,7 +282,7 @@ langquest-next/
   apps/mobile/       Expo app; SQLite EventStore, blob store, screens
   apps/web/          the Cloudflare Worker that serves the app's web export
                      (decisions 57, 58) and the reports API: one Durable
-                     Object per org folds its partitions and serves the
+                     Object per org folds its streams and serves the
                      reports each person may view (decision 44)
   server/            supabase migrations (events, snapshots, RPCs), smoke.sql
   docs/              decisions
@@ -312,8 +316,9 @@ langquest-next/
    takes, both microphone sessions open at once as in v2. Cards are ingested
    into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
-   run on `TransferWorker` (packages/client) per section 14, with the server
-   storage trigger appending `BlobStored` as the only confirmation. Needs a
+   run on `TransferWorker` (packages/client) per section 14, through the
+   app's Worker into R2 (decisions.md 69), which appends `BlobStored` as the
+   only confirmation. Needs a
    dev client (`npm run ios`, which decrypts the env file); Expo Go cannot load the native module.
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. **Snapshot worker done** (`packages/client/src/snapshotWorker.ts`,
@@ -321,7 +326,7 @@ langquest-next/
    dashboard: step 14, folded by the dashboard's own server (decision 44).
 8. **Done.** Import path from LangQuest v2 rows into v1 events:
    `server/importV2.ts` (`npm run import:v2`) reads v2 anonymously, copies
-   audio by content hash into the blobs bucket, and appends deterministic
+   audio by content hash into R2 through the Worker, and appends deterministic
    events (`packages/client/src/v2import.ts`), so re-runs are duplicates.
    Text-only v2 translations have no oral equivalent and are counted, not
    imported. Verified on three production projects in the simulator.
@@ -337,7 +342,7 @@ langquest-next/
    re-stamping, snapshot-first handling of a redaction inside a checkpoint
    (migration 000008, `syncClient.ts`, smoke section 7).
 10. **Done:** org partition (`_org`) with roles as privilege sets,
-    scoped memberships, catalog toggles and project registry (core `org.ts`,
+    scoped memberships, catalog toggles and partition registry (core `org.ts`,
     migration 000009, smoke section 8, `apps/mobile/src/useOrg.ts`);
     `SyncClient` is generic over a materializer; session facets are
     privileges and Home follows the admin scope, so `language_home` is
@@ -346,7 +351,7 @@ langquest-next/
     generated from v2's `template_structure` by `scripts/buildCatalog.ts`:
     FIA 1,352 pericopes, Chapter Units 1,189 chapters, Book Overview) with
     deterministic instantiation per lane; per-step workflow registers with
-    lane > project > config precedence; review teams with assignment > team
+    lane > partition > config precedence; review teams with assignment > team
     > role eligibility; the respond note and spoken review comment events
     (migration 000010, smoke section 9, `templates_home`, `flows_home`,
     `flow_editor`, `review_teams`, `review_team_editor`, `attach_questions`).
@@ -423,32 +428,32 @@ action, secondary actions and way back are in `docs/ux/screen-path.md`.
 The spec's domain (`ng-langquest-ux/src/data.ts`) maps onto the event log
 like this. Where the spec forced a model change, it is noted. The record
 model (kinds, flows, reviews by kind, departures, requests, notes, study) is
-in `docs/ux/demo-parity.md`; rows below about quorum rules and fixed-role
-review steps describe v1 lanes, which still fold and read as kinds.
+in `docs/ux/demo-parity.md`; the role-based workflow model it replaced is
+gone (decision 63).
 
 | Spec concept | Here | Note |
 | --- | --- | --- |
-| Org › Language | `orgId` › one partition per language (`projectId` = the language's id, listed by `ProjectRegistered` in `_org`; `orgLanguages`) › lane (`LaneAdded`) | no project level in the app (decision 34); a phone pulls the languages it opens (decision 37) |
-| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used per lane (`v2.LaneTemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`LaneUnitHidden`) | pieces are leaf units; a lane shows its template's units in the books it covers, plus hand-added ones; older lanes keep the v1 catalog ids |
+| Org › Language | `orgId` › one stream per language (`streamId` = the language's id), listed by `LanguageAdded` in the organization stream (`orgLanguages`) | no project and no lane (decision 63); a phone pulls the languages it opens (decision 37) |
+| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used by the language (`TemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`UnitHidden`) | pieces are leaf units; a language shows its template's units in the books it covers, plus hand-added ones |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
 | Take (audio) | cards (`RecordingAdded`) referenced by a take | |
-| Review flow, stages A→B→C→D | a library flow's version used per lane (`v2.LaneFlowSelected`) instantiated as `v2.WorkflowStepSet` registers with the kinds it brings; `config.workflow` remains the fallback | |
-| Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`; a step's `teamId` | eligibility: per-unit assignment, else team, else role holders |
-| Stage round: assigned, submitted, reviewed | derived from assignment, submission, and review events | never stored |
-| Verdict approved / suggestions | `ReviewSubmitted.decision` = `approve` or `suggest_changes` | **renamed** from reject: suggestions are advisory (A11) |
-| Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), `StepQuestionSetLinked`, `ReviewSubmitted.answers` keyed `materialId#fieldId` | question sets are materials of kind `questions` |
+| Review flow, stages A→B→C→D | a library flow's version used by the language (`FlowSelected`) instantiated as `FlowStepSet` registers with the kinds it brings | |
+| Review team | `ReviewTeamDefined` + `ReviewTeamMemberSet`, `ReviewTeamKindSet` (the kind it usually does) | a request may go to a team (`RequestMade.teamId`); `usualTarget` suggests one |
+| Stage round: asked, submitted, reviewed | derived from requests, submissions and reviews (`derivePassage`) | never stored |
+| Verdict looks good / needs changes | `ReviewRecorded.outcome` = `looks_good`, `needs_changes` or `recorded` (a producing kind), by kind | suggestions are advisory (A11); a checkpoint step is passed or overridden (`DepartureRecorded`) |
+| Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), the kind's questions (`questionsForKind`) or a request's own, `ReviewRecorded.answers` | question sets are materials of kind `questions` |
 | Translator response to suggestions | a new take with `parentTakeId`, `ResponseRecorded` (note or audio), then `TakeSubmitted` | the `respond` task type |
-| Assignment: type, assignee, due, instructions | `AssignmentMade` | **added** `dueDate`, `instructions`; type is derived from role and state |
-| To Do / Doing / Done | `Task.status` from `deriveTasks` | todo: nothing; doing: draft exists; done: submitted or decided |
-| Piece work status: unassigned / doing / waiting / done | derived per unit from assignments and take status | P dashboard, step 7 |
-| Bottleneck ("3 in Community Check") | count of submitted takes by the first pending step | P dashboard, step 7 |
-| Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | `ReferenceAttached` is legacy passage notes |
+| Assignment: what, who, due, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `dueDate`, `note`; a request is done when what it asked for happens |
+| To Do / Doing / Done | `upNext`, `highlightsFor` and `waitingOn` (core `passage.ts`) | todo: asked or next; doing: a draft exists; done: the flow is through |
+| Piece work status | derived per passage (`derivePassage`: recorded, steps complete, done) | reports (`languageReport`) |
+| Bottleneck ("3 in Community Check") | passages by the first step not yet complete (`languageProgress.steps`) | reports |
+| Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | a v2 project's source content is imported as material |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
 | Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
-| Roles with privilege switches, member scope (org / language; a project scope reads as all languages) | org partition: `RoleDefined`, `OrgMemberAdded { scope }` (core `org.ts`) | fixed roles are seed roles; `effectiveRole` maps back |
-| Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; `CatalogItemToggled` remains for template suggestions |
-| Who may use an organization's work, and what outsiders see | `v1.OrgLicenseSet` in `_org` (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
+| Roles with privilege switches, member scope (org / language) | organization stream: `RoleDefined`, `MemberAdded { scope }` (core `org.ts`); one role per scope | fixed roles are seed roles; `effectiveRole` maps back |
+| Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; recommendations are `ReferenceRecommended` and `ReferenceSet` (decision 62) |
+| Who may use an organization's work, and what outsiders see | `v1.LicenseSet` in the organization stream (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |
 | Whether this phone sends field diagnostics | Settings › App › Send diagnostics, a switch row (`diag:off` in device meta, `src/diagnosticsSetting.ts`); diagnostics are never events | **added**, not in the demo (decision 39, docs/diagnostics.md); on by default, and off deletes what is waiting |
 | Reporting content or a person, and blocking someone | a flag on anything someone else made (`reportSheet.tsx`); `content_reports` and `user_blocks` rows sent through the account outbox, never events; a moderator removes content with `v1.Redacted`, staff act through `npm run moderation`; a blocked person's words and audio are hidden behind Show and their work still counts | **added**, not in the demo (decision 48); Google Play requires it |
 
@@ -469,13 +474,15 @@ below was earned in production there.
    stored size; a device whose file differs in size uploads again. Every
    download is hashed before the file is trusted; a mismatch is deleted and
    retried. `server/blobReconciler.ts` (`npm run reconcile`, `--verify` to
-   hash every object) lists the bucket independently of the storage trigger,
-   confirms anything unconfirmed, and appends `v1.BlobInvalidated` for
-   objects whose bytes hash wrong, removing them. A blob is uploaded when the
-   server says so. `PUT /blobs/:hash` is idempotent (content-addressed, so a
-   re-upload is a byte-identical overwrite). Confirmation arrives as a
+   hash every object) lists R2 through the Worker independently of the
+   confirmation each upload gets, confirms anything unconfirmed, and appends
+   `v1.BlobInvalidated` for objects whose bytes hash wrong, removing them.
+   `PUT /api/blobs/<org>/<stream>/<hash>.<ext>` on the app's Worker is
+   idempotent (content-addressed, so a re-upload is a byte-identical
+   overwrite), and R2 refuses bytes that do not hash to their name
+   (decisions.md 69). Confirmation arrives as a
    `BlobStored {hash, size, storedAt}` event appended by the server into the
-   project log, so it reaches every device through the normal pull. Clients
+   language's stream, so it reaches every device through the normal pull. Clients
    have no way to write it: `append_events` refuses `BlobStored` from any
    non-service caller.
 3. **Grace, not flags.** After a successful PUT the uploader leaves the hash
@@ -520,9 +527,9 @@ below was earned in production there.
 
 Cache eviction (closing a v2 gap): the device keeps 500 MB free for
 recording and caps the blob cache at 2 GB. Only files core `evictableBlobs`
-names may go: referenced by this project, confirmed intact on the server,
+names may go: referenced by this language, confirmed intact on the server,
 outside the offline scope, and not upload work. Unsynced recordings, kept
-units, and other projects' files are never touched. Downloads land in a
+units, and other languages' files are never touched. Downloads land in a
 `.part` staging name and are renamed only after their hash matches;
 startup deletes leftover staging files.
 
@@ -530,7 +537,7 @@ Known v2 gap still open: no server-side garbage collection of blobs nothing
 references (a redacted recording's blobs stay in the bucket until that
 exists).
 
-Load harness: `npm run loadtest -- 100000` folds a synthetic Bible-scale log.
+Load harness: `npx tsx scripts/loadtest.ts 100000` folds a synthetic Bible-scale log.
 On a laptop, 100k events replay in 0.2 to 1.3 s with a 13 MB snapshot
 (1.1 MB gzipped, which is what HTTP compression sends) and a 250 MB heap.
 The gate is the same run on the slowest partner Android.
@@ -541,11 +548,8 @@ The gate is the same run on the slowest partner Android.
   one screen name (`docs/flow-coverage-audit.md` section 1); ask the UX
   team which is authoritative before step 10 ports more.
 
-- Caleb's workflow demo defines the review model; port its rules into
-  `ProjectConfig.workflow` and confirm the quorum semantics with him.
 - Content templates, flows and reference material are library documents in
-  the database (decision 36, docs/library.md); the old static bundle
-  (`catalog.ts`) remains only so lanes set up from it keep reading. The
+  the database (decision 36, docs/library.md). The
   canon (book ids and order) and the versification engine are core
   reference data. Languoids are still open.
 - Decided for now: local Supabase (Postgres) via colima, never linked to a

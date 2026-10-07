@@ -1,21 +1,21 @@
 import {
-  actorRole, adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, privilegesFor, privilegesOfFixedRole,
-  type OrgState, type Privilege, type ProjectState, type Role, type Scope
+  adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, privilegesFor,
+  type OrgState, type Privilege, type Role, type Scope
 } from '@langquest-next/core';
 import { isManagedEmail } from './accounts';
 import type { Edge, ScreenId } from './flow';
 
 /**
- * Session facets derived from the folds (UX spec `domain/session.ts`), not
- * stored anywhere. Who you are is the union of your membership in the
- * org's work partition (the fixed role, kept for compatibility) and your org
- * memberships whose scope covers it (core `org.ts`). Screens ask
+ * Session facets derived from the organization's fold (UX spec
+ * `domain/session.ts`), not stored anywhere. What you may do in the open
+ * language is the union of your org-scope role, if any, and your role in
+ * that language, if any (core `privilegesFor`). Screens ask
  * `can(privilege)`; the rest are conveniences derived from it.
  */
 export interface Session {
   actorId: string;
   email: string | null;
-  /** The fixed role this session amounts to (workflow steps and eligibility still speak Role). */
+  /** The fixed role these privileges amount to, for labels (core `effectiveRole`). */
   role: Role | null;
   privileges: ReadonlySet<Privilege>;
   can: (p: Privilege) => boolean;
@@ -31,8 +31,9 @@ export interface Session {
   /** Not signed in at all (browsing public listings). */
   isGuest: boolean;
   /**
-   * A looked-after account (accounts.ts): no email of its own, so it may
-   * not invite anyone, whatever its role says (docs/invites-and-accounts.md).
+   * A looked-after account (accounts.ts): no email of its own. What it may
+   * do is still its role's; only helping others sign in needs an email
+   * (decisions.md 67, docs/invites-and-accounts.md).
    */
   isManaged: boolean;
 }
@@ -40,25 +41,17 @@ export interface Session {
 export function deriveSession(
   actorId: string,
   email: string | null,
-  state: ProjectState | null,
   seenVision: boolean,
   org: OrgState | null = null,
-  projectId?: string
+  languageId?: string | null
 ): Session {
-  const projectRole = state ? actorRole(state, actorId) : null;
-  const privileges = new Set<Privilege>(projectRole ? privilegesOfFixedRole(projectRole) : []);
-  if (org) for (const p of privilegesFor(org, actorId, projectId ? { projectId } : {})) privileges.add(p);
-  // The server refuses it too (issue_invite_v3); removing it here hides
-  // every Invite button by the same `can` the screens already ask.
+  const privileges = org ? privilegesFor(org, actorId, languageId ?? undefined) : new Set<Privilege>();
   const isManaged = isManagedEmail(email);
-  if (isManaged) privileges.delete('invite_members');
-  const role = projectRole ?? effectiveRole(privileges);
+  const role = effectiveRole(privileges);
   const isAdmin = MANAGE_PRIVILEGES.some((p) => privileges.has(p));
   const isWorker = privileges.has('translate') || privileges.has('review') || privileges.has('fill_reference');
   const isViewer = !isAdmin && !isWorker && privileges.has('view_status');
-  let adminScope: Scope | null = org ? adminScopeOf(org, actorId) : null;
-  if (!adminScope && projectRole === 'owner') adminScope = { level: 'org' };
-  if (!adminScope && projectRole === 'coordinator' && projectId) adminScope = { level: 'project', projectId };
+  const adminScope: Scope | null = org ? adminScopeOf(org, actorId) : null;
   return {
     actorId,
     email,
@@ -111,13 +104,12 @@ export function homeScreenFor(s: Session): ScreenId {
 
 /**
  * The screen behind the Manage tab: an admin's org or language home (demo
- * `manageHomeFor`). There is no project level (decision 34); a membership
- * scoped to the org's one work partition covers every language, so it opens
- * the organization.
+ * `manageHomeFor`). Below the organization there are only languages
+ * (decision 63).
  */
 export function manageHomeFor(s: Session): ScreenId | null {
-  if (s.adminScope?.level === 'org' || s.adminScope?.level === 'project') return 'org_home';
-  if (s.adminScope?.level === 'lane') return 'language_home';
+  if (s.adminScope?.level === 'org') return 'org_home';
+  if (s.adminScope?.level === 'language') return 'language_home';
   return null;
 }
 
@@ -147,14 +139,14 @@ export const GUEST_SCREENS: ScreenId[] = ['sign_in', 'create_account', 'explore_
  * already on this phone can predate a membership the server granted moments
  * ago, as when someone joins by invite on a phone that held the org for
  * another account, and routing on it sends a new member to "What brings you
- * here?" and past their welcome (LAN-11). The language partition must be in
+ * here?" and past their welcome (LAN-11). The open language must be in
  * too, unless the server lists no organization for this person: they have no
- * partition to sync, nothing more will come, and waiting would keep them on
+ * language to sync, nothing more will come, and waiting would keep them on
  * Sign In for ever. A returning person is not held up: they are routed to
  * the home remembered from last time meanwhile.
  */
-export function foldsSettled(orgSynced: boolean, projectLoaded: boolean, noOrganizations: boolean): boolean {
-  return orgSynced && (projectLoaded || noOrganizations);
+export function foldsSettled(orgSynced: boolean, languageLoaded: boolean, noOrganizations: boolean): boolean {
+  return orgSynced && (languageLoaded || noOrganizations);
 }
 
 /** Demo `postSignInScreen`: a first sign-in gets the welcome (ADR-022), unless there is no org to welcome you to yet. */

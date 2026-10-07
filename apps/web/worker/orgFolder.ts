@@ -1,6 +1,6 @@
 import {
-  emptyOrgState, emptyState, fold, foldOrg, laneReports, mayViewLane, ORG_PARTITION, partitionOfLane, REDUCER_VERSION,
-  REPORT_VERSION, workPartitionOf, type AnyEvent, type LaneReport, type OrgState, type ProjectState
+  emptyLanguageState, emptyOrgState, foldLanguage, foldOrg, languageInfo, languageReport, mayViewLanguage, ORG_STREAM, orgLanguages,
+  REDUCER_VERSION, REPORT_VERSION, type AnyEvent, type LanguageReport, type LanguageState, type OrgState
 } from '@langquest-next/core';
 import { fetchSnapshot, type Transport } from '@langquest-next/client';
 import type { OrgReportsResponse } from '@langquest-next/core';
@@ -8,9 +8,9 @@ import type { OrgReportsResponse } from '@langquest-next/core';
 /** What the folder reads from the server, with the service role. */
 export type Source = Pick<Transport, 'pull' | 'snapshotMeta' | 'snapshotChunk'> & {
   /**
-   * The newest serverSeq of every partition in the organization, in one
-   * query (`partition_heads`). Optional: without it a pass pulls each
-   * partition's tail to find out whether it moved.
+   * The newest serverSeq of every stream in the organization, in one
+   * query (`stream_heads`). Optional: without it a pass pulls each
+   * stream's tail to find out whether it moved.
    */
   heads?(orgId: string): Promise<Record<string, number>>;
 };
@@ -33,11 +33,11 @@ export class MemoryCache implements OrgCache {
 }
 
 /** A snapshot older than this is caught up before it answers. */
-export const MAX_AGE_MS = 60_000;
-/** A partition's fold is written to the cache when it has moved this far since the last write. */
+const MAX_AGE_MS = 60_000;
+/** A language's fold is written to the cache when it has moved this far since the last write. */
 export const STATE_SAVE_EVERY = 500;
 /** Whole folds kept in memory, most recently used; the rest are read back from the cache when they move. */
-export const STATES_IN_MEMORY = 8;
+const STATES_IN_MEMORY = 8;
 const PAGE = 1000;
 const PARALLEL = 4;
 
@@ -49,32 +49,36 @@ interface Held<S> {
   refolded?: boolean;
 }
 
-/** What a language partition answers with, small enough to keep for every partition. */
+/**
+ * What a language answers with, small enough to keep for every language.
+ * Its name, country and target come from the organization stream, so a
+ * summary is good for one organization cursor as well as one day.
+ */
 interface Summary {
   cursor: number;
+  orgCursor: number;
   day: string;
-  members: ProjectState['members'];
-  reports: LaneReport[];
+  report: LanguageReport | null;
 }
 
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 /**
  * One organization's reports, kept by the dashboard's server (decision 44):
- * the org partition and every language partition, folded with the same
+ * the organization stream and every language stream, folded with the same
  * reducer the phones run and caught up from the log's tail on request.
- * A partition starts from the cache, else from the server snapshot the
- * projection worker writes. Between requests it keeps each partition's
- * reports and member list, and only the most recent folds; a pass first
- * asks for every partition's head and touches only those that moved (or
- * whose reports turned a day older). Raw state never leaves it; callers
+ * A language starts from the cache, else from the server snapshot the
+ * projection worker writes. Between requests it keeps each language's
+ * report, and only the most recent folds; a pass first asks for every
+ * stream's head and touches only languages that moved (or whose reports
+ * turned a day older, or whose organization settings changed). Raw state never leaves it; callers
  * get the reports of the languages they may view.
  */
 export class OrgFolder {
   private org: Held<OrgState> | null = null;
   private readonly summaries = new Map<string, Summary>();
-  private readonly states = new Map<string, Held<ProjectState>>();
-  /** Cursor of each partition's fold as last written to the cache. */
+  private readonly states = new Map<string, Held<LanguageState>>();
+  /** Cursor of each language's fold as last written to the cache. */
   private readonly saved = new Map<string, number>();
   private restored = false;
   private refreshedAt = 0;
@@ -97,13 +101,9 @@ export class OrgFolder {
     await this.refresh(fresh);
     const org = this.org!.state;
     const rows: OrgReportsResponse['rows'] = [];
-    for (const [projectId, s] of [...this.summaries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-      for (const report of s.reports) {
-        // A language copied out of the shared partition shows once, from where it syncs now.
-        if (partitionOfLane(org, report.laneId) !== projectId) continue;
-        if (!mayViewLane(org, s, profileId, projectId, report.laneId)) continue;
-        rows.push({ projectId, laneId: report.laneId, report });
-      }
+    for (const { languageId } of orgLanguages(org)) {
+      const report = this.summaries.get(languageId)?.report;
+      if (report && mayViewLanguage(org, profileId, languageId)) rows.push({ languageId, report });
     }
     if (rows.length === 0 && !this.knows(profileId)) return null;
     return { rows, asOf: new Date(this.refreshedAt).toISOString() };
@@ -111,9 +111,7 @@ export class OrgFolder {
 
   /** Is this person in the organization at all (any membership, active or not)? */
   knows(profileId: string): boolean {
-    if (this.org?.state.members[profileId]) return true;
-    for (const s of this.summaries.values()) if (s.members[profileId]) return true;
-    return false;
+    return !!this.org?.state.members[profileId];
   }
 
   /**
@@ -145,26 +143,26 @@ export class OrgFolder {
       this.org = await this.restore<OrgState>('org');
       this.restored = true;
     }
-    const orgMoved = !this.org || heads === null || (heads[ORG_PARTITION] ?? 0) > this.org.cursor;
+    const orgMoved = !this.org || heads === null || (heads[ORG_STREAM] ?? 0) > this.org.cursor;
     if (orgMoved) {
-      const next = await this.catchUp(ORG_PARTITION, this.org, emptyOrgState, foldOrg);
+      const next = await this.catchUp(ORG_STREAM, this.org, emptyOrgState, foldOrg);
       if (next !== this.org && next.cursor > 0) await this.cache.put('org', this.pack(next));
       this.org = next;
     }
-    const org = this.org!.state;
-    const ids = [...new Set([...Object.keys(org.projects), workPartitionOf(org)])];
+    const ids = orgLanguages(this.org!.state).map((l) => l.languageId);
     for (let i = 0; i < ids.length; i += PARALLEL) {
-      await Promise.all(ids.slice(i, i + PARALLEL).map((id) => this.refreshPartition(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt)));
+      await Promise.all(ids.slice(i, i + PARALLEL).map((id) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt)));
     }
     this.refreshedAt = startedAt;
   }
 
-  /** Bring one language partition's summary up to date, folding only when it moved or the day turned. */
-  private async refreshPartition(id: string, head: number | undefined, day: string, at: number): Promise<void> {
+  /** Bring one language's summary up to date, folding only when it moved, the day turned or the organization changed. */
+  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number): Promise<void> {
+    const org = this.org!;
     const summary = this.summaries.get(id) ?? (await this.restoreSummary(id));
     if (summary) this.summaries.set(id, summary);
     let peeked: AnyEvent[] | undefined;
-    if (summary && summary.day === day) {
+    if (summary && summary.day === day && summary.orgCursor === org.cursor) {
       if (head !== undefined && head <= summary.cursor) return;
       if (head === undefined) {
         peeked = await this.pullAll(id, summary.cursor);
@@ -175,9 +173,10 @@ export class OrgFolder {
     // The peeked tail is reusable only when it starts where the fold ends; a fold already at the head needs no pull.
     const tail = peeked && known?.cursor === summary?.cursor ? peeked
       : known && head !== undefined && head <= known.cursor ? [] : undefined;
-    const held = await this.catchUp(id, known, emptyState, fold, tail);
+    const held = await this.catchUp(id, known, emptyLanguageState, foldLanguage, tail);
     this.keep(id, { state: held.state, cursor: held.cursor });
-    const next: Summary = { cursor: held.cursor, day, members: held.state.members, reports: laneReports(held.state, at) };
+    const info = languageInfo(org.state, id);
+    const next: Summary = { cursor: held.cursor, orgCursor: org.cursor, day, report: info ? languageReport(held.state, info, at) : null };
     this.summaries.set(id, next);
     if (held.cursor === 0) return; // nothing in the log yet, nothing worth keeping
     // Like a phone's checkpoint: a fold read back later catches up from its own cursor, so it need not be written every pass.
@@ -189,11 +188,11 @@ export class OrgFolder {
     await this.cache.put(`summary:${id}`, JSON.stringify({ v: REDUCER_VERSION, rv: REPORT_VERSION, ...next }));
   }
 
-  /** A partition's fold: from memory, else the cache, else the server snapshot, else nothing (fold from zero). */
-  private async stateOf(id: string): Promise<Held<ProjectState> | null> {
+  /** A language's fold: from memory, else the cache, else the server snapshot, else nothing (fold from zero). */
+  private async stateOf(id: string): Promise<Held<LanguageState> | null> {
     const inMemory = this.states.get(id);
     if (inMemory) return inMemory;
-    const cached = await this.restore<ProjectState>(`state:${id}`);
+    const cached = await this.restore<LanguageState>(`state:${id}`);
     if (cached) {
       this.saved.set(id, cached.cursor);
       return cached;
@@ -203,7 +202,7 @@ export class OrgFolder {
   }
 
   /** Hold a fold in memory, dropping the least recently used beyond the limit. */
-  private keep(id: string, held: Held<ProjectState>): void {
+  private keep(id: string, held: Held<LanguageState>): void {
     this.states.delete(id);
     this.states.set(id, held);
     while (this.states.size > STATES_IN_MEMORY) this.states.delete(this.states.keys().next().value!);
@@ -232,23 +231,23 @@ export class OrgFolder {
    * folded refolds the whole log, so what it targets really disappears.
    */
   private async catchUp<S extends { appliedEventIds: Record<string, boolean> }>(
-    projectId: string, known: Held<S> | null, empty: () => S, apply: (events: AnyEvent[], state: S) => S, pulled?: AnyEvent[]
+    streamId: string, known: Held<S> | null, empty: () => S, apply: (events: AnyEvent[], state: S) => S, pulled?: AnyEvent[]
   ): Promise<Held<S>> {
-    const tail = pulled ?? await this.pullAll(projectId, known?.cursor ?? 0);
+    const tail = pulled ?? await this.pullAll(streamId, known?.cursor ?? 0);
     if (known && tail.length === 0) return known;
     const inTail = new Set(tail.map((e) => e.id));
     const redactsFolded = !!known && tail.some((e) => e.type === 'v1.Redacted' && !inTail.has(e.payload.eventId));
-    const events = redactsFolded ? await this.pullAll(projectId, 0) : tail;
+    const events = redactsFolded ? await this.pullAll(streamId, 0) : tail;
     const state = apply(events, known && !redactsFolded ? known.state : empty());
     // Events at or below the cursor are never pulled again, so their ids need not be kept.
     state.appliedEventIds = {};
     return { state, cursor: events.at(-1)?.serverSeq ?? known?.cursor ?? 0, refolded: redactsFolded };
   }
 
-  private async pullAll(projectId: string, after: number): Promise<AnyEvent[]> {
+  private async pullAll(streamId: string, after: number): Promise<AnyEvent[]> {
     const all: AnyEvent[] = [];
     for (;;) {
-      const page = await this.source.pull(this.orgId, projectId, after, PAGE);
+      const page = await this.source.pull(this.orgId, streamId, after, PAGE);
       all.push(...page);
       if (page.length < PAGE) return all;
       after = page[page.length - 1]!.serverSeq!;

@@ -5,7 +5,7 @@ import { sessionStorageKey } from '../src/sessionKey';
 
 
 const ref = (hash: string): BlobRef => ({ hash, format: 'm4a', unitId: 'u1' });
-const upload = (hash: string) => ({ orgId: 'org', projectId: 'luke', ref: ref(hash) });
+const upload = (hash: string) => ({ orgId: 'org', languageId: 'luke', ref: ref(hash) });
 const akol: HandOver = { actorId: 'akol', uploads: [upload('a'), upload('b')], savedAt: '2026-10-05T12:00:00Z' };
 const attempt = (over: Partial<Attempt> = {}): Attempt => ({
   sessionGone: false, eventsLeft: 0, accountLeft: 0, finished: [], unregistered: false, ...over

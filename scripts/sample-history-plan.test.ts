@@ -11,8 +11,8 @@ const days = (at: number) => (NOW - at) / DAY;
 
 describe('planHistory', () => {
   it('stays inside the work window, oldest first, and never reaches the future', () => {
-    for (const [lane, p] of Object.entries(HISTORY_PROFILES)) {
-      const plan = planHistory(p, 1000, NOW, lane);
+    for (const [languageId, p] of Object.entries(HISTORY_PROFILES)) {
+      const plan = planHistory(p, 1000, NOW, languageId);
       expect(plan.length).toBeGreaterThan(0);
       expect(plan.map((a) => a.at)).toEqual([...plan.map((a) => a.at)].sort((a, b) => a - b));
       for (const a of plan) expect(a.at).toBeLessThan(NOW);

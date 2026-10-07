@@ -42,7 +42,7 @@ describe('list and detail panes (decisions.md 55)', () => {
   });
 
   it('carry the list route, with its key and params, into the pane', () => {
-    const list = { screen: 'book_map' as const, key: 'b-1', params: { bookId: 'GEN', laneId: 'l1' } };
+    const list = { screen: 'book_map' as const, key: 'b-1', params: { bookId: 'GEN', languageId: 'l1' } };
     const s = paneFor([r('map_home', 'm-1'), list, r('passage_record', 'p-1')]);
     expect(s?.list).toBe(list);
     expect(s?.listIndex).toBe(1);
@@ -68,8 +68,8 @@ describe('moving from the list pane', () => {
   });
 
   it('popTo goes back to the nearest match below, merging params and keeping its key', () => {
-    expect(routesAfter(routes, 1, 'popTo', { name: 'map_home', params: { laneId: 'l1' } }))
-      .toEqual([{ name: 'map_home', key: 'm', params: { laneId: 'l1' } }]);
+    expect(routesAfter(routes, 1, 'popTo', { name: 'map_home', params: { languageId: 'l1' } }))
+      .toEqual([{ name: 'map_home', key: 'm', params: { languageId: 'l1' } }]);
     expect(routesAfter(routes, 1, 'popTo', { name: 'book_map' })).toEqual([routes[0], routes[1]]);
     // Not below the list: replace the list with it, as nav.popTo does.
     expect(routesAfter(routes, 1, 'popTo', { name: 'org_home' })).toEqual([routes[0], { name: 'org_home' }]);

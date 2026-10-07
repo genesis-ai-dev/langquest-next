@@ -21,9 +21,9 @@ test('reviewer checks a kind on a v2 flow', async ({ page }) => {
   const contract = { reviewerId: world.reviewer.id, takeId: world.version1.takeId, kindId: world.kindId!,
     outcome: 'looks_good' as const, requiredQuestionIds: world.requiredQuestionIds };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeCheck(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeCheck(contract, evidence), run.status);
   await reportRun(page, run, outcome);

@@ -86,10 +86,14 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
     const n: Record<string, number> = {};
-    try {
-      n.freeDiskMb = mb(Paths.availableDiskSpace);
-      n.totalDiskMb = mb(Paths.totalDiskSpace);
-    } catch { /* not every platform reports disk */ }
+    // The web's expo-file-system answers 0 rather than throwing, which would
+    // read as a full disk; a browser leaves the numbers out.
+    if (Platform.OS !== 'web') {
+      try {
+        n.freeDiskMb = mb(Paths.availableDiskSpace);
+        n.totalDiskMb = mb(Paths.totalDiskSpace);
+      } catch { /* not every platform reports disk */ }
+    }
     if (device.blobCacheBytes !== undefined) n.blobCacheMb = mb(device.blobCacheBytes);
     if (device.blobsWanted !== undefined) n.blobsWanted = device.blobsWanted;
     diagnostics.record('device', { n });
@@ -111,10 +115,10 @@ export interface TransferTimings {
   verifyMs?: number;
 }
 
-/** Time one blob transfer and tally it, failure or not. Rethrows so the worker's backoff still applies. */
+/** Time one blob transfer and tally it under its stream, failure or not. Rethrows so the worker's backoff still applies. */
 export async function timedTransfer(
   dir: 'up' | 'down',
-  where: { orgId: string; projectId: string },
+  where: { orgId: string; streamId: string },
   run: (timings: TransferTimings) => Promise<number>
 ): Promise<void> {
   const started = Date.now();

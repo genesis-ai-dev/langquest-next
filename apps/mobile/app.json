@@ -98,10 +98,11 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "LangQuest uses the camera to scan invite and project QR codes."
+          "cameraPermission": "LangQuest uses the camera to scan invite QR codes."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withSceneLifecycle"
     ],
     "scheme": "langquestnext",
     "extra": {

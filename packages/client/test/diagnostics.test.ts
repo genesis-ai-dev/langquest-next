@@ -31,12 +31,12 @@ function rec(id: string, at: number, kind: DiagRecord['kind'] = 'sync'): DiagRec
 describe('sanitizeDiag: the allowlist is the only way in', () => {
   it('keeps known fields and drops everything else', () => {
     const r = sanitizeDiag({
-      id: 'r1', kind: 'sync', at: 5, orgId: 'org1', projectId: 'p1',
+      id: 'r1', kind: 'sync', at: 5, orgId: 'org1', streamId: 'p1',
       n: { ms: 12.4, pulled: 3, secret: 9 },
       t: { outcome: 'ok', note: 'Maria said hello' },
       payload: { text: 'In the beginning' }
     });
-    expect(r).toEqual({ id: 'r1', kind: 'sync', at: 5, orgId: 'org1', projectId: 'p1', n: { ms: 12, pulled: 3 }, t: { outcome: 'ok' } });
+    expect(r).toEqual({ id: 'r1', kind: 'sync', at: 5, orgId: 'org1', streamId: 'p1', n: { ms: 12, pulled: 3 }, t: { outcome: 'ok' } });
   });
 
   it('refuses tag values outside their set, and tokens that look like prose or an address', () => {
@@ -58,8 +58,8 @@ describe('sanitizeDiag: the allowlist is the only way in', () => {
     expect(sanitizeDiag({ id: 'r', kind: 'error', at: 1, stack: 'only a message' })?.stack).toBeUndefined();
   });
 
-  it('drops a partition id without its org, and context keys it does not know', () => {
-    expect(sanitizeDiag({ id: 'r', kind: 'load', at: 1, projectId: 'p1' })?.projectId).toBeUndefined();
+  it('drops a stream id without its org, and context keys it does not know', () => {
+    expect(sanitizeDiag({ id: 'r', kind: 'load', at: 1, streamId: 'p1' })?.streamId).toBeUndefined();
     expect(sanitizeContext({ os: 'android', model: 'SM-A105F', ...({ email: 'a@b.c' } as object) })).toEqual({ os: 'android', model: 'SM-A105F' });
   });
 });
@@ -121,7 +121,7 @@ describe('Diagnostics', () => {
 
   it('tallies transfers into one record per window, separating failures from bytes', async () => {
     const { store, diag } = make();
-    const base = { orgId: 'o', projectId: 'p' };
+    const base = { orgId: 'o', streamId: 'p' };
     diag.transfer('down', { ...base, bytes: 1000, ms: 100, fetchMs: 60, verifyMs: 40 });
     diag.transfer('down', { ...base, bytes: 500, ms: 900, failure: 'offline' });
     expect(store.records).toHaveLength(0);
@@ -129,7 +129,7 @@ describe('Diagnostics', () => {
     await diag.settle();
     expect(store.records).toHaveLength(1);
     expect(store.records[0]).toMatchObject({
-      kind: 'transfer', orgId: 'o', projectId: 'p', t: { dir: 'down' },
+      kind: 'transfer', orgId: 'o', streamId: 'p', t: { dir: 'down' },
       n: { count: 3, bytes: 3000, ms: 1300, maxMs: 900, fetchMs: 160, verifyMs: 240, failOffline: 1 }
     });
   });
@@ -138,7 +138,7 @@ describe('Diagnostics', () => {
     const { store, diag } = make();
     diag.setEnabled(false);
     diag.record('load', { n: { ms: 1 } });
-    diag.transfer('up', { orgId: 'o', projectId: 'p', bytes: 1, ms: 1 });
+    diag.transfer('up', { orgId: 'o', streamId: 'p', bytes: 1, ms: 1 });
     diag.closeTallies();
     await diag.settle();
     expect(store.records).toHaveLength(0);
@@ -161,7 +161,7 @@ describe('SyncClient diagnostics', () => {
     const diag = new Diagnostics({ store, newId: () => `d${++n}`, now: () => wall.t });
     let e = 0;
     const client = new SyncClient({
-      orgId: 'org1', projectId: 'p1', actorId: 'lead', deviceId: 'dA',
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA',
       store: new MemoryStore(), transport: server.transportFor(),
       clock: new HlcClock('dA', () => (wall.t += 1)), now: () => wall.t,
       newId: () => `e${++e}`, diag
@@ -174,13 +174,13 @@ describe('SyncClient diagnostics', () => {
     const wall = { t: 0 };
     const { client, store, diag } = device(server, wall);
     await client.load();
-    await client.append('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' });
-    await client.append('v1.MemberAdded', { profileId: 'lead', role: 'owner' });
+    await client.append('v1.UnitAdded', { unitId: 'u1', parentUnitId: null, kind: 'passage', label: 'Luke 1', order: 'a1' });
+    await client.append('v1.UnitAdded', { unitId: 'u2', parentUnitId: null, kind: 'passage', label: 'Luke 2', order: 'a2' });
     await client.sync();
     await client.sync();
     await diag.settle();
     const syncs = store.records.filter((r) => r.kind === 'sync');
-    expect(store.records.some((r) => r.kind === 'load' && r.orgId === 'org1' && r.projectId === 'p1')).toBe(true);
+    expect(store.records.some((r) => r.kind === 'load' && r.orgId === 'org1' && r.streamId === 'p1')).toBe(true);
     expect(syncs).toHaveLength(1);
     expect(syncs[0]).toMatchObject({ t: { outcome: 'ok' }, n: { pushed: 2, pending: 0 } });
     expect(syncs[0]!.n.pages).toBeGreaterThan(0);

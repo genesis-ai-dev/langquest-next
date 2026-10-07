@@ -127,7 +127,7 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   // A take recorded, kept through a reload before it could upload, then uploaded.
   if (mic) {
     let block = true;
-    await page.route('**/storage/v1/object/**', (route) => (block ? route.abort() : route.continue()));
+    await page.route('**/api/blobs/**', (route) => (block ? route.abort() : route.continue()));
     await page.getByRole('tab', { name: 'Map' }).click();
     await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
@@ -136,13 +136,13 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await button(page, 'Record a take').click();
     await page.waitForTimeout(5_000);
     await page.getByRole('button', { name: 'Stop recording', exact: true }).locator('visible=true').last().click({ force: true });
-    await expect(page.getByText(/1 takes? · saved on this phone/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/1 takes? · saved on this device/)).toBeVisible({ timeout: 30_000 });
     const [hash] = await settle(() => deviceBlobs(page), (b) => b.length > 0, 20_000);
     expect(hash, 'the take is in the browser\'s files').toBeTruthy();
     await page.reload({ waitUntil: 'networkidle' });
     expect(await deviceBlobs(page), 'still there after a reload').toContain(hash);
     block = false;
-    await page.unroute('**/storage/v1/object/**');
+    await page.unroute('**/api/blobs/**');
     expect(await settle(() => blobStored(hash!), Boolean, 90_000), 'uploaded after the reload').toBe(true);
   }
 
@@ -163,7 +163,11 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   // Sign out: this browser keeps nothing (decisions.md 11, amended).
   await second.getByRole('tab', { name: 'Settings' }).click();
   await button(second, /^Sign Out/).click();
+  // Forgetting ends with a fresh page. The signed-out screen shows before
+  // that, while the databases are still being deleted (slow in WebKit).
+  const forgotten = second.waitForEvent('load', { timeout: 60_000 });
   await button(second, 'Sign Out').click();
+  await forgotten;
   await expect(second.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
   expect(await second.evaluate(() => localStorage.length)).toBe(0);
   expect(await appFiles(second), 'recordings and documents left in this browser').toEqual([]);

@@ -8,6 +8,7 @@ import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { GhostBtn, Ico, IconBtn, txt } from '../kit';
 import { reportError } from '../report';
+import { lift } from '../shadow';
 import { C, radius, space, target, TINT, withAlpha } from '../theme';
 import { mmss } from './workspaceModel';
 
@@ -56,7 +57,7 @@ export function CardList(props: {
     <View style={styles.list}>
       {props.cards.map((c, i) => (
         <View key={`${c.hash}-${i}`} style={[styles.row, i > 0 && styles.rowBorder]}>
-          <AudioClip project={props.ctx.project} hashes={[c.hash]} label={`Play ${c.label}`} disabled={props.disabled} />
+          <AudioClip language={props.ctx.language} hashes={[c.hash]} label={`Play ${c.label}`} disabled={props.disabled} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{c.label}</Text>
             <Text style={txt.xs}>{mmss(c.durationMs)}</Text>
@@ -86,7 +87,7 @@ export function SaveProblem(props: { message: string; retryLabel?: string; onRet
 
 const styles = StyleSheet.create({
   record: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.red, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+    ...lift({ color: C.red, opacity: 0.35, radius: 12, y: 6, elevation: 4 }) },
   list: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
   empty: { paddingHorizontal: space.lg, paddingVertical: space.xl, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.row },

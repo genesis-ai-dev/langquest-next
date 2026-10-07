@@ -23,7 +23,7 @@ export interface RecordedCard {
   durationMs: number;
   size: number;
 }
-export type RecorderCardHandler = (card: RecordedCard) => void | Promise<void>;
+type RecorderCardHandler = (card: RecordedCard) => void | Promise<void>;
 interface PendingFile {
   id: string;
   uri: string;

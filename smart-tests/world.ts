@@ -6,14 +6,16 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  applyOrgEvent, CATALOG_VERSION, emptyOrgState, foldOrg, instantiateFlowV2, instantiateQuestionSet, ORG_PARTITION, QUESTION_TEMPLATES, questionSetMaterialId, REDUCER_VERSION, SEED_ROLES,
+  applyOrgEvent, emptyOrgState, flowTemplate, foldOrg, instantiateFlow, instantiateQuestionSet, ORG_STREAM, REDUCER_VERSION, SEED_ROLES,
   type EventPayloads, type EventType, type OrgState
 } from '@langquest-next/core';
-import { MemoryStore, SupabaseTransport, SyncClient, type Materializer } from '@langquest-next/client';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/client';
 import { VOICE_WAV } from './fixtures/voice';
 
 const SUPABASE_URL = process.env['EXPO_PUBLIC_SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const ANON = process.env['EXPO_PUBLIC_SUPABASE_ANON_KEY'] ?? '';
+/** The local Worker, which keeps the audio (decisions.md 69); env.sh points the app at it too. */
+const API_URL = process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:8787';
 
 /** Same fold as apps/mobile/src/useOrg.ts (which imports Expo, so it cannot load here). */
 const ORG_MATERIALIZER: Materializer<OrgState> = {
@@ -25,27 +27,27 @@ const ORG_MATERIALIZER: Materializer<OrgState> = {
 const TERMS_VERSION = /TERMS_VERSION = '([^']+)'/.exec(
   readFileSync(new URL('../apps/mobile/src/accountData.ts', import.meta.url), 'utf8'))![1]!;
 
-export interface Person { id: string; email: string; sb: SupabaseClient; session: Session }
-export interface World {
+interface Person { id: string; email: string; sb: SupabaseClient; session: Session }
+interface World {
   orgId: string;
-  projectId: string;
-  laneId: string;
+  /** The one language, and so its stream. */
+  languageId: string;
   passages: { unitId: string; label: string }[];
   owner: Person;
   translator: Person;
-  /** In the project but assigned to nobody: a passage someone still has to be asked to record. */
+  /** In the language but asked of nobody: a passage someone still has to be asked to record. */
   unassigned: { unitId: string; label: string };
+  /** The language's flow: its first step and the one kind that step holds. */
+  stepId: string;
+  kindId: string;
   /** Present only when asked for (seedTranslatorWorld options). */
   reviewer?: Person;
   coordinator?: Person;
 }
 
-/** A translator's Version 1 of passages[0], submitted for the community step, with real audio on the server. */
-export interface SubmittedWorld extends World {
+/** A translator's Version 1 of passages[0], submitted, with real audio on the server. */
+interface SubmittedWorld extends World {
   reviewer: Person;
-  stepId: string;
-  /** With `v2Flow`: the one kind the step holds. */
-  kindId?: string;
   /** Required questions the reviewer must answer or skip, as `${materialId}#${fieldId}`. */
   requiredQuestionIds: string[];
   version1: { takeId: string; hash: string };
@@ -74,61 +76,56 @@ async function commit<S>(client: SyncClient<S>, intents: Intent[], what: string)
 }
 
 /**
- * An org and project exactly as CreateOrg (apps/mobile/src/screens/entry.tsx)
- * makes them, plus a translator with an org role, a project membership and
- * every passage assigned — what DevMenu's "Seed demo team" gives one — and
- * one more passage nobody is asked to record. A reviewer or coordinator
- * joins (org role and project membership) only when asked for.
+ * An organization as CreateOrg (apps/mobile/src/createOrg.ts) makes it, with
+ * one language added as New Language adds it, and a translator with an org
+ * role who is asked to record every passage but one. The language's flow is
+ * one step of one kind (a peer review), unless `flowId` names a shipped flow.
+ * A reviewer or coordinator joins (an org role) only when asked for.
  */
-export async function seedTranslatorWorld(options: { reviewer?: boolean; coordinator?: boolean } = {}): Promise<World> {
+export async function seedTranslatorWorld(options: { reviewer?: boolean; coordinator?: boolean; flowId?: string } = {}): Promise<World> {
   const [owner, translator, reviewer, coordinator] = await Promise.all([person('owner'), person('translator'),
     options.reviewer ? person('reviewer') : undefined, options.coordinator ? person('coordinator') : undefined]);
-  const orgId = randomUUID(), projectId = randomUUID(), laneId = 'L1';
+  const orgId = randomUUID(), languageId = randomUUID();
   const passages = ['Luke 1:1-4', 'Luke 1:5-25'].map((label, i) => ({ unitId: `luke-${i}`, label }));
   const unassigned = { unitId: 'luke-2', label: 'Luke 2:1-7' };
-  const client = <S,>(partition: string, materializer?: Materializer<S>) => clientFor(owner, orgId, partition, materializer);
+  const member = (p: Person, roleId: string) => intent('v1.MemberAdded', { profileId: p.id, roleId, scope: { level: 'org' } });
 
-  const org = client(ORG_PARTITION, ORG_MATERIALIZER);
+  const org = clientFor(owner, orgId, ORG_STREAM, ORG_MATERIALIZER);
   await org.load();
   await commit(org, [
     intent('v1.OrgCreated', { name: 'Smart test org' }),
     ...SEED_ROLES.map((r) => intent('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
-    intent('v1.OrgMemberAdded', { profileId: owner.id, roleId: 'org_admin', scope: { level: 'org' }, displayName: 'owner' }),
-    intent('v1.ProjectRegistered', { projectId, name: 'Luke' }),
-    intent('v1.OrgMemberAdded', { profileId: translator.id, roleId: 'translator', scope: { level: 'org' }, displayName: 'translator' }),
-    ...(reviewer ? [intent('v1.OrgMemberAdded', { profileId: reviewer.id, roleId: 'reviewer', scope: { level: 'org' }, displayName: 'reviewer' })] : []),
-    ...(coordinator ? [intent('v1.OrgMemberAdded', { profileId: coordinator.id, roleId: 'project_coordinator', scope: { level: 'org' }, displayName: 'coordinator' })] : [])
+    member(owner, 'org_admin'),
+    member(translator, 'translator'),
+    ...(reviewer ? [member(reviewer, 'reviewer')] : []),
+    ...(coordinator ? [member(coordinator, 'coordinator')] : []),
+    intent('v1.LanguageAdded', { languageId, name: 'Luke', code: 'und', sourceCode: 'eng' })
   ], 'org');
 
-  const project = client(projectId);
-  await project.load();
-  await commit(project, [
-    intent('v1.ProjectCreated', { name: 'Luke', sourceLanguoidId: 'eng' }),
-    intent('v1.MemberAdded', { profileId: owner.id, role: 'owner' }),
-    intent('v1.ProjectConfigChanged', { config: {
-      unitKinds: [{ id: 'book', label: 'Book', childKinds: ['passage'] }, { id: 'passage', label: 'Passage', childKinds: [] }],
-      workflow: [{ id: 'community', role: 'reviewer', required: true, rule: 'any' }]
-    } }),
-    intent('v1.LaneAdded', { laneId, languoidId: 'und' }),
+  const flow = options.flowId
+    ? { selected: { flowId: options.flowId, name: flowTemplate(options.flowId)?.name ?? options.flowId }, steps: instantiateFlow(options.flowId) }
+    : { selected: { flowId: 'custom' }, steps: [{ stepId: 'custom/peer', order: 's00', kindIds: ['peer'], checkpoint: false }] };
+  const language = clientFor(owner, orgId, languageId);
+  await language.load();
+  await commit(language, [
     intent('v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Luke', order: 'a' }),
     ...[...passages, unassigned].map((p, i) => intent('v1.UnitAdded', { unitId: p.unitId, parentUnitId: 'luke', kind: 'passage', label: p.label, order: `a${i}` })),
-    intent('v1.MemberAdded', { profileId: translator.id, role: 'translator' }),
-    ...(reviewer ? [intent('v1.MemberAdded', { profileId: reviewer.id, role: 'reviewer' })] : []),
-    ...(coordinator ? [intent('v1.MemberAdded', { profileId: coordinator.id, role: 'coordinator' })] : []),
-    ...passages.map((p) => intent('v1.AssignmentMade', { unitId: p.unitId, laneId, profileId: translator.id, role: 'translator' }))
-  ], 'project');
+    intent('v1.FlowSelected', flow.selected),
+    ...flow.steps.map((step) => intent('v1.FlowStepSet', step)),
+    ...passages.map((p) => intent('v1.RequestMade', { requestId: `req:${randomUUID()}`, unitId: p.unitId, what: 'record', profileId: translator.id }))
+  ], 'language');
 
   for (const p of [owner, translator, reviewer, coordinator]) if (p) await firstRunDone(p);
-  return { orgId, projectId, laneId, passages, owner, translator, unassigned,
+  return { orgId, languageId, passages, owner, translator, unassigned, stepId: flow.steps[0]!.stepId, kindId: flow.steps[0]!.kindIds[0]!,
     ...(reviewer ? { reviewer } : {}), ...(coordinator ? { coordinator } : {}) };
 }
 
-function clientFor<S>(who: Person, orgId: string, partition: string, materializer?: Materializer<S>): SyncClient<S> {
+function clientFor<S>(who: Person, orgId: string, streamId: string, materializer?: Materializer<S>): SyncClient<S> {
   return new SyncClient<S>({
     ...(materializer ? { materializer } : {}),
-    orgId, projectId: partition, actorId: who.id, deviceId: `seed-${who.id}`,
+    orgId, streamId, actorId: who.id, deviceId: `seed-${who.id}`,
     store: new MemoryStore(), transport: new SupabaseTransport(who.sb), newId: () => randomUUID()
-  });
+  } as never);
 }
 
 /** First-run screens are recorded on the server, with the app's own ids (accountData.ts). */
@@ -140,109 +137,88 @@ async function firstRunDone(who: Person) {
 }
 
 /**
- * The translator world plus a reviewer asked to review passages[0], the
- * catalog's community questions linked to the review step, and the
+ * The translator world plus a reviewer asked to review passages[0] for the
+ * first step's kind, the community questions as a question set, and the
  * translator's Version 1 of that passage submitted with its audio uploaded
- * exactly as the app uploads it (so the storage trigger confirms it).
+ * exactly as the app uploads it (so the Worker confirms it).
  * With `feedback`, the reviewer has already asked for changes on it.
  */
 export async function seedSubmittedWorld(options: {
-  feedback?: string; v2Flow?: boolean;
-  /** A ready-made v2 flow other than "One check" (implies v2). */
+  feedback?: string;
+  /** A shipped flow (core FLOWS) instead of the one peer review. */
   flowId?: string;
   /** Also submit Version 1 of passages[1] (a session covering two passages). */
   secondVersion?: boolean;
 } = {}): Promise<SubmittedWorld> {
-  const world = await seedTranslatorWorld({ reviewer: true });
+  const world = await seedTranslatorWorld({ reviewer: true, ...(options.flowId ? { flowId: options.flowId } : {}) });
   const reviewer = world.reviewer!;
-  const { orgId, projectId, laneId, owner, translator } = world;
+  const { orgId, languageId, owner, translator, kindId } = world;
   const unitId = world.passages[0]!.unitId;
-  // v2Flow: the lane runs the ready-made "One check" flow (one v2 step, Peer Review).
-  const flowId = options.flowId ?? (options.v2Flow ? 'one_check' : undefined);
-  const flow = flowId ? instantiateFlowV2(flowId, laneId) : [];
-  const stepId = flow[0]?.stepId ?? 'community';
-  const kindId = flow[0]?.kindIds[0];
-  const questions = instantiateQuestionSet('community_check', laneId);
-  const materialId = questionSetMaterialId('community_check');
-  const template = QUESTION_TEMPLATES.find((q) => q.id === 'community_check')!;
 
-  const owners = clientFor(owner, orgId, projectId);
+  const owners = clientFor(owner, orgId, languageId);
   await owners.load();
   await commit(owners, [
-    ...(flowId ? [intent('v1.LaneFlowSelected', { laneId, flowId, catalogVersion: CATALOG_VERSION }),
-      ...flow.map((payload) => intent('v2.WorkflowStepSet', payload))] : []),
-    ...questions.map((q) => intent(q.type, q.payload)),
-    intent('v1.StepQuestionSetLinked', { stepId, materialId }),
-    intent('v1.AssignmentMade', { unitId, laneId, profileId: reviewer.id, role: 'reviewer' })
+    ...instantiateQuestionSet('community_check').map((q) => intent(q.type, q.payload)),
+    intent('v1.RequestMade', { requestId: `req:${randomUUID()}`, unitId, what: 'review', kindId, profileId: reviewer.id })
   ], 'review setup');
 
   // The same bytes Chrome plays as the microphone, stored where the app stores a take.
   const bytes = readFileSync(VOICE_WAV);
   const hash = createHash('sha256').update(bytes).digest('hex');
-  const { error: uploadError } = await translator.sb.storage.from('blobs')
-    .upload(`${orgId}/${projectId}/${hash}.wav`, bytes, { contentType: 'audio/wav', upsert: true });
-  if (uploadError) throw new Error(`seed audio upload: ${uploadError.message}`);
+  await workerBlobs(API_URL, translator.session.access_token).put(blobKey(orgId, languageId, hash, 'wav'), bytes);
 
-  const takeId = `take:seed-${randomUUID()}`;
-  const translators = clientFor(translator, orgId, projectId);
-  await translators.load();
-  await commit(translators, [
-    intent('v1.RecordingAdded', { recordingId: `rec:${randomUUID()}`, unitId, laneId, kind: 'target', cards: [{ hash, durationMs: 4000, format: 'wav' }] }),
-    intent('v1.TakeComposed', { takeId, unitId, laneId, cardHashes: [hash], parentTakeId: null }),
-    intent('v1.TakeSelected', { takeId, unitId, laneId }),
+  // What core's publishVersion appends for a first version.
+  const publish = (passage: string, takeId: string) => [
+    intent('v1.RecordingAdded', { recordingId: `rec:${randomUUID()}`, unitId: passage, kind: 'target', cards: [{ hash, durationMs: 4000, format: 'wav' }] }),
+    intent('v1.TakeComposed', { takeId, unitId: passage, cardHashes: [hash], parentTakeId: null }),
     intent('v1.TakeSubmitted', { takeId, questionSetIds: [] })
-  ], 'version 1');
+  ];
+  const takeId = `take:seed-${randomUUID()}`;
+  const translators = clientFor(translator, orgId, languageId);
+  await translators.load();
+  await commit(translators, publish(unitId, takeId), 'version 1');
   let version1b: { takeId: string } | undefined;
   if (options.secondVersion) {
-    const second = world.passages[1]!.unitId;
     version1b = { takeId: `take:seed-${randomUUID()}` };
-    await commit(translators, [
-      intent('v1.RecordingAdded', { recordingId: `rec:${randomUUID()}`, unitId: second, laneId, kind: 'target', cards: [{ hash, durationMs: 4000, format: 'wav' }] }),
-      intent('v1.TakeComposed', { takeId: version1b.takeId, unitId: second, laneId, cardHashes: [hash], parentTakeId: null }),
-      intent('v1.TakeSelected', { takeId: version1b.takeId, unitId: second, laneId }),
-      intent('v1.TakeSubmitted', { takeId: version1b.takeId, questionSetIds: [] })
-    ], 'version 1 of the second passage');
+    await commit(translators, publish(world.passages[1]!.unitId, version1b.takeId), 'version 1 of the second passage');
   }
 
   // Org template questions are never required here (core passage.ts), so feedback needs no answers.
   const requiredQuestionIds: string[] = [];
   if (options.feedback) {
-    const reviewers = clientFor(reviewer, orgId, projectId);
+    const reviewers = clientFor(reviewer, orgId, languageId);
     await reviewers.load();
-    await commit(reviewers, [intent('v1.ReviewSubmitted', { takeId, stepId, decision: 'suggest_changes', comment: options.feedback,
-      answers: Object.fromEntries(requiredQuestionIds.map((id) => [id, '2'])) })], 'feedback');
+    await commit(reviewers, [intent('v1.ReviewRecorded', { reviewId: `review:${randomUUID()}`, takeId, kindId, outcome: 'needs_changes', via: 'app',
+      comment: options.feedback, answers: Object.fromEntries(requiredQuestionIds.map((id) => [id, '2'])) })], 'feedback');
   }
-  return { ...world, reviewer, stepId, ...(kindId ? { kindId } : {}), requiredQuestionIds, version1: { takeId, hash },
-    ...(version1b ? { version1b } : {}) };
+  return { ...world, reviewer, requiredQuestionIds, version1: { takeId, hash }, ...(version1b ? { version1b } : {}) };
 }
 
-/** A translator world whose lane has an FIA study with spoken guidance on "Setting the Stage". */
-export interface StudyWorld extends World { studyMaterialId: string; stepId: 'stage'; audioHash: string }
+/** A translator world whose language has an FIA study with spoken guidance on "Setting the Stage". */
+interface StudyWorld extends World { studyMaterialId: string; stepId: 'stage'; audioHash: string }
 
 /**
- * The translator world plus an FIA study for the lane with step audio on
+ * The translator world plus an FIA study for the language with step audio on
  * "Setting the Stage" (the voice fixture, 4 s), stored where the app looks
  * for a study blob (m4a path; the bytes are WAV, which the browser sniffs).
  */
 export async function seedStudyWorld(): Promise<StudyWorld> {
   const world = await seedTranslatorWorld();
-  const { orgId, projectId, laneId, owner } = world;
+  const { orgId, languageId, owner } = world;
   const bytes = readFileSync(VOICE_WAV);
   const audioHash = createHash('sha256').update(bytes).digest('hex');
-  const { error } = await owner.sb.storage.from('blobs')
-    .upload(`${orgId}/${projectId}/${audioHash}.m4a`, bytes, { contentType: 'audio/wav', upsert: true });
-  if (error) throw new Error(`seed study audio upload: ${error.message}`);
+  await workerBlobs(API_URL, owner.session.access_token).put(blobKey(orgId, languageId, audioHash, 'm4a'), bytes);
   const studyMaterialId = `fia-study-seed-${randomUUID()}`;
-  const owners = clientFor(owner, orgId, projectId);
+  const owners = clientFor(owner, orgId, languageId);
   await owners.load();
   await commit(owners, [
-    intent('v1.MaterialDefined', { materialId: studyMaterialId, kind: 'fia_study', title: 'FIA guidance', scope: { laneId } }),
+    intent('v1.MaterialDefined', { materialId: studyMaterialId, kind: 'fia_study', title: 'FIA guidance', scope: {} }),
     intent('v1.MaterialFieldSet', { materialId: studyMaterialId, fieldId: 'stage', text: 'Where does this happen, and who is there?', blobHash: audioHash })
   ], 'study');
   return { ...world, studyMaterialId, stepId: 'stage', audioHash };
 }
 
-/** Open the app signed in as `who`, on the seeded project, and wait for the device log. */
+/** Open the app signed in as `who`, in the seeded language, and wait for the device log. */
 export async function openAs(page: Page, world: World, who: Person): Promise<void> {
   // Only on first load: the app refreshes the session itself afterwards.
   await page.addInitScript((entries) => {
@@ -256,11 +232,12 @@ export async function waitForLog(page: Page): Promise<void> {
   await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 60_000 });
 }
 
-/** localStorage the app reads at startup: the signed-in session and the open project. */
-export function browserStateFor(world: World, who: Person): Record<string, string> {
+/** localStorage the app reads at startup: the signed-in session, the open organization and its open language (App.tsx). */
+function browserStateFor(world: World, who: Person): Record<string, string> {
   const ref = new URL(SUPABASE_URL).hostname.split('.')[0];
   return {
     [`sb-${ref}-auth-token`]: JSON.stringify(who.session),
-    [`selection:${who.id}`]: JSON.stringify({ orgId: world.orgId, projectId: world.projectId })
+    [`selection:${who.id}`]: JSON.stringify({ orgId: world.orgId }),
+    [`language:${who.id}:${world.orgId}`]: world.languageId
   };
 }

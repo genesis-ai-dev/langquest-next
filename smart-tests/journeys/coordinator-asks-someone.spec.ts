@@ -16,12 +16,12 @@ test('coordinator asks the translator to record, with a due date', async ({ page
 
   const run = await runJev(page, askToRecord(world.unassigned.label, 'translator'), { timeoutMs: 90_000, maxDecisions: 30 });
 
-  const contract = { askerId: coordinator.id, unitId: world.unassigned.unitId, laneId: world.laneId,
+  const contract = { askerId: coordinator.id, unitId: world.unassigned.unitId,
     assigneeId: world.translator.id, what: 'record' as const };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.languageId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.languageId)
   }), (e) => judgeRequest(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeRequest(contract, evidence), run.status);
   await reportRun(page, run, outcome);

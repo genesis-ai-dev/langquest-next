@@ -1,15 +1,17 @@
 # Agent instructions for langquest-next
 
-## Org structure (read before touching orgs, projects or languages)
+## Organizations, languages and streams (read before touching either)
 
-An organization holds its target languages directly; there is no project
-level in the app (`docs/decisions.md` 34). Each language is its own synced
-partition, listed in the org's `_org` partition, and a phone pulls only the
-languages it opens (decision 37: `orgLanguages`, `partitionOfLane`).
+Below an organization there are only languages (`docs/decisions.md` 63,
+`docs/streams-and-languages.md`). There is no project, no partition and no
+lane. Each organization has an organization stream (roles, members, library,
+recommendations, and every language's identity: `LanguageAdded`), each
+language a stream of its own (its work), and each person a small person
+stream. A phone pulls the organization stream and only the languages it
+opens (decision 37). "Stream" is the sync layer's word (`streamId`); code
+about a language says `languageId`, and work payloads carry neither.
 Templates, flows and reference material are library documents in the
-database, not app code (decision 36, `docs/library.md`). PR #5
-(`project-is-one-language`) took another route and is to be closed rather
-than integrated. Delete this section once it is closed.
+database, not app code (decision 36, `docs/library.md`).
 
 Read `PLAN.md` before doing anything. Section 4 lists invariants; every change
 must keep them true. Section 6 is the event catalog; never change a shipped
@@ -41,7 +43,7 @@ Rules specific to this folder:
   report logic is `packages/core/src/portfolio.ts`. Web-only code goes behind
   `Platform.OS === 'web'` or in a `.web.tsx` file, and
   `npm run test:web` (smart-tests/web-smoke) must pass.
-- No `status` columns. Status comes from `passage.ts` (and `workflow.ts` for v1 lanes).
+- No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm test` and `npm run typecheck` in this folder before finishing.
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes

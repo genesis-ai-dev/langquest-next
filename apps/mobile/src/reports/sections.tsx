@@ -5,9 +5,9 @@
 // server returned for this person (decision 44).
 import {
   activityWindow, alertsFor, attentionCount, combinedActivity, countryCounts, coverageAverage, defaultLedgerMonth, fieldReport,
-  isSettled, lanesCsv, ledgerCsv, ledgerFor, ledgerMonths, logByDay, mergedDaily, milestonesSince, milestoneText, orgTotals, paceGroups,
-  paceOf, plural, portfolioCounts, portfolioOf, recencyOf, reportText, SCOPE_LABEL, SETTLE_DAYS, sortLanes, timeAgo, topLanguages, watchList,
-  weeklyCards, type AlertLevel, type LaneRow, type LaneSortKey, type Portfolio, type ReportWindow, type SortDir
+  isSettled, languagesCsv, ledgerCsv, ledgerFor, ledgerMonths, logByDay, mergedDaily, milestonesSince, milestoneText, orgTotals, paceGroups,
+  paceOf, plural, portfolioCounts, portfolioOf, recencyOf, reportText, SCOPE_LABEL, SETTLE_DAYS, sortLanguages, timeAgo, topLanguages, watchList,
+  weeklyCards, type AlertLevel, type LanguageRow, type LanguageSortKey, type Portfolio, type ReportWindow, type SortDir
 } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
@@ -39,19 +39,19 @@ export const SECTIONS: { id: SectionId; label: string; filterCountry: boolean }[
 
 /** What every section gets. */
 export interface SectionProps {
-  rows: LaneRow[];
-  all: LaneRow[];
+  rows: LanguageRow[];
+  all: LanguageRow[];
   now: number;
   asOf: string;
   orgName: string;
   /** Open a language's page. */
-  open: (row: LaneRow) => void;
+  open: (row: LanguageRow) => void;
   /** Switch section, optionally with a country filter. */
   show: (section: SectionId, country?: string) => void;
 }
 
 /** A language's name, as a link to its page. */
-function LaneLink(props: { row: LaneRow; open: (row: LaneRow) => void; strong?: boolean }) {
+function LanguageLink(props: { row: LanguageRow; open: (row: LanguageRow) => void; strong?: boolean }) {
   return (
     <Pressable onPress={() => props.open(props.row)} accessibilityRole="link" hitSlop={8} style={({ pressed }) => [{ minHeight: 32, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
       <Text style={[txt.sm, { color: C.primary, fontWeight: props.strong === false ? '400' : '700' }]}>{props.row.report.name}</Text>
@@ -113,7 +113,7 @@ export function Overview(p: SectionProps) {
         <Panel title="Last 48 hours" eyebrow="Recent activity" right={<LinkBtn label="Recent activity ›" onPress={() => p.show('activity')} />}>
           {lastDays.length === 0 ? <Text style={txt.smMuted}>No new audio in the last two days.</Text> : (
             lastDays.flatMap((d) => d.entries).slice(0, 6).map((e) => (
-              <ListLine key={`${e.row.laneId}-${e.day}-${e.unitId}`} label={`${e.row.report.name}, ${e.label}: ${e.cards} recordings, ${shortDate(e.day)}`}
+              <ListLine key={`${e.row.languageId}-${e.day}-${e.unitId}`} label={`${e.row.report.name}, ${e.label}: ${e.cards} recordings, ${shortDate(e.day)}`}
                 right={<><Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{num(e.cards)}</Text> rec</Text><Text style={txt.xs}>{shortDate(e.day)}</Text></>}>
                 <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{e.row.report.name}</Text><Text style={{ color: C.muted }}> / {e.label}</Text></Text>
               </ListLine>
@@ -123,7 +123,7 @@ export function Overview(p: SectionProps) {
         <Panel title="Milestones" eyebrow="Last 30 days">
           {milestones.length === 0 ? <Text style={txt.smMuted}>No coverage milestones in the last 30 days.</Text> : (
             milestones.slice(0, 6).map((m) => (
-              <ListLine key={`${m.row.laneId}-${m.scope}-${m.threshold}`}
+              <ListLine key={`${m.row.languageId}-${m.scope}-${m.threshold}`}
                 right={<><ToneBadge tone={m.threshold === 100 ? 'green' : 'brand'} label={`${m.threshold}%`} /><Text style={txt.xs}>{shortDate(m.at.slice(0, 10))}</Text></>}>
                 <Text style={txt.sm}>{milestoneText(m)}</Text>
               </ListLine>
@@ -180,11 +180,11 @@ export function Activity(p: SectionProps & { days: 7 | 14; setDays: (d: 7 | 14) 
             <Panel key={d.day} {...(d.day === today ? { eyebrow: 'Today' } : {})} title={longDay(d.day)}
               sub={`${num(d.passages)} passages · ${num(d.languages)} languages · ${num(d.cards)} recordings`}>
               {d.entries.map((e) => (
-                <ListLine key={`${e.row.laneId}-${e.unitId}`}
+                <ListLine key={`${e.row.languageId}-${e.unitId}`}
                   right={<><Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{num(e.cards)}</Text> rec</Text><Text style={txt.xs}>{e.verses ? `${num(e.verses)} verses` : '—'}</Text></>}>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.xs }}>
                     <Text style={txt.xs}>{e.at.slice(11, 16)} UTC</Text>
-                    <LaneLink row={e.row} open={p.open} />
+                    <LanguageLink row={e.row} open={p.open} />
                     <Text style={txt.smMuted}>/ {e.label}</Text>
                   </View>
                   <Text style={txt.xs}>{e.row.report.country ? countryName(e.row.report.country) : 'No country'}</Text>
@@ -195,10 +195,10 @@ export function Activity(p: SectionProps & { days: 7 | 14; setDays: (d: 7 | 14) 
         </View>
         <Panel title="Most active" eyebrow={`Last ${days} days`} sub="By recordings uploaded.">
           {top.length === 0 ? <Text style={txt.smMuted}>Nobody uploaded in this window.</Text> : top.map((t, i) => (
-            <ListLine key={t.row.laneId} right={<Text style={[txt.sm, { fontWeight: '700' }]}>{num(t.cards)}</Text>}>
+            <ListLine key={t.row.languageId} right={<Text style={[txt.sm, { fontWeight: '700' }]}>{num(t.cards)}</Text>}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <Text style={[txt.xsStrong, { width: 20 }]}>{i + 1}</Text>
-                <LaneLink row={t.row} open={p.open} />
+                <LanguageLink row={t.row} open={p.open} />
               </View>
               <RankBar value={t.cards} max={maxTop} />
               <Text style={txt.xs}>
@@ -223,7 +223,7 @@ export function Languages(p: SectionProps) {
   return (
     <>
       <View style={{ alignSelf: 'flex-start' }}>
-        <SmallBtn label="Download CSV" icon="download" onPress={() => exportCsv(fileName(`${p.orgName} languages`), lanesCsv(rows, now))} />
+        <SmallBtn label="Download CSV" icon="download" onPress={() => exportCsv(fileName(`${p.orgName} languages`), languagesCsv(rows, now))} />
       </View>
       <Panel eyebrow="Upload activity" title={`${num(counts.active)} of ${num(rows.length)} languages uploaded in the last 14 days`}
         sub="Days since each language's last recording reached the server.">
@@ -232,8 +232,8 @@ export function Languages(p: SectionProps) {
       <Panel eyebrow="Watch list" title={watch.length ? `${watch.length} to contact` : 'Nobody to chase'}
         sub={watch.length ? 'Quiet for two to six weeks, the longest first. After 45 days a language reads as inactive.' : 'Every language with uploads sent one in the last two weeks, or has been inactive for longer than six.'}>
         {watch.map((w) => (
-          <ListLine key={w.row.laneId} right={<><ToneBadge tone={RECENCY_TONE[w.band]} label={RECENCY_LABEL[w.band]} /><Text style={txt.xs}>inactive in {w.untilInactive}d</Text></>}>
-            <LaneLink row={w.row} open={p.open} />
+          <ListLine key={w.row.languageId} right={<><ToneBadge tone={RECENCY_TONE[w.band]} label={RECENCY_LABEL[w.band]} /><Text style={txt.xs}>inactive in {w.untilInactive}d</Text></>}>
+            <LanguageLink row={w.row} open={p.open} />
             <Text style={txt.xs}>{w.days} days since the last upload{w.row.report.country ? ` · ${countryName(w.row.report.country)}` : ''}</Text>
             <Text style={txt.sm}>{RECENCY_ADVICE[w.band]}</Text>
           </ListLine>
@@ -250,7 +250,7 @@ export function Languages(p: SectionProps) {
   );
 }
 
-const COLUMNS: { key: LaneSortKey | null; label: string; firstDir: SortDir; flex: number }[] = [
+const COLUMNS: { key: LanguageSortKey | null; label: string; firstDir: SortDir; flex: number }[] = [
   { key: 'name', label: 'Language', firstDir: 'asc', flex: 2 },
   { key: 'upload', label: 'Upload status', firstDir: 'asc', flex: 1.5 },
   { key: 'coverage', label: 'Scripture recorded', firstDir: 'desc', flex: 1.6 },
@@ -260,14 +260,14 @@ const COLUMNS: { key: LaneSortKey | null; label: string; firstDir: SortDir; flex
   { key: 'attention', label: 'To act on', firstDir: 'desc', flex: 0.8 }
 ];
 
-function LanguageTable(props: { rows: LaneRow[]; now: number; open: (row: LaneRow) => void }) {
+function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: LanguageRow) => void }) {
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<{ key: LaneSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
+  const [sort, setSort] = useState<{ key: LanguageSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const q = search.trim().toLowerCase();
   const filtered = q ? props.rows.filter(({ report: r }) =>
-    r.name.toLowerCase().includes(q) || r.languoidId.toLowerCase().includes(q) || countryName(r.country).toLowerCase().includes(q)) : props.rows;
+    r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || countryName(r.country).toLowerCase().includes(q)) : props.rows;
   // "Upload status" sorts by most recent upload first when ascending.
-  const rows = sort.key === 'upload' ? sortLanes(filtered, 'upload', sort.dir === 'asc' ? 'desc' : 'asc') : sortLanes(filtered, sort.key, sort.dir);
+  const rows = sort.key === 'upload' ? sortLanguages(filtered, 'upload', sort.dir === 'asc' ? 'desc' : 'asc') : sortLanguages(filtered, sort.key, sort.dir);
   const cell = (flex: number, children: ReactNode, right = false) => (
     <View style={{ flex, minWidth: 0, paddingHorizontal: space.xs, alignItems: right ? 'flex-end' : 'stretch' }}>{children}</View>
   );
@@ -295,8 +295,8 @@ function LanguageTable(props: { rows: LaneRow[]; now: number; open: (row: LaneRo
             const weeks = weeklyCards(r);
             const attention = attentionCount(r);
             return (
-              <View key={`${row.projectId}/${row.laneId}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
-                {cell(2, <><LaneLink row={row} open={props.open} /><Text style={txt.xs}>{r.languoidId.toUpperCase()} · {r.country ? countryName(r.country) : 'No country'}</Text></>)}
+              <View key={`${row.languageId}/${row.languageId}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
+                {cell(2, <><LanguageLink row={row} open={props.open} /><Text style={txt.xs}>{r.code.toUpperCase()} · {r.country ? countryName(r.country) : 'No country'}</Text></>)}
                 {cell(1.5, <><View style={{ alignSelf: 'flex-start' }}><RecencyBadge report={r} now={props.now} /></View>
                   <Text style={txt.xs}>{r.uploads.lastAt ? `${shortDate(r.uploads.lastAt.slice(0, 10))} · ${timeAgo(r.uploads.lastAt, props.now)}` : 'Never'}</Text></>)}
                 {cell(1.6, <CoverageMini coverage={r.coverage.recorded} name={r.name} />)}
@@ -323,7 +323,7 @@ type Measure = 'languages' | 'recent' | 'all';
 export function Geography(p: SectionProps) {
   const { rows, now } = p;
   const [measure, setMeasure] = useState<Measure>('languages');
-  const groups = new Map<string, LaneRow[]>();
+  const groups = new Map<string, LanguageRow[]>();
   for (const r of rows) {
     const k = r.report.country ?? '';
     groups.set(k, [...(groups.get(k) ?? []), r]);
@@ -429,7 +429,7 @@ export function FieldReport(p: SectionProps) {
 
         <H>Scripture coverage advanced</H>
         {fr.advanced.length === 0 ? <Text style={txt.smMuted}>No language's coverage moved in this period.</Text> : fr.advanced.map((a) => (
-          <View key={a.row.laneId} style={{ gap: 4, paddingVertical: space.xs }}>
+          <View key={a.row.languageId} style={{ gap: 4, paddingVertical: space.xs }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
               <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{a.row.report.name}</Text><Text style={{ color: C.muted }}> {a.row.report.country ? `${countryName(a.row.report.country)} · ` : ''}{SCOPE_LABEL[a.scope]}</Text></Text>
               <Text style={[txt.sm, { fontWeight: '700', color: C.green }]}>+{(Math.round(10 * (a.after - a.before)) / 10).toFixed(1)} points</Text>
@@ -453,7 +453,7 @@ export function FieldReport(p: SectionProps) {
 
         <H>Languages that recorded most</H>
         {fr.mostRecorded.length === 0 ? <Text style={txt.smMuted}>No recordings in this period.</Text> : fr.mostRecorded.slice(0, 10).map((x, i) => (
-          <ListLine key={x.row.laneId} right={<><ToneBadge tone="green" label={`${pctText(x.row.report.coverage.recorded.nt)} NT`} /><Text style={[txt.sm, { fontWeight: '700' }]}>+{num(x.cards)}</Text></>}>
+          <ListLine key={x.row.languageId} right={<><ToneBadge tone="green" label={`${pctText(x.row.report.coverage.recorded.nt)} NT`} /><Text style={[txt.sm, { fontWeight: '700' }]}>+{num(x.cards)}</Text></>}>
             <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{i + 1}. {x.row.report.name}</Text><Text style={{ color: C.muted }}> {x.row.report.country ? countryName(x.row.report.country) : ''}</Text></Text>
             <RankBar value={x.cards} max={maxCards} />
           </ListLine>
@@ -479,7 +479,7 @@ export function FieldReport(p: SectionProps) {
 
         <H>Milestones</H>
         {fr.milestones.length === 0 ? <Text style={txt.smMuted}>No coverage milestones in this period.</Text> : fr.milestones.map((m) => (
-          <ListLine key={`${m.row.laneId}-${m.scope}-${m.threshold}`} right={<Text style={txt.xs}>{shortDate(m.at.slice(0, 10))}</Text>}>
+          <ListLine key={`${m.row.languageId}-${m.scope}-${m.threshold}`} right={<Text style={txt.xs}>{shortDate(m.at.slice(0, 10))}</Text>}>
             <Text style={txt.sm}>{milestoneText(m)}</Text>
           </ListLine>
         ))}
@@ -488,12 +488,12 @@ export function FieldReport(p: SectionProps) {
         {fr.wentQuiet.length === 0 && fr.resumed.length === 0 ? <Text style={txt.smMuted}>No language went quiet or came back in this period.</Text> : (
           <>
             {fr.wentQuiet.map((r) => (
-              <ListLine key={`q-${r.laneId}`} right={<ToneBadge tone="amber" label="Quiet" />}>
+              <ListLine key={`q-${r.languageId}`} right={<ToneBadge tone="amber" label="Quiet" />}>
                 <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{r.report.name}</Text> went quiet: no new recordings in 14+ days.</Text>
               </ListLine>
             ))}
             {fr.resumed.map((r) => (
-              <ListLine key={`r-${r.laneId}`} right={<ToneBadge tone="green" label="Resumed" />}>
+              <ListLine key={`r-${r.languageId}`} right={<ToneBadge tone="green" label="Resumed" />}>
                 <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{r.report.name}</Text> is recording again after two quiet weeks or more.</Text>
               </ListLine>
             ))}
@@ -520,7 +520,7 @@ export function Ledger(p: SectionProps) {
   const groups = paceGroups(rows, now);
   const pace = groups.filter((g) => g.band !== 'no_target');
   const noTarget = groups.find((g) => g.band === 'no_target')!.items.length;
-  const idle = rows.filter((r) => !l.lines.some((x) => x.row.laneId === r.laneId && x.row.projectId === r.projectId));
+  const idle = rows.filter((r) => !l.lines.some((x) => x.row.languageId === r.languageId && x.row.languageId === r.languageId));
   const countries = new Map<string, typeof l.lines>();
   for (const line of l.lines) {
     const k = line.row.report.country ?? '';
@@ -537,7 +537,7 @@ export function Ledger(p: SectionProps) {
       </View>
       {!settled ? (
         <Notice tone="amber" title={`${monthName(month)} is still moving`}
-          body={`Phones that were offline keep delivering this month's work for a few days after it ends, so these figures settle ${SETTLE_DAYS} days into the next month. Use a settled month for invoices.`} />
+          body={`Devices that were offline keep delivering this month's work for a few days after it ends, so these figures settle ${SETTLE_DAYS} days into the next month. Use a settled month for invoices.`} />
       ) : null}
       <Panel eyebrow="Monthly ledger" title={monthName(month)}>
         <Columns>
@@ -571,12 +571,12 @@ export function Ledger(p: SectionProps) {
               const top = [...line.books].sort((a, b) => b.chapters - a.chapters);
               const summary = top.slice(0, 3).map((b) => `${b.label} ${b.chapters}`).join(' · ') + (top.length > 3 ? ` +${top.length - 3}` : '');
               return (
-                <ListLine key={line.row.laneId}
+                <ListLine key={line.row.languageId}
                   right={<>
                     {lp ? <ToneBadge tone={PACE_TONE[lp.band]} label={`${PACE_LABEL[lp.band]} ${lp.gap >= 0 ? '+' : ''}${lp.gap} pts`} /> : null}
                     <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{num(line.chapters)}</Text> chapters · {plural(line.books.length, 'book')}</Text>
                   </>}>
-                  <LaneLink row={line.row} open={p.open} />
+                  <LanguageLink row={line.row} open={p.open} />
                   <Text style={txt.xs}>{summary}</Text>
                   <RankBar value={line.chapters} max={l.lines[0]!.chapters} />
                 </ListLine>
@@ -590,8 +590,8 @@ export function Ledger(p: SectionProps) {
           {idle.map((r) => {
             const { days } = recencyOf(r.report, now);
             return (
-              <ListLine key={r.laneId} right={<Text style={txt.xs}>{r.report.uploads.lastAt ? `Last upload ${shortDate(r.report.uploads.lastAt.slice(0, 10))}, ${days}d ago` : 'No uploads yet'}</Text>}>
-                <LaneLink row={r} open={p.open} strong={false} />
+              <ListLine key={r.languageId} right={<Text style={txt.xs}>{r.report.uploads.lastAt ? `Last upload ${shortDate(r.report.uploads.lastAt.slice(0, 10))}, ${days}d ago` : 'No uploads yet'}</Text>}>
+                <LanguageLink row={r} open={p.open} strong={false} />
               </ListLine>
             );
           })}
@@ -630,14 +630,14 @@ export function Pace(p: SectionProps) {
             {g.items.map(({ row, pace }) => {
               const t = row.report.target;
               return (
-                <ListLine key={row.laneId}
+                <ListLine key={row.languageId}
                   right={pace ? (
                     <>
                       <Text style={[txt.sm, { fontWeight: '700' }]}>{pace.gap >= 0 ? '+' : ''}{pace.gap} pts</Text>
                       <Text style={txt.xs}>{pctText(pace.actual)} of plan's {pctText(pace.expected)}{pace.projectedFinish && pace.band !== 'complete' ? ` · finishes ${shortDate(pace.projectedFinish)} ${pace.projectedFinish.slice(0, 4)}` : ''}</Text>
                     </>
                   ) : <Text style={txt.xs}>Set a target on the language page.</Text>}>
-                  <LaneLink row={row} open={p.open} />
+                  <LanguageLink row={row} open={p.open} />
                   <Text style={txt.xs}>
                     {row.report.country ? `${countryName(row.report.country)} · ` : ''}
                     {t ? `${SCOPE_LABEL[t.scope]} · ${shortDate(t.startDate)} ${t.startDate.slice(0, 4)} – ${shortDate(t.targetDate)} ${t.targetDate.slice(0, 4)}` : 'No target set'}
@@ -662,7 +662,7 @@ const LEVEL: Record<AlertLevel, { label: string; tone: Tone }> = {
 };
 
 /** Alerts that need someone, for the section switcher's count. */
-export function openAlerts(rows: LaneRow[], asOf: string, now: number): number {
+export function openAlerts(rows: LanguageRow[], asOf: string, now: number): number {
   return alertsFor(rows, asOf, now).filter((a) => a.level !== 'fyi').length;
 }
 
@@ -680,8 +680,8 @@ export function Alerts(p: SectionProps) {
           <Text style={txt.sm}>{a.body}</Text>
           <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>What to do:</Text> {a.action}</Text>
           {a.rows.map((r) => (
-            <ListLine key={r.laneId}>
-              <LaneLink row={r} open={p.open} />
+            <ListLine key={r.languageId}>
+              <LanguageLink row={r} open={p.open} />
               <Text style={txt.xs}>
                 {a.id === 'stuck' ? `${num(r.report.alerts.stuckCards)} recordings in ${num(r.report.alerts.stuckPassages)} passages, oldest from ${r.report.alerts.stuckSince ? shortDate(r.report.alerts.stuckSince.slice(0, 10)) : '?'}` : null}
                 {a.id === 'invalid' ? `${num(r.report.alerts.invalidCards)} recordings` : null}

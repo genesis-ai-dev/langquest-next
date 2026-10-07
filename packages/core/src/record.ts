@@ -17,7 +17,7 @@ import type { Hlc } from './hlc';
  */
 
 /** A kind that makes new content instead of judging (back translation, ADR-015). */
-export interface ProducesSpec {
+interface ProducesSpec {
   /** "back translation" */
   what: string;
   /** "English" */
@@ -48,15 +48,16 @@ export type ReviewVia = 'app' | 'link' | 'logged';
 export type ReviewOutcome = 'looks_good' | 'needs_changes' | 'recorded';
 export type DepartureType = 'skip' | 'override' | 'keep';
 
-/** The payload of v1.RequestMade, shared by v2.RequestMade. */
-export interface RequestPayload {
+/** The payload of v1.RequestMade: exactly one of `profileId`, `guest`, `teamId`. */
+interface RequestPayload {
   requestId: string;
   unitId: string;
-  laneId: string;
   what: 'record' | 'review';
   kindId?: string;
-  /** A teammate; absent when `guest` (or, in v2, `teamId`) is set. */
+  /** A teammate. */
   profileId?: string;
+  /** A review team in the language (ADR-029): open to every member but the asker; the first review of the kind closes it. */
+  teamId?: string;
   /** Someone without the app, reached by a link. */
   guest?: { name: string; channel: 'whatsapp' | 'sms'; contact: string };
   dueDate?: string;
@@ -77,11 +78,12 @@ export type RecordEvents = {
   };
   /**
    * One flow step (ADR-016): kinds in parallel, a suggested order, and a
-   * checkpoint flag. Replaces v1.WorkflowStepSet's role and quorum, which
-   * gated; this only advises. Register per step, sharing step ids and
-   * `v1.WorkflowStepRemoved` with v1. laneId absent = project-wide.
+   * checkpoint flag. It only advises; a checkpoint is the only gate.
+   * Register per step; ids sit under their flow's prefix (`flowStepPrefix`).
    */
-  'v2.WorkflowStepSet': { stepId: string; laneId?: string; order: string; kindIds: string[]; checkpoint: boolean };
+  'v1.FlowStepSet': { stepId: string; order: string; kindIds: string[]; checkpoint: boolean };
+  /** A step leaves the flow. Add-wins, so a removed step id never comes back (decision 32). */
+  'v1.FlowStepRemoved': { stepId: string };
   /**
    * A review of one version for one kind (ADR-005): in the app, by a link
    * with no account, or logged afterwards by whoever ran it (`givenBy`,
@@ -115,7 +117,6 @@ export type RecordEvents = {
   'v1.DepartureRecorded': {
     departureId: string;
     unitId: string;
-    laneId: string;
     type: DepartureType;
     kindId?: string;
     stepId?: string;
@@ -126,46 +127,23 @@ export type RecordEvents = {
   };
   /** Bring a set-aside step back. The departure stays on the record, marked undone. Add-wins. */
   'v1.DepartureUndone': { departureId: string };
-  /** A record of asking (ADR-007, ADR-020): who, for what, by when. Nobody needs one to act. */
+  /** A record of asking (ADR-007, ADR-020, ADR-029): who, for what, by when. Nobody needs one to act. Grow-only by requestId. */
   'v1.RequestMade': RequestPayload;
-  /**
-   * v1.RequestMade that may instead be addressed to a review team in the
-   * same lane (ADR-029): open to every member, and the first review of the
-   * kind closes it, whoever gives it. Exactly one of profileId, guest,
-   * teamId. Grow-only by requestId, sharing ids with v1.
-   */
-  'v2.RequestMade': RequestPayload & { teamId?: string };
   /** Undo of a request. Add-wins. */
   'v1.RequestWithdrawn': { requestId: string };
   /** An anchored note: text, voice, or a photo. `onTakeId` is the version it was made on. Grow-only. */
   'v1.NoteAdded': {
     noteId: string;
     unitId: string;
-    laneId: string;
     anchor: NoteAnchor;
     text?: string;
     blobHash?: string;
     photoHash?: string;
     onTakeId?: string;
   };
-  /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, lane, guide, step). */
-  'v1.StudyStepMarked': { unitId: string; laneId: string; guideId: string; stepId: string; done: boolean };
-  /** A language's display name ("Dinka") beside its code (ORG-2). Register per lane. */
-  'v1.LaneNamed': { laneId: string; name: string };
-  /** Where a language's work happens, as an ISO 3166-1 alpha-2 code ("SS"), for the dashboard's geography. Register per lane. */
-  'v1.LaneCountrySet': { laneId: string; country: string };
-  /**
-   * What a language aims to record, from when and by when (`YYYY-MM-DD`),
-   * for the dashboard's pace (decision 41). Register per lane.
-   */
-  'v1.LaneTargetSet': { laneId: string; scope: TargetScope; startDate: string; targetDate: string };
+  /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
+  'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
 };
-
-/** A share of the canon a language plans to record. */
-export type TargetScope = 'gospels' | 'nt' | 'ot' | 'bible';
-export const TARGET_SCOPES: readonly TargetScope[] = ['gospels', 'nt', 'ot', 'bible'];
-
-export type RecordEventType = keyof RecordEvents;
 
 // ---- folded state ------------------------------------------------------------
 
@@ -178,9 +156,8 @@ export interface KindDef {
   produces?: ProducesSpec;
 }
 
-export interface FlowStepDef {
+interface FlowStepDef {
   stepId: string;
-  laneId?: string;
   order: string;
   kindIds: string[];
   checkpoint: boolean;
@@ -200,7 +177,7 @@ export interface Departure extends Omit<RecordEvents['v1.DepartureRecorded'], 'd
   eventId: string;
 }
 
-export interface PassageRequest extends Omit<RecordEvents['v2.RequestMade'], 'requestId'> {
+export interface PassageRequest extends Omit<RecordEvents['v1.RequestMade'], 'requestId'> {
   id: string;
   by: string;
   hlc: Hlc;
@@ -219,47 +196,41 @@ export interface Undo {
   hlc: Hlc;
 }
 
-/** The record's part of ProjectState. Each map is written by exactly one event type. */
+/** The record's part of LanguageState. Each map is written by exactly one event type. */
 export interface RecordState {
   /** kindId -> definition register (overrides the shipped kind of the same id) */
   reviewKinds: Record<string, { value: KindDef; hlc: Hlc; eventId: string }>;
-  /** stepId -> v2 step register; removal is `workflowSteps[stepId].removed` */
+  /** stepId -> step register */
   flowSteps: Record<string, { value: FlowStepDef; hlc: Hlc; eventId: string }>;
+  /** stepId -> removed (add-wins) */
+  removedSteps: Record<string, true>;
   kindReviews: Record<string, KindReview>;
   departures: Record<string, Departure>;
   undoneDepartures: Record<string, Undo>;
   requests: Record<string, PassageRequest>;
   withdrawnRequests: Record<string, Undo>;
   notes: Record<string, PassageNote>;
-  /** `${unitId}:${laneId}:${guideId}:${stepId}` -> done register */
+  /** `${unitId}:${guideId}:${stepId}` -> done register */
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
-  /** laneId -> display name register */
-  laneNames: Record<string, { value: string; hlc: Hlc; eventId: string }>;
-  /** laneId -> country register */
-  laneCountries: Record<string, { value: string; hlc: Hlc; eventId: string }>;
-  /** laneId -> target register */
-  laneTargets: Record<string, { value: Omit<RecordEvents['v1.LaneTargetSet'], 'laneId'>; hlc: Hlc; eventId: string }>;
 }
 
 export function emptyRecordState(): RecordState {
   return {
     reviewKinds: {},
     flowSteps: {},
+    removedSteps: {},
     kindReviews: {},
     departures: {},
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
     notes: {},
-    studyMarks: {},
-    laneNames: {},
-    laneCountries: {},
-    laneTargets: {}
+    studyMarks: {}
   };
 }
 
-export const studyMarkKey = (unitId: string, laneId: string, guideId: string, stepId: string): string =>
-  `${unitId}:${laneId}:${guideId}:${stepId}`;
+export const studyMarkKey = (unitId: string, guideId: string, stepId: string): string =>
+  `${unitId}:${guideId}:${stepId}`;
 
 // ---- vocabulary that ships with the app --------------------------------------
 
@@ -274,7 +245,7 @@ export const DEFAULT_KINDS: KindDef[] = [
     description: 'Play it for people in the community and capture what they understood.' },
   { id: 'consultant', name: 'Consultant Check', usualReviewer: 'A translation consultant',
     description: 'A consultant checks meaning against the source, verse by verse.' },
-  { id: 'final', name: 'Final Approval', usualReviewer: 'The project coordinator',
+  { id: 'final', name: 'Final Approval', usualReviewer: 'The language coordinator',
     description: 'Sign-off that the passage is ready to share.' },
   { id: 'retell', name: 'Retell Check', usualReviewer: 'A listener',
     description: 'A listener retells the passage in their own words.' },
@@ -282,18 +253,15 @@ export const DEFAULT_KINDS: KindDef[] = [
     description: 'Local listeners hear the polished recording and say whether it sounds natural and acceptable.' }
 ];
 
-export interface FlowTemplateV2 {
+interface FlowTemplate {
   id: string;
   name: string;
   description: string;
   steps: { stepId: string; kindIds: string[]; checkpoint?: boolean }[];
 }
 
-/** Flow catalog version for v2 steps; content templates stay on CATALOG_VERSION. */
-export const FLOW_CATALOG_VERSION = 2;
-
-/** The demo's REVIEW_FLOWS. */
-export const FLOWS: FlowTemplateV2[] = [
+/** The demo's REVIEW_FLOWS. LangQuest's library publishes them (`scripts/library-seed.ts`). */
+export const FLOWS: FlowTemplate[] = [
   { id: 'standard_bible', name: 'Standard Bible Flow',
     description: 'Peer and back translation together, then the community, then a consultant before sign-off.',
     steps: [
@@ -325,59 +293,71 @@ export const FLOWS: FlowTemplateV2[] = [
     ] }
 ];
 
-export function flowTemplateV2(id: string): FlowTemplateV2 | undefined {
+export function flowTemplate(id: string): FlowTemplate | undefined {
   return FLOWS.find((f) => f.id === id);
 }
 
-/** The flow id a lane's hand-edited steps are selected under. */
+/** Shipped question sets, each for one kind of review. LangQuest's library publishes them too. */
+interface QuestionTemplate {
+  id: string;
+  name: string;
+  /** The kind of review these questions are for. */
+  kindId: string;
+  questions: { id: string; text: string; type: 'rating' | 'yesno' | 'text' }[];
+}
+
+export const QUESTION_TEMPLATES: QuestionTemplate[] = [
+  {
+    id: 'community_check',
+    name: 'Community Check Questions',
+    kindId: 'community',
+    questions: [
+      { id: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?', type: 'rating' },
+      { id: 'natural', text: 'Is the translation natural and clear in the target language?', type: 'rating' },
+      { id: 'terms', text: 'Are key theological terms rendered consistently with the Translation Guidelines?', type: 'yesno' },
+      { id: 'revisit', text: 'Are there any passages you would suggest revisiting?', type: 'text' }
+    ]
+  },
+  {
+    id: 'consultant_check',
+    name: 'Consultant Check Questions',
+    kindId: 'consultant',
+    questions: [
+      { id: 'hardest', text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating' },
+      { id: 'kt_aligned', text: "Are the key terms aligned with the language's key terms list?", type: 'yesno' },
+      { id: 'notes', text: 'Notes for the translation team', type: 'text' }
+    ]
+  }
+];
+
+/** The flow id a language's hand-edited steps are selected under. */
 export const CUSTOM_FLOW = 'custom';
 
 /**
- * Where a lane's steps for one selection live. Catalog steps are namespaced
- * by lane and flow and never removed, so two lanes choosing the same flow
- * never share a register, and switching back to a flow brings back the same
- * steps (and anything the record says about them, such as a checkpoint
- * moved past). Hand-edited steps live under the lane's `custom` prefix.
+ * Where a flow's steps live: `<flowId>/`. Steps are never removed when the
+ * language switches flows, so switching back brings back the same steps and
+ * anything the record says about them, such as a checkpoint moved past
+ * (decision 32). Hand-edited steps live under `custom/`.
  */
-export function flowStepPrefix(laneId: string, flowId: string, catalogVersion = FLOW_CATALOG_VERSION): string {
-  return flowId === CUSTOM_FLOW ? `${laneId}/${CUSTOM_FLOW}/` : `${laneId}/${flowId}@${catalogVersion}/`;
+export function flowStepPrefix(flowId: string): string {
+  return `${flowId}/`;
 }
 
-export function flowStepId(laneId: string, flowId: string, stepId: string, catalogVersion = FLOW_CATALOG_VERSION): string {
-  return `${flowStepPrefix(laneId, flowId, catalogVersion)}${stepId}`;
+export function flowStepId(flowId: string, stepId: string): string {
+  return `${flowStepPrefix(flowId)}${stepId}`;
 }
 
 /**
- * The v2.WorkflowStepSet events a lane's flow selection implies. Ids come
- * from the catalog, so two admins choosing the same flow offline agree.
+ * The `v1.FlowStepSet` events a shipped flow implies. Ids come from the
+ * flow, so two admins choosing it offline agree.
  */
-export function instantiateFlowV2(flowId: string, laneId: string, catalogVersion = FLOW_CATALOG_VERSION): RecordEvents['v2.WorkflowStepSet'][] {
-  const f = flowTemplateV2(flowId);
+export function instantiateFlow(flowId: string): RecordEvents['v1.FlowStepSet'][] {
+  const f = flowTemplate(flowId);
   if (!f) throw new Error(`Unknown flow ${flowId}`);
   return f.steps.map((s, i) => ({
-    stepId: flowStepId(laneId, flowId, s.stepId, catalogVersion),
-    laneId,
+    stepId: flowStepId(flowId, s.stepId),
     order: `s${String(i).padStart(2, '0')}`,
     kindIds: [...s.kindIds],
     checkpoint: !!s.checkpoint
   }));
 }
-
-/**
- * v1 flow stages and hand-made v1 steps mapped to the shipped kinds, so a
- * lane configured before v2 reads as the same kinds. Anything unmapped
- * becomes its own kind named by the step's label.
- */
-export const V1_STAGE_KINDS: Record<string, string> = {
-  back_translation: 'bt',
-  community_check: 'community',
-  community_playback: 'community',
-  community: 'community',
-  consultant_check: 'consultant',
-  consultant: 'consultant',
-  final_approval: 'final',
-  approval: 'final',
-  peer_review: 'peer',
-  peer: 'peer',
-  retell_check: 'retell'
-};

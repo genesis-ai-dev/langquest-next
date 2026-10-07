@@ -29,11 +29,23 @@ export default defineConfig({
     // Sessions and signed URLs must not land in shared traces.
     trace: 'off', screenshot: 'off', video: 'off'
   },
-  webServer: {
-    command: `smart-tests/web.sh ${port}`,
-    cwd: path.join(directory, '..'),
-    url: `http://localhost:${port}`,
-    reuseExistingServer: true,
-    timeout: 300_000
-  }
+  webServer: [
+    {
+      command: `smart-tests/web.sh ${port}`,
+      cwd: path.join(directory, '..'),
+      url: `http://localhost:${port}`,
+      reuseExistingServer: true,
+      timeout: 300_000
+    },
+    // The Worker that keeps the audio (decisions.md 69); env.sh points the
+    // app and the seeds at it. Listing files without a key answers 403,
+    // which Playwright counts as up.
+    {
+      command: 'npm run web:dev',
+      cwd: path.join(directory, '..'),
+      url: 'http://localhost:8787/api/blobs',
+      reuseExistingServer: true,
+      timeout: 120_000
+    }
+  ]
 });

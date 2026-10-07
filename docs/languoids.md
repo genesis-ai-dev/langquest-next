@@ -2,14 +2,14 @@
 
 The languages the app knows are global reference data in the database, not
 in any partition: `languoid` and `languoid_name`
-(`supabase/migrations/20261006000000_languoids.sql`). Everyone may read them.
-Only the service role writes, through `npm run languoids`. Decision 63 in
+(`supabase/migrations/20261008000000_languoids.sql`). Everyone may read them.
+Only the service role writes, through `npm run languoids`. Decision 70 in
 `docs/decisions.md` says why.
 
 ## Ids
 
-Every languoid has a UUID, and events name languages by it (`languoidId`,
-`sourceLanguoidId`). A languoid from Glottolog also has its **glottocode**,
+Every languoid has a UUID, and a language names its languoid by it (`LanguageAdded`
+`code` and `sourceCode`). A languoid from Glottolog also has its **glottocode**,
 which is how the next release finds the row it already wrote. A language
 collected in the field (`origin = 'field'`) has a UUID and no glottocode
 until Glottolog catalogues it. Then a person links them by giving the field

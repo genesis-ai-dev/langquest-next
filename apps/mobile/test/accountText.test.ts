@@ -11,12 +11,12 @@ const people: Record<string, string> = { sarah: 'Sarah Kim', ayen: 'Ayen Deng', 
 const words = {
   name: (id: string) => people[id] ?? id,
   passage: 'John 3:1-21',
-  lane: 'Dinka',
+  language: 'Dinka',
   kindName: (id: string | undefined) => (id === 'community' ? 'Community Check' : id === 'bt' ? 'Back Translation' : 'review'),
   produces: (id: string) => id === 'bt',
   due: (d: string) => `due ${d}`
 };
-const base = { unitId: 'john3', laneId: 'L1', hlc: '0' } as const;
+const base = { unitId: 'john3', hlc: '0' } as const;
 
 describe('inbox words', () => {
   it('says who asked for what, where, and when it is due', () => {
@@ -78,11 +78,10 @@ describe('welcome', () => {
   });
 
   it('names the team at the membership scope', () => {
-    const names = { org: 'Wycliffe Associates', lane: (id: string) => (id === 'L1' ? 'Dinka' : undefined) };
-    expect(teamLabel({ level: 'lane', projectId: 'p1', laneId: 'L1' }, names)).toBe('the Dinka team at Wycliffe Associates');
-    // An unknown language, or all of them: the organization, never a project (decision 34).
-    expect(teamLabel({ level: 'lane', projectId: 'p1', laneId: 'L9' }, names)).toBe('Wycliffe Associates');
-    expect(teamLabel({ level: 'project', projectId: 'p1' }, names)).toBe('Wycliffe Associates');
+    const names = { org: 'Wycliffe Associates', language: (id: string) => (id === 'L1' ? 'Dinka' : undefined) };
+    expect(teamLabel({ level: 'language', languageId: 'L1' }, names)).toBe('the Dinka team at Wycliffe Associates');
+    // A language this phone cannot name: the organization.
+    expect(teamLabel({ level: 'language', languageId: 'L9' }, names)).toBe('Wycliffe Associates');
     expect(teamLabel({ level: 'org' }, names)).toBe('Wycliffe Associates');
     expect(teamLabel(undefined, names)).toBe('Wycliffe Associates');
   });

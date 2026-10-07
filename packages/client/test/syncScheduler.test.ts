@@ -147,7 +147,7 @@ describe('SyncScheduler', () => {
   });
 
   it('continuous nudges cannot postpone a run past maxDelayMs', async () => {
-    // Why: a busy project pokes every phone on every event. Debounce alone
+    // Why: a busy language pokes every phone on every event. Debounce alone
     // would keep resetting the timer and a translator's own append could sit
     // unsent for as long as the chatter lasts.
     const h = harness();

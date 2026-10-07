@@ -1,26 +1,7 @@
-import {
-  SOURCE_BIBLES, sourceAudioUrl, sourceBibleEnabled, sourceChapters
-} from '../src/sourceBibles';
-import { catalogKey, emptyOrgState } from '../src/org';
+import { SOURCE_BIBLES, sourceAudioUrl, sourceChapters } from '../src/sourceBibles';
 import { FIA_PERICOPES } from '../src/catalogData';
 
 describe('organization source Bibles', () => {
-  it('requires organization opt-in and respects project opt-out', () => {
-    const org = emptyOrgState();
-    const id = SOURCE_BIBLES[0].id;
-    const orgKey = catalogKey('reference', id, 'org');
-    const projectKey = catalogKey('reference', id, 'project', 'project');
-    expect(sourceBibleEnabled(org, id, 'project')).toBe(false);
-    org.catalog[orgKey] = { value: true, hlc: '1', eventId: 'e1' };
-    expect(sourceBibleEnabled(org, id, 'project')).toBe(true);
-    org.catalog[projectKey] = { value: false, hlc: '2', eventId: 'e2' };
-    expect(sourceBibleEnabled(org, id, 'project')).toBe(false);
-    expect(sourceBibleEnabled(org, id, 'another-project')).toBe(true);
-    org.catalog[orgKey] = { value: false, hlc: '3', eventId: 'e3' };
-    org.catalog[projectKey] = { value: true, hlc: '4', eventId: 'e4' };
-    expect(sourceBibleEnabled(org, id, 'project')).toBe(false);
-  });
-
   it('maps chapter, book and cross-chapter FIA passages', () => {
     expect(sourceChapters('bible@1/jon-2')).toEqual([
       { book: 'jon', chapter: 2, label: 'Jonah 2' }
@@ -48,15 +29,9 @@ describe('organization source Bibles', () => {
     expect(sourceChapters('fia@1/jhn-p1')[0]?.book).toBe('joh');
   });
 
-  it('keeps editions separate and mirrors only the Jonah pilot', () => {
-    const chapter = sourceChapters('bible@1/jon-1')[0]!;
-    const base = 'https://audio.example.test/';
-    expect(sourceAudioUrl(SOURCE_BIBLES[0], chapter, base))
-      .toBe(`${base}berean-bsb-fs/BSB_32_Jon_001_FS.mp3`);
-    expect(sourceAudioUrl(SOURCE_BIBLES[1], chapter, base))
-      .toBe(`${base}berean-msb-fs/MSB_32_Jon_001_FS.mp3`);
+  it('keeps editions separate', () => {
     expect(sourceAudioUrl(SOURCE_BIBLES[0],
-      sourceChapters('bible@1/joh-1')[0]!, base))
+      sourceChapters('bible@1/joh-1')[0]!))
       .toBe('https://openbible.com/audio/bsb_frederick_surrey/BSB_43_Jhn_001_FS.mp3');
     expect(sourceAudioUrl(SOURCE_BIBLES[1],
       sourceChapters('bible@1/mar-1')[0]!))

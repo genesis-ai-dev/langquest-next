@@ -1,9 +1,9 @@
-import { signals, type InstallSummary, type PartitionHealth } from './diagSignals';
+import { signals, type InstallSummary, type LanguageHealth } from './diagSignals';
 
 // The hypotheses a report leads with. Each case is a cause we expect to
 // meet in the field, stated as the numbers it leaves behind.
 
-const health = (over: Partial<PartitionHealth> = {}): PartitionHealth => ({
+const health = (over: Partial<LanguageHealth> = {}): LanguageHealth => ({
   events: { events: 500, maxSeq: 500, events7d: 10, lastEventAt: null },
   reducerVersion: 6,
   snapshots: [{ reducerVersion: 6, seq: 450, createdAt: '', tail: 50, bytes: 1000 }],
@@ -21,7 +21,7 @@ const install = (over: Partial<InstallSummary> = {}): InstallSummary => ({
 const texts = (sum: Record<string, InstallSummary>, h = health()) => signals(h, [], sum, []).map((s) => `${s.level}: ${s.text}`);
 
 describe('diagnostic signals', () => {
-  it('a healthy partition and phone say nothing', () => {
+  it('a healthy language and phone say nothing', () => {
     expect(texts({ a: install({ transfer: { down: { count: 10, bytes: 10e6, ms: 50_000, fetchMs: 40_000, verifyMs: 5_000 } } }) })).toEqual([]);
   });
 

@@ -7,6 +7,7 @@
 // pauses the microphone, and stopping (pause, end, failure) lets it resume.
 // It is AudioClip's player with those two hooks; AudioClip itself has no
 // way to wait before switching the audio session to playback.
+import { isStored } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -16,16 +17,16 @@ import type { Ctx } from './ctx';
 import { getReferenceSlides } from './passageResources';
 import { Card, IconBtn, Ico, txt } from './kit';
 import type { ListenHooks } from './recording/useListenLoop';
-import { reportError } from './report';
+import { noteExpected, reportError } from './report';
 import { C, space, target, TINT } from './theme';
-import type { ProjectHandle } from './useProject';
+import type { LanguageHandle } from './useLanguage';
 
 /** The passage's reference recordings, each with its own player; nothing when there are none. */
-export function ReferenceRecordings({ ctx, unitId, laneId, disabled, listen, onPlay }: {
-  ctx: Ctx; unitId: string; laneId: string; disabled: boolean; listen?: ListenHooks; onPlay?: (id: string) => void;
+export function ReferenceRecordings({ ctx, unitId, disabled, listen, onPlay }: {
+  ctx: Ctx; unitId: string; disabled: boolean; listen?: ListenHooks; onPlay?: (id: string) => void;
 }) {
-  const references = ctx.project.state
-    ? getReferenceSlides(ctx.project.state, laneId, unitId) : [];
+  const references = ctx.language.state
+    ? getReferenceSlides(ctx.language.state, unitId) : [];
   if (references.length === 0) return null;
   return <View style={{ gap: space.sm }}>
     {references.map((item) => <Card key={item.id}>
@@ -33,7 +34,7 @@ export function ReferenceRecordings({ ctx, unitId, laneId, disabled, listen, onP
         <Ico name="listen" size={22} color={TINT.amberText} />
         <Text style={[txt.sm, { flex: 1 }]}>{item.label}</Text>
       </View>
-      <SourcePlayer project={ctx.project} hashes={[item.hash]} {...(listen ? { listen } : {})}
+      <SourcePlayer language={ctx.language} hashes={[item.hash]} {...(listen ? { listen } : {})}
         label={`Play ${item.label}`} disabled={disabled} {...(onPlay ? { onPlay: () => onPlay(item.id) } : {})} />
     </Card>)}
   </View>;
@@ -50,7 +51,7 @@ function playbackFailed(where: string, err: unknown): string {
  * and every way playback stops is reported so recording can resume.
  */
 export function SourcePlayer(props: {
-  project: ProjectHandle;
+  language: LanguageHandle;
   hashes: string[];
   uri?: string;
   label: string;
@@ -66,8 +67,8 @@ export function SourcePlayer(props: {
   const generation = useRef(0);
   const wants = useRef(false);
   const signature = props.uri ?? props.hashes.join(':');
-  const projectRef = useRef(props.project);
-  projectRef.current = props.project;
+  const languageRef = useRef(props.language);
+  languageRef.current = props.language;
   const listenRef = useRef(props.listen);
   listenRef.current = props.listen;
   // Report only real changes, so a stop that was already stopped never resumes recording twice.
@@ -84,7 +85,7 @@ export function SourcePlayer(props: {
     player.current?.pause();
     setPlaying(false);
   };
-  useEffect(() => props.project.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.project.blobs.store]);
+  useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => registerPlayback(halt), []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,9 +100,12 @@ export function SourcePlayer(props: {
       player.current = null;
     };
   }, [signature]);
-  const state = props.project.state;
-  const available = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.project.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+  const state = props.language.state;
+  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
+    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+  // As AudioClip: what the server has plays from there while connected.
+  const available = here || (!!state && props.hashes.length > 0 && props.language.online !== false
+    && props.hashes.every((hash) => isStored(state, hash)));
 
   async function toggle() {
     if (props.disabled) return;
@@ -125,15 +129,25 @@ export function SourcePlayer(props: {
         if (generation.current === run) player.current?.play();
         return;
       }
-      const next = (index: number) => {
+      const next = async (index: number) => {
         if (!wants.current || generation.current !== run) return;
         player.current?.remove();
         player.current = null;
         if (index >= (props.uri ? 1 : props.hashes.length)) { wants.current = false; setPlaying(false); return; }
-        const project = projectRef.current;
+        const language = languageRef.current;
         const hash = props.hashes[index];
-        const uri = props.uri ?? (hash && project.state ? project.blobs.uriFor({ hash, format: audioFormat(project.state, hash) }) : null);
-        if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
+        const ref = hash && language.state ? { hash, format: audioFormat(language.state, hash) } : null;
+        let uri = props.uri ?? (ref ? language.blobs.uriFor(ref) : null);
+        if (!uri && ref && language.state && isStored(language.state, ref.hash)) {
+          try { uri = await language.blobs.streamUri(ref); }
+          catch (err) {
+            noteExpected('source player stream', err);
+            if (generation.current === run) { wants.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+            return;
+          }
+          if (!wants.current || generation.current !== run) return;
+        }
+        if (!uri) { wants.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -145,7 +159,7 @@ export function SourcePlayer(props: {
               setError('Audio could not load. Check your connection and try again.');
               return;
             }
-            if (status.didJustFinish) next(index + 1);
+            if (status.didJustFinish) void next(index + 1);
           });
           p.play();
         } catch (err) {
@@ -154,7 +168,7 @@ export function SourcePlayer(props: {
           setPlaying(false); setError(playbackFailed('source player create', err));
         }
       };
-      next(0);
+      await next(0);
     } catch (err) {
       if (generation.current === run) {
         wants.current = false;
@@ -175,7 +189,7 @@ export function SourcePlayer(props: {
         <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} />
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? 'Pause playback' : props.label : 'Audio is not on this phone yet'}
+          label={available ? playing ? 'Pause playback' : props.label : 'Audio is not on this device yet'}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
         <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} />

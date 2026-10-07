@@ -3,42 +3,50 @@ import { File, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { BlobStore, mimeOf, type StoredFile } from './blobs';
 import type { TransferTimings } from './diagnostics';
-import { supabase, supabaseAnonKey, supabaseUrl } from './supabase';
+import { supabase } from './supabase';
 
 /**
- * Blob transfers over Supabase Storage. Upload is an idempotent upsert of a
- * content-addressed object (rule 2). The server's storage trigger appends
- * v1.BlobStored; the device learns of it through the normal pull.
+ * Blob transfers through the app's Worker, which keeps them in Cloudflare R2
+ * (decisions.md 69, apps/web/worker/blobs.ts). Upload is an idempotent PUT
+ * of a content-addressed object (rule 2); R2 refuses bytes that do not hash
+ * to their name, and the Worker appends v1.BlobStored before it answers, so
+ * the device learns of it through the normal pull.
  */
-const BUCKET = 'blobs';
 
-export function objectPath(orgId: string, projectId: string, ref: StoredFile): string {
-  return `${orgId}/${projectId}/${ref.hash}.${ref.format}`;
+/** The Worker's address. The web app is served by it, so there it is the page's own; a phone build without one cannot move files. */
+const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
+
+function api(): string {
+  if (apiUrl === null) throw new Error('No file server is set up for this build (EXPO_PUBLIC_API_URL).');
+  return apiUrl;
+}
+
+/** `<org>/<stream>/<hash>.<ext>`: a recording belongs to its language's stream, so the stream is the language id. */
+function objectPath(orgId: string, streamId: string, ref: StoredFile): string {
+  return [orgId, streamId, `${ref.hash}.${ref.format}`].map(encodeURIComponent).join('/');
+}
+
+async function tokenOf(client: SupabaseClient): Promise<string> {
+  const { data, error } = await client.auth.getSession();
+  if (error) throw new Error(error.message);
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Not signed in.');
+  return token;
 }
 
 /**
- * Native streaming upload: the file never enters the JS heap. Same request
- * supabase-js would make (POST object, x-upsert), with the session token,
- * so bucket policies apply unchanged. `as` is the session to send under:
- * a hand-over sends a signed-out person's recordings as them (handOver.ts).
+ * Native streaming upload: the file never enters the JS heap. `as` is the
+ * session to send under: a hand-over sends a signed-out person's recordings
+ * as them (handOver.ts).
  */
-export async function uploadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
-  const { data, error: authError } = await as.auth.getSession();
-  if (authError) throw new Error(authError.message);
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Not signed in.');
-  const url = `${supabaseUrl}/storage/v1/object/${BUCKET}/${objectPath(orgId, projectId, ref)}`;
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    apikey: supabaseAnonKey,
-    'x-upsert': 'true',
-    'Content-Type': mimeOf(ref.format)
-  };
+export async function uploadBlob(orgId: string, streamId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}, as: SupabaseClient = supabase): Promise<void> {
+  const url = `${api()}/api/blobs/${objectPath(orgId, streamId, ref)}`;
+  const headers = { Authorization: `Bearer ${await tokenOf(as)}`, 'Content-Type': mimeOf(ref.format) };
   const sent = Date.now();
   // Web keeps blobs in the browser's file storage (webFiles.ts): the same request, from those bytes.
   const res = Platform.OS === 'web'
     ? await uploadFromWeb(url, headers, ref, store)
-    : await store.fileFor(ref).upload(url, { httpMethod: 'POST', uploadType: UploadType.BINARY_CONTENT, headers });
+    : await store.fileFor(ref).upload(url, { httpMethod: 'PUT', uploadType: UploadType.BINARY_CONTENT, headers });
   timings.fetchMs = Date.now() - sent;
   if (res.status < 200 || res.status >= 300) throw new UploadError(res.status, res.body.slice(0, 200));
 }
@@ -50,21 +58,35 @@ export class UploadError extends Error {
 }
 
 /**
+ * A link to read a file the server has, valid for ten minutes. Downloads
+ * use it, and so does playing without keeping the file on this phone:
+ * audio of a passage outside the offline scope plays while connected
+ * (decisions.md 61), asked for at play time. The Worker asks the database
+ * whether this person may read it.
+ */
+export async function streamUrl(orgId: string, streamId: string, ref: StoredFile): Promise<string> {
+  const res = await fetch(`${api()}/api/blob-urls/${objectPath(orgId, streamId, ref)}`, {
+    headers: { Authorization: `Bearer ${await tokenOf(supabase)}` }
+  });
+  if (!res.ok) throw new Error(`No link to the file (${res.status})`);
+  return `${api()}${((await res.json()) as { path: string }).path}`;
+}
+
+/**
  * `timings` splits the time for field diagnostics: signing the URL, the
  * network fetch, and reading plus hashing on the phone, which on a slow
  * phone can outweigh the network.
  */
-export async function downloadBlob(orgId: string, projectId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
+export async function downloadBlob(orgId: string, streamId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
   let mark = Date.now();
   const lap = () => { const now = Date.now(); const ms = now - mark; mark = now; return ms; };
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(objectPath(orgId, projectId, ref), 600);
+  const signedUrl = await streamUrl(orgId, streamId, ref);
   timings.signMs = lap();
-  if (error || !data) throw new Error(error?.message ?? 'no signed url');
-  if (Platform.OS === 'web') return downloadOnWeb(data.signedUrl, ref, store, timings, lap);
+  if (Platform.OS === 'web') return downloadOnWeb(signedUrl, ref, store, timings, lap);
   // Land in a staging name; only a verified hash earns the trusted name.
   const staged = store.stagingFor(ref);
   if (staged.exists) staged.delete();
-  await File.downloadFileAsync(data.signedUrl, staged);
+  await File.downloadFileAsync(signedUrl, staged);
   timings.fetchMs = lap();
   const bytes = await staged.bytes();
   const actual = await BlobStore.hashOf(bytes);
@@ -79,7 +101,7 @@ export async function downloadBlob(orgId: string, projectId: string, ref: Stored
 async function uploadFromWeb(url: string, headers: Record<string, string>, ref: StoredFile, store: BlobStore): Promise<{ status: number; body: string }> {
   const bytes = await store.readBytes(ref);
   if (!bytes) throw new Error(`no bytes for ${ref.hash} in this browser`);
-  const res = await fetch(url, { method: 'POST', headers, body: bytes });
+  const res = await fetch(url, { method: 'PUT', headers, body: bytes });
   return { status: res.status, body: await res.text() };
 }
 

@@ -10,11 +10,11 @@
  * created, so resuming after a crash between "event written" and "entry
  * removed" appends nothing twice: the fold already has that id.
  */
+/** Where the recording goes: the language's stream, and the passage in it. */
 export interface JournalTarget {
   orgId: string;
-  projectId: string;
+  languageId: string;
   unitId: string;
-  laneId: string;
 }
 
 export interface JournalEntry {
@@ -74,18 +74,18 @@ export interface ResumeResult {
 }
 
 /**
- * Finish every unfinished save for one partition. Idempotent: every step
+ * Finish every unfinished save for one language. Idempotent: every step
  * checks what already happened before doing it again.
  */
 export async function resumeEntries(
   entries: JournalEntry[],
-  partition: { orgId: string; projectId: string },
+  language: { orgId: string; languageId: string },
   deps: ResumeDeps
 ): Promise<ResumeResult> {
   const result: ResumeResult = { resumed: [], dropped: [], failed: [] };
   for (const original of entries) {
     const t = original.target;
-    if (!t || t.orgId !== partition.orgId || t.projectId !== partition.projectId) continue;
+    if (!t || t.orgId !== language.orgId || t.languageId !== language.languageId) continue;
     let entry = original;
     try {
       if (deps.hasRecording(entry.id)) {

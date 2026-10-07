@@ -21,9 +21,9 @@ test('translator sets a step aside with a reason', async ({ page }) => {
   const contract = { actorId: world.translator.id, unitId: passage.unitId, laneId: world.laneId, stepId: world.stepId,
     ...(world.kindId ? { kindId: world.kindId } : {}) };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeSetAside(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeSetAside(contract, evidence), run.status);
   await reportRun(page, run, outcome);

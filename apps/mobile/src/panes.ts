@@ -41,7 +41,7 @@ export const SPLITS: readonly SplitSpec[] = [
   { list: 'org_home', details: ['language_home'] }
 ];
 
-export interface Split<R extends PaneRoute = PaneRoute> {
+interface Split<R extends PaneRoute = PaneRoute> {
   /** Drawn in the pane. */
   list: R;
   listIndex: number;

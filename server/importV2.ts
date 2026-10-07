@@ -6,7 +6,8 @@
  *
  * Reads v2 anonymously (its tables are world-readable) from V2_SUPABASE_URL /
  * V2_SUPABASE_ANON_KEY, copies audio from the public V2_BUCKET (default
- * "assets") into this app's "blobs" bucket by content hash, then appends the
+ * "assets") into this app's R2 bucket by content hash, through the Worker at
+ * API_URL (local by default: `npm run web:dev`), then appends the
  * mapped events with the service role. Re-running is a no-op: ids are
  * derived from v2 rows and the server reports them as duplicates.
  *
@@ -20,8 +21,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { fold, type Role } from '@langquest-next/core';
-import { appendAll, audioNames, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport, type SeededProject } from '@langquest-next/client';
+import { foldLanguage, type Role } from '@langquest-next/core';
+import { appendAll, audioNames, blobKey, copyBlobs, fetchV2Rows, mapOrgSeed, mapV2Project, SupabaseTransport, workerBlobs } from '@langquest-next/client';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(`--${name}`);
@@ -50,6 +51,7 @@ if (!key) {
   process.exit(1);
 }
 const service = createClient(url, key, { auth: { persistSession: false } });
+const files = workerBlobs(process.env['API_URL'] ?? 'http://127.0.0.1:8787', key);
 const cacheDir = process.env['V2_IMPORT_CACHE'] ?? join(tmpdir(), 'langquest-v2-import');
 await mkdir(cacheDir, { recursive: true });
 
@@ -99,31 +101,42 @@ function mp4DurationMs(bytes: Uint8Array): number {
 }
 
 const transport = new SupabaseTransport(service);
-const seeded: SeededProject[] = [];
 let orgOwner = '';
-let orgAt = new Date().toISOString();
+let orgAt = '';
 
-for (const projectId of projects) {
-  console.log(`\n== v2 project ${projectId}`);
-  const rows = await fetchV2Rows(v2, projectId);
+for (const project of projects) {
+  console.log(`\n== v2 project ${project}`);
+  const rows = await fetchV2Rows(v2, project);
   console.log(`rows: ${rows.quests.length} quests, ${rows.assets.length} assets, ${rows.votes.length} votes, ${rows.members.length} member links`);
 
-  // Languages v2 users made are not in the language list (docs/languoids.md);
-  // a project that uses one is imported as it is and listed here to sort out.
-  const languoidIds = [...new Set(rows.languages.filter((l) => l.active && l.languoid_id).map((l) => l.languoid_id!))];
-  if (languoidIds.length) {
-    const { data, error } = await service.from('languoid').select('id').in('id', languoidIds);
-    if (error) throw new Error(`languoid: ${error.message}`);
-    const known = new Set((data ?? []).map((l) => l.id as string));
-    for (const id of languoidIds.filter((x) => !known.has(x))) {
-      console.log(`  language ${id} is not in the language list (made by a v2 user?); its lane keeps the v2 id`);
-    }
+  // The organization first: a language stream accepts events only once the
+  // organization lists the language. Its own events have fixed ids, so
+  // seeding it again for each project only adds the new language.
+  const listing = mapV2Project(rows, { orgId, blobs: new Map(), grant });
+  const languageId = listing.language.languageId;
+  // Many v2 projects name the wrong language (English, or a user-made copy
+  // of it); docs/v2-project-languages.md says which one each should have.
+  // Languages v2 users made are not in the language list (docs/languoids.md).
+  for (const code of new Set([listing.language.code, listing.language.sourceCode])) {
+    const { data, error } = await service.from('languoid').select('id').eq('id', code).maybeSingle();
+    if (error && !/invalid input syntax for type uuid/.test(error.message)) throw new Error(`languoid: ${error.message}`);
+    if (!data) console.log(`  language ${code} is not in the language list; check docs/v2-project-languages.md`);
   }
+  // Whoever you granted ownership to is the org's admin: that is the account
+  // that will actually drive it. Otherwise fall back to v2's project owner.
+  if (!orgOwner) {
+    orgOwner = grant.find((g) => g.role === 'owner')?.profileId ?? listing.owner;
+    orgAt = rows.project.created_at;
+  }
+  const seed = await appendAll(service, mapOrgSeed(orgId, 'Imported from LangQuest v2', orgOwner, [listing.language], orgAt));
+  console.log(`organization ${orgId}: ${seed.accepted} accepted, ${seed.duplicates} duplicates, ${seed.rejected.length} rejected`);
+  for (const x of seed.rejected.slice(0, 10)) console.log(`  rejected ${x.id}: ${x.reason}`);
+  if (seed.rejected.length) throw new Error('the organization seed was refused; not importing the language');
 
   // Blobs the log already confirms need no second upload.
   const alreadyStored = new Set<string>();
   for (let after = 0; ; ) {
-    const page = await transport.pull(orgId, projectId, after, 1000);
+    const page = await transport.pull(orgId, languageId, after, 1000);
     for (const e of page) if (e.type === 'v1.BlobStored') alreadyStored.add((e.payload as { hash: string }).hash);
     if (page.length < 1000) break;
     after = page[page.length - 1]!.serverSeq!;
@@ -131,14 +144,11 @@ for (const projectId of projects) {
 
   const names = flag('skip-audio') ? [] : audioNames(rows);
   const t0 = Date.now();
-  const { blobs, failed } = await copyBlobs(names, orgId, projectId, {
+  const { blobs, failed } = await copyBlobs(names, orgId, languageId, {
     download,
     digest: async (b) => createHash('sha256').update(b).digest('hex'),
     durationMs: async (bytes) => mp4DurationMs(bytes),
-    upload: async (o, p, hash, bytes) => {
-      const { error } = await service.storage.from('blobs').upload(`${o}/${p}/${hash}.m4a`, bytes, { contentType: 'audio/mp4', upsert: false });
-      if (error && !/already exists|duplicate/i.test(error.message)) throw new Error(error.message);
-    },
+    upload: (o, p, hash, bytes) => files.put(blobKey(o, p, hash, 'm4a'), bytes),
     alreadyStored,
     onProgress: (done, total) => {
       if (done % 100 === 0 || done === total) process.stdout.write(`  audio ${done}/${total}\r`);
@@ -147,15 +157,8 @@ for (const projectId of projects) {
   if (names.length) console.log(`audio: ${blobs.size} copied, ${failed.length} failed, ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   for (const f of failed.slice(0, 10)) console.log(`  failed ${f.name}: ${f.reason}`);
 
-  const { events, report, owner, roles } = mapV2Project(rows, { orgId, blobs, grant });
-  seeded.push({ projectId, name: rows.project.name, roles });
-  // Whoever you granted ownership to is the org's admin: that is the account
-  // that will actually drive it. Otherwise fall back to v2's project owner.
-  if (!orgOwner) {
-    orgOwner = grant.find((g) => g.role === 'owner')?.profileId ?? owner;
-    orgAt = rows.project.created_at;
-  }
-  const folded = fold(events);
+  const { events, report } = mapV2Project(rows, { orgId, blobs, grant });
+  const folded = foldLanguage(events);
   const invalid = Object.keys(folded.invalidEvents).length;
   console.log(`events: ${report.events} (${report.books} books, ${report.passages} passages, ${report.references} references, ${report.takes} takes, ${report.reviews} reviews, ${report.members} members)`);
   console.log(`left out: ${report.unlinkedAssets} assets without a quest, ${report.textOnlyTranslations} text-only translations, ${report.missingAudio.length} audio files not copied, ${invalid} invalid`);
@@ -165,15 +168,4 @@ for (const projectId of projects) {
   console.log(`append: ${result.accepted} accepted, ${result.duplicates} duplicates, ${result.rejected.length} rejected`);
   for (const r of result.rejected.slice(0, 20)) console.log(`  rejected ${r.id}: ${r.reason}`);
   if (result.rejected.length) process.exitCode = 2;
-}
-
-// The org partition last: it names every project just imported. v2 has no
-// organization of its own, so without this an imported org has no roles and
-// no org memberships, and every org-level screen has nothing to show.
-if (seeded.length > 0) {
-  const seed = mapOrgSeed(orgId, `Imported from LangQuest v2`, orgOwner, seeded, orgAt);
-  const r = await appendAll(service, seed);
-  console.log(`\norg partition ${orgId}: ${r.accepted} accepted, ${r.duplicates} duplicates, ${r.rejected.length} rejected`);
-  for (const x of r.rejected.slice(0, 10)) console.log(`  rejected ${x.id}: ${x.reason}`);
-  if (r.rejected.length) process.exitCode = 2;
 }

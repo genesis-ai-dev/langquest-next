@@ -5,7 +5,7 @@ Expo 57 app, run as a development build (the native recorder module does not loa
 1. `src/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/client`. The store logic itself lives in the client
    package and is contract-tested there against node:sqlite.
-2. `src/useProject.ts`: one `SyncClient` on the open language's partition
+2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
    with `SupabaseTransport`, sync on open and every 15 s, a pending count.
    `src/useOrg.ts`: the same client on the org partition (`_org`) with the
    org materializer. An organization holds its languages directly and is
@@ -168,18 +168,18 @@ guessed:
   on next launch.
 - **Anything native** (a new Expo module, `app.json` plugins or permissions,
   an SDK bump, `modules/microphone-energy`): the fingerprint changes, the
-  update no longer matches any installed binary, so `npm run ship:native`.
+  update no longer matches any installed binary, so `npm run ship -- --native`.
   Pushing an update with a changed fingerprint is not dangerous, it simply
   reaches nobody until a matching build exists.
-- **Not sure which** you are looking at: `npm run ship:check`
+- **Not sure which** you are looking at: `npm run ship -- --check`
   (`eas fingerprint:compare`) says whether this working tree still matches
-  the last build. `npm run ship:status` lists the recent updates on `preview`
+  the last build. `npm run ship -- --status` lists the recent updates on `preview`
   with the runtime version each landed on, which is where a push that seems
   to have reached nobody shows itself.
 
-`ship:prod` and `ship:native:prod` are the same two against `production`.
-All of them run from `apps/mobile`; the repository root forwards `ship`,
-`ship:native` and `ship:check` for when you are already there.
+Add `--prod` to any of them for `production` (`npm run ship -- --prod -m "…"`).
+They run from `apps/mobile` (`scripts/ship.mjs`), and the repository root
+forwards `npm run ship` with its arguments.
 
 Build profiles map to channels of the same name: `development`, `preview`,
 `production` (`eas.json`), and each profile and `ship` script names the EAS
@@ -188,6 +188,6 @@ bundle at publish time, so changing one ships as an ordinary update: set it in
 the plain file with `npm run env:update -- preview KEY 'value'` from the
 repository root. It commits the file and copies it to EAS, where
 builds and updates read it. Change values this way, never in the EAS
-dashboard; `npm run env:diff:eas -- preview` shows any drift. Merging to
+dashboard; `npm run env:eas -- diff preview` shows any drift. Merging to
 `develop` ships to the preview channel (`.eas/workflows/deploy-preview.yml`),
 merging to `main` to testers.

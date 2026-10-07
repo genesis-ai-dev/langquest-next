@@ -4,7 +4,7 @@ import { pathFor, SECTION_PATHS, sectionOfPath, titleFor } from '../src/webPaths
 
 describe('web addresses', () => {
   it('names the section at the bottom of the stack, not the screen on top', () => {
-    expect(pathFor([{ screen: 'reports_home' }, { screen: 'reports_language', params: { laneId: 'din' } }])).toBe('/reports');
+    expect(pathFor([{ screen: 'reports_home' }, { screen: 'reports_language', params: { languageId: 'din' } }])).toBe('/reports');
     expect(pathFor([{ screen: 'my_work' }, { screen: 'passage_record', params: { unitId: 'u' } }])).toBe('/work');
     expect(pathFor([{ screen: 'sign_in' }])).toBe('/');
   });

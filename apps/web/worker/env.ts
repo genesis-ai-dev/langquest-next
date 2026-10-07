@@ -4,8 +4,10 @@ import type { OrgSnapshot } from './orgSnapshot';
 export interface Env {
   ASSETS: Fetcher;
   ORG_SNAPSHOTS: DurableObjectNamespace<OrgSnapshot>;
+  /** Recordings and guide media (blobs.ts, decisions.md 69). */
+  BLOBS: R2Bucket;
   SUPABASE_URL: string;
-  /** Reads every partition; never sent to the browser. */
+  /** Reads every stream; never sent to the browser. */
   SUPABASE_SERVICE_ROLE_KEY: string;
   /**
    * Faith Comes By Hearing's Bible Brain key, for /api/bible/* (bible.ts).

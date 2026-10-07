@@ -83,7 +83,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | Question | Answer |
 | --- | --- |
 | Collects or shares required data types | Yes |
-| Encrypted in transit | Yes: Supabase, the reports server (a Cloudflare Worker, decisions.md 44), Bible text and audio (Bible Brain's CDN, OpenBible) and guide media over HTTPS; no cleartext allowed |
+| Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed |
 | Account creation | Username, password and other authentication: an email and password; or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
@@ -153,8 +153,9 @@ this block.
   "androidPermissions": ["android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO"],
   "blockedPermissions": [],
   "plugins": [
+    "./plugins/withSceneLifecycle",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
-    "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite and project QR codes.\"}",
+    "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-notifications",
     "expo-sqlite"
   ],

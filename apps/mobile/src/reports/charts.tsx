@@ -56,7 +56,7 @@ export function WorkBar(props: { work: Record<PassageWork, number> }) {
 
 // ---- bars over time --------------------------------------------------------------------
 
-export interface Series {
+interface Series {
   key: string;
   label: string;
   color: string;

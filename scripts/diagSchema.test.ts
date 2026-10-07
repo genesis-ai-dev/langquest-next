@@ -2,13 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { DIAG_CONTEXT, DIAG_SCHEMA, DIAG_TOKEN } from '../packages/client/src/diagnostics';
 
 // The phone and the server apply the same diagnostics allowlist
-// (docs/diagnostics.md). The server's copy is a JSON literal in the
-// migration between diag-schema markers; this holds the two equal, so a
-// field added on one side only is a failing test, not a silent drop.
+// (docs/diagnostics.md). The server's copy is a JSON literal between
+// diag-schema markers in the newest migration that defines it; this holds
+// the two equal, so a field added on one side only is a failing test, not a
+// silent drop.
 
 const dir = new URL('../supabase/migrations/', import.meta.url);
-const file = readdirSync(dir).filter((f) => f.endsWith('_field_diagnostics.sql')).sort().at(-1)!;
-const sql = readFileSync(new URL(file, dir), 'utf8');
+const sql = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
+  .map((f) => readFileSync(new URL(f, dir), 'utf8')).filter((text) => text.includes('-- diag-schema:begin')).at(-1)!;
 
 describe('diagnostics allowlist parity', () => {
   it('the migration allows exactly what packages/client allows', () => {

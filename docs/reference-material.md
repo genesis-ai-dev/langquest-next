@@ -14,9 +14,9 @@ reference material review and design" (2026-10-05).
   and notes (`material@1`, kind `note`, plus the in-app materials of
   decision 26). Shapes and validation: `packages/core/src/libraryDocs.ts`.
 - **Three levels decide what is offered** (`packages/core/src/references.ts`):
-  the organization recommends library items (`v1.ReferenceRecommended`, org
-  partition); a language admin recommends more, hides some, or follows the
-  organization (`v1.LaneReferenceRecommended`); translators choose for
+  the organization recommends library items (`v1.ReferenceRecommended`,
+  organization stream); a language admin recommends more, hides some, or
+  follows the organization (`v1.ReferenceSet`); translators choose for
   themselves on their device and may explore any Bible online. Every option
   says whether it has audio and whether it can be kept offline.
 - **Coordinates place material on passages.** A passage's verse range comes
@@ -138,7 +138,7 @@ material has. Web first; on a phone it edits text and records step audio.
   the blob store by SHA-256, as recordings are. Pictures get a phone copy
   made in the browser (canvas, 500px longest side, JPEG) as `lowHash`;
   films have no phone copy yet. Publishing uploads the files to
-  `<org>/_org/<hash>.<ext>` in the blobs bucket, then publishes the version.
+  `<org>/_org/<hash>.<ext>` in R2 through the Worker (decisions.md 69), then publishes the version.
   Readers fetch a missing file from there once and keep it.
 - **License.** A new guide takes the organization's license. Adapting FIA
   keeps FIA's credit and CC BY-SA 4.0, which cannot be changed

@@ -7,7 +7,7 @@ import type { Diagnostics, DiagStore } from '@langquest-next/client';
 /** Device meta key; '1' means the person turned diagnostics off. */
 export const DIAG_OFF_KEY = 'diag:off';
 
-export interface MetaStore {
+interface MetaStore {
   meta(key: string): Promise<string | undefined>;
   setMeta(key: string, value: string): Promise<void>;
 }

@@ -23,9 +23,9 @@ export class OrgSnapshot extends DurableObject<Env> {
         snapshotMeta: transport.snapshotMeta.bind(transport),
         snapshotChunk: transport.snapshotChunk.bind(transport),
         heads: async (org: string) => {
-          const { data, error } = await service.rpc('partition_heads', { p_org_id: org });
-          if (error) throw new Error(`partition_heads: ${error.message}`);
-          return Object.fromEntries(((data ?? []) as { project_id: string; head: number }[]).map((r) => [r.project_id, Number(r.head)]));
+          const { data, error } = await service.rpc('stream_heads', { p_org_id: org });
+          if (error) throw new Error(`stream_heads: ${error.message}`);
+          return Object.fromEntries(((data ?? []) as { stream_id: string; head: number }[]).map((r) => [r.stream_id, Number(r.head)]));
         }
       };
       const storage = this.ctx.storage;

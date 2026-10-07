@@ -1,46 +1,50 @@
 import { deriveDownloadWork } from '../src/blobs';
-import { fold } from '../src/reducer';
-import { emptyState } from '../src/state';
+import { foldLanguage } from '../src/reducer';
+import { emptyLanguageState } from '../src/state';
 import { buildFixture } from './fixtures';
 
 function prepared() {
-  const state = fold(buildFixture(), emptyState()) as any;
+  const state = foldLanguage(buildFixture(), emptyLanguageState()) as any;
   const reg = (blobHash: string) => ({ hlc: '1', eventId: blobHash, value: { blobHash } });
   state.materials.global = {
     kind: 'brief', title: 'Global', scope: {}, createdBy: 'a', hlc: '1', locked: { value: false },
     fields: { audio: reg('global') }
   };
-  state.materials.lane = {
-    kind: 'brief', title: 'L1', scope: { laneId: 'L1' }, createdBy: 'a', hlc: '1', locked: { value: false },
-    fields: { audio: reg('lane') }
+  // Scoped to the book that contains luke1: inherited.
+  state.materials.book = {
+    kind: 'brief', title: 'Luke', scope: { unitId: 'luke' }, createdBy: 'a', hlc: '1', locked: { value: false },
+    fields: { audio: reg('book') }
   };
-  state.materials.otherLane = {
-    kind: 'brief', title: 'L2', scope: { laneId: 'L2' }, createdBy: 'a', hlc: '1', locked: { value: false },
-    fields: { audio: reg('other-lane') }
+  // Scoped to a unit luke1 does not sit under: not inherited.
+  state.materials.otherUnit = {
+    kind: 'brief', title: 'John', scope: { unitId: 'john' }, createdBy: 'a', hlc: '1', locked: { value: false },
+    fields: { audio: reg('other-unit') }
   };
   state.materials.questionsAudio = {
-    kind: 'questions', title: 'Questions', scope: { laneId: 'L1' }, createdBy: 'a', hlc: '1', locked: { value: false },
+    kind: 'questions', title: 'Questions', scope: {}, createdBy: 'a', hlc: '1', locked: { value: false },
     fields: { audio: reg('question') }
   };
   state.keyTerms['earlier'] = {
-    laneId: 'L1', term: 'Earlier', gloss: '', unitScope: ['luke'], renderings: {},
+    term: 'Earlier', gloss: '', unitScope: ['luke'], renderings: {},
     adjustments: { audio: { blobHash: 'term', duringTakeId: 'take2', actorId: 't1', hlc: '1' } }
   };
   state.responses = { take2: { respondsToTakeId: 'take1', blobHash: 'response', actorId: 't1', hlc: '1' } };
-  for (const hash of ['global', 'lane', 'other-lane', 'question', 'term', 'response', 'sha256:ov1', 'c1']) state.blobs[hash] = { stored: true, size: 1 };
+  for (const hash of ['global', 'book', 'other-unit', 'question', 'term', 'response', 'c1']) state.blobs[hash] = { stored: true, size: 1 };
   return state;
 }
 
 describe('scoped reference and term audio', () => {
-  it('includes inherited, global, matching-lane, prior-term, response, and question audio', () => {
+  it('includes inherited, global, ancestor-scoped, prior-term, response, and question audio', () => {
+    // Why: a passage kept offline must bring the reference audio it inherits
+    // from the language and its book, and nothing scoped to other passages.
     const hashes = deriveDownloadWork(prepared(), new Set(), new Set(['luke1'])).map((x) => x.hash);
-    expect(hashes).toEqual(expect.arrayContaining(['sha256:ov1', 'global', 'lane', 'term', 'response', 'question']));
-    expect(hashes).not.toContain('other-lane');
+    expect(hashes).toEqual(expect.arrayContaining(['c1', 'global', 'book', 'term', 'response', 'question']));
+    expect(hashes).not.toContain('other-unit');
   });
 
   it('keeps a shared hash when its canonical recording belongs elsewhere', () => {
     const state = prepared();
-    state.materials.lane.fields.audio.value.blobHash = 'c1';
+    state.materials.book.fields.audio.value.blobHash = 'c1';
     expect(deriveDownloadWork(state, new Set(), new Set(['luke1'])).map((x) => x.hash)).toContain('c1');
   });
 

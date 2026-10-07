@@ -1,11 +1,11 @@
 /**
- * How does a brand-new client cope with a big existing project? Replays a
- * project log saved by `exportProject.ts` through the real SyncClient and
+ * How does a brand-new client cope with a big existing stream? Replays a
+ * stream's log saved by `exportStream.ts` through the real SyncClient and
  * SqliteStore (node:sqlite on a file, as expo-sqlite is on a phone), with the
  * app's settings: pages of 500, 2 s pull slices, a yield between pages, a
  * checkpoint every 2000 events. Each heap cap runs in its own process so an
  * out-of-memory crash is a result, not a lost run. Network time is not in
- * here; `exportProject.ts` measures it.
+ * here; `exportStream.ts` measures it.
  *
  * Node on a laptop is faster than a low-end Android; treat times as a lower
  * bound and memory as the useful signal. The real gate is a device run.
@@ -67,10 +67,10 @@ const dirBytes = (dir: string) => readdirSync(dir).reduce((a, f) => a + statSync
 
 /** One run in this process: bootstrap from empty, then a cold reopen of what it wrote. */
 async function child(file: string, dbDir: string, phase: 'bootstrap' | 'reopen') {
-  const meta = JSON.parse(readFileSync(file.replace(/\.jsonl$/, '.meta.json'), 'utf8')) as { orgId: string; projectId: string; events: number };
+  const meta = JSON.parse(readFileSync(file.replace(/\.jsonl$/, '.meta.json'), 'utf8')) as { orgId: string; streamId: string; events: number };
   const store = await SqliteStore.open(fileDriver(join(dbDir, 'langquest-next.db')));
   const client = new SyncClient({
-    orgId: meta.orgId, projectId: meta.projectId, actorId: 'bench', deviceId: 'bench-device',
+    orgId: meta.orgId, streamId: meta.streamId, actorId: 'bench', deviceId: 'bench-device',
     store, transport: fixtureTransport(file),
     yieldBetweenPages: () => new Promise<void>((r) => setTimeout(r, 0))
   });

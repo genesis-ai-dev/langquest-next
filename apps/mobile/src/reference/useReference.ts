@@ -16,10 +16,10 @@ import { BibleError } from '../bibleBrain';
 import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
 
-/** The level a screen is at: the language in its params (when this phone has it open), else the organization. */
+/** The level a screen is at: the language in its params (when it is the open language), else the organization. */
 export function levelOf(ctx: Ctx): Level {
-  const laneId = ctx.params['laneId'];
-  return laneId && ctx.project.state?.lanes[laneId] ? { kind: 'lane', laneId } : { kind: 'org' };
+  const languageId = ctx.params['languageId'];
+  return languageId && ctx.language.languageId === languageId ? { kind: 'language', languageId } : { kind: 'org' };
 }
 
 /** Say "not connected" plainly for a server action, else the fault with a code. */
@@ -32,7 +32,7 @@ export function referenceFailure(where: string, e: unknown): string {
 }
 
 async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): Promise<boolean> {
-  if (w.partition === 'lane') {
+  if (w.to === 'language') {
     const spec = (x: RecWrite) => [{ id: Crypto.randomUUID(), type: x.type, payload: x.payload }] as Parameters<Ctx['act']>[0];
     try {
       await ctx.act(spec(w), message, undo ? () => spec(undo) : undefined);
@@ -59,7 +59,7 @@ export function useRecommend(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const run = useCallback(async (level: Level, itemId: string, name: string, action: RecAction, quiet = false) => {
     setBusy(true);
-    const before = recState(ctx.org.state?.recommendations, ctx.project.state, level, itemId);
+    const before = recState(ctx.org.state?.recommendations, ctx.language.state, level, itemId);
     const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level), quiet ? undefined : recUndo(before, level, itemId));
     setBusy(false);
     return ok;
@@ -181,11 +181,11 @@ export async function publishTimingJob(lib: ReturnType<typeof useLibrary>, it: L
   const loaded = await loadDocs(lib.orgId, [base]);
   const get = (h: string | null | undefined) => (h ? loaded.get(h) ?? cachedDoc(h) : null);
   const source = get(base) as SourceDoc | null;
-  if (!source || source.format !== 'source@1') throw new CommandError('The Bible is not on this phone yet. Try again when connected.');
+  if (!source || source.format !== 'source@1') throw new CommandError('The Bible is not on this device yet. Try again when connected.');
   // Its books, so chapters already timed keep their timings and text is carried over (books do not come with the source).
   const books = await loadDocs(lib.orgId, source.books.map((b) => b.doc), { deps: false });
   for (const [h, d] of books) loaded.set(h, d);
-  if (source.books.some((b) => b.doc && !loaded.get(b.doc) && !cachedDoc(b.doc))) throw new CommandError('Some of the Bible is not on this phone yet. Try again when connected.');
+  if (source.books.some((b) => b.doc && !loaded.get(b.doc) && !cachedDoc(b.doc))) throw new CommandError('Some of the Bible is not on this device yet. Try again when connected.');
   const own = lib.items('versification').filter((v) => v.current);
   const vdocs = await loadDocs(lib.orgId, [source.versification, ...own.map((v) => v.current)]);
   const versifications = [source.versification, ...own.map((v) => v.current!)]

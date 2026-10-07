@@ -9,7 +9,7 @@ import { noteExpected } from './report';
 import { supabase } from './supabase';
 
 /** What happened to the held invite last, for the screens to say. */
-export type InviteStatus =
+type InviteStatus =
   | { kind: 'idle' }
   | { kind: 'joining' }
   /** Not reached: kept, and tried again on reconnect or when the app comes back. */
@@ -133,7 +133,7 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
       setStatus({ kind: 'idle' });
       if (e instanceof FunctionError && e.needsName) return { message, needsName: true };
       return { message: /fetch|network|failed to send|timed? ?out/i.test(message)
-        ? 'Joining needs a connection. Your invite is saved on this phone.'
+        ? 'Joining needs a connection. Your invite is saved on this device.'
         : message };
     }
   }, [held]);

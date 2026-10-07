@@ -14,7 +14,7 @@
  * - A run that reports offline backs off geometrically, with jitter so a
  *   room full of phones does not reconnect in lockstep; nothing here polls
  *   a dead radio every fifteen seconds. Any success resets the backoff.
- * - A steady stream of nudges (a busy project) cannot postpone a run
+ * - A steady stream of nudges (a busy stream) cannot postpone a run
  *   forever: `maxDelayMs` after the first unserved nudge the run happens
  *   regardless of further nudges.
  * - A run that reports `more` (it hit its push or pull budget) is followed
@@ -23,7 +23,7 @@
  *
  * Timers are injectable so the tests are deterministic.
  */
-export interface SyncSchedulerOptions {
+interface SyncSchedulerOptions {
   run: () => Promise<{ offline: boolean; more?: boolean }>;
   /** Fallback poll while the realtime channel is up. */
   livePollMs?: number;
@@ -44,7 +44,7 @@ export interface SyncSchedulerOptions {
 }
 
 /** Spread a wait over [0.8, 1.2) of itself. */
-export function jittered(ms: number, random: number): number {
+function jittered(ms: number, random: number): number {
   return Math.round(ms * (0.8 + 0.4 * random));
 }
 

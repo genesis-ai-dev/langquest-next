@@ -4,7 +4,7 @@
 // from the organization's guide files (`<org>/_org/<hash>.<ext>`, where the
 // guide editor puts them); until it arrives, or if it cannot, the URL stands
 // in when there is one.
-import { ORG_PARTITION } from '@langquest-next/core';
+import { ORG_STREAM } from '@langquest-next/core';
 import { useEffect, useState } from 'react';
 import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile } from '../blobs';
 import { downloadBlob } from '../blobTransport';
@@ -18,17 +18,17 @@ const failedAt = new Map<string, number>();
 const RETRY_MS = 60_000;
 
 /** The blob store's name for a guide file, or null when its format is not one the store keeps. */
-export function storedFileOf(file: StudyFile | undefined): StoredFile | null {
+function storedFileOf(file: StudyFile | undefined): StoredFile | null {
   return file && isStoredFormat(file.format) ? { hash: file.hash, format: file.format } : null;
 }
 
 /** Fetch a guide file into the blob store from the organization's guide files. */
-export function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promise<void> {
+function fetchGuideFile(orgId: string, ref: StoredFile, store: BlobStore): Promise<void> {
   const last = failedAt.get(ref.hash);
   if (last && Date.now() - last < RETRY_MS) return Promise.reject(new Error('Not available yet.'));
   let p = inflight.get(ref.hash);
   if (!p) {
-    p = downloadBlob(orgId, ORG_PARTITION, ref, store)
+    p = downloadBlob(orgId, ORG_STREAM, ref, store)
       .catch((e: unknown) => { failedAt.set(ref.hash, Date.now()); throw e; })
       .finally(() => inflight.delete(ref.hash));
     inflight.set(ref.hash, p);

@@ -141,7 +141,7 @@ export function VadPanel(props: { rec: Recorder; phase: LoopPhase; count: number
             setCutoff(next); commit(next);
           }}>
           <EnergyBars captured={rec.vadCapturing} />
-          <View pointerEvents="none" style={[styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
+          <View style={[{ pointerEvents: 'none' }, styles.cutoff, { top: `${(1 - cutoff) * 100}%` }]} />
         </View>
       )}
       {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}

@@ -2,7 +2,7 @@
 // the recorded parts are cards in the blob store that nothing on the record
 // names until Save puts them in one `produceContent`. So deleting a part is
 // final, and nothing half-made ever reaches the grow-only review. The list
-// is in AsyncStorage (keyed by project, person, passage, language and kind;
+// is in AsyncStorage (keyed by language, person, passage and kind;
 // see workspaceModel.ts) so it survives leaving the screen or a restart.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Card } from '@langquest-next/core';
@@ -30,7 +30,7 @@ export function useBackTranslationDraft(key: string, fromTakeId: string) {
       if (mounted.current) { setDraft(current.current); setLoaded(true); }
     }, (e: unknown) => {
       const id = reportError('back translation draft: read', e);
-      if (mounted.current) { setProblem(`Your earlier parts could not be read on this phone (code ${id}). Nothing was deleted.`); setLoaded(true); }
+      if (mounted.current) { setProblem(`Your earlier parts could not be read on this device (code ${id}). Nothing was deleted.`); setLoaded(true); }
       throw new DraftUnreadable('draft unreadable');
     });
     chain.current.catch(() => undefined); // reported above; writes see the refusal

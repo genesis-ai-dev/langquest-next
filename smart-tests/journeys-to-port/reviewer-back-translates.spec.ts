@@ -23,9 +23,9 @@ test('reviewer back-translates in an ordinary lane', async ({ page }) => {
   const contract = { makerId: world.reviewer.id, unitId: passage.unitId, laneId: world.laneId,
     fromTakeId: world.version1.takeId, kindId: catalogKindId('back_translation') };
   const evidence = await settle(async () => ({
-    device: await deviceLog(page, world.orgId, world.projectId),
+    device: await deviceLog(page, world.orgId, world.partitionId),
     blobsAfter: await deviceBlobs(page),
-    server: await serverEvents(world.projectId)
+    server: await serverEvents(world.partitionId)
   }), (e) => judgeBackTranslation(contract, e).verdict === 'passed', 45_000);
   const outcome = accountForDriver(judgeBackTranslation(contract, evidence), run.status);
   await reportRun(page, run, outcome);

@@ -1,15 +1,15 @@
 // Avatar U. Local and remote playback, paused before recording starts.
-import type { BlobRef, ProjectState } from '@langquest-next/core';
+import { isStored, type BlobRef, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import type { ProjectHandle } from './useProject';
+import type { LanguageHandle } from './useLanguage';
 import { IconBtn, txt } from './kit';
-import { reportError } from './report';
+import { noteExpected, reportError } from './report';
 import { C, target } from './theme';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 
-export function audioFormat(state: ProjectState, hash: string): BlobRef['format'] {
+export function audioFormat(state: LanguageState, hash: string): BlobRef['format'] {
   for (const recording of Object.values(state.recordings)) {
     const card = recording.cards.find((c) => c.hash === hash);
     if (card) return card.format ?? 'wav';
@@ -23,7 +23,7 @@ function playbackFailed(where: string, err: unknown): string {
 }
 
 export function AudioClip(props: {
-  project: ProjectHandle;
+  language: LanguageHandle;
   hashes: string[];
   label?: string;
   uri?: string;
@@ -37,9 +37,9 @@ export function AudioClip(props: {
   const generation = useRef(0);
   const wantsPlayback = useRef(false);
   const signature = props.uri ?? props.hashes.join(':');
-  const projectRef = useRef(props.project);
-  projectRef.current = props.project;
-  useEffect(() => props.project.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.project.blobs.store]);
+  const languageRef = useRef(props.language);
+  languageRef.current = props.language;
+  useEffect(() => props.language.blobs.store?.onChange(() => refresh((n) => n + 1)), [props.language.blobs.store]);
   useEffect(() => registerPlayback(() => {
     generation.current++;
     wantsPlayback.current = false;
@@ -64,9 +64,13 @@ export function AudioClip(props: {
       player.current = null;
     };
   }, [signature]);
-  const state = props.project.state;
-  const available = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
-    !!props.project.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+  const state = props.language.state;
+  const here = !!props.uri || (!!state && props.hashes.length > 0 && props.hashes.every((hash) =>
+    !!props.language.blobs.uriFor({ hash, format: audioFormat(state, hash) })));
+  // Not on this phone (a passage outside the offline scope) but on the server: play it from there while connected.
+  const streamable = !here && !!state && props.hashes.length > 0 && props.language.online !== false
+    && props.hashes.every((hash) => isStored(state, hash));
+  const available = here || streamable;
 
   async function toggle() {
     if (props.disabled) return;
@@ -90,7 +94,7 @@ export function AudioClip(props: {
         if (generation.current === run) player.current?.play();
         return;
       }
-      const next = (index: number) => {
+      const next = async (index: number) => {
         if (!wantsPlayback.current) return;
         player.current?.remove();
         player.current = null;
@@ -98,9 +102,19 @@ export function AudioClip(props: {
           wantsPlayback.current = false; setPlaying(false); return;
         }
         const hash = props.hashes[index]!;
-        const project = projectRef.current;
-        const uri = props.uri ?? (project.state && project.blobs.uriFor({ hash, format: audioFormat(project.state, hash) }));
-        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this phone yet.'); return; }
+        const language = languageRef.current;
+        const ref = language.state ? { hash, format: audioFormat(language.state, hash) } : null;
+        let uri = props.uri ?? (ref && language.blobs.uriFor(ref));
+        if (!uri && ref && language.state && isStored(language.state, hash)) {
+          try { uri = await language.blobs.streamUri(ref); }
+          catch (err) {
+            noteExpected('audio clip stream', err);
+            if (generation.current === run) { wantsPlayback.current = false; setPlaying(false); setError('Audio could not load. Check your connection and try again.'); }
+            return;
+          }
+          if (generation.current !== run || !wantsPlayback.current) return;
+        }
+        if (!uri) { wantsPlayback.current = false; setPlaying(false); setError('Audio is not on this device yet.'); return; }
         try {
           const p = createAudioPlayer({ uri });
           player.current = p;
@@ -112,7 +126,7 @@ export function AudioClip(props: {
               setError('Audio could not load. Check your connection and try again.');
               return;
             }
-            if (status.didJustFinish && player.current === p) next(index + 1);
+            if (status.didJustFinish && player.current === p) void next(index + 1);
           });
           p.play();
         } catch (err) {
@@ -121,7 +135,7 @@ export function AudioClip(props: {
           setPlaying(false); setError(playbackFailed('audio clip create player', err));
         }
       };
-      next(0);
+      await next(0);
     } catch (err) {
       if (generation.current === run) {
         wantsPlayback.current = false;
@@ -142,7 +156,7 @@ export function AudioClip(props: {
         {props.seekControls ? <IconBtn name="restart" label="Rewind source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(-10)} /> : null}
         <IconBtn name={available ? playing ? 'pause' : 'play' : 'download'} size={target.primary} bg={C.light} color={C.primary}
-          label={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this phone yet'}
+          label={available ? playing ? 'Pause playback' : props.label ?? 'Play audio' : 'Audio is not on this device yet'}
           disabled={!available || props.disabled} onPress={() => void toggle()} />
         {props.seekControls ? <IconBtn name="skip" label="Forward source 10 seconds" size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}

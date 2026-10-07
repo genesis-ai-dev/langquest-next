@@ -57,8 +57,8 @@ export const DIAG_CONTEXT = [
   'embedded', 'reducerVersion', 'protocolVersion'
 ] as const;
 
-export type DiagKind = keyof typeof DIAG_SCHEMA;
-export type DiagContextKey = (typeof DIAG_CONTEXT)[number];
+type DiagKind = keyof typeof DIAG_SCHEMA;
+type DiagContextKey = (typeof DIAG_CONTEXT)[number];
 export type DiagContext = Partial<Record<DiagContextKey, string>>;
 
 export interface DiagRecord {
@@ -67,16 +67,16 @@ export interface DiagRecord {
   /** Device wall time at capture, ms. Arrival can be weeks later; the gap is itself a clue. */
   at: number;
   orgId?: string;
-  projectId?: string;
+  streamId?: string;
   n: Record<string, number>;
   t: Record<string, string>;
   /** Error records only: stack frames, no message line, file names without paths. */
   stack?: string;
 }
 
-export interface DiagInput {
+interface DiagInput {
   orgId?: string;
-  projectId?: string;
+  streamId?: string;
   n?: Record<string, number>;
   t?: Record<string, string>;
   stack?: string;
@@ -126,7 +126,7 @@ export function sanitizeDiag(input: unknown): DiagRecord | null {
   }
   const out: DiagRecord = { id: r.id, kind, at: Math.round(r.at), n, t };
   if (typeof r.orgId === 'string' && DIAG_TOKEN.test(r.orgId)) out.orgId = r.orgId;
-  if (out.orgId && typeof r.projectId === 'string' && DIAG_TOKEN.test(r.projectId)) out.projectId = r.projectId;
+  if (out.orgId && typeof r.streamId === 'string' && DIAG_TOKEN.test(r.streamId)) out.streamId = r.streamId;
   if (kind === 'error' && typeof r.stack === 'string') {
     const frames = stackFrames(r.stack);
     if (frames) out.stack = frames;
@@ -177,7 +177,7 @@ export class MemoryDiagStore implements DiagStore {
   }
 }
 
-export interface DiagnosticsOptions {
+interface DiagnosticsOptions {
   store: DiagStore;
   newId: () => string;
   now?: () => number;
@@ -194,9 +194,9 @@ const FAIL_FIELD: Record<FailureClass, string> = {
   offline: 'failOffline', http4xx: 'failHttp4xx', http5xx: 'failHttp5xx', hash: 'failHash', disk: 'failDisk', other: 'failOther'
 };
 
-export interface TransferSample {
+interface TransferSample {
   orgId: string;
-  projectId: string;
+  streamId: string;
   bytes: number;
   ms: number;
   failure?: FailureClass;
@@ -226,7 +226,7 @@ export class Diagnostics {
   private enabled = true;
   private readonly now: () => number;
   private readonly max: number;
-  private readonly tallies = new Map<string, { opened: number; orgId: string; projectId: string; dir: 'up' | 'down'; n: Record<string, number> }>();
+  private readonly tallies = new Map<string, { opened: number; orgId: string; streamId: string; dir: 'up' | 'down'; n: Record<string, number> }>();
   private readonly o: Required<Pick<DiagnosticsOptions, 'tallyWindowMs' | 'tallyMaxCount'>>;
   private writes: Promise<void> = Promise.resolve();
 
@@ -257,10 +257,10 @@ export class Diagnostics {
   /** Tally one blob transfer; a record is written when the window closes. */
   transfer(dir: 'up' | 'down', s: TransferSample): void {
     if (!this.enabled) return;
-    const key = `${dir}|${s.orgId}|${s.projectId}`;
+    const key = `${dir}|${s.orgId}|${s.streamId}`;
     let tally = this.tallies.get(key);
     if (!tally) {
-      tally = { opened: this.now(), orgId: s.orgId, projectId: s.projectId, dir, n: {} };
+      tally = { opened: this.now(), orgId: s.orgId, streamId: s.streamId, dir, n: {} };
       this.tallies.set(key, tally);
     }
     const n = tally.n;
@@ -285,7 +285,7 @@ export class Diagnostics {
     const tally = this.tallies.get(key);
     if (!tally) return;
     this.tallies.delete(key);
-    this.record('transfer', { orgId: tally.orgId, projectId: tally.projectId, n: tally.n, t: { dir: tally.dir } });
+    this.record('transfer', { orgId: tally.orgId, streamId: tally.streamId, n: tally.n, t: { dir: tally.dir } });
   }
 
   /** Wait for queued writes; tests and delivery use it. */

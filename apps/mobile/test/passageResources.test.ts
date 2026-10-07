@@ -7,48 +7,42 @@ function state() {
       passage: { parentUnitId: 'book' }
     },
     materials: {
-      laneAudio: {
-      kind: 'brief', title: 'Walkthrough', scope: { laneId: 'L' },
+      bookAudio: {
+        kind: 'brief', title: 'Walkthrough', scope: { unitId: 'book' },
         createdBy: 'a', locked: { value: false },
         fields: { intro: { hlc: '1', value: { blobHash: 'm1' } } }
       },
       questions: {
-        kind: 'questions', title: 'Questions', scope: { laneId: 'L' },
+        kind: 'questions', title: 'Questions', scope: {},
         createdBy: 'a', locked: { value: false },
         fields: { q: { hlc: '1', value: { blobHash: 'q1' } } }
       }
     },
-    references: {
-      inherited: { unitId: 'book', kind: 'source_audio', blobHash: 'r1' },
-      excluded: { unitId: 'passage', kind: 'review_questions', blobHash: 'r2' },
-    },
     recordings: {},
-    takes: {}, keyTerms: {}, keyTermLinks: {}, lanes: {},
+    takes: {}, keyTerms: {}, keyTermLinks: {},
   } as any;
 }
 
 describe('passage reference resources', () => {
-  it('inherits ancestor audio and excludes question audio', () => {
-    const slides = getReferenceSlides(state(), 'L', 'passage');
-    expect(slides.map((s) => s.hash)).toEqual(['r1', 'm1']);
+  it('inherits ancestor material audio and excludes question audio', () => {
+    const slides = getReferenceSlides(state(), 'passage');
+    expect(slides.map((s) => s.hash)).toEqual(['m1']);
   });
 
   it('creates an order-independent stable signature', () => {
-    const a = getReferenceSlides(state(), 'L', 'passage');
+    const a = getReferenceSlides(state(), 'passage');
     expect(referenceRunSignature(a)).toBe(referenceRunSignature(a.slice().reverse()));
   });
 
-  it('includes source recordings, without target audio or other lanes', () => {
+  it('includes source recordings, without target audio', () => {
     const s = state();
     s.recordings = {
-      source: { kind: 'source', laneId: 'L', unitId: 'passage',
+      source: { kind: 'source', unitId: 'passage',
         cards: [{ hash: 'source', format: 'wav' }] },
-      target: { kind: 'target', laneId: 'L', unitId: 'passage',
-        cards: [{ hash: 'target', format: 'wav' }] },
-      other: { kind: 'source', laneId: 'other', unitId: 'passage',
-        cards: [{ hash: 'other', format: 'wav' }] }
+      target: { kind: 'target', unitId: 'passage',
+        cards: [{ hash: 'target', format: 'wav' }] }
     };
-    expect(getReferenceSlides(s, 'L', 'passage').map((item) => item.hash))
-      .toEqual(['r1', 'm1', 'source']);
+    expect(getReferenceSlides(s, 'passage').map((item) => item.hash))
+      .toEqual(['m1', 'source']);
   });
 });

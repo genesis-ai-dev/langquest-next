@@ -69,7 +69,7 @@ export function parseSignInKey(input: string): { code: string } | null {
 }
 
 /** Every key the one scanner reads: an invite (link or bare code) or a sign-in key. */
-export type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string };
+type ScannedKey = { kind: 'invite'; token: string; orgId?: string } | { kind: 'signin'; code: string };
 
 export function parseKey(input: string): ScannedKey | null {
   const signin = parseSignInKey(input);

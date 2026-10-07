@@ -192,6 +192,11 @@ stop clients echoing it back. Here the storage trigger appends
 refuses the type from any client, and devices learn of it through the pull
 they already do. Same guarantee, no extra column, no extra sync path.
 
+Amended (2026-10-07, Carl Sauder): the confirmation is appended by the
+app's Worker through `record_blob` after R2 has stored the bytes, not by a
+storage trigger, which is gone with the bucket (decision 69). Same event
+and id shape, so devices see no difference.
+
 ## 15. Device identity and clocks are persisted
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -229,6 +234,13 @@ independent pass over the bucket: it confirms what the storage trigger
 missed and invalidates what hashes wrong, so blob truth never depends on a
 trigger on Supabase's managed storage schema. A fetch failure never
 invalidates anything; only bytes that were read and hash wrong do.
+
+Amended (2026-10-07, Carl Sauder): the bucket is Cloudflare R2 (decision
+69), and R2 now refuses an upload whose bytes do not hash to its name, so a
+wrong hash is caught at the door as well as by the downloader. The
+reconciler lists and reads R2 through the Worker's service routes
+(`workerBlobs`) and still confirms what was never confirmed; `--verify`
+remains the check against bytes that change after they were stored.
 
 ## 18. Snapshots travel in pieces
 
@@ -275,6 +287,11 @@ leaves a passage waiting forever with nothing on screen saying why. These
 are properties of the fold, so `deriveBlockers` computes them and the status
 screen can show the one action that clears each. Reverse if: never.
 
+Amended (2026-10-06, Carl Sauder): `deriveBlockers` and the blocker rows went
+with the role-based v1 workflow model (63). The record model says what a
+passage waits on (`waitingOn`) and what concerns a person (`updatesFor`),
+which the Inbox and the server's notifications both read.
+
 ## 22. One sync client, two folds
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -299,6 +316,9 @@ policies keep speaking `Role`. Reverse if: partners never define a custom
 role; then the seed roles are simply all there is. (An event may now need
 any one of several privileges: 31.)
 
+Amended (2026-10-06, Carl Sauder): scope is `org` or `language` (63);
+the project and lane levels are gone, and a person holds one role per scope.
+
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -310,9 +330,17 @@ refusals when a pull shows the actor's membership changed. Clock-ahead
 refusals re-stamp the clock and keep the event ids. Invalid payloads never
 retry.
 
+Amended (2026-10-06, Carl Sauder): the server no longer authorizes as of the
+event's clock; it decides by the membership it holds now (63), and the
+membership-row and as-of paths are gone. The client re-queues `NOT_MEMBER`
+and `NOT_ALLOWED` refusals when the organization stream changes a membership
+or a role (`onMembershipChanged`), and re-queues `NOT_LISTED` ("language not
+listed yet") on every push, since a new language's own events can reach the
+server before the organization's `LanguageAdded`.
+
 ## 25. Templates instantiate with derived ids, and per-lane settings layer over project settings
 
-Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
+Date: 2026-09-15 · By: Ryder Wishart · Status: superseded by 63
 
 Reason: the UX spec applies content templates and review flows per language
 (A42) while units and workflow live in the project partition. Deriving
@@ -436,6 +464,10 @@ still applies. Hand-edited steps live under the language's `custom` prefix
 and new ones get fresh ids. Reverse if: step ids must be shared across
 languages; then key overrides and skips by kind instead of step.
 
+Amended (2026-10-06, Carl Sauder): each language now has a stream of its
+own (63), so step ids are namespaced by flow version only
+(`<flowId>@<v>/<step>`, `custom/<step>`); the add-wins reason still holds.
+
 ## 33. Derived views are cached per state object and revision, outside the state
 
 Date: 2026-09-28 · By: Caleb Koster · Status: accepted
@@ -451,7 +483,7 @@ moves to immutable states; then identity alone is enough.
 
 ## 34. An organization holds its languages directly, and is the one unit that syncs
 
-Date: 2026-09-28 · By: Caleb Koster · Status: partly superseded by 37
+Date: 2026-09-28 · By: Caleb Koster · Status: superseded by 63
 
 Reason: partners think in organizations and languages; the project level
 between them was a grouping nobody asked for, and every screen paid for it
@@ -555,6 +587,12 @@ partition and read as before. Partly supersedes 34 (the organization as one
 synced unit). Reverse if: people routinely work across many languages at
 once; then sync the languages a person is assigned to in the background, or
 let the server fold a progress summary per language.
+
+Amended (2026-10-06, Carl Sauder): a language's identity lives in the
+organization stream (`v1.LanguageAdded`, replacing `ProjectRegistered`,
+`ProjectCreated`, `LaneAdded` and `LaneNamed`), and a language stream
+accepts events only once the organization lists it, which replaces the
+bootstrap rule (63). Organizations from before this no longer exist.
 
 ## 38. An organization's work has one license, and it only opens
 
@@ -735,6 +773,23 @@ Amended (2026-10-01, Carl Sauder): there are now two targets. Merging to
 Supabase branch `develop`, the preview environment (decisions.md 50). Secrets
 are not part of the integration's deploy: `npm run secrets` sets the Edge
 Function and Vault secrets (decisions.md 51).
+
+Amended (2026-10-06, Carl Sauder): the schedule is now
+`20261006000001_schedule_projections.sql`, beside the baseline that replaced
+the earlier migrations (63), and the worker is the `stream-projections`
+Edge Function (job `langquest-stream-projections`; the old job is
+unscheduled). Reset databases have no migration history to repair.
+
+Amended (2026-10-06, Carl Sauder): the local stack runs the worker too, every
+minute. `npm run db:start` and `npm run db:reset` (`scripts/local-db.mjs`)
+write a local-only secret to the ignored `supabase/functions/.env`, set the
+two Vault values in the local database and run the schedule migration, as
+`npm run secrets` does on a hosted one, and seed the library when there is
+none. Testing on simulators against a local database had no server Inbox rows
+or snapshots, and we want no extra command to bring a local environment up.
+It is not in `seed.sql`: preview branches run that too, where local values
+would be wrong; and `npm run db:test` resets with plain `supabase db reset`,
+since its smokes count snapshots and Inbox rows.
 
 ## 43. Merging to main deploys the Cloudflare workers
 
@@ -938,6 +993,11 @@ bytes until the app is removed; the fold never shows them. Partly supersedes
 Reverse if: event integrity comes to depend on payload bytes (a hash chain
 or signatures), which would need erasure designed in (for example,
 encrypting personal fields with a per-person key and deleting the key).
+
+Amended (2026-10-06, Carl Sauder): with the catalog restarted at `v1` (63),
+no event type has a `displayName` and nothing in the log holds a name, so
+`events_immutable` has no exception any more: the log refuses every update
+and delete, and account deletion only appends `MemberRemoved` events.
 
 ## 48. Reports and blocks are private rows, not events, and acting on a report is a redaction
 
@@ -1192,6 +1252,10 @@ no server receives it or keeps it in a log, and the web app takes it out
 of the address once read. Links use the address when a build has
 EXPO_PUBLIC_APP_URL (the invite email: APP_URL); otherwise the
 `langquestnext://` link, and both are always read (`inviteCode.ts`).
+
+Amended (2026-10-07, Carl Sauder): "Looked-after accounts cannot invite" is
+superseded by 67; their role decides, as for anyone. Helping someone sign
+in still needs an account with its own email.
 
 ## 55. Wide windows get a centred column, a side rail or sidebar, and list–detail panes; phones are unchanged
 
@@ -1507,6 +1571,15 @@ audio's neighbours in practice (then the Settings line needs a size budget),
 the study file folder grows past what phones can spare (then it needs the
 same eviction rules as audio), or teams need films in the field.
 
+Amended (2026-10-07, Carl Sauder): the app runs on phones, tablets and the
+web (decisions 55, 58), so the screens say "device" where they said
+"phone": "On this device", "Not kept on this device", "Always on this
+device", and likewise in sign-in, sync, reports and errors. "Phone" stays
+only where it names phones on purpose: phone-number fields, and the guide
+editor's note that phones and tablets get a small copy of each picture. The
+demo already says "another device". Code identifiers (`onPhone`, the
+`'phone'` layout kind) keep their names.
+
 ## 62. Reference material is library documents placed by coordinates, recommended at three levels, and recorded where it was used
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1554,13 +1627,244 @@ audio plays with FCBH timings only and streams), or field teams find three
 levels of recommendation confusing (then the language level goes and
 translators pick from the organization's list).
 
-## 63. Languages are a UUID-keyed table loaded from Glottolog, keeping v2's ids and none of v2's user-made languages
+Amended (2026-10-06, Carl Sauder): the three levels stand; the language
+level is `v1.ReferenceSet` in the language's stream, and material or
+question sets meant for every language are recommended library items,
+not copies in the open language (63).
 
-Date: 2026-10-06 · By: Caleb Koster · Status: accepted
+## 63. Below the organization there are only languages, and the sync unit is the stream
+
+Date: 2026-10-06 · By: Carl Sauder · Status: accepted
+
+Reason: the model still carried two levels that no longer existed. The
+project left the app in 34 and became one partition per language in 37, yet
+the code named it everywhere (`projectId`, `ProjectState`,
+`v1.ProjectCreated`, the `project` scope) while SQL and docs called it a
+partition; and every partition held exactly one lane with the same id. Most
+of the code paid for distinctions that never varied, and where they varied
+TypeScript and SQL disagreed: a lane-scoped member was authorized for the
+whole partition on any event without a `laneId`, "All languages" materials
+reached only the language that was open, and the UI offered language admins
+invites the server refused. With three developers and nobody else's data,
+we reset the databases instead of migrating (Carl, 2026-10-06). So, as
+`docs/streams-and-languages.md` sets out: below an organization there are
+only languages; a language's identity (name, code, source code, country,
+target) lives in the organization stream (`LanguageAdded`), its work in its
+own stream, and a language stream accepts events only once the organization
+lists it. The sync unit is the stream (organization, language or person),
+named `streamId` only in sync code; everything about a language says
+`languageId`, and work payloads carry neither, since the stream an event is
+appended to says which language it belongs to. Membership scope is `org` or
+`language`, one role per scope, and core and SQL compute privileges the
+same way. Settings have two shared levels: the organization's library and
+its recommendations, and the language's template, flow and own choices;
+material for every language is a recommended library item. The event
+catalog keeps one version of each event, restarted at `v1`, without the
+ones nothing wrote, and the role-based v1 workflow model is retired in
+favour of the record model. The migrations were squashed into one baseline.
+Supersedes 25 and 34; amends 23, 32, 37 and 62.
+Reverse if: an organization needs one body of work synced across several
+languages at once; then a language stream gains members of its own, not a
+lane level.
+
+Amended (2026-10-06, Carl Sauder): two choices made while retiring the v1
+model. A new language picks its flow when it is added, and a language with no
+flow selected has no steps (`deriveFlow`), instead of falling back to a
+default workflow. The server's Inbox rows and pushes come from the same
+`updatesFor` the phone's Inbox reads, one row per update for each person who
+may open the language; the blocker and "translate everything" rows are gone.
+Amends 21, 24, 42 and 47.
+
+## 64. A missing caller is the service role only because nobody signed out can reach the function
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: the log's functions (`append_events`, `pull_events`, the snapshot
+reads and `put_snapshot`, the blob and stream service paths) read a missing
+JWT `sub` as the service role and skip their checks, which is how the
+workers call them. A signed-out caller has no `sub` either, and these were
+never revoked from `anon`, so the public key alone could pull any stream,
+overwrite a snapshot, invalidate a blob, and append events as any member.
+Postgres grants execute to `public`, and Supabase to `anon`, on every new
+function, so the rule cannot rest on each function remembering: migration
+`20261007000000_no_anonymous_rpcs.sql` revokes them, and `server/smoke.sql`
+section 14 fails when any security definer function in `public` that `anon`
+may run is missing from its short list (today only `preview_invite`). The
+app no longer opens a placeholder organization before it knows the person's
+(`App.tsx` `Shell`, `useOrg` with no organization): a guest, or an account
+in none, syncs nothing, so it is never refused for an organization it is
+not in.
+Reverse if: signed-out people need to read a stream; then give that read
+its own function that checks the stream is public, not a null caller.
+
+Amended (2026-10-07, Carl Sauder): row-level policies run as the caller,
+so a function made service-role only must not appear in one. The read
+policies on `invites` and `join_requests` called `org_privileges`, and every
+signed-in read of either table failed. They now call `my_privileges` (the
+caller's own privileges) instead
+(`20261007120000_policies_use_my_privileges.sql`). Granting `org_privileges`
+back to `authenticated` was rejected: it answers for any profile in any
+organization, so anyone signed in could learn who holds which role
+elsewhere. `server/smoke.sql` section 15 reads both tables as a signed-in
+caller.
+
+## 65. Whoever may admit people sees the name of each person asking to join
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: an admin cannot decide on a join request without knowing who is
+asking. Profile names were readable only between people who share an
+organization (`profile_visible`), and a requester is not a member until
+admitted, so every request showed the colour-and-shape placeholder.
+`profile_visible` now also lets a caller read the profile of anyone with a
+pending request to an organization where the caller holds `invite_members`
+at organization level, the same test the `join_requests` read policy uses
+(`20261007140000_admins_see_requesters.sql`). The name shows from the
+request until it is decided; after that the person is a member (and visible
+as one) or, if turned away, no longer visible. `pendingRequests`
+(`apps/mobile/src/invites.ts`) reads the names with the requests, since a
+request can arrive after the app read everyone's names.
+Reverse if: requesters need to stay anonymous until admitted; then the
+request itself should carry the name the person chose to give.
+
+## 66. Request Access lists the organizations that list their work; others are joined by invite
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: opened from the intent chooser, Request Access asked for an
+"organization code", which was the organization's id (`org-` and a UUID).
+No screen shows anyone that id, so nobody could give it out or type it, and
+the demo has no code: it lists organizations to pick from. The screen now
+lists, by name and with their listed languages, the organizations that list
+at least one language on Explore (`listed_organizations`,
+`20261007160000_listed_organizations.sql`), to signed-in people only, as
+asking to join is. An organization that lists nothing is not found there;
+the screen says to ask its people for an invite. Listing a language already
+made it public with its organization behind it (docs/licensing.md, Access),
+so this names no organization that had not chosen to be found. A short
+code an admin could share was considered and not built: it needs a new
+column, a lookup, and protection against guessing, for organizations that
+chose not to be found and can invite instead.
+Reverse if: organizations that list nothing need people to find them
+without an invite; then give each a short code an admin can share.
+
+## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: supersedes 54's "looked-after accounts cannot invite". Since 59,
+joining by QR with no email is how most people in the field get an
+account, admins included, so the rule left whole organizations where
+nobody could invite anyone or see a join request. A local test showed it:
+a looked-after admin's Inbox and Members never asked for the request that
+the server had already shown them in an Inbox row, because the session had
+removed Invite (`deriveSession`) and both screens gate on it. The rule
+added no protection for inviting: both kinds of account stay signed in on
+the phone, an email is not yet proven, and a wrong invite or admission is
+undone by removing the member, which the log records. So Invite is decided
+by permissions alone: `deriveSession` keeps the role's privileges, and
+`issue_invite_v3` no longer refuses looked-after accounts
+(`20261007180000_looked_after_accounts_invite.sql`). Join requests already
+went by permission on the server (`join_requests` read policy,
+`decide_join_request`, the projection worker's Inbox rows). Helping
+someone sign in is unchanged and still needs an account with its own email
+(`may_help_sign_in`): a sign-in code signs a helper in as another person
+and can sign that person out everywhere else, a power over someone's
+account and recorded work rather than over a team, and it is its own
+decision.
+Reverse if: invites or admissions from looked-after accounts are abused,
+or a stolen phone is used to let people in; then require a proven email
+(or a second admin) for those actions rather than removing them from the
+role.
+
+## 68. The database makes an organization's Inbox rows when they change, pushes go every minute, and the projection pass skips what has not changed
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: an admin heard of a join request only after the next projection
+pass, every five minutes in production, plus however long the pass took,
+and the pass grew with how many organizations and languages exist, not with
+how much happened. Every pass folded every organization's whole stream and
+downloaded every language's snapshot, changed or not, to rewrite every
+member's Inbox rows. Three changes:
+- The organization's own rows (join requests, reports) are made by the
+  database: `refresh_org_notifications` computes them from tables it
+  already keeps (`org_memberships`, `org_roles`, `_may_moderate`), and
+  triggers on `join_requests` and `content_reports` call it with the
+  change. Their ids are the worker's, so no row is pushed twice. An
+  advisory lock per organization keeps two requests from undoing each
+  other's rows; the trigger never fails the write (as `events_notify`).
+- Push delivery is its own job, every minute (`langquest-push-delivery`,
+  the same Edge Function with `{"task":"pushes"}`), so a row reaches the
+  phone within a minute. `claim_notification_pushes` is one index lookup
+  when nothing waits.
+- The projection pass keeps a mark per stream (`projection_marks`: the
+  last event projected, the organization event folded, the listing, a
+  `PROJECTION_VERSION`) and skips a language whose stream, organization
+  and listing are unchanged, without downloading its snapshot. It
+  refreshes an organization's own rows only when its stream changed
+  (someone became or stopped being an admin). Inbox rows depend on no
+  clock (`updatesFor`), so a skipped language has nothing to update.
+Locally, a repeat pass went from downloading every snapshot to four small
+reads. Migrations `20261007200000_org_inbox_rows_in_sql.sql` and
+`20261007200001_schedule_push_delivery.sql`, which now does what
+`20261006000001` did for `npm run secrets` and `scripts/local-db.mjs`.
+Reverse if: rows that need the folded state (passage updates) start
+arriving late because of the five-minute pass; then those want the same
+treatment, from the language's events, rather than a faster pass. Or if a
+mark lets a language go stale; then bump `PROJECTION_VERSION` and find
+what the mark misses.
+
+## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: cost. Every recording a phone downloads for offline use, and every
+guide picture or film, was Supabase Storage egress, billed per gigabyte
+after the plan's quota; R2 charges nothing to read data out, and less to
+store it. Files keep their keys (`<org>/<stream>/<sha256>.<ext>`), so the
+`v1.BlobStored` events already in every log still name the right file.
+The dashboard Worker (decisions 44, 58), which phones already reach as
+`EXPO_PUBLIC_API_URL`, binds a private bucket (`BLOBS`:
+`langquest-next-blobs`, `-preview`, location hint `enam` beside the
+Supabase project in us-east-2) and serves `/api/blobs` (`apps/web/worker/blobs.ts`):
+- An upload is a `PUT` with the person's access token. The database
+  decides who may (`blob_access`, service role only, the same rule the
+  bucket policies held: whoever may read a stream may read and upload its
+  files, and a guide's media is also readable where a guide naming it is).
+  R2 checks the bytes against the hash in the name (`sha256` on `put`) and
+  refuses a mismatch, which the Worker answers 422 so the phone stops
+  retrying it. The Worker then appends `v1.BlobStored` with `record_blob`
+  before it answers 200, replacing the storage trigger (decisions 14, 17).
+- A read is a ten-minute link from `/api/blob-urls`, signed with a key
+  derived from the service-role key, so players that cannot send a token
+  still stream (with Range) and nothing new is kept as a secret. The byte
+  path asks the database nothing.
+- Scripts and the reconciler present the service-role key to list, read,
+  write and remove (`workerBlobs` in packages/client), so they need no R2
+  credentials and work against `wrangler dev`'s local bucket the same way.
+The old bucket was copied once (`server/copyBlobsToR2.ts`), then emptied
+and deleted; migration `20261007220000_blobs_in_r2.sql` drops its policies,
+its trigger and `_blob_readable`. Presigned R2 URLs with an R2 event
+notification and a Queue to confirm uploads were rejected: more moving
+parts, no hash check at the door, and R2 credentials on every script.
+Cost: the Worker, until now only reports and Bible lookups, is on the path
+of every file the app moves, so transfers need both Cloudflare and Supabase
+(for sign-in and `blob_access`); offline-first sync turns an outage of
+either into a delay. Each upload and each read link is one database call,
+as the bucket policies were. Uploads are capped at 50 MiB, as before, under
+the Worker's 100 MB request limit.
+Reverse if: Worker CPU or request costs approach what the egress saved, or
+films outgrow the request limit (then presigned multipart uploads for large
+files only), or Cloudflare availability costs more field time than it saves.
+
+## 70. Languages are a UUID-keyed table loaded from Glottolog, keeping v2's ids and none of v2's user-made languages
+
+Date: 2026-10-07 · By: Caleb Koster · Status: accepted
 
 Reason: the app had no list of languages. A new language took whatever code
 an admin typed (`addLanguage`, "din"), while `import:v2` carried v2's
-languoid UUIDs, so lanes already named languages two ways. v2's own tables
+languoid UUIDs, so `LanguageAdded.code` already named languages two ways. v2's own tables
 came from a one-off SQL load of a Glottolog dump that gave every row a random
 UUID and never kept the glottocode, so they could not be refreshed. Caleb
 chose UUIDs as the id, because languages collected in the field may not be

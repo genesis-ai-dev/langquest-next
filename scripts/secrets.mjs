@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { authArgs, targetArgs } from './cloudflare-deploy.mjs';
 import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath } from './env-files.mjs';
 
-/** Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag:hosted), never pushed. */
+/** Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted), never pushed. */
 export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY'];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET'];
 /**
@@ -47,9 +47,11 @@ const inviteEmailName = parseJsonc(readFileSync(join(root, WORKERS['invite-email
 export const relayUrl = (environment) =>
   `https://${inviteEmailName}${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
 
-export const CRON_JOB = 'langquest-project-projections';
-/** Schedules CRON_JOB where the Vault secrets exist; safe to run again (decision 42). */
-export const SCHEDULE_MIGRATION = 'supabase/migrations/20261001000000_schedule_projections.sql';
+export const CRON_JOB = 'langquest-stream-projections';
+/** Sends what the database queued for phones, every minute (decisions.md 68). */
+export const PUSH_JOB = 'langquest-push-delivery';
+/** Schedules both jobs where the Vault secrets exist; safe to run again (decision 42). */
+export const SCHEDULE_MIGRATION = 'supabase/migrations/20261007200001_schedule_push_delivery.sql';
 
 /** Every secret, by where it goes. */
 export function destinations(environment, values, ref, serviceRoleKey) {
@@ -169,7 +171,8 @@ function hostedState(environment, ref, wanted) {
   const functionDigests = Object.fromEntries(listed.map((s) => [s.name, s.value ?? s.digest]));
   const vaultDigests = Object.fromEntries(
     query(ref, vaultDigestSql(Object.keys(wanted.vault))).map((r) => [r.name, r.digest]));
-  const scheduled = query(ref, `select jobname from cron.job where jobname = ${literal(CRON_JOB)};`).length > 0;
+  const scheduled = query(ref,
+    `select jobname from cron.job where jobname in (${literal(CRON_JOB)}, ${literal(PUSH_JOB)});`).length === 2;
   const workers = Object.fromEntries(Object.entries(WORKERS).map(([worker, config]) => {
     const present = workerSecretNames(config, environment);
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
@@ -200,7 +203,7 @@ export function summarize(state) {
       if (s !== 'same') behind = true;
     }
   }
-  lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${CRON_JOB}${state.scheduled ? '' : ' (missing)'}`);
+  lines.push(`  ${state.scheduled ? '✓' : '+'} cron jobs ${CRON_JOB}, ${PUSH_JOB}${state.scheduled ? '' : ' (missing)'}`);
   if (!state.scheduled) behind = true;
   return { lines, behind };
 }

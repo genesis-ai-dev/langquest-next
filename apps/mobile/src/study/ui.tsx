@@ -20,7 +20,8 @@ import { plural, when, type PassageView } from '../passageView';
 import { noteExpected, reportError } from '../report';
 import { Authored, recordTarget, ReportFlag } from '../reportSheet';
 import { SourceReader } from '../sources/SourceReader';
-import { C, onColor, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
+import { shadow } from '../shadow';
+import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import type { GlossaryEntry, StudyMedia, StudyMediaKind, StudyResource } from './guides';
 import { useStudyFileUri } from './media';
@@ -29,7 +30,7 @@ import { clock, inlineParts, isCallout, isQuestion, studySections, type StudySec
 
 // ---- audio -------------------------------------------------------------------------
 
-export interface StudyAudio {
+interface StudyAudio {
   playing: boolean;
   time: number;
   duration: number;
@@ -159,10 +160,10 @@ function Scrubber(props: { value: number; max: number; label: string; onSeek: (s
       accessibilityValue={{ min: 0, max: Math.round(props.max), now: Math.round(props.value), text: clock(props.value) }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => props.onSeek(props.value + (e.nativeEvent.actionName === 'increment' ? 10 : -10))}>
-      <View pointerEvents="none" style={styles.track}>
+      <View style={[styles.track, { pointerEvents: 'none' }]}>
         <View style={[styles.trackFill, { width: `${pct * 100}%` }]} />
       </View>
-      <View pointerEvents="none" style={[styles.thumb, { left: pct * width - 9 }]} />
+      <View style={[{ pointerEvents: 'none' }, styles.thumb, { left: pct * width - 9 }]} />
     </View>
   );
 }
@@ -245,8 +246,8 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
     <Authored ctx={props.ctx} by={n.by}>
       <NoteCard anchor={n.photoHash ? `${anchor} · photo` : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
         icon={n.blobHash ? 'mic' : 'note'}
-        audio={n.blobHash ? <AudioClip project={props.ctx.project} hashes={[n.blobHash]} label="Play voice note" /> : undefined}
-        action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId, n.laneId)} size={36} />} />
+        audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label="Play voice note" /> : undefined}
+        action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
     </Authored>
   );
 }
@@ -258,13 +259,13 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
  * A note the record refuses says why; anything else is reported with an id.
  * A failed write was already shown by ctx.act.
  */
-export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId' | 'laneId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string): Promise<boolean> {
-  const state = ctx.project.state;
+export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string): Promise<boolean> {
+  const state = ctx.language.state;
   if (!state) return false;
   let specs: EventSpec[];
   try {
     specs = commands(state, indexesFor(state)).addNote({
-      commandId: Crypto.randomUUID(), unitId: v.unitId, laneId: v.laneId, anchor,
+      commandId: Crypto.randomUUID(), unitId: v.unitId, anchor,
       ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {})
     });
   } catch (e) {
@@ -285,7 +286,7 @@ export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId' | 'laneId
 export function ContributeSheet(props: {
   ctx: Ctx;
   unitId: string;
-  laneId: string;
+  languageId: string;
   title: string;
   where: string;
   onClose: () => void;
@@ -299,7 +300,7 @@ export function ContributeSheet(props: {
       footer={<PrimaryBtn label="Save" busy={busy} disabled={!text.trim() && !hash}
         onPress={() => { setBusy(true); void props.onSave({ text, blobHash: hash }).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
-      <VoiceNote ctx={props.ctx} unitId={props.unitId} laneId={props.laneId} label="Record what the group said" hash={hash} onChange={setHash} />
+      <VoiceNote ctx={props.ctx} label="Record what the group said" hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
     </Sheet>
   );
@@ -363,14 +364,14 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
         </View>
       ))}
       <Text style={txt.xs}>
-        Low-resolution copies, sized for phones with little data.{items.some((i) => i.kind === 'map' && i.url) ? ' Tap the map to open it full size.' : ''}
-        {items.some((i) => i.noPhoneCopy) ? ' This film has no small phone copy yet.' : ''}
+        Low-resolution copies, to save data.{items.some((i) => i.kind === 'map' && i.url) ? ' Tap the map to open it full size.' : ''}
+        {items.some((i) => i.noPhoneCopy) ? ' This film has no small copy yet.' : ''}
       </Text>
     </Sheet>
   );
 }
 
-/** A glossary term: its entry, read aloud when there is audio, and the project's key term when there is one. */
+/** A glossary term: its entry, read aloud when there is audio, and the language's key term when there is one. */
 export function GlossarySheet(props: { entry: GlossaryEntry; source: string; orgId?: string | null; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void }) {
   const e = props.entry;
   const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;
@@ -403,7 +404,7 @@ export const CALLOUT_LOOK: Record<CalloutKind, { label: string; icon: LucideIcon
 };
 
 /** Inline text: bold words and links to pictures, maps and glossary terms. */
-export function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
+function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
   return inlineParts(props.text).map((p, i) => {
     if (p.type === 'text') return p.text;
     if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '700' }}>{p.text}</Text>;
@@ -475,9 +476,9 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
   const notesOn = (ref: string) => notes.filter((n) => n.anchor.kind === 'verse' && n.anchor.verse === ref);
   return (
     <>
-      <SourceReader ctx={ctx} unitId={v.unitId} laneId={v.laneId} layout="screen" hidden={props.hidden}
+      <SourceReader ctx={ctx} unitId={v.unitId} languageId={v.languageId} layout="screen" hidden={props.hidden}
         {...(props.header ? { header: props.header } : {})}
-        onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, laneId: v.laneId })}
+        onMoreBibles={() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId })}
         verse={{
           badge: (row) => notesOn(row.key).length,
           below: (row, c) => {
@@ -501,7 +502,7 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
           }
         }} />
       {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} laneId={v.laneId} title="Add a note"
+        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title="Add a note"
           where={`${v.title} · verse ${adding.verse} · ${adding.code}${adding.at ? ` · ${adding.at}` : ''}`}
           onClose={() => setAdding(null)}
           onSave={(c) => saveNote(ctx, v, { kind: 'verse', verse: adding.verse, translation: adding.code, ...(adding.at ? { at: adding.at } : {}) }, c,

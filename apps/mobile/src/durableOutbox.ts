@@ -1,5 +1,5 @@
 /** Small account writes survive offline use, restarts, and account switches. */
-export interface OutboxStorage {
+interface OutboxStorage {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
 }

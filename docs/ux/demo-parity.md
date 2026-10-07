@@ -43,7 +43,8 @@ The per-domain briefs the port was done from are in git history
   `export const contracts = contractsFor(...)` naming its screens
   (`src/screenContracts.ts` declares what each screen may emit; the test
   fails when a screen's code names an event its contract does not).
-- **Reading.** Screens read the fold (`ctx.project.state`) through core
+- **Reading.** Screens read the fold (`ctx.language.state`, and the
+  organization's `ctx.org.state`) through core
   derivations with `indexesFor(state)`: `usePassage(ctx)` from
   `src/passageView.ts` for anything under a passage. Never store a status.
 - **Writing.** Screens call core `commands(state, indexesFor(state))` and
@@ -53,15 +54,15 @@ The per-domain briefs the port was done from are in git history
   `withdrawRequest`, ...). Never append raw events from a screen when a
   command exists; if one is missing, it belongs in core.
 - **Navigating.** Only `ctx.go(screen, params)` along an edge in `flow.ts`,
-  `ctx.back()`, and `ctx.openPassage(unitId, laneId)`. Params are strings:
-  `unitId`, `laneId` for anything under a passage; `takeId` (version),
+  `ctx.back()`, and `ctx.openPassage(unitId, languageId)`. Params are strings:
+  `unitId`, `languageId` for anything under a passage; `takeId` (version),
   `reviewId`, `kindId`, `requestId`, `stepId`, `bookId`, `termId`,
   `what` (`record` | `review`) as needed.
 - **Look.** `src/kit.tsx` only: `Screen`, `Header` (passage crumbs via
   `passageCrumbs`; task screens pass `close`), `Card`, `Group`, `Row`,
   `SectionLabel`, `Disclosure` (with `ctx.details(key)`), `PrimaryBtn` (one
   per screen), `GhostBtn`, `SmallBtn`, `Chip`, `Sheet`, `ReasonSheet` (with
-  `voiceFor(ctx, unitId, laneId)`), `StateMark`/`StepMarks`, `KindIcon`,
+  `voiceFor(ctx, unitId, languageId)`), `StateMark`/`StepMarks`, `KindIcon`,
   `NoteCard`, `Banner`, `Field`, `SearchField`, `ShowMore`, `Badge`,
   `ProgressBar`, `EmptyState`. Colours from `C` and `TINT`; status colours
   never carry meaning alone (an icon goes with them).
@@ -125,21 +126,15 @@ Demo-only tools are out of scope (see above). Beyond those:
 - A native date picker when asking someone (chips plus a typed date).
 
 **Events built without a core command**
-- Org partition (no core commands exist for it): `v1.OrgCreated`,
-  `v1.RoleDefined`, `v1.OrgMemberAdded`/`Removed`, `v1.CatalogItemToggled`,
-  `v1.ProjectRegistered` (New Language lists the language in the org and
-  starts its own partition with `v1.ProjectCreated`, decision 37).
-- Legacy project roles in Edit Member: `v1.MemberRoleChanged`,
-  `v1.MemberRemoved`.
+- Organization stream (no core commands exist for it): `v1.OrgCreated`,
+  `v1.RoleDefined`, `v1.MemberAdded`/`Removed` with a scope, and
+  `v1.LanguageAdded` (New Language lists the language in the organization,
+  then picks its template and flow in the language's own stream, decision 63).
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),
   `src/contentTemplates.ts` (template selection and its units), and the dev
   seed.
 
 **Known rough edges**
-- An organization that already has several projects shows only the earliest
-  (decision 34); folding the others' languages in needs a server migration.
-- On a device that has never seen an organization with an older project, the
-  first sync can switch the open partition once, which resets navigation.
 - A local native build needs an Xcode whose Swift accepts `weak let`
   (`expo-modules-jsi` in Expo 57); Xcode 26.0.1 does not. EAS builds are
   unaffected.

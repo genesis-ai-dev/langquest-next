@@ -14,7 +14,8 @@ The Cloudflare Worker that serves LangQuest on the web (decisions.md 58):
 Locally:
 
 - `npm run web:dev` runs the Worker on :8787 against the local database,
-  serving whatever is in `apps/mobile/dist`.
+  serving whatever is in `apps/mobile/dist`. `npm run dev:local` (repo
+  root) starts the local database and then this, in one command.
 - For day-to-day work on screens, run the app with Metro instead
   (`npm run web -w mobile`) and point it at the Worker for Reports:
   `EXPO_PUBLIC_API_URL=http://localhost:8787`.

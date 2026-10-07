@@ -18,10 +18,9 @@ export interface ReportTarget {
   /** Who made it; for a person, themselves. */
   profileId: string;
   orgId: string;
-  /** The language partition holding it; `_org` for a person. */
-  partitionId: string;
+  /** The language whose record holds it; absent for a person, who belongs to the organization. */
+  languageId?: string;
   unitId?: string;
-  laneId?: string;
 }
 
 export const REPORT_REASONS = [
@@ -45,16 +44,16 @@ export function thingLabel(kind: Exclude<ReportKind, 'person'>): string {
 
 /** The person a target's report is about, as a target of its own. */
 export function personTarget(t: ReportTarget): ReportTarget {
-  return { kind: 'person', id: t.profileId, profileId: t.profileId, orgId: t.orgId, partitionId: '_org' };
+  return { kind: 'person', id: t.profileId, profileId: t.profileId, orgId: t.orgId };
 }
 
 /** What the outbox sends to `report_content`. */
 export function reportPayload(t: ReportTarget, reason: ReportReason, details: string): Record<string, unknown> {
   const trimmed = details.trim().slice(0, 1000);
   return {
-    orgId: t.orgId, partitionId: t.partitionId, kind: t.kind, targetId: t.id, profileId: t.profileId, reason,
+    orgId: t.orgId, languageId: t.languageId ?? null, kind: t.kind, targetId: t.id, profileId: t.profileId, reason,
     ...(trimmed ? { details: trimmed } : {}),
-    ...(t.unitId ? { unitId: t.unitId } : {}), ...(t.laneId ? { laneId: t.laneId } : {})
+    ...(t.unitId ? { unitId: t.unitId } : {})
   };
 }
 
@@ -73,14 +72,13 @@ export function blockedIds(server: readonly string[], actions: readonly AccountA
   return [...out].sort();
 }
 
-/** One row of `org_content_reports`. Never who reported it. */
+/** One row of `org_content_reports`. Never who reported it. `language_id` is null for a person. */
 export interface OpenReport {
   id: string;
-  partition_id: string;
+  language_id: string | null;
   target_kind: ReportKind;
   target_id: string;
   unit_id: string | null;
-  lane_id: string | null;
   reported_profile: string;
   reason: string;
   details: string | null;
@@ -102,13 +100,13 @@ export interface ReportGroup {
 export function groupReports(orgId: string, rows: readonly OpenReport[]): ReportGroup[] {
   const groups = new Map<string, { target: ReportTarget; reasons: Map<string, number>; details: { at: string; text: string }[]; count: number; latest: string }>();
   for (const r of rows) {
-    const key = JSON.stringify([r.partition_id, r.target_kind, r.target_id]);
+    const key = JSON.stringify([r.language_id, r.target_kind, r.target_id]);
     let g = groups.get(key);
     if (!g) {
       g = {
         target: {
-          kind: r.target_kind, id: r.target_id, profileId: r.reported_profile, orgId, partitionId: r.partition_id,
-          ...(r.unit_id ? { unitId: r.unit_id } : {}), ...(r.lane_id ? { laneId: r.lane_id } : {})
+          kind: r.target_kind, id: r.target_id, profileId: r.reported_profile, orgId,
+          ...(r.language_id ? { languageId: r.language_id } : {}), ...(r.unit_id ? { unitId: r.unit_id } : {})
         },
         reasons: new Map(), details: [], count: 0, latest: r.created_at
       };
@@ -120,7 +118,6 @@ export function groupReports(orgId: string, rows: readonly OpenReport[]): Report
     if (r.created_at > g.latest) g.latest = r.created_at;
     // The first report may not have said where it was; a later one may.
     if (!g.target.unitId && r.unit_id) g.target.unitId = r.unit_id;
-    if (!g.target.laneId && r.lane_id) g.target.laneId = r.lane_id;
   }
   return [...groups.entries()]
     .map(([key, g]) => ({

@@ -11,7 +11,7 @@ import type { BlobRef } from '@langquest-next/core';
  */
 
 /** The MediaRecorder type to ask for, best first; undefined lets the browser choose. */
-export const WEB_RECORDING_TYPES = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4'] as const;
+const WEB_RECORDING_TYPES = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4'] as const;
 
 export function preferredRecordingType(isTypeSupported: (type: string) => boolean): string | undefined {
   return WEB_RECORDING_TYPES.find((t) => isTypeSupported(t));

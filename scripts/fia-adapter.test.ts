@@ -58,6 +58,20 @@ describe('FIA adapter', () => {
     expect(fiaStudyDoc(GEN_P2, 'deu', ENG)).toBeNull();
   });
 
+  it('gives a step with no title in its language the English title, else its own name', () => {
+    const blank = structuredClone(GEN_P2) as typeof GEN_P2;
+    const fra = (blank as { pericope: { pericopeTranslations: { edges: { node: { language: { id: string }; stepRenderings: { edges: { node: { stepTranslation: { title: string | null } | null } }[] } } }[] } } })
+      .pericope.pericopeTranslations.edges.find((e) => e.node.language.id === 'fra')!.node;
+    fra.stepRenderings.edges[0]!.node.stepTranslation = { title: null };
+    fra.stepRenderings.edges[1]!.node.stepTranslation = null;
+    const doc = fiaStudyDoc(blank, 'fra', ENG)!;
+    expect(validateDoc(doc)).toBeNull();
+    expect(doc.steps[0]!.title).toBe('Hear and Heart');
+    const eng = (blank as { pericope: { pericopeTranslations: { edges: { node: { language: { id: string } } }[] } } }).pericope.pericopeTranslations;
+    eng.edges = eng.edges.filter((e) => e.node.language.id !== 'eng');
+    expect(fiaStudyDoc(blank, 'fra', ENG)!.steps[0]!.title).toBe('Hear and heart');
+  });
+
   it('keeps verse portions and chapter crossings in the ref', () => {
     const p = fiaPericope(GEN_P2);
     expect(fiaRef({ ...p, book: { id: 'jdg' }, startChapter: 5, startVerse: 11, startPortion: 'b', endChapter: 5, endVerse: 18, endPortion: null })).toBe('JDG 5:11b-18');

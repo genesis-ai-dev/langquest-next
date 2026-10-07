@@ -3,45 +3,43 @@
 Local Supabase (Postgres) runs via colima. The repository also links to a
 hosted project; local migrations and hosted deployment are separate steps.
 
-Implemented in `supabase/migrations/20260914000001_event_log.sql`:
+The schema is one baseline migration,
+`supabase/migrations/20261006000000_baseline.sql` (decision 63, which reset
+the databases and squashed the 32 migrations before it), plus the
+projection schedule beside it. Later changes are new migrations as before.
 
-- `events`: append-only. Triggers refuse UPDATE and DELETE for every role.
-  Indexes per PLAN.md section 5.
-- `snapshots`: keyed by org, project, reducer version, server_seq.
-- `partition_cursors`: one row per project; the append RPC locks it, which
-  serializes writes per project and only per project.
-- `member_role(org, project, profile)`: the project's `memberships` row
-  (maintained by `append_events` from the three member events, migration
-  000008), else the fixed role the caller's org privileges amount to
-  (`effective_role_of(org_privileges(...))`, migration 000009).
-- `memberships`, `org_roles`, `org_memberships`: the only folds on the write
-  path, kept as rows in the same transaction as the events they come from,
-  always derivable from the log (backfilled on migration).
-- Org partition `project_id = '_org'` (migration 000009): `OrgCreated`,
-  `RoleDefined`, `RoleRetired`, `OrgMemberAdded/Removed` with a scope (org,
-  project, lane), `CatalogItemToggled`, `ProjectRegistered`. `may_emit`
-  checks the event's privilege (`event_privilege`, same table as core
-  `EVENT_PRIVILEGE`) against the caller's privileges over the partition.
-- Step 11 events (migration 000010): `LaneTemplateSelected`,
-  `LaneFlowSelected`, `WorkflowStepSet/Removed`, `ReviewTeamDefined`,
-  `ReviewTeamMemberSet`, `ResponseRecorded`, `ReviewCommentRecorded`;
-  translators may respond, reviewers may comment.
-- Step 12 events (migration 000011): `MaterialDefined` (translators only
-  for kind `questions`), `MaterialFieldSet`, `MaterialLocked`,
-  `StepQuestionSetLinked`, `KeyTerm*`. The fixed-role gate is now
-  `role_may_emit_event`: the event's privilege (payload included) must be in
-  `fixed_role_privileges(role)`, the SQL twin of core `SEED_ROLES`.
-- Long-offline rules (migration 000008): events stamped more than
-  `server_config.clock_ahead_tolerance_ms` ahead of server time are refused
-  with `clock ahead: server time <ms>`; an actor without a role now is still
-  accepted if `member_role_at(..., event hlc)` allowed it within
-  `server_config.asof_window_ms`.
-- `append_events(jsonb[])`: the entire synchronous write path. Checks the
-  caller matches `actorId`, checks membership and role-to-event-type
-  permission, assigns `server_seq`, inserts. Duplicate ids return the existing
-  seq. Bootstrap exception: an empty project accepts `ProjectCreated` and
-  `MemberAdded`.
-- `pull_events(org, project, after, limit)`: bounded, ordered page for members.
+- Streams (decision 63): the organization stream (`stream_id = '_org'`), one
+  stream per language (`stream_id` = the language's id), and a person's
+  stream (org `'_person'`, stream = profile id, written only by
+  `record_user_event`).
+- `events`: append-only. Triggers refuse UPDATE and DELETE for every role,
+  with no exception. Indexes per PLAN.md section 5.
+- `stream_cursors`: one row per stream; the append RPC locks it, which
+  serializes writes per stream and only per stream.
+- `snapshots`: keyed by org, stream, reducer version, server_seq.
+- `org_roles`, `org_memberships`, `languages`, the library tables: the only
+  folds on the write path, kept by `_apply_org_event` in the same
+  transaction as the organization-stream events they come from, with core's
+  tie-break (later clock, then event id), so they equal a fold of the log.
+- `append_events(jsonb[])`: the entire synchronous write path. Per event:
+  envelope, caller is `actorId`, idempotency (a duplicate id returns its
+  seq), clock no further ahead than `server_config.clock_ahead_tolerance_ms`
+  (`clock ahead: server time <ms>`), authorization (`may_emit`), the language
+  gate (a language stream accepts events only once `LanguageAdded` lists it:
+  `language not listed yet`), `validate_payload`, then the next seq. The
+  organization's creator may bootstrap it while it has no members
+  (`OrgCreated`, `RoleDefined`, their own org-scope `MemberAdded`).
+- Authorization: `event_privilege` (core `EVENT_PRIVILEGE`) against
+  `org_privileges(org, profile, language)`, the union of the org-scope role
+  and that language's role. Organization-stream events about one language
+  (rename, country, target, a language-scope membership or invite) are
+  authorized for that language (`language_of_org_event`); the rest need org
+  scope. `can_read_stream` gates every read; `my_privileges(org, language)`
+  lets a screen hide edits the server would refuse.
+- `pull_events(org, stream, after, limit)`: bounded, ordered page for readers.
+- `scripts/record-parity-sql.ts` (part of `npm run db:test`; `node scripts/db-test.mjs --parity` alone)
+  holds `validate_payload`, `event_privilege` and `language_of_org_event` to
+  core for every event type and its broken variants.
 
 `smoke.sql` exercises all of it; `npm run db:test` resets the db and runs it.
 
@@ -52,12 +50,18 @@ See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
 Run it locally, not against production without explicit authorization.
 
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `project-projections` Edge Function. Migration 20261001000000 schedules
-it every five minutes wherever the Vault secrets `langquest_project_url` and
-`langquest_projection_worker_secret` exist (production), and nowhere else;
-it replaces the hand-run `schedule-projections.sql`. `npm run secrets` runs it
-again after setting them, which is how preview gets its job. `select * from cron.job`
-shows the one job, `net._http_response` its answers.
+the `stream-projections` Edge Function. Migration 20261007200001 schedules
+it twice wherever the Vault secrets `langquest_project_url` and
+`langquest_projection_worker_secret` exist: the projection pass every five
+minutes, which skips languages that have not changed (`projection_marks`),
+and push delivery every minute (`{"task":"pushes"}`, decisions.md 68).
+`npm run secrets` sets them and runs it again, which is how preview and
+production get the jobs. Locally,
+`npm run db:start` and `npm run db:reset` do the same (`scripts/local-db.mjs`:
+a local secret in the ignored `supabase/functions/.env`, the Vault values, the
+job every minute) and seed the library when there is none. `npm run db:test`
+resets with `supabase db reset` directly, so no pass runs under its smokes. `select * from cron.job` shows the one job,
+`net._http_response` its answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
@@ -72,27 +76,24 @@ Field diagnostics (`*_field_diagnostics.sql`, docs/diagnostics.md): schema
 Dashboard reports (decision 44) are not stored here. The dashboard's own
 Worker (`apps/web/worker`) reads the server snapshots this worker writes and
 the tail through `pull_events` with the service role, and computes the
-reports itself; migration 20260930120000 drops the `lane_reports` tables of
-decision 40. For local demo data, `npm run sample:org -- --history` adds
+reports itself (there are no report tables, decision 40 is superseded by 44). For local demo data, `npm run sample:org -- --history` adds
 months of back-dated work to the sample org (local database only). Join it
 in the dev app with one of the invite codes it prints, and sign in to the
 dashboard (`npm run web:dev`) with the same account.
 
-A language's country and target (migration 20260930000001, decision 41):
-`v1.LaneCountrySet` and `v1.LaneTargetSet` need `manage_structure`;
-`validate_payload` and `event_privilege` wrap the versions before it
-(kept as `_validate_payload_before_20260930`, `_event_privilege_before_20260930`).
-`my_privileges(org, project, lane)` returns the caller's own privileges so
-the dashboard can hide edits the server would refuse.
+A language's name, country and target (decision 41) are organization-stream
+events (`v1.LanguageRenamed`, `v1.LanguageCountrySet`, `v1.LanguageTargetSet`)
+and need `manage_structure` for that language.
 
-Reports and blocks (migration 20260930220000, decision 48) are rows, not
+Reports and blocks (decision 48) are rows, not
 events. Phones send them through the account outbox: `report_content` into
 `content_reports`, `set_blocked` into `user_blocks` (each person reads only
 their own). An organization's moderators list open reports with
 `org_content_reports` (never who reported) and act with `remove_content`,
 which appends `v1.Redacted` as them for every event holding the content, or
-`dismiss_reports`; the projection worker puts a "Something was reported"
-row in their Inbox. Staff see every report, with the reporter, through
+`dismiss_reports`; the database puts a "Something was reported" row in
+their Inbox when the report arrives (`refresh_org_notifications`,
+decisions.md 68). Staff see every report, with the reporter, through
 `npm run moderation` (`--hosted` for the hosted project, through the
 Supabase CLI login): `remove <id>` and `dismiss <id>` call
 `staff_resolve_report`, and `suspend <profileId>` sets `banned_until` on the

@@ -19,7 +19,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { C, measure, onColor, radius, shadow, space, target, TINT, type as T } from './theme';
+import { lift, shadow } from './shadow';
+import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
 
 export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLayout';
@@ -27,7 +28,7 @@ export { useLayout, useOpenDetail, type Layout, type OpenDetail } from './useLay
 // ---- icons -------------------------------------------------------------------------
 
 /** The demo's icon names, drawn with lucide. */
-export const ICONS = {
+const ICONS = {
   arrowR: ArrowRight, assign: ClipboardList, block: Ban, book: BookOpen, building: Building2, camera: Camera, chat: MessageCircle,
   chatDots: MessageSquareText, check: Check, clock: Clock, close: X, cloud: Cloud, cut: Scissors, down: ChevronDown,
   download: Download, edit: Pencil, filter: Filter, flag: Flag, flow: Workflow, folder: Folder, globe: Globe,
@@ -288,7 +289,7 @@ export function Row(props: {
   };
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
-    <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={{ pointerEvents: 'none' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Toggle on={props.checked === true} disabled={props.disabled} label={props.label} onToggle={() => {}} />
     </View>
   ) : props.onPress ? <Ico name="right" size={22} color={C.muted} /> : null);
@@ -344,7 +345,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
 
 // ---- buttons ---------------------------------------------------------------------------
 
-export type Tone = 'primary' | 'dark' | 'amber' | 'red' | 'green';
+type Tone = 'primary' | 'dark' | 'amber' | 'red' | 'green';
 const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: onColor.amber, red: onColor.red, green: onColor.green };
 
 /** The one main button: 56pt, filled, full width by default. */
@@ -354,7 +355,7 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
   return (
     <Pressable onPress={props.onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
-        !off && { shadowColor: bg, shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 }, pressed && styles.pressed]}>
+        !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
       <Text style={styles.primaryLabel}>{props.busy ? 'Saving…' : props.label}</Text>
     </Pressable>
@@ -699,7 +700,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   }, [t?.id]);
   if (!t) return null;
   return (
-    <View pointerEvents="box-none" style={[styles.toastWrap, { bottom: props.bottom }]}>
+    <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
         <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={`${t.message} Dismiss`}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
@@ -767,12 +768,12 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: C.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, maxHeight: '88%', paddingTop: space.sm, gap: space.sm },
   dialogFrame: { alignItems: 'center', justifyContent: 'center', padding: space.xl },
   dialogBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(15,18,28,0.45)' },
-  dialog: { backgroundColor: C.bg, borderRadius: radius.sheet, width: '100%', maxWidth: measure.sheet, maxHeight: '80%', paddingTop: space.md, paddingBottom: space.xl, gap: space.sm, ...shadow, shadowOpacity: 0.2 },
+  dialog: { backgroundColor: C.bg, borderRadius: radius.sheet, width: '100%', maxWidth: measure.sheet, maxHeight: '80%', paddingTop: space.md, paddingBottom: space.xl, gap: space.sm, ...lift({ opacity: 0.2 }) },
   sheetGrip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.sm },
   quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center' },
   toastWrap: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.sm, minHeight: 56, width: '100%', ...shadow, shadowOpacity: 0.25 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.sm, minHeight: 56, width: '100%', ...lift({ opacity: 0.25 }) },
   toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56 },
   toastUndo: { minHeight: 48, minWidth: 64, alignItems: 'center', justifyContent: 'center' }
 });

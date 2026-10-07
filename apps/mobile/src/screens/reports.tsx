@@ -6,8 +6,8 @@
 // shell, Language); the sections and their parts are in src/reports/.
 import { appendConfirmed, ensureDeviceId, NotSavedError, SupabaseTransport } from '@langquest-next/client';
 import {
-  dayPercents, laneCsv, milestoneText, paceOf, percent, privilegesFor, recencyOf, SCOPE_LABEL, TARGET_SCOPES,
-  type LaneReport, type LaneRow, type TargetScope
+  dayPercents, languageCsv, milestoneText, ORG_STREAM, paceOf, percent, privilegesFor, recencyOf, SCOPE_LABEL, TARGET_SCOPES,
+  type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
@@ -31,7 +31,7 @@ import {
 const COLUMN = measure.report;
 
 export function ReportsHome(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.language.orgId;
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const reports = useReports(orgId);
   const [section, setSection] = useState<SectionId>(SECTIONS.some((s) => s.id === ctx.params['section']) ? ctx.params['section'] as SectionId : 'overview');
@@ -46,7 +46,7 @@ export function ReportsHome(ctx: Ctx) {
   const alerts = reports.status === 'ready' ? openAlerts(all, reports.asOf, now) : 0;
   const props: SectionProps = {
     rows, all, now, orgName, asOf: reports.status === 'ready' ? reports.asOf : new Date(now).toISOString(),
-    open: (row) => ctx.go('reports_language', { projectId: row.projectId, laneId: row.laneId }),
+    open: (row) => ctx.go('reports_language', { languageId: row.languageId }),
     show: (to, c) => { setSection(to); if (c !== undefined) setCountry(c); }
   };
   const header = (
@@ -90,18 +90,17 @@ export function ReportsHome(ctx: Ctx) {
 
 /** One language's report: coverage, uploads, pace, its flow, books, and its settings for admins. */
 export function ReportsLanguage(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.language.orgId;
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const reports = useReports(orgId);
-  const projectId = ctx.params['projectId'] ?? '';
-  const laneId = ctx.params['laneId'] ?? '';
-  const row = reports.status === 'ready' ? reports.rows.find((r) => r.projectId === projectId && r.laneId === laneId) : undefined;
+  const languageId = ctx.params['languageId'] ?? '';
+  const row = reports.status === 'ready' ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? 'Language';
   const header = (
     <Header title={title} sub={orgName} columnWidth={COLUMN} onBack={ctx.back} crumbs={[{ label: 'Reports', onPress: ctx.back }]}
       action={row ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>
-          <IconBtn name="download" label="Download the books as CSV" onPress={() => exportCsv(fileName(`${row.report.name} books`), laneCsv(row.report))} />
+          <IconBtn name="download" label="Download the books as CSV" onPress={() => exportCsv(fileName(`${row.report.name} books`), languageCsv(row.report))} />
           {canPrint ? <IconBtn name="share" label="Print or save as PDF" onPress={printPage} /> : null}
         </View>
       ) : undefined} />
@@ -121,7 +120,7 @@ export function ReportsLanguage(ctx: Ctx) {
   );
 }
 
-function LanguageBody(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
+function LanguageBody(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }) {
   const { ctx, row } = props;
   const r = row.report;
   const now = Date.now();
@@ -129,11 +128,11 @@ function LanguageBody(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
   const pace = paceOf(r, now);
   const sevenAgo = new Date(now - 6 * 86_400_000).toISOString().slice(0, 10);
   const org = ctx.org.state;
-  const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, { projectId: row.projectId, laneId: row.laneId }).has('manage_structure');
+  const mayEdit = !!org && privilegesFor(org, ctx.session.actorId, row.languageId).has('manage_structure');
   return (
     <>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
-        <ToneBadge tone="brand" label={r.languoidId.toUpperCase()} />
+        <ToneBadge tone="brand" label={r.code.toUpperCase()} />
         <Text style={txt.sm}>{r.country ? countryName(r.country) : 'No country set'}</Text>
         <Text style={txt.sm}>· Review flow: <Text style={{ fontWeight: '700' }}>{r.flowName}</Text></Text>
         {r.bottleneck ? <Text style={txt.sm}>· Bottleneck: <Text style={{ fontWeight: '700' }}>{r.bottleneck}</Text></Text> : null}
@@ -164,8 +163,8 @@ function LanguageBody(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
               sub={r.uploads.lastAt ? `${shortDate(r.uploads.lastAt.slice(0, 10))} ${r.uploads.lastAt.slice(0, 4)}` : undefined} />
           </Stats>
           {r.alerts.stuckCards > 0 ? (
-            <Notice tone="red" title={`${num(r.alerts.stuckCards)} recordings stuck on phones`}
-              body={`Recorded more than two weeks ago (the oldest ${r.alerts.stuckSince ? shortDate(r.alerts.stuckSince.slice(0, 10)) : ''}) and not yet on the server. Until they upload, the phone holds the only copy.`} />
+            <Notice tone="red" title={`${num(r.alerts.stuckCards)} recordings stuck on devices`}
+              body={`Recorded more than two weeks ago (the oldest ${r.alerts.stuckSince ? shortDate(r.alerts.stuckSince.slice(0, 10)) : ''}) and not yet on the server. Until they upload, the device holds the only copy.`} />
           ) : null}
           <DayBars days={r.uploads.daily.map((d) => ({ day: d.day, value: d.cards }))} highlightFrom={sevenAgo} label="The last 7 days" unit="uploads" />
         </Panel>
@@ -205,7 +204,7 @@ function LanguageBody(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
   );
 }
 
-function FlowPanel(props: { report: LaneReport }) {
+function FlowPanel(props: { report: LanguageReport }) {
   const r = props.report;
   if (r.stages.length === 0) {
     return <Panel title="Review flow"><Text style={txt.smMuted}>This language's flow has no review steps, so a recorded passage is done.</Text></Panel>;
@@ -234,10 +233,10 @@ const validDay = (d: string) => DAY.test(d) && !Number.isNaN(Date.parse(`${d}T00
 
 /**
  * Country and target, for people who manage the organization's structure
- * (decision 41). Saved online straight to the server, which checks again:
- * the language's partition need not be on this device.
+ * (decision 41). Saved online straight to the organization's stream on the
+ * server, which checks again, so the page can catch up with it at once.
  */
-function SettingsPanel(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
+function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }) {
   const { ctx, row } = props;
   const r = row.report;
   const now = Date.now();
@@ -258,9 +257,9 @@ function SettingsPanel(props: { ctx: Ctx; row: LaneRow; refresh: () => void }) {
     setStatus(null);
     try {
       const deviceId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-      const who = { orgId: row.orgId, projectId: row.projectId, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
-      if (what === 'country') await appendConfirmed(who, 'v1.LaneCountrySet', { laneId: r.laneId, country });
-      else await appendConfirmed(who, 'v1.LaneTargetSet', { laneId: r.laneId, scope, startDate: start, targetDate: end });
+      const who = { orgId: row.orgId, streamId: ORG_STREAM, actorId: ctx.session.actorId, deviceId, transport: new SupabaseTransport(supabase) };
+      if (what === 'country') await appendConfirmed(who, 'v1.LanguageCountrySet', { languageId: r.languageId, country });
+      else await appendConfirmed(who, 'v1.LanguageTargetSet', { languageId: r.languageId, scope, startDate: start, targetDate: end });
       setStatus({ tone: 'green', text: 'Saved.' });
       props.refresh();
     } catch (e) {

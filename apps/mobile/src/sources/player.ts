@@ -12,7 +12,7 @@ import type { ListenHooks } from '../recording/useListenLoop';
 import { noteExpected } from '../report';
 import { rowAt, seekTargetFor, type PlayPlan, type VerseRow } from './model';
 
-export interface PassagePlayer {
+interface PassagePlayer {
   playing: boolean;
   /** Getting the file or the link. */
   loading: boolean;

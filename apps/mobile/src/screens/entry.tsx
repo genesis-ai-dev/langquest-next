@@ -11,7 +11,10 @@ import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } 
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { cachedPublicProjects, publicProjects, queueAccountAction, TERMS_VERSION, type PublicProject } from '../accountData';
+import {
+  cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
+  type ListedOrganization
+} from '../accountData';
 import { firstName, VISION_STEPS } from '../accountText';
 import { isSignInName, signInAddress, signInName } from '../accounts';
 import { recordHelp } from '../signInHelp';
@@ -19,7 +22,7 @@ import { deadMessage, inviteCard, type DeadReason, type InvitePreview } from '..
 import { parseKey } from '../inviteCode';
 import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
-import { previewInvite, redeemSignInCode } from '../invites';
+import { previewInvite, redeemSignInCode, useRequestOutcome } from '../invites';
 import {
   Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, Screen, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
@@ -31,6 +34,7 @@ import { createOrganization } from '../createOrg';
 import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { supabase } from '../supabase';
+import { lift } from '../shadow';
 import { C, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 
@@ -219,55 +223,67 @@ export function Vision(ctx: Ctx) {
 
 const EXPLORE_STEP = 25;
 
-/** Organizations that list their work publicly, without an account: name, languages, progress. */
-export function ExploreHome(ctx: Ctx) {
-  const [projects, setProjects] = useState<PublicProject[]>([]);
-  const [message, setMessage] = useState('Loading…');
-  const [shown, setShown] = useState(EXPLORE_STEP);
+/**
+ * A server list shown at once from what this device saved, then refreshed.
+ * The message is what to say over it: loading, or that it could not refresh.
+ */
+function useRefreshed<T>(where: string, cached: () => Promise<T[]>, fresh: () => Promise<T[]>, enabled = true): [T[], string] {
+  const [rows, setRows] = useState<T[]>([]);
+  const [message, setMessage] = useState(enabled ? 'Loading…' : '');
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     void (async () => {
-      const cached = await cachedPublicProjects().catch((e: unknown) => { reportError('explore cache', e); return []; });
-      if (active) setProjects(cached);
+      const saved = await cached().catch((e: unknown) => { reportError(`${where} cache`, e); return []; });
+      if (active) setRows(saved);
       try {
-        const rows = await publicProjects();
-        if (active) { setProjects(rows); setMessage(''); }
+        const latest = await fresh();
+        if (active) { setRows(latest); setMessage(''); }
       } catch (e) {
         // Offline or the server is away: expected, and said on screen.
-        noteExpected('explore refresh', e);
-        if (active) setMessage('Unable to refresh. Showing what was saved on this phone.');
+        noteExpected(`${where} refresh`, e);
+        if (active) setMessage('Unable to refresh. Showing what was saved on this device.');
       }
     })();
     return () => { active = false; };
-  }, []);
+    // The loaders are module functions; only whether to load can change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+  return [rows, message];
+}
+
+/** Organizations that list their work publicly, without an account: name, languages, progress. */
+export function ExploreHome(ctx: Ctx) {
+  const [listed, message] = useRefreshed('explore', cachedPublicLanguages, publicLanguages);
+  const [shown, setShown] = useState(EXPLORE_STEP);
   const guest = ctx.session.isGuest;
   return (
     <Screen header={<Header title="Explore" onBack={ctx.back}
       action={guest ? <SmallBtn label="Sign In" tone="primary" onPress={() => ctx.go('sign_in')} /> : undefined} />}>
       {message ? <Banner icon="cloud" title={message} /> : null}
-      {projects.length ? <SectionLabel label="Listed publicly" /> : null}
-      {projects.slice(0, shown).map((p) => {
+      {listed.length ? <SectionLabel label="Listed publicly" /> : null}
+      {listed.slice(0, shown).map((p) => {
         const pct = Math.round(p.translated_pct);
         // A license this build does not know yet is simply not shown.
         const license = isLicense(p.license) ? LICENSE_INFO[p.license] : null;
         return (
-          <Card key={`${p.org_id}:${p.project_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
+          <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={`${p.name}, ${pct}%`}
             onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id, orgName: p.name })}>
             <View style={{ gap: 2 }}>
               <Text style={txt.h3}>{p.name}</Text>
-              {p.languages.length ? <Text style={txt.smMuted} numberOfLines={2}>{p.languages.join(', ')}</Text> : null}
+              {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
             </View>
             {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
             <ProgressBar value={pct} />
             <View style={styles.between}>
-              <Text style={txt.xs}>{p.languages.length} {p.languages.length === 1 ? 'language' : 'languages'}</Text>
+              <Text style={txt.xs}>Recorded</Text>
               <Text style={[txt.xsStrong, { color: C.primary }]}>{pct}%</Text>
             </View>
           </Card>
         );
       })}
-      <ShowMore remaining={projects.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-      {!projects.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
+      <ShowMore remaining={listed.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
+      {!listed.length && !message ? <EmptyState icon="globe" title="Nothing listed yet" sub="Organizations appear here when they list their work publicly." /> : null}
     </Screen>
   );
 }
@@ -521,7 +537,7 @@ export function ScanQr(ctx: Ctx) {
               <Ico name={held ? 'check' : 'qr'} size={72} color={held ? C.green : C.faint} />
             )}
             {(['tl', 'tr', 'bl', 'br'] as const).map((k) => (
-              <View key={k} pointerEvents="none" style={[styles.corner, {
+              <View key={k} style={[{ pointerEvents: 'none' }, styles.corner, {
                 borderColor: held ? C.soft : C.white,
                 ...(k[0] === 't' ? { top: 16, borderTopWidth: 3 } : { bottom: 16, borderBottomWidth: 3 }),
                 ...(k[1] === 'l' ? { left: 16, borderLeftWidth: 3 } : { right: 16, borderRightWidth: 3 })
@@ -547,10 +563,10 @@ export function ScanQr(ctx: Ctx) {
           {dead ? <Banner icon="flag" tone="amber" title="This invite can't be used" body={dead} /> : null}
           {alreadyIn ? <Banner icon="check" tone="green" title="You're already in" body="This invite was used by this account." /> : null}
           {invite.status.kind === 'waiting' ? (
-            <Banner icon="cloud" title="Saved on this phone" body="You'll join as soon as there's a connection. You can leave this screen." />
+            <Banner icon="cloud" title="Saved on this device" body="You'll join as soon as there's a connection. You can leave this screen." />
           ) : null}
           {guest && claimedHere && !joining ? (
-            <Text style={txt.xs}>Saved on this phone: you'll join as soon as you sign in.</Text>
+            <Text style={txt.xs}>Saved on this device: you'll join as soon as you sign in.</Text>
           ) : null}
           {guest && held && !dead && !alreadyIn ? (
             <Pressable onPress={() => ctx.go('terms_privacy')} accessibilityRole="link" style={({ pressed }) => [styles.termsLine, pressed && { opacity: 0.7 }]}>
@@ -600,7 +616,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
         await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
         await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
       }
-      ctx.toast(help.oldPhoneSignedOut ? 'Signed in. Your old phone is signed out.'
+      ctx.toast(help.oldPhoneSignedOut ? 'Signed in. Your old device is signed out.'
         : help.helper ? `Signed in with ${help.helper}'s help` : 'Signed in');
     } catch (e) {
       noteExpected('sign-in code', e);
@@ -611,7 +627,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   }
   return (
     <>
-      <Banner icon="lock" title="Someone is helping you sign in" body="Nothing to type: this signs you in on this phone, with all your work." />
+      <Banner icon="lock" title="Someone is helping you sign in" body="Nothing to type: this signs you in on this device, with all your work." />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       <PrimaryBtn label={busy ? 'Signing in…' : 'Sign in'} icon="check" busy={busy} disabled={busy} onPress={() => void go()} />
       <LinkBtn label="Cancel" color={C.muted} onPress={props.onCancel} style={{ alignSelf: 'center' }} />
@@ -639,6 +655,17 @@ export function IntentChooser(ctx: Ctx) {
   // The name Explore knew, else a neutral phrase: never the org's id.
   const waitingFor = waiting && typeof waiting.payload.orgName === 'string' ? waiting.payload.orgName : 'the organization';
   const [error, setError] = useState('');
+  // Once the server has it, watch for the answer: admitted opens the
+  // organization; turned away says so (useRequestOutcome).
+  const sentTo = waiting?.status === 'sent' && typeof waiting.payload.orgId === 'string'
+    ? { id: waiting.id, orgId: waiting.payload.orgId } : null;
+  const outcome = useRequestOutcome(ctx.session.actorId, sentTo);
+  const joinedOrg = outcome.kind === 'joined' ? outcome.orgId : null;
+  const declined = outcome.kind === 'declined';
+  useEffect(() => {
+    if (!joinedOrg) return;
+    ctx.openOrganization(joinedOrg).catch((e: unknown) => setError(failureMessage('open joined organization', e)));
+  }, [joinedOrg]);
   // A browser forgets everything at sign-out (forgetBrowser.ts), so there it
   // waits, as Sign Out does, for an account change still to send.
   const queued = actions.filter((a) => a.status === 'queued').length;
@@ -652,7 +679,7 @@ export function IntentChooser(ctx: Ctx) {
     await forgetThisBrowser();
   }
   return (
-    <Screen header={<Header title={waiting ? 'Request sent' : 'What brings you here?'} />}>
+    <Screen header={<Header title={waiting && !declined ? 'Request sent' : 'What brings you here?'} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
       {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title="Joining with your invite…" /> : null}
       {ctx.invite.status.kind === 'waiting' ? (
@@ -663,15 +690,17 @@ export function IntentChooser(ctx: Ctx) {
         <>
           <View style={styles.waiting}>
             <View style={styles.optionRow}>
-              <View style={[styles.tile, { borderRadius: 22 }]}><Ico name="clock" size={22} color={C.primary} /></View>
-              <Text style={[txt.body, { fontWeight: '700', flex: 1 }]}>Waiting for {waitingFor}</Text>
+              <View style={[styles.tile, { borderRadius: 22 }]}><Ico name={declined ? 'flag' : 'clock'} size={22} color={C.primary} /></View>
+              <Text style={[txt.body, { fontWeight: '700', flex: 1 }]}>{declined ? `${waitingFor} didn't add you` : `Waiting for ${waitingFor}`}</Text>
             </View>
             <Text style={txt.body}>
-              {waiting.status === 'sent'
-                ? "An admin will give you a role. Once they do, sign in again and you'll land on your work."
-                : 'Your request is saved on this phone and sends when you have a connection.'}
+              {declined
+                ? 'An admin there turned down your request. You can ask again below, or ask someone there for an invite.'
+                : waiting.status === 'sent'
+                  ? "An admin will give you a role. Once they do, you'll be taken to your work."
+                  : 'Your request is saved on this device and sends when you have a connection.'}
             </Text>
-            <Text style={txt.smMuted}>There's nothing else you need to do.</Text>
+            {declined ? null : <Text style={txt.smMuted}>There's nothing else you need to do.</Text>}
           </View>
           <SectionLabel label="Meanwhile" />
         </>
@@ -704,8 +733,8 @@ export function IntentChooser(ctx: Ctx) {
 /**
  * Creating an organization starts a new one under a fresh id
  * (`createOrganization`): the org, the seed roles with their privilege sets,
- * you as Organization Admin at org scope, and its one work partition
- * (decision 34). Its languages and how passages get checked are set up next
+ * you as Organization Admin at org scope, and its license. Its languages,
+ * each with how its passages get checked (decision 63), are added next
  * from My Work's Getting started (ONB-5), so nothing here is sample content.
  */
 export function CreateOrg(ctx: Ctx) {
@@ -771,29 +800,43 @@ export function CreateOrg(ctx: Ctx) {
 
 // ---- Request Access (AUTH-5) -----------------------------------------------------------------------------
 
+const FIND_FROM = 8;
+
 /**
  * Ask an organization to let you in. The request is saved on this phone and
  * sent when there is a connection; until an admin accepts, you see nothing
- * of theirs.
+ * of theirs. Explore names the organization; otherwise the person picks one
+ * of those listing their work, as in the demo (decisions.md 66). One that
+ * lists nothing is joined by invite.
  */
 export function RequestAccess(ctx: Ctx) {
-  const [orgId, setOrgId] = useState(ctx.params['orgId'] ?? '');
-  // The name the organization listed its work under on Explore.
-  const orgName = ctx.params['orgName'] || undefined;
+  const given = ctx.params['orgId'] ?? '';
+  // The language this person found on Explore, which names who they are asking.
+  const givenName = ctx.params['orgName'] || undefined;
+  const [listed, loadMessage] = useRefreshed('request access', cachedListedOrganizations, listedOrganizations, !given);
+  const [picked, setPicked] = useState<ListedOrganization | null>(null);
+  const [find, setFind] = useState('');
+  const [shown, setShown] = useState(EXPLORE_STEP);
   const [message, setMessage] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
   const actions = useAccountActions(ctx.session.actorId);
   const request = actions.find((a) => a.id === requestId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const label = orgName ?? orgId.trim();
+  const orgId = given || picked?.org_id || '';
+  const orgName = given ? givenName : picked?.name;
+  const label = orgName ?? 'the organization';
+  const query = find.trim().toLowerCase();
+  const matches = query
+    ? listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)))
+    : listed;
 
   async function send() {
     setBusy(true);
     setError('');
     try {
       setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', {
-        orgId: orgId.trim(), message: message.trim(), ...(orgName ? { orgName } : {})
+        orgId, message: message.trim(), ...(orgName ? { orgName } : {})
       }));
     } catch (e) {
       setError(failure('request access', e));
@@ -813,7 +856,7 @@ export function RequestAccess(ctx: Ctx) {
           title={failed ? 'Request not sent' : `Waiting for ${label}`}
           sub={failed ? request?.error ?? 'The organization could not take the request.'
             : request?.status === 'sent' ? `Your request to join ${label} is on its way. An admin will review it.`
-            : 'Saved on this phone. It sends when you have a connection.'} />
+            : 'Saved on this device. It sends when you have a connection.'} />
       </Screen>
     );
   }
@@ -821,19 +864,47 @@ export function RequestAccess(ctx: Ctx) {
   return (
     <Screen
       header={<Header title="Request access" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Send request" icon="arrowR" onPress={() => void send()} disabled={orgId.trim() === ''} busy={busy} />}
+      footer={<PrimaryBtn label="Send request" icon="arrowR" onPress={() => void send()} disabled={orgId === ''} busy={busy} />}
     >
       <Text style={txt.bodyMuted}>Ask to join an existing organization. An admin will review your request.</Text>
-      {orgName ? (
+      {given ? (
         <Card>
           <View style={styles.optionRow}>
             <View style={styles.tile}><Ico name="building" size={24} color={C.primary} /></View>
-            <Text style={[txt.body, { fontWeight: '600', flex: 1 }]}>{orgName}</Text>
+            <Text style={[txt.body, { fontWeight: '600', flex: 1 }]}>{label}</Text>
             <Ico name="check" size={22} color={C.primary} />
           </View>
         </Card>
       ) : (
-        <Field label="Organization code" value={orgId} onChangeText={setOrgId} placeholder="Ask the organization for its code" autoCapitalize="none" />
+        <View style={{ gap: space.sm }}>
+          <SectionLabel label="Organization" />
+          {loadMessage ? <Banner icon="cloud" title={loadMessage} /> : null}
+          {listed.length > FIND_FROM ? (
+            <Field value={find} onChangeText={(v) => { setFind(v); setShown(EXPLORE_STEP); }} placeholder="Find by organization or language" autoCapitalize="none" />
+          ) : null}
+          {matches.slice(0, shown).map((o) => {
+            const chosen = picked?.org_id === o.org_id;
+            return (
+              <Card key={o.org_id} current={chosen} accessibilityLabel={`${o.name}, ${o.languages.join(', ')}`} onPress={() => setPicked(o)}>
+                <View style={styles.optionRow}>
+                  <View style={styles.tile}><Ico name="building" size={24} color={C.primary} /></View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[txt.body, { fontWeight: '600' }]}>{o.name}</Text>
+                    <Text style={txt.smMuted} numberOfLines={2}>{o.languages.join(', ')}</Text>
+                  </View>
+                  {chosen ? <Ico name="check" size={22} color={C.primary} /> : null}
+                </View>
+              </Card>
+            );
+          })}
+          <ShowMore remaining={matches.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
+          {listed.length && !matches.length ? <Text style={txt.smMuted}>No organization or language matches “{find.trim()}”.</Text> : null}
+          {loadMessage === 'Loading…' ? null : (
+            <Text style={txt.smMuted}>
+              {listed.length ? 'Not listed? ' : 'No organizations are listed yet. '}Ask someone in the organization for an invite.
+            </Text>
+          )}
+        </View>
       )}
       <Field label="Message" value={message} onChangeText={setMessage} placeholder="Why you want to join" multiline />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
@@ -846,7 +917,7 @@ const styles = StyleSheet.create({
   signInBody: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: space.xl, gap: space.lg },
   brand: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
   logo: { width: 64, height: 64, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
+    ...lift({ color: C.primary, opacity: 0.25, radius: 12, y: 6, elevation: 4 }) },
   wordmark: { fontSize: T.display, fontWeight: '800', color: C.dark, letterSpacing: -0.5 },
   termsLine: { minHeight: 48, justifyContent: 'center', paddingHorizontal: space.sm },
   termsLink: { fontWeight: '700', textDecorationLine: 'underline', color: C.muted },

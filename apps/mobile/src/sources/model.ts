@@ -12,7 +12,7 @@ import type { BibleDetail } from './bibleBrain';
 // ---- the options ---------------------------------------------------------------------
 
 /** Where a source comes from: the library, Bible Brain explored outside it, or the text the app carries as a last resort. */
-export type SourceKind = 'library' | 'biblebrain' | 'builtin';
+type SourceKind = 'library' | 'biblebrain' | 'builtin';
 
 /** Why a source is offered here, most authoritative first. */
 export type SourceFrom = RecommendationSource | 'passage' | 'mine' | 'shared' | 'builtin';
@@ -95,7 +95,7 @@ export function bookOffers(book: SourceBookDoc, chapters: number[]): { text: boo
 
 // ---- chips ------------------------------------------------------------------------------
 
-export interface ChipFacts {
+interface ChipFacts {
   text: boolean;
   audio: boolean;
   /** Phones may keep it (library `offline: 'allowed'`, Bible Brain `/download`). */
@@ -226,7 +226,7 @@ export function passageRows(range: VerseRange, chapters: ReadonlyMap<number, rea
 }
 
 /** The row a timing segment falls in. */
-export function rowFor(rows: readonly VerseRow[], chapter: number, verse: number): VerseRow | undefined {
+function rowFor(rows: readonly VerseRow[], chapter: number, verse: number): VerseRow | undefined {
   return rows.find((r) => r.chapter === chapter && r.verseStart <= verse && r.verseEnd >= verse);
 }
 
@@ -259,13 +259,13 @@ export function resolveTiming(c: {
 
 // ---- what plays ------------------------------------------------------------------------------------
 
-export interface ChapterAudio {
+interface ChapterAudio {
   chapter: number;
   timing: Timing | null;
 }
 
 /** One file's share of the passage: from `fromMs` to `toMs` (null: to the end of the file). */
-export interface PlayPart {
+interface PlayPart {
   chapter: number;
   fromMs: number;
   toMs: number | null;

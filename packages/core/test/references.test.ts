@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  biblebrainFileset, canonicalJson, emptyOrgState, fold, foldOrg, recommendedFor, segmentAt, segmentsFromStarts, sourceOffers,
+  biblebrainFileset, canonicalJson, emptyLanguageState, emptyOrgState, foldLanguage as fold, foldOrg, recommendedFor, segmentAt, segmentsFromStarts, sourceOffers,
   testamentOf, usedOn, usedSummary, validateDoc, verseSpan, passageLink, linkedTo, withDeps,
   type SourceDoc, type TimingDoc
 } from '../src';
@@ -15,18 +15,19 @@ describe('reference recommendations', () => {
     // Same clock from two devices: the higher event id wins the register.
     expect(org.recommendations['langquest.source.esv']?.value).toBe(false);
     const state = fold(buildFixture());
-    const recs = recommendedFor(org.recommendations, state, 'L1');
+    const recs = recommendedFor(org.recommendations, state);
     // The later "recommended" beats the earlier "hidden" for BSB; ESV follows the organization (not recommended there).
     expect([...recs.entries()]).toEqual([['langquest.source.bsb', 'language']]);
-    expect([...recommendedFor(org.recommendations, state, 'L2').keys()]).toEqual(['langquest.source.bsb']);
-    expect(recommendedFor(emptyOrgState().recommendations, null, null).size).toBe(0);
+    // Another language with no choices of its own follows the organization.
+    expect([...recommendedFor(org.recommendations, emptyLanguageState()).keys()]).toEqual(['langquest.source.bsb']);
+    expect(recommendedFor(emptyOrgState().recommendations, null).size).toBe(0);
   });
 
   it('a passage link is a register: the later hide wins', () => {
     const state = fold(buildFixture());
-    expect(passageLink(state, 'L1', 'luke1', 'health-notes')).toBe(false);
-    expect(linkedTo(state, 'L1', 'luke1')).toEqual([]);
-    expect(passageLink(state, 'L1', 'luke1', 'other')).toBeUndefined();
+    expect(passageLink(state, 'luke1', 'health-notes')).toBe(false);
+    expect(linkedTo(state, 'luke1')).toEqual([]);
+    expect(passageLink(state, 'luke1', 'other')).toBeUndefined();
   });
 });
 

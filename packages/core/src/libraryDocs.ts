@@ -156,7 +156,7 @@ export interface MediaRef {
  * A study guide an organization writes (the guide editor), or FIA's
  * material carried with its media as blobs: `study@1` plus a hash beside
  * every URL, callout kinds, a license and credit, and placement by template
- * node for projects that are not numbered by verse.
+ * node for languages whose template is not numbered by verse.
  */
 export interface StudyDoc2 {
   format: 'study@2';

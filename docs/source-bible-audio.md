@@ -11,7 +11,7 @@ In **Reference material**, an organization manager adds either source Bible:
 - Berean Standard Bible (BSB), Frederick Surrey.
 - Majority Standard Bible (MSB), Frederick Surrey.
 
-Sources require explicit organization opt-in. Projects can disable an added
+Sources require explicit organization opt-in. Languages can disable an added
 source. Settings use existing `v1.CatalogItemToggled` events and permissions;
 no database migration is required. The app does not enable either source
 on behalf of an organization.
@@ -33,10 +33,11 @@ Eight MP3s cover Jonah 1–4 in both editions, about 14.3 MB total.
   narrator, and CC0-1.0 license metadata, following the supplied license check.
 - Origin: [OpenBible audio](https://openbible.com/audio/).
 
-Jonah uses R2; other chapters use OpenBible directly. To override the R2 base,
-set `EXPO_PUBLIC_SOURCE_AUDIO_BASE_URL` before bundling the app. An empty value
-uses OpenBible for all chapters. R2's development endpoint is appropriate for
-this trial; use a custom domain before production rollout.
+The app now streams every chapter, Jonah included, from OpenBible directly;
+nothing reads the R2 copy. The `EXPO_PUBLIC_SOURCE_AUDIO_BASE_URL` override
+that pointed Jonah at R2 was removed on 2026-10-07, after the app had stopped
+passing it on. Serving from R2 again needs that path back in
+`sourceAudioUrl`, and a custom domain rather than R2's development endpoint.
 
 Remote source audio streams and needs a network connection. It does not yet
 participate in the app's durable offline blob cache. Locally saved reference

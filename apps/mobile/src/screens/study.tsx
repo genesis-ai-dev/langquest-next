@@ -46,8 +46,8 @@ function stepBadge(st: StudyStepStatus, isNext: boolean): string | undefined {
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
   const v = usePassage(ctx);
-  const state = ctx.project.state;
-  const guide = useStudyGuide(ctx, v?.unitId, v?.laneId);
+  const state = ctx.language.state;
+  const guide = useStudyGuide(ctx, v?.unitId);
   const sp = useMemo(() => (state && v && guide ? studyProgress(state, v.p, guide) : null), [state, v?.p, guide]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!v || !guide || !sp) return { v, guide: null, sp: null };
   return { v, guide, sp };
@@ -56,8 +56,8 @@ function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress }
 function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.ctx.back}
-      {...(props.v ? { crumbs: [{ label: props.v.title, onPress: () => props.ctx.go('passage_record', { unitId: props.v!.unitId, laneId: props.v!.laneId }) }] } : {})} />}>
-      <EmptyState icon="sparkle" title={props.v ? "There's no study guide for this passage." : 'This passage is not in the project.'}
+      {...(props.v ? { crumbs: [{ label: props.v.title, onPress: () => props.ctx.go('passage_record', { unitId: props.v!.unitId, languageId: props.v!.languageId }) }] } : {})} />}>
+      <EmptyState icon="sparkle" title={props.v ? "There's no study guide for this passage." : 'This passage is not in this language.'}
         {...(props.v ? { sub: 'Study guides come with the reference material your organization uses. FIA covers more passages as its material grows.' } : {})} />
     </Screen>
   );
@@ -90,12 +90,12 @@ export function StudyGuide(ctx: Ctx) {
   const phases = [...new Set(guide.steps.map((s) => s.phase ?? ''))];
   const allDone = !sp.next;
   const recorded = v.p.versions.length > 0;
-  const openStep = (stepId: string) => ctx.go('study_step', { unitId: v.unitId, laneId: v.laneId, stepId });
+  const openStep = (stepId: string) => ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId });
   const footer = view === 'steps' && canStudy && (sp.next || !recorded) ? (
     sp.next ? (
       <PrimaryBtn label={`${sp.doneCount || sp.next.notes.length ? 'Continue' : 'Start'}: ${sp.next.step.title}`} onPress={() => openStep(sp.next!.step.id)} />
     ) : (
-      <PrimaryBtn label="Record the first draft" icon="mic" onPress={() => ctx.go('workspace', { unitId: v.unitId, laneId: v.laneId })} />
+      <PrimaryBtn label="Record the first draft" icon="mic" onPress={() => ctx.go('workspace', { unitId: v.unitId, languageId: v.languageId })} />
     )
   ) : undefined;
 
@@ -103,13 +103,13 @@ export function StudyGuide(ctx: Ctx) {
   const origin = guide.origin;
   const edit = ctx.session.can('manage_reference') && origin
     ? (origin.itemId
-      ? <SmallBtn label="Edit" icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, laneId: v.laneId })} />
-      : <SmallBtn label="Copy to adapt" icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, laneId: v.laneId })} />)
+      ? <SmallBtn label="Edit" icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
+      : <SmallBtn label="Copy to adapt" icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />)
     : undefined;
   return (
     <Screen fixed footer={footer}
-      header={<Header title={`${guide.pattern} study`} sub={v.lane} onBack={ctx.back} {...(edit ? { action: edit } : {})}
-        crumbs={[{ label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId }) }]} />}>
+      header={<Header title={`${guide.pattern} study`} sub={v.language} onBack={ctx.back} {...(edit ? { action: edit } : {})}
+        crumbs={[{ label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId }) }]} />}>
       <ViewSwitch views={[{ id: 'steps', label: `${guide.pattern} steps`, icon: 'sparkle' }, { id: 'passage', label: 'Passage', icon: 'book' }]}
         active={view} onChange={setView} />
       {opened ? (
@@ -178,15 +178,15 @@ export function StudyStep(ctx: Ctx) {
   const canStudy = ctx.session.can('translate');
   const canContribute = canStudy || ctx.session.can('review') || ctx.session.can('fill_reference');
   const nextStep = sp.steps[status.index + 1];
-  const toGuide = () => ctx.go('study_guide', { unitId: v.unitId, laneId: v.laneId });
+  const toGuide = () => ctx.go('study_guide', { unitId: v.unitId, languageId: v.languageId });
 
   async function done() {
-    const state = ctx.project.state;
+    const state = ctx.language.state;
     if (!state || !guide || !sp || status.done) return;
     const mark = (isDone: boolean): EventSpec[] => {
-      const now = ctx.project.state ?? state;
+      const now = ctx.language.state ?? state;
       return commands(now, indexesFor(now)).markStudyStep({
-        commandId: Crypto.randomUUID(), unitId: v!.unitId, laneId: v!.laneId, guideId: guide.id, stepId: status.step.id, done: isDone
+        commandId: Crypto.randomUUID(), unitId: v!.unitId, guideId: guide.id, stepId: status.step.id, done: isDone
       });
     };
     const left = sp.steps.filter((st) => !st.done && st.step.id !== status.step.id);
@@ -226,7 +226,7 @@ export function StudyStep(ctx: Ctx) {
     <Screen fixed footer={footer}
       header={<Header title={status.step.title} onBack={ctx.back}
         crumbs={[
-          { label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, laneId: v.laneId }) },
+          { label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId }) },
           { label: `${guide.pattern} study`, onPress: toGuide }
         ]} />}>
       {/* Where this step sits in the study, in both views. */}
@@ -258,7 +258,7 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
   const { ctx, v, guide, status } = props;
   const step = status.step;
   const sections = useMemo(() => studySections(step.text), [step.text]);
-  const { uri: audioUri } = useStudyFileUri(ctx.project.orgId, step.audio.file, step.audio.url);
+  const { uri: audioUri } = useStudyFileUri(ctx.language.orgId, step.audio.file, step.audio.url);
   const audio = useStudyAudio(audioUri, step.audio.seconds);
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ sectionId?: string; at?: string; quote: string; answer: boolean } | null>(null);
@@ -276,10 +276,10 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
     if (r) { audio.pause(); setResource(r); }
   };
   const keyTerm = (r: StudyResource | null) => {
-    const state = ctx.project.state;
+    const state = ctx.language.state;
     if (!state || r?.kind !== 'term') return null;
     const t = r.title.trim().toLowerCase();
-    return keyTermsFor(state, v.laneId).find((k) => k.term.trim().toLowerCase() === t) ?? null;
+    return keyTermsFor(state).find((k) => k.term.trim().toLowerCase() === t) ?? null;
   };
   const term = keyTerm(resource);
   const entry = resource?.kind === 'term' ? glossaryEntryOf(guide, resource.ref) : null;
@@ -319,7 +319,7 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
               </Pressable>
               {n.blobHash ? (
                 <View style={{ paddingLeft: 72, paddingRight: space.lg, paddingBottom: space.sm }}>
-                  <AudioClip project={ctx.project} hashes={[n.blobHash]} label="Play voice note" />
+                  <AudioClip language={ctx.language} hashes={[n.blobHash]} label="Play voice note" />
                 </View>
               ) : null}
             </View>
@@ -351,12 +351,12 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
             <Text style={[txt.sm, { flex: 1 }]}>When the group agrees on its version, record it as the first draft.</Text>
           </View>
           <GhostBtn label={v.p.versions.length ? 'Open the recording workspace' : 'Record the first draft'} icon="mic"
-            onPress={() => ctx.go('workspace', { unitId: v.unitId, laneId: v.laneId })} />
+            onPress={() => ctx.go('workspace', { unitId: v.unitId, languageId: v.languageId })} />
         </View>
       ) : null}
 
       {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} laneId={v.laneId} title={adding.answer ? 'Your answer' : 'Add a note'}
+        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={adding.answer ? 'Your answer' : 'Add a note'}
           where={`${step.title} · ${adding.quote}`}
           onClose={() => { setAdding(null); setSelected(null); }}
           onSave={(c) => saveNote(ctx, v, {
@@ -365,14 +365,14 @@ function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: Study
           }, c, adding.at ? `Note added at ${adding.at} — it stays with the study` : 'Added to the study — reviewers will see it with the passage')} />
       ) : null}
       {resource && resource.kind !== 'term' ? (
-        <MediaSheet resource={resource} source={`${guide.pattern} media`} orgId={ctx.project.orgId} onClose={() => setResource(null)} />
+        <MediaSheet resource={resource} source={`${guide.pattern} media`} orgId={ctx.language.orgId} onClose={() => setResource(null)} />
       ) : null}
       {resource && entry ? (
-        <GlossarySheet entry={entry} source={guide.source} orgId={ctx.project.orgId} hasKeyTerm={!!term} onClose={() => setResource(null)}
+        <GlossarySheet entry={entry} source={guide.source} orgId={ctx.language.orgId} hasKeyTerm={!!term} onClose={() => setResource(null)}
           onOpenTerm={() => {
             if (!term) return;
             setResource(null);
-            ctx.go('key_term_detail', { termId: term.termId, unitId: v.unitId, laneId: v.laneId });
+            ctx.go('key_term_detail', { termId: term.termId, unitId: v.unitId, languageId: v.languageId });
           }} />
       ) : null}
     </ScrollView>

@@ -2,7 +2,7 @@
 // report"). Pure, so the thresholds are tested and a human, the CLI and
 // Claude all read the same hypotheses off the same numbers.
 
-export interface TransferTotals {
+interface TransferTotals {
   count?: number; bytes?: number; ms?: number; maxMs?: number;
   signMs?: number; fetchMs?: number; verifyMs?: number;
   failOffline?: number; failHttp4xx?: number; failHttp5xx?: number; failHash?: number; failDisk?: number; failOther?: number;
@@ -25,7 +25,7 @@ export interface InstallSummary {
   releases: null | { updateId: string | null; from: string; to: string; records: number }[];
 }
 
-export interface PartitionHealth {
+export interface LanguageHealth {
   events: { events: number; maxSeq: number; events7d: number; lastEventAt: string | null };
   reducerVersion: number;
   snapshots: { reducerVersion: number; seq: number; createdAt: string; tail: number; bytes: number | null }[];
@@ -44,9 +44,9 @@ export interface Member {
 
 export interface RpcStat { rpc: string; calls: number; mean_ms: number; max_ms: number; total_s: number; rows_per_call: number }
 
-export interface Signal {
+interface Signal {
   level: 'problem' | 'watch' | 'info';
-  /** Install the signal is about, or null for the partition or server. */
+  /** Install the signal is about, or null for the language or the server. */
   install: string | null;
   text: string;
 }
@@ -69,11 +69,11 @@ function secs(ms: number): string {
   return ms >= 120_000 ? `${Math.round(ms / 60_000)} min` : `${(ms / 1000).toFixed(1)} s`;
 }
 
-export function signals(health: PartitionHealth, members: Member[], summary: Record<string, InstallSummary>, rpc: RpcStat[]): Signal[] {
+export function signals(health: LanguageHealth, members: Member[], summary: Record<string, InstallSummary>, rpc: RpcStat[]): Signal[] {
   const out: Signal[] = [];
   const add = (level: Signal['level'], install: string | null, text: string) => out.push({ level, install, text });
 
-  // The partition as a cold phone meets it.
+  // The language's stream as a cold phone meets it.
   const current = health.snapshots.find((s) => s.reducerVersion === health.reducerVersion);
   if (!current && health.events.events > 2000) {
     add('problem', null, `No snapshot for reducer ${health.reducerVersion}: a new phone folds all ${health.events.events} events from the log. Check the snapshot worker (npm run snapshot).`);

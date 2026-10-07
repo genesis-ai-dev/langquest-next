@@ -2,39 +2,36 @@
 -- Repeatable; every write rolls back.
 \set ON_ERROR_STOP on
 begin;
+update public.server_config set min_client_version = 0;
 insert into auth.users (id, email) values
   ('d0000000-0000-0000-0000-00000000000a', 'leaver@example.org'),
   ('d0000000-0000-0000-0000-00000000000b', 'stayer@example.org'),
   ('d0000000-0000-0000-0000-00000000000c', 'emailer@example.org');
-select public._apply_org_event('del-test-org','v1.RoleDefined',
-  '{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}', '000000000000001:000001:test');
--- The leaver made the organization, so the log holds their name.
-select public._append_event_as('del-test-add-a','del-test-org','_org','v1.OrgMemberAdded',
-  'd0000000-0000-0000-0000-00000000000a','server',
-  '{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"},"displayName":"leaver"}');
-select public._apply_org_event('del-test-org','v1.OrgMemberAdded',
-  '{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}','000000000000002:000001:test');
-select public._apply_org_event('del-test-org','v1.OrgMemberAdded',
-  '{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"lane","projectId":"p1","laneId":"l1"}}','000000000000002:000001:test');
-select public._apply_org_event('del-test-org','v1.OrgMemberAdded',
-  '{"profileId":"d0000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}','000000000000002:000001:test');
-select public._apply_member_event('del-test-org','p1','v1.MemberAdded',
-  '{"profileId":"d0000000-0000-0000-0000-00000000000a","role":"translator"}','000000000000002:000001:test');
--- Work the leaver authored stays with the organization.
-select public._append_event_as('del-test-work','del-test-org','p1','v1.NoteAdded',
-  'd0000000-0000-0000-0000-00000000000a','dev-a','{"noteId":"n1","unitId":"u1","laneId":"l1","anchor":"passage","text":"kept"}');
--- Snapshots of the organization fold the creator's name in; another partition's do not.
-insert into public.snapshots (org_id, project_id, reducer_version, server_seq, state) values
-  ('del-test-org','_org',1,1,'{"members":{"d0000000-0000-0000-0000-00000000000a":{"displayName":"leaver"}}}'),
-  ('del-test-org','p1',1,1,'{}');
+-- The leaver made the organization and its language, holds a role in both
+-- scopes, and authored work in the language.
+select set_config('request.jwt.claim.sub','d0000000-0000-0000-0000-00000000000a',true);
+do $$ declare r record; begin
+  for r in select * from public.append_events('[
+    {"id":"del-test-o1","type":"v1.OrgCreated","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000001:000000:dev-a","payload":{"name":"Leaver Org"}},
+    {"id":"del-test-o2","type":"v1.RoleDefined","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000002:000000:dev-a","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}},
+    {"id":"del-test-o4","type":"v1.RoleDefined","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000003:000000:dev-a","payload":{"roleId":"translator","name":"Translator","privileges":["translate"]}},
+    {"id":"del-test-add-a","type":"v1.MemberAdded","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000004:000000:dev-a","payload":{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}},
+    {"id":"del-test-o5","type":"v1.LanguageAdded","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000005:000000:dev-a","payload":{"languageId":"L1","name":"Leaver Language","code":"fia","sourceCode":"eng"}},
+    {"id":"del-test-o6","type":"v1.MemberAdded","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000006:000000:dev-a","payload":{"profileId":"d0000000-0000-0000-0000-00000000000a","roleId":"translator","scope":{"level":"language","languageId":"L1"}}},
+    {"id":"del-test-o7","type":"v1.MemberAdded","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000007:000000:dev-a","payload":{"profileId":"d0000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}},
+    {"id":"del-test-work","type":"v1.NoteAdded","orgId":"del-test-org","streamId":"L1","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000008:000000:dev-a","payload":{"noteId":"n1","unitId":"u1","anchor":{"kind":"passage"},"text":"kept"}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'setup event % refused: %', r.id, r.reason; end if;
+  end loop;
+end $$;
 insert into public.profiles (id, display_name) values
   ('d0000000-0000-0000-0000-00000000000a','Leaver Name'), ('d0000000-0000-0000-0000-00000000000b','Stayer Name');
 insert into public.push_tokens (token, profile_id) values
   ('ExponentPushToken[leaver]','d0000000-0000-0000-0000-00000000000a'),
   ('ExponentPushToken[stayer]','d0000000-0000-0000-0000-00000000000b');
-insert into public.notifications (id, profile_id, org_id, project_id, kind, title) values
-  ('del-test-n1','d0000000-0000-0000-0000-00000000000a','del-test-org','p1','request','Record this'),
-  ('del-test-n2','d0000000-0000-0000-0000-00000000000b','del-test-org','p1','request','Record this');
+insert into public.notifications (id, profile_id, org_id, language_id, kind, title) values
+  ('del-test-n1','d0000000-0000-0000-0000-00000000000a','del-test-org','L1','request','Record this'),
+  ('del-test-n2','d0000000-0000-0000-0000-00000000000b','del-test-org','L1','request','Record this');
 insert into public.push_receipts (ticket_id, token, notification_id) values
   ('del-test-t1','ExponentPushToken[leaver]','del-test-n1');
 insert into public.join_requests (id, org_id, profile_id, message) values
@@ -57,26 +54,20 @@ do $$ begin
   exception when sqlstate '42501' then null; end;
 end $$;
 
--- The log refuses edits before, during and after an erasure.
+-- The log refuses edits and deletes, for every row; deletion only appends.
 do $$ begin
   begin
-    update public.events set payload = payload - 'displayName' where id = 'del-test-add-a';
-    raise exception 'edited the log without an erasure';
+    update public.events set payload = payload || '{"roleId":"translator"}' where id = 'del-test-add-a';
+    raise exception 'edited the log';
   exception when sqlstate '42501' then null; end;
-  perform set_config('langquest.erase_profile', 'd0000000-0000-0000-0000-00000000000a', true);
   begin
     update public.events set payload = '{"noteId":"n1","text":"changed"}' where id = 'del-test-work';
-    raise exception 'an erasure let another event change';
-  exception when sqlstate '42501' then null; end;
-  begin
-    update public.events set payload = payload || '{"roleId":"viewer"}' where id = 'del-test-add-a';
-    raise exception 'an erasure let a role change';
+    raise exception 'edited authored work in the log';
   exception when sqlstate '42501' then null; end;
   begin
     delete from public.events where id = 'del-test-add-a';
-    raise exception 'an erasure let an event be deleted';
+    raise exception 'deleted an event';
   exception when sqlstate '42501' then null; end;
-  perform set_config('langquest.erase_profile', '', true);
 end $$;
 
 select set_config('request.jwt.claim.sub','d0000000-0000-0000-0000-00000000000a',true);
@@ -97,23 +88,29 @@ begin
   if exists (select 1 from diag.installs where profile_id = a) or exists (select 1 from diag.records where delivered_by = a) then
     raise exception 'diagnostics kept';
   end if;
-  if exists (select 1 from public.org_memberships where profile_id = a and not removed) then raise exception 'org membership kept'; end if;
-  if exists (select 1 from public.memberships where profile_id = a and not removed) then raise exception 'language membership kept'; end if;
-  if (select count(*) from public.events where type = 'v1.OrgMemberRemoved' and payload->>'profileId' = a) <> 2 then
+  if exists (select 1 from public.org_memberships where profile_id = a and not removed) then raise exception 'membership kept'; end if;
+  if cardinality(public.org_privileges('del-test-org', a, 'L1')) <> 0 then raise exception 'privileges kept in the language'; end if;
+  if (select count(*) from public.events where type = 'v1.MemberRemoved' and payload->>'profileId' = a) <> 2 then
     raise exception 'expected one removal per scope, once';
   end if;
-  if not exists (select 1 from public.events where type = 'v1.OrgMemberRemoved'
-      and payload = jsonb_build_object('profileId', a, 'scope', '{"level":"lane","projectId":"p1","laneId":"l1"}'::jsonb)) then
-    raise exception 'lane scope not rebuilt';
+  if (select count(*) from public.events where type = 'v1.MemberRemoved' and payload->>'profileId' = a
+        and actor_id = 'service' and stream_id = '_org'
+        and id in ('accountdeleted:' || a || ':org', 'accountdeleted:' || a || ':language:L1')) <> 2 then
+    raise exception 'removals not by the service, one id per scope';
   end if;
-  if (select count(*) from public.events where type = 'v1.Redacted' and payload->>'eventId' = 'del-test-add-a') <> 1 then
-    raise exception 'creator name not redacted';
+  if not exists (select 1 from public.events where type = 'v1.MemberRemoved'
+      and payload = jsonb_build_object('profileId', a, 'scope', '{"level":"language","languageId":"L1"}'::jsonb)) then
+    raise exception 'language scope not rebuilt';
+  end if;
+  if not exists (select 1 from public.events where type = 'v1.MemberRemoved'
+      and payload = jsonb_build_object('profileId', a, 'scope', '{"level":"org"}'::jsonb)) then
+    raise exception 'org scope not rebuilt';
   end if;
   if not exists (select 1 from public.events where id = 'del-test-work') then raise exception 'authored work lost'; end if;
-  if (select payload ? 'displayName' from public.events where id = 'del-test-add-a') then raise exception 'creator name kept in the log'; end if;
-  if (select payload->>'roleId' from public.events where id = 'del-test-add-a') is distinct from 'admin' then raise exception 'erasure changed more than the name'; end if;
-  if exists (select 1 from public.snapshots where org_id = 'del-test-org' and project_id = '_org') then raise exception 'snapshot with the name kept'; end if;
-  if not exists (select 1 from public.snapshots where org_id = 'del-test-org' and project_id = 'p1') then raise exception 'unrelated snapshot dropped'; end if;
+  if (select payload from public.events where id = 'del-test-add-a')
+       is distinct from jsonb_build_object('profileId', a, 'roleId', 'admin', 'scope', '{"level":"org"}'::jsonb) then
+    raise exception 'deletion changed the log';
+  end if;
   -- Nobody else is touched.
   if not exists (select 1 from auth.users where id::text = b) or not exists (select 1 from public.profiles where id = b)
      or not exists (select 1 from public.push_tokens where profile_id = b) or not exists (select 1 from public.notifications where profile_id = b)

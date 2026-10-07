@@ -1,7 +1,7 @@
 // A passage's study progress, derived like the rest of the record: which
 // steps someone finished and what people added to each (ADR-018). Shown to
 // translators as progress and to reviewers as evidence the study was done.
-import { studyMarksFor, studyNotesFor, type PassageNote, type PassageState, type ProjectState } from '@langquest-next/core';
+import { studyMarksFor, studyNotesFor, type PassageNote, type PassageState, type LanguageState } from '@langquest-next/core';
 import type { StudyGuide, StudyStep } from './guides';
 
 export interface StudyStepStatus {
@@ -23,8 +23,8 @@ export interface StudyProgress {
   next?: StudyStepStatus;
 }
 
-export function studyProgress(state: ProjectState, p: PassageState, guide: StudyGuide): StudyProgress {
-  const marks = studyMarksFor(state, p.unitId, p.laneId, guide.id);
+export function studyProgress(state: LanguageState, p: PassageState, guide: StudyGuide): StudyProgress {
+  const marks = studyMarksFor(state, p.unitId, guide.id);
   const notes = studyNotesFor(p, guide.id);
   const steps = guide.steps.map((step, index): StudyStepStatus => {
     const mark = marks.find((m) => m.stepId === step.id);

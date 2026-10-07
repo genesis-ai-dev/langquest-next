@@ -1,7 +1,11 @@
 import type { Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
+import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import type { InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
+import { noteExpected } from './report';
+import { requestOutcome, type RequestOutcome } from './requestOutcome';
 import { supabase } from './supabase';
 
 /**
@@ -31,6 +35,8 @@ export interface PendingRequest {
   profileId: string;
   message: string;
   createdAt: string;
+  /** Their profile name, read with the request: it may be newer than the names the app read (decisions.md 65). */
+  name?: string;
 }
 
 const DEFAULT_TTL_DAYS = 7;
@@ -121,7 +127,7 @@ export async function canHelpSignIn(profileId: string): Promise<boolean> {
 }
 
 /** What `join` and `sign-in-code` hand back: the session the phone signs in with. */
-export interface Tokens { access_token: string; refresh_token: string }
+interface Tokens { access_token: string; refresh_token: string }
 
 /** An Edge Function's refusal, in the function's own words (they are in the response body). */
 export class FunctionError extends Error {
@@ -175,24 +181,109 @@ export async function pendingRequests(orgId: string): Promise<PendingRequest[]> 
     .eq('org_id', orgId)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
+  const ids = (data ?? []).map((r) => r.profile_id as string);
+  // Without names the requests still show, under placeholders.
+  const { data: profiles } = ids.length
+    ? await supabase.from('profiles').select('id,display_name').in('id', ids)
+    : { data: [] };
+  const names = new Map((profiles ?? []).map((p) => [p.id as string, p.display_name as string]));
   return (data ?? []).map((r) => ({
     id: r.id as string,
     profileId: r.profile_id as string,
     message: (r.message as string) ?? '',
-    createdAt: r.created_at as string
+    createdAt: r.created_at as string,
+    ...(names.has(r.profile_id as string) ? { name: names.get(r.profile_id as string)! } : {})
   }));
 }
 
 /**
  * Admit or turn away one request. A role is required to accept, because a
- * membership without one would be a member who can do nothing.
+ * membership without one would be a member who can do nothing. The scope is
+ * the organization unless one language is named.
  */
-export async function decideRequest(id: string, accepted: boolean, roleId?: string): Promise<void> {
+export async function decideRequest(id: string, accepted: boolean, roleId?: string, scope: Scope = { level: 'org' }): Promise<void> {
   if (accepted && !roleId) throw new Error('Pick a role before admitting someone.');
-  const { error } = await supabase.rpc('decide_join_request', {
+  const { error } = await supabase.rpc('decide_join_request_v2', {
     p_request_id: id,
     p_accepted: accepted,
-    p_role_id: accepted ? roleId : null
+    p_role_id: accepted ? roleId : null,
+    p_scope: scope
   });
   if (error) throw new Error(error.message);
+  for (const listener of requestListeners) listener();
+}
+
+const requestListeners = new Set<() => void>();
+
+/**
+ * How many people are asking to join, for the Inbox badge (the tab, or My
+ * Work's bell): read when the app comes forward, every minute (as often as
+ * pushes go, decisions.md 68), and after someone decides; offline it keeps
+ * the last count. A count only, no rows. Only org-wide Invite can read
+ * requests (`join_requests_read`).
+ */
+export function usePendingRequestCount(orgId: string, enabled: boolean): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) { setCount(0); return; }
+    let active = true;
+    const load = () => {
+      void (async () => {
+        const { count: open, error } = await supabase.from('join_requests')
+          .select('id', { count: 'exact', head: true }).eq('org_id', orgId);
+        if (error) throw new Error(error.message);
+        if (active) setCount(open ?? 0);
+      })().catch((e: unknown) => { noteExpected('pending request count', e); });
+    };
+    load();
+    requestListeners.add(load);
+    const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
+    const timer = setInterval(load, 60_000);
+    return () => { active = false; requestListeners.delete(load); app.remove(); clearInterval(timer); };
+  }, [orgId, enabled]);
+  return count;
+}
+
+/**
+ * Watches a sent join request until it is decided (AUTH-5), so the person
+ * who asked is taken in, or told no, without signing in again: asked when
+ * the screen opens, when the app comes forward, and every minute until it
+ * is decided. Offline it keeps waiting.
+ */
+export function useRequestOutcome(actorId: string, request: { id: string; orgId: string } | null): RequestOutcome {
+  const [outcome, setOutcome] = useState<RequestOutcome>({ kind: 'waiting' });
+  const requestId = request?.id;
+  const orgId = request?.orgId;
+  useEffect(() => {
+    setOutcome({ kind: 'waiting' });
+    if (!orgId) return;
+    let active = true;
+    const check = async () => {
+      const [orgs, open] = await Promise.all([
+        supabase.rpc('my_organizations'),
+        // Their own request, by organization: asking again keeps the first id.
+        supabase.from('join_requests').select('id').eq('org_id', orgId).eq('profile_id', actorId).limit(1)
+      ]);
+      if (orgs.error) throw new Error(orgs.error.message);
+      if (open.error) throw new Error(open.error.message);
+      const memberOf = ((orgs.data ?? []) as { org_id: string }[]).map((o) => o.org_id);
+      const next = requestOutcome(orgId, memberOf, (open.data ?? []).length > 0);
+      if (!active) return;
+      setOutcome(next);
+      if (next.kind !== 'waiting') stop();
+    };
+    const load = () => { check().catch((e: unknown) => { noteExpected('join request outcome', e); }); };
+    const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
+    const timer = setInterval(load, 60_000);
+    let stopped = false;
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      app.remove();
+      clearInterval(timer);
+    }
+    load();
+    return () => { active = false; stop(); };
+  }, [actorId, requestId, orgId]);
+  return outcome;
 }

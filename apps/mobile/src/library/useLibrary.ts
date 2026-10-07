@@ -1,6 +1,6 @@
 import {
   CommandError, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
-  type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type ProjectState, type TemplateDoc, type VersificationDoc
+  type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -14,11 +14,11 @@ import { copyOps, followOps, newItemId, publishOps, subscribeOps, type LibraryOp
 /**
  * The organization's library for screens (docs/library.md): its items, the
  * documents they name, what other organizations share, and every action.
- * Org writes go through the org partition like any other; a language's
+ * Org writes go through the organization stream like any other; a language's
  * structure and flow go through `ctx.act`, so they offer Undo.
  */
 export function useLibrary(ctx: Ctx) {
-  const orgId = ctx.project.orgId;
+  const orgId = ctx.language.orgId;
   const library = ctx.org.state?.library;
   const items = useCallback((kind?: LibraryKind) => libraryItems(library ?? {}, kind), [library]);
   const item = useCallback((itemId: string) => libraryItemView(library ?? {}, itemId), [library]);
@@ -90,25 +90,27 @@ export function useLibrary(ctx: Ctx) {
     await run([{ type: 'v1.LibraryPinned', payload: { itemId: it.itemId, kind: it.kind, docHash: hash } }]);
   }, [orgId, run]);
 
-  /** The events that make a language use an item's current version (template or flow). */
-  /** `into`: the partition's state when it is not the open one (a new language's, decisions.md 37). */
-  const applySpecs = useCallback(async (laneId: string, itemId: string, opts: { books?: string[]; docHash?: string; into?: ProjectState } = {}) => {
-    const state = opts.into ?? ctx.project.state;
+  /**
+   * The events that make a language use an item's current version (template or flow).
+   * `into`: the language's state when it is not the open one (a new language's, decisions.md 37).
+   */
+  const applySpecs = useCallback(async (itemId: string, opts: { books?: string[]; docHash?: string; into?: LanguageState } = {}) => {
+    const state = opts.into ?? ctx.language.state;
     // With `docHash`, the item may be one this phone has only just followed (not folded yet).
     const hash = opts.docHash ?? libraryItemView(library ?? {}, itemId)?.current;
     if (!state || !hash) throw new CommandError('That item has no version to use yet.');
     const docs = await loadDocs(orgId, [hash]);
     const doc = docs.get(hash);
-    if (!doc) throw new CommandError('Its document is not on this phone yet. Try again when connected.');
+    if (!doc) throw new CommandError('Its document is not on this device yet. Try again when connected.');
     const commandId = Crypto.randomUUID();
     if (doc.format === 'template@1') {
       const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
-      if (doc.bible && !v11n) throw new CommandError('Its versification is not on this phone yet. Try again when connected.');
-      return selectTemplateSpecs(state, { commandId, laneId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}) });
+      if (doc.bible && !v11n) throw new CommandError('Its versification is not on this device yet. Try again when connected.');
+      return selectTemplateSpecs(state, { commandId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}) });
     }
-    if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, laneId, itemId, docHash: hash, doc: doc as FlowDoc });
+    if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, itemId, docHash: hash, doc: doc as FlowDoc });
     throw new CommandError('Only templates and flows are used by a language.');
-  }, [ctx.project.state, library, orgId]);
+  }, [ctx.language.state, library, orgId]);
 
   return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs };
 }

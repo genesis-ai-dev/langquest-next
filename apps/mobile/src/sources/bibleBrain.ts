@@ -30,11 +30,11 @@ export interface BibleDetail extends BibleSummary {
 }
 
 export interface BibleLanguage { code: string; name: string; autonym?: string; bibles: number }
-export interface AudioLink { url: string; durationMs?: number; bytes?: number; expiresAt: string; offline: boolean }
-export type VerseText = [number, number, string];
+interface AudioLink { url: string; durationMs?: number; bytes?: number; expiresAt: string; offline: boolean }
+type VerseText = [number, number, string];
 
 /** Why an answer did not come: no connection, Bible Brain not set up on the server (or its routes not deployed), nothing there, or signed out. */
-export type BibleErrorKind = 'offline' | 'unavailable' | 'not_found' | 'signed_out' | 'failed';
+type BibleErrorKind = 'offline' | 'unavailable' | 'not_found' | 'signed_out' | 'failed';
 
 export class BibleError extends Error {
   override name = 'BibleError';
@@ -49,7 +49,7 @@ export interface JsonCache {
   set(key: string, value: string): Promise<void>;
 }
 
-export interface BibleBrainServer {
+interface BibleBrainServer {
   /** The Worker's origin without a trailing slash; '' for the page's own origin. */
   baseUrl: string;
   token(): Promise<string | null>;
@@ -162,7 +162,7 @@ export const textKey = (filesetId: string, book: string, chapter: number) => `te
 export function bibleErrorText(e: unknown): string {
   if (e instanceof BibleError) {
     switch (e.kind) {
-      case 'offline': return "You're offline, and this isn't on the phone yet.";
+      case 'offline': return "You're offline, and this isn't on this device yet.";
       case 'unavailable': return "Bible Brain isn't available on this server yet.";
       case 'not_found': return 'Not in this Bible.';
       case 'signed_out': return 'Sign in again to reach Bible Brain.';

@@ -72,7 +72,7 @@ screenshots, view hierarchies and session replay.
   message, stack, release, OS/device model, screen name, sync phase, counts,
   `RejectCode`, reducer and protocol versions.
 - **Identifiers are opaque.** Use a random per-install id. Do not use profile id,
-  email or display name. Ask before tagging org or project ids.
+  email or display name. Ask before tagging org or partition ids.
 - **Scrub in the client before it is queued** (a `beforeSend` /
   `beforeBreadcrumb` hook), then add server-side scrubbing rules as a backstop.
   JS hooks do not see native crash reports; configure native scrubbing

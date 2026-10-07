@@ -15,15 +15,12 @@ import { failureMessage, noteExpected } from './report';
 import { C, radius, space, TINT } from './theme';
 
 /** A piece of the open language's record, as something to report. */
-export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: string, by: string, unitId?: string, laneId?: string): ReportTarget {
-  return {
-    kind, id, profileId: by, orgId: ctx.project.orgId, partitionId: ctx.project.projectId,
-    ...(unitId ? { unitId } : {}), ...(laneId ? { laneId } : {})
-  };
+export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: string, by: string, unitId?: string): ReportTarget {
+  return { kind, id, profileId: by, orgId: ctx.language.orgId, languageId: ctx.language.languageId, ...(unitId ? { unitId } : {}) };
 }
 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
-export function canModerate(ctx: Ctx, t: ReportTarget): boolean {
+function canModerate(ctx: Ctx, t: ReportTarget): boolean {
   return t.kind === 'person' ? ctx.session.can('invite_members') : ctx.session.can('manage_structure');
 }
 
@@ -47,7 +44,7 @@ export function ReportFlag(props: { ctx: Ctx; target: ReportTarget; size?: numbe
 type Step = { at: 'menu' } | { at: 'report'; of: ReportTarget } | { at: 'remove' };
 
 /** Report the thing or its maker, block or unblock them, or (for a moderator) take it out of the record. */
-export function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => void; startAt?: 'report' }) {
+function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => void; startAt?: 'report' }) {
   const { ctx, target } = props;
   const [step, setStep] = useState<Step>(props.startAt === 'report' ? { at: 'report', of: target } : { at: 'menu' });
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -90,7 +87,7 @@ export function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: ()
     try {
       await removeContent(target, 'Removed by a moderator');
       reportsChanged();
-      ctx.toast('Removed from the record. Phones stop showing it when they next sync.');
+      ctx.toast('Removed from the record. Devices stop showing it when they next sync.');
       props.onClose();
     } catch (e) {
       // Offline or refused: the server's answer says which.
@@ -182,7 +179,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       if (what === 'remove') await removeContent(target, 'Removed after a report');
       else await dismissReports(target);
       reportsChanged();
-      ctx.toast(what === 'remove' ? 'Removed from the record. Phones stop showing it when they next sync.' : 'Kept. The report is closed.');
+      ctx.toast(what === 'remove' ? 'Removed from the record. Devices stop showing it when they next sync.' : 'Kept. The report is closed.');
       props.onDone();
     } catch (e) {
       noteExpected(`report ${what}`, e);
@@ -198,7 +195,7 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
       ) : (
         <>
           <PrimaryBtn label="Remove from the record" icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
-          {target.unitId && target.laneId ? <GhostBtn label="Open the passage" onPress={props.onOpen} /> : null}
+          {target.unitId ? <GhostBtn label="Open the passage" onPress={props.onOpen} /> : null}
         </>
       )}
       <GhostBtn label={target.kind === 'person' ? 'Close the report' : 'Keep it'} disabled={busy} onPress={() => void run('keep')} />

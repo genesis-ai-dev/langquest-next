@@ -16,7 +16,7 @@ export function layoutKind(width: number): LayoutKind {
   return 'phone';
 }
 
-export interface Frame {
+interface Frame {
   kind: LayoutKind;
   /** The rail or sidebar; 0 on a phone, whose tabs sit along the bottom. */
   chromeWidth: number;

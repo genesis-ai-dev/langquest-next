@@ -43,7 +43,7 @@ runs that session's code. Check `metro.log` for `iOS Bundled` /
 ## iOS simulator
 
 ```sh
-UDID=$(xcrun simctl create "LQ <topic>" "iPhone 17" com.apple.CoreSimulator.SimRuntime.iOS-26-0)
+UDID=$(xcrun simctl create "LQ <topic>" "iPhone 17" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
 xcrun simctl boot $UDID
 ```
 
@@ -52,6 +52,9 @@ xcrun simctl boot $UDID
   the `.app` path under `Containers/Bundle/Application`), copy the `.app` to
   your scratch directory and `xcrun simctl install $UDID <copy>.app`. It must
   contain `EXDevLauncher.bundle`. Otherwise build: `LANG=en_US.UTF-8 npm run ios`.
+  A dev client built with Xcode 27 before the scene-lifecycle plugin
+  (`plugins/withSceneLifecycle.js`) stops at launch on iOS 27; check its
+  Info.plist has `UIApplicationSceneManifest`, or build a new one.
   JavaScript-only changes need no new build.
 - **Open on your Metro:** `xcrun simctl openurl $UDID "langquestnext://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8095"`, then tap Open.
 - **Turn off password AutoFill first** (Settings, General, AutoFill &
@@ -111,12 +114,43 @@ Shrink with `sips -Z 800` before viewing.
 3. On the other device: create the second account, Join with QR code, paste
    the code.
 
+Bring the local stack up with `npm run dev:local`: `npm run db:start`, then
+the web Worker on :8787 in the foreground, which Reports needs (without it
+Reports says "You are offline"). Never plain `supabase start` (and whoever
+owns the database resets it with `npm run db:reset`): these also run the
+projection worker every minute (server Inbox rows, pushes, snapshots) and
+seed the library. If another session already serves :8787, `dev:local` uses
+it and returns. The iOS simulator never receives pushes. After pulling a branch that adds or renames an Edge
+Function, restart the local stack (`npx supabase stop && npx supabase
+start`, which keeps the database): the functions served are fixed when it
+starts, and a missing one answers 404 ("non-2xx status code" in the app).
+
+**Clear the app's data after a `db:reset`, or after pointing a dev client
+at the other server** (`npm start` and `npm run start:remote`). The device
+keeps its own copy of every stream in `langquest-next.db`, with how far it
+has pulled. The file is named the same for every server, and the sample
+org's id is the same on every seed. A reset log restarts at 1, so the
+device asks for events after a number the server has not reached yet and
+never hears of anything new. A member who just joined then lands on "What
+brings you here?", because the device's copy of the org does not list them;
+a wrong role or missing work are the same fault. Check it by comparing the
+device's `cursors` table with `max(server_seq)` on the server. To clear:
+
+- iOS simulator: quit the app, then delete `Documents/SQLite/langquest-next.db*`
+  under `xcrun simctl get_app_container $UDID com.frontierrnd.langquestnext data`.
+  This keeps the sign-in. Uninstalling also works, but an account made by
+  joining has no password to sign back in with.
+- Android: `adb shell pm clear com.frontierrnd.langquestnext` (signs out),
+  then open it on your Metro again.
+- Web: clear the site's data for that address (DevTools, Application,
+  Storage, Clear site data).
+
 ## Checking the server
 
 From a checkout linked to the hosted project (`npx supabase link`; the main
 checkout is): `npx supabase db query --linked -o json "select …"`. Compare
 secrets by hash, never print them. Staff views: `npm run moderation -- --hosted`,
-`npm run diag:hosted`.
+`npm run diag -- --hosted`.
 
 ## Cleaning up
 

@@ -1,118 +1,140 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildIndexes, deriveInbox, deriveProgress, foldOrg, orgLicense, privilegesFor,
-  withOrgMembers, type AnyEvent, type OrgState } from '@langquest-next/core';
+import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, ORG_STREAM, orgLicense, PERSON_ORG,
+  REDUCER_VERSION, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
 import { runSnapshotWorker } from '../packages/client/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/client/src/supabaseTransport';
 
 function check(result: { error: { message: string } | null }) {
   if (result.error) throw new Error(result.error.message);
 }
+
+/** What an Inbox row says. The app shows the passage; the push shows neither (deliverPushes). */
+const UPDATE_TITLES: Record<Update['kind'], string> = {
+  request: 'You were asked to help',
+  review: 'Your recording was reviewed',
+  revision: 'Your feedback was answered with a new recording',
+  kept: 'Your feedback was answered',
+  request_done: 'What you asked for is done'
+};
+
+/**
+ * Bump the number when what a pass writes changes (a title above, a listing
+ * column), so the next pass redoes every language rather than skipping
+ * the unchanged ones. A new reducer does the same.
+ */
+const PROJECTION_VERSION = `${REDUCER_VERSION}:1`;
+
+/** What the last pass wrote for a stream (`projection_marks`). */
+interface Mark { org_id: string; stream_id: string; seq: number; org_seq: number; listed: boolean; version: string }
+
+const streamKey = (orgId: string, streamId: string) => JSON.stringify([orgId, streamId]);
+
+/** Every row of a service table, past PostgREST's page limit. */
+async function selectAll<T>(service: SupabaseClient, table: string, columns: string): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += 1000) {
+    const page = await service.from(table).select(columns).range(from, from + 999);
+    check(page);
+    const rows = (page.data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < 1000) return out;
+  }
+}
+
+/**
+ * The projection pass (decisions.md 68). Only what changed since the last
+ * pass is read: a language is projected again when its stream has new
+ * events, its organization's stream does (who belongs, roles, the language's
+ * name), or its public listing was switched; otherwise its snapshot is not
+ * even downloaded. An organization whose stream changed has its own Inbox
+ * rows refreshed too; the database already refreshes them when a join
+ * request or report changes (refresh_org_notifications).
+ */
 export async function runProjections(service: SupabaseClient) {
   const transport = new SupabaseTransport(service);
-  const orgs = new Map<string, OrgState>();
+  const orgs = new Map<string, { org: OrgState; seq: number }>();
   async function orgState(orgId: string) {
     const cached = orgs.get(orgId);
     if (cached) return cached;
     const events: AnyEvent[] = [];
     let cursor = 0;
     for (;;) {
-      const page = await transport.pull(orgId, '_org', cursor, 1000);
+      const page = await transport.pull(orgId, ORG_STREAM, cursor, 1000);
       events.push(...page);
       if (page.length < 1000) break;
       cursor = page[page.length - 1]!.serverSeq!;
     }
-    const org = foldOrg(events);
-    orgs.set(orgId, org);
-    return org;
+    const folded = { org: foldOrg(events), seq: events.at(-1)?.serverSeq ?? 0 };
+    orgs.set(orgId, folded);
+    return folded;
   }
-  const partitions = await service.rpc('list_partitions');
-  check(partitions);
-  for (const row of partitions.data ?? []) {
-    if (row.project_id === '_org') await orgState(row.org_id);
+  const streams = await service.rpc('list_streams');
+  check(streams);
+  const heads = new Map<string, number>();
+  for (const row of (streams.data ?? []) as { org_id: string; stream_id: string; next_seq: number }[]) {
+    heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
   }
+  const marks = new Map((await selectAll<Mark>(service, 'projection_marks', '*'))
+    .map((m) => [streamKey(m.org_id, m.stream_id), m]));
+  const listed = new Set((await selectAll<{ org_id: string; language_id: string; listed: boolean }>(
+    service, 'language_visibility', 'org_id,language_id,listed'))
+    .filter((v) => v.listed).map((v) => streamKey(v.org_id, v.language_id)));
+  const changed = (orgId: string, streamId: string) => {
+    const mark = marks.get(streamKey(orgId, streamId));
+    return !mark || mark.version !== PROJECTION_VERSION
+      || Number(mark.seq) !== heads.get(streamKey(orgId, streamId))
+      || Number(mark.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM))
+      || mark.listed !== listed.has(streamKey(orgId, streamId));
+  };
+  const mark = async (orgId: string, streamId: string, seq: number, orgSeq: number, isListed: boolean) => {
+    check(await service.from('projection_marks').upsert({
+      org_id: orgId, stream_id: streamId, seq, org_seq: orgSeq, listed: isListed, version: PROJECTION_VERSION
+    }));
+  };
+
+  // The organizations' own rows first: they are quick, and admins wait on them.
+  for (const [key, head] of heads) {
+    const [orgId, streamId] = JSON.parse(key) as [string, string];
+    if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
+    check(await service.rpc('refresh_org_notifications', { p_org: orgId }));
+    await mark(orgId, ORG_STREAM, head, head, false);
+  }
+
+  // Each changed language stream: everyone who may open the language gets
+  // the updates that concern them (core updatesFor, the phone's Inbox).
   await runSnapshotWorker(service, 1000, async (snapshot) => {
-    const org = await orgState(snapshot.orgId);
-    const state = withOrgMembers(snapshot.state, org, snapshot.projectId);
+    const { org, seq: orgSeq } = await orgState(snapshot.orgId);
+    const languageId = snapshot.streamId;
+    const state = snapshot.state;
     const idx = buildIndexes(state);
-    const notifications = Object.keys(state.members).flatMap((profileId) =>
-      deriveInbox(state, profileId, idx).map((item) => ({
-        id: JSON.stringify([snapshot.orgId,snapshot.projectId,profileId,item.id]),
-        profile_id: profileId, kind: item.kind, title: item.title,
-        task_id: item.taskId ?? null, unit_id: item.unitId ?? null,
-        lane_id: item.laneId ?? null
+    const notifications = [...languagePeople(org, languageId).keys()].flatMap((profileId) =>
+      updatesFor(state, profileId, idx).map((update) => ({
+        id: JSON.stringify([snapshot.orgId, languageId, profileId, update.id]),
+        profile_id: profileId, kind: update.kind,
+        title: `${UPDATE_TITLES[update.kind]}: ${unitTitle(state, update.unitId)}`,
+        task_id: null, unit_id: update.unitId
       })));
     check(await service.rpc('reconcile_notifications', {
-      p_org: snapshot.orgId, p_project: snapshot.projectId, p_rows: notifications
+      p_org: snapshot.orgId, p_language: languageId, p_rows: notifications
     }));
-    const visibility = await service.from('project_visibility').select('listed')
-      .eq('org_id', snapshot.orgId).eq('project_id', snapshot.projectId).maybeSingle();
-    check(visibility);
-    if (visibility.data?.listed && state.project) {
-      const lanes = Object.keys(state.lanes);
-      const percentages = lanes.map((lane) => deriveProgress(state, lane, idx).translatedPct);
-      check(await service.from('public_projects').upsert({
-        org_id: snapshot.orgId, project_id: snapshot.projectId,
-        name: state.project.value.name,
-        languages: Object.values(state.lanes).map((lane) => lane.languoidId),
-        translated_pct: percentages.length
-          ? percentages.reduce((sum, pct) => sum + pct, 0) / percentages.length : 0,
+    const isListed = listed.has(streamKey(snapshot.orgId, languageId));
+    const info = languageInfo(org, languageId);
+    if (isListed && info) {
+      const progress = languageProgress(state, idx);
+      check(await service.from('public_languages').upsert({
+        org_id: snapshot.orgId, language_id: languageId,
+        name: info.name, code: info.code,
+        translated_pct: progress.total ? (100 * progress.recorded) / progress.total : 0,
         // What someone browsing may do with the work (docs/licensing.md).
         license: orgLicense(org),
         updated_at: new Date().toISOString()
       }));
     }
-  });
-  for (const [orgId, org] of orgs) {
-    const requests = await service.from('join_requests').select('id,profile_id')
-      .eq('org_id', orgId);
-    check(requests);
-    const admins = Object.keys(org.members).filter((id) =>
-      privilegesFor(org, id).has('invite_members'));
-    const rows = admins.flatMap((profileId) => (requests.data ?? []).map((request) => ({
-      id: JSON.stringify([orgId,'join',profileId,request.id]),
-      profile_id: profileId, kind: 'join_request', title: 'A person requested access'
-    })));
-    rows.push(...await reportNotifications(service, orgId, org));
-    check(await service.rpc('reconcile_notifications', {
-      p_org: orgId, p_project: '_org', p_rows: rows
-    }));
-  }
+    await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
+  }, changed);
 }
 
-/**
- * One Inbox row per reported thing for each person who may act on it
- * (decisions.md 48), as `org_content_reports` decides: content for whoever
- * manages its language, a person for whoever admits members organization-
- * wide, never someone about themselves. The title names nothing; the app
- * reads the report itself. A database without the reports table yet
- * (decisions.md 42: the worker may deploy first) has none.
- */
-async function reportNotifications(service: SupabaseClient, orgId: string, org: OrgState) {
-  const open = await service.from('content_reports')
-    .select('partition_id,target_kind,target_id,reported_profile')
-    .eq('org_id', orgId).is('resolved_at', null).limit(500);
-  if (open.error) {
-    if (['42P01', 'PGRST205'].includes(open.error.code)) return [];
-    throw new Error(open.error.message);
-  }
-  const seen = new Set<string>();
-  const out: { id: string; profile_id: string; kind: string; title: string }[] = [];
-  for (const r of open.data ?? []) {
-    const person = r.target_kind === 'person';
-    const target = person ? { projectId: '_org' } : { projectId: r.partition_id as string };
-    for (const profileId of Object.keys(org.members)) {
-      if (profileId === r.reported_profile) continue;
-      if (!privilegesFor(org, profileId, target).has(person ? 'invite_members' : 'manage_structure')) continue;
-      const id = JSON.stringify([orgId, 'report', profileId, r.partition_id, r.target_kind, r.target_id]);
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push({ id, profile_id: profileId, kind: 'content_report', title: 'Something was reported' });
-    }
-  }
-  return out;
-}
-
-/** Push contains no project title or personal content on the lock screen. */
+/** Push contains no language name or personal content on the lock screen. */
 export async function deliverPushes(service: SupabaseClient, fetcher = fetch) {
   const claimed = await service.rpc('claim_notification_pushes');
   check(claimed);

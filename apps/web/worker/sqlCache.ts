@@ -4,7 +4,7 @@ import type { OrgCache } from './orgFolder';
  * Characters per stored part. A Durable Object's SQLite row is capped at
  * 2 MB; at most 3 UTF-8 bytes per UTF-16 unit keeps a part well under it.
  */
-export const PART_CHARS = 400_000;
+const PART_CHARS = 400_000;
 
 /** Split text into parts of at most `size` units, never between the two halves of a surrogate pair. */
 export function splitText(text: string, size = PART_CHARS): string[] {
@@ -20,7 +20,7 @@ export function splitText(text: string, size = PART_CHARS): string[] {
 }
 
 /** The two calls of a Durable Object's storage the cache needs. */
-export interface SqlStore {
+interface SqlStore {
   exec(query: string, ...bindings: unknown[]): { toArray(): Record<string, unknown>[] };
   transactionSync<T>(fn: () => T): T;
 }

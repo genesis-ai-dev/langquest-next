@@ -48,10 +48,10 @@ export interface DraftTerm {
   audio?: MediaRef;
 }
 
-export type TemplatePart = { template: string; node: string };
+type TemplatePart = { template: string; node: string };
 
 /** What the draft was made from, when it was not new. */
-export interface DraftBasis {
+interface DraftBasis {
   docHash: string;
   /** Set when editing this organization's own item: publishing makes its next version. */
   itemId?: string;
@@ -169,7 +169,7 @@ export function nextId(prefix: string, taken: Iterable<string>): string {
 }
 
 /** Every ref a step may link to: pictures, maps and glossary terms. */
-export function draftRefs(d: GuideDraft): string[] {
+function draftRefs(d: GuideDraft): string[] {
   return [...d.resources.map((r) => r.ref), ...d.terms.map((t) => t.id)];
 }
 
@@ -397,7 +397,7 @@ export function draftProblems(d: GuideDraft): DraftProblem[] {
 // ---- the text toolbar ------------------------------------------------------------------------
 
 export interface Selection { start: number; end: number }
-export interface Edited { text: string; selection: Selection }
+interface Edited { text: string; selection: Selection }
 
 const clampSel = (text: string, s: Selection): Selection => {
   const start = Math.max(0, Math.min(s.start, text.length));
@@ -441,7 +441,7 @@ function asBlock(text: string, at: Selection, block: string): Edited {
 }
 
 /** Words a new callout starts with, so the writer sees what kind it is. */
-export const CALLOUT_PROMPT: Record<CalloutKind, string> = {
+const CALLOUT_PROMPT: Record<CalloutKind, string> = {
   action: 'Stop here and discuss as a group.',
   note: 'Something to keep in mind.',
   question: 'A question for the group?',

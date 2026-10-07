@@ -18,7 +18,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `load` | A language (or the org) is opened and its log folded | ms, events folded, whether from a checkpoint |
 | `snapshot` | A cold start looks for a server snapshot | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use |
 | `transfer` | Blob uploads or downloads, tallied per minute or 50 files | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, 4xx, 5xx, hash, disk, other) |
-| `device` | Each delivery | free and total disk, audio cache size, files still wanted |
+| `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted |
 | `error` | A fault reaches `reportError` (`apps/mobile/src/report.ts`) | error class, where, the id shown to the person, fatal or not, stack frames |
 
 Every delivery also sends the phone's context: install id, OS and version,
@@ -96,7 +96,7 @@ it with any change to what is recorded or how long it is kept.
 - `public.diag_ingest(context, records)`: the one way in. Signed-in callers
   only, at most 200 records a call, 8 KB a record, 5000 records per install
   per day;
-- report functions for `diag_reader`: `diag.find`, `diag.partition_health`,
+- report functions for `diag_reader`: `diag.find`, `diag.language_health`,
   `diag.members`, `diag.summary`, `diag.timeline`, `diag.error`,
   `diag.rpc_stats` (server-side timings of the sync RPCs, all orgs, from
   `pg_stat_statements`).
@@ -115,13 +115,13 @@ npm run diag -- timeline <installId> --days 3      # one phone, in order
 ```
 
 Without `DIAG_DATABASE_URL` it reads the local database. For the hosted
-database, someone with access to the linked project runs `npm run
-diag:access` once, after this migration is deployed. It gives the role a
+database, someone with access to the linked project runs
+`scripts/diag-access.sh` once, after this migration is deployed. It gives the role a
 generated password and encrypts the connection string (Supavisor, user
 `diag_reader.<project-ref>`) into the root `.env.production` with dotenvx,
 printing nothing secret. It is a support credential, so never in
-`apps/mobile/.env.*`, which EAS receives. Then `npm run diag:hosted --
-report …` reads the hosted records; running `diag:access` again rotates
+`apps/mobile/.env.*`, which EAS receives. Then `npm run diag -- --hosted
+report …` reads the hosted records; running `diag-access.sh` again rotates
 the password.
 
 `diag_reader` can read the diag tables and run the report functions. It

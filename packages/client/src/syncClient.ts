@@ -1,34 +1,27 @@
 import {
-  applyEvent,
-  emptyState,
-  fold,
+  applyLanguageEvent,
+  emptyLanguageState,
+  foldLanguage,
   REDUCER_VERSION,
   type AnyEvent,
   type EventPayloads,
   type EventType,
-  type ProjectState,
+  type LanguageState,
   type Snapshot,
-  HlcClock,
-  affectedPassages,
-  passageKeys,
-  passageRow,
-  passageRowKey,
-  type PassageKey,
-  type PassageRow
+  HlcClock
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
-import { ProjectIndexes } from './projectIndexes';
 import { WriteQueue } from './writeQueue';
-import { queriesFor, type ProjectQueries } from './queries';
 import { ClientTooOldError, NotAuthorizedError, OfflineError, rejectCodeOf } from './types';
 import { fetchSnapshot } from './snapshotFetch';
 import type { Diagnostics } from './diagnostics';
 
 /**
- * How a partition's events become state. The project materializer is the
- * default; the org partition (core `org.ts`) supplies its own. Everything
- * else in the client (log, outbox, cursor, checkpoints, snapshots) is the
- * same for both, which is the point: one sync path, two folds.
+ * How a stream's events become state. The language materializer is the
+ * default; the organization stream (core `org.ts`) supplies its own.
+ * Everything else in the client (log, outbox, cursor, checkpoints,
+ * snapshots) is the same for both, which is the point: one sync path, two
+ * folds.
  */
 export interface Materializer<S> {
   empty(): S;
@@ -40,10 +33,10 @@ export interface Materializer<S> {
   version: number;
 }
 
-export const PROJECT_MATERIALIZER: Materializer<ProjectState> = {
-  empty: emptyState,
-  apply: applyEvent,
-  fold,
+const LANGUAGE_MATERIALIZER: Materializer<LanguageState> = {
+  empty: emptyLanguageState,
+  apply: applyLanguageEvent,
+  fold: foldLanguage,
   compact: (s) => {
     s.appliedEventIds = {};
   },
@@ -51,14 +44,14 @@ export const PROJECT_MATERIALIZER: Materializer<ProjectState> = {
 };
 
 /** What screens subscribe to: the fold, its revision, and how many local writes are not yet on disk. */
-export interface PublishedState<S = ProjectState> {
+interface PublishedState<S = LanguageState> {
   state: S;
   revision: number;
   saving: number;
 }
 
 /** What one `sync()` attempt did, and why it did nothing when it did nothing. */
-export interface SyncResult {
+interface SyncResult {
   pushed: number;
   rejected: number;
   pulled: number;
@@ -72,11 +65,12 @@ export interface SyncResult {
   more: boolean;
 }
 
-export interface SyncClientOptions<S = ProjectState> {
-  /** Defaults to the project reducer. */
+interface SyncClientOptions<S = LanguageState> {
+  /** Defaults to the language reducer. */
   materializer?: Materializer<S>;
   orgId: string;
-  projectId: string;
+  /** The stream: `ORG_STREAM`, a language id, or a profile id under `PERSON_ORG`. */
+  streamId: string;
   actorId: string;
   deviceId: string;
   store: EventStore;
@@ -116,6 +110,12 @@ export interface SyncClientOptions<S = ProjectState> {
    * refused for its clock stays queued for the person's own next session.
    */
   deliverOnly?: boolean;
+  /**
+   * This actor's membership changed in what was just pulled (only the
+   * organization stream holds memberships). The app re-queues work its
+   * language clients had refused for membership, which may pass now.
+   */
+  onMembershipChanged?: () => void;
 }
 
 /** A sync that moved nothing is recorded only when it took at least this long. */
@@ -124,19 +124,19 @@ const SLOW_SYNC_MS = 2_000;
 const REPEAT_OUTCOME_MS = 60 * 60 * 1000;
 
 /**
- * One partition (project) on one device.
+ * One stream on one device.
  *
  * - `append` writes to the local log and folds immediately (PLAN.md section 3:
  *   clients materialize alone; no waiting for a projection).
  * - `push` sends pending events; rejected ones stay in the log marked
  *   rejected (invariant 1) and are removed from the fold.
- * - `pull` pages the partition tail and folds it. Because events commute,
+ * - `pull` pages the stream's tail and folds it. Because events commute,
  *   applying remote events after local pending ones needs no rebase.
  * - `sync` is one bounded slice: a few push batches, then pulling for a
  *   time budget. It reports `more` when it stopped short, and the scheduler
  *   runs it again. A month offline drains in slices, never one long pass.
  */
-export class SyncClient<S = ProjectState> {
+export class SyncClient<S = LanguageState> {
   private readonly m: Materializer<S>;
   private state: S;
   private loaded = false;
@@ -153,10 +153,6 @@ export class SyncClient<S = ProjectState> {
   private readonly wall: () => number;
   /** Per-client save tracking; the shared store owns database serialization. */
   private readonly writer = new WriteQueue();
-  /** Rows are maintained only for the project materializer. */
-  private readonly projectRows: boolean;
-  /** A catch-up deferred a full row rebuild; until one lands, no rows batch may mark rows current. */
-  private rowsOwed = false;
   private revision = 0;
   /** Elapsed-time clock for diagnostics; unlike `wall`, never shifted by a clock-ahead offset. */
   private readonly elapsed: () => number;
@@ -164,15 +160,10 @@ export class SyncClient<S = ProjectState> {
   private net = { push: 0, pull: 0, pages: 0 };
   private lastOutcome: { outcome: string; at: number } | null = null;
   private offlineSince: number | null = null;
-  private indexes: ProjectIndexes | undefined;
-  /** Bump when persisted passage/task/count semantics change. */
-  private projectionVersion(): string { return `3:${this.m.version}`; }
-  private projectionKey(): string { return `projection:${this.opts.orgId}/${this.opts.projectId}`; }
   private readonly listeners = new Set<(s: PublishedState<S>) => void>();
 
   constructor(private readonly opts: SyncClientOptions<S>) {
-    this.m = opts.materializer ?? (PROJECT_MATERIALIZER as unknown as Materializer<S>);
-    this.projectRows = !opts.materializer && !opts.deliverOnly;
+    this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
     this.state = this.m.empty();
     this.writer.onChange(() => this.publish());
     const base = opts.now ?? (() => Date.now());
@@ -190,30 +181,21 @@ export class SyncClient<S = ProjectState> {
   /** Rebuild the fold from the local log. Called once, and after a rejection. */
   async load(): Promise<S> {
     const started = this.elapsed();
-    const refold = this.loaded;
     if (!this.opts.clock && !this.loaded) {
       const seed = await this.opts.store.meta(this.clockKey());
       this.clockOffsetMs = Number((await this.opts.store.meta(this.offsetKey())) ?? 0);
       this.clock = new HlcClock(this.opts.deviceId, this.wall, seed ?? null);
     }
-    // fold() applies redactions first, so the store's order does not matter.
-    const locals = await this.opts.store.all(this.opts.orgId, this.opts.projectId);
+    // A fold applies redactions first, so the store's order does not matter.
+    const locals = await this.opts.store.all(this.opts.orgId, this.opts.streamId);
     const events = locals.map((l) => l.event);
     const snapshot = await this.localSnapshot();
     this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
     this.loaded = true;
     this.opts.diag?.record('load', {
-      ...this.partition(),
+      ...this.stream(),
       n: { ms: this.elapsed() - started, events: events.length, fromSnapshot: snapshot ? 1 : 0 }
     });
-    if (this.projectRows) {
-      this.indexes = new ProjectIndexes(this.state as unknown as ProjectState);
-      const marker = await this.opts.store.meta(this.projectionKey());
-      const cursor = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
-      if (refold || marker !== `${this.projectionVersion()}:${cursor}`) {
-        await this.commit({ rows: this.allRows() });
-      }
-    }
     this.publish();
     return this.state;
   }
@@ -222,14 +204,6 @@ export class SyncClient<S = ProjectState> {
 
   /** Every store mutation goes through here, one transaction at a time. */
   private commit(batch: WriteBatch): Promise<void> {
-    // Redactions require a refold. A restart between this commit and load()
-    // must not trust rows calculated from the pre-refold state.
-    if (batch.rows && batch.events?.some((l) => l.event.type === 'v1.Redacted')) {
-      delete batch.rows.version;
-    }
-    if (batch.rows?.clear) this.rowsOwed = false;
-    else if (this.rowsOwed && batch.rows) delete batch.rows.version;
-    if (!batch.rows?.version && !batch.rows?.clear && !batch.rows?.put?.length && !batch.rows?.delete?.length) delete batch.rows;
     if (batch.meta && Object.keys(batch.meta).length === 0) delete batch.meta;
     if (batch.events?.length === 0) delete batch.events;
     if (Object.keys(batch).length === 0) return Promise.resolve();
@@ -256,73 +230,6 @@ export class SyncClient<S = ProjectState> {
     for (const l of this.listeners) l(snap);
   }
 
-  /**
-   * Compare the persisted rows with a rebuild from the fold. The check the
-   * dev menu runs on a real device before trusting rows; empty means equal.
-   */
-  async verifyRows(): Promise<{ rows: number; mismatches: string[] }> {
-    const expected = this.allRows();
-    if (!expected) return { rows: 0, mismatches: [] };
-    const want = new Map((expected.put ?? []).map((r) => [passageRowKey(r), JSON.stringify(r)]));
-    const have = new Map<string, string>();
-    let after: { order: string; unitId: string; laneId: string } | null = null;
-    for (;;) {
-      const page = await this.opts.store.passages(this.opts.orgId, this.opts.projectId, { after, limit: 500 });
-      for (const r of page) have.set(passageRowKey(r), JSON.stringify(r));
-      if (page.length < 500) break;
-      const last = page[page.length - 1]!;
-      after = { order: last.order, unitId: last.unitId, laneId: last.laneId };
-    }
-    const mismatches: string[] = [];
-    for (const [k, v] of want) if (have.get(k) !== v) mismatches.push(have.has(k) ? `differs: ${k}` : `missing: ${k}`);
-    for (const k of have.keys()) if (!want.has(k)) mismatches.push(`extra: ${k}`);
-    return { rows: want.size, mismatches };
-  }
-
-  /** Queries over the persisted rows (queries.ts). */
-  queries(): ProjectQueries {
-    return queriesFor(this.opts.store, this.opts.orgId, this.opts.projectId, () => this.state as unknown as ProjectState,
-      (unitId, laneId, actorId) => this.indexes!.pendingRecordings(unitId, laneId, actorId));
-  }
-
-  private rowsBatch(put: PassageRow[], clear = false): NonNullable<WriteBatch['rows']> {
-    return { orgId: this.opts.orgId, projectId: this.opts.projectId, put, clear, version: this.projectionVersion() };
-  }
-
-  /** Every row of the project, from the current fold. */
-  private allRows(): NonNullable<WriteBatch['rows']> | undefined {
-    if (!this.projectRows) return undefined;
-    const state = this.state as unknown as ProjectState;
-    const idx = this.indexes!.get();
-    return this.rowsBatch(passageKeys(state, idx).map((k) => passageRow(state, k.unitId, k.laneId, idx)), true);
-  }
-
-  /**
-   * The rows these just-applied events changed. One passage's events cost
-   * one row; a project-wide input (membership, workflow, units) costs a
-   * rebuild, which is still one pass over the passages, not one per event.
-   * `deferAll` (a catch-up page with more to come) owes that rebuild to the
-   * tail instead: a project that adds a unit on most pages would otherwise
-   * rebuild a growing row set on every page.
-   */
-  private rowsFor(events: AnyEvent[], deferAll = false): NonNullable<WriteBatch['rows']> | undefined {
-    if (!this.projectRows || events.length === 0) return undefined;
-    const state = this.state as unknown as ProjectState;
-    const keys = new Map<string, PassageKey>();
-    for (const e of events) {
-      const hit = affectedPassages(e, state);
-      if (hit === 'all' && deferAll) {
-        this.rowsOwed = true;
-        return undefined;
-      }
-      if (hit === 'all') return this.allRows();
-      for (const k of hit) keys.set(passageRowKey(k), k);
-    }
-    if (keys.size === 0) return this.rowsBatch([]);
-    const idx = this.indexes!.get();
-    return this.rowsBatch([...keys.values()].map((k) => passageRow(state, k.unitId, k.laneId, idx)));
-  }
-
   /** core `resume` for any materializer: snapshot state plus events after its seq. */
   private resume(snapshot: Snapshot, tail: Iterable<AnyEvent>): S {
     const state = structuredClone(snapshot.state as unknown as S);
@@ -334,14 +241,14 @@ export class SyncClient<S = ProjectState> {
   // A checkpoint is a snapshot held locally (PLAN.md invariant 10). Cold start
   // takes the server's; afterwards the device rolls its own every
   // `checkpointEvery` confirmed events and prunes what the checkpoint covers,
-  // so replay on launch is bounded by recent history, not project age.
+  // so replay on launch is bounded by recent history, not stream age.
 
   private snapshotKey(): string {
-    return `snapshot:${this.opts.orgId}/${this.opts.projectId}`;
+    return `snapshot:${this.opts.orgId}/${this.opts.streamId}`;
   }
 
   private minSnapshotKey(): string {
-    return `snapshotMinSeq:${this.opts.orgId}/${this.opts.projectId}`;
+    return `snapshotMinSeq:${this.opts.orgId}/${this.opts.streamId}`;
   }
 
   private async localSnapshot(): Promise<Snapshot | null> {
@@ -351,19 +258,19 @@ export class SyncClient<S = ProjectState> {
     return snap.reducerVersion === this.m.version ? snap : null;
   }
 
-  private async saveSnapshot(snap: Snapshot, invalidateRows = true): Promise<void> {
-    const { orgId, projectId } = this.opts;
-    const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, projectId));
+  private async saveSnapshot(snap: Snapshot): Promise<void> {
+    const { orgId, streamId } = this.opts;
+    const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, streamId));
     await this.commit({
-      meta: { ...(invalidateRows ? { [this.projectionKey()]: '' } : {}), [this.snapshotKey()]: JSON.stringify(snap) },
-      cursor: { orgId, projectId, seq },
-      prune: { orgId, projectId, uptoSeq: snap.serverSeq }
+      meta: { [this.snapshotKey()]: JSON.stringify(snap) },
+      cursor: { orgId, streamId, seq },
+      prune: { orgId, streamId, uptoSeq: snap.serverSeq }
     });
   }
 
   /** Index of saved pieces: which snapshot seq they belong to and how many there are. */
   private chunkKey(): string {
-    return `snapchunks:${this.opts.orgId}/${this.opts.projectId}`;
+    return `snapchunks:${this.opts.orgId}/${this.opts.streamId}`;
   }
 
   /** One piece, stored on its own so saving piece N never rewrites pieces 0..N-1. */
@@ -381,10 +288,10 @@ export class SyncClient<S = ProjectState> {
   private async adoptServerSnapshot(): Promise<number> {
     const started = this.elapsed();
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
-    const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.projectId, this.m.version);
+    const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.streamId, this.m.version);
     if (!meta) {
       // A cold device with no snapshot for its reducer folds the whole log: the first thing to check when a first download is slow.
-      this.opts.diag?.record('snapshot', { ...this.partition(), n: { ms: this.elapsed() - started }, t: { outcome: 'none' } });
+      this.opts.diag?.record('snapshot', { ...this.stream(), n: { ms: this.elapsed() - started }, t: { outcome: 'none' } });
       return 0;
     }
     const savedMap = new Map<number, string>();
@@ -400,7 +307,7 @@ export class SyncClient<S = ProjectState> {
         if (text) savedMap.set(i, text);
       }
     }
-    const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.projectId, this.m.version, {
+    const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.streamId, this.m.version, {
       saved: savedMap,
       onChunk: async (serverSeq, i, text) => {
         if (index.seq !== serverSeq) {
@@ -413,7 +320,7 @@ export class SyncClient<S = ProjectState> {
     });
     // Fetching pieces is waiting on the network; saving and folding them after this is the phone's work (a `load` record).
     this.net.pull += this.elapsed() - started;
-    const fetched = { ...this.partition(), n: { ms: this.elapsed() - started, chunks: meta.chunks, resumedChunks: savedMap.size, bytes: meta.bytes, seq: meta.serverSeq } };
+    const fetched = { ...this.stream(), n: { ms: this.elapsed() - started, chunks: meta.chunks, resumedChunks: savedMap.size, bytes: meta.bytes, seq: meta.serverSeq } };
     if (!snap || snap.serverSeq < minSeq) {
       this.opts.diag?.record('snapshot', { ...fetched, t: { outcome: 'stale' } });
       return 0;
@@ -440,34 +347,34 @@ export class SyncClient<S = ProjectState> {
     // the state four times over. A local append during the await, or one not
     // yet on disk, would put a pending event in it; then take the slow path.
     const revision = this.revision;
-    const pending = await this.opts.store.pendingCount(this.opts.orgId, this.opts.projectId);
+    const pending = await this.opts.store.pendingCount(this.opts.orgId, this.opts.streamId);
     if (pending === 0 && this.writer.size === 0 && revision === this.revision) {
       const state = { ...this.state };
       this.m.compact(state);
       const snap: Snapshot = {
-        orgId: this.opts.orgId, projectId: this.opts.projectId, reducerVersion: this.m.version,
-        serverSeq: cursor, state: state as unknown as ProjectState
+        orgId: this.opts.orgId, streamId: this.opts.streamId, reducerVersion: this.m.version,
+        serverSeq: cursor, state: state as unknown as LanguageState
       };
-      const { orgId, projectId } = this.opts;
+      const { orgId, streamId } = this.opts;
       await this.commit({
         meta: { [this.snapshotKey()]: JSON.stringify(snap) },
-        prune: { orgId, projectId, uptoSeq: cursor }
+        prune: { orgId, streamId, uptoSeq: cursor }
       });
       return;
     }
     const base = (await this.localSnapshot()) ?? {
       orgId: this.opts.orgId,
-      projectId: this.opts.projectId,
+      streamId: this.opts.streamId,
       reducerVersion: this.m.version,
       serverSeq: 0,
-      state: this.m.empty() as unknown as ProjectState
+      state: this.m.empty() as unknown as LanguageState
     };
-    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.projectId))
+    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.streamId))
       .filter((l) => l.status === 'confirmed')
       .map((l) => l.event);
     const state = this.resume(base, confirmed);
     this.m.compact(state);
-    await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as ProjectState }, false);
+    await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as LanguageState });
   }
 
   getState(): S {
@@ -486,7 +393,7 @@ export class SyncClient<S = ProjectState> {
       id: this.newId(),
       type,
       orgId: this.opts.orgId,
-      projectId: this.opts.projectId,
+      streamId: this.opts.streamId,
       actorId: this.opts.actorId,
       deviceId: this.opts.deviceId,
       hlc: this.clock.next(),
@@ -499,21 +406,12 @@ export class SyncClient<S = ProjectState> {
 
   /**
    * Fold local events into memory now, so the screen shows the result
-   * before the disk is touched, then commit the events, the clock and the
-   * rows they changed as one write. The promise resolves when that commit
-   * is durable ("saved locally"); until then `saving` is above zero.
+   * before the disk is touched, then commit the events and the clock as one
+   * write. The promise resolves when that commit is durable ("saved
+   * locally"); until then `saving` is above zero.
    */
-  private applyIndexed(event: AnyEvent): void {
-    const state = this.state as unknown as ProjectState;
-    const duplicate = this.projectRows && !!state.appliedEventIds[event.id];
-    this.state = this.m.apply(this.state, event);
-    if (!duplicate && this.projectRows && !state.invalidEvents[event.id] && !state.redactions[event.id]) {
-      this.indexes?.applied(event);
-    }
-  }
-
   private async applyLocal(events: AnyEvent[]): Promise<void> {
-    for (const event of events) this.applyIndexed(event);
+    for (const event of events) this.state = this.m.apply(this.state, event);
     // The writer publishes as soon as the commit is queued, carrying this
     // revision and saving > 0: the screen moves now, and can say "saved"
     // only once the queue drains.
@@ -521,8 +419,7 @@ export class SyncClient<S = ProjectState> {
     try {
       await this.commit({
         events: events.map((event) => ({ event, status: 'pending' as const })),
-        meta: this.clockMeta(),
-        rows: this.rowsFor(events)
+        meta: this.clockMeta()
       });
     } catch (err) {
       await this.load();
@@ -546,7 +443,7 @@ export class SyncClient<S = ProjectState> {
           id: id ?? this.newId(),
           type,
           orgId: this.opts.orgId,
-          projectId: this.opts.projectId,
+          streamId: this.opts.streamId,
           actorId: this.opts.actorId,
           deviceId: this.opts.deviceId,
           hlc: this.clock.next(),
@@ -566,7 +463,7 @@ export class SyncClient<S = ProjectState> {
   }
 
   private redactionKey(): string {
-    return `redactionPending:${this.opts.orgId}/${this.opts.projectId}`;
+    return `redactionPending:${this.opts.orgId}/${this.opts.streamId}`;
   }
 
   /** The clock's last stamp, for the commit that carries the events it stamped. */
@@ -589,13 +486,16 @@ export class SyncClient<S = ProjectState> {
     let rejected = 0;
     let more = false;
     const clockAhead: { local: LocalEvent; reason: string }[] = [];
+    // A new language's events refused because its organization stream had
+    // not arrived yet: send them again now; the server decides.
+    const requeued = this.opts.deliverOnly ? 0 : await this.requeue(['NOT_LISTED']);
     try {
       let afterHlc: string | null = null;
       for (let batches = 0; ; ) {
         // Only this actor's events. A shared device may hold another user's
         // queued events; pushing them under this session would be rejected
         // (actorId must match the caller) and wrongly marked as refused.
-        const page = await this.opts.store.pendingPage(this.opts.orgId, this.opts.projectId, afterHlc, this.pushBatchSize);
+        const page = await this.opts.store.pendingPage(this.opts.orgId, this.opts.streamId, afterHlc, this.pushBatchSize);
         if (page.length === 0) break;
         afterHlc = page[page.length - 1]!.event.hlc;
         const batch = page.filter((p) => p.event.actorId === this.opts.actorId);
@@ -628,13 +528,14 @@ export class SyncClient<S = ProjectState> {
             writes.push({ event: local.event, status: 'rejected', rejectReason: r.reason ?? 'rejected' });
           }
         }
-        await this.commit({ events: writes, rows: this.projectRows && writes.every((l) => l.status === 'confirmed') ? this.rowsBatch([]) : undefined });
+        await this.commit({ events: writes });
       }
       if (clockAhead.length > 0 && !this.opts.deliverOnly) await this.restamp(clockAhead);
     } finally {
       // A rejection means the fold contains something the server refused.
       // Refold from the log; the rejected event is excluded by `all()`.
-      if (!this.opts.deliverOnly && (rejected > 0 || clockAhead.length > 0)) await this.load();
+      // Re-queued events left the fold when they were refused: refold to bring them back.
+      if (!this.opts.deliverOnly && (rejected > 0 || clockAhead.length > 0 || requeued > 0)) await this.load();
     }
     return { accepted, rejected, more };
   }
@@ -669,17 +570,23 @@ export class SyncClient<S = ProjectState> {
    * a pull shows this actor's membership changed (audit L1), or by the UI
    * for a manual retry. Invalid payloads are never retried.
    */
-  async retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'UNKNOWN']): Promise<number> {
-    const mine = (await this.opts.store.rejected(this.opts.orgId, this.opts.projectId)).filter(
+  async retryRejected(codes: readonly ReturnType<typeof rejectCodeOf>[] = ['NOT_MEMBER', 'NOT_ALLOWED', 'NOT_LISTED', 'UNKNOWN']): Promise<number> {
+    const n = await this.requeue(codes);
+    if (n > 0) await this.load();
+    return n;
+  }
+
+  /** Mark this actor's refusals with these codes pending again; the caller refolds. */
+  private async requeue(codes: readonly ReturnType<typeof rejectCodeOf>[]): Promise<number> {
+    const mine = (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).filter(
       (l) => l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
     );
     if (mine.length === 0) return 0;
     await this.commit({ events: mine.map((l) => ({ event: l.event, status: 'pending' as const })) });
-    await this.load();
     return mine.length;
   }
 
-  /** Pull the whole partition tail and fold it. Returns number of new events. */
+  /** Pull the whole stream's tail and fold it. Returns number of new events. */
   async pull(): Promise<number> {
     let total = 0;
     for (;;) {
@@ -697,7 +604,7 @@ export class SyncClient<S = ProjectState> {
   async pullSlice(budgetMs: number = this.pullBudgetMs): Promise<{ pulled: number; more: boolean }> {
     if (await this.resolvePendingRedaction()) return await this.pullSlice(budgetMs);
     const started = this.wall();
-    let after = await this.opts.store.cursor(this.opts.orgId, this.opts.projectId);
+    let after = await this.opts.store.cursor(this.opts.orgId, this.opts.streamId);
     if (after === 0 && !(await this.localSnapshot())) after = await this.adoptServerSnapshot();
     let total = 0;
     let more = false;
@@ -708,48 +615,43 @@ export class SyncClient<S = ProjectState> {
       const asked = this.elapsed();
       const page = await this.opts.transport.pull(
         this.opts.orgId,
-        this.opts.projectId,
+        this.opts.streamId,
         after,
         this.pullPageSize
       );
       this.net.pull += this.elapsed() - asked;
       this.net.pages += 1;
       const writes: LocalEvent[] = [];
-      const folded: AnyEvent[] = [];
+      let folded = 0;
       for (const event of page) {
         const seq = event.serverSeq;
         if (seq === undefined) continue;
         // Upsert: a pending event of ours whose ack was lost becomes confirmed.
         writes.push({ event, status: 'confirmed' });
         this.clock.receive(event.hlc);
-        this.applyIndexed(event);
-        folded.push(event);
+        this.state = this.m.apply(this.state, event);
+        folded += 1;
         if (event.type === 'v1.Redacted') {
           redacted = true;
           // The target is not in the local log: it lives inside the checkpoint,
           // which cannot be edited. Only a fresh snapshot removes it.
           if (!(await this.opts.store.get(event.payload.eventId))) redactedInsideCheckpoint = true;
         }
-        if (
-          (event.type === 'v1.MemberAdded' || event.type === 'v1.MemberRoleChanged') &&
-          event.payload.profileId === this.opts.actorId
-        ) {
+        // What this actor may do changed: their membership, or a role's privileges.
+        if (((event.type === 'v1.MemberAdded' || event.type === 'v1.MemberRemoved') && event.payload.profileId === this.opts.actorId)
+          || event.type === 'v1.RoleDefined' || event.type === 'v1.RoleRetired') {
           membershipChanged = true;
         }
         after = Math.max(after, seq);
         total += 1;
       }
-      // One page, one transaction: events, cursor, clock, and the rows the
-      // page changed. A crash between them cannot leave the cursor ahead of
-      // the log or the rows behind it.
-      if (folded.length > 0) this.revision += 1;
-      const rows = this.rowsFor(folded, page.length >= this.pullPageSize);
+      // One page, one transaction: events, cursor and clock. A crash between
+      // them cannot leave the cursor ahead of the log.
+      if (folded > 0) this.revision += 1;
       await this.commit({
         events: writes,
-        cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: after },
-        // Owed rows are not current: a restart before the tail must rebuild them.
-        meta: { ...this.clockMeta(), ...(this.rowsOwed ? { [this.projectionKey()]: '' } : {}) },
-        rows
+        cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: after },
+        meta: this.clockMeta()
       });
       this.opts.onPullProgress?.(total);
       if (page.length < this.pullPageSize) break;
@@ -773,15 +675,18 @@ export class SyncClient<S = ProjectState> {
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.load();
-    if (this.rowsOwed && !more) await this.commit({ rows: this.allRows() });
     // Still catching up: skip the checkpoint (it serializes the whole state)
     // and take one when the tail is reached. Nothing is pruned before the
     // checkpoint, so a crash mid-catch-up only costs a longer fold on launch.
     const base = (await this.localSnapshot())?.serverSeq ?? 0;
     if (!more && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
     // Our membership changed on the server: work refused for membership
-    // reasons may be acceptable now. Queue it; the next push decides.
-    if (membershipChanged) await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
+    // reasons may be acceptable now. Queue it; the next push decides. The
+    // app passes the news on to its language clients.
+    if (membershipChanged) {
+      await this.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
+      this.opts.onMembershipChanged?.();
+    }
     return { pulled: total, more };
   }
 
@@ -814,7 +719,7 @@ export class SyncClient<S = ProjectState> {
     if (this.wall() - since < SyncClient.REDACTION_SNAPSHOT_WAIT_MS) return false;
     await this.commit({
       meta: { [this.redactionKey()]: '', [this.snapshotKey()]: '' },
-      cursor: { orgId: this.opts.orgId, projectId: this.opts.projectId, seq: 0 }
+      cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 }
     });
     await this.load();
     return true;
@@ -826,8 +731,8 @@ export class SyncClient<S = ProjectState> {
    *
    * - `offline`: the request never reached the server. Only this means the
    *   device is offline.
-   * - `refused`: the server answered and refused this actor (not a member of
-   *   the partition). The device is online; more syncing will not help until
+   * - `refused`: the server answered and refused this actor (not a member
+   *   who may read the stream). The device is online; more syncing will not help until
    *   membership or the session changes.
    * - `tooOld`: the server no longer accepts this client's protocol version.
    */
@@ -876,7 +781,7 @@ export class SyncClient<S = ProjectState> {
       this.lastOutcome = { outcome, at: now };
       const netMs = this.net.push + this.net.pull;
       diag.record('sync', {
-        ...this.partition(),
+        ...this.stream(),
         n: {
           ms,
           pushNetMs: this.net.push,
@@ -894,18 +799,18 @@ export class SyncClient<S = ProjectState> {
     } catch { /* diagnostics never fail a sync */ }
   }
 
-  private partition(): { orgId: string; projectId: string } {
-    return { orgId: this.opts.orgId, projectId: this.opts.projectId };
+  private stream(): { orgId: string; streamId: string } {
+    return { orgId: this.opts.orgId, streamId: this.opts.streamId };
   }
 
   /** The local log as the sync status screen shows it. */
   async inspect(): Promise<SyncInspection> {
-    const { orgId, projectId } = this.opts;
+    const { orgId, streamId } = this.opts;
     const [pending, rejected, total, cursor, snap] = await Promise.all([
-      this.opts.store.pending(orgId, projectId),
-      this.opts.store.rejected(orgId, projectId),
-      this.opts.store.count(orgId, projectId),
-      this.opts.store.cursor(orgId, projectId),
+      this.opts.store.pending(orgId, streamId),
+      this.opts.store.rejected(orgId, streamId),
+      this.opts.store.count(orgId, streamId),
+      this.opts.store.cursor(orgId, streamId),
       this.localSnapshot()
     ]);
     return { pending, rejected, total, cursor, checkpointSeq: snap?.serverSeq ?? null };
@@ -918,6 +823,6 @@ export class SyncClient<S = ProjectState> {
    * person's sign-out (decisions.md 11, 12).
    */
   async pendingCount(): Promise<number> {
-    return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.projectId, this.opts.actorId);
+    return this.opts.store.pendingCountBy(this.opts.orgId, this.opts.streamId, this.opts.actorId);
   }
 }

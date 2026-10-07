@@ -16,7 +16,7 @@
 // versification follow it first ('v1.LibrarySubscribed', 'v1.LibraryPinned').
 // Drafts stay on the device (draftStore.ts) until published.
 import {
-  CALLOUT_KINDS, LICENSE_INFO, LICENSES, isLicense, orgLicense, subscriptionItemId, templateOfUnit, unitTitle,
+  CALLOUT_KINDS, LICENSE_INFO, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
 import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
@@ -177,7 +177,7 @@ function Editor(props: {
         description: `Study guide${doc.pattern ? ` · ${doc.pattern}` : ''}`, doc
       });
       await dropDraft(props.draftKey);
-      ctx.toast(`${doc.title} is published. Phones get it when they next sync.`);
+      ctx.toast(`${doc.title} is published. Devices get it when they next sync.`);
       ctx.back();
     } catch (e) {
       // The draft stays on the device; publishing again picks up where this stopped.
@@ -308,7 +308,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
 function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
   const { ctx, draft, dispatch } = props;
   const lib = useLibrary(ctx);
-  const state = ctx.project.state;
+  const state = ctx.language.state;
   const [picking, setPicking] = useState(false);
   const [q, setQ] = useState('');
   const sharedV = useSharedItems('versification', lib.orgId);
@@ -325,7 +325,7 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
     if (!state || !picking) return [];
     const needle = q.trim().toLowerCase();
     return Object.keys(state.units)
-      .filter((u) => templateOfUnit(u)?.catalogVersion === 0)
+      .filter((u) => unitPrefixOf(u) !== null)
       .map((u) => ({ unitId: u, label: unitTitle(state, u) }))
       .filter((u) => !needle || u.label.toLowerCase().includes(needle))
       .sort((x, y) => x.label.localeCompare(y.label))
@@ -497,9 +497,9 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
           {view === 'write' ? editor : preview}
         </>
       )}
-      {opened && opened.kind !== 'term' ? <MediaSheet resource={opened} source={`${props.preview.pattern || 'Guide'} media`} orgId={ctx.project.orgId} onClose={() => setOpened(null)} /> : null}
+      {opened && opened.kind !== 'term' ? <MediaSheet resource={opened} source={`${props.preview.pattern || 'Guide'} media`} orgId={ctx.language.orgId} onClose={() => setOpened(null)} /> : null}
       {opened && entry ? (
-        <GlossarySheet entry={entry} source={props.preview.source} orgId={ctx.project.orgId} hasKeyTerm={false} onOpenTerm={() => undefined} onClose={() => setOpened(null)} />
+        <GlossarySheet entry={entry} source={props.preview.source} orgId={ctx.language.orgId} hasKeyTerm={false} onOpenTerm={() => undefined} onClose={() => setOpened(null)} />
       ) : null}
     </View>
   );
@@ -602,12 +602,12 @@ function AudioSlot(props: { ctx: Ctx; label: string; recordLabel: string; audio:
       <Text style={txt.label}>{props.label}</Text>
       {has ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <View style={{ flex: 1, minWidth: 0 }}><MediaPlayer orgId={ctx.project.orgId} audio={props.audio!} label={props.label} /></View>
+          <View style={{ flex: 1, minWidth: 0 }}><MediaPlayer orgId={ctx.language.orgId} audio={props.audio!} label={props.label} /></View>
           <IconBtn name="trash" label={`Remove ${props.label.toLowerCase()}`} onPress={() => props.onChange(null)} bg="transparent" color={TINT.redText} />
         </View>
       ) : (
         <>
-          <VoiceNote ctx={ctx} unitId="" laneId="" label={props.recordLabel} hash={null}
+          <VoiceNote ctx={ctx} label={props.recordLabel} hash={null}
             onChange={(hash, card) => { if (hash) props.onChange({ hash, format: card?.format ?? 'm4a', ...(card ? { seconds: Math.round(card.durationMs / 1000) } : {}) }); }} />
           {canPickFiles ? <SmallBtn label="Or upload an audio file" icon="download" onPress={() => void upload()} /> : null}
         </>
@@ -670,7 +670,7 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; se
       {section('map').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />)}
       {canPickFiles ? <SmallBtn label="Add a map" icon="map" onPress={() => void add('map', 'image')} disabled={busy} /> : null}
       <Text style={txt.xs}>
-        {busy ? 'Keeping the file and making a phone copy…' : 'Pictures get a small copy for phones (500 pixels, JPEG). Films are kept as they are: no small phone copy is made yet, so phones get the full film.'}
+        {busy ? 'Keeping the file and making a small copy…' : 'Pictures get a small copy for phones and tablets (500 pixels, JPEG). Films are kept as they are: no small copy is made yet, so phones and tablets get the full film.'}
       </Text>
       <Text style={txt.xs}>Link one from a step with Link, or by writing its ref: [the well](#m1).</Text>
     </View>
@@ -697,10 +697,10 @@ function ResourceCard(props: { ctx: Ctx; r: DraftResource; dispatch: Dispatch; o
 function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch: Dispatch }) {
   const { r, m, dispatch } = props;
   const file = m.file.lowHash ? { hash: m.file.lowHash, format: m.kind === 'video' ? 'mp4' : 'jpg' } : m.file.hash ? { hash: m.file.hash, format: m.file.format ?? 'jpg' } : undefined;
-  const { uri } = useStudyFileUri(props.ctx.project.orgId, m.kind === 'video' ? undefined : file, m.file.url);
+  const { uri } = useStudyFileUri(props.ctx.language.orgId, m.kind === 'video' ? undefined : file, m.file.url);
   const patch = (p: Partial<Omit<DraftMedia, 'id'>>) => dispatch({ type: 'updateMedia', ref: r.ref, id: m.id, patch: p });
-  const status = m.kind === 'video' ? (m.file.lowHash ? 'Film · phone copy ready' : 'Film · phone copy not made yet')
-    : m.file.lowHash ? 'Picture · phone copy ready' : m.file.url ? 'Picture from a link' : 'Picture';
+  const status = m.kind === 'video' ? (m.file.lowHash ? 'Film · small copy ready' : 'Film · small copy not made yet')
+    : m.file.lowHash ? 'Picture · small copy ready' : m.file.url ? 'Picture from a link' : 'Picture';
   return (
     <View style={s.mediaItem}>
       <View style={s.thumb}>

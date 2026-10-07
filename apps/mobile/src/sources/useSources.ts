@@ -8,7 +8,7 @@
 // study guides do), and when nothing at all has this passage's text, the
 // text the app carries is the last resort, labelled as built in.
 import {
-  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
+  bookIdOf, languageInfo, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
@@ -61,26 +61,26 @@ function useBibleDetails(ids: string[]): Record<string, BibleDetail> {
 }
 
 /** The sources for one passage of one language, recommended first. */
-export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: string | null | undefined): PassageSources {
-  const state = ctx.project.state;
-  const orgId = ctx.project.orgId;
+export function useSources(ctx: Ctx, unitId: string | null | undefined, languageId: string | null | undefined): PassageSources {
+  const state = ctx.language.state;
+  const orgId = ctx.language.orgId;
   const library = ctx.org.state?.library;
-  const mine = useMyBibles(ctx.session.actorId, orgId, laneId);
+  const mine = useMyBibles(ctx.session.actorId, orgId, languageId);
 
   const recs = useMemo(() => {
     const out = new Map<string, SourceFrom>();
-    if (!state || !laneId) return out;
-    for (const [id, from] of recommendedFor(ctx.org.state?.recommendations, state, laneId)) out.set(id, from);
+    if (!state || !languageId) return out;
+    for (const [id, from] of recommendedFor(ctx.org.state?.recommendations, state)) out.set(id, from);
     if (unitId) {
-      for (const id of linkedTo(state, laneId, unitId)) if (!out.has(id)) out.set(id, 'passage');
-      for (const id of [...out.keys()]) if (passageLink(state, laneId, unitId, id) === false) out.delete(id);
+      for (const id of linkedTo(state, unitId)) if (!out.has(id)) out.set(id, 'passage');
+      for (const id of [...out.keys()]) if (passageLink(state, unitId, id) === false) out.delete(id);
     }
     return out;
-  }, [state, laneId, unitId, ctx.org.state?.recommendations]);
+  }, [state, languageId, unitId, ctx.org.state]);
 
   // Nothing recommended: other organizations' shared sources stand in (LangQuest's, once seeded).
   const shared = useSharedItems('material', orgId, !!unitId && recs.size === 0);
-  const template = laneId && state ? state.laneTemplates[laneId]?.value?.docHash : undefined;
+  const template = state?.template?.value.docHash;
   const itemHashes = useMemo(() => {
     const ids = [...recs.keys(), ...mine.list.filter((m) => m.kind === 'library').map((m) => m.itemId)];
     return ids.map((id) => libraryItemView(library ?? {}, id)?.current);
@@ -101,7 +101,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: 
 
   const options = useMemo(() => {
     const out: SourceOption[] = [];
-    const sourceLanguage = state?.project?.value.sourceLanguoidId ?? 'eng';
+    const sourceLanguage = (languageId ? languageInfo(ctx.org.state, languageId)?.sourceCode : undefined) ?? 'eng';
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
       const doc = get<SourceDoc>(hash);
@@ -131,7 +131,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, laneId: 
       }
     }
     return orderOptions(out);
-  }, [recs, mine.list, shared.rows, get, details, library, range, state?.project]);
+  }, [recs, mine.list, shared.rows, get, details, library, range, ctx.org.state, languageId]);
 
   // Offline, a document not on the phone stops waiting: what is here is shown.
   const loading = !mine.loaded || (!error && itemHashes.some((h) => h && !get(h)));
@@ -145,7 +145,7 @@ function builtinReadings(range: VerseRange) {
 
 // ---- one source for one passage ---------------------------------------------------------------------
 
-export interface AudioChapter {
+interface AudioChapter {
   chapter: number;
   timing: Timing | null;
   timingSource: TimingSource;
@@ -155,7 +155,7 @@ export interface AudioChapter {
   resolve: () => Promise<string>;
 }
 
-export interface PassageSource {
+interface PassageSource {
   loading: boolean;
   /** The passage in the source's own numbering. */
   range: VerseRange;
@@ -181,7 +181,7 @@ async function bibleBrainAudio(store: ReturnType<typeof storeOf>, fileset: strin
     const uri = await playableUri(store, kept);
     if (uri) return uri;
   }
-  if (!bibleBrain) throw new Error("Bible Brain isn't set up on this phone.");
+  if (!bibleBrain) throw new Error("Bible Brain isn't set up on this device.");
   const key = `${fileset}:${book}:${chapter}`;
   const held = audioLinks.get(key);
   if (held && held.expires > Date.now() + 60_000) return held.url;
@@ -194,21 +194,21 @@ async function bibleBrainAudio(store: ReturnType<typeof storeOf>, fileset: strin
   }
 }
 
-const storeOf = (ctx: Ctx) => ctx.project.blobs.store;
+const storeOf = (ctx: Ctx) => ctx.language.blobs.store;
 
 /** A source's text, audio and timings for a passage, loaded as it is chosen. */
 export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, passage: PassageSources): PassageSource | null {
   const { get } = passage;
   const store = storeOf(ctx);
-  useLibraryDocs(ctx.project.orgId, [option?.doc?.versification], { deps: false });
+  useLibraryDocs(ctx.language.orgId, [option?.doc?.versification], { deps: false });
   const sourceV11n = option?.doc ? get<VersificationDoc>(option.doc.versification) : null;
   const range = useMemo(() => (passage.range ? inSourceNumbering(passage.range, passage.versification, sourceV11n) : null), [passage.range, passage.versification, sourceV11n]);
   const bookHash = option?.doc && range ? option.doc.books.find((b) => b.book === range.book)?.doc : undefined;
-  const books = useLibraryDocs(ctx.project.orgId, [bookHash], { deps: false });
+  const books = useLibraryDocs(ctx.language.orgId, [bookHash], { deps: false });
   const book = books.get<SourceBookDoc>(bookHash);
   // Only the passage's chapters' timings, not the whole book's.
   const timingHashes = useMemo(() => (book && range ? chaptersOf(range).map((c) => book.chapters.find((x) => x.chapter === c)?.timing) : []), [book, range]);
-  const timings = useLibraryDocs(ctx.project.orgId, timingHashes, { deps: false });
+  const timings = useLibraryDocs(ctx.language.orgId, timingHashes, { deps: false });
   const [bb, setBb] = useState<{ key: string; verses: Map<number, [number, number, string][]>; stamps: Map<number, { verse: number; seconds: number }[] | null>; problem: string | null; done: boolean } | null>(null);
   const [files, setFiles] = useState(0);
   const keptTick = useKeptRevision();
@@ -227,7 +227,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     setBb({ key: bbKeyNow, verses, stamps, problem: null, done: false });
     void (async () => {
       let problem: string | null = null;
-      if (!bibleBrain) problem = "Bible Brain isn't set up on this phone.";
+      if (!bibleBrain) problem = "Bible Brain isn't set up on this device.";
       else {
         for (const c of chaptersOf(range)) {
           if (filesets.text) {
@@ -281,7 +281,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
           resolve: async () => {
             if (ref && store?.has(ref.hash)) { const uri = await playableUri(store, ref); if (uri) return uri; }
             if (a.url) return a.url;
-            throw new Error("This recording isn't on the phone yet.");
+            throw new Error("This recording isn't on this device yet.");
           }
         });
       }
@@ -322,7 +322,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
   const bookHashes = useMemo(() => passage.range
     ? passage.options.map((o) => o.doc?.provider.kind === 'library' ? o.doc.books.find((b) => b.book === passage.range!.book)?.doc : undefined)
     : [], [passage.options, passage.range]);
-  const books = useLibraryDocs(ctx.project.orgId, bookHashes);
+  const books = useLibraryDocs(ctx.language.orgId, bookHashes);
   return useMemo(() => {
     const out: Record<string, string[]> = {};
     const range = passage.range;

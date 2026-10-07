@@ -18,7 +18,7 @@ import { formatRef, usfmOf, withDeps, type StudyDoc, type StudyResourceDoc } fro
 /** FIA's licence and holder, as its Aquifer releases state them (github.com/BibleAquifer/FIATranslationGuide). */
 export const FIA_ATTRIBUTION = '© 2025 Word Collective, CC BY-SA 4.0';
 
-export const FIA_ABOUT =
+const FIA_ABOUT =
   'FIA takes the team through six steps for each passage, in audio and text, before anyone drafts: Familiarize, then Internalize, then Articulate. Each step asks you to listen to the passage again. Answers and notes the team adds stay with the passage, so reviewers can see the study behind the draft.';
 
 /** FIA's steps by their API identifier; the ids are the app's, because study records point at them. */
@@ -31,6 +31,9 @@ export const FIA_STEPS: Record<string, { id: string; phase: string; purpose: str
   'speaking-the-word': { id: 'speak', phase: 'Articulate', purpose: 'Tell it in your own language, together, until everyone agrees on a version.' }
 };
 
+/** "hear-and-heart" -> "Hear and heart". */
+const stepName = (id: string) => id.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
 /** About 140 words a minute, with room for the pauses FIA asks for (the app's estimate). */
 const secondsFor = (words: number) => Math.round(words / 2.2);
 
@@ -39,7 +42,7 @@ const secondsFor = (words: number) => Math.round(words / 2.2);
 type Edges<T> = { edges: { node: T }[] };
 type ByLanguage = { language: { id: string; nameEnglish?: string } };
 
-export interface FiaPericopeJson {
+interface FiaPericopeJson {
   id: string;
   startChapter: number;
   startVerse: number;
@@ -52,7 +55,7 @@ export interface FiaPericopeJson {
     bookTranslation?: { title: string } | null;
     stepRenderings: Edges<{
       step: { uniqueIdentifier: string };
-      stepTranslation: { title: string };
+      stepTranslation: { title: string | null } | null;
       /** Some queries ask only for the plain text; it reads as markdown too. */
       textAsMarkdown?: string | null;
       textPlain?: string | null;
@@ -125,11 +128,15 @@ export function fiaStudyDoc(json: unknown, lang: string, englishVersification: s
   const p = fiaPericope(json);
   const rendering = p.pericopeTranslations.edges.map((e) => e.node).find((n) => n.language.id === lang);
   if (!rendering || rendering.stepRenderings.edges.length === 0) return null;
+  // A few renderings have no step title (Bislama Mark 1, 2025): take the English one, else the step's own name.
+  const english = p.pericopeTranslations.edges.map((e) => e.node).find((n) => n.language.id === 'eng');
+  const englishTitle = (step: string) => english?.stepRenderings.edges.find((e) => e.node.step.uniqueIdentifier === step)?.node.stepTranslation?.title;
   const steps: StudyDoc['steps'] = rendering.stepRenderings.edges.map(({ node }) => {
     const info = FIA_STEPS[node.step.uniqueIdentifier];
+    const step = node.step.uniqueIdentifier;
     return {
-      id: info?.id ?? node.step.uniqueIdentifier,
-      title: node.stepTranslation.title,
+      id: info?.id ?? step,
+      title: node.stepTranslation?.title || englishTitle(step) || stepName(step),
       ...(info ? { phase: info.phase } : {}),
       purpose: info?.purpose ?? '',
       text: node.textAsMarkdown ?? node.textPlain ?? '',
