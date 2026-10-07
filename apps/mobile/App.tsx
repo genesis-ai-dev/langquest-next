@@ -45,6 +45,7 @@ import { supabase, supabaseConfigError } from './src/supabase';
 import { C, space } from './src/theme';
 import { recordUserEvent } from './src/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/useAccount';
+import { usePendingRequestCount } from './src/invites';
 import { useBlocks, useOpenReportCount } from './src/moderationData';
 import { PeopleContext } from './src/UserChip';
 import { forgetKeyInAddress } from './src/appUrl';
@@ -616,6 +617,9 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   // Open reports count toward the Inbox badge (the tab, or My Work's bell) for whoever may act on them (decisions.md 48).
   const reportCount = useOpenReportCount(props.orgId, props.signedIn && (session.can('manage_structure') || session.can('invite_members')));
+  // People asking to join count too, for whoever may admit them.
+  const requestCount = usePendingRequestCount(props.orgId, props.signedIn && session.can('invite_members'));
+  const inboxCount = unread + reportCount + requestCount;
 
   const ctx: Ctx = {
     language,
@@ -635,7 +639,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openPassage,
     name,
     blocks,
-    inbox: { updates, unread: unread + reportCount, isRead: (id) => readIds.has(id), markRead },
+    inbox: { updates, unread: inboxCount, isRead: (id) => readIds.has(id), markRead },
     markWelcomed: async () => {
       await recordUserEvent(props.actorId, 'v1.VisionSeen');
       await AsyncStorage.multiSet([[`vision:${props.actorId}`, '1'], [`joined:${props.actorId}`, '0']]);
@@ -656,7 +660,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const kind = layoutKind(width);
   const wide = kind !== 'phone';
   const showTabs = props.signedIn && homeScreenFor(session) !== 'intent_chooser' && chromeVisible(kind, screen);
-  const tabs = tabsFor(session, { forYou, unread: unread + reportCount }, { wide });
+  const tabs = tabsFor(session, { forYou, unread: inboxCount }, { wide });
   // The lit tab is the one you came from (the bottom of the stack), so a
   // passage opened from My Work stays under My Work.
   const bottom = nav.stack[0]?.screen;
