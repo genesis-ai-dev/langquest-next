@@ -38,9 +38,11 @@ export const ORG_MATERIALIZER: Materializer<OrgState> = {
 /**
  * The organization stream on this device (decision 63): roles,
  * memberships, languages, the library. Same sync client as a language,
- * different fold. Small enough to pull whole.
+ * different fold. Small enough to pull whole. With no organization (a
+ * guest, or an account in none yet) there is no stream to sync: an empty
+ * fold, settled at once, and every write a no-op.
  */
-export function useOrg(orgId: string, actorId: string): OrgHandle {
+export function useOrg(orgId: string | null, actorId: string): OrgHandle {
   const clientRef = useRef<SyncClient<OrgState> | null>(null);
   const [state, setState] = useState<OrgState | null>(null);
   const [pending, setPending] = useState(0);
@@ -79,6 +81,11 @@ export function useOrg(orgId: string, actorId: string): OrgHandle {
   useEffect(() => onWake(() => schedulerRef.current?.wake()), []);
 
   useEffect(() => {
+    if (!orgId) {
+      setState(emptyOrgState());
+      setSettled(true);
+      return;
+    }
     let cancelled = false;
     let unwatch = () => {};
     (async () => {

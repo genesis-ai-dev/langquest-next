@@ -700,4 +700,29 @@ do $$ begin
 exception when insufficient_privilege then null;
 end $$;
 
+-- 14. Signed out reaches nothing that reads a missing caller as the
+-- service role (decisions.md 64). A security definer function anon may run
+-- must be on this list; a new one fails here until it is revoked or listed.
+do $$ declare v text; begin
+  select string_agg(p.proname, ', ' order by p.proname) into v
+  from pg_proc p
+  where p.pronamespace = 'public'::regnamespace and p.prosecdef
+    and has_function_privilege('anon', p.oid, 'execute')
+    and p.proname not in ('preview_invite');
+  if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
+  select string_agg(f, ', ') into v
+  from unnest(array['put_snapshot', 'list_streams', 'record_blob', 'invalidate_blob', 'org_privileges']) f
+  where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
+    and has_function_privilege('authenticated', p.oid, 'execute'));
+  if v is not null then raise exception 'signed-in people may run service-role functions: %', v; end if;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
+do $$ begin
+  perform * from public.pull_events('org1', '_org', 0, 10);
+  raise exception 'a signed-out caller must not pull a stream';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
 select 'smoke ok' as result;
