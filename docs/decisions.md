@@ -1764,3 +1764,41 @@ Reverse if: invites or admissions from looked-after accounts are abused,
 or a stolen phone is used to let people in; then require a proven email
 (or a second admin) for those actions rather than removing them from the
 role.
+
+## 68. The database makes an organization's Inbox rows when they change, pushes go every minute, and the projection pass skips what has not changed
+
+Date: 2026-10-07 · By: Carl Sauder · Status: accepted
+
+Reason: an admin heard of a join request only after the next projection
+pass, every five minutes in production, plus however long the pass took,
+and the pass grew with how many organizations and languages exist, not with
+how much happened. Every pass folded every organization's whole stream and
+downloaded every language's snapshot, changed or not, to rewrite every
+member's Inbox rows. Three changes:
+- The organization's own rows (join requests, reports) are made by the
+  database: `refresh_org_notifications` computes them from tables it
+  already keeps (`org_memberships`, `org_roles`, `_may_moderate`), and
+  triggers on `join_requests` and `content_reports` call it with the
+  change. Their ids are the worker's, so no row is pushed twice. An
+  advisory lock per organization keeps two requests from undoing each
+  other's rows; the trigger never fails the write (as `events_notify`).
+- Push delivery is its own job, every minute (`langquest-push-delivery`,
+  the same Edge Function with `{"task":"pushes"}`), so a row reaches the
+  phone within a minute. `claim_notification_pushes` is one index lookup
+  when nothing waits.
+- The projection pass keeps a mark per stream (`projection_marks`: the
+  last event projected, the organization event folded, the listing, a
+  `PROJECTION_VERSION`) and skips a language whose stream, organization
+  and listing are unchanged, without downloading its snapshot. It
+  refreshes an organization's own rows only when its stream changed
+  (someone became or stopped being an admin). Inbox rows depend on no
+  clock (`updatesFor`), so a skipped language has nothing to update.
+Locally, a repeat pass went from downloading every snapshot to four small
+reads. Migrations `20261007200000_org_inbox_rows_in_sql.sql` and
+`20261007200001_schedule_push_delivery.sql`, which now does what
+`20261006000001` did for `npm run secrets` and `scripts/local-db.mjs`.
+Reverse if: rows that need the folded state (passage updates) start
+arriving late because of the five-minute pass; then those want the same
+treatment, from the language's events, rather than a faster pass. Or if a
+mark lets a language go stale; then bump `PROJECTION_VERSION` and find
+what the mark misses.

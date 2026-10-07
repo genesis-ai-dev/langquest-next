@@ -150,6 +150,15 @@ insert into auth.users (id, email, aud, role) values
 insert into public.profiles (id, display_name) values ('21000000-0000-0000-0000-000000000010', 'Amira Asker');
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000010',true);
 select public.create_join_request('join-org','join-request-amira','Please let me help');
+-- The admin's Inbox row comes with the request (decisions.md 68); only
+-- organization-wide Invite gets one.
+do $$ begin
+  if not exists (select 1 from public.notifications where org_id = 'join-org' and kind = 'join_request' and active
+      and profile_id = '21000000-0000-0000-0000-00000000000a') then raise exception 'no Inbox row for the admin'; end if;
+  if exists (select 1 from public.notifications where org_id = 'join-org' and kind = 'join_request' and active
+      and profile_id in ('21000000-0000-0000-0000-00000000000e', '21000000-0000-0000-0000-00000000000b')) then
+    raise exception 'an Inbox row for someone who cannot admit'; end if;
+end $$;
 set local role authenticated;
 -- The org admin; a member with no Invite; a lead who holds Invite only in a language.
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-00000000000a',true);
@@ -176,4 +185,8 @@ do $$ begin
     raise exception 'a turned-away requester stayed visible'; end if;
 end $$;
 reset role;
+do $$ begin
+  if exists (select 1 from public.notifications where org_id = 'join-org' and kind = 'join_request' and active) then
+    raise exception 'a decided request left an Inbox row'; end if;
+end $$;
 rollback;

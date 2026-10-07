@@ -22208,7 +22208,7 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
 }
 
 // packages/client/src/snapshotWorker.ts
-async function runSnapshotWorker(service, pageSize = 1e3, observe) {
+async function runSnapshotWorker(service, pageSize = 1e3, observe, visit) {
   const transport = new SupabaseTransport(service);
   const { data, error } = await service.rpc("list_streams");
   if (error) throw new Error(`list_streams: ${error.message}`);
@@ -22217,6 +22217,7 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe) {
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
+    if (visit && !visit(orgId, streamId)) continue;
     const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
     const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {
@@ -22273,6 +22274,18 @@ var UPDATE_TITLES = {
   kept: "Your feedback was answered",
   request_done: "What you asked for is done"
 };
+var PROJECTION_VERSION = `${REDUCER_VERSION}:1`;
+var streamKey = (orgId, streamId) => JSON.stringify([orgId, streamId]);
+async function selectAll(service, table, columns) {
+  const out = [];
+  for (let from = 0; ; from += 1e3) {
+    const page = await service.from(table).select(columns).range(from, from + 999);
+    check(page);
+    const rows = page.data ?? [];
+    out.push(...rows);
+    if (rows.length < 1e3) return out;
+  }
+}
 async function runProjections(service) {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
@@ -22282,22 +22295,49 @@ async function runProjections(service) {
     const events = [];
     let cursor = 0;
     for (; ; ) {
-      const page = await transport.pull(orgId, "_org", cursor, 1e3);
+      const page = await transport.pull(orgId, ORG_STREAM, cursor, 1e3);
       events.push(...page);
       if (page.length < 1e3) break;
       cursor = page[page.length - 1].serverSeq;
     }
-    const org = foldOrg(events);
-    orgs.set(orgId, org);
-    return org;
+    const folded = { org: foldOrg(events), seq: events.at(-1)?.serverSeq ?? 0 };
+    orgs.set(orgId, folded);
+    return folded;
   }
   const streams = await service.rpc("list_streams");
   check(streams);
+  const heads = /* @__PURE__ */ new Map();
   for (const row of streams.data ?? []) {
-    if (row.stream_id === "_org" && row.org_id !== "_person") await orgState(row.org_id);
+    heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
+  }
+  const marks = new Map((await selectAll(service, "projection_marks", "*")).map((m) => [streamKey(m.org_id, m.stream_id), m]));
+  const listed = new Set((await selectAll(
+    service,
+    "language_visibility",
+    "org_id,language_id,listed"
+  )).filter((v) => v.listed).map((v) => streamKey(v.org_id, v.language_id)));
+  const changed = (orgId, streamId) => {
+    const mark2 = marks.get(streamKey(orgId, streamId));
+    return !mark2 || mark2.version !== PROJECTION_VERSION || Number(mark2.seq) !== heads.get(streamKey(orgId, streamId)) || Number(mark2.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM)) || mark2.listed !== listed.has(streamKey(orgId, streamId));
+  };
+  const mark = async (orgId, streamId, seq, orgSeq, isListed) => {
+    check(await service.from("projection_marks").upsert({
+      org_id: orgId,
+      stream_id: streamId,
+      seq,
+      org_seq: orgSeq,
+      listed: isListed,
+      version: PROJECTION_VERSION
+    }));
+  };
+  for (const [key, head2] of heads) {
+    const [orgId, streamId] = JSON.parse(key);
+    if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
+    check(await service.rpc("refresh_org_notifications", { p_org: orgId }));
+    await mark(orgId, ORG_STREAM, head2, head2, false);
   }
   await runSnapshotWorker(service, 1e3, async (snapshot) => {
-    const org = await orgState(snapshot.orgId);
+    const { org, seq: orgSeq } = await orgState(snapshot.orgId);
     const languageId = snapshot.streamId;
     const state = snapshot.state;
     const idx = buildIndexes(state);
@@ -22314,10 +22354,9 @@ async function runProjections(service) {
       p_language: languageId,
       p_rows: notifications
     }));
-    const visibility = await service.from("language_visibility").select("listed").eq("org_id", snapshot.orgId).eq("language_id", languageId).maybeSingle();
-    check(visibility);
+    const isListed = listed.has(streamKey(snapshot.orgId, languageId));
     const info = languageInfo(org, languageId);
-    if (visibility.data?.listed && info) {
+    if (isListed && info) {
       const progress = languageProgress(state, idx);
       check(await service.from("public_languages").upsert({
         org_id: snapshot.orgId,
@@ -22330,43 +22369,8 @@ async function runProjections(service) {
         updated_at: (/* @__PURE__ */ new Date()).toISOString()
       }));
     }
-  });
-  for (const [orgId, org] of orgs) {
-    const requests = await service.from("join_requests").select("id,profile_id").eq("org_id", orgId);
-    check(requests);
-    const admins = Object.keys(org.members).filter((id) => privilegesFor(org, id).has("invite_members"));
-    const rows = admins.flatMap((profileId) => (requests.data ?? []).map((request) => ({
-      id: JSON.stringify([orgId, "join", profileId, request.id]),
-      profile_id: profileId,
-      kind: "join_request",
-      title: "A person requested access"
-    })));
-    rows.push(...await reportNotifications(service, orgId, org));
-    check(await service.rpc("reconcile_notifications", {
-      p_org: orgId,
-      p_language: null,
-      p_rows: rows
-    }));
-  }
-}
-async function reportNotifications(service, orgId, org) {
-  const open = await service.from("content_reports").select("language_id,target_kind,target_id,reported_profile").eq("org_id", orgId).is("resolved_at", null).limit(500);
-  check(open);
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const r of open.data ?? []) {
-    const person = r.target_kind === "person";
-    const languageId = person ? void 0 : r.language_id;
-    for (const profileId of Object.keys(org.members)) {
-      if (profileId === r.reported_profile) continue;
-      if (!privilegesFor(org, profileId, languageId).has(person ? "invite_members" : "manage_structure")) continue;
-      const id = JSON.stringify([orgId, "report", profileId, r.language_id, r.target_kind, r.target_id]);
-      if (seen.has(id)) continue;
-      seen.add(id);
-      out.push({ id, profile_id: profileId, kind: "content_report", title: "Something was reported" });
-    }
-  }
-  return out;
+    await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
+  }, changed);
 }
 async function deliverPushes(service, fetcher = fetch) {
   const claimed = await service.rpc("claim_notification_pushes");
@@ -22442,9 +22446,10 @@ Deno.serve(async (request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
     { auth: { persistSession: false } }
   );
+  const body = await request.json().catch(() => ({}));
   try {
-    await runProjections(service);
-    await deliverPushes(service);
+    if (body.task === "pushes") await deliverPushes(service);
+    else await runProjections(service);
     return Response.json({ ok: true });
   } catch (error) {
     console.error("Projection worker failed", error instanceof Error ? error.message : "unknown");
