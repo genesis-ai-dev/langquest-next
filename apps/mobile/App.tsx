@@ -3,7 +3,6 @@ import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langqu
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
-import * as Notifications from 'expo-notifications';
 import { CommonActions, NavigationContainer, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
@@ -18,6 +17,7 @@ import { chromeVisible, frame, layoutKind } from './src/layout';
 import { NavChrome } from './src/NavChrome';
 import { lockPhonesToPortrait } from './src/orientation';
 import { paneFor, type SplitSpec } from './src/panes';
+import { onNotificationOpened } from './src/push';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
 import { indexesFor } from './src/indexes';
 import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
@@ -604,19 +604,13 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   const homeIsWork = homeScreenFor(session) === 'my_work';
   useEffect(() => {
-    // Web (a test target) has no notification responses to read.
-    if (!props.signedIn || Platform.OS === 'web') return;
-    const receive = (response: Notifications.NotificationResponse | null) => {
-      if (!response?.notification.request.content.data?.notificationId) return;
+    if (!props.signedIn) return;
+    return onNotificationOpened(() => {
       // People with a My Work reach the Inbox from its bell, so it opens over My Work with Back (no Inbox tab).
       if (homeIsWork && navRef.isReady()) {
         navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
       } else nav.reset({ screen: 'inbox_home' });
-      void Notifications.clearLastNotificationResponseAsync();
-    };
-    void Notifications.getLastNotificationResponseAsync().then(receive);
-    const listener = Notifications.addNotificationResponseReceivedListener(receive);
-    return () => listener.remove();
+    });
   }, [props.signedIn, nav.reset, homeIsWork]);
 
   // Open reports count toward the Inbox badge (the tab, or My Work's bell) for whoever may act on them (decisions.md 48).

@@ -725,4 +725,29 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
+-- 15. The read policies on invites and join requests run as the signed-in
+-- caller, so they may only call what signed-in people may run (they once
+-- called org_privileges and every read failed). Whoever may invite sees the
+-- organization's invites and requests; the asker sees their own; a
+-- translator sees neither.
+select set_config('request.jwt.claim.sub', 'hopeful', false);
+select public.create_join_request('org1', 'req2', 'may I help');
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ begin
+  if (select count(*) from public.join_requests where id = 'req2') <> 1 then raise exception 'an admin should see a pending request'; end if;
+  if (select count(*) from public.invites where id = 'inv1') <> 1 then raise exception 'an admin should see the organization''s invites'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'hopeful', false);
+do $$ begin
+  if (select count(*) from public.join_requests where id = 'req2') <> 1 then raise exception 'an asker should see their own request'; end if;
+  if (select count(*) from public.invites) <> 0 then raise exception 'an asker must not see invites'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 't1', false);
+do $$ begin
+  if (select count(*) from public.join_requests where id = 'req2') <> 0 then raise exception 'a translator must not see requests'; end if;
+  if (select count(*) from public.invites where id = 'inv1') <> 0 then raise exception 'a translator must not see org invites'; end if;
+end $$;
+reset role;
+
 select 'smoke ok' as result;

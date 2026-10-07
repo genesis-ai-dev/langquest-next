@@ -14,7 +14,8 @@ import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { Ico, StateMark, txt, type IconName } from '../kit';
 import { plural, versionTitle, when, type PassageView } from '../passageView';
-import { C, radius, shadow, space, target, TINT, withAlpha } from '../theme';
+import { shadow } from '../shadow';
+import { C, radius, space, target, TINT, withAlpha } from '../theme';
 import {
   currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState

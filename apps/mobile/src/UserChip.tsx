@@ -5,7 +5,8 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { personLook, type PersonLook } from './people';
 import { txt } from './kit';
-import { C, radius, shadow, space, withAlpha } from './theme';
+import { lift } from './shadow';
+import { C, radius, space, withAlpha } from './theme';
 
 /** profileId -> display name. Provided once per workspace (App.tsx). */
 export const PeopleContext = createContext<Record<string, string>>({});
@@ -98,6 +99,6 @@ const styles = StyleSheet.create({
   byline: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.xs },
   tip: { position: 'absolute', width: TIP_WIDTH, gap: space.xs, padding: space.md, borderRadius: radius.md,
     backgroundColor: C.card, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border,
-    ...shadow, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+    ...lift({ opacity: 0.12, radius: 12, y: 4, elevation: 6 }) },
   tipHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm }
 });

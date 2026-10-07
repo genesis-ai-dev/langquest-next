@@ -15,7 +15,8 @@ import { IconBtn, Ico, LinkBtn, txt } from '../kit';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { markTerms } from '../recording/workspaceModel';
 import { openContentLink } from '../share';
-import { C, radius, shadow, space, target, TINT, type as T, withAlpha } from '../theme';
+import { lift } from '../shadow';
+import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { filesetsFor, sourceUsed, type SourceOption, type VerseRow } from './model';
 import { usePassagePlayer } from './player';
 import type { Usage } from './used';
@@ -350,5 +351,5 @@ const styles = StyleSheet.create({
   count: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 5, backgroundColor: TINT.amberText, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
   countText: { fontSize: T.xs, fontWeight: '800', color: C.white },
   screenBody: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
-  sticky: { backgroundColor: C.bg, paddingBottom: space.xs, ...shadow, shadowOpacity: 0 }
+  sticky: { backgroundColor: C.bg, paddingBottom: space.xs, ...lift({ opacity: 0 }) }
 });

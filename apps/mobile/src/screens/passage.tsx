@@ -41,6 +41,7 @@ import { edgeAllowed } from '../session';
 import { useStudyGuide } from '../study/libraryGuides';
 import { studyProgress, studySummary, type StudyProgress } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
+import { flat } from '../shadow';
 import { C, radius, space, TINT, withAlpha } from '../theme';
 import { PersonAvatar, usePerson } from '../UserChip';
 import { VoiceNote, voiceFor } from '../voiceNote';
@@ -1228,7 +1229,7 @@ const styles = StyleSheet.create({
   headerMore: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.bg },
   inlineNext: { marginHorizontal: -space.lg, marginBottom: -space.lg, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
   amberCard: { backgroundColor: TINT.amber, borderColor: TINT.amber },
-  dashedCard: { borderStyle: 'dashed', borderWidth: 1.5, shadowOpacity: 0, elevation: 0 },
+  dashedCard: { borderStyle: 'dashed', borderWidth: 1.5, ...flat },
   innerCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: C.card, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.md, minHeight: 48 },
   kindRow: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.md, backgroundColor: C.card },
   topBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },

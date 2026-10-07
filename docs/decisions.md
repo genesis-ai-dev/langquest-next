@@ -1671,3 +1671,14 @@ in none, syncs nothing, so it is never refused for an organization it is
 not in.
 Reverse if: signed-out people need to read a stream; then give that read
 its own function that checks the stream is public, not a null caller.
+
+Amended (2026-10-07, Carl Sauder): row-level policies run as the caller,
+so a function made service-role only must not appear in one. The read
+policies on `invites` and `join_requests` called `org_privileges`, and every
+signed-in read of either table failed. They now call `my_privileges` (the
+caller's own privileges) instead
+(`20261007120000_policies_use_my_privileges.sql`). Granting `org_privileges`
+back to `authenticated` was rejected: it answers for any profile in any
+organization, so anyone signed in could learn who holds which role
+elsewhere. `server/smoke.sql` section 15 reads both tables as a signed-in
+caller.

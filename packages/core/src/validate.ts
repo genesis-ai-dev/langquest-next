@@ -1,6 +1,6 @@
 import type { AnyEvent } from './events';
 import { LIBRARY_KINDS } from './libraryDocs';
-import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './org';
+import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './orgTerms';
 import { isLicense, LICENSES } from './license';
 
 /**
