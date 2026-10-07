@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import type { InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
 import { noteExpected } from './report';
+import { requestOutcome, type RequestOutcome } from './requestOutcome';
 import { supabase } from './supabase';
 
 /**
@@ -236,4 +237,48 @@ export function usePendingRequestCount(orgId: string, enabled: boolean): number 
     return () => { active = false; requestListeners.delete(load); app.remove(); clearInterval(timer); };
   }, [orgId, enabled]);
   return count;
+}
+
+/**
+ * Watches a sent join request until it is decided (AUTH-5), so the person
+ * who asked is taken in, or told no, without signing in again: asked when
+ * the screen opens, when the app comes forward, and every minute until it
+ * is decided. Offline it keeps waiting.
+ */
+export function useRequestOutcome(actorId: string, request: { id: string; orgId: string } | null): RequestOutcome {
+  const [outcome, setOutcome] = useState<RequestOutcome>({ kind: 'waiting' });
+  const requestId = request?.id;
+  const orgId = request?.orgId;
+  useEffect(() => {
+    setOutcome({ kind: 'waiting' });
+    if (!orgId) return;
+    let active = true;
+    const check = async () => {
+      const [orgs, open] = await Promise.all([
+        supabase.rpc('my_organizations'),
+        // Their own request, by organization: asking again keeps the first id.
+        supabase.from('join_requests').select('id').eq('org_id', orgId).eq('profile_id', actorId).limit(1)
+      ]);
+      if (orgs.error) throw new Error(orgs.error.message);
+      if (open.error) throw new Error(open.error.message);
+      const memberOf = ((orgs.data ?? []) as { org_id: string }[]).map((o) => o.org_id);
+      const next = requestOutcome(orgId, memberOf, (open.data ?? []).length > 0);
+      if (!active) return;
+      setOutcome(next);
+      if (next.kind !== 'waiting') stop();
+    };
+    const load = () => { check().catch((e: unknown) => { noteExpected('join request outcome', e); }); };
+    const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
+    const timer = setInterval(load, 60_000);
+    let stopped = false;
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      app.remove();
+      clearInterval(timer);
+    }
+    load();
+    return () => { active = false; stop(); };
+  }, [actorId, requestId, orgId]);
+  return outcome;
 }
