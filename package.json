@@ -18,6 +18,7 @@
     "db:start": "node scripts/local-db.mjs start",
     "db:stop": "supabase stop",
     "db:reset": "node scripts/local-db.mjs reset",
+    "dev:local": "node scripts/local-db.mjs dev",
     "db:check": "scripts/db-check.sh",
     "db:apply": "supabase db push --linked",
     "db:apply:dry": "supabase db push --linked --dry-run",
