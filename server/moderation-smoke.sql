@@ -92,6 +92,22 @@ do $$ begin
   end if;
 end $$;
 
+-- The Inbox rows come with the reports, not with the next projection pass
+-- (decisions.md 68): to whoever may act on each, never about themselves.
+do $$
+declare a text := 'e0000000-0000-0000-0000-00000000000a';
+begin
+  if not exists (select 1 from public.notifications where active
+      and id = public._json_id('mod-org', 'report', a, 'L1', 'note', 'n1')) then
+    raise exception 'the admin has no Inbox row for a reported note'; end if;
+  if exists (select 1 from public.notifications where active
+      and id = public._json_id('mod-org', 'report', a, null, 'person', a)) then
+    raise exception 'the admin was told of a report about themselves'; end if;
+  if exists (select 1 from public.notifications where active and kind = 'content_report'
+      and profile_id in ('e0000000-0000-0000-0000-00000000000b', 'e0000000-0000-0000-0000-00000000000d')) then
+    raise exception 'an Inbox row for someone who may not act on these reports'; end if;
+end $$;
+
 select pg_temp.as_user('e0000000-0000-0000-0000-00000000000e');
 do $$ begin
   if pg_temp.fails($q$select public.report_content('rep-11','mod-org','L1','note','n1','e0000000-0000-0000-0000-00000000000b','spam')$q$) <> '42501' then

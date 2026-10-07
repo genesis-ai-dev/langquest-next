@@ -17,9 +17,14 @@ interface SnapshotResult {
  * phones run, and stores the result via put_snapshot. Incremental: resumes
  * from the last snapshot and folds only the tail, unless a redaction in the
  * tail targets something inside the snapshot, in which case it refolds the
- * whole log so the target really disappears.
+ * whole log so the target really disappears. `visit`, when given, says
+ * which language streams to look at; the others are skipped without
+ * reading their snapshot (the projection pass skips what has not changed).
  */
-export async function runSnapshotWorker(service: SupabaseClient, pageSize = 1000, observe?: (snapshot: Snapshot) => Promise<void>): Promise<SnapshotResult[]> {
+export async function runSnapshotWorker(
+  service: SupabaseClient, pageSize = 1000, observe?: (snapshot: Snapshot) => Promise<void>,
+  visit?: (orgId: string, streamId: string) => boolean
+): Promise<SnapshotResult[]> {
   const transport = new SupabaseTransport(service);
   const { data, error } = await service.rpc('list_streams');
   if (error) throw new Error(`list_streams: ${error.message}`);
@@ -30,6 +35,7 @@ export async function runSnapshotWorker(service: SupabaseClient, pageSize = 1000
     const streamId = row.stream_id;
     // Only language streams have a server snapshot; the organization and person streams are small.
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
+    if (visit && !visit(orgId, streamId)) continue;
     const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
     const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
     if (tail.length === 0) {

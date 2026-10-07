@@ -7,7 +7,8 @@
  *   npm run dev:local   db:start, then the web Worker on :8787 until Ctrl-C
  *
  * The rest: the projection worker scheduled every minute (decisions.md 42),
- * as `npm run secrets` schedules it every five on a hosted database, and the
+ * as `npm run secrets` schedules it every five on a hosted database (push
+ * delivery runs every minute on both, decisions.md 68), and the
  * LangQuest library seeded when the database has none. Both are gone after a
  * reset, which is why reset does them again.
  *
@@ -66,7 +67,7 @@ function prepare(secret) {
   // Every minute here, so what one phone asks shows on the other without waiting.
   const scheduled = psql(`select cron.schedule(jobname, '* * * * *', command) from cron.job where jobname = '${CRON_JOB}';`).trim();
   if (!scheduled) throw new Error(`${CRON_JOB} was not scheduled`);
-  console.log(`✓ projection worker every minute (select * from net._http_response shows its answers)`);
+  console.log(`✓ projection worker and push delivery every minute (select * from net._http_response shows their answers)`);
   if (Number(psql('select count(*) from public.library_items;').trim()) === 0) sh('npx', ['tsx', 'scripts/library-seed.ts']);
   else console.log('✓ library already seeded');
 }

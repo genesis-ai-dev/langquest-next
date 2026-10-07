@@ -375,7 +375,9 @@ ends green on `npm test`, `npm run typecheck`, and from phase 3
 **Phase 5. Workers and importer.**
 1. Projection worker:
    - per language stream: notifications, `public_languages`
-   - per organization: join-request and report notifications
+   - per organization: join-request and report notifications (since
+     decision 68 made by the database when they change; the pass refreshes
+     an organization whose stream changed)
 2. Web worker (`orgFolder`, `api.ts`): one summary per language; rows become
    `{ languageId, report }`; `mayViewLanguage`.
 3. Rename the Edge Function `project-projections` to `stream-projections`,

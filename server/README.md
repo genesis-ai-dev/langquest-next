@@ -50,10 +50,13 @@ See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
 Run it locally, not against production without explicit authorization.
 
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `stream-projections` Edge Function. Migration 20261006000001 schedules
-it every five minutes wherever the Vault secrets `langquest_project_url` and
-`langquest_projection_worker_secret` exist. `npm run secrets` sets them and
-runs it again, which is how preview and production get the job. Locally,
+the `stream-projections` Edge Function. Migration 20261007200001 schedules
+it twice wherever the Vault secrets `langquest_project_url` and
+`langquest_projection_worker_secret` exist: the projection pass every five
+minutes, which skips languages that have not changed (`projection_marks`),
+and push delivery every minute (`{"task":"pushes"}`, decisions.md 68).
+`npm run secrets` sets them and runs it again, which is how preview and
+production get the jobs. Locally,
 `npm run db:start` and `npm run db:reset` do the same (`scripts/local-db.mjs`:
 a local secret in the ignored `supabase/functions/.env`, the Vault values, the
 job every minute) and seed the library when there is none. `npm run db:test`
@@ -88,8 +91,9 @@ events. Phones send them through the account outbox: `report_content` into
 their own). An organization's moderators list open reports with
 `org_content_reports` (never who reported) and act with `remove_content`,
 which appends `v1.Redacted` as them for every event holding the content, or
-`dismiss_reports`; the projection worker puts a "Something was reported"
-row in their Inbox. Staff see every report, with the reporter, through
+`dismiss_reports`; the database puts a "Something was reported" row in
+their Inbox when the report arrives (`refresh_org_notifications`,
+decisions.md 68). Staff see every report, with the reporter, through
 `npm run moderation` (`--hosted` for the hosted project, through the
 Supabase CLI login): `remove <id>` and `dismiss <id>` call
 `staff_resolve_report`, and `suspend <profileId>` sets `banned_until` on the
