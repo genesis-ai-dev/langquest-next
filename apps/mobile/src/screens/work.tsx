@@ -336,7 +336,8 @@ function NextCard(props: { icon: IconName; bg: string; fg: string; title: string
 
 /**
  * Updates (demo bell): replaces the Inbox tab for people with a My Work. The
- * count is what the Inbox tab used to show: unread updates and open reports.
+ * count is what the Inbox tab used to show: unread updates, open reports and
+ * people asking to join.
  */
 function Bell(props: { count: number; onPress: () => void }) {
   return (

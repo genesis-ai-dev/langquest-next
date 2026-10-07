@@ -1,7 +1,10 @@
 import type { Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
+import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import type { InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
+import { noteExpected } from './report';
 import { supabase } from './supabase';
 
 /**
@@ -204,4 +207,31 @@ export async function decideRequest(id: string, accepted: boolean, roleId?: stri
     p_role_id: accepted ? roleId : null
   });
   if (error) throw new Error(error.message);
+  for (const listener of requestListeners) listener();
+}
+
+const requestListeners = new Set<() => void>();
+
+/**
+ * How many people are asking to join, for the Inbox badge (the tab, or My
+ * Work's bell), as the reports count does: read when the app comes forward,
+ * every five minutes, and after someone decides; offline it keeps the last
+ * count. Only org-wide Invite can read requests (`join_requests_read`).
+ */
+export function usePendingRequestCount(orgId: string, enabled: boolean): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) { setCount(0); return; }
+    let active = true;
+    const load = () => {
+      pendingRequests(orgId).then((rows) => { if (active) setCount(rows.length); })
+        .catch((e: unknown) => { noteExpected('pending request count', e); });
+    };
+    load();
+    requestListeners.add(load);
+    const app = AppState.addEventListener('change', (state) => { if (state === 'active') load(); });
+    const timer = setInterval(load, 5 * 60_000);
+    return () => { active = false; requestListeners.delete(load); app.remove(); clearInterval(timer); };
+  }, [orgId, enabled]);
+  return count;
 }
