@@ -18,7 +18,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `load` | A language (or the org) is opened and its log folded | ms, events folded, whether from a checkpoint |
 | `snapshot` | A cold start looks for a server snapshot | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use |
 | `transfer` | Blob uploads or downloads, tallied per minute or 50 files | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, 4xx, 5xx, hash, disk, other) |
-| `device` | Each delivery | free and total disk, audio cache size, files still wanted |
+| `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted |
 | `error` | A fault reaches `reportError` (`apps/mobile/src/report.ts`) | error class, where, the id shown to the person, fatal or not, stack frames |
 
 Every delivery also sends the phone's context: install id, OS and version,
