@@ -96,7 +96,7 @@ Commands, all from the repository root:
 | Push the file to EAS | `npm run env:push:eas -- <env>` | Refuses an uncommitted file, shows the diff, asks, pushes |
 | Check a machine | `npm run env:doctor` | The app's files are plain; key file private and ignored; which secrets files this machine can read |
 | Run the app | `npm run app` | `npm start -- --dev-client` in `apps/mobile` |
-| Low level | `npm run env:set`, `env:get`, `env:check` | Set without committing, read one value, the guard against a plain or misplaced secret (`npm test` runs it too) |
+| Guard | `npm run env:check` | Fails on a plain or misplaced secret (`npm test` runs it too) |
 
 - **EAS is a copy.** The committed file is the truth. A value edited in the
   EAS dashboard shows up as drift in `env:diff:eas` and is overwritten by the

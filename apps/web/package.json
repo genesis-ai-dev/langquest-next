@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "tsx ../../scripts/web-dev-vars.ts && wrangler dev -c .wrangler.dev.jsonc --port 8787",
     "build": "npm run export:web -w mobile -- production",
-    "build:preview": "npm run export:web -w mobile -- preview",
-    "deploy": "npm run web:deploy --prefix ../..",
-    "typecheck": "tsc -p worker"
+    "build:preview": "npm run export:web -w mobile -- preview"
   },
   "dependencies": {
     "@langquest-next/client": "*",
