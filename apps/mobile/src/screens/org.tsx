@@ -9,32 +9,32 @@
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 63).
 import {
-  CommandError, deriveFlow, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
-  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, recommendedFor, SEED_ROLES,
-  type EventSpec, type LanguageProgress, type License, type Scope, type ScopeLevel, type TemplateDoc
+  CommandError, deriveFlow, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
+  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
+  subscriptionItemId, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc, type TemplateDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { choiceLine, libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
+import { type LibraryChoice } from '../contentTemplates';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites';
 import { APP_URL } from '../appUrl';
 import { signInUri } from '../inviteCode';
 import {
-  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
-  Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
+  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, QuietLinks, Row,
+  Screen, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
 } from '../kit';
 import { edgeFor } from '../flow';
 import { loadDocs } from '../library/docStore';
-import { sourceLine } from '../library/model';
+import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import {
   addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
   mayGrantAt, membersAbove, membersAt, memberEntries, newLanguageId, parseLevel, progressLine, removeMembership, reviewEligible,
-  saveTeam, STARTER_FLOW, suggestedChoice, sumProgress, teamMembers,
+  saveTeam, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
 } from '../orgAdmin';
 import { plural, when } from '../passageView';
@@ -48,6 +48,13 @@ import { shareText } from '../share';
 import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
+import { useHelpMode } from '../helpContext';
+import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, Examples, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow } from '../simple/admin';
+import { askedAgo, firstName, guideShortName, joinAnd, QUESTIONS, RECORD_LABEL, recordExamples, stepTitle, type RecordKind } from '../simple/adminModel';
+import { useCheckChoices, useRecordChoices, type FlowEntry } from '../simple/choices';
+import { InviteSomeone } from '../simple/invite';
+import { languageOf, refKindOf } from '../reference/model';
+import { howItWorks, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../simple/ready';
 import { personLook } from '../people';
 import { PersonAvatar, usePerson } from '../UserChip';
 
@@ -178,28 +185,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   const open = ctx.details(`home:${props.from}:setup`);
   const names = [templates && 'Content templates', reference && 'reference', flows && 'review flows', 'roles', props.extra?.label].filter(Boolean);
   const summary = names.join(', ').replace(/^./, (c) => c.toUpperCase());
-  // A language's page is its setup (demo ADR-039): what they record, what helps them and who checks,
-  // in the admin's words and always shown; roles and the public listing stay under More.
-  if (props.level === 'language') {
-    const helps = recommendedFor(ctx.org.state?.recommendations, state).size;
-    return (
-      <>
-        <HomeSection label="Ready for translators">
-          {templates ? <Row icon="template" label="They record" sub={counts.templates[0] ?? 'Not chosen yet'} onPress={() => ctx.go('templates_home', params)} /> : null}
-          {reference ? <Row icon="book" label="What helps them" onPress={() => ctx.go('reference_home', params)}
-            sub={[helps ? plural(helps, 'Bible or guide') + ' offered' : 'Nothing offered yet', counts.terms ? plural(counts.terms, 'key term') : ''].filter(Boolean).join(' · ')} /> : null}
-          {flows ? <Row icon="flow" label="Who checks" sub={counts.flows[0] ?? 'Not chosen yet'} onPress={() => ctx.go('flows_home', params)} last /> : null}
-        </HomeSection>
-        <View style={{ paddingTop: space.md }}>
-          <Disclosure icon="settings" title="More" summary={['Roles', props.extra?.label].filter(Boolean).join(', ')} open={open.open} onToggle={open.onToggle}>
-            <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} at this level and above`} onPress={() => ctx.go('roles_home', params)}
-              last={!props.extra} />
-            {props.extra?.rows}
-          </Disclosure>
-        </View>
-      </>
-    );
-  }
+  // A language's page has its own setup now (LanguageHome: the four questions, then More).
   return (
     <View style={{ paddingTop: space.md }}>
       <Disclosure icon="settings" title="Setup" summary={summary} open={open.open} onToggle={open.onToggle}>
@@ -366,18 +352,24 @@ function usePublicListing(ctx: Ctx) {
 
 // ---- Language Home ----------------------------------------------------------------------------------
 
+/**
+ * A language's page (decision 71, demo ADR-039; the prototype's AdminStart
+ * and LangReady): until it is ready for translators, the four questions that
+ * get it ready; once it is, the same four as a summary (they record, what
+ * helps them, who checks, people) with join requests under them, each row
+ * opening one screen. Everything else the page had (progress, members,
+ * review groups, roles, the public listing, the library behind each
+ * question) is under More, one labelled tap deeper.
+ */
 export function LanguageHome(ctx: Ctx) {
   const v = useOrgView(ctx);
   // A language's screens are about the open language: navigating with its id opens it.
   const languageId = v.openId;
-  const translators = useMemo(() => {
-    const org = ctx.org.state;
-    if (!org) return [];
-    return memberEntries(org)
-      .filter((e) => e.scope.level === 'language' && e.scope.languageId === languageId && org.roles[e.roleId]?.privileges.value?.includes('translate'))
-      .map((e) => e.profileId);
-  }, [ctx.org.state, languageId]);
+  const s = useReadySummary(ctx);
+  const requests = usePendingRequests(ctx);
+  const help = useHelpMode();
   const listing = usePublicListing(ctx);
+  const more = ctx.details(`language_home:${languageId}:more`);
   if (!v.state) return <Loading title="Language" />;
   const info = languageInfo(v.org, languageId);
   if (!info) {
@@ -389,24 +381,73 @@ export function LanguageHome(ctx: Ctx) {
   }
   const name = info.name;
   const atRoot = ctx.session.adminScope?.level === 'language';
-  const who = translators.length ? translators.map((id) => ctx.name(id)).join(', ') : 'Unassigned';
-  return (
-    <Screen header={<Header title={name} onBack={atRoot ? undefined : ctx.back} crumbs={[
-      { label: v.orgName, onPress: () => ctx.go('org_home') },
-      { label: name }
-    ]} />}>
-      <Card>
-        <Text style={txt.xs}>Translator: {who} · Review flow: {v.state.flow ? deriveFlow(v.state).name : 'None yet'} · Code {info.code.toUpperCase()}</Text>
+  const back = atRoot ? undefined : ctx.back;
+  const can = ctx.session.can;
+  const params = { level: 'language', languageId };
+  const openMap = () => { ctx.setLanguage(languageId); ctx.go('map_home', { languageId }); };
+  const n = s.team.length;
+  const people = `${n} translator${n === 1 ? '' : 's'}`;
+  const joinRows = requests.length === 0 ? null : requests.length === 1 ? (
+    <Row leading={<IconTile icon="people" />} label={`${requests[0]!.name ?? ctx.name(requests[0]!.profileId)} wants to join`} sub="Tap to let them in" last
+      right={<CountBadge n={1} />}
+      onPress={() => ctx.go('edit_member', { memberId: requests[0]!.profileId, requestId: requests[0]!.id, level: 'language', asked: requests[0]!.createdAt,
+        ...(requests[0]!.message ? { message: requests[0]!.message } : {}), ...(requests[0]!.name ? { name: requests[0]!.name } : {}) })} />
+  ) : (
+    <Row leading={<IconTile icon="people" />} label={`${requests.length} people want to join`} sub="Tap to let them in" last
+      right={<CountBadge n={requests.length} />} onPress={() => ctx.go('members_list', params)} />
+  );
+  const moreCard = (
+    <Disclosure icon="settings" title="More" summary={['Progress', 'members', 'review groups', 'roles', listing.may ? 'public listing' : ''].filter(Boolean).join(', ')}
+      open={more.open} onToggle={more.onToggle}>
+      <View style={{ padding: space.lg, gap: space.sm }}>
+        <Text style={txt.xs}>{v.orgName} · Code {info.code.toUpperCase()}</Text>
         <HomeProgressBars p={v.progressOf(languageId) ?? { total: 0, recorded: 0, done: 0 }} />
-      </Card>
-      <HomePrimary label="Open the passage map" icon="map" onPress={() => { ctx.setLanguage(languageId); ctx.go('map_home', { languageId }); }} />
-      <PeopleRows ctx={ctx} level="language" languageId={languageId} />
-      <HomeSetup ctx={ctx} from="language_home" level="language" languageIds={[languageId]} languageId={languageId}
-        {...(listing.may ? { extra: { label: 'public listing', rows: (
-          <Row icon="globe" label="List publicly" sub="Share its name and progress only" last
-            right={<Toggle label={`List ${name} publicly`} on={listing.listed} disabled={listing.busy} onToggle={() => void listing.set(!listing.listed)} />} />
-        ) } } : {})} />
-      {listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null}
+      </View>
+      {s.readiness.ready ? null : <Row icon="book" label="See their work" sub="Every passage, and how far it has come" onPress={openMap} />}
+      <Row icon="people" label="Members" sub={`${membersAt(memberEntries(v.org), 'language', languageId).length} given a role in ${name}`} onPress={() => ctx.go('members_list', params)} />
+      <Row icon="people" label="Review groups" sub="Optional: who comes first when someone asks for a check" onPress={() => ctx.go('review_teams', { languageId })} />
+      {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
+      <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} · what each can do`}
+        onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
+      {can('manage_templates') ? <Row icon="template" label="Every way to divide the work" sub="The organization's library of passages and outlines" onPress={() => ctx.go('templates_home', { level: 'language', languageId })} /> : null}
+      {can('manage_reference') ? <Row icon="layers" label="Bibles, guides and notes" sub="Everything in the library, coverage and sharing" onPress={() => ctx.go('reference_home', params)} /> : null}
+      {can('manage_flows') ? <Row icon="flow" label="Every way to check" sub="The organization's review flows" onPress={() => ctx.go('flows_home', params)} /> : null}
+      {listing.may ? (
+        <Row icon="globe" label="Show on the public list" sub="Only the language's name and progress" role="switch" checked={listing.listed} disabled={listing.busy}
+          onPress={() => void listing.set(!listing.listed)} />
+      ) : null}
+      <Row icon="building" label={v.orgName} sub="The organization's page" last onPress={() => ctx.go('org_home')} />
+    </Disclosure>
+  );
+  const listingError = listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null;
+
+  if (!s.readiness.ready) {
+    const next = s.readiness.current;
+    return (
+      <Screen header={<BigTop onBack={back} over={name} title={`Get ${name} ready`} />} bodyStyle={{ gap: space.md }}
+        footer={next >= 0 ? <PrimaryBtn label={QUESTIONS[next]!.label} icon="right" onPress={() => ctx.go('get_ready', { languageId, step: String(next + 1) })} /> : undefined}>
+        <ReadyChecklist ctx={ctx} s={s} />
+        {help ? <QuietLink icon="playSolid" label="How this works · 0:40" detail="Hear how the four questions fit together."
+          onPress={() => { help.setOn(true); help.explain('How this works', howItWorks(name)); }} /> : null}
+        {joinRows ? <Group>{joinRows}</Group> : null}
+        {moreCard}
+        {listingError}
+      </Screen>
+    );
+  }
+  return (
+    <Screen header={<BigTop onBack={back} title={name} status={`Ready · ${people}`} statusTone="green" />} bodyStyle={{ gap: space.md }}
+      footer={<PrimaryBtn label="See their work" icon="book" onPress={openMap} />}>
+      <Group>
+        <Row leading={<IconTile icon="file" />} label="They record" sub={s.lines[0]} onPress={() => ctx.go('get_ready', { languageId, step: '1', only: '1' })} />
+        <Row leading={<IconTile icon="listen" />} label="What helps them" sub={s.lines[1] ?? 'Nothing offered yet · add some'} onPress={() => ctx.go('get_ready', { languageId, step: 'helps' })} />
+        <Row leading={<IconTile icon="people" />} label="Who checks" sub={s.lines[2]}
+          onPress={can('manage_flows') ? () => ctx.go('flow_editor', { languageId, steps: 'language' }) : () => ctx.go('get_ready', { languageId, step: '3' })} />
+        <Row leading={<IconTile icon="qr" />} label="People" sub={`${people} · invite more`} onPress={() => ctx.go('members_list', params)} last={!joinRows} />
+        {joinRows}
+      </Group>
+      {moreCard}
+      {listingError}
     </Screen>
   );
 }
@@ -597,33 +638,41 @@ function scopeOf(value: Assignment): Scope | null {
   return value.languageId ? { level: 'language', languageId: value.languageId } : null;
 }
 
+/**
+ * Invite someone (decision 71, demo ADR-039; the prototype's Invite): what
+ * will they do, in plain words, then a code to scan. The email invite and a
+ * code for one person by name (Invite by QR) are one quiet tap away, as are
+ * the organization's other roles and a new one.
+ */
 export function InviteMember(ctx: Ctx) {
+  const v = useOrgView(ctx);
   const level = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
   const me = ctx.session.actorId;
-  const levels = assignableLevels(ctx.org.state, me, level);
-  const floor = levels[0] ?? null;
-  const roles = liveRoles(ctx);
-  const [email, setEmail] = useState('');
-  const [form, setForm] = useState<Assignment>(() => ({
-    roleId: '', level: floor ?? 'org',
-    languageId: floor === 'language' ? defaultLanguage(grantableLanguages(ctx.org.state, me), ctx.language.languageId) : ''
-  }));
+  const granted = grantableLanguages(ctx.org.state, me);
+  const mayOrg = level === 'org' && mayGrantAt(ctx.org.state, me, { level: 'org' });
+  const scopes = [
+    ...granted.map((id) => ({ key: id, label: v.label(id), scope: { level: 'language', languageId: id } as Scope })),
+    ...(mayOrg ? [{ key: 'org', label: granted.length ? 'All of them' : v.orgName, scope: { level: 'org' } as Scope }] : [])
+  ];
+  const asked = ctx.params['languageId'];
+  const initial = asked && granted.includes(asked) ? asked : level === 'language' && granted.includes(ctx.language.languageId) ? ctx.language.languageId : mayOrg ? 'org' : granted[0] ?? '';
+  const [email, setEmail] = useState<{ roleId: string; scope: Scope } | null>(null);
+  const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const scope = scopeOf(form);
-  const ready = /\S+@\S+\.\S+/.test(email.trim()) && !!form.roleId && !!scope && !!floor;
   async function send() {
-    if (!ready || !scope) return;
+    if (!email || !/\S+@\S+\.\S+/.test(address.trim())) return;
     setBusy(true);
     setError('');
     try {
-      const invite = await issueInvite(ctx.language.orgId, form.roleId, scope);
-      const { error: failed } = await supabase.functions.invoke('send-invite', { body: { inviteId: invite.inviteId, token: invite.token, email: email.trim() } });
+      const invite = await issueInvite(ctx.language.orgId, email.roleId, email.scope);
+      const { error: failed } = await supabase.functions.invoke('send-invite', { body: { inviteId: invite.inviteId, token: invite.token, email: address.trim() } });
       if (failed) {
         const details = failed.context instanceof Response ? await failed.context.json().catch(() => null) : null;
         throw new Error(details?.error ?? failed.message);
       }
-      ctx.toast(`Invite sent to ${email.trim()} as ${roleName(ctx, form.roleId)}`);
+      ctx.toast(`Invite sent to ${address.trim()} as ${roleName(ctx, email.roleId)}`);
+      setEmail(null);
       ctx.back();
     } catch (e) {
       // Offline or the server said no: its words say which.
@@ -633,33 +682,119 @@ export function InviteMember(ctx: Ctx) {
       setBusy(false);
     }
   }
-  const params = { level, ...(ctx.params['languageId'] ? { languageId: ctx.params['languageId'] } : {}) };
+  const params = (roleId: string | null, s: { scope: Scope } | null) => ({
+    level: s?.scope.level ?? level, ...(s?.scope.level === 'language' ? { languageId: s.scope.languageId } : {}), ...(roleId ? { roleId } : {})
+  });
   return (
-    <Screen header={<Header title="Invite Member" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Send Invite" icon="share" disabled={!ready} busy={busy} onPress={() => void send()} />}>
-      <Text style={txt.xs}>{floor
-        ? 'Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.'
-        : 'Sign in as an admin to invite members.'}</Text>
-      <Card onPress={() => ctx.go('invite_qr', params)} accessibilityLabel="Invite by QR code">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <View style={{ width: tile.sm, height: tile.sm, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>
-            <Ico name="qr" size={22} color={C.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[txt.body, { fontWeight: '600' }]}>Invite by QR code</Text>
-            <Text style={txt.xs}>For people without email — they scan to join</Text>
-          </View>
-          <Ico name="right" size={22} color={C.muted} />
-        </View>
-      </Card>
-      <Field label="Email address" value={email} onChangeText={setEmail} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" />
-      <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
-      {error ? <Banner icon="flag" tone="amber" title="The invite was not sent" body={error} /> : null}
+    <>
+      <InviteSomeone ctx={ctx} scopes={scopes} initialScope={initial}
+        header={(_shown, back, s) => <Header title="Invite someone" sub={!s ? v.orgName : s.scope.level === 'org' ? v.orgName : s.label} onBack={back} />}
+        label={(s) => (s.scope.level === 'org' ? `${v.orgName} team` : `${s.label} team`)}
+        onDone={ctx.back}
+        {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})}
+        disabled={scopes.length === 0 ? 'Only people who can invite members can invite here.' : undefined}
+        links={(roleId, s) => [
+          ...(roleId && s ? [{ label: 'By email', icon: 'send' as const, onPress: () => setEmail({ roleId, scope: s.scope }) }] : []),
+          { label: 'One person, by name', icon: 'user' as const, onPress: () => ctx.go('invite_qr', params(roleId, s)) }
+        ]} />
+      <Sheet visible={!!email} title="Invite by email" sub={email ? `${roleName(ctx, email.roleId)} · ${email.scope.level === 'org' ? v.orgName : v.label(email.scope.languageId)}` : undefined}
+        onClose={() => setEmail(null)}
+        footer={<PrimaryBtn label="Send the invite" icon="send" busy={busy} disabled={!/\S+@\S+\.\S+/.test(address.trim())} onPress={() => void send()} />}>
+        <Field label="Email address" value={address} onChangeText={setAddress} placeholder="name@example.com" keyboardType="email-address" autoCapitalize="none" />
+        {error ? <Banner icon="flag" tone="amber" title="The invite was not sent" body={error} /> : null}
+      </Sheet>
+    </>
+  );
+}
+
+/**
+ * Letting someone in (decision 71, demo ADR-039; the prototype's
+ * JoinRequest): what will they do, in the same plain words as inviting, and
+ * in which language; then Let them in, or Say no. It decides the request
+ * as Members and the Inbox always have (decide_join_request_v2).
+ */
+function JoinRequest(ctx: Ctx) {
+  const v = useOrgView(ctx);
+  const requestId = ctx.params['requestId']!;
+  const memberId = ctx.params['memberId'] ?? '';
+  const who = ctx.params['name'] ?? ctx.name(memberId);
+  const roles = usePlainRoles(ctx);
+  const me = ctx.session.actorId;
+  const granted = grantableLanguages(v.org, me);
+  const mayOrg = mayGrantAt(v.org, me, { level: 'org' });
+  const [asked, setAsked] = useState(ctx.params['asked']);
+  const [message, setMessage] = useState(ctx.params['message'] ?? '');
+  useEffect(() => {
+    if (asked) return;
+    let live = true;
+    // Opened from the Inbox or Members: when they asked, and what they said, come with the request.
+    void pendingRequests(ctx.language.orgId).then((list) => {
+      const r = list.find((x) => x.id === requestId);
+      if (live && r) { setAsked(r.createdAt); setMessage(r.message); }
+    }).catch((e: unknown) => noteExpected('join request', e));
+    return () => { live = false; };
+  }, [asked, requestId, ctx.language.orgId]);
+  const [choice, setChoice] = useState<string>('translate');
+  const [others, setOthers] = useState(false);
+  const open = ctx.language.languageId;
+  const [where, setWhere] = useState<string>(granted.includes(open) ? open : granted[0] ?? 'org');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const allowed = ctx.session.can('invite_members');
+  const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
+  const scope: Scope | null = where === 'org' ? (mayOrg ? { level: 'org' } : null) : { level: 'language', languageId: where };
+  const first = firstName(who);
+  async function decide(accept: boolean) {
+    if (busy || (accept && (!roleId || !scope))) return;
+    setBusy(true);
+    setError('');
+    try {
+      if (accept) await decideRequest(requestId, true, roleId!, scope!);
+      else await decideRequest(requestId, false);
+      await ctx.org.sync();
+      ctx.toast(accept ? `${who} is in, as ${roleName(ctx, roleId!)}${scope?.level === 'language' ? ` in ${v.label(scope.languageId)}` : ''}.` : `You said no to ${who}.`);
+      ctx.back();
+    } catch (e) {
+      setError(failure('decide join request', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Screen header={<Header title={`${who} wants to join`} sub={askedAgo(asked, Date.now())} onBack={ctx.back} close />}
+      bodyStyle={{ paddingHorizontal: 20, gap: space.md }}
+      footer={allowed ? (
+        <>
+          <PrimaryBtn label={`Let ${first} in`} icon="check" busy={busy} disabled={!roleId || !scope} onPress={() => void decide(true)} />
+          <QuietLinks items={[{ label: 'Say no', icon: 'close', onPress: () => void decide(false) }]} />
+        </>
+      ) : undefined}>
+      {message ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>“{message}”</Text> : null}
+      <SectionLabel label="What will they do?" />
+      {roles.choices.map((c) => (
+        <RadioRow key={c.id} icon={c.icon as IconName} label={c.label} on={choice === c.id} onPress={() => setChoice(c.id)} />
+      ))}
+      {roles.others.length ? (others ? roles.others.map((r) => (
+        <RadioRow key={r.id} icon="star" label={r.name} on={choice === r.id} onPress={() => setChoice(r.id)} />
+      )) : <QuietLink icon="down" label={`Other roles · ${roles.others.length}`} onPress={() => setOthers(true)} />) : null}
+      {ctx.session.can('manage_roles') ? <DashedRow icon="plus" label="Something else: make a new role" onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : null}
+      <SectionLabel label="In which language?" />
+      <Pills>
+        {granted.map((id) => <Chip key={id} label={v.label(id)} on={where === id} onPress={() => setWhere(id)} />)}
+        {mayOrg ? <Chip label={granted.length ? 'All of them' : v.orgName} on={where === 'org'} onPress={() => setWhere('org')} /> : null}
+      </Pills>
+      {!allowed ? <Banner icon="lock" title="View only" body="Only people who can invite members let people in." /> : null}
+      {error ? <Banner icon="flag" tone="amber" title="Not saved" body={error} /> : null}
     </Screen>
   );
 }
 
 export function EditMember(ctx: Ctx) {
+  return ctx.params['requestId'] ? <JoinRequest {...ctx} /> : <MemberEditor {...ctx} />;
+}
+
+/** One member's role and where it applies (ORG-7), with their sign-in help and Remove. */
+function MemberEditor(ctx: Ctx) {
   const v = useOrgView(ctx);
   const memberId = ctx.params['memberId'] ?? '';
   const requestId = ctx.params['requestId'];
@@ -945,43 +1080,44 @@ async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice)
 }
 
 /**
- * A new language (ORG-2, decision 63): its name and code, which part of
- * the Bible, its template and its review flow. It is listed in the
- * organization's stream first; its own stream then starts with the
- * template and the flow, which every language needs.
+ * A new language (ORG-2, decision 63; decision 71 and the prototype's
+ * NewLang and NewLangFlow): one question per step, the likely answer picked.
+ *   1 its name and code
+ *   2 what it will translate (its template, and which part of the Bible)
+ *   3 how recordings get checked (its review flow); Continue adds it, and
+ *     offers its team the Bible and study guides named in the note
+ *   4 invite its translators (a group code to scan)
+ * It is listed in the organization's stream first; its own stream then
+ * starts with the template, the flow and what it is offered.
  */
 export function NewLanguage(ctx: Ctx) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
-  const library = ctx.org.state?.library;
-  const sharedTemplates = useSharedItems('template', lib.orgId);
-  const sharedFlows = useSharedItems('flow', lib.orgId);
-  // The organization's own first, then shared ones (LangQuest's starter first).
-  const templates = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), sharedTemplates.rows, STARTER_TEMPLATE.name), [library, lib.items, sharedTemplates.rows]);
-  const flows = useMemo(() => libraryChoices(library ?? {}, lib.items('flow'), sharedFlows.rows, STARTER_FLOW.name), [library, lib.items, sharedFlows.rows]);
-  // Suggested: what the open language uses, else LangQuest's starter.
-  const suggestedTemplate = useMemo(() => suggestedChoice(state?.template?.value.itemId, templates, STARTER_TEMPLATE), [state, templates]);
-  const suggestedFlow = useMemo(() => suggestedChoice(state?.flow?.value.itemId, flows, STARTER_FLOW), [state, flows]);
+  const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [picked, setPicked] = useState<string | null>(null);
   const [scope, setScope] = useState<LanguageScope>('nt');
-  const [pickedTemplate, setPickedTemplate] = useState<string | null>(null);
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
-  const [pickedFlow, setPickedFlow] = useState<string | null>(null);
-  const [templateLimit, setTemplateLimit] = useState(6);
-  const [flowLimit, setFlowLimit] = useState(6);
+  const [flowKey, setFlowKey] = useState<string | null>(null);
+  const [moreFlows, setMoreFlows] = useState(false);
+  const [created, setCreated] = useState<{ languageId: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const template = templates.find((c) => c.key === (pickedTemplate ?? suggestedTemplate));
-  const flow = flows.find((c) => c.key === (pickedFlow ?? suggestedFlow));
-  const docs = useLibraryDocs(lib.orgId, [template?.hash]);
-  const doc = docs.get<TemplateDoc>(template?.hash);
+  // Suggested: what the open language uses, else LangQuest's.
+  const rec = useRecordChoices(ctx, state?.template?.value.itemId);
+  const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
+  const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
+  const offers = useNewLanguageOffers(ctx);
+  const template = rec.choices.find((c) => c.key === (picked ?? rec.current?.key ?? rec.stories?.key ?? rec.chapters?.key)) ?? null;
+  const doc = rec.docs.get<TemplateDoc>(template?.hash);
+  const flow = chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
   const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
-  const shownTemplates = [...templates.filter((c) => c.source === 'ours'), ...templates.filter((c) => c.source === 'shared').slice(0, templateLimit)];
-  const shownFlows = [...flows.filter((c) => c.source === 'ours'), ...flows.filter((c) => c.source === 'shared').slice(0, flowLimit)];
+  const title = name.trim() || 'the language';
+
   async function create() {
-    const title = name.trim();
-    if (!title || busy || !template || !flow) return;
+    const languageName = name.trim();
+    if (!languageName || busy || !template || !flow) return;
     setBusy(true);
     setError('');
     try {
@@ -991,82 +1127,191 @@ export function NewLanguage(ctx: Ctx) {
       if (!mine.has('manage_templates') || !mine.has('manage_flows')) {
         throw new CommandError('Adding a language needs permission to manage templates and review flows for the whole organization.');
       }
-      const languoid = code.trim() || title.slice(0, 3);
+      const languoid = code.trim() || languageName.slice(0, 3);
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
       const loaded = (await loadDocs(lib.orgId, [template.hash])).get(template.hash);
       if (!loaded || loaded.format !== 'template@1') throw new CommandError('Its template is not on this device yet. Try again when connected.');
       const books = booksInScope(loaded, scope, chosenBooks);
       if (books && books.length === 0) throw new CommandError('Choose at least one book.');
       const templateItem = await adoptChoice(lib, template);
-      const flowItem = await adoptChoice(lib, flow);
+      const flowItem = await adoptChoice(lib, flow.c);
+      // What its team is offered, followed first when it is another organization's (as What helps them does).
+      const offered: string[] = [];
+      for (const o of offers.items) offered.push(o.itemId ?? (o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!)));
       const fresh = emptyLanguageState();
       const plan = addLanguage(org, {
-        languageId, code: languoid, name: title,
+        languageId, code: languoid, name: languageName,
         template: await lib.applySpecs(templateItem, { docHash: template.hash, into: fresh, ...(books ? { books } : {}) }),
-        flow: await lib.applySpecs(flowItem, { docHash: flow.hash, into: fresh })
+        flow: await lib.applySpecs(flowItem, { docHash: flow.c.hash, into: fresh })
       });
+      const recommend: EventSpec[] = offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true)
+        .map((itemId, i) => ({ id: `${languageId}:offer:${i}`, type: 'v1.ReferenceSet', payload: { itemId, state: 'recommended' } } as EventSpec));
       await ctx.org.append('v1.LanguageAdded', plan.added);
       // Its stream takes events once the organization's lists it: send that first when connected.
       await ctx.org.sync().catch((e: unknown) => noteExpected('new language listing', e));
-      await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: plan.specs });
-      ctx.toast(`${title} added to ${orgName} · uses ${template.name} and ${flow.name}`);
-      // Back opens it: the language this person works in is the one the app opens.
+      await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: [...plan.specs, ...recommend] });
+      ctx.toast(`${languageName} added to ${orgName}.`);
+      // The language this person works in is the one the app opens.
       ctx.setLanguage(languageId);
-      ctx.back();
+      setCreated({ languageId, name: languageName });
+      setStep(4);
     } catch (e) {
       setError(failure('new language', e));
     } finally {
       setBusy(false);
     }
   }
-  const followed = (c: LibraryChoice) => c.source === 'shared'
-    ? ` ${orgName} ${c.shared.subscribable ? 'follows' : 'copies'} it from ${c.shared.org_name}${c.shared.subscribable ? ', so new versions reach the language by themselves' : ''}.`
-    : '';
+
+  const header = (
+    <View style={{ backgroundColor: C.bg }}>
+      <Header title="New language" sub={`Step ${step} of 4`} onBack={ctx.back} close />
+      <View style={{ paddingHorizontal: 20, paddingBottom: space.sm }}>
+        <Segments total={4} current={step - 1} done={(i) => i < step - 1} />
+      </View>
+    </View>
+  );
+  const back = step > 1 && step < 4 ? <QuietLinks items={[{ label: 'Back', icon: 'arrowL', onPress: () => setStep(step - 1) }]} /> : null;
+  const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
+
+  if (step === 4 && created) return <NewLanguageInvite ctx={ctx} languageId={created.languageId} name={created.name} />;
+
+  if (step === 1) {
+    return (
+      <Screen header={header} bodyStyle={bodyStyle}
+        footer={<PrimaryBtn label="Continue" icon="right" disabled={!name.trim()} onPress={() => setStep(2)} />}>
+        <Question>What is the language called?</Question>
+        <Field label="Its name" value={name} onChangeText={setName} placeholder="e.g. Hadiyya" autoCapitalize="words" />
+        <Field label="Its code, if it has one" value={code} onChangeText={setCode} placeholder="e.g. hdy" autoCapitalize="none" />
+        <Text style={[txt.sm, { color: C.muted }]}>It goes in {orgName}. You can invite its translators at the end.</Text>
+      </Screen>
+    );
+  }
+
+  if (step === 2) {
+    const card = (c: LibraryChoice | null, k: RecordKind) => {
+      if (!c) return null;
+      const on = template === c;
+      const suggested = c === (rec.current ?? rec.stories);
+      const t = k === 'stories' ? c.name.replace(/\s*\(.*?\)\s*/g, ' ').trim() : RECORD_LABEL[k].title;
+      const sub = k === 'stories' ? `${suggested ? 'Suggested · ' : ''}story-sized passages with study guides` : RECORD_LABEL[k].sub;
+      return (
+        <ChoiceCard key={c.key} on={on} icon="file" title={t} sub={sub} onPress={() => setPicked(c.key)}>
+          {on ? <Examples rows={recordExamples(rec.docs.get<TemplateDoc>(c.hash), 3)} /> : null}
+        </ChoiceCard>
+      );
+    };
+    const elseOn = !!template && rec.others.includes(template);
+    return (
+      <Screen header={header} bodyStyle={bodyStyle}
+        footer={<><PrimaryBtn label="Continue" icon="right" disabled={!template} onPress={() => setStep(3)} />{back}</>}>
+        <Question>What will {title} translate?</Question>
+        {card(rec.stories, 'stories')}
+        {card(rec.chapters, 'chapters')}
+        {rec.others.length ? (
+          <ChoiceCard on={elseOn} icon="file" title="Your own outline" sub="Stories, songs, health lessons, anything" onPress={() => setPicked(rec.others[0]!.key)}>
+            {elseOn ? (
+              <View style={{ paddingLeft: 52, gap: space.xs }}>
+                {rec.others.map((c) => <Chip key={c.key} label={c.name} on={template === c} onPress={() => setPicked(c.key)} />)}
+              </View>
+            ) : null}
+          </ChoiceCard>
+        ) : null}
+        {!rec.stories && !rec.chapters && !rec.others.length ? <Text style={txt.smMuted}>{rec.loaded ? 'Nothing to choose from yet.' : 'Loading…'}</Text> : null}
+        {doc?.bible ? (
+          <>
+            <SectionLabel label="Which part of the Bible?" />
+            <Pills>
+              {LANGUAGE_SCOPES.map((sc) => <Chip key={sc.id} label={sc.label} on={scope === sc.id} onPress={() => setScope(sc.id)} />)}
+            </Pills>
+            {scope === 'custom' ? (
+              <Pills>
+                {doc.bible.books.map((b) => (
+                  <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)}
+                    onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
+                ))}
+              </Pills>
+            ) : null}
+            <Text style={[txt.sm, { color: C.muted }]}>You can divide books differently later. Recordings move with their verses.</Text>
+          </>
+        ) : null}
+      </Screen>
+    );
+  }
+
+  // Spoken's method is offered beside the suggested ways (the prototype's NewLangFlow); the rest one tap deeper.
+  const spoken = chk.rest.filter((e) => /spoken/i.test(e.c.name));
+  const rest = chk.rest.filter((e) => !spoken.includes(e));
+  const flowCard = (e: FlowEntry) => {
+    const on = flow === e;
+    const from = e.c.source === 'shared' ? `from ${e.c.shared.org_name}` : sourceLine(e.c.item).replace(/^Following /, 'from ').replace(/ · .*$/, '');
+    const sub = e === chk.first ? `Suggested · ${from}` : e.doc.description || from;
+    return (
+      <ChoiceCard key={e.c.key} on={on} icon="route" title={e.c.name} sub={sub} onPress={() => setFlowKey(e.c.key)}>
+        {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
+      </ChoiceCard>
+    );
+  };
   return (
-    <Screen header={<Header title="New Language" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Create Language" disabled={!name.trim() || !template || !flow} busy={busy} onPress={() => void create()} />}>
-      <Text style={txt.xs}>This language is added to {orgName}. You can invite language admins from Members after it is created.</Text>
-      <Field label="Language name" value={name} onChangeText={setName} placeholder="Enter language name" autoCapitalize="words" />
-      <Field label="Language code" value={code} onChangeText={setCode} placeholder="e.g. DIN" autoCapitalize="none" />
-      {doc?.structure !== 'outline' ? (
-        <>
-          <SectionLabel label="Which books?" />
-          <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
-          {scope === 'custom' && doc?.bible ? (
-            <ChipRow>
-              {doc.bible.books.map((b) => (
-                <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)}
-                  onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
-              ))}
-            </ChipRow>
-          ) : null}
-        </>
+    <Screen header={header} bodyStyle={bodyStyle}
+      footer={<><PrimaryBtn label="Continue" icon="right" busy={busy} disabled={!flow || !template || !name.trim()} onPress={() => void create()} />{back}</>}>
+      <Question>How will recordings get checked?</Question>
+      {[...chk.main, ...spoken].map(flowCard)}
+      {rest.length ? (moreFlows ? rest.map(flowCard)
+        : <QuietLink icon="down" label={`Other ways to check · ${rest.length}`} onPress={() => setMoreFlows(true)} />) : null}
+      {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? 'No ways to check to choose from yet.' : 'Loading…'}</Text> : null}
+      {offers.names.length ? (
+        <AmberNote icon="layers">
+          We'll offer {joinAnd(offers.names)} to {title}'s translators. Change that any time under <Text style={{ fontWeight: '800' }}>What helps</Text>.
+        </AmberNote>
       ) : null}
-      <SectionLabel label="What will they record?" />
-      <Text style={txt.xs}>Pick a ready-made set of passages. You can divide the books your own way afterwards, under What they record.</Text>
-      {sharedTemplates.error ? (
-        <Banner icon="cloud" tone="amber" title="Could not refresh the shared templates"
-          body={sharedTemplates.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
-      ) : null}
-      <Choices items={shownTemplates.map((c) => ({ id: c.key, label: c.name, sub: choiceLine(c, sourceLine), ...(c.key === suggestedTemplate ? { badge: 'Suggested' } : {}) }))}
-        value={template?.key ?? ''} onChoose={setPickedTemplate} empty={sharedTemplates.loaded ? 'No templates to choose from yet.' : 'Loading…'} />
-      <ShowMore remaining={templates.length - shownTemplates.length} step={6} onMore={() => setTemplateLimit((l) => l + 6)} />
-      {template ? (
-        <Text style={txt.xs}>Its passages come from {template.name}.{followed(template)} It can be changed later under Content Templates.</Text>
-      ) : null}
-      <SectionLabel label="Who checks the recordings?" />
-      {sharedFlows.error ? (
-        <Banner icon="cloud" tone="amber" title="Could not refresh the shared flows"
-          body={sharedFlows.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
-      ) : null}
-      <Choices items={shownFlows.map((c) => ({ id: c.key, label: c.name, sub: choiceLine(c, sourceLine), ...(c.key === suggestedFlow ? { badge: 'Suggested' } : {}) }))}
-        value={flow?.key ?? ''} onChoose={setPickedFlow} empty={sharedFlows.loaded ? 'No review flows to choose from yet.' : 'Loading…'} />
-      <ShowMore remaining={flows.length - shownFlows.length} step={6} onMore={() => setFlowLimit((l) => l + 6)} />
-      {flow ? (
-        <Text style={txt.xs}>Passages are checked with {flow.name}.{followed(flow)} It can be changed later under Review Flows.</Text>
-      ) : null}
-      {error ? <Banner icon="flag" tone="amber" title="Not created" body={error} /> : null}
+      {error ? <Banner icon="flag" tone="amber" title="Not added" body={error} /> : null}
     </Screen>
+  );
+}
+
+/**
+ * What a new language's team is offered from the start: a Bible and the
+ * study guides in the language its team reads (English), FIA's first: the
+ * organization's own when it has them, else what LangQuest shares.
+ */
+function useNewLanguageOffers(ctx: Ctx) {
+  const lib = useLibrary(ctx);
+  const shared = useSharedItems('material', lib.orgId);
+  const own = lib.items('material').filter((it) => it.current && !it.archived);
+  const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[subscriptionItemId(s.org_id, s.item_id)]);
+  const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
+  const fia = (n: string) => (/fia/i.test(n) ? 0 : /example/i.test(n) ? 2 : 1);
+  const web = (n: string) => (/world english/i.test(n) ? 0 : 1);
+  type Offer = { itemId: string | null; shared: SharedItem | null; name: string; label: string };
+  const pick = (kind: 'source' | 'guide', rank: (n: string) => number): Offer | null => {
+    // A guide still on its way is known by its name ("FIA study guides (English)"), so FIA's is offered even before it loads.
+    const named = (n: string) => kind === 'guide' && /study guides?/i.test(n) && /\(English\)/.test(n);
+    const fits = (doc: LibraryDoc | null, n: string) => (doc ? refKindOf(doc) === kind && (languageOf(doc) ?? 'eng') === 'eng' : named(n));
+    const mine = own.map((it) => ({ it, doc: docs.get(it.current) })).filter((x) => fits(x.doc, x.it.name))
+      .sort((a, b) => rank(a.it.name) - rank(b.it.name))[0];
+    if (mine) return { itemId: mine.it.itemId, shared: null, name: mine.it.name, label: kind === 'source' ? mine.it.name : `${guideShortName(mine.it.name)}'s study guides` };
+    const theirs = others.map((s) => ({ s, doc: docs.get(s.latest_hash) }))
+      .filter((x) => fits(x.doc, x.s.name))
+      .sort((a, b) => rank(a.s.name) - rank(b.s.name))[0];
+    if (theirs) return { itemId: null, shared: theirs.s, name: theirs.s.name, label: kind === 'source' ? (theirs.doc as SourceDoc | null)?.name || theirs.s.name : `${guideShortName(theirs.s.name)}'s study guides` };
+    return null;
+  };
+  const items = [pick('source', web), pick('guide', fia)].filter((o): o is Offer => !!o);
+  const may = ctx.session.can('manage_reference');
+  return { items: may ? items : [], names: may ? items.map((o) => (o.label.startsWith('World') ? `the ${o.label}` : o.label)) : [] };
+}
+
+/** Step 4: invite the new language's translators (the prototype's Invite, after NewLangFlow). */
+function NewLanguageInvite(props: { ctx: Ctx; languageId: string; name: string }) {
+  const { ctx } = props;
+  const scope = { key: props.languageId, label: props.name, scope: { level: 'language', languageId: props.languageId } as Scope };
+  const may = ctx.session.can('invite_members') && mayGrantAt(ctx.org.state, ctx.session.actorId, scope.scope);
+  return (
+    <InviteSomeone ctx={ctx} scopes={[scope]} initialScope={props.languageId}
+      header={(shown, back) => <Header title="Invite someone" sub={props.name} onBack={shown ? back : ctx.back} />}
+      label={() => `${props.name} team`} onDone={ctx.back}
+      disabled={may ? undefined : `Invite ${props.name}'s translators from its page later.`}
+      links={() => [{ label: 'Later', icon: 'clock', onPress: ctx.back }]} />
   );
 }
 

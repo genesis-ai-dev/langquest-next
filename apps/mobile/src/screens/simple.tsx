@@ -8,8 +8,7 @@ export function MicSetup(ctx: Ctx) {
   return <Screen header={<Header title="Set up your microphone" onBack={ctx.back} close />}><EmptyState icon="mic" title="Microphone setup" /></Screen>;
 }
 
-export function GetReady(ctx: Ctx) {
-  return <Screen header={<Header title="Get ready" onBack={ctx.back} close />}><EmptyState icon="check" title="Get the language ready" /></Screen>;
-}
+// Get ‹language› ready lives in its own module (getReady.tsx).
+export { GetReady } from './getReady';
 
 export const contracts = contractsFor('mic_setup', 'get_ready');
