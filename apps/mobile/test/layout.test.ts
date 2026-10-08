@@ -1,4 +1,4 @@
-import { SCREEN_IDS, TAB_SCREENS } from '../src/flow';
+import { PASSAGE_READING, SCREEN_IDS, TAB_SCREENS } from '../src/flow';
 import { chapterColumns, chromeVisible, frame, layoutKind, WIDE_CHROME } from '../src/layout';
 import { measure } from '../src/theme';
 
@@ -13,8 +13,10 @@ describe('responsive layout (decisions.md 55)', () => {
     expect(layoutKind(2560)).toBe('desktop');
   });
 
-  it('a phone gets exactly the demo tab rule, so phones are unchanged', () => {
-    for (const id of SCREEN_IDS) expect(chromeVisible('phone', id), id).toBe(TAB_SCREENS.includes(id));
+  it("a phone gets the demo's tab rule, but a passage and what you read under it are tasks (decision 71)", () => {
+    const tasks: string[] = ['passage_record', ...PASSAGE_READING];
+    for (const id of SCREEN_IDS) expect(chromeVisible('phone', id), id).toBe(TAB_SCREENS.includes(id) && !tasks.includes(id));
+    for (const id of tasks) expect(chromeVisible('tablet', id), id).toBe(true);
   });
 
   it('wide windows keep the nav on Manage drill-downs, and still hide it on task screens', () => {

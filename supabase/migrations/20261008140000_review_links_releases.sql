@@ -1,78 +1,12 @@
--- v1.AudioFormatSet: a voice note's format (decisions.md 72).
+-- Shared review links and releases (decisions.md 72).
 --
--- A voice note is named only by the event that uses it (decision 30), which
--- has no format field, so every device took it for m4a. A browser that
--- cannot record MP4 stores WAV (decision 58), and the note was then looked
--- for, uploaded and fetched as <hash>.m4a. The device that has the file now
--- says its format with an event of its own, appended ahead of the event that
--- names the note. Whoever may name a voice note may say its format.
--- core validate.ts and EVENT_PRIVILEGE are the same rules
--- (scripts/record-parity-sql.ts); both functions are redefined whole.
-
-create or replace function public.event_privilege(p_type text, p jsonb)
-returns text language sql immutable as $$
-  select case p_type
-    -- organization stream
-    when 'v1.OrgCreated' then 'bootstrap'
-    when 'v1.RoleDefined' then 'manage_roles'
-    when 'v1.RoleRetired' then 'manage_roles'
-    when 'v1.MemberAdded' then 'invite_members'
-    when 'v1.MemberRemoved' then 'invite_members'
-    when 'v1.InviteIssued' then 'invite_members'
-    when 'v1.InviteRedeemed' then null
-    when 'v1.JoinDecided' then 'invite_members'
-    when 'v1.LicenseSet' then 'manage_roles'
-    when 'v1.LanguageAdded' then 'manage_structure'
-    when 'v1.LanguageRenamed' then 'manage_structure'
-    when 'v1.LanguageCountrySet' then 'manage_structure'
-    when 'v1.LanguageTargetSet' then 'manage_structure'
-    when 'v1.ReferenceRecommended' then 'manage_reference'
-    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
-    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
-    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
-    -- either stream
-    when 'v1.Redacted' then 'manage_structure'
-    -- language stream
-    when 'v1.TemplateSelected' then 'manage_templates'
-    when 'v1.UnitAdded' then 'manage_templates'
-    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
-    when 'v1.FlowSelected' then 'manage_flows'
-    when 'v1.FlowStepSet' then 'manage_flows'
-    when 'v1.FlowStepRemoved' then 'manage_flows'
-    when 'v1.ReviewKindDefined' then 'manage_flows'
-    when 'v1.ReviewTeamDefined' then 'manage_teams'
-    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
-    when 'v1.ReviewTeamKindSet' then 'manage_teams'
-    when 'v1.RecordingAdded' then 'translate'
-    when 'v1.TakeComposed' then 'translate'
-    when 'v1.TakeArchived' then 'translate'
-    when 'v1.TakeSubmitted' then 'translate'
-    when 'v1.ResponseRecorded' then 'translate'
-    when 'v1.AudioFormatSet' then 'translate,review,assign_work,send_to_reviewers,override_checkpoints,fill_reference'
-    when 'v1.ReviewRecorded' then case when p->>'via' = 'logged' then 'review,translate' else 'review' end
-    when 'v1.DepartureRecorded' then case p->>'type'
-      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
-    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
-    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
-    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
-    when 'v1.NoteAdded' then 'translate,review,fill_reference'
-    when 'v1.StudyStepMarked' then 'translate'
-    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
-    when 'v1.MaterialFieldSet' then 'fill_reference'
-    when 'v1.MaterialLocked' then 'manage_reference'
-    when 'v1.KeyTermDefined' then 'fill_reference'
-    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
-    when 'v1.KeyTermAdjusted' then 'fill_reference'
-    when 'v1.KeyTermLinked' then 'fill_reference'
-    when 'v1.ReferenceSet' then 'manage_reference'
-    when 'v1.PassageReferenceLinked' then 'manage_reference'
-    when 'v1.ReferencesUsed' then 'translate,review'
-    else null
-  end;
-$$;
+-- Two new language-stream events: v1.FlowStepLinksSet (may a flow step be
+-- reviewed through a shared link) and v1.VersionReleased (a channel reports
+-- a version live or taken down). And a review given through a shared link
+-- (`via: link`) is recorded by whoever shared it, like a check logged from
+-- outside the app: review or translate. Core holds the same rules
+-- (validate.ts, org.ts privilegeFor); scripts/record-parity-sql.ts holds the
+-- two together. Both functions are restated whole, as `create or replace`.
 
 create or replace function public.validate_payload(p_type text, p jsonb)
 returns text language plpgsql immutable as $$
@@ -212,6 +146,14 @@ begin
     when 'v1.ReviewTeamKindSet' then
       if not public._is_str(p->'teamId') then return 'teamId must be a non-empty string'; end if;
       if not (jsonb_typeof(p->'kindId') is not distinct from 'null' or public._is_str(p->'kindId')) then return 'kindId must be a string or null'; end if;
+    when 'v1.FlowStepLinksSet' then
+      if not public._is_str(p->'stepId') then return 'stepId must be a non-empty string'; end if;
+      if not public._is_bool(p->'allowed') then return 'allowed must be a boolean'; end if;
+    when 'v1.VersionReleased' then
+      if not (public._is_str(p->'takeId') and public._is_str(p->'channel')) then return 'takeId, channel must be non-empty strings'; end if;
+      if not public._is_bool(p->'live') then return 'live must be a boolean'; end if;
+      if p ? 'url' and not public._is_str(p->'url') then return 'url must be a non-empty string'; end if;
+      if length(p->>'channel') > 60 then return 'channel must be at most 60 characters'; end if;
     when 'v1.RecordingAdded' then
       if not (public._is_str(p->'recordingId') and public._is_str(p->'unitId')) then return 'recordingId, unitId must be non-empty strings'; end if;
       if not public._is_one_of(p->'kind', array['source', 'target']) then return 'kind must be source or target'; end if;
@@ -228,9 +170,6 @@ begin
     when 'v1.ResponseRecorded' then
       if not (public._is_str(p->'takeId') and public._is_str(p->'respondsToTakeId')) then return 'takeId, respondsToTakeId must be non-empty strings'; end if;
       if not (public._is_opt_str(p->'note') and public._is_opt_str(p->'blobHash')) then return 'note, blobHash must be strings'; end if;
-    when 'v1.AudioFormatSet' then
-      if not public._is_str(p->'hash') then return 'hash must be a non-empty string'; end if;
-      if not public._is_one_of(p->'format', array['wav', 'm4a']) then return 'format must be one of wav, m4a'; end if;
     when 'v1.ReviewRecorded' then
       if not (public._is_str(p->'reviewId') and public._is_str(p->'takeId') and public._is_str(p->'kindId')) then return 'reviewId, takeId, kindId must be non-empty strings'; end if;
       if not public._is_one_of(p->'outcome', array['looks_good', 'needs_changes', 'recorded']) then return 'outcome must be one of looks_good, needs_changes, recorded'; end if;
@@ -358,3 +297,127 @@ begin
   end case;
   return null;
 end $$;
+
+create or replace function public.event_privilege(p_type text, p jsonb)
+returns text language sql immutable as $$
+  select case p_type
+    -- organization stream
+    when 'v1.OrgCreated' then 'bootstrap'
+    when 'v1.RoleDefined' then 'manage_roles'
+    when 'v1.RoleRetired' then 'manage_roles'
+    when 'v1.MemberAdded' then 'invite_members'
+    when 'v1.MemberRemoved' then 'invite_members'
+    when 'v1.InviteIssued' then 'invite_members'
+    when 'v1.InviteRedeemed' then null
+    when 'v1.JoinDecided' then 'invite_members'
+    when 'v1.LicenseSet' then 'manage_roles'
+    when 'v1.LanguageAdded' then 'manage_structure'
+    when 'v1.LanguageRenamed' then 'manage_structure'
+    when 'v1.LanguageCountrySet' then 'manage_structure'
+    when 'v1.LanguageTargetSet' then 'manage_structure'
+    when 'v1.ReferenceRecommended' then 'manage_reference'
+    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
+    -- either stream
+    when 'v1.Redacted' then 'manage_structure'
+    -- language stream
+    when 'v1.TemplateSelected' then 'manage_templates'
+    when 'v1.UnitAdded' then 'manage_templates'
+    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
+    when 'v1.FlowSelected' then 'manage_flows'
+    when 'v1.FlowStepSet' then 'manage_flows'
+    when 'v1.FlowStepRemoved' then 'manage_flows'
+    when 'v1.ReviewKindDefined' then 'manage_flows'
+    when 'v1.ReviewTeamDefined' then 'manage_teams'
+    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
+    when 'v1.ReviewTeamKindSet' then 'manage_teams'
+    when 'v1.FlowStepLinksSet' then 'manage_flows'
+    when 'v1.VersionReleased' then 'assign_work'
+    when 'v1.RecordingAdded' then 'translate'
+    when 'v1.TakeComposed' then 'translate'
+    when 'v1.TakeArchived' then 'translate'
+    when 'v1.TakeSubmitted' then 'translate'
+    when 'v1.ResponseRecorded' then 'translate'
+    when 'v1.ReviewRecorded' then case when p->>'via' in ('logged', 'link') then 'review,translate' else 'review' end
+    when 'v1.DepartureRecorded' then case p->>'type'
+      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
+    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
+    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
+    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
+    when 'v1.NoteAdded' then 'translate,review,fill_reference'
+    when 'v1.StudyStepMarked' then 'translate'
+    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
+    when 'v1.MaterialFieldSet' then 'fill_reference'
+    when 'v1.MaterialLocked' then 'manage_reference'
+    when 'v1.KeyTermDefined' then 'fill_reference'
+    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
+    when 'v1.KeyTermAdjusted' then 'fill_reference'
+    when 'v1.KeyTermLinked' then 'fill_reference'
+    when 'v1.ReferenceSet' then 'manage_reference'
+    when 'v1.PassageReferenceLinked' then 'manage_reference'
+    when 'v1.ReferencesUsed' then 'translate,review'
+    else null
+  end;
+$$;
+
+-- A link someone shares (on WhatsApp, say) so anyone holding it can hear one
+-- version of one passage and review it for one kind, with any name, until it
+-- expires or is revoked (apps/web/worker/agent). Only the code's SHA-256 is
+-- kept. Reviews through it are recorded as `created_by`, who must still be
+-- able to record them; `counts` is the sharer's choice of whether they
+-- count toward the step or are listener feedback. Like api_tokens, only the
+-- app's Worker reads or writes it.
+create table public.review_links (
+  id uuid primary key default gen_random_uuid(),
+  code_hash text not null unique check (code_hash ~ '^[0-9a-f]{64}$'),
+  org_id text not null check (length(org_id) between 1 and 200),
+  language_id text not null check (length(language_id) between 1 and 200),
+  unit_id text not null check (length(unit_id) between 1 and 400),
+  take_id text not null check (length(take_id) between 1 and 200),
+  kind_id text not null check (length(kind_id) between 1 and 100),
+  counts boolean not null,
+  label text check (label is null or length(label) between 1 and 120),
+  created_by uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz
+);
+
+create index review_links_passage on public.review_links (org_id, language_id, unit_id, created_at desc);
+
+alter table public.review_links enable row level security;
+revoke all on public.review_links from public, anon, authenticated;
+grant select, insert, update, delete on public.review_links to service_role;
+
+-- The token scopes became read:published, read, review and release
+-- (decisions.md 72): `feedback` grew into `review` (listener feedback or a
+-- flow step) and `publish` became `release`. Tokens and pending app requests
+-- already issued keep working under the new names.
+alter table public.api_tokens drop constraint api_tokens_scopes_check;
+alter table public.api_device_grants drop constraint api_device_grants_requested_scopes_check;
+
+update public.api_tokens set scopes = array(
+  select distinct case s when 'feedback' then 'review' when 'publish' then 'release' else s end from unnest(scopes) s)
+  where scopes && array['feedback', 'publish'];
+update public.api_device_grants set requested_scopes = array(
+  select distinct case s when 'feedback' then 'review' when 'publish' then 'release' else s end from unnest(requested_scopes) s)
+  where requested_scopes && array['feedback', 'publish'];
+
+alter table public.api_tokens add constraint api_tokens_scopes_check check (
+  cardinality(scopes) > 0 and scopes <@ array['read:published', 'read', 'review', 'release']::text[]);
+alter table public.api_device_grants add constraint api_device_grants_requested_scopes_check check (
+  cardinality(requested_scopes) > 0 and requested_scopes <@ array['read:published', 'read', 'review', 'release']::text[]);
+
+-- A card may say where in a version it is about (`atMs`, core Card): a
+-- reviewer's voice clip at a moment. Optional, a whole number of ms.
+create or replace function public._is_cards(v jsonb) returns boolean language sql immutable as $$
+  select v is not null and jsonb_typeof(v) = 'array' and not exists (
+    select 1 from jsonb_array_elements(v) c
+    where jsonb_typeof(c) <> 'object' or not public._is_str(c->'hash') or jsonb_typeof(c->'durationMs') is distinct from 'number'
+      or (c ? 'atMs' and not (jsonb_typeof(c->'atMs') = 'number' and (c->>'atMs')::numeric >= 0
+        and (c->>'atMs')::numeric = trunc((c->>'atMs')::numeric))));
+$$;

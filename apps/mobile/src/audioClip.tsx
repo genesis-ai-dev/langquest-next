@@ -14,7 +14,7 @@ export function audioFormat(state: LanguageState, hash: string): BlobRef['format
     const card = recording.cards.find((c) => c.hash === hash);
     if (card) return card.format ?? 'wav';
   }
-  // A voice note: m4a unless the log says otherwise (decisions.md 72).
+  // A voice note: m4a unless the log says otherwise (decisions.md 73).
   return state.audioFormats[hash]?.value ?? 'm4a';
 }
 

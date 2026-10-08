@@ -21,9 +21,26 @@ Also built: the review group first in Ask someone, Choose books in New
 Language, and a new role while inviting or admitting someone (Caleb,
 2026-10-08).
 
-Not built yet: 5 (which Bible was playing per take), 6's term notes, 7's
-verse-group cards and side-by-side wide panes, 8 (microphone setup), and
-spoken help lines on devices.
+Built on branch `caleb-simple-review` (decision 71, amended): pages 09
+Review (Listen, one question per screen, Decide, "What should change?",
+Background as one sheet, Already happened behind the same screens) and 10
+Back translation (the workspace with only the version on top, part by
+part).
+
+Item 10 rebuilt to the agreed images (decision 71, amended 2026-10-08):
+the language page is the Get ready checklist, then a summary;
+`screens/getReady.tsx` holds the four questions and What helps them; the flow
+editor edits a language's own checks; New Language is four steps; joining,
+inviting and roles read in plain words (`src/simple/`).
+
+Built on branch `caleb-simple-workspace` (decision 71, amended): 7's
+workspace as the images show it (parts as cards, counted until parts carry
+verse labels), Publish as its own screen, 4's study reader, and 8
+(microphone setup by ear).
+
+Not built yet: 5 (which Bible was playing per take), 6's term notes ("Note
+on a word" is left out), 7's verse-group cards by verse label and
+side-by-side wide panes, and spoken help lines on devices.
 
 ## Product requirements that change
 
@@ -83,5 +100,9 @@ These change what the app does, not only how it looks.
 - Review: Background is one tap from Listen; decide before giving feedback.
 - Back translation: the same workspace, part by part, with Back 10 s and a draggable timeline.
 - Map: books with a bar and a count, search and "Next" first; chapters in
-  three states, marked as well as coloured.
-- Settings (Me): five rows; the rest under More settings.
+  three states, marked as well as coloured. Built (decision 71, amended):
+  filters, counts and the full key behind "Filter".
+- Settings (Me): five rows; the rest under More settings. Built (decision
+  71, amended): `settings_more`, an app-only screen.
+- Home: "Next for you", "Then", "Waiting on others"; Get ready for
+  coordinators; tabs Work, Map, Manage, Me. Built (decision 71, amended).

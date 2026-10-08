@@ -26,6 +26,12 @@ export interface Card {
   durationMs: number;
   /** Container of the blob; defaults to wav (native VAD segments). */
   format?: 'wav' | 'm4a';
+  /**
+   * For a review's artifact: the moment in the version it is about, in ms
+   * from the start (a listener's note "here", decisions.md 72). Absent: the
+   * whole version.
+   */
+  atMs?: number;
 }
 
 export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordEvents, LibraryWorkEvents, ReferenceWorkEvents {
@@ -85,7 +91,18 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   /** The translator's answer to suggestions: what changed and why the rest stayed (text or audio). */
   'v1.ResponseRecorded': { takeId: string; respondsToTakeId: string; note?: string; blobHash?: string };
   /**
-   * The format of a voice note's file (decisions.md 72). A voice note is
+   * Whether people may share a link for this flow step's review (decisions.md
+   * 70). Register per step; without one, any step but a checkpoint may.
+   */
+  'v1.FlowStepLinksSet': { stepId: string; allowed: boolean };
+  /**
+   * A distribution channel reports a version live, or taken down
+   * (decisions.md 72): "v3 is live in the EL app". A fact, not a verdict.
+   * Register per (version, channel).
+   */
+  'v1.VersionReleased': { takeId: string; channel: string; live: boolean; url?: string };
+  /**
+   * The format of a voice note's file (decisions.md 73). A voice note is
    * named only by the event that uses it (30), which has no format field,
    * so it is m4a unless this says otherwise: a browser that cannot record
    * MP4 stores WAV (58). Appended with the event that names the note, by

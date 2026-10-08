@@ -2,13 +2,23 @@
 // demo's bottom bar on a phone, an icon rail down the left on a tablet-wide
 // window, and a labelled sidebar with the organization on a desktop-wide one.
 // The same tabs, badges and lit tab in each; only the layout changes.
+// The simple redesign's tabs (decision 71, demo ADR-032): Work (a list), Map
+// (a book), Manage (the gear), Me (a person).
+import { Book } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, Ico, txt, type IconName } from './kit';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from './theme';
 import { UserChip } from './UserChip';
 
-const TAB_ICONS: Record<TabId, IconName> = { work: 'work', map: 'map', reports: 'progress', manage: 'home', inbox: 'notif', settings: 'settings' };
+const TAB_ICONS: Record<TabId, IconName | 'bookClosed'> = { work: 'list', map: 'bookClosed', reports: 'progress', manage: 'settings', inbox: 'notif', me: 'user' };
+
+/** A tab's icon: the kit's, or the closed book the Map tab reads by. */
+function TabIcon(props: { id: TabId; size: number; color: string }) {
+  const name = TAB_ICONS[props.id];
+  if (name === 'bookClosed') return <Book size={props.size} color={props.color} strokeWidth={2.2} />;
+  return <Ico name={name} size={props.size} color={props.color} />;
+}
 
 export function NavChrome(props: {
   variant: 'bar' | 'rail' | 'sidebar';
@@ -34,7 +44,7 @@ export function NavChrome(props: {
             <Pressable key={t.id} onPress={() => props.onSelect(t)} accessibilityRole="tab"
               accessibilityLabel={t.badge ? `${t.label}, ${t.badge}` : t.label} accessibilityState={{ selected: active }}
               style={({ pressed }) => [styles.sideItem, active && { backgroundColor: C.light }, pressed && { opacity: 0.6 }]}>
-              <Ico name={TAB_ICONS[t.id]} size={22} color={active ? C.primary : C.muted} />
+              <TabIcon id={t.id} size={22} color={active ? C.primary : C.muted} />
               <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{t.label}</Text>
               {t.badge ? <Badge label={t.badge > 99 ? '99+' : String(t.badge)} tone={t.id === 'inbox' ? 'red' : 'brand'} /> : null}
             </Pressable>
@@ -59,8 +69,9 @@ export function NavChrome(props: {
             accessibilityState={{ selected: active }}
             style={({ pressed }) => [rail ? styles.railItem : styles.tab, pressed && { opacity: 0.6 }]}
           >
-            <View style={[styles.tabPill, active && { backgroundColor: C.light }]}>
-              <Ico name={TAB_ICONS[t.id]} size={24} color={color} />
+            {/* The lit tab is its colour, with no pill behind it (demo ADR-032); the rail keeps the pill. */}
+            <View style={[styles.tabPill, rail && active && { backgroundColor: C.light }]}>
+              <TabIcon id={t.id} size={26} color={color} />
               {t.badge ? (
                 <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{t.badge > 99 ? '99+' : t.badge}</Text></View>
               ) : null}

@@ -38,7 +38,11 @@ export const SCREEN_IDS = [
   // App only: the guide editor (docs/reference-material.md)
   'guide_editor',
   // App only: exploring Bibles beside a passage (docs/reference-material.md)
-  'bible_explore'
+  'bible_explore',
+  // App only: the simple redesign (decision 71): microphone setup by ear, and getting a language ready
+  'mic_setup', 'get_ready',
+  // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
+  'settings_more'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -319,7 +323,50 @@ export const EDGES: Edge[] = [
   e('my_work', 'invite_qr', undefined, 'assigner'),
   // App only: a new role while inviting or admitting someone (demo ADR-039, amended 2026-10-08)
   e('invite_member', 'role_editor'),
-  e('edit_member', 'role_editor')
+  e('edit_member', 'role_editor'),
+  // App only: the simple redesign (decision 71)
+  e('settings_home', 'mic_setup'),
+  e('mic_setup', 'settings_home', 'back'),
+  e('workspace', 'mic_setup'),
+  e('mic_setup', 'workspace', 'back'),
+  // The study is one reader for both nodes (decision 71, demo ADR-035): its key words and glossary open a key term from either,
+  // and the guide editor is offered from either (the steps sheet).
+  e('study_guide', 'key_term_detail'),
+  e('key_term_detail', 'study_guide', 'back'),
+  e('study_step', 'guide_editor', undefined, 'manageReference'),
+  e('guide_editor', 'study_step', 'back'),
+  e('my_work', 'get_ready', undefined, 'assigner'),
+  e('get_ready', 'my_work', 'back'),
+  e('language_home', 'get_ready'),
+  e('get_ready', 'language_home', 'back'),
+  // App only: the simple redesign's Home and Me (decision 71, demo ADR-032)
+  e('my_work', 'edit_member', undefined, 'assigner'),
+  e('edit_member', 'my_work', 'back'),
+  e('settings_home', 'settings_more'),
+  e('settings_more', 'settings_home', 'back'),
+  e('settings_more', 'profile_edit'),
+  e('profile_edit', 'settings_more', 'back'),
+  e('settings_more', 'org_switcher'),
+  e('org_switcher', 'settings_more', 'back'),
+  e('settings_more', 'sync_status'),
+  e('sync_status', 'settings_more', 'back'),
+  e('settings_more', 'delete_account'),
+  e('delete_account', 'settings_more', 'back'),
+  // App only: the four questions, one screen each, and where each answer is made in full (decision 71, demo ADR-039)
+  e('get_ready', 'get_ready'),
+  e('get_ready', 'template_editor', undefined, 'manageTemplates'),
+  e('get_ready', 'templates_home', undefined, 'manageTemplates'),
+  e('get_ready', 'reference_bibles', undefined, 'manageReference'),
+  e('get_ready', 'reference_source', undefined, 'manageReference'),
+  e('get_ready', 'reference_guides', undefined, 'manageReference'),
+  e('get_ready', 'reference_home', undefined, 'manageReference'),
+  e('get_ready', 'material_editor', undefined, 'manageReference'),
+  e('get_ready', 'key_terms'),
+  e('get_ready', 'flow_editor', undefined, 'manageFlows'),
+  e('get_ready', 'role_editor'),
+  // App only: a ready language's page (decision 71, demo ADR-039): who checks, and letting someone in
+  e('language_home', 'flow_editor', undefined, 'manageFlows'),
+  e('language_home', 'edit_member', undefined, 'assigner')
 ];
 
 /**
@@ -329,7 +376,8 @@ export const EDGES: Edge[] = [
  * (ADR-021, NAV-4, NAV-5).
  */
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
-export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step', 'passage_reference'];
+// The study left this list with the simple redesign (decision 71, demo ADR-035): it is a task, closed with ✕.
+export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'passage_reference'];
 const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
@@ -349,7 +397,7 @@ export const TITLES: Record<ScreenId, string> = {
   guest_review: 'Review by Link', add_record: 'Already Happened',
   study_guide: 'Study Guide', study_step: 'Study Step', workspace: 'Record', review_capture: 'Review It',
   back_translation: 'Back-translate', key_terms: 'Key Terms', key_term_detail: 'Key Term',
-  inbox_home: 'Inbox', settings_home: 'Settings', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
+  inbox_home: 'Inbox', settings_home: 'Me', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
   org_home: 'Org Home', language_home: 'Language Home',
   new_language: 'New Language', members_list: 'Members', invite_member: 'Invite Member', invite_qr: 'Invite by QR',
   edit_member: 'Edit Member Role', roles_home: 'Roles', role_editor: 'Role Editor', review_teams: 'Review Teams',
@@ -360,5 +408,7 @@ export const TITLES: Record<ScreenId, string> = {
   reference_bibles: 'Bibles', reference_source: 'Bible', reference_guides: 'Guides and Notes', reference_coverage: 'Coverage',
   passage_reference: 'Reference',
   guide_editor: 'Write a Guide',
-  bible_explore: 'More Bibles'
+  bible_explore: 'More Bibles',
+  mic_setup: 'Set up your microphone', get_ready: 'Get ready',
+  settings_more: 'More settings'
 };

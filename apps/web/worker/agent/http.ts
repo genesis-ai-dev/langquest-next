@@ -4,12 +4,15 @@ import type { AgentStore, TokenRecord } from './store';
 import {
   hashSecret, newSecret, newUserCode, normalizeUserCode, parseScopes, SCOPE_TEXT, SCOPES, TOKEN_PREFIX, type Grant, type Scope
 } from './tokens';
-import { isRefusal, parseFeedback, parsePublication, type ApiStatus, type PassageFilter } from './view';
+import { handlePublicLink, sessionLinks, tokenLinks } from './links';
+import { isRefusal, parseRelease, parseReview, type ApiStatus, type LinkReviewInput, type LinkSpec, type LinkView, type PassageFilter, type ReviewLink, type VoiceNote } from './view';
+import { readVoiceNote } from './voice';
 
 /**
  * `/api/v1/*`: the access-token API for apps and agents (docs/agent-api.md,
- * decisions.md 70), its device flow, and the signed-in routes the connect
- * page uses to make, approve and revoke tokens.
+ * decisions.md 70), its device flow, review links (links.ts), and the
+ * signed-in routes the connect page and the app use to make, approve and
+ * revoke tokens and links.
  */
 
 /** One organization's Durable Object, as this file uses it. */
@@ -17,8 +20,11 @@ export interface OrgStub {
   read(grant: Grant, q: AgentQuery): Promise<Answer<unknown>>;
   write(grant: Grant, w: AgentWrite): Promise<Answer<unknown>>;
   access(profileId: string): Promise<OrgAccess | null>;
-  /** Count one write (a voice note upload) against the token's hourly budget; false when it is spent. */
-  spend(tokenId: string): Promise<boolean>;
+  /** Count one write (a voice note upload) against a token's or link's hourly budget; false when it is spent. */
+  spend(key: string): Promise<boolean>;
+  checkLink(profileId: string, spec: LinkSpec): Promise<Answer<{ takeId: string }>>;
+  linkInfo(link: ReviewLink): Promise<Answer<LinkView>>;
+  linkReview(link: ReviewLink, input: LinkReviewInput): Promise<Answer<{ duplicate: boolean }>>;
 }
 
 export interface AgentDeps {
@@ -26,10 +32,10 @@ export interface AgentDeps {
   /** The profile a Supabase access token belongs to (the connect page's session). */
   profileOf(jwt: string): Promise<string | null>;
   org(orgId: string): OrgStub;
-  /** Store a listener's voice note under the language and record it; null when file storage is not set up. */
-  saveVoiceNote: ((orgId: string, languageId: string, bytes: Uint8Array<ArrayBuffer>) => Promise<string>) | null;
-  /** False when this caller (by address) has asked the device endpoints too often; anyone may call them. */
-  deviceAllowed?(request: Request): Promise<boolean>;
+  /** Store a voice note under the language and record it, returning its hash; null when file storage is not set up. */
+  saveVoiceNote: ((orgId: string, languageId: string, bytes: Uint8Array<ArrayBuffer>, format: VoiceNote['format']) => Promise<string>) | null;
+  /** False when this caller (by address) has asked too often. The device endpoints and review links need no sign-in. */
+  publicAllowed?(request: Request, what: 'device' | 'link'): Promise<boolean>;
   now?: () => number;
 }
 
@@ -39,8 +45,6 @@ export const DEVICE_CODE_TTL_S = 10 * 60;
 export const POLL_INTERVAL_S = 5;
 /** last_used_at is written at most this often per token. */
 const TOUCH_EVERY_MS = 5 * 60 * 1000;
-/** A voice note is a few seconds to a few minutes of AAC. */
-export const MAX_VOICE_NOTE_BYTES = 10 * 1024 * 1024;
 
 const STATUSES: readonly ApiStatus[] = ['not_started', 'drafting', 'in_review', 'feedback', 'approved'];
 
@@ -63,13 +67,13 @@ export function json(status: number, body: unknown, cors = true): Response {
   });
 }
 
-const fail = (status: number, code: string, error: string, cors = true) => json(status, { error, code }, cors);
+export const fail = (status: number, code: string, error: string, cors = true) => json(status, { error, code }, cors);
 
-const answer = (a: Answer<unknown>) => (a.ok ? json(200, a.data) : fail(a.status, a.code, a.error));
+export const answer = (a: Answer<unknown>, cors = true) => (a.ok ? json(200, a.data, cors) : fail(a.status, a.code, a.error, cors));
 
-const bearer = (request: Request) => /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') ?? '')?.[1]?.trim();
+export const bearer = (request: Request) => /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') ?? '')?.[1]?.trim();
 
-async function body(request: Request): Promise<Record<string, unknown> | null> {
+export async function body(request: Request): Promise<Record<string, unknown> | null> {
   const type = request.headers.get('content-type') ?? '';
   try {
     if (type.includes('application/x-www-form-urlencoded')) return Object.fromEntries(new URLSearchParams(await request.text()));
@@ -118,8 +122,9 @@ export async function handleAgentApi(request: Request, deps: AgentDeps): Promise
   const session = parts[0] === 'session';
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: session ? {} : CORS });
   try {
-    if (session) return await sessionRoute(request, parts.slice(1), deps);
+    if (session) return await sessionRoute(request, parts.slice(1), url, deps);
     if (parts[0] === 'device') return await deviceRoute(request, parts.slice(1), url, deps);
+    if (parts[0] === 'links') return await handlePublicLink(request, parts.slice(1), deps);
     if (parts.length === 0) return json(200, index(url));
     const auth = await grantFor(request, deps);
     if (auth instanceof Response) return auth;
@@ -142,11 +147,12 @@ function index(url: URL) {
     endpoints: {
       me: `GET ${base}/me`,
       languages: `GET ${base}/languages`,
-      passages: `GET ${base}/languages/{languageId}/passages?status=approved&ready=true&changedSince=ISO`,
+      passages: `GET ${base}/languages/{languageId}/passages?status=approved&changedSince=ISO`,
       passage: `GET ${base}/languages/{languageId}/passages/{unitId}`,
-      feedback: `POST ${base}/languages/{languageId}/passages/{unitId}/feedback`,
-      publication: `POST ${base}/languages/{languageId}/passages/{unitId}/publication`,
-      voiceNote: `PUT ${base}/languages/{languageId}/voice-notes (audio/mp4 body)`,
+      review: `POST ${base}/languages/{languageId}/passages/{unitId}/reviews`,
+      release: `POST ${base}/languages/{languageId}/passages/{unitId}/releases`,
+      voiceNote: `PUT ${base}/languages/{languageId}/voice-notes (m4a or WAV body)`,
+      reviewLink: `POST ${base}/review-links`,
       mcp: `POST ${base}/mcp (Model Context Protocol, streamable HTTP)`,
       deviceCode: `POST ${base}/device/code`,
       deviceToken: `POST ${base}/device/token`
@@ -162,6 +168,7 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     const languages = await org.read(grant, { op: 'languages' });
     return json(200, { token: tokenOut(auth.token), languages: languages.ok ? languages.data : [] });
   }
+  if (parts[0] === 'review-links') return tokenLinks(request, parts.slice(1), url, grant, deps);
   if (parts[0] !== 'languages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 1 && get) return answer(await org.read(grant, { op: 'languages' }));
   const languageId = parts[1]!;
@@ -176,19 +183,20 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     const filter = filterFrom(url);
     return isRefusal(filter) ? fail(filter.status, filter.code, filter.error) : answer(await org.read(grant, { op: 'passages', languageId, filter }));
   }
-  const unitId = parts.slice(3, parts[parts.length - 1] === 'feedback' || parts[parts.length - 1] === 'publication' ? -1 : undefined).join('/');
-  const action = parts.length > 4 ? parts[parts.length - 1] : undefined;
+  const last = parts[parts.length - 1];
+  const action = parts.length > 4 && (last === 'reviews' || last === 'releases') ? last : undefined;
+  const unitId = parts.slice(3, action ? -1 : undefined).join('/');
   if (!unitId) return fail(404, 'not_found', 'Not found.');
-  if (get && action !== 'feedback' && action !== 'publication') return answer(await org.read(grant, { op: 'passage', languageId, unitId }));
-  if (request.method !== 'POST' || (action !== 'feedback' && action !== 'publication')) return fail(405, 'method', 'Use GET for a passage, POST for its feedback or publication.');
+  if (get && !action) return answer(await org.read(grant, { op: 'passage', languageId, unitId }));
+  if (request.method !== 'POST' || !action) return fail(405, 'method', 'Use GET for a passage, POST for its reviews or releases.');
   const b = await body(request);
   if (!b) return fail(400, 'bad_request', 'Send a JSON object.');
-  if (action === 'feedback') {
-    const input = parseFeedback(b);
-    return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'feedback', languageId, unitId, input }));
+  if (action === 'reviews') {
+    const input = parseReview(b);
+    return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'review', languageId, unitId, input }));
   }
-  const input = parsePublication(b);
-  return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'publication', languageId, unitId, input }));
+  const input = parseRelease(b);
+  return isRefusal(input) ? fail(input.status, input.code, input.error) : answer(await org.write(grant, { op: 'release', languageId, unitId, input }));
 }
 
 export function filterFrom(url: URL): PassageFilter | { status: number; code: string; error: string } {
@@ -198,8 +206,6 @@ export function filterFrom(url: URL): PassageFilter | { status: number; code: st
     if (!(STATUSES as readonly string[]).includes(status)) return { status: 400, code: 'bad_request', error: `status is one of ${STATUSES.join(', ')}.` };
     filter.status = status as ApiStatus;
   }
-  const ready = url.searchParams.get('ready');
-  if (ready === 'true' || ready === 'false') filter.ready = ready === 'true';
   const since = url.searchParams.get('changedSince');
   if (since) {
     const ms = Date.parse(since);
@@ -213,25 +219,20 @@ async function voiceNote(request: Request, grant: Grant, languageId: string, dep
   if (!deps.saveVoiceNote) return fail(503, 'unavailable', 'File storage is not set up here.');
   const can = await deps.org(grant.orgId).read(grant, { op: 'can', languageId });
   if (!can.ok) return answer(can);
-  if (!(can.data as { feedback: boolean }).feedback) return fail(403, 'scope', 'Voice notes go with feedback, and this token cannot send feedback in this language.');
-  const length = Number(request.headers.get('content-length') ?? NaN);
-  if (!Number.isFinite(length)) return fail(411, 'length_required', 'Send Content-Length with the voice note.');
-  if (length > MAX_VOICE_NOTE_BYTES) return fail(413, 'too_large', 'A voice note can be at most 10 MB.');
+  if (!(can.data as { review: boolean }).review) return fail(403, 'scope', 'Voice notes go with reviews, and this token cannot record reviews in this language.');
   if (!(await deps.org(grant.orgId).spend(grant.tokenId))) return fail(429, 'rate_limited', 'This token has used its writes for this hour. Try again later.');
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length === 0) return fail(400, 'bad_request', 'Send the voice note as the body (AAC in MP4, .m4a).');
-  if (bytes.length > MAX_VOICE_NOTE_BYTES) return fail(413, 'too_large', 'A voice note can be at most 10 MB.');
-  // The app plays voice notes as m4a; an MP4 container has "ftyp" at byte 4.
-  if (String.fromCharCode(...bytes.slice(4, 8)) !== 'ftyp') return fail(415, 'format', 'A voice note must be AAC in an MP4 container (.m4a).');
-  const hash = await deps.saveVoiceNote(grant.orgId, languageId, bytes);
-  return json(200, { voiceNoteHash: hash });
+  const read = await readVoiceNote(request);
+  if ('error' in read) return fail(read.status, 'bad_voice_note', read.error);
+  const hash = await deps.saveVoiceNote(grant.orgId, languageId, read.bytes, read.note.format);
+  // Send this object back as the review's voiceNote.
+  return json(200, { voiceNote: { hash, ...read.note } });
 }
 
 // ---- the device flow (RFC 8628) ----------------------------------------------------
 
 async function deviceRoute(request: Request, parts: string[], url: URL, deps: AgentDeps): Promise<Response> {
   if (request.method !== 'POST') return fail(405, 'method', 'Use POST.');
-  if (deps.deviceAllowed && !(await deps.deviceAllowed(request))) return json(429, { error: 'slow_down', error_description: 'Too many requests from this address. Wait a minute.' });
+  if (deps.publicAllowed && !(await deps.publicAllowed(request, 'device'))) return json(429, { error: 'slow_down', error_description: 'Too many requests from this address. Wait a minute.' });
   const b = await body(request);
   if (!b) return fail(400, 'invalid_request', 'Send a JSON or form body.');
   const now = (deps.now ?? Date.now)();
@@ -283,12 +284,13 @@ async function deviceRoute(request: Request, parts: string[], url: URL, deps: Ag
 
 // ---- the signed-in routes, for the connect page -------------------------------------
 
-async function sessionRoute(request: Request, parts: string[], deps: AgentDeps): Promise<Response> {
+async function sessionRoute(request: Request, parts: string[], url: URL, deps: AgentDeps): Promise<Response> {
   const jwt = bearer(request);
   const profileId = jwt && !jwt.startsWith(TOKEN_PREFIX) ? await deps.profileOf(jwt) : null;
   if (!profileId) return fail(401, 'sign_in', 'Sign in again.', false);
   const now = (deps.now ?? Date.now)();
   if (parts[0] === 'orgs' && parts.length === 1 && request.method === 'GET') return json(200, await accessOf(profileId, deps), false);
+  if (parts[0] === 'review-links') return sessionLinks(request, parts.slice(1), url, profileId, deps);
 
   if (parts[0] === 'tokens') {
     if (parts.length === 1 && request.method === 'GET') {
@@ -375,8 +377,8 @@ async function tokenSpec(b: Record<string, unknown>, profileId: string, deps: Ag
     languageIds = [...new Set(ids as string[])].sort();
   }
   const reach = access.languages.filter((l) => languageIds === null || languageIds.includes(l.languageId));
-  if ((scopes.includes('feedback') || scopes.includes('publish')) && !reach.some((l) => l.mayReview)) {
-    return { error: 'Feedback and publish write reviews as you, and you cannot review in any of these languages.' };
+  if (scopes.includes('review') && !reach.some((l) => l.mayReview)) {
+    return { error: 'The review scope records reviews as you, and you cannot review or translate in any of these languages.' };
   }
   let expiresAt: string | null = null;
   if (b['expiresInDays'] !== undefined && b['expiresInDays'] !== null) {

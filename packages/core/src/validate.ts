@@ -31,6 +31,7 @@ export function validateEvent(e: AnyEvent): string | null {
       if (!isObject(c)) return `${k} entries must be objects`;
       if (typeof c['hash'] !== 'string' || c['hash'] === '') return `${k} entries need a hash`;
       if (typeof c['durationMs'] !== 'number') return `${k} entries need durationMs`;
+      if (c['atMs'] !== undefined && !(Number.isInteger(c['atMs']) && (c['atMs'] as number) >= 0)) return `${k} atMs must be a whole number of milliseconds`;
     }
     return null;
   };
@@ -132,6 +133,13 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('teamId', 'profileId') ?? bool('member');
     case 'v1.ReviewTeamKindSet':
       return str('teamId') ?? nullableStr('kindId');
+    case 'v1.FlowStepLinksSet':
+      return str('stepId') ?? bool('allowed');
+    case 'v1.VersionReleased':
+      return str('takeId', 'channel') ?? bool('live') ??
+        (p['url'] === undefined || nonEmpty(p['url']) ? null : 'url must be a non-empty string') ??
+        // Characters, as SQL length() counts them.
+        ([...(p['channel'] as string)].length <= 60 ? null : 'channel must be at most 60 characters');
     case 'v1.RecordingAdded':
       return str('recordingId', 'unitId') ?? oneOf('kind', ['source', 'target']) ?? cards('cards');
     case 'v1.TakeComposed':

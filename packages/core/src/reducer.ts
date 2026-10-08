@@ -10,7 +10,7 @@ import { applyReferenceEvent } from './references';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 11;
+export const REDUCER_VERSION = 12;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -103,6 +103,16 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.ReviewTeamKindSet': {
       const team = (state.teams[event.payload.teamId] ??= emptyTeam());
       if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: event.payload.kindId, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+
+    case 'v1.FlowStepLinksSet':
+      lww(state.stepLinks ??= {}, event.payload.stepId, event, event.payload.allowed);
+      break;
+
+    case 'v1.VersionReleased': {
+      const { takeId, channel, live, url } = event.payload;
+      lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...(url !== undefined ? { url } : {}) });
       break;
     }
 

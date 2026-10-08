@@ -1,0 +1,129 @@
+// Getting a language ready, read from the record (decision 71, demo
+// ADR-039): which of the four questions are answered, what each answer says
+// in plain words, who translates there and who is waiting to be let in. The
+// language's page (screens/org.tsx LanguageHome) and Get ready
+// (screens/getReady.tsx) both read it, so they always agree.
+import {
+  deriveFlow, deriveKinds, languageName, libraryItems, libraryItemView, recommendedFor,
+  type LibraryDoc, type SourceDoc, type TemplateDoc
+} from '@langquest-next/core';
+import { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
+import type { Ctx } from '../ctx';
+import { pendingRequests, type PendingRequest } from '../invites';
+import { useLibraryDocs } from '../library/useLibrary';
+import { noteExpected } from '../report';
+import { space } from '../theme';
+import { ChecklistRow } from './admin';
+import {
+  flowShort, guideShortName, helpsSummary, invitedTo, languageLabel, languageTranslators, plainRoleChoices, QUESTIONS, readiness, recordSummary,
+  translatorsOf, type Readiness, type RoleInfo
+} from './adminModel';
+
+export interface ReadySummary {
+  languageId: string;
+  name: string;
+  readiness: Readiness;
+  /** Plain answers, per question; undefined while unanswered. */
+  lines: (string | undefined)[];
+  /** Everyone who translates there (the organization's translators too). */
+  team: string[];
+}
+
+/** What the four questions say for the open language. */
+export function useReadySummary(ctx: Ctx): ReadySummary {
+  const state = ctx.language.state;
+  const org = ctx.org.state;
+  const languageId = ctx.language.languageId;
+  const orgId = ctx.language.orgId;
+  const sel = state?.template?.value;
+  const offered = useMemo(() => recommendedFor(org?.recommendations, state), [org, state]);
+  // Recommended items and the library's own material (guides and notes reach the team unless hidden).
+  const offeredHashes = [...offered.keys(), ...libraryItems(org?.library ?? {}, 'material').map((it) => it.itemId)].map((id) => libraryItemView(org?.library ?? {}, id)?.current);
+  const docs = useLibraryDocs(orgId, [sel?.docHash, ...offeredHashes], { deps: false });
+  return useMemo(() => {
+    const templateDoc = docs.get<TemplateDoc>(sel?.docHash);
+    const templateName = sel ? libraryItemView(org?.library ?? {}, sel.itemId)?.name ?? templateDoc?.name : undefined;
+    const bibles: string[] = [];
+    const guides: string[] = [];
+    let notes = 0;
+    // What reaches the team: recommended items, and the library's guides and notes not hidden here (reference/offered.ts).
+    const reach = new Set(offered.keys());
+    for (const it of libraryItems(org?.library ?? {}, 'material')) {
+      if (it.current && !it.archived && state?.languageReferences[it.itemId]?.value !== 'hidden') reach.add(it.itemId);
+    }
+    for (const id of reach) {
+      const it = libraryItemView(org?.library ?? {}, id);
+      const doc: LibraryDoc | null = docs.get(it?.current);
+      if (!it || it.archived || !doc) continue;
+      if (doc.format === 'source@1') { if (offered.has(id)) bibles.push(languageLabel((doc as SourceDoc).language)); }
+      else if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'collection@1') guides.push(guideShortName(it.name));
+      else if (doc.format === 'material@1' && doc.kind === 'note') notes++;
+    }
+    const flow = state?.flow ? deriveFlow(state) : null;
+    const team = translatorsOf(org, languageId);
+    const facts = {
+      template: !!sel, helps: bibles.length + guides.length + notes > 0, flow: !!flow,
+      translators: languageTranslators(org, languageId).length, invited: invitedTo(org, languageId)
+    };
+    const r = readiness(facts);
+    const lines = [
+      sel ? recordSummary(templateDoc, sel.books, templateName) : undefined,
+      facts.helps ? helpsSummary(bibles, guides, notes) : undefined,
+      flow && state ? flowShort(flow.steps, deriveKinds(state)) : undefined,
+      r.done[3] ? (team.length ? `${team.length} translator${team.length === 1 ? '' : 's'}` : 'Invited') : undefined
+    ];
+    return { languageId, name: languageName(org, languageId), readiness: r, lines, team };
+  }, [docs, sel, org, state, offered, languageId]);
+}
+
+/** Join requests this person may decide; empty for everyone else, and offline (a server read). */
+export function usePendingRequests(ctx: Ctx): PendingRequest[] {
+  const may = ctx.session.can('invite_members');
+  const orgId = ctx.language.orgId;
+  const [requests, setRequests] = useState<PendingRequest[]>([]);
+  useEffect(() => {
+    if (!may) return;
+    let live = true;
+    void pendingRequests(orgId).then((r) => { if (live) setRequests(r); }).catch((e: unknown) => noteExpected('language join requests', e));
+    return () => { live = false; };
+  }, [may, orgId]);
+  return requests;
+}
+
+/** The four questions as a checklist; each opens its own step screen. */
+export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
+  const { ctx, s } = props;
+  return (
+    <View style={{ gap: space.md }}>
+      {QUESTIONS.map((q, i) => (
+        <ChecklistRow key={q.id} icon={q.icon} label={q.label} sub={s.lines[i]}
+          state={s.readiness.done[i] ? 'done' : i === s.readiness.current ? 'now' : 'later'}
+          onPress={() => ctx.go('get_ready', { languageId: s.languageId, step: String(i + 1) })} />
+      ))}
+    </View>
+  );
+}
+
+/** "How this works": the checklist's own words, spoken in help mode (about 40 seconds). */
+export function howItWorks(language: string): string {
+  return [
+    `Four questions get ${language} ready.`,
+    'What will they record: the stories or chapters your translators work through, one at a time.',
+    'What will help them: Bibles they understand and study guides, beside them while they record.',
+    'Who checks the recordings: the steps each recording goes through, like another translator, the community and a consultant, and then you approve.',
+    'Invite your translators: show them a code to scan. No password needed, and one code works for a whole group.',
+    'Then each passage leaves what they record, picks up what helps them, and goes through who checks until it is approved.'
+  ].join(' ');
+}
+
+/** The four plain choices of what someone will do, from this organization's roles. */
+export function usePlainRoles(ctx: Ctx) {
+  // The fold changes its maps in place; the state object is new on every change.
+  const org = ctx.org.state;
+  return useMemo(() => {
+    const list: RoleInfo[] = Object.entries(org?.roles ?? {}).filter(([, r]) => !r.retired)
+      .map(([id, r]) => ({ id, name: r.name.value || id, privileges: r.privileges.value ?? [] }));
+    return plainRoleChoices(list);
+  }, [org]);
+}

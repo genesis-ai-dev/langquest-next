@@ -28,7 +28,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   request_access: { rpcs:['create_join_request','listed_organizations'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_languages'] },
-  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext'] },
+  // People asking to join show under a coordinator's Get ready card (decision 71).
+  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
   status_home: { reads:['languageProgress'] },
   map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
   book_map: { reads:['derivePassage','unitPlace'] },
@@ -38,15 +39,21 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
-  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
-  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'] },
+  // Background's Bible takes a note on a verse (simple/review.tsx); a note at a moment of the version is a review artifact.
+  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
+  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
+  // Key words grow during the work (decision 71): say yours, add a word.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.ReferencesUsed'],reads:['derivePassage','keyTermsForUnit','recommendedFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
+    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
-  study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
-  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'],rpcs:REPORTS },
+  // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
+  study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
+    reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
+  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
+    reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
   // Publishes a study@2 guide as a library version; its files go to the organization's guide files (guides/files.ts).
   guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
@@ -59,11 +66,15 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   roles_home: { reads:['org.roles'] },
   // Adds the language to the organization's stream, then gives its own
   // stream a template and a flow, which it needs (decisions.md 63).
-  new_language: { emits:['v1.LanguageAdded','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // And what its team is offered from the start (decision 71), and its first group invite code.
+  new_language: { emits:['v1.LanguageAdded','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
+    'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.LicenseSet'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
+  // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
+  language_home: { rpcs:['set_language_visibility'],reads:['language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
@@ -89,7 +100,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['deriveFlow','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Publishes flow versions; languages move to them by themselves (library/follow.ts).
-  flow_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+  // With `steps: 'language'` it saves the open language's own checks (core saveFlowSteps, decision 71).
+  flow_editor: { emits:['v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.ReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
@@ -97,7 +109,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
-  settings_home: { rpcs:['register_push_token','set_blocked'],reads:['user_blocks'] },
+  settings_home: { reads:['offlineSummary'] },
+  // What Settings had beyond Me's five rows (decision 71).
+  settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the dashboard's server, not the local fold (decisions.md 44, 57).
@@ -106,7 +120,14 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   reports_home: { reads:['orgReports'] },
   reports_language: { emits:['v1.LanguageCountrySet','v1.LanguageTargetSet'],reads:['orgReports'] },
   // Bible Brain through the Worker (docs/reference-material.md); My Bibles are kept on the phone.
-  bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] }
+  bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] },
+  // Get a language ready (decision 71): what they record (a template, as template_picker applies it), what helps
+  // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
+  // chooses it), and a group invite code (as invite_qr issues it).
+  get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
+    'v1.ReferenceRecommended','v1.ReferenceSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
+    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

@@ -20947,6 +20947,8 @@ function emptyLanguageState() {
     hiddenUnits: {},
     flow: null,
     teams: {},
+    stepLinks: {},
+    releases: {},
     responses: {},
     materials: {},
     keyTerms: {},
@@ -21019,6 +21021,7 @@ function validateEvent(e) {
       if (!isObject(c)) return `${k} entries must be objects`;
       if (typeof c["hash"] !== "string" || c["hash"] === "") return `${k} entries need a hash`;
       if (typeof c["durationMs"] !== "number") return `${k} entries need durationMs`;
+      if (c["atMs"] !== void 0 && !(Number.isInteger(c["atMs"]) && c["atMs"] >= 0)) return `${k} atMs must be a whole number of milliseconds`;
     }
     return null;
   };
@@ -21098,6 +21101,11 @@ function validateEvent(e) {
       return str("teamId", "profileId") ?? bool("member");
     case "v1.ReviewTeamKindSet":
       return str("teamId") ?? nullableStr("kindId");
+    case "v1.FlowStepLinksSet":
+      return str("stepId") ?? bool("allowed");
+    case "v1.VersionReleased":
+      return str("takeId", "channel") ?? bool("live") ?? (p["url"] === void 0 || nonEmpty(p["url"]) ? null : "url must be a non-empty string") ?? // Characters, as SQL length() counts them.
+      ([...p["channel"]].length <= 60 ? null : "channel must be at most 60 characters");
     case "v1.RecordingAdded":
       return str("recordingId", "unitId") ?? oneOf("kind", ["source", "target"]) ?? cards("cards");
     case "v1.TakeComposed":
@@ -21202,7 +21210,7 @@ function isObject(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 11;
+var REDUCER_VERSION = 12;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21270,6 +21278,14 @@ function applyLanguageEvent(state, event) {
     case "v1.ReviewTeamKindSet": {
       const team = state.teams[event.payload.teamId] ??= emptyTeam();
       if (!team.kindId || !loses(team.kindId, event)) team.kindId = { value: event.payload.kindId, hlc: event.hlc, eventId: event.id };
+      break;
+    }
+    case "v1.FlowStepLinksSet":
+      lww(state.stepLinks ??= {}, event.payload.stepId, event, event.payload.allowed);
+      break;
+    case "v1.VersionReleased": {
+      const { takeId, channel, live, url } = event.payload;
+      lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...url !== void 0 ? { url } : {} });
       break;
     }
     case "v1.RecordingAdded": {
@@ -21716,7 +21732,7 @@ function derivePassage(state, unitId, idx) {
     const override = active((d) => d.type === "override" && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => s.state === "todo" ? { ...s, state: "locked" } : s) : statuses;
-    const clears = (s) => s.state === "approved" && s.review?.via !== "logged";
+    const clears = (s) => s.state === "approved" && s.review?.via === "app";
     const complete = statuses.every((s) => step.checkpoint ? clears(s) : isCompleteState(s.state));
     steps.push({ step, index, kinds: kindsShown, complete, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
