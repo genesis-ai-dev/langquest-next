@@ -25,6 +25,8 @@ async function watchCsp(page: Page): Promise<() => Promise<string[]>> {
 }
 
 async function start(page: Page): Promise<void> {
+  // The first-time screen intros (decision 71) would cover what the smoke taps; they have their own tests.
+  await page.context().addInitScript(() => { (window as unknown as { __lqNoIntros: boolean }).__lqNoIntros = true; });
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.getByText('Create Account', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
 }
@@ -39,10 +41,16 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, `input[aria-label="What's it called?"]`).fill('Smoke Org');
   await button(page, 'Create Organization').click();
   await button(page, /Add a language/).click({ timeout: 60_000 });
-  await vis(page, 'input[aria-label="Language name"]').fill('Dinka');
-  await vis(page, 'input[aria-label="Language code"]').fill('din');
-  await button(page, 'Create Language').click();
-  await expect(page.getByText('Get Dinka ready', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+  // New Language is four steps (decision 71): its name, what they record and who checks (each with the
+  // suggestion picked), then inviting, which can wait.
+  await vis(page, 'input[aria-label="Its name"]').fill('Dinka');
+  await vis(page, 'input[aria-label="Its code, if it has one"]').fill('din');
+  await button(page, 'Continue').click();
+  await button(page, 'Continue').click({ timeout: 60_000 });
+  await button(page, 'Continue').click({ timeout: 60_000 });
+  await button(page, 'Later').click({ timeout: 60_000 });
+  // A new language leads My Work with its Get ready card (decision 71): "Get Dinka ready · 1 of 4".
+  await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
 }
 
 /** Every file the app's own stores hold in this site's private files (apps/mobile/src/webFiles.ts). */
@@ -132,11 +140,15 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
     await button(page, /^Chapter 3: Not recorded$/).click();
-    await button(page, 'Record it').click();
-    await button(page, 'Record a take').click();
+    // The passage's path: Record is its main button (decision 71).
+    await button(page, 'Record').click();
+    // The workspace's big red button (decision 71).
+    await expect(page.getByText(/Recording Version 1/).locator('visible=true').first()).toBeVisible({ timeout: 30_000 });
+    await button(page, 'Record').click();
     await page.waitForTimeout(5_000);
     await page.getByRole('button', { name: 'Stop recording', exact: true }).locator('visible=true').last().click({ force: true });
-    await expect(page.getByText(/1 takes? · saved on this device/)).toBeVisible({ timeout: 30_000 });
+    // One part kept: the next one to record is Part 2.
+    await expect(page.getByText('Part 2', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 30_000 });
     const [hash] = await settle(() => deviceBlobs(page), (b) => b.length > 0, 20_000);
     expect(hash, 'the take is in the browser\'s files').toBeTruthy();
     await page.reload({ waitUntil: 'networkidle' });
@@ -161,8 +173,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   expect(serious.map((v) => `${v.id}: ${v.nodes.length}`), 'axe: serious or critical').toEqual([]);
 
   // Sign out: this browser keeps nothing (decisions.md 11, amended).
-  await second.getByRole('tab', { name: 'Settings' }).click();
-  await button(second, /^Sign Out/).click();
+  await second.getByRole('tab', { name: 'Me' }).click();
+  await button(second, /^Sign out/i).click();
   // Forgetting ends with a fresh page. The signed-out screen shows before
   // that, while the databases are still being deleted (slow in WebKit).
   const forgotten = second.waitForEvent('load', { timeout: 60_000 });

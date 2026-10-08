@@ -10,7 +10,8 @@ import {
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
-  ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers
+  ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers,
+  ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck
 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -19,7 +20,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { useHelpMode, useHelpPress } from './helpContext';
+import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
+import { HelpBadge } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
@@ -38,13 +40,14 @@ const ICONS = {
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, up: ChevronUp, user: User, video: Video,
-  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, onPhone: CloudCheck, notOnPhone: CloudOff
+  work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, onPhone: CloudCheck, notOnPhone: CloudOff,
+  arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, sliders: SlidersHorizontal, done: CircleCheck
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
-export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
+export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
   const Icon = ICONS[props.name];
-  return <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} />;
+  return <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} {...(props.fill ? { fill: props.fill } : {})} />;
 }
 
 /** The icon each shipped review kind reads by (the demo's REVIEW_KINDS icons). */
@@ -174,7 +177,46 @@ export function Header(props: {
 }) {
   const wide = useLayout().kind !== 'phone';
   const help = useHelpMode();
-  const content = (
+  // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
+  // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
+  const centred = !wide && !!props.onBack;
+  const helpBtn = help ? (
+    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? 'Turn help off' : 'Help: explain this screen'}
+      accessibilityState={{ selected: help.on }}
+      style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
+      <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
+    </Pressable>
+  ) : null;
+  const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crumbs}>
+      {props.crumbs.map((c, i) => (
+        <View key={`${c.label}-${i}`} style={styles.crumb}>
+          {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
+          {c.onPress ? (
+            <Pressable onPress={c.onPress} hitSlop={10} accessibilityRole="link" style={({ pressed }) => [styles.crumbTap, pressed && styles.pressed]}>
+              <Text style={styles.crumbLink} numberOfLines={1}>{c.label}</Text>
+            </Pressable>
+          ) : (
+            <Text style={txt.xs} numberOfLines={1}>{c.label}</Text>
+          )}
+        </View>
+      ))}
+    </ScrollView>
+  ) : null;
+  const content = centred ? (
+    <>
+      <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? 'Close' : 'Back'}
+        style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
+        <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
+      </Pressable>
+      <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
+        <Text style={styles.centredTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
+        {props.sub ? <Text style={[txt.xs, { marginTop: 2, textAlign: 'center' }]} numberOfLines={2}>{props.sub}</Text> : null}
+      </View>
+      {props.action}
+      {helpBtn ?? <View style={{ width: 48 }} />}
+    </>
+  ) : (
     <>
       {props.onBack ? (
         <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? 'Close' : 'Back'}
@@ -183,33 +225,12 @@ export function Header(props: {
         </Pressable>
       ) : null}
       <View style={{ flex: 1, minWidth: 0, paddingLeft: props.onBack ? 0 : space.xs }}>
-        {props.crumbs && props.crumbs.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crumbs}>
-            {props.crumbs.map((c, i) => (
-              <View key={`${c.label}-${i}`} style={styles.crumb}>
-                {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
-                {c.onPress ? (
-                  <Pressable onPress={c.onPress} hitSlop={10} accessibilityRole="link" style={({ pressed }) => [styles.crumbTap, pressed && styles.pressed]}>
-                    <Text style={styles.crumbLink} numberOfLines={1}>{c.label}</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={txt.xs} numberOfLines={1}>{c.label}</Text>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-        ) : null}
-        <Text style={txt.title} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
+        {crumbs}
+        <Text style={wide || props.onBack ? txt.title : styles.homeTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
         {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
       {props.action}
-      {help ? (
-        <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? 'Turn help off' : 'Help: explain this screen'}
-          accessibilityState={{ selected: help.on }}
-          style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
-          <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
-        </Pressable>
-      ) : null}
+      {helpBtn}
     </>
   );
   // While help is on, say so under the header (demo ADR-038).
@@ -223,7 +244,7 @@ export function Header(props: {
   ) : null;
   // Wide: the white bar spans the window, its contents line up with the body's column.
   if (wide) return <View><View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>{banner}</View>;
-  return <View><View style={styles.header}>{content}</View>{banner}</View>;
+  return <View>{banner ?? null}<View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View></View>;
 }
 
 /** `current`: what this card opened is showing beside the list (a split on a wide window, panes.ts). */
@@ -305,7 +326,8 @@ export function Row(props: {
     ...(props.expanded !== undefined ? { expanded: props.expanded } : {}),
     ...(props.disabled ? { disabled: true } : {})
   };
-  const onPress = useHelpPress(props.label, props.sub, props.onPress);
+  const spot = useHelpSpot(props.label, props.sub, props.onPress);
+  const onPress = spot.onPress;
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
     <View style={{ pointerEvents: 'none' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -334,6 +356,7 @@ export function Row(props: {
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
+      <HelpBadge n={spot.n} current={spot.current} inset />
     </Pressable>
   );
 }
@@ -371,13 +394,15 @@ const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: o
 export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
   const bg = TONES[props.tone ?? 'primary'];
   const off = props.disabled || props.busy;
-  const onPress = useHelpPress(props.label, 'The main thing to do on this screen.', props.onPress);
+  const spot = useHelpSpot(props.label, 'The main thing to do on this screen.', props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
       <Text style={styles.primaryLabel}>{props.busy ? 'Saving…' : props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -386,7 +411,8 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
 export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber' }) {
   const fg = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : C.primary;
   const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
@@ -394,6 +420,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
       <Text style={[styles.ghostLabel, { color: fg }]}>{props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -402,13 +429,15 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]} numberOfLines={1}>{props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -439,11 +468,13 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
 }
 
 function QuietLink(props: { label: string; icon: IconName; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, 'Another way forward, less often needed.', props.onPress);
+  const spot = useHelpSpot(props.label, 'Another way forward, less often needed.', props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={C.muted} />
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -463,12 +494,14 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
 
 /** A selectable pill. */
 export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number; accessibilityLabel?: string }) {
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.label}{props.count !== undefined ? ` · ${props.count.toLocaleString('en-US')}` : ''}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -776,6 +809,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   headerBar: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
+  headerCentred: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, backgroundColor: C.bg },
+  headerHome: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.sm, backgroundColor: C.bg },
+  homeTitle: { fontSize: T.xxl, fontWeight: '800', color: C.dark },
+  centredTitle: { fontSize: T.lg, fontWeight: '800', color: C.dark, textAlign: 'center' },
+  roundBtn: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   headerBack: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', marginLeft: -space.xs },
   crumbs: { alignItems: 'center', gap: 2 },
   crumb: { flexDirection: 'row', alignItems: 'center', gap: 2 },

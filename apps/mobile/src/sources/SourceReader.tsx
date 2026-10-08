@@ -57,11 +57,11 @@ interface SourceReaderProps {
   scrollRef?: RefObject<ScrollView | null>;
 }
 
-const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
+export const choiceKey = (actorId: string, orgId: string, languageId: string) => `source-choice:${actorId}:${orgId}:${languageId}`;
 const choices = new Map<string, string>();
 
 /** The version chosen last for this language on this phone, shared by the recorder, the study and the review. */
-function useChoice(key: string): [string | null, (itemId: string) => void] {
+export function useChoice(key: string): [string | null, (itemId: string) => void] {
   const [chosen, setChosen] = useState<string | null>(choices.get(key) ?? null);
   useEffect(() => {
     if (choices.has(key)) return;
@@ -75,7 +75,7 @@ function useChoice(key: string): [string | null, (itemId: string) => void] {
 }
 
 /** Put every source offered for this passage in the screen's record of what was used. */
-function useOffer(usage: Usage | undefined, passage: PassageSources): void {
+export function useOffer(usage: Usage | undefined, passage: PassageSources): void {
   useEffect(() => {
     if (!usage || !passage.range) return;
     usage.offer(passage.options.map((o) => {
@@ -293,7 +293,7 @@ export function SourceView(props: SourceReaderProps & {
 }
 
 /** The abbreviation, and when two versions share it, what tells them apart ("BSB · read by Frederick Surrey"). */
-function chipLabel(o: SourceOption, all: SourceOption[]): string {
+export function chipLabel(o: SourceOption, all: SourceOption[]): string {
   const twin = all.find((x) => x !== o && x.abbreviation === o.abbreviation);
   if (!twin) return o.abbreviation;
   let i = 0;
@@ -302,7 +302,7 @@ function chipLabel(o: SourceOption, all: SourceOption[]): string {
   return `${o.abbreviation} · ${rest || (o.doc?.provider.kind === 'library' || o.kind === 'library' && !o.doc ? 'library' : 'Bible Brain')}`;
 }
 
-function copyrightLine(c: { text?: string; audio?: string }): string {
+export function copyrightLine(c: { text?: string; audio?: string }): string {
   if (c.text && c.audio && c.text !== c.audio) return `Text ${c.text} · Audio ${c.audio}`;
   return c.text ?? c.audio ?? '';
 }

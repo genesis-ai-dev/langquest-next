@@ -121,6 +121,19 @@ describe('passage record', () => {
     expect(bt.review?.artifacts?.map((c) => c.hash)).toEqual(['b1']);
   });
 
+  it('each part of a back translation keeps the moment in the version it is about', () => {
+    const p = language();
+    record(p, ['c1']);
+    const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
+    p.run('ayen', (c) => c.produceContent({ commandId: 'bt', fromTakeId: v1, kindId: 'bt', cards: [
+      { hash: 'b1', durationMs: 4000, format: 'wav', atMs: 0 }, { hash: 'b2', durationMs: 3000, format: 'wav', atMs: 6200.4 }, { hash: 'b3', durationMs: 1000 }
+    ] }));
+    const bt = derivePassage(p.state(), 'john3').steps[0]!.kinds.find((k) => k.kindId === 'bt')!;
+    expect(bt.review?.artifacts).toEqual([
+      { hash: 'b1', durationMs: 4000, format: 'wav', atMs: 0 }, { hash: 'b2', durationMs: 3000, format: 'wav', atMs: 6200 }, { hash: 'b3', durationMs: 1000 }
+    ]);
+  });
+
   it('feedback waits on the latest version’s author; a new version answers all of it', () => {
     const p = language();
     record(p, ['c1']);

@@ -154,6 +154,25 @@ export function countFilters(states: PassageFacts[]): Record<MapFilter, number> 
 /** Where a chapter stands, from its passages (MAP-5); "none" when no passage covers it. */
 export type ChapterTone = 'done' | 'feedback' | 'review' | 'drafting' | 'todo' | 'none';
 
+/**
+ * What a chapter tile shows (the simple Map, decision 71): three states,
+ * marked as well as coloured. Done is every passage done; started is any
+ * work at all (recording begun, recorded, in review, feedback waiting); new
+ * is nothing yet. `none` is a chapter with no passage in this language.
+ */
+export type ChapterStage = 'done' | 'started' | 'new' | 'none';
+
+export function chapterStage(tone: ChapterTone): ChapterStage {
+  switch (tone) {
+    case 'done': return 'done';
+    case 'feedback':
+    case 'review':
+    case 'drafting': return 'started';
+    case 'todo': return 'new';
+    case 'none': return 'none';
+  }
+}
+
 export function chapterTone(states: PassageFacts[]): ChapterTone {
   if (states.length === 0) return 'none';
   if (states.some((s) => s.awaitingResponse.length > 0)) return 'feedback';

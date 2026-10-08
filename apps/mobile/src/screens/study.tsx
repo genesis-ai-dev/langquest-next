@@ -1,47 +1,45 @@
-// Study guides (ng-langquest-ux src/screens/study.tsx): the Study guide
-// (`study_guide`) and a Study step (`study_step`). Requirements STUDY-1..7,
-// ADR-018 (guides are reference material with steps; FIA is the first) and
+// Study (ng-langquest-ux src/screens/study.tsx; the simple redesign's
+// reader, decision 71, demo ADR-035, simple/translator.tsx Study,
+// StudySteps, StudyDoc, StudyLesson): one reader for whatever reference
+// material is attached to the passage, for both flow nodes (`study_guide`
+// opens at the next step, `study_step` at the one named). Requirements
+// STUDY-1..7; ADR-018 (guides are reference material with steps) and
 // ADR-019 (the material keeps its own format; the passage is one tap away).
-// A guide walks the team through a passage before anyone drafts. Each step
-// is one document with its own audio, shown the way the material is
-// written, broken into sections anyone who adds to passages can note
-// (STUDY-7). Finishing a step is the drafting team's (Translate), recorded
-// with who and when, and undoable (STUDY-4). The study is advice: nothing
-// waits on it (STUDY-6). App only: Write a guide (`guide_editor`), where
-// someone who manages reference material edits the organization's own guide
-// or adapts FIA's; the editor itself is in src/guides/.
-import { commands, isLicense, keyTermsFor, LICENSE_INFO, type EventSpec } from '@langquest-next/core';
+//
+// Chips switch between what is attached, in the recording workspace's
+// order (Guide, Bible, Key words, Notes). A guide with steps has the step
+// bar (‹ 2/6 Setting the stage ▾ ›; ▾ lists every step, grouped, with done
+// marks); a step with audio has its player (Back 10 s, Note at a moment);
+// its text shows glossary words to tap, pictures as cards and its callouts.
+// The passage is docked at the bottom when it has source audio; a guide on
+// an outline item (no verses) has no Bible chip and no dock. Nothing here
+// names the method a guide follows. Finishing a step is the drafting
+// team's (Translate), recorded with who and when, and undoable (STUDY-4);
+// the study is advice: nothing waits on it (STUDY-6). App only: Write a
+// guide (`guide_editor`), from the steps sheet, for whoever manages
+// reference material; the editor itself is in src/guides/.
+import { commands, isLicense, keyTermsForUnit, LICENSE_INFO, type EventSpec, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
-import {
-  Badge, EmptyState, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Segments, SmallBtn, txt
-} from '../kit';
-import { AudioClip } from '../audioClip';
-import { plural, usePassage, when, type PassageView } from '../passageView';
+import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn, txt } from '../kit';
+import { plural, usePassage, type PassageView } from '../passageView';
+import { termsInText } from '../recording/workspaceModel';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
-import { type StudyGuide as Guide, type StudyResource } from '../study/guides';
-import { glossaryEntryOf, useStudyGuide } from '../study/libraryGuides';
-import { studyProgress, type StudyProgress, type StudyStepStatus } from '../study/progress';
+import { GuideNav, GuideStep } from '../simple/guide';
+import { refChips, stepAfterDone, type RefChip } from '../simple/model';
+import { Dock, RefChips, type ChipItem } from '../simple/parts';
+import { BiblePane, KeyWordsPane, NotesPane, useBible } from '../simple/reference';
+import { type StudyGuide as Guide } from '../study/guides';
+import { useStudyGuide } from '../study/libraryGuides';
+import { studyProgress, type StudyProgress } from '../study/progress';
+import { stepLine } from '../study/ui';
 import { GuideEditorScreen } from '../guides/GuideEditor';
-import { useStudyFileUri } from '../study/media';
-import { clock, inlineParts, isQuestion, secondsOf, sectionLabel, studySections, type StudySection } from '../study/text';
-import {
-  AudioBar, ContributeSheet, GlossarySheet, MediaSheet, PassageReader, resourceIcon, saveNote, SectionBody, StepMark, stepLine, StudyNote,
-  styles as su, useStudyAudio, ViewSwitch
-} from '../study/ui';
-import { C, radius, space, TINT } from '../theme';
-
-/** A step's state in a word or two, beside its title; the full line is read to screen readers. */
-function stepBadge(st: StudyStepStatus, isNext: boolean): string | undefined {
-  if (st.done) return 'Done';
-  if (st.notes.length) return plural(st.notes.length, 'note');
-  return isNext ? 'Next' : undefined;
-}
+import { space, TINT } from '../theme';
 
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
@@ -55,133 +53,59 @@ function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress }
 
 function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
   return (
-    <Screen header={<Header title={props.title} onBack={props.ctx.back}
-      {...(props.v ? { crumbs: [{ label: props.v.title, onPress: () => props.ctx.go('passage_record', { unitId: props.v!.unitId, languageId: props.v!.languageId }) }] } : {})} />}>
-      <EmptyState icon="sparkle" title={props.v ? "There's no study guide for this passage." : 'This passage is not in this language.'}
-        {...(props.v ? { sub: 'Study guides come with the reference material your organization uses. FIA covers more passages as its material grows.' } : {})} />
+    <Screen header={<Header title={props.v?.title ?? props.title} sub="Study" onBack={props.ctx.back} close />}>
+      <EmptyState icon="star" title={props.v ? "There's no study guide for this passage." : 'This passage is not in this language.'}
+        {...(props.v ? { sub: 'Guides come with the reference material your organization uses, and cover more passages as it grows.' } : {})} />
     </Screen>
   );
 }
 
-/** The passage view mounts the first time it is opened and then stays, so its translation and place survive switching. */
-function useOpened(now: boolean): boolean {
-  const [opened, setOpened] = useState(now);
-  if (now && !opened) setOpened(true);
-  return opened || now;
-}
-
-function peopleLine(ctx: Ctx, people: string[]): string {
-  const names = people.map((p) => ctx.name(p));
-  if (names.length === 0) return 'Nobody has started yet';
-  if (names.length <= 2) return `By ${names.join(' and ')}`;
-  return `By ${names.slice(0, 2).join(', ')} and ${plural(names.length - 2, 'other')}`;
-}
-
-// ---- Study guide: the steps and how far the team has got (STUDY-2) ---------------------
+// ---- the reader (STUDY-2..5, STUDY-7) ------------------------------------------------------
 
 export function StudyGuide(ctx: Ctx) {
-  const { v, guide, sp } = useStudy(ctx);
-  const [view, setView] = useState<'steps' | 'passage'>('steps');
-  const opened = useOpened(view === 'passage');
-  if (!v || !guide || !sp) return <Missing ctx={ctx} title={TITLES.study_guide} v={v} />;
-
-  const canStudy = ctx.session.can('translate');
-  const canContribute = canStudy || ctx.session.can('review') || ctx.session.can('fill_reference');
-  const phases = [...new Set(guide.steps.map((s) => s.phase ?? ''))];
-  const allDone = !sp.next;
-  const recorded = v.p.versions.length > 0;
-  const openStep = (stepId: string) => ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId });
-  const footer = view === 'steps' && canStudy && (sp.next || !recorded) ? (
-    sp.next ? (
-      <PrimaryBtn label={`${sp.doneCount || sp.next.notes.length ? 'Continue' : 'Start'}: ${sp.next.step.title}`} onPress={() => openStep(sp.next!.step.id)} />
-    ) : (
-      <PrimaryBtn label="Record the first draft" icon="mic" onPress={() => ctx.go('workspace', { unitId: v.unitId, languageId: v.languageId })} />
-    )
-  ) : undefined;
-
-  // Someone who manages reference material edits the organization's own guide, or adapts anyone else's (guides/GuideEditor.tsx).
-  const origin = guide.origin;
-  const edit = ctx.session.can('manage_reference') && origin
-    ? (origin.itemId
-      ? <SmallBtn label="Edit" icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
-      : <SmallBtn label="Copy to adapt" icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />)
-    : undefined;
-  return (
-    <Screen fixed footer={footer}
-      header={<Header title={`${guide.pattern} study`} sub={v.language} onBack={ctx.back} {...(edit ? { action: edit } : {})}
-        crumbs={[{ label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId }) }]} />}>
-      <ViewSwitch views={[{ id: 'steps', label: 'Guide', icon: 'sparkle' }, { id: 'passage', label: 'Bible', icon: 'book' }]}
-        active={view} onChange={setView} />
-      {opened ? (
-        <View style={[s.pane, view !== 'passage' && s.hidden]}>
-          <PassageReader ctx={ctx} v={v} canContribute={canContribute} hidden={view !== 'passage'} />
-        </View>
-      ) : null}
-      <ScrollView style={[s.pane, view !== 'steps' && s.hidden]} contentContainerStyle={su.body}>
-        <View style={s.summary}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <Badge label={guide.pattern} tone="brand" />
-            <Text style={[txt.xsStrong, { flex: 1 }]} numberOfLines={1}>{guide.source}</Text>
-          </View>
-          <Text style={txt.sm}>{guide.about}</Text>
-          {guide.credit || guide.license ? (
-            <Text style={txt.xs}>{[guide.credit, guide.license && isLicense(guide.license) ? LICENSE_INFO[guide.license].name : guide.license].filter(Boolean).join(' · ')}</Text>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {allDone ? <Ico name="check" size={16} color={TINT.greenText} /> : null}
-              <Text style={[txt.sm, { fontWeight: '700', color: allDone ? TINT.greenText : C.dark }]}>
-                {allDone ? 'Every step done' : `${sp.doneCount} of ${sp.steps.length} steps done`}
-              </Text>
-            </View>
-            <Text style={txt.xs}>{plural(sp.noteCount, 'note')}</Text>
-          </View>
-          <ProgressBar value={Math.round((sp.doneCount / Math.max(1, sp.steps.length)) * 100)} color={allDone ? C.green : C.primary} />
-          <Text style={txt.xs}>{peopleLine(ctx, sp.people)}</Text>
-        </View>
-
-        {phases.map((phase) => (
-          <View key={phase} style={{ gap: space.sm }}>
-            {phase ? <SectionLabel label={phase} /> : null}
-            <Group>
-              {sp.steps.filter((st) => (st.step.phase ?? '') === phase).map((st, i, list) => {
-                const isNext = canStudy && sp.next?.step.id === st.step.id;
-                const badge = stepBadge(st, isNext);
-                return (
-                  <Row key={st.step.id} leading={<StepMark status={st} size={36} />} label={st.step.title} sub={st.step.purpose}
-                    {...(badge ? { badge, badgeTone: st.done ? 'green' as const : isNext ? 'brand' as const : 'default' as const } : {})} last={i === list.length - 1} onPress={() => openStep(st.step.id)}
-                    accessibilityLabel={`${st.step.title}. ${isNext && !st.notes.length ? 'Next' : stepLine(ctx, st)}. ${st.step.purpose}`} />
-                );
-              })}
-            </Group>
-          </View>
-        ))}
-        <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-          What you add while studying stays with this passage. Reviewers see it next to the draft, so they know the study was done.
-        </Text>
-      </ScrollView>
-    </Screen>
-  );
+  return <StudyReader ctx={ctx} title={TITLES.study_guide} />;
 }
 
-// ---- Study step: the step's text and audio, and the passage beside it (STUDY-3, STUDY-4) ----
-
 export function StudyStep(ctx: Ctx) {
-  const { v, guide, sp } = useStudy(ctx);
-  // Moving on changes the step, not the screen (STUDY-4).
-  const [stepId, setStepId] = useState(ctx.params['stepId'] ?? '');
-  const [view, setView] = useState<'step' | 'passage'>('step');
-  const opened = useOpened(view === 'passage');
-  if (!v || !guide || !sp) return <Missing ctx={ctx} title={TITLES.study_step} v={v} />;
+  return <StudyReader ctx={ctx} title={TITLES.study_step} stepId={ctx.params['stepId']} />;
+}
 
-  const status = sp.steps.find((st) => st.step.id === stepId) ?? sp.steps[0]!;
+function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
+  const { ctx } = props;
+  const { v, guide, sp } = useStudy(ctx);
+  const bible = useBible(ctx, v?.unitId ?? null, v?.languageId ?? null, {});
+  const [chipState, setChip] = useState<RefChip>('guide');
+  // Moving on changes the step, not the screen (STUDY-4).
+  const [indexState, setIndex] = useState<number | null>(null);
+  const [verse, setVerse] = useState<string | null>(null);
+  const state = ctx.language.state;
+  const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
+  const terms = useMemo(() => {
+    if (!state || !v) return [];
+    const all = keyTermsForUnit(state, v.unitId);
+    return sourceWords ? termsInText(sourceWords, all) : all;
+  }, [state, v?.unitId, sourceWords]); // eslint-disable-line react-hooks/exhaustive-deps
+  const notes = useMemo<PassageNote[]>(() => (v ? v.p.notes.filter((n) => n.anchor.kind !== 'study') : []), [v?.p.notes]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!v || !guide || !sp) return <Missing ctx={ctx} title={props.title} v={v} />;
+
+  const scope = { unitId: v.unitId, languageId: v.languageId };
   const canStudy = ctx.session.can('translate');
   const canContribute = canStudy || ctx.session.can('review') || ctx.session.can('fill_reference');
-  const nextStep = sp.steps[status.index + 1];
-  const toGuide = () => ctx.go('study_guide', { unitId: v.unitId, languageId: v.languageId });
+  const named = props.stepId ? sp.steps.findIndex((st) => st.step.id === props.stepId) : -1;
+  const index = Math.min(sp.steps.length - 1, Math.max(0, indexState ?? (named >= 0 ? named : sp.next?.index ?? 0)));
+  const status = sp.steps[index]!;
+  const chipIds = refChips('study', { guide: true, bible: bible.hasVerses, terms: terms.length > 0, notes: notes.length > 0, earlier: false });
+  const chip = chipIds.includes(chipState) ? chipState : 'guide';
+  const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
+    guide: { id: 'guide' as const, label: 'Guide', icon: 'star' as const, hint: "The guide's steps for this passage." },
+    bible: { id: 'bible' as const, label: 'Bible', icon: 'listen' as const, hint: 'Hear and read the passage.' },
+    terms: { id: 'terms' as const, label: 'Key words', icon: 'key' as const, hint: 'Words to say the same way every time.' },
+    notes: { id: 'notes' as const, label: 'Notes', icon: 'chat' as const, count: notes.length, hint: "The team's notes on this passage." },
+    earlier: { id: 'earlier' as const, label: 'Earlier', icon: 'clock' as const }
+  })[c]);
+  const openTerm = (termId: string) => ctx.go('key_term_detail', { ...scope, termId });
 
   async function done() {
-    const state = ctx.language.state;
     if (!state || !guide || !sp || status.done) return;
     const mark = (isDone: boolean): EventSpec[] => {
       const now = ctx.language.state ?? state;
@@ -189,260 +113,86 @@ export function StudyStep(ctx: Ctx) {
         commandId: Crypto.randomUUID(), unitId: v!.unitId, guideId: guide.id, stepId: status.step.id, done: isDone
       });
     };
-    const left = sp.steps.filter((st) => !st.done && st.step.id !== status.step.id);
-    const next = left.find((st) => st.index > status.index) ?? left[0];
+    const next = stepAfterDone(sp.steps.map((st) => ({ done: !!st.done })), index);
     try {
-      await ctx.act(mark(true),
-        next ? `${status.step.title} done · ${sp.doneCount + 1} of ${sp.steps.length}` : `Every ${guide.pattern} step is done`,
-        () => mark(false));
+      await ctx.act(mark(true), next !== null ? `${status.step.title} done · ${sp.doneCount + 1} of ${sp.steps.length}` : 'Every step is done', () => mark(false));
     } catch (e) {
       // ctx.act already said "Not saved"; stay on this step.
       noteExpected('study: mark step', e);
       return;
     }
-    if (next) setStepId(next.step.id);
-    else toGuide();
+    if (next !== null) setIndex(next);
   }
 
-  const footer = (
+  const allDone = !sp.next;
+  const recorded = v.p.versions.length > 0;
+  const footer = chip !== 'guide' ? (
+    <PrimaryBtn label="Back to the guide" icon="arrowL" onPress={() => setChip('guide')} />
+  ) : canStudy && !status.done ? (
+    <PrimaryBtn label="Done with this step" icon="check" onPress={() => void done()} />
+  ) : (
     <>
       {status.done ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <View style={s.doneLine}>
           <Ico name="check" size={16} color={TINT.greenText} />
           <Text style={[txt.xsStrong, { color: TINT.greenText }]}>{stepLine(ctx, status)}</Text>
         </View>
       ) : null}
-      {canStudy && !status.done ? (
-        <PrimaryBtn label="Done with this step" icon="check" onPress={() => void done()} />
-      ) : nextStep ? (
-        <GhostBtn label={`Next: ${nextStep.step.title}`} onPress={() => setStepId(nextStep.step.id)} />
-      ) : (
-        <GhostBtn label="All steps" onPress={toGuide} />
-      )}
+      {allDone && canStudy ? (
+        <PrimaryBtn label={recorded ? 'Open the recording workspace' : 'Record the first draft'} icon="mic" onPress={() => ctx.go('workspace', scope)} />
+      ) : sp.steps[index + 1] ? (
+        <GhostBtn label={`Next: ${sp.steps[index + 1]!.step.title}`} onPress={() => setIndex(index + 1)} />
+      ) : null}
     </>
   );
 
+  // Whoever manages reference material edits the organization's own guide, or adapts anyone else's (guides/GuideEditor.tsx).
+  const origin = guide.origin;
+  // Who made the material and its license, as its license asks (a study@1 guide carries both in its source line).
+  const credit = [guide.credit, guide.license && isLicense(guide.license) ? LICENSE_INFO[guide.license].name : guide.license].filter(Boolean).join(' · ')
+    || (guide.source ? `Source: ${guide.source}` : '');
+  const sheetFooter = (
+    <View style={{ gap: space.sm, paddingTop: space.sm }}>
+      {credit ? <Text style={txt.xs}>{credit}</Text> : null}
+      {ctx.session.can('manage_reference') && origin ? (
+        origin.itemId
+          ? <SmallBtn label="Edit this guide" icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
+          : <SmallBtn label="Copy this guide to adapt it" icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />
+      ) : null}
+      <Text style={txt.xs}>What you add while studying stays with this passage. Reviewers see it next to the draft{sp.noteCount ? ` (${plural(sp.noteCount, 'note')} so far)` : ''}.</Text>
+    </View>
+  );
+
+  const dock = bible.hasAudio && chip !== 'bible';
   return (
     <Screen fixed footer={footer}
-      header={<Header title={status.step.title} onBack={ctx.back}
-        crumbs={[
-          { label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId }) },
-          { label: `${guide.pattern} study`, onPress: toGuide }
-        ]} />}>
-      {/* Where this step sits in the study, in both views. */}
-      <View style={s.strip}>
-        <Text style={[txt.xsStrong, { color: C.dark }]}>
-          Step {status.index + 1} of {sp.steps.length}<Text style={{ color: C.muted, fontWeight: '500' }}> · {sp.doneCount} done</Text>
-        </Text>
-        <View style={{ flex: 1 }}>
-          <Segments total={sp.steps.length} done={(i) => !!sp.steps[i]?.done} current={status.index} />
-        </View>
-      </View>
-      <ViewSwitch views={[{ id: 'step', label: 'Guide', icon: 'sparkle' }, { id: 'passage', label: 'Bible', icon: 'book' }]}
-        active={view} onChange={setView} />
-      {opened ? (
-        <View style={[s.pane, view !== 'passage' && s.hidden]}>
-          <PassageReader ctx={ctx} v={v} canContribute={canContribute} hidden={view !== 'passage'} />
-        </View>
+      header={<Header title={v.title} sub="Study" onBack={ctx.back} close />}>
+      <RefChips items={chips} value={chip} onChange={setChip} />
+      {chip === 'guide' ? <GuideNav ctx={ctx} sp={sp} index={index} onIndex={setIndex} sheetFooter={sheetFooter} /> : null}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+        {chip === 'guide' ? (
+          <GuideStep key={status.step.id} ctx={ctx} v={v} guide={guide} status={status} spoken canContribute={canContribute} onTerm={openTerm} />
+        ) : chip === 'bible' ? (
+          <BiblePane ctx={ctx} v={v} bible={bible} terms={terms} canNote={canContribute} selected={verse} onSelect={setVerse}
+            onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
+        ) : chip === 'terms' ? (
+          <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} draftTakeId={v.p.draftTakeId} canTie={false}
+            onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
+        ) : (
+          <NotesPane ctx={ctx} v={v} notes={notes} />
+        )}
+      </ScrollView>
+      {dock ? (
+        <Dock title={`The passage · ${v.title}`} sub={bible.line()} playing={bible.player.playing} available={!bible.player.loading}
+          onToggle={bible.player.toggle} onBack10={() => bible.player.skip(-10)} backDisabled={!bible.player.started} />
       ) : null}
-      <View style={[s.pane, view !== 'step' && s.hidden]}>
-        <StepBody key={status.step.id} ctx={ctx} v={v} guide={guide} status={status} canStudy={canStudy} canContribute={canContribute}
-          isLast={status.index === sp.steps.length - 1} hidden={view !== 'step'} />
-      </View>
     </Screen>
   );
 }
 
-/** One step's audio, timed notes and text. Keyed by step, so moving on starts the next step's audio fresh. */
-function StepBody(props: { ctx: Ctx; v: PassageView; guide: Guide; status: StudyStepStatus; canStudy: boolean; canContribute: boolean; isLast: boolean; hidden: boolean }) {
-  const { ctx, v, guide, status } = props;
-  const step = status.step;
-  const sections = useMemo(() => studySections(step.text), [step.text]);
-  const { uri: audioUri } = useStudyFileUri(ctx.language.orgId, step.audio.file, step.audio.url);
-  const audio = useStudyAudio(audioUri, step.audio.seconds);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [adding, setAdding] = useState<{ sectionId?: string; at?: string; quote: string; answer: boolean } | null>(null);
-  const [resource, setResource] = useState<StudyResource | null>(null);
-  useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (props.hidden) audio.pause(); }, [props.hidden]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const momentOf = (n: StudyStepStatus['notes'][number]) => (n.anchor.kind === 'study' && n.anchor.at ? secondsOf(n.anchor.at) : -1);
-  const atMoment = status.notes.filter((n) => momentOf(n) >= 0).sort((a, b) => momentOf(a) - momentOf(b));
-  const onSection = (id: string) => status.notes.filter((n) => n.anchor.kind === 'study' && n.anchor.sectionId === id);
-  const onStep = status.notes.filter((n) => n.anchor.kind === 'study' && !n.anchor.sectionId && momentOf(n) < 0);
-
-  const openRef = (ref: string) => {
-    const r = guide.resources.find((x) => x.ref === ref);
-    if (r) { audio.pause(); setResource(r); }
-  };
-  const keyTerm = (r: StudyResource | null) => {
-    const state = ctx.language.state;
-    if (!state || r?.kind !== 'term') return null;
-    const t = r.title.trim().toLowerCase();
-    return keyTermsFor(state).find((k) => k.term.trim().toLowerCase() === t) ?? null;
-  };
-  const term = keyTerm(resource);
-  const entry = resource?.kind === 'term' ? glossaryEntryOf(guide, resource.ref) : null;
-  const audioSub = audio.failed ? "Couldn't load the audio — playing a stand-in"
-    : !audioUri ? (step.audio.file ? 'Getting the recording of this step…' : 'No recording of this step yet · the clock follows reading pace') : undefined;
-
-  return (
-    <ScrollView stickyHeaderIndices={[0]} contentContainerStyle={su.body} keyboardShouldPersistTaps="handled">
-      <View style={su.sticky}>
-        <AudioBar audio={audio} label={audio.playing ? 'Playing this step' : audio.time > 0 ? 'Paused' : 'Listen to this step'} {...(audioSub ? { sub: audioSub } : {})} />
-        {props.canContribute && !audio.playing && audio.time > 0 ? (
-          <Pressable onPress={() => setAdding({ at: clock(audio.time), quote: `Audio at ${clock(audio.time)}`, answer: false })} accessibilityRole="button"
-            style={({ pressed }) => [su.momentBtn, pressed && su.pressed]}>
-            <Ico name="note" size={16} color={TINT.amberText} />
-            <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>Add a note at {clock(audio.time)}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>
-        {step.phase ? <Text style={{ fontWeight: '700', color: C.dark }}>{step.phase}. </Text> : null}
-        {step.purpose}{props.canContribute ? ' Tap any part to add a note.' : ''}
-      </Text>
-
-      {atMoment.length > 0 ? (
-        <Group>
-          <Text style={[txt.label, { paddingHorizontal: space.lg, paddingTop: space.md }]}>Notes on the audio</Text>
-          {atMoment.map((n) => (
-            <View key={n.id}>
-              <Pressable onPress={() => audio.seek(momentOf(n))} accessibilityRole="button" accessibilityLabel={`Go to ${clock(momentOf(n))}`}
-                style={({ pressed }) => [s.momentRow, pressed && su.pressed]}>
-                <View style={s.timeTag}><Text style={[txt.xsStrong, { color: C.white }]}>{clock(momentOf(n))}</Text></View>
-                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                  {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
-                  <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.blobHash ? ' · voice note' : ''}</Text>
-                </View>
-              </Pressable>
-              {n.blobHash ? (
-                <View style={{ paddingLeft: 72, paddingRight: space.lg, paddingBottom: space.sm }}>
-                  <AudioClip language={ctx.language} hashes={[n.blobHash]} label="Play voice note" />
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </Group>
-      ) : null}
-
-      <View style={su.textCard}>
-        {sections.map((sec) => (
-          <SectionView key={sec.id} ctx={ctx} section={sec} resources={guide.resources} notes={onSection(sec.id)}
-            selected={selected === sec.id} canContribute={props.canContribute}
-            onSelect={() => setSelected((cur) => (cur === sec.id ? null : sec.id))}
-            onAdd={() => setAdding({ sectionId: sec.id, quote: sectionLabel(sec, 120), answer: isQuestion(sec) })}
-            onOpenRef={openRef} />
-        ))}
-      </View>
-
-      {onStep.length > 0 ? (
-        <View style={{ gap: space.sm }}>
-          <SectionLabel label="Notes on this step" />
-          {onStep.map((n) => <StudyNote key={n.id} ctx={ctx} note={n} />)}
-        </View>
-      ) : null}
-
-      {props.isLast && props.canStudy ? (
-        <View style={s.handoff}>
-          <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
-            <Ico name="mic" size={20} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1 }]}>When the group agrees on its version, record it as the first draft.</Text>
-          </View>
-          <GhostBtn label={v.p.versions.length ? 'Open the recording workspace' : 'Record the first draft'} icon="mic"
-            onPress={() => ctx.go('workspace', { unitId: v.unitId, languageId: v.languageId })} />
-        </View>
-      ) : null}
-
-      {adding ? (
-        <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={adding.answer ? 'Your answer' : 'Add a note'}
-          where={`${step.title} · ${adding.quote}`}
-          onClose={() => { setAdding(null); setSelected(null); }}
-          onSave={(c) => saveNote(ctx, v, {
-            kind: 'study', guideId: guide.id, stepId: step.id,
-            ...(adding.sectionId ? { sectionId: adding.sectionId } : {}), ...(adding.at ? { at: adding.at } : {})
-          }, c, adding.at ? `Note added at ${adding.at} — it stays with the study` : 'Added to the study — reviewers will see it with the passage')} />
-      ) : null}
-      {resource && resource.kind !== 'term' ? (
-        <MediaSheet resource={resource} source={`${guide.pattern} media`} orgId={ctx.language.orgId} onClose={() => setResource(null)} />
-      ) : null}
-      {resource && entry ? (
-        <GlossarySheet entry={entry} source={guide.source} orgId={ctx.language.orgId} hasKeyTerm={!!term} onClose={() => setResource(null)}
-          onOpenTerm={() => {
-            if (!term) return;
-            setResource(null);
-            ctx.go('key_term_detail', { termId: term.termId, unitId: v.unitId, languageId: v.languageId });
-          }} />
-      ) : null}
-    </ScrollView>
-  );
-}
-
-/** One section of the step's text: tap it to select, then note it. Its notes stay underneath. */
-function SectionView(props: {
-  ctx: Ctx;
-  section: StudySection;
-  resources: StudyResource[];
-  notes: StudyStepStatus['notes'];
-  selected: boolean;
-  canContribute: boolean;
-  onSelect: () => void;
-  onAdd: () => void;
-  onOpenRef: (ref: string) => void;
-}) {
-  const sec = props.section;
-  const question = isQuestion(sec);
-  const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' ? [p] : []));
-  // Anyone can select a section to reach its pictures, maps and glossary terms; only contributors can note it.
-  const selectable = props.canContribute || links.length > 0;
-  const body = <SectionBody section={sec} onOpenRef={props.onOpenRef} />;
-  return (
-    <View style={{ paddingHorizontal: space.sm }}>
-      <Pressable disabled={!selectable} onPress={props.onSelect} accessibilityRole={selectable ? 'button' : undefined}
-        accessibilityState={{ selected: props.selected }} style={[s.section, props.selected && su.selected]}>
-        {body}
-        {props.notes.length > 0 && !props.selected ? (
-          <View style={[su.count, s.sectionCount]} accessibilityLabel={plural(props.notes.length, 'note')}>
-            <Text style={su.countText}>{props.notes.length}</Text>
-          </View>
-        ) : null}
-      </Pressable>
-      {props.selected ? (
-        <View style={s.sectionActions}>
-          {props.canContribute ? (
-            <Pressable onPress={props.onAdd} accessibilityRole="button"
-              style={({ pressed }) => [su.addBtn, { marginTop: 0, marginBottom: 0 }, question && { backgroundColor: C.primary }, pressed && su.pressed]}>
-              <Ico name={question ? 'mic' : 'note'} size={16} color={C.white} />
-              <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>{question ? 'Answer' : 'Add a note'}</Text>
-            </Pressable>
-          ) : null}
-          {links.map((l, i) => (
-            <SmallBtn key={`${l.ref}-${i}`} label={l.text} icon={resourceIcon(props.resources.find((r) => r.ref === l.ref))} onPress={() => props.onOpenRef(l.ref)} />
-          ))}
-        </View>
-      ) : null}
-      {props.notes.length > 0 ? (
-        <View style={{ paddingHorizontal: space.sm, paddingBottom: space.sm, paddingTop: space.xs, gap: space.sm }}>
-          {props.notes.map((n) => <StudyNote key={n.id} ctx={props.ctx} note={n} label={isQuestion(sec) ? 'Answer' : undefined} />)}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
-  summary: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.lg, gap: space.md },
-  strip: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: C.card,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  momentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, minHeight: 48, paddingHorizontal: space.lg, paddingVertical: space.sm },
-  timeTag: { backgroundColor: C.dark, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
-  section: { borderRadius: radius.md, paddingHorizontal: space.sm, paddingVertical: 6, minHeight: 48, justifyContent: 'center' },
-  sectionCount: { position: 'absolute', right: -2, top: -2, marginTop: 0 },
-  sectionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.sm, paddingVertical: space.xs },
-  pane: { flex: 1 },
-  hidden: { display: 'none' },
-  handoff: { backgroundColor: C.light, borderRadius: radius.xl, padding: space.lg, gap: space.md }
+  body: { paddingHorizontal: space.lg, paddingTop: space.xs, paddingBottom: space.xl, gap: space.md },
+  doneLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }
 });
 
 // ---- Write a guide (app only): the guide editor, guides/GuideEditor.tsx -------------------

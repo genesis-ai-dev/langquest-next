@@ -154,7 +154,7 @@ export function postSignInScreen(s: Session): ScreenId {
   return s.isFirstTime && !s.hasNoOrg ? 'welcome' : homeScreenFor(s);
 }
 
-export type TabId = 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'settings';
+export type TabId = 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'me';
 
 export interface Tab {
   id: TabId;
@@ -164,21 +164,23 @@ export interface Tab {
 }
 
 /**
- * NAV-1: My Work (with its For you count), Map, Manage (admins only), Settings.
- * People with a My Work get updates from its bell instead of an Inbox tab
- * (one place for what's next, ADR-029); viewers keep the Inbox tab (unread).
- * A wide window adds Reports after Map for anyone who may view status
- * (decisions.md 57); a phone keeps the demo's tabs exactly.
+ * NAV-1, as the simple redesign has it (decision 71, demo ADR-032): Work,
+ * Map, Manage (admins only), Me. People with a My Work get updates from its
+ * bell instead of an Inbox tab (one place for what's next, ADR-029); viewers
+ * keep the Inbox tab (unread). Work carries no count: My Work itself leads
+ * with the next thing, and the bell carries the unread count. A wide window
+ * adds Reports after Map for anyone who may view status (decisions.md 57);
+ * a phone keeps the demo's tabs exactly.
  */
 export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
   const tabs: Tab[] = [];
   const hasMyWork = homeScreenFor(s) === 'my_work';
-  if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: 'My Work', badge: counts.forYou });
+  if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: 'Work' });
   tabs.push({ id: 'map', screen: mapScreenFor(s), label: 'Map' });
   if (opts.wide && !s.hasNoOrg && s.can('view_status')) tabs.push({ id: 'reports', screen: 'reports_home', label: 'Reports' });
   const manage = manageHomeFor(s);
   if (manage) tabs.push({ id: 'manage', screen: manage, label: 'Manage' });
   if (!hasMyWork) tabs.push({ id: 'inbox', screen: 'inbox_home', label: 'Inbox', badge: counts.unread });
-  tabs.push({ id: 'settings', screen: 'settings_home', label: 'Settings' });
+  tabs.push({ id: 'me', screen: 'settings_home', label: 'Me' });
   return tabs;
 }

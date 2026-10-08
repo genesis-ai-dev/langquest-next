@@ -14,14 +14,15 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { edgeFor, TITLES, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
   Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
-  NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt
+  NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt,
+  type IconName
 } from '../kit';
 import {
   addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, DUE_CHOICES, dueError, feedbackNames,
@@ -29,7 +30,10 @@ import {
   reviewMark, reviewsSummary, sendTargetLabel, stepSheetSub, versionReviewsSummary, type EntryText, type KindRowCan, type MineFn,
   type RowAction
 } from '../passage/record';
-import { Journey } from '../passage/journey';
+import { PassagePath } from '../passage/path';
+import { checkPhrase, pathSteps, teamSteps, type PathInput, type PathStep, type TeamStep } from '../passage/pathModel';
+import { clipSeconds, clock as clockOf } from '../clipPlayer';
+import { useHelpPress } from '../helpContext';
 import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarget } from '../passage/sendTarget';
 import { dueText, feedbackSource, outcomeText, passageCrumbs, plural, usePassage, versionTitle, viaText, when, type PassageView } from '../passageView';
 import { PassageOffline, PassageOfflineLine } from '../offline';
@@ -44,6 +48,8 @@ import { StepMark, stepLine } from '../study/ui';
 import { flat } from '../shadow';
 import { C, radius, space, TINT, withAlpha } from '../theme';
 import { PersonAvatar, usePerson } from '../UserChip';
+import { BigVoice } from '../bigVoice';
+import { ClipPlayer } from '../clipPlayer';
 import { VoiceNote, voiceFor } from '../voiceNote';
 
 // ---- shared plumbing -----------------------------------------------------------------
@@ -142,45 +148,41 @@ interface RecordCan extends KindRowCan {
   keep: boolean;
 }
 
-/** How far above the current step the record opens, so a little of the path above it shows. */
-const CURRENT_STEP_INSET = 96;
-
 /**
- * Everything that happened to a passage in one place: where it stands (the
- * hero), the path top to bottom with the next step open in place and
- * feedback at the step that gave it (ADR-030), and the details on request.
+ * A passage as Ryder drew it (decision 71, demo ADR-033): the recording's own
+ * steps numbered top to bottom, the lit one in a card, the team's checks
+ * under "Then the team", and one main button for this person's next step.
+ * Everything else is one labelled tap away: "Something else?" (a page of the
+ * other ways forward) and "Versions and history" (the full record, in place).
+ * Publishing comes back here to "Version N published" with the likely next
+ * check picked (demo ADR-034).
  */
 export function PassageRecord(ctx: Ctx) {
   const v = usePassage(ctx);
   const [openStepId, setOpenStepId] = useState<string | null>(null);
   const [skipping, setSkipping] = useState<{ kindId: string; stepId: string } | null>(null);
   const [overriding, setOverriding] = useState<string | null>(null);
-  const [keeping, setKeeping] = useState<string | null>(null);
-  const [noting, setNoting] = useState(false);
-  const [more, setMore] = useState(false);
-  // "Versions and history" opens the details in place (demo ADR-033); "Something else?" is the departures sheet.
-  const [historyOpen, setHistoryOpen] = useState(false);
-  // Publish, then ask (demo ADR-034): arriving from Publish opens the likely next check, preselected.
-  const [askNext, setAskNext] = useState(() => !!ctx.params['published']);
-  // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
+  const [noting, setNoting] = useState<null | 'note' | 'say'>(null);
+  // The record's pages: the path, "Something else?", and asking for the next check.
   const publishedParam = ctx.params['published'];
-  useEffect(() => { if (publishedParam) setAskNext(true); }, [publishedParam]);
+  const [page, setPage] = useState<'path' | 'else' | 'ask'>(() => (publishedParam ? 'ask' : 'path'));
+  const [askAfterPublish, setAskAfterPublish] = useState(!!publishedParam);
+  // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
+  useEffect(() => { if (publishedParam) { setPage('ask'); setAskAfterPublish(true); } }, [publishedParam]);
+  useEffect(() => {
+    if (page === 'path') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setPage('path'); return true; });
+    return () => sub.remove();
+  }, [page]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
-  // Which version the path shows: the latest unless someone flipped back (‹ ›, the dots, a swipe).
-  const versionCount = v?.p.versions.length ?? 0;
-  const [versionIdx, setVersionIdx] = useState(Math.max(0, versionCount - 1));
-  useEffect(() => { setVersionIdx(Math.max(0, versionCount - 1)); }, [v?.unitId, v?.languageId, versionCount]);
-  const scroll = useRef<ScrollView>(null);
-  const content = useRef<View>(null);
-  const scrolledFor = useRef<string | null>(null);
   const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
   const guide = useStudyGuide(ctx, v?.unitId);
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
   // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
-  const justPublished = ctx.params['published'];
-  const asker = isAuthor || !!justPublished?.startsWith('bt');
+  const asker = isAuthor || !!publishedParam?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const targets = useMemo(() => {
     const out: Record<string, UsualTarget | undefined> = {};
@@ -216,21 +218,18 @@ export function PassageRecord(ctx: Ctx) {
   const openStep = openStepId ? p.steps.find((st) => st.step.id === openStepId) : undefined;
   const anchor = (n: PassageNote) => anchorLabel(n, { state: v.state, p, guide });
   const describe = (e: (typeof timeline)[number]) => describeEntry(e, { p, kinds, name: ctx.name, anchor, guide, hidden: (id) => id !== me && ctx.blocks.has(id) });
-  const recordLabel = myDraft ? 'Continue recording' : 'Record a new version';
 
-  /** Close the step sheet first; a second sheet waits until it has gone. */
-  const afterSheet = (fn: () => void) => {
-    if (!openStepId && !more) return fn();
-    setOpenStepId(null);
-    setMore(false);
-    setTimeout(fn, SHEET_GAP_MS);
-  };
   const go = (to: ScreenId, extra: Record<string, string> = {}) => {
     setOpenStepId(null);
-    setMore(false);
     ctx.go(to, { ...params, ...extra });
   };
-  /** One tap from the record: the kind goes to whoever usually does it, with Undo (ADR-029). */
+  /** Close the step sheet first; a second sheet waits until it has gone. */
+  const afterSheet = (fn: () => void) => {
+    if (!openStepId) return fn();
+    setOpenStepId(null);
+    setTimeout(fn, SHEET_GAP_MS);
+  };
+  /** One tap: the kind goes to whoever usually does it, with Undo (ADR-029). */
   const sendTo = (kindId: string) => {
     const target = targets[kindId];
     if (!target) return go('ask_someone', { what: 'review', kindId });
@@ -249,181 +248,102 @@ export function PassageRecord(ctx: Ctx) {
     if (a.id === 'log') go('add_record', { kindId: k.kindId });
     if (a.id === 'skip') afterSheet(() => setSkipping({ kindId: k.kindId, stepId: step.step.id }));
   };
-  const target = (kindId: string) => targets[kindId];
-  const kindRow = (k: KindStatus, step: FlowStepStatus, first: boolean, compact: boolean) => {
-    const t = target(k.kindId);
+  const kindRow = (k: KindStatus, step: FlowStepStatus, first: boolean) => {
+    const t = targets[k.kindId];
     return (
-      <KindActionRow key={k.kindId} ctx={ctx} v={v} status={k} step={step} can={can} isAuthor={isAuthor} first={first} compact={compact}
+      <KindActionRow key={k.kindId} ctx={ctx} v={v} status={k} step={step} can={can} isAuthor={isAuthor} first={first} compact={false}
         mine={mine} teamName={teamName} {...(t ? { sendTo: sendTargetLabel(t, ctx.name) } : {})}
         {...(fbKindIds.length && !fbKindIds.includes(k.kindId) ? { waitFor: fbNames } : {})}
         onAction={onRowAction} onMore={() => setOpenStepId(step.step.id)} />
     );
   };
-  /** Open where the work is: the current step, with the path above it to scroll back through (ADR-030, amended). */
-  const scrollToCurrent = (row: View) => {
-    const key = `${unitId}:${languageId}:${currentStepId(p) ?? ''}`;
-    const into = content.current;
-    if (scrolledFor.current === key || !into) return;
-    scrolledFor.current = key;
-    row.measureLayout(into, (_x, y) => scroll.current?.scrollTo({ y: Math.max(0, y - CURRENT_STEP_INSET), animated: false }));
-  };
-
   const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }),
     type === 'override' ? 'The checkpoint is back — later steps wait for it again'
       : type === 'keep' ? 'Undone — the feedback is waiting again' : "Brought back — it's a suggested step again");
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), 'Request withdrawn');
 
-  // One main button for the person's own next step (demo ADR-033): the next step's card on the path holds it,
-  // and the footer only once every step is complete. Everything else is one labelled tap away:
-  // Something else? and Versions and history.
-  // Before the first version the path's own card holds Record it; once every step is complete, New version is here.
-  const mainBtn = can.record && !answersMine && p.recorded && p.done
-    ? <PrimaryBtn label={myDraft ? 'Continue recording' : 'New version'} icon="mic" onPress={() => go('workspace')} />
-    : null;
-  const footer = (
-    <View style={{ gap: space.xs }}>
-      {mainBtn}
-      <QuietLinks items={[
-        { label: 'Something else?', icon: 'help', onPress: () => setMore(true) },
-        { label: historyOpen ? 'Hide versions and history' : 'Versions and history', icon: 'history', onPress: () => setHistoryOpen((o) => !o) }
-      ]} />
-    </View>
-  );
-  const moreAction = undefined;
+  // ---- the path ----
+  const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
+  const pathInput: PathInput = {
+    p, kinds, me, name: ctx.name, when, due: dueText,
+    study: study && study.steps.length > 0 ? { name: `${study.guide.pattern} guide`, total: study.steps.length, done: study.doneCount } : null,
+    latestSeconds,
+    askedName: (kindId) => {
+      const r = p.openRequests.find((x) => x.what === 'review' && x.kindId === kindId);
+      if (!r) return undefined;
+      if (r.teamId) return teamName(r.teamId) ?? r.team?.name;
+      return r.profileId ? ctx.name(r.profileId) : r.guest?.name;
+    }
+  };
+  const steps = pathSteps(pathInput);
+  const team = teamSteps(pathInput);
+  const lit = steps.find((st) => st.state === 'current');
+  const feedbackReview = steps.find((st) => st.kind === 'feedback')?.review;
+
+  // The next check, for asking (after publishing, or later from the button).
   const nextKind = asker && p.next ? p.next.kinds.find((k) => !isCompleteState(k.state) && !k.request) : undefined;
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
+  // A check someone asked of this person.
+  const myCheck = p.steps.flatMap((st) => st.kinds.map((k) => ({ k, st })))
+    .find(({ k }) => k.request && k.request.status === 'open' && !isCompleteState(k.state) && mine(k.request));
+  // A check this person may do without being asked (the next one, on someone else's version).
+  const openCheck = !isAuthor && p.recorded && can.review && p.next
+    ? p.next.kinds.find((k) => !isCompleteState(k.state) && k.state !== 'locked') : undefined;
+
+  type Main = { label: string; icon: IconName; onPress: () => void };
+  let main: Main | null = null;
+  if (answersMine && feedbackReview) {
+    main = { label: 'Hear the feedback', icon: 'listen', onPress: () => go('review_detail', { reviewId: feedbackReview.id }) };
+  } else if (myCheck) {
+    const kind = v.kind(myCheck.k.kindId);
+    main = { label: kind.produces ? 'Back-translate it' : `Do the ${kind.name.toLowerCase()}`, icon: kind.produces ? 'globe' : 'check',
+      onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: myCheck.k.kindId, ...(myCheck.k.request ? { requestId: myCheck.k.request.id } : {}) }) };
+  } else if (lit?.kind === 'study') {
+    main = { label: 'Study', icon: 'star', onPress: () => go('study_guide') };
+  } else if (lit?.kind === 'record' && can.record) {
+    main = { label: myDraft ? 'Continue recording' : 'Record', icon: 'mic', onPress: () => go('workspace') };
+  } else if (nextKind && can.ask) {
+    main = { label: `Ask for ${checkPhrase(v.kind(nextKind.kindId).name)}`, icon: 'send', onPress: () => { setAskAfterPublish(false); setPage('ask'); } };
+  } else if (openCheck) {
+    const kind = v.kind(openCheck.kindId);
+    main = { label: kind.produces ? 'Back-translate it' : `Do the ${kind.name.toLowerCase()}`, icon: kind.produces ? 'globe' : 'check',
+      onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: openCheck.kindId }) };
+  }
+
+  const onStep = (st: PathStep): (() => void) | undefined => {
+    if (st.kind === 'study') return () => go('study_guide');
+    if (st.kind === 'record') {
+      if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
+      return can.record ? () => go('workspace') : undefined;
+    }
+    if (st.kind === 'publish') {
+      if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
+      return can.record && p.drafting ? () => go('workspace') : undefined;
+    }
+    if ((st.kind === 'feedback' || st.kind === 'fix') && feedbackReview) return () => go('review_detail', { reviewId: feedbackReview.id });
+    return undefined;
+  };
+  const canAct = can.ask || can.log || can.review;
+  const onTeamStep = (t: TeamStep): (() => void) | undefined => (canAct ? () => setOpenStepId(t.stepId) : undefined);
+  const passageNote = p.notes.filter((n) => n.anchor.kind === 'passage' && n.by !== me).at(-1);
+  const extraFor = (st: PathStep): ReactNode => {
+    if (st.state !== 'current') return null;
+    if (st.kind === 'record' && passageNote) return <NotePill ctx={ctx} note={passageNote} />;
+    if (st.kind === 'feedback' && st.review) return <FeedbackPill ctx={ctx} review={st.review} />;
+    return null;
+  };
   const curStep = p.steps.find((st) => st.step.id === currentStepId(p));
   const curKind = curStep ? (curStep.kinds.find((k) => !isCompleteState(k.state)) ?? curStep.kinds[0]) : undefined;
-
   const gridIds = gridKindIds(p);
-  const flowLabel = p.flow.steps.length === 0 && !p.flow.flowId ? 'No review flow' : p.flow.name;
-  const latest = timeline[0];
 
-  return (
-    <Screen fixed header={<Header title={v.title} sub={`${v.language} · ${flowLabel}`} onBack={ctx.back} {...(moreAction ? { action: moreAction } : {})} />} footer={footer}>
-      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View ref={content} collapsable={false} style={{ gap: space.md }}>
-          <Card>
-            <Hero ctx={ctx} v={v} mine={mine} {...(latest ? { latest: { text: describe(latest), hlc: latest.hlc } } : {})} />
-            <PassageOfflineLine ctx={ctx} unitId={unitId} />
-            <Journey ctx={ctx} v={v} versionIdx={Math.min(versionIdx, Math.max(0, p.versions.length - 1))} onVersion={setVersionIdx}
-              canAct={can.ask || can.log || can.review} teamName={teamName}
-              onOpenStep={setOpenStepId} onCurrentLayout={scrollToCurrent}
-              onOpenVersion={(takeId) => go('version_detail', { takeId })} onOpenReview={(reviewId) => go('review_detail', { reviewId })}
-              feedbackSlot={(r) => answersMine ? (
-                <FeedbackToAnswer ctx={ctx} v={v} review={r}
-                  onOpen={() => go('review_detail', { reviewId: r.id })}
-                  onRevise={() => go('workspace', { reviewId: r.id })}
-                  onKeep={() => setKeeping(r.id)} />
-              ) : <WaitingOnAnswer ctx={ctx} v={v} review={r} onOpen={() => go('review_detail', { reviewId: r.id })} />}
-              nextSlot={(
-                <NextCard ctx={ctx} v={v} can={can} study={study} feedbackNames={fbNames} kindRow={kindRow}
-                  onRecord={() => go('workspace')} onStudy={() => go('study_guide')} onAskRecord={() => go('ask_someone', { what: 'record' })} />
-              )} />
-          </Card>
-
-          {historyOpen ? <SectionLabel label="Versions and history" /> : null}
-          {historyOpen && study ? (
-            <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
-              summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
-              {...ctx.details(`passage:${unitId}:${languageId}:study`)}>
-              <StudyRows ctx={ctx} study={study} onOpen={(stepId) => go('study_step', { stepId })} />
-              <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
-            </Disclosure>
-          ) : null}
-          {historyOpen && p.versions.length > 0 && gridIds.length > 0 ? (
-            <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
-              <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
-                onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
-            </Disclosure>
-          ) : null}
-          {historyOpen && timeline.length > 0 ? (
-            <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${languageId}:history`)}>
-              {timeline.slice(0, historyShown).map((e, i) => {
-                const t = describe(e);
-                let onPress: (() => void) | undefined;
-                let trailing: ReactNode = null;
-                if (e.type === 'version') onPress = () => go('version_detail', { takeId: e.version.takeId });
-                if (e.type === 'review' || e.type === 'response') onPress = () => go('review_detail', { reviewId: e.review.id });
-                if (e.type === 'study') onPress = () => go('study_step', { stepId: e.stepId });
-                if (e.type === 'departure' && !e.departure.undone && can.undo) {
-                  trailing = <SmallBtn label="Undo" icon="undo" onPress={() => undoFromHistory(e.departure.id, e.departure.type)} />;
-                }
-                if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
-                  trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
-                }
-                // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
-                // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
-                if (!trailing && e.type === 'note') {
-                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId)} size={36} />;
-                }
-                if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
-                  trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId)} size={36} />;
-                }
-                return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
-              })}
-              <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
-                <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
-              </View>
-            </Disclosure>
-          ) : null}
-        </View>
-      </ScrollView>
-
+  const sheets = (
+    <>
       {openStep ? (
-        <Sheet visible title={stepName(kinds, openStep.step)} sub={stepSheetSub(openStep, can.ask || can.log || can.review)} onClose={() => setOpenStepId(null)}>
-          <Group>{openStep.kinds.map((k, i) => kindRow(k, openStep, i === 0, false))}</Group>
+        <Sheet visible title={stepName(kinds, openStep.step)} sub={stepSheetSub(openStep, canAct)} onClose={() => setOpenStepId(null)}>
+          <Group>{openStep.kinds.map((k, i) => kindRow(k, openStep, i === 0))}</Group>
           {can.override && openStep.step.checkpoint && !openStep.complete && !openStep.override ? (
             <GhostBtn label="Move past this checkpoint…" tone="red" onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
           ) : null}
-        </Sheet>
-      ) : null}
-      {more ? (
-        <Sheet visible title="Something else?" sub="Other ways forward with this passage." onClose={() => setMore(false)}>
-          <Group>
-            {!p.recorded && can.ask ? (
-              <Row icon="people" label="Someone else should record it" sub="Ask a person on the team, or someone outside by WhatsApp or text" onPress={() => go('ask_someone', { what: 'record' })} />
-            ) : null}
-            {curKind && can.ask ? (
-              <Row icon="people" label="Someone else should do this" sub={`${v.kind(curKind.kindId).name}: ask a person, a group, or someone outside`} onPress={() => go('ask_someone', { what: 'review', kindId: curKind.kindId })} />
-            ) : null}
-            {curKind && can.log ? (
-              <Row icon="check" label="We already did this" sub={`Log a ${v.kind(curKind.kindId).name} that happened outside the app`} onPress={() => go('add_record', { kindId: curKind.kindId })} />
-            ) : null}
-            {curKind && curStep && can.skip ? (
-              <Row icon="skip" label="Not now" sub={`Set ${v.kind(curKind.kindId).name} aside and say why`} onPress={() => afterSheet(() => setSkipping({ kindId: curKind.kindId, stepId: curStep.step.id }))} />
-            ) : null}
-            {can.record && p.recorded && !p.done && !answersMine ? (
-              <Row icon="mic" label={recordLabel} sub="Reviews so far stay with the version they heard." onPress={() => go('workspace')} />
-            ) : null}
-            {can.note ? (
-              <Row icon="note" iconColor={TINT.amberText} iconBg={TINT.note} label="Add a note" sub="By voice or text. It follows this passage into reviews and later versions."
-                onPress={() => afterSheet(() => setNoting(true))} />
-            ) : null}
-            <Row icon="book" label="What helps here" sub="Bibles, guides and notes offered on this passage, and why" onPress={() => go('passage_reference')} last />
-          </Group>
-          {/* What comes along without a connection (decisions.md 61). */}
-          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
-          <Text style={txt.xs}>Each step on the path has these too, for that step.</Text>
-        </Sheet>
-      ) : null}
-      {askNext && nextKind ? (
-        <Sheet visible title={justPublished?.startsWith('bt') ? 'Back translation saved' : `${versionTitle(p.versions.length)} published`} sub="Everyone on the team can hear it. It goes out when the device has internet." onClose={() => setAskNext(false)}
-          footer={(
-            <View style={{ gap: space.xs }}>
-              <PrimaryBtn label={nextTarget ? `Ask ${sendTargetLabel(nextTarget, ctx.name)}` : `Ask for the ${v.kind(nextKind.kindId).name}`} icon="arrowR"
-                onPress={() => { setAskNext(false); sendTo(nextKind.kindId); }} />
-              <QuietLinks items={[
-                { label: 'Someone else', icon: 'people', onPress: () => { setAskNext(false); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
-                { label: 'Not now', icon: 'clock', onPress: () => setAskNext(false) }
-              ]} />
-            </View>
-          )}>
-          <Text style={txt.label}>Next, ask for a check</Text>
-          <Group>
-            <Row icon={kindIcon(nextKind.kindId)} label={v.kind(nextKind.kindId).name}
-              sub={nextTarget ? `Usually ${sendTargetLabel(nextTarget, ctx.name)}` : 'Choose who checks it'} last />
-          </Group>
         </Sheet>
       ) : null}
       {skipping ? (
@@ -448,11 +368,239 @@ export function PassageRecord(ctx: Ctx) {
               'Moved past the checkpoint · reason saved', undoDepart);
           }} />
       ) : null}
-      {keeping ? (
-        <KeepSheet ctx={ctx} v={v} reviewId={keeping} onClose={() => setKeeping(null)} />
+      {noting ? <AddNoteSheet ctx={ctx} v={v} say={noting === 'say'} onClose={() => setNoting(null)} /> : null}
+    </>
+  );
+
+  // ---- Something else? (demo a-else) ----
+  if (page === 'else') {
+    const lockedCheckpoint = can.override ? p.steps.find((st) => st.step.checkpoint && !st.complete && !st.override) : undefined;
+    return (
+      <Screen header={<Header title="Something else?" sub={`${v.title}${lit ? ` · ${lit.title}` : ''}`} onBack={() => setPage('path')} close />}
+        footer={can.note ? (
+          <View style={{ gap: 2 }}>
+            <PrimaryBtn label="Say it instead" icon="mic" onPress={() => setNoting('say')} />
+            <Text style={[txt.xs, { textAlign: 'center' }]}>A voice note on this passage. Your team hears it here.</Text>
+          </View>
+        ) : undefined}>
+        <View style={{ gap: space.md }}>
+          {!p.recorded && can.ask ? (
+            <BigOption icon="people" label="Someone else should do this" sub="Ask a person on the team, or someone outside by WhatsApp or text"
+              onPress={() => go('ask_someone', { what: 'record' })} />
+          ) : null}
+          {p.recorded && curKind && can.ask ? (
+            <BigOption icon="people" label="Someone else should do this" sub={`${v.kind(curKind.kindId).name}: ask a person, a group, or someone outside by WhatsApp or text`}
+              onPress={() => go('ask_someone', { what: 'review', kindId: curKind.kindId })} />
+          ) : null}
+          {p.recorded && curKind && can.log ? (
+            <BigOption icon="check" label="We already did this" sub={`Say when and how the ${v.kind(curKind.kindId).name.toLowerCase()} happened`}
+              onPress={() => go('add_record', { kindId: curKind.kindId })} />
+          ) : null}
+          {p.recorded && curKind && curStep && can.skip ? (
+            <BigOption icon="clock" label="Not now" sub={`Set the ${v.kind(curKind.kindId).name.toLowerCase()} aside. Say why`}
+              onPress={() => setSkipping({ kindId: curKind.kindId, stepId: curStep.step.id })} />
+          ) : null}
+          {can.record && p.recorded && !answersMine ? (
+            <BigOption icon="mic" label={myDraft ? 'Continue recording' : 'Record a new version'} sub="Reviews so far stay with the version they heard"
+              onPress={() => go('workspace')} />
+          ) : null}
+          {lockedCheckpoint ? (
+            <BigOption icon="lock" label="Move past a checkpoint" sub={`${stepName(kinds, lockedCheckpoint.step)} is a must-pass step. Say why, and it's on the record`}
+              onPress={() => setOverriding(lockedCheckpoint.step.id)} />
+          ) : null}
+          <View style={styles.tiles}>
+            {can.note ? <SmallOption icon="chat" label="Add a note" onPress={() => setNoting('note')} /> : null}
+            <SmallOption icon="book" label="What helps here" onPress={() => go('passage_reference')} />
+          </View>
+          {/* What comes along without a connection (decisions.md 61). */}
+          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
+          <Text style={txt.xs}>Each check under "Then the team" has its own options too: tap it on the path.</Text>
+        </View>
+        {sheets}
+      </Screen>
+    );
+  }
+
+  // ---- Published, then ask for a check (demo a-ask, a-btAsk) ----
+  if (page === 'ask') {
+    const bt = publishedParam?.startsWith('bt');
+    const latest = p.latest;
+    const members = nextTarget && 'teamId' in nextTarget
+      ? Object.entries(v.state.teams[nextTarget.teamId]?.members ?? {}).filter(([, m]) => m.value).map(([id]) => ctx.name(id)).slice(0, 4).join(', ')
+      : nextTarget ? ctx.name(nextTarget.profileId) : '';
+    const close = () => { setPage('path'); setAskAfterPublish(false); };
+    return (
+      <Screen header={askAfterPublish ? undefined : <Header title="Ask for a check" sub={v.title} onBack={close} close />}
+        footer={nextKind && can.ask ? (
+          <View style={{ gap: space.xs }}>
+            <PrimaryBtn label={`Ask ${nextTarget ? sendTargetLabel(nextTarget, ctx.name) : `for ${checkPhrase(v.kind(nextKind.kindId).name)}`}`} icon="send"
+              onPress={() => { close(); sendTo(nextKind.kindId); }} />
+            <QuietLinks items={[
+              { label: 'Someone else', icon: 'people', onPress: () => { close(); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
+              { label: 'Not now', icon: 'clock', onPress: close }
+            ]} />
+          </View>
+        ) : <PrimaryBtn label="Done" icon="check" onPress={close} />}>
+        {askAfterPublish ? (
+          <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
+            <View style={styles.bigCheck}><Ico name="check" size={44} color={TINT.greenText} strokeWidth={3} /></View>
+            <Text style={[txt.h2, { textAlign: 'center', fontSize: 26, fontWeight: '800' }]} accessibilityRole="header">
+              {bt ? 'Back translation published' : `${latest ? versionTitle(latest.n) : 'Version'} published`}
+            </Text>
+            <Text style={[txt.smMuted, { textAlign: 'center' }]}>{v.title} · saved on this device · sends when you're online</Text>
+          </View>
+        ) : null}
+        {nextKind ? (
+          <View style={{ gap: space.sm, marginTop: askAfterPublish ? space.lg : 0 }}>
+            <Text style={txt.label}>Next, ask for a check</Text>
+            <View style={styles.askCard}>
+              <View style={styles.askIcon}><Ico name={kindIcon(nextKind.kindId)} size={24} color={C.primary} /></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[txt.body, { fontWeight: '800', fontSize: 19 }]}>{v.kind(nextKind.kindId).name}</Text>
+                <Text style={txt.smMuted} numberOfLines={2}>{members || 'Choose who checks it'}</Text>
+              </View>
+            </View>
+            <Text style={txt.smMuted}>
+              {nextTarget
+                ? "They're the people the team set for this step. They'll find it on their My Work."
+                : 'Nobody is set for this step yet. Ask opens the list of people who can do it.'}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
+            {p.done ? 'Every check is done.' : 'The next check is already asked for.'}
+          </Text>
+        )}
+        {sheets}
+      </Screen>
+    );
+  }
+
+  // ---- the path ----
+  const footer = (
+    <View style={{ gap: space.xs }}>
+      {main ? <PrimaryBtn label={main.label} icon={main.icon} onPress={main.onPress} /> : null}
+      <QuietLinks items={[
+        { label: 'Something else?', icon: 'help', onPress: () => setPage('else') },
+        { label: historyOpen ? 'Hide versions and history' : 'Versions and history', icon: 'list', onPress: () => setHistoryOpen((o) => !o) }
+      ]} />
+    </View>
+  );
+  return (
+    <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
+      {p.awaitingResponse.length > 0 && !answersMine ? (
+        <Text style={[txt.sm, { color: TINT.amberText }]}>
+          Waiting on {p.latest ? ctx.name(p.latest.by, true) : 'the translator'} to answer the {fbNames} feedback.
+        </Text>
       ) : null}
-      {noting ? <AddNoteSheet ctx={ctx} v={v} onClose={() => setNoting(false)} /> : null}
+      <PassagePath steps={steps} team={team} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
+
+      {historyOpen ? <SectionLabel label="Versions and history" /> : null}
+      {historyOpen && study ? (
+        <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
+          summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
+          {...ctx.details(`passage:${unitId}:${languageId}:study`)}>
+          <StudyRows ctx={ctx} study={study} onOpen={(stepId) => go('study_step', { stepId })} />
+          <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
+        </Disclosure>
+      ) : null}
+      {historyOpen && p.versions.length > 0 ? (
+        <Group>
+          {[...p.versions].reverse().map((ver, i) => (
+            <Row key={ver.takeId} icon="mic" label={versionTitle(ver.n)} sub={`${ctx.name(ver.by)} · ${when(ver.hlc)}`}
+              onPress={() => go('version_detail', { takeId: ver.takeId })} last={i === p.versions.length - 1} />
+          ))}
+        </Group>
+      ) : null}
+      {historyOpen && p.versions.length > 0 && gridIds.length > 0 ? (
+        <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
+          <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
+            onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
+        </Disclosure>
+      ) : null}
+      {historyOpen && timeline.length > 0 ? (
+        <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${languageId}:history`)}>
+          {timeline.slice(0, historyShown).map((e, i) => {
+            const t = describe(e);
+            let onPress: (() => void) | undefined;
+            let trailing: ReactNode = null;
+            if (e.type === 'version') onPress = () => go('version_detail', { takeId: e.version.takeId });
+            if (e.type === 'review' || e.type === 'response') onPress = () => go('review_detail', { reviewId: e.review.id });
+            if (e.type === 'study') onPress = () => go('study_step', { stepId: e.stepId });
+            if (e.type === 'departure' && !e.departure.undone && can.undo) {
+              trailing = <SmallBtn label="Undo" icon="undo" onPress={() => undoFromHistory(e.departure.id, e.departure.type)} />;
+            }
+            if (e.type === 'request' && e.request.status === 'open' && can.withdraw && (e.request.by === me || s.can('assign_work'))) {
+              trailing = <SmallBtn label="Withdraw" onPress={() => withdraw(e.request.id)} />;
+            }
+            // A note on the whole passage shows only here, so it is reported from here (decisions.md 48);
+            // so is someone else's request with words of its own. Versions and reviews open their page, which has the flag.
+            if (!trailing && e.type === 'note') {
+              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', e.note.id, e.by, unitId)} size={36} />;
+            }
+            if (!trailing && e.type === 'request' && e.request.by && (e.request.note || e.request.noteBlobHash)) {
+              trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', e.request.id, e.request.by, unitId)} size={36} />;
+            }
+            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={t} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} />;
+          })}
+          <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
+            <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
+          </View>
+        </Disclosure>
+      ) : null}
+      {sheets}
     </Screen>
+  );
+}
+
+/** One of the ways forward on "Something else?": a big card row. */
+function BigOption(props: { icon: IconName; label: string; sub: string; onPress: () => void }) {
+  return (
+    <Group>
+      <Row icon={props.icon} label={props.label} sub={props.sub} onPress={props.onPress} last />
+    </Group>
+  );
+}
+
+function SmallOption(props: { icon: IconName; label: string; onPress: () => void }) {
+  const press = useHelpPress(props.label, undefined, props.onPress);
+  return (
+    <Pressable onPress={press} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
+      <Ico name={props.icon} size={20} color={props.icon === 'chat' ? TINT.amberText : C.primary} />
+      <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
+/** A teammate's note on the passage, in the lit Record step: hear it (or read it) in place. */
+function NotePill(props: { ctx: Ctx; note: PassageNote }) {
+  const { ctx, note } = props;
+  const who = ctx.name(note.by);
+  const secs = note.blobHash ? clipSeconds(ctx.language.state, [note.blobHash]) : 0;
+  return (
+    <View style={styles.notePill}>
+      {note.blobHash ? <AudioClip language={ctx.language} hashes={[note.blobHash]} label={`Play ${who}'s note`} /> : <Ico name="chat" size={18} color={TINT.amberText} />}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{who}'s note{secs > 0 ? ` · ${clockOf(secs)}` : ''}</Text>
+        {note.text ? <Text style={[txt.sm, { color: TINT.amberText }]} numberOfLines={3}>{authoredText(ctx, note.by, note.text)}</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+/** The feedback in the lit "Hear the feedback" step: who, how long, the words. */
+function FeedbackPill(props: { ctx: Ctx; review: ReviewView }) {
+  const { ctx, review } = props;
+  const who = feedbackSource(review, ctx.name);
+  const secs = review.commentBlobHash ? clipSeconds(ctx.language.state, [review.commentBlobHash]) : 0;
+  return (
+    <View style={styles.notePill}>
+      {review.commentBlobHash ? <AudioClip language={ctx.language} hashes={[review.commentBlobHash]} label={`Play ${who}'s feedback`} /> : <Ico name="chat" size={18} color={TINT.amberText} />}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[txt.sm, { fontWeight: '800', color: C.dark }]}>{who}{secs > 0 ? ` · ${clockOf(secs)}` : ''}</Text>
+        {review.comment ? <Text style={[txt.sm, { color: C.dark }]} numberOfLines={3}>“{authoredText(ctx, review.by, review.comment)}”</Text> : null}
+      </View>
+    </View>
   );
 }
 
@@ -474,7 +622,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
   );
 }
 
-function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
+function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; say?: boolean }) {
   const { ctx, v } = props;
   const [text, setText] = useState('');
   const [hash, setHash] = useState<string | null>(null);
@@ -489,161 +637,12 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) 
     if (ok) props.onClose();
   };
   return (
-    <Sheet visible title="Add a note" sub="On the whole passage. It follows the passage into reviews and later versions." onClose={props.onClose}
+    <Sheet visible title={props.say ? 'Say it instead' : 'Add a note'}
+      sub={props.say ? "Say what's going on. It stays on this passage, where your team hears it." : 'On the whole passage. It follows the passage into reviews and later versions.'} onClose={props.onClose}
       footer={<PrimaryBtn label="Add note" disabled={!text.trim() && !hash} busy={busy} onPress={() => void save()} />}>
       <VoiceNote ctx={ctx} label="Say it" hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
     </Sheet>
-  );
-}
-
-// ---- the hero (REC-1); the path itself is passage/journey.tsx (REC-2) --------------------
-
-function Hero(props: { ctx: Ctx; v: PassageView; mine: MineFn; latest?: { text: EntryText; hlc: string } }) {
-  const { ctx, v } = props;
-  const { p, kinds } = v;
-  const tone = p.done ? C.green : p.awaitingResponse.length ? C.amber : C.primary;
-  const cleared = p.steps.filter((st) => st.complete).length;
-  return (
-    <View style={{ gap: space.xs, marginBottom: space.sm }}>
-      <View style={styles.rowCenter}>
-        <View style={[styles.toneDot, { backgroundColor: tone }]} />
-        <Text style={[txt.body, { fontWeight: '700', flex: 1 }]} accessibilityRole="header">
-          {heroHeadline(p, kinds, ctx.session.actorId, ctx.name, props.mine)}
-        </Text>
-        {p.recorded && p.steps.length > 0 ? <Text style={txt.xsStrong}>{cleared} of {p.steps.length} done</Text> : null}
-      </View>
-      {props.latest ? (
-        <Text style={txt.xs} numberOfLines={2}>
-          Latest: {props.latest.text.title} · {props.latest.text.who} · {when(props.latest.hlc)}
-        </Text>
-      ) : null}
-      {p.done && p.steps.length === 0 ? (
-        <Text style={txt.xs}>This language collects recordings without reviews — recorded is done.</Text>
-      ) : null}
-    </View>
-  );
-}
-
-// ---- the next step, in place on the path (REC-4, REC-6, REC-7; ADR-029) ------------------
-
-function NextCard(props: {
-  ctx: Ctx;
-  v: PassageView;
-  can: RecordCan;
-  study: StudyProgress | null;
-  feedbackNames: string;
-  kindRow: (k: KindStatus, step: FlowStepStatus, first: boolean, compact: boolean) => ReactNode;
-  onRecord: () => void;
-  onStudy: () => void;
-  onAskRecord: () => void;
-}) {
-  const { ctx, v, can, study } = props;
-  const { p, kinds } = v;
-  const me = ctx.session.actorId;
-
-  if (!p.recorded) {
-    const recordAsk = p.openRequests.find((r) => r.what === 'record');
-    // Studying first is advice (ADR-018): recording stays one tap away, and nothing waits on the study.
-    const studyFirst = !!study?.next && (can.record || can.log) && !p.drafting;
-    const draftTakes = p.draftTakeId ? v.state.takes[p.draftTakeId]?.cardHashes.length ?? 0 : 0;
-    return (
-      <Card style={{ backgroundColor: C.light, borderColor: C.light }}>
-        <View style={{ gap: 4 }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>
-            {recordAsk
-              ? `${recordAsk.by ? ctx.name(recordAsk.by) : 'Someone'} asked ${recordAsk.profileId ? ctx.name(recordAsk.profileId, true) : 'someone'} to record this`
-              : 'Nobody has recorded this yet'}
-          </Text>
-          <Text style={txt.xs}>
-            {p.drafting
-              ? `${plural(draftTakes, 'take')} recorded, not saved as a version yet.`
-              : 'Anyone who can record can start — no assignment needed.'}
-            {recordAsk?.dueDate ? ` ${dueText(recordAsk.dueDate).replace(/^./, (c) => c.toUpperCase())}.` : ''}
-          </Text>
-        </View>
-        {studyFirst && study ? (
-          <View style={styles.innerCard}>
-            <Ico name="sparkle" size={20} color={C.primary} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[txt.sm, { fontWeight: '700' }]}>
-                {study.doneCount
-                  ? `Study it first · ${study.doneCount} of ${study.steps.length} ${study.guide.pattern} steps done`
-                  : `Study it first · ${study.steps.length} ${study.guide.pattern} steps`}
-              </Text>
-              <Text style={[txt.xs, { marginTop: 2 }]}>Next: {study.next?.step.title}. Your team's answers stay with the passage for reviewers.</Text>
-            </View>
-          </View>
-        ) : null}
-        {study && !study.next ? (
-          <Pressable onPress={props.onStudy} accessibilityRole="button" style={({ pressed }) => [styles.innerCard, pressed && { opacity: 0.7 }]}>
-            <Ico name="check" size={18} color={TINT.greenText} />
-            <Text style={[txt.sm, { fontWeight: '700', color: TINT.greenText, flex: 1 }]}>{study.guide.pattern} study done · all {study.steps.length} steps</Text>
-          </Pressable>
-        ) : null}
-        <View style={styles.btnRow}>
-          {studyFirst && study ? (
-            <View style={{ flex: 1 }}>
-              <SmallBtn tone="primary" label={study.doneCount || study.noteCount ? 'Continue the study' : 'Start the study'} onPress={props.onStudy} />
-            </View>
-          ) : null}
-          {can.record ? (
-            <View style={{ flex: 1 }}>
-              <SmallBtn tone={studyFirst ? 'plain' : 'primary'} icon="mic" label={p.drafting ? 'Continue' : 'Record it'} onPress={props.onRecord} />
-            </View>
-          ) : null}
-          {can.ask && !recordAsk && !studyFirst ? (
-            <View style={{ flex: 1 }}><SmallBtn tone="plain" label="Ask someone" onPress={props.onAskRecord} /></View>
-          ) : null}
-        </View>
-        {can.ask && !recordAsk && studyFirst ? <LinkBtn label="Ask someone to record it" onPress={props.onAskRecord} style={{ alignSelf: 'center' }} /> : null}
-      </Card>
-    );
-  }
-
-  // Done: the path's Done stop and the footer say it.
-  if (p.done) return null;
-
-  const next = p.next;
-  // Feedback waiting on an answer shows above, in the same step; it isn't also a "next step".
-  const rows = next?.kinds.filter((k) => k.state !== 'suggestions') ?? [];
-  if (!next || rows.length === 0) return null;
-
-  // Open feedback may change the recording, so the rest is best after its
-  // answer; the step's options still offer everything (ADR-014).
-  if (props.feedbackNames) {
-    const later = rows.filter((k) => !isCompleteState(k.state));
-    if (later.length === 0) return null;
-    const author = p.latest?.by;
-    const asked = later.filter((k) => k.state === 'asked' && k.request);
-    const askedNames = asked.map((k) => (k.request?.profileId ? ctx.name(k.request.profileId) : k.request?.guest?.name ?? 'Someone'));
-    return (
-      <Card style={styles.dashedCard}>
-        <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
-          <Ico name="clock" size={18} color={C.muted} />
-          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-            <Text style={[txt.sm, { fontWeight: '700' }]}>Then: {later.map((k) => v.kind(k.kindId).name).join(' and ')}</Text>
-            <Text style={txt.xs}>
-              After {author === me ? 'you answer' : `${author ? ctx.name(author, true) : 'the translator'} answers`} the {props.feedbackNames} feedback, so it's done on the version you keep.
-              {asked.length > 0 ? ` ${askedNames.join(' and ')} ${asked.length === 1 && asked[0]?.request?.profileId !== me ? 'was' : 'were'} already asked.` : ''}
-              {' '}To start anyway, use Options for this step.
-            </Text>
-          </View>
-        </View>
-      </Card>
-    );
-  }
-
-  const waitingOn = p.steps.filter((st) => st.lockedBy).map((st) => stepName(kinds, st.step));
-  return (
-    <View style={styles.inlineNext}>
-      {next.step.checkpoint && waitingOn.length > 0 ? (
-        <Text style={[txt.xs, { paddingHorizontal: space.lg, paddingBottom: space.sm }]}>
-          {waitingOn.join(', ')} {waitingOn.length === 1 ? 'starts' : 'start'} once this says Looks good.
-        </Text>
-      ) : null}
-      {rows.map((k) => props.kindRow(k, next, false, true))}
-    </View>
   );
 }
 
@@ -718,60 +717,6 @@ function KindActionRow(props: {
         </View>
       ) : null}
     </View>
-  );
-}
-
-/** Feedback on the latest version, shown only to its author: record a fix, or keep it and say why (REC-5). */
-function FeedbackToAnswer(props: { ctx: Ctx; v: PassageView; review: ReviewView; onOpen: () => void; onRevise: () => void; onKeep: () => void }) {
-  const { ctx, v, review } = props;
-  const look = usePerson();
-  const source = feedbackSource(review, ctx.name);
-  const group = review.via === 'logged' && !review.givenBy && (review.people ?? 0) > 1;
-  const fromPerson = review.via !== 'logged';
-  return (
-    <Card style={{ borderColor: C.amber, borderWidth: 1.5 }}>
-      <Label text={`${v.kind(review.kindId).name} asked for changes`} color={TINT.amberText} />
-      <Pressable onPress={props.onOpen} accessibilityRole="button" accessibilityLabel={`Feedback from ${source}. Open it`}
-        style={({ pressed }) => [{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }, pressed && { opacity: 0.7 }]}>
-        {fromPerson ? <PersonAvatar look={look(review.by)} size={34} /> : (
-          <View style={[styles.roundTile, { backgroundColor: TINT.amber }]}><Ico name={group ? 'people' : 'user'} size={18} color={TINT.amberText} /></View>
-        )}
-        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>{source}</Text>
-          {review.comment ? <Text style={txt.sm} numberOfLines={3}>{authoredText(ctx, review.by, review.comment)}</Text> : null}
-          {review.via === 'logged' ? <Text style={txt.xs}>Logged by {ctx.name(review.by, true)} · {when(review.hlc)}</Text> : null}
-        </View>
-        <Ico name="right" size={18} color={C.muted} />
-      </Pressable>
-      {review.commentBlobHash ? <PlayRow ctx={ctx} hashes={[review.commentBlobHash]} label="Voice feedback" /> : null}
-      <Text style={txt.xs}>Record a fix to answer it, or keep this version and say why.</Text>
-      <View style={styles.btnRow}>
-        <View style={{ flex: 1 }}><SmallBtn label="Keep it, say why" onPress={props.onKeep} /></View>
-        <View style={{ flex: 1 }}><SmallBtn label="Record a fix" icon="mic" tone="primary" onPress={props.onRevise} /></View>
-      </View>
-    </Card>
-  );
-}
-
-/** The same feedback as everyone else sees it: whose answer it waits on. */
-function WaitingOnAnswer(props: { ctx: Ctx; v: PassageView; review: ReviewView; onOpen: () => void }) {
-  const { ctx, v, review: r } = props;
-  const author = v.p.latest ? ctx.name(v.p.latest.by, true) : 'the translator';
-  return (
-    <Card onPress={props.onOpen} style={styles.amberCard} accessibilityLabel={`Waiting on ${author}. Open the feedback`}>
-      <View style={styles.rowCenter}>
-        <Ico name="clock" size={20} color={TINT.amberText} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>
-            Waiting on {author} to answer the {v.kind(r.kindId).name}
-          </Text>
-          <Text style={[txt.xs, { color: TINT.amberText, marginTop: 2 }]} numberOfLines={2}>
-            {feedbackSource(r, ctx.name)} asked for changes{r.comment ? `: ${authoredText(ctx, r.by, r.comment)}` : '.'}
-          </Text>
-        </View>
-        <Ico name="right" size={18} color={TINT.amberText} />
-      </View>
-    </Card>
   );
 }
 
@@ -973,9 +918,47 @@ export function VersionDetail(ctx: Ctx) {
 // ---- review_detail (REC-10) --------------------------------------------------------------
 
 /** One review: outcome and source, feedback, answers, what it captured, and the response. The author can answer it here. */
+/** "Keep it as it is?" (demo a-keepWhy): the reason by voice first, typing under it. Undo puts the feedback back. */
+function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source: string; onBack: () => void }) {
+  const { ctx, v, review } = props;
+  const [hash, setHash] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const keep = async () => {
+    setBusy(true);
+    const ok = await perform(ctx, (c) => c.depart({
+      commandId: newId(), unitId: v.unitId, type: 'keep', reviewId: review.id, reason: text.trim() || 'Said by voice',
+      ...(hash ? { reasonBlobHash: hash } : {})
+    }), 'Kept · your reason is on the record', undoDepart);
+    setBusy(false);
+    if (ok) ctx.back();
+  };
+  return (
+    <Screen header={<Header title={v.title} sub="Keep it, say why" onBack={props.onBack} />}
+      footer={<PrimaryBtn label="Keep it" icon="check" busy={busy} disabled={!hash && !text.trim()} onPress={() => void keep()} />}>
+      <View style={{ alignItems: 'center', gap: space.xs, paddingTop: space.lg }}>
+        <Text style={[txt.h2, { fontWeight: '800', fontSize: 26 }]} accessibilityRole="header">Keep it as it is?</Text>
+        <Text style={[txt.smMuted, { textAlign: 'center' }]}>Say why. {props.source} and the team will hear it.</Text>
+      </View>
+      <View style={{ paddingVertical: space.xxl }}>
+        <BigVoice ctx={ctx} label="Tap and say why" hash={hash} onChange={(h) => setHash(h)} />
+      </View>
+      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
+    </Screen>
+  );
+}
+
 export function ReviewDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const [keeping, setKeeping] = useState(false);
+  // Feedback to answer opens as Ryder's "Feedback came back" (demo r-Feedback), with "Keep it, say why" as its own page.
+  const [keepPage, setKeepPage] = useState(false);
+  const look = usePerson();
+  useEffect(() => {
+    if (!keepPage) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setKeepPage(false); return true; });
+    return () => sub.remove();
+  }, [keepPage]);
   if (!v) return <Missing ctx={ctx} id="review_detail" />;
   const { p, unitId, languageId } = v;
   const review = p.reviews.find((r) => r.id === ctx.params['reviewId']) ?? p.reviews.at(-1);
@@ -1002,6 +985,56 @@ export function ReviewDetail(ctx: Ctx) {
     </Card>
   ) : null;
   const outcome = makes ? `${makes.what.charAt(0).toUpperCase()}${makes.what.slice(1)} recorded` : good ? 'Looks good' : 'Needs changes';
+
+  if (answerable && keepPage) {
+    return <KeepPage ctx={ctx} v={v} review={review} source={source} onBack={() => setKeepPage(false)} />;
+  }
+  if (answerable) {
+    return (
+      <Screen header={<Header title={v.title} onBack={ctx.back} close
+        action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'review', review.id, review.by, unitId)} />} />}
+        footer={(
+          <View style={{ gap: space.sm }}>
+            <PrimaryBtn label="Record a fix" icon="mic" onPress={() => ctx.go('workspace', { ...params, reviewId: review.id })} />
+            <GhostBtn label="Keep it, say why" onPress={() => setKeepPage(true)} />
+          </View>
+        )}>
+        <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
+          <View style={styles.amberPill}>
+            <Ico name="chat" size={16} color={TINT.amberText} />
+            <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{kind.name} · needs changes</Text>
+          </View>
+          <View style={{ marginTop: space.md }}><PersonAvatar look={look(review.by)} size={72} /></View>
+          <Text style={[txt.h2, { fontWeight: '800' }]}>{source}</Text>
+          <Text style={txt.smMuted}>{when(review.hlc)}{version ? ` · ${versionTitle(version.n)}` : ''}</Text>
+        </View>
+        <Authored ctx={ctx} by={review.by}>
+          <View style={styles.feedbackCard}>
+            {review.commentBlobHash ? (
+              <ClipPlayer language={ctx.language} hashes={[review.commentBlobHash]} title={`${source}'s feedback`} tone="amber" bare />
+            ) : null}
+            {review.comment ? <Text style={[txt.body, { fontSize: 18, lineHeight: 26 }]}>“{review.comment}”</Text> : null}
+            {!review.comment && !review.commentBlobHash ? <Text style={txt.smMuted}>No words with this one. Open the passage to hear what they heard.</Text> : null}
+          </View>
+        </Authored>
+        {answers.length > 0 ? (
+          <Disclosure icon="help" title="Their answers to the questions" summary={plural(answers.length, 'answer')}
+            {...ctx.details(`review:${unitId}:${languageId}:${review.id}:questions`)}>
+            {answers.map((a, i) => (
+              <View key={a.id} style={[styles.answer, i > 0 && styles.topBorder]}>
+                <Text style={txt.xs}>{a.label}</Text>
+                <Text style={[txt.body, { fontWeight: '700' }]}>{a.answer}</Text>
+              </View>
+            ))}
+          </Disclosure>
+        ) : null}
+        {version ? (
+          <LinkBtn label={`Hear ${versionTitle(version.n)}, the version they heard`} onPress={() => ctx.go('version_detail', { ...params, takeId: version.takeId })}
+            style={{ alignSelf: 'center' }} />
+        ) : null}
+      </Screen>
+    );
+  }
 
   return (
     <Screen header={<Header title={kind.name} crumbs={passageCrumbs(ctx, v, kind.name)} sub={when(review.hlc)} onBack={ctx.back}
@@ -1268,6 +1301,15 @@ export function AskSomeone(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
+  amberPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.full, backgroundColor: TINT.amber },
+  feedbackCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: TINT.noteBorder, padding: space.lg, gap: space.md },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  tile: { flexGrow: 1, flexBasis: '45%', flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingHorizontal: space.md,
+    borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },
+  notePill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, backgroundColor: TINT.amber },
+  bigCheck: { width: 88, height: 88, borderRadius: 44, backgroundColor: TINT.green, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm },
+  askCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },
+  askIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   btnRow: { flexDirection: 'row', gap: space.sm },
   toneDot: { width: 10, height: 10, borderRadius: 5 },

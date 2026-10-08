@@ -13,7 +13,7 @@
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
 // Pure reading lives in configModel.ts.
 import {
-  CommandError, commands, deriveFlow, deriveKinds, derivePassage, formatQuestionField, keyTermsFor, keyTermView, languageName,
+  CommandError, commands, CUSTOM_FLOW, deriveFlow, deriveKinds, derivePassage, formatQuestionField, keyTermsFor, keyTermView, languageName,
   materialView, parseQuestionField, PRIVILEGES, privilegesFor, recommendedFor, subscriptionItemId,
   takesLinkingTerm, templateFields, unitPrefixOf, unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialDoc,
@@ -37,10 +37,14 @@ import { contractsFor } from '../screenContracts';
 import { sourceText } from '../scripture';
 import { C, radius, space, TINT } from '../theme';
 import { VoiceNote } from '../voiceNote';
+import { CheckSteps } from '../simple/checks';
+import { SwitchRow } from '../simple/admin';
+import { flipSwitch, ROLE_SWITCHES, stepTitle, stepWho, switchState } from '../simple/adminModel';
+import { teamMembers } from '../orgAdmin';
 import {
   draftChanged, draftFromDoc, draftFromLanguage, fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
   LEVEL_LABEL, libraryMaterialLine, libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
-  nextFieldId, parseRefLinks, plural, PRIVILEGE_GROUPS, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
+  nextFieldId, parseRefLinks, plural, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
   REFERENCE_KINDS, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
 } from './configModel';
@@ -214,44 +218,47 @@ export function RoleEditor(ctx: Ctx) {
     }
   }
 
-  const toggle = (p: Privilege) => setPicked(privileges.includes(p) ? privileges.filter((x) => x !== p) : [...privileges, p]);
+  const people = new Set(holders.map((h) => h.profileId)).size;
+  // The role's permissions as three groups of switches in the admin's words (decision 71, demo ADR-039).
   return (
     <Screen
-      header={<Header title={label || (isNew ? 'New Role' : 'Role')} sub={`${isNew ? 'New role' : 'Role'} · Organization`} onBack={ctx.back} />}
-      footer={readOnly ? undefined : <PrimaryBtn label={isNew ? 'Create Role' : 'Save Role'} onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
+      header={<Header title={label || (isNew ? 'New role' : 'Role')} sub={isNew ? 'A new role' : `${people} ${people === 1 ? 'person' : 'people'}`} onBack={ctx.back} />}
+      bodyStyle={{ gap: space.sm }}
+      footer={readOnly ? undefined : <PrimaryBtn label="Save" icon="check" onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
       {inherited ? <Banner icon="lock" title="View only" body="Defined at the organization level. Edit it from Organization Home." /> : null}
       {readOnly && !inherited ? <Banner icon="lock" title="View only" body="You do not have permission to edit this role." /> : null}
-      {!readOnly ? <Field label="Role name" value={label} onChangeText={setName} placeholder="Role name" autoCapitalize="words" /> : null}
+      {isNew && !readOnly ? <Field label="What is it called?" value={label} onChangeText={setName} placeholder="e.g. Back-translator" autoCapitalize="words" /> : null}
+      {ROLE_SWITCHES.map((g) => (
+        <View key={g.title} style={{ gap: space.sm }}>
+          <SectionLabel label={g.title} />
+          <Group>
+            {g.rows.map((row, i) => {
+              const state = switchState(privileges, row);
+              return (
+                <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1}
+                  {...(state === 'some' ? { sub: `Only some: ${row.privileges.filter((p) => privileges.includes(p)).map((p) => PRIVILEGE_INFO[p].label).join(', ')}` } : {})}
+                  onToggle={() => setPicked(flipSwitch(privileges, row))} />
+              );
+            })}
+          </Group>
+        </View>
+      ))}
       {!isNew ? (
         <>
-          <SectionLabel label="Members with this role" />
+          <SectionLabel label="People with this role" />
           {canAssign ? <GhostBtn label={`Invite someone as ${label || 'this role'}`} icon="qr" onPress={() => ctx.go('invite_qr', { roleId })} /> : null}
-          <Capped items={holders} empty="No members have this role yet." render={(h, last) => (
+          <Capped items={holders} empty="Nobody has this role yet." render={(h, last) => (
             <Row key={`${h.profileId}-${JSON.stringify(h.scope)}`} icon="user"
               label={h.profileId === ctx.session.actorId ? 'You' : ctx.name(h.profileId)}
               sub={scopeName(h.scope, org)}
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
+          {!readOnly ? <Field label="Its name" value={label} onChangeText={setName} placeholder="Role name" autoCapitalize="words" /> : null}
         </>
       ) : null}
-      <Card style={{ backgroundColor: C.light }}>
-        <Text style={txt.sm}>
-          {isNew
-            ? 'Scope is not set here: choose the organization or a language when inviting or editing a member.'
-            : 'Scope is assigned per member when this role is given.'}
-        </Text>
-      </Card>
-      {PRIVILEGE_GROUPS.map((g) => (
-        <View key={g.title} style={{ gap: space.sm }}>
-          <SectionLabel label={g.title} />
-          <Group>
-            {g.privileges.map((p, i) => (
-              <ToggleRow key={p} label={PRIVILEGE_INFO[p].label} desc={PRIVILEGE_INFO[p].desc} on={privileges.includes(p)}
-                disabled={readOnly || busy} onToggle={() => toggle(p)} last={i === g.privileges.length - 1} />
-            ))}
-          </Group>
-        </View>
-      ))}
+      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
+        Where a role applies is chosen for each person: the whole organization or one language, when they are invited or let in.
+      </Text>
     </Screen>
   );
 }
@@ -589,7 +596,178 @@ export function FlowsHome(ctx: Ctx) {
   );
 }
 
+/**
+ * Who usually does a step: the review group that usually takes its kind (by
+ * name, or its one member's), else who usually does that kind.
+ */
+function usuallyFor(ctx: Ctx, state: LanguageState, kinds: KindDef[]) {
+  return (kindIds: string[]) => {
+    const who = kinds.find((k) => k.id === kindIds[0])?.usualReviewer || stepWho(kindIds, kinds);
+    const team = Object.entries(state.teams).find(([, t]) => t.kindId?.value && kindIds.includes(t.kindId.value));
+    if (!team) return who || 'Anyone the team asks';
+    const [teamId, t] = team;
+    const people = teamMembers(state, teamId);
+    return people.length === 1 ? `${who} · ${ctx.name(people[0]!)}` : t.name.value || who;
+  };
+}
+
+/**
+ * What else a step can do, from a tap on its card: the checks it holds (one
+ * removed, one added alongside), and moving or removing it.
+ */
+function StepSheet(props: {
+  step: DraftStep | null; i: number; count: number; kinds: KindDef[]; title: string;
+  onClose: () => void; onChange: (s: DraftStep) => void; onAdd: () => void; onMove: (dir: -1 | 1) => void; onRemove: () => void;
+}) {
+  const st = props.step;
+  const name = (id: string) => props.kinds.find((k) => k.id === id)?.name ?? id;
+  return (
+    <Sheet visible={!!st} title={props.title} sub={`Step ${props.i + 1} of ${props.count}`} onClose={props.onClose}>
+      {st ? (
+        <>
+          <Group>
+            {st.kindIds.map((id, j) => (
+              <Row key={id} leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
+                right={st.kindIds.length > 1 ? <IconBtn name="close" label={`Remove ${name(id)}`} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+            ))}
+          </Group>
+          <Group>
+            <Row icon="plus" label="Add a check alongside" sub="Both happen in this step" onPress={props.onAdd} />
+            {props.i > 0 ? <Row icon="up" label="Move up" onPress={() => props.onMove(-1)} /> : null}
+            {props.i < props.count - 1 ? <Row icon="down" label="Move down" onPress={() => props.onMove(1)} /> : null}
+            <Row icon="trash" label="Remove this step" iconColor={TINT.redText} iconBg={TINT.red} onPress={props.onRemove} last />
+          </Group>
+        </>
+      ) : null}
+    </Sheet>
+  );
+}
+
+/**
+ * The flow editor (FLOW-1..3), in the admin's simple shape (decision 71,
+ * demo ADR-039 "Who checks"): the steps top to bottom, each with who usually
+ * does it and a lock for a step that must pass. With `steps: 'language'` it
+ * edits the open language's own checks (core `saveFlowSteps`, Undo puts
+ * back the flow it had); otherwise a library flow, whose Save publishes a
+ * new version that the languages using it move to.
+ */
 export function FlowEditor(ctx: Ctx) {
+  if (ctx.params['steps'] === 'language') return <LanguageChecks ctx={ctx} />;
+  return <LibraryFlowEditor ctx={ctx} />;
+}
+
+function LanguageChecks({ ctx }: { ctx: Ctx }) {
+  const state = ctx.language.state;
+  const language = openLanguageName(ctx);
+  const flow = useMemo(() => (state ? deriveFlow(state) : null), [state]);
+  const known = useMemo(() => (state ? deriveKinds(state) : []), [state]);
+  const base = useMemo<DraftStep[]>(() => (flow ? flow.steps.map((s, i) => ({ key: `${s.id}#${i}`, stepId: s.id, kindIds: [...s.kindIds], checkpoint: s.checkpoint })) : []), [flow]);
+  const [edited, setEdited] = useState<DraftStep[] | null>(null);
+  const [added, setAdded] = useState<KindDef[]>([]);
+  const [open, setOpen] = useState<number | null>(null);
+  const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
+  const [newKind, setNewKind] = useState('');
+  const [leaving, setLeaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const live = useLatest(ctx);
+  const canManage = ctx.session.can('manage_flows');
+  if (!state || !flow) {
+    return <Screen header={<Header title="Who checks" onBack={ctx.back} />}><EmptyState icon="flow" title="Loading…" /></Screen>;
+  }
+  const kinds = [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))];
+  const steps = edited ?? base;
+  const dirty = canManage && (draftChanged(base, steps) || added.length > 0);
+  const change = (next: DraftStep[]) => setEdited(next);
+  const title = (i: number) => stepTitle(steps[i]?.kindIds ?? [], kinds);
+
+  async function save() {
+    if (!state || !dirty || busy) return;
+    if (steps.some((s) => s.kindIds.length === 0)) { ctx.toast('Every step needs a check in it.'); return; }
+    setBusy(true);
+    const commandId = Crypto.randomUUID();
+    const c = commands(state, indexesFor(state));
+    let specs: EventSpec[];
+    try {
+      const used = new Set(steps.flatMap((s) => s.kindIds));
+      specs = [
+        ...added.filter((k) => used.has(k.id)).flatMap((k, i) => c.defineKind({ commandId: `${commandId}:kind${i}`, kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer })),
+        ...c.saveFlowSteps({ commandId, steps: steps.map((s) => ({ ...(s.stepId ? { stepId: s.stepId } : {}), kindIds: s.kindIds, checkpoint: s.checkpoint })) })
+      ];
+    } catch (e) {
+      ctx.toast(failure('save checks', e));
+      setBusy(false);
+      return;
+    }
+    const previous = flowUndoFor(state);
+    const undo = previous ? () => {
+      const s = live.current.language.state;
+      return s ? commands(s, indexesFor(s)).restoreFlow({ commandId: Crypto.randomUUID(), previous }) : [];
+    } : undefined;
+    try {
+      await ctx.act(specs, `${language ?? 'The language'}'s checks are saved.`, undo);
+    } catch {
+      setBusy(false);
+      return;
+    }
+    ctx.back();
+  }
+
+  const picking = typeof pickFor === 'number' ? steps[pickFor] : undefined;
+  const pick = (id: string) => {
+    if (pickFor === 'new') change([...steps, { key: Crypto.randomUUID(), kindIds: [id], checkpoint: false }]);
+    else if (typeof pickFor === 'number') change(steps.map((s, j) => (j === pickFor ? { ...s, kindIds: [...s.kindIds, id] } : s)));
+    setPickFor(null);
+  };
+  return (
+    <Screen
+      header={<Header title="Who checks" sub={`${language ?? ''} · ${flow.flowId === CUSTOM_FLOW ? 'its own steps' : flow.name}`} onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
+      footer={canManage ? <PrimaryBtn label="Save" icon="check" onPress={() => void save()} disabled={!dirty} busy={busy} /> : undefined}>
+      {!canManage ? <Banner icon="lock" title="View only" body="Only people who choose who checks can change these steps." /> : null}
+      <CheckSteps steps={steps} kinds={kinds} readOnly={!canManage} usually={usuallyFor(ctx, state, kinds)} onChange={change}
+        onAdd={() => setPickFor('new')} onOpen={(i) => setOpen(i)} />
+      {dirty ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>These steps are for {language} only. Undo puts back the ones it had.</Text> : null}
+      {canManage ? (
+        <Group>
+          <Row icon="people" label="Who's in each group" sub="Optional · they come first when someone asks for that check"
+            onPress={() => ctx.go('review_teams', { languageId: ctx.language.languageId })} />
+          <Row icon="flow" label="Every way to check" sub="Use one of your organization's, or one others share" last
+            onPress={() => ctx.go('flows_home', { languageId: ctx.language.languageId })} />
+        </Group>
+      ) : null}
+      <StepSheet step={open !== null ? steps[open] ?? null : null} i={open ?? 0} count={steps.length} kinds={kinds} title={open !== null ? title(open) : ''}
+        onClose={() => setOpen(null)}
+        onChange={(st) => open !== null && change(steps.map((s, j) => (j === open ? st : s)))}
+        onAdd={() => { const i = open; setOpen(null); setPickFor(i); }}
+        onMove={(dir) => { if (open === null) return; change(moveStep(steps, open, dir)); setOpen(open + dir); }}
+        onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }} />
+      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? 'Add a step' : 'Add a check alongside'} sub="Who checks the recording at this step?" onClose={() => setPickFor(null)}>
+        <Group>
+          {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
+            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={stepTitle([k.id], kinds)} sub={k.usualReviewer || k.description || undefined}
+              onPress={() => pick(k.id)} last={i === a.length - 1} />
+          ))}
+        </Group>
+        <Field label="Something else" value={newKind} onChangeText={setNewKind} placeholder="A new kind of check, e.g. Elder check" autoCapitalize="words" />
+        <SmallBtn label="Add this check" icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
+          if (!newKind.trim()) return;
+          const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: 'Defined by your organization.', usualReviewer: 'Anyone the team chooses' };
+          setAdded([...added, k]);
+          setNewKind('');
+          pick(k.id);
+        }} />
+      </Sheet>
+      <Sheet visible={leaving} title="Leave without saving?" sub="Your changes to who checks haven't been saved." onClose={() => setLeaving(false)}
+        footer={<>
+          <PrimaryBtn label="Save" icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} />
+          <GhostBtn label="Discard changes" tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
+        </>}>
+        {null}
+      </Sheet>
+    </Screen>
+  );
+}
+
+function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
   const requested = ctx.params['itemId'] ?? 'new';
@@ -607,7 +785,8 @@ export function FlowEditor(ctx: Ctx) {
   const [description, setDescription] = useState<string | null>(null);
   const [edited, setEdited] = useState<DraftStep[] | null>(null);
   const [added, setAdded] = useState<KindDef[]>([]);
-  const [pickFor, setPickFor] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
+  const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
   const [newKind, setNewKind] = useState('');
   const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -617,7 +796,6 @@ export function FlowEditor(ctx: Ctx) {
     return [...out.values()];
   }, [state, doc]);
   const kinds = useMemo(() => [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))], [known, added]);
-  const kindName = (id: string) => kinds.find((k) => k.id === id)?.name ?? id;
   const canManage = ctx.session.can('manage_flows');
   const followed = it?.source === 'subscription';
   const readOnly = !canManage || followed;
@@ -637,12 +815,12 @@ export function FlowEditor(ctx: Ctx) {
     );
   }
 
-  const change = (f: (prev: DraftStep[]) => DraftStep[]) => setEdited((prev) => f(prev ?? base?.steps ?? []));
-  const patch = (i: number, p: Partial<DraftStep>) => change((prev) => prev.map((s, j) => (j === i ? { ...s, ...p } : s)));
-  const addKind = (i: number, id: string) => { patch(i, { kindIds: [...(steps[i]?.kindIds ?? []), id] }); setPickFor(null); };
-  const closePicker = () => {
-    // A step added for this pick and left empty goes away again (demo KindPickerSheet onClose).
-    change((prev) => prev.filter((s, j) => j !== pickFor || s.kindIds.length > 0));
+  const change = (next: DraftStep[]) => setEdited(next);
+  const title = (i: number) => stepTitle(steps[i]?.kindIds ?? [], kinds);
+  const picking = typeof pickFor === 'number' ? steps[pickFor] : undefined;
+  const pick = (id: string) => {
+    if (pickFor === 'new') change([...steps, { key: Crypto.randomUUID(), kindIds: [id], checkpoint: false }]);
+    else if (typeof pickFor === 'number') change(steps.map((s, j) => (j === pickFor ? { ...s, kindIds: [...s.kindIds, id] } : s)));
     setPickFor(null);
   };
 
@@ -658,12 +836,11 @@ export function FlowEditor(ctx: Ctx) {
     else setBusy(false);
   }
 
-  const picking = pickFor !== null ? steps[pickFor] : undefined;
   return (
     <Screen
-      header={<Header title={label || (isNew ? 'New flow' : 'Review Flow')} sub={it ? sourceLine(it) : 'New flow · your organization'}
+      header={<Header title={label || (isNew ? 'New way to check' : 'Who checks')} sub={it ? sourceLine(it) : 'New · your organization'}
         onBack={() => (dirty ? setLeaving(true) : ctx.back())} />}
-      footer={readOnly ? undefined : <PrimaryBtn label="Save Flow" onPress={() => void save()} disabled={!dirty || !label.trim()} busy={busy} />}>
+      footer={readOnly ? undefined : <PrimaryBtn label="Save" icon="check" onPress={() => void save()} disabled={!dirty || !label.trim()} busy={busy} />}>
       {followed ? (
         <Banner icon="link" title={`Follows ${it!.subscription!.sourceOrgName}`} body="It changes only when they publish a new version. Copy it to make your own changes." />
       ) : !canManage ? <Banner icon="lock" title="View only" body="You do not have permission to change review flows." /> : null}
@@ -673,68 +850,17 @@ export function FlowEditor(ctx: Ctx) {
             <>
               <Field label="Name" value={label} onChangeText={setName} placeholder="e.g. Community first" autoCapitalize="words" />
               <Field label="Description" value={desc} onChangeText={setDescription} placeholder="What it is for, in a line" autoCapitalize="sentences" multiline />
-              <Banner icon="flow" title="Steps are a suggested order"
-                body="Kinds in the same step can happen together. Anyone can set a step aside with a reason; a checkpoint is the only hard stop. Moving past one needs the Override Checkpoints permission, and the reason is recorded." />
             </>
           )}
-          {steps.length === 0 ? (
-            <Card style={{ borderStyle: 'dashed', borderWidth: 1.5, alignItems: 'center' }}>
-              <Text style={txt.h3}>Collect only</Text>
-              <Text style={[txt.smMuted, { textAlign: 'center' }]}>No reviews. A passage counts as done once it's recorded. Teams can still record reviews; they just aren't suggested.</Text>
-            </Card>
-          ) : steps.map((st, i) => (
-            <View key={st.key} style={{ gap: space.sm }}>
-              {i > 0 ? (
-                <View style={styles.then}>
-                  <View style={styles.thenLine} />
-                  <Text style={txt.label}>{steps[i - 1]!.checkpoint ? 'then, once cleared' : 'then'}</Text>
-                </View>
-              ) : null}
-              <Card style={st.checkpoint ? { borderColor: C.amber, borderWidth: 1.5 } : undefined}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                  <View style={[styles.stepNo, { backgroundColor: st.checkpoint ? C.amber : C.primary }]}>
-                    <Text style={[txt.xsStrong, { color: C.white }]}>{i + 1}</Text>
-                  </View>
-                  <Text style={[txt.label, { flex: 1 }]}>{st.kindIds.length > 1 ? 'Together' : 'Step'}</Text>
-                  {!readOnly ? (
-                    <>
-                      {i > 0 ? <IconBtn name="up" label="Move up" onPress={() => change((prev) => moveStep(prev, i, -1))} bg="transparent" color={C.muted} /> : null}
-                      {i < steps.length - 1 ? <IconBtn name="down" label="Move down" onPress={() => change((prev) => moveStep(prev, i, 1))} bg="transparent" color={C.muted} /> : null}
-                      <IconBtn name="trash" label="Remove step" onPress={() => change((prev) => prev.filter((_, j) => j !== i))} bg="transparent" color={C.muted} />
-                    </>
-                  ) : null}
-                </View>
-                {st.kindIds.map((id) => (
-                  <View key={id} style={styles.kindLine}>
-                    <KindIcon kindId={id} size={40} />
-                    <Text style={[txt.body, { flex: 1, fontWeight: '600' }]}>{kindName(id)}</Text>
-                    {!readOnly ? <IconBtn name="close" label={`Remove ${kindName(id)}`} onPress={() => patch(i, { kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : null}
-                  </View>
-                ))}
-                {!readOnly ? <SmallBtn label={st.kindIds.length ? 'Alongside' : 'Add kind'} icon="plus" onPress={() => setPickFor(i)} /> : null}
-                <View style={styles.checkpoint}>
-                  <Ico name="lock" size={18} color={st.checkpoint ? TINT.amberText : C.muted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[txt.sm, { fontWeight: '700', color: st.checkpoint ? TINT.amberText : C.dark }]}>Checkpoint</Text>
-                    <Text style={txt.xs}>{st.checkpoint ? 'Later steps wait for this one.' : 'Can be set aside with a reason.'}</Text>
-                  </View>
-                  <Toggle on={st.checkpoint} disabled={readOnly} label="Checkpoint" onToggle={() => patch(i, { checkpoint: !st.checkpoint })} />
-                </View>
-              </Card>
-            </View>
-          ))}
-          {!readOnly ? (
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
-              <View style={{ flex: 1 }}>
-                <GhostBtn label="Add step" icon="plus" onPress={() => { change((prev) => [...prev, { key: Crypto.randomUUID(), kindIds: [], checkpoint: false }]); setPickFor(steps.length); }} />
-              </View>
-              {steps.length > 0 ? <SmallBtn label="Collect only" onPress={() => change(() => [])} /> : null}
-            </View>
+          <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(ctx, state, kinds)} onChange={change}
+            onAdd={() => setPickFor('new')} onOpen={(i) => { if (!readOnly) setOpen(i); }} />
+          {!readOnly && steps.length > 0 ? (
+            <SmallBtn label="No checks: done once recorded" onPress={() => change([])} />
           ) : null}
           <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
             {usedHere
               ? `${language} uses it. Changes apply to its passages right away; nothing already recorded is lost.`
-              : 'Languages using it move to each version you save. Choose it for a language from Review Flows.'}
+              : 'Languages using it move to each version you save. Steps are a suggested order; only a locked step has to pass first.'}
           </Text>
         </>
       )}
@@ -742,26 +868,32 @@ export function FlowEditor(ctx: Ctx) {
         <LibraryItemSettings ctx={ctx} lib={lib} it={it} canManage={canManage} {...(updates[it.itemId] ? { update: updates[it.itemId] } : {})} onCopied={ctx.back} />
       ) : null}
 
-      <Sheet visible={pickFor !== null} title="Add a kind of review" sub="Kinds are your organization's vocabulary. Add your own if these don't fit." onClose={closePicker}>
+      <StepSheet step={open !== null ? steps[open] ?? null : null} i={open ?? 0} count={steps.length} kinds={kinds} title={open !== null ? title(open) : ''}
+        onClose={() => setOpen(null)}
+        onChange={(st) => open !== null && change(steps.map((s, j) => (j === open ? st : s)))}
+        onAdd={() => { const i = open; setOpen(null); setPickFor(i); }}
+        onMove={(dir) => { if (open === null) return; change(moveStep(steps, open, dir)); setOpen(open + dir); }}
+        onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }} />
+      <Sheet visible={pickFor !== null} title={pickFor === 'new' ? 'Add a step' : 'Add a check alongside'} sub="Kinds are your organization's vocabulary. Add your own if these don't fit." onClose={() => setPickFor(null)}>
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
             <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
-              onPress={() => pickFor !== null && addKind(pickFor, k.id)} last={i === a.length - 1} />
+              onPress={() => pick(k.id)} last={i === a.length - 1} />
           ))}
         </Group>
         <Field label="A new kind" value={newKind} onChangeText={setNewKind} placeholder="New kind, e.g. Elder Review" autoCapitalize="words" />
         <SmallBtn label="Add this kind" icon="plus" tone="primary" disabled={!newKind.trim()} onPress={() => {
-          if (pickFor === null || !newKind.trim()) return;
+          if (!newKind.trim()) return;
           const k: KindDef = { id: newKindId(newKind, kinds.map((x) => x.id)), name: newKind.trim(), description: 'Defined by your organization.', usualReviewer: 'Anyone the team chooses' };
           setAdded([...added, k]);
           setNewKind('');
-          addKind(pickFor, k.id);
+          pick(k.id);
         }} />
       </Sheet>
 
       <Sheet visible={leaving} title="Leave without saving?" sub="Your changes to this flow haven't been saved." onClose={() => setLeaving(false)}
         footer={<>
-          <PrimaryBtn label="Save Flow" onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
+          <PrimaryBtn label="Save" icon="check" onPress={() => { setLeaving(false); void save(); }} busy={busy} disabled={!label.trim()} />
           <GhostBtn label="Discard changes" tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
         </>}>
         {null}

@@ -17,6 +17,25 @@ import { ORG, roleSession } from './sessions';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'settings_home->mic_setup': 'microphone setup by ear, from Me (decision 71, demo ADR-037)',
+  'workspace->mic_setup': 'microphone setup, offered when takes keep clipping or come out quiet (decision 71)',
+  'study_guide->key_term_detail': 'the study is one reader for both nodes; its key words and glossary open a key term (decision 71, demo ADR-035)',
+  'study_step->guide_editor': 'the steps sheet offers the guide editor from either study node (decision 71)',
+  'my_work->get_ready': "a coordinator's My Work leads with getting the language ready (decision 71, demo ADR-039)",
+  'language_home->get_ready': 'the language page opens the four questions to get it ready (decision 71, demo ADR-039)',
+  'get_ready->get_ready': 'each of the four questions is its own screen, opened from the checklist (decision 71, demo ADR-039)',
+  'get_ready->template_editor': 'What will they record?: Make your own (decision 71, demo ADR-039)',
+  'get_ready->templates_home': 'What to translate on a ready language: Divide a book differently (decision 71, demo ADR-039)',
+  'get_ready->reference_bibles': 'What will help them?: Find another Bible, and Add more (decision 71, demo ADR-039)',
+  'get_ready->reference_source': 'What will help them?: hear a Bible on its own page (decision 71, demo ADR-039)',
+  'get_ready->reference_guides': 'What helps them: Add more, a study guide (decision 71, demo ADR-039)',
+  'get_ready->reference_home': 'What helps them: Add more, everything in the library (decision 71, demo ADR-039)',
+  'get_ready->material_editor': 'What helps them: Add more, a note for translators, or open one written here (decision 71, demo ADR-039)',
+  'get_ready->key_terms': 'What helps them: key words (decision 71, demo ADR-039)',
+  'get_ready->flow_editor': "Who checks the recordings?: I'll choose the steps (decision 71, demo ADR-039)",
+  'get_ready->role_editor': 'Invite your translators: Something else, make a new role (decision 71, demo ADR-039, amended 2026-10-08)',
+  'language_home->flow_editor': "a ready language's Who checks: its steps, top to bottom (decision 71, demo ADR-039)",
+  'language_home->edit_member': 'a ready language lists join requests: tap to let them in (decision 71, demo ADR-039)',
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',
   'org_home->language_home': 'no project level (decision 63): the organization lists its languages',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
@@ -53,7 +72,13 @@ const APP_ONLY: Record<string, string> = {
   'my_work->reference_home': 'Get a language ready, step 2 "What will help them?" (demo ADR-039, branch caleb-simple-translator)',
   'my_work->invite_qr': 'Get a language ready, step 4 "Invite your translators": the code to scan (demo ADR-039)',
   'invite_member->role_editor': 'Something else: make a new role while inviting (demo ADR-039, amended 2026-10-08)',
-  'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)'
+  'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)',
+  'my_work->edit_member': "a coordinator's Home lists people asking to join under Get ready; a row opens Assign role & accept (decision 71, demo ADR-039)",
+  'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
+  'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
+  'settings_more->org_switcher': 'More settings: Switch Organization, moved from Settings (decision 71)',
+  'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
+  'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -69,7 +94,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor and More Bibles, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready', 'settings_more'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });
