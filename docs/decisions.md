@@ -1858,63 +1858,68 @@ Reverse if: Worker CPU or request costs approach what the egress saved, or
 films outgrow the request limit (then presigned multipart uploads for large
 files only), or Cloudflare availability costs more field time than it saves.
 
-## 70. Apps and agents reach an organization with scoped access tokens, through the app's Worker
+## 70. Apps, agents and review links reach an organization through the app's Worker, and everything they write is a review or a release
 
-Date: 2026-10-07 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-08 · By: Ryder Wishart · Status: accepted
 
 Reason: partners want their own apps on LangQuest's data. Every
-Language's listening app plays approved chapters, lets listeners say
-whether a passage sounds right, and marks what is ready to publish; agents
-(Claude, ChatGPT and others over MCP) want to read and comment the same way
-(LAN-41; the partner calls of 2026-08-24, 09-22 and 10-06). Chosen:
-- A token belongs to one person in one organization and is never more than
-  that person: every request reads their privileges from the folded log
-  today, then narrows by the token's scopes (`read:published`, `read`,
-  `feedback`, `publish`) and, if set, a list of languages. Leaving the
-  organization or losing a role takes the token's reach with it; nothing
-  about access is stored but the narrowing. Only the token's SHA-256 is
-  kept (`api_tokens`, migration `20261008000000_api_tokens.sql`), as for
-  invites; it never expires unless asked to, and is revoked on the page.
-- Tokens are made on `/connect`, a page the Worker serves itself (the Expo
-  app's screens follow the partner demo, which has none for this), or asked
-  for by an app with the OAuth device flow (RFC 8628): the app gets a code,
-  a person opens `/connect?code=…`, sees what the app calls itself marked
-  unverified, may narrow but never widen what it asked for, and approves;
-  the app's poll then succeeds and its device code is its token, so no
-  plaintext secret is ever stored. This is the "poll to create a token" the
-  partners asked for, and spares the Aquila lesson of approving every action
-  by link.
-- The API is `/api/v1/*` on the dashboard Worker, answered by the
-  organization's Durable Object from the same folds as the reports
-  (decision 44, `apps/web/worker/agent/`), with the same rules as MCP tools
-  at `/api/v1/mcp` (stateless streamable HTTP, a bearer header, so any MCP
-  client connects with one URL). A `read:published` token sees only a
-  passage's approved version, core `approvedVersion`: the newest version
-  every step approved by reviews of that very version. `done` is looser (it
-  reads each kind's latest review of any version, and an answered "needs
-  changes" counts), so a re-recorded passage stays done while its new audio
-  is unheard; a listening app keeps playing the version that was approved.
-  Audio comes as the ten-minute read links of decision 69. Any origin may
-  call it, since the token is a header and never a cookie.
-- Writes are ordinary events, appended with `append_events` as the token's
-  person from a device of the token's own (`api-<token id>`), so the
-  database applies their phone's privilege checks: listener feedback is
-  `v1.ReviewRecorded` of kind `listener` given by link, with the listener's
-  name in `givenBy` and the app's listener id only as a hash in the review
-  id (one answer per listener, version and outcome, against griefing), plus
-  600 writes an hour per token (voice-note uploads included), and the
-  device endpoints, open to anyone, are rate-limited per address. Ready for
-  publication is a review of kind `publication` on the approved version,
-  read by core `publicationOf`, so it never outlives that version or its
-  approval. Both
-  kinds are in no flow: they never complete or block a step. No new event
-  type was needed.
-Rejected: OAuth with redirects and client registration (more moving parts
-than a partner's app or a pasted MCP config needs today); tokens not tied
-to a person (a service account would need its own place in the privilege
-model, and every write needs an author); a separate API Worker or Supabase
-function (it would refold what the Durable Object already holds).
-Reverse if: partners need many users of one app to act as themselves (then
-OAuth authorization codes with per-user consent), the per-object rate limit
-or folds per request show up in Worker CPU, or publication needs to gate
-something (then it joins the flow as a checkpoint kind instead).
+Language's listening app plays approved chapters and wants listeners'
+reactions back; agents (Claude, ChatGPT, over MCP) want to read and
+review; and a team wants to send a passage on WhatsApp to someone with no
+account and get a review back (LAN-41; the partner calls of 2026-08-24,
+09-22 and 10-06). Chosen:
+- Tokens (`lqp_…`) belong to one person in one organization and are never
+  more than that person: each request reads their privileges from the
+  folded log today, then narrows by scope (`read:published`, `read`,
+  `review`, `release`) and, if set, a list of languages. Only the hash is
+  kept (`api_tokens`). They are made on `/connect`, a page the Worker
+  serves, or asked for by an app with the OAuth device flow (RFC 8628): a
+  person approves on `/connect?code=…`, may narrow but never widen, and the
+  app's device code becomes its token, so no plaintext secret is stored.
+- `/api/v1/*` is answered by the organization's Durable Object from the
+  folds the reports use (decision 44), and the same operations are MCP
+  tools at `/api/v1/mcp`. A `read:published` token sees only a passage's
+  approved version, core `approvedVersion`: the newest version every step
+  approved by reviews of that very version. `done` is looser (each kind's
+  latest review of any version, and an answered "needs changes" counts), so
+  a re-recorded passage stays done while its new audio is unheard.
+- Everything written from outside is one of two events, appended with
+  `append_events` as a person so the database checks their privileges:
+  - `v1.ReviewRecorded` given by link. Through a token it is listener
+    feedback (kind `listener`, in no flow, so it never clears or blocks a
+    step) or a review of a kind in the language's flow, so a partner's
+    sign-off is a flow step rather than a parallel approval.
+  - `v1.VersionReleased {takeId, channel, live}`, new: where a version is
+    live, a fact rather than a verdict (core `releasesOf`). Going live needs
+    the approved version; anything may be taken down. It needs
+    `assign_work`. This replaces an earlier "ready for publication" mark,
+    which was an approval kept outside the flow.
+- Review links: whoever may send work to reviewers (`send_to_reviewers` or
+  `assign_work`, configurable per role) and may record a review given by
+  link shares `/r/<code>`, one version and one kind, open to many people
+  until it expires (14 days by default) or is revoked (`review_links`, hash
+  only). The page plays the version and takes any name (kept in the
+  browser), looks good or needs changes, and an optional comment and voice
+  note (m4a, or WAV from browsers that cannot record MP4, kept as a review
+  artifact so phones play it). The sharer chooses per link whether answers
+  count toward the step or are listener feedback; whether a step may be
+  reviewed by a counting link is the language's setting, new event
+  `v1.FlowStepLinksSet` (default: any step but a checkpoint). A review given
+  by link is recorded as the sharer, like a check logged from outside the
+  app: `review` or `translate` may record it, and, like a logged check, it
+  completes ordinary steps but never clears a checkpoint (passage.ts
+  `clears`, which decision 29 had let link reviews clear; none existed yet).
+  A browser's latest answer stands; a resend records once; a link takes 500
+  answers, 10 per browser, and closes when its sharer can no longer record.
+- Abuse: 600 writes an hour per token or link, per-address limits on the
+  device endpoints and links, voice notes must be new uploads, MCP batches
+  hold at most 20.
+Rejected: OAuth with redirects (more than a partner's backend or a pasted
+MCP config needs today); service accounts (every write needs an author in
+the privilege model); a guest `v1.RequestMade` per link (a guest needs a
+WhatsApp or SMS contact, and a group link has none); a separate API Worker
+(it would refold what the Durable Object already holds).
+Reverse if: partners need each of their users to act as themselves (then
+OAuth authorization codes), shared links attract abuse that names and
+browser ids cannot contain (then one-person links with a contact), or Worker
+CPU from folds per request shows up in cost.

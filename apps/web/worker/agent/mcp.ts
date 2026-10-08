@@ -1,7 +1,7 @@
 import type { OrgStub } from './http';
 import type { Answer } from './org';
 import { canRead, SCOPE_TEXT, type Grant } from './tokens';
-import { isRefusal, parseFeedback, parsePublication, type ApiStatus, type PassageFilter } from './view';
+import { isRefusal, parseRelease, parseReview, type ApiStatus, type PassageFilter } from './view';
 
 /**
  * The same API as Model Context Protocol tools, so an agent (Claude, ChatGPT,
@@ -54,18 +54,16 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'list_passages',
-    description: 'Passages of a language in display order, with status (not_started, drafting, in_review, feedback, approved), the latest version, whether it is ready for publication, and listener feedback counts. A token with only read:published sees approved passages alone.',
+    description: 'Passages of a language in display order, with status (not_started, drafting, in_review, feedback, approved), the version this token hears, the approved version, where it is released, and listener feedback counts. A token with only read:published sees approved passages alone.',
     inputSchema: obj({
       languageId: LANGUAGE,
       status: s('Only passages with this status.', { enum: ['not_started', 'drafting', 'in_review', 'feedback', 'approved'] }),
-      ready: { type: 'boolean', description: 'Only passages that are (true) or are not (false) ready for publication.' },
       changedSince: s('ISO date-time: only passages with something newer. Use the newest updatedAt you have seen to follow changes.')
     }, ['languageId']),
     allowed: (g) => canRead(g),
     run: (a, g, org) => {
       const filter: PassageFilter = {};
       if (a['status'] !== undefined) filter.status = a['status'] as ApiStatus;
-      if (typeof a['ready'] === 'boolean') filter.ready = a['ready'];
       if (a['changedSince'] !== undefined) {
         const ms = Date.parse(str(a['changedSince']));
         if (Number.isNaN(ms)) return Promise.resolve(bad('changedSince must be an ISO date-time.'));
@@ -82,32 +80,36 @@ const TOOLS: Tool[] = [
     run: (a, g, org) => org.read(g, { op: 'passage', languageId: str(a['languageId']), unitId: str(a['unitId']) })
   },
   {
-    name: 'send_feedback',
-    description: 'Record feedback on a passage\'s version as a listener review: looks_good or needs_changes, with an optional comment. The team sees it on the passage; needs_changes asks the translator to respond.',
+    name: 'record_review',
+    description: 'Record a review of a passage\'s version, as the token\'s person: listener feedback (kindId "listener", the default, which never clears a step) or a review step in the language\'s flow (a kindId from get_passage steps). needs_changes asks the translator to respond. A review through the API never clears a checkpoint.',
     inputSchema: obj({
       languageId: LANGUAGE, unitId: UNIT,
       outcome: s('looks_good or needs_changes.', { enum: ['looks_good', 'needs_changes'] }),
-      comment: s('What the listener said.'),
-      listenerId: s('Your own id for who is giving it; defaults to "agent". One answer per listener, version and outcome.'),
-      listenerName: s('Shown to the team as who gave it.'),
+      kindId: s('listener (default) or a kind in the flow.'),
+      comment: s('What the reviewer said.'),
+      reviewerId: s('Your own id for who is giving it; defaults to "agent". One answer per reviewer, version, kind and outcome.'),
+      reviewerName: s('Shown to the team as who gave it.'),
       takeId: s('The version heard; the latest when left out.')
     }, ['languageId', 'unitId', 'outcome']),
-    allowed: (g) => g.scopes.includes('feedback'),
+    allowed: (g) => g.scopes.includes('review'),
     run: (a, g, org) => {
-      const input = parseFeedback({ listenerId: 'agent', ...a });
+      const input = parseReview({ reviewerId: 'agent', ...a });
       return isRefusal(input) ? Promise.resolve({ ok: false, ...input })
-        : org.write(g, { op: 'feedback', languageId: str(a['languageId']), unitId: str(a['unitId']), input });
+        : org.write(g, { op: 'review', languageId: str(a['languageId']), unitId: str(a['unitId']), input });
     }
   },
   {
-    name: 'set_publication_ready',
-    description: 'Mark an approved passage\'s latest version ready for publication (ready: true), or take that back (ready: false, with a note saying why).',
-    inputSchema: obj({ languageId: LANGUAGE, unitId: UNIT, ready: { type: 'boolean' }, note: s('Why, when taking it back; optional otherwise.'), takeId: s('Must be the latest version; left out, it is.') }, ['languageId', 'unitId', 'ready']),
-    allowed: (g) => g.scopes.includes('publish'),
+    name: 'report_release',
+    description: 'Say where a passage\'s approved version is published (live: true, with the channel, such as "Every Language app"), or that a version was taken down (live: false).',
+    inputSchema: obj({
+      languageId: LANGUAGE, unitId: UNIT, channel: s('Where it is published, at most 60 characters.'), live: { type: 'boolean' },
+      url: s('An https link to it there.'), takeId: s('The version; the approved one when left out.')
+    }, ['languageId', 'unitId', 'channel', 'live']),
+    allowed: (g) => g.scopes.includes('release'),
     run: (a, g, org) => {
-      const input = parsePublication(a);
+      const input = parseRelease(a);
       return isRefusal(input) ? Promise.resolve({ ok: false, ...input })
-        : org.write(g, { op: 'publication', languageId: str(a['languageId']), unitId: str(a['unitId']), input });
+        : org.write(g, { op: 'release', languageId: str(a['languageId']), unitId: str(a['unitId']), input });
     }
   }
 ];

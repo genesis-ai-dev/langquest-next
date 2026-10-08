@@ -6,6 +6,8 @@ import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/ht
 import { AgentOrg } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, TokenRecord } from '../worker/agent/store';
 import { hashSecret } from '../worker/agent/tokens';
+import type { ReviewLink } from '../worker/agent/view';
+import { sniffVoiceNote } from '../worker/agent/voice';
 import { MemoryCache, OrgFolder, type Source } from '../worker/orgFolder';
 
 /**
@@ -72,8 +74,10 @@ function recorded(log: Log, lang: string, unitId: string, opts: { approve?: bool
 
 /**
  * Dinka (din) with one peer step: d1 approved, d2 in review, d3 a draft, d4
- * not started. Nuer (nus) with n1 approved. 'admin' runs the organization,
- * 'rev' reviews everywhere, 'dinka' only views Dinka.
+ * not started. Nuer (nus) with peer review then a consultant checkpoint: n1
+ * approved, n2 past peer review and waiting at the checkpoint. 'admin' runs
+ * the organization, 'rev' reviews and 'tr' translates everywhere, 'dinka'
+ * only views Dinka.
  */
 function world() {
   const log = new Log();
@@ -90,6 +94,8 @@ function world() {
     log.add(lang, 'v1.FlowStepSet', { stepId: 'peer_only/s1', order: 's00', kindIds: ['peer'], checkpoint: false });
     log.add(lang, 'v1.UnitAdded', unit('book', 'Luke', null));
   }
+  // Nuer also has a consultant checkpoint after peer review.
+  log.add('nus', 'v1.FlowStepSet', { stepId: 'peer_only/s2', order: 's01', kindIds: ['consultant'], checkpoint: true });
   log.add('din', 'v1.UnitAdded', unit('d1', 'Luke 1'));
   log.add('din', 'v1.UnitAdded', unit('d2', 'Luke 2'));
   log.add('din', 'v1.UnitAdded', unit('d3', 'Luke 3'));
@@ -99,6 +105,9 @@ function world() {
   recorded(log, 'din', 'd2');
   recorded(log, 'din', 'd3', { submit: false });
   recorded(log, 'nus', 'n1', { approve: true });
+  log.add('nus', 'v1.ReviewRecorded', { reviewId: 'consultant-n1', takeId: 'take-n1', kindId: 'consultant', outcome: 'looks_good', via: 'app' }, 'admin');
+  log.add('nus', 'v1.UnitAdded', unit('n2', 'Luke 2'));
+  recorded(log, 'nus', 'n2', { approve: true });
   return log;
 }
 
@@ -139,6 +148,19 @@ class MemoryStore implements AgentStore {
     for (let i = this.grants.length - 1; i >= 0; i -= 1) if (this.grants[i]!.expiresAt < before) this.grants.splice(i, 1);
   }
   async orgsOf(profileId: string) { return this.orgs.get(profileId) ?? []; }
+  readonly links: (ReviewLink & { codeHash: string })[] = [];
+  async insertLink(l: Omit<ReviewLink, 'id' | 'createdAt' | 'revokedAt'> & { codeHash: string }) {
+    const row = { ...l, id: `00000000-0000-4000-8000-${String(++this.n).padStart(12, '0')}`, createdAt: new Date(T0).toISOString(), revokedAt: null };
+    this.links.push(row);
+    return row;
+  }
+  async linkByCodeHash(hash: string) { return this.links.find((l) => l.codeHash === hash) ?? null; }
+  async linksOf(orgId: string, languageId: string, unitId: string) { return this.links.filter((l) => l.orgId === orgId && l.languageId === languageId && l.unitId === unitId); }
+  async revokeLink(id: string, profileId: string) {
+    const l = this.links.find((x) => x.id === id && x.createdBy === profileId && !x.revokedAt);
+    if (l) l.revokedAt = new Date(T0).toISOString();
+    return !!l;
+  }
 }
 
 function setup() {
@@ -155,7 +177,7 @@ function setup() {
     // A signed-in session is "jwt:<profile>" here.
     profileOf: async (jwt) => (jwt.startsWith('jwt:') ? jwt.slice(4) : null),
     org: (orgId) => (orgId === ORG ? agent : { read: async () => ({ ok: false, status: 404, code: 'x', error: 'x' }), write: async () => ({ ok: false, status: 404, code: 'x', error: 'x' }), access: async () => null }) as OrgStub,
-    saveVoiceNote: async () => 'f'.repeat(64),
+    saveVoiceNote: async (_o, _l, bytes) => (await hashSecret(String.fromCharCode(...bytes))),
     now: () => now
   };
   const call = async (method: string, path: string, auth?: string, body?: unknown) => {
@@ -197,13 +219,13 @@ describe('reading', () => {
 
   it('keeps playing the approved version to a listening app while a new one waits for review', async () => {
     const { call, token, log } = setup();
-    const t = await token('admin', { scopes: ['read:published', 'feedback'] });
+    const t = await token('admin', { scopes: ['read:published', 'review'] });
     // The team view still calls d1 done after a re-record: its peer kind's latest review approves.
     recorded(log, 'din', 'd1', { take: 'take-d1-v2' });
     const one = await call('GET', '/api/v1/languages/din/passages/d1', t);
     expect(one.body.version).toMatchObject({ n: 1, takeId: 'take-d1' });
     expect(one.body.audio.map((a: any) => a.hash)).toEqual([card('d1a').hash, card('d1b').hash]);
-    expect((await call('POST', '/api/v1/languages/din/passages/d1/feedback', t, { outcome: 'looks_good', listenerId: 'a', takeId: 'take-d1-v2' })).status).toBe(404);
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/reviews', t, { outcome: 'looks_good', reviewerId: 'a', takeId: 'take-d1-v2' })).status).toBe(404);
     // Feedback answered by a revision is "addressed" for the team, but nobody approved the revision.
     const reader = await token('admin', { scopes: ['read'] });
     log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-no', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
@@ -267,36 +289,49 @@ describe('reading', () => {
 });
 
 describe('writing', () => {
-  it('records listener feedback as a review by the token\'s person, once per listener and outcome', async () => {
+  it('records listener feedback as a review by the token\'s person, once per reviewer and outcome', async () => {
     const { call, token, log } = setup();
-    const t = await token('rev', { scopes: ['read:published', 'feedback'] });
-    const path = '/api/v1/languages/din/passages/d1/feedback';
-    const first = await call('POST', path, t, { outcome: 'looks_good', listenerId: 'device-42', listenerName: 'Mary' });
+    const t = await token('rev', { scopes: ['read:published', 'review'] });
+    const path = '/api/v1/languages/din/passages/d1/reviews';
+    const first = await call('POST', path, t, { outcome: 'looks_good', reviewerId: 'device-42', reviewerName: 'Mary' });
     expect(first.status).toBe(200);
     expect(first.body.duplicate).toBe(false);
     expect(first.body.passage.listenerFeedback).toEqual({ looksGood: 1, needsChanges: 0 });
     // The same tap again, or an app's retry, records nothing new.
-    expect((await call('POST', path, t, { outcome: 'looks_good', listenerId: 'device-42' })).body.duplicate).toBe(true);
-    await call('POST', path, t, { outcome: 'needs_changes', listenerId: 'device-7', comment: 'Verse 3 is hard to follow' });
+    expect((await call('POST', path, t, { outcome: 'looks_good', reviewerId: 'device-42' })).body.duplicate).toBe(true);
+    await call('POST', path, t, { outcome: 'needs_changes', reviewerId: 'device-7', comment: 'Verse 3 is hard to follow' });
     const listener = log.reviews('din').filter((r) => r['kindId'] === 'listener');
     expect(listener).toHaveLength(2);
     expect(listener[0]).toMatchObject({ actorId: 'rev', via: 'link', givenBy: 'Mary', takeId: 'take-d1', outcome: 'looks_good' });
-    // The app's own listener ids never reach the log.
+    // The app's own reviewer ids never reach the log.
     expect(JSON.stringify(log.streams.get('din'))).not.toContain('device-42');
+  });
+
+  it('lets a partner review a step of the flow, which counts like any review but never clears a checkpoint', async () => {
+    const { call, token } = setup();
+    // A translator's token: a review by link is recorded like a check logged from outside the app.
+    const t = await token('tr', { scopes: ['read', 'review'] });
+    const peer = await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'peer', outcome: 'looks_good', reviewerId: 'partner', reviewerName: 'Partner checker' });
+    expect(peer.body.passage).toMatchObject({ status: 'approved', approvedVersion: { n: 1 } });
+    const consultant = await call('POST', '/api/v1/languages/nus/passages/n2/reviews', t, { kindId: 'consultant', outcome: 'looks_good', reviewerId: 'partner' });
+    expect(consultant.status).toBe(200);
+    expect(consultant.body.passage.steps).toEqual([{ name: 'Peer Review', complete: true }, { name: 'Consultant Check', complete: false }]);
+    expect(consultant.body.passage.approvedVersion).toBeNull();
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { kindId: 'consultant', outcome: 'looks_good', reviewerId: 'p' })).body.code).toBe('no_kind');
   });
 
   it('will not attach audio already in the language as a voice note, which would hand out a link to it', async () => {
     const { call, token } = setup();
-    const t = await token('rev', { scopes: ['read:published', 'feedback'] });
+    const t = await token('rev', { scopes: ['read:published', 'review'] });
     // d2's cards are unapproved; a published-only token must not get a link to them this way.
-    const r = await call('POST', '/api/v1/languages/din/passages/d1/feedback', t, { outcome: 'needs_changes', listenerId: 'a', voiceNoteHash: card('d2a').hash });
+    const r = await call('POST', '/api/v1/languages/din/passages/d1/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', voiceNote: { hash: card('d2a').hash, format: 'm4a' } });
     expect(r.status).toBe(400);
   });
 
   it('lets a team hear about needs-changes on a version in review', async () => {
     const { call, token } = setup();
-    const t = await token('rev', { scopes: ['read', 'feedback'] });
-    await call('POST', '/api/v1/languages/din/passages/d2/feedback', t, { outcome: 'needs_changes', listenerId: 'a', comment: 'Too fast' });
+    const t = await token('rev', { scopes: ['read', 'review'] });
+    await call('POST', '/api/v1/languages/din/passages/d2/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', comment: 'Too fast' });
     const d2 = await call('GET', '/api/v1/languages/din/passages/d2', t);
     expect(d2.body.status).toBe('feedback');
     expect(d2.body.reviews.at(-1)).toMatchObject({ kind: 'Listener', comment: 'Too fast', via: 'link' });
@@ -305,43 +340,138 @@ describe('writing', () => {
   it('refuses writes the scopes or the person do not allow', async () => {
     const { call, token } = setup();
     const readOnly = await token('rev', { scopes: ['read:published'] });
-    expect((await call('POST', '/api/v1/languages/din/passages/d1/feedback', readOnly, { outcome: 'looks_good', listenerId: 'a' })).body.code).toBe('scope');
-    // A viewer cannot review, so cannot be given feedback at all...
-    expect((await call('POST', '/api/v1/session/tokens', 'jwt:dinka', { orgId: ORG, name: 'x', scopes: ['feedback'] })).status).toBe(400);
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/reviews', readOnly, { outcome: 'looks_good', reviewerId: 'a' })).body.code).toBe('scope');
+    // A viewer can neither review nor translate, so cannot be given the review scope at all...
+    expect((await call('POST', '/api/v1/session/tokens', 'jwt:dinka', { orgId: ORG, name: 'x', scopes: ['review'] })).status).toBe(400);
     // ...and a published-only token cannot answer what it cannot see.
-    const listen = await token('rev', { scopes: ['read:published', 'feedback'] });
-    expect((await call('POST', '/api/v1/languages/din/passages/d2/feedback', listen, { outcome: 'looks_good', listenerId: 'a' })).status).toBe(404);
-    expect((await call('POST', '/api/v1/languages/din/passages/d1/feedback', listen, { outcome: 'great' })).status).toBe(400);
+    const listen = await token('rev', { scopes: ['read:published', 'review'] });
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/reviews', listen, { outcome: 'looks_good', reviewerId: 'a' })).status).toBe(404);
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/reviews', listen, { outcome: 'great' })).status).toBe(400);
+    // Reporting releases needs someone who assigns work.
+    const reviewerRelease = await token('rev', { scopes: ['read', 'release'] });
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/releases', reviewerRelease, { channel: 'EL app', live: true })).body.code).toBe('privilege');
   });
 
-  it('marks an approved passage ready for publication, and a new version starts without it', async () => {
+  it('records where the approved version is live, and a newer approved version does not inherit it', async () => {
     const { call, token, log } = setup();
-    const t = await token('admin', { scopes: ['read', 'publish'] });
-    expect((await call('POST', '/api/v1/languages/din/passages/d2/publication', t, { ready: true })).body.code).toBe('not_approved');
-    expect((await call('POST', '/api/v1/languages/din/passages/d1/publication', t, { ready: false })).status).toBe(400); // must say why
-    const ok = await call('POST', '/api/v1/languages/din/passages/d1/publication', t, { ready: true, note: 'Checked with the elders' });
-    expect(ok.body.passage.publication).toMatchObject({ ready: true, versionN: 1, note: 'Checked with the elders' });
-    expect((await call('GET', '/api/v1/languages/din/passages?ready=true', t)).body.map((p: any) => p.unitId)).toEqual(['d1']);
-    // The team records a new version of d1. Nobody has heard it, so the
-    // approved version, and its readiness, are still version 1's.
-    recorded(log, 'din', 'd1', { take: 'take-d1-v2' });
-    const waiting = await call('GET', '/api/v1/languages/din/passages/d1', t);
-    expect(waiting.body.version.n).toBe(2);
-    expect(waiting.body.approvedVersion.n).toBe(1);
-    expect(waiting.body.publication).toMatchObject({ ready: true, versionN: 1 });
-    expect((await call('POST', '/api/v1/languages/din/passages/d1/publication', t, { ready: true, takeId: 'take-d1-v2' })).body.code).toBe('not_approved');
-    // Once version 2 is approved, it starts without readiness.
-    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-v2', takeId: 'take-d1-v2', kindId: 'peer', outcome: 'looks_good', via: 'app' }, 'rev');
+    const t = await token('admin', { scopes: ['read', 'release'] });
+    expect((await call('POST', '/api/v1/languages/din/passages/d2/releases', t, { channel: 'EL app', live: true })).body.code).toBe('not_approved');
+    const ok = await call('POST', '/api/v1/languages/din/passages/d1/releases', t, { channel: 'Every Language app', live: true, url: 'https://el.example/luke/1' });
+    expect(ok.body.passage.releases).toMatchObject([{ channel: 'Every Language app', versionN: 1, url: 'https://el.example/luke/1' }]);
+    // The team records and approves version 2: version 1 is still what is out there.
+    recorded(log, 'din', 'd1', { take: 'take-d1-v2', approve: true });
     const after = await call('GET', '/api/v1/languages/din/passages/d1', t);
-    expect(after.body.approvedVersion.n).toBe(2);
-    expect(after.body.publication).toBeNull();
+    expect(after.body).toMatchObject({ approvedVersion: { n: 2 }, releases: [{ versionN: 1 }] });
+    // Only the approved version goes live; any version can be taken down.
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/releases', t, { channel: 'Every Language app', live: true, takeId: 'take-d1' })).body.code).toBe('not_approved');
+    await call('POST', '/api/v1/languages/din/passages/d1/releases', t, { channel: 'Every Language app', live: false, takeId: 'take-d1' });
+    expect((await call('GET', '/api/v1/languages/din/passages/d1', t)).body.releases).toEqual([]);
   });
 });
+
+describe('review links', () => {
+  /** A link shared by the translator, as the app would ask for it. */
+  async function share(call: Awaited<ReturnType<typeof setup>>['call'], spec: Record<string, unknown>, who = 'tr') {
+    return call('POST', '/api/v1/session/review-links', `jwt:${who}`, { orgId: ORG, languageId: 'din', unitId: 'd2', kindId: 'peer', counts: true, ...spec });
+  }
+  const codeOf = (url: string) => url.slice(url.lastIndexOf('/') + 1);
+  const answer = (outcome: string, extra: Record<string, unknown> = {}) => ({ outcome, name: 'Abuk', browserId: 'browser-1', submissionId: `s-${outcome}`, ...extra });
+
+  it('lets anyone holding it hear the version and answer with any name, recorded as the sharer', async () => {
+    const { call, log } = setup();
+    const made = await share(call, { label: 'Women\'s fellowship' });
+    expect(made.status).toBe(200);
+    expect(made.body.url).toMatch(/^https:\/\/lq\.test\/r\/[A-Za-z0-9_-]{22}$/);
+    const code = codeOf(made.body.url);
+    const page = await call('GET', `/api/v1/links/${code}`);
+    expect(page.body).toMatchObject({ label: 'Women\'s fellowship', passage: { label: 'Luke 2', path: ['Luke'] }, language: 'Dinka', kind: { id: 'peer' }, version: 1, open: true });
+    expect(page.body.audio.map((a: any) => a.hash)).toEqual([card('d2a').hash, card('d2b').hash]);
+    const sent = await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good', { comment: 'Clear and natural' }));
+    expect(sent.status).toBe(200);
+    expect(log.reviews('din').at(-1)).toMatchObject({ actorId: 'tr', kindId: 'peer', via: 'link', givenBy: 'Abuk', outcome: 'looks_good', comment: 'Clear and natural', takeId: 'take-d2' });
+    // It counts toward the step: d2 is approved.
+    const t = await setupToken(call);
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('approved');
+  });
+
+  it('records a feedback link as listener feedback that never moves the step', async () => {
+    const { call, log } = setup();
+    const code = codeOf((await share(call, { counts: false })).body.url);
+    await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good'));
+    expect(log.reviews('din').at(-1)).toMatchObject({ kindId: 'listener', givenBy: 'Abuk' });
+    const t = await setupToken(call);
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('in_review');
+  });
+
+  it('keeps a browser\'s latest answer, records a resend once, and caps one browser', async () => {
+    const { call, log, advance } = setup();
+    const code = codeOf((await share(call, {})).body.url);
+    await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good'));
+    expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good'))).body.duplicate).toBe(true);
+    advance(30_000); // they listen again
+    await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('needs_changes', { comment: 'On second listen, verse 4' }));
+    const t = await setupToken(call);
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('feedback');
+    for (let i = 0; i < 8; i += 1) await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good', { submissionId: `more-${i}` }));
+    expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good', { submissionId: 'one-too-many' }))).body.code).toBe('full');
+    expect(log.reviews('din').filter((r) => r['givenBy'] === 'Abuk')).toHaveLength(10);
+  });
+
+  it('is shared only by people who may send to reviewers, and never counts toward a checkpoint unless allowed', async () => {
+    const { call } = setup();
+    expect((await share(call, {}, 'dinka')).body.code).toBe('privilege');
+    // Checkpoints refuse counting links by default; feedback links are fine.
+    const consultant = { languageId: 'nus', unitId: 'n2', kindId: 'consultant' };
+    expect((await share(call, consultant)).body.code).toBe('links_off');
+    expect((await share(call, { ...consultant, counts: false })).status).toBe(200);
+  });
+
+  it('closes when revoked, when it expires, or when the sharer can no longer record it', async () => {
+    const { call, log, advance } = setup();
+    const made = await share(call, { expiresInDays: 1 });
+    const code = codeOf(made.body.url);
+    expect((await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:rev')).status).toBe(404); // not theirs
+    expect((await call('POST', `/api/v1/session/review-links/${made.body.id}/revoke`, 'jwt:tr')).status).toBe(200);
+    expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good'))).status).toBe(410);
+    expect((await call('GET', `/api/v1/links/${code}`)).body).toMatchObject({ open: false, audio: [] });
+
+    const later = codeOf((await share(call, { expiresInDays: 1 })).body.url);
+    advance(86_400_000 + 1);
+    expect((await call('POST', `/api/v1/links/${later}/reviews`, undefined, answer('looks_good'))).status).toBe(410);
+
+    const third = codeOf((await share(call, {})).body.url);
+    log.add('_org', 'v1.MemberRemoved', { profileId: 'tr', scope: { level: 'org' } });
+    advance(61_000); // the organization's state catches up once a minute
+    expect((await call('POST', `/api/v1/links/${third}/reviews`, undefined, answer('looks_good'))).status).toBe(410);
+    expect((await call('GET', '/api/v1/links/notarealcodeatallxxxxx')).status).toBe(404);
+  });
+
+  it('takes a voice note phones can play, and nothing else', () => {
+    const wav = new Uint8Array(44 + 32000);
+    const v = new DataView(wav.buffer);
+    [...'RIFF'].forEach((c, i) => (wav[i] = c.charCodeAt(0)));
+    [...'WAVEfmt '].forEach((c, i) => (wav[8 + i] = c.charCodeAt(0)));
+    v.setUint32(16, 16, true); v.setUint32(28, 32000, true);
+    [...'data'].forEach((c, i) => (wav[36 + i] = c.charCodeAt(0)));
+    v.setUint32(40, 32000, true);
+    expect(sniffVoiceNote(wav)).toEqual({ format: 'wav', durationMs: 1000 });
+    const m4a = new Uint8Array(32);
+    [...'ftypM4A '].forEach((c, i) => (m4a[4 + i] = c.charCodeAt(0)));
+    expect(sniffVoiceNote(m4a)?.format).toBe('m4a');
+    expect(sniffVoiceNote(new TextEncoder().encode('\x1aE\xdf\xa3 webm, which iPhones do not play'))).toBeNull();
+  });
+});
+
+/** A read token for checking what a link did. */
+async function setupToken(call: Awaited<ReturnType<typeof setup>>['call']) {
+  const r = await call('POST', '/api/v1/session/tokens', 'jwt:admin', { orgId: ORG, name: 'check', scopes: ['read'] });
+  return r.body.token as string;
+}
 
 describe('the device flow', () => {
   it('lets an app ask, a person narrow and approve, and the app poll its way to a working token', async () => {
     const { call, store, advance } = setup();
-    const asked = await call('POST', '/api/v1/device/code', undefined, { clientName: 'Every Language Listener', scopes: ['read', 'feedback', 'publish'] });
+    const asked = await call('POST', '/api/v1/device/code', undefined, { clientName: 'Every Language Listener', scopes: ['read', 'review', 'release'] });
     expect(asked.status).toBe(200);
     expect(asked.body.verification_uri_complete).toBe(`https://lq.test/connect?code=${encodeURIComponent(asked.body.user_code)}`);
     const poll = () => call('POST', '/api/v1/device/token', undefined, { device_code: asked.body.device_code });
@@ -351,18 +481,18 @@ describe('the device flow', () => {
 
     const code = asked.body.user_code.toLowerCase().replace('-', ' '); // as a person might type it
     const seen = await call('GET', `/api/v1/session/device/${encodeURIComponent(code)}`, 'jwt:rev');
-    expect(seen.body).toMatchObject({ clientName: 'Every Language Listener', state: 'pending', requestedScopes: ['read', 'feedback', 'publish'] });
+    expect(seen.body).toMatchObject({ clientName: 'Every Language Listener', state: 'pending', requestedScopes: ['read', 'review', 'release'] });
     // A person may narrow what the app asked for, never widen it.
     const decide = (scopes: string[]) => call('POST', `/api/v1/session/device/${encodeURIComponent(code)}`, 'jwt:rev', { decision: 'approve', orgId: ORG, scopes, languageIds: ['din'] });
     expect((await decide(['read:published', 'read'])).status).toBe(400);
-    expect((await decide(['read', 'feedback'])).status).toBe(200);
+    expect((await decide(['read', 'review'])).status).toBe(200);
     expect((await decide(['read'])).status).toBe(409); // already decided
 
     advance(5000);
     const done = await poll();
-    expect(done.body).toMatchObject({ access_token: asked.body.device_code, token_type: 'Bearer', scope: 'read feedback', language_ids: ['din'] });
+    expect(done.body).toMatchObject({ access_token: asked.body.device_code, token_type: 'Bearer', scope: 'read review', language_ids: ['din'] });
     const langs = await call('GET', '/api/v1/languages', done.body.access_token);
-    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', feedback: true, publish: false }]]);
+    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false }]]);
     expect(store.tokens[0]!.tokenHash).toBe(await hashSecret(asked.body.device_code));
     expect(store.tokens[0]!.clientName).toBe('Every Language Listener');
   });
@@ -398,19 +528,19 @@ describe('MCP', () => {
 
   it('offers only the tools the token may use, and answers them from the same API', async () => {
     const { call, token } = setup();
-    const t = await token('rev', { scopes: ['read:published', 'feedback'] });
+    const t = await token('rev', { scopes: ['read:published', 'review'] });
     const init = await call('POST', '/api/v1/mcp', t, rpc(1, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } }));
     expect(init.body.result.protocolVersion).toBe('2025-06-18');
     expect((await call('POST', '/api/v1/mcp', t, { jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(202);
     const tools = (await call('POST', '/api/v1/mcp', t, rpc(2, 'tools/list'))).body.result.tools.map((x: any) => x.name);
-    expect(tools).toEqual(['whoami', 'list_languages', 'list_passages', 'get_passage', 'send_feedback']);
+    expect(tools).toEqual(['whoami', 'list_languages', 'list_passages', 'get_passage', 'record_review']);
     const listed = await call('POST', '/api/v1/mcp', t, rpc(3, 'tools/call', { name: 'list_passages', arguments: { languageId: 'din' } }));
     expect(JSON.parse(listed.body.result.content[0].text).map((p: any) => p.unitId)).toEqual(['d1']);
-    const sent = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'send_feedback', arguments: { languageId: 'din', unitId: 'd1', outcome: 'looks_good', comment: 'Clear' } }));
+    const sent = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'record_review', arguments: { languageId: 'din', unitId: 'd1', outcome: 'looks_good', comment: 'Clear' } }));
     expect(sent.body.result.isError).toBe(false);
     const flood = Array.from({ length: 21 }, (_, i) => rpc(100 + i, 'tools/call', { name: 'list_languages', arguments: {} }));
     expect((await call('POST', '/api/v1/mcp', t, flood)).status).toBe(400);
-    const refused = await call('POST', '/api/v1/mcp', t, rpc(5, 'tools/call', { name: 'set_publication_ready', arguments: {} }));
+    const refused = await call('POST', '/api/v1/mcp', t, rpc(5, 'tools/call', { name: 'report_release', arguments: {} }));
     expect(refused.body.error.code).toBe(-32602);
   });
 });
