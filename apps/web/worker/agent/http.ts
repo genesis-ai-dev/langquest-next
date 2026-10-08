@@ -17,6 +17,8 @@ export interface OrgStub {
   read(grant: Grant, q: AgentQuery): Promise<Answer<unknown>>;
   write(grant: Grant, w: AgentWrite): Promise<Answer<unknown>>;
   access(profileId: string): Promise<OrgAccess | null>;
+  /** Count one write (a voice note upload) against the token's hourly budget; false when it is spent. */
+  spend(tokenId: string): Promise<boolean>;
 }
 
 export interface AgentDeps {
@@ -26,11 +28,13 @@ export interface AgentDeps {
   org(orgId: string): OrgStub;
   /** Store a listener's voice note under the language and record it; null when file storage is not set up. */
   saveVoiceNote: ((orgId: string, languageId: string, bytes: Uint8Array<ArrayBuffer>) => Promise<string>) | null;
+  /** False when this caller (by address) has asked the device endpoints too often; anyone may call them. */
+  deviceAllowed?(request: Request): Promise<boolean>;
   now?: () => number;
 }
 
 /** How long an app has to get a person to approve it. */
-export const DEVICE_CODE_TTL_S = 15 * 60;
+export const DEVICE_CODE_TTL_S = 10 * 60;
 /** Seconds an app waits between polls. */
 export const POLL_INTERVAL_S = 5;
 /** last_used_at is written at most this often per token. */
@@ -211,7 +215,9 @@ async function voiceNote(request: Request, grant: Grant, languageId: string, dep
   if (!can.ok) return answer(can);
   if (!(can.data as { feedback: boolean }).feedback) return fail(403, 'scope', 'Voice notes go with feedback, and this token cannot send feedback in this language.');
   const length = Number(request.headers.get('content-length') ?? NaN);
-  if (Number.isFinite(length) && length > MAX_VOICE_NOTE_BYTES) return fail(413, 'too_large', 'A voice note can be at most 10 MB.');
+  if (!Number.isFinite(length)) return fail(411, 'length_required', 'Send Content-Length with the voice note.');
+  if (length > MAX_VOICE_NOTE_BYTES) return fail(413, 'too_large', 'A voice note can be at most 10 MB.');
+  if (!(await deps.org(grant.orgId).spend(grant.tokenId))) return fail(429, 'rate_limited', 'This token has used its writes for this hour. Try again later.');
   const bytes = new Uint8Array(await request.arrayBuffer());
   if (bytes.length === 0) return fail(400, 'bad_request', 'Send the voice note as the body (AAC in MP4, .m4a).');
   if (bytes.length > MAX_VOICE_NOTE_BYTES) return fail(413, 'too_large', 'A voice note can be at most 10 MB.');
@@ -225,6 +231,7 @@ async function voiceNote(request: Request, grant: Grant, languageId: string, dep
 
 async function deviceRoute(request: Request, parts: string[], url: URL, deps: AgentDeps): Promise<Response> {
   if (request.method !== 'POST') return fail(405, 'method', 'Use POST.');
+  if (deps.deviceAllowed && !(await deps.deviceAllowed(request))) return json(429, { error: 'slow_down', error_description: 'Too many requests from this address. Wait a minute.' });
   const b = await body(request);
   if (!b) return fail(400, 'invalid_request', 'Send a JSON or form body.');
   const now = (deps.now ?? Date.now)();
@@ -309,14 +316,14 @@ async function sessionRoute(request: Request, parts: string[], deps: AgentDeps):
     const expired = Date.parse(grant.expiresAt) <= now;
     const view = {
       userCode: grant.userCode, clientName: grant.clientName, requestedScopes: grant.requestedScopes, requestedOrgId: grant.requestedOrgId,
-      expiresAt: grant.expiresAt, state: grant.approvedAt ? 'approved' : grant.deniedAt ? 'denied' : expired ? 'expired' : 'pending'
+      createdAt: grant.createdAt, expiresAt: grant.expiresAt, state: grant.approvedAt ? 'approved' : grant.deniedAt ? 'denied' : expired ? 'expired' : 'pending'
     };
     if (request.method === 'GET') return json(200, view, false);
     if (request.method !== 'POST') return fail(405, 'method', 'Use GET or POST.', false);
     if (view.state !== 'pending') return fail(409, view.state, `This request is already ${view.state}.`, false);
     const b = await body(request);
     if (b?.['decision'] === 'deny') {
-      await deps.store.updateGrant(grant.id, { deniedAt: new Date(now).toISOString() });
+      if (!(await deps.store.decideGrant(grant.id, { deniedAt: new Date(now).toISOString() }))) return fail(409, 'decided', 'Someone already decided on this request.', false);
       return json(200, { ...view, state: 'denied' }, false);
     }
     if (b?.['decision'] !== 'approve') return fail(400, 'bad_request', 'decision is "approve" or "deny".', false);
@@ -325,7 +332,11 @@ async function sessionRoute(request: Request, parts: string[], deps: AgentDeps):
     // A person can narrow what the app asked for, never widen it.
     if (spec.scopes.some((s) => !grant.requestedScopes.includes(s))) return fail(400, 'bad_request', 'You can approve only scopes the app asked for.', false);
     const token = await deps.store.insertToken({ ...spec, tokenHash: grant.deviceCodeHash, profileId, createdVia: 'device', clientName: grant.clientName });
-    await deps.store.updateGrant(grant.id, { approvedAt: new Date(now).toISOString(), tokenId: token.id });
+    if (!(await deps.store.decideGrant(grant.id, { approvedAt: new Date(now).toISOString(), tokenId: token.id }))) {
+      // Denied (or approved elsewhere) while this was on its way: the token must not outlive that.
+      await deps.store.revokeToken(token.id, profileId);
+      return fail(409, 'decided', 'Someone already decided on this request.', false);
+    }
     return json(200, { ...view, state: 'approved', record: tokenOut(token) }, false);
   }
   return fail(404, 'not_found', 'Not found.', false);
@@ -352,7 +363,8 @@ async function tokenSpec(b: Record<string, unknown>, profileId: string, deps: Ag
   if (name.length < 1 || name.length > 120) return { error: 'Give the token a name (at most 120 characters), such as the app it is for.' };
   const scopes = parseScopes(b['scopes']);
   if (!scopes) return { error: `Choose at least one of ${SCOPES.join(', ')}.` };
-  const access = orgId ? await deps.org(orgId).access(profileId) : null;
+  // Membership first, so nobody can wake an organization's object by naming it.
+  const access = orgId && (await deps.store.orgsOf(profileId)).includes(orgId) ? await deps.org(orgId).access(profileId) : null;
   if (!access || access.languages.length === 0) return { error: 'You are not in that organization, or you can see none of its languages.' };
   let languageIds: string[] | null = null;
   if (b['languageIds'] !== undefined && b['languageIds'] !== null) {

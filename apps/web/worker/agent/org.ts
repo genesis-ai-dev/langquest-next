@@ -95,6 +95,11 @@ export class AgentOrg {
     return yes({ eventId: event.id, duplicate: result.reason === 'duplicate', passage: passage && !isRefusal(passage) ? passage : null });
   }
 
+  /** Count an upload against the token's writes (http.ts voice notes). */
+  async spend(tokenId: string): Promise<boolean> {
+    return this.allowWrite(tokenId);
+  }
+
   /** A sliding hour, kept in the object's memory: one object per organization sees every write for its tokens. */
   private allowWrite(tokenId: string): boolean {
     const now = this.now();

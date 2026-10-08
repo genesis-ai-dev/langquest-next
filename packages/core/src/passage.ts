@@ -856,10 +856,36 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
   return out;
 }
 
+/**
+ * The newest version every step cleared on its own: each kind's latest
+ * review of that very version approves it (a checkpoint not by a logged
+ * check), or the kind was set aside, or the step overridden. `done` is
+ * looser, since it reads each kind's latest review of any version, so a
+ * re-recorded passage stays done while its new audio is still unheard.
+ * What leaves the team for publication (decisions.md 70) must be a version
+ * someone actually approved, so this is what the access-token API serves.
+ */
+export function approvedVersion(s: PassageState): Version | null {
+  for (let i = s.versions.length - 1; i >= 0; i -= 1) {
+    const v = s.versions[i]!;
+    const cleared = s.steps.every((st) => !!st.override || st.step.kindIds.every((kindId, k) => {
+      const status = st.kinds[k];
+      if (status?.state === 'skipped') return true;
+      let last: ReviewView | undefined;
+      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId) last = r; // reviews are in clock order
+      if (!last) return false;
+      const approves = last.outcome === 'looks_good' || (last.outcome === 'recorded' && status?.state === 'approved');
+      return approves && (!st.step.checkpoint || last.via !== 'logged');
+    }));
+    if (cleared) return v;
+  }
+  return null;
+}
+
 /** Whether a partner has marked the passage ready to publish (decisions.md 70). */
 export interface Publication {
   ready: boolean;
-  /** The version the decision is about. */
+  /** The approved version the decision is about. */
   takeId: string;
   versionN: number;
   /** Who decided: the account behind the token. */
@@ -870,21 +896,22 @@ export interface Publication {
 }
 
 /**
- * The latest publication decision on the latest version, or null when there
- * is none. Readiness belongs to one version: a new version starts without
- * it, and a passage that is no longer approved is never ready.
+ * The latest publication decision on the approved version, or null when
+ * there is none. Readiness belongs to one version: once a newer version is
+ * approved it starts without it, and a version whose approval is withdrawn
+ * is never ready.
  */
 export function publicationOf(s: PassageState): Publication | null {
-  const latest = s.latest;
-  if (!latest) return null;
+  const approved = approvedVersion(s);
+  if (!approved) return null;
   let last: ReviewView | null = null;
   for (const r of s.reviews) {
-    if (r.kindId !== PUBLICATION_KIND || r.takeId !== latest.takeId) continue;
+    if (r.kindId !== PUBLICATION_KIND || r.takeId !== approved.takeId) continue;
     if (!last || r.hlc > last.hlc || (r.hlc === last.hlc && r.id > last.id)) last = r;
   }
   if (!last) return null;
   return {
-    ready: s.done && last.outcome === 'looks_good', takeId: latest.takeId, versionN: latest.n, by: last.by, hlc: last.hlc,
+    ready: last.outcome === 'looks_good', takeId: approved.takeId, versionN: approved.n, by: last.by, hlc: last.hlc,
     ...(last.comment !== undefined ? { note: last.comment } : {})
   };
 }

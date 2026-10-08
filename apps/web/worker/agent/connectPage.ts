@@ -215,10 +215,12 @@ async function renderRequest(code) {
     return;
   }
   const org = g.requestedOrgId && orgs.some((o) => o.orgId === g.requestedOrgId) ? g.requestedOrgId : (orgs[0] || {}).orgId;
-  $('request-body').innerHTML = '<p class="code">' + esc(g.userCode) + '</p><p>Check this matches the code the app shows.</p>' +
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(g.createdAt)) / 60000));
+  $('request-body').innerHTML = '<p class="code">' + esc(g.userCode) + '</p><p>Check this matches the code the app shows. Asked ' + (mins < 1 ? 'just now' : mins + ' minute' + (mins === 1 ? '' : 's') + ' ago') + '.</p>' +
+    '<p class="notice">Approve only if you started this yourself, in an app or agent in front of you. If someone sent you this link, deny it.</p>' +
     '<p><b>' + esc(g.clientName) + '</b> <span class="tag">unverified</span></p><p class="muted">That is what the app calls itself. LangQuest cannot check it, so approve only an app you just asked to connect.</p>' +
-    '<form id="approve-form">' + orgSelect('d-org', org) + '<label>It asks to</label>' + scopeBoxes('d-scope', g.requestedScopes, g.requestedScopes) +
-    '<p class="muted">Untick anything you do not want it to have.</p><label>Languages</label><div id="d-langs-wrap">' + languageBoxes('d', org) + '</div>' + expirySelect('d-exp') +
+    '<form id="approve-form">' + orgSelect('d-org', org) + '<label>It asks to</label>' + scopeBoxes('d-scope', g.requestedScopes, g.requestedScopes.filter((s) => s.startsWith('read'))) +
+    '<p class="muted">Writing as you (feedback, publishing) starts unticked: tick it only if the app needs it.</p><label>Languages</label><div id="d-langs-wrap">' + languageBoxes('d', org) + '</div>' + expirySelect('d-exp') +
     '<div class="row"><button class="primary" type="submit">Approve</button><button type="button" id="deny">Deny</button></div></form>';
   wireLanguages('d');
   $('d-org').addEventListener('change', () => { $('d-langs-wrap').innerHTML = languageBoxes('d', $('d-org').value); wireLanguages('d'); });

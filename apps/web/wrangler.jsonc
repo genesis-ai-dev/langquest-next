@@ -48,6 +48,8 @@
   // /api/blobs. Created by scripts/r2-buckets.mjs; `wrangler dev` keeps a
   // local copy in .wrangler/state.
   "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs" }],
+  // Anyone may ask for a device code (agent/http.ts); per address, 20 a minute.
+  "ratelimits": [{ "name": "DEVICE_RATE_LIMIT", "namespace_id": "7001", "simple": { "limit": 20, "period": 60 } }],
   // The preview stack (docs/environments.md): langquest-next-dashboard-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
   // they are repeated here. Add "vars": { "SUPABASE_URL": ... } with the
@@ -61,7 +63,8 @@
       "durable_objects": {
         "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
       },
-      "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }]
+      "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
+      "ratelimits": [{ "name": "DEVICE_RATE_LIMIT", "namespace_id": "7002", "simple": { "limit": 20, "period": 60 } }]
     }
   }
 }

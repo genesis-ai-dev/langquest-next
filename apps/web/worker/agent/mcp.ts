@@ -11,6 +11,8 @@ import { isRefusal, parseFeedback, parsePublication, type ApiStatus, type Passag
  */
 
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+/** One request must not tie up the organization's object; clients send one message at a time anyway. */
+const MAX_BATCH = 20;
 
 interface Rpc {
   jsonrpc: '2.0';
@@ -161,6 +163,7 @@ export async function handleMcp(request: Request, grant: Grant, org: OrgStub, _u
   }
   const batch = Array.isArray(parsed);
   const messages: unknown[] = batch ? (parsed as unknown[]) : [parsed];
+  if (messages.length > MAX_BATCH) return new Response(JSON.stringify(error(null, -32600, `At most ${MAX_BATCH} messages in a batch.`)), { status: 400, headers: HEADERS });
   const answers = (await Promise.all(messages.map((m) => one(m as Rpc, grant, org)))).filter((a) => a !== null);
   if (answers.length === 0) return new Response(null, { status: 202, headers: HEADERS });
   return new Response(JSON.stringify(batch ? answers : answers[0]), { status: 200, headers: HEADERS });

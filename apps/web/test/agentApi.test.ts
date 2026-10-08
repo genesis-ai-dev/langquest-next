@@ -129,6 +129,15 @@ class MemoryStore implements AgentStore {
   async grantByUserCode(code: string) { return this.grants.find((g) => g.userCode === code) ?? null; }
   async grantByDeviceHash(hash: string) { return this.grants.find((g) => g.deviceCodeHash === hash) ?? null; }
   async updateGrant(id: string, patch: Partial<DeviceGrant>) { Object.assign(this.grants.find((g) => g.id === id)!, patch); }
+  async decideGrant(id: string, d: Partial<DeviceGrant>) {
+    const g = this.grants.find((x) => x.id === id)!;
+    if (g.approvedAt || g.deniedAt) return false;
+    Object.assign(g, d);
+    return true;
+  }
+  async deleteGrantsExpiredBefore(before: string) {
+    for (let i = this.grants.length - 1; i >= 0; i -= 1) if (this.grants[i]!.expiresAt < before) this.grants.splice(i, 1);
+  }
   async orgsOf(profileId: string) { return this.orgs.get(profileId) ?? []; }
 }
 
@@ -183,6 +192,23 @@ describe('reading', () => {
     expect(one.body.reviews).toEqual([]);
     expect(one.body.steps).toBeUndefined();
 
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).status).toBe(404);
+  });
+
+  it('keeps playing the approved version to a listening app while a new one waits for review', async () => {
+    const { call, token, log } = setup();
+    const t = await token('admin', { scopes: ['read:published', 'feedback'] });
+    // The team view still calls d1 done after a re-record: its peer kind's latest review approves.
+    recorded(log, 'din', 'd1', { take: 'take-d1-v2' });
+    const one = await call('GET', '/api/v1/languages/din/passages/d1', t);
+    expect(one.body.version).toMatchObject({ n: 1, takeId: 'take-d1' });
+    expect(one.body.audio.map((a: any) => a.hash)).toEqual([card('d1a').hash, card('d1b').hash]);
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/feedback', t, { outcome: 'looks_good', listenerId: 'a', takeId: 'take-d1-v2' })).status).toBe(404);
+    // Feedback answered by a revision is "addressed" for the team, but nobody approved the revision.
+    const reader = await token('admin', { scopes: ['read'] });
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-no', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app' }, 'rev');
+    recorded(log, 'din', 'd2', { take: 'take-d2-v2' });
+    expect((await call('GET', '/api/v1/languages/din/passages/d2', reader)).body).toMatchObject({ status: 'approved', approvedVersion: null });
     expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).status).toBe(404);
   });
 
@@ -259,6 +285,14 @@ describe('writing', () => {
     expect(JSON.stringify(log.streams.get('din'))).not.toContain('device-42');
   });
 
+  it('will not attach audio already in the language as a voice note, which would hand out a link to it', async () => {
+    const { call, token } = setup();
+    const t = await token('rev', { scopes: ['read:published', 'feedback'] });
+    // d2's cards are unapproved; a published-only token must not get a link to them this way.
+    const r = await call('POST', '/api/v1/languages/din/passages/d1/feedback', t, { outcome: 'needs_changes', listenerId: 'a', voiceNoteHash: card('d2a').hash });
+    expect(r.status).toBe(400);
+  });
+
   it('lets a team hear about needs-changes on a version in review', async () => {
     const { call, token } = setup();
     const t = await token('rev', { scopes: ['read', 'feedback'] });
@@ -288,10 +322,18 @@ describe('writing', () => {
     const ok = await call('POST', '/api/v1/languages/din/passages/d1/publication', t, { ready: true, note: 'Checked with the elders' });
     expect(ok.body.passage.publication).toMatchObject({ ready: true, versionN: 1, note: 'Checked with the elders' });
     expect((await call('GET', '/api/v1/languages/din/passages?ready=true', t)).body.map((p: any) => p.unitId)).toEqual(['d1']);
-    // The team records a new version of d1: readiness does not carry over.
+    // The team records a new version of d1. Nobody has heard it, so the
+    // approved version, and its readiness, are still version 1's.
     recorded(log, 'din', 'd1', { take: 'take-d1-v2' });
+    const waiting = await call('GET', '/api/v1/languages/din/passages/d1', t);
+    expect(waiting.body.version.n).toBe(2);
+    expect(waiting.body.approvedVersion.n).toBe(1);
+    expect(waiting.body.publication).toMatchObject({ ready: true, versionN: 1 });
+    expect((await call('POST', '/api/v1/languages/din/passages/d1/publication', t, { ready: true, takeId: 'take-d1-v2' })).body.code).toBe('not_approved');
+    // Once version 2 is approved, it starts without readiness.
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-v2', takeId: 'take-d1-v2', kindId: 'peer', outcome: 'looks_good', via: 'app' }, 'rev');
     const after = await call('GET', '/api/v1/languages/din/passages/d1', t);
-    expect(after.body.version.n).toBe(2);
+    expect(after.body.approvedVersion.n).toBe(2);
     expect(after.body.publication).toBeNull();
   });
 });
@@ -325,6 +367,20 @@ describe('the device flow', () => {
     expect(store.tokens[0]!.clientName).toBe('Every Language Listener');
   });
 
+  it('never leaves a working token behind when an approval and a denial cross', async () => {
+    const { call, store } = setup();
+    const a = await call('POST', '/api/v1/device/code', undefined, { clientName: 'Agent', scopes: ['read'] });
+    // Someone denies in another tab after this page loaded the request as pending.
+    const real = store.decideGrant.bind(store);
+    store.decideGrant = async (id, d) => {
+      await real(id, { deniedAt: new Date(T0).toISOString() });
+      return real(id, d);
+    };
+    const r = await call('POST', `/api/v1/session/device/${a.body.user_code}`, 'jwt:admin', { decision: 'approve', orgId: ORG, scopes: ['read'] });
+    expect(r.status).toBe(409);
+    expect((await call('GET', '/api/v1/languages', a.body.device_code)).body.code).toBe('revoked');
+  });
+
   it('tells the app when a person denies it or nobody answers', async () => {
     const { call, advance } = setup();
     const a = await call('POST', '/api/v1/device/code', undefined, { client_name: 'Agent', scope: 'read' });
@@ -352,6 +408,8 @@ describe('MCP', () => {
     expect(JSON.parse(listed.body.result.content[0].text).map((p: any) => p.unitId)).toEqual(['d1']);
     const sent = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'send_feedback', arguments: { languageId: 'din', unitId: 'd1', outcome: 'looks_good', comment: 'Clear' } }));
     expect(sent.body.result.isError).toBe(false);
+    const flood = Array.from({ length: 21 }, (_, i) => rpc(100 + i, 'tools/call', { name: 'list_languages', arguments: {} }));
+    expect((await call('POST', '/api/v1/mcp', t, flood)).status).toBe(400);
     const refused = await call('POST', '/api/v1/mcp', t, rpc(5, 'tools/call', { name: 'set_publication_ready', arguments: {} }));
     expect(refused.body.error.code).toBe(-32602);
   });

@@ -1,6 +1,6 @@
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { encodeHlc } from '../src/hlc';
-import { derivePassage, publicationOf } from '../src/passage';
+import { approvedVersion, derivePassage, publicationOf } from '../src/passage';
 import { foldLanguage } from '../src/reducer';
 import { PUBLICATION_KIND } from '../src/record';
 
@@ -44,19 +44,42 @@ describe('publicationOf', () => {
     expect(publicationOf(passage(mark('p1', 't1', 'looks_good')))).toMatchObject({ ready: true, takeId: 't1' });
   });
 
-  it('does not carry over to a new version', () => {
-    const s = passage(
-      mark('p1', 't1', 'looks_good'),
+  it('stays with the approved version while a new one waits, and resets once the new one is approved', () => {
+    const v2: [EventType, unknown][] = [
       ['v1.TakeComposed', { takeId: 't2', unitId: 'u', cardHashes: ['b'.repeat(64)], parentTakeId: 't1' }],
       ['v1.TakeSubmitted', { takeId: 't2' }]
-    );
-    expect(s.latest?.takeId).toBe('t2');
-    expect(publicationOf(s)).toBeNull();
+    ];
+    const waiting = passage(mark('p1', 't1', 'looks_good'), ...v2);
+    expect(waiting.latest?.takeId).toBe('t2');
+    expect(publicationOf(waiting)).toMatchObject({ ready: true, takeId: 't1', versionN: 1 });
+    const approved = passage(mark('p1', 't1', 'looks_good'), ...v2,
+      ['v1.ReviewRecorded', { reviewId: 'peer2', takeId: 't2', kindId: 'peer', outcome: 'looks_good', via: 'app' }]);
+    expect(publicationOf(approved)).toBeNull();
   });
 
-  it('is never ready on a passage that is not approved', () => {
-    const s = passage(['v1.ReviewRecorded', { reviewId: 'peer2', takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app' }], mark('p1', 't1', 'looks_good'));
-    expect(s.done).toBe(false);
-    expect(publicationOf(s)?.ready).toBe(false);
+  it('is never ready on a version whose approval was withdrawn', () => {
+    const s = passage(mark('p1', 't1', 'looks_good'), ['v1.ReviewRecorded', { reviewId: 'peer2', takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app' }]);
+    expect(publicationOf(s)).toBeNull();
+  });
+});
+
+describe('approvedVersion', () => {
+  const v2 = (parent = 't1'): [EventType, unknown][] => [
+    ['v1.TakeComposed', { takeId: 't2', unitId: 'u', cardHashes: ['b'.repeat(64)], parentTakeId: parent }],
+    ['v1.TakeSubmitted', { takeId: 't2' }]
+  ];
+
+  it('is the version a review approved, not newer audio nobody has heard', () => {
+    // The team view still calls the passage done: its peer kind's latest review approves.
+    const s = passage(...v2());
+    expect(s.done).toBe(true);
+    expect(approvedVersion(s)?.takeId).toBe('t1');
+  });
+
+  it('does not count a revision that answered feedback as approved', () => {
+    const s = passage(['v1.ReviewRecorded', { reviewId: 'peer2', takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app' }], ...v2());
+    // "Addressed" completes the step for the team, but nobody approved t2.
+    expect(s.done).toBe(true);
+    expect(approvedVersion(s)).toBeNull();
   });
 });

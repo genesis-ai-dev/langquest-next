@@ -44,7 +44,11 @@ export interface AgentStore {
   insertGrant(grant: Omit<DeviceGrant, 'id' | 'createdAt' | 'lastPolledAt' | 'approvedAt' | 'deniedAt' | 'tokenId'> & { deviceCodeHash: string }): Promise<DeviceGrant>;
   grantByUserCode(userCode: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
   grantByDeviceHash(hash: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
-  updateGrant(id: string, patch: Partial<Pick<DeviceGrant, 'lastPolledAt' | 'approvedAt' | 'deniedAt' | 'tokenId'>>): Promise<void>;
+  updateGrant(id: string, patch: Partial<Pick<DeviceGrant, 'lastPolledAt'>>): Promise<void>;
+  /** Approve or deny once: false when someone already decided (two tabs, two people with the code). */
+  decideGrant(id: string, decision: { approvedAt: string; tokenId: string } | { deniedAt: string }): Promise<boolean>;
+  /** Forget requests that expired before `before`; anyone may ask for a code, so they must not pile up. */
+  deleteGrantsExpiredBefore(before: string): Promise<void>;
   /** Organizations the person has any membership in. */
   orgsOf(profileId: string): Promise<string[]>;
 }
@@ -119,10 +123,16 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
     async updateGrant(id, patch) {
       const row: Row = {};
       if (patch.lastPolledAt !== undefined) row['last_polled_at'] = patch.lastPolledAt;
-      if (patch.approvedAt !== undefined) row['approved_at'] = patch.approvedAt;
-      if (patch.deniedAt !== undefined) row['denied_at'] = patch.deniedAt;
-      if (patch.tokenId !== undefined) row['token_id'] = patch.tokenId;
       must('api_device_grants update', await service.from('api_device_grants').update(row).eq('id', id));
+    },
+    async decideGrant(id, d) {
+      const row = 'deniedAt' in d ? { denied_at: d.deniedAt } : { approved_at: d.approvedAt, token_id: d.tokenId };
+      const data = must('api_device_grants decide', await service.from('api_device_grants').update(row)
+        .eq('id', id).is('approved_at', null).is('denied_at', null).select('id'));
+      return (data as Row[]).length > 0;
+    },
+    async deleteGrantsExpiredBefore(before) {
+      must('api_device_grants cleanup', await service.from('api_device_grants').delete().lt('expires_at', before));
     },
     async orgsOf(profileId) {
       const data = must('org_memberships', await service.from('org_memberships').select('org_id').eq('profile_id', profileId).eq('removed', false));

@@ -51,10 +51,16 @@ export default {
           return {
             read: (grant, q) => object.agentRead(orgId, grant, q, url.origin),
             write: (grant, w) => object.agentWrite(orgId, grant, w, url.origin),
-            access: (profileId) => object.agentAccess(orgId, profileId)
+            access: (profileId) => object.agentAccess(orgId, profileId),
+            spend: (tokenId) => object.agentSpend(orgId, tokenId)
           } as OrgStub;
         },
         // Named by its hash like every file (decision 69); R2 checks the bytes against it.
+        deviceAllowed: async (req) => {
+          if (!env.DEVICE_RATE_LIMIT) return true;
+          const { success } = await env.DEVICE_RATE_LIMIT.limit({ key: req.headers.get('cf-connecting-ip') ?? 'unknown' });
+          return success;
+        },
         saveVoiceNote: async (orgId, languageId, bytes) => {
           const hash = await sha256Hex(bytes);
           const { size } = await r2Bucket(env.BLOBS).put(`${orgId}/${languageId}/${hash}.m4a`, bytes, bytes.length, hash, 'audio/mp4');
@@ -67,5 +73,8 @@ export default {
   // Verse timings asked for LangQuest's own sources, published when fia-align finishes them (worker/timings.ts).
   async scheduled(_event, env, ctx) {
     ctx.waitUntil(publishLangQuestTimings(serviceClient(env)).then((r) => { if (r.jobs) console.log(`timings: ${r.published} of ${r.jobs} jobs published`); }));
+    // App requests for a token, a day after they lapsed: anyone may make one, so they must not pile up.
+    ctx.waitUntil(supabaseAgentStore(serviceClient(env)).deleteGrantsExpiredBefore(new Date(Date.now() - 86_400_000).toISOString())
+      .catch((e: unknown) => console.error('device grant cleanup', e)));
   }
 } satisfies ExportedHandler<Env>;

@@ -32,6 +32,10 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.agentFor(orgId, origin).write(grant, w);
   }
 
+  async agentSpend(orgId: string, tokenId: string): Promise<boolean> {
+    return this.agentFor(orgId, '').spend(tokenId);
+  }
+
   async agentAccess(orgId: string, profileId: string): Promise<OrgAccess | null> {
     return this.agentFor(orgId, '').access(profileId);
   }

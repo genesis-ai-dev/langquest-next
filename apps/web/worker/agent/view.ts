@@ -1,7 +1,7 @@
 import {
-  buildIndexes, derivePassage, encodeHlc, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
-  privilegesFor, PUBLICATION_KIND, publicationOf, stateRevision, validateEvent,
-  type AnyEvent, type Card, type LanguageState, type OrgState, type PassageState
+  approvedVersion, buildIndexes, derivePassage, encodeHlc, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
+  privilegesFor, PUBLICATION_KIND, publicationOf, referencedBlobs, stateRevision, validateEvent,
+  type AnyEvent, type Card, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, coversLanguage, sha256Hex, type Grant } from './tokens';
 
@@ -28,10 +28,15 @@ export interface PassageSummary {
   /** Labels of the units that hold it, outermost first ("Genesis", "Chapter 1"). */
   path: string[];
   status: ApiStatus;
-  /** The latest version shared for review; null before there is one. */
+  /**
+   * The version this token hears: the latest shared for review with `read`,
+   * the approved one with `read:published` alone. Null when there is none.
+   */
   version: { n: number; takeId: string; submittedAt: string; durationMs: number } | null;
+  /** The newest version every step approved on its own (core approvedVersion); what a listening app should play. */
+  approvedVersion: { n: number; takeId: string } | null;
   publication: { ready: boolean; versionN: number; decidedAt: string; note?: string } | null;
-  /** Listener feedback on the latest version. */
+  /** Listener feedback on `version`. */
   listenerFeedback: { looksGood: number; needsChanges: number };
   /** The newest thing that happened to the passage's versions or reviews. */
   updatedAt: string | null;
@@ -59,7 +64,7 @@ export interface ReviewOut {
 }
 
 export interface PassageDetail extends PassageSummary {
-  /** The latest version's cards, in playing order. Empty before there is a version. */
+  /** `version`'s cards, in playing order. Empty when there is none. */
   audio: AudioCard[];
   /** With `read`: every review of every version. With `read:published` only: listener and publication reviews. */
   reviews: ReviewOut[];
@@ -138,32 +143,37 @@ const statusOf = (s: PassageState): ApiStatus => {
   return w === 'done' ? 'approved' : w;
 };
 
-function summarize(state: LanguageState, s: PassageState): PassageSummary {
+/** The version a token hears: the approved one for a published-only token, else the latest. */
+const heard = (grant: Grant, s: PassageState): Version | null => (canRead(grant, true) ? s.latest ?? null : approvedVersion(s));
+
+function summarize(grant: Grant, state: LanguageState, s: PassageState): PassageSummary {
   const cards = cardsOf(state);
-  const latest = s.latest;
-  const onLatest = latest ? s.reviews.filter((r) => r.takeId === latest.takeId && r.kindId === LISTENER_KIND) : [];
+  const v = heard(grant, s);
+  const approved = approvedVersion(s);
+  const onVersion = v ? s.reviews.filter((r) => r.takeId === v.takeId && r.kindId === LISTENER_KIND) : [];
   const pub = publicationOf(s);
-  let newest: string | null = latest?.hlc ?? null;
+  let newest: string | null = s.latest?.hlc ?? null;
   for (const r of s.reviews) if (!newest || r.hlc > newest) newest = r.hlc;
   return {
     unitId: s.unitId,
     label: state.units[s.unitId]?.label ?? s.unitId,
     path: pathOf(state, s.unitId),
     status: statusOf(s),
-    version: latest
-      ? { n: latest.n, takeId: latest.takeId, submittedAt: iso(latest.hlc), durationMs: latest.cardHashes.reduce((t, h) => t + (cards.get(h)?.durationMs ?? 0), 0) }
+    version: v
+      ? { n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: v.cardHashes.reduce((t, h) => t + (cards.get(h)?.durationMs ?? 0), 0) }
       : null,
+    approvedVersion: approved ? { n: approved.n, takeId: approved.takeId } : null,
     publication: pub ? { ready: pub.ready, versionN: pub.versionN, decidedAt: iso(pub.hlc), ...(pub.note !== undefined ? { note: pub.note } : {}) } : null,
     listenerFeedback: {
-      looksGood: onLatest.filter((r) => r.outcome === 'looks_good').length,
-      needsChanges: onLatest.filter((r) => r.outcome === 'needs_changes').length
+      looksGood: onVersion.filter((r) => r.outcome === 'looks_good').length,
+      needsChanges: onVersion.filter((r) => r.outcome === 'needs_changes').length
     },
     updatedAt: newest ? iso(newest) : null
   };
 }
 
-/** A token with only `read:published` sees approved passages and nothing else. */
-const visible = (grant: Grant, s: PassageState) => canRead(grant, true) || (canRead(grant) && s.done);
+/** A token with only `read:published` sees passages with an approved version, and only that version. */
+const visible = (grant: Grant, s: PassageState) => canRead(grant, true) || (canRead(grant) && approvedVersion(s) !== null);
 
 export interface PassageFilter {
   status?: ApiStatus;
@@ -179,7 +189,7 @@ export function passagesFor(grant: Grant, state: LanguageState, filter: PassageF
   for (const unitId of idx.passages) {
     const s = derivePassage(state, unitId, idx);
     if (!visible(grant, s)) continue;
-    const sum = summarize(state, s);
+    const sum = summarize(grant, state, s);
     if (filter.status && sum.status !== filter.status) continue;
     if (filter.ready !== undefined && (sum.publication?.ready ?? false) !== filter.ready) continue;
     if (filter.changedSince && (!sum.updatedAt || sum.updatedAt <= filter.changedSince)) continue;
@@ -199,7 +209,8 @@ export async function passageFor(
   const cards = cardsOf(state);
   const key = (hash: string, format: string) => `${orgId}/${languageId}/${hash}.${format}`;
   const audio: AudioCard[] = [];
-  for (const hash of s.latest?.cardHashes ?? []) {
+  const v = heard(grant, s);
+  for (const hash of v?.cardHashes ?? []) {
     const card = cards.get(hash);
     const format = card?.format ?? 'wav';
     const link = await sign(key(hash, format));
@@ -207,7 +218,7 @@ export async function passageFor(
   }
   const reviews: ReviewOut[] = [];
   for (const r of s.reviews) {
-    if (!all && r.kindId !== LISTENER_KIND && r.kindId !== PUBLICATION_KIND) continue;
+    if (!all && ((r.kindId !== LISTENER_KIND && r.kindId !== PUBLICATION_KIND) || r.takeId !== v?.takeId)) continue;
     const out: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
     if (r.comment !== undefined) out.comment = r.comment;
     if (r.givenBy !== undefined) out.givenBy = r.givenBy;
@@ -217,7 +228,7 @@ export async function passageFor(
     }
     reviews.push(out);
   }
-  const detail: PassageDetail = { ...summarize(state, s), audio, reviews };
+  const detail: PassageDetail = { ...summarize(grant, state, s), audio, reviews };
   if (all) {
     detail.steps = s.steps.map((st) => ({ name: st.step.kindIds.map((k) => kindOf(state, k).name).join(' + '), complete: st.complete }));
     detail.versions = s.versions.map((v) => ({ n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc) }));
@@ -243,7 +254,7 @@ export interface FeedbackInput {
 }
 
 export interface PublicationInput {
-  /** The version decided on; must be the latest. */
+  /** The version decided on; must be the approved one (core approvedVersion), which it defaults to. */
   takeId?: string;
   ready: boolean;
   note?: string;
@@ -301,11 +312,12 @@ function target(ctx: WriteContext, scope: 'feedback' | 'publish', takeId: string
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const s = derivePassage(state, unitId, idx);
-  if (!s.latest) return refuse(409, 'no_version', 'This passage has no version shared for review yet.');
-  const id = takeId ?? s.latest.takeId;
+  // What a token cannot read, it cannot answer either: a published-only token hears the approved version.
+  const own = heard(grant, s);
+  if (!own) return refuse(canRead(grant, true) ? 409 : 404, canRead(grant, true) ? 'no_version' : 'no_passage', canRead(grant, true) ? 'This passage has no version shared for review yet.' : 'There is no approved passage with that id in this language.');
+  const id = takeId ?? own.takeId;
   if (!s.versions.some((v) => v.takeId === id)) return refuse(404, 'no_version', 'That takeId is not a version of this passage.');
-  // What a token cannot read, it cannot answer either.
-  if (!canRead(grant, true) && (!s.done || id !== s.latest.takeId)) return refuse(404, 'no_passage', 'There is no approved passage with that id in this language.');
+  if (!canRead(grant, true) && id !== own.takeId) return refuse(404, 'no_version', 'This token hears only the approved version.');
   return { s, takeId: id };
 }
 
@@ -333,6 +345,10 @@ function checked(event: AnyEvent): AnyEvent | Refusal {
 export async function feedbackEvent(ctx: WriteContext, input: FeedbackInput): Promise<AnyEvent | Refusal> {
   const t = target(ctx, 'feedback', input.takeId);
   if (isRefusal(t)) return t;
+  // A voice note is new audio from this upload; naming a card or note already in the language would hand out a link to it.
+  if (input.voiceNoteHash && referencedBlobs(ctx.state).has(input.voiceNoteHash)) {
+    return refuse(400, 'bad_request', 'voiceNoteHash must be a voice note you just uploaded.');
+  }
   // Only a hash of the app's listener id reaches the log.
   const listener = (await sha256Hex(`${ctx.grant.tokenId}\n${input.listenerId}`)).slice(0, 16);
   const reviewId = `${LISTENER_KIND}-${(await sha256Hex([ctx.grant.tokenId, t.takeId, listener, input.feedbackId ?? input.outcome].join('\n'))).slice(0, 32)}`;
@@ -346,10 +362,11 @@ export async function feedbackEvent(ctx: WriteContext, input: FeedbackInput): Pr
 
 /** Ready for publication, or taken back, as a review of the `publication` kind on the approved latest version. */
 export async function publicationEvent(ctx: WriteContext, input: PublicationInput): Promise<AnyEvent | Refusal> {
-  const t = target(ctx, 'publish', input.takeId);
+  const approved = approvedVersion(derivePassage(ctx.state, ctx.unitId));
+  const t = target(ctx, 'publish', input.takeId ?? approved?.takeId);
   if (isRefusal(t)) return t;
-  if (!t.s.done) return refuse(409, 'not_approved', 'Only an approved passage can be marked ready for publication.');
-  if (t.takeId !== t.s.latest!.takeId) return refuse(409, 'not_latest', 'That is not the latest version; readiness is decided on the latest one.');
+  if (!approved) return refuse(409, 'not_approved', 'Only a version every step approved can be marked ready for publication.');
+  if (t.takeId !== approved.takeId) return refuse(409, 'not_approved', `Readiness is decided on the approved version, ${approved.n}.`);
   const reviewId = `${PUBLICATION_KIND}-${(await sha256Hex([ctx.grant.tokenId, t.takeId, String(input.ready), String(ctx.now)].join('\n'))).slice(0, 32)}`;
   return checked(envelope(ctx, reviewId, {
     takeId: t.takeId, kindId: PUBLICATION_KIND, outcome: input.ready ? 'looks_good' : 'needs_changes', via: 'link',

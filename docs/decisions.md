@@ -1888,9 +1888,13 @@ whether a passage sounds right, and marks what is ready to publish; agents
   organization's Durable Object from the same folds as the reports
   (decision 44, `apps/web/worker/agent/`), with the same rules as MCP tools
   at `/api/v1/mcp` (stateless streamable HTTP, a bearer header, so any MCP
-  client connects with one URL). A `read:published` token sees approved
-  passages only, so a listening app can never play an unapproved version;
-  audio comes as the ten-minute read links of decision 69. Any origin may
+  client connects with one URL). A `read:published` token sees only a
+  passage's approved version, core `approvedVersion`: the newest version
+  every step approved by reviews of that very version. `done` is looser (it
+  reads each kind's latest review of any version, and an answered "needs
+  changes" counts), so a re-recorded passage stays done while its new audio
+  is unheard; a listening app keeps playing the version that was approved.
+  Audio comes as the ten-minute read links of decision 69. Any origin may
   call it, since the token is a header and never a cookie.
 - Writes are ordinary events, appended with `append_events` as the token's
   person from a device of the token's own (`api-<token id>`), so the
@@ -1898,9 +1902,11 @@ whether a passage sounds right, and marks what is ready to publish; agents
   `v1.ReviewRecorded` of kind `listener` given by link, with the listener's
   name in `givenBy` and the app's listener id only as a hash in the review
   id (one answer per listener, version and outcome, against griefing), plus
-  600 writes an hour per token. Ready for publication is a review of kind
-  `publication` on the approved latest version, read by core
-  `publicationOf`, so it never outlives the version or the approval. Both
+  600 writes an hour per token (voice-note uploads included), and the
+  device endpoints, open to anyone, are rate-limited per address. Ready for
+  publication is a review of kind `publication` on the approved version,
+  read by core `publicationOf`, so it never outlives that version or its
+  approval. Both
   kinds are in no flow: they never complete or block a step. No new event
   type was needed.
 Rejected: OAuth with redirects and client registration (more moving parts
