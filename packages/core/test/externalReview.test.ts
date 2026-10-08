@@ -5,7 +5,7 @@ import { foldLanguage } from '../src/reducer';
 import { validateEvent } from '../src/validate';
 
 /**
- * What leaves the team (decisions.md 70). A listening app plays, and a
+ * What leaves the team (decisions.md 71). A listening app plays, and a
  * partner releases, only a version someone actually approved; a review
  * through a shared link (recorded by whoever shared it) never clears a
  * checkpoint; and a release is a fact per version and channel.
@@ -84,6 +84,16 @@ describe('releasesOf', () => {
       ['v1.VersionReleased', { takeId: 't1', channel: 'website', live: false }, late],
       ['v1.VersionReleased', { takeId: 't1', channel: 'website', live: true }, late - 1]);
     expect(releasesOf(state, s).map((r) => [r.channel, r.versionN])).toEqual([['EL app', 2]]);
+  });
+
+  it('takes a review voice clip pinned to a moment, as a whole number of ms', () => {
+    const base = { id: 'x', orgId: 'o', streamId: 'L', actorId: 'p', deviceId: 'd', hlc: encodeHlc(1, 0, 'd') };
+    const check = (atMs: unknown) => validateEvent({ ...base, type: 'v1.ReviewRecorded', payload: {
+      reviewId: 'r', takeId: 't1', kindId: 'listener', outcome: 'needs_changes', via: 'link', artifacts: [{ hash: 'h', durationMs: 900, format: 'm4a', atMs }]
+    } } as AnyEvent);
+    expect(check(undefined)).toBeNull();
+    expect(check(41_500)).toBeNull();
+    for (const bad of [-1, 1.5, '3', null]) expect(check(bad)).not.toBeNull();
   });
 
   it('refuses a release without a channel or a yes or no', () => {

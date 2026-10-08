@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70.
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens) and 71 (reviews, releases, review links).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, and report where a version is published.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
@@ -81,9 +81,10 @@ curl -X POST -H "$T" -H 'content-type: application/json' \
 - `reviewerId` is required: your id for whoever gave it. Only a hash is stored. It records one answer per reviewer, version, kind and outcome, so a retry records nothing new. Send `submissionId` to let one reviewer answer again.
 - `reviewerName` is shown to the team.
 - `takeId` defaults to `version`.
-- A voice note:
-  1. `PUT …/languages/LANG/voice-notes` with the audio as the body and a `Content-Length`. It must be AAC in MP4 (`.m4a`) or WAV, up to 20 MB, and counts as a write.
-  2. Send the `voiceNote` object it returns with the review.
+- Voice notes, up to 10, each optionally about a moment of the recording:
+  1. `PUT …/languages/LANG/voice-notes` for each, with the audio as the body and a `Content-Length`. It must be AAC in MP4 (`.m4a`) or WAV, up to 20 MB, and counts as a write. It returns `{ "voiceNote": { hash, format, durationMs } }`.
+  2. Send them as `"voiceNotes": [{ …voiceNote, "durationMs": 4200, "atMs": 41500 }]`. `atMs` is where in the version the note is about, in whole milliseconds from the start; leave it out for the whole version.
+- Reading a passage, each review's `voiceNotes` come back in order, each with a playable `url`, `durationMs` and `atMs` if it has one.
 
 ### Releases
 
@@ -101,8 +102,15 @@ curl -X POST -H "$T" -H 'content-type: application/json' \
 
 Someone who may send work to reviewers, and may review or translate, shares a link to one version of one passage, for one kind of review. Anyone holding it can listen on `/r/<code>` and answer.
 - No account is needed.
-- They answer with any name (the browser remembers it), looks good or needs changes, and an optional comment and voice note.
-- The voice note is MP4 where the browser can record it, otherwise WAV; phones play both.
+- The page is one column with nothing else on it:
+  - play, with a scrubber;
+  - **Comment here**, which pauses and records a voice clip pinned to that moment (up to 10, shown as marks on the scrubber; tap one to jump there);
+  - Good or Needs changes;
+  - an optional written comment;
+  - any name (the browser remembers it);
+  - Send.
+- Clips are MP4 where the browser can record it, otherwise WAV; phones play both.
+- The page links the privacy policy, which says what a review link keeps.
 
 **Making one**, from the app (signed in) or with a token that has `read` and `review`:
 
@@ -162,6 +170,6 @@ The device endpoints use OAuth's error codes.
 | MCP | `apps/web/worker/agent/mcp.ts` |
 | `/connect` | `apps/web/worker/agent/connectPage.ts` |
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
-| Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008000001_review_links_releases.sql` |
+| Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql` |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

@@ -74,7 +74,8 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   switch (e.type) {
     case 'v1.ReviewRecorded':
       variants.push({ ...p, outcome: 'recorded', artifacts: [] }, { ...p, artifacts: [{ hash: 'x' }] }, { ...p, artifacts: ['x'] },
-        { ...p, people: -1 }, { ...p, answers: { q: 5 } }, { ...p, answers: [] }, { ...p, via: 'email' });
+        { ...p, people: -1 }, { ...p, answers: { q: 5 } }, { ...p, answers: [] }, { ...p, via: 'email' },
+        ...[0, 4200, -1, 1.5, '3', null].map((atMs) => ({ ...p, artifacts: [{ hash: 'x', durationMs: 900, format: 'm4a', atMs }] })));
       break;
     case 'v1.RecordingAdded':
       variants.push({ ...p, cards: [{ hash: '', durationMs: 1 }] }, { ...p, cards: [{ hash: 'x', durationMs: '1' }] }, { ...p, cards: {} });

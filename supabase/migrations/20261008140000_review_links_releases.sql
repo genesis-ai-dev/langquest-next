@@ -1,4 +1,4 @@
--- Shared review links and releases (decisions.md 70).
+-- Shared review links and releases (decisions.md 71).
 --
 -- Two new language-stream events: v1.FlowStepLinksSet (may a flow step be
 -- reviewed through a shared link) and v1.VersionReleased (a channel reports
@@ -392,3 +392,32 @@ create index review_links_passage on public.review_links (org_id, language_id, u
 alter table public.review_links enable row level security;
 revoke all on public.review_links from public, anon, authenticated;
 grant select, insert, update, delete on public.review_links to service_role;
+
+-- The token scopes became read:published, read, review and release
+-- (decisions.md 71): `feedback` grew into `review` (listener feedback or a
+-- flow step) and `publish` became `release`. Tokens and pending app requests
+-- already issued keep working under the new names.
+alter table public.api_tokens drop constraint api_tokens_scopes_check;
+alter table public.api_device_grants drop constraint api_device_grants_requested_scopes_check;
+
+update public.api_tokens set scopes = array(
+  select distinct case s when 'feedback' then 'review' when 'publish' then 'release' else s end from unnest(scopes) s)
+  where scopes && array['feedback', 'publish'];
+update public.api_device_grants set requested_scopes = array(
+  select distinct case s when 'feedback' then 'review' when 'publish' then 'release' else s end from unnest(requested_scopes) s)
+  where requested_scopes && array['feedback', 'publish'];
+
+alter table public.api_tokens add constraint api_tokens_scopes_check check (
+  cardinality(scopes) > 0 and scopes <@ array['read:published', 'read', 'review', 'release']::text[]);
+alter table public.api_device_grants add constraint api_device_grants_requested_scopes_check check (
+  cardinality(requested_scopes) > 0 and requested_scopes <@ array['read:published', 'read', 'review', 'release']::text[]);
+
+-- A card may say where in a version it is about (`atMs`, core Card): a
+-- reviewer's voice clip at a moment. Optional, a whole number of ms.
+create or replace function public._is_cards(v jsonb) returns boolean language sql immutable as $$
+  select v is not null and jsonb_typeof(v) = 'array' and not exists (
+    select 1 from jsonb_array_elements(v) c
+    where jsonb_typeof(c) <> 'object' or not public._is_str(c->'hash') or jsonb_typeof(c->'durationMs') is distinct from 'number'
+      or (c ? 'atMs' and not (jsonb_typeof(c->'atMs') = 'number' and (c->>'atMs')::numeric >= 0
+        and (c->>'atMs')::numeric = trunc((c->>'atMs')::numeric))));
+$$;

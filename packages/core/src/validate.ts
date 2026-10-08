@@ -31,6 +31,7 @@ export function validateEvent(e: AnyEvent): string | null {
       if (!isObject(c)) return `${k} entries must be objects`;
       if (typeof c['hash'] !== 'string' || c['hash'] === '') return `${k} entries need a hash`;
       if (typeof c['durationMs'] !== 'number') return `${k} entries need durationMs`;
+      if (c['atMs'] !== undefined && !(Number.isInteger(c['atMs']) && (c['atMs'] as number) >= 0)) return `${k} atMs must be a whole number of milliseconds`;
     }
     return null;
   };

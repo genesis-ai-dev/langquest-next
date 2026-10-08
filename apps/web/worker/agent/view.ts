@@ -61,7 +61,8 @@ export interface ReviewOut {
   at: string;
   comment?: string;
   givenBy?: string;
-  voiceNote?: { url: string; expiresAt: string };
+  /** Voice notes, each with where in the version it is about (`atMs`) when the reviewer said. */
+  voiceNotes?: { url: string; expiresAt: string; durationMs: number; atMs?: number }[];
 }
 
 export interface PassageDetail extends PassageSummary {
@@ -223,11 +224,18 @@ export async function passageFor(
     const out: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
     if (r.comment !== undefined) out.comment = r.comment;
     if (r.givenBy !== undefined) out.givenBy = r.givenBy;
-    // A voice note is m4a in commentBlobHash, or, from a browser that cannot record MP4, a WAV card among the artifacts.
-    const note = r.commentBlobHash ? { hash: r.commentBlobHash, format: 'm4a' } : r.outcome !== 'recorded' ? r.artifacts?.[0] : undefined;
-    if (note) {
-      const link = await sign(key(note.hash, note.format ?? 'wav'));
-      out.voiceNote = { url: link.url, expiresAt: new Date(link.expiresAt).toISOString() };
+    // Voice notes: one m4a in commentBlobHash (the app's), and clips among the artifacts (from outside;
+    // for a kind that makes content, the artifacts are that content, not notes).
+    const notes: Card[] = [
+      ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: 'm4a' as const }] : []),
+      ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
+    ];
+    if (notes.length) {
+      out.voiceNotes = [];
+      for (const n of notes) {
+        const link = await sign(key(n.hash, n.format ?? 'wav'));
+        out.voiceNotes.push({ url: link.url, expiresAt: new Date(link.expiresAt).toISOString(), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
+      }
     }
     reviews.push(out);
   }
@@ -246,14 +254,19 @@ export interface VoiceNote {
   hash: string;
   format: 'm4a' | 'wav';
   durationMs: number;
+  /** Where in the version it is about, ms from the start; absent for the whole version. */
+  atMs?: number;
 }
+
+/** Clips one review may carry: enough for a careful listener, not a channel for files. */
+export const MAX_VOICE_NOTES = 10;
 
 export interface ReviewInput {
   /** A kind in the language's flow, or `listener` (the default): feedback that never clears a step. */
   kindId?: string;
   outcome: 'looks_good' | 'needs_changes';
   comment?: string;
-  voiceNote?: VoiceNote;
+  voiceNotes?: VoiceNote[];
   /** The caller's own id for whoever gave it (a listener, a device). Only a hash reaches the log. */
   reviewerId: string;
   /** Shown to the team as who gave it. */
@@ -284,12 +297,20 @@ interface WriteContext {
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 const optStr = (v: unknown, max: number) => v === undefined || str(v, max);
 
-export function parseVoiceNote(v: unknown): VoiceNote | null | undefined {
-  if (v === undefined) return undefined;
+function parseVoiceNote(v: unknown): VoiceNote | null {
   const o = (v ?? {}) as Record<string, unknown>;
   if (typeof o['hash'] !== 'string' || !/^[0-9a-f]{64}$/.test(o['hash']) || (o['format'] !== 'm4a' && o['format'] !== 'wav')) return null;
+  if (o['atMs'] !== undefined && !(Number.isInteger(o['atMs']) && (o['atMs'] as number) >= 0)) return null;
   const durationMs = typeof o['durationMs'] === 'number' && o['durationMs'] >= 0 ? Math.round(o['durationMs']) : 0;
-  return { hash: o['hash'], format: o['format'], durationMs };
+  return { hash: o['hash'], format: o['format'], durationMs, ...(o['atMs'] !== undefined ? { atMs: o['atMs'] as number } : {}) };
+}
+
+/** `voiceNotes`: what PUT …/voice-notes returned, each with `atMs` if it is about a moment. Undefined when none; null when malformed. */
+export function parseVoiceNotes(v: unknown): VoiceNote[] | null | undefined {
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v) || v.length > MAX_VOICE_NOTES) return null;
+  const out = v.map(parseVoiceNote);
+  return out.some((n) => n === null) || new Set(out.map((n) => n!.hash)).size !== out.length ? null : (out as VoiceNote[]);
 }
 
 export function parseReview(body: unknown): ReviewInput | Refusal {
@@ -299,13 +320,13 @@ export function parseReview(body: unknown): ReviewInput | Refusal {
   for (const [k, max] of [['kindId', 100], ['takeId', 200], ['comment', 4000], ['reviewerName', 120], ['submissionId', 64]] as const) {
     if (!optStr(b[k], max)) return refuse(400, 'bad_request', `${k} must be non-empty text of at most ${max} characters.`);
   }
-  const voiceNote = parseVoiceNote(b['voiceNote']);
-  if (voiceNote === null) return refuse(400, 'bad_request', 'voiceNote is what PUT …/voice-notes returned: { hash, format, durationMs }.');
+  const voiceNotes = parseVoiceNotes(b['voiceNotes']);
+  if (voiceNotes === null) return refuse(400, 'bad_request', `voiceNotes is a list of at most ${MAX_VOICE_NOTES}, each what PUT …/voice-notes returned, with atMs (a whole number) if it is about a moment.`);
   const pick = (k: string) => (b[k] !== undefined ? { [k]: b[k] as string } : {});
   return {
     outcome: b['outcome'], reviewerId: b['reviewerId'] as string,
     ...pick('kindId'), ...pick('takeId'), ...pick('comment'), ...pick('reviewerName'), ...pick('submissionId'),
-    ...(voiceNote ? { voiceNote } : {})
+    ...(voiceNotes?.length ? { voiceNotes } : {})
   };
 }
 
@@ -330,18 +351,24 @@ export function reviewableKinds(state: LanguageState, unitId: string): Set<strin
 }
 
 /** A voice note is new audio from an upload; naming a card or note already in the language would hand out a link to it. */
-const fresh = (state: LanguageState, note: VoiceNote | undefined) => !note || !referencedBlobs(state).has(note.hash);
+const fresh = (state: LanguageState, notes: VoiceNote[] | undefined) => {
+  const known = notes?.length ? referencedBlobs(state) : null;
+  return !notes?.some((n) => known!.has(n.hash));
+};
 
 /**
  * The payload every outside review shares: given by link, by whoever is
  * named, with the voice note where phones will play it.
  */
-function reviewPayload(input: Pick<ReviewInput, 'outcome' | 'comment' | 'voiceNote'>, takeId: string, kindId: string, givenBy: string, reviewId: string) {
+function reviewPayload(input: Pick<ReviewInput, 'outcome' | 'comment' | 'voiceNotes'>, takeId: string, kindId: string, givenBy: string, reviewId: string) {
+  // Voice notes are review artifacts: each card carries its own format, so phones play WAV and m4a alike, and its moment.
+  const artifacts = (input.voiceNotes ?? [])
+    .map((n) => ({ hash: n.hash, durationMs: n.durationMs, format: n.format, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) }))
+    .sort((a, b) => (a.atMs ?? -1) - (b.atMs ?? -1));
   return {
     reviewId, takeId, kindId, outcome: input.outcome, via: 'link', people: 1, givenBy,
     ...(input.comment !== undefined ? { comment: input.comment } : {}),
-    ...(input.voiceNote?.format === 'm4a' ? { commentBlobHash: input.voiceNote.hash } : {}),
-    ...(input.voiceNote?.format === 'wav' ? { artifacts: [{ hash: input.voiceNote.hash, durationMs: input.voiceNote.durationMs, format: 'wav' }] } : {})
+    ...(artifacts.length ? { artifacts } : {})
   };
 }
 
@@ -374,7 +401,7 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
   if (!canRead(grant, true) && takeId !== own.takeId) return refuse(404, 'no_version', 'This token hears only the approved version.');
   const kindId = input.kindId ?? LISTENER_KIND;
   if (!reviewableKinds(state, unitId).has(kindId)) return refuse(400, 'no_kind', `kindId must be "${LISTENER_KIND}" or a kind in this language's flow.`);
-  if (!fresh(state, input.voiceNote)) return refuse(400, 'bad_request', 'voiceNote must be one you just uploaded.');
+  if (!fresh(state, input.voiceNotes)) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
   const reviewer = (await sha256Hex(`${grant.tokenId}\n${input.reviewerId}`)).slice(0, 16);
   const reviewId = `${kindId === LISTENER_KIND ? LISTENER_KIND : 'review'}-${(await sha256Hex([grant.tokenId, takeId, reviewer, kindId, input.submissionId ?? input.outcome].join('\n'))).slice(0, 32)}`;
   const givenBy = input.reviewerName?.trim() || `Listener ${reviewer.slice(0, 6)}`;
@@ -404,7 +431,7 @@ export async function releaseEvent(ctx: WriteContext, input: ReleaseInput): Prom
 
 // ---- review links ------------------------------------------------------------------
 
-/** A link someone shared to review one version for one kind (migration 20261008000001). */
+/** A link someone shared to review one version for one kind (migration 20261008140000). */
 export interface ReviewLink {
   id: string;
   orgId: string;
@@ -502,7 +529,7 @@ export interface LinkReviewInput {
   /** Any name; a label for the team, remembered by the browser. */
   name: string;
   comment?: string;
-  voiceNote?: VoiceNote;
+  voiceNotes?: VoiceNote[];
   /** Random, kept by the browser: tells one person's answers apart on a shared link. */
   browserId: string;
   /** Random per press of Send, so a retry records once and a changed mind records again. */
@@ -515,11 +542,11 @@ export function parseLinkReview(body: unknown): LinkReviewInput | Refusal {
   if (!str(b['name'], 80)) return refuse(400, 'bad_request', 'Type your name (at most 80 characters).');
   if (!str(b['browserId'], 64) || !str(b['submissionId'], 64)) return refuse(400, 'bad_request', 'browserId and submissionId are required.');
   if (!optStr(b['comment'], 4000)) return refuse(400, 'bad_request', 'A comment can be at most 4000 characters.');
-  const voiceNote = parseVoiceNote(b['voiceNote']);
-  if (voiceNote === null) return refuse(400, 'bad_request', 'That voice note was not uploaded here.');
+  const voiceNotes = parseVoiceNotes(b['voiceNotes']);
+  if (voiceNotes === null) return refuse(400, 'bad_request', `Send at most ${MAX_VOICE_NOTES} voice notes, each uploaded here.`);
   return {
     outcome: b['outcome'], name: (b['name'] as string).trim(), browserId: b['browserId'] as string, submissionId: b['submissionId'] as string,
-    ...(b['comment'] !== undefined ? { comment: b['comment'] as string } : {}), ...(voiceNote ? { voiceNote } : {})
+    ...(b['comment'] !== undefined ? { comment: b['comment'] as string } : {}), ...(voiceNotes?.length ? { voiceNotes } : {})
   };
 }
 
@@ -534,7 +561,7 @@ export async function linkReviewEvent(link: ReviewLink, org: OrgState, state: La
   if (link.revokedAt || Date.parse(link.expiresAt) <= now) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
   const s = derivePassage(state, link.unitId);
   if (!s.versions.some((v) => v.takeId === link.takeId)) return refuse(404, 'gone', 'This passage is no longer here.');
-  if (!fresh(state, input.voiceNote)) return refuse(400, 'bad_request', 'That voice note was not uploaded here.');
+  if (!fresh(state, input.voiceNotes)) return refuse(400, 'bad_request', 'A voice note was not uploaded here.');
   const linkKey = link.id.replace(/-/g, '').slice(0, 12);
   const browser = (await sha256Hex(`${link.id}\n${input.browserId}`)).slice(0, 12);
   const prefix = `link-${linkKey}-`;

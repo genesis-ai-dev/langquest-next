@@ -16,7 +16,7 @@ create table public.api_tokens (
   name text not null check (length(name) between 1 and 120),
   token_hash text not null unique check (token_hash ~ '^[0-9a-f]{64}$'),
   scopes text[] not null check (
-    cardinality(scopes) > 0 and scopes <@ array['read:published', 'read', 'review', 'release']::text[]),
+    cardinality(scopes) > 0 and scopes <@ array['read:published', 'read', 'feedback', 'publish']::text[]),
   -- Null: every language the person may view.
   language_ids text[] check (language_ids is null or cardinality(language_ids) between 1 and 500),
   -- 'page': made on the connect page; 'device': an app asked and a person approved.
@@ -45,7 +45,7 @@ create table public.api_device_grants (
   client_name text not null check (length(client_name) between 1 and 120),
   requested_scopes text[] not null check (
     cardinality(requested_scopes) > 0
-    and requested_scopes <@ array['read:published', 'read', 'review', 'release']::text[]),
+    and requested_scopes <@ array['read:published', 'read', 'feedback', 'publish']::text[]),
   requested_org_id text check (requested_org_id is null or length(requested_org_id) between 1 and 200),
   created_at timestamptz not null default now(),
   expires_at timestamptz not null,

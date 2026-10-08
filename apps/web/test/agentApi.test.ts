@@ -180,10 +180,15 @@ function setup() {
     saveVoiceNote: async (_o, _l, bytes) => (await hashSecret(String.fromCharCode(...bytes))),
     now: () => now
   };
-  const call = async (method: string, path: string, auth?: string, body?: unknown) => {
+  const call = async (method: string, path: string, auth?: string, body?: unknown, raw?: Uint8Array) => {
     const res = await handleAgentApi(new Request(`https://lq.test${path}`, {
-      method, headers: { ...(auth ? { authorization: `Bearer ${auth}` } : {}), ...(body !== undefined ? { 'content-type': 'application/json' } : {}) },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+      method,
+      headers: {
+        ...(auth ? { authorization: `Bearer ${auth}` } : {}),
+        ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+        ...(raw ? { 'content-type': 'audio/mp4', 'content-length': String(raw.length) } : {})
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : raw ? { body: raw } : {})
     }), deps);
     return { status: res.status, body: (res.status === 202 ? null : await res.json()) as any };
   };
@@ -324,7 +329,7 @@ describe('writing', () => {
     const { call, token } = setup();
     const t = await token('rev', { scopes: ['read:published', 'review'] });
     // d2's cards are unapproved; a published-only token must not get a link to them this way.
-    const r = await call('POST', '/api/v1/languages/din/passages/d1/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', voiceNote: { hash: card('d2a').hash, format: 'm4a' } });
+    const r = await call('POST', '/api/v1/languages/din/passages/d1/reviews', t, { outcome: 'needs_changes', reviewerId: 'a', voiceNotes: [{ hash: card('d2a').hash, format: 'm4a' }] });
     expect(r.status).toBe(400);
   });
 
@@ -394,6 +399,31 @@ describe('review links', () => {
     expect((await call('GET', '/api/v1/languages/din/passages/d2', t)).body.status).toBe('approved');
   });
 
+  it('keeps every voice clip with the moment it is about, in order, and plays them back', async () => {
+    const { call } = setup();
+    const code = codeOf((await share(call, { counts: false })).body.url);
+    const upload = async (bytes: Uint8Array) => {
+      const r = await call('PUT', `/api/v1/links/${code}/voice-note`, undefined, undefined, bytes);
+      expect(r.status).toBe(200);
+      return r.body.voiceNote;
+    };
+    const late = await upload(m4a('late'));
+    const early = await upload(m4a('early'));
+    const sent = await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('needs_changes', {
+      comment: 'Two places', voiceNotes: [{ ...late, durationMs: 3000, atMs: 41_500 }, { ...early, durationMs: 2000, atMs: 3_000 }]
+    }));
+    expect(sent.status).toBe(200);
+    const t = await setupToken(call);
+    const d2 = await call('GET', '/api/v1/languages/din/passages/d2', t);
+    const mine = d2.body.reviews.find((r: any) => r.givenBy === 'Abuk');
+    expect(mine.voiceNotes.map((n: any) => [n.atMs, n.durationMs])).toEqual([[3000, 2000], [41_500, 3000]]);
+    expect(mine.voiceNotes[0].url).toMatch(/\.m4a\?sig=x$/);
+    // Not more than a review takes, and never a moment that is not a whole number.
+    const many = Array.from({ length: 11 }, (_, i) => ({ ...early, hash: String(i).padStart(64, 'a'), durationMs: 1000 }));
+    expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good', { voiceNotes: many }))).status).toBe(400);
+    expect((await call('POST', `/api/v1/links/${code}/reviews`, undefined, answer('looks_good', { voiceNotes: [{ ...early, atMs: 1.5 }] }))).status).toBe(400);
+  });
+
   it('records a feedback link as listener feedback that never moves the step', async () => {
     const { call, log } = setup();
     const code = codeOf((await share(call, { counts: false })).body.url);
@@ -461,6 +491,14 @@ describe('review links', () => {
     expect(sniffVoiceNote(new TextEncoder().encode('\x1aE\xdf\xa3 webm, which iPhones do not play'))).toBeNull();
   });
 });
+
+/** A tiny MP4 header: enough for the format check, different bytes per name. */
+function m4a(name: string): Uint8Array {
+  const b = new Uint8Array(32 + name.length);
+  [...'ftypM4A '].forEach((c, i) => (b[4 + i] = c.charCodeAt(0)));
+  [...name].forEach((c, i) => (b[32 + i] = c.charCodeAt(0)));
+  return b;
+}
 
 /** A read token for checking what a link did. */
 async function setupToken(call: Awaited<ReturnType<typeof setup>>['call']) {
