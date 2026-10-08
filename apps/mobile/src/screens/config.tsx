@@ -40,7 +40,7 @@ import { VoiceNote } from '../voiceNote';
 import {
   draftChanged, draftFromDoc, draftFromLanguage, fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
   LEVEL_LABEL, libraryMaterialLine, libraryQuestions, matchesTerm, materialDocFrom, materialItemId, moveStep, newKindId,
-  nextFieldId, parseRefLinks, plural, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
+  nextFieldId, parseRefLinks, plural, PRIVILEGE_GROUPS, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
   REFERENCE_KINDS, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
 } from './configModel';
@@ -241,13 +241,17 @@ export function RoleEditor(ctx: Ctx) {
             : 'Scope is assigned per member when this role is given.'}
         </Text>
       </Card>
-      <SectionLabel label="Permissions" />
-      <Group>
-        {PRIVILEGES.map((p, i) => (
-          <ToggleRow key={p} label={PRIVILEGE_INFO[p].label} desc={PRIVILEGE_INFO[p].desc} on={privileges.includes(p)}
-            disabled={readOnly || busy} onToggle={() => toggle(p)} last={i === PRIVILEGES.length - 1} />
-        ))}
-      </Group>
+      {PRIVILEGE_GROUPS.map((g) => (
+        <View key={g.title} style={{ gap: space.sm }}>
+          <SectionLabel label={g.title} />
+          <Group>
+            {g.privileges.map((p, i) => (
+              <ToggleRow key={p} label={PRIVILEGE_INFO[p].label} desc={PRIVILEGE_INFO[p].desc} on={privileges.includes(p)}
+                disabled={readOnly || busy} onToggle={() => toggle(p)} last={i === g.privileges.length - 1} />
+            ))}
+          </Group>
+        </View>
+      ))}
     </Screen>
   );
 }

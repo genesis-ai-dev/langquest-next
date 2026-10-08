@@ -432,7 +432,7 @@ export function SettingsHome(ctx: Ctx) {
         {/* What comes along to the field, out of Advanced so it is seen before a trip (decisions.md 61). */}
         <Row icon={offline && offline.kept > 0 && offline.ready === offline.kept ? 'onPhone' : 'notOnPhone'} label="Ready for offline" sub={offlineLine(offline)}
           onPress={() => ctx.go('sync_status')} />
-        <Row icon="book" label="What is LangQuest?" onPress={() => ctx.go('vision')} />
+        <Row icon="book" label="How LangQuest works" sub="A short tour, and help (?) on every screen" onPress={() => ctx.go('vision')} />
         {/* Always here: someone in one organization may start another (Switch Organization, then New organization). */}
         <Row icon="building" label="Switch Organization" sub={canSwitch ? `${orgName} (active)` : `${orgName} · or start a new one`} onPress={() => ctx.go('org_switcher')} last />
       </Group>

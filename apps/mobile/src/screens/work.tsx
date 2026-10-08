@@ -7,7 +7,7 @@
 // your versions, your unsaved drafts, what you asked of others. Nothing here
 // gates the work; every passage is still reachable from the Map.
 import {
-  derivePassage, deriveFlow, deriveKinds, highlightsFor, languageName, membershipsOf, passageSummary, unitTitle, upNext, waitingOn,
+  derivePassage, deriveFlow, deriveKinds, highlightsFor, languageName, membershipsOf, passageSummary, recommendedFor, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -144,43 +144,48 @@ function startRows(ctx: Ctx, state: LanguageState): { title: string; promise: st
     canGo(ctx, to) ? { label, onPress: () => ctx.go(to, params) } : undefined;
 
   if (s.isAdmin) {
-    // The organization's list says whether there is a language; the open one is the one set up next.
+    // Getting a language ready is four plain questions (demo ADR-039), in the order an admin thinks:
+    // what they record (the template), what helps them (reference material), who checks (the flow),
+    // and the invite. Until a language exists, adding one comes first.
     const languageDone = ctx.languages.length > 0;
     const members = memberCount(ctx.org.state);
     const teamDone = members > 1;
-    return {
-      title: `Let's get ${orgName} recording`,
-      promise: 'A few short steps, about 3 minutes. Then your team can start.',
-      rows: [
-        { id: 'org', icon: 'building', label: 'Name your organization', sub: orgName, body: '', done: true },
-        {
-          id: 'language', icon: 'globe', label: 'Add a language', done: languageDone,
-          sub: language ?? 'The language your team speaks',
-          body: `Which language will your first team record? It goes in ${orgName}, with every passage ready to record.`,
-          action: open('new_language', 'Add a language')
-        },
-        {
-          id: 'flow', icon: 'flow', label: 'Choose how passages get checked', disabled: !languageDone,
-          done: !!(languageId && state.flow),
-          sub: languageId && state.flow ? `${deriveFlow(state).name} for ${language}` : 'The checks a passage goes through',
-          body: `Every passage in ${language ?? 'the language'} goes through a few checks before it's done. Keep the standard ones, or pick others.`,
-          action: open('flows_home', "Choose how it's checked", languageId ? { languageId } : undefined)
-        },
-        {
-          // Nothing on the record says roles were "decided"; putting someone in one is the real sign.
-          id: 'roles', icon: 'user', label: 'Decide who can do what', done: teamDone,
-          sub: 'Translator, reviewer, consultant and more',
-          body: 'Roles say who can record, review, invite and more. The usual ones are ready — open one to see what it allows, and invite someone into it from there.',
-          action: open('roles_home', 'See the roles')
-        },
-        {
-          id: 'invite', icon: 'people', label: 'Invite your team', done: teamDone,
-          sub: teamDone ? plural(members, 'member') : 'By email or QR code',
-          body: "The people who'll record and check. No email? Show them a QR code to scan.",
-          action: open('invite_member', 'Invite your team')
-        }
-      ]
-    };
+    const lp = languageId ? { languageId } : undefined;
+    const helps = languageId ? recommendedFor(ctx.org.state?.recommendations, state).size : 0;
+    const rows: StartRow[] = [];
+    if (!languageDone) {
+      rows.push({
+        id: 'language', icon: 'globe', label: 'Add a language', done: false, sub: 'The language your team speaks',
+        body: `Which language will your first team record? It goes in ${orgName}.`, action: open('new_language', 'Add a language')
+      });
+    }
+    rows.push(
+      {
+        id: 'template', icon: 'template', label: 'What will they record?', disabled: !languageDone, done: !!(languageId && state.template),
+        sub: languageId && state.template ? 'Chosen · change any time' : 'Bible stories, chapters, or your own divisions',
+        body: 'Pick a ready-made set of passages, or divide the books your own way.',
+        action: open('templates_home', 'Choose', lp)
+      },
+      {
+        id: 'helps', icon: 'book', label: 'What will help them?', disabled: !languageDone, done: helps > 0,
+        sub: helps > 0 ? plural(helps, 'thing') + ' offered' : 'Bibles they understand, study guides, key words',
+        body: 'The Bibles and guides your translators will listen to and read beside their recording.',
+        action: open('reference_home', 'Choose', lp)
+      },
+      {
+        id: 'flow', icon: 'flow', label: 'Who checks the recordings?', disabled: !languageDone, done: !!(languageId && state.flow),
+        sub: languageId && state.flow ? deriveFlow(state).name : 'The checks a passage goes through',
+        body: 'Keep the suggested checks, or choose others. You can put people in each review group now or later.',
+        action: open('flows_home', 'Choose', lp)
+      },
+      {
+        id: 'invite', icon: 'people', label: 'Invite your translators', done: teamDone, disabled: !languageDone,
+        sub: teamDone ? plural(members, 'member') : 'Show them a code to scan',
+        body: 'No email or password needed. One code can be for a whole group.',
+        action: open('invite_qr', 'Show the code', lp) ?? open('invite_member', 'Invite')
+      }
+    );
+    return { title: language ? `Get ${language} ready` : `Get ${orgName} ready`, promise: 'Four questions. Then your translators can start.', rows };
   }
 
   const canRecord = s.can('translate');

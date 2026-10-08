@@ -33,6 +33,16 @@ export const PRIVILEGE_INFO: Record<Privilege, { label: string; desc: string }> 
   view_status: { label: 'View Status', desc: 'See the map and passage records read-only in their scope' }
 };
 
+/**
+ * The role editor's three groups (demo ADR-039): doing the work, checking
+ * it, and running the team. Every permission is in exactly one.
+ */
+export const PRIVILEGE_GROUPS: { title: string; privileges: Privilege[] }[] = [
+  { title: 'Do the work', privileges: ['translate', 'fill_reference', 'send_to_reviewers'] },
+  { title: 'Check the work', privileges: ['review', 'view_status'] },
+  { title: 'Run the team', privileges: ['invite_members', 'assign_work', 'manage_teams', 'manage_structure', 'manage_templates', 'shape_templates', 'manage_reference', 'manage_flows', 'override_checkpoints', 'manage_roles'] }
+];
+
 type ViewLevel = Scope['level'];
 export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', language: 'Language' };
 

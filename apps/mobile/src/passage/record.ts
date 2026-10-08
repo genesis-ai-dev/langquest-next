@@ -471,22 +471,32 @@ export function askCandidates(
   if (o.what === 'review' && o.kindId) {
     for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId) reviewedHere.add(r.by);
   }
+  // The review group for this kind (a team tagged with it, or with any kind) comes first: admins can put
+  // people in each group, and they are the top choices when someone asks for that check (demo ADR-034, amended).
+  const inGroup = new Map<string, string>();
   const onTeam = new Set<string>();
   if (o.what === 'review') {
     for (const t of Object.values(state.teams)) {
-      for (const [id, reg] of Object.entries(t.members)) if (reg.value) onTeam.add(id);
+      const kind = t.kindId?.value ?? null;
+      for (const [id, reg] of Object.entries(t.members)) {
+        if (!reg.value) continue;
+        onTeam.add(id);
+        if (o.kindId && (kind === o.kindId || kind === null) && !inGroup.has(id)) inGroup.set(id, t.name.value);
+      }
     }
   }
+  const rank = (c: AskCandidate) => (inGroup.has(c.profileId) ? 0 : c.usual ? 1 : 2);
   const out: AskCandidate[] = [];
   for (const person of languagePeople(org, o.languageId).values()) {
     const id = person.profileId;
     if (id === o.me || !person.privileges.has(need)) continue;
     const covering = membershipsOf(org!, id).find((m) => scopeCovers(m.scope, o.languageId) && org!.roles[m.roleId.value] && !org!.roles[m.roleId.value]!.retired);
     const role = covering ? org!.roles[covering.roleId.value]!.name.value : 'Member';
-    const why = onTeam.has(id) ? 'On the review team' : reviewedHere.has(id) ? 'Has done this here before' : '';
+    const group = inGroup.get(id);
+    const why = group ? `In ${group}` : onTeam.has(id) ? 'On the review team' : reviewedHere.has(id) ? 'Has done this here before' : '';
     out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: !!why });
   }
-  return out;
+  return out.map((c, i) => [c, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([c]) => c);
 }
 
 /** Local calendar day as YYYY-MM-DD. */

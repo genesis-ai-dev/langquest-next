@@ -313,7 +313,13 @@ export const EDGES: Edge[] = [
   e('bible_explore', 'study_guide', 'back'),
   e('bible_explore', 'study_step', 'back'),
   e('bible_explore', 'review_capture', 'back'),
-  e('bible_explore', 'add_record', 'back')
+  e('bible_explore', 'add_record', 'back'),
+  // App only: getting a language ready from My Work (demo ADR-039)
+  e('my_work', 'reference_home', undefined, 'manageReference'),
+  e('my_work', 'invite_qr', undefined, 'assigner'),
+  // App only: a new role while inviting or admitting someone (demo ADR-039, amended 2026-10-08)
+  e('invite_member', 'role_editor'),
+  e('edit_member', 'role_editor')
 ];
 
 /**

@@ -637,11 +637,13 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
 
 // ---- What brings you here? (AUTH-4, AUTH-5) ---------------------------------------------------------
 
+// Join your team (demo ADR-040): scanning a teammate's code first, the way most people arrive;
+// finding a listed organization (decision 66); starting a new one; looking around last.
 const INTENTS: { to: 'create_org' | 'request_access' | 'scan_qr' | 'explore_home'; icon: IconName; label: string; sub: string }[] = [
-  { to: 'create_org', icon: 'building', label: 'Create an organization', sub: 'Start a new translation org' },
-  { to: 'request_access', icon: 'people', label: 'Join an existing org', sub: 'Accept an invitation or request access' },
-  { to: 'scan_qr', icon: 'qr', label: 'Join with QR code', sub: 'Scan an invite — keeps your email and name' },
-  { to: 'explore_home', icon: 'globe', label: 'Explore', sub: 'Browse translation work listed publicly' }
+  { to: 'scan_qr', icon: 'qr', label: 'Scan their code', sub: 'Someone on your team shows it' },
+  { to: 'request_access', icon: 'search', label: 'Find your organization', sub: 'Ask them to let you in' },
+  { to: 'create_org', icon: 'building', label: 'Start a new one', sub: 'For a team leader' },
+  { to: 'explore_home', icon: 'globe', label: 'Look around first', sub: 'Translation work listed publicly' }
 ];
 
 /**
@@ -679,7 +681,7 @@ export function IntentChooser(ctx: Ctx) {
     await forgetThisBrowser();
   }
   return (
-    <Screen header={<Header title={waiting && !declined ? 'Request sent' : 'What brings you here?'} />}>
+    <Screen header={<Header title={waiting && !declined ? 'Request sent' : 'Join your team'} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
       {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title="Joining with your invite…" /> : null}
       {ctx.invite.status.kind === 'waiting' ? (

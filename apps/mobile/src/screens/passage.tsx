@@ -21,7 +21,7 @@ import { edgeFor, TITLES, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
   Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
-  NoteCard, PrimaryBtn, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt
+  NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, txt
 } from '../kit';
 import {
   addDays, anchorLabel, answeredQuestions, askCandidates, channelLabel, currentStepId, describeEntry, DUE_CHOICES, dueError, feedbackNames,
@@ -50,7 +50,6 @@ import { VoiceNote, voiceFor } from '../voiceNote';
 
 const SKIP_REASONS = ['No one available for this right now', 'Another review already covered this', 'Not needed for this passage'];
 const OVERRIDE_REASONS = ['Consultant visit is months away; church needs it now', 'Checked informally — will record it later'];
-const KEEP_REASONS = ['Listeners preferred the current wording', 'Matches our key terms decision', 'The suggestion changes the meaning'];
 const HISTORY_STEP = 20;
 const GRID_STEP = 10;
 const PEOPLE_STEP = 25;
@@ -159,6 +158,13 @@ export function PassageRecord(ctx: Ctx) {
   const [keeping, setKeeping] = useState<string | null>(null);
   const [noting, setNoting] = useState(false);
   const [more, setMore] = useState(false);
+  // "Versions and history" opens the details in place (demo ADR-033); "Something else?" is the departures sheet.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // Publish, then ask (demo ADR-034): arriving from Publish opens the likely next check, preselected.
+  const [askNext, setAskNext] = useState(() => !!ctx.params['published']);
+  // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
+  const publishedParam = ctx.params['published'];
+  useEffect(() => { if (publishedParam) setAskNext(true); }, [publishedParam]);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which version the path shows: the latest unless someone flipped back (‹ ›, the dots, a swipe).
   const versionCount = v?.p.versions.length ?? 0;
@@ -172,15 +178,18 @@ export function PassageRecord(ctx: Ctx) {
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
+  // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
+  const justPublished = ctx.params['published'];
+  const asker = isAuthor || !!justPublished?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const targets = useMemo(() => {
     const out: Record<string, UsualTarget | undefined> = {};
-    if (!v || !isAuthor) return out;
+    if (!v || !asker) return out;
     for (const kindId of new Set(v.p.flow.steps.flatMap((st) => st.kindIds))) {
       out[kindId] = usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me });
     }
     return out;
-  }, [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, isAuthor]);
+  }, [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, asker]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
   const { p, kinds, unitId, languageId } = v;
@@ -264,20 +273,28 @@ export function PassageRecord(ctx: Ctx) {
       : type === 'keep' ? 'Undone — the feedback is waiting again' : "Brought back — it's a suggested step again");
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), 'Request withdrawn');
 
-  // Once every step is complete a new version is the one thing left to do; before that it waits under More (ADR-029).
-  const footer = can.record && p.recorded && p.done && !answersMine
+  // One main button for the person's own next step (demo ADR-033): the next step's card on the path holds it,
+  // and the footer only once every step is complete. Everything else is one labelled tap away:
+  // Something else? and Versions and history.
+  // Before the first version the path's own card holds Record it; once every step is complete, New version is here.
+  const mainBtn = can.record && !answersMine && p.recorded && p.done
     ? <PrimaryBtn label={myDraft ? 'Continue recording' : 'New version'} icon="mic" onPress={() => go('workspace')} />
-    : undefined;
-  const moreAction = can.record && p.recorded && !p.done && !answersMine ? (
-    <Pressable onPress={() => setMore(true)} accessibilityRole="button" accessibilityLabel="More"
-      style={({ pressed }) => [styles.headerMore, pressed && { opacity: 0.6 }]}>
-      <Text style={[txt.sm, { fontWeight: '700' }]}>More</Text>
-      <Ico name="down" size={16} color={C.dark} />
-    </Pressable>
-  ) : undefined;
+    : null;
+  const footer = (
+    <View style={{ gap: space.xs }}>
+      {mainBtn}
+      <QuietLinks items={[
+        { label: 'Something else?', icon: 'help', onPress: () => setMore(true) },
+        { label: historyOpen ? 'Hide versions and history' : 'Versions and history', icon: 'history', onPress: () => setHistoryOpen((o) => !o) }
+      ]} />
+    </View>
+  );
+  const moreAction = undefined;
+  const nextKind = asker && p.next ? p.next.kinds.find((k) => !isCompleteState(k.state) && !k.request) : undefined;
+  const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
+  const curStep = p.steps.find((st) => st.step.id === currentStepId(p));
+  const curKind = curStep ? (curStep.kinds.find((k) => !isCompleteState(k.state)) ?? curStep.kinds[0]) : undefined;
 
-  // Details always has Reference: what translators are offered here and why (screens/reference.tsx).
-  const showDetails = true;
   const gridIds = gridKindIds(p);
   const flowLabel = p.flow.steps.length === 0 && !p.flow.flowId ? 'No review flow' : p.flow.name;
   const latest = timeline[0];
@@ -305,11 +322,8 @@ export function PassageRecord(ctx: Ctx) {
               )} />
           </Card>
 
-          {/* What comes along without a connection, before anyone finds out in the field (decisions.md 61). */}
-          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
-
-          {showDetails ? <SectionLabel label="Details" /> : null}
-          {study ? (
+          {historyOpen ? <SectionLabel label="Versions and history" /> : null}
+          {historyOpen && study ? (
             <Disclosure icon="sparkle" title={`${study.guide.pattern} study`}
               summary={study.doneCount || study.noteCount ? studySummary(study) : 'Not started'}
               {...ctx.details(`passage:${unitId}:${languageId}:study`)}>
@@ -317,13 +331,13 @@ export function PassageRecord(ctx: Ctx) {
               <Row icon="sparkle" label="Open the study" onPress={() => go('study_guide')} last />
             </Disclosure>
           ) : null}
-          {p.versions.length > 0 && gridIds.length > 0 ? (
+          {historyOpen && p.versions.length > 0 && gridIds.length > 0 ? (
             <Disclosure icon="chat" title="Reviews by version" summary={reviewsSummary(p)} {...ctx.details(`passage:${unitId}:${languageId}:reviews`)}>
               <ReviewGrid ctx={ctx} v={v} kindIds={gridIds}
                 onVersion={(takeId) => go('version_detail', { takeId })} onReview={(reviewId) => go('review_detail', { reviewId })} />
             </Disclosure>
           ) : null}
-          {timeline.length > 0 ? (
+          {historyOpen && timeline.length > 0 ? (
             <Disclosure icon="history" title="History" summary={historySummary(timeline)} {...ctx.details(`passage:${unitId}:${languageId}:history`)}>
               {timeline.slice(0, historyShown).map((e, i) => {
                 const t = describe(e);
@@ -353,15 +367,6 @@ export function PassageRecord(ctx: Ctx) {
               </View>
             </Disclosure>
           ) : null}
-          {can.note ? (
-            <Group>
-              <Row icon="note" iconColor={TINT.amberText} iconBg={TINT.note} label="Add a note" sub="By voice or text. It follows this passage into reviews and later versions."
-                onPress={() => setNoting(true)} last />
-            </Group>
-          ) : null}
-          <Group>
-            <Row icon="book" label="Reference" sub="Bibles, guides and notes offered here, and why" onPress={() => go('passage_reference')} last />
-          </Group>
         </View>
       </ScrollView>
 
@@ -374,11 +379,51 @@ export function PassageRecord(ctx: Ctx) {
         </Sheet>
       ) : null}
       {more ? (
-        <Sheet visible title="More" sub="Less common things to do with this passage." onClose={() => setMore(false)}>
+        <Sheet visible title="Something else?" sub="Other ways forward with this passage." onClose={() => setMore(false)}>
           <Group>
-            <Row icon="mic" label={recordLabel} sub="Reviews so far stay with the version they heard." onPress={() => go('workspace')} last />
+            {!p.recorded && can.ask ? (
+              <Row icon="people" label="Someone else should record it" sub="Ask a person on the team, or someone outside by WhatsApp or text" onPress={() => go('ask_someone', { what: 'record' })} />
+            ) : null}
+            {curKind && can.ask ? (
+              <Row icon="people" label="Someone else should do this" sub={`${v.kind(curKind.kindId).name}: ask a person, a group, or someone outside`} onPress={() => go('ask_someone', { what: 'review', kindId: curKind.kindId })} />
+            ) : null}
+            {curKind && can.log ? (
+              <Row icon="check" label="We already did this" sub={`Log a ${v.kind(curKind.kindId).name} that happened outside the app`} onPress={() => go('add_record', { kindId: curKind.kindId })} />
+            ) : null}
+            {curKind && curStep && can.skip ? (
+              <Row icon="skip" label="Not now" sub={`Set ${v.kind(curKind.kindId).name} aside and say why`} onPress={() => afterSheet(() => setSkipping({ kindId: curKind.kindId, stepId: curStep.step.id }))} />
+            ) : null}
+            {can.record && p.recorded && !p.done && !answersMine ? (
+              <Row icon="mic" label={recordLabel} sub="Reviews so far stay with the version they heard." onPress={() => go('workspace')} />
+            ) : null}
+            {can.note ? (
+              <Row icon="note" iconColor={TINT.amberText} iconBg={TINT.note} label="Add a note" sub="By voice or text. It follows this passage into reviews and later versions."
+                onPress={() => afterSheet(() => setNoting(true))} />
+            ) : null}
+            <Row icon="book" label="What helps here" sub="Bibles, guides and notes offered on this passage, and why" onPress={() => go('passage_reference')} last />
           </Group>
-          <Text style={txt.xs}>To ask someone else, say a step already happened, or set one aside, open that step on the path.</Text>
+          {/* What comes along without a connection (decisions.md 61). */}
+          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
+          <Text style={txt.xs}>Each step on the path has these too, for that step.</Text>
+        </Sheet>
+      ) : null}
+      {askNext && nextKind ? (
+        <Sheet visible title={justPublished?.startsWith('bt') ? 'Back translation saved' : `${versionTitle(p.versions.length)} published`} sub="Everyone on the team can hear it. It goes out when the device has internet." onClose={() => setAskNext(false)}
+          footer={(
+            <View style={{ gap: space.xs }}>
+              <PrimaryBtn label={nextTarget ? `Ask ${sendTargetLabel(nextTarget, ctx.name)}` : `Ask for the ${v.kind(nextKind.kindId).name}`} icon="arrowR"
+                onPress={() => { setAskNext(false); sendTo(nextKind.kindId); }} />
+              <QuietLinks items={[
+                { label: 'Someone else', icon: 'people', onPress: () => { setAskNext(false); go('ask_someone', { what: 'review', kindId: nextKind.kindId }); } },
+                { label: 'Not now', icon: 'clock', onPress: () => setAskNext(false) }
+              ]} />
+            </View>
+          )}>
+          <Text style={txt.label}>Next, ask for a check</Text>
+          <Group>
+            <Row icon={kindIcon(nextKind.kindId)} label={v.kind(nextKind.kindId).name}
+              sub={nextTarget ? `Usually ${sendTargetLabel(nextTarget, ctx.name)}` : 'Choose who checks it'} last />
+          </Group>
         </Sheet>
       ) : null}
       {skipping ? (
@@ -417,7 +462,8 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
   return (
     <ReasonSheet visible title="Keep it as it is?" tone="amber"
       sub="No new version is made. Your reason goes back to the reviewer and into the record."
-      quickReasons={KEEP_REASONS} confirmLabel="Keep and send reason" voice={voiceFor(ctx)} onClose={props.onClose}
+      // Voice first, in the person's own words; no preset reasons (demo SIMPLE-9).
+      quickReasons={[]} confirmLabel="Keep and send reason" voice={voiceFor(ctx)} onClose={props.onClose}
       onConfirm={(r) => {
         props.onClose();
         void perform(ctx, (c) => c.depart({
