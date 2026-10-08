@@ -18,9 +18,10 @@ These change what the app does, not only how it looks.
 
 1. **One view for everyone, nothing removed** (ADR-032). No Simple/Full
    setting. Less likely choices move one labelled tap deeper.
-2. **The passage path is built from what is attached** (ADR-033). Study only
-   with a study guide, Listen only with source audio, Key words only when
-   terms match, then Record and Publish; review steps under "Then the team".
+2. **The passage path is built from what is attached** (ADR-033): Study
+   only with a study guide that has steps, then Record and Publish; review
+   steps under "Then the team". Listen and Key words are not steps; they are
+   reference beside the recorder.
    Today `passage.tsx` shows the method's steps; the person's steps become
    the path and the method's steps the tail.
 3. **Publish, then ask** (ADR-034). After publishing, a screen asks the team
@@ -32,18 +33,19 @@ These change what the app does, not only how it looks.
 5. **The Bible used is recorded.** `v1.ReferencesUsed` lists what was
    offered and opened; it should also say which source was playing while
    each take was recorded, for the review audit.
-6. **Key words grow during the work.** Translators already hold
-   `fill_reference`; add "Add a key word from this passage" in the workspace
-   and a screen that writes a `term` note anchor (the anchor exists, no
-   screen creates one).
+6. **Key words are a reference chip and grow during the work.** Translators
+   already hold `fill_reference`; the chip lists the passage's terms (hear,
+   say yours), with "Add a key word" and "Note on a word", which writes a
+   `term` note anchor (the anchor exists, no screen creates one).
 7. **The recording workspace** (ADR-036):
    - The top pane takes any reference: sources, the passage's study guide,
-     notes, and earlier recordings (this passage's versions, neighbouring
-     passages, back translations). Earlier recordings are new as reference.
+     key words, notes, and everything recorded for this passage so far (its
+     versions, feedback, notes). Earlier recordings are new as reference.
+     Back translation offers only the version being back-translated.
    - `recording/splitModel.ts` snaps go from 35/50/65 to four: peek (top is
      one line), about 35, about 65, reference (bottom is one line with the
-     record button). Each pane renders more as it gets room. Recording opens
-     at peek, back translation at half; both remembered (`rememberSplit`).
+     record button). Each pane renders more as it gets room. Both open at
+     half and then stay where the person left them (`rememberSplit`).
    - Wide windows put the panes side by side.
    - The recorder groups parts into cards by verse label. **Needs verse
      labels on parts**: the verse-labelling work (template levels plus the
@@ -55,8 +57,10 @@ These change what the app does, not only how it looks.
    part (spoken and written) instead of acting. Every screen needs a spoken
    line per part. Replaces Getting started tours for translators.
 10. **Getting a language ready** (ADR-039): Language Home becomes a
-    four-question checklist (record, listen to, who checks, invite) with
-    suggestions picked, then a summary. Roles read as three groups.
+    four-question checklist (what they record, what helps them, who checks,
+    invite) with suggestions picked, then a summary, and a coordinator's My
+    Work leads with it until done. One invite screen. Roles read as three
+    groups.
 11. **Joining** follows decisions 65 to 67 as they are; the simple screens
     only restyle them (ADR-040). Say "device", not "phone" (#56).
 
@@ -64,7 +68,7 @@ These change what the app does, not only how it looks.
 
 - "Keep it, say why": voice first, no preset reasons.
 - Review: Background is one tap from Listen; decide before giving feedback.
-- Back translation: part by part with Back 10 s and a draggable timeline.
+- Back translation: the same workspace, part by part, with Back 10 s and a draggable timeline.
 - Map: books with a bar and a count, search and "Next" first; chapters in
   three states, marked as well as coloured.
 - Settings (Me): five rows; the rest under More settings.
