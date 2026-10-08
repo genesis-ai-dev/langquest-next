@@ -794,7 +794,7 @@ export function BookMap(ctx: Ctx) {
           </View>
         ))}
       </View>
-      <ShortKey />
+      <ShortKey offline={chapters.some((c) => c.list.some((e) => offline.has(e.unitId)))} />
       {quiet}
       {filterSheet}
       <Sheet visible={!!sheet} title={sheet ? `${book.name} ${sheet.n}` : ''} sub={sheet ? `${sheet.list.length} parts — pick one` : ''} onClose={() => setOpenChapter(null)}>

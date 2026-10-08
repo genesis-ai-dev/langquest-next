@@ -97,12 +97,13 @@ export function ChapterTileView(props: {
   );
 }
 
-/** The short key under a book's chapters: "✓ Done • Started". */
-export function ShortKey() {
+/** The short key under a book's chapters: "✓ Done • Started", and the offline mark when any chapter shows it. */
+export function ShortKey(props: { offline?: boolean }) {
   return (
-    <View style={styles.key} accessible accessibilityLabel="A tick means done, a dot means started">
+    <View style={styles.key} accessible accessibilityLabel={`A tick means done, a dot means started${props.offline ? ', a cloud means kept on this device' : ''}`}>
       <View style={styles.keyItem}><Ico name="check" size={16} color={onColor.green} strokeWidth={3} /><Text style={styles.keyText}>Done</Text></View>
       <View style={styles.keyItem}><View style={styles.tileDot} /><Text style={styles.keyText}>Started</Text></View>
+      {props.offline ? <View style={styles.keyItem}><Ico name="onPhone" size={16} color={onColor.green} /><Text style={styles.keyText}>On this device</Text></View> : null}
     </View>
   );
 }
