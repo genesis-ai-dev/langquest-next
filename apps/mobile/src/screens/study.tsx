@@ -148,7 +148,9 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
 
   // Whoever manages reference material edits the organization's own guide, or adapts anyone else's (guides/GuideEditor.tsx).
   const origin = guide.origin;
-  const credit = [guide.credit, guide.license && isLicense(guide.license) ? LICENSE_INFO[guide.license].name : guide.license].filter(Boolean).join(' · ');
+  // Who made the material and its license, as its license asks (a study@1 guide carries both in its source line).
+  const credit = [guide.credit, guide.license && isLicense(guide.license) ? LICENSE_INFO[guide.license].name : guide.license].filter(Boolean).join(' · ')
+    || (guide.source ? `Source: ${guide.source}` : '');
   const sheetFooter = (
     <View style={{ gap: space.sm, paddingTop: space.sm }}>
       {credit ? <Text style={txt.xs}>{credit}</Text> : null}
