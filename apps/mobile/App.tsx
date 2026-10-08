@@ -1,10 +1,11 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
-import { HelpModeProvider } from './src/helpMode';
+import { HelpModeProvider, useScreenIntro } from './src/helpMode';
+import { HelpScopeContext } from './src/helpContext';
 import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
-import { CommonActions, NavigationContainer, type RouteProp } from '@react-navigation/native';
+import { CommonActions, NavigationContainer, NavigationContext, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { AccessibilityInfo, Dimensions, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -117,10 +118,26 @@ const PaneKeyContext = createContext<{ key: string; empty?: SplitSpec['empty'] }
 const FooterReportContext = createContext<((key: string, height: number) => void) | null>(null);
 
 type HostProps = { route: RouteProp<StackParams, ScreenId> };
+/** Whether this stack screen is focused; outside the navigator (a split's list pane) it always shows. */
+function useFocusedSafe(): boolean {
+  const navigation = useContext(NavigationContext);
+  const [focused, setFocused] = useState(() => navigation?.isFocused() ?? false);
+  useEffect(() => {
+    if (!navigation) return;
+    const on = navigation.addListener('focus', () => setFocused(true));
+    const off = navigation.addListener('blur', () => setFocused(false));
+    return () => { on(); off(); };
+  }, [navigation]);
+  return navigation ? focused : true;
+}
+
 function hostFor(id: ScreenId) {
   const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
+    // What the screen is for, said the first time it opens (decision 71, demo a-helpFirst).
+    const focused = useFocusedSafe();
+    useScreenIntro(id, focused);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;
@@ -132,7 +149,10 @@ function hostFor(id: ScreenId) {
     return (
       <FooterHeightContext.Provider value={onFooter}>
         <ScreenBoundary screen={id} onBack={ctx.back} onHome={ctx.home}>
-          <Screen {...ctx} params={props.route.params ?? {}} />
+          {/* Help mode numbers only the showing screen's parts. */}
+          <HelpScopeContext.Provider value={focused}>
+            <Screen {...ctx} params={props.route.params ?? {}} />
+          </HelpScopeContext.Provider>
         </ScreenBoundary>
       </FooterHeightContext.Provider>
     );

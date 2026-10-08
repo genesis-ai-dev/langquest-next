@@ -4,7 +4,8 @@
 // come from pathModel.ts; this only draws them.
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { Ico, txt, type IconName } from '../kit';
 import { C, radius, space, target, TINT } from '../theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
@@ -45,7 +46,8 @@ function StepRow(props: {
 }) {
   const { step } = props;
   const lit = step.state === 'current';
-  const press = useHelpPress(step.title, STEP_HELP[step.kind], props.onPress);
+  const spot = useHelpSpot(step.title, STEP_HELP[step.kind], props.onPress);
+  const press = spot.onPress;
   const body = (
     <View style={lit ? styles.litCard : styles.plain}>
       <View style={styles.titleRow}>
@@ -67,6 +69,7 @@ function StepRow(props: {
           <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${props.n}. ${step.title}. ${step.sub}`}
             accessibilityState={{ selected: lit }} style={({ pressed }) => pressed && { opacity: 0.75 }}>
             {body}
+            <HelpBadge n={spot.n} current={spot.current} />
           </Pressable>
         ) : body}
       </View>
@@ -76,13 +79,15 @@ function StepRow(props: {
 
 function TeamRow(props: { step: TeamStep; onPress?: () => void }) {
   const { step } = props;
-  const press = useHelpPress(step.name, `A check by the team: ${step.status}. Tap for who and the options.`, props.onPress);
+  const spot = useHelpSpot(step.name, `A check by the team: ${step.status}. Tap for who and the options.`, props.onPress);
+  const press = spot.onPress;
   const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
   const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
   return (
     <Pressable onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
       style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.7 }]}>
       <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
+      <HelpBadge n={spot.n} current={spot.current} />
       <Text style={[styles.teamName, { flex: 1 }]}>
         {step.name}{'  '}
         <Text style={[txt.smMuted, { fontWeight: '400' }, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>

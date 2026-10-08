@@ -20,7 +20,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
-import { useHelpMode, useHelpPress } from './helpContext';
+import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
+import { HelpBadge } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
@@ -325,7 +326,8 @@ export function Row(props: {
     ...(props.expanded !== undefined ? { expanded: props.expanded } : {}),
     ...(props.disabled ? { disabled: true } : {})
   };
-  const onPress = useHelpPress(props.label, props.sub, props.onPress);
+  const spot = useHelpSpot(props.label, props.sub, props.onPress);
+  const onPress = spot.onPress;
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
     <View style={{ pointerEvents: 'none' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -354,6 +356,7 @@ export function Row(props: {
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
+      <HelpBadge n={spot.n} current={spot.current} inset />
     </Pressable>
   );
 }
@@ -391,13 +394,15 @@ const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: o
 export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
   const bg = TONES[props.tone ?? 'primary'];
   const off = props.disabled || props.busy;
-  const onPress = useHelpPress(props.label, 'The main thing to do on this screen.', props.onPress);
+  const spot = useHelpSpot(props.label, 'The main thing to do on this screen.', props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
       <Text style={styles.primaryLabel}>{props.busy ? 'Saving…' : props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -406,7 +411,8 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
 export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber' }) {
   const fg = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : C.primary;
   const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
@@ -414,6 +420,7 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={fg} /> : null}
       <Text style={[styles.ghostLabel, { color: fg }]}>{props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -422,13 +429,15 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
       <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]} numberOfLines={1}>{props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -459,11 +468,13 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
 }
 
 function QuietLink(props: { label: string; icon: IconName; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, 'Another way forward, less often needed.', props.onPress);
+  const spot = useHelpSpot(props.label, 'Another way forward, less often needed.', props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={C.muted} />
       <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
@@ -483,12 +494,14 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
 
 /** A selectable pill. */
 export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number; accessibilityLabel?: string }) {
-  const onPress = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
+  const onPress = spot.onPress;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.label}{props.count !== undefined ? ` · ${props.count.toLocaleString('en-US')}` : ''}</Text>
+      <HelpBadge n={spot.n} current={spot.current} />
     </Pressable>
   );
 }
