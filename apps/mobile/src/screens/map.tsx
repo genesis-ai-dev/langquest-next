@@ -1,7 +1,11 @@
 // The Map (ng-langquest-ux src/screens/map.tsx): StatusHomeScreen (the
 // progress overview), MapHomeScreen (a language's passage map, with its
 // OutlineMap) and BookMapScreen (a book's chapter grid). MAP-1..8; ADR-009,
-// ADR-017, ADR-004.
+// ADR-017, ADR-004. A language's map and a book follow the simple redesign
+// (decision 71; the demo's simple Map and MapBook, ADR-032, SIMPLE-12): search
+// first, then "Next", then the books with a bar and a count; a book's chapters
+// in three states, marked as well as coloured. The filters, the counts and
+// the full key are one tap deeper, behind "Filter".
 //
 // A whole Bible is about 1,200 passages. Nothing here renders them as one
 // list: the map is books (grouped, with progress), then a chapter grid per
@@ -9,13 +13,13 @@
 // Progress is several counts, never one number (ADR-004).
 import {
   deriveFlow, libraryItemView, deriveKinds, derivePassage, highlightsFor, languageInfo, languageName, languageProgress,
-  passageSummary, percent, privilegesFor, timeAgo, unitPlace, unitTitle,
+  passageSummary, percent, privilegesFor, timeAgo, unitPlace, unitTitle, upNext,
   type KindDef, type LanguageProgress, type OrgState, type PassageState, type LanguageState, type UnitPlace
 } from '@langquest-next/core';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import {
-  bookMatches, canonBook, canonBooks, CANON_GROUPS, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
+  bookMatches, canonBook, canonBooks, chapterStage, chapterTone, countFilters, isMapFilter, MAP_FILTERS, matchesFilter, parseQuery,
   placeMatches, type CanonBook, type ChapterTone, type MapFilter, type Testament
 } from '../canon';
 import type { Ctx } from '../ctx';
@@ -26,13 +30,15 @@ import { languageFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
   Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
-  StepMarks, txt, useLayout, useOpenDetail
+  StepMarks, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
+import { workIcon } from '../simple/homeModel';
+import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
 import { chapterColumns } from '../layout';
 import { plural } from '../passageView';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
-import { C, onColor, radius, space, TINT, type as T, withAlpha } from '../theme';
+import { C, onColor, radius, space, TINT, type as T } from '../theme';
 
 const PAGE = 25;
 const OTHER = 'other';
@@ -161,29 +167,38 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
 }
 
 /**
- * One "Filter" chip (MAP-3, ADR-029); the status chips open under it on
- * request (progressive disclosure), and picking one folds them away again.
- * With a filter set, the chip names it and an ✕ beside it clears it.
+ * The filters, one tap deeper (MAP-3; the simple Map, decision 71): a quiet
+ * "Filter" link opens this sheet with the status choices, each with its
+ * count, what the stat tiles used to say, and, on a book, the full key.
+ * Picking one folds the sheet away again.
  */
-function FilterChips(props: { filter: MapFilter; counts: Record<MapFilter, number>; onFilter: (f: MapFilter) => void }) {
-  const [open, setOpen] = useState(false);
-  const active = props.filter !== 'all' ? MAP_FILTERS.find((f) => f.id === props.filter) : undefined;
+function FilterSheet(props: {
+  visible: boolean; onClose: () => void; filter: MapFilter; counts: Record<MapFilter, number>; onFilter: (f: MapFilter) => void;
+  summary?: string[]; children?: ReactNode;
+}) {
   return (
-    <View style={{ gap: space.sm }}>
-      <View style={styles.filterBar}>
-        <Chip icon="filter" label={active ? active.label : 'Filter'} on={!!active} onPress={() => setOpen((o) => !o)}
-          {...(active ? { count: props.counts[active.id] } : {})}
-          accessibilityLabel={`${active ? `Filter: ${active.label}` : 'Filter'}. ${open ? 'Hides' : 'Shows'} the choices`} />
-        {active && !open ? <IconBtn name="close" label="Clear filter" bg={C.card} onPress={() => props.onFilter('all')} /> : null}
+    <Sheet visible={props.visible} title="Filter" sub="Show only the passages that match" onClose={props.onClose}>
+      {props.summary?.length ? <View style={{ gap: 2 }}>{props.summary.map((line) => <Text key={line} style={txt.smMuted}>{line}</Text>)}</View> : null}
+      <View style={styles.filterChoices}>
+        {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
+          <Chip key={f.id} label={f.label} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); props.onClose(); }}
+            {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
+        ))}
       </View>
-      {open ? (
-        <View style={styles.filterChoices}>
-          {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
-            <Chip key={f.id} label={f.label} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); setOpen(false); }}
-              {...(f.id === 'all' ? {} : { count: props.counts[f.id] })} {...(f.id === 'feedback' ? { icon: 'chat' as const } : {})} />
-          ))}
-        </View>
-      ) : null}
+      {props.children}
+    </Sheet>
+  );
+}
+
+/** With a filter set, it shows above the list by name and count, with ✕ to clear it. */
+function ActiveFilter(props: { filter: MapFilter; counts: Record<MapFilter, number>; onOpen: () => void; onClear: () => void }) {
+  const active = props.filter !== 'all' ? MAP_FILTERS.find((f) => f.id === props.filter) : undefined;
+  if (!active) return null;
+  return (
+    <View style={styles.filterBar}>
+      <Chip icon="filter" label={active.label} on count={props.counts[active.id]} onPress={props.onOpen}
+        accessibilityLabel={`Filter: ${active.label}. Change it`} />
+      <IconBtn name="close" label="Clear filter" bg={C.card} onPress={props.onClear} />
     </View>
   );
 }
@@ -390,32 +405,17 @@ function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>
   return [...canonBooks().flatMap((b) => by.get(b.id) ?? []), ...(by.get(OTHER) ? [by.get(OTHER)!] : [])];
 }
 
+/** One book as the simple Map shows it: name, bar, "25/97"; with a filter set, how many match. */
 function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPress: () => void }) {
   const { b, filter } = props;
-  const started = b.recorded > 0;
   const noun = MAP_FILTERS.find((f) => f.id === filter)?.noun ?? '';
-  const sub = filter !== 'all'
-    ? `${fmt(b.matching)} ${noun} · ${fmt(b.recorded)} of ${fmt(b.total)} recorded`
-    // Less text (demo SIMPLE-12): the bar says how far; the words only the count.
-    : started
-      ? `${fmt(b.recorded)} of ${fmt(b.total)}${b.done ? ` · ${fmt(b.done)} done` : ''}`
-      : '';
-  const feedback = b.feedback > 0 && filter === 'all';
+  const sub = b.recorded > 0 ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? `, ${fmt(b.done)} done` : ''}` : 'Not started';
   const beside = useOpenDetail();
   return (
-    <Row label={b.name} {...(sub ? { sub } : {})} muted={!started} last={props.last} onPress={props.onPress}
+    <BookBar name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress}
+      {...(filter !== 'all' ? { count: fmt(b.matching) } : {})}
       current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
-      accessibilityLabel={`${b.name}. ${sub || 'Not started'}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`}
-      {...(b.mine > 0 ? { badge: `${b.mine} for you`, badgeTone: 'amber' as const } : {})}
-      {...(started ? { below: <StackBar done={b.done} recorded={b.recorded} total={b.total} /> } : {})}
-      {...(feedback ? {
-        right: (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <IconCount icon="chat" n={b.feedback} tone="amber" />
-            <Ico name="right" size={22} color={C.muted} />
-          </View>
-        )
-      } : {})} />
+      accessibilityLabel={`${b.name}. ${sub}${filter !== 'all' ? `. ${fmt(b.matching)} ${noun}` : ''}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`} />
   );
 }
 
@@ -460,6 +460,29 @@ function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
   return ctx.languages.filter((l) => privilegesFor(org, ctx.session.actorId, l.languageId).size > 0);
 }
 
+/**
+ * This person's next passage on the map (demo Map's "Next"): the first thing
+ * waiting on them, as on My Work, or else a good place to start.
+ */
+function useNextPassage(ctx: Ctx, state: LanguageState | null): { unitId: string; icon: IconName } | null {
+  const canRecord = ctx.session.can('translate');
+  const canReview = ctx.session.can('review');
+  return useMemo(() => {
+    if (!state || (!canRecord && !canReview)) return null;
+    const idx = indexesFor(state);
+    const first = highlightsFor(state, ctx.session.actorId, { canRecord, canReview }, idx)[0];
+    if (first) return { unitId: first.unitId, icon: workIcon(first.kind).icon };
+    const next = upNext(state, { canRecord, canReview }, idx);
+    return next ? { unitId: next.unitId, icon: next.kind === 'record' ? 'mic' : 'check' } : null;
+  }, [state, ctx.session.actorId, canRecord, canReview]);
+}
+
+/**
+ * A language's map, as the simple redesign has it (decision 71; demo Map):
+ * the language as the title, search first, then "Next", then the books of
+ * one testament with a bar and a count. The stat tiles, the filter and the
+ * template and flow move one tap deeper, behind "Filter".
+ */
 export function MapHome(ctx: Ctx) {
   // The map is of the open language: a `languageId` param has opened it.
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
@@ -467,8 +490,10 @@ export function MapHome(ctx: Ctx) {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const [filter, setFilter] = useState<MapFilter>('all');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [testament, setTestament] = useState<Testament | null>(null);
   const forYou = useForYou(ctx, state);
+  const next = useNextPassage(ctx, state);
   const entries = useMemo(() => (state ? languageEntries(state) : []), [state]);
   const books = useMemo(() => summarizeBooks(entries, filter, forYou), [entries, filter, forYou]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
@@ -479,12 +504,14 @@ export function MapHome(ctx: Ctx) {
   const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
   const sel = state?.template?.value;
   const templateName = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : undefined;
-  const sub = state
-    ? [outline ? 'Own outline' : templateName, flowLabel(state)].filter(Boolean).join(' · ')
-    : undefined;
+  // What the header used to say under the title: in the Filter sheet now.
+  const about = state ? [outline ? 'Own outline' : templateName, flowLabel(state)].filter(Boolean).join(' · ') : '';
   // Workers land here from the Map tab; everyone else came from the overview or a language home.
   const backable = mapScreenFor(ctx.session) === 'status_home';
-  const header = <Header title={language} {...(sub ? { sub } : {})} {...(backable ? { onBack: ctx.back } : {})} />;
+  const filterLink = state && entries.length > 0 && !outline
+    ? <QuietIconLink icon="filter" label="Filter" onPress={() => setFilterOpen(true)} detail="Show only some passages: with feedback, with reviewers, done, not recorded." />
+    : undefined;
+  const header = <Header title={language} {...(backable ? { onBack: ctx.back } : {})} {...(filterLink ? { action: filterLink } : {})} />;
 
   if (!languageId) {
     return <Screen header={header}><EmptyState icon="globe" title="No languages yet" sub="Once a language is added, its passages show here." /></Screen>;
@@ -515,10 +542,13 @@ export function MapHome(ctx: Ctx) {
     );
   }
 
+  const nextLink = next ? <NextLink title={unitTitle(state, next.unitId)} icon={next.icon} onPress={() => ctx.openPassage(next.unitId, languageId)} /> : null;
+
   if (outline) {
     return (
       <Screen header={header}>
         {languageChips}
+        {nextLink}
         <OutlineMap ctx={ctx} state={state} kinds={kinds} languageId={languageId} entries={entries} forYou={forYou} />
       </Screen>
     );
@@ -529,17 +559,21 @@ export function MapHome(ctx: Ctx) {
   const bookHits = searching && search.chapter === undefined ? books.filter((b) => b.book && bookMatches(b.book, search.book)) : [];
   const passageHits = searching && search.chapter !== undefined ? entries.filter((e) => placeMatches(e.place, query)) : [];
 
-  const testaments = (['ot', 'nt'] as const).filter((t) => books.some((b) => b.book?.testament === t));
-  const shownTestament = testament && testaments.includes(testament) ? testament : testaments.includes('nt') ? 'nt' : testaments[0];
+  // New Testament first (demo Map), then Old.
+  const testaments = (['nt', 'ot'] as const).filter((t) => books.some((b) => b.book?.testament === t));
+  const shownTestament = testament && testaments.includes(testament) ? testament : testaments[0];
   const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0;
   const visible = books.filter((b) => b.book && b.book.testament === shownTestament && inFilter(b));
   const other = books.find((b) => !b.book && inFilter(b));
-  const groups = CANON_GROUPS.filter((g) => visible.some((b) => b.group === g));
+  const summary = [
+    `${fmt(progress.recorded)} of ${fmt(progress.total)} recorded · ${fmt(progress.done)} done · ${fmt(progress.waiting)} with reviewers`,
+    ...(about ? [about] : [])
+  ];
 
   return (
     <Screen header={header}>
       {languageChips}
-      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder="Find a book or chapter — “John 3”" />
+      <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder="Find “John 3”" />
 
       {searching ? (
         search.chapter === undefined ? (
@@ -571,30 +605,10 @@ export function MapHome(ctx: Ctx) {
         )
       ) : (
         <>
-          <View style={{ flexDirection: 'row', gap: space.sm }}>
-            {[
-              { label: 'Recorded', value: fmt(progress.recorded), of: `of ${fmt(progress.total)}`, color: C.primary },
-              { label: 'Done', value: fmt(progress.done), of: '', color: TINT.greenText },
-              { label: 'With reviewers', value: fmt(progress.waiting), of: '', color: TINT.amberText }
-            ].map((t) => (
-              <View key={t.label} style={styles.stat}>
-                <Text style={[styles.statValue, { color: t.color }]} numberOfLines={1}>
-                  {t.value}{t.of ? <Text style={[txt.xsStrong]}> {t.of}</Text> : null}
-                </Text>
-                <Text style={txt.smMuted} numberOfLines={1}>{t.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          <SectionLabel label="Books" />
-          <FilterChips filter={filter} counts={counts} onFilter={setFilter} />
-          {testaments.length > 1 ? (
-            <ChipRow>
-              {testaments.map((t) => (
-                <Chip key={t} label={t === 'ot' ? 'Old Testament' : 'New Testament'} on={shownTestament === t} onPress={() => setTestament(t)}
-                  count={books.filter((b) => b.book?.testament === t && inFilter(b)).length} />
-              ))}
-            </ChipRow>
+          {nextLink}
+          <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
+          {testaments.length > 1 && shownTestament ? (
+            <Pills items={testaments.map((t) => ({ id: t, label: t === 'ot' ? 'Old Testament' : 'New Testament' }))} on={shownTestament} onPick={setTestament} />
           ) : null}
 
           {visible.length === 0 && !other ? (
@@ -602,38 +616,34 @@ export function MapHome(ctx: Ctx) {
               {filter === 'all' ? 'No books in this language yet.' : 'Nothing here matches this filter.'}
             </Text>
           ) : null}
-          {groups.map((g) => {
-            const list = visible.filter((b) => b.group === g);
-            return (
-              <View key={g} style={{ gap: space.sm }}>
-                <Text style={[txt.sm, { fontWeight: '700', paddingHorizontal: space.xs, paddingTop: space.sm }]}>{g}</Text>
-                <Group>
-                  {list.map((b, i) => <BookRow key={b.key} b={b} filter={filter} last={i === list.length - 1} onPress={() => openBook(b.key)} />)}
-                </Group>
-              </View>
-            );
-          })}
+          {visible.length > 0 ? (
+            <Group>
+              {visible.map((b, i) => <BookRow key={b.key} b={b} filter={filter} last={i === visible.length - 1} onPress={() => openBook(b.key)} />)}
+            </Group>
+          ) : null}
           {other ? (
             <View style={{ gap: space.sm }}>
-              <Text style={[txt.sm, { fontWeight: '700', paddingHorizontal: space.xs, paddingTop: space.sm }]}>Other</Text>
+              <SectionLabel label="Other" />
               <Group><BookRow b={other} filter={filter} last onPress={() => openBook(OTHER)} /></Group>
             </View>
           ) : null}
         </>
       )}
+      <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filter={filter} counts={counts} onFilter={setFilter} summary={summary} />
     </Screen>
   );
 }
 
 // ---- one book: a grid of chapters (MAP-5) ---------------------------------------------------
 
-const TONES: Record<ChapterTone, { bg: string; fg: string; border: string; dashed: boolean; label: string }> = {
-  done: { bg: onColor.green, fg: C.white, border: onColor.green, dashed: false, label: 'Done' },
-  feedback: { bg: TINT.amber, fg: TINT.amberText, border: C.amber, dashed: false, label: 'Feedback waiting' },
-  review: { bg: C.light, fg: C.primary, border: C.light, dashed: false, label: 'Recorded, in review' },
-  drafting: { bg: C.card, fg: C.primary, border: C.primary, dashed: true, label: 'Recording started' },
-  todo: { bg: C.card, fg: C.muted, border: C.border, dashed: true, label: 'Not recorded' },
-  none: { bg: TINT.gray, fg: C.faint, border: TINT.gray, dashed: false, label: 'No passage' }
+/** What each tone is called, for a tile's spoken label. */
+const TONES: Record<ChapterTone, { label: string }> = {
+  done: { label: 'Done' },
+  feedback: { label: 'Feedback waiting' },
+  review: { label: 'Recorded, in review' },
+  drafting: { label: 'Recording started' },
+  todo: { label: 'Not recorded' },
+  none: { label: 'No passage' }
 };
 
 interface ChapterTile {
@@ -646,6 +656,13 @@ interface ChapterTile {
   matches: boolean;
 }
 
+/**
+ * A chapter in three states (the simple Map, decision 71): done, started, not
+ * started, marked as well as coloured. What the old seven tones said (feedback
+ * waiting, in review with its steps, recording begun, for you, kept on this
+ * device) stays in its spoken label and under Filter's key; a kept chapter
+ * keeps its mark at the corner.
+ */
 function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline> }) {
   const { c } = props;
   const t = TONES[c.tone];
@@ -654,59 +671,9 @@ function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; o
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
   const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this device${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
   const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;
-  // The tone's icon goes with its colour, even beside "N parts" (never colour alone).
-  const toneIcon = c.tone === 'done' ? <Ico name="check" size={14} color={t.fg} strokeWidth={3} />
-    : c.tone === 'drafting' ? <Ico name="mic" size={14} color={t.fg} /> : null;
   return (
-    <Pressable onPress={props.onPress} disabled={parts === 0} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: parts === 0, selected: !!props.current }}
-      style={({ pressed }) => [styles.tile, { backgroundColor: t.bg, borderColor: t.border, borderStyle: t.dashed ? 'dashed' : 'solid', opacity: c.matches ? 1 : 0.28 },
-        props.current && { borderColor: C.primary, borderWidth: 3, borderStyle: 'solid' },
-        pressed && { transform: [{ scale: 0.95 }] }]}>
-      <Text style={[styles.tileNumber, { color: t.fg }]}>{c.n}</Text>
-      {parts > 1 ? (
-        <View style={styles.tileParts}>
-          {toneIcon}
-          <Text style={[txt.xsStrong, { color: t.fg }]}>{parts} parts</Text>
-        </View>
-      ) : toneIcon}
-      {c.tone === 'feedback' ? <View style={styles.tileFoot}><Ico name="chat" size={14} color={t.fg} /></View> : null}
-      {c.tone === 'review' && c.steps > 0 ? (
-        <View style={styles.tileBar}>
-          {Array.from({ length: c.steps }, (_, i) => (
-            <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i < c.cleared ? C.primary : withAlpha(C.primary, 0.18) }} />
-          ))}
-        </View>
-      ) : null}
-      {c.mine ? <View style={styles.tileDot} /> : null}
-      {kept.length ? <OfflineMark corner u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : null}
-    </Pressable>
-  );
-}
-
-function Legend(props: { none: boolean }) {
-  const tones: ChapterTone[] = ['done', 'review', 'feedback', 'drafting', 'todo', ...(props.none ? ['none' as const] : [])];
-  return (
-    <View style={{ gap: space.sm, paddingHorizontal: space.xs }}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg, rowGap: space.sm }}>
-        {tones.map((k) => {
-          const t = TONES[k];
-          return (
-            <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <View style={{ width: 16, height: 16, borderRadius: 5, backgroundColor: t.bg, borderWidth: 2, borderColor: t.border, borderStyle: t.dashed ? 'dashed' : 'solid' }} />
-              <Text style={txt.smMuted}>{t.label}</Text>
-            </View>
-          );
-        })}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: C.amber }} />
-          <Text style={txt.smMuted}>For you</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Ico name="onPhone" size={16} color={onColor.green} />
-          <Text style={txt.smMuted}>On this device offline</Text>
-        </View>
-      </View>
-    </View>
+    <ChapterTileView n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
+      corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : undefined} />
   );
 }
 
@@ -718,6 +685,7 @@ export function BookMap(ctx: Ctx) {
   const initial = ctx.params['filter'];
   const [filter, setFilter] = useState<MapFilter>(isMapFilter(initial) ? initial : 'all');
   const [openChapter, setOpenChapter] = useState<number | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const forYou = useForYou(ctx, state);
   const layout = useLayout();
@@ -754,18 +722,8 @@ export function BookMap(ctx: Ctx) {
   const recordedCount = entries.filter((e) => e.s.recorded).length;
   const crumbs = [{ label: language || 'Passage Map', onPress: () => ctx.go('map_home', languageId ? { languageId } : undefined) }, { label: title }];
   const canEdit = !!book && canGo(ctx, 'book_map', 'book_structure');
-  const header = (
-    <Header title={title} crumbs={crumbs} onBack={ctx.back}
-      sub={`${language ? `${language} · ` : ''}${fmt(recordedCount)} of ${fmt(entries.length)} recorded`}
-      action={canEdit ? (
-        // Quieter than the page's work (ADR-029): shaping a book is rare, so it reads as a muted link, still 48pt.
-        <Pressable onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })} accessibilityRole="button" accessibilityLabel="Edit passages"
-          style={({ pressed }) => [styles.quietAction, pressed && { opacity: 0.6 }]}>
-          <Ico name="cut" size={18} color={C.muted} />
-          <Text style={[txt.sm, { color: C.muted, fontWeight: '500' }]}>Edit passages</Text>
-        </Pressable>
-      ) : undefined} />
-  );
+  // The demo's book (MapBook): the book's name and how many of its passages are recorded; nothing else up top.
+  const header = <Header title={title} crumbs={crumbs} onBack={ctx.back} sub={`${fmt(recordedCount)} of ${plural(entries.length, 'passage')}`} />;
   if (!languageId || (!book && bookId !== OTHER)) {
     return <Screen header={header}><EmptyState icon="book" title="This book isn't in this language" sub="Go back to the map to pick another." /></Screen>;
   }
@@ -773,13 +731,34 @@ export function BookMap(ctx: Ctx) {
 
   const open = (e: Entry) => ctx.openPassage(e.unitId, languageId);
   const sheet = openChapter ? chapters[openChapter - 1] : undefined;
+  const summary = [`${fmt(recordedCount)} of ${plural(entries.length, 'passage')} recorded${language ? ` in ${language}` : ''}`];
+  const filterSheet = (
+    <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filter={filter} counts={counts} onFilter={(f) => { setFilter(f); setLimit(PAGE); }} summary={summary}>
+      {book ? (
+        <>
+          <SectionLabel label="Key" />
+          <FullKey none={chapters.some((c) => c.tone === 'none')} />
+        </>
+      ) : null}
+    </FilterSheet>
+  );
+  // The less likely ways on, quiet, under the chapters: the filters and the full key, and shaping the book for those who may.
+  const quiet = (
+    <View style={styles.quietRow}>
+      <QuietIconLink icon="filter" label="Filter" onPress={() => setFilterOpen(true)} detail="Show only some passages, and the full key." />
+      {canEdit ? (
+        <QuietIconLink icon="cut" label="Edit passages" onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })}
+          detail="Divide this book into passages your own way." />
+      ) : null}
+    </View>
+  );
 
   // Passages that sit in no book have no chapters to lay out: a list, 25 at a time.
   if (!book) {
     const shown = entries.filter((e) => filter === 'all' || matchesFilter(e.s, filter));
     return (
       <Screen header={header}>
-        <FilterChips filter={filter} counts={counts} onFilter={(f) => { setFilter(f); setLimit(PAGE); }} />
+        <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>Nothing here matches this filter.</Text> : (
           <Group>
             {shown.slice(0, limit).map((e, i, list) => (
@@ -788,6 +767,8 @@ export function BookMap(ctx: Ctx) {
           </Group>
         )}
         <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((l) => l + PAGE)} />
+        {quiet}
+        {filterSheet}
       </Screen>
     );
   }
@@ -799,7 +780,7 @@ export function BookMap(ctx: Ctx) {
 
   return (
     <Screen header={header}>
-      <FilterChips filter={filter} counts={counts} onFilter={setFilter} />
+      <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
       <View style={{ gap: space.sm }}>
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
@@ -813,7 +794,9 @@ export function BookMap(ctx: Ctx) {
           </View>
         ))}
       </View>
-      <Legend none={chapters.some((c) => c.tone === 'none')} />
+      <ShortKey />
+      {quiet}
+      {filterSheet}
       <Sheet visible={!!sheet} title={sheet ? `${book.name} ${sheet.n}` : ''} sub={sheet ? `${sheet.list.length} parts — pick one` : ''} onClose={() => setOpenChapter(null)}>
         {sheet ? (
           <Group>
@@ -830,8 +813,8 @@ export function BookMap(ctx: Ctx) {
 
 const styles = StyleSheet.create({
   filterBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  quietRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginLeft: -space.sm },
   filterChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  quietAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.sm },
   disc: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   discDot: { position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white },
   iconCount: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
@@ -839,15 +822,7 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md, rowGap: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   swatch: { width: 10, height: 10, borderRadius: 3 },
-  code: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  stat: { flex: 1, backgroundColor: C.card, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.md },
-  statValue: { fontSize: T.xl, fontWeight: '700' },
-  tile: { flex: 1, aspectRatio: 1, minHeight: 48, borderRadius: radius.lg, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tileNumber: { fontSize: T.xl, fontWeight: '700' },
-  tileParts: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  tileFoot: { position: 'absolute', bottom: 5 },
-  tileBar: { position: 'absolute', bottom: 7, left: 8, right: 8, flexDirection: 'row', gap: 2 },
-  tileDot: { position: 'absolute', top: 5, right: 5, width: 12, height: 12, borderRadius: 6, backgroundColor: C.amber, borderWidth: 2, borderColor: C.white }
+  code: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }
 });
 
 export const contracts = contractsFor('status_home', 'map_home', 'book_map');
