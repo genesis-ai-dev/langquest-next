@@ -50,7 +50,6 @@ import { VoiceNote, voiceFor } from '../voiceNote';
 
 const SKIP_REASONS = ['No one available for this right now', 'Another review already covered this', 'Not needed for this passage'];
 const OVERRIDE_REASONS = ['Consultant visit is months away; church needs it now', 'Checked informally — will record it later'];
-const KEEP_REASONS = ['Listeners preferred the current wording', 'Matches our key terms decision', 'The suggestion changes the meaning'];
 const HISTORY_STEP = 20;
 const GRID_STEP = 10;
 const PEOPLE_STEP = 25;
@@ -459,7 +458,8 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
   return (
     <ReasonSheet visible title="Keep it as it is?" tone="amber"
       sub="No new version is made. Your reason goes back to the reviewer and into the record."
-      quickReasons={KEEP_REASONS} confirmLabel="Keep and send reason" voice={voiceFor(ctx)} onClose={props.onClose}
+      // Voice first, in the person's own words; no preset reasons (demo SIMPLE-9).
+      quickReasons={[]} confirmLabel="Keep and send reason" voice={voiceFor(ctx)} onClose={props.onClose}
       onConfirm={(r) => {
         props.onClose();
         void perform(ctx, (c) => c.depart({

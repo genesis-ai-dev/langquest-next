@@ -682,16 +682,16 @@ export function ReasonSheet(props: {
     <Sheet visible={props.visible} title={props.title} sub={props.sub} onClose={props.onClose}
       footer={<PrimaryBtn label={props.confirmLabel} tone={props.tone ?? 'dark'} disabled={!ready}
         onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+      {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.quickReasons.map((q) => (
           <Pressable key={q} onPress={() => setReason(q)} accessibilityRole="button" accessibilityState={{ selected: reason === q }}
             style={({ pressed }) => [styles.quickReason, reason === q ? { backgroundColor: C.dark, borderColor: C.dark } : null, pressed && styles.pressed]}>
             <Text style={[txt.sm, { fontWeight: '600', color: reason === q ? C.white : C.dark }]}>{q}</Text>
           </Pressable>
         ))}
-      </View>
+      </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
-      <Field value={reason} onChangeText={setReason} placeholder="Or type the reason" multiline />
+      <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? 'Or type the reason' : 'Or type it'} multiline />
       <Text style={txt.xs}>{props.footnote ?? "This goes in the passage's record with your name. It can be undone later; the record keeps both."}</Text>
     </Sheet>
   );
