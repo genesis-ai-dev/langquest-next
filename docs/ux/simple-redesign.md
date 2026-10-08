@@ -27,6 +27,12 @@ Background as one sheet, Already happened behind the same screens) and 10
 Back translation (the workspace with only the version on top, part by
 part).
 
+Item 10 rebuilt to the agreed images (decision 71, amended 2026-10-08):
+the language page is the Get ready checklist, then a summary;
+`screens/getReady.tsx` holds the four questions and What helps them; the flow
+editor edits a language's own checks; New Language is four steps; joining,
+inviting and roles read in plain words (`src/simple/`).
+
 Not built yet: 5 (which Bible was playing per take), 6's term notes, 7's
 verse-group cards and side-by-side wide panes, 8 (microphone setup), and
 spoken help lines on devices.

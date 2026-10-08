@@ -61,11 +61,15 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   roles_home: { reads:['org.roles'] },
   // Adds the language to the organization's stream, then gives its own
   // stream a template and a flow, which it needs (decisions.md 63).
-  new_language: { emits:['v1.LanguageAdded','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
+  // And what its team is offered from the start (decision 71), and its first group invite code.
+  new_language: { emits:['v1.LanguageAdded','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
+    'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.LicenseSet'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
+  // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
+  language_home: { rpcs:['set_language_visibility'],reads:['language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
@@ -91,7 +95,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     'v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['deriveFlow','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Publishes flow versions; languages move to them by themselves (library/follow.ts).
-  flow_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+  // With `steps: 'language'` it saves the open language's own checks (core saveFlowSteps, decision 71).
+  flow_editor: { emits:['v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.ReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['materialView','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
@@ -110,7 +115,14 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   reports_home: { reads:['orgReports'] },
   reports_language: { emits:['v1.LanguageCountrySet','v1.LanguageTargetSet'],reads:['orgReports'] },
   // Bible Brain through the Worker (docs/reference-material.md); My Bibles are kept on the phone.
-  bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] }
+  bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] },
+  // Get a language ready (decision 71): what they record (a template, as template_picker applies it), what helps
+  // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
+  // chooses it), and a group invite code (as invite_qr issues it).
+  get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
+    'v1.ReferenceRecommended','v1.ReferenceSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
+    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

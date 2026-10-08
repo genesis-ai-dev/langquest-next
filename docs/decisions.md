@@ -2011,6 +2011,29 @@ words, earlier checks). No new events; existing fields carry the new parts:
   `produceContent` now keeps, so the consultant can pair them. Part cards
   say "Part n" until parts have verse labels.
 
+Amended (2026-10-08, Caleb Koster): the admin screens now take the agreed
+shape, not only its words (Caleb: "go through the plan we agreed on and
+actually do it"). A language's page is the Get ready checklist until the
+language is ready, then the same four as a summary with join requests under
+them; everything else it had is under More. Ready means something to record,
+a way to check it, and someone given a role or a code for that language (the
+organization's own translators do not count, since they cover every
+language); what helps them is asked but never required. Each question is its
+own screen (`get_ready` with `step` 1 to 4, `helps` for What helps them). A
+guide or note in the library counts as offered unless the language hides it,
+as `reference/offered.ts` already offers it; a Bible only when recommended.
+Who checks, from a ready language, edits that language's own steps (core
+`saveFlowSteps`), so it stops following the library flow it used; Undo puts
+that flow back. New Language is four steps and offers the new team the
+organization's own English Bible and study guides, else LangQuest's (followed
+first). What someone will do reads as four plain choices given by the
+organization's roles (Back-translate gives the checking role unless a role of
+its own exists); the rest stay one tap away. A role's fifteen permissions are
+twelve switches in three groups: setting up languages covers the structure,
+templates and dividing books; choosing who checks covers flows and review
+groups. Inviting shows a group code (30 uses) first; email and a code for one
+named person are one quiet tap away.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: accepted

@@ -345,7 +345,22 @@ export const EDGES: Edge[] = [
   e('settings_more', 'sync_status'),
   e('sync_status', 'settings_more', 'back'),
   e('settings_more', 'delete_account'),
-  e('delete_account', 'settings_more', 'back')
+  e('delete_account', 'settings_more', 'back'),
+  // App only: the four questions, one screen each, and where each answer is made in full (decision 71, demo ADR-039)
+  e('get_ready', 'get_ready'),
+  e('get_ready', 'template_editor', undefined, 'manageTemplates'),
+  e('get_ready', 'templates_home', undefined, 'manageTemplates'),
+  e('get_ready', 'reference_bibles', undefined, 'manageReference'),
+  e('get_ready', 'reference_source', undefined, 'manageReference'),
+  e('get_ready', 'reference_guides', undefined, 'manageReference'),
+  e('get_ready', 'reference_home', undefined, 'manageReference'),
+  e('get_ready', 'material_editor', undefined, 'manageReference'),
+  e('get_ready', 'key_terms'),
+  e('get_ready', 'flow_editor', undefined, 'manageFlows'),
+  e('get_ready', 'role_editor'),
+  // App only: a ready language's page (decision 71, demo ADR-039): who checks, and letting someone in
+  e('language_home', 'flow_editor', undefined, 'manageFlows'),
+  e('language_home', 'edit_member', undefined, 'assigner')
 ];
 
 /**
