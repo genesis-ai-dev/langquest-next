@@ -162,6 +162,9 @@ export function PassageRecord(ctx: Ctx) {
   const [historyOpen, setHistoryOpen] = useState(false);
   // Publish, then ask (demo ADR-034): arriving from Publish opens the likely next check, preselected.
   const [askNext, setAskNext] = useState(() => !!ctx.params['published']);
+  // Publishing returns to a record that may already be open (the stack pops back to it): open the ask then too.
+  const publishedParam = ctx.params['published'];
+  useEffect(() => { if (publishedParam) setAskNext(true); }, [publishedParam]);
   const [historyShown, setHistoryShown] = useState(HISTORY_STEP);
   // Which version the path shows: the latest unless someone flipped back (‹ ›, the dots, a swipe).
   const versionCount = v?.p.versions.length ?? 0;
@@ -177,7 +180,7 @@ export function PassageRecord(ctx: Ctx) {
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
   // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
   const justPublished = ctx.params['published'];
-  const asker = isAuthor || justPublished === 'bt';
+  const asker = isAuthor || !!justPublished?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const targets = useMemo(() => {
     const out: Record<string, UsualTarget | undefined> = {};
@@ -405,7 +408,7 @@ export function PassageRecord(ctx: Ctx) {
         </Sheet>
       ) : null}
       {askNext && nextKind ? (
-        <Sheet visible title={justPublished === 'bt' ? 'Back translation saved' : `${versionTitle(p.versions.length)} published`} sub="Everyone on the team can hear it. It goes out when the device has internet." onClose={() => setAskNext(false)}
+        <Sheet visible title={justPublished?.startsWith('bt') ? 'Back translation saved' : `${versionTitle(p.versions.length)} published`} sub="Everyone on the team can hear it. It goes out when the device has internet." onClose={() => setAskNext(false)}
           footer={(
             <View style={{ gap: space.xs }}>
               <PrimaryBtn label={nextTarget ? `Ask ${sendTargetLabel(nextTarget, ctx.name)}` : `Ask for the ${v.kind(nextKind.kindId).name}`} icon="arrowR"

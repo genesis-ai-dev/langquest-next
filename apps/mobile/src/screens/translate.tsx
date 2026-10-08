@@ -240,7 +240,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       await ctx.act(specs, `${versionTitle(nextN)} published.`);
       setConfirming(false);
       // Publish, then ask (demo ADR-034): the record opens with the likely check ready to send.
-      ctx.go('passage_record', { unitId, languageId, published: String(nextN) });
+      ctx.go('passage_record', { unitId, languageId, published: `${nextN}:${Date.now()}` });
     } catch { /* ctx.act said what went wrong */ }
     finally { setPublishing(false); }
   }
@@ -484,7 +484,7 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     setSaving(false);
     setConfirming(false);
     // Publish, then ask (demo ADR-034): the record opens with the next check (usually the consultant) ready.
-    ctx.go('passage_record', { unitId, languageId, published: 'bt' });
+    ctx.go('passage_record', { unitId, languageId, published: `bt:${Date.now()}` });
   }
 
   const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));

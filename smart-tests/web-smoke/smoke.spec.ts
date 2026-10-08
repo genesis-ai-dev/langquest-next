@@ -42,7 +42,7 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, 'input[aria-label="Language name"]').fill('Dinka');
   await vis(page, 'input[aria-label="Language code"]').fill('din');
   await button(page, 'Create Language').click();
-  await expect(page.getByText('Who checks the recordings?')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Who checks the recordings?').first()).toBeVisible({ timeout: 60_000 });
 }
 
 /** Every file the app's own stores hold in this site's private files (apps/mobile/src/webFiles.ts). */
