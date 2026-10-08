@@ -7,6 +7,8 @@ export interface Env {
   /** Recordings and guide media (blobs.ts, decisions.md 69). */
   BLOBS: R2Bucket;
   SUPABASE_URL: string;
+  /** The public key the app ships with; the connect page signs in with it (agent/connectPage.ts). */
+  SUPABASE_ANON_KEY?: string;
   /** Reads every stream; never sent to the browser. */
   SUPABASE_SERVICE_ROLE_KEY: string;
   /**

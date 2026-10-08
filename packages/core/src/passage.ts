@@ -3,7 +3,7 @@ import { libraryUnitRange } from './versification';
 import type { Hlc } from './hlc';
 import { buildIndexes, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, PUBLICATION_KIND, QUESTION_TEMPLATES,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
 import { sourceChapters } from './sourceBibles';
@@ -854,4 +854,37 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
   for (const r of Object.values(state.responses ?? {})) add(r.blobHash);
   for (const t of Object.values(state.keyTerms ?? {})) for (const a of Object.values(t.adjustments)) add(a.blobHash);
   return out;
+}
+
+/** Whether a partner has marked the passage ready to publish (decisions.md 70). */
+export interface Publication {
+  ready: boolean;
+  /** The version the decision is about. */
+  takeId: string;
+  versionN: number;
+  /** Who decided: the account behind the token. */
+  by: string;
+  hlc: Hlc;
+  /** Why it was taken back, or a note with the mark. */
+  note?: string;
+}
+
+/**
+ * The latest publication decision on the latest version, or null when there
+ * is none. Readiness belongs to one version: a new version starts without
+ * it, and a passage that is no longer approved is never ready.
+ */
+export function publicationOf(s: PassageState): Publication | null {
+  const latest = s.latest;
+  if (!latest) return null;
+  let last: ReviewView | null = null;
+  for (const r of s.reviews) {
+    if (r.kindId !== PUBLICATION_KIND || r.takeId !== latest.takeId) continue;
+    if (!last || r.hlc > last.hlc || (r.hlc === last.hlc && r.id > last.id)) last = r;
+  }
+  if (!last) return null;
+  return {
+    ready: s.done && last.outcome === 'looks_good', takeId: latest.takeId, versionN: latest.n, by: last.by, hlc: last.hlc,
+    ...(last.comment !== undefined ? { note: last.comment } : {})
+  };
 }

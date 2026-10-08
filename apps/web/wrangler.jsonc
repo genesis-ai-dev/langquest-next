@@ -14,20 +14,26 @@
   // Publishes verse timings asked for LangQuest's own sources (worker/timings.ts).
   "triggers": { "crons": ["*/10 * * * *"] },
   // The app's web export (npm run export:web in apps/mobile, decisions.md
-  // 57): the page, its bundles, version.json and _headers. Only /api/*
-  // reaches the Worker first; every other path the page does not have is
+  // 57): the page, its bundles, version.json and _headers. Only /api/* and
+  // /connect (the access-token page, agent/connectPage.ts) reach the Worker
+  // first; every other path the page does not have is
   // the page (single-page app). Its source maps are written elsewhere and
   // never served.
   "assets": {
     "directory": "../mobile/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/connect"]
   },
   // Public settings (docs/environments.md). The project ref must match
   // [remotes.production] in supabase/config.toml (a test checks it). Local
   // development overrides it from .dev.vars (npm run web:dev writes it).
-  "vars": { "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co" },
+  // The anon key is the public one every app build carries; the connect
+  // page signs in with it.
+  "vars": {
+    "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50"
+  },
   // Set on the Worker by `npm run secrets -- production`, never at deploy;
   // a deploy fails while one is missing.
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
@@ -49,6 +55,8 @@
   "env": {
     "preview": {
       "routes": [{ "pattern": "next-preview.langquest.org", "custom_domain": true }],
+      // The preview app build's public key (apps/mobile/.env.preview).
+      "vars": { "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50" },
       "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
         "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
