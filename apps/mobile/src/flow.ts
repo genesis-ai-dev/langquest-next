@@ -38,7 +38,9 @@ export const SCREEN_IDS = [
   // App only: the guide editor (docs/reference-material.md)
   'guide_editor',
   // App only: exploring Bibles beside a passage (docs/reference-material.md)
-  'bible_explore'
+  'bible_explore',
+  // App only: the simple redesign (decision 71): microphone setup by ear, and getting a language ready
+  'mic_setup', 'get_ready'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -319,7 +321,16 @@ export const EDGES: Edge[] = [
   e('my_work', 'invite_qr', undefined, 'assigner'),
   // App only: a new role while inviting or admitting someone (demo ADR-039, amended 2026-10-08)
   e('invite_member', 'role_editor'),
-  e('edit_member', 'role_editor')
+  e('edit_member', 'role_editor'),
+  // App only: the simple redesign (decision 71)
+  e('settings_home', 'mic_setup'),
+  e('mic_setup', 'settings_home', 'back'),
+  e('workspace', 'mic_setup'),
+  e('mic_setup', 'workspace', 'back'),
+  e('my_work', 'get_ready', undefined, 'assigner'),
+  e('get_ready', 'my_work', 'back'),
+  e('language_home', 'get_ready'),
+  e('get_ready', 'language_home', 'back')
 ];
 
 /**
@@ -360,5 +371,6 @@ export const TITLES: Record<ScreenId, string> = {
   reference_bibles: 'Bibles', reference_source: 'Bible', reference_guides: 'Guides and Notes', reference_coverage: 'Coverage',
   passage_reference: 'Reference',
   guide_editor: 'Write a Guide',
-  bible_explore: 'More Bibles'
+  bible_explore: 'More Bibles',
+  mic_setup: 'Set up your microphone', get_ready: 'Get ready'
 };

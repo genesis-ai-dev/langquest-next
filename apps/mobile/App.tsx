@@ -37,6 +37,7 @@ import * as Reference from './src/screens/reference';
 import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
 import * as Sources from './src/screens/sources';
+import * as Simple from './src/screens/simple';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
@@ -89,7 +90,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage,
   reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
   reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
-  bible_explore: Sources.BibleExplore
+  bible_explore: Sources.BibleExplore,
+  mic_setup: Simple.MicSetup, get_ready: Simple.GetReady
 };
 
 /**

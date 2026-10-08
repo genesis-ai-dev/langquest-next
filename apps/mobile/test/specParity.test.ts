@@ -17,6 +17,10 @@ import { ORG, roleSession } from './sessions';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
+  'settings_home->mic_setup': 'microphone setup by ear, from Me (decision 71, demo ADR-037)',
+  'workspace->mic_setup': 'microphone setup, offered when takes keep clipping or come out quiet (decision 71)',
+  'my_work->get_ready': "a coordinator's My Work leads with getting the language ready (decision 71, demo ADR-039)",
+  'language_home->get_ready': 'the language page opens the four questions to get it ready (decision 71, demo ADR-039)',
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',
   'org_home->language_home': 'no project level (decision 63): the organization lists its languages',
   'settings_home->sync_status': 'sync status screen: the local event log, realtime state and transfer progress',
@@ -69,7 +73,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor and More Bibles, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });
