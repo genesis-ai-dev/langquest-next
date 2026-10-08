@@ -27,26 +27,25 @@ import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, PrimaryBtn, Screen, SectionLabel, Sheet, txt
+  Banner, Chip, ChipRow, EmptyState, Field, Header, Ico, PrimaryBtn, Screen, SectionLabel, Sheet, txt
 } from '../kit';
-import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
+import { ReferenceRecordings } from '../passageSourceAudio';
 import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
-import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
 import { VadControls, VadPanel } from '../recording/VadTakeover';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cardLabels, removeCardSpecs, sameCards,
-  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
+  canPublish, cardDurations, cardLabels, removeCardSpecs, sameCards,
+  termsInText, tiedTermIds, tieTermsSpecs, workingCards
 } from '../recording/workspaceModel';
 import { HelpSheet, TrayPane, type TrayTab } from '../recording/WorkspaceTray';
 import { getReferenceSlides } from '../passageResources';
 import { pendingPassageCards } from '../recordingFlow';
-import { reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
+import { BackTranslationBody } from '../simple/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
 import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
@@ -407,151 +406,8 @@ export function BackTranslation(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} title={TITLES.back_translation} />;
   const kind = v.kind(kindId);
   if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={TITLES.back_translation} text="There's no recording to back-translate yet." />;
+  // The same split workspace, with only the version being back-translated on top (simple/btWorkspace.tsx).
   return <BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
-}
-
-/**
- * The parts are kept on this phone until Save (decision 30): recorded cards
- * go to a local draft, not the record, so a deleted part is gone for good
- * and the saved review names exactly the parts on screen.
- */
-function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
-  const { state, unitId, languageId, p } = v;
-  const produces = kind.produces!;
-  const me = ctx.session.actorId;
-  const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
-  const drafts = useBackTranslationDraft(
-    backTranslationDraftKey({ languageId, actorId: me, unitId, kindId: kind.id }), of.takeId);
-  const parts = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
-  const madeFrom = drafts.draft && parts.length > 0 && drafts.draft.fromTakeId !== of.takeId
-    ? p.versions.find((x) => x.takeId === drafts.draft!.fromTakeId) : undefined;
-  const requestId = ctx.params['requestId'];
-  const request = (requestId ? p.requests.find((r) => r.id === requestId) : undefined)
-    ?? p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === me);
-
-  // No journal target: the card is on disk before this runs, and it is
-  // named only by the draft until Save. Resolving after the draft is written
-  // keeps the recorder holding the file until then.
-  const add = drafts.add;
-  const persist = useCallback(async (card: RecordedCard) => {
-    await add({ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format });
-  }, [add]);
-  const rec = useRecorder(persist);
-  const loop = useListenLoop(rec);
-  const session = loop.phase !== 'off';
-  const recording = session || rec.manualOn;
-  const [working, setWorking] = useState(false);
-  const blocked = recording || rec.busy || working || !drafts.loaded || !!drafts.problem;
-
-  async function remove(hash: string, label: string) {
-    if (blocked) return;
-    const at = parts.findIndex((c) => c.hash === hash);
-    const card = parts[at];
-    if (!card) return;
-    setWorking(true);
-    try {
-      await drafts.remove(hash);
-      ctx.toast(`${label} deleted.`, async () => {
-        try { await drafts.add(card, at); } catch (e) { ctx.toast(`Not restored: ${problemText('back translation: restore part', e)}`); }
-      });
-    } catch (e) {
-      ctx.toast(`Not deleted: ${problemText('back translation: delete part', e)}`);
-    } finally { setWorking(false); }
-  }
-
-  const [confirming, setConfirming] = useState(false);
-  const [saving, setSaving] = useState(false);
-  async function save(note: string) {
-    let specs: EventSpec[];
-    try {
-      specs = commands(state, indexesFor(state)).produceContent({
-        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: parts,
-        ...(note.trim() ? { note: note.trim() } : {}), ...(request ? { requestId: request.id } : {})
-      });
-    } catch (e) {
-      ctx.toast(`Not saved: ${problemText('back translation: save', e)}`);
-      return;
-    }
-    setSaving(true);
-    try {
-      await ctx.act(specs, `${capitalize(produces.what)} saved.`);
-    } catch {
-      setSaving(false); // ctx.act said what went wrong
-      return;
-    }
-    // On the record now; a draft left behind is harmless (saved parts are never offered again).
-    await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
-    setSaving(false);
-    setConfirming(false);
-    // Publish, then ask (demo ADR-034): the record opens with the next check (usually the consultant) ready.
-    ctx.go('passage_record', { unitId, languageId, published: `bt:${Date.now()}` });
-  }
-
-  const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));
-  const problem = drafts.problem ? <SaveProblem message={drafts.problem} />
-    : rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
-    : rec.error ? <SaveProblem message={rec.error} /> : null;
-  return (
-    <Screen fixed
-      header={<Header title={capitalize(produces.what)} sub={`${v.language} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
-      footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
-        <View style={styles.actions}>
-          <RecordButton recording={false} disabled={blocked || rec.failureCount > 0} onPress={() => void loop.toggle()} />
-          <View style={{ flex: 1 }}>
-            <PrimaryBtn label={`Save ${produces.what}`} tone="dark" disabled={cards.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
-          </View>
-        </View>
-      )}>
-      <SplitPane memoryKey="back_translation" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
-        topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
-        top={
-          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Listen to ${versionTitle(of.n)}`}>
-            {request ? <RequestBanner ctx={ctx} request={request} /> : null}
-            {madeFrom ? (
-              <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
-                body={`${versionTitle(of.n)} is out now, and saving puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
-            ) : null}
-            <SectionLabel label={`Listen · ${v.language} ${versionTitle(of.n)}`} action={<Text style={txt.xs}>{ctx.name(of.by)}</Text>} />
-            <Card>
-              <SourcePlayer language={ctx.language} hashes={of.cardHashes} label={`Play ${versionTitle(of.n)}`} listen={loop.hooks} />
-              <Text style={txt.xs}>Notes, key terms and earlier reviews are hidden on purpose, so only the recording shapes what you say.</Text>
-            </Card>
-            <Banner icon="swap" title="You're making new content"
-              body={`Listen to ${versionTitle(of.n)}, then say what it means in ${produces.into}, in your own words. You're not judging it — ${checkedBy ? `the ${checkedBy} compares your ${produces.what} with the source` : `the next check compares your ${produces.what} with the source`}.`} />
-          </ScrollView>
-        }
-        bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={cards.length} noun="part" onResume={loop.resumeNow} /> : (
-          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Your ${produces.what}`}>
-            {problem}
-            <SectionLabel label={`Your ${produces.what} (${produces.into})`} action={<Text style={txt.xs}>{cards.length} part{cards.length === 1 ? '' : 's'} · saved on this device</Text>} />
-            <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h, cards.find((c) => c.hash === h)?.label ?? 'Part')}
-              empty={drafts.loaded ? 'No parts yet — listen to a part, then tap the red button and say it in your own words.' : 'Loading your parts…'} />
-          </ScrollView>
-        )} />
-
-      {confirming ? (
-        <BackTranslationSheet what={produces.what} into={produces.into} of={of} checkedBy={checkedBy} busy={saving}
-          onClose={() => setConfirming(false)} onSave={(note) => void save(note)} />
-      ) : null}
-    </Screen>
-  );
-}
-
-function BackTranslationSheet(props: { what: string; into: string; of: Version; checkedBy: string | undefined; busy: boolean; onClose: () => void; onSave: (note: string) => void }) {
-  const [text, setText] = useState('');
-  return (
-    <Sheet visible title={`Save ${props.what}`}
-      sub={`Of ${versionTitle(props.of.n)}. ${props.checkedBy ? `The ${props.checkedBy} will listen to it next.` : 'It goes on the passage record.'}`}
-      onClose={props.onClose}
-      footer={<PrimaryBtn label={`Save ${props.what}`} tone="dark" busy={props.busy} onPress={() => props.onSave(text)} />}>
-      <Text style={[txt.sm, { fontWeight: '700' }]}>Anything that was hard to say back? <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}>Optional</Text></Text>
-      <Field value={text} onChangeText={setText} placeholder={`Type it — e.g. a word with no ${props.into} match`} multiline />
-    </Sheet>
-  );
-}
-
-function capitalize(s: string): string {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 const styles = StyleSheet.create({

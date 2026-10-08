@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { audioFormat } from './audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
+import type { ListenHooks } from './recording/useListenLoop';
 import { useHelpPress } from './helpContext';
 import { Ico, txt } from './kit';
 import { noteExpected, reportError } from './report';
@@ -64,6 +65,8 @@ export function ClipPlayer(props: {
   onPlay?: () => void;
   /** Called with true while it plays, so a recorder can pause (listen, speak, listen). */
   onPlaying?: (on: boolean) => void;
+  /** The recorder's listen loop: the microphone pauses before this plays, and resumes when it stops. */
+  listen?: ListenHooks;
   disabled?: boolean;
   /** No card around it (it sits inside another card). */
   bare?: boolean;
@@ -83,7 +86,15 @@ export function ClipPlayer(props: {
   languageRef.current = props.language;
   const onPlayingRef = useRef(props.onPlaying);
   onPlayingRef.current = props.onPlaying;
-  const setPlaying = (on: boolean) => { setPlayingState(on); onPlayingRef.current?.(on); };
+  const listenRef = useRef(props.listen);
+  listenRef.current = props.listen;
+  // Report only real changes, so a stop that was already stopped never resumes recording twice.
+  const reported = useRef(false);
+  const setPlaying = (on: boolean) => {
+    setPlayingState(on);
+    onPlayingRef.current?.(on);
+    if (reported.current !== on) { reported.current = on; listenRef.current?.onPlaying(on); }
+  };
   const halt = () => {
     generation.current++;
     wants.current = false;
@@ -176,6 +187,9 @@ export function ClipPlayer(props: {
     setError('');
     props.onPlay?.();
     try {
+      // The microphone first: nothing of this may land in a take.
+      await listenRef.current?.beforePlay();
+      if (generation.current !== run) return;
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       if (generation.current !== run) return;
       const p = player.current;

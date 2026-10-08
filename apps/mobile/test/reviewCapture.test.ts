@@ -3,9 +3,9 @@ import {
   type AnyEvent, type EventPayloads, type EventType, type SourcedQuestion
 } from '@langquest-next/core';
 import {
-  cleanAnswers, cleanSkips, earlierReviews, footHint, isGroupKind, loggedTargets, matchesQuery, nearbyPassages, noteAnchorText,
-  nextLabel, openRequired, questionSource, readiness, recordedPassages, requestFor, reviewStages, searchPassages, stageAt, summaryLine,
-  toCompareFor, versionFor
+  canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine, loggedTargets, matchesQuery,
+  nearbyPassages, noteAnchorText, nextLabel, openRequired, questionSource, readiness, recordedPassages, requestFor, reviewCapture, reviewStages,
+  searchPassages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
 import { parseQuery } from '../src/canon';
 
@@ -173,28 +173,88 @@ describe('a session that already happened (REV-6)', () => {
   });
 });
 
-describe('reviewing is three short stages (REV-0, ADR-029)', () => {
+describe('reviewing is three short steps: Listen, Questions, Decide (REV-0, SIMPLE-10)', () => {
   const labels = (o: Parameters<typeof reviewStages>[0]) => reviewStages(o).map((x) => x.label);
 
-  it('Listen, Questions, Your verdict; Questions left out when there are none', () => {
-    expect(labels({ questions: 2, logged: false, makes: false })).toEqual(['Listen', 'Questions', 'Your verdict']);
-    expect(labels({ questions: 0, logged: false, makes: false })).toEqual(['Listen', 'Your verdict']);
+  it('Listen, Questions, Decide; Questions left out when there are none', () => {
+    expect(labels({ questions: 2, logged: false, makes: false })).toEqual(['Listen', 'Questions', 'Decide']);
+    expect(labels({ questions: 0, logged: false, makes: false })).toEqual(['Listen', 'Decide']);
+    expect(reviewStages({ questions: 2, logged: false, makes: false }).map((x) => x.icon)).toEqual(['listen', 'help', 'check']);
   });
 
-  it('the last stage is named for what it holds when the review already happened', () => {
-    expect(labels({ questions: 1, logged: true, makes: false })).toEqual(['Listen', 'Questions', 'What happened']);
+  it('a session that already happened decides the same way; a kind that makes content ends in Record it', () => {
+    expect(labels({ questions: 1, logged: true, makes: false })).toEqual(['Listen', 'Questions', 'Decide']);
     expect(labels({ questions: 0, logged: true, makes: true })).toEqual(['Listen', 'Record it']);
   });
 
-  it('the main button names the next stage, and a stage that went away falls back to Listen', () => {
+  it('the main button names the next step, and a step that went away falls back to Listen', () => {
     const stages = reviewStages({ questions: 1, logged: false, makes: false });
-    expect(stages.slice(1).map(nextLabel)).toEqual(['Next: questions', 'Next: your verdict']);
-    expect(stageAt(stages, 'verdict')).toBe(2);
+    expect(stages.slice(1).map(nextLabel)).toEqual(['Next: questions', 'Next: decide']);
+    expect(stageAt(stages, 'decide')).toBe(2);
     expect(stageAt(reviewStages({ questions: 0, logged: false, makes: false }), 'questions')).toBe(0);
   });
 
   it('a collapsed card says only what it has', () => {
     expect(summaryLine(['Where', 'Version 2 (latest)', false, undefined, 'Retelling'])).toBe('Where · Version 2 (latest) · Retelling');
     expect(summaryLine([false, null])).toBe('');
+  });
+
+  it('kinds read in sentence case under the passage, abbreviations kept', () => {
+    expect(kindLabel('Community Check')).toBe('Community check');
+    expect(kindLabel('Peer Review')).toBe('Peer review');
+    expect(kindLabel('FIA Check')).toBe('FIA check');
+    expect(kindLabel('Retell Check by FCBH')).toBe('Retell check by FCBH');
+  });
+
+  it('Decide asks the kind’s own question, and anything else asks whether it is clear', () => {
+    expect(verdictQuestion('community')).toBe('Is it clear?');
+    expect(verdictQuestion('consultant')).toBe('Does it carry the meaning?');
+    expect(verdictQuestion('a-custom-kind')).toBe('Is it clear?');
+    expect(listenLine('community', false)).toBe('Play it for the group');
+    expect(listenLine('peer', false)).toBe('Listen to all of it first');
+    expect(listenLine('peer', true)).toBe('The version that was played');
+  });
+});
+
+describe('one question per screen (SIMPLE-10)', () => {
+  const q = (id: string, required: boolean, type: 'text' | 'yesno' = 'text'): SourcedQuestion => ({ q: { id, text: id, type }, source: 'request', required });
+  const clip = { hash: 'h1', durationMs: 14_200, format: 'm4a' as const };
+
+  it('a required question is left only when answered, said aloud, or set aside with a reason', () => {
+    expect(canLeave(q('a', false), {}, {}, {})).toBe(true);
+    expect(canLeave(q('a', true), {}, {}, {})).toBe(false);
+    expect(canLeave(q('a', true), { a: '  ' }, {}, {})).toBe(false);
+    expect(canLeave(q('a', true), { a: 'Yes' }, {}, {})).toBe(true);
+    expect(canLeave(q('a', true), {}, {}, { a: clip })).toBe(true);
+    expect(canLeave(q('a', true), {}, { a: 'Ran out of time' }, {})).toBe(true);
+  });
+
+  it('Decide sends the reviewer back to the first required question still open', () => {
+    const qs = [q('a', false), q('b', true), q('c', true)];
+    expect(firstOpenAt(qs, {}, {}, {})).toBe(1);
+    expect(firstOpenAt(qs, { b: 'x' }, {}, {})).toBe(2);
+    expect(firstOpenAt(qs, { b: 'x' }, { c: 'why' }, {})).toBe(-1);
+  });
+
+  it('an answer said aloud is a recording of the review, named by its answer; moments and the retelling follow', () => {
+    const qs = [q('who', true), q('clear', false, 'yesno'), q('more', false)];
+    const out = reviewCapture({
+      questions: qs, answers: { clear: 'Yes', more: 'The shepherd' },
+      voice: { who: clip, more: { hash: 'h2', durationMs: 3000, format: 'wav' } },
+      moments: [{ hash: 'm2', durationMs: 2000, format: 'm4a', atMs: 61_000.6 }, { hash: 'm1', durationMs: 1000, format: 'm4a', atMs: 4200 }],
+      evidence: { hash: 'r1', durationMs: 30_000, format: 'm4a' }
+    });
+    expect(out.answers).toEqual({ who: 'Said aloud · 0:14 · recording 1', clear: 'Yes', more: 'The shepherd (said aloud · 0:03 · recording 2)' });
+    expect(out.artifacts).toEqual([
+      { hash: 'h1', durationMs: 14_200, format: 'm4a' }, { hash: 'h2', durationMs: 3000, format: 'wav' },
+      { hash: 'm1', durationMs: 1000, format: 'm4a', atMs: 4200 }, { hash: 'm2', durationMs: 2000, format: 'm4a', atMs: 61_001 },
+      { hash: 'r1', durationMs: 30_000, format: 'm4a' }
+    ]);
+    expect(clockMs(61_000)).toBe('1:01');
+  });
+
+  it('nothing said aloud adds nothing', () => {
+    expect(reviewCapture({ questions: [q('a', false)], answers: { a: 'ok' }, voice: {}, moments: [], evidence: null }))
+      .toEqual({ answers: { a: 'ok' }, artifacts: [] });
   });
 });

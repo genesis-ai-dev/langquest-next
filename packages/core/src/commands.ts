@@ -213,7 +213,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       return [{
         id: ids(c.commandId)(), type: 'v1.ReviewRecorded', payload: {
           reviewId: `review:${c.commandId}`, takeId: c.fromTakeId, kindId: c.kindId, outcome: 'recorded', via: c.via ?? 'app',
-          artifacts: c.cards.map((x) => ({ hash: x.hash, durationMs: x.durationMs, ...(x.format ? { format: x.format } : {}) })),
+          artifacts: c.cards.map((x) => ({ hash: x.hash, durationMs: x.durationMs, ...(x.format ? { format: x.format } : {}), ...(x.atMs !== undefined ? { atMs: Math.max(0, Math.round(x.atMs)) } : {}) })),
           ...(note ? { comment: note } : {}), ...(c.noteBlobHash ? { commentBlobHash: c.noteBlobHash } : {}),
           ...clean({ givenBy: c.givenBy, people: c.people, place: c.place, answers: c.answers, skipped: c.skipped, requestId: c.requestId })
         }

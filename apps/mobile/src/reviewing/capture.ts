@@ -7,7 +7,7 @@
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
 import {
   derivePassage, unitPlace, unitTitle,
-  type KindDef, type NoteAnchor, type PassageState, type LanguageState,
+  type Card, type KindDef, type NoteAnchor, type PassageState, type LanguageState,
   type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { bookMatches, canonBook, parseQuery } from '../canon';
@@ -89,22 +89,22 @@ export function footHint(r: Readiness, makes?: { what: string; has: boolean }): 
   return r.saysWhat ? null : 'To ask for changes, say what to change above';
 }
 
-// ---- stages (REV-0, ADR-029) ------------------------------------------------------------------
+// ---- stages (REV-0, ADR-029; demo SIMPLE-10) ------------------------------------------------
 
-export type StageId = 'listen' | 'questions' | 'verdict';
-export interface Stage { id: StageId; label: string }
+export type StageId = 'listen' | 'questions' | 'decide';
+export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | 'check' | 'mic' }
 
 /**
- * Reviewing is three short stages: ① Listen ② Questions ③ Your verdict.
- * Questions is left out when there are none. The last stage is named for
- * what it holds: "Record it" when the kind makes content, "What happened"
- * for a session that already happened.
+ * Reviewing is three short stages under the header: Listen, Questions (one
+ * per screen), Decide. Questions is left out when there are none. A kind
+ * that makes content (a back translation logged afterwards) ends in "Record
+ * it" instead of a verdict.
  */
 export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean }): Stage[] {
   return [
-    { id: 'listen', label: 'Listen' },
-    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: 'Questions' }] : []),
-    { id: 'verdict', label: opts.makes ? 'Record it' : opts.logged ? 'What happened' : 'Your verdict' }
+    { id: 'listen', label: 'Listen', icon: 'listen' },
+    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: 'Questions', icon: 'help' as const }] : []),
+    opts.makes ? { id: 'decide', label: 'Record it', icon: 'mic' } : { id: 'decide', label: 'Decide', icon: 'check' }
   ];
 }
 
@@ -113,9 +113,90 @@ export function stageAt(stages: Stage[], id: StageId): number {
   return Math.max(0, stages.findIndex((s) => s.id === id));
 }
 
-/** The footer's main button before the last stage: "Next: questions", "Next: your verdict". */
+/** The footer's main button before the last stage: "Next: questions", "Next: decide". */
 export function nextLabel(stage: Stage): string {
   return `Next: ${stage.label.toLowerCase()}`;
+}
+
+/**
+ * A kind's name as the simple screens say it under the passage: "Community
+ * check", "Peer review". Words after the first lose their capital unless
+ * they are an abbreviation ("FIA check" stays).
+ */
+export function kindLabel(name: string): string {
+  const words = name.trim().split(/\s+/);
+  return words.map((w, i) => (i === 0 || w.length < 2 || w === w.toUpperCase() ? w : w.charAt(0).toLowerCase() + w.slice(1))).join(' ');
+}
+
+/** The question the Decide stage asks, by kind (the shipped kinds; anything else asks whether it is clear). */
+export function verdictQuestion(kindId: string): string {
+  switch (kindId) {
+    case 'peer': return 'Is it accurate and natural?';
+    case 'consultant': return 'Does it carry the meaning?';
+    case 'final': return 'Is it ready to share?';
+    case 'retell': return 'Did they understand it?';
+    case 'local': return 'Does it sound natural?';
+    default: return 'Is it clear?';
+  }
+}
+
+/** Under the version on Listen: a group hears it together; anyone else listens alone. */
+export function listenLine(kindId: string, logged: boolean): string {
+  if (logged) return 'The version that was played';
+  return isGroupKind(kindId) || kindId === 'local' ? 'Play it for the group' : 'Listen to all of it first';
+}
+
+// ---- one question per screen (SIMPLE-10) ----------------------------------------------------
+
+/** A voice answer: the clip, kept with the review as one of its recordings. */
+export interface VoiceAnswer { hash: string; durationMs: number; format: 'wav' | 'm4a' }
+
+/** May the reviewer leave this question: it is optional, answered (in words or aloud), or set aside with a reason. */
+export function canLeave(q: SourcedQuestion, answers: Answers, skipped: Skips, voice: Record<string, VoiceAnswer>): boolean {
+  return !q.required || answered(answers[q.q.id]) || !!voice[q.q.id] || skipped[q.q.id] !== undefined;
+}
+
+/** The first required question still open, or -1: Decide sends the reviewer back to it. */
+export function firstOpenAt(questions: SourcedQuestion[], answers: Answers, skipped: Skips, voice: Record<string, VoiceAnswer>): number {
+  return questions.findIndex((q) => !canLeave(q, answers, skipped, voice));
+}
+
+/** "0:14". */
+export function clockMs(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * What a review carries for its answers and clips. Answers stay words (the
+ * record's `answers` are text); an answer said aloud is one of the review's
+ * recordings, and its answer names it ("Said aloud · 0:14 · recording 1"),
+ * so the record reads the same everywhere. Recordings go in a fixed order:
+ * answers said aloud (question order), notes at moments (by time), then the
+ * retelling.
+ */
+export function reviewCapture(c: {
+  questions: SourcedQuestion[];
+  answers: Answers;
+  voice: Record<string, VoiceAnswer>;
+  moments: (VoiceAnswer & { atMs: number })[];
+  evidence?: VoiceAnswer | null;
+}): { answers: Answers; artifacts: Card[] } {
+  const artifacts: Card[] = [];
+  const out: Answers = { ...c.answers };
+  for (const q of c.questions) {
+    const v = c.voice[q.q.id];
+    if (!v) continue;
+    artifacts.push({ hash: v.hash, durationMs: v.durationMs, format: v.format });
+    const said = `Said aloud · ${clockMs(v.durationMs)} · recording ${artifacts.length}`;
+    const typed = out[q.q.id]?.trim();
+    out[q.q.id] = typed ? `${typed} (${said.charAt(0).toLowerCase()}${said.slice(1)})` : said;
+  }
+  for (const m of [...c.moments].sort((a, b) => a.atMs - b.atMs)) {
+    artifacts.push({ hash: m.hash, durationMs: m.durationMs, format: m.format, atMs: Math.max(0, Math.round(m.atMs)) });
+  }
+  if (c.evidence) artifacts.push({ hash: c.evidence.hash, durationMs: c.evidence.durationMs, format: c.evidence.format });
+  return { answers: out, artifacts };
 }
 
 /** One line for a collapsed card: the parts that have something, joined with " · ". */

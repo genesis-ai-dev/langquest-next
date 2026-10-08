@@ -225,7 +225,7 @@ function EarlierReview(props: { ctx: Ctx; review: ReviewView; kind: KindDef | un
 
 const EARLIER_STEP = 5;
 
-function EarlierReviewsPart(props: { ctx: Ctx; reviews: ReviewView[]; kind: (id: string) => KindDef }) {
+export function EarlierReviewsPart(props: { ctx: Ctx; reviews: ReviewView[]; kind: (id: string) => KindDef }) {
   const [shown, setShown] = useState(EARLIER_STEP);
   const names = [...new Set(props.reviews.map((r) => props.kind(r.kindId).name))];
   const list = props.reviews.slice(0, shown);
@@ -281,7 +281,7 @@ function FromTranslatorPart(props: {
 }
 
 /** The team's study of the passage (FIA): evidence it was studied before drafting (ADR-018). */
-function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenStep: (stepId: string) => void; onOpenStudy: () => void }) {
+export function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenStep: (stepId: string) => void; onOpenStudy: () => void }) {
   const s = props.study;
   const started = s.doneCount > 0 || s.noteCount > 0;
   return (
