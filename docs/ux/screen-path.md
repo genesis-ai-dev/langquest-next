@@ -14,7 +14,7 @@ always a way back to a home.
 
 | Screen | What the person needs to see | Main action | Secondary (one or two) | Rarer, one tap away | Way back |
 | --- | --- | --- | --- | --- | --- |
-| My Work | The one thing waiting on them, then the rest | The Next card's button (Record, Review, Respond, Start, Continue) | Another For you card; the bell (updates) | Recent and Waiting on others lists | — (home tab) |
+| My Work | The one thing waiting on them (a coordinator: Get ‹language› ready), then the rest | Next for you's Start (or Get ready's Choose) | A Then row; the bell (updates) | Waiting on others and Opened lately, open in place; Everything in ‹language› | — (home tab) |
 | Passage record | Where the passage stands, top to bottom; the current step open | The current step's main button: Record it, Review it now, Send to ‹team or person›, Record a fix | More beside it (the step's other actions); Open the recording | Header More (record a new version); Options for this step on any step; Details (reviews by version, history, study) | Back to the map or My Work |
 | Recording (workspace) | The source on top (text, audio, key terms), the recorder below | The red record button | Publish (once something changed) | Help (key terms, study, notes, history); drag the divider | ✕ to the passage |
 | Back translation | The version to listen to on top, the recorder below | The red record button | Save back translation | — | ✕ to the passage |
@@ -29,8 +29,8 @@ always a way back to a home.
 
 | Screen | What the person needs to see | Main action | Secondary | Rarer | Way back |
 | --- | --- | --- | --- | --- | --- |
-| Map | The language's books and progress | A book | Search | Filter (status chips) | — (tab) / Back to All languages |
-| Book chapters | The chapters, coloured by state | A chapter | Filter | Edit passages (shape templates) | Back to the map |
+| Map | The language's books, each with a bar and a count | A book | Search; Next: ‹passage› | Filter (status chips, counts, template and flow) | — (tab) / Back to All languages |
+| Book chapters | The chapters in three states: done ✓, started •, not started | A chapter | Filter (with the full key) | Edit passages (shape templates) | Back to the map |
 | All languages | Each language's progress | A language | Find a language | — | — (tab) |
 
 ## Running the organization
@@ -46,7 +46,7 @@ always a way back to a home.
 
 | Screen | What the person needs to see | Main action | Secondary | Rarer | Way back |
 | --- | --- | --- | --- | --- | --- |
-| Settings | Who they are, and the common rows | Edit Profile | Notifications; Getting started | What is LangQuest?, Switch organization (more than one), Sign out; Advanced (sync, diagnostics, blocked people); Delete account (its own row, where the stores were told) | — (tab) |
+| Me | Five rows: their name, Ready for offline, Set up the microphone, How LangQuest works, More settings | Their name (name and photo) | Ready for offline; Set up the microphone | Sign out; More settings (account, password, notifications, switch organization, sync, diagnostics, blocked people, Delete account, where the stores are told) | — (tab) |
 | Inbox (from the bell) | Updates, newest first | An update | — | Join requests and reports (admins) | Back to My Work |
 
 ## Getting in
