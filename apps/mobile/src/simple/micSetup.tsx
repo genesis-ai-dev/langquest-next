@@ -17,7 +17,7 @@ import { useHelpPress } from '../helpContext';
 import { Header, Ico, PrimaryBtn, Screen, txt } from '../kit';
 import { noteExpected } from '../report';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { useEnergyHistory, VAD_BASE } from '../useRecorder';
+import { claimVad, useEnergyHistory, VAD_BASE } from '../useRecorder';
 import { cachedMicSettings, loadMicSettings, saveMicSettings } from './micSettings';
 import { DEFAULT_MIC, MIC_TRIES, mmss, QUIET_MS, thresholdFromNoise, type MicSettings } from './model';
 import { QuietLink, RecordBtn, styles as ps } from './parts';
@@ -42,6 +42,7 @@ function useProbe() {
   const on = useRef(false);
   const segments = useRef<Segment[]>([]);
   const levels = useRef<number[]>([]);
+  const self = useRef(Symbol('mic setup')).current;
   useEffect(() => {
     live.current = true;
     const subs = [
@@ -63,6 +64,8 @@ function useProbe() {
     levels.current = [];
     segments.current = [];
     await MicrophoneEnergy.startEnergyDetection();
+    // What these tries hear is this screen's alone, never a part of a recording left open underneath.
+    claimVad(self);
     if (vad) await MicrophoneEnergy.enableVAD();
     on.current = true;
   }

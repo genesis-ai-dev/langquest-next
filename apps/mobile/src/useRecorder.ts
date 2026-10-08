@@ -38,6 +38,17 @@ export const VAD_BASE: VADConfig = {
   minSegmentDuration: 200, minActiveAudioDuration: 250
 };
 
+/**
+ * Whose voice detector is on: its parts belong to it alone. The microphone
+ * module is one for the app and tells every listener, so a recorder left
+ * mounted under another screen (the workspace under microphone setup) must
+ * not keep what someone else's session heard.
+ */
+let vadOwner: symbol | null = null;
+export function claimVad(owner: symbol | null): void {
+  vadOwner = owner;
+}
+
 /** Recorders with the microphone open or a save in progress, app-wide. */
 const activity = new Set<symbol>();
 /** Transfers and checkpoints defer while this is true. */
@@ -68,6 +79,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   const [pauseDuration, setPauseDuration] = useState(chosen?.pauseMs ?? 1000);
   const [cutoff, setCutoffState] = useState(chosen?.threshold ?? 0.1);
   const mounted = useRef(true);
+  const self = useRef(Symbol('recorder')).current;
   const handler = useRef(onCard);
   handler.current = onCard;
   const targetRef = useRef(target);
@@ -253,6 +265,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();
+        claimVad(self);
         await MicrophoneEnergy.enableVAD();
         vadActive.current = true;
         if (mounted.current) setVadOn(true);
@@ -285,8 +298,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     mounted.current = true;
     const subscriptions = [
       MicrophoneEnergy.addListener('onError', (e) => fail(e.message)),
-      MicrophoneEnergy.addListener('onSegmentStart', () => setVadCapturing(true)),
+      MicrophoneEnergy.addListener('onSegmentStart', () => { if (vadOwner === self) setVadCapturing(true); }),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => {
+        if (vadOwner !== self) return;
         setVadCapturing(false);
         if (e.uri) void deliver({ id: Crypto.randomUUID(), uri: e.uri, format: 'wav', durationMs: e.duration });
       })
@@ -309,7 +323,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         subscriptions.forEach((subscription) => subscription.remove());
       });
     };
-  }, [deliver, fail, manualUp, stopVad]);
+  }, [deliver, fail, manualUp, stopVad, self]);
 
   // Web: closing the tab mid-take loses it (its audio lives in the page until it stops), so say so first.
   const recording = manualOn || vadOn || working > 0;

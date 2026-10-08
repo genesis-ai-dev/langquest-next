@@ -1972,6 +1972,28 @@ device, notes on a key term, and side-by-side panes on wide windows.
 Reverse if: field tests show translators miss what moved behind "Something
 else?" or "Versions and history", or admins need the Setup list back.
 
+Amended (2026-10-08, Caleb Koster): the recording workspace, Publish, the
+study and microphone setup now follow the agreed images (`src/simple/`).
+The workspace's header names the passage; its chips are Bible, Guide, Key
+words, Notes and Earlier (versions, feedback, voice notes, back
+translations), the Bible a small player over its verses with a picker when
+there are several; key words play their verse and "Your word" (the latest
+voice adjustment) or record one ("Say yours", `adjustKeyTermRendering`), and
+"Add a key word" is `defineKeyTerm`. Parts are cards counted "Part 1, 2…"
+(still no verse labels), recorded ones under one card; each divider end is a
+one-line bar (the Bible bar, the recorder bar with the record button), and
+the footer holds the record button and Publish. Publish is a screen inside
+the workspace, so nothing offered or recorded is lost on the way. The study
+is one reader for `study_guide` and `study_step` (it no longer keeps the tab
+bar). Microphone setup measures the room's quiet for the sensitivity, takes
+three tries with pauses of 0.7, 1 and 1.5 s, and keeps the pick on the device
+(AsyncStorage `mic-setup:v1`), which every voice-detecting recorder starts
+from; the pause dots and the cutoff line left the workspace for "Adjust by
+hand" there. A voice-detected part now belongs only to the session that
+started the detector (`claimVad`), so a recorder left mounted under another
+screen keeps nothing it did not record. Still not built: notes on a key term
+(no screen writes a `term` note, so "Note on a word" is left out).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: accepted
