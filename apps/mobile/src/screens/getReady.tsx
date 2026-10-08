@@ -97,7 +97,8 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
   switch (n) {
     case 1: return <RecordStep {...props} />;
     case 2: return <HelpsStep {...props} />;
-    case 3: return <ChecksStep {...props} onChoose={() => setN(4)} />;
+    // Choosing the steps opens the flow editor; coming back lands here, on what was saved.
+    case 3: return <ChecksStep {...props} onChoose={() => setN(3)} />;
     default: return <InviteStep {...props} />;
   }
 }
@@ -329,7 +330,7 @@ function HelpsStep({ ctx, header, next }: StepProps) {
               {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
           );
         })}
-        <Row icon="search" label="Find another Bible" sub={bibles.length ? undefined : 'None chosen yet: find one they understand'} last
+        <Row icon="search" label="Find another Bible" sub={bibles.length ? undefined : 'None chosen yet'} last
           onPress={() => ctx.go('reference_bibles', { languageId })} />
       </Group>
       {guides.length ? (

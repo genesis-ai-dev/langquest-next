@@ -264,7 +264,7 @@ export function SwitchRow(props: { label: string; sub?: string; on: boolean; onT
       {props.icon ? <IconTile icon={props.icon} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[txt.body, { fontWeight: '700' }]}>{props.label}</Text>
-        {props.sub ? <Text style={[txt.sm, { color: C.muted }]}>{props.sub}</Text> : null}
+        {props.sub ? <Text style={[txt.sm, { fontSize: 14, color: C.muted }]}>{props.sub}</Text> : null}
       </View>
       <Pill on={props.on} disabled={props.disabled} />
     </Pressable>
