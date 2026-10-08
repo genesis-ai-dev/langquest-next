@@ -49,7 +49,9 @@ const APP_ONLY: Record<string, string> = {
   'study_guide->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
   'study_step->bible_explore': 'More Bibles from the study\'s Passage view (docs/reference-material.md)',
   'review_capture->bible_explore': 'More Bibles from the reviewer\'s Background (docs/reference-material.md)',
-  'add_record->bible_explore': 'More Bibles from Already happened\'s Background (docs/reference-material.md)'
+  'add_record->bible_explore': 'More Bibles from Already happened\'s Background (docs/reference-material.md)',
+  'my_work->reference_home': 'Get a language ready, step 2 "What will help them?" (demo ADR-039, branch caleb-simple-translator)',
+  'my_work->invite_qr': 'Get a language ready, step 4 "Invite your translators": the code to scan (demo ADR-039)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
