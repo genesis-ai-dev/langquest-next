@@ -1349,6 +1349,15 @@ Reverse if: testing with field users shows people can't find the actions
 under More or Setup, or that the split recorder is too cramped on small
 Android phones.
 
+Amended (2026-10-08, Caleb Koster): the simple redesign (decision 70)
+changes three parts of this entry. The record keeps one main action, but it
+sits in the path's card, with "Something else?" and "Versions and history"
+under it instead of the header's More and the Details cards. "Send to
+‹team›" now comes straight after publishing, as a sheet that asks the usual
+team for the next check. The recording split takes any reference on top
+(Bible, guide, key words, notes, earlier versions) and settles on five snaps,
+two of them one-line ends, instead of three.
+
 ## 57. The app shows the organization's reports: a Reports section on wide windows, server totals on a phone's Progress
 
 Date: 2026-10-03 · By: Carl Sauder · Status: accepted
@@ -1857,3 +1866,47 @@ the Worker's 100 MB request limit.
 Reverse if: Worker CPU or request costs approach what the egress saved, or
 films outgrow the request limit (then presigned multipart uploads for large
 files only), or Cloudflare availability costs more field time than it saves.
+
+## 70. One simpler set of screens for everyone, keeping every capability
+
+Date: 2026-10-08 · By: Caleb Koster · Status: accepted
+
+Reason: clients who had watched field translators with little or no
+experience with technology preferred Ryder's simplified screens (one task,
+big buttons). Caleb chose to simplify the app itself rather than add a
+second "simple" view: a Simple/Full split per person was designed and
+dropped, because two sets of screens would double what has to be kept
+working. The specification is the partner demo's ADR-032 to 040 and
+SIMPLE-1 to 16 (ng-langquest-ux, branch `caleb-simple-translator`; notes in
+`docs/ux/simple-redesign.md`). Built here:
+- The passage record leads with the path's next step; other ways forward are
+  under "Something else?" (ask someone, already happened, not now, a new
+  version, a note, what helps, keeping it on the device), and the study,
+  reviews by version and history under "Versions and history"
+  (`screens/passage.tsx`).
+- Publish, then ask: publishing (a version or a back translation) returns to
+  the record with the usual team for the next check preselected
+  (`published` param, `usualTargetFor`).
+- The recording workspace's top pane takes any reference by chip, and
+  `recording/splitModel.ts` adds one-line ends (`BAR`) to the 35/50/65 snaps.
+  The record button stays in the footer, so it is reachable at every snap.
+- Ask someone lists the review group for that check first, named
+  (`askCandidates`); admins may put people in each group.
+- Admins get "Get ‹language› ready": four plain questions on My Work
+  (what they record, what helps them, who checks, invite), and the language
+  page shows the same three rows in place of Setup. New Language can choose
+  books (`booksInScope` with `custom`). Roles read in three groups
+  (`PRIVILEGE_GROUPS`), and a new role can be made while inviting or
+  admitting someone.
+- Help mode: a ? in every header; while on, kit controls explain themselves
+  instead of acting (`helpContext.ts`, `helpMode.tsx`), spoken on the web.
+- Joining reads "Join your team": scan their code, find your organization,
+  start a new one. "Keep it, say why" has no preset reasons.
+Not built yet, because each needs model or recorder work: grouping recorded
+parts into cards by verse label (needs verse labels on parts), recording
+which Bible was playing during each take (today `v1.ReferencesUsed` lists
+what was offered and opened), microphone setup by ear (the recorder keeps
+its pause and cutoff only for a session), spoken help lines per screen on a
+device, notes on a key term, and side-by-side panes on wide windows.
+Reverse if: field tests show translators miss what moved behind "Something
+else?" or "Versions and history", or admins need the Setup list back.

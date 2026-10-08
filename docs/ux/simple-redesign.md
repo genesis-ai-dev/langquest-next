@@ -1,7 +1,6 @@
 # Simple redesign: what changes in the app
 
-**Status: agreed in design, not built.** Caleb, 2026-10-07. Build only on his
-go-ahead. The specification is the partner demo's proposed ADR-032 to 040
+**Status: agreed with Caleb 2026-10-07; mostly built 2026-10-08 (below).** The specification is the partner demo's proposed ADR-032 to 040
 and requirements SIMPLE-1 to 16 (`ng-langquest-ux`, branch
 `caleb-simple-translator`, open the demo with `?simple=<screen>`). The
 before/after page with every screen is
@@ -11,6 +10,20 @@ https://claude.ai/artifact/Mar91Zj5ndvptjyQqGfrva. It starts from Ryder's
 When this is built, record it here as decisions (it changes decision 56 and
 parts of 29/30 in the demo), and move each line below from "to build" to the
 decision that holds it.
+
+## Status (2026-10-08)
+
+Built on branch `caleb-simple-view` (decision 70; decision 56 amended):
+items 1, 2, 3, 4 (tab names), 7 (reference chips and the five snaps), 9
+(help mode, words on the device, spoken on the web), 10, 11, and the
+smaller changes for Keep it, the map, and Settings ("How LangQuest works").
+Also built: the review group first in Ask someone, Choose books in New
+Language, and a new role while inviting or admitting someone (Caleb,
+2026-10-08).
+
+Not built yet: 5 (which Bible was playing per take), 6's term notes, 7's
+verse-group cards and side-by-side wide panes, 8 (microphone setup), and
+spoken help lines on devices.
 
 ## Product requirements that change
 
