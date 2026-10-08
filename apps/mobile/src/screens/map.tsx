@@ -396,15 +396,16 @@ function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPr
   const noun = MAP_FILTERS.find((f) => f.id === filter)?.noun ?? '';
   const sub = filter !== 'all'
     ? `${fmt(b.matching)} ${noun} · ${fmt(b.recorded)} of ${fmt(b.total)} recorded`
+    // Less text (demo SIMPLE-12): the bar says how far; the words only the count.
     : started
-      ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? ` · ${fmt(b.done)} done` : ''}`
-      : `Not started · ${b.book ? plural(b.book.chapters, 'chapter') : plural(b.total, 'passage')}`;
+      ? `${fmt(b.recorded)} of ${fmt(b.total)}${b.done ? ` · ${fmt(b.done)} done` : ''}`
+      : '';
   const feedback = b.feedback > 0 && filter === 'all';
   const beside = useOpenDetail();
   return (
-    <Row label={b.name} sub={sub} muted={!started} last={props.last} onPress={props.onPress}
+    <Row label={b.name} {...(sub ? { sub } : {})} muted={!started} last={props.last} onPress={props.onPress}
       current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
-      accessibilityLabel={`${b.name}. ${sub}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`}
+      accessibilityLabel={`${b.name}. ${sub || 'Not started'}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`}
       {...(b.mine > 0 ? { badge: `${b.mine} for you`, badgeTone: 'amber' as const } : {})}
       {...(started ? { below: <StackBar done={b.done} recorded={b.recorded} total={b.total} /> } : {})}
       {...(feedback ? {
@@ -686,7 +687,6 @@ function Legend(props: { none: boolean }) {
   const tones: ChapterTone[] = ['done', 'review', 'feedback', 'drafting', 'todo', ...(props.none ? ['none' as const] : [])];
   return (
     <View style={{ gap: space.sm, paddingHorizontal: space.xs }}>
-      <Text style={txt.smMuted}>The bar on a chapter shows how many review steps it has cleared.</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg, rowGap: space.sm }}>
         {tones.map((k) => {
           const t = TONES[k];
