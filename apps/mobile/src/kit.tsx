@@ -402,6 +402,25 @@ export function LinkBtn(props: { label: string; onPress: () => void; color?: str
   );
 }
 
+/**
+ * The quiet links under a screen's one main button (demo ADR-032, ADR-033):
+ * the less likely ways forward, one labelled tap away, never competing with
+ * the main action.
+ */
+export function QuietLinks(props: { items: { label: string; icon: IconName; onPress: () => void }[] }) {
+  return (
+    <View style={styles.quietRow}>
+      {props.items.map((it) => (
+        <Pressable key={it.label} onPress={it.onPress} accessibilityRole="button" hitSlop={4}
+          style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
+          <Ico name={it.icon} size={18} color={C.muted} />
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{it.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
   const size = props.size ?? 48;
   return (
@@ -753,6 +772,8 @@ const styles = StyleSheet.create({
   small: { minHeight: target.min, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.md },
   smallLabel: { fontSize: T.sm, fontWeight: '700' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
+  quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
+  quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
   chip: { minHeight: target.min, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg },
   chipLabel: { fontSize: T.sm, fontWeight: '700' },
   field: { minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.lg, fontSize: T.base, color: C.dark },
