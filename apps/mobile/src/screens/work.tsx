@@ -29,6 +29,7 @@ import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
 import { Bell, NextCard, QuietToggle, ReadyCard } from '../simple/home';
+import { useReadySummary, type ReadySummary } from '../simple/ready';
 import { nextSub, readiness, readySteps, THEN_CAP, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
 import { C, space, TINT } from '../theme';
 
@@ -62,16 +63,15 @@ function memberCount(org: OrgState | null): number {
 /**
  * The open language's four questions (demo ADR-039), for those who get a
  * language ready: an admin who may take My Work to Get ready. Null for
- * everyone else.
+ * everyone else, and once the language is ready (what helps them is offered,
+ * never required: simple/adminModel.ts readiness).
  */
-function readyFor(ctx: Ctx, state: LanguageState): Readiness | null {
+function readyFor(ctx: Ctx, summary: ReadySummary): Readiness | null {
   if (!ctx.session.isAdmin || !ctx.languageId || !canGo(ctx, 'get_ready')) return null;
-  return readiness(readySteps({
-    template: !!state.template,
-    helps: recommendedFor(ctx.org.state?.recommendations, state).size,
-    flow: !!state.flow,
-    members: memberCount(ctx.org.state)
-  }));
+  const r = summary.readiness;
+  const steps = readySteps({ template: r.done[0]!, helps: r.done[1] ? 1 : 0, flow: r.done[2]!, members: r.done[3] ? 2 : 1 });
+  const all = readiness(steps);
+  return r.ready ? { ...all, next: null, step: 0 } : all;
 }
 
 /**
@@ -135,6 +135,8 @@ export function MyWork(ctx: Ctx) {
   const recentOpen = ctx.details('work:recent');
   const [moreShown, setMoreShown] = useState(false);
   const joins = useJoinRequests(ctx);
+  // The same four answers the language page and Get ready read (simple/ready.tsx), so Home never disagrees with them.
+  const readySummary = useReadySummary(ctx);
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
@@ -203,7 +205,7 @@ export function MyWork(ctx: Ctx) {
   }));
 
   // ---- the lead card: Get ready, the next thing for you, or a good place to start ----
-  const ready = readyFor(ctx, state);
+  const ready = readyFor(ctx, readySummary);
   const getReady = ready && ready.next ? ready : null;
   const addLanguage = !languageId && ctx.session.isAdmin && canGo(ctx, 'new_language');
   const isAdminOnly = ctx.session.isAdmin && !canRecord && !canReview;
