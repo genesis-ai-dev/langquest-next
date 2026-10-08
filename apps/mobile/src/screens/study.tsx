@@ -110,7 +110,7 @@ export function StudyGuide(ctx: Ctx) {
     <Screen fixed footer={footer}
       header={<Header title={`${guide.pattern} study`} sub={v.language} onBack={ctx.back} {...(edit ? { action: edit } : {})}
         crumbs={[{ label: v.title, onPress: () => ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId }) }]} />}>
-      <ViewSwitch views={[{ id: 'steps', label: `${guide.pattern} steps`, icon: 'sparkle' }, { id: 'passage', label: 'Passage', icon: 'book' }]}
+      <ViewSwitch views={[{ id: 'steps', label: 'Guide', icon: 'sparkle' }, { id: 'passage', label: 'Bible', icon: 'book' }]}
         active={view} onChange={setView} />
       {opened ? (
         <View style={[s.pane, view !== 'passage' && s.hidden]}>
@@ -238,7 +238,7 @@ export function StudyStep(ctx: Ctx) {
           <Segments total={sp.steps.length} done={(i) => !!sp.steps[i]?.done} current={status.index} />
         </View>
       </View>
-      <ViewSwitch views={[{ id: 'step', label: `${guide.pattern} step`, icon: 'sparkle' }, { id: 'passage', label: 'Passage', icon: 'book' }]}
+      <ViewSwitch views={[{ id: 'step', label: 'Guide', icon: 'sparkle' }, { id: 'passage', label: 'Bible', icon: 'book' }]}
         active={view} onChange={setView} />
       {opened ? (
         <View style={[s.pane, view !== 'passage' && s.hidden]}>

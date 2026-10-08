@@ -81,6 +81,25 @@ export function HelpSheet(props: {
   );
 }
 
+/**
+ * One tray section shown in place, for the recording workspace's reference
+ * pane (demo ADR-036): the same contents as the Help sheet's tabs, without
+ * the sheet.
+ */
+export function TrayPane(props: {
+  ctx: Ctx; v: PassageView; tab: TrayTab; terms: KeyTermView[]; tied: ReadonlySet<string>; draftTakeId: string | undefined;
+  canTie: boolean; study: StudyProgress | null; notes: PassageNote[]; disabled: boolean;
+}) {
+  return (
+    <View style={styles.body}>
+      {props.tab === 'terms' ? <TermsTab {...props} /> : null}
+      {props.tab === 'study' && props.study ? <StudyTab ctx={props.ctx} v={props.v} study={props.study} /> : null}
+      {props.tab === 'notes' ? <NotesTab ctx={props.ctx} v={props.v} notes={props.notes} disabled={props.disabled} /> : null}
+      {props.tab === 'history' ? <HistoryTab ctx={props.ctx} v={props.v} /> : null}
+    </View>
+  );
+}
+
 const TERM_STEP = 8;
 
 function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied: ReadonlySet<string>; draftTakeId: string | undefined; canTie: boolean; disabled: boolean }) {

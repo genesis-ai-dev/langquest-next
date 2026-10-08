@@ -12,7 +12,7 @@ import { LOCAL_URL, localKey } from './local-supabase';
 // printed, and the routes answer 503 without it.
 const bibleBrain = process.env['BIBLE_BRAIN_ACCESS_KEY']?.trim();
 writeFileSync(new URL('../apps/web/.dev.vars', import.meta.url),
-  `SUPABASE_URL=${LOCAL_URL}\nSUPABASE_SERVICE_ROLE_KEY=${localKey('SUPABASE_SERVICE_ROLE_KEY')}\n` +
+  `SUPABASE_URL=${LOCAL_URL}\nSUPABASE_ANON_KEY=${localKey('SUPABASE_ANON_KEY')}\nSUPABASE_SERVICE_ROLE_KEY=${localKey('SUPABASE_SERVICE_ROLE_KEY')}\n` +
   (bibleBrain ? `BIBLE_BRAIN_ACCESS_KEY=${bibleBrain}\n` : ''), { mode: 0o600 });
 
 // Wrangler loads only the secrets wrangler.jsonc requires, and the Bible

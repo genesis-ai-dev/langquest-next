@@ -131,7 +131,9 @@ export function StorageGate(props: { children: ReactNode }) {
   return (
     <View style={{ flex: 1, justifyContent: 'center', backgroundColor: C.bg, padding: space.xl }}>
       <EmptyState icon="layers" title={title} sub={sub}>
-        {tab !== 'waiting' && actions ? <GhostBtn label="Use it here" icon="swap" full={false} onPress={actions.useHere} /> : null}
+        {tab !== 'waiting' && actions ? (
+          <View style={{ alignSelf: 'center' }}><GhostBtn label="Use it here" icon="swap" full={false} onPress={actions.useHere} /></View>
+        ) : null}
       </EmptyState>
     </View>
   );

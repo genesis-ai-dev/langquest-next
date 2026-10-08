@@ -234,6 +234,15 @@ export const studyMarkKey = (unitId: string, guideId: string, stepId: string): s
 
 // ---- vocabulary that ships with the app --------------------------------------
 
+/**
+ * Feedback from outside the team (decisions.md 72): a listener in a partner's
+ * app, or someone on a shared link the sharer chose not to count toward the
+ * step. In no flow, so it never completes or blocks a step; the passage's
+ * record shows it like any other review, and "needs changes" asks for an
+ * answer.
+ */
+export const LISTENER_KIND = 'listener';
+
 /** The demo's REVIEW_KINDS. An org renames or adds kinds with v1.ReviewKindDefined. */
 export const DEFAULT_KINDS: KindDef[] = [
   { id: 'peer', name: 'Peer Review', usualReviewer: 'Another translator',

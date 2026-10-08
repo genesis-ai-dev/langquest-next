@@ -1,5 +1,5 @@
 -- Languages and regions: global reference data, not in any stream
--- (docs/languoids.md, decisions.md 70). The tables are LangQuest v2's
+-- (docs/languoids.md, decisions.md 73). The tables are LangQuest v2's
 -- (supabase/migrations/20251001124000_add_language_region_tables.sql and
 -- later, in the v2 repo) with the same names, columns and constraints:
 --

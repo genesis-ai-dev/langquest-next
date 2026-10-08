@@ -350,12 +350,13 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const override = active((d) => d.type === 'override' && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => (s.state === 'todo' ? { ...s, state: 'locked' as const } : s)) : statuses;
-    // A checkpoint is a hard stop: only approval clears it, given in the app
-    // or by link. Answering its feedback sends it back to the reviewer, and a
-    // check logged afterwards (which a translator may do) completes ordinary
-    // steps but never a checkpoint: moving past one without its reviewer is
-    // an override, which needs its own permission (decision 29).
-    const clears = (s: KindStatus) => s.state === 'approved' && s.review?.via !== 'logged';
+    // A checkpoint is a hard stop: only approval given in the app clears it.
+    // Answering its feedback sends it back to the reviewer, and a check
+    // logged afterwards (which a translator may do) or a review through a
+    // shared link (recorded by whoever shared it, decisions.md 72) completes
+    // ordinary steps but never a checkpoint: moving past one without its
+    // reviewer is an override, which needs its own permission (decision 29).
+    const clears = (s: KindStatus) => s.state === 'approved' && s.review?.via === 'app';
     const complete = statuses.every((s) => (step.checkpoint ? clears(s) : isCompleteState(s.state)));
     steps.push({ step, index, kinds: kindsShown, complete, ...(lockedBy ? { lockedBy } : {}), ...(override ? { override } : {}) });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
@@ -854,4 +855,63 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
   for (const r of Object.values(state.responses ?? {})) add(r.blobHash);
   for (const t of Object.values(state.keyTerms ?? {})) for (const a of Object.values(t.adjustments)) add(a.blobHash);
   return out;
+}
+
+/**
+ * The newest version every step cleared on its own: each kind's latest
+ * review of that very version approves it (a checkpoint not by a logged
+ * check or a shared link), or the kind was set aside, or the step overridden. `done` is
+ * looser, since it reads each kind's latest review of any version, so a
+ * re-recorded passage stays done while its new audio is still unheard.
+ * What leaves the team (decisions.md 72) must be a version someone actually
+ * approved, so this is what the access-token API serves and may be released.
+ */
+export function approvedVersion(s: PassageState): Version | null {
+  for (let i = s.versions.length - 1; i >= 0; i -= 1) {
+    const v = s.versions[i]!;
+    const cleared = s.steps.every((st) => !!st.override || st.step.kindIds.every((kindId, k) => {
+      const status = st.kinds[k];
+      if (status?.state === 'skipped') return true;
+      let last: ReviewView | undefined;
+      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId) last = r; // reviews are in clock order
+      if (!last) return false;
+      const approves = last.outcome === 'looks_good' || (last.outcome === 'recorded' && status?.state === 'approved');
+      return approves && (!st.step.checkpoint || last.via === 'app');
+    }));
+    if (cleared) return v;
+  }
+  return null;
+}
+
+/**
+ * May people share a link to review this step (decisions.md 72)? The
+ * language's own setting, else any step but a checkpoint, which a link
+ * review never clears.
+ */
+export function stepAllowsLinks(state: LanguageState, step: FlowStep): boolean {
+  return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;
+}
+
+/** Where a passage's versions are live, one entry per channel: the newest version reported live there. */
+export interface Release {
+  channel: string;
+  takeId: string;
+  versionN: number;
+  url?: string;
+  by: string;
+  hlc: Hlc;
+}
+
+export function releasesOf(state: LanguageState, s: PassageState): Release[] {
+  const out = new Map<string, Release>();
+  for (const v of s.versions) {
+    for (const [channel, reg] of Object.entries(state.releases?.[v.takeId] ?? {})) {
+      if (!reg.value.live) continue;
+      const known = out.get(channel);
+      if (!known || v.n > known.versionN) {
+        out.set(channel, { channel, takeId: v.takeId, versionN: v.n, by: reg.value.by, hlc: reg.hlc, ...(reg.value.url !== undefined ? { url: reg.value.url } : {}) });
+      }
+    }
+  }
+  return [...out.values()].sort((a, b) => (a.channel < b.channel ? -1 : a.channel > b.channel ? 1 : 0));
 }

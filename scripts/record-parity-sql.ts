@@ -74,7 +74,8 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   switch (e.type) {
     case 'v1.ReviewRecorded':
       variants.push({ ...p, outcome: 'recorded', artifacts: [] }, { ...p, artifacts: [{ hash: 'x' }] }, { ...p, artifacts: ['x'] },
-        { ...p, people: -1 }, { ...p, answers: { q: 5 } }, { ...p, answers: [] }, { ...p, via: 'email' });
+        { ...p, people: -1 }, { ...p, answers: { q: 5 } }, { ...p, answers: [] }, { ...p, via: 'email' },
+        ...[0, 4200, -1, 1.5, '3', null].map((atMs) => ({ ...p, artifacts: [{ hash: 'x', durationMs: 900, format: 'm4a', atMs }] })));
       break;
     case 'v1.RecordingAdded':
       variants.push({ ...p, cards: [{ hash: '', durationMs: 1 }] }, { ...p, cards: [{ hash: 'x', durationMs: '1' }] }, { ...p, cards: {} });
@@ -97,6 +98,12 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       break;
     case 'v1.ReviewTeamKindSet':
       variants.push({ ...p, kindId: ['peer'] });
+      break;
+    case 'v1.FlowStepLinksSet':
+      variants.push({ ...p, allowed: 'yes' }, { ...p, stepId: '' });
+      break;
+    case 'v1.VersionReleased':
+      variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
       break;
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':

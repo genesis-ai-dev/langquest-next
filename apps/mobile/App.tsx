@@ -1,4 +1,5 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
+import { HelpModeProvider } from './src/helpMode';
 import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
@@ -260,9 +261,12 @@ export default function App() {
           <Fatal title="This build is not configured" detail={supabaseConfigError} />
         ) : auth === undefined ? null : (
           <ErrorBoundary>
+            {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
+            <HelpModeProvider>
             <StorageGate>
               <Shell key={auth?.user.id ?? 'guest'} actorId={auth?.user.id ?? 'guest'} email={auth?.user.email ?? null} signedIn={!!auth} />
             </StorageGate>
+            </HelpModeProvider>
           </ErrorBoundary>
         )}
       </SafeAreaView>

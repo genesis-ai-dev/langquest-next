@@ -35,14 +35,14 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, 'input[aria-label="Password"]').fill('smoke-test-1234');
   await vis(page, 'input[aria-label="Confirm password"]').fill('smoke-test-1234');
   await button(page, 'Create Account').click();
-  await page.getByText('Create an organization', { exact: true }).locator('visible=true').first().click({ timeout: 60_000 });
+  await page.getByText('Start a new one', { exact: true }).locator('visible=true').first().click({ timeout: 60_000 });
   await vis(page, `input[aria-label="What's it called?"]`).fill('Smoke Org');
   await button(page, 'Create Organization').click();
   await button(page, /Add a language/).click({ timeout: 60_000 });
   await vis(page, 'input[aria-label="Language name"]').fill('Dinka');
   await vis(page, 'input[aria-label="Language code"]').fill('din');
   await button(page, 'Create Language').click();
-  await expect(page.getByText('Choose how passages get checked')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Get Dinka ready', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
 }
 
 /** Every file the app's own stores hold in this site's private files (apps/mobile/src/webFiles.ts). */

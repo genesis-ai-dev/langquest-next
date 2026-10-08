@@ -1,6 +1,6 @@
 /**
  * Glottolog -> the nine language and region tables
- * (supabase/migrations/20261008000000_languoids.sql), keyed by glottocode.
+ * (supabase/migrations/20261009000000_languoids.sql), keyed by glottocode.
  * Pure, so it can be tested; scripts/languoids.ts fetches the release,
  * gives the rows their ids and loads them.
  *

@@ -3,8 +3,8 @@
 The languages the app knows, and where they are spoken, are global
 reference data in the database. They are not events and not in any stream:
 nothing syncs them, and they cost an organization nothing to open
-(decision 70). The tables are LangQuest v2's, with the same names, columns
-and constraints (`supabase/migrations/20261008000000_languoids.sql`), filled
+(decision 73). The tables are LangQuest v2's, with the same names, columns
+and constraints (`supabase/migrations/20261009000000_languoids.sql`), filled
 from Glottolog itself.
 
 | Table | Holds | Why it matters |
