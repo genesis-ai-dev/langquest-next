@@ -13,7 +13,7 @@ decision that holds it.
 
 ## Status (2026-10-08)
 
-Built on branch `caleb-simple-view` (decision 70; decision 56 amended):
+Built on branch `caleb-simple-view` (decision 71; decision 56 amended):
 items 1, 2, 3, 4 (tab names), 7 (reference chips and the five snaps), 9
 (help mode, words on the device, spoken on the web), 10, 11, and the
 smaller changes for Keep it, the map, and Settings ("How LangQuest works").

@@ -179,7 +179,8 @@ export interface LanguageReport {
   };
 }
 
-function passageWork(s: PassageState): PassageWork {
+/** Where a passage's work stands, as the reports count it. */
+export function passageWork(s: PassageState): PassageWork {
   if (s.done) return 'done';
   if (!s.recorded) return s.drafting ? 'drafting' : 'not_started';
   return s.awaitingResponse.length > 0 ? 'feedback' : 'in_review';

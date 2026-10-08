@@ -234,6 +234,18 @@ export const studyMarkKey = (unitId: string, guideId: string, stepId: string): s
 
 // ---- vocabulary that ships with the app --------------------------------------
 
+/**
+ * Review kinds written through the access-token API (decisions.md 70). They
+ * are in no flow, so they never complete or block a step; a passage's record
+ * shows them like any other review.
+ * - `listener`: someone outside the team heard the passage in a listening
+ *   app and said it sounds good or needs changes (`givenBy` names them).
+ * - `publication`: a partner marked the approved version ready to publish
+ *   (`looks_good`), or took that back (`needs_changes`, with why).
+ */
+export const LISTENER_KIND = 'listener';
+export const PUBLICATION_KIND = 'publication';
+
 /** The demo's REVIEW_KINDS. An org renames or adds kinds with v1.ReviewKindDefined. */
 export const DEFAULT_KINDS: KindDef[] = [
   { id: 'peer', name: 'Peer Review', usualReviewer: 'Another translator',

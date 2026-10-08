@@ -84,6 +84,7 @@ export class OrgFolder {
   private refreshedAt = 0;
   private running: Promise<void> | null = null;
   private queued: Promise<void> | null = null;
+  private chain: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly source: Source,
@@ -131,8 +132,41 @@ export class OrgFolder {
   }
 
   private start(): Promise<void> {
-    this.running = this.pass().finally(() => { this.running = null; });
+    this.running = this.exclusive(() => this.pass()).finally(() => { this.running = null; });
     return this.running;
+  }
+
+  /**
+   * Folding mutates a state in place, so a pass and an API read must never
+   * catch up the same language at once: both would apply the same tail to
+   * one object. Everything that folds runs here, one at a time.
+   */
+  private exclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.chain.then(fn, fn);
+    this.chain = run.catch(() => undefined);
+    return run;
+  }
+
+  /** The organization's state, caught up like a report (the access-token API, decision 70). */
+  async orgState(fresh = false): Promise<OrgState> {
+    await this.refresh(fresh);
+    return this.org!.state;
+  }
+
+  /**
+   * A language's whole fold, caught up to the log's tail now: a fold read
+   * back from the cache can be up to STATE_SAVE_EVERY events behind its
+   * summary. Null when the organization does not list the language.
+   */
+  async languageState(languageId: string, fresh = false): Promise<{ org: OrgState; state: LanguageState } | null> {
+    await this.refresh(fresh);
+    return this.exclusive(async () => {
+      const org = this.org!.state;
+      if (!languageInfo(org, languageId)) return null;
+      const held = await this.catchUp(languageId, await this.stateOf(languageId), emptyLanguageState, foldLanguage);
+      this.keep(languageId, { state: held.state, cursor: held.cursor });
+      return { org, state: held.state };
+    });
   }
 
   private async pass(): Promise<void> {
