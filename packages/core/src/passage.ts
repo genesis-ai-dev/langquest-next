@@ -3,7 +3,7 @@ import { libraryUnitRange } from './versification';
 import type { Hlc } from './hlc';
 import { buildIndexes, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, PUBLICATION_KIND, QUESTION_TEMPLATES,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
 import { sourceChapters } from './sourceBibles';
@@ -854,4 +854,64 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
   for (const r of Object.values(state.responses ?? {})) add(r.blobHash);
   for (const t of Object.values(state.keyTerms ?? {})) for (const a of Object.values(t.adjustments)) add(a.blobHash);
   return out;
+}
+
+/**
+ * The newest version every step cleared on its own: each kind's latest
+ * review of that very version approves it (a checkpoint not by a logged
+ * check), or the kind was set aside, or the step overridden. `done` is
+ * looser, since it reads each kind's latest review of any version, so a
+ * re-recorded passage stays done while its new audio is still unheard.
+ * What leaves the team for publication (decisions.md 70) must be a version
+ * someone actually approved, so this is what the access-token API serves.
+ */
+export function approvedVersion(s: PassageState): Version | null {
+  for (let i = s.versions.length - 1; i >= 0; i -= 1) {
+    const v = s.versions[i]!;
+    const cleared = s.steps.every((st) => !!st.override || st.step.kindIds.every((kindId, k) => {
+      const status = st.kinds[k];
+      if (status?.state === 'skipped') return true;
+      let last: ReviewView | undefined;
+      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId) last = r; // reviews are in clock order
+      if (!last) return false;
+      const approves = last.outcome === 'looks_good' || (last.outcome === 'recorded' && status?.state === 'approved');
+      return approves && (!st.step.checkpoint || last.via !== 'logged');
+    }));
+    if (cleared) return v;
+  }
+  return null;
+}
+
+/** Whether a partner has marked the passage ready to publish (decisions.md 70). */
+export interface Publication {
+  ready: boolean;
+  /** The approved version the decision is about. */
+  takeId: string;
+  versionN: number;
+  /** Who decided: the account behind the token. */
+  by: string;
+  hlc: Hlc;
+  /** Why it was taken back, or a note with the mark. */
+  note?: string;
+}
+
+/**
+ * The latest publication decision on the approved version, or null when
+ * there is none. Readiness belongs to one version: once a newer version is
+ * approved it starts without it, and a version whose approval is withdrawn
+ * is never ready.
+ */
+export function publicationOf(s: PassageState): Publication | null {
+  const approved = approvedVersion(s);
+  if (!approved) return null;
+  let last: ReviewView | null = null;
+  for (const r of s.reviews) {
+    if (r.kindId !== PUBLICATION_KIND || r.takeId !== approved.takeId) continue;
+    if (!last || r.hlc > last.hlc || (r.hlc === last.hlc && r.id > last.id)) last = r;
+  }
+  if (!last) return null;
+  return {
+    ready: last.outcome === 'looks_good', takeId: approved.takeId, versionN: approved.n, by: last.by, hlc: last.hlc,
+    ...(last.comment !== undefined ? { note: last.comment } : {})
+  };
 }

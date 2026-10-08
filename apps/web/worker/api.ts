@@ -1,6 +1,7 @@
 import { summarizeReports, type OrgReportsResponse } from '@langquest-next/core';
 import { handleBible, type BibleDeps } from './bible';
 import { handleBlobs, type BlobDeps } from './blobs';
+import { handleAgentApi, type AgentDeps } from './agent/http';
 
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
@@ -11,6 +12,8 @@ export interface ApiDeps {
   bible?: Omit<BibleDeps, 'profileOf'>;
   /** Recordings and guide media (`/api/blobs/*`, `/api/blob-urls/*`, blobs.ts); without it those routes answer 503. */
   blobs?: Omit<BlobDeps, 'profileOf'>;
+  /** The access-token API for apps and agents (`/api/v1/*`, agent/http.ts); without it those routes answer 503. */
+  agent?: AgentDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -52,6 +55,11 @@ function withCors(request: Request, res: Response): Response {
  * it is without downloading it again.
  */
 export async function handleApi(request: Request, deps: ApiDeps): Promise<Response> {
+  // Its own CORS: any origin may call it with a token (agent/http.ts).
+  const path = new URL(request.url).pathname;
+  if (path === '/api/v1' || path.startsWith('/api/v1/')) {
+    return deps.agent ? handleAgentApi(request, deps.agent) : json(503, { error: 'The API is not set up here.' });
+  }
   if (request.method === 'OPTIONS') return withCors(request, new Response(null, { status: 204, headers: { 'access-control-allow-methods': 'GET, HEAD, PUT' } }));
   return withCors(request, await answer(request, deps));
 }
