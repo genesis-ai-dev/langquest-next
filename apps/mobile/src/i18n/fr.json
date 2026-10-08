@@ -1,0 +1,103 @@
+{
+  "common": {
+    "close": "Fermer",
+    "back": "Retour",
+    "done": "Terminé",
+    "undo": "Annuler",
+    "hide": "Masquer",
+    "show": "Afficher",
+    "saving": "Enregistrement…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Aide : expliquer cet écran",
+    "turnOff": "Désactiver l'aide",
+    "on": "L'aide est activée. Touchez un élément pour savoir ce qu'il fait.",
+    "primaryButton": "L'action principale de cet écran.",
+    "quietLink": "Une autre façon de continuer, moins souvent utile."
+  },
+  "disclosure": {
+    "showsDetails": "Affiche les détails",
+    "hidesDetails": "Masque les détails"
+  },
+  "search": {
+    "clear": "Effacer la recherche"
+  },
+  "showMore_one": "Afficher {{count}} de plus · il en reste {{left}}",
+  "showMore_many": "Afficher {{count}} de plus · il en reste {{left}}",
+  "showMore_other": "Afficher {{count}} de plus · il en reste {{left}}",
+  "reason": {
+    "voiceNote": "Expliqué dans un message vocal.",
+    "typeReason": "Ou saisissez la raison",
+    "typeIt": "Ou saisissez-la",
+    "footnote": "Ceci va dans l'historique du passage avec votre nom. Cela peut être annulé plus tard ; l'historique garde les deux."
+  },
+  "toast": {
+    "undoAvailable": "Annulation possible.",
+    "dismiss": "Fermer"
+  },
+  "tab": {
+    "work": "Mon travail",
+    "map": "Carte",
+    "reports": "Rapports",
+    "manage": "Gérer",
+    "inbox": "Messages",
+    "settings": "Réglages"
+  },
+  "settings": {
+    "you": "Vous",
+    "noEmail": "Pas encore d'e-mail",
+    "newDevice": "Nouvel appareil ? {{who}} ou un administrateur peut vous aider à vous connecter.",
+    "yourInviter": "La personne qui vous a invité",
+    "signedInWithHelpOf": "Connecté sur cet appareil avec l'aide de {{who}}",
+    "signedInWithHelp": "Connecté sur cet appareil avec l'aide de quelqu'un",
+    "editProfile": "Modifier le profil",
+    "setPassword": "Créer un mot de passe",
+    "setPasswordSub": "Si d'autres personnes utilisent cet appareil",
+    "notifications": "Notifications",
+    "notificationsSub": "Être averti des demandes et des retours",
+    "notificationsOn": "Les notifications sont activées.",
+    "gettingStarted": "Pour commencer",
+    "gettingStartedSub": "Votre liste du premier jour",
+    "offline": "Prêt pour le hors ligne",
+    "language": "Langue",
+    "howItWorks": "Comment fonctionne LangQuest",
+    "howItWorksSub": "Une courte visite, et de l’aide (?) sur chaque écran",
+    "switchOrg": "Changer d'organisation",
+    "switchOrgActive": "{{org}} (active)",
+    "switchOrgNew": "{{org}} · ou en créer une nouvelle",
+    "signOut": "Se déconnecter",
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountSub": "Votre compte et votre nom, définitivement",
+    "testing": "Tests",
+    "switchPersona": "Changer de persona",
+    "switchPersonaSub": "Se connecter comme traducteur, relecteur ou administrateur de démonstration",
+    "sync": {
+      "title": "Synchronisation",
+      "refused": "Ce compte ne peut pas synchroniser cette organisation",
+      "pending_one": "{{n}} modification en attente d'envoi",
+      "pending_many": "{{n}} de modifications en attente d'envoi",
+      "pending_other": "{{n}} modifications en attente d'envoi",
+      "live": "En direct : les modifications arrivent tout de suite",
+      "offline": "Hors ligne : le travail est gardé sur cet appareil",
+      "last": "Dernière synchronisation : {{when}}",
+      "saved": "Tout est enregistré sur cet appareil"
+    },
+    "advanced": {
+      "title": "Avancé",
+      "diagnostics": "diagnostics",
+      "blocked": "personnes bloquées",
+      "sendDiagnostics": "Envoyer les diagnostics",
+      "sendDiagnosticsSub": "Envoie des rapports de vitesse et d'erreurs, jamais les enregistrements, ce que vous saisissez ni les noms.",
+      "blockedPeople": "Personnes bloquées",
+      "blockedCount_one": "{{count}} personne",
+      "blockedCount_many": "{{count}} de personnes",
+      "blockedCount_other": "{{count}} personnes"
+    }
+  },
+  "language": {
+    "title": "Langue",
+    "sub": "Les mots de l'application. Les enregistrements et les textes de votre équipe ne changent pas.",
+    "device": "Langue de l'appareil ({{name}})"
+  }
+}

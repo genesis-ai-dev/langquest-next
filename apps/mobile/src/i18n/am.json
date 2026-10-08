@@ -1,0 +1,100 @@
+{
+  "common": {
+    "close": "ዝጋ",
+    "back": "ተመለስ",
+    "done": "ተጠናቋል",
+    "undo": "ቀልብስ",
+    "hide": "ደብቅ",
+    "show": "አሳይ",
+    "saving": "በማስቀመጥ ላይ…",
+    "listSeparator": "፣ "
+  },
+  "help": {
+    "turnOn": "እገዛ፦ ይህን ገጽ አብራራ",
+    "turnOff": "እገዛን አጥፋ",
+    "on": "እገዛ በርቷል። ምን እንደሚያደርግ ለመስማት ማንኛውንም ነገር ይንኩ።",
+    "primaryButton": "በዚህ ገጽ ላይ የሚደረገው ዋናው ነገር።",
+    "quietLink": "ሌላ የመቀጠያ መንገድ፣ ብዙ ጊዜ የማያስፈልግ።"
+  },
+  "disclosure": {
+    "showsDetails": "ዝርዝሩን ያሳያል",
+    "hidesDetails": "ዝርዝሩን ይደብቃል"
+  },
+  "search": {
+    "clear": "ፍለጋውን አጽዳ"
+  },
+  "showMore_one": "ተጨማሪ {{count}} አሳይ · {{left}} ቀርተዋል",
+  "showMore_other": "ተጨማሪ {{count}} አሳይ · {{left}} ቀርተዋል",
+  "reason": {
+    "voiceNote": "በድምጽ መልእክት ተብራርቷል።",
+    "typeReason": "ወይም ምክንያቱን ይጻፉ",
+    "typeIt": "ወይም ይጻፉት",
+    "footnote": "ይህ ከስምዎ ጋር በክፍሉ መዝገብ ውስጥ ይገባል። በኋላ ሊቀለበስ ይችላል፤ መዝገቡ ሁለቱንም ይይዛል።"
+  },
+  "toast": {
+    "undoAvailable": "መቀልበስ ይቻላል።",
+    "dismiss": "ዝጋ"
+  },
+  "tab": {
+    "work": "የእኔ ሥራ",
+    "map": "ካርታ",
+    "reports": "ሪፖርቶች",
+    "manage": "አስተዳድር",
+    "inbox": "የገቢ መልእክት",
+    "settings": "ቅንብሮች"
+  },
+  "settings": {
+    "you": "እርስዎ",
+    "noEmail": "እስካሁን ኢሜይል የለም",
+    "newDevice": "አዲስ መሣሪያ? {{who}} ወይም አስተዳዳሪ እንዲገቡ ሊረዳዎ ይችላል።",
+    "yourInviter": "የጋበዘዎት ሰው",
+    "signedInWithHelpOf": "በዚህ መሣሪያ ላይ በ{{who}} እገዛ ገብተዋል",
+    "signedInWithHelp": "በዚህ መሣሪያ ላይ በሌላ ሰው እገዛ ገብተዋል",
+    "editProfile": "መገለጫን አርትዕ",
+    "setPassword": "የይለፍ ቃል ያዘጋጁ",
+    "setPasswordSub": "ሌሎች ሰዎች ይህን መሣሪያ የሚጠቀሙ ከሆነ",
+    "notifications": "ማሳወቂያዎች",
+    "notificationsSub": "ስለ ጥያቄዎች እና አስተያየቶች ይወቁ",
+    "notificationsOn": "ማሳወቂያዎች በርተዋል።",
+    "gettingStarted": "መጀመሪያ",
+    "gettingStartedSub": "የመጀመሪያ ቀን ዝርዝርዎ",
+    "offline": "ከመስመር ውጭ ለመሥራት ዝግጁ",
+    "language": "ቋንቋ",
+    "howItWorks": "LangQuest እንዴት እንደሚሠራ",
+    "howItWorksSub": "አጭር ጉብኝት፣ እና በእያንዳንዱ ገጽ ላይ እገዛ (?)",
+    "switchOrg": "ድርጅት ቀይር",
+    "switchOrgActive": "{{org}} (ንቁ)",
+    "switchOrgNew": "{{org}} · ወይም አዲስ ይጀምሩ",
+    "signOut": "ውጣ",
+    "deleteAccount": "መለያን ሰርዝ",
+    "deleteAccountSub": "መለያዎ እና ስምዎ፣ ለዘለቄታው",
+    "testing": "ሙከራ",
+    "switchPersona": "ገጸ ባሕሪ ቀይር",
+    "switchPersonaSub": "እንደ ሙከራ ተርጓሚ፣ ገምጋሚ ወይም አስተዳዳሪ ይግቡ",
+    "sync": {
+      "title": "ማመሳሰል",
+      "refused": "ይህ መለያ ይህን ድርጅት ማመሳሰል አይችልም",
+      "pending_one": "{{n}} ለውጥ ለመላክ እየጠበቀ ነው",
+      "pending_other": "{{n}} ለውጦች ለመላክ እየጠበቁ ናቸው",
+      "live": "ቀጥታ፦ ለውጦች ወዲያው ይደርሳሉ",
+      "offline": "ከመስመር ውጭ፦ ሥራው በዚህ መሣሪያ ላይ ይቀመጣል",
+      "last": "ለመጨረሻ ጊዜ የተመሳሰለው {{when}}",
+      "saved": "ሁሉም ነገር በዚህ መሣሪያ ላይ ተቀምጧል"
+    },
+    "advanced": {
+      "title": "የላቀ",
+      "diagnostics": "ምርመራ",
+      "blocked": "የታገዱ ሰዎች",
+      "sendDiagnostics": "የምርመራ መረጃ ላክ",
+      "sendDiagnosticsSub": "የፍጥነት እና የስህተት ሪፖርቶችን ይልካል፤ ቅጂዎችን፣ የሚጽፉትን ወይም ስሞችን በጭራሽ አይልክም።",
+      "blockedPeople": "የታገዱ ሰዎች",
+      "blockedCount_one": "{{count}} ሰው",
+      "blockedCount_other": "{{count}} ሰዎች"
+    }
+  },
+  "language": {
+    "title": "ቋንቋ",
+    "sub": "የመተግበሪያው የራሱ ቃላት። የቡድንዎ ቅጂዎች እና ጽሑፎች አይቀየሩም።",
+    "device": "የመሣሪያው ቋንቋ ({{name}})"
+  }
+}

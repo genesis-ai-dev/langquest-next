@@ -1,3 +1,4 @@
+import './src/i18n';
 import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { HelpModeProvider } from './src/helpMode';
 import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';

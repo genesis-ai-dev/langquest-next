@@ -1971,3 +1971,33 @@ its pause and cutoff only for a session), spoken help lines per screen on a
 device, notes on a key term, and side-by-side panes on wide windows.
 Reverse if: field tests show translators miss what moved behind "Something
 else?" or "Versions and history", or admins need the Setup list back.
+
+## 72. The app's own words come in thirteen languages, chosen on the device
+
+Date: 2026-10-08 · By: Ryder Wishart · Status: accepted
+
+Reason: the app's text was English only, written into each screen, so a
+field team that does not read English could not use it, and every new screen
+added more text to extract later. Ryder asked for it as soon as possible
+(LAN-42), with the most used languages of Africa, Asia and the Americas,
+and Nepali. The first set is English, Spanish, Portuguese, French, Arabic,
+Swahili, Hausa, Amharic, Hindi, Bengali, Nepali, Indonesian and Simplified
+Chinese (`apps/mobile/src/i18n/locales.ts`). `i18next` and `react-i18next`
+hold one JSON catalog for each language in `apps/mobile/src/i18n/`; English
+is the source, and TypeScript rejects a key that is not in `en.json`.
+`expo-localization` reads the device's languages; the first one with a
+catalog shows, else English. A person can pick another in Settings →
+Language; the choice is kept on the device (AsyncStorage), not on the
+account and not in an event, because a shared phone keeps the language its
+people read and the choice is not organization data. Arabic lays out right
+to left; a phone restarts once when the direction changes, because React
+Native sets direction only at start. `apps/mobile/test/i18n.test.ts` fails
+when a catalog misses a key, a plural form its language needs or a
+placeholder, or when an English key is not used. The first translations are
+machine drafts; a fluent speaker reviews each language before release.
+Library documents (templates, flows, reference material) are content in the
+database (decision 36) and are not translated by this. The kit, the tabs
+and Settings are translated first; the other screens follow one at a time.
+Reverse if: teams need a language per account that follows them across
+devices (then it becomes an account setting), or the bundled catalogs grow
+large enough to slow the app's start (then load them on demand).

@@ -1,0 +1,112 @@
+{
+  "common": {
+    "close": "إغلاق",
+    "back": "رجوع",
+    "done": "تم",
+    "undo": "تراجع",
+    "hide": "إخفاء",
+    "show": "إظهار",
+    "saving": "جارٍ الحفظ…",
+    "listSeparator": "، "
+  },
+  "help": {
+    "turnOn": "مساعدة: اشرح هذه الشاشة",
+    "turnOff": "إيقاف المساعدة",
+    "on": "المساعدة مفعّلة. المس أي شيء لتعرف ماذا يفعل.",
+    "primaryButton": "الإجراء الرئيسي في هذه الشاشة.",
+    "quietLink": "طريقة أخرى للمتابعة، أقل استخدامًا."
+  },
+  "disclosure": {
+    "showsDetails": "يُظهر التفاصيل",
+    "hidesDetails": "يُخفي التفاصيل"
+  },
+  "search": {
+    "clear": "مسح البحث"
+  },
+  "showMore_zero": "عرض {{count}} أخرى · المتبقي {{left}}",
+  "showMore_one": "عرض {{count}} أخرى · المتبقي {{left}}",
+  "showMore_two": "عرض {{count}} أخرى · المتبقي {{left}}",
+  "showMore_few": "عرض {{count}} أخرى · المتبقي {{left}}",
+  "showMore_many": "عرض {{count}} أخرى · المتبقي {{left}}",
+  "showMore_other": "عرض {{count}} أخرى · المتبقي {{left}}",
+  "reason": {
+    "voiceNote": "تم الشرح في رسالة صوتية.",
+    "typeReason": "أو اكتب السبب",
+    "typeIt": "أو اكتبه",
+    "footnote": "يُحفظ هذا في سجل المقطع باسمك. يمكن التراجع عنه لاحقًا، ويحتفظ السجل بالاثنين."
+  },
+  "toast": {
+    "undoAvailable": "يمكن التراجع.",
+    "dismiss": "إغلاق"
+  },
+  "tab": {
+    "work": "عملي",
+    "map": "الخريطة",
+    "reports": "التقارير",
+    "manage": "الإدارة",
+    "inbox": "الوارد",
+    "settings": "الإعدادات"
+  },
+  "settings": {
+    "you": "أنت",
+    "noEmail": "لا يوجد بريد إلكتروني بعد",
+    "newDevice": "جهاز جديد؟ يمكن أن يساعدك {{who}} أو أحد المسؤولين على تسجيل الدخول.",
+    "yourInviter": "الشخص الذي دعاك",
+    "signedInWithHelpOf": "تم تسجيل الدخول على هذا الجهاز بمساعدة {{who}}",
+    "signedInWithHelp": "تم تسجيل الدخول على هذا الجهاز بمساعدة شخص آخر",
+    "editProfile": "تعديل الملف الشخصي",
+    "setPassword": "تعيين كلمة مرور",
+    "setPasswordSub": "إذا كان أشخاص آخرون يستخدمون هذا الجهاز",
+    "notifications": "الإشعارات",
+    "notificationsSub": "اعرف بالطلبات والملاحظات",
+    "notificationsOn": "الإشعارات مفعّلة.",
+    "gettingStarted": "البداية",
+    "gettingStartedSub": "قائمتك لليوم الأول",
+    "offline": "جاهز للعمل دون اتصال",
+    "language": "اللغة",
+    "howItWorks": "كيف يعمل LangQuest",
+    "howItWorksSub": "جولة قصيرة، ومساعدة (؟) في كل شاشة",
+    "switchOrg": "تبديل المؤسسة",
+    "switchOrgActive": "{{org}} (النشطة)",
+    "switchOrgNew": "{{org}} · أو ابدأ مؤسسة جديدة",
+    "signOut": "تسجيل الخروج",
+    "deleteAccount": "حذف الحساب",
+    "deleteAccountSub": "حسابك واسمك، نهائيًا",
+    "testing": "الاختبار",
+    "switchPersona": "تبديل الشخصية",
+    "switchPersonaSub": "سجّل الدخول كمترجم أو مراجع أو مسؤول تجريبي",
+    "sync": {
+      "title": "المزامنة",
+      "refused": "لا يمكن لهذا الحساب مزامنة هذه المؤسسة",
+      "pending_zero": "{{n}} تغيير بانتظار الإرسال",
+      "pending_one": "تغيير واحد بانتظار الإرسال",
+      "pending_two": "تغييران بانتظار الإرسال",
+      "pending_few": "{{n}} تغييرات بانتظار الإرسال",
+      "pending_many": "{{n}} تغييرًا بانتظار الإرسال",
+      "pending_other": "{{n}} تغيير بانتظار الإرسال",
+      "live": "مباشر: تصل التغييرات فور حدوثها",
+      "offline": "دون اتصال: يُحفظ العمل على هذا الجهاز",
+      "last": "آخر مزامنة: {{when}}",
+      "saved": "كل شيء محفوظ على هذا الجهاز"
+    },
+    "advanced": {
+      "title": "متقدم",
+      "diagnostics": "التشخيص",
+      "blocked": "الأشخاص المحظورون",
+      "sendDiagnostics": "إرسال التشخيص",
+      "sendDiagnosticsSub": "يرسل تقارير السرعة والأخطاء، ولا يرسل أبدًا التسجيلات أو ما تكتبه أو الأسماء.",
+      "blockedPeople": "الأشخاص المحظورون",
+      "blockedCount_zero": "{{count}} شخص",
+      "blockedCount_one": "شخص واحد",
+      "blockedCount_two": "شخصان",
+      "blockedCount_few": "{{count}} أشخاص",
+      "blockedCount_many": "{{count}} شخصًا",
+      "blockedCount_other": "{{count}} شخص"
+    }
+  },
+  "language": {
+    "title": "اللغة",
+    "sub": "كلمات التطبيق نفسه. لا تتغير تسجيلات فريقك ونصوصه.",
+    "device": "لغة الجهاز ({{name}})"
+  }
+}

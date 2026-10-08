@@ -1,0 +1,97 @@
+{
+  "common": {
+    "close": "关闭",
+    "back": "返回",
+    "done": "完成",
+    "undo": "撤销",
+    "hide": "隐藏",
+    "show": "显示",
+    "saving": "正在保存…",
+    "listSeparator": "、"
+  },
+  "help": {
+    "turnOn": "帮助：说明此页面",
+    "turnOff": "关闭帮助",
+    "on": "帮助已开启。点按任何内容，听听它的作用。",
+    "primaryButton": "此页面上要做的主要事情。",
+    "quietLink": "另一种继续方式，较少用到。"
+  },
+  "disclosure": {
+    "showsDetails": "显示详细信息",
+    "hidesDetails": "隐藏详细信息"
+  },
+  "search": {
+    "clear": "清除搜索"
+  },
+  "showMore_other": "再显示 {{count}} 项 · 还剩 {{left}} 项",
+  "reason": {
+    "voiceNote": "已在语音留言中说明。",
+    "typeReason": "或输入原因",
+    "typeIt": "或输入",
+    "footnote": "这会连同您的名字记入该段落的记录。以后可以撤销；记录会保留两者。"
+  },
+  "toast": {
+    "undoAvailable": "可以撤销。",
+    "dismiss": "关闭"
+  },
+  "tab": {
+    "work": "我的工作",
+    "map": "地图",
+    "reports": "报告",
+    "manage": "管理",
+    "inbox": "收件箱",
+    "settings": "设置"
+  },
+  "settings": {
+    "you": "您",
+    "noEmail": "尚无电子邮件",
+    "newDevice": "新设备？{{who}}或管理员可以帮您登录。",
+    "yourInviter": "邀请您的人",
+    "signedInWithHelpOf": "在{{who}}的帮助下于此设备登录",
+    "signedInWithHelp": "在他人帮助下于此设备登录",
+    "editProfile": "编辑个人资料",
+    "setPassword": "设置密码",
+    "setPasswordSub": "如果其他人也使用此设备",
+    "notifications": "通知",
+    "notificationsSub": "接收请求和反馈的消息",
+    "notificationsOn": "通知已开启。",
+    "gettingStarted": "入门",
+    "gettingStartedSub": "您第一天的清单",
+    "offline": "离线准备就绪",
+    "language": "语言",
+    "howItWorks": "LangQuest 如何运作",
+    "howItWorksSub": "简短导览，每个页面都有帮助 (?)",
+    "switchOrg": "切换组织",
+    "switchOrgActive": "{{org}}（当前）",
+    "switchOrgNew": "{{org}} · 或新建一个",
+    "signOut": "退出登录",
+    "deleteAccount": "删除帐户",
+    "deleteAccountSub": "永久删除您的帐户和名字",
+    "testing": "测试",
+    "switchPersona": "切换角色",
+    "switchPersonaSub": "以演示译者、审阅者或管理员身份登录",
+    "sync": {
+      "title": "同步",
+      "refused": "此帐户无法同步此组织",
+      "pending_other": "{{n}} 项更改等待发送",
+      "live": "实时：更改即时到达",
+      "offline": "离线：工作保存在此设备上",
+      "last": "上次同步：{{when}}",
+      "saved": "所有内容都已保存在此设备上"
+    },
+    "advanced": {
+      "title": "高级",
+      "diagnostics": "诊断",
+      "blocked": "已屏蔽的人",
+      "sendDiagnostics": "发送诊断信息",
+      "sendDiagnosticsSub": "发送速度和错误报告，绝不发送录音、您输入的内容或名字。",
+      "blockedPeople": "已屏蔽的人",
+      "blockedCount_other": "{{count}} 人"
+    }
+  },
+  "language": {
+    "title": "语言",
+    "sub": "应用本身的文字。您团队的录音和文本不会改变。",
+    "device": "设备语言（{{name}}）"
+  }
+}

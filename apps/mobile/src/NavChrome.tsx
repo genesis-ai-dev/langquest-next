@@ -3,6 +3,7 @@
 // window, and a labelled sidebar with the organization on a desktop-wide one.
 // The same tabs, badges and lit tab in each; only the layout changes.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useT } from './i18n';
 import { Badge, Ico, txt, type IconName } from './kit';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from './theme';
@@ -18,6 +19,8 @@ export function NavChrome(props: {
   orgName?: string;
   actorId?: string;
 }) {
+  const tr = useT();
+  const label = (tab: Tab) => tr(`tab.${tab.id}`);
   if (props.variant === 'sidebar') {
     return (
       <View style={styles.sidebar}>
@@ -32,10 +35,10 @@ export function NavChrome(props: {
           const color = active ? C.primary : C.dark;
           return (
             <Pressable key={t.id} onPress={() => props.onSelect(t)} accessibilityRole="tab"
-              accessibilityLabel={t.badge ? `${t.label}, ${t.badge}` : t.label} accessibilityState={{ selected: active }}
+              accessibilityLabel={t.badge ? `${label(t)}, ${t.badge}` : label(t)} accessibilityState={{ selected: active }}
               style={({ pressed }) => [styles.sideItem, active && { backgroundColor: C.light }, pressed && { opacity: 0.6 }]}>
               <Ico name={TAB_ICONS[t.id]} size={22} color={active ? C.primary : C.muted} />
-              <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{t.label}</Text>
+              <Text style={[txt.body, { flex: 1, fontWeight: active ? '700' : '600', color }]} numberOfLines={1}>{label(t)}</Text>
               {t.badge ? <Badge label={t.badge > 99 ? '99+' : String(t.badge)} tone={t.id === 'inbox' ? 'red' : 'brand'} /> : null}
             </Pressable>
           );
@@ -55,7 +58,7 @@ export function NavChrome(props: {
             key={t.id}
             onPress={() => props.onSelect(t)}
             accessibilityRole="tab"
-            accessibilityLabel={t.badge ? `${t.label}, ${t.badge}` : t.label}
+            accessibilityLabel={t.badge ? `${label(t)}, ${t.badge}` : label(t)}
             accessibilityState={{ selected: active }}
             style={({ pressed }) => [rail ? styles.railItem : styles.tab, pressed && { opacity: 0.6 }]}
           >
@@ -65,7 +68,7 @@ export function NavChrome(props: {
                 <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{t.badge > 99 ? '99+' : t.badge}</Text></View>
               ) : null}
             </View>
-            <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{t.label}</Text>
+            <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>{label(t)}</Text>
           </Pressable>
         );
       })}

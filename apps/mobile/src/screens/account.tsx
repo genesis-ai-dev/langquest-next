@@ -42,6 +42,7 @@ import { C, radius, space, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
 import { PersonAvatar } from '../UserChip';
+import { chosenLanguage, deviceLanguage, locale, localeName, LOCALES, setLanguage, useT, type LocaleCode } from '../i18n';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -363,6 +364,9 @@ function useHasPassword(): [boolean | null, () => void] {
 export function SettingsHome(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [blockedOpen, setBlockedOpen] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [chosenLang, setChosenLang] = useChosenLanguage();
+  const t = useT();
   const diag = useDiagnosticsSwitch(ctx);
   const names = useDisplayNames(ctx.session.actorId);
   const s = ctx.session;
@@ -371,14 +375,14 @@ export function SettingsHome(ctx: Ctx) {
   const [hasPassword] = useHasPassword();
   const [help, setHelp] = useState<SignInHelp | null>(null);
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
-  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? 'You';
+  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? t('settings.you');
   const p = ctx.language;
   const offline = useOfflineSummary(ctx);
-  const syncSub = p.refused ? 'This account cannot sync this organization'
-    : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
-    : p.live ? 'Live: changes arrive as they happen'
-    : p.online === false ? 'Offline: work is kept on this device'
-    : p.lastSync ? `Last synced ${p.lastSync}` : 'Everything is saved on this device';
+  const syncSub = p.refused ? t('settings.sync.refused')
+    : p.pending > 0 ? t('settings.sync.pending', { count: p.pending, n: p.pending.toLocaleString(locale()) })
+    : p.live ? t('settings.sync.live')
+    : p.online === false ? t('settings.sync.offline')
+    : p.lastSync ? t('settings.sync.last', { when: p.lastSync }) : t('settings.sync.saved');
   // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
   const orgs = useOrganizations(s.actorId).rows;
   const canSwitch = orgs === null || orgs.length > 1;
@@ -386,12 +390,12 @@ export function SettingsHome(ctx: Ctx) {
   const blocked = ctx.blocks.ids.length;
   // Unsent work is the one thing here that needs noticing, so it leads the summary.
   const advancedSummary = [
-    p.pending > 0 || p.refused ? syncSub : 'Sync',
-    'diagnostics',
-    ...(blocked > 0 ? ['blocked people'] : [])
-  ].join(', ');
+    p.pending > 0 || p.refused ? syncSub : t('settings.sync.title'),
+    t('settings.advanced.diagnostics'),
+    ...(blocked > 0 ? [t('settings.advanced.blocked')] : [])
+  ].join(t('common.listSeparator'));
   return (
-    <Screen header={<Header title="Settings" />}>
+    <Screen header={<Header title={t('tab.settings')} />}>
       <Card>
         <View style={styles.profile}>
           <PersonAvatar look={personLook(s.actorId, name)} size={52} />
@@ -399,72 +403,106 @@ export function SettingsHome(ctx: Ctx) {
             <Text style={txt.h3} numberOfLines={1}>{name}</Text>
             {/* A looked-after account's address means nothing to the person (decisions.md 59). */}
             <Text style={[txt.xs, (!s.email || s.isManaged) && { color: TINT.amberText }]} numberOfLines={1}>
-              {s.isManaged || !s.email ? 'No email yet' : s.email}
+              {s.isManaged || !s.email ? t('settings.noEmail') : s.email}
             </Text>
             <Text style={[txt.xs, { color: C.primary, fontWeight: '600' }]} numberOfLines={1}>{roleName} · {orgName}</Text>
           </View>
         </View>
         {s.isManaged ? (
           <View style={{ gap: 2 }}>
-            <Text style={txt.xs}>New device? {inviter ?? 'The person who invited you'} or an admin can help you sign in.</Text>
+            <Text style={txt.xs}>{t('settings.newDevice', { who: inviter ?? t('settings.yourInviter') })}</Text>
             {help ? (
-              <Text style={txt.xs}>Signed in on this device with {help.helper ? `${help.helper}'s` : 'someone\'s'} help · {new Date(help.at).toLocaleDateString()}</Text>
+              <Text style={txt.xs}>{help.helper ? t('settings.signedInWithHelpOf', { who: help.helper }) : t('settings.signedInWithHelp')} · {new Date(help.at).toLocaleDateString(locale())}</Text>
             ) : null}
           </View>
         ) : null}
       </Card>
       {/* One list in the order people need it (Hick's law, ADR-029): their profile, help, the rare switch, then Sign Out. */}
       <Group>
-        <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
+        <Row icon="user" label={t('settings.editProfile')} onPress={() => ctx.go('profile_edit')} />
         {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
         {s.isManaged && hasPassword === false ? (
-          <Row icon="lock" label="Set a password" sub="If other people use this device" onPress={() => ctx.go('profile_edit')} />
+          <Row icon="lock" label={t('settings.setPassword')} sub={t('settings.setPasswordSub')} onPress={() => ctx.go('profile_edit')} />
         ) : null}
         {/* No push on the web yet: requests and feedback still reach the Inbox there. */}
         {Platform.OS !== 'web' ? (
-          <Row icon="notif" label="Notifications" sub={notificationMessage || 'Hear about requests and feedback'} onPress={() => {
-            void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
+          <Row icon="notif" label={t('settings.notifications')} sub={notificationMessage || t('settings.notificationsSub')} onPress={() => {
+            void enableNotifications().then(() => setNotificationMessage(t('settings.notificationsOn'))).catch((e: Error) => setNotificationMessage(e.message));
           }} />
         ) : null}
         {homeScreenFor(s) === 'my_work' ? (
-          <Row icon="play" label="Getting started" sub="Your first-day checklist" onPress={() => ctx.go('my_work', { showGettingStarted: '1' })} />
+          <Row icon="play" label={t('settings.gettingStarted')} sub={t('settings.gettingStartedSub')} onPress={() => ctx.go('my_work', { showGettingStarted: '1' })} />
         ) : null}
         {/* What comes along to the field, out of Advanced so it is seen before a trip (decisions.md 61). */}
-        <Row icon={offline && offline.kept > 0 && offline.ready === offline.kept ? 'onPhone' : 'notOnPhone'} label="Ready for offline" sub={offlineLine(offline)}
+        <Row icon={offline && offline.kept > 0 && offline.ready === offline.kept ? 'onPhone' : 'notOnPhone'} label={t('settings.offline')} sub={offlineLine(offline)}
           onPress={() => ctx.go('sync_status')} />
-        <Row icon="book" label="How LangQuest works" sub="A short tour, and help (?) on every screen" onPress={() => ctx.go('vision')} />
+        {/* Before the tour, so someone who cannot read English finds it early (decisions.md 72). */}
+        <Row icon="globe" label={t('settings.language')} sub={chosenLang ? localeName(chosenLang) : t('language.device', { name: localeName(deviceLanguage()) })} onPress={() => setLanguageOpen(true)} />
+        <Row icon="book" label={t('settings.howItWorks')} sub={t('settings.howItWorksSub')} onPress={() => ctx.go('vision')} />
         {/* Always here: someone in one organization may start another (Switch Organization, then New organization). */}
-        <Row icon="building" label="Switch Organization" sub={canSwitch ? `${orgName} (active)` : `${orgName} · or start a new one`} onPress={() => ctx.go('org_switcher')} last />
+        <Row icon="building" label={t('settings.switchOrg')} sub={canSwitch ? t('settings.switchOrgActive', { org: orgName }) : t('settings.switchOrgNew', { org: orgName })} onPress={() => ctx.go('org_switcher')} last />
       </Group>
       <View style={{ paddingTop: space.sm }}>
-        <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
+        <GhostBtn label={t('settings.signOut')} tone="red" onPress={() => ctx.go('sign_out_confirm')} />
       </View>
       {/* Set once and rarely touched, behind one tap (progressive disclosure). App only: none of these is in the demo. */}
-      <Disclosure icon="settings" title="Advanced" summary={advancedSummary} open={advanced.open} onToggle={advanced.onToggle}>
-        <Row icon="cloud" label="Sync" sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+      <Disclosure icon="settings" title={t('settings.advanced.title')} summary={advancedSummary} open={advanced.open} onToggle={advanced.onToggle}>
+        <Row icon="cloud" label={t('settings.sync.title')} sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
-        <Row icon="progress" label="Send diagnostics" sub="Sends speed and error reports, never recordings, what you type or names."
+        <Row icon="progress" label={t('settings.advanced.sendDiagnostics')} sub={t('settings.advanced.sendDiagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} />
         {/* Store rules, decisions.md 48: shown once someone is blocked (blocking starts from the flag on what they made). */}
         {blocked > 0 ? (
-          <Row icon="block" label="Blocked people" sub={plural(blocked, 'person', 'people')} onPress={() => setBlockedOpen(true)} />
+          <Row icon="block" label={t('settings.advanced.blockedPeople')} sub={t('settings.advanced.blockedCount', { count: blocked })} onPress={() => setBlockedOpen(true)} />
         ) : null}
       </Disclosure>
       {/* Store rules, decisions.md 46: kept where the store answers and the App Review notes say it is (Settings → Delete account), not under Advanced. */}
       <Group>
-        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label="Delete account" sub="Your account and your name, for good"
+        <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('settings.deleteAccount')} sub={t('settings.deleteAccountSub')}
           onPress={() => ctx.go('delete_account')} last />
       </Group>
       {ctx.canSwitchPersona ? (
         <>
-          <SectionLabel label="Testing" />
+          <SectionLabel label={t('settings.testing')} />
           <Group>
-            <Row icon="people" label="Switch persona" sub="Sign in as a demo translator, reviewer or admin" onPress={ctx.openDev} last />
+            <Row icon="people" label={t('settings.switchPersona')} sub={t('settings.switchPersonaSub')} onPress={ctx.openDev} last />
           </Group>
         </>
       ) : null}
+      {languageOpen ? <LanguageSheet chosen={chosenLang} onChosen={setChosenLang} onClose={() => setLanguageOpen(false)} /> : null}
       {blockedOpen ? <BlockedPeople ctx={ctx} onClose={() => setBlockedOpen(false)} /> : null}
     </Screen>
+  );
+}
+
+/** The language chosen on this device: undefined until read, null to follow the device. */
+function useChosenLanguage(): [LocaleCode | null | undefined, (code: LocaleCode | null) => void] {
+  const [chosen, setChosen] = useState<LocaleCode | null | undefined>(undefined);
+  useEffect(() => { void chosenLanguage().then(setChosen).catch((e: unknown) => noteExpected('read language choice', e)); }, []);
+  return [chosen, setChosen];
+}
+
+/**
+ * The app's language (decisions.md 72): each under its own name, the
+ * device's language first. Kept on this device, not on the account, so a
+ * shared phone keeps the language its people read.
+ */
+function LanguageSheet(props: { chosen: LocaleCode | null | undefined; onChosen: (code: LocaleCode | null) => void; onClose: () => void }) {
+  const t = useT();
+  const chosen = props.chosen;
+  const pick = (code: LocaleCode | null) => {
+    props.onChosen(code);
+    void setLanguage(code).then(props.onClose).catch((e: unknown) => reportError('set language', e));
+  };
+  return (
+    <Sheet visible title={t('language.title')} sub={t('language.sub')} onClose={props.onClose}>
+      <Group>
+        <Row label={t('language.device', { name: localeName(deviceLanguage()) })} role="radio" selected={chosen === null} onPress={() => pick(null)} />
+        {LOCALES.map((l, i) => (
+          <Row key={l.code} label={l.name} role="radio" selected={chosen === l.code} onPress={() => pick(l.code)} last={i === LOCALES.length - 1} />
+        ))}
+      </Group>
+    </Sheet>
   );
 }
 

@@ -1,0 +1,100 @@
+{
+  "common": {
+    "close": "Funga",
+    "back": "Rudi",
+    "done": "Imekamilika",
+    "undo": "Tendua",
+    "hide": "Ficha",
+    "show": "Onyesha",
+    "saving": "Inahifadhi…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Msaada: eleza skrini hii",
+    "turnOff": "Zima msaada",
+    "on": "Msaada umewashwa. Gusa chochote kusikia kinachofanya.",
+    "primaryButton": "Jambo kuu la kufanya kwenye skrini hii.",
+    "quietLink": "Njia nyingine ya kuendelea, haihitajiki mara nyingi."
+  },
+  "disclosure": {
+    "showsDetails": "Inaonyesha maelezo",
+    "hidesDetails": "Inaficha maelezo"
+  },
+  "search": {
+    "clear": "Futa utafutaji"
+  },
+  "showMore_one": "Onyesha {{count}} zaidi · zimebaki {{left}}",
+  "showMore_other": "Onyesha {{count}} zaidi · zimebaki {{left}}",
+  "reason": {
+    "voiceNote": "Imeelezwa kwa ujumbe wa sauti.",
+    "typeReason": "Au andika sababu",
+    "typeIt": "Au iandike",
+    "footnote": "Hii inaingia kwenye kumbukumbu ya kifungu pamoja na jina lako. Inaweza kutenduliwa baadaye; kumbukumbu inahifadhi zote mbili."
+  },
+  "toast": {
+    "undoAvailable": "Unaweza kutendua.",
+    "dismiss": "Funga"
+  },
+  "tab": {
+    "work": "Kazi Yangu",
+    "map": "Ramani",
+    "reports": "Ripoti",
+    "manage": "Simamia",
+    "inbox": "Kikasha",
+    "settings": "Mipangilio"
+  },
+  "settings": {
+    "you": "Wewe",
+    "noEmail": "Bado hakuna barua pepe",
+    "newDevice": "Kifaa kipya? {{who}} au msimamizi anaweza kukusaidia kuingia.",
+    "yourInviter": "Mtu aliyekualika",
+    "signedInWithHelpOf": "Uliingia kwenye kifaa hiki kwa msaada wa {{who}}",
+    "signedInWithHelp": "Uliingia kwenye kifaa hiki kwa msaada wa mtu mwingine",
+    "editProfile": "Hariri Wasifu",
+    "setPassword": "Weka nenosiri",
+    "setPasswordSub": "Ikiwa watu wengine wanatumia kifaa hiki",
+    "notifications": "Arifa",
+    "notificationsSub": "Pata habari za maombi na maoni",
+    "notificationsOn": "Arifa zimewashwa.",
+    "gettingStarted": "Kuanza",
+    "gettingStartedSub": "Orodha yako ya siku ya kwanza",
+    "offline": "Tayari kwa nje ya mtandao",
+    "language": "Lugha",
+    "howItWorks": "Jinsi LangQuest inavyofanya kazi",
+    "howItWorksSub": "Ziara fupi, na msaada (?) kwenye kila skrini",
+    "switchOrg": "Badilisha Shirika",
+    "switchOrgActive": "{{org}} (linalotumika)",
+    "switchOrgNew": "{{org}} · au anzisha jipya",
+    "signOut": "Toka",
+    "deleteAccount": "Futa akaunti",
+    "deleteAccountSub": "Akaunti yako na jina lako, kabisa",
+    "testing": "Majaribio",
+    "switchPersona": "Badilisha mhusika",
+    "switchPersonaSub": "Ingia kama mtafsiri, mkaguzi au msimamizi wa mfano",
+    "sync": {
+      "title": "Usawazishaji",
+      "refused": "Akaunti hii haiwezi kusawazisha shirika hili",
+      "pending_one": "Badiliko {{n}} linasubiri kutumwa",
+      "pending_other": "Mabadiliko {{n}} yanasubiri kutumwa",
+      "live": "Moja kwa moja: mabadiliko yanafika yanapotokea",
+      "offline": "Nje ya mtandao: kazi inahifadhiwa kwenye kifaa hiki",
+      "last": "Ilisawazishwa mwisho {{when}}",
+      "saved": "Kila kitu kimehifadhiwa kwenye kifaa hiki"
+    },
+    "advanced": {
+      "title": "Zaidi",
+      "diagnostics": "uchunguzi",
+      "blocked": "watu waliozuiwa",
+      "sendDiagnostics": "Tuma taarifa za uchunguzi",
+      "sendDiagnosticsSub": "Inatuma ripoti za kasi na hitilafu, kamwe si rekodi, unachoandika wala majina.",
+      "blockedPeople": "Watu waliozuiwa",
+      "blockedCount_one": "Mtu {{count}}",
+      "blockedCount_other": "Watu {{count}}"
+    }
+  },
+  "language": {
+    "title": "Lugha",
+    "sub": "Maneno ya programu yenyewe. Rekodi na maandishi ya timu yako hayabadiliki.",
+    "device": "Lugha ya kifaa ({{name}})"
+  }
+}

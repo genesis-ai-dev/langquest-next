@@ -1,0 +1,103 @@
+{
+  "common": {
+    "close": "Fechar",
+    "back": "Voltar",
+    "done": "Pronto",
+    "undo": "Desfazer",
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "saving": "Salvando…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Ajuda: explicar esta tela",
+    "turnOff": "Desligar a ajuda",
+    "on": "A ajuda está ligada. Toque em qualquer coisa para saber o que faz.",
+    "primaryButton": "A principal coisa a fazer nesta tela.",
+    "quietLink": "Outro caminho, usado com menos frequência."
+  },
+  "disclosure": {
+    "showsDetails": "Mostra os detalhes",
+    "hidesDetails": "Oculta os detalhes"
+  },
+  "search": {
+    "clear": "Limpar a pesquisa"
+  },
+  "showMore_one": "Mostrar mais {{count}} · faltam {{left}}",
+  "showMore_many": "Mostrar mais {{count}} · faltam {{left}}",
+  "showMore_other": "Mostrar mais {{count}} · faltam {{left}}",
+  "reason": {
+    "voiceNote": "Explicado numa mensagem de voz.",
+    "typeReason": "Ou digite o motivo",
+    "typeIt": "Ou digite",
+    "footnote": "Isto fica no registro da passagem com o seu nome. Pode ser desfeito depois; o registro guarda os dois."
+  },
+  "toast": {
+    "undoAvailable": "É possível desfazer.",
+    "dismiss": "Fechar"
+  },
+  "tab": {
+    "work": "Meu trabalho",
+    "map": "Mapa",
+    "reports": "Relatórios",
+    "manage": "Gerenciar",
+    "inbox": "Entrada",
+    "settings": "Ajustes"
+  },
+  "settings": {
+    "you": "Você",
+    "noEmail": "Ainda sem e-mail",
+    "newDevice": "Aparelho novo? {{who}} ou um administrador pode ajudar você a entrar.",
+    "yourInviter": "A pessoa que convidou você",
+    "signedInWithHelpOf": "Entrou neste aparelho com a ajuda de {{who}}",
+    "signedInWithHelp": "Entrou neste aparelho com a ajuda de outra pessoa",
+    "editProfile": "Editar perfil",
+    "setPassword": "Criar uma senha",
+    "setPasswordSub": "Se outras pessoas usam este aparelho",
+    "notifications": "Notificações",
+    "notificationsSub": "Saiba de pedidos e comentários",
+    "notificationsOn": "As notificações estão ligadas.",
+    "gettingStarted": "Primeiros passos",
+    "gettingStartedSub": "A sua lista do primeiro dia",
+    "offline": "Pronto para usar sem internet",
+    "language": "Idioma",
+    "howItWorks": "Como o LangQuest funciona",
+    "howItWorksSub": "Um tour curto, e ajuda (?) em cada tela",
+    "switchOrg": "Trocar de organização",
+    "switchOrgActive": "{{org}} (ativa)",
+    "switchOrgNew": "{{org}} · ou comece uma nova",
+    "signOut": "Sair",
+    "deleteAccount": "Excluir a conta",
+    "deleteAccountSub": "A sua conta e o seu nome, para sempre",
+    "testing": "Testes",
+    "switchPersona": "Trocar de persona",
+    "switchPersonaSub": "Entrar como tradutor, revisor ou administrador de demonstração",
+    "sync": {
+      "title": "Sincronização",
+      "refused": "Esta conta não pode sincronizar esta organização",
+      "pending_one": "{{n}} alteração esperando envio",
+      "pending_many": "{{n}} de alterações esperando envio",
+      "pending_other": "{{n}} alterações esperando envio",
+      "live": "Ao vivo: as alterações chegam na hora",
+      "offline": "Sem internet: o trabalho fica guardado neste aparelho",
+      "last": "Última sincronização: {{when}}",
+      "saved": "Tudo está guardado neste aparelho"
+    },
+    "advanced": {
+      "title": "Avançado",
+      "diagnostics": "diagnóstico",
+      "blocked": "pessoas bloqueadas",
+      "sendDiagnostics": "Enviar diagnóstico",
+      "sendDiagnosticsSub": "Envia relatórios de velocidade e de erros; nunca gravações, o que você digita ou nomes.",
+      "blockedPeople": "Pessoas bloqueadas",
+      "blockedCount_one": "{{count}} pessoa",
+      "blockedCount_many": "{{count}} de pessoas",
+      "blockedCount_other": "{{count}} pessoas"
+    }
+  },
+  "language": {
+    "title": "Idioma",
+    "sub": "As palavras do aplicativo. As gravações e os textos da sua equipe não mudam.",
+    "device": "Idioma do aparelho ({{name}})"
+  }
+}

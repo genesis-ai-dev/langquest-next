@@ -1,0 +1,97 @@
+{
+  "common": {
+    "close": "Tutup",
+    "back": "Kembali",
+    "done": "Selesai",
+    "undo": "Urungkan",
+    "hide": "Sembunyikan",
+    "show": "Tampilkan",
+    "saving": "Menyimpan…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Bantuan: jelaskan layar ini",
+    "turnOff": "Matikan bantuan",
+    "on": "Bantuan aktif. Ketuk apa saja untuk mendengar fungsinya.",
+    "primaryButton": "Hal utama yang dilakukan di layar ini.",
+    "quietLink": "Cara lain untuk lanjut, lebih jarang diperlukan."
+  },
+  "disclosure": {
+    "showsDetails": "Menampilkan detail",
+    "hidesDetails": "Menyembunyikan detail"
+  },
+  "search": {
+    "clear": "Hapus pencarian"
+  },
+  "showMore_other": "Tampilkan {{count}} lagi · tersisa {{left}}",
+  "reason": {
+    "voiceNote": "Dijelaskan dalam pesan suara.",
+    "typeReason": "Atau ketik alasannya",
+    "typeIt": "Atau ketik",
+    "footnote": "Ini masuk ke catatan perikop bersama nama Anda. Bisa diurungkan nanti; catatan menyimpan keduanya."
+  },
+  "toast": {
+    "undoAvailable": "Bisa diurungkan.",
+    "dismiss": "Tutup"
+  },
+  "tab": {
+    "work": "Pekerjaan Saya",
+    "map": "Peta",
+    "reports": "Laporan",
+    "manage": "Kelola",
+    "inbox": "Kotak Masuk",
+    "settings": "Pengaturan"
+  },
+  "settings": {
+    "you": "Anda",
+    "noEmail": "Belum ada email",
+    "newDevice": "Perangkat baru? {{who}} atau admin dapat membantu Anda masuk.",
+    "yourInviter": "Orang yang mengundang Anda",
+    "signedInWithHelpOf": "Masuk di perangkat ini dengan bantuan {{who}}",
+    "signedInWithHelp": "Masuk di perangkat ini dengan bantuan orang lain",
+    "editProfile": "Ubah Profil",
+    "setPassword": "Buat kata sandi",
+    "setPasswordSub": "Jika orang lain memakai perangkat ini",
+    "notifications": "Notifikasi",
+    "notificationsSub": "Dapatkan kabar tentang permintaan dan masukan",
+    "notificationsOn": "Notifikasi aktif.",
+    "gettingStarted": "Memulai",
+    "gettingStartedSub": "Daftar hari pertama Anda",
+    "offline": "Siap untuk luring",
+    "language": "Bahasa",
+    "howItWorks": "Cara kerja LangQuest",
+    "howItWorksSub": "Tur singkat, dan bantuan (?) di setiap layar",
+    "switchOrg": "Ganti Organisasi",
+    "switchOrgActive": "{{org}} (aktif)",
+    "switchOrgNew": "{{org}} · atau mulai yang baru",
+    "signOut": "Keluar",
+    "deleteAccount": "Hapus akun",
+    "deleteAccountSub": "Akun dan nama Anda, selamanya",
+    "testing": "Pengujian",
+    "switchPersona": "Ganti persona",
+    "switchPersonaSub": "Masuk sebagai penerjemah, peninjau, atau admin demo",
+    "sync": {
+      "title": "Sinkronisasi",
+      "refused": "Akun ini tidak dapat menyinkronkan organisasi ini",
+      "pending_other": "{{n}} perubahan menunggu dikirim",
+      "live": "Langsung: perubahan tiba saat terjadi",
+      "offline": "Luring: pekerjaan disimpan di perangkat ini",
+      "last": "Terakhir disinkronkan {{when}}",
+      "saved": "Semua tersimpan di perangkat ini"
+    },
+    "advanced": {
+      "title": "Lanjutan",
+      "diagnostics": "diagnostik",
+      "blocked": "orang yang diblokir",
+      "sendDiagnostics": "Kirim diagnostik",
+      "sendDiagnosticsSub": "Mengirim laporan kecepatan dan kesalahan, tidak pernah rekaman, apa yang Anda ketik, atau nama.",
+      "blockedPeople": "Orang yang diblokir",
+      "blockedCount_other": "{{count}} orang"
+    }
+  },
+  "language": {
+    "title": "Bahasa",
+    "sub": "Kata-kata aplikasi itu sendiri. Rekaman dan teks tim Anda tidak berubah.",
+    "device": "Bahasa perangkat ({{name}})"
+  }
+}

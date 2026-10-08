@@ -1,0 +1,100 @@
+{
+  "common": {
+    "close": "Close",
+    "back": "Back",
+    "done": "Done",
+    "undo": "Undo",
+    "hide": "Hide",
+    "show": "Show",
+    "saving": "Saving…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Help: explain this screen",
+    "turnOff": "Turn help off",
+    "on": "Help is on. Tap anything to hear what it does.",
+    "primaryButton": "The main thing to do on this screen.",
+    "quietLink": "Another way forward, less often needed."
+  },
+  "disclosure": {
+    "showsDetails": "Shows the details",
+    "hidesDetails": "Hides the details"
+  },
+  "search": {
+    "clear": "Clear search"
+  },
+  "showMore_one": "Show {{count}} more · {{left}} left",
+  "showMore_other": "Show {{count}} more · {{left}} left",
+  "reason": {
+    "voiceNote": "Explained in a voice note.",
+    "typeReason": "Or type the reason",
+    "typeIt": "Or type it",
+    "footnote": "This goes in the passage's record with your name. It can be undone later; the record keeps both."
+  },
+  "toast": {
+    "undoAvailable": "Undo available.",
+    "dismiss": "Dismiss"
+  },
+  "tab": {
+    "work": "My Work",
+    "map": "Map",
+    "reports": "Reports",
+    "manage": "Manage",
+    "inbox": "Inbox",
+    "settings": "Settings"
+  },
+  "settings": {
+    "you": "You",
+    "noEmail": "No email yet",
+    "newDevice": "New device? {{who}} or an admin can help you sign in.",
+    "yourInviter": "The person who invited you",
+    "signedInWithHelpOf": "Signed in on this device with {{who}}'s help",
+    "signedInWithHelp": "Signed in on this device with someone's help",
+    "editProfile": "Edit Profile",
+    "setPassword": "Set a password",
+    "setPasswordSub": "If other people use this device",
+    "notifications": "Notifications",
+    "notificationsSub": "Hear about requests and feedback",
+    "notificationsOn": "Notifications are on.",
+    "gettingStarted": "Getting started",
+    "gettingStartedSub": "Your first-day checklist",
+    "offline": "Ready for offline",
+    "language": "Language",
+    "howItWorks": "How LangQuest works",
+    "howItWorksSub": "A short tour, and help (?) on every screen",
+    "switchOrg": "Switch Organization",
+    "switchOrgActive": "{{org}} (active)",
+    "switchOrgNew": "{{org}} · or start a new one",
+    "signOut": "Sign Out",
+    "deleteAccount": "Delete account",
+    "deleteAccountSub": "Your account and your name, for good",
+    "testing": "Testing",
+    "switchPersona": "Switch persona",
+    "switchPersonaSub": "Sign in as a demo translator, reviewer or admin",
+    "sync": {
+      "title": "Sync",
+      "refused": "This account cannot sync this organization",
+      "pending_one": "{{n}} change waiting to send",
+      "pending_other": "{{n}} changes waiting to send",
+      "live": "Live: changes arrive as they happen",
+      "offline": "Offline: work is kept on this device",
+      "last": "Last synced {{when}}",
+      "saved": "Everything is saved on this device"
+    },
+    "advanced": {
+      "title": "Advanced",
+      "diagnostics": "diagnostics",
+      "blocked": "blocked people",
+      "sendDiagnostics": "Send diagnostics",
+      "sendDiagnosticsSub": "Sends speed and error reports, never recordings, what you type or names.",
+      "blockedPeople": "Blocked people",
+      "blockedCount_one": "{{count}} person",
+      "blockedCount_other": "{{count}} people"
+    }
+  },
+  "language": {
+    "title": "Language",
+    "sub": "The app's own words. Your team's recordings and texts do not change.",
+    "device": "Device language ({{name}})"
+  }
+}

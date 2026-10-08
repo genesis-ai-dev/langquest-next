@@ -1,0 +1,100 @@
+{
+  "common": {
+    "close": "Rufe",
+    "back": "Koma baya",
+    "done": "An gama",
+    "undo": "Soke",
+    "hide": "Ɓoye",
+    "show": "Nuna",
+    "saving": "Ana adanawa…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Taimako: bayyana wannan allon",
+    "turnOff": "Kashe taimako",
+    "on": "Taimako yana kunne. Taɓa kowane abu don jin abin da yake yi.",
+    "primaryButton": "Babban abin da za a yi a wannan allon.",
+    "quietLink": "Wata hanyar ci gaba, ba a cika buƙata ba."
+  },
+  "disclosure": {
+    "showsDetails": "Yana nuna bayanai",
+    "hidesDetails": "Yana ɓoye bayanai"
+  },
+  "search": {
+    "clear": "Share bincike"
+  },
+  "showMore_one": "Nuna ƙarin {{count}} · saura {{left}}",
+  "showMore_other": "Nuna ƙarin {{count}} · saura {{left}}",
+  "reason": {
+    "voiceNote": "An bayyana a saƙon murya.",
+    "typeReason": "Ko rubuta dalilin",
+    "typeIt": "Ko rubuta shi",
+    "footnote": "Wannan yana shiga tarihin nassin tare da sunanka. Ana iya soke shi daga baya; tarihin yana ajiye duka biyun."
+  },
+  "toast": {
+    "undoAvailable": "Ana iya sokewa.",
+    "dismiss": "Rufe"
+  },
+  "tab": {
+    "work": "Aikina",
+    "map": "Taswira",
+    "reports": "Rahotanni",
+    "manage": "Gudanarwa",
+    "inbox": "Saƙonni",
+    "settings": "Saituna"
+  },
+  "settings": {
+    "you": "Kai",
+    "noEmail": "Babu imel tukuna",
+    "newDevice": "Sabuwar na’ura? {{who}} ko wani mai gudanarwa zai iya taimaka maka ka shiga.",
+    "yourInviter": "Wanda ya gayyace ka",
+    "signedInWithHelpOf": "An shiga a wannan na’ura da taimakon {{who}}",
+    "signedInWithHelp": "An shiga a wannan na’ura da taimakon wani",
+    "editProfile": "Gyara Bayanan Kai",
+    "setPassword": "Saka kalmar sirri",
+    "setPasswordSub": "Idan wasu mutane suna amfani da wannan na’ura",
+    "notifications": "Sanarwa",
+    "notificationsSub": "Ji labarin buƙatu da ra’ayoyi",
+    "notificationsOn": "Sanarwa suna kunne.",
+    "gettingStarted": "Farawa",
+    "gettingStartedSub": "Jerin ayyukanka na rana ta farko",
+    "offline": "A shirye don aiki ba tare da intanet ba",
+    "language": "Harshe",
+    "howItWorks": "Yadda LangQuest ke aiki",
+    "howItWorksSub": "Ɗan gajeren rangadi, da taimako (?) a kowane allo",
+    "switchOrg": "Canza Ƙungiya",
+    "switchOrgActive": "{{org}} (mai aiki)",
+    "switchOrgNew": "{{org}} · ko fara sabuwa",
+    "signOut": "Fita",
+    "deleteAccount": "Goge asusu",
+    "deleteAccountSub": "Asusunka da sunanka, har abada",
+    "testing": "Gwaji",
+    "switchPersona": "Canza mutum",
+    "switchPersonaSub": "Shiga a matsayin mai fassara, mai bita ko mai gudanarwa na gwaji",
+    "sync": {
+      "title": "Daidaitawa",
+      "refused": "Wannan asusu ba zai iya daidaita wannan ƙungiya ba",
+      "pending_one": "Canji {{n}} yana jiran aikawa",
+      "pending_other": "Canje-canje {{n}} suna jiran aikawa",
+      "live": "Kai tsaye: canje-canje suna isowa nan take",
+      "offline": "Babu intanet: ana ajiye aiki a wannan na’ura",
+      "last": "Daidaitawa ta ƙarshe {{when}}",
+      "saved": "An adana komai a wannan na’ura"
+    },
+    "advanced": {
+      "title": "Ƙari",
+      "diagnostics": "bincike",
+      "blocked": "mutanen da aka toshe",
+      "sendDiagnostics": "Aika bayanan bincike",
+      "sendDiagnosticsSub": "Yana aika rahotannin sauri da kurakurai, ba rikodi ba, ba abin da kake rubutawa ba, ba sunaye ba.",
+      "blockedPeople": "Mutanen da aka toshe",
+      "blockedCount_one": "Mutum {{count}}",
+      "blockedCount_other": "Mutane {{count}}"
+    }
+  },
+  "language": {
+    "title": "Harshe",
+    "sub": "Kalmomin manhajar kanta. Rikodi da rubuce-rubucen ƙungiyarka ba sa canzawa.",
+    "device": "Harshen na’ura ({{name}})"
+  }
+}

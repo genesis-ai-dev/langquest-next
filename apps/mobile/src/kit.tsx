@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
 import { useHelpMode, useHelpPress } from './helpContext';
+import { locale, useT } from './i18n';
 import { lift, shadow } from './shadow';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
@@ -174,10 +175,11 @@ export function Header(props: {
 }) {
   const wide = useLayout().kind !== 'phone';
   const help = useHelpMode();
+  const t = useT();
   const content = (
     <>
       {props.onBack ? (
-        <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? 'Close' : 'Back'}
+        <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
           style={({ pressed }) => [styles.headerBack, pressed && styles.pressed]}>
           <Ico name={props.close ? 'close' : 'left'} size={props.close ? 24 : 28} color={C.dark} />
         </Pressable>
@@ -204,7 +206,7 @@ export function Header(props: {
       </View>
       {props.action}
       {help ? (
-        <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? 'Turn help off' : 'Help: explain this screen'}
+        <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('help.turnOff') : t('help.turnOn')}
           accessibilityState={{ selected: help.on }}
           style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
           <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
@@ -215,9 +217,9 @@ export function Header(props: {
   // While help is on, say so under the header (demo ADR-038).
   const banner = help?.on ? (
     <View style={styles.helpBanner} accessibilityLiveRegion="polite">
-      <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>Help is on. Tap anything to hear what it does.</Text>
+      <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>{t('help.on')}</Text>
       <Pressable onPress={() => help.setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.helpDone, pressed && styles.pressed]}>
-        <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>Done</Text>
+        <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>{t('common.done')}</Text>
       </Pressable>
     </View>
   ) : null;
@@ -344,17 +346,18 @@ export function Row(props: {
  * card someone opened stays open when they come Back.
  */
 export function Disclosure(props: { icon: IconName; title: string; summary: string; open: boolean; onToggle: () => void; children: ReactNode }) {
+  const t = useT();
   return (
     <View style={styles.disclosure}>
       <Pressable onPress={props.onToggle} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
-        accessibilityLabel={`${props.title}. ${props.summary}`} accessibilityHint={props.open ? 'Hides the details' : 'Shows the details'}
+        accessibilityLabel={`${props.title}. ${props.summary}`} accessibilityHint={props.open ? t('disclosure.hidesDetails') : t('disclosure.showsDetails')}
         style={({ pressed }) => [styles.disclosureHead, pressed && styles.pressed]}>
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
           <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={1}>{props.summary}</Text>
         </View>
-        <Text style={txt.link}>{props.open ? 'Hide' : 'Show'}</Text>
+        <Text style={txt.link}>{props.open ? t('common.hide') : t('common.show')}</Text>
         <Ico name={props.open ? 'up' : 'down'} size={20} color={C.primary} />
       </Pressable>
       {props.open ? <View style={styles.disclosureBody}>{props.children}</View> : null}
@@ -371,13 +374,14 @@ const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: o
 export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
   const bg = TONES[props.tone ?? 'primary'];
   const off = props.disabled || props.busy;
-  const onPress = useHelpPress(props.label, 'The main thing to do on this screen.', props.onPress);
+  const t = useT();
+  const onPress = useHelpPress(props.label, t('help.primaryButton'), props.onPress);
   return (
     <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
-      <Text style={styles.primaryLabel}>{props.busy ? 'Saving…' : props.label}</Text>
+      <Text style={styles.primaryLabel}>{props.busy ? t('common.saving') : props.label}</Text>
     </Pressable>
   );
 }
@@ -439,7 +443,8 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
 }
 
 function QuietLink(props: { label: string; icon: IconName; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, 'Another way forward, less often needed.', props.onPress);
+  const t = useT();
+  const onPress = useHelpPress(props.label, t('help.quietLink'), props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={C.muted} />
@@ -510,22 +515,24 @@ export function Field(props: {
 }
 
 export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string }) {
+  const t = useT();
   return (
     <View style={styles.search}>
       <Ico name="search" size={24} color={C.muted} />
       <TextInput value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
         autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={styles.searchInput} />
-      {props.value ? <IconBtn name="close" label="Clear search" onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
+      {props.value ? <IconBtn name="close" label={t('search.clear')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
     </View>
   );
 }
 
 /** "Show 25 more · 1,164 left": long lists grow on request (ADR-009). */
 export function ShowMore(props: { remaining: number; step: number; onMore: () => void }) {
+  const t = useT();
   if (props.remaining <= 0) return null;
   return (
     <Pressable onPress={props.onMore} accessibilityRole="button" style={({ pressed }) => [styles.showMore, pressed && styles.pressed]}>
-      <Text style={[txt.body, { color: C.primary, fontWeight: '600' }]}>Show {Math.min(props.step, props.remaining)} more · {props.remaining.toLocaleString('en-US')} left</Text>
+      <Text style={[txt.body, { color: C.primary, fontWeight: '600' }]}>{t('showMore', { count: Math.min(props.step, props.remaining), left: props.remaining.toLocaleString(locale()) })}</Text>
     </Pressable>
   );
 }
@@ -664,10 +671,11 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
+  const t = useT();
   return (
     <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
-        <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel="Close" />
+        <Pressable style={wide ? styles.dialogBackdrop : styles.sheetBackdrop} onPress={props.onClose} accessibilityLabel={t('common.close')} />
         <View style={wide ? styles.dialog : [styles.sheet, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
           {wide ? null : <View style={styles.sheetGrip} />}
           <View style={styles.sheetHead}>
@@ -675,7 +683,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
               <Text style={txt.title}>{props.title}</Text>
               {props.sub ? <Text style={[txt.smMuted, { marginTop: 4 }]}>{props.sub}</Text> : null}
             </View>
-            <IconBtn name="close" label="Close" onPress={props.onClose} bg={C.card} color={C.muted} />
+            <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.card} color={C.muted} />
           </View>
           <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.lg }} keyboardShouldPersistTaps="handled">
             {props.children}
@@ -706,11 +714,12 @@ export function ReasonSheet(props: {
 }) {
   const [reason, setReason] = useState('');
   const [hash, setHash] = useState<string | null>(null);
+  const t = useT();
   const ready = reason.trim().length > 0 || !!hash;
   return (
     <Sheet visible={props.visible} title={props.title} sub={props.sub} onClose={props.onClose}
       footer={<PrimaryBtn label={props.confirmLabel} tone={props.tone ?? 'dark'} disabled={!ready}
-        onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
+        onPress={() => { props.onConfirm({ reason: reason.trim() || t('reason.voiceNote'), ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
       {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.quickReasons.map((q) => (
           <Pressable key={q} onPress={() => setReason(q)} accessibilityRole="button" accessibilityState={{ selected: reason === q }}
@@ -720,8 +729,8 @@ export function ReasonSheet(props: {
         ))}
       </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
-      <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? 'Or type the reason' : 'Or type it'} multiline />
-      <Text style={txt.xs}>{props.footnote ?? "This goes in the passage's record with your name. It can be undone later; the record keeps both."}</Text>
+      <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('reason.typeReason') : t('reason.typeIt')} multiline />
+      <Text style={txt.xs}>{props.footnote ?? t('reason.footnote')}</Text>
     </Sheet>
   );
 }
@@ -743,22 +752,23 @@ export interface ToastSpec {
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
   const t = props.toast;
   const wide = useLayout().kind !== 'phone';
+  const tr = useT();
   useEffect(() => {
-    if (t) AccessibilityInfo.announceForAccessibility(t.undo ? `${t.message} Undo available.` : t.message);
+    if (t) AccessibilityInfo.announceForAccessibility(t.undo ? `${t.message} ${tr('toast.undoAvailable')}` : t.message);
   }, [t?.id]);
   if (!t) return null;
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
       <View style={[styles.toast, wide && { maxWidth: measure.toast }]}>
-        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={`${t.message} Dismiss`}
+        <Pressable onPress={props.onDismiss} accessibilityRole="button" accessibilityLabel={`${t.message} ${tr('toast.dismiss')}`}
           accessibilityLiveRegion="polite" style={styles.toastMessage}>
           <Ico name="check" size={20} color={C.green} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{t.message}</Text>
         </Pressable>
         {t.undo ? (
           <Pressable onPress={() => { void Promise.resolve(t.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
-            accessibilityRole="button" accessibilityLabel="Undo" style={styles.toastUndo}>
-            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>Undo</Text>
+            accessibilityRole="button" accessibilityLabel={tr('common.undo')} style={styles.toastUndo}>
+            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{tr('common.undo')}</Text>
           </Pressable>
         ) : null}
       </View>

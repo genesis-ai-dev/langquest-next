@@ -1,0 +1,103 @@
+{
+  "common": {
+    "close": "Cerrar",
+    "back": "Atrás",
+    "done": "Listo",
+    "undo": "Deshacer",
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "saving": "Guardando…",
+    "listSeparator": ", "
+  },
+  "help": {
+    "turnOn": "Ayuda: explicar esta pantalla",
+    "turnOff": "Desactivar la ayuda",
+    "on": "La ayuda está activada. Toque cualquier cosa para saber qué hace.",
+    "primaryButton": "Lo principal que se hace en esta pantalla.",
+    "quietLink": "Otra forma de seguir, menos necesaria."
+  },
+  "disclosure": {
+    "showsDetails": "Muestra los detalles",
+    "hidesDetails": "Oculta los detalles"
+  },
+  "search": {
+    "clear": "Borrar la búsqueda"
+  },
+  "showMore_one": "Mostrar {{count}} más · quedan {{left}}",
+  "showMore_many": "Mostrar {{count}} más · quedan {{left}}",
+  "showMore_other": "Mostrar {{count}} más · quedan {{left}}",
+  "reason": {
+    "voiceNote": "Explicado en una nota de voz.",
+    "typeReason": "O escriba el motivo",
+    "typeIt": "O escríbalo",
+    "footnote": "Esto queda en el registro del pasaje con su nombre. Se puede deshacer más tarde; el registro guarda ambos."
+  },
+  "toast": {
+    "undoAvailable": "Se puede deshacer.",
+    "dismiss": "Cerrar"
+  },
+  "tab": {
+    "work": "Mi trabajo",
+    "map": "Mapa",
+    "reports": "Informes",
+    "manage": "Administrar",
+    "inbox": "Bandeja",
+    "settings": "Ajustes"
+  },
+  "settings": {
+    "you": "Usted",
+    "noEmail": "Aún sin correo",
+    "newDevice": "¿Dispositivo nuevo? {{who}} o un administrador puede ayudarle a iniciar sesión.",
+    "yourInviter": "La persona que le invitó",
+    "signedInWithHelpOf": "Sesión iniciada en este dispositivo con ayuda de {{who}}",
+    "signedInWithHelp": "Sesión iniciada en este dispositivo con ayuda de otra persona",
+    "editProfile": "Editar perfil",
+    "setPassword": "Crear una contraseña",
+    "setPasswordSub": "Si otras personas usan este dispositivo",
+    "notifications": "Notificaciones",
+    "notificationsSub": "Reciba avisos de solicitudes y comentarios",
+    "notificationsOn": "Las notificaciones están activadas.",
+    "gettingStarted": "Primeros pasos",
+    "gettingStartedSub": "Su lista para el primer día",
+    "offline": "Listo para usar sin conexión",
+    "language": "Idioma",
+    "howItWorks": "Cómo funciona LangQuest",
+    "howItWorksSub": "Un recorrido corto, y ayuda (?) en cada pantalla",
+    "switchOrg": "Cambiar de organización",
+    "switchOrgActive": "{{org}} (activa)",
+    "switchOrgNew": "{{org}} · o empiece una nueva",
+    "signOut": "Cerrar sesión",
+    "deleteAccount": "Eliminar la cuenta",
+    "deleteAccountSub": "Su cuenta y su nombre, para siempre",
+    "testing": "Pruebas",
+    "switchPersona": "Cambiar de persona",
+    "switchPersonaSub": "Entrar como traductor, revisor o administrador de prueba",
+    "sync": {
+      "title": "Sincronización",
+      "refused": "Esta cuenta no puede sincronizar esta organización",
+      "pending_one": "{{n}} cambio pendiente de enviar",
+      "pending_many": "{{n}} de cambios pendientes de enviar",
+      "pending_other": "{{n}} cambios pendientes de enviar",
+      "live": "En vivo: los cambios llegan al momento",
+      "offline": "Sin conexión: el trabajo se guarda en este dispositivo",
+      "last": "Última sincronización: {{when}}",
+      "saved": "Todo está guardado en este dispositivo"
+    },
+    "advanced": {
+      "title": "Avanzado",
+      "diagnostics": "diagnóstico",
+      "blocked": "personas bloqueadas",
+      "sendDiagnostics": "Enviar diagnóstico",
+      "sendDiagnosticsSub": "Envía informes de velocidad y de errores; nunca grabaciones, lo que usted escribe ni nombres.",
+      "blockedPeople": "Personas bloqueadas",
+      "blockedCount_one": "{{count}} persona",
+      "blockedCount_many": "{{count}} de personas",
+      "blockedCount_other": "{{count}} personas"
+    }
+  },
+  "language": {
+    "title": "Idioma",
+    "sub": "Las palabras de la aplicación. Las grabaciones y los textos de su equipo no cambian.",
+    "device": "Idioma del dispositivo ({{name}})"
+  }
+}
