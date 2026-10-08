@@ -171,6 +171,8 @@ describe('a new language (ORG-2)', () => {
   it('covers a testament of a Bible template, or all of it', () => {
     expect(booksInScope(doc, 'nt')).toEqual(['LUK']);
     expect(booksInScope(doc, 'ot')).toEqual(['GEN']);
+    expect(booksInScope(doc, 'custom', new Set(['LUK']))).toEqual(['LUK']);
+    expect(booksInScope(doc, 'custom')).toEqual([]);
     expect(booksInScope(doc, 'all')).toBeUndefined();
     expect(booksInScope({ ...doc, structure: 'outline', outline: [] }, 'nt')).toBeUndefined();
   });

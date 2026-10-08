@@ -203,11 +203,13 @@ export function saveTeam(state: LanguageState, c: { commandId: string; teamId: s
 
 // ---- a new language (ORG-2) ---------------------------------------------------------------
 
-export type LanguageScope = 'nt' | 'ot' | 'all';
+export type LanguageScope = 'nt' | 'ot' | 'all' | 'custom';
 export const LANGUAGE_SCOPES: { id: LanguageScope; label: string; sub: string }[] = [
   { id: 'nt', label: 'New Testament', sub: 'Matthew to Revelation' },
   { id: 'ot', label: 'Old Testament', sub: 'Genesis to Malachi' },
-  { id: 'all', label: 'Whole Bible', sub: 'Every book' }
+  { id: 'all', label: 'Whole Bible', sub: 'Every book' },
+  // Demo ADR-039 (amended 2026-10-08): the books a team chooses, not only a testament.
+  { id: 'custom', label: 'Choose books', sub: 'Only the books you pick' }
 ];
 
 /**
@@ -216,8 +218,9 @@ export const LANGUAGE_SCOPES: { id: LanguageScope; label: string; sub: string }[
  * so books a later version adds reach the language too; an outline has no
  * books.
  */
-export function booksInScope(doc: TemplateDoc, scope: LanguageScope): string[] | undefined {
+export function booksInScope(doc: TemplateDoc, scope: LanguageScope, chosen: ReadonlySet<string> = new Set()): string[] | undefined {
   if (scope === 'all' || doc.structure !== 'bible' || !doc.bible) return undefined;
+  if (scope === 'custom') return doc.bible.books.map((b) => b.book).filter((b) => chosen.has(b));
   return doc.bible.books.map((b) => b.book).filter((b) => {
     const i = canonIndex(b);
     return scope === 'ot' ? i >= 0 && i < 39 : i >= 39 && i < 66;

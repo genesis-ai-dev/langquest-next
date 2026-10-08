@@ -24,7 +24,7 @@ import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, 
 import { APP_URL } from '../appUrl';
 import { signInUri } from '../inviteCode';
 import {
-  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
+  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
   Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
 } from '../kit';
 import { edgeFor } from '../flow';
@@ -938,6 +938,7 @@ export function NewLanguage(ctx: Ctx) {
   const [code, setCode] = useState('');
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [pickedTemplate, setPickedTemplate] = useState<string | null>(null);
+  const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   const [pickedFlow, setPickedFlow] = useState<string | null>(null);
   const [templateLimit, setTemplateLimit] = useState(6);
   const [flowLimit, setFlowLimit] = useState(6);
@@ -966,7 +967,8 @@ export function NewLanguage(ctx: Ctx) {
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
       const loaded = (await loadDocs(lib.orgId, [template.hash])).get(template.hash);
       if (!loaded || loaded.format !== 'template@1') throw new CommandError('Its template is not on this device yet. Try again when connected.');
-      const books = booksInScope(loaded, scope);
+      const books = booksInScope(loaded, scope, chosenBooks);
+      if (books && books.length === 0) throw new CommandError('Choose at least one book.');
       const templateItem = await adoptChoice(lib, template);
       const flowItem = await adoptChoice(lib, flow);
       const fresh = emptyLanguageState();
@@ -1000,11 +1002,20 @@ export function NewLanguage(ctx: Ctx) {
       <Field label="Language code" value={code} onChangeText={setCode} placeholder="e.g. DIN" autoCapitalize="none" />
       {doc?.structure !== 'outline' ? (
         <>
-          <SectionLabel label="Scope" />
+          <SectionLabel label="Which books?" />
           <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
+          {scope === 'custom' && doc?.bible ? (
+            <ChipRow>
+              {doc.bible.books.map((b) => (
+                <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)}
+                  onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
+              ))}
+            </ChipRow>
+          ) : null}
         </>
       ) : null}
-      <SectionLabel label="Template" />
+      <SectionLabel label="What will they record?" />
+      <Text style={txt.xs}>Pick a ready-made set of passages. You can divide the books your own way afterwards, under What they record.</Text>
       {sharedTemplates.error ? (
         <Banner icon="cloud" tone="amber" title="Could not refresh the shared templates"
           body={sharedTemplates.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
@@ -1015,7 +1026,7 @@ export function NewLanguage(ctx: Ctx) {
       {template ? (
         <Text style={txt.xs}>Its passages come from {template.name}.{followed(template)} It can be changed later under Content Templates.</Text>
       ) : null}
-      <SectionLabel label="Review flow" />
+      <SectionLabel label="Who checks the recordings?" />
       {sharedFlows.error ? (
         <Banner icon="cloud" tone="amber" title="Could not refresh the shared flows"
           body={sharedFlows.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
