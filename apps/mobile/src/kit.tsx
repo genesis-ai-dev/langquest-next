@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
+import { useHelpMode, useHelpPress } from './helpContext';
 import { lift, shadow } from './shadow';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
@@ -172,6 +173,7 @@ export function Header(props: {
   columnWidth?: number;
 }) {
   const wide = useLayout().kind !== 'phone';
+  const help = useHelpMode();
   const content = (
     <>
       {props.onBack ? (
@@ -201,11 +203,27 @@ export function Header(props: {
         {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={2}>{props.sub}</Text> : null}
       </View>
       {props.action}
+      {help ? (
+        <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? 'Turn help off' : 'Help: explain this screen'}
+          accessibilityState={{ selected: help.on }}
+          style={({ pressed }) => [styles.helpBtn, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
+          <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
+        </Pressable>
+      ) : null}
     </>
   );
+  // While help is on, say so under the header (demo ADR-038).
+  const banner = help?.on ? (
+    <View style={styles.helpBanner} accessibilityLiveRegion="polite">
+      <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>Help is on. Tap anything to hear what it does.</Text>
+      <Pressable onPress={() => help.setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.helpDone, pressed && styles.pressed]}>
+        <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>Done</Text>
+      </Pressable>
+    </View>
+  ) : null;
   // Wide: the white bar spans the window, its contents line up with the body's column.
-  if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
-  return <View style={styles.header}>{content}</View>;
+  if (wide) return <View><View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>{banner}</View>;
+  return <View><View style={styles.header}>{content}</View>{banner}</View>;
 }
 
 /** `current`: what this card opened is showing beside the list (a split on a wide window, panes.ts). */
@@ -287,6 +305,7 @@ export function Row(props: {
     ...(props.expanded !== undefined ? { expanded: props.expanded } : {}),
     ...(props.disabled ? { disabled: true } : {})
   };
+  const onPress = useHelpPress(props.label, props.sub, props.onPress);
   const right = props.right ?? (props.role === 'switch' ? (
     // Drawn only: the row takes the tap and speaks as the switch.
     <View style={{ pointerEvents: 'none' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -312,7 +331,7 @@ export function Row(props: {
   const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
   if (!props.onPress) return <View style={style}>{body}</View>;
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole={props.role ?? 'button'} accessibilityState={state} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [...style, pressed && styles.pressed]}>
       {body}
     </Pressable>
@@ -352,8 +371,9 @@ const TONES: Record<Tone, string> = { primary: C.primary, dark: C.dark, amber: o
 export function PrimaryBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; tone?: Tone; full?: boolean; busy?: boolean }) {
   const bg = TONES[props.tone ?? 'primary'];
   const off = props.disabled || props.busy;
+  const onPress = useHelpPress(props.label, 'The main thing to do on this screen.', props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
+    <Pressable onPress={onPress} disabled={off} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={{ disabled: !!off, busy: !!props.busy }}
       style={({ pressed }) => [styles.primary, { backgroundColor: off ? C.faint : bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         !off && lift({ color: bg, opacity: 0.25, y: 5, elevation: 3 }), pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={22} color={C.white} /> : null}
@@ -366,8 +386,9 @@ export function PrimaryBtn(props: { label: string; onPress: () => void; disabled
 export function GhostBtn(props: { label: string; onPress: () => void; disabled?: boolean; icon?: IconName; full?: boolean; tone?: 'primary' | 'red' | 'amber' }) {
   const fg = props.tone === 'red' ? TINT.redText : props.tone === 'amber' ? TINT.amberText : C.primary;
   const bg = props.tone === 'red' ? TINT.red : props.tone === 'amber' ? TINT.amber : C.light;
+  const onPress = useHelpPress(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.ghost, { backgroundColor: bg }, props.full === false && { alignSelf: 'flex-start', paddingHorizontal: space.xl },
         props.disabled && { opacity: 0.5 }, pressed && styles.pressed]}>
@@ -381,8 +402,9 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
+  const onPress = useHelpPress(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
@@ -393,8 +415,9 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
 
 /** A plain text action (Show all, Undo). Still 48pt tall. */
 export function LinkBtn(props: { label: string; onPress: () => void; color?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; expanded?: boolean }) {
+  const onPress = useHelpPress(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={props.onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.expanded !== undefined ? { expanded: props.expanded } : undefined}
       style={({ pressed }) => [styles.linkBtn, props.style, pressed && styles.pressed]}>
       <Text style={[txt.link, props.color ? { color: props.color } : null]}>{props.label}</Text>
@@ -410,21 +433,26 @@ export function LinkBtn(props: { label: string; onPress: () => void; color?: str
 export function QuietLinks(props: { items: { label: string; icon: IconName; onPress: () => void }[] }) {
   return (
     <View style={styles.quietRow}>
-      {props.items.map((it) => (
-        <Pressable key={it.label} onPress={it.onPress} accessibilityRole="button" hitSlop={4}
-          style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
-          <Ico name={it.icon} size={18} color={C.muted} />
-          <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{it.label}</Text>
-        </Pressable>
-      ))}
+      {props.items.map((it) => <QuietLink key={it.label} {...it} />)}
     </View>
+  );
+}
+
+function QuietLink(props: { label: string; icon: IconName; onPress: () => void }) {
+  const onPress = useHelpPress(props.label, 'Another way forward, less often needed.', props.onPress);
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
+      <Ico name={props.icon} size={18} color={C.muted} />
+      <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
+    </Pressable>
   );
 }
 
 export function IconBtn(props: { name: IconName; onPress: () => void; label: string; color?: string; bg?: string; size?: number; disabled?: boolean }) {
   const size = props.size ?? 48;
+  const onPress = useHelpPress(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }} hitSlop={Math.max(0, (target.min - size) / 2)}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: props.bg ?? C.bg },
         props.disabled && { opacity: 0.4 }, pressed && styles.pressed]}>
@@ -435,8 +463,9 @@ export function IconBtn(props: { name: IconName; onPress: () => void; label: str
 
 /** A selectable pill. */
 export function Chip(props: { label: string; on: boolean; onPress: () => void; icon?: IconName; count?: number; accessibilityLabel?: string }) {
+  const onPress = useHelpPress(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }} accessibilityLabel={props.accessibilityLabel}
       style={({ pressed }) => [styles.chip, props.on ? { backgroundColor: C.primary, borderColor: C.primary } : null, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={props.on ? C.white : C.primary} /> : null}
       <Text style={[styles.chipLabel, { color: props.on ? C.white : C.dark }]}>{props.label}{props.count !== undefined ? ` · ${props.count.toLocaleString('en-US')}` : ''}</Text>
@@ -772,6 +801,9 @@ const styles = StyleSheet.create({
   small: { minHeight: target.min, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.md },
   smallLabel: { fontSize: T.sm, fontWeight: '700' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
+  helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  helpBanner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.primary, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  helpDone: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.white, justifyContent: 'center' },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
   quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
   chip: { minHeight: target.min, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg },
