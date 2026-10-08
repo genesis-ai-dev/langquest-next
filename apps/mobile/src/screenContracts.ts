@@ -38,8 +38,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },
-  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
-  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed'],reads:['derivePassage','questionsForKind','recommendedFor'] },
+  // Background's Bible takes a note on a verse (simple/review.tsx); a note at a moment of the version is a review artifact.
+  review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
+  add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
     'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.ReferencesUsed'],reads:['derivePassage','keyTermsForUnit','recommendedFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
