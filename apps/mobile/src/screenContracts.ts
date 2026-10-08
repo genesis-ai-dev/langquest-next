@@ -43,12 +43,17 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   review_capture: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'],rpcs:REPORTS },
   add_record: { emits:['v1.ReviewRecorded','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
+  // Key words grow during the work (decision 71): say yours, add a word.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.ReferencesUsed'],reads:['derivePassage','keyTermsForUnit','recommendedFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
+    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },
-  study_guide: { reads:['studyMarksFor'],rpcs:REPORTS },
-  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded'],reads:['studyMarksFor','studyNotesFor'],rpcs:REPORTS },
+  // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
+  study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
+    reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
+  study_step: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
+    reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
   // Publishes a study@2 guide as a library version; its files go to the organization's guide files (guides/files.ts).
   guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },

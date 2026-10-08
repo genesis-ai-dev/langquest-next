@@ -329,6 +329,12 @@ export const EDGES: Edge[] = [
   e('mic_setup', 'settings_home', 'back'),
   e('workspace', 'mic_setup'),
   e('mic_setup', 'workspace', 'back'),
+  // The study is one reader for both nodes (decision 71, demo ADR-035): its key words and glossary open a key term from either,
+  // and the guide editor is offered from either (the steps sheet).
+  e('study_guide', 'key_term_detail'),
+  e('key_term_detail', 'study_guide', 'back'),
+  e('study_step', 'guide_editor', undefined, 'manageReference'),
+  e('guide_editor', 'study_step', 'back'),
   e('my_work', 'get_ready', undefined, 'assigner'),
   e('get_ready', 'my_work', 'back'),
   e('language_home', 'get_ready'),
@@ -370,7 +376,8 @@ export const EDGES: Edge[] = [
  * (ADR-021, NAV-4, NAV-5).
  */
 export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', 'passage_record'];
-export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'study_guide', 'study_step', 'passage_reference'];
+// The study left this list with the simple redesign (decision 71, demo ADR-035): it is a task, closed with ✕.
+export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'passage_reference'];
 const MANAGE_HOMES: ScreenId[] = ['org_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
   'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'

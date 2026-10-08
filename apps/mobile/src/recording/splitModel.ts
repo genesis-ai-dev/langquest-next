@@ -12,8 +12,12 @@
  * other (demo ADR-036).
  */
 export const SNAPS = [0, 0.35, 0.5, 0.65, 1] as const;
-/** A pane at an end snap: one line, tall enough for a 48pt target. */
-export const BAR = 56;
+/**
+ * A pane at an end snap: one line, tall enough for its 48pt buttons and a
+ * two-line hint (the Bible bar), or the record button with its halo (the
+ * recorder bar; demo ADR-036, a-wsPeek and a-wsGuide).
+ */
+export const BAR = 80;
 export const DEFAULT_SPLIT = 0.5;
 
 /** Room the divider takes from the panes; its touch target is 48pt, overlapping both panes. */
