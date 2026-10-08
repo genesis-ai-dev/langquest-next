@@ -663,6 +663,7 @@ function start(D) {
   select(fromHash ?? byGlottocode.get('stan1293') ?? 0, false);
   lv.el.classList.remove('showdetail');
   if (fromHash != null) lv.el.classList.add('showdetail');
+  window.addEventListener('hashchange', () => { const i = byGlottocode.get(location.hash.slice(1)); if (i != null && i !== st.sel) openLanguoid(i); });
   const saved = store.get('lx-view');
   show(saved && views[saved] ? saved : 'languoids');
   void byId;
