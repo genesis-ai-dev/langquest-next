@@ -176,15 +176,18 @@ export function PassageRecord(ctx: Ctx) {
   const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
+  // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
+  const justPublished = ctx.params['published'];
+  const asker = isAuthor || justPublished === 'bt';
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const targets = useMemo(() => {
     const out: Record<string, UsualTarget | undefined> = {};
-    if (!v || !isAuthor) return out;
+    if (!v || !asker) return out;
     for (const kindId of new Set(v.p.flow.steps.flatMap((st) => st.kindIds))) {
       out[kindId] = usualTargetFor(v.state, ctx.org.state, { languageId: v.languageId, kindId, me });
     }
     return out;
-  }, [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, isAuthor]);
+  }, [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, asker]);
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
   const { p, kinds, unitId, languageId } = v;
@@ -284,7 +287,7 @@ export function PassageRecord(ctx: Ctx) {
     </View>
   );
   const moreAction = undefined;
-  const nextKind = isAuthor && p.next ? p.next.kinds.find((k) => !isCompleteState(k.state) && !k.request) : undefined;
+  const nextKind = asker && p.next ? p.next.kinds.find((k) => !isCompleteState(k.state) && !k.request) : undefined;
   const nextTarget = nextKind ? targets[nextKind.kindId] : undefined;
   const curStep = p.steps.find((st) => st.step.id === currentStepId(p));
   const curKind = curStep ? (curStep.kinds.find((k) => !isCompleteState(k.state)) ?? curStep.kinds[0]) : undefined;
@@ -402,7 +405,7 @@ export function PassageRecord(ctx: Ctx) {
         </Sheet>
       ) : null}
       {askNext && nextKind ? (
-        <Sheet visible title={`${versionTitle(p.versions.length)} published`} sub="Everyone on the team can hear it. It goes out when the device has internet." onClose={() => setAskNext(false)}
+        <Sheet visible title={justPublished === 'bt' ? 'Back translation saved' : `${versionTitle(p.versions.length)} published`} sub="Everyone on the team can hear it. It goes out when the device has internet." onClose={() => setAskNext(false)}
           footer={(
             <View style={{ gap: space.xs }}>
               <PrimaryBtn label={nextTarget ? `Ask ${sendTargetLabel(nextTarget, ctx.name)}` : `Ask for the ${v.kind(nextKind.kindId).name}`} icon="arrowR"

@@ -1,19 +1,23 @@
 // The recording screen's split (LAN-23): the source above, your recording
 // below, a divider between them that is dragged to give either more room.
-// It settles on a snap (35/50/65% for the source) and is remembered for the
-// session. Its touch target is 48pt tall, overlapping both panes, with a
-// visible grip; a screen reader adjusts it one snap at a time. Both panes
-// keep a minimum height, so neither is ever hidden (splitModel.ts).
+// It settles on a snap (one line, 35/50/65%, or the recorder as one line;
+// demo ADR-036) and is remembered for the session. Its touch target is 48pt
+// tall, overlapping both panes, with a visible grip; a screen reader adjusts
+// it one snap at a time. A pane at an end snap shows a one-line version of
+// itself, so neither is ever hidden (splitModel.ts).
 import { useRef, useState, type ReactNode } from 'react';
 import { PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { C, radius, target } from '../theme';
 import {
-  DIVIDER, fractionAfterDrag, MIN_BOTTOM, nearestSnap, paneHeights, rememberedSplit, rememberSplit, splitValueText, stepSnap
+  DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, MIN_BOTTOM, nearestSnap, paneHeights, rememberedSplit, rememberSplit, splitValueText, stepSnap
 } from './splitModel';
 
+/** A pane is one line at an end snap; `open` brings the split back to half. */
+type PaneContent = ReactNode | ((p: { compact: boolean; open: () => void }) => ReactNode);
+
 export function SplitPane(props: {
-  top: ReactNode;
-  bottom: ReactNode;
+  top: PaneContent;
+  bottom: PaneContent;
   /** Which screen's split to remember ("workspace", "back_translation"). */
   memoryKey: string;
   minBottom?: number;
@@ -50,12 +54,14 @@ export function SplitPane(props: {
   })).current;
 
   const measured = available > 0;
+  const open = () => settle(DEFAULT_SPLIT);
+  const render = (c: PaneContent, compact: boolean) => (typeof c === 'function' ? c({ compact, open }) : c);
   return (
     <View style={styles.split} onLayout={(e) => setAvailable(Math.max(0, e.nativeEvent.layout.height - DIVIDER))}>
-      <View style={[styles.pane, measured ? { height: heights.top } : { flex: fraction }, props.topStyle]}>{props.top}</View>
+      <View style={[styles.pane, measured ? { height: heights.top } : { flex: fraction }, props.topStyle]}>{render(props.top, fraction <= 0)}</View>
       <View style={styles.divider} {...pan.panHandlers}
         accessible accessibilityRole="adjustable"
-        accessibilityLabel="Divider between the source and your recording"
+        accessibilityLabel="Divider between reference and your recording"
         accessibilityHint="Drag up or down to give either one more room"
         accessibilityValue={{ text: splitValueText(heights) }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -64,7 +70,7 @@ export function SplitPane(props: {
           <View style={[styles.grip, dragging && { backgroundColor: C.primary, width: 56 }]} />
         </View>
       </View>
-      <View style={[styles.pane, measured ? { height: heights.bottom } : { flex: 1 - fraction }, props.bottomStyle]}>{props.bottom}</View>
+      <View style={[styles.pane, measured ? { height: heights.bottom } : { flex: 1 - fraction }, props.bottomStyle]}>{render(props.bottom, fraction >= 1)}</View>
     </View>
   );
 }

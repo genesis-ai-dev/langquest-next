@@ -27,7 +27,7 @@ import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Banner, Card, EmptyState, Field, Header, Ico, PrimaryBtn, Screen, SectionLabel, Sheet, txt
+  Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, PrimaryBtn, Screen, SectionLabel, Sheet, txt
 } from '../kit';
 import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
 import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
@@ -41,7 +41,7 @@ import {
   backTranslationDraftKey, canPublish, cardDurations, cardLabels, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
-import { HelpButton, HelpSheet, type TrayTab } from '../recording/WorkspaceTray';
+import { HelpSheet, TrayPane, type TrayTab } from '../recording/WorkspaceTray';
 import { getReferenceSlides } from '../passageResources';
 import { pendingPassageCards } from '../recordingFlow';
 import { reportError } from '../report';
@@ -54,6 +54,10 @@ import { studyProgress, studySummary } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
 import { VoiceNote } from '../voiceNote';
+
+const REF_LABEL: Record<'bible' | TrayTab, string> = {
+  bible: 'Reference · Bible', study: 'Reference · Guide', terms: 'Reference · Key words', notes: 'Reference · Notes', history: 'Reference · Earlier'
+};
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -199,6 +203,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const [help, setHelp] = useState(false);
   const closeHelp = useCallback(() => setHelp(false), []);
   const [tab, setTab] = useState<TrayTab>('terms');
+  // Which reference the top pane shows (demo ADR-036); the Bible first.
+  const [refTab, setRefTab] = useState<'bible' | TrayTab>('bible');
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
@@ -248,7 +254,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   return (
     <Screen fixed
       header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.language} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close
-        action={<HelpButton onPress={() => setHelp(true)} disabled={recording} />} />}
+        />}
       footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.actions}>
           <RecordButton recording={false} disabled={saving || rec.failureCount > 0} onPress={() => void loop.toggle()} />
@@ -259,7 +265,26 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
         topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
-        top={
+        top={({ compact, open }) => compact ? (
+          // At the end snap the reference is one line; a tap brings it back to half (demo ADR-036).
+          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open the reference" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+            <Ico name="book" size={18} color={C.primary} />
+            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{REF_LABEL[refTab]}</Text>
+            <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
+          </Pressable>
+        ) : (
+          <View style={{ flex: 1 }}>
+            {/* Any reference beside the recorder, one chip each, in the study reader's order (demo ADR-035, 036). */}
+            <View style={styles.refChips}>
+              <ChipRow>
+                <Chip label="Bible" icon="book" on={refTab === 'bible'} onPress={() => setRefTab('bible')} />
+                {study ? <Chip label="Guide" icon="sparkle" on={refTab === 'study'} onPress={() => { setRefTab('study'); usage.open(guide!.id.split('~')[0] ?? guide!.id); }} /> : null}
+                <Chip label="Key words" icon="link" count={trayTerms.length} on={refTab === 'terms'} onPress={() => setRefTab('terms')} />
+                <Chip label="Notes" icon="note" count={notes.length} on={refTab === 'notes'} onPress={() => setRefTab('notes')} />
+                {p.versions.length > 0 ? <Chip label="Earlier" icon="history" count={p.versions.length} on={refTab === 'history'} onPress={() => setRefTab('history')} /> : null}
+              </ChipRow>
+            </View>
+            {refTab === 'bible' ? (
           // The reader scrolls itself with the player kept on top, so Play and the verse playing never part.
           <SourceReader ctx={ctx} unitId={unitId} languageId={languageId} layout="screen" listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
             usage={usage}
@@ -289,8 +314,21 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
               onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, languageId, termId }),
               onMoreBibles: () => ctx.go('bible_explore', { unitId, languageId })
             })} />
-        }
-        bottom={session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : (
+            ) : (
+              <ScrollView contentContainerStyle={styles.paneBody}>
+                <TrayPane ctx={ctx} v={v} tab={refTab} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId} canTie={canTie}
+                  study={study} notes={notes} disabled={blocked} />
+              </ScrollView>
+            )}
+          </View>
+        )}
+        bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : compact ? (
+          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open your recording" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+            <Ico name="mic" size={18} color={C.primary} />
+            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]}>Your recording · {cards.length} take{cards.length === 1 ? '' : 's'}</Text>
+            <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
+          </Pressable>
+        ) : (
           <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel="Your recording">
             {problem}
             <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this device</Text>} />
@@ -445,7 +483,8 @@ function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; k
     await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
     setSaving(false);
     setConfirming(false);
-    ctx.go('passage_record', { unitId, languageId });
+    // Publish, then ask (demo ADR-034): the record opens with the next check (usually the consultant) ready.
+    ctx.go('passage_record', { unitId, languageId, published: 'bt' });
   }
 
   const cards: ListedCard[] = parts.map((c, i) => ({ hash: c.hash, label: `${produces.into} · part ${i + 1}`, durationMs: c.durationMs }));
@@ -516,6 +555,8 @@ function capitalize(s: string): string {
 }
 
 const styles = StyleSheet.create({
+  bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, minHeight: 48 },
+  refChips: { paddingHorizontal: space.md, paddingTop: space.sm },
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   guideRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: C.card },
