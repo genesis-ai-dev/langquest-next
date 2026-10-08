@@ -57,7 +57,8 @@ describe('buildGlottolog', () => {
   const of = <T extends { glottocode: string }>(rows: T[], g: string) => rows.filter((r) => r.glottocode === g);
 
   it('builds the tree from the folders', () => {
-    expect(t.languoids.find((l) => l.glottocode === 'padd1234')).toEqual({ glottocode: 'padd1234', parent_glottocode: 'dink1262', name: 'Padang', level: 'dialect' });
+    expect(t.languoids.find((l) => l.glottocode === 'padd1234')).toEqual({ glottocode: 'padd1234', parent_glottocode: 'dink1262', name: 'Padang', level: 'dialect', latitude: null, longitude: null });
+    expect(t.languoids.find((l) => l.glottocode === 'dink1262')).toMatchObject({ latitude: 7, longitude: 30 });
   });
 
   it('keeps the glottocode with its release, the ISO code and every link as sources', () => {
@@ -66,25 +67,31 @@ describe('buildGlottolog', () => {
     ]);
   });
 
-  it('keeps v2’s properties, with Glottolog’s computed macroareas when the file names none', () => {
-    expect(of(t.properties, 'dink1262').map((p) => [p.key, p.value])).toEqual([
-      ['hid', 'din'], ['macroareas', 'Africa'], ['category', 'Spoken L1 Language'], ['latitude', '7.0'], ['longitude', '30.0']
-    ]);
-    expect(of(t.properties, 'padd1234')).toContainEqual({ glottocode: 'padd1234', key: 'macroareas', value: 'Africa' });
+  it('keeps hid and category as properties; coordinates go on the languoid and macroareas become region links', () => {
+    expect(of(t.properties, 'dink1262').map((p) => [p.key, p.value])).toEqual([['hid', 'din'], ['category', 'Spoken L1 Language']]);
+    expect(of(t.languoidRegions, 'padd1234')).toContainEqual({ glottocode: 'padd1234', region_key: 'continent:Africa' });
   });
 
-  it('labels names with the languoid they are written in, English when untagged, endonym when it is the languoid itself', () => {
+  it('labels a name only when the source says its language; endonym when that is the languoid itself', () => {
     const dinka = of(t.aliases, 'dink1262');
-    expect(dinka).toHaveLength(2);
+    expect(dinka).toHaveLength(3);
     expect(dinka).toEqual(expect.arrayContaining([
       { glottocode: 'dink1262', label_glottocode: 'dink1262', name: 'Thuɔŋjäŋ', alias_type: 'endonym', source_names: ['lexvo'] },
-      { glottocode: 'dink1262', label_glottocode: 'stan1290', name: 'Dinka', alias_type: 'exonym', source_names: ['lexvo'] }
+      { glottocode: 'dink1262', label_glottocode: 'stan1290', name: 'Dinka', alias_type: 'exonym', source_names: ['lexvo'] },
+      { glottocode: 'dink1262', label_glottocode: null, name: 'Jieng', alias_type: null, source_names: ['multitree', 'wals'] }
     ]));
   });
 
-  it('leaves out names it cannot label, placeholders, and the names of artificial languages', () => {
-    // "Jieng" is untagged, so English, and this tree has no English: counted, not kept.
-    expect(t.unlabelled).toEqual({ eng: 2 });
+  it('keeps one row for names that differ only in capital letters, in the spelling most providers give', () => {
+    const files2 = [files[0]!, { glottocode: 'dink1262', parent: 'nilo1247', ini: ini('name = Dinka\nlevel = language', '[altnames]\nmultitree = \n\tJieng\nwals = \n\tJieng\nelcat = \n\tjieng\n') }];
+    expect(buildGlottolog({ files: files2, values, languages, release: 'v5.3' }).aliases).toEqual([
+      { glottocode: 'dink1262', label_glottocode: null, name: 'Jieng', alias_type: null, source_names: ['elcat', 'multitree', 'wals'] }
+    ]);
+  });
+
+  it('leaves out names whose tag it cannot resolve, placeholders, and the names of artificial languages', () => {
+    const t2 = buildGlottolog({ files: [...files, { glottocode: 'xxxx1234', parent: null, ini: ini('name = X\nlevel = language', '[altnames]\nlexvo = \n\tIks [qu]\n') }], values, languages, release: 'v5.3' });
+    expect(t2.unlabelled).toEqual({ qu: 1 });
     expect(t.aliases.some((a) => a.name === 'not specified' || a.glottocode === 'espe1235')).toBe(false);
   });
 

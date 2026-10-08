@@ -229,13 +229,16 @@ function explorerData(t: GlottologTables, ids: Ids) {
       name: t.languoids.map((l) => l.name),
       level: t.languoids.map((l) => levels.indexOf(l.level)),
       parent: t.languoids.map((l) => (l.parent_glottocode ? li.get(l.parent_glottocode)! : -1)),
-      origin: t.languoids.map((l) => ids.origin.get(l.glottocode) ?? 'new')
+      origin: t.languoids.map((l) => ids.origin.get(l.glottocode) ?? 'new'),
+      lat: t.languoids.map((l) => l.latitude),
+      lon: t.languoids.map((l) => l.longitude)
     },
     alias: {
       subject: t.aliases.map((a) => li.get(a.glottocode)),
-      label: t.aliases.map((a) => li.get(a.label_glottocode)),
+      label: t.aliases.map((a) => (a.label_glottocode ? li.get(a.label_glottocode)! : -1)),
       name: t.aliases.map((a) => a.name),
-      endonym: t.aliases.map((a) => (a.alias_type === 'endonym' ? 1 : 0)),
+      // 1 endonym, 0 exonym, 2 not known (no label)
+      type: t.aliases.map((a) => (a.alias_type === 'endonym' ? 1 : a.alias_type === 'exonym' ? 0 : 2)),
       sources: t.aliases.map((a) => sourceNames.at.get(a.source_names.join('|'))),
       sourceList: sourceNames.list
     },

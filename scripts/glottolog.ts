@@ -16,9 +16,9 @@
  * The rows are shaped as LangQuest v2's loader shaped them
  * (genesis-ai-dev/wikidata-collection), so the tables mean what they meant
  * in v2: names labelled with the languoid they are written in, endonym when
- * that is the languoid itself; links as sources named by site; hid,
- * macroareas, category and coordinates as properties; continents and
- * nations as regions.
+ * that is the languoid itself; links as sources named by site; hid and
+ * category as properties; continents and nations as regions. Coordinates
+ * are a point on the languoid, and macroareas are region links.
  */
 import { LABEL_ISO639_3, MACROLANGUAGE_PRINCIPAL } from './glottologLabelCodes';
 
@@ -32,13 +32,14 @@ export interface GlottologFile {
 export type Level = 'family' | 'language' | 'dialect';
 
 export interface GlottologTables {
-  languoids: { glottocode: string; parent_glottocode: string | null; name: string; level: Level }[];
-  aliases: { glottocode: string; label_glottocode: string; name: string; alias_type: 'endonym' | 'exonym'; source_names: string[] }[];
+  languoids: { glottocode: string; parent_glottocode: string | null; name: string; level: Level; latitude: number | null; longitude: number | null }[];
+  /** label_glottocode and alias_type are null when Glottolog does not say what language a name is in. */
+  aliases: { glottocode: string; label_glottocode: string | null; name: string; alias_type: 'endonym' | 'exonym' | null; source_names: string[] }[];
   sources: { glottocode: string; name: string; version: string | null; unique_identifier: string; url: string | null }[];
   properties: { glottocode: string; key: string; value: string }[];
   regions: { key: string; name: string; level: 'continent' | 'nation'; iso3166_1: string | null }[];
   languoidRegions: { glottocode: string; region_key: string }[];
-  /** Names left out because the language they are written in has no single languoid, by tag. */
+  /** Names left out because the language tag they carry has no single languoid, by tag. */
   unlabelled: Record<string, number>;
 }
 
@@ -165,7 +166,9 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
     const level = one(md, 'core', 'level');
     if (!name) throw new Error(`${glottocode}: no name`);
     if (!level || !LEVELS.has(level)) throw new Error(`${glottocode}: unknown level "${level}"`);
-    t.languoids.push({ glottocode, parent_glottocode: parent, name, level: level as Level });
+    const coord = (k: string) => { const v = Number(one(md, 'core', k)); return one(md, 'core', k) !== null && Number.isFinite(v) ? v : null; };
+    const latitude = coord('latitude'), longitude = coord('longitude');
+    t.languoids.push({ glottocode, parent_glottocode: parent, name, level: level as Level, latitude: longitude === null ? null : latitude, longitude: latitude === null ? null : longitude });
 
     const iso = one(md, 'core', 'iso639-3');
     t.sources.push({ glottocode, name: 'glottolog', version: input.release, unique_identifier: glottocode, url: `https://glottolog.org/resource/languoid/id/${glottocode}` });
@@ -182,11 +185,10 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
     const macroareas = own.length ? own : (cldfMacroareas.get(glottocode) ?? []);
     const countries = md['core']?.['countries'] ?? [];
     const props: [string, string | null][] = [
+      // Macroareas are region links and coordinates are a point on the
+      // languoid, so neither is repeated here.
       ['hid', one(md, 'core', 'hid')],
-      ['macroareas', macroareas.length ? macroareas.join(', ') : null],
-      ['category', category.get(glottocode) ?? null],
-      ['latitude', one(md, 'core', 'latitude')],
-      ['longitude', one(md, 'core', 'longitude')]
+      ['category', category.get(glottocode) ?? null]
     ];
     for (const [key, value] of props) if (value) t.properties.push({ glottocode, key, value });
 
@@ -199,33 +201,44 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
       t.languoidRegions.push({ glottocode, region_key: `iso3166-1:${c}` });
     }
 
-    // Names, as v2's loader did: an untagged name is English; artificial
-    // languages get none.
+    // Names. Only lexvo tags the language a name is written in ("Abaza nyelv
+    // [hu]"); every other provider's names get no label and no alias type,
+    // since guessing English labelled the Cyrillic "абаза бызшва" an English
+    // exonym. As in v2, artificial languages get no names.
     if (category.get(glottocode) === 'Artificial Language') continue;
-    const names = new Map<string, GlottologTables['aliases'][number]>();
+    // One row per name, label and type, ignoring capital letters: the
+    // spelling more providers give wins, else the first listed.
+    const names = new Map<string, { row: GlottologTables['aliases'][number]; spellings: Map<string, number> }>();
     for (const [provider, list] of Object.entries(md['altnames'] ?? {})) {
       for (const raw of list) {
         const tagged = /^(.*?)\s*\[([A-Za-z-]+)\]$/.exec(raw);
         const text = (tagged ? tagged[1]! : raw).trim();
         if (!text || NOT_A_NAME.has(text.toLowerCase())) continue;
         const tag = tagged?.[2];
-        // A script subtag ("bo-Tibt") names the same language; a three-letter
-        // tag the table lacks is taken as an ISO 639-3 code.
-        const base = tag?.split('-')[0];
-        const labelIso = tag ? (LABEL_ISO639_3[tag] ?? LABEL_ISO639_3[base!] ?? (/^[a-z]{3}$/.test(base!) ? base : undefined)) : 'eng';
-        const label = labelIso ? (byIso.get(labelIso) ?? byIso.get(MACROLANGUAGE_PRINCIPAL[labelIso] ?? '')) : undefined;
-        if (!label) {
-          t.unlabelled[tag ?? 'eng'] = (t.unlabelled[tag ?? 'eng'] ?? 0) + 1;
-          continue;
+        let label: string | null = null;
+        if (tag) {
+          // A script subtag ("bo-Tibt") names the same language; a three-letter
+          // tag the table lacks is taken as an ISO 639-3 code.
+          const base = tag.split('-')[0]!;
+          const labelIso = LABEL_ISO639_3[tag] ?? LABEL_ISO639_3[base] ?? (/^[a-z]{3}$/.test(base) ? base : undefined);
+          label = (labelIso ? (byIso.get(labelIso) ?? byIso.get(MACROLANGUAGE_PRINCIPAL[labelIso] ?? '')) : null) ?? null;
+          if (!label) {
+            t.unlabelled[tag] = (t.unlabelled[tag] ?? 0) + 1;
+            continue;
+          }
         }
-        const alias_type = label === glottocode ? 'endonym' : 'exonym';
-        const key = `${label}\u0000${alias_type}\u0000${text}`;
-        const row = names.get(key) ?? { glottocode, label_glottocode: label, name: text, alias_type, source_names: [] };
-        if (!row.source_names.includes(provider)) row.source_names.push(provider);
-        names.set(key, row);
+        const alias_type = label === null ? null : label === glottocode ? 'endonym' : 'exonym';
+        const key = `${label}\u0000${alias_type}\u0000${text.toLowerCase()}`;
+        const entry = names.get(key) ?? { row: { glottocode, label_glottocode: label, name: text, alias_type, source_names: [] as string[] }, spellings: new Map<string, number>() };
+        if (!entry.row.source_names.includes(provider)) entry.row.source_names.push(provider);
+        entry.spellings.set(text, (entry.spellings.get(text) ?? 0) + 1);
+        names.set(key, entry);
       }
     }
-    for (const row of names.values()) {
+    for (const { row, spellings } of names.values()) {
+      let best = row.name;
+      for (const [spelling, n] of spellings) if (n > (spellings.get(best) ?? 0)) best = spelling;
+      row.name = best;
       row.source_names.sort();
       t.aliases.push(row);
     }

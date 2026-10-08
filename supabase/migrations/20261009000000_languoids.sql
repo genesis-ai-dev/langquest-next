@@ -8,8 +8,8 @@
 --                       endonym when the label is the languoid itself
 --   languoid_source     where it is catalogued: glottolog (the glottocode),
 --                       iso639-3, wikidata, wikipedia, wals, ...
---   languoid_property   open key/value facts: category, macroareas, hid,
---                       latitude, longitude, fia_available, ...
+--   languoid_property   open key/value facts: category, hid,
+--                       fia_available, ...
 --   region              a continent or nation (or debated, subnational area)
 --   region_alias        a region's name in a label languoid
 --   region_source       where it is catalogued (iso3166-1)
@@ -32,6 +32,7 @@
 
 create extension if not exists pg_trgm with schema extensions;
 create extension if not exists unaccent with schema extensions;
+create extension if not exists postgis with schema extensions;
 
 create type public.languoid_level as enum ('family', 'language', 'dialect');
 create type public.alias_type as enum ('endonym', 'exonym');
@@ -42,6 +43,9 @@ create table public.languoid (
   parent_id uuid references public.languoid(id) on delete set null deferrable initially immediate,
   name text,
   level public.languoid_level not null,
+  -- Where Glottolog places it (WGS 84 longitude and latitude), for
+  -- "languages near here" and maps. v2 kept these as text properties.
+  location extensions.geography(point, 4326),
   active boolean not null default true,
   created_at timestamptz not null default now(),
   last_updated timestamptz not null default now(),
@@ -51,15 +55,17 @@ create table public.languoid (
 create table public.languoid_alias (
   id uuid primary key default gen_random_uuid(),
   subject_languoid_id uuid not null references public.languoid(id) on delete cascade,
-  label_languoid_id uuid not null references public.languoid(id) on delete restrict,
+  -- null when the source does not say what language the name is in; then
+  -- alias_type is null too. (v2 required both and guessed English.)
+  label_languoid_id uuid references public.languoid(id) on delete restrict,
   name text not null,
-  alias_type public.alias_type not null,
+  alias_type public.alias_type,
   source_names text[] not null default '{}',
   active boolean not null default true,
   created_at timestamptz not null default now(),
   last_updated timestamptz not null default now(),
   creator_id text references public.profiles(id) on delete set null,
-  constraint uq_languoid_alias unique (subject_languoid_id, label_languoid_id, alias_type, name)
+  constraint uq_languoid_alias unique nulls not distinct (subject_languoid_id, label_languoid_id, alias_type, name)
 );
 
 create table public.languoid_source (
@@ -103,7 +109,9 @@ create table public.region (
 create table public.region_alias (
   id uuid primary key default gen_random_uuid(),
   subject_region_id uuid not null references public.region(id) on delete cascade,
-  label_languoid_id uuid not null references public.languoid(id) on delete restrict,
+  -- null when the source does not say what language the name is in; then
+  -- alias_type is null too. (v2 required both and guessed English.)
+  label_languoid_id uuid references public.languoid(id) on delete restrict,
   name text,
   active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -153,6 +161,7 @@ create table public.languoid_region (
 );
 
 create index idx_languoid_parent on public.languoid (parent_id);
+create index idx_languoid_location on public.languoid using gist (location);
 create index idx_languoid_alias_subject on public.languoid_alias (subject_languoid_id);
 create index idx_languoid_alias_label on public.languoid_alias (label_languoid_id);
 create index idx_languoid_source_lid on public.languoid_source (languoid_id);
@@ -365,7 +374,9 @@ create table public.languoid_staging (
   glottocode text not null unique,
   parent_glottocode text,
   name text not null,
-  level text not null
+  level text not null,
+  latitude double precision,
+  longitude double precision
 );
 create table public.region_staging (
   id uuid primary key,
@@ -376,9 +387,9 @@ create table public.region_staging (
 );
 create table public.languoid_alias_staging (
   glottocode text not null,
-  label_glottocode text not null,
+  label_glottocode text,
   name text not null,
-  alias_type text not null,
+  alias_type text,
   source_names text[] not null default '{}'
 );
 create table public.languoid_source_staging (
@@ -415,7 +426,7 @@ end $$;
 
 -- The keys Glottolog gives; other keys (fia_available, ...) are not the import's.
 create or replace function public._languoid_import_keys()
-returns text[] language sql immutable as $$ select array['hid', 'macroareas', 'category', 'latitude', 'longitude'] $$;
+returns text[] language sql immutable as $$ select array['hid', 'category'] $$;
 
 create or replace function public.languoid_staging_reset()
 returns void language sql security definer set search_path = public as $$
@@ -436,10 +447,10 @@ end $$;
 
 -- The staged rows with ids in place of glottocodes and region keys.
 create or replace view public._languoid_staged_alias with (security_invoker = true) as
-  select s.id as subject_languoid_id, lb.id as label_languoid_id, a.name, a.alias_type::alias_type, a.source_names
+  select s.id as subject_languoid_id, lb.id as label_languoid_id, a.name, a.alias_type::alias_type as alias_type, a.source_names
   from languoid_alias_staging a
   join languoid_staging s on s.glottocode = a.glottocode
-  join languoid_staging lb on lb.glottocode = a.label_glottocode;
+  left join languoid_staging lb on lb.glottocode = a.label_glottocode;
 create or replace view public._languoid_staged_source with (security_invoker = true) as
   select s.id as languoid_id, x.name, x.version, x.unique_identifier, x.url
   from languoid_source_staging x join languoid_staging s on s.glottocode = x.glottocode;
@@ -496,16 +507,19 @@ language sql stable security definer set search_path = public as $$
   with owned as (select id from languoid_staging)
   select 'region added', count(*) from region_staging s where not exists (select 1 from region r where r.id = s.id)
   union all select 'region renamed', count(*) from region_staging s join region r on r.id = s.id where r.name is distinct from s.name
+  union all select 'languoid location set or moved', count(*) from languoid_staging s join languoid l on l.id = s.id
+    where s.latitude is not null and (l.location is null
+      or abs(extensions.st_y(l.location::extensions.geometry) - s.latitude) > 1e-9 or abs(extensions.st_x(l.location::extensions.geometry) - s.longitude) > 1e-9)
   union all select 'region_source added', count(*) from region_staging s
     where s.iso3166_1 is not null and not exists (select 1 from region_source x where x.region_id = s.id and x.unique_identifier = s.iso3166_1)
   union all select 'languoid_alias added', count(*) from _languoid_staged_alias a
-    where not exists (select 1 from languoid_alias x where (x.subject_languoid_id, x.label_languoid_id, x.alias_type, x.name) = (a.subject_languoid_id, a.label_languoid_id, a.alias_type, a.name))
+    where not exists (select 1 from languoid_alias x where x.subject_languoid_id = a.subject_languoid_id and x.name = a.name and x.label_languoid_id is not distinct from a.label_languoid_id and x.alias_type is not distinct from a.alias_type)
   union all select 'languoid_alias changed', count(*) from _languoid_staged_alias a join languoid_alias x
-    on (x.subject_languoid_id, x.label_languoid_id, x.alias_type, x.name) = (a.subject_languoid_id, a.label_languoid_id, a.alias_type, a.name)
+    on x.subject_languoid_id = a.subject_languoid_id and x.name = a.name and x.label_languoid_id is not distinct from a.label_languoid_id and x.alias_type is not distinct from a.alias_type
     where x.source_names is distinct from a.source_names or not x.active
   union all select 'languoid_alias retired', count(*) from languoid_alias x
     where x.active and x.creator_id is null and x.subject_languoid_id in (select id from owned)
-      and not exists (select 1 from _languoid_staged_alias a where (x.subject_languoid_id, x.label_languoid_id, x.alias_type, x.name) = (a.subject_languoid_id, a.label_languoid_id, a.alias_type, a.name))
+      and not exists (select 1 from _languoid_staged_alias a where x.subject_languoid_id = a.subject_languoid_id and x.name = a.name and x.label_languoid_id is not distinct from a.label_languoid_id and x.alias_type is not distinct from a.alias_type)
   union all select 'languoid_source added', count(*) from _languoid_staged_source a
     where not exists (select 1 from languoid_source x where (x.languoid_id, x.name, x.unique_identifier) = (a.languoid_id, a.name, a.unique_identifier))
   union all select 'languoid_source changed', count(*) from _languoid_staged_source a join languoid_source x
@@ -561,10 +575,14 @@ begin
   on conflict on constraint uq_region_source do nothing;
 
   -- Languoids, then the tree, then those the release no longer has.
-  insert into languoid (id, name, level)
-  select s.id, s.name, s.level::languoid_level from languoid_staging s
-  on conflict (id) do update set name = excluded.name, level = excluded.level, active = true, last_updated = now()
-    where (languoid.name, languoid.level, languoid.active) is distinct from (excluded.name, excluded.level, true);
+  insert into languoid (id, name, level, location)
+  select s.id, s.name, s.level::languoid_level,
+    case when s.latitude is not null and s.longitude is not null
+      then extensions.st_setsrid(extensions.st_makepoint(s.longitude, s.latitude), 4326)::extensions.geography end
+  from languoid_staging s
+  on conflict (id) do update set name = excluded.name, level = excluded.level, location = excluded.location, active = true, last_updated = now()
+    where (languoid.name, languoid.level, languoid.active) is distinct from (excluded.name, excluded.level, true)
+      or not extensions.st_equals(coalesce(languoid.location::extensions.geometry, 'POINT EMPTY'), coalesce(excluded.location::extensions.geometry, 'POINT EMPTY'));
   update languoid l set parent_id = p.id, last_updated = now()
   from languoid_staging s left join languoid_staging p on p.glottocode = s.parent_glottocode
   where l.id = s.id and l.parent_id is distinct from p.id;
@@ -599,7 +617,7 @@ begin
     where (languoid_alias.source_names, languoid_alias.active) is distinct from (excluded.source_names, true);
   update languoid_alias x set active = false, last_updated = now()
   where x.active and x.creator_id is null and x.subject_languoid_id in (select id from languoid_staging)
-    and not exists (select 1 from _languoid_staged_alias a where (x.subject_languoid_id, x.label_languoid_id, x.alias_type, x.name) = (a.subject_languoid_id, a.label_languoid_id, a.alias_type, a.name));
+    and not exists (select 1 from _languoid_staged_alias a where x.subject_languoid_id = a.subject_languoid_id and x.name = a.name and x.label_languoid_id is not distinct from a.label_languoid_id and x.alias_type is not distinct from a.alias_type);
 
   -- Where each is spoken.
   insert into languoid_region (languoid_id, region_id)
