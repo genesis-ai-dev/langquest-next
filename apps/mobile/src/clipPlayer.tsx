@@ -3,7 +3,7 @@
 // button, and Note when the screen can take a note at a moment. It plays a
 // passage's cards one after another as one recording, like AudioClip, and
 // shows where in the whole recording it is.
-import { isStored } from '@langquest-next/core';
+import { isStored, type LanguageState } from '@langquest-next/core';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
@@ -19,6 +19,19 @@ import type { LanguageHandle } from './useLanguage';
 export function clock(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** The length of these cards together, in seconds (0 when unknown). */
+export function clipSeconds(state: LanguageState | null | undefined, hashes: string[]): number {
+  if (!state) return 0;
+  let total = 0;
+  for (const hash of hashes) {
+    for (const r of Object.values(state.recordings)) {
+      const card = r.cards.find((c) => c.hash === hash);
+      if (card?.durationMs) { total += card.durationMs / 1000; break; }
+    }
+  }
+  return total;
 }
 
 /** Each card's length in seconds, from the recording that holds it (0 when unknown). */
