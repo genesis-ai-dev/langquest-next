@@ -1,11 +1,19 @@
-// The recording screen's split (Caleb, LAN-23): the source on top, your
-// recording below, both on screen at once. A divider between them is dragged
-// to give either one more room and settles on one of three snaps; the choice
-// is kept for the rest of the session. Pure, so the arithmetic is tested for
+// The recording screen's split (Caleb, LAN-23; demo ADR-036): reference on
+// top, your recording below, both on screen at once. A divider between them
+// is dragged to give either one more room and settles on one of five snaps:
+// the reference as one line, a third, half, two thirds, or the recorder as
+// one line. The choice is kept for the rest of the session. Pure, so the arithmetic is tested for
 // small Android phones (about 640pt tall) without rendering anything.
 
-/** The source's (top pane's) share of the room, smallest first. */
-export const SNAPS = [0.35, 0.5, 0.65] as const;
+/**
+ * The reference's (top pane's) share of the room, smallest first. 0 and 1
+ * are the ends: that pane shrinks to one line (`BAR`) and the other takes the
+ * rest, so either side can have nearly the whole screen without hiding the
+ * other (demo ADR-036).
+ */
+export const SNAPS = [0, 0.35, 0.5, 0.65, 1] as const;
+/** A pane at an end snap: one line, tall enough for a 48pt target. */
+export const BAR = 56;
 export const DEFAULT_SPLIT = 0.5;
 
 /** Room the divider takes from the panes; its touch target is 48pt, overlapping both panes. */
@@ -36,6 +44,9 @@ export function paneHeights(available: number, fraction: number, minBottom = MIN
     const top = Math.round(room * (minTop / (minTop + minBottom)));
     return { top, bottom: room - top };
   }
+  if (fraction <= 0) return { top: BAR, bottom: room - BAR };
+  // While recording the recorder keeps its status and level meter, so it never shrinks below its minimum.
+  if (fraction >= 1) { const bottom = minBottom > MIN_BOTTOM ? minBottom : BAR; return { top: room - bottom, bottom }; }
   const top = clamp(Math.round(room * clamp(fraction, 0, 1)), minTop, room - minBottom);
   return { top, bottom: room - top };
 }
@@ -60,9 +71,11 @@ export function stepSnap(fraction: number, direction: 1 | -1): number {
   return SNAPS[clamp(i + direction, 0, SNAPS.length - 1)]!;
 }
 
-/** The top pane's share as a screen reader says it: "Source 50%". */
+/** The top pane's share as a screen reader says it: "Source 50%", or which side is one line. */
 export function splitValueText(heights: PaneHeights): string {
   const total = heights.top + heights.bottom;
+  if (total > 0 && heights.top === BAR) return 'Reference as one line';
+  if (total > 0 && heights.bottom === BAR) return 'Recorder as one line';
   return `Source ${total > 0 ? Math.round((heights.top / total) * 100) : 50}%`;
 }
 

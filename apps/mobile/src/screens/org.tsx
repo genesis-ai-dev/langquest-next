@@ -10,7 +10,7 @@
 // languages directly (docs/decisions.md 63).
 import {
   CommandError, deriveFlow, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
-  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
+  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, recommendedFor, SEED_ROLES,
   type EventSpec, type LanguageProgress, type License, type Scope, type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -24,7 +24,7 @@ import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, 
 import { APP_URL } from '../appUrl';
 import { signInUri } from '../inviteCode';
 import {
-  Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
+  Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, Row,
   Screen, SectionLabel, Segments, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
 } from '../kit';
 import { edgeFor } from '../flow';
@@ -178,6 +178,28 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   const open = ctx.details(`home:${props.from}:setup`);
   const names = [templates && 'Content templates', reference && 'reference', flows && 'review flows', 'roles', props.extra?.label].filter(Boolean);
   const summary = names.join(', ').replace(/^./, (c) => c.toUpperCase());
+  // A language's page is its setup (demo ADR-039): what they record, what helps them and who checks,
+  // in the admin's words and always shown; roles and the public listing stay under More.
+  if (props.level === 'language') {
+    const helps = recommendedFor(ctx.org.state?.recommendations, state).size;
+    return (
+      <>
+        <HomeSection label="Ready for translators">
+          {templates ? <Row icon="template" label="They record" sub={counts.templates[0] ?? 'Not chosen yet'} onPress={() => ctx.go('templates_home', params)} /> : null}
+          {reference ? <Row icon="book" label="What helps them" onPress={() => ctx.go('reference_home', params)}
+            sub={[helps ? plural(helps, 'Bible or guide') + ' offered' : 'Nothing offered yet', counts.terms ? plural(counts.terms, 'key term') : ''].filter(Boolean).join(' · ')} /> : null}
+          {flows ? <Row icon="flow" label="Who checks" sub={counts.flows[0] ?? 'Not chosen yet'} onPress={() => ctx.go('flows_home', params)} last /> : null}
+        </HomeSection>
+        <View style={{ paddingTop: space.md }}>
+          <Disclosure icon="settings" title="More" summary={['Roles', props.extra?.label].filter(Boolean).join(', ')} open={open.open} onToggle={open.onToggle}>
+            <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} at this level and above`} onPress={() => ctx.go('roles_home', params)}
+              last={!props.extra} />
+            {props.extra?.rows}
+          </Disclosure>
+        </View>
+      </>
+    );
+  }
   return (
     <View style={{ paddingTop: space.md }}>
       <Disclosure icon="settings" title="Setup" summary={summary} open={open.open} onToggle={open.onToggle}>
@@ -205,7 +227,7 @@ function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string })
   return (
     <HomeSection label="People">
       <Row icon="people" label="Members" sub={sub} onPress={() => ctx.go('members_list', params)} last={!teams} />
-      {teams ? <Row icon="people" label="Review Teams" sub="Language reviewers grouped into teams" last
+      {teams ? <Row icon="people" label="Review groups" sub="Optional: who comes first when someone asks for a check" last
         onPress={() => ctx.go('review_teams', { languageId: props.languageId ?? '' })} /> : null}
     </HomeSection>
   );
@@ -518,6 +540,8 @@ interface Assignment {
   languageId: string;
 }
 
+const TO_ROLE_EDITOR = ['invite_member', 'edit_member'] as const;
+
 /** Role, assignment scope, and the language it applies to (ORG-6, ORG-7). */
 function AssignmentForm(props: {
   ctx: Ctx;
@@ -533,10 +557,14 @@ function AssignmentForm(props: {
   const languages = value.languageId && !granted.includes(value.languageId) ? [value.languageId, ...granted] : granted;
   return (
     <>
-      <SectionLabel label="Role" />
+      <SectionLabel label="What will they do?" />
       <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub }))} value={value.roleId}
         onChoose={(roleId) => props.onChange({ ...value, roleId })} empty="No roles available here." />
-      <SectionLabel label="Assignment scope" />
+      {/* Something other than the usual roles: make one here (demo ADR-039, amended 2026-10-08). */}
+      {ctx.session.can('manage_roles') && TO_ROLE_EDITOR.some((from) => edgeFor(from, 'role_editor')) ? (
+        <GhostBtn label="Something else: make a new role" icon="plus" onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+      ) : null}
+      <SectionLabel label="Where?" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.levels.map((l) => (
           <Chip key={l} label={LEVEL_LABEL[l]} on={value.level === l} onPress={() => {
@@ -938,6 +966,7 @@ export function NewLanguage(ctx: Ctx) {
   const [code, setCode] = useState('');
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [pickedTemplate, setPickedTemplate] = useState<string | null>(null);
+  const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   const [pickedFlow, setPickedFlow] = useState<string | null>(null);
   const [templateLimit, setTemplateLimit] = useState(6);
   const [flowLimit, setFlowLimit] = useState(6);
@@ -966,7 +995,8 @@ export function NewLanguage(ctx: Ctx) {
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
       const loaded = (await loadDocs(lib.orgId, [template.hash])).get(template.hash);
       if (!loaded || loaded.format !== 'template@1') throw new CommandError('Its template is not on this device yet. Try again when connected.');
-      const books = booksInScope(loaded, scope);
+      const books = booksInScope(loaded, scope, chosenBooks);
+      if (books && books.length === 0) throw new CommandError('Choose at least one book.');
       const templateItem = await adoptChoice(lib, template);
       const flowItem = await adoptChoice(lib, flow);
       const fresh = emptyLanguageState();
@@ -1000,11 +1030,20 @@ export function NewLanguage(ctx: Ctx) {
       <Field label="Language code" value={code} onChangeText={setCode} placeholder="e.g. DIN" autoCapitalize="none" />
       {doc?.structure !== 'outline' ? (
         <>
-          <SectionLabel label="Scope" />
+          <SectionLabel label="Which books?" />
           <Choices items={LANGUAGE_SCOPES.map((s) => ({ id: s.id, label: s.label, sub: s.sub }))} value={scope} onChoose={(id) => setScope(id as LanguageScope)} />
+          {scope === 'custom' && doc?.bible ? (
+            <ChipRow>
+              {doc.bible.books.map((b) => (
+                <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)}
+                  onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
+              ))}
+            </ChipRow>
+          ) : null}
         </>
       ) : null}
-      <SectionLabel label="Template" />
+      <SectionLabel label="What will they record?" />
+      <Text style={txt.xs}>Pick a ready-made set of passages. You can divide the books your own way afterwards, under What they record.</Text>
       {sharedTemplates.error ? (
         <Banner icon="cloud" tone="amber" title="Could not refresh the shared templates"
           body={sharedTemplates.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />
@@ -1015,7 +1054,7 @@ export function NewLanguage(ctx: Ctx) {
       {template ? (
         <Text style={txt.xs}>Its passages come from {template.name}.{followed(template)} It can be changed later under Content Templates.</Text>
       ) : null}
-      <SectionLabel label="Review flow" />
+      <SectionLabel label="Who checks the recordings?" />
       {sharedFlows.error ? (
         <Banner icon="cloud" tone="amber" title="Could not refresh the shared flows"
           body={sharedFlows.rows.length ? 'Showing the list this device saved.' : 'Connect to see the ones other organizations share.'} />

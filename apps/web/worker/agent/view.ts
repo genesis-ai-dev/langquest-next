@@ -223,7 +223,7 @@ export async function passageFor(
     if (r.comment !== undefined) out.comment = r.comment;
     if (r.givenBy !== undefined) out.givenBy = r.givenBy;
     if (r.commentBlobHash) {
-      // m4a unless the recording device said otherwise (decisions.md 71).
+      // m4a unless the recording device said otherwise (decisions.md 72).
       const link = await sign(key(r.commentBlobHash, state.audioFormats[r.commentBlobHash]?.value ?? 'm4a'));
       out.voiceNote = { url: link.url, expiresAt: new Date(link.expiresAt).toISOString() };
     }

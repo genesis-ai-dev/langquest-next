@@ -10,6 +10,8 @@ prose in PLAN.md is not enough. They are reference, not shipping code: nothing
 here is imported into the mobile app. Open the HTML file in a browser.
 Keep `icons.js` beside it; the local Lucide subset avoids a CDN dependency.
 
+**Next:** [simple-redesign.md](./simple-redesign.md): the agreed simple redesign and the product requirements it changes (not built yet).
+
 **See also:** [follow-ups.md](./follow-ups.md) — Remaining UX-vision alignment work after Inbox P0 fix (PR #4)
 
 ## Spoken Worldwide workflow

@@ -85,7 +85,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   /** The translator's answer to suggestions: what changed and why the rest stayed (text or audio). */
   'v1.ResponseRecorded': { takeId: string; respondsToTakeId: string; note?: string; blobHash?: string };
   /**
-   * The format of a voice note's file (decisions.md 71). A voice note is
+   * The format of a voice note's file (decisions.md 72). A voice note is
    * named only by the event that uses it (30), which has no format field,
    * so it is m4a unless this says otherwise: a browser that cannot record
    * MP4 stores WAV (58). Appended with the event that names the note, by

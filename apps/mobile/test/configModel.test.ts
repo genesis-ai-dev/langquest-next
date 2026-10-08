@@ -254,3 +254,13 @@ describe('key terms', () => {
     expect(matchesTerm({ term: 'grace', gloss: 'Undeserved favour' }, 'FAVOUR')).toBe(true);
   });
 });
+
+describe('the role editor groups', () => {
+  it('puts every permission in exactly one group (demo ADR-039)', async () => {
+    const { PRIVILEGE_GROUPS } = await import('../src/screens/configModel');
+    const { PRIVILEGES } = await import('@langquest-next/core');
+    const all = PRIVILEGE_GROUPS.flatMap((g) => g.privileges);
+    expect(new Set(all).size).toBe(all.length);
+    expect([...all].sort()).toEqual([...PRIVILEGES].sort());
+  });
+});

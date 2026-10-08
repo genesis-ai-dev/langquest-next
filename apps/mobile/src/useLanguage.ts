@@ -368,7 +368,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   }, [orgId, languageId, openId, actorId, refresh, sync, keepKey]);
 
   // A voice note this device stored as WAV (a browser without MP4) goes
-  // with an event saying so, ahead of the event that names it (decisions.md 71).
+  // with an event saying so, ahead of the event that names it (decisions.md 72).
   const formatsFor = useCallback((items: readonly { type: EventType; payload: unknown }[]) => {
     const store = storeRef.current;
     const c = clientRef.current;

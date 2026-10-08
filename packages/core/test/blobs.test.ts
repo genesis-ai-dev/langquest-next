@@ -148,7 +148,7 @@ describe('what is on this phone for offline use (shown per passage and in Settin
   });
 });
 
-describe('a voice note recorded in a browser keeps its format (decisions.md 58, 71)', () => {
+describe('a voice note recorded in a browser keeps its format (decisions.md 58, 72)', () => {
   // A browser without MP4 recording stores the note as WAV, at <hash>.wav.
   // The event that names the note has no format field, so unless the log
   // says so every device looks for <hash>.m4a: the recording browser cannot

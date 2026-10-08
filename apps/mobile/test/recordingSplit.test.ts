@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, loopPhase, loopStatus, MIN_BOTTOM, MIN_BOTTOM_RECORDING, MIN_TOP,
+  BAR, DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, loopPhase, loopStatus, MIN_BOTTOM, MIN_BOTTOM_RECORDING, MIN_TOP,
   nearestSnap, paneHeights, rememberedSplit, rememberSplit, SNAPS, splitValueText, stepSnap
 } from '../src/recording/splitModel';
 
@@ -11,8 +11,8 @@ const SMALL_PHONE_BODY = 640 - 24 - 104 - 104 - 48;
 const SMALL = SMALL_PHONE_BODY - DIVIDER;
 
 describe('the split between source and recorder', () => {
-  it('keeps both panes at least their minimum on a 640pt phone at every snap', () => {
-    for (const snap of SNAPS) {
+  it('keeps both panes at least their minimum on a 640pt phone at every middle snap', () => {
+    for (const snap of SNAPS.filter((x) => x > 0 && x < 1)) {
       const idle = paneHeights(SMALL, snap, MIN_BOTTOM);
       expect(idle.top).toBeGreaterThanOrEqual(MIN_TOP);
       expect(idle.bottom).toBeGreaterThanOrEqual(MIN_BOTTOM);
@@ -45,20 +45,33 @@ describe('the split between source and recorder', () => {
     expect(paneHeights(-10, 0.5)).toEqual({ top: 0, bottom: 0 });
   });
 
+  it('shrinks one side to a single line at the ends, so the other has nearly the whole screen (demo ADR-036)', () => {
+    expect(paneHeights(SMALL, 0)).toEqual({ top: BAR, bottom: SMALL - BAR });
+    expect(paneHeights(SMALL, 1)).toEqual({ top: SMALL - BAR, bottom: BAR });
+    // While recording, the recorder keeps its status and meter even at the end snap.
+    expect(paneHeights(SMALL, 1, MIN_BOTTOM_RECORDING).bottom).toBe(MIN_BOTTOM_RECORDING);
+    expect(splitValueText(paneHeights(600, 0))).toBe('Reference as one line');
+    expect(splitValueText(paneHeights(600, 1))).toBe('Recorder as one line');
+  });
+
   it('drags by the finger and settles on the nearest snap', () => {
     expect(fractionAfterDrag(0.5, 100, 400)).toBeCloseTo(0.75);
     expect(fractionAfterDrag(0.5, -1000, 400)).toBe(0);
     expect(fractionAfterDrag(0.5, 50, 0)).toBe(0.5);
     expect(nearestSnap(0.75)).toBe(0.65);
-    expect(nearestSnap(0.1)).toBe(0.35);
+    expect(nearestSnap(0.1)).toBe(0);
+    expect(nearestSnap(0.2)).toBe(0.35);
+    expect(nearestSnap(0.9)).toBe(1);
     expect(nearestSnap(0.45)).toBe(0.5);
   });
 
   it('steps one snap at a time for a screen reader, and says where it is', () => {
     expect(stepSnap(0.5, 1)).toBe(0.65);
-    expect(stepSnap(0.65, 1)).toBe(0.65);
+    expect(stepSnap(0.65, 1)).toBe(1);
+    expect(stepSnap(1, 1)).toBe(1);
     expect(stepSnap(0.5, -1)).toBe(0.35);
-    expect(stepSnap(0.35, -1)).toBe(0.35);
+    expect(stepSnap(0.35, -1)).toBe(0);
+    expect(stepSnap(0, -1)).toBe(0);
     expect(splitValueText({ top: 300, bottom: 300 })).toBe('Source 50%');
   });
 

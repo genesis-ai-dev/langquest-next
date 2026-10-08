@@ -122,7 +122,7 @@ export class BlobStore {
   /**
    * The format this file is stored as here, whatever the log says: a voice
    * note a browser recorded as WAV is `<hash>.wav` before any event says so
-   * (decisions.md 71).
+   * (decisions.md 72).
    */
   formatOf(hash: string): StoredFormat | undefined {
     return this.formatByHash.get(hash);
