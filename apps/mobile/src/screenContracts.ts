@@ -28,7 +28,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   request_access: { rpcs:['create_join_request','listed_organizations'] },
   scan_qr: { emits:['v1.TermsAccepted'],rpcs:['preview_invite','redeem_invite_v2','my_organizations','record_user_event'] },
   explore_home: { reads:['public_languages'] },
-  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext'] },
+  // People asking to join show under a coordinator's Get ready card (decision 71).
+  my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
   status_home: { reads:['languageProgress'] },
   map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
   book_map: { reads:['derivePassage','unitPlace'] },
@@ -97,7 +98,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     rpcs:['decide_join_request_v2','org_content_reports','remove_content','dismiss_reports'] },
   profile_edit: { rpcs:['save_profile'],reads:['profiles'] },
   org_switcher: { rpcs:['my_organizations'] },
-  settings_home: { rpcs:['register_push_token','set_blocked'],reads:['user_blocks'] },
+  settings_home: { reads:['offlineSummary'] },
+  // What Settings had beyond Me's five rows (decision 71).
+  settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   delete_account: { rpcs:['delete_my_account'] },
   // Read from the dashboard's server, not the local fold (decisions.md 44, 57).

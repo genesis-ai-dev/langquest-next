@@ -40,7 +40,9 @@ export const SCREEN_IDS = [
   // App only: exploring Bibles beside a passage (docs/reference-material.md)
   'bible_explore',
   // App only: the simple redesign (decision 71): microphone setup by ear, and getting a language ready
-  'mic_setup', 'get_ready'
+  'mic_setup', 'get_ready',
+  // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
+  'settings_more'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -330,7 +332,20 @@ export const EDGES: Edge[] = [
   e('my_work', 'get_ready', undefined, 'assigner'),
   e('get_ready', 'my_work', 'back'),
   e('language_home', 'get_ready'),
-  e('get_ready', 'language_home', 'back')
+  e('get_ready', 'language_home', 'back'),
+  // App only: the simple redesign's Home and Me (decision 71, demo ADR-032)
+  e('my_work', 'edit_member', undefined, 'assigner'),
+  e('edit_member', 'my_work', 'back'),
+  e('settings_home', 'settings_more'),
+  e('settings_more', 'settings_home', 'back'),
+  e('settings_more', 'profile_edit'),
+  e('profile_edit', 'settings_more', 'back'),
+  e('settings_more', 'org_switcher'),
+  e('org_switcher', 'settings_more', 'back'),
+  e('settings_more', 'sync_status'),
+  e('sync_status', 'settings_more', 'back'),
+  e('settings_more', 'delete_account'),
+  e('delete_account', 'settings_more', 'back')
 ];
 
 /**
@@ -360,7 +375,7 @@ export const TITLES: Record<ScreenId, string> = {
   guest_review: 'Review by Link', add_record: 'Already Happened',
   study_guide: 'Study Guide', study_step: 'Study Step', workspace: 'Record', review_capture: 'Review It',
   back_translation: 'Back-translate', key_terms: 'Key Terms', key_term_detail: 'Key Term',
-  inbox_home: 'Inbox', settings_home: 'Settings', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
+  inbox_home: 'Inbox', settings_home: 'Me', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
   org_home: 'Org Home', language_home: 'Language Home',
   new_language: 'New Language', members_list: 'Members', invite_member: 'Invite Member', invite_qr: 'Invite by QR',
   edit_member: 'Edit Member Role', roles_home: 'Roles', role_editor: 'Role Editor', review_teams: 'Review Teams',
@@ -372,5 +387,6 @@ export const TITLES: Record<ScreenId, string> = {
   passage_reference: 'Reference',
   guide_editor: 'Write a Guide',
   bible_explore: 'More Bibles',
-  mic_setup: 'Set up your microphone', get_ready: 'Get ready'
+  mic_setup: 'Set up your microphone', get_ready: 'Get ready',
+  settings_more: 'More settings'
 };

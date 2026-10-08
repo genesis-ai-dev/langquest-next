@@ -57,7 +57,13 @@ const APP_ONLY: Record<string, string> = {
   'my_work->reference_home': 'Get a language ready, step 2 "What will help them?" (demo ADR-039, branch caleb-simple-translator)',
   'my_work->invite_qr': 'Get a language ready, step 4 "Invite your translators": the code to scan (demo ADR-039)',
   'invite_member->role_editor': 'Something else: make a new role while inviting (demo ADR-039, amended 2026-10-08)',
-  'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)'
+  'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)',
+  'my_work->edit_member': "a coordinator's Home lists people asking to join under Get ready; a row opens Assign role & accept (decision 71, demo ADR-039)",
+  'settings_home->settings_more': 'Me keeps five rows; everything else Settings had is under More settings (decision 71, demo ADR-032)',
+  'settings_more->profile_edit': 'More settings: setting a password on a looked-after account (decisions.md 59)',
+  'settings_more->org_switcher': 'More settings: Switch Organization, moved from Settings (decision 71)',
+  'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
+  'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -73,7 +79,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor and More Bibles, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready', 'settings_more'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });
