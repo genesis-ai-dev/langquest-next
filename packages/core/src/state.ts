@@ -105,6 +105,8 @@ export interface LanguageState extends RecordState, ReferenceState {
    * invalidated. Only the server writes these events.
    */
   blobs: Record<string, { size: number; hlc: Hlc; eventId: string; stored: boolean }>;
+  /** hash -> a voice note's format, when it is not m4a (v1.AudioFormatSet). */
+  audioFormats: Record<string, Register<'wav' | 'm4a'>>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */
   appliedEventIds: Record<string, true>;
   /** eventId -> reason. Malformed events are skipped, never thrown on. */
@@ -131,6 +133,7 @@ export function emptyLanguageState(): LanguageState {
     takes: {},
     submissions: {},
     blobs: {},
+    audioFormats: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},

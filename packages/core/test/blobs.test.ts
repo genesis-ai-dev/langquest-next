@@ -1,4 +1,4 @@
-import { defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
+import { audioFormatsFor, defaultOfflineScope, deriveDownloadWork, deriveMissingBlobs, deriveUploadWork, evictableBlobs, isStored, offlineByUnit, offlineSummary, referencedBlobs, unitOffline } from '../src/blobs';
 import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
@@ -145,5 +145,56 @@ describe('what is on this phone for offline use (shown per passage and in Settin
     const scope = new Set(['luke1']);
     const fetch = deriveDownloadWork(state, none, scope).length;
     expect(offlineByUnit(state, scope, none, 'nobody', scope).get('luke1')!.toFetch).toBe(fetch);
+  });
+});
+
+describe('a voice note recorded in a browser keeps its format (decisions.md 58, 71)', () => {
+  // A browser without MP4 recording stores the note as WAV, at <hash>.wav.
+  // The event that names the note has no format field, so unless the log
+  // says so every device looks for <hash>.m4a: the recording browser cannot
+  // read its own file to upload it, and nobody else can fetch it.
+  const comment = (commentBlobHash: string): AnyEvent => ({
+    id: 'rv-web', type: 'v1.ReviewRecorded', orgId: 'org1', streamId: 'L1', actorId: 'r1', deviceId: 'web', hlc: '0017000002000000:000000:web',
+    payload: { reviewId: 'rv-web', takeId: 'take1', kindId: 'peer', outcome: 'needs_changes', via: 'app', commentBlobHash }
+  }) as AnyEvent;
+  const formatSet = (hash: string, format: 'wav' | 'm4a'): AnyEvent => ({
+    id: `fmt-${hash}`, type: 'v1.AudioFormatSet', orgId: 'org1', streamId: 'L1', actorId: 'r1', deviceId: 'web', hlc: '0017000001900000:000000:web',
+    payload: { hash, format }
+  }) as AnyEvent;
+
+  it('names a voice note m4a when nothing says otherwise, as phones record it', () => {
+    const state = fold([...buildFixture(), comment('vn-phone')]);
+    expect(referencedBlobs(state).get('vn-phone')?.format).toBe('m4a');
+  });
+
+  it('uploads and downloads a WAV voice note under its real name', () => {
+    const state = fold([...buildFixture(), formatSet('vn-web', 'wav'), comment('vn-web')]);
+    expect(deriveUploadWork(state, new Set(['vn-web'])).find((r) => r.hash === 'vn-web')?.format).toBe('wav');
+    const stored = fold([...buildFixture(), formatSet('vn-web', 'wav'), comment('vn-web'),
+      { ...formatSet('vn-web', 'wav'), id: 'st', type: 'v1.BlobStored', actorId: 'service', payload: { hash: 'vn-web', size: 10 } } as AnyEvent]);
+    expect(deriveDownloadWork(stored, new Set()).find((r) => r.hash === 'vn-web')?.format).toBe('wav');
+  });
+
+  it('asks for a format event only for a WAV voice note the log does not describe yet', () => {
+    // Why: the device that has the file is the only one that knows its
+    // format, and it must say so with the event that names it. An m4a note
+    // needs nothing (the default); one already described needs nothing more.
+    const local = new Map([['vn-web', 'wav'], ['vn-phone', 'm4a']]);
+    const items = [comment('vn-web'), comment('vn-phone'), { type: 'v1.TakeArchived' as const, payload: { takeId: 'take1' } }];
+    expect(audioFormatsFor(fold(buildFixture()), items, (h) => local.get(h)))
+      .toEqual([{ type: 'v1.AudioFormatSet', payload: { hash: 'vn-web', format: 'wav' } }]);
+    expect(audioFormatsFor(fold([...buildFixture(), formatSet('vn-web', 'wav')]), items, (h) => local.get(h))).toEqual([]);
+  });
+
+  it('covers every voice-note field referencedBlobs reads as m4a', () => {
+    // Why: a field missing here would send its WAV notes back to <hash>.m4a.
+    const wav = () => 'wav';
+    const named = (type: EventType, payload: Record<string, unknown>) => audioFormatsFor(null, [{ type, payload }], wav).map((e) => e.payload.hash);
+    expect(named('v1.ReviewRecorded', { commentBlobHash: 'a' })).toEqual(['a']);
+    expect(named('v1.RequestMade', { noteBlobHash: 'b' })).toEqual(['b']);
+    expect(named('v1.DepartureRecorded', { reasonBlobHash: 'c' })).toEqual(['c']);
+    for (const type of ['v1.NoteAdded', 'v1.ResponseRecorded', 'v1.KeyTermAdjusted', 'v1.MaterialFieldSet'] as const) {
+      expect(named(type, { blobHash: 'd' })).toEqual(['d']);
+    }
   });
 });

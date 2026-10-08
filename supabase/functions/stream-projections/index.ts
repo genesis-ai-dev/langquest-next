@@ -20939,6 +20939,7 @@ function emptyLanguageState() {
     takes: {},
     submissions: {},
     blobs: {},
+    audioFormats: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
@@ -21107,6 +21108,8 @@ function validateEvent(e) {
       return str("takeId") ?? (p["questionSetIds"] === void 0 ? null : strArray("questionSetIds"));
     case "v1.ResponseRecorded":
       return str("takeId", "respondsToTakeId") ?? optStr("note", "blobHash");
+    case "v1.AudioFormatSet":
+      return str("hash") ?? oneOf("format", ["wav", "m4a"]);
     case "v1.ReviewRecorded":
       return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
     case "v1.DepartureRecorded":
@@ -21199,7 +21202,7 @@ function isObject(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 10;
+var REDUCER_VERSION = 11;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21420,6 +21423,9 @@ function applyLanguageEvent(state, event) {
       break;
     case "v1.BlobInvalidated":
       blobVerdict(state, event, { size: 0, stored: false });
+      break;
+    case "v1.AudioFormatSet":
+      lww(state.audioFormats, event.payload.hash, event, event.payload.format);
       break;
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;

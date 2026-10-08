@@ -10,7 +10,7 @@ import { applyReferenceEvent } from './references';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 10;
+export const REDUCER_VERSION = 11;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -266,6 +266,10 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
 
     case 'v1.BlobInvalidated':
       blobVerdict(state, event, { size: 0, stored: false });
+      break;
+
+    case 'v1.AudioFormatSet':
+      lww(state.audioFormats, event.payload.hash, event, event.payload.format);
       break;
 
     case 'v1.Redacted':
