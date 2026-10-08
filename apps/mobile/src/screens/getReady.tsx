@@ -128,7 +128,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const canUse = ctx.session.can('manage_templates');
   const recorded = useMemo(() => languageProgress(state, indexesFor(state)), [state]);
   const kind = kindOf(pick);
-  const title = kind ? RECORD_LABEL[kind].title : pick?.name ?? '';
+  // The footer names the answer as its card does: by kind in the questions, by its own name from a ready language's page.
+  const title = only ? (pick?.name ?? '').replace(/\s*\(English\)\s*$/, '') : kind ? RECORD_LABEL[kind].title : pick?.name ?? '';
 
   async function answer() {
     if (busy) return;

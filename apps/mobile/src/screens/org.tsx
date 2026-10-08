@@ -50,7 +50,7 @@ import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
 import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, Examples, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow } from '../simple/admin';
-import { askedAgo, firstName, guideShortName, joinAnd, QUESTIONS, RECORD_LABEL, recordExamples, stepTitle, type RecordKind } from '../simple/adminModel';
+import { askedAgo, firstName, flowSub, guideShortName, joinAnd, QUESTIONS, RECORD_LABEL, recordExamples, stepTitle, type RecordKind } from '../simple/adminModel';
 import { useCheckChoices, useRecordChoices, type FlowEntry } from '../simple/choices';
 import { InviteSomeone } from '../simple/invite';
 import { languageOf, refKindOf } from '../reference/model';
@@ -1244,7 +1244,8 @@ export function NewLanguage(ctx: Ctx) {
   const flowCard = (e: FlowEntry) => {
     const on = flow === e;
     const from = e.c.source === 'shared' ? `from ${e.c.shared.org_name}` : sourceLine(e.c.item).replace(/^Following /, 'from ').replace(/ · .*$/, '');
-    const sub = e === chk.first ? `Suggested · ${from}` : e.doc.description || from;
+    // A long description would push the rest off the screen: then its number of checks says enough.
+    const sub = e === chk.first ? `Suggested · ${from}` : e.doc.description && e.doc.description.length <= 60 ? e.doc.description : `${flowSub(e.doc.steps)} · ${from}`;
     return (
       <ChoiceCard key={e.c.key} on={on} icon="route" title={e.c.name} sub={sub} onPress={() => setFlowKey(e.c.key)}>
         {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
