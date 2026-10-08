@@ -270,11 +270,12 @@ export function PassageRecord(ctx: Ctx) {
       : type === 'keep' ? 'Undone — the feedback is waiting again' : "Brought back — it's a suggested step again");
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), 'Request withdrawn');
 
-  // One main button for the person's own next step (demo ADR-033): record before the first version,
-  // a new version once every step is complete; between those the next step's card on the path holds it.
-  // Everything else is one labelled tap away: Something else? and Versions and history.
-  const mainBtn = can.record && !answersMine && (!p.recorded || p.done)
-    ? <PrimaryBtn label={myDraft ? 'Continue recording' : p.recorded ? 'New version' : 'Record'} icon="mic" onPress={() => go('workspace')} />
+  // One main button for the person's own next step (demo ADR-033): the next step's card on the path holds it,
+  // and the footer only once every step is complete. Everything else is one labelled tap away:
+  // Something else? and Versions and history.
+  // Before the first version the path's own card holds Record it; once every step is complete, New version is here.
+  const mainBtn = can.record && !answersMine && p.recorded && p.done
+    ? <PrimaryBtn label={myDraft ? 'Continue recording' : 'New version'} icon="mic" onPress={() => go('workspace')} />
     : null;
   const footer = (
     <View style={{ gap: space.xs }}>
