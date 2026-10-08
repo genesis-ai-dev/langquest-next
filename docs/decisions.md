@@ -1972,6 +1972,25 @@ device, notes on a key term, and side-by-side panes on wide windows.
 Reverse if: field tests show translators miss what moved behind "Something
 else?" or "Versions and history", or admins need the Setup list back.
 
+Amended (2026-10-08, Caleb Koster): Review it and back translation are the
+agreed screens (`screens/review.tsx`, `simple/review.tsx`,
+`simple/btWorkspace.tsx`). Review it is Listen, Questions (one per screen),
+Decide, then "What should change?" voice first; Background is one sheet
+(the passage in the Bible the translator used, the team's study, notes, key
+words, earlier checks). No new events; existing fields carry the new parts:
+- A note at a moment of the version is a review artifact with `atMs`, as on
+  review links.
+- An answer said aloud is a review artifact too; `answers` stay text and
+  name it ("Said aloud · 0:14 · recording 1"). Tying a clip to its question
+  exactly would need a `questionId` on Card (core, SQL `_is_cards`, a
+  migration), not done.
+- A note on the Bible in Background is a verse note (`verse`, `translation`,
+  `at`), as the study and the recorder leave.
+- Back translation is said part by part against the parts of the version;
+  each piece carries the moment its part starts (`atMs`), which
+  `produceContent` now keeps, so the consultant can pair them. Part cards
+  say "Part n" until parts have verse labels.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: accepted

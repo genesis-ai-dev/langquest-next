@@ -21,6 +21,12 @@ Also built: the review group first in Ask someone, Choose books in New
 Language, and a new role while inviting or admitting someone (Caleb,
 2026-10-08).
 
+Built on branch `caleb-simple-review` (decision 71, amended): pages 09
+Review (Listen, one question per screen, Decide, "What should change?",
+Background as one sheet, Already happened behind the same screens) and 10
+Back translation (the workspace with only the version on top, part by
+part).
+
 Not built yet: 5 (which Bible was playing per take), 6's term notes, 7's
 verse-group cards and side-by-side wide panes, 8 (microphone setup), and
 spoken help lines on devices.

@@ -22,7 +22,7 @@ import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { useHelpPress } from '../helpContext';
 import { indexesFor } from '../indexes';
-import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, txt } from '../kit';
+import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, txt, useLayout } from '../kit';
 import { passageCrumbs, versionTitle, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { backParts, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from '../recording/backTranslationParts';
@@ -44,6 +44,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const produces = kind.produces!;
   const me = ctx.session.actorId;
   const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
+  // A wide window names the passage in the crumbs above the title.
+  const wide = useLayout().kind !== 'phone';
   const drafts = useBackTranslationDraft(backTranslationDraftKey({ languageId, actorId: me, unitId, kindId: kind.id }), of.takeId);
   const unsaved = useMemo(() => unsavedParts(state, drafts.draft), [state, drafts.draft]);
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
@@ -143,7 +145,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={`${capitalize(produces.what)} · into ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />}
+      header={wide
+        ? <Header title={capitalize(produces.what)} sub={`${v.language} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />
+        : <Header title={v.title} sub={`${capitalize(produces.what)} · into ${produces.into}`} onBack={ctx.back} close />}
       footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>

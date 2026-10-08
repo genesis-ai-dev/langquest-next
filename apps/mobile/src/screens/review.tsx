@@ -33,7 +33,7 @@ import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt
+  Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout
 } from '../kit';
 import { passageCrumbs, passageView as passageViewOf, plural, usePassage, versionTitle, type PassageView } from '../passageView';
 import { problemText } from '../recording/parts';
@@ -118,6 +118,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   const [momentAt, setMomentAt] = useState<number | null>(null);
+  // A wide window names the passage in the crumbs above the title, so the title is the kind.
+  const wide = useLayout().kind !== 'phone';
 
   const version = v ? versionFor(v.p, takeId) : undefined;
   const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
@@ -144,13 +146,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     );
   }
   const crumbs = passageCrumbs(ctx, v, logged ? 'Already happened' : 'Review it');
-  const sub = logged ? `${kindLabel(kind.name)} · already happened` : kindLabel(kind.name);
+  const sub = wide ? (logged ? 'Already happened' : v.language) : logged ? `${kindLabel(kind.name)} · already happened` : kindLabel(kind.name);
+  const title = wide ? kind.name : v.title;
   if (!version) {
-    return <Screen header={<Header title={v.title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}><EmptyState icon="mic" title="There's no recording to review yet." sub="Once a version is published, it can be reviewed here." /></Screen>;
+    return <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}><EmptyState icon="mic" title="There's no recording to review yet." sub="Once a version is published, it can be reviewed here." /></Screen>;
   }
   if (!logged && kind.produces) {
     return (
-      <Screen header={<Header title={v.title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}>
+      <Screen header={<Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />}>
         <EmptyState icon="swap" title={`${kind.name} makes a recording`} sub={`It isn't a verdict, so it isn't reviewed here. Use ${kind.produces.action} on the passage's record.`} />
       </Screen>
     );
@@ -436,10 +439,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   );
 
   const header = why ? (
-    <Header title={v.title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} />
+    <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} />
   ) : (
     <>
-      <Header title={v.title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />
+      <Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close />
       <StepStrip stages={stages} at={at} onGo={goStage} />
     </>
   );
