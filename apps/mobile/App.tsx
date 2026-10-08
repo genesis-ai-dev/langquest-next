@@ -1,6 +1,7 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { HelpModeProvider, useScreenIntro } from './src/helpMode';
 import { HelpScopeContext } from './src/helpContext';
+import { stopAudioPlayback } from './src/audioSession';
 import { highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
@@ -139,6 +140,13 @@ function hostFor(id: ScreenId) {
     // What the screen is for, said the first time it opens (decision 71, demo a-helpFirst).
     const focused = useFocusedSafe();
     useScreenIntro(id, focused);
+    // Playback belongs to the screen it started on: leaving it (another screen pushed over it, or a tab
+    // switched away) stops whatever was playing. Popping back unmounts the screen, and its players with it.
+    const wasFocused = useRef(focused);
+    useEffect(() => {
+      if (wasFocused.current && !focused) stopAudioPlayback();
+      wasFocused.current = focused;
+    }, [focused]);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;
