@@ -1972,6 +1972,26 @@ device, notes on a key term, and side-by-side panes on wide windows.
 Reverse if: field tests show translators miss what moved behind "Something
 else?" or "Versions and history", or admins need the Setup list back.
 
+Amended (2026-10-08, Caleb Koster): Home, the tabs, the Map and Me now look
+like the agreed design, not only relabelled. The tabs are Work, Map, Manage
+(admins) and Me, with no count on Work; the bell carries the unread count.
+My Work leads with one "Next for you" card (Start opens the passage for
+recording and feedback, Review it for a check, the back translation for
+one), then "Then" (three rows, the rest one tap on) and "Waiting on others"
+and "Opened lately" as quiet links that open in place. Getting started is
+gone (help mode and the Get ready card replace it); a coordinator's Home
+leads with "Get ‹language› ready · n of 4" and the next question, which opens
+the Get ready screen at that question (`step` 1 to 4), with join requests and
+checks asked of them under it. The sync chip shows only when work waits to
+send, the device is offline or sync is refused. A language's map is search,
+"Next", testament pills and one row per book with a bar and "25/97"; the stat
+tiles, filters and template and flow are behind "Filter". A book's chapters
+show three states (done ✓, started •, not started), the seven-tone key one tap
+deeper. Settings is Me: name, Ready for offline, Set up the microphone, How
+LangQuest works, More settings, then Sign out; More settings holds the rest,
+including Delete account (decision 56's "Settings" row; the deletion page and
+store declarations now say Me → More settings → Delete account).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: accepted

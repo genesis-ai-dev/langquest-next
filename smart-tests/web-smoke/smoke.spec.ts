@@ -44,7 +44,8 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, 'input[aria-label="Language name"]').fill('Dinka');
   await vis(page, 'input[aria-label="Language code"]').fill('din');
   await button(page, 'Create Language').click();
-  await expect(page.getByText('Get Dinka ready', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+  // A new language leads My Work with its Get ready card (decision 71): "Get Dinka ready · 1 of 4".
+  await expect(page.getByText(/^Get Dinka ready/).first()).toBeVisible({ timeout: 60_000 });
 }
 
 /** Every file the app's own stores hold in this site's private files (apps/mobile/src/webFiles.ts). */
@@ -163,8 +164,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
   expect(serious.map((v) => `${v.id}: ${v.nodes.length}`), 'axe: serious or critical').toEqual([]);
 
   // Sign out: this browser keeps nothing (decisions.md 11, amended).
-  await second.getByRole('tab', { name: 'Settings' }).click();
-  await button(second, /^Sign Out/).click();
+  await second.getByRole('tab', { name: 'Me' }).click();
+  await button(second, /^Sign out/i).click();
   // Forgetting ends with a fresh page. The signed-out screen shows before
   // that, while the databases are still being deleted (slow in WebKit).
   const forgotten = second.waitForEvent('load', { timeout: 60_000 });

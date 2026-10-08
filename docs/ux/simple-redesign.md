@@ -83,5 +83,9 @@ These change what the app does, not only how it looks.
 - Review: Background is one tap from Listen; decide before giving feedback.
 - Back translation: the same workspace, part by part, with Back 10 s and a draggable timeline.
 - Map: books with a bar and a count, search and "Next" first; chapters in
-  three states, marked as well as coloured.
-- Settings (Me): five rows; the rest under More settings.
+  three states, marked as well as coloured. Built (decision 71, amended):
+  filters, counts and the full key behind "Filter".
+- Settings (Me): five rows; the rest under More settings. Built (decision
+  71, amended): `settings_more`, an app-only screen.
+- Home: "Next for you", "Then", "Waiting on others"; Get ready for
+  coordinators; tabs Work, Map, Manage, Me. Built (decision 71, amended).

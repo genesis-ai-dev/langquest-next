@@ -92,7 +92,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
   reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
   bible_explore: Sources.BibleExplore,
-  mic_setup: Simple.MicSetup, get_ready: Simple.GetReady
+  mic_setup: Simple.MicSetup, get_ready: Simple.GetReady,
+  settings_more: Account.SettingsMore
 };
 
 /**

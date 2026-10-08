@@ -1,76 +1,43 @@
-// My Work (ng-langquest-ux src/screens/work.tsx, MyWorkScreen with its
-// GettingStartedCard and UpNext cards). ONB-5, ONB-7, WORK-1..4; ADR-017,
-// ADR-009, ADR-022, ADR-023.
+// My Work, as the simple redesign has it (decision 71): Ryder's Home with the
+// app's tabs and the bell (ng-langquest-ux src/simple/translator.tsx, Home and
+// HomeCoord; demo ADR-032, ADR-039; SIMPLE-1). It still ports the demo's
+// MyWorkScreen: WORK-1..4, ONB-7; ADR-017, ADR-009, ADR-022, ADR-023.
 //
-// The one place that answers "what should I do next?" (ADR-017). Everything
-// on it is derived from the record: what someone asked of you, feedback on
-// your versions, your unsaved drafts, what you asked of others. Nothing here
-// gates the work; every passage is still reachable from the Map.
+// The one place that answers "what should I do next?" (ADR-017), with one
+// decision on the first screen: a "Next for you" card with Start, then a
+// short "Then" list, then "Waiting on others" one quiet tap away. A
+// coordinator's Home leads with "Get ‹language› ready" until the language is
+// (ADR-039, amended 2026-10-07), with join requests and checks asked of them
+// under it. Everything here is derived from the record: what someone asked of
+// you, feedback on your versions, your unsaved drafts, what you asked of
+// others. Nothing here gates the work; every passage is still reachable from
+// the Map. Getting started is gone: help mode (the ? in the header) explains
+// each part for field workers, and the Get ready card leads coordinators.
 import {
-  derivePassage, deriveFlow, deriveKinds, highlightsFor, languageName, membershipsOf, passageSummary, recommendedFor, unitTitle, upNext, waitingOn,
+  derivePassage, deriveKinds, highlightsFor, languageName, membershipsOf, passageSummary, recommendedFor, timeAgo, unitTitle, upNext, waitingOn,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { edgeFor, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
-import {
-  Card, GhostBtn, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SectionLabel, Segments, ShowMore, SmallBtn, StepMarks, txt, type IconName
-} from '../kit';
-import { dueText, feedbackSource, plural, when } from '../passageView';
+import { pendingRequests, type PendingRequest } from '../invites';
+import { Card, Group, Header, Ico, Row, Screen, SectionLabel, SmallBtn, StepMarks, txt, type IconName } from '../kit';
+import { dueText, when } from '../passageView';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
 import { edgeAllowed, mapScreenFor } from '../session';
-import { shadow } from '../shadow';
-import { C, radius, space, TINT } from '../theme';
+import { Bell, NextCard, QuietToggle, ReadyCard } from '../simple/home';
+import { nextSub, readiness, readySteps, THEN_CAP, workIcon, workSub, workTarget, workWhat, type Readiness } from '../simple/homeModel';
+import { C, space, TINT } from '../theme';
 
-const FOR_YOU_CAP = 5;
-const WAITING_CAP = 3;
 const RECENT_CAP = 5;
-/** How many more a "Show more" adds (ADR-009). */
-const MORE_STEP = 10;
 
 /** May My Work take this edge for this session? A screen never offers what it cannot do. */
 function canGo(ctx: Ctx, to: ScreenId): boolean {
   const edge = edgeFor('my_work', to);
   return !!edge && edgeAllowed(edge, ctx.session);
-}
-
-function highlightStyle(kind: Highlight['kind']): { icon: IconName; bg: string; fg: string; cta: string } {
-  switch (kind) {
-    case 'respond': return { icon: 'chat', bg: TINT.amber, fg: TINT.amberText, cta: 'Respond' };
-    case 'record': return { icon: 'mic', bg: C.light, fg: C.primary, cta: 'Record' };
-    case 'draft': return { icon: 'mic', bg: C.light, fg: C.primary, cta: 'Continue' };
-    case 'review': return { icon: 'check', bg: TINT.green, fg: TINT.greenText, cta: 'Review' };
-    case 'produce': return { icon: 'swap', bg: C.light, fg: C.primary, cta: 'Start' };
-  }
-}
-
-/** The demo's card wording for one highlight (domain/record.ts `highlightsFor`). */
-function highlightText(state: LanguageState, kinds: KindDef[], h: Highlight, name: Ctx['name']): { title: string; sub: string } {
-  const title = unitTitle(state, h.unitId);
-  const kind = (id?: string) => kinds.find((k) => k.id === id);
-  const asked = () => {
-    const r = h.request;
-    const who = r?.by ? `${name(r.by)} asked` : 'Asked of you';
-    return `${who}${r?.dueDate ? ` · ${dueText(r.dueDate)}` : ''}`;
-  };
-  switch (h.kind) {
-    case 'respond':
-      return { title: `Feedback on ${title}`, sub: `${kind(h.review?.kindId)?.name ?? 'Review'} · from ${h.review ? feedbackSource(h.review, (id) => name(id, true)) : 'a reviewer'}` };
-    case 'record':
-      return { title: `Record ${title}`, sub: asked() };
-    case 'review':
-      return { title: `${kind(h.request?.kindId)?.name ?? 'Review'} · ${title}`, sub: asked() };
-    case 'produce': {
-      const action = kind(h.request?.kindId)?.produces?.action.replace(/ it$/, '') ?? 'Start';
-      return { title: `${action} ${title}`, sub: asked() };
-    }
-    case 'draft':
-      return { title: `Continue ${title}`, sub: 'Recording started, not saved yet' };
-  }
 }
 
 /** "asked just now", "asked 2 h ago", "asked Sep 2". */
@@ -86,298 +53,75 @@ function waitingText(state: LanguageState, kinds: KindDef[], w: Waiting, name: C
   return { title: unitTitle(state, w.unitId), sub: `${what} · ${who} · ${r.dueDate ? dueText(r.dueDate) : `asked ${askedWhen(r.hlc)}`}` };
 }
 
-// ---- Getting started (ONB-5) -------------------------------------------------------
-
-interface StartRow {
-  id: string;
-  icon: IconName;
-  label: string;
-  sub: string;
-  /** Why it matters, shown while it is the next step. */
-  body: string;
-  done: boolean;
-  /** Waits on an earlier row. */
-  disabled?: boolean;
-  /** The next step's one button; absent when there is no way from here (the Map is a tab). */
-  action?: { label: string; onPress: () => void };
-}
-
-/** The card's hidden flag lives on this device; Settings › Getting started brings it back. */
-function useFirstDay(actorId: string, show: boolean): { hidden: boolean; hide: () => void } {
-  const key = `first-day-hidden:${actorId}`;
-  const [hidden, setHidden] = useState<boolean | null>(null);
-  useEffect(() => {
-    let live = true;
-    // The flag is a convenience on this device: if storage fails, the card shows
-    // (it can be hidden again), and nothing on the record is affected.
-    if (show) {
-      setHidden(false);
-      AsyncStorage.removeItem(key).catch((e: unknown) => noteExpected('my work: clear getting-started flag', e));
-      return;
-    }
-    AsyncStorage.getItem(key)
-      .then((v) => { if (live) setHidden(v === '1'); })
-      .catch((e: unknown) => { noteExpected('my work: read getting-started flag', e); if (live) setHidden(false); });
-    return () => { live = false; };
-  }, [key, show]);
-  const hide = useCallback(() => {
-    setHidden(true);
-    AsyncStorage.setItem(key, '1').catch((e: unknown) => noteExpected('my work: save getting-started flag', e));
-  }, [key]);
-  // Hidden until the flag is read, so the card never flashes.
-  return { hidden: hidden !== false, hide };
-}
-
 /** Everyone the organization has, at any scope, not counting removed members. */
 function memberCount(org: OrgState | null): number {
   if (!org) return 0;
   return Object.keys(org.members).filter((id) => membershipsOf(org, id).length > 0).length;
 }
 
-function startRows(ctx: Ctx, state: LanguageState): { title: string; promise: string; rows: StartRow[] } | null {
-  const s = ctx.session;
-  const idx = indexesFor(state);
-  const languageId = ctx.languageId;
-  const language = languageId ? languageName(ctx.org.state, languageId) : null;
-  const orgName = ctx.org.state?.org?.value.name ?? 'your organization';
-  const open = (to: ScreenId, label: string, params?: Record<string, string>) =>
-    canGo(ctx, to) ? { label, onPress: () => ctx.go(to, params) } : undefined;
-
-  if (s.isAdmin) {
-    // Getting a language ready is four plain questions (demo ADR-039), in the order an admin thinks:
-    // what they record (the template), what helps them (reference material), who checks (the flow),
-    // and the invite. Until a language exists, adding one comes first.
-    const languageDone = ctx.languages.length > 0;
-    const members = memberCount(ctx.org.state);
-    const teamDone = members > 1;
-    const lp = languageId ? { languageId } : undefined;
-    const helps = languageId ? recommendedFor(ctx.org.state?.recommendations, state).size : 0;
-    const rows: StartRow[] = [];
-    if (!languageDone) {
-      rows.push({
-        id: 'language', icon: 'globe', label: 'Add a language', done: false, sub: 'The language your team speaks',
-        body: `Which language will your first team record? It goes in ${orgName}.`, action: open('new_language', 'Add a language')
-      });
-    }
-    rows.push(
-      {
-        id: 'template', icon: 'template', label: 'What will they record?', disabled: !languageDone, done: !!(languageId && state.template),
-        sub: languageId && state.template ? 'Chosen · change any time' : 'Bible stories, chapters, or your own divisions',
-        body: 'Pick a ready-made set of passages, or divide the books your own way.',
-        action: open('templates_home', 'Choose', lp)
-      },
-      {
-        id: 'helps', icon: 'book', label: 'What will help them?', disabled: !languageDone, done: helps > 0,
-        sub: helps > 0 ? plural(helps, 'thing') + ' offered' : 'Bibles they understand, study guides, key words',
-        body: 'The Bibles and guides your translators will listen to and read beside their recording.',
-        action: open('reference_home', 'Choose', lp)
-      },
-      {
-        id: 'flow', icon: 'flow', label: 'Who checks the recordings?', disabled: !languageDone, done: !!(languageId && state.flow),
-        sub: languageId && state.flow ? deriveFlow(state).name : 'The checks a passage goes through',
-        body: 'Keep the suggested checks, or choose others. You can put people in each review group now or later.',
-        action: open('flows_home', 'Choose', lp)
-      },
-      {
-        id: 'invite', icon: 'people', label: 'Invite your translators', done: teamDone, disabled: !languageDone,
-        sub: teamDone ? plural(members, 'member') : 'Show them a code to scan',
-        body: 'No email or password needed. One code can be for a whole group.',
-        action: open('invite_qr', 'Show the code', lp) ?? open('invite_member', 'Invite')
-      }
-    );
-    return { title: language ? `Get ${language} ready` : `Get ${orgName} ready`, promise: 'Four questions. Then your translators can start.', rows };
-  }
-
-  const canRecord = s.can('translate');
-  const canReview = s.can('review');
-  if (!canRecord && !canReview) return null;
-  const rows: StartRow[] = [{
-    id: 'map', icon: 'map', label: 'Find your passages on the Map', done: ctx.recent.length > 0,
-    sub: language ? `Every passage in ${language}` : 'Every passage, and how far it has come',
-    body: `Every passage in ${language ?? 'your language'}, and how far each one has come.${canRecord ? ' Anyone can start one — no need to be asked.' : ''}`,
-    action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(s)) }
-  }];
-  if (canRecord) {
-    const mine = Object.values(state.submissions).some((x) => x.actorId === s.actorId);
-    const first = languageId && !mine ? upNext(state, { canRecord: true, canReview: false }, idx) : null;
-    const title = first ? unitTitle(state, first.unitId) : null;
-    rows.push({
-      id: 'record', icon: 'mic', label: 'Record your first passage', done: mine,
-      sub: mine ? 'Saved to the record' : 'Your first version, saved to the record',
-      body: title ? `Nobody has recorded ${title} yet. Open it and tap Record.` : 'Open any passage on the Map and tap Record.',
-      ...(first && languageId ? { action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, languageId) } } : {})
-    });
-  }
-  if (canReview) {
-    const mine = Object.values(state.kindReviews).some((r) => r.by === s.actorId);
-    const first = languageId && !mine ? upNext(state, { canRecord: false, canReview: true }, idx) : null;
-    const by = first ? derivePassage(state, first.unitId, idx).latest?.by : undefined;
-    const title = first ? unitTitle(state, first.unitId) : null;
-    rows.push({
-      id: 'review', icon: 'listen', label: 'Give your first review', done: mine,
-      sub: mine ? 'Saved to the record' : 'Listen, and say what you heard',
-      body: title ? `${by ? ctx.name(by) : 'Someone'} recorded ${title}, and nobody has checked it yet.` : 'When someone asks you to review, it shows here under For you.',
-      ...(first && languageId ? { action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, languageId) } } : {})
-    });
-  }
-  return {
-    title: language ? `Welcome to the ${language} team` : 'Welcome',
-    promise: "A few minutes, and you'll know your way around.",
-    rows
-  };
-}
-
-// The next step is open with its reason and one button; done steps are ticked;
-// later steps are dimmed and wait their turn.
-function GettingStartedCard(props: { title: string; promise: string; rows: StartRow[]; onHide: () => void }) {
-  const { rows } = props;
-  const done = rows.filter((r) => r.done).length;
-  const nextIndex = rows.findIndex((r) => !r.done && !r.disabled);
-  if (done === rows.length) {
-    return (
-      <View style={[styles.allSet]}>
-        <Ico name="check" size={22} color={TINT.greenText} />
-        <Text style={[txt.body, { flex: 1, fontWeight: '600', color: TINT.greenText }]}>You're all set · {done} of {rows.length} done</Text>
-        <SmallBtn label="Hide" onPress={props.onHide} />
-      </View>
-    );
-  }
-  return (
-    <View style={styles.startCard}>
-      <View style={styles.startHead}>
-        <Text style={[txt.label, { color: C.primary }]}>{done === 0 ? 'Getting started' : `${done} of ${rows.length} done — keep going`}</Text>
-        <Text style={txt.h2}>{props.title}</Text>
-        {done === 0 ? <Text style={txt.smMuted}>{props.promise}</Text> : null}
-        <View style={{ marginTop: space.xs }}>
-          <Segments total={rows.length} done={(i) => rows[i]!.done} current={nextIndex} />
-        </View>
-      </View>
-      {rows.map((r, i) => {
-        const isNext = i === nextIndex;
-        const num = (
-          <View style={[styles.num, r.done ? { backgroundColor: TINT.green } : isNext ? { backgroundColor: C.primary } : { backgroundColor: C.bg }]}>
-            {r.done ? <Ico name="check" size={22} color={TINT.greenText} />
-              : <Text style={[txt.h3, { color: isNext ? C.white : C.muted }]}>{i + 1}</Text>}
-          </View>
-        );
-        if (isNext) {
-          return (
-            <View key={r.id} style={styles.startRow}>
-              {num}
-              <View style={{ flex: 1, minWidth: 0, gap: space.md }}>
-                <View style={{ gap: 4 }}>
-                  <Text style={txt.h3}>{r.label}</Text>
-                  <Text style={txt.smMuted}>{r.body}</Text>
-                </View>
-                {r.action ? <View style={{ alignSelf: 'flex-start' }}><SmallBtn label={r.action.label} icon={r.icon} tone="primary" onPress={r.action.onPress} /></View> : null}
-              </View>
-            </View>
-          );
-        }
-        const tappable = r.done && r.action;
-        const body = (
-          <>
-            {num}
-            {/* Steps still to come read quieter, in the muted colour, never faded below 4.5:1 (WCAG AA). */}
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[txt.body, { fontWeight: '600', color: C.muted }]} numberOfLines={2}>{r.label}</Text>
-              <Text style={txt.smMuted} numberOfLines={1}>{r.sub}</Text>
-            </View>
-            {tappable ? <Ico name="right" size={20} color={C.muted} /> : null}
-          </>
-        );
-        return tappable ? (
-          <Pressable key={r.id} onPress={r.action!.onPress} accessibilityRole="button" style={({ pressed }) => [styles.startRow, styles.startRowCompact, pressed && { opacity: 0.7 }]}>
-            {body}
-          </Pressable>
-        ) : (
-          <View key={r.id} accessible accessibilityLabel={`${r.label}${r.done ? ', done' : ''}. ${r.sub}`} style={[styles.startRow, styles.startRowCompact]}>{body}</View>
-        );
-      })}
-      <Pressable onPress={props.onHide} accessibilityRole="button" style={({ pressed }) => [styles.hide, pressed && { opacity: 0.6 }]}>
-        <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>Hide this — find it again in Settings</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-// ---- cards and rows ------------------------------------------------------------------
-
-function AskCard(props: { icon: IconName; bg: string; fg: string; title: string; sub: string; cta: string; onPress: () => void }) {
-  return (
-    <Card onPress={props.onPress} accessibilityLabel={`${props.title}. ${props.sub}. ${props.cta}`} style={styles.ask}>
-      <View style={[styles.tile, { backgroundColor: props.bg }]}><Ico name={props.icon} size={24} color={props.fg} /></View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
-        <Text style={[txt.smMuted, { marginTop: 2 }]}>{props.sub}</Text>
-      </View>
-      <View style={[styles.cta, { backgroundColor: props.bg }]}>
-        <Text style={[txt.sm, { fontWeight: '700', color: props.fg }]}>{props.cta}</Text>
-      </View>
-    </Card>
-  );
+/**
+ * The open language's four questions (demo ADR-039), for those who get a
+ * language ready: an admin who may take My Work to Get ready. Null for
+ * everyone else.
+ */
+function readyFor(ctx: Ctx, state: LanguageState): Readiness | null {
+  if (!ctx.session.isAdmin || !ctx.languageId || !canGo(ctx, 'get_ready')) return null;
+  return readiness(readySteps({
+    template: !!state.template,
+    helps: recommendedFor(ctx.org.state?.recommendations, state).size,
+    flow: !!state.flow,
+    members: memberCount(ctx.org.state)
+  }));
 }
 
 /**
- * The first thing waiting on you, as one large card with one button (demo
- * NextHighlight; Hick's law: the likely choice is the obvious one). The rest
- * of For you follows as ordinary cards.
+ * People asking to join, for those who may let them in (the existing Assign
+ * role & accept, in Edit Member). Read from the server; offline the list is
+ * empty and the bell still counts them. Read again when the bell's count
+ * moves, which it does when someone asks or is decided.
  */
-function NextCard(props: { icon: IconName; bg: string; fg: string; title: string; sub: string; cta: string; onPress: () => void }) {
-  return (
-    <View style={styles.next}>
-      <Text style={[txt.label, { color: C.primary }]}>Next</Text>
-      <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
-        <View style={[styles.nextTile, { backgroundColor: props.bg }]}><Ico name={props.icon} size={28} color={props.fg} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={txt.title}>{props.title}</Text>
-          <Text style={[txt.smMuted, { marginTop: 2 }]}>{props.sub}</Text>
-        </View>
-      </View>
-      <PrimaryBtn label={props.cta} icon={props.icon} onPress={props.onPress} />
-    </View>
-  );
+function useJoinRequests(ctx: Ctx): PendingRequest[] {
+  const may = ctx.session.can('invite_members') && canGo(ctx, 'edit_member');
+  const orgId = ctx.language.orgId;
+  const tick = ctx.inbox.unread;
+  const [rows, setRows] = useState<PendingRequest[]>([]);
+  useEffect(() => {
+    if (!may) { setRows([]); return; }
+    let live = true;
+    pendingRequests(orgId).then((r) => { if (live) setRows(r); }).catch((e: unknown) => noteExpected('my work join requests', e));
+    return () => { live = false; };
+  }, [may, orgId, tick]);
+  const decided = ctx.org.state?.joinDecisions ?? {};
+  return rows.filter((r) => !decided[r.id]);
 }
 
-/**
- * Updates (demo bell): replaces the Inbox tab for people with a My Work. The
- * count is what the Inbox tab used to show: unread updates, open reports and
- * people asking to join.
- */
-function Bell(props: { count: number; onPress: () => void }) {
-  return (
-    <View>
-      <IconBtn name="notif" label={props.count ? `Updates, ${props.count} new` : 'Updates'} onPress={props.onPress} />
-      {props.count > 0 ? (
-        <View style={[styles.bellBadge, { pointerEvents: 'none' }]}>
-          <Text style={[txt.xsStrong, { color: C.white }]}>{props.count > 99 ? '99+' : props.count}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function UpNextCard(props: { icon: IconName; title: string; sub: string; action?: { label: string; onPress: () => void } }) {
-  return (
-    <Card>
-      <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
-        <View style={[styles.tile, { backgroundColor: C.light }]}><Ico name={props.icon} size={24} color={C.primary} /></View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
-          <Text style={[txt.smMuted, { marginTop: 2 }]}>{props.sub}</Text>
-        </View>
-      </View>
-      {props.action ? <GhostBtn label={props.action.label} onPress={props.action.onPress} /> : null}
-    </Card>
-  );
-}
-
-/** The sync state, small, beside the title: what is still on this phone only, and whether the live channel is up. */
+/** The sync state, small, beside the bell, only when it needs noticing: work still on this device, offline, or refused. */
 function SyncChip(ctx: Ctx) {
   const p = ctx.language;
-  const label = p.pending > 0 ? `${p.pending.toLocaleString('en-US')} to send` : p.online === false ? 'Offline' : p.live ? 'Live' : 'Saved';
   if (!canGo(ctx, 'sync_status')) return null;
+  const label = p.refused ? 'Not syncing' : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} to send` : p.online === false ? 'Offline' : null;
+  if (!label) return null;
   return <SmallBtn icon="cloud" label={label} onPress={() => ctx.go('sync_status')} />;
+}
+
+interface WorkItem {
+  id: string;
+  icon: IconName;
+  tone: 'brand' | 'amber';
+  title: string;
+  sub: string;
+  onPress: () => void;
+}
+
+function WorkRows(props: { items: WorkItem[] }) {
+  return (
+    <Group>
+      {props.items.map((it, i) => (
+        <Row key={it.id} icon={it.icon} label={it.title} sub={it.sub} last={i === props.items.length - 1} onPress={it.onPress}
+          iconBg={it.tone === 'amber' ? TINT.amber : C.light} iconColor={it.tone === 'amber' ? TINT.amberText : C.primary} />
+      ))}
+    </Group>
+  );
 }
 
 // ---- the screen -------------------------------------------------------------------------
@@ -387,9 +131,10 @@ export function MyWork(ctx: Ctx) {
   const actorId = ctx.session.actorId;
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');
-  const [forYouShown, setForYouShown] = useState(FOR_YOU_CAP);
-  const [waitingShown, setWaitingShown] = useState(WAITING_CAP);
-  const firstDay = useFirstDay(actorId, ctx.params['showGettingStarted'] === '1');
+  const waitingOpen = ctx.details('work:waiting');
+  const recentOpen = ctx.details('work:recent');
+  const [moreShown, setMoreShown] = useState(false);
+  const joins = useJoinRequests(ctx);
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
@@ -407,9 +152,10 @@ export function MyWork(ctx: Ctx) {
   }, [state, actorId, canRecord, canReview, ctx.recent, languageId]);
 
   const orgName = ctx.org.state?.org?.value.name ?? '';
+  const language = languageId ? languageName(ctx.org.state, languageId) : '';
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
-    <Header title="My Work" sub={orgName || undefined}
+    <Header title="My Work" sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
       action={<View style={styles.headerActions}><SyncChip {...ctx} />{bell}</View>} />
   );
   if (!state || !lists) {
@@ -417,87 +163,133 @@ export function MyWork(ctx: Ctx) {
   }
 
   const { forYou, waiting, recent, kinds } = lists;
-  const start = firstDay.hidden ? null : startRows(ctx, state);
-  const setupOpen = !!start && ctx.session.isAdmin && start.rows.some((r) => !r.done);
+  const idx = indexesFor(state);
 
-  function openHighlight(h: Highlight, languageId: string) {
+  function open(h: Highlight, languageId: string) {
     const base: Record<string, string> = { unitId: h.unitId, languageId };
     const requestId: Record<string, string> = h.request ? { requestId: h.request.id } : {};
     const kindId: Record<string, string> = h.request?.kindId ? { kindId: h.request.kindId } : {};
-    if (h.kind === 'record' && canGo(ctx, 'workspace')) return ctx.go('workspace', { ...base, ...requestId });
-    if (h.kind === 'draft' && canGo(ctx, 'workspace')) return ctx.go('workspace', base);
-    if (h.kind === 'review' && canGo(ctx, 'review_capture')) return ctx.go('review_capture', { ...base, ...kindId, ...requestId });
-    if (h.kind === 'produce' && canGo(ctx, 'back_translation')) return ctx.go('back_translation', { ...base, ...kindId, ...requestId });
+    const target = workTarget(h.kind);
+    if (target === 'review' && canGo(ctx, 'review_capture')) return ctx.go('review_capture', { ...base, ...kindId, ...requestId });
+    if (target === 'back_translation' && canGo(ctx, 'back_translation')) return ctx.go('back_translation', { ...base, ...kindId, ...requestId });
     ctx.openPassage(h.unitId, languageId);
   }
 
-  // ONB-7: something real to do when nothing is waiting, instead of an empty list.
-  const suggestions: { id: string; icon: IconName; title: string; sub: string; action?: { label: string; onPress: () => void } }[] = [];
-  if (forYou.length === 0 && !setupOpen && languageId) {
-    const language = languageName(ctx.org.state, languageId);
-    const idx = indexesFor(state);
-    if (ctx.session.isAdmin && !canRecord && !canReview) {
-      const first = upNext(state, { canRecord: true, canReview: false }, idx);
-      if (first) {
-        const title = unitTitle(state, first.unitId);
-        suggestions.push({ id: 'first', icon: 'mic', title: `Get ${language} started`, sub: `Ask someone to record ${title} — or let your team pick any passage.`,
-          action: { label: `Open ${title}`, onPress: () => ctx.openPassage(first.unitId, languageId) } });
-      }
-      suggestions.push({ id: 'map', icon: 'progress', title: 'See how every language is doing', sub: 'Recorded, checked, done — for each language, as your teams work.',
-        action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(ctx.session)) } });
-    } else {
-      const next = upNext(state, { canRecord, canReview }, idx);
-      if (next) {
-        const title = unitTitle(state, next.unitId);
-        const open = { label: 'Open it', onPress: () => ctx.openPassage(next.unitId, languageId) };
-        if (next.kind === 'record') {
-          suggestions.push({ id: 'record', icon: 'mic', title: `Start ${title}`, sub: "Nobody has recorded it yet. You don't need to be asked — anyone on the team can start.", action: open });
-        } else {
-          const by = derivePassage(state, next.unitId, idx).latest?.by;
-          suggestions.push({ id: 'listen', icon: 'play', title: `Listen to ${title}`, sub: `${by ? ctx.name(by) : 'Someone'} recorded it, and nobody has checked it yet.`, action: open });
-        }
-      }
-      suggestions.push({ id: 'map', icon: 'map', title: `Everything in ${language}`, sub: "Every passage, and how far it's come.",
-        action: { label: 'Open the Map', onPress: () => ctx.go(mapScreenFor(ctx.session)) } });
+  /** One highlight's words: the passage, what to do, who asked and when it is due. */
+  function words(h: Highlight): { title: string; what: string; by?: string; due?: string } {
+    const r = h.request;
+    const kindName = r?.kindId ? kinds.find((k) => k.id === r.kindId)?.name : undefined;
+    return {
+      title: unitTitle(state!, h.unitId),
+      what: workWhat(h.kind, kindName),
+      ...(h.kind === 'respond' && h.review ? {} : r?.by ? { by: ctx.name(r.by) } : {}),
+      ...(r?.dueDate ? { due: dueText(r.dueDate) } : {})
+    };
+  }
+
+  const toItem = (h: Highlight, languageId: string): WorkItem => {
+    const w = words(h);
+    const look = workIcon(h.kind);
+    // Feedback says who it came from in the passage itself; the row stays short (demo Then list).
+    const sub = h.kind === 'respond' ? w.what : workSub(w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) });
+    // A check asked of you reads as one (demo HomeCoord: "Check Luke 1:1–4"); the rest by the passage alone.
+    return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? `Check ${w.title}` : w.title, sub, onPress: () => open(h, languageId) };
+  };
+  const joinItems: WorkItem[] = joins.map((r) => ({
+    id: `join:${r.id}`, icon: 'people', tone: 'brand',
+    title: `${r.name ?? ctx.name(r.profileId)} wants to join`,
+    sub: r.message.trim() || `Asked ${timeAgo(r.createdAt, Date.now())}`,
+    onPress: () => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, ...(r.name ? { name: r.name } : {}), ...(r.message ? { message: r.message } : {}) })
+  }));
+
+  // ---- the lead card: Get ready, the next thing for you, or a good place to start ----
+  const ready = readyFor(ctx, state);
+  const getReady = ready && ready.next ? ready : null;
+  const addLanguage = !languageId && ctx.session.isAdmin && canGo(ctx, 'new_language');
+  const isAdminOnly = ctx.session.isAdmin && !canRecord && !canReview;
+  let lead: React.JSX.Element | null = null;
+  let rest: Highlight[] = forYou;
+  let suggested = false;
+  if (addLanguage) {
+    lead = <NextCard label={`Get ${orgName || 'your organization'} ready`} title="Add a language" sub="The language your team speaks"
+      cta="Add a language" onPress={() => ctx.go('new_language')} />;
+  } else if (getReady && languageId) {
+    lead = <ReadyCard language={language} done={getReady.done} total={getReady.total} question={getReady.next!.question}
+      onChoose={() => ctx.go('get_ready', { languageId, step: String(getReady.step) })} />;
+  } else if (forYou.length > 0 && languageId) {
+    const first = forYou[0]!;
+    const w = words(first);
+    rest = forYou.slice(1);
+    lead = <NextCard label="Next for you" title={w.title} cta="Start" onPress={() => open(first, languageId)}
+      sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })} />;
+  } else if (languageId) {
+    // ONB-7: something real to do when nothing is waiting, instead of an empty list.
+    const next = upNext(state, isAdminOnly ? { canRecord: true, canReview: false } : { canRecord, canReview }, idx);
+    if (next) {
+      suggested = true;
+      const title = unitTitle(state, next.unitId);
+      const by = next.kind === 'review' ? derivePassage(state, next.unitId, idx).latest?.by : undefined;
+      const sub = isAdminOnly ? 'Nobody has recorded it yet · ask someone, or let your team pick any passage'
+        : next.kind === 'record' ? "Nobody has recorded it yet · you don't need to be asked"
+        : `${by ? ctx.name(by) : 'Someone'} recorded it · nobody has checked it yet`;
+      lead = <NextCard label={isAdminOnly ? `Get ${language} started` : 'A good place to start'} title={title} sub={sub}
+        cta={isAdminOnly ? 'Open it' : 'Start'} onPress={() => ctx.openPassage(next.unitId, languageId)} />;
     }
   }
 
-  const shownForYou = forYou.slice(0, forYouShown);
-  const shownWaiting = waiting.slice(0, waitingShown);
+  const items = [...joinItems, ...(languageId ? rest.map((h) => toItem(h, languageId)) : [])];
+  const shown = moreShown ? items : items.slice(0, THEN_CAP);
+  const listLabel = lead && !getReady && !addLanguage && !suggested ? 'Then' : 'Also for you';
+  const nothing = !lead && items.length === 0;
+  const map = () => ctx.go(mapScreenFor(ctx.session));
 
   return (
     <Screen header={header}>
-      {start ? <GettingStartedCard {...start} onHide={firstDay.hide} /> : null}
-
-      <SectionLabel label={`For you${forYou.length ? ` · ${forYou.length}` : ''}`} />
-      {forYou.length === 0 && suggestions.length > 0 ? (
-        <>
-          <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Nobody has asked you for anything yet. Here's a good place to start:</Text>
-          {suggestions.map(({ id, ...u }) => <UpNextCard key={id} {...u} />)}
-        </>
-      ) : forYou.length === 0 ? (
-        <Card style={styles.ask}>
+      {lead}
+      {nothing ? (
+        <Card style={styles.caughtUp}>
           <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={24} color={TINT.greenText} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.body, { fontWeight: '600' }]}>Nothing is waiting on you</Text>
+            <Text style={[txt.body, { fontWeight: '700' }]}>Nothing is waiting on you</Text>
             <Text style={[txt.smMuted, { marginTop: 2 }]}>
               {ctx.session.isAdmin ? 'Set up people, languages and review flows under Manage, or find any passage on the Map.' : 'Find any passage on the Map to keep going.'}
             </Text>
           </View>
         </Card>
-      ) : languageId ? shownForYou.map((h, i) => {
-        const st = highlightStyle(h.kind);
-        const t = highlightText(state, kinds, h, ctx.name);
-        if (i === 0) {
-          return <NextCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={t.sub} onPress={() => openHighlight(h, languageId)} />;
-        }
-        return <AskCard key={h.id} icon={st.icon} bg={st.bg} fg={st.fg} cta={st.cta} title={t.title} sub={t.sub} onPress={() => openHighlight(h, languageId)} />;
-      }) : null}
-      <ShowMore remaining={forYou.length - forYouShown} step={MORE_STEP} onMore={() => setForYouShown((n) => n + MORE_STEP)} />
+      ) : null}
 
-      {recent.length > 0 ? (
+      {items.length > 0 ? (
         <>
-          <SectionLabel label="Recent" />
+          <SectionLabel label={listLabel} />
+          <WorkRows items={shown} />
+          {items.length > THEN_CAP ? (
+            <QuietToggle label={moreShown ? 'Fewer' : `${items.length - THEN_CAP} more for you`} open={moreShown} onPress={() => setMoreShown((v) => !v)} />
+          ) : null}
+        </>
+      ) : null}
+
+      {/* The less likely ways on, each one labelled tap away (demo ADR-032): what you asked of others, what you opened lately, the whole map. */}
+      <View style={styles.quietLinks}>
+        {waiting.length > 0 && languageId ? (
+          <QuietToggle label={`Waiting on others · ${waiting.length}`} open={waitingOpen.open} onPress={waitingOpen.onToggle}
+            detail="What you asked of someone else that is not done yet." />
+        ) : null}
+        {waitingOpen.open && waiting.length > 0 && languageId ? (
+          <Group>
+            {waiting.map((w, i) => {
+              const t = waitingText(state, kinds, w, ctx.name);
+              return (
+                <Row key={w.id} icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === waiting.length - 1}
+                  label={t.title} sub={t.sub} onPress={() => ctx.openPassage(w.unitId, languageId)} />
+              );
+            })}
+          </Group>
+        ) : null}
+        {recent.length > 0 ? (
+          <QuietToggle label={`Opened lately · ${recent.length}`} open={recentOpen.open} onPress={recentOpen.onToggle}
+            detail="Passages you opened lately, to pick up where you were." />
+        ) : null}
+        {recentOpen.open && recent.length > 0 ? (
           <Group>
             {recent.map((r, i) => (
               <Row key={`${r.unitId}:${r.languageId}`} icon="history" iconColor={C.muted} iconBg={C.bg} last={i === recent.length - 1}
@@ -509,43 +301,21 @@ export function MyWork(ctx: Ctx) {
                 onPress={() => ctx.openPassage(r.unitId, r.languageId)} />
             ))}
           </Group>
-        </>
-      ) : null}
-
-      {waiting.length > 0 && languageId ? (
-        <>
-          <SectionLabel label={`Waiting on others · ${waiting.length}`} />
-          <Group>
-            {shownWaiting.map((w, i) => {
-              const t = waitingText(state, kinds, w, ctx.name);
-              return (
-                <Row key={w.id} icon="clock" iconColor={C.muted} iconBg={C.bg} last={i === shownWaiting.length - 1}
-                  label={t.title} sub={t.sub} onPress={() => ctx.openPassage(w.unitId, languageId)} />
-              );
-            })}
-          </Group>
-          <ShowMore remaining={waiting.length - waitingShown} step={MORE_STEP} onMore={() => setWaitingShown((n) => n + MORE_STEP)} />
-        </>
-      ) : null}
+        ) : null}
+        {languageId && (forYou.length === 0 || nothing) ? (
+          <QuietToggle label={isAdminOnly ? 'See how every language is doing' : `Everything in ${language}`} onPress={map}
+            detail="Every passage, and how far it has come." />
+        ) : null}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  ask: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 76, paddingVertical: space.md },
-  next: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1.5, borderColor: C.primary, padding: space.lg, gap: space.md, ...shadow },
-  nextTile: { width: 56, height: 56, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center' },
-  tile: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  cta: { borderRadius: radius.full, paddingHorizontal: space.md, paddingVertical: space.sm },
-  allSet: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: TINT.green, borderRadius: radius.xl, paddingLeft: space.lg, paddingRight: space.sm, paddingVertical: space.sm },
-  startCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1.5, borderColor: C.primary, overflow: 'hidden' },
-  startHead: { backgroundColor: C.light, paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.md, gap: 4 },
-  startRow: { flexDirection: 'row', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  startRowCompact: { alignItems: 'center', minHeight: 60, paddingVertical: space.md },
-  num: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  hide: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border }
+  caughtUp: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 76, paddingVertical: space.md },
+  tile: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  quietLinks: { gap: space.sm, paddingTop: space.xs }
 });
 
 export const contracts = contractsFor('my_work');

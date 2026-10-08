@@ -19,7 +19,9 @@ describe('UX flow coverage', () => {
       // More Bibles beside a passage (docs/reference-material.md).
       'bible_explore',
       // Microphone setup and getting a language ready (decision 71).
-      'mic_setup', 'get_ready'] as const;
+      'mic_setup', 'get_ready',
+      // Me keeps five rows; the rest of Settings is under More settings (decision 71).
+      'settings_more'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(TITLES[id]).toBeTruthy();
   });

@@ -42,7 +42,7 @@ First filled in: 2026-09-30, Caleb Koster, with Claude.
 | Field | Answer |
 | --- | --- |
 | Privacy policy | https://next.langquest.org/privacy (`apps/mobile/public/privacy.html`, served with the web app) |
-| Account deletion | https://next.langquest.org/delete-account (`apps/mobile/public/delete-account.html`); in the app, on a phone or the web: Settings → Delete account (decisions.md 46) |
+| Account deletion | https://next.langquest.org/delete-account (`apps/mobile/public/delete-account.html`); in the app, on a phone or the web: Me → More settings → Delete account (decisions.md 46; Settings became Me, decision 71) |
 
 ## App access
 

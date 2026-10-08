@@ -1,12 +1,14 @@
-// The Inbox and Settings tabs. Ports the demo's src/screens/account.tsx
+// The Inbox and the Me tab. Ports the demo's src/screens/account.tsx
 // (InboxHomeScreen, SettingsHomeScreen, ProfileEditScreen,
-// OrgSwitcherScreen, SignOutConfirmScreen); SyncStatus is app only (the
+// OrgSwitcherScreen, SignOutConfirmScreen); Settings is Me in the simple
+// redesign (decision 71; ng-langquest-ux src/simple/translator.tsx, Me), with
+// the rest under More settings (app only). SyncStatus is app only (the
 // local log, realtime state and transfers), as are the Send diagnostics
-// switch in Settings (docs/diagnostics.md), Delete Account (store
-// rules, decisions.md 46), and reports in the Inbox and Blocked people in
-// Settings (store rules, decisions.md 48).
-// Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 and ONB-5 (the
-// Settings rows back to them), CORE-12 (sign-out never strands work).
+// switch (docs/diagnostics.md), Delete Account (store rules, decisions.md
+// 46), and reports in the Inbox and Blocked people (store rules,
+// decisions.md 48).
+// Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 (the Me rows back to
+// them), CORE-12 (sign-out never strands work).
 import { signInName } from '../accounts';
 import { readHelp, type SignInHelp } from '../signInHelp';
 import { CommandError, decodeHlc, deriveKinds, kindOf, languageName, unitTitle, type Update } from '@langquest-next/core';
@@ -14,18 +16,20 @@ import type { SyncInspection } from '@langquest-next/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { accountOutbox, queueAccountAction } from '../accountData';
 import { deleteAccount } from '../accountDeletion';
 import { groupByRead, updateText } from '../accountText';
 import type { Ctx } from '../ctx';
-import { OfflineCard, offlineLine, useOfflineSummary } from '../offline';
+import { OfflineCard, useOfflineSummary } from '../offline';
+import { offlineCount, MORE_SETTINGS_SUB } from '../simple/meModel';
+import { useHelpPress } from '../helpContext';
 import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
 import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
 import { openReports } from '../moderationData';
 import { decideRequest, pendingRequests, type PendingRequest } from '../invites';
 import {
-  Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
+  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen,
   SectionLabel, Sheet, ShowMore, SmallBtn, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { cachedInbox, enableNotifications, refreshInbox, unregisterNotifications, type RemoteNotification } from '../notifications';
@@ -34,11 +38,10 @@ import { personLook } from '../people';
 import { noteExpected, reportError, failureMessage } from '../report';
 import { ReportActions } from '../reportSheet';
 import { contractsFor } from '../screenContracts';
-import { homeScreenFor } from '../session';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../handOver';
 import { supabase } from '../supabase';
-import { C, radius, space, tile, TINT, type as T } from '../theme';
+import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
 import { PersonAvatar } from '../UserChip';
@@ -357,10 +360,58 @@ function useHasPassword(): [boolean | null, () => void] {
   return [has, () => setTick((t) => t + 1)];
 }
 
-// ---- Settings (AUTH-7, AUTH-8, ONB-2, ONB-5) ------------------------------------------------------
+// ---- Me (AUTH-7, AUTH-8, ONB-2; decision 71) -------------------------------------------------------
 
-/** Account and app rows only; everything about running the org lives under Manage. */
+/**
+ * Me (the simple redesign, demo ADR-032): the five things people change, on
+ * one card, then Sign out. Everything else Settings had is under More
+ * settings, one labelled tap away; nothing about running the org is here
+ * (that lives under Manage).
+ */
 export function SettingsHome(ctx: Ctx) {
+  const names = useDisplayNames(ctx.session.actorId);
+  const s = ctx.session;
+  const name = names[s.actorId] ?? s.email?.split('@')[0] ?? 'You';
+  const offline = useOfflineSummary(ctx);
+  // The language's sync needs noticing when work is waiting to send: say so on More settings' row.
+  const p = ctx.language;
+  const moreSub = p.refused ? 'This account cannot sync · password, notifications, account'
+    : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} waiting to send · ${MORE_SETTINGS_SUB.toLowerCase()}` : MORE_SETTINGS_SUB;
+  return (
+    <Screen header={<Header title="Me" />}>
+      <Group>
+        <Row icon="user" label={name} sub="Name and photo" onPress={() => ctx.go('profile_edit')} />
+        {/* What comes along to the field, seen before a trip (decisions.md 61). */}
+        <Row icon="download" label="Ready for offline" sub={offlineCount(offline)} onPress={() => ctx.go('sync_status')} />
+        <Row icon="mic" label="Set up the microphone" sub="Say a sentence, pick what sounds best" onPress={() => ctx.go('mic_setup')} />
+        <Row icon="help" label="How LangQuest works" sub="Listen to a short tour" onPress={() => ctx.go('vision')} />
+        <Row icon="settings" label="More settings" sub={moreSub} onPress={() => ctx.go('settings_more')}
+          {...(p.pending > 0 ? { badge: String(p.pending) } : {})} last />
+      </Group>
+      <DangerLink label="Sign out" onPress={() => ctx.go('sign_out_confirm')} />
+    </Screen>
+  );
+}
+
+/** A red line of text for leaving (Sign out): plain, centred, 56pt, never louder than the card above it. */
+function DangerLink(props: { label: string; onPress: () => void }) {
+  const onPress = useHelpPress(props.label, 'Leaves this account on this device. Work not yet sent is kept until it is.', props.onPress);
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.label}
+      style={({ pressed }) => [styles.dangerLink, pressed && { opacity: 0.7 }]}>
+      <Text style={styles.dangerText}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
+// ---- More settings (AUTH-7, AUTH-8; decision 71) -------------------------------------------------
+
+/**
+ * Everything Settings had that Me does not lead with: the account, a
+ * password for a looked-after account, notifications, switching
+ * organization, sync, diagnostics, blocked people and deleting the account.
+ */
+export function SettingsMore(ctx: Ctx) {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [blockedOpen, setBlockedOpen] = useState(false);
   const diag = useDiagnosticsSwitch(ctx);
@@ -373,7 +424,6 @@ export function SettingsHome(ctx: Ctx) {
   useEffect(() => { void readHelp(s.actorId).then(setHelp); }, [s.actorId]);
   const name = names[s.actorId] ?? s.email?.split('@')[0] ?? 'You';
   const p = ctx.language;
-  const offline = useOfflineSummary(ctx);
   const syncSub = p.refused ? 'This account cannot sync this organization'
     : p.pending > 0 ? `${p.pending.toLocaleString('en-US')} ${p.pending === 1 ? 'change' : 'changes'} waiting to send`
     : p.live ? 'Live: changes arrive as they happen'
@@ -382,16 +432,9 @@ export function SettingsHome(ctx: Ctx) {
   // Switch Organization is always offered (it also starts a new one); with only one organization it says so.
   const orgs = useOrganizations(s.actorId).rows;
   const canSwitch = orgs === null || orgs.length > 1;
-  const advanced = ctx.details('settings:advanced');
   const blocked = ctx.blocks.ids.length;
-  // Unsent work is the one thing here that needs noticing, so it leads the summary.
-  const advancedSummary = [
-    p.pending > 0 || p.refused ? syncSub : 'Sync',
-    'diagnostics',
-    ...(blocked > 0 ? ['blocked people'] : [])
-  ].join(', ');
   return (
-    <Screen header={<Header title="Settings" />}>
+    <Screen header={<Header title="More settings" onBack={ctx.back} />}>
       <Card>
         <View style={styles.profile}>
           <PersonAvatar look={personLook(s.actorId, name)} size={52} />
@@ -413,9 +456,7 @@ export function SettingsHome(ctx: Ctx) {
           </View>
         ) : null}
       </Card>
-      {/* One list in the order people need it (Hick's law, ADR-029): their profile, help, the rare switch, then Sign Out. */}
       <Group>
-        <Row icon="user" label="Edit Profile" onPress={() => ctx.go('profile_edit')} />
         {/* For a shared phone: then they can sign back in after someone else has used it (decisions.md 59). */}
         {s.isManaged && hasPassword === false ? (
           <Row icon="lock" label="Set a password" sub="If other people use this device" onPress={() => ctx.go('profile_edit')} />
@@ -426,31 +467,21 @@ export function SettingsHome(ctx: Ctx) {
             void enableNotifications().then(() => setNotificationMessage('Notifications are on.')).catch((e: Error) => setNotificationMessage(e.message));
           }} />
         ) : null}
-        {homeScreenFor(s) === 'my_work' ? (
-          <Row icon="play" label="Getting started" sub="Your first-day checklist" onPress={() => ctx.go('my_work', { showGettingStarted: '1' })} />
-        ) : null}
-        {/* What comes along to the field, out of Advanced so it is seen before a trip (decisions.md 61). */}
-        <Row icon={offline && offline.kept > 0 && offline.ready === offline.kept ? 'onPhone' : 'notOnPhone'} label="Ready for offline" sub={offlineLine(offline)}
-          onPress={() => ctx.go('sync_status')} />
-        <Row icon="book" label="How LangQuest works" sub="A short tour, and help (?) on every screen" onPress={() => ctx.go('vision')} />
         {/* Always here: someone in one organization may start another (Switch Organization, then New organization). */}
         <Row icon="building" label="Switch Organization" sub={canSwitch ? `${orgName} (active)` : `${orgName} · or start a new one`} onPress={() => ctx.go('org_switcher')} last />
       </Group>
-      <View style={{ paddingTop: space.sm }}>
-        <GhostBtn label="Sign Out" tone="red" onPress={() => ctx.go('sign_out_confirm')} />
-      </View>
-      {/* Set once and rarely touched, behind one tap (progressive disclosure). App only: none of these is in the demo. */}
-      <Disclosure icon="settings" title="Advanced" summary={advancedSummary} open={advanced.open} onToggle={advanced.onToggle}>
+      <SectionLabel label="This device" />
+      <Group>
         <Row icon="cloud" label="Sync" sub={syncSub} badge={p.pending > 0 ? String(p.pending) : undefined} onPress={() => ctx.go('sync_status')} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label="Send diagnostics" sub="Sends speed and error reports, never recordings, what you type or names."
-          role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} />
+          role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
         {/* Store rules, decisions.md 48: shown once someone is blocked (blocking starts from the flag on what they made). */}
         {blocked > 0 ? (
-          <Row icon="block" label="Blocked people" sub={plural(blocked, 'person', 'people')} onPress={() => setBlockedOpen(true)} />
+          <Row icon="block" label="Blocked people" sub={plural(blocked, 'person', 'people')} onPress={() => setBlockedOpen(true)} last />
         ) : null}
-      </Disclosure>
-      {/* Store rules, decisions.md 46: kept where the store answers and the App Review notes say it is (Settings → Delete account), not under Advanced. */}
+      </Group>
+      {/* Store rules, decisions.md 46: the store answers and the App Review notes say Settings → Delete account; it is here, under Me › More settings. */}
       <Group>
         <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label="Delete account" sub="Your account and your name, for good"
           onPress={() => ctx.go('delete_account')} last />
@@ -927,7 +958,9 @@ const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile2: { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.lg, paddingHorizontal: space.sm, borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.card },
-  statValue: { fontSize: T.xl, fontWeight: '700' }
+  statValue: { fontSize: T.xl, fontWeight: '700' },
+  dangerLink: { minHeight: target.primary, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', paddingHorizontal: space.xl },
+  dangerText: { fontSize: T.base, fontWeight: '700', color: TINT.redText }
 });
 
-export const contracts = contractsFor('inbox_home', 'settings_home', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'delete_account', 'sync_status');
+export const contracts = contractsFor('inbox_home', 'settings_home', 'settings_more', 'profile_edit', 'org_switcher', 'sign_out_confirm', 'delete_account', 'sync_status');
