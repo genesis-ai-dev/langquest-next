@@ -1,6 +1,6 @@
 /**
  * `/r/<code>`: the page someone opens from a shared review link
- * (decisions.md 71, links.ts). No account, no app, nothing else on screen:
+ * (decisions.md 72, links.ts). No account, no app, nothing else on screen:
  * listen, say something at the moment it matters (as many voice clips as
  * needed, each pinned to where the audio was), choose looks good or needs
  * changes, and send under any name, which this browser remembers. Built for

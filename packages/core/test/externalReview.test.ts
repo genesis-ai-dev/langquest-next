@@ -5,7 +5,7 @@ import { foldLanguage } from '../src/reducer';
 import { validateEvent } from '../src/validate';
 
 /**
- * What leaves the team (decisions.md 71). A listening app plays, and a
+ * What leaves the team (decisions.md 72). A listening app plays, and a
  * partner releases, only a version someone actually approved; a review
  * through a shared link (recorded by whoever shared it) never clears a
  * checkpoint; and a release is a fact per version and channel.

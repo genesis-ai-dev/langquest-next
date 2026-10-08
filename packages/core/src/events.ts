@@ -28,7 +28,7 @@ export interface Card {
   format?: 'wav' | 'm4a';
   /**
    * For a review's artifact: the moment in the version it is about, in ms
-   * from the start (a listener's note "here", decisions.md 71). Absent: the
+   * from the start (a listener's note "here", decisions.md 72). Absent: the
    * whole version.
    */
   atMs?: number;
@@ -97,7 +97,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   'v1.FlowStepLinksSet': { stepId: string; allowed: boolean };
   /**
    * A distribution channel reports a version live, or taken down
-   * (decisions.md 71): "v3 is live in the EL app". A fact, not a verdict.
+   * (decisions.md 72): "v3 is live in the EL app". A fact, not a verdict.
    * Register per (version, channel).
    */
   'v1.VersionReleased': { takeId: string; channel: string; live: boolean; url?: string };

@@ -4,7 +4,7 @@ import { isRefusal, LINK_MAX_REVIEWS, parseLinkReview, type LinkSpec, type Revie
 import { readVoiceNote } from './voice';
 
 /**
- * Review links (decisions.md 71): someone who may send work to reviewers
+ * Review links (decisions.md 72): someone who may send work to reviewers
  * shares a link, on WhatsApp say, and anyone holding it hears one version
  * and answers for one kind with any name, on `/r/<code>` (reviewPage.ts).
  * The code is the only credential, so it is long and random, only its hash

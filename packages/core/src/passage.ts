@@ -353,7 +353,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     // A checkpoint is a hard stop: only approval given in the app clears it.
     // Answering its feedback sends it back to the reviewer, and a check
     // logged afterwards (which a translator may do) or a review through a
-    // shared link (recorded by whoever shared it, decisions.md 71) completes
+    // shared link (recorded by whoever shared it, decisions.md 72) completes
     // ordinary steps but never a checkpoint: moving past one without its
     // reviewer is an override, which needs its own permission (decision 29).
     const clears = (s: KindStatus) => s.state === 'approved' && s.review?.via === 'app';
@@ -863,7 +863,7 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
  * check or a shared link), or the kind was set aside, or the step overridden. `done` is
  * looser, since it reads each kind's latest review of any version, so a
  * re-recorded passage stays done while its new audio is still unheard.
- * What leaves the team (decisions.md 71) must be a version someone actually
+ * What leaves the team (decisions.md 72) must be a version someone actually
  * approved, so this is what the access-token API serves and may be released.
  */
 export function approvedVersion(s: PassageState): Version | null {
@@ -884,7 +884,7 @@ export function approvedVersion(s: PassageState): Version | null {
 }
 
 /**
- * May people share a link to review this step (decisions.md 71)? The
+ * May people share a link to review this step (decisions.md 72)? The
  * language's own setting, else any step but a checkpoint, which a link
  * review never clears.
  */

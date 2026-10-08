@@ -235,7 +235,7 @@ export const studyMarkKey = (unitId: string, guideId: string, stepId: string): s
 // ---- vocabulary that ships with the app --------------------------------------
 
 /**
- * Feedback from outside the team (decisions.md 71): a listener in a partner's
+ * Feedback from outside the team (decisions.md 72): a listener in a partner's
  * app, or someone on a shared link the sharer chose not to count toward the
  * step. In no flow, so it never completes or blocks a step; the passage's
  * record shows it like any other review, and "needs changes" asks for an

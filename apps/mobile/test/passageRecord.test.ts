@@ -267,6 +267,19 @@ describe('asking someone', () => {
     expect(rec.map((c) => c.profileId)).toEqual(['akol']);
   });
 
+  it('puts the review group for this check first, named, when admins have put people in it', () => {
+    const p = language();
+    record(p, 'v1', ['c1']);
+    const org = team([['nyibol', 'rev', { level: 'language', languageId: 'din' }]]);
+    const state = p.state();
+    const reg = <T,>(value: T) => ({ value, hlc: '0', eventId: 'e' });
+    state.teams['t1'] = { name: reg('Community group'), members: { nyibol: reg(true) }, kindId: reg('peer') } as never;
+    const review = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
+    expect(review[0]).toMatchObject({ profileId: 'nyibol', usual: true, sub: 'Community Reviewer · In Community group' });
+    const other = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'consultant', me: 'lead' });
+    expect(other.find((c) => c.profileId === 'nyibol')?.sub).toBe('Community Reviewer · On the review team');
+  });
+
   it('takes a due date from today on, written as YYYY-MM-DD', () => {
     expect(addDays('2026-09-28', 7)).toBe('2026-10-05');
     expect(addDays('2026-12-30', 3)).toBe('2027-01-02');

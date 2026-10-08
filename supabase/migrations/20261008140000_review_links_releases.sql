@@ -1,4 +1,4 @@
--- Shared review links and releases (decisions.md 71).
+-- Shared review links and releases (decisions.md 72).
 --
 -- Two new language-stream events: v1.FlowStepLinksSet (may a flow step be
 -- reviewed through a shared link) and v1.VersionReleased (a channel reports
@@ -394,7 +394,7 @@ revoke all on public.review_links from public, anon, authenticated;
 grant select, insert, update, delete on public.review_links to service_role;
 
 -- The token scopes became read:published, read, review and release
--- (decisions.md 71): `feedback` grew into `review` (listener feedback or a
+-- (decisions.md 72): `feedback` grew into `review` (listener feedback or a
 -- flow step) and `publish` became `release`. Tokens and pending app requests
 -- already issued keep working under the new names.
 alter table public.api_tokens drop constraint api_tokens_scopes_check;

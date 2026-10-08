@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens) and 71 (reviews, releases, review links).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens) and 72 (reviews, releases, review links).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, and report where a version is published.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
