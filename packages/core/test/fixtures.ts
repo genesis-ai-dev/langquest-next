@@ -162,6 +162,13 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dE', 'lead2', 'v1.ReviewTeamKindSet', { teamId: 'team1', kindId: null });
   emit('dA', 'lead', 'v1.ReviewTeamKindSet', { teamId: 'team1', kindId: 'peer' });
   emit('dB', 't1', 'v1.RequestMade', { requestId: 'q3', unitId: 'luke1', what: 'review', kindId: 'peer', teamId: 'team1', dueDate: '2026-10-08', note: 'Either of you' });
+  // Shared links and releases (decisions.md 70): two admins disagree, offline, about linking the
+  // consultant checkpoint; a listener's review arrives through a link; take2 goes live, then down, in one app.
+  emit('dA', 'lead', 'v1.FlowStepLinksSet', { stepId: 'standard_bible/s3', allowed: true });
+  emit('dE', 'lead2', 'v1.FlowStepLinksSet', { stepId: 'standard_bible/s3', allowed: false });
+  emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv-link', takeId: 'take2', kindId: 'community', outcome: 'looks_good', via: 'link', givenBy: 'Deng', comment: 'Clear.' });
+  emit('dA', 'lead', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: true, url: 'https://el.example/luke1' });
+  emit('dE', 'lead2', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: false });
   emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifacts: [{ hash: 'b1', durationMs: 4000, format: 'wav' }], comment: 'Verse 3 was hard to say back.' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });

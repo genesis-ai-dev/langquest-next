@@ -116,6 +116,10 @@ export interface LanguageState extends RecordState, ReferenceState {
   hiddenUnits: Record<string, Register<boolean>>;
   flow: Register<FlowSelection> | null;
   teams: Record<string, ReviewTeam>;
+  /** stepId -> may it be reviewed by a shared link (v1.FlowStepLinksSet). */
+  stepLinks: Record<string, Register<boolean>>;
+  /** takeId -> channel -> live there (v1.VersionReleased). */
+  releases: Record<string, Record<string, Register<{ live: boolean; url?: string; by: string }>>>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
   materials: Record<string, Material>;
@@ -138,6 +142,8 @@ export function emptyLanguageState(): LanguageState {
     hiddenUnits: {},
     flow: null,
     teams: {},
+    stepLinks: {},
+    releases: {},
     responses: {},
     materials: {},
     keyTerms: {},

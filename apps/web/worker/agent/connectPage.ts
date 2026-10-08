@@ -134,7 +134,7 @@ function languageBoxes(prefix, orgId) {
   const org = orgs.find((o) => o.orgId === orgId);
   if (!org) return '';
   return '<label class="check"><input type="checkbox" id="' + prefix + '-all" checked><span><b>Every language I can see</b><br><small>Including ones added later</small></span></label>' +
-    '<div id="' + prefix + '-langs" hidden>' + org.languages.map((l) => '<label class="check"><input type="checkbox" name="' + prefix + '-lang" value="' + esc(l.languageId) + '"><span>' + esc(l.name) + (l.mayReview ? '' : ' <small>(you cannot review here, so no feedback or publishing)</small>') + '</span></label>').join('') + '</div>';
+    '<div id="' + prefix + '-langs" hidden>' + org.languages.map((l) => '<label class="check"><input type="checkbox" name="' + prefix + '-lang" value="' + esc(l.languageId) + '"><span>' + esc(l.name) + (l.mayReview ? '' : ' <small>(you cannot review or translate here, so it cannot record reviews)</small>') + '</span></label>').join('') + '</div>';
 }
 
 function wireLanguages(prefix) {
@@ -220,7 +220,7 @@ async function renderRequest(code) {
     '<p class="notice">Approve only if you started this yourself, in an app or agent in front of you. If someone sent you this link, deny it.</p>' +
     '<p><b>' + esc(g.clientName) + '</b> <span class="tag">unverified</span></p><p class="muted">That is what the app calls itself. LangQuest cannot check it, so approve only an app you just asked to connect.</p>' +
     '<form id="approve-form">' + orgSelect('d-org', org) + '<label>It asks to</label>' + scopeBoxes('d-scope', g.requestedScopes, g.requestedScopes.filter((s) => s.startsWith('read'))) +
-    '<p class="muted">Writing as you (feedback, publishing) starts unticked: tick it only if the app needs it.</p><label>Languages</label><div id="d-langs-wrap">' + languageBoxes('d', org) + '</div>' + expirySelect('d-exp') +
+    '<p class="muted">Anything that writes as you (reviews, releases) starts unticked: tick it only if the app needs it.</p><label>Languages</label><div id="d-langs-wrap">' + languageBoxes('d', org) + '</div>' + expirySelect('d-exp') +
     '<div class="row"><button class="primary" type="submit">Approve</button><button type="button" id="deny">Deny</button></div></form>';
   wireLanguages('d');
   $('d-org').addEventListener('change', () => { $('d-langs-wrap').innerHTML = languageBoxes('d', $('d-org').value); wireLanguages('d'); });

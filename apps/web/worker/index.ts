@@ -1,5 +1,6 @@
 import { handleApi } from './api';
 import { connectPage } from './agent/connectPage';
+import { reviewPage } from './agent/reviewPage';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
@@ -16,6 +17,9 @@ export default {
     if (url.pathname === '/connect' && request.method === 'GET') {
       return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' });
     }
+    // A shared review link (agent/links.ts); the page checks the code with the API.
+    const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
+    if (review && request.method === 'GET') return reviewPage(review[1]!);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     // Verified here against the project's signing keys when it has
     // asymmetric ones (the keys are fetched once and cached); otherwise
@@ -48,22 +52,28 @@ export default {
         profileOf,
         org: (orgId): OrgStub => {
           const object = orgObject(orgId);
+          // Durable Object stubs wrap answers in RPC types; the values are plain data.
+          const plain = <T>(p: Promise<unknown>) => p as Promise<T>;
           return {
-            read: (grant, q) => object.agentRead(orgId, grant, q, url.origin),
-            write: (grant, w) => object.agentWrite(orgId, grant, w, url.origin),
-            access: (profileId) => object.agentAccess(orgId, profileId),
-            spend: (tokenId) => object.agentSpend(orgId, tokenId)
-          } as OrgStub;
+            read: (grant, q) => plain(object.agentRead(orgId, grant, q, url.origin)),
+            write: (grant, w) => plain(object.agentWrite(orgId, grant, w, url.origin)),
+            access: (profileId) => plain(object.agentAccess(orgId, profileId)),
+            spend: (key) => plain(object.agentSpend(orgId, key)),
+            checkLink: (profileId, spec) => plain(object.agentCheckLink(orgId, profileId, spec)),
+            linkInfo: (link) => plain(object.agentLinkInfo(orgId, link, url.origin)),
+            linkReview: (link, input) => plain(object.agentLinkReview(orgId, link, input))
+          };
         },
         // Named by its hash like every file (decision 69); R2 checks the bytes against it.
-        deviceAllowed: async (req) => {
-          if (!env.DEVICE_RATE_LIMIT) return true;
-          const { success } = await env.DEVICE_RATE_LIMIT.limit({ key: req.headers.get('cf-connecting-ip') ?? 'unknown' });
+        publicAllowed: async (req, what) => {
+          const limiter = what === 'device' ? env.DEVICE_RATE_LIMIT : env.LINK_RATE_LIMIT;
+          if (!limiter) return true;
+          const { success } = await limiter.limit({ key: req.headers.get('cf-connecting-ip') ?? 'unknown' });
           return success;
         },
-        saveVoiceNote: async (orgId, languageId, bytes) => {
+        saveVoiceNote: async (orgId, languageId, bytes, format) => {
           const hash = await sha256Hex(bytes);
-          const { size } = await r2Bucket(env.BLOBS).put(`${orgId}/${languageId}/${hash}.m4a`, bytes, bytes.length, hash, 'audio/mp4');
+          const { size } = await r2Bucket(env.BLOBS).put(`${orgId}/${languageId}/${hash}.${format}`, bytes, bytes.length, hash, format === 'm4a' ? 'audio/mp4' : 'audio/wav');
           await recordBlob(orgId, languageId, hash, size);
           return hash;
         }

@@ -6,14 +6,14 @@
  */
 
 /** What a token may do. `read` includes `read:published`. */
-export const SCOPES = ['read:published', 'read', 'feedback', 'publish'] as const;
+export const SCOPES = ['read:published', 'read', 'review', 'release'] as const;
 export type Scope = (typeof SCOPES)[number];
 
 export const SCOPE_TEXT: Record<Scope, string> = {
-  'read:published': 'Read approved passages and play their audio',
-  read: 'Read every passage that has been shared for review, with its reviews',
-  feedback: 'Send listener feedback (looks good, needs changes, a comment or a voice note)',
-  publish: 'Mark approved passages ready for publication, or take that back'
+  'read:published': 'Read the approved version of each passage and play its audio',
+  read: 'Read every passage shared for review, with its versions and reviews',
+  review: 'Record reviews as you: listener feedback, or a review step in the flow, with a comment or a voice note',
+  release: 'Say where a version is published (live in an app or on a site), or taken down'
 };
 
 /** The prefix every token and device code starts with, so a leaked one is easy to spot and scan for. */
@@ -49,6 +49,11 @@ const base64url = (bytes: Uint8Array) =>
 /** 256 random bits. */
 export function newSecret(): string {
   return TOKEN_PREFIX + base64url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+/** A review link's code: 128 random bits, short enough for a WhatsApp message. Only its hash is stored. */
+export function newLinkCode(): string {
+  return base64url(crypto.getRandomValues(new Uint8Array(16)));
 }
 
 /** Consonants only, so a code never spells a word, and nothing that reads like a digit. */

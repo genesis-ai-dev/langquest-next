@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Scope } from './tokens';
+import type { ReviewLink } from './view';
 
 /** A token as stored (migration 20261008000000_api_tokens.sql), without its hash. */
 export interface TokenRecord {
@@ -51,6 +52,12 @@ export interface AgentStore {
   deleteGrantsExpiredBefore(before: string): Promise<void>;
   /** Organizations the person has any membership in. */
   orgsOf(profileId: string): Promise<string[]>;
+  insertLink(link: Omit<ReviewLink, 'id' | 'createdAt' | 'revokedAt'> & { codeHash: string }): Promise<ReviewLink>;
+  linkByCodeHash(hash: string): Promise<ReviewLink | null>;
+  /** One passage's links in an organization, newest first. */
+  linksOf(orgId: string, languageId: string, unitId: string): Promise<ReviewLink[]>;
+  /** False when there is no such open link of theirs. */
+  revokeLink(id: string, profileId: string): Promise<boolean>;
 }
 
 type Row = Record<string, unknown>;
@@ -78,6 +85,15 @@ function must<T>(what: string, r: { data: T; error: { message: string } | null }
   if (r.error) throw new Error(`${what}: ${r.error.message}`);
   return r.data;
 }
+
+const LINK_COLUMNS = 'id, org_id, language_id, unit_id, take_id, kind_id, counts, label, created_by, created_at, expires_at, revoked_at';
+
+const linkOf = (r: Row): ReviewLink => ({
+  id: r['id'] as string, orgId: r['org_id'] as string, languageId: r['language_id'] as string, unitId: r['unit_id'] as string,
+  takeId: r['take_id'] as string, kindId: r['kind_id'] as string, counts: r['counts'] as boolean, label: (r['label'] as string | null) ?? null,
+  createdBy: r['created_by'] as string, createdAt: r['created_at'] as string, expiresAt: r['expires_at'] as string,
+  revokedAt: (r['revoked_at'] as string | null) ?? null
+});
 
 export function supabaseAgentStore(service: SupabaseClient): AgentStore {
   return {
@@ -133,6 +149,27 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
     },
     async deleteGrantsExpiredBefore(before) {
       must('api_device_grants cleanup', await service.from('api_device_grants').delete().lt('expires_at', before));
+    },
+    async insertLink(l) {
+      const data = must('review_links insert', await service.from('review_links').insert({
+        code_hash: l.codeHash, org_id: l.orgId, language_id: l.languageId, unit_id: l.unitId, take_id: l.takeId, kind_id: l.kindId,
+        counts: l.counts, label: l.label, created_by: l.createdBy, expires_at: l.expiresAt
+      }).select(LINK_COLUMNS).single());
+      return linkOf(data as Row);
+    },
+    async linkByCodeHash(hash) {
+      const data = must('review_links', await service.from('review_links').select(LINK_COLUMNS).eq('code_hash', hash).maybeSingle());
+      return data ? linkOf(data as Row) : null;
+    },
+    async linksOf(orgId, languageId, unitId) {
+      const data = must('review_links', await service.from('review_links').select(LINK_COLUMNS)
+        .eq('org_id', orgId).eq('language_id', languageId).eq('unit_id', unitId).order('created_at', { ascending: false }).limit(100));
+      return (data as Row[]).map(linkOf);
+    },
+    async revokeLink(id, profileId) {
+      const data = must('review_links revoke', await service.from('review_links').update({ revoked_at: new Date().toISOString() })
+        .eq('id', id).eq('created_by', profileId).is('revoked_at', null).select('id'));
+      return (data as Row[]).length > 0;
     },
     async orgsOf(profileId) {
       const data = must('org_memberships', await service.from('org_memberships').select('org_id').eq('profile_id', profileId).eq('removed', false));
