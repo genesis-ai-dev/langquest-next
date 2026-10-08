@@ -10,7 +10,7 @@
 // languages directly (docs/decisions.md 63).
 import {
   CommandError, deriveFlow, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
-  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
+  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, recommendedFor, SEED_ROLES,
   type EventSpec, type LanguageProgress, type License, type Scope, type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -178,6 +178,28 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
   const open = ctx.details(`home:${props.from}:setup`);
   const names = [templates && 'Content templates', reference && 'reference', flows && 'review flows', 'roles', props.extra?.label].filter(Boolean);
   const summary = names.join(', ').replace(/^./, (c) => c.toUpperCase());
+  // A language's page is its setup (demo ADR-039): what they record, what helps them and who checks,
+  // in the admin's words and always shown; roles and the public listing stay under More.
+  if (props.level === 'language') {
+    const helps = recommendedFor(ctx.org.state?.recommendations, state).size;
+    return (
+      <>
+        <HomeSection label="Ready for translators">
+          {templates ? <Row icon="template" label="They record" sub={counts.templates[0] ?? 'Not chosen yet'} onPress={() => ctx.go('templates_home', params)} /> : null}
+          {reference ? <Row icon="book" label="What helps them" onPress={() => ctx.go('reference_home', params)}
+            sub={[helps ? plural(helps, 'Bible or guide') + ' offered' : 'Nothing offered yet', counts.terms ? plural(counts.terms, 'key term') : ''].filter(Boolean).join(' · ')} /> : null}
+          {flows ? <Row icon="flow" label="Who checks" sub={counts.flows[0] ?? 'Not chosen yet'} onPress={() => ctx.go('flows_home', params)} last /> : null}
+        </HomeSection>
+        <View style={{ paddingTop: space.md }}>
+          <Disclosure icon="settings" title="More" summary={['Roles', props.extra?.label].filter(Boolean).join(', ')} open={open.open} onToggle={open.onToggle}>
+            <Row icon="star" label="Roles" sub={`${plural(liveRoles(ctx).length, 'role')} at this level and above`} onPress={() => ctx.go('roles_home', params)}
+              last={!props.extra} />
+            {props.extra?.rows}
+          </Disclosure>
+        </View>
+      </>
+    );
+  }
   return (
     <View style={{ paddingTop: space.md }}>
       <Disclosure icon="settings" title="Setup" summary={summary} open={open.open} onToggle={open.onToggle}>
@@ -205,7 +227,7 @@ function PeopleRows(props: { ctx: Ctx; level: ScopeLevel; languageId?: string })
   return (
     <HomeSection label="People">
       <Row icon="people" label="Members" sub={sub} onPress={() => ctx.go('members_list', params)} last={!teams} />
-      {teams ? <Row icon="people" label="Review Teams" sub="Language reviewers grouped into teams" last
+      {teams ? <Row icon="people" label="Review groups" sub="Optional: who comes first when someone asks for a check" last
         onPress={() => ctx.go('review_teams', { languageId: props.languageId ?? '' })} /> : null}
     </HomeSection>
   );
