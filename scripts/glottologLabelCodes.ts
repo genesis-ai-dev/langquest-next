@@ -265,3 +265,24 @@ export const LABEL_ISO639_3: Readonly<Record<string, string>> = {
   zh: "zho",
   zu: "zul"
 };
+
+/**
+ * A macrolanguage code has no languoid of its own in Glottolog, so a name
+ * tagged with it is labelled with the macrolanguage's main language, as v2
+ * did for Chinese (Mandarin), Estonian and Persian (Western Farsi). The rest
+ * follow ISO 639-3's usual principal language. Quechua, Kongo and Sardinian
+ * have no single main language and stay unlabelled.
+ */
+export const MACROLANGUAGE_PRINCIPAL: Readonly<Record<string, string>> = {
+  zho: 'cmn',
+  est: 'ekk',
+  fas: 'pes',
+  ara: 'arb',
+  msa: 'zsm',
+  swa: 'swh',
+  aze: 'azj',
+  mlg: 'plt',
+  yid: 'ydd',
+  grn: 'gug',
+  iku: 'ike'
+};
