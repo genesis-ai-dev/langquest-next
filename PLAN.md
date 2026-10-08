@@ -187,6 +187,8 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.TakeSubmitted` | takeId, questionSetIds? | grow-only; the first submission counts |
 | `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
 | `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins) |
+| `v1.FlowStepLinksSet` | stepId, allowed | register per step; may the step be reviewed by a shared link that counts (default: any step but a checkpoint; decision 70) |
+| `v1.VersionReleased` | takeId, channel, live, url? | register per (version, channel); where a version is published, a fact not a verdict (decision 70) |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
 | `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
 | `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |

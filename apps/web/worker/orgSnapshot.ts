@@ -5,6 +5,7 @@ import { serviceClient, type Env } from './env';
 import { OrgFolder } from './orgFolder';
 import { AgentOrg, type AgentQuery, type AgentWrite, type OrgAccess } from './agent/org';
 import type { Grant } from './agent/tokens';
+import type { LinkReviewInput, LinkSpec, ReviewLink } from './agent/view';
 import { readPath } from './blobs';
 import { SqlCache } from './sqlCache';
 
@@ -32,8 +33,20 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.agentFor(orgId, origin).write(grant, w);
   }
 
-  async agentSpend(orgId: string, tokenId: string): Promise<boolean> {
-    return this.agentFor(orgId, '').spend(tokenId);
+  async agentSpend(orgId: string, key: string): Promise<boolean> {
+    return this.agentFor(orgId, '').spend(key);
+  }
+
+  async agentCheckLink(orgId: string, profileId: string, spec: LinkSpec) {
+    return this.agentFor(orgId, '').checkLink(profileId, spec);
+  }
+
+  async agentLinkInfo(orgId: string, link: ReviewLink, origin: string) {
+    return this.agentFor(orgId, origin).linkInfo(link);
+  }
+
+  async agentLinkReview(orgId: string, link: ReviewLink, input: LinkReviewInput) {
+    return this.agentFor(orgId, '').linkReview(link, input);
   }
 
   async agentAccess(orgId: string, profileId: string): Promise<OrgAccess | null> {

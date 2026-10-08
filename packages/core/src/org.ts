@@ -115,6 +115,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ReviewTeamDefined': 'manage_teams',
   'v1.ReviewTeamMemberSet': 'manage_teams',
   'v1.ReviewTeamKindSet': 'manage_teams',
+  'v1.FlowStepLinksSet': 'manage_flows',
+  // Whoever runs the work says where it went out.
+  'v1.VersionReleased': 'assign_work',
   'v1.RecordingAdded': 'translate',
   'v1.TakeComposed': 'translate',
   'v1.TakeArchived': 'translate',
@@ -155,8 +158,10 @@ export function privilegeFor(event: AnyEvent): EventPrivilege {
   const p = EVENT_PRIVILEGE[event.type];
   if (p !== 'by_kind') return p;
   if (event.type === 'v1.ReviewRecorded') {
-    // A check that happened outside the app may be logged by whoever ran it.
-    return event.payload.via === 'logged' ? ['review', 'translate'] : 'review';
+    // A check that happened outside the app may be logged by whoever ran
+    // it, and a review given through a shared link is recorded the same way,
+    // by whoever shared it (decisions.md 70). Neither clears a checkpoint.
+    return event.payload.via === 'logged' || event.payload.via === 'link' ? ['review', 'translate'] : 'review';
   }
   if (event.type === 'v1.DepartureRecorded') {
     if (event.payload.type === 'override') return 'override_checkpoints';

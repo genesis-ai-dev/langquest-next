@@ -98,6 +98,12 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.ReviewTeamKindSet':
       variants.push({ ...p, kindId: ['peer'] });
       break;
+    case 'v1.FlowStepLinksSet':
+      variants.push({ ...p, allowed: 'yes' }, { ...p, stepId: '' });
+      break;
+    case 'v1.VersionReleased':
+      variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
+      break;
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':
       variants.push({ ...p, parentUnitId: 'x', parentTakeId: 'x' });
