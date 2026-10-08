@@ -19,6 +19,8 @@ import { ORG, roleSession } from './sessions';
 const APP_ONLY: Record<string, string> = {
   'settings_home->mic_setup': 'microphone setup by ear, from Me (decision 71, demo ADR-037)',
   'workspace->mic_setup': 'microphone setup, offered when takes keep clipping or come out quiet (decision 71)',
+  'study_guide->key_term_detail': 'the study is one reader for both nodes; its key words and glossary open a key term (decision 71, demo ADR-035)',
+  'study_step->guide_editor': 'the steps sheet offers the guide editor from either study node (decision 71)',
   'my_work->get_ready': "a coordinator's My Work leads with getting the language ready (decision 71, demo ADR-039)",
   'language_home->get_ready': 'the language page opens the four questions to get it ready (decision 71, demo ADR-039)',
   'org_home->new_language': 'no project level (decision 63): languages are added from the organization',

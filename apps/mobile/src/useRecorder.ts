@@ -9,6 +9,7 @@ import MicrophoneEnergy, { type VADConfig } from '../modules/microphone-energy';
 import { preferredRecordingType } from './audioFormat';
 import { getBlobStore } from './blobs';
 import { getRecordingJournal } from './recordingJournal';
+import { cachedMicSettings, loadMicSettings, onMicSettings } from './simple/micSettings';
 import type { JournalTarget } from './recordingJournalCore';
 import { storableRecording } from './webAudio';
 
@@ -31,7 +32,8 @@ interface PendingFile {
   durationMs: number;
   card?: RecordedCard;
 }
-const BASE: VADConfig = {
+/** The voice detector's fixed settings; sensitivity and pause come from microphone setup. */
+export const VAD_BASE: VADConfig = {
   onsetMultiplier: 0.1, maxOnsetDuration: 250, rewindHalfPause: true,
   minSegmentDuration: 200, minActiveAudioDuration: 250
 };
@@ -61,8 +63,10 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   const [error, setError] = useState('');
   const [working, setWorking] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
-  const [pauseDuration, setPauseDuration] = useState(1000);
-  const [cutoff, setCutoffState] = useState(0.1);
+  // The settings chosen by ear in microphone setup, when there are any (simple/micSettings.ts).
+  const chosen = cachedMicSettings();
+  const [pauseDuration, setPauseDuration] = useState(chosen?.pauseMs ?? 1000);
+  const [cutoff, setCutoffState] = useState(chosen?.threshold ?? 0.1);
   const mounted = useRef(true);
   const handler = useRef(onCard);
   handler.current = onCard;
@@ -78,7 +82,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   const vadStopping = useRef<Promise<void> | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const failures = useRef<PendingFile[]>([]);
-  const config = useRef({ threshold: 0.1, silenceDuration: 1000 });
+  const config = useRef({ threshold: chosen?.threshold ?? 0.1, silenceDuration: chosen?.pauseMs ?? 1000 });
   const fail = useCallback((e: unknown) => {
     if (mounted.current) setError(e instanceof Error ? e.message : String(e));
   }, []);
@@ -121,7 +125,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
   }, [fail, work]);
 
   const configure = useCallback(async () => {
-    try { await MicrophoneEnergy.configureVAD({ ...BASE, ...config.current }); }
+    try { await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current }); }
     catch (e) { fail(e); }
   }, [fail]);
   const setPause = useCallback(async (duration: number) => {
@@ -134,6 +138,18 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     setCutoffState(config.current.threshold);
     if (vadActive.current) await configure();
   }, [configure]);
+  // Read the device's settings once, and follow them when microphone setup changes them.
+  useEffect(() => {
+    let live = true;
+    const apply = (m: { threshold: number; pauseMs: number } | null) => {
+      if (!live || !m) return;
+      void setCutoff(m.threshold);
+      void setPause(m.pauseMs);
+    };
+    if (cachedMicSettings() === undefined) void loadMicSettings().then(apply);
+    const off = onMicSettings(apply);
+    return () => { live = false; off(); };
+  }, [setCutoff, setPause]);
 
   const manualDown = useCallback((): Promise<void> => {
     if (starting.current || stopping.current || active.current ||
@@ -233,7 +249,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
         const permission = await AudioModule.requestRecordingPermissionsAsync();
         if (!mounted.current) return;
         if (!permission.granted) throw new Error('Microphone permission is required.');
-        await MicrophoneEnergy.configureVAD({ ...BASE, ...config.current });
+        await MicrophoneEnergy.configureVAD({ ...VAD_BASE, ...config.current });
         await setSessionAudioMode({ allowsRecording: true, playsInSilentMode: true });
         if (!mounted.current) return;
         await MicrophoneEnergy.startEnergyDetection();

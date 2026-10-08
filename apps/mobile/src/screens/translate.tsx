@@ -3,61 +3,66 @@
 // ADR-015 (a back translation makes content, it isn't a verdict), ADR-028
 // (Publish confirms; the big red record button), ADR-029 (one Help button).
 //
-// One screen split in two (Caleb, LAN-23), instead of the demo's Listen →
-// Record → Publish stages: the source on top (its audio, its text with key
-// terms, on a cool ground), your recording below (on a warm ground), with a
-// divider to drag between them. Recording happens inside the lower pane, so
-// the source stays readable and playable; playing it pauses the microphone
-// and recording resumes when it stops (listen, speak, listen).
+// The workspace is the simple redesign's (decision 71; demo ADR-034, ADR-036;
+// demo simple/translator.tsx Workspace and Publish): reference on top, the
+// recorder below, one divider with five stops (the reference as one line,
+// a third, half, two thirds, the recorder as one line), opening at half and
+// staying where it was left. The reference takes whatever is attached, one
+// chip each: the Bible (play, Back 10 s, a Bible picker, notes on verses and
+// moments), the guide, key words (hear each, say yours, add one), notes, and
+// everything recorded so far. Playing the Bible while recording pauses the
+// microphone and recording resumes when it stops (listen, speak, listen;
+// LAN-23). The recorder shows the parts recorded under one card and the
+// next part lit; the big red button and Publish are in the footer, or in
+// the recorder's one line. Publish is its own screen inside this one, so
+// nothing recorded or offered is lost on the way. The sensitivity and the
+// pause between parts are set in microphone setup (`mic_setup`).
 //
-// Workspace: your takes (each change kept as the draft on the record, so
-// nothing is lost if you leave), the red record button, Help in the header,
-// and Publish. Back translation: the same tools, but you listen to the
-// latest version and what you save is content for the next check, not a
-// version.
+// Every change persists: each part is kept as the draft on the record, so
+// nothing is lost if you leave. Back translation: the same tools, but you
+// listen to the latest version and what you save is content for the next
+// check, not a version.
 import {
   commands, keyTermsForUnit,
-  type EventSpec, type KindDef, type PassageNote, type ReviewView, type Version
+  type EventSpec, type KindDef, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import { TITLES } from '../flow';
 import { indexesFor } from '../indexes';
 import {
-  Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, PrimaryBtn, Screen, SectionLabel, Sheet, txt
+  Banner, Card, EmptyState, Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, Sheet, SmallBtn, txt
 } from '../kit';
 import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
-import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
+import { passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
-import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from '../recording/splitModel';
+import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
 import { VadControls, VadPanel } from '../recording/VadTakeover';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, cardLabels, removeCardSpecs, sameCards,
+  backTranslationDraftKey, canPublish, cardDurations, removeCardSpecs, sameCards,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
-import { HelpSheet, TrayPane, type TrayTab } from '../recording/WorkspaceTray';
 import { getReferenceSlides } from '../passageResources';
 import { pendingPassageCards } from '../recordingFlow';
 import { reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
-import { SourceReader } from '../sources/SourceReader';
+import { GuideNav, GuideStep } from '../simple/guide';
+import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../simple/model';
+import { QuietLink, RefChips, type ChipItem } from '../simple/parts';
+import { PublishScreen } from '../simple/publish';
+import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../simple/recorder';
+import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote, useBible } from '../simple/reference';
 import { useUsage } from '../sources/used';
 import { useStudyGuide } from '../study/libraryGuides';
-import { studyProgress, studySummary } from '../study/progress';
+import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
-import { VoiceNote } from '../voiceNote';
-
-const REF_LABEL: Record<'bible' | TrayTab, string> = {
-  bible: 'Reference · Bible', study: 'Reference · Guide', terms: 'Reference · Key words', notes: 'Reference · Notes', history: 'Reference · Earlier'
-};
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -92,8 +97,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const list = useMemo(() => workingCards({
     ...(draftCards ? { draftCards } : {}), ...(latest ? { latestCards: latest.cardHashes } : {}), pending, cleared
   }), [draftCards, latest, pending, cleared]);
-  const labels = cardLabels(list, latest?.cardHashes);
   const changed = canPublish(list, latest?.cardHashes);
+  const [split, setSplit] = useState(() => rememberedSplit('workspace'));
+  const [confirming, setConfirming] = useState(false);
+  // This session's part lengths: three very short ones in a row look like clipping (demo ADR-037).
+  const sessionLengths = useRef<number[]>([]);
+  const [clipped, setClipped] = useState(false);
 
   // Cards arrive from the recorder already saved (addRecording, id chosen
   // before any save step, journaled against this passage). The latest
@@ -109,6 +118,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
     }));
     current.language.triggerUpload();
+    sessionLengths.current.push(card.durationMs);
+    if (partsLookClipped(sessionLengths.current)) setClipped(true);
   }, [unitId]);
   const rec = useRecorder(persist, { orgId: ctx.language.orgId, languageId, unitId });
   const loop = useListenLoop(rec);
@@ -146,10 +157,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   stateRef.current = state;
   const saving = rec.busy || composing || working;
   const blocked = saving || recording;
-  async function remove(hash: string) {
+  async function remove(hash: string, label = partLabel(Math.max(0, list.indexOf(hash)))) {
     if (blocked) return;
-    const at = list.indexOf(hash);
-    const label = labels[at] ?? 'Take';
     const before = list;
     const { specs, cleared: nowCleared } = removeCardSpecs(state, idx, {
       commandId: Crypto.randomUUID(), unitId, actorId: me, list, hash, pending: new Set(pending),
@@ -184,10 +193,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     return out;
   }, [p.awaitingResponse, revising]);
 
-  // ---- source and key terms (REC-W1): the source reader says what text it shows ----
-  const [sourceWords, setSourceWords] = useState<string | null>(null);
+  // ---- reference (REC-W1, REC-W5; demo ADR-036): what is attached, one chip each ----
   // What was offered and used here goes on the record with the version (docs/reference-material.md).
   const usage = useUsage();
+  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming });
+  const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
   const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
   const tied = useMemo(() => tiedTermIds(state, p.draftTakeId ?? latest?.takeId), [state, p.draftTakeId, latest?.takeId]);
   // Tying a term is reference work (KeyTermLinked needs fill_reference), so
@@ -198,27 +208,41 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const extra = unitTerms.filter((t) => tied.has(t.termId) && !shown.includes(t));
     return [...shown, ...extra];
   }, [sourceWords, unitTerms, tied]);
-
-  // ---- Help: the study tray as one sheet (REC-W5, ADR-029) ----
-  const [help, setHelp] = useState(false);
-  const closeHelp = useCallback(() => setHelp(false), []);
-  const [tab, setTab] = useState<TrayTab>('terms');
-  // Which reference the top pane shows (demo ADR-036); the Bible first.
-  const [refTab, setRefTab] = useState<'bible' | TrayTab>('bible');
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
+  const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
-    if (guide) usage.offer([{ itemId: guide.id.split('~')[0] ?? guide.id, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
-  }, [guide, usage]);
-  useEffect(() => { if (help && tab === 'study' && guide) usage.open(guide.id.split('~')[0] ?? guide.id); }, [help, tab, guide, usage]);
+    if (guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
+  }, [guide, guideItem, usage]);
   const references = useMemo(() => getReferenceSlides(state, unitId), [state, unitId]);
   useEffect(() => {
     usage.offer(references.map((r) => ({ itemId: r.id, name: r.label, kind: r.id.startsWith('source:') ? 'source' as const : 'note' as const, opened: false })));
   }, [references, usage]);
+  const hasEarlier = p.versions.length > 0 || p.reviews.length > 0;
+  const chipIds = refChips('workspace', { bible: bible.hasVerses, guide: !!study, terms: true, notes: true, earlier: hasEarlier });
+  // Opens on the Bible; answering feedback, on Earlier, where the feedback is (demo ADR-036).
+  const [chipState, setChip] = useState<RefChip>(revising && hasEarlier ? 'earlier' : 'bible');
+  const chip = chipIds.includes(chipState) ? chipState : chipIds[0] ?? 'terms';
+  const [verse, setVerse] = useState<string | null>(null);
+  const [stepState, setStep] = useState<number | null>(null);
+  const step = study ? Math.min(study.steps.length - 1, stepState ?? study.next?.index ?? 0) : 0;
+  const openChip = (c: RefChip) => {
+    setChip(c);
+    if (c === 'guide' && guideItem) usage.open(guideItem);
+  };
+  const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
+    bible: { id: 'bible' as const, label: 'Bible', icon: 'listen' as const, hint: 'Hear and read the passage.' },
+    guide: { id: 'guide' as const, label: 'Guide', icon: 'star' as const, hint: "The study guide's steps for this passage." },
+    terms: { id: 'terms' as const, label: 'Key words', icon: 'key' as const, hint: 'Words to say the same way every time: hear each, and say yours.' },
+    notes: { id: 'notes' as const, label: 'Notes', icon: 'chat' as const, count: notes.length, hint: "The team's notes on this passage." },
+    earlier: { id: 'earlier' as const, label: 'Earlier', icon: 'clock' as const, hint: 'Everything recorded for this passage so far: versions, feedback and notes.' }
+  })[c]);
+
+  // ---- microphone: offered when parts keep coming out clipped (demo ADR-037) ----
+  useEffect(() => { if (session) sessionLengths.current = []; }, [session]);
 
   // ---- publishing (REC-W3, REC-W4) ----
-  const [confirming, setConfirming] = useState(false);
   const [publishing, setPublishing] = useState(false);
   async function publish(note: string, noteBlobHash: string | null) {
     const commandId = Crypto.randomUUID();
@@ -245,157 +269,94 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     finally { setPublishing(false); }
   }
 
-  const cards: ListedCard[] = list.map((hash, i) => ({ hash, label: labels[i] ?? `Take ${i + 1}`, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
+  const parts: Part[] = list.map((hash) => ({ hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
   const problem = rec.failureCount > 0
-    ? <SaveProblem message={rec.error || 'A take did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+    ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
     : rec.error ? <SaveProblem message={rec.error} /> : null;
+  const record = () => void loop.toggle();
+  const scope = { unitId, languageId };
 
+  if (confirming) {
+    return (
+      <PublishScreen ctx={ctx} v={v} n={nextN} first={isFirst} cards={list} totalMs={totalMs(parts.map((x) => x.durationMs))}
+        bible={bible.option?.abbreviation} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
+        {...(revising ? { revisingKind: v.kind(revising.kindId).name } : {})}
+        onClose={() => setConfirming(false)} onPublish={(note, hash) => void publish(note, hash)} />
+    );
+  }
+
+  const recorderLine = split >= 1;
   return (
     <Screen fixed
-      header={<Header title={`Recording ${versionTitle(nextN)}`} sub={v.language} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close
-        />}
-      footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
-        <View style={styles.actions}>
-          <RecordButton recording={false} disabled={saving || rec.failureCount > 0} onPress={() => void loop.toggle()} />
-          <View style={{ flex: 1 }}>
-            <PrimaryBtn label="Publish" tone="dark" disabled={!changed || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
-          </View>
-        </View>
+      header={<Header title={v.title} sub={`Recording ${versionTitle(nextN)}`} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close />}
+      footer={recorderLine ? undefined : (
+        <RecorderFooter count={list.length} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
+          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
       )}>
-      <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
-        topStyle={styles.sourcePane} bottomStyle={styles.recordPane}
+      <SplitPane memoryKey="workspace" minBottom={MIN_BOTTOM} onFraction={setSplit}
+        topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
         top={({ compact, open }) => compact ? (
-          // At the end snap the reference is one line; a tap brings it back to half (demo ADR-036).
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open the reference" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
-            <Ico name="book" size={18} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{REF_LABEL[refTab]}</Text>
-            <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
-          </Pressable>
+          bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : (
+            <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open the reference" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+              <Ico name="book" size={18} color={C.primary} />
+              <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>Drag down for the guide, key words, notes and earlier recordings</Text>
+            </Pressable>
+          )
         ) : (
           <View style={{ flex: 1 }}>
-            {/* Any reference beside the recorder, one chip each, in the study reader's order (demo ADR-035, 036). */}
-            <View style={styles.refChips}>
-              <ChipRow>
-                <Chip label="Bible" icon="book" on={refTab === 'bible'} onPress={() => setRefTab('bible')} />
-                {study ? <Chip label="Guide" icon="sparkle" on={refTab === 'study'} onPress={() => { setRefTab('study'); usage.open(guide!.id.split('~')[0] ?? guide!.id); }} /> : null}
-                <Chip label="Key words" icon="link" count={trayTerms.length} on={refTab === 'terms'} onPress={() => setRefTab('terms')} />
-                <Chip label="Notes" icon="note" count={notes.length} on={refTab === 'notes'} onPress={() => setRefTab('notes')} />
-                {p.versions.length > 0 ? <Chip label="Earlier" icon="history" count={p.versions.length} on={refTab === 'history'} onPress={() => setRefTab('history')} /> : null}
-              </ChipRow>
-            </View>
-            {refTab === 'bible' ? (
-          // The reader scrolls itself with the player kept on top, so Play and the verse playing never part.
-          <SourceReader ctx={ctx} unitId={unitId} languageId={languageId} layout="screen" listen={loop.hooks} terms={unitTerms} tied={tied} onText={setSourceWords}
-            usage={usage}
-            header={<View style={{ gap: space.sm }}>
-              {revising ? <FeedbackBanner ctx={ctx} review={revising} kind={v.kind(revising.kindId)} />
-                : request ? <RequestBanner ctx={ctx} request={request} /> : null}
-              <View style={styles.labelRow}>
-                <Text style={[txt.label, { flex: 1 }]}>Source</Text>
-                {sourceWords && trayTerms.length > 0 && !recording ? <Text style={[txt.xsStrong, { color: C.primary }]}>Tap an underlined word</Text> : null}
-              </View>
-              {sourceWords && tied.size > 0 ? <Text style={[txt.xs, { color: TINT.greenText }]}>✓ marks a term tied to your draft</Text> : null}
-              {/* The passage's study guide, one tap from the source, so reference material is seen while recording. */}
-              {guide && study && !recording ? (
-                <Pressable onPress={() => { setTab('study'); setHelp(true); }} accessibilityRole="button"
-                  accessibilityLabel={`Study guide, ${guide.pattern} ${guide.passage}, ${studySummary(study)}. Open`}
-                  style={({ pressed }) => [styles.guideRow, pressed && { opacity: 0.7 }]}>
-                  <Ico name="sparkle" size={18} color={C.primary} />
-                  <Text style={[txt.sm, { flex: 1 }]} numberOfLines={1}>
-                    <Text style={{ fontWeight: '700' }}>{guide.pattern} study guide</Text> · {studySummary(study)}
-                  </Text>
-                  <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
-                </Pressable>
-              ) : null}
-            </View>}
-            footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
-            {...(recording ? {} : {
-              onTerm: (termId: string) => ctx.go('key_term_detail', { unitId, languageId, termId }),
-              onMoreBibles: () => ctx.go('bible_explore', { unitId, languageId })
-            })} />
-            ) : (
-              <ScrollView contentContainerStyle={styles.paneBody}>
-                <TrayPane ctx={ctx} v={v} tab={refTab} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId} canTie={canTie}
-                  study={study} notes={notes} disabled={blocked} />
-              </ScrollView>
-            )}
+            <RefChips items={chips} value={chip} onChange={openChip} />
+            {chip === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={step} onIndex={setStep} /> : null}
+            <ScrollView contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
+              {chip === 'bible' ? (
+                <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                  footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
+                  {...(recording ? {} : {
+                    onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId }),
+                    onMoreBibles: () => ctx.go('bible_explore', scope)
+                  })} />
+              ) : chip === 'guide' && study && guide ? (
+                <>
+                  <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={false}
+                    canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId })} />
+                  <LinkBtn label="Open the study" style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
+                </>
+              ) : chip === 'terms' ? (
+                <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} draftTakeId={p.draftTakeId} canTie={canTie} disabled={blocked}
+                  onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
+                  allTerms={() => ctx.go('key_terms', scope)} />
+              ) : chip === 'notes' ? (
+                <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
+              ) : (
+                <EarlierPane ctx={ctx} v={v} {...(revising ? { focusReviewId: revising.id } : {})} />
+              )}
+            </ScrollView>
           </View>
         )}
-        bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={list.length} noun="take" onResume={loop.resumeNow} /> : compact ? (
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open your recording" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
-            <Ico name="mic" size={18} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]}>Your recording · {cards.length} take{cards.length === 1 ? '' : 's'}</Text>
-            <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
-          </Pressable>
+        bottom={({ compact, open, height }) => compact ? (
+          <RecorderBar count={list.length} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
         ) : (
-          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel="Your recording">
+          <ScrollView contentContainerStyle={styles.recordBody} accessibilityLabel="Your recording">
             {problem}
-            <SectionLabel label="Your recording" action={<Text style={txt.xs}>{cards.length} take{cards.length === 1 ? '' : 's'} · saved on this device</Text>} />
-            <CardList ctx={ctx} cards={cards} disabled={blocked} onDelete={(h) => void remove(h)}
-              empty={isFirst ? 'No takes yet — tap the red button below to start.' : 'No takes yet — tap the red button below to record this version.'} />
+            <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
+              onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow} />
+            {list.length === 0 && !session ? (
+              <Text style={[txt.smMuted, { textAlign: 'center' }]}>Tap the red button and speak. Pause between parts: each part is kept by itself.</Text>
+            ) : null}
             {!isFirst && !changed && list.length > 0 ? (
-              <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s takes. Record a new take or delete one to publish a new version.</Text>
+              <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s parts. Record a new part or delete one to publish a new version.</Text>
+            ) : null}
+            {clipped ? (
+              <View style={styles.clipped}>
+                <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>Parts are coming out very short. Words may be cut off.</Text>
+                <SmallBtn label="Set up the microphone" icon="sliders" onPress={() => ctx.go('mic_setup')} />
+              </View>
+            ) : !session ? (
+              <QuietLink label="Set up the microphone" icon="sliders" hint="Tune how the device hears you: sensitivity and pauses." onPress={() => ctx.go('mic_setup')} />
             ) : null}
           </ScrollView>
         )} />
-
-      {help ? (
-        <HelpSheet ctx={ctx} v={v} tab={tab} onTab={setTab} onClose={closeHelp} terms={trayTerms} tied={tied} draftTakeId={p.draftTakeId}
-          canTie={canTie} study={study} notes={notes} disabled={blocked} />
-      ) : null}
-      {confirming ? (
-        <PublishSheet ctx={ctx} v={v} n={nextN} first={isFirst} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
-          {...(revising ? { revisingKind: v.kind(revising.kindId).name } : {})}
-          onClose={() => setConfirming(false)} onPublish={(note, hash) => void publish(note, hash)} />
-      ) : null}
     </Screen>
-  );
-}
-
-function FeedbackBanner(props: { ctx: Ctx; review: ReviewView; kind: KindDef }) {
-  const r = props.review;
-  return (
-    <View style={{ gap: space.sm }}>
-      <Banner icon="chat" tone="amber" title={`Revising after ${props.kind.name} feedback`}
-        body={`${r.comment ? `“${r.comment}”\n` : ''}${feedbackSource(r, props.ctx.name)}`} />
-      {r.commentBlobHash ? <AudioClip language={props.ctx.language} hashes={[r.commentBlobHash]} label="Play the voice feedback" /> : null}
-    </View>
-  );
-}
-
-/**
- * Publishing is a real step, so it always confirms (REC-W3, ADR-028): the
- * team can hear it and review it. A later version says what changed.
- */
-function PublishSheet(props: {
-  ctx: Ctx; v: PassageView; n: number; first: boolean; busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
-  onClose: () => void; onPublish: (note: string, hash: string | null) => void;
-}) {
-  const [text, setText] = useState(props.revisingKind ? `Revised after the ${props.revisingKind} feedback.` : '');
-  const [hash, setHash] = useState<string | null>(null);
-  const needsNote = !props.first;
-  const title = versionTitle(props.n);
-  return (
-    <Sheet visible title={`Publish ${title}?`}
-      sub="Your team will be able to hear it and review it. It goes on this passage's record, and you can always record a new version later."
-      onClose={props.onClose}
-      footer={<PrimaryBtn label={`Publish ${title}`} tone="dark" busy={props.busy} disabled={needsNote && !text.trim() && !hash}
-        onPress={() => props.onPublish(text, hash)} />}>
-      <Text style={[txt.sm, { fontWeight: '700' }]}>
-        {needsNote ? 'What changed?' : 'Anything reviewers should know?'}{needsNote ? '' : <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}> · optional</Text>}
-      </Text>
-      <VoiceNote ctx={props.ctx} label={needsNote ? 'Say what changed' : 'Say it'} hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
-      {props.answers.length > 0 || props.tied > 0 ? (
-        <View style={styles.checks}>
-          {props.answers.map((r) => (
-            <Text key={r.id} style={txt.sm}>✓ Answers the {props.v.kind(r.kindId).name} feedback from {feedbackSource(r, props.ctx.name)}</Text>
-          ))}
-          {props.tied > 0 ? <Text style={txt.sm}>✓ {props.tied} key term{props.tied === 1 ? '' : 's'} tied to this version</Text> : null}
-        </View>
-      ) : null}
-    </Sheet>
   );
 }
 
@@ -555,18 +516,19 @@ function capitalize(s: string): string {
 }
 
 const styles = StyleSheet.create({
-  bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, minHeight: 48 },
-  refChips: { paddingHorizontal: space.md, paddingTop: space.sm },
+  bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, minHeight: 48, backgroundColor: C.card },
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  guideRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: C.card },
-  checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
-  // LAN-23: each half its own ground, so the two read as different places. The
-  // source is cool (the brand's pale tint; the theme has no blue), your
-  // recording warm (the red tint). Cards on both stay white, so text keeps its contrast.
+  // The workspace (demo ADR-036): the reference on the screen's ground, the recorder on white.
+  refPane: { backgroundColor: C.bg },
+  wsRecordPane: { backgroundColor: C.card },
+  recordBody: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.lg, gap: space.md },
+  clipped: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.sm },
+  // Back translation (LAN-23): each half its own ground, so the two read as
+  // different places: the version cool (the brand's pale tint), your parts
+  // warm (the red tint). Cards on both stay white, so text keeps its contrast.
   sourcePane: { backgroundColor: C.light },
   recordPane: { backgroundColor: withAlpha(C.red, 0.08) },
-  paneBody: { padding: space.lg, gap: space.md }
+  paneBody: { paddingHorizontal: space.lg, paddingTop: space.xs, paddingBottom: space.lg, gap: space.md }
 });
 
 export const contracts = contractsFor('workspace', 'back_translation');

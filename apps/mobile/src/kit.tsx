@@ -44,9 +44,9 @@ const ICONS = {
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
-export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
+export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
   const Icon = ICONS[props.name];
-  return <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} />;
+  return <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} {...(props.fill ? { fill: props.fill } : {})} />;
 }
 
 /** The icon each shipped review kind reads by (the demo's REVIEW_KINDS icons). */
