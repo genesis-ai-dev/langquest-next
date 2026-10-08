@@ -518,6 +518,8 @@ interface Assignment {
   languageId: string;
 }
 
+const TO_ROLE_EDITOR = ['invite_member', 'edit_member'] as const;
+
 /** Role, assignment scope, and the language it applies to (ORG-6, ORG-7). */
 function AssignmentForm(props: {
   ctx: Ctx;
@@ -533,10 +535,14 @@ function AssignmentForm(props: {
   const languages = value.languageId && !granted.includes(value.languageId) ? [value.languageId, ...granted] : granted;
   return (
     <>
-      <SectionLabel label="Role" />
+      <SectionLabel label="What will they do?" />
       <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub }))} value={value.roleId}
         onChoose={(roleId) => props.onChange({ ...value, roleId })} empty="No roles available here." />
-      <SectionLabel label="Assignment scope" />
+      {/* Something other than the usual roles: make one here (demo ADR-039, amended 2026-10-08). */}
+      {ctx.session.can('manage_roles') && TO_ROLE_EDITOR.some((from) => edgeFor(from, 'role_editor')) ? (
+        <GhostBtn label="Something else: make a new role" icon="plus" onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
+      ) : null}
+      <SectionLabel label="Where?" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
         {props.levels.map((l) => (
           <Chip key={l} label={LEVEL_LABEL[l]} on={value.level === l} onPress={() => {

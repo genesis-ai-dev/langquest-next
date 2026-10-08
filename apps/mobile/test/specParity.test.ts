@@ -51,7 +51,9 @@ const APP_ONLY: Record<string, string> = {
   'review_capture->bible_explore': 'More Bibles from the reviewer\'s Background (docs/reference-material.md)',
   'add_record->bible_explore': 'More Bibles from Already happened\'s Background (docs/reference-material.md)',
   'my_work->reference_home': 'Get a language ready, step 2 "What will help them?" (demo ADR-039, branch caleb-simple-translator)',
-  'my_work->invite_qr': 'Get a language ready, step 4 "Invite your translators": the code to scan (demo ADR-039)'
+  'my_work->invite_qr': 'Get a language ready, step 4 "Invite your translators": the code to scan (demo ADR-039)',
+  'invite_member->role_editor': 'Something else: make a new role while inviting (demo ADR-039, amended 2026-10-08)',
+  'edit_member->role_editor': 'Something else: make a new role while admitting or editing someone (demo ADR-039, amended 2026-10-08)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
