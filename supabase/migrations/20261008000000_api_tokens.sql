@@ -1,4 +1,4 @@
--- Access tokens for apps and agents (docs/agent-api.md, decisions.md 70).
+-- Access tokens for apps and agents (docs/agent-api.md, decisions.md 73).
 --
 -- A token belongs to one person in one organization and is narrowed by
 -- scopes and, optionally, a list of languages. Only its SHA-256 is kept, as

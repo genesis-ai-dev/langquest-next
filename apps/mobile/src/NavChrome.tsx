@@ -5,7 +5,7 @@
 // The simple redesign's tabs (decision 71, demo ADR-032): Work (a list), Map
 // (a book), Manage (the gear), Me (a person).
 import { Book } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, Ico, txt, type IconName } from './kit';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from './theme';
@@ -51,6 +51,15 @@ export function NavChrome(props: {
           );
         })}
         </View>
+        {/* The web app only: the language explorer, a page of its own (docs/languoids.md). */}
+        {Platform.OS === 'web' ? (
+          <Pressable onPress={() => window.open('/languages', '_blank', 'noopener')} accessibilityRole="link"
+            accessibilityLabel="Language explorer, opens in a new tab"
+            style={({ pressed }) => [styles.sideItem, { marginTop: space.md }, pressed && { opacity: 0.6 }]}>
+            <Ico name="globe" size={22} color={C.muted} />
+            <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>Language explorer</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }

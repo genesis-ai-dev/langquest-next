@@ -1,6 +1,7 @@
 import { summarizeReports, type OrgReportsResponse } from '@langquest-next/core';
 import { handleBible, type BibleDeps } from './bible';
 import { handleBlobs, type BlobDeps } from './blobs';
+import { handleLanguoids, type LanguoidDeps } from './languoids';
 import { handleAgentApi, type AgentDeps } from './agent/http';
 
 export interface ApiDeps {
@@ -14,6 +15,8 @@ export interface ApiDeps {
   blobs?: Omit<BlobDeps, 'profileOf'>;
   /** The access-token API for apps and agents (`/api/v1/*`, agent/http.ts); without it those routes answer 503. */
   agent?: AgentDeps;
+  /** The language explorer's data (`/api/languoids`, languoids.ts); without it that route answers 503. */
+  languoids?: LanguoidDeps;
 }
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -69,6 +72,9 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (url.pathname.startsWith('/api/bible/')) return handleBible(request, { key: undefined, ...deps.bible, profileOf: deps.profileOf });
   if (url.pathname === '/api/blobs' || url.pathname.startsWith('/api/blobs/') || url.pathname.startsWith('/api/blob-urls/')) {
     return deps.blobs ? handleBlobs(request, { ...deps.blobs, profileOf: deps.profileOf }) : json(503, { error: 'File storage is not set up here.' });
+  }
+  if (url.pathname === '/api/languoids') {
+    return deps.languoids ? handleLanguoids(request, deps.languoids) : json(503, { error: 'The language list is not set up here.' });
   }
   const match = /^\/api\/orgs\/([^/]+)\/reports$/.exec(url.pathname);
   if (!match) return json(404, { error: 'Not found.' });

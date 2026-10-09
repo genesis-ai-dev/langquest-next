@@ -24,6 +24,7 @@
     "library:seed": "tsx scripts/library-seed.ts",
     "sample:org": "tsx scripts/sample-org.ts",
     "import:v2": "node scripts/with-local-keys.mjs tsx server/importV2.ts",
+    "languoids": "tsx scripts/languoids.ts",
     "reconcile": "node scripts/with-local-keys.mjs tsx server/blobReconciler.ts",
     "blobs:copy": "node scripts/with-local-keys.mjs tsx server/copyBlobsToR2.ts",
     "r2:buckets": "node scripts/r2-buckets.mjs",
