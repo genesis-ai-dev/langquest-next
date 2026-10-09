@@ -589,6 +589,10 @@ export function validateDoc(value: unknown): string | null {
         return 'maxVerses must list verse counts per chapter';
       }
       if (!isObj(d['mappedVerses']) || !Object.values(d['mappedVerses']).every((v) => typeof v === 'string')) return 'mappedVerses must map refs to refs';
+      if (d['moreMappedVerses'] !== undefined && !(Array.isArray(d['moreMappedVerses']) &&
+        (d['moreMappedVerses'] as unknown[]).every((m) => Array.isArray(m) && m.length === 2 && typeof m[0] === 'string' && typeof m[1] === 'string'))) {
+        return 'moreMappedVerses must be pairs of refs';
+      }
       return null;
     default:
       return `unknown document format ${String(d['format'])}`;
