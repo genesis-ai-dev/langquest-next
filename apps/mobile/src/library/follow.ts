@@ -1,4 +1,4 @@
-import { selectFlowSpecs, selectTemplateSpecs, type FlowDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { isTemplateDoc, selectFlowSpecs, selectTemplateSpecs, type FlowDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef } from 'react';
 import { noteExpected, reportError } from '../report';
@@ -36,7 +36,7 @@ export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, sessi
         const state = language.state;
         if (!doc || !state) continue;
         const commandId = Crypto.randomUUID();
-        if (doc.format === 'template@1') {
+        if (isTemplateDoc(doc)) {
           const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
           if (doc.bible && !v11n) continue;
           await language.run(selectTemplateSpecs(state, {

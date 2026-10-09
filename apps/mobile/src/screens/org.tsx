@@ -9,7 +9,7 @@
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 63).
 import {
-  CommandError, deriveFlow, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
+  CommandError, deriveFlow, isTemplateDoc, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
   libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
   subscriptionItemId, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc, type TemplateDoc
 } from '@langquest-next/core';
@@ -1130,7 +1130,7 @@ export function NewLanguage(ctx: Ctx) {
       const languoid = code.trim() || languageName.slice(0, 3);
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
       const loaded = (await loadDocs(lib.orgId, [template.hash])).get(template.hash);
-      if (!loaded || loaded.format !== 'template@1') throw new CommandError('Its template is not on this device yet. Try again when connected.');
+      if (!loaded || !isTemplateDoc(loaded)) throw new CommandError('Its template is not on this device yet. Try again when connected.');
       const books = booksInScope(loaded, scope, chosenBooks);
       if (books && books.length === 0) throw new CommandError('Choose at least one book.');
       const templateItem = await adoptChoice(lib, template);

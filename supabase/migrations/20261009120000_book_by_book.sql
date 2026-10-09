@@ -412,14 +412,14 @@ begin
 end $$;
 
 create or replace function public.library_template_users(p_org text)
-returns table (language_id text, item_id text, doc_hash text, unit_prefix text)
+returns table (language_id text, item_id text, doc_hash text, unit_prefix text, books jsonb)
 language plpgsql stable security definer set search_path = '' as $$
 #variable_conflict use_column
 begin
   if not public._library_member(p_org, public.caller_id()) then raise exception 'not a member' using errcode = '42501'; end if;
   -- The latest selection in each language stream, as the fold keeps it (latest clock, then event id).
   return query
-    select distinct on (e.stream_id) e.stream_id, e.payload->>'itemId', e.payload->>'docHash', e.payload->>'unitPrefix'
+    select distinct on (e.stream_id) e.stream_id, e.payload->>'itemId', e.payload->>'docHash', e.payload->>'unitPrefix', e.payload->'books'
     from public.events e
     where e.org_id = p_org and e.type = 'v1.TemplateSelected' and e.stream_id <> '_org'
       and not exists (select 1 from public.events r

@@ -10,7 +10,7 @@ import {
   englishBookName, canonIndex
 } from '../contentTemplates';
 import {
-  languagePeople, PRIVILEGES,
+  languagePeople, PRIVILEGES, templateBooks,
   type KindDef, type OrgState, type Privilege, type TemplateDoc
 } from '@langquest-next/core';
 import { booksInScope, type LanguageScope } from '../orgAdmin';
@@ -101,12 +101,12 @@ export type RecordKind = 'stories' | 'chapters' | 'books' | 'outline';
 export function recordKind(doc: TemplateDoc | null | undefined): RecordKind | null {
   if (!doc) return null;
   if (doc.structure === 'outline') return 'outline';
-  switch (doc.bible?.divide) {
-    case 'passages': return 'stories';
-    case 'chapters': return 'chapters';
-    case 'books': return 'books';
-    default: return null;
-  }
+  // A template@2 breaks up each book its own way: passages anywhere read as stories.
+  const divides = new Set(templateBooks(doc).map((b) => b.divide));
+  if (divides.has('passages')) return 'stories';
+  if (divides.has('chapters')) return 'chapters';
+  if (divides.has('book')) return 'books';
+  return doc.format === 'template@2' ? 'chapters' : null;
 }
 
 export const RECORD_LABEL: Record<RecordKind, { title: string; sub: string }> = {
@@ -131,24 +131,23 @@ export function readableRef(ref: string): string {
 export function recordExamples(doc: TemplateDoc | null | undefined, n = 2): string[] {
   if (!doc) return [];
   if (doc.structure === 'outline') return (doc.outline ?? []).slice(0, n).map((o) => o.title);
-  const bible = doc.bible;
-  if (!bible) return [];
-  if (bible.divide === 'passages') {
-    const all = bible.passages ?? [];
-    const named = all.filter((p) => p.name);
-    const list = named.length ? named : all;
+  const books = templateBooks(doc);
+  const passages = books.flatMap((b) => (b.divide === 'passages' ? b.passages ?? [] : []));
+  if (passages.length) {
+    const named = passages.filter((p) => p.name);
+    const list = named.length ? named : passages;
     const luke15 = list.findIndex((p) => /^LUK 15:/.test(p.ref));
     const from = luke15 >= 0 ? luke15 : 0;
     return list.slice(from, from + n).map((p) => (p.name ? `${p.name} · ${readableRef(p.ref)}` : readableRef(p.ref)));
   }
-  if (bible.divide === 'chapters') {
-    const luke = bible.books.some((b) => b.book === 'LUK');
-    const book = luke ? 'LUK' : bible.books[0]?.book;
-    if (!book) return [];
+  const byChapter = books.filter((b) => b.divide === 'chapters');
+  if (byChapter.length) {
+    const luke = byChapter.some((b) => b.book === 'LUK');
+    const book = luke ? 'LUK' : byChapter[0]!.book;
     const first = luke ? 15 : 1;
     return Array.from({ length: n }, (_, i) => `${englishBookName(book)} ${first + i}`);
   }
-  return bible.books.slice(0, n).map((b) => englishBookName(b.book));
+  return books.slice(0, n).map((b) => englishBookName(b.book));
 }
 
 const TESTAMENT_LABEL: Record<Exclude<LanguageScope, 'custom'>, string> = { nt: 'New Testament', ot: 'Old Testament', all: 'Whole Bible' };
