@@ -131,6 +131,9 @@ class MemoryStore implements AgentStore {
     return !!t;
   }
   async touchToken(id: string, at: string) { const t = this.tokens.find((x) => x.id === id); if (t) t.lastUsedAt = at; }
+  async tokenNames(orgId: string, ids: string[]) {
+    return Object.fromEntries(this.tokens.filter((t) => t.orgId === orgId && ids.includes(t.id)).map((t) => [t.id, t.clientName ?? t.name]));
+  }
   async insertGrant(g: Parameters<AgentStore['insertGrant']>[0]) {
     const row = { ...g, id: `g${++this.n}`, createdAt: new Date(T0).toISOString(), lastPolledAt: null, approvedAt: null, deniedAt: null, tokenId: null };
     this.grants.push(row);
@@ -634,7 +637,7 @@ describe('the device flow', () => {
     const done = await poll();
     expect(done.body).toMatchObject({ access_token: asked.body.device_code, token_type: 'Bearer', scope: 'read review', language_ids: ['din'] });
     const langs = await call('GET', '/api/v1/languages', done.body.access_token);
-    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false }]]);
+    expect(langs.body.map((l: any) => [l.languageId, l.can])).toEqual([['din', { read: 'all', review: true, release: false, externalValues: { read: true, write: false } }]]);
     expect(store.tokens[0]!.tokenHash).toBe(await hashSecret(asked.body.device_code));
     expect(store.tokens[0]!.clientName).toBe('Every Language Listener');
   });
@@ -687,3 +690,81 @@ describe('MCP', () => {
   });
 });
 
+describe('external values (decisions.md 79)', () => {
+  const KEY = 'org.everylanguage.listening/plays/d1/2026-10-08';
+  const at = (key = KEY) => `/api/v1/languages/din/external-values/${key}`;
+
+  it('stores a value under a key, as the token\'s person, and reads it back labelled with its app', async () => {
+    const { call, token, log } = setup();
+    const t = await token('tr', { scopes: ['external_values'], name: 'Every Language Listener' });
+    const put = await call('PUT', at(), t, { data: { count: 40 } });
+    expect(put.status).toBe(200);
+    expect(put.body).toMatchObject({ key: KEY, data: { count: 40 }, writtenBy: { profileId: 'tr', tokenId: 'tok1', app: 'Every Language Listener' } });
+    // An ordinary event in the language's log, from the token's own device.
+    const written = log.streams.get('din')!.filter((e) => e.type === 'v1.ExternalValueSet');
+    expect(written).toMatchObject([{ actorId: 'tr', deviceId: 'api-tok1', payload: { key: KEY, data: { count: 40 } } }]);
+    // The newest write to a key wins.
+    await call('PUT', at(), t, { data: { count: 42 } });
+    expect((await call('GET', at(), t)).body).toMatchObject({ data: { count: 42 } });
+  });
+
+  it('lists by key prefix, page by page, and shows deletions only to a reader following changes', async () => {
+    const { call, token, advance } = setup();
+    const t = await token('tr', { scopes: ['external_values'] });
+    await call('PUT', at(), t, { data: { count: 40 } });
+    await call('PUT', at('org.everylanguage.listening/playlist/7'), t, { data: { title: 'Luke for children' } });
+    await call('PUT', at('org.other.app/state'), t, { data: { x: 1 } });
+    const plays = await call('GET', '/api/v1/languages/din/external-values?keyPrefix=org.everylanguage.listening/', t);
+    expect(plays.body.values.map((v: any) => v.key)).toEqual(['org.everylanguage.listening/playlist/7', KEY]);
+    expect(plays.body.nextAfter).toBeNull();
+    const before = new Date(T0 + 10_000_000).toISOString();
+    advance(1000);
+    expect((await call('DELETE', at('org.everylanguage.listening/playlist/7'), t)).body).toEqual({ key: 'org.everylanguage.listening/playlist/7', deleted: true });
+    expect((await call('GET', at('org.everylanguage.listening/playlist/7'), t)).body.code).toBe('no_value');
+    expect((await call('GET', '/api/v1/languages/din/external-values', t)).body.values.map((v: any) => v.key)).toEqual([KEY, 'org.other.app/state']);
+    // A follower asking what changed since its last look learns the key is gone.
+    const changed = await call('GET', `/api/v1/languages/din/external-values?changedSince=${before}`, t);
+    expect(changed.body.values).toMatchObject([{ key: 'org.everylanguage.listening/playlist/7', data: null }]);
+  });
+
+  it('is written only with the scope, by someone who contributes to the language, and read with read or the scope', async () => {
+    const { call, token } = setup();
+    // A viewer contributes nothing, so cannot be given the scope at all.
+    expect((await call('POST', '/api/v1/session/tokens', 'jwt:dinka', { orgId: ORG, name: 'x', scopes: ['external_values'] })).status).toBe(400);
+    const reader = await token('rev', { scopes: ['read'] });
+    expect((await call('PUT', at(), reader, { data: { count: 1 } })).body.code).toBe('scope');
+    const listener = await token('rev', { scopes: ['read:published'] });
+    expect((await call('GET', '/api/v1/languages/din/external-values', listener)).body.code).toBe('scope');
+    const dinkaOnly = await token('tr', { scopes: ['external_values'], languageIds: ['din'] });
+    expect((await call('PUT', '/api/v1/languages/nus/external-values/a', dinkaOnly, { data: {} })).body.code).toBe('no_language');
+    const writer = await token('tr', { scopes: ['external_values'] });
+    await call('PUT', at(), writer, { data: { count: 1 } });
+    expect((await call('GET', at(), reader)).body.data).toEqual({ count: 1 });
+  });
+
+  it('refuses keys that would not read back as a path, and data that is not a small object', async () => {
+    const { call, token } = setup();
+    const t = await token('tr', { scopes: ['external_values'] });
+    expect((await call('PUT', at('a%20b'), t, { data: {} })).body.code).toBe('bad_key');
+    expect((await call('PUT', at('a%3Fb'), t, { data: {} })).body.code).toBe('bad_key');
+    expect((await call('PUT', at(`a/${'x'.repeat(256)}`), t, { data: {} })).body.code).toBe('bad_key');
+    expect((await call('PUT', at(), t, { data: [1] })).body.code).toBe('bad_request');
+    expect((await call('PUT', at(), t, { count: 1 })).body.code).toBe('bad_request');
+    expect((await call('PUT', at(), t, { data: { text: 'x'.repeat(5000) } })).status).toBe(413);
+    expect((await call('POST', at(), t, { data: {} })).status).toBe(405);
+  });
+
+  it('offers the same over MCP', async () => {
+    const { call, token } = setup();
+    const rpc = (id: number, method: string, params: unknown = {}) => ({ jsonrpc: '2.0', id, method, params });
+    const t = await token('tr', { scopes: ['external_values'], name: 'Agent' });
+    const tools = (await call('POST', '/api/v1/mcp', t, rpc(1, 'tools/list'))).body.result.tools.map((x: any) => x.name);
+    expect(tools).toEqual(expect.arrayContaining(['set_external_value', 'get_external_values']));
+    const set = await call('POST', '/api/v1/mcp', t, rpc(2, 'tools/call', { name: 'set_external_value', arguments: { languageId: 'din', key: 'agent/notes', data: { seen: true } } }));
+    expect(set.body.result.isError).toBe(false);
+    const got = await call('POST', '/api/v1/mcp', t, rpc(3, 'tools/call', { name: 'get_external_values', arguments: { languageId: 'din', keyPrefix: 'agent/' } }));
+    expect(JSON.parse(got.body.result.content[0].text).values).toMatchObject([{ key: 'agent/notes', data: { seen: true }, writtenBy: { app: 'Agent' } }]);
+    const gone = await call('POST', '/api/v1/mcp', t, rpc(4, 'tools/call', { name: 'set_external_value', arguments: { languageId: 'din', key: 'agent/notes', data: null } }));
+    expect(JSON.parse(gone.body.result.content[0].text)).toEqual({ key: 'agent/notes', deleted: true });
+  });
+});

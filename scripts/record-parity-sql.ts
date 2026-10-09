@@ -112,6 +112,12 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.VersionReleased':
       variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
       break;
+    case 'v1.ExternalValueSet':
+      for (const key of ['/a', 'a/', 'a//b', 'a b', 'a?b', 'a%b', '.', '..', 'a/./b', 'a/../b', '...', 'a.b/c~d:e@f+g-h_i', 'x'.repeat(256), 'x'.repeat(257), 'é', '🎧']) {
+        variants.push({ ...p, key });
+      }
+      variants.push({ ...p, data: [] }, { ...p, data: [1] }, { ...p, data: true }, { ...p, data: {} }, { ...p, data: { nested: { deep: [1, null] } } });
+      break;
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':
       variants.push({ ...p, parentUnitId: 'x', parentTakeId: 'x' });

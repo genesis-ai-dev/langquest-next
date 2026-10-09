@@ -11,7 +11,7 @@ import { earlier } from './ties';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 13;
+export const REDUCER_VERSION = 14;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -125,6 +125,11 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...(url !== undefined ? { url } : {}) });
       break;
     }
+
+    case 'v1.ExternalValueSet':
+      // A register per key: the later clock wins, then the higher id (decisions.md 79).
+      lww(state.externalValues ??= {}, event.payload.key, event, { data: event.payload.data, actorId: event.actorId, deviceId: event.deviceId });
+      break;
 
     case 'v1.RecordingAdded': {
       const { recordingId, ...rest } = event.payload;

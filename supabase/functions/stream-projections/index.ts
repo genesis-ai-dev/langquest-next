@@ -20949,6 +20949,7 @@ function emptyLanguageState() {
     teams: {},
     stepLinks: {},
     releases: {},
+    externalValues: {},
     responses: {},
     materials: {},
     keyTerms: {},
@@ -21264,6 +21265,8 @@ function validateEvent(e) {
       return str("takeId", "respondsToTakeId") ?? optStr("note", "blobHash");
     case "v1.AudioFormatSet":
       return str("hash") ?? oneOf("format", ["wav", "m4a"]);
+    case "v1.ExternalValueSet":
+      return externalKeyError(p["key"]) ?? (p["data"] === null || isObject(p["data"]) ? null : "data must be an object or null");
     case "v1.ReviewRecorded":
       return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
     case "v1.DepartureRecorded":
@@ -21351,6 +21354,14 @@ function anchor(v) {
       return "anchor.kind must be passage, version, verse, study or term";
   }
 }
+var EXTERNAL_KEY_MAX = 256;
+function externalKeyError(v) {
+  if (typeof v !== "string" || v === "") return "key must be a non-empty string";
+  if (v.length > EXTERNAL_KEY_MAX) return `key must be at most ${EXTERNAL_KEY_MAX} characters`;
+  if (!/^[A-Za-z0-9._~:@+-]+(\/[A-Za-z0-9._~:@+-]+)*$/.test(v)) return "key must be segments of letters, digits and . _ ~ : @ + - joined by /";
+  if (/(^|\/)\.\.?(\/|$)/.test(v)) return "key segments may not be . or ..";
+  return null;
+}
 function isObject(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -21378,7 +21389,7 @@ function stable(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 13;
+var REDUCER_VERSION = 14;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21460,6 +21471,9 @@ function applyLanguageEvent(state, event) {
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...url !== void 0 ? { url } : {} });
       break;
     }
+    case "v1.ExternalValueSet":
+      lww(state.externalValues ??= {}, event.payload.key, event, { data: event.payload.data, actorId: event.actorId, deviceId: event.deviceId });
+      break;
     case "v1.RecordingAdded": {
       const { recordingId, ...rest } = event.payload;
       const prior = state.recordings[recordingId];

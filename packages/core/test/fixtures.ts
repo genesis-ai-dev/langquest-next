@@ -176,6 +176,11 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv-link', takeId: 'take2', kindId: 'community', outcome: 'looks_good', via: 'link', givenBy: 'Deng', comment: 'Clear.' });
   emit('dA', 'lead', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: true, url: 'https://el.example/luke1' });
   emit('dE', 'lead2', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: false });
+  // External values (decisions.md 79): two tokens write one key, a second key is written then deleted.
+  emit('api-tok1', 't1', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/plays/luke1/2026-10-08', data: { count: 40 } });
+  emit('api-tok2', 'lead', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/plays/luke1/2026-10-08', data: { count: 42 } });
+  emit('api-tok1', 't1', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/playlist/7', data: { title: 'Luke for children', order: ['luke1'] } });
+  emit('api-tok1', 't1', 'v1.ExternalValueSet', { key: 'org.everylanguage.listening/playlist/7', data: null });
   emit('dF', 'bt1', 'v1.ReviewRecorded', { reviewId: 'rv1', takeId: 'take2', kindId: 'bt', outcome: 'recorded', via: 'app', artifacts: [{ hash: 'b1', durationMs: 4000, format: 'wav' }], comment: 'Verse 3 was hard to say back.' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv2', takeId: 'take2', kindId: 'community', outcome: 'needs_changes', via: 'logged', comment: 'They heard shepherd as a hired herder.', people: 11, place: "Women's fellowship", answers: { x1: 'No' } });
   emit('dB', 't1', 'v1.DepartureRecorded', { departureId: 'd2', unitId: 'luke1', type: 'keep', reviewId: 'rv2', reason: 'The cattle-camp word is used for the owner already.' });
