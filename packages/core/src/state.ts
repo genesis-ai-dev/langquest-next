@@ -116,6 +116,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   template: Register<TemplateSelection> | null;
   /** unitId -> hidden (TPL-7): parts the template's current version no longer has. */
   hiddenUnits: Record<string, Register<boolean>>;
+  /** USFM book -> what this language calls it (v1.BookNameSet, decision 74); absent in older snapshots. */
+  bookNames?: Record<string, Register<string>>;
   flow: Register<FlowSelection> | null;
   teams: Record<string, ReviewTeam>;
   /** stepId -> may it be reviewed by a shared link (v1.FlowStepLinksSet). */

@@ -37,7 +37,7 @@ export interface OutlineNode {
  * books, chapters, or passages given as verse ranges. An outline template
  * is a tree built by hand (lessons, stories, health notices).
  */
-export interface TemplateDoc {
+export interface TemplateDocV1 {
   format: 'template@1';
   name: string;
   description: string;
@@ -54,6 +54,103 @@ export interface TemplateDoc {
   };
   outline?: OutlineNode[];
   deps: string[];
+}
+
+/**
+ * One book of a `template@2` Bible: how it is broken up, if that is decided.
+ * Without `divide` the book is listed with nothing in it yet: it waits for
+ * someone to break it up (decision 74).
+ */
+export interface TemplateBook {
+  book: string;
+  /** The template's name for it; a language may call it something else (`v1.BookNameSet`). */
+  name: string;
+  /**
+   * `chapters`: one part a chapter. `passages`: the ranges listed.
+   * `book`: the whole book as one part (only to carry a `template@1`
+   * "books" template over unchanged; nothing offers it).
+   */
+  divide?: 'book' | 'chapters' | 'passages';
+  /** What one part is called in this book: "Chapter", "Passage", "Chunk", "Section". */
+  part?: string;
+  /** For `passages`: verse ranges inside this book, in order ("RUT 1:1-7"), each with an optional name. */
+  passages?: { ref: string; name?: string }[];
+}
+
+/**
+ * A content template whose Bible books are broken up one by one
+ * (decision 74): each book says how it divides, or nothing yet. Unit ids
+ * are the same as `template@1`'s (`GEN`, `GEN.1`, `GEN.1.1-2.3`), so a
+ * language can move between the two without losing its parts. `goesWith`
+ * names the study material made for this way of dividing: guides that
+ * follow that pattern ("FIA") match its passages exactly.
+ */
+export interface TemplateDocV2 {
+  format: 'template@2';
+  name: string;
+  description: string;
+  structure: 'bible' | 'outline';
+  levels: { name: string; display?: LevelDisplay }[];
+  bible?: {
+    versification: string;
+    books: TemplateBook[];
+  };
+  outline?: OutlineNode[];
+  goesWith?: { pattern: string };
+  deps: string[];
+}
+
+/** Either version of a content template. Read a Bible one's books with `templateBooks`. */
+export type TemplateDoc = TemplateDocV1 | TemplateDocV2;
+
+/** Whether a document is a content template of either version. */
+export const isTemplateDoc = (doc: { format: string } | null | undefined): doc is TemplateDoc =>
+  doc?.format === 'template@1' || doc?.format === 'template@2';
+
+/**
+ * A Bible template's books as `template@2` says them, whichever version it
+ * is: a `template@1` gives every book its one divide, its passages and its
+ * last level's name. Books keep the template's order.
+ */
+export function templateBooks(doc: TemplateDoc): TemplateBook[] {
+  const bible = doc.bible;
+  if (!bible) return [];
+  if (doc.format === 'template@2') return (bible as NonNullable<TemplateDocV2['bible']>).books;
+  const b1 = bible as NonNullable<TemplateDocV1['bible']>;
+  const part = doc.levels[doc.levels.length - 1]?.name;
+  const byBook = new Map<string, { ref: string; name?: string }[]>();
+  if (b1.divide === 'passages') {
+    for (const p of b1.passages ?? []) {
+      const r = parseRef(p.ref);
+      if (!r) continue;
+      byBook.set(r.book, [...(byBook.get(r.book) ?? []), p]);
+    }
+  }
+  return b1.books.map((b) => ({
+    book: b.book,
+    name: b.name,
+    divide: b1.divide === 'books' ? 'book' : b1.divide,
+    ...(part && b1.divide !== 'books' ? { part } : {}),
+    ...(b1.divide === 'passages' ? { passages: byBook.get(b.book) ?? [] } : {})
+  }));
+}
+
+/**
+ * The same template as a `template@2`, ready for one book to change: every
+ * book and part keeps its id, so nothing recorded moves.
+ */
+export function asTemplateV2(doc: TemplateDoc): TemplateDocV2 {
+  if (doc.format === 'template@2') return doc;
+  return {
+    format: 'template@2',
+    name: doc.name,
+    description: doc.description,
+    structure: doc.structure,
+    levels: doc.levels,
+    ...(doc.bible ? { bible: { versification: doc.bible.versification, books: templateBooks(doc) } } : {}),
+    ...(doc.outline ? { outline: doc.outline } : {}),
+    deps: doc.deps
+  };
 }
 
 /** A review flow (FLOW-1..3), carrying the kinds it uses so it travels whole. */
@@ -107,6 +204,8 @@ export interface CollectionDoc {
   description: string;
   /** Language of its guides ("eng"), when they share one; lets a reader prefer their own. */
   language?: string;
+  /** The method its guides follow ("FIA"); a template made for it says so in `goesWith` (decision 74). */
+  pattern?: string;
   versification: string;
   entries: { ref: string; title: string; doc: string }[];
   deps: string[];
@@ -240,12 +339,12 @@ export interface TimingDoc {
   deps: string[];
 }
 
-export type LibraryDoc = TemplateDoc | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc;
+export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc;
 
 /** The library kind a document is published under. */
 export function kindOfDoc(doc: LibraryDoc): LibraryKind {
   switch (doc.format) {
-    case 'template@1': return 'template';
+    case 'template@1': case 'template@2': return 'template';
     case 'flow@1': return 'flow';
     case 'versification@1': return 'versification';
     default: return 'material';
@@ -286,7 +385,7 @@ const NODE_ID = /^[^/@\s]+$/;
 export function referencedDocs(doc: LibraryDoc): string[] {
   const out = new Set<string>();
   switch (doc.format) {
-    case 'template@1': if (doc.bible) out.add(doc.bible.versification); break;
+    case 'template@1': case 'template@2': if (doc.bible) out.add(doc.bible.versification); break;
     case 'study@1': out.add(doc.versification); break;
     case 'collection@1':
       out.add(doc.versification);
@@ -357,6 +456,37 @@ export function validateDoc(value: unknown): string | null {
       }
       break;
     }
+    case 'template@2': {
+      if (!str(d['name'])) return 'a template needs a name';
+      if (d['structure'] !== 'bible' && d['structure'] !== 'outline') return 'structure must be bible or outline';
+      if (!Array.isArray(d['levels']) || !(d['levels'] as unknown[]).every((l) => isObj(l) && str(l['name']))) return 'levels need names';
+      if (d['goesWith'] !== undefined && !(isObj(d['goesWith']) && str((d['goesWith'] as Record<string, unknown>)['pattern']))) return 'goesWith names a pattern';
+      if (d['structure'] === 'bible') {
+        const b = d['bible'];
+        if (!isObj(b) || !isHash(b['versification'])) return 'a Bible template names its versification';
+        if (!Array.isArray(b['books'])) return 'books must be listed';
+        const seen = new Set<string>();
+        for (const x of b['books'] as unknown[]) {
+          if (!isObj(x) || !/^[A-Z0-9]{3}$/.test(String(x['book'])) || !str(x['name'])) return 'books need a USFM code and a name';
+          if (seen.has(x['book'] as string)) return `book ${String(x['book'])} is listed twice`;
+          seen.add(x['book'] as string);
+          if (x['divide'] !== undefined && !['book', 'chapters', 'passages'].includes(x['divide'] as string)) return 'divide must be book, chapters or passages';
+          if (!optStr(x['part'])) return 'part must be a string';
+          if (x['divide'] === 'passages') {
+            if (!Array.isArray(x['passages'])) return 'passages must be listed';
+            for (const p of x['passages'] as unknown[]) {
+              const r = isObj(p) && str(p['ref']) ? parseRef(p['ref'] as string) : null;
+              if (!r || !optStr((p as Record<string, unknown>)['name'])) return 'passages need a readable ref';
+              if (r.book !== x['book']) return `a passage of ${String(x['book'])} is in another book`;
+            }
+          } else if (x['passages'] !== undefined) return 'only a book divided into passages lists them';
+        }
+      } else {
+        const e = outlineError(d['outline'], new Set());
+        if (e) return e;
+      }
+      break;
+    }
     case 'flow@1': {
       if (!str(d['name'])) return 'a flow needs a name';
       if (!Array.isArray(d['kinds']) || !(d['kinds'] as unknown[]).every((k) => isObj(k) && str(k['id']) && str(k['name']))) return 'kinds need an id and a name';
@@ -382,7 +512,7 @@ export function validateDoc(value: unknown): string | null {
       break;
     case 'collection@1':
       if (!str(d['title']) || !isHash(d['versification'])) return 'a collection needs a title and a versification';
-      if (!optStr(d['language'])) return 'language must be a string';
+      if (!optStr(d['language']) || !optStr(d['pattern'])) return 'language and pattern must be strings';
       if (!Array.isArray(d['entries']) || !(d['entries'] as unknown[]).every((e) => isObj(e) && str(e['ref']) && parseRef(e['ref'] as string) && isHash(e['doc']))) {
         return 'collection entries need a readable ref and a document hash';
       }

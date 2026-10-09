@@ -21,9 +21,10 @@
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
 import {
-  chaptersInBook, derivePassage, languageName, languageProgress,
+  chaptersInBook, derivePassage, languageName, languageProgress, libraryItemView, usfmOf,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
+import { BookHead, BreakUpBook, templateBookName } from '../breakup/BreakUpBook';
 import { useMemo, useRef, useState } from 'react';
 import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -1101,11 +1102,15 @@ export function BookStructure(ctx: Ctx) {
   const book = bookId ? bibleBook(bookId) : undefined;
   const list = useRef<FlatList<number>>(null);
   const [picking, setPicking] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const canShape = ctx.session.can('shape_templates') || ctx.session.can('manage_templates');
+  // Breaking up a book changes the language's template: coordinators and admins (decision 74).
+  const canBreak = ctx.session.can('manage_templates');
   const open = isOpen(ctx, languageId);
   const sel = state && open ? templateOf(state) : null;
   const docs = useLibraryDocs(ctx.language.orgId, [sel?.docHash]);
   const doc = sel ? docs.get<TemplateDoc>(sel.docHash) : null;
+  const v11n = doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
 
   const data = useMemo(() => {
     if (!state || !open || !book) return null;
@@ -1137,6 +1142,16 @@ export function BookStructure(ctx: Ctx) {
       </Screen>
     );
   }
+  const usfm = usfmOf(book.itemId);
+  const item = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId) : null;
+  const templateName = templateBookName(doc, usfm, book.label);
+  // Not broken up yet, or Break up differently: the ways to choose from (decision 74).
+  if (doc?.bible && canBreak && (choosing || data.segments.length === 0)) {
+    return (
+      <BreakUpBook ctx={ctx} book={usfm} bookName={data.label} language={data.language} doc={doc} item={item} redo={data.segments.length > 0}
+        onClose={() => (choosing ? setChoosing(false) : ctx.back())} />
+    );
+  }
   const part = partName(doc);
   const parts = lower(pluralOf(part));
   const chapters = book.verses.map((_, i) => i + 1);
@@ -1166,10 +1181,12 @@ export function BookStructure(ctx: Ctx) {
         }}
         ListHeaderComponent={
           <View style={{ padding: space.lg, gap: space.md }}>
-            <Banner icon="cut" title={`Changing where ${parts} start is coming`}
-              body={`For now you can read how ${data.language}'s ${parts} divide ${data.label}${fia.size ? ", with FIA's breaks marked as suggestions" : ''}.`} />
+            {doc?.bible ? (
+              <BookHead ctx={ctx} book={usfm} templateName={templateName} language={data.language} doc={doc} v11n={v11n} canShape={canBreak}
+                onChange={() => setChoosing(true)} />
+            ) : null}
             {data.segments.length === 0 ? (
-              <Text style={txt.smMuted}>{data.language} has no {parts} in {data.label} yet.</Text>
+              <Text style={txt.smMuted}>{canBreak ? `${data.language} has no ${parts} in ${data.label} yet.` : `A coordinator breaks up ${data.label} before anyone records it.`}</Text>
             ) : null}
           </View>
         }

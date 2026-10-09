@@ -66,6 +66,12 @@ export interface LibraryWorkEvents {
   /** A part of a language's template that its current version no longer has; hidden, never deleted (TPL-7). */
   'v1.UnitHidden': { unitId: string; hidden: boolean };
   /**
+   * What this language calls a Bible book (USFM `book`), whatever its
+   * template calls it, so languages can share one template (decision 74).
+   * Register per book.
+   */
+  'v1.BookNameSet': { book: string; name: string };
+  /**
    * The flow a language uses. `flowId` is its steps' prefix: a library
    * flow's version (`libraryFlowId`, with the item, version and name), or
    * `custom` for steps edited by hand.

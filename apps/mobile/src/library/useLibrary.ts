@@ -1,5 +1,5 @@
 import {
-  CommandError, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
+  CommandError, isTemplateDoc, libraryItems, libraryItemView, selectFlowSpecs, selectTemplateSpecs,
   type FlowDoc, type LibraryDoc, type LibraryItemView, type LibraryKind, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -103,7 +103,7 @@ export function useLibrary(ctx: Ctx) {
     const doc = docs.get(hash);
     if (!doc) throw new CommandError('Its document is not on this device yet. Try again when connected.');
     const commandId = Crypto.randomUUID();
-    if (doc.format === 'template@1') {
+    if (isTemplateDoc(doc)) {
       const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
       if (doc.bible && !v11n) throw new CommandError('Its versification is not on this device yet. Try again when connected.');
       return selectTemplateSpecs(state, { commandId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}) });

@@ -177,6 +177,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.TemplateSelected` | itemId, docHash, unitPrefix, books? | register; the selector emits `UnitAdded` (`<itemId>/GEN.1.1-2.3`) and `UnitHidden` |
 | `v1.UnitAdded` | unitId, parentUnitId, kind, label, order | grow-only set |
 | `v1.UnitHidden` | unitId, hidden | register per unit; a part the template's version no longer has |
+| `v1.BookNameSet` | book, name | register per book (USFM); what this language calls a Bible book, whatever its template calls it (decision 74) |
 | `v1.FlowSelected` | flowId, itemId, docHash, name | register; the selector emits kinds and `FlowStepSet` under `<flowId>/` |
 | `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds[], checkpoint / stepId | register per step; removal is add-wins; kinds in one step run in parallel, a checkpoint is the only gate |
 | `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |
@@ -199,7 +200,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
-| `v1.AudioFormatSet` | hash, format | register per hash (LWW by clock); a voice note's format when not m4a (decisions.md 74) |
+| `v1.AudioFormatSet` | hash, format | register per hash (LWW by clock); a voice note's format when not m4a (decisions.md 75) |
 | `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
 
 **Person stream** (org `_person`, `streamId` the profile id; written only by
@@ -437,7 +438,7 @@ gone (decision 63).
 | Spec concept | Here | Note |
 | --- | --- | --- |
 | Org › Language | `orgId` › one stream per language (`streamId` = the language's id), listed by `LanguageAdded` in the organization stream (`orgLanguages`) | no project and no lane (decision 63); a phone pulls the languages it opens (decision 37) |
-| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used by the language (`TemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`UnitHidden`) | pieces are leaf units; a language shows its template's units in the books it covers, plus hand-added ones |
+| Content template (FIA, OpenBible…) | a library item's version (docs/library.md) used by the language (`TemplateSelected`); units `<itemId>/<node>`, parts a later version drops hidden (`UnitHidden`); a `template@2` Bible breaks up each book its own way or not yet (decision 74) | pieces are leaf units; a language shows its template's units in the books it covers, plus hand-added ones; a book with none waits to be broken up |
 | Piece / passage | `UnitAdded` with a leaf kind | |
 | Version (submitted content) | take (`TakeComposed`) plus `TakeSubmitted` | **added** `TakeSubmitted`: recordings save immediately, submission is the hand-off (A30) |
 | Take (audio) | cards (`RecordingAdded`) referenced by a take | |

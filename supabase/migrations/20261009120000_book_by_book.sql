@@ -1,81 +1,16 @@
--- v1.AudioFormatSet: a voice note's format (decisions.md 74).
+-- Breaking up the Bible book by book (decisions.md 74).
 --
--- A voice note is named only by the event that uses it (decision 30), which
--- has no format field, so every device took it for m4a. A browser that
--- cannot record MP4 stores WAV (decision 58), and the note was then looked
--- for, uploaded and fetched as <hash>.m4a. The device that has the file now
--- says its format with an event of its own, appended ahead of the event that
--- names the note. Whoever may name a voice note may say its format.
--- core validate.ts and EVENT_PRIVILEGE are the same rules
--- (scripts/record-parity-sql.ts); both functions are redefined whole, from
--- 20261008140000_review_links_releases.sql plus this event.
-
-create or replace function public.event_privilege(p_type text, p jsonb)
-returns text language sql immutable as $$
-  select case p_type
-    -- organization stream
-    when 'v1.OrgCreated' then 'bootstrap'
-    when 'v1.RoleDefined' then 'manage_roles'
-    when 'v1.RoleRetired' then 'manage_roles'
-    when 'v1.MemberAdded' then 'invite_members'
-    when 'v1.MemberRemoved' then 'invite_members'
-    when 'v1.InviteIssued' then 'invite_members'
-    when 'v1.InviteRedeemed' then null
-    when 'v1.JoinDecided' then 'invite_members'
-    when 'v1.LicenseSet' then 'manage_roles'
-    when 'v1.LanguageAdded' then 'manage_structure'
-    when 'v1.LanguageRenamed' then 'manage_structure'
-    when 'v1.LanguageCountrySet' then 'manage_structure'
-    when 'v1.LanguageTargetSet' then 'manage_structure'
-    when 'v1.ReferenceRecommended' then 'manage_reference'
-    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
-    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
-    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
-    -- either stream
-    when 'v1.Redacted' then 'manage_structure'
-    -- language stream
-    when 'v1.TemplateSelected' then 'manage_templates'
-    when 'v1.UnitAdded' then 'manage_templates'
-    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
-    when 'v1.FlowSelected' then 'manage_flows'
-    when 'v1.FlowStepSet' then 'manage_flows'
-    when 'v1.FlowStepRemoved' then 'manage_flows'
-    when 'v1.ReviewKindDefined' then 'manage_flows'
-    when 'v1.ReviewTeamDefined' then 'manage_teams'
-    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
-    when 'v1.ReviewTeamKindSet' then 'manage_teams'
-    when 'v1.FlowStepLinksSet' then 'manage_flows'
-    when 'v1.VersionReleased' then 'assign_work'
-    when 'v1.RecordingAdded' then 'translate'
-    when 'v1.TakeComposed' then 'translate'
-    when 'v1.TakeArchived' then 'translate'
-    when 'v1.TakeSubmitted' then 'translate'
-    when 'v1.ResponseRecorded' then 'translate'
-    when 'v1.AudioFormatSet' then 'translate,review,assign_work,send_to_reviewers,override_checkpoints,fill_reference'
-    when 'v1.ReviewRecorded' then case when p->>'via' in ('logged', 'link') then 'review,translate' else 'review' end
-    when 'v1.DepartureRecorded' then case p->>'type'
-      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
-    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
-    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
-    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
-    when 'v1.NoteAdded' then 'translate,review,fill_reference'
-    when 'v1.StudyStepMarked' then 'translate'
-    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
-    when 'v1.MaterialFieldSet' then 'fill_reference'
-    when 'v1.MaterialLocked' then 'manage_reference'
-    when 'v1.KeyTermDefined' then 'fill_reference'
-    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
-    when 'v1.KeyTermAdjusted' then 'fill_reference'
-    when 'v1.KeyTermLinked' then 'fill_reference'
-    when 'v1.ReferenceSet' then 'manage_reference'
-    when 'v1.PassageReferenceLinked' then 'manage_reference'
-    when 'v1.ReferencesUsed' then 'translate,review'
-    else null
-  end;
-$$;
+-- A new document format, template@2: a Bible template whose books each say
+-- how they are broken up (chapters or listed passages), or nothing yet. A
+-- new language-stream event, v1.BookNameSet: what a language calls a book,
+-- so languages can share one template. Core holds the same rules
+-- (libraryDocs.ts, validate.ts, org.ts); scripts/record-parity-sql.ts holds
+-- the event rules together. The functions are restated whole, as
+-- `create or replace`.
+--
+-- And library_template_users: which template each language of an
+-- organization uses, so whoever changes a template can choose the
+-- languages the change goes to (a phone pulls only the languages it opens).
 
 create or replace function public.validate_payload(p_type text, p jsonb)
 returns text language plpgsql immutable as $$
@@ -188,6 +123,9 @@ begin
     when 'v1.UnitHidden' then
       if not public._is_str(p->'unitId') then return 'unitId must be a non-empty string'; end if;
       if not public._is_bool(p->'hidden') then return 'hidden must be a boolean'; end if;
+    when 'v1.BookNameSet' then
+      if not (public._is_str(p->'book') and public._is_str(p->'name')) then return 'book, name must be non-empty strings'; end if;
+      if (p->>'book') !~ '^[A-Z0-9]{3}$' then return 'book must be a USFM book code'; end if;
     when 'v1.FlowSelected' then
       if not public._is_str(p->'flowId') then return 'flowId must be a non-empty string'; end if;
       if (p->>'flowId') ~ '[/@[:space:]]' then return 'flowId may not contain /, @ or spaces'; end if;
@@ -239,9 +177,6 @@ begin
     when 'v1.ResponseRecorded' then
       if not (public._is_str(p->'takeId') and public._is_str(p->'respondsToTakeId')) then return 'takeId, respondsToTakeId must be non-empty strings'; end if;
       if not (public._is_opt_str(p->'note') and public._is_opt_str(p->'blobHash')) then return 'note, blobHash must be strings'; end if;
-    when 'v1.AudioFormatSet' then
-      if not public._is_str(p->'hash') then return 'hash must be a non-empty string'; end if;
-      if not public._is_one_of(p->'format', array['wav', 'm4a']) then return 'format must be one of wav, m4a'; end if;
     when 'v1.ReviewRecorded' then
       if not (public._is_str(p->'reviewId') and public._is_str(p->'takeId') and public._is_str(p->'kindId')) then return 'reviewId, takeId, kindId must be non-empty strings'; end if;
       if not public._is_one_of(p->'outcome', array['looks_good', 'needs_changes', 'recorded']) then return 'outcome must be one of looks_good, needs_changes, recorded'; end if;
@@ -369,3 +304,127 @@ begin
   end case;
   return null;
 end $$;
+
+create or replace function public.event_privilege(p_type text, p jsonb)
+returns text language sql immutable as $$
+  select case p_type
+    -- organization stream
+    when 'v1.OrgCreated' then 'bootstrap'
+    when 'v1.RoleDefined' then 'manage_roles'
+    when 'v1.RoleRetired' then 'manage_roles'
+    when 'v1.MemberAdded' then 'invite_members'
+    when 'v1.MemberRemoved' then 'invite_members'
+    when 'v1.InviteIssued' then 'invite_members'
+    when 'v1.InviteRedeemed' then null
+    when 'v1.JoinDecided' then 'invite_members'
+    when 'v1.LicenseSet' then 'manage_roles'
+    when 'v1.LanguageAdded' then 'manage_structure'
+    when 'v1.LanguageRenamed' then 'manage_structure'
+    when 'v1.LanguageCountrySet' then 'manage_structure'
+    when 'v1.LanguageTargetSet' then 'manage_structure'
+    when 'v1.ReferenceRecommended' then 'manage_reference'
+    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
+    -- either stream
+    when 'v1.Redacted' then 'manage_structure'
+    -- language stream
+    when 'v1.TemplateSelected' then 'manage_templates'
+    when 'v1.UnitAdded' then 'manage_templates'
+    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
+    when 'v1.BookNameSet' then 'manage_templates'
+    when 'v1.FlowSelected' then 'manage_flows'
+    when 'v1.FlowStepSet' then 'manage_flows'
+    when 'v1.FlowStepRemoved' then 'manage_flows'
+    when 'v1.ReviewKindDefined' then 'manage_flows'
+    when 'v1.ReviewTeamDefined' then 'manage_teams'
+    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
+    when 'v1.ReviewTeamKindSet' then 'manage_teams'
+    when 'v1.FlowStepLinksSet' then 'manage_flows'
+    when 'v1.VersionReleased' then 'assign_work'
+    when 'v1.RecordingAdded' then 'translate'
+    when 'v1.TakeComposed' then 'translate'
+    when 'v1.TakeArchived' then 'translate'
+    when 'v1.TakeSubmitted' then 'translate'
+    when 'v1.ResponseRecorded' then 'translate'
+    when 'v1.ReviewRecorded' then case when p->>'via' in ('logged', 'link') then 'review,translate' else 'review' end
+    when 'v1.DepartureRecorded' then case p->>'type'
+      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
+    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
+    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
+    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
+    when 'v1.NoteAdded' then 'translate,review,fill_reference'
+    when 'v1.StudyStepMarked' then 'translate'
+    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
+    when 'v1.MaterialFieldSet' then 'fill_reference'
+    when 'v1.MaterialLocked' then 'manage_reference'
+    when 'v1.KeyTermDefined' then 'fill_reference'
+    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
+    when 'v1.KeyTermAdjusted' then 'fill_reference'
+    when 'v1.KeyTermLinked' then 'fill_reference'
+    when 'v1.ReferenceSet' then 'manage_reference'
+    when 'v1.PassageReferenceLinked' then 'manage_reference'
+    when 'v1.ReferencesUsed' then 'translate,review'
+    else null
+  end;
+$$;
+
+create or replace function public._library_store(p_org text, p_body text)
+returns text language plpgsql set search_path = '' as $$
+declare v_doc jsonb; v_format text; v_deps text[] := '{}'; v_hash text; r record;
+begin
+  if p_body is null then raise exception 'a document is required' using errcode = '22023'; end if;
+  if octet_length(p_body) > 4194304 then raise exception 'document too large (max 4 MB)' using errcode = '54000'; end if;
+  begin
+    v_doc := p_body::jsonb;
+  exception when others then
+    raise exception 'a document must be JSON' using errcode = '22023';
+  end;
+  if jsonb_typeof(v_doc) <> 'object' then raise exception 'a document must be a JSON object' using errcode = '22023'; end if;
+  v_format := v_doc->>'format';
+  if coalesce(v_format, '') not in ('template@1', 'template@2', 'flow@1', 'study@1', 'study@2', 'collection@1', 'material@1', 'source@1', 'sourceBook@1', 'timing@1', 'versification@1') then
+    raise exception 'unknown document format %', coalesce(v_format, '(none)') using errcode = '22023';
+  end if;
+  if v_format <> 'versification@1' or v_doc ? 'deps' then
+    if jsonb_typeof(v_doc->'deps') is distinct from 'array' then raise exception 'deps must be a list of hashes' using errcode = '22023'; end if;
+    if exists (select 1 from jsonb_array_elements(v_doc->'deps') d where not public._is_hash(d)) then
+      raise exception 'deps must be a list of hashes' using errcode = '22023';
+    end if;
+    v_deps := array(select distinct jsonb_array_elements_text(v_doc->'deps'));
+  end if;
+  if exists (select 1 from unnest(v_deps) dep
+             where not exists (select 1 from public.library_document_access a where a.org_id = p_org and a.hash = dep)) then
+    raise exception 'a document it depends on is not readable by this organization' using errcode = '42501';
+  end if;
+  v_hash := encode(sha256(convert_to(p_body, 'UTF8')), 'hex');
+  insert into public.library_documents (hash, format, body, bytes, deps)
+  values (v_hash, v_format, p_body, octet_length(p_body), v_deps)
+  on conflict (hash) do nothing;
+  insert into public.library_document_access (org_id, hash) values (p_org, v_hash) on conflict do nothing;
+  -- A version published offline may have reached the log before its document.
+  for r in select v.item_id from public.library_versions v where v.org_id = p_org and v.doc_hash = v_hash loop
+    perform public._library_fan_out(p_org, r.item_id, v_hash);
+  end loop;
+  return v_hash;
+end $$;
+
+create or replace function public.library_template_users(p_org text)
+returns table (language_id text, item_id text, doc_hash text, unit_prefix text, books jsonb)
+language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
+begin
+  if not public._library_member(p_org, public.caller_id()) then raise exception 'not a member' using errcode = '42501'; end if;
+  -- The latest selection in each language stream, as the fold keeps it (latest clock, then event id).
+  return query
+    select distinct on (e.stream_id) e.stream_id, e.payload->>'itemId', e.payload->>'docHash', e.payload->>'unitPrefix', e.payload->'books'
+    from public.events e
+    where e.org_id = p_org and e.type = 'v1.TemplateSelected' and e.stream_id <> '_org'
+      and not exists (select 1 from public.events r
+                      where r.org_id = e.org_id and r.stream_id = e.stream_id and r.type = 'v1.Redacted' and r.payload->>'eventId' = e.id)
+    order by e.stream_id, e.hlc collate "C" desc, e.id collate "C" desc;
+end $$;
+revoke all on function public.library_template_users(text) from public, anon;
+grant execute on function public.library_template_users(text) to authenticated, service_role;

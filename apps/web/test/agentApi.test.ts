@@ -251,7 +251,7 @@ describe('reading', () => {
     expect(d1.body.steps).toEqual([{ name: 'Peer Review', complete: true }]);
   });
 
-  it('links a voice note recorded in a browser under its real format (decisions.md 74)', async () => {
+  it('links a voice note recorded in a browser under its real format (decisions.md 75)', async () => {
     // Why: a browser without MP4 stores the note as <hash>.wav; a link to
     // <hash>.m4a would point at nothing.
     const { call, token, log } = setup();

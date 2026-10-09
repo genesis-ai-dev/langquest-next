@@ -108,6 +108,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TemplateSelected': 'manage_templates',
   'v1.UnitAdded': 'manage_templates',
   'v1.UnitHidden': ['manage_templates', 'shape_templates'],
+  'v1.BookNameSet': 'manage_templates',
   'v1.FlowSelected': 'manage_flows',
   'v1.FlowStepSet': 'manage_flows',
   'v1.FlowStepRemoved': 'manage_flows',

@@ -57,6 +57,10 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       lww(state.hiddenUnits, event.payload.unitId, event, event.payload.hidden);
       break;
 
+    case 'v1.BookNameSet':
+      lww(state.bookNames ??= {}, event.payload.book, event, event.payload.name);
+      break;
+
     case 'v1.FlowSelected': {
       const { flowId, itemId, docHash, name } = event.payload;
       state.flow = set(state.flow, event, { flowId, ...(itemId ? { itemId } : {}), ...(docHash ? { docHash } : {}), ...(name ? { name } : {}) });

@@ -224,7 +224,7 @@ export async function passageFor(
     const out: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
     if (r.comment !== undefined) out.comment = r.comment;
     if (r.givenBy !== undefined) out.givenBy = r.givenBy;
-    // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 74), and
+    // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 75), and
     // clips among the artifacts (from outside; for a kind that makes content, the artifacts are that content, not notes).
     const notes: Card[] = [
       ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),

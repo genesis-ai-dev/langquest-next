@@ -221,8 +221,8 @@ export function Pills(props: { children: ReactNode }) {
 }
 
 /** A pick-many row with a checkbox, and a play button that opens what it is. */
-export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean }) {
-  const onToggle = useHelpPress(props.label, props.checked ? 'Offered to the team. Tap to stop offering it.' : 'Not offered. Tap to offer it to the team.', props.onToggle);
+export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string }) {
+  const onToggle = useHelpPress(props.label, props.detail ?? (props.checked ? 'Offered to the team. Tap to stop offering it.' : 'Not offered. Tap to offer it to the team.'), props.onToggle);
   const onPlay = useHelpPress(props.playLabel ?? `Hear ${props.label}`, undefined, props.onPlay);
   return (
     <View style={[styles.checkLine, !props.last && styles.rowBorder]}>
