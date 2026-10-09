@@ -288,14 +288,13 @@ export const MACROLANGUAGE_PRINCIPAL: Readonly<Record<string, string>> = {
 };
 
 /**
- * Proposed, not applied (waiting on a person to check): lexvo tags these
- * names with an umbrella ("macrolanguage") code that Glottolog files on a
- * family, not a language, so the name's label comes out as a family
- * ("written in Kurdish (family)"). Each would point at its main language
- * instead. Romani, Zhuang and Cree have no single main language and stay
- * on the family.
+ * lexvo tags some names with an umbrella ("macrolanguage") code that
+ * Glottolog files on a family rather than a language, which would label a
+ * name "written in Kurdish (the family)". These point the code at its main
+ * language instead (checked by Caleb, 2026-10-09). Romani, Zhuang and Cree
+ * have no single main language and stay on the family.
  */
-export const UMBRELLA_PROPOSED: Readonly<Record<string, string>> = {
+export const UMBRELLA_MAIN_LANGUAGE: Readonly<Record<string, string>> = {
   kom: 'kpv', // Komi -> Komi-Zyrian
   kur: 'kmr', // Kurdish -> Northern Kurdish (Kurmanji)
   sqi: 'als', // Albanian -> Tosk Albanian (standard Albanian is based on it)

@@ -254,8 +254,15 @@ themeBtn.addEventListener('click', () => {
 });
 
 // ---- data ----
+// The tables come either inside the page (npm run languoids -- explore,
+// before a load) or from the database (/api/languoids, the web app).
 async function load() {
   const b64 = $('#data').textContent.trim();
+  if (b64 === '__' + 'DATA__') {
+    const res = await fetch('/api/languoids');
+    if (!res.ok) throw new Error('the server answered ' + res.status);
+    return res.json();
+  }
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
   return JSON.parse(await new Response(stream).text());
@@ -264,7 +271,7 @@ async function load() {
 load().then(start).catch((e) => { $('#loading').textContent = 'The data could not be read: ' + e.message; });
 
 function start(D) {
-  $('#rel').textContent = 'Glottolog ' + D.release + ' · built ' + D.built.slice(0, 10);
+  $('#rel').textContent = 'Glottolog ' + (D.release || '?') + ' · ' + (D.live ? 'as loaded ' : 'built ') + D.built.slice(0, 10);
   const L = D.languoid, A = D.alias, S = D.source, P = D.property, R = D.region, LR = D.languoidRegion;
   const N = L.name.length;
 
@@ -468,7 +475,7 @@ function start(D) {
     const u = umbrellaOf.get(lb);
     return h('span', { class: 'umb' }, h('span', { class: 'badge warn' }, 'a family, not a language'),
       u && u.code ? h('span', { class: 'muted' }, ' umbrella code ' + u.code) : null,
-      u && u.proposed >= 0 ? [h('span', { class: 'muted' }, ' · proposed: '), h('button', { type: 'button', class: 'ref', onclick: () => select(u.proposed, false) }, L.name[u.proposed])] : h('span', { class: 'muted' }, ' · no single main language; stays as is'));
+      u && u.proposed >= 0 ? [h('span', { class: 'muted' }, ' · proposed: '), h('button', { type: 'button', class: 'ref', onclick: () => select(u.proposed, false) }, L.name[u.proposed])] : h('span', { class: 'muted' }, ' · no single main language'));
   }
   let nameMode = 'all';
   function renderDetail(i) {
@@ -484,7 +491,7 @@ function start(D) {
     parts.push(h('div', { class: 'title' }, h('h2', {}, L.name[i]), h('span', { class: 'badge ' + level }, level), category[i] && category[i].toLowerCase() !== level ? h('span', { class: 'badge exo' }, category[i]) : null));
     parts.push(h('div', { class: 'ids' },
       h('span', {}, h('b', {}, 'id'), h('span', { class: 'mono' }, L.id[i])),
-      h('span', {}, origin === 'new' ? h('span', { class: 'badge new' }, 'New id: not in v2') : h('span', { class: 'badge endo', title: 'The id v2 gave this languoid, matched ' + origin.replace(/^v2 \((.*)\)$/, 'by $1') }, 'Id kept from v2 · ' + origin.replace(/^v2 \((.*)\)$/, '$1'))),
+      !origin ? null : h('span', {}, origin === 'new' ? h('span', { class: 'badge new' }, 'New id: not in v2') : h('span', { class: 'badge endo', title: 'The id v2 gave this languoid, matched ' + origin.replace(/^v2 \((.*)\)$/, 'by $1') }, 'Id kept from v2 · ' + origin.replace(/^v2 \((.*)\)$/, '$1'))),
       h('span', {}, h('b', {}, 'glottocode'), h('a', { class: 'mono', href: 'https://glottolog.org/resource/languoid/id/' + L.glottocode[i], target: '_blank', rel: 'noopener' }, L.glottocode[i])),
       iso[i] ? h('span', {}, h('b', {}, 'ISO 639-3'), h('span', { class: 'mono' }, iso[i])) : null));
     const fact = (k, v) => h('div', {}, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v ?? h('span', { class: 'nullv' }, 'none')));
@@ -665,11 +672,11 @@ function start(D) {
       h('div', { class: 'tiles' }, TABLES.map((t, k) => h('button', { class: 'tile', type: 'button', onclick: () => { show('tables'); tSel = k; tPage = 0; tFilter = ''; drawTable(); } }, h('div', { class: 't' }, t.name), h('div', { class: 'n' }, fmt(t.n))))),
       h('div', { class: 'cols' },
         bars('Languoids by level', tally(L.level.map((l) => LEVELS[l]))),
-        bars('Where the ids come from', origin),
+        L.origin.some(Boolean) ? bars('Where the ids come from', origin) : null,
         bars('Categories', tally(category).map(([k, v]) => [k || '(none)', v])),
         bars('Names by type', tally(A.type.map((e) => TYPE[e]))),
         h('div', { class: 'bars' }, h('h3', {}, 'Languages names are written in (top 12)'), (() => { const max = labels[0]?.[1] ?? 1; return labels.map(([n, v, k]) => h('div', { class: 'bar' }, h('button', { type: 'button', class: 'lab ref', onclick: () => openLanguoid(k) }, n), h('div', { class: 'track' }, h('div', { class: 'fill', style: 'width:' + (100 * v / max).toFixed(1) + '%' })), h('span', { class: 'val' }, fmt(v)))); })()),
-        h('div', { class: 'bars' }, h('h3', {}, 'Names written in a family (umbrella codes)'), h('p', { class: 'note' }, 'lexvo tags these names with an umbrella code that Glottolog files on a family. Proposed: point each at the language shown. Not applied yet.'),
+        h('div', { class: 'bars' }, h('h3', {}, 'Names written in a family (umbrella codes)'), h('p', { class: 'note' }, 'lexvo tags these names with an umbrella code that Glottolog files on a family. Codes with a main language point at it; these have none, so they stay on the family.'),
           (D.umbrella || []).map((u) => h('div', { class: 'bar' }, h('button', { type: 'button', class: 'lab ref', onclick: () => openLanguoid(u.family) }, L.name[u.family] + ' (' + u.code + ')'), u.proposed >= 0 ? h('button', { type: 'button', class: 'lab ref', onclick: () => openLanguoid(u.proposed) }, '→ ' + L.name[u.proposed]) : h('span', { class: 'muted' }, 'stays'), h('span', { class: 'val' }, fmt(aliasByLabel.of(u.family).length))))),
         bars('Name providers', tally(A.sources.flatMap((s) => A.sourceList[s].split('|')))),
         bars('Sources by name', tally(S.kind.map((k) => S.kindList[k]))),

@@ -20,7 +20,7 @@
  * category as properties; macroareas and nations as regions. Coordinates
  * are a point on the languoid, and macroareas are region links.
  */
-import { LABEL_ISO639_3, MACROLANGUAGE_PRINCIPAL } from './glottologLabelCodes';
+import { LABEL_ISO639_3, MACROLANGUAGE_PRINCIPAL, UMBRELLA_MAIN_LANGUAGE } from './glottologLabelCodes';
 
 export interface GlottologFile {
   glottocode: string;
@@ -238,7 +238,7 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
           // tag the table lacks is taken as an ISO 639-3 code.
           const base = tag.split('-')[0]!;
           const labelIso = LABEL_ISO639_3[tag] ?? LABEL_ISO639_3[base] ?? (/^[a-z]{3}$/.test(base) ? base : undefined);
-          label = (labelIso ? (byIso.get(labelIso) ?? byIso.get(MACROLANGUAGE_PRINCIPAL[labelIso] ?? '')) : null) ?? null;
+          label = (labelIso ? (byIso.get(UMBRELLA_MAIN_LANGUAGE[labelIso] ?? '') ?? byIso.get(labelIso) ?? byIso.get(MACROLANGUAGE_PRINCIPAL[labelIso] ?? '')) : null) ?? null;
           if (!label) {
             t.unlabelled[tag] = (t.unlabelled[tag] ?? 0) + 1;
             continue;

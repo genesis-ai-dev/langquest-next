@@ -130,6 +130,17 @@ describe('buildGlottolog', () => {
   });
 });
 
+describe('umbrella codes', () => {
+  it('labels a name tagged with an umbrella code with its main language, not the family', () => {
+    const f: GlottologFile[] = [
+      { glottocode: 'kurd1259', parent: null, ini: ini('name = Kurdish\nlevel = family\niso639-3 = kur') },
+      { glottocode: 'nort2641', parent: 'kurd1259', ini: ini('name = Northern Kurdish\nlevel = language\niso639-3 = kmr') },
+      { glottocode: 'adyg1241', parent: null, ini: ini('name = West Circassian\nlevel = language', '[altnames]\nlexvo = \n\tZimanê adigeyî [ku]\n') }
+    ];
+    expect(buildGlottolog({ files: f, values, languages, release: 'v5.3' }).aliases[0]).toMatchObject({ label_glottocode: 'nort2641', alias_type: 'exonym' });
+  });
+});
+
 describe('countryName', () => {
   it('gives plain English country names', () => {
     expect(countryName('MM')).toBe('Myanmar');

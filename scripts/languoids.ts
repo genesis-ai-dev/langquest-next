@@ -18,7 +18,7 @@
  * preview stages the tables and writes every languoid change to
  * <dir>/languoid-diff.csv with counts per table, changing nothing. apply
  * makes the changes in one transaction. explore writes a page to browse,
- * search and check the tables before loading them (scripts/languoidExplorer.html),
+ * search and check the tables before loading them (apps/mobile/public/languages.html, which the web app serves at /languages),
  * without a database.
  *
  * The target is SUPABASE_URL (local by default) with
@@ -34,7 +34,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { buildGlottolog, matchV2, type GlottologFile, type GlottologTables } from './glottolog';
-import { UMBRELLA_PROPOSED } from './glottologLabelCodes';
+
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 
 const args = process.argv.slice(2);
@@ -258,16 +258,11 @@ function explorerData(t: GlottologTables, ids: Ids) {
       keyList: propKeys.list,
       value: t.properties.map((p) => p.value)
     },
-    // Families used as a name's label, with the language proposed instead (scripts/glottologLabelCodes.ts).
+    // Families still used as a name's label: umbrella codes with no single main language.
     umbrella: (() => {
       const isoOf = new Map(t.sources.filter((s) => s.name === 'iso639-3').map((s) => [s.glottocode, s.unique_identifier]));
-      const byIso = new Map([...isoOf].map(([g, iso]) => [iso, g]));
       const families = new Set(t.aliases.map((a) => a.label_glottocode).filter((g): g is string => !!g && t.languoids[li.get(g)!]!.level === 'family'));
-      return [...families].map((g) => {
-        const code = isoOf.get(g) ?? '';
-        const to = UMBRELLA_PROPOSED[code];
-        return { family: li.get(g), code, proposed: to && byIso.has(to) ? li.get(byIso.get(to)!) : -1 };
-      });
+      return [...families].map((g) => ({ family: li.get(g), code: isoOf.get(g) ?? '', proposed: -1 }));
     })(),
     region: {
       id: t.regions.map((r) => ids.region.get(r.key)),
@@ -290,11 +285,11 @@ console.log(`Glottolog ${release}: ${tables.languoids.length} languoids, ${table
 const ids = await assignIds(tables);
 
 if (command === 'explore') {
-  // The page (scripts/languoidExplorer.html) with the tables in it, gzipped
+  // The web app's page (apps/mobile/public/languages.html) with the tables in it, gzipped
   // and base64'd: one file, about 3.5 MB, that opens anywhere.
   const out = value('out', join(tmpdir(), 'languoid-explorer.html'));
   const data = gzipSync(JSON.stringify(explorerData(tables, ids)), { level: 9 }).toString('base64');
-  const page = await readFile(new URL('./languoidExplorer.html', import.meta.url), 'utf8');
+  const page = await readFile(new URL('../apps/mobile/public/languages.html', import.meta.url), 'utf8');
   await writeFile(out, page.replace('__DATA__', data));
   console.log(`explorer: ${out}`);
 } else if (command === 'preview') {

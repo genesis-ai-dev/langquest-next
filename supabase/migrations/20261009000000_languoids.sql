@@ -646,3 +646,77 @@ begin
     execute format('grant execute on function public.%s to service_role', f);
   end loop;
 end $$;
+
+-- ---- the language explorer (the web app's /languages) ---------------------------
+
+-- Every languoid and region with their names, sources, properties and
+-- links, in the explorer page's shape (apps/mobile/public/languages.html):
+-- one array per column, rows referring to each other by position. The
+-- Worker caches it (/api/languoids), so it runs about once an hour.
+create or replace function public.languoid_explorer()
+returns jsonb language sql stable security definer set search_path = public, extensions as $$
+  with
+  l as (select x.*, (row_number() over (order by x.name, x.id) - 1)::int as i from languoid x),
+  r as (select x.*, (row_number() over (order by x.level, x.name, x.id) - 1)::int as i from region x),
+  gc as (select languoid_id, min(unique_identifier) as code from languoid_source where name = 'glottolog' group by 1),
+  iso as (select languoid_id, min(unique_identifier) as code from languoid_source where name = 'iso639-3' group by 1),
+  a as (
+    select s.i as subject, coalesce(lb.i, -1) as label, x.name,
+      case x.alias_type when 'endonym' then 1 when 'exonym' then 0 when 'description' then 3 else 2 end as type,
+      array_to_string(x.source_names, '|') as sources
+    from languoid_alias x join l s on s.id = x.subject_languoid_id left join l lb on lb.id = x.label_languoid_id
+    where x.active
+  ),
+  sl as (select sources, (row_number() over (order by sources) - 1)::int as k from (select distinct sources from a) d),
+  src as (select l.i, x.name, x.unique_identifier, x.url, x.version from languoid_source x join l on l.id = x.languoid_id where x.active),
+  kl as (select name, (row_number() over (order by name) - 1)::int as k from (select distinct name from src) d),
+  prop as (select l.i, x.key, x.value from languoid_property x join l on l.id = x.languoid_id where x.active),
+  pk as (select key, (row_number() over (order by key) - 1)::int as k from (select distinct key from prop) d),
+  lr as (select l.i as li, r.i as ri from languoid_region x join l on l.id = x.languoid_id join r on r.id = x.region_id where x.active)
+  select jsonb_build_object(
+    'release', (select release from languoid_import order by id desc limit 1),
+    'built', (select applied_at from languoid_import order by id desc limit 1),
+    'live', true,
+    'unlabelled', '{}'::jsonb,
+    'languoid', (select jsonb_build_object(
+      'id', jsonb_agg(l.id order by l.i),
+      'glottocode', jsonb_agg(coalesce(gc.code, '') order by l.i),
+      'name', jsonb_agg(l.name order by l.i),
+      'level', jsonb_agg(case l.level when 'family' then 0 when 'language' then 1 else 2 end order by l.i),
+      'parent', jsonb_agg(coalesce(p.i, -1) order by l.i),
+      'origin', jsonb_agg('' order by l.i),
+      'lat', jsonb_agg(st_y(l.location::geometry) order by l.i),
+      'lon', jsonb_agg(st_x(l.location::geometry) order by l.i))
+      from l left join l p on p.id = l.parent_id left join gc on gc.languoid_id = l.id),
+    'alias', (select jsonb_build_object(
+      'subject', coalesce(jsonb_agg(a.subject), '[]'), 'label', coalesce(jsonb_agg(a.label), '[]'),
+      'name', coalesce(jsonb_agg(a.name), '[]'), 'type', coalesce(jsonb_agg(a.type), '[]'),
+      'sources', coalesce(jsonb_agg(sl.k), '[]'),
+      'sourceList', (select coalesce(jsonb_agg(sources order by k), '[]') from sl))
+      from a join sl using (sources)),
+    'source', (select jsonb_build_object(
+      'languoid', coalesce(jsonb_agg(src.i), '[]'), 'kind', coalesce(jsonb_agg(kl.k), '[]'),
+      'kindList', (select coalesce(jsonb_agg(name order by k), '[]') from kl),
+      'id', coalesce(jsonb_agg(src.unique_identifier), '[]'),
+      'url', coalesce(jsonb_agg(case when src.name = 'glottolog' then '' else coalesce(src.url, '') end), '[]'),
+      'version', coalesce(jsonb_agg(coalesce(src.version, '')), '[]'))
+      from src join kl using (name)),
+    'property', (select jsonb_build_object(
+      'languoid', coalesce(jsonb_agg(prop.i), '[]'), 'key', coalesce(jsonb_agg(pk.k), '[]'),
+      'keyList', (select coalesce(jsonb_agg(key order by k), '[]') from pk),
+      'value', coalesce(jsonb_agg(prop.value), '[]'))
+      from prop join pk using (key)),
+    'umbrella', (select coalesce(jsonb_agg(jsonb_build_object('family', f.i, 'code', coalesce(iso.code, ''), 'proposed', -1)), '[]')
+      from l f left join iso on iso.languoid_id = f.id
+      where f.level = 'family' and exists (select 1 from languoid_alias x where x.label_languoid_id = f.id and x.active)),
+    'region', (select jsonb_build_object(
+      'id', coalesce(jsonb_agg(r.id order by r.i), '[]'),
+      'name', coalesce(jsonb_agg(r.name order by r.i), '[]'),
+      'level', coalesce(jsonb_agg(r.level order by r.i), '[]'),
+      'iso', coalesce(jsonb_agg(coalesce((select min(unique_identifier) from region_source s where s.region_id = r.id and s.name = 'iso3166-1'), '') order by r.i), '[]'))
+      from r),
+    'languoidRegion', (select jsonb_build_object('languoid', coalesce(jsonb_agg(li), '[]'), 'region', coalesce(jsonb_agg(ri), '[]')) from lr)
+  );
+$$;
+revoke all on function public.languoid_explorer() from public, anon, authenticated;
+grant execute on function public.languoid_explorer() to service_role;

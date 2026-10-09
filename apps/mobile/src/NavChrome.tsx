@@ -2,7 +2,7 @@
 // demo's bottom bar on a phone, an icon rail down the left on a tablet-wide
 // window, and a labelled sidebar with the organization on a desktop-wide one.
 // The same tabs, badges and lit tab in each; only the layout changes.
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, Ico, txt, type IconName } from './kit';
 import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from './theme';
@@ -41,6 +41,15 @@ export function NavChrome(props: {
           );
         })}
         </View>
+        {/* The web app only: the language explorer, a page of its own (docs/languoids.md). */}
+        {Platform.OS === 'web' ? (
+          <Pressable onPress={() => window.open('/languages', '_blank', 'noopener')} accessibilityRole="link"
+            accessibilityLabel="Language explorer, opens in a new tab"
+            style={({ pressed }) => [styles.sideItem, { marginTop: space.md }, pressed && { opacity: 0.6 }]}>
+            <Ico name="globe" size={22} color={C.muted} />
+            <Text style={[txt.body, { flex: 1, fontWeight: '600', color: C.dark }]} numberOfLines={1}>Language explorer</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
