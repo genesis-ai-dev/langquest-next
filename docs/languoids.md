@@ -78,7 +78,7 @@ names from the root, else a name and level only one languoid has);
 otherwise a new UUID.
 
 The language explorer is a page of the web app, at `/languages`
-(`apps/mobile/public/languages.html`; the phone app does not have it, and
+(`apps/mobile/public/languages.html` and `languages.js`, a file of its own because the site allows no inline scripts; the phone app does not have it, and
 the web sidebar links to it). It reads `GET /api/languoids`, which the
 Worker answers from `languoid_explorer()` and caches for an hour (about
 3 MB gzipped). You can search, filter and group the languoids, follow
