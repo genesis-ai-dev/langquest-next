@@ -10,7 +10,7 @@
 --                       iso639-3, wikidata, wikipedia, wals, ...
 --   languoid_property   open key/value facts: category, hid,
 --                       fia_available, ...
---   region              a continent or nation (or debated, subnational area)
+--   region              a macroarea or nation (or continent, debated, subnational area)
 --   region_alias        a region's name in a label languoid
 --   region_source       where it is catalogued (iso3166-1)
 --   region_property     open key/value facts
@@ -35,8 +35,12 @@ create extension if not exists unaccent with schema extensions;
 create extension if not exists postgis with schema extensions;
 
 create type public.languoid_level as enum ('family', 'language', 'dialect');
-create type public.alias_type as enum ('endonym', 'exonym');
-create type public.region_level as enum ('continent', 'nation', 'debated', 'subnational');
+-- description: a phrase used to identify a languoid rather than a name
+-- ("Immigrant community of Vieil Arzeu in Algeria").
+create type public.alias_type as enum ('endonym', 'exonym', 'description');
+-- macroarea: one of Glottolog's six (Africa, Eurasia, Papunesia, ...), which
+-- are not continents.
+create type public.region_level as enum ('continent', 'macroarea', 'nation', 'debated', 'subnational');
 
 create table public.languoid (
   id uuid primary key default gen_random_uuid(),
@@ -283,7 +287,7 @@ begin
       1.0::real
     from public.languoid_alias la join scope s on s.id = la.subject_languoid_id,
       extensions.unaccent(lower(la.name)) n
-    where la.active and n like '%' || q || '%'
+    where la.active and la.alias_type is distinct from 'description' and n like '%' || q || '%'
     union all
     -- near spellings, only when the text is long enough to mean something
     select s.id, null, null, 5, extensions.similarity(lower(s.name), q)
@@ -292,7 +296,7 @@ begin
     union all
     select s.id, la.name, la.alias_type::text, 5, extensions.similarity(lower(la.name), q)
     from public.languoid_alias la join scope s on s.id = la.subject_languoid_id
-    where length(q) >= 4 and la.active and lower(la.name) operator(extensions.%) q
+    where length(q) >= 4 and la.active and la.alias_type is distinct from 'description' and lower(la.name) operator(extensions.%) q
   ),
   best as (
     select distinct on (c.id) c.id, c.hit, c.hit_type, c.rank, c.sim
@@ -426,7 +430,7 @@ end $$;
 
 -- The keys Glottolog gives; other keys (fia_available, ...) are not the import's.
 create or replace function public._languoid_import_keys()
-returns text[] language sql immutable as $$ select array['hid', 'category'] $$;
+returns text[] language sql immutable as $$ select array['hid', 'category', 'iso_retirement_reason', 'iso_retirement_note', 'iso_retirement_date', 'replaced_by', 'glottolog_note'] $$;
 
 create or replace function public.languoid_staging_reset()
 returns void language sql security definer set search_path = public as $$

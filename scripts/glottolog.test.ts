@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGlottolog, linkSource, matchV2, parseCsv, parseIni, type GlottologFile } from './glottolog';
+import { buildGlottolog, countryName, linkSource, matchV2, parseCsv, parseIni, type GlottologFile } from './glottolog';
 
 const ini = (core: string, rest = '') => `# -*- coding: utf-8 -*-\r\n[core]\r\n${core}\r\n${rest}`;
 
@@ -69,7 +69,7 @@ describe('buildGlottolog', () => {
 
   it('keeps hid and category as properties; coordinates go on the languoid and macroareas become region links', () => {
     expect(of(t.properties, 'dink1262').map((p) => [p.key, p.value])).toEqual([['hid', 'din'], ['category', 'Spoken L1 Language']]);
-    expect(of(t.languoidRegions, 'padd1234')).toContainEqual({ glottocode: 'padd1234', region_key: 'continent:Africa' });
+    expect(of(t.languoidRegions, 'padd1234')).toContainEqual({ glottocode: 'padd1234', region_key: 'macroarea:Africa' });
   });
 
   it('labels a name only when the source says its language; endonym when that is the languoid itself', () => {
@@ -97,16 +97,45 @@ describe('buildGlottolog', () => {
 
   it('makes continents and nations, and links each languoid to them', () => {
     expect(t.regions).toEqual([
-      { key: 'continent:Africa', name: 'Africa', level: 'continent', iso3166_1: null },
+      { key: 'macroarea:Africa', name: 'Africa', level: 'macroarea', iso3166_1: null },
       { key: 'iso3166-1:SD', name: 'Sudan', level: 'nation', iso3166_1: 'SD' },
       { key: 'iso3166-1:SS', name: 'South Sudan', level: 'nation', iso3166_1: 'SS' }
     ]);
-    expect(of(t.languoidRegions, 'padd1234').map((x) => x.region_key)).toEqual(['continent:Africa', 'iso3166-1:SS']);
+    expect(of(t.languoidRegions, 'padd1234').map((x) => x.region_key)).toEqual(['macroarea:Africa', 'iso3166-1:SS']);
+  });
+
+  it('marks phrases of six words or more as descriptions', () => {
+    const f = [{ glottocode: 'tong1321', parent: null, ini: ini('name = Tonga\nlevel = language', '[altnames]\nhhbib_lgcode = \n\tand kinship to Tumbuka speech easier to recognize\n\tChitonga\n') }];
+    expect(buildGlottolog({ files: f, values, languages, release: 'v5.3' }).aliases.map((a) => [a.name, a.alias_type])).toEqual([
+      ['and kinship to Tumbuka speech easier to recognize', 'description'], ['Chitonga', null]
+    ]);
+  });
+
+  it('keeps why ISO retired a code, and points to its replacement', () => {
+    const f = [
+      { glottocode: 'achi1256', parent: null, ini: ini('name = Achi\nlevel = language\niso639-3 = acr') },
+      { glottocode: 'achi1258', parent: null, ini: ini("name = Achi', Cubulco\nlevel = language\niso639-3 = acc", '[iso_retirement]\ncomment = The name is a dialect name.\nreason = merge\neffective = 2009-01-16\nchange_to = \n\tacr\n') },
+      { glottocode: 'adab1235', parent: null, ini: ini('name = Adabe\nlevel = language', '[hh_ethnologue_comment]\ncomment = Adabe does not exist (**hh:hb:Hull:ETimor**:3-4).\ncomment_type = Spurious\n') }
+    ];
+    const p = buildGlottolog({ files: f, values, languages, release: 'v5.3' }).properties;
+    expect(p.filter((x) => x.glottocode === 'achi1258').map((x) => [x.key, x.value])).toEqual([
+      ['iso_retirement_reason', 'merge'], ['iso_retirement_note', 'The name is a dialect name.'], ['iso_retirement_date', '2009-01-16'], ['replaced_by', 'achi1256']
+    ]);
+    expect(p.find((x) => x.glottocode === 'adab1235' && x.key === 'glottolog_note')!.value).toBe('Spurious: Adabe does not exist (source).');
   });
 
   it('rejects a level it does not know', () => {
     const bad = [{ glottocode: 'xxxx1234', parent: null, ini: ini('name = X\nlevel = variety') }];
     expect(() => buildGlottolog({ files: bad, values, languages, release: 'v5.3' })).toThrow(/unknown level/);
+  });
+});
+
+describe('countryName', () => {
+  it('gives plain English country names', () => {
+    expect(countryName('MM')).toBe('Myanmar');
+    expect(countryName('TT')).toBe('Trinidad and Tobago');
+    expect(countryName('KN')).toBe('Saint Kitts and Nevis');
+    expect(countryName('MW')).toBe('Malawi');
   });
 });
 

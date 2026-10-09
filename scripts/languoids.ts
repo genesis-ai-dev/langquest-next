@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { buildGlottolog, matchV2, type GlottologFile, type GlottologTables } from './glottolog';
+import { UMBRELLA_PROPOSED } from './glottologLabelCodes';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 
 const args = process.argv.slice(2);
@@ -138,8 +139,8 @@ async function assignIds(t: GlottologTables): Promise<Ids> {
     for (const s of await pageAll<{ region_id: string; unique_identifier: string }>(db, 'region_source', 'id,region_id,unique_identifier', (q) => q.eq('name', 'iso3166-1'))) {
       ids.region.set(`iso3166-1:${s.unique_identifier}`, s.region_id);
     }
-    for (const r of await pageAll<{ id: string; name: string }>(db, 'region', 'id,name', (q) => q.eq('level', 'continent'))) {
-      ids.region.set(`continent:${r.name}`, r.id);
+    for (const r of await pageAll<{ id: string; name: string }>(db, 'region', 'id,name', (q) => q.in('level', ['continent', 'macroarea']))) {
+      ids.region.set(`macroarea:${r.name}`, r.id);
     }
   }
   if (process.env['V2_SUPABASE_ANON_KEY']) {
@@ -161,7 +162,7 @@ async function assignIds(t: GlottologTables): Promise<Ids> {
     const regions = await v2Rows<{ id: string; name: string; level: string }>('region?select=id,name,level');
     const codes = new Map((await v2Rows<{ region_id: string; unique_identifier: string }>('region_source?select=id,region_id,unique_identifier&name=eq.iso3166-1')).map((s) => [s.region_id, s.unique_identifier]));
     for (const r of regions) {
-      const key = r.level === 'continent' ? `continent:${r.name}` : codes.has(r.id) ? `iso3166-1:${codes.get(r.id)}` : null;
+      const key = r.level === 'continent' || r.level === 'macroarea' ? `macroarea:${r.name}` : codes.has(r.id) ? `iso3166-1:${codes.get(r.id)}` : null;
       if (key && !ids.region.has(key)) ids.region.set(key, r.id);
     }
     console.log(`v2 ids: ${matches.size} of ${v2.length} v2 Glottolog languoids matched`);
@@ -237,8 +238,8 @@ function explorerData(t: GlottologTables, ids: Ids) {
       subject: t.aliases.map((a) => li.get(a.glottocode)),
       label: t.aliases.map((a) => (a.label_glottocode ? li.get(a.label_glottocode)! : -1)),
       name: t.aliases.map((a) => a.name),
-      // 1 endonym, 0 exonym, 2 not known (no label)
-      type: t.aliases.map((a) => (a.alias_type === 'endonym' ? 1 : a.alias_type === 'exonym' ? 0 : 2)),
+      // 1 endonym, 0 exonym, 2 not known (no label), 3 description
+      type: t.aliases.map((a) => (a.alias_type === 'endonym' ? 1 : a.alias_type === 'exonym' ? 0 : a.alias_type === 'description' ? 3 : 2)),
       sources: t.aliases.map((a) => sourceNames.at.get(a.source_names.join('|'))),
       sourceList: sourceNames.list
     },
@@ -257,6 +258,17 @@ function explorerData(t: GlottologTables, ids: Ids) {
       keyList: propKeys.list,
       value: t.properties.map((p) => p.value)
     },
+    // Families used as a name's label, with the language proposed instead (scripts/glottologLabelCodes.ts).
+    umbrella: (() => {
+      const isoOf = new Map(t.sources.filter((s) => s.name === 'iso639-3').map((s) => [s.glottocode, s.unique_identifier]));
+      const byIso = new Map([...isoOf].map(([g, iso]) => [iso, g]));
+      const families = new Set(t.aliases.map((a) => a.label_glottocode).filter((g): g is string => !!g && t.languoids[li.get(g)!]!.level === 'family'));
+      return [...families].map((g) => {
+        const code = isoOf.get(g) ?? '';
+        const to = UMBRELLA_PROPOSED[code];
+        return { family: li.get(g), code, proposed: to && byIso.has(to) ? li.get(byIso.get(to)!) : -1 };
+      });
+    })(),
     region: {
       id: t.regions.map((r) => ids.region.get(r.key)),
       name: t.regions.map((r) => r.name),

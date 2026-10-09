@@ -17,7 +17,7 @@
  * (genesis-ai-dev/wikidata-collection), so the tables mean what they meant
  * in v2: names labelled with the languoid they are written in, endonym when
  * that is the languoid itself; links as sources named by site; hid and
- * category as properties; continents and nations as regions. Coordinates
+ * category as properties; macroareas and nations as regions. Coordinates
  * are a point on the languoid, and macroareas are region links.
  */
 import { LABEL_ISO639_3, MACROLANGUAGE_PRINCIPAL } from './glottologLabelCodes';
@@ -34,10 +34,10 @@ export type Level = 'family' | 'language' | 'dialect';
 export interface GlottologTables {
   languoids: { glottocode: string; parent_glottocode: string | null; name: string; level: Level; latitude: number | null; longitude: number | null }[];
   /** label_glottocode and alias_type are null when Glottolog does not say what language a name is in. */
-  aliases: { glottocode: string; label_glottocode: string | null; name: string; alias_type: 'endonym' | 'exonym' | null; source_names: string[] }[];
+  aliases: { glottocode: string; label_glottocode: string | null; name: string; alias_type: 'endonym' | 'exonym' | 'description' | null; source_names: string[] }[];
   sources: { glottocode: string; name: string; version: string | null; unique_identifier: string; url: string | null }[];
   properties: { glottocode: string; key: string; value: string }[];
-  regions: { key: string; name: string; level: 'continent' | 'nation'; iso3166_1: string | null }[];
+  regions: { key: string; name: string; level: 'macroarea' | 'nation'; iso3166_1: string | null }[];
   languoidRegions: { glottocode: string; region_key: string }[];
   /** Names left out because the language tag they carry has no single languoid, by tag. */
   unlabelled: Record<string, number>;
@@ -133,6 +133,14 @@ const LEVELS = new Set<string>(['family', 'language', 'dialect']);
 // Placeholders some providers give instead of a name.
 const NOT_A_NAME = new Set(['not specified', 'unspecified', 'unknown', '-', '?']);
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+/** A country's plain English name: the Unicode CLDR's, without its "&" and "St." shorthand. */
+export function countryName(code: string): string {
+  const cldr = regionNames.of(code) ?? code;
+  if (code === 'MM') return 'Myanmar';
+  return cldr.replace(/ & /g, ' and ').replace(/^St\. /, 'Saint ');
+}
+/** Glottolog's citation markup ("**hh:hb:Hull:ETimor**:3-4") as plain text. */
+const plain = (s: string) => s.replace(/\*\*[^*]+\*\*(:[\d-]+)?/g, 'source').replace(/\s+/g, ' ').trim();
 
 export function buildGlottolog(input: { files: GlottologFile[]; values: string; languages: string; release: string }): GlottologTables {
   const category = new Map<string, string>();
@@ -159,7 +167,7 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
     if (iso) byIso.set(iso, byIso.has(iso) ? null : f.glottocode);
   }
 
-  const continents = new Set<string>();
+  const macroareaNames = new Set<string>();
   const nations = new Set<string>();
   for (const { glottocode, parent, md } of parsed) {
     const name = one(md, 'core', 'name');
@@ -188,13 +196,22 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
       // Macroareas are region links and coordinates are a point on the
       // languoid, so neither is repeated here.
       ['hid', one(md, 'core', 'hid')],
-      ['category', category.get(glottocode) ?? null]
+      ['category', category.get(glottocode) ?? null],
+      // Why ISO retired the code, and the languoids it points to instead
+      // (glottocodes), so an old name still leads somewhere.
+      ['iso_retirement_reason', one(md, 'iso_retirement', 'reason')],
+      ['iso_retirement_note', md['iso_retirement']?.['comment']?.length ? plain(md['iso_retirement']['comment'].join(' ')) : null],
+      ['iso_retirement_date', one(md, 'iso_retirement', 'effective')],
+      ['replaced_by', (md['iso_retirement']?.['change_to'] ?? []).map((c) => byIso.get(c)).filter((g): g is string => !!g).join(', ') || null],
+      // Glottolog's own judgment of an entry, e.g. "Spurious: … does not exist …".
+      ['glottolog_note', one(md, 'hh_ethnologue_comment', 'comment_type')
+        ? `${one(md, 'hh_ethnologue_comment', 'comment_type')}: ${plain((md['hh_ethnologue_comment']?.['comment'] ?? []).join(' '))}` : null]
     ];
     for (const [key, value] of props) if (value) t.properties.push({ glottocode, key, value });
 
     for (const m of macroareas) {
-      continents.add(m);
-      t.languoidRegions.push({ glottocode, region_key: `continent:${m}` });
+      macroareaNames.add(m);
+      t.languoidRegions.push({ glottocode, region_key: `macroarea:${m}` });
     }
     for (const c of countries) {
       nations.add(c);
@@ -227,7 +244,9 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
             continue;
           }
         }
-        const alias_type = label === null ? null : label === glottocode ? 'endonym' : 'exonym';
+        // Six words or more is a description used to identify the language
+        // ("Immigrant community of Vieil Arzeu in Algeria"), not a name.
+        const alias_type = text.split(/\s+/).length >= 6 ? 'description' : label === null ? null : label === glottocode ? 'endonym' : 'exonym';
         const key = `${label}\u0000${alias_type}\u0000${text.toLowerCase()}`;
         const entry = names.get(key) ?? { row: { glottocode, label_glottocode: label, name: text, alias_type, source_names: [] as string[] }, spellings: new Map<string, number>() };
         if (!entry.row.source_names.includes(provider)) entry.row.source_names.push(provider);
@@ -244,8 +263,8 @@ export function buildGlottolog(input: { files: GlottologFile[]; values: string; 
     }
   }
 
-  for (const m of [...continents].sort()) t.regions.push({ key: `continent:${m}`, name: m, level: 'continent', iso3166_1: null });
-  for (const c of [...nations].sort()) t.regions.push({ key: `iso3166-1:${c}`, name: regionNames.of(c) ?? c, level: 'nation', iso3166_1: c });
+  for (const m of [...macroareaNames].sort()) t.regions.push({ key: `macroarea:${m}`, name: m, level: 'macroarea', iso3166_1: null });
+  for (const c of [...nations].sort()) t.regions.push({ key: `iso3166-1:${c}`, name: countryName(c), level: 'nation', iso3166_1: c });
   return t;
 }
 

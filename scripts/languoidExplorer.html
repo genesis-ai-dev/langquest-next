@@ -115,6 +115,10 @@ label.inline { display: inline-flex; align-items: center; gap: 5px; font-size: 1
 .badge.endo { color: var(--accent); background: var(--accent-soft); }
 .badge.exo { color: var(--muted); background: var(--sunk); font-weight: 550; }
 .badge.new { color: var(--warn); background: var(--sunk); }
+.badge.warn { color: var(--warn); background: var(--sunk); }
+.umb { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: baseline; font-weight: 500; font-size: 12px; }
+.callout { border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 8px; padding: 10px 14px; background: var(--surface); }
+.callout p { margin: 4px 0; max-width: 75ch; }
 .ids { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 18px; font-size: 12.5px; }
 .ids span b { font-weight: 600; color: var(--muted); margin-right: 4px; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 22px; }
@@ -286,16 +290,18 @@ function start(D) {
   S.languoid.forEach((li, j) => { if (S.kind[j] === ISO) iso[li] = S.id[j]; });
   const prop = (i, key) => { const k = P.keyList.indexOf(key); for (const j of propBy.of(i)) if (P.key[j] === k) return P.value[j]; return null; };
   const category = new Array(N); const macro = new Array(N);
-  for (let i = 0; i < N; i++) { category[i] = prop(i, 'category') ?? ''; macro[i] = [...regionsOf.of(i)].map((j) => LR.region[j]).filter((r) => R.level[r] === 'continent').map((r) => R.name[r]).sort().join(', '); }
+  for (let i = 0; i < N; i++) { category[i] = prop(i, 'category') ?? ''; macro[i] = [...regionsOf.of(i)].map((j) => LR.region[j]).filter((r) => R.level[r] === 'macroarea').map((r) => R.name[r]).sort().join(', '); }
   const hasEndonym = new Uint8Array(N); A.subject.forEach((s, j) => { if (A.type[j] === 1) hasEndonym[s] = 1; });
-  const TYPE = ['exonym', 'endonym', 'language not given'];
+  const TYPE = ['exonym', 'endonym', 'language not given', 'description'];
+  // Families used as a name's label (an umbrella code), with the language proposed instead.
+  const umbrellaOf = new Map((D.umbrella || []).map((u) => [u.family, u]));
   const typeBadge = (j) => h('span', { class: 'badge ' + (A.type[j] === 1 ? 'endo' : 'exo') }, TYPE[A.type[j]]);
   const nameNorm = L.name.map(norm);
   const aliasNorm = A.name.map(norm);
   const regionLabel = (r) => R.name[r] + (R.iso[r] ? ' (' + R.iso[r] + ')' : '');
   const originShort = (o) => (o.startsWith('v2') ? 'v2' : o);
   const categories = [...new Set(category)].filter(Boolean).sort();
-  const continents = R.level.map((lv, r) => (lv === 'continent' ? r : -1)).filter((r) => r >= 0);
+  const continents = R.level.map((lv, r) => (lv === 'macroarea' ? r : -1)).filter((r) => r >= 0);
   const nations = R.level.map((lv, r) => (lv === 'nation' ? r : -1)).filter((r) => r >= 0).sort((a, b) => R.name[a].localeCompare(R.name[b]));
   const byGlottocode = new Map(L.glottocode.map((g, i) => [g, i]));
   const byId = new Map(L.id.map((g, i) => [g, i]));
@@ -456,6 +462,14 @@ function start(D) {
   function openLanguoid(i) { show('languoids'); select(i, false); }
   const nameBtn = (i, extra) => h('button', { type: 'button', onclick: () => select(i, false), title: LEVELS[L.level[i]] + ' · ' + L.glottocode[i] }, h('span', { class: 'lv ' + LEVELS[L.level[i]] }), h('span', { class: 'n' }, L.name[i]), extra ? h('span', { class: 'muted num' }, extra) : null);
 
+  // A label that is a family: say so, and name the language proposed instead.
+  function umbrellaNote(lb) {
+    if (L.level[lb] !== 0) return null;
+    const u = umbrellaOf.get(lb);
+    return h('span', { class: 'umb' }, h('span', { class: 'badge warn' }, 'a family, not a language'),
+      u && u.code ? h('span', { class: 'muted' }, ' umbrella code ' + u.code) : null,
+      u && u.proposed >= 0 ? [h('span', { class: 'muted' }, ' · proposed: '), h('button', { type: 'button', class: 'ref', onclick: () => select(u.proposed, false) }, L.name[u.proposed])] : h('span', { class: 'muted' }, ' · no single main language; stays as is'));
+  }
   let nameMode = 'all';
   function renderDetail(i) {
     const level = LEVELS[L.level[i]];
@@ -483,8 +497,13 @@ function start(D) {
       fact('Names written in it', aliasByLabel.of(i).length ? fmt(aliasByLabel.of(i).length) : null)));
 
     // regions
+    const notes = [['glottolog_note', 'Glottolog'], ['iso_retirement_reason', 'ISO retired this code'], ['iso_retirement_date', 'Retired on'], ['iso_retirement_note', 'ISO\'s note']].map(([k, t]) => [t, prop(i, k)]).filter(([, v]) => v);
+    const replaced = (prop(i, 'replaced_by') || '').split(', ').filter(Boolean).map((g) => byGlottocode.get(g)).filter((x) => x != null);
+    if (notes.length || replaced.length) parts.push(h('section', { class: 'block callout' }, h('h3', {}, 'Retired or questioned'),
+      notes.map(([t, v]) => h('p', {}, h('b', {}, t + ': '), v)),
+      replaced.length ? h('p', {}, h('b', {}, 'Replaced by: '), replaced.flatMap((k, n) => [n ? ', ' : '', h('button', { type: 'button', class: 'ref', onclick: () => select(k, false) }, L.name[k])])) : null));
     parts.push(h('section', { class: 'block' }, h('h3', {}, 'Where it is spoken', h('span', { class: 'count num' }, fmt(regs.length))),
-      regs.length ? h('div', { class: 'linkchips' }, regs.sort((a, b) => (R.level[a] === R.level[b] ? R.name[a].localeCompare(R.name[b]) : R.level[a] === 'continent' ? -1 : 1)).map((r) => h('button', { class: 'linkchip', type: 'button', onclick: () => openRegion(r) }, R.name[r], R.iso[r] ? h('span', { class: 'mono muted' }, R.iso[r]) : h('span', { class: 'muted' }, 'macroarea')))) : h('div', { class: 'muted' }, 'No region links.')));
+      regs.length ? h('div', { class: 'linkchips' }, regs.sort((a, b) => (R.level[a] === R.level[b] ? R.name[a].localeCompare(R.name[b]) : R.level[a] === 'macroarea' ? -1 : 1)).map((r) => h('button', { class: 'linkchip', type: 'button', onclick: () => openRegion(r) }, R.name[r], R.iso[r] ? h('span', { class: 'mono muted' }, R.iso[r]) : h('span', { class: 'muted' }, 'macroarea')))) : h('div', { class: 'muted' }, 'No region links.')));
 
     // children
     if (kidList.length) {
@@ -498,15 +517,15 @@ function start(D) {
     const al = [...aliasBy.of(i)];
     const namesBox = h('div', { class: 'names' });
     const drawNames = () => {
-      const sel = al.filter((j) => nameMode === 'all' || (nameMode === 'endo' ? A.type[j] === 1 : nameMode === 'exo' ? A.type[j] === 0 : A.type[j] === 2));
+      const sel = al.filter((j) => nameMode === 'all' || (nameMode === 'endo' ? A.type[j] === 1 : nameMode === 'exo' ? A.type[j] === 0 : nameMode === 'desc' ? A.type[j] === 3 : A.type[j] === 2));
       const groups = new Map();
       for (const j of sel) { const lb = A.label[j]; if (!groups.has(lb)) groups.set(lb, []); groups.get(lb).push(j); }
       const keys = [...groups.keys()].sort((a, b) => (a === i ? -1 : b === i ? 1 : 0) || (a < 0 ? 1 : b < 0 ? -1 : 0) || groups.get(b).length - groups.get(a).length || L.name[a].localeCompare(L.name[b]));
       namesBox.replaceChildren(...(keys.length ? keys.map((lb) => h('div', { class: 'namegroup' },
-        lb < 0 ? h('h4', {}, 'Language not given by the source', h('span', { class: 'muted num' }, fmt(groups.get(lb).length))) : h('h4', {}, 'Written in ', h('button', { type: 'button', onclick: () => select(lb, false) }, L.name[lb]), iso[lb] ? h('span', { class: 'mono muted' }, iso[lb]) : null, h('span', { class: 'muted num' }, fmt(groups.get(lb).length))),
+        lb < 0 ? h('h4', {}, 'Language not given by the source', h('span', { class: 'muted num' }, fmt(groups.get(lb).length))) : h('h4', {}, 'Written in ', h('button', { type: 'button', onclick: () => select(lb, false) }, L.name[lb]), iso[lb] ? h('span', { class: 'mono muted' }, iso[lb]) : null, h('span', { class: 'muted num' }, fmt(groups.get(lb).length)), umbrellaNote(lb)),
         h('ul', {}, groups.get(lb).sort((a, b) => A.name[a].localeCompare(A.name[b])).map((j) => h('li', {}, h('span', {}, A.name[j]), A.type[j] === 2 ? null : typeBadge(j), h('span', { class: 'prov' }, A.sourceList[A.sources[j]].split('|').join(', '))))))) : [h('div', { class: 'muted' }, nameMode === 'endo' ? 'No endonyms.' : 'None.')]));
     };
-    const seg = h('span', { class: 'seg', role: 'group', 'aria-label': 'Which names' }, [['all', 'All'], ['endo', 'Endonyms'], ['exo', 'Exonyms'], ['unknown', 'Language not given']].map(([m, t]) => h('button', { type: 'button', 'aria-pressed': String(nameMode === m), onclick: (e) => { nameMode = m; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false')); e.currentTarget.setAttribute('aria-pressed', 'true'); drawNames(); } }, t)));
+    const seg = h('span', { class: 'seg', role: 'group', 'aria-label': 'Which names' }, [['all', 'All'], ['endo', 'Endonyms'], ['exo', 'Exonyms'], ['unknown', 'Language not given'], ['desc', 'Descriptions']].map(([m, t]) => h('button', { type: 'button', 'aria-pressed': String(nameMode === m), onclick: (e) => { nameMode = m; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', 'false')); e.currentTarget.setAttribute('aria-pressed', 'true'); drawNames(); } }, t)));
     drawNames();
     parts.push(h('section', { class: 'block' }, h('h3', {}, 'Other names', h('span', { class: 'count num' }, fmt(al.length)), seg), al.length ? namesBox : h('div', { class: 'muted' }, category[i] === 'Artificial Language' ? 'Artificial languages get no names here, as in v2.' : 'Glottolog gives no other names.')));
 
@@ -535,8 +554,8 @@ function start(D) {
   rv.el.append(h('div', { class: 'listcol' }, h('div', { class: 'controls' }, h('div', { class: 'search' }, rq), rLine), rList), rDetail);
   let rSel = -1;
   const rvl = vlist(rList, 50, (r) => h('div', { class: 'vrow' + (r === rSel ? ' sel' : ''), onclick: () => openRegion(r, true) },
-    h('span', { class: 'lv ' + (R.level[r] === 'continent' ? 'family' : 'language') }),
-    h('div', { class: 'main' }, h('div', { class: 'nm' }, R.name[r]), h('div', { class: 'sub' }, (R.level[r] === 'continent' ? 'macroarea' : 'nation · ' + R.iso[r]) + ' · ' + fmt(languoidsIn.of(r).length) + ' languoids'))));
+    h('span', { class: 'lv ' + (R.level[r] === 'macroarea' ? 'family' : 'language') }),
+    h('div', { class: 'main' }, h('div', { class: 'nm' }, R.name[r]), h('div', { class: 'sub' }, (R.level[r] === 'macroarea' ? 'macroarea' : 'nation · ' + R.iso[r]) + ' · ' + fmt(languoidsIn.of(r).length) + ' languoids'))));
   const regionOrder = [...continents.sort((a, b) => R.name[a].localeCompare(R.name[b])), ...nations];
   function refreshRegions() {
     const t = norm(rq.value.trim());
@@ -565,8 +584,8 @@ function start(D) {
     draw();
     rDetail.replaceChildren(
       h('button', { class: 'back', type: 'button', onclick: () => rv.el.classList.remove('showdetail') }, '← Back to the list'),
-      h('div', { class: 'crumbs' }, R.level[r] === 'continent' ? 'Macroarea' : 'Nation'),
-      h('div', { class: 'title' }, h('h2', {}, R.name[r]), h('span', { class: 'badge ' + (R.level[r] === 'continent' ? 'family' : 'language') }, R.level[r])),
+      h('div', { class: 'crumbs' }, R.level[r] === 'macroarea' ? 'Macroarea' : 'Nation'),
+      h('div', { class: 'title' }, h('h2', {}, R.name[r]), h('span', { class: 'badge ' + (R.level[r] === 'macroarea' ? 'family' : 'language') }, R.level[r])),
       h('div', { class: 'ids' }, h('span', {}, h('b', {}, 'id'), h('span', { class: 'mono' }, R.id[r])), R.iso[r] ? h('span', {}, h('b', {}, 'region_source iso3166-1'), h('span', { class: 'mono' }, R.iso[r])) : null),
       h('div', { class: 'facts' }, h('div', {}, h('div', { class: 'k' }, 'Families'), h('div', { class: 'v num' }, fmt(counts[0]))), h('div', {}, h('div', { class: 'k' }, 'Languages'), h('div', { class: 'v num' }, fmt(counts[1]))), h('div', {}, h('div', { class: 'k' }, 'Dialects'), h('div', { class: 'v num' }, fmt(counts[2])))),
       h('section', { class: 'block' }, h('h3', {}, 'Languoids spoken here, by top family', seg), box));
@@ -598,7 +617,7 @@ function start(D) {
     { name: 'languoid_property', n: P.value.length, note: 'Glottolog\'s keys: hid and category. Macroareas are region links and coordinates are languoid.location, so neither is repeated here.',
       cols: ['id', 'languoid_id', 'key', 'value', 'active'], text: (k) => P.keyList[P.key[k]] + ' ' + P.value[k] + ' ' + L.name[P.languoid[k]],
       cells: (k) => [onLoad(), ref(P.languoid[k]), h('span', { class: 'mono' }, P.keyList[P.key[k]]), P.value[k], yes()] },
-    { name: 'region', n: R.name.length, note: 'The six Glottolog macroareas as continents, and every country a languoid names as a nation, with its English name from the Unicode CLDR. parent_id is null and geometry false, as in v2.',
+    { name: 'region', n: R.name.length, note: 'The six Glottolog macroareas (level macroarea), and every country a languoid names as a nation, with its plain English name. parent_id is null and geometry false, as in v2.',
       cols: ['id', 'parent_id', 'name', 'level', 'geometry', 'active'], text: (k) => R.name[k] + ' ' + R.iso[k],
       cells: (k) => [h('span', { class: 'mono' }, R.id[k]), nul(), h('button', { class: 'ref', type: 'button', onclick: () => openRegion(k) }, R.name[k]), R.level[k], 'false', yes()] },
     { name: 'region_alias', n: 0, note: 'Glottolog gives no other names for regions, so this stays empty, as it nearly was in v2 (one row).', cols: ['id', 'subject_region_id', 'label_languoid_id', 'name', 'active'], text: () => '', cells: () => [] },
@@ -650,6 +669,8 @@ function start(D) {
         bars('Categories', tally(category).map(([k, v]) => [k || '(none)', v])),
         bars('Names by type', tally(A.type.map((e) => TYPE[e]))),
         h('div', { class: 'bars' }, h('h3', {}, 'Languages names are written in (top 12)'), (() => { const max = labels[0]?.[1] ?? 1; return labels.map(([n, v, k]) => h('div', { class: 'bar' }, h('button', { type: 'button', class: 'lab ref', onclick: () => openLanguoid(k) }, n), h('div', { class: 'track' }, h('div', { class: 'fill', style: 'width:' + (100 * v / max).toFixed(1) + '%' })), h('span', { class: 'val' }, fmt(v)))); })()),
+        h('div', { class: 'bars' }, h('h3', {}, 'Names written in a family (umbrella codes)'), h('p', { class: 'note' }, 'lexvo tags these names with an umbrella code that Glottolog files on a family. Proposed: point each at the language shown. Not applied yet.'),
+          (D.umbrella || []).map((u) => h('div', { class: 'bar' }, h('button', { type: 'button', class: 'lab ref', onclick: () => openLanguoid(u.family) }, L.name[u.family] + ' (' + u.code + ')'), u.proposed >= 0 ? h('button', { type: 'button', class: 'lab ref', onclick: () => openLanguoid(u.proposed) }, '→ ' + L.name[u.proposed]) : h('span', { class: 'muted' }, 'stays'), h('span', { class: 'val' }, fmt(aliasByLabel.of(u.family).length))))),
         bars('Name providers', tally(A.sources.flatMap((s) => A.sourceList[s].split('|')))),
         bars('Sources by name', tally(S.kind.map((k) => S.kindList[k]))),
         bars('Properties by key', tally(P.key.map((k) => P.keyList[k]))),

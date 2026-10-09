@@ -58,11 +58,18 @@ families). `scripts/glottolog.ts` shapes them as v2's loader did:
 - `languoid_source`: the glottocode with the release, the ISO 639-3 code,
   and every link in the file, named by site with its last path segment as
   the identifier.
-- `languoid_property`: `hid`, `macroareas`, `category`, `latitude`,
-  `longitude`.
-- `region`, `region_source`, `languoid_region`: the macroareas and the
-  countries each languoid names, with English country names from the
-  Unicode CLDR and their ISO 3166-1 codes.
+- `languoid_property`: `hid` and `category`; for a code ISO retired,
+  `iso_retirement_reason`, `iso_retirement_note`, `iso_retirement_date` and
+  `replaced_by` (the glottocodes it points to); and Glottolog's own
+  judgment as `glottolog_note` (e.g. "Spurious: …").
+- `languoid.location`: Glottolog's coordinates as a PostGIS point.
+- `region`, `region_source`, `languoid_region`: Glottolog's six macroareas
+  (level `macroarea`) and the countries each languoid names, with plain
+  English country names and their ISO 3166-1 codes.
+- A name of six words or more is `alias_type = 'description'` (a phrase
+  used to identify the language); search leaves descriptions out. Only
+  lexvo says what language a name is in; other names have no label and no
+  alias type.
 
 Ids: a languoid keeps the id it has here; one not here yet takes v2's id
 when `V2_SUPABASE_ANON_KEY` (v2's publishable key) is set and it matches a
