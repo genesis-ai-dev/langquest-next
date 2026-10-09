@@ -750,7 +750,7 @@ export function BookMap(ctx: Ctx) {
   if (book && entries.length === 0 && waitingBooks(state).includes(book.id)) {
     const may = canGo(ctx, 'book_map', 'book_structure');
     return (
-      <Screen header={header}
+      <Screen header={<Header title={title} crumbs={crumbs} onBack={ctx.back} sub="Waiting to be broken up" />}
         footer={may ? <PrimaryBtn label={`Break up ${book.name}`} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
         <EmptyState icon="cut" title={`${book.name} isn't broken up yet`}
           sub={may

@@ -3,7 +3,7 @@
 // choose with its count and a Preview, the walk-through, the sheet that asks
 // which languages a change goes to, the warning before a book is broken up
 // again, and the note when a language's Bibles number verses differently.
-import { type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { templateBooks, type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { englishBookName } from '../contentTemplates';
@@ -15,20 +15,24 @@ import { countLine, LESSON, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, type
 
 /** A book cut into its pieces, each as wide as its verses. Nothing drawn when the way leaves the book for later. */
 export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: VersificationDoc | null; caption?: boolean }) {
-  const book = props.book ?? SAMPLE_BOOK;
+  // Ruth, unless the way leaves Ruth out (FIA's older list): then the first book it does break up.
+  const book = props.book ?? (props.doc ? PREVIEW_BOOKS.find((b) => piecesOf(props.doc!, b, props.v11n).length > 0) : undefined) ?? SAMPLE_BOOK;
   const pieces = props.doc ? piecesOf(props.doc, book, props.v11n) : [];
   const name = englishBookName(book);
   if (pieces.length === 0) {
+    const listed = !!props.doc && templateBooks(props.doc).some((b) => b.book === book);
     return (
-      <View style={styles.waitBar} accessibilityLabel={`${name} waits to be broken up`}>
-        <Text style={[txt.xs, { color: C.muted }]}>{name} waits until a coordinator breaks it up</Text>
+      <View style={styles.waitBar} accessibilityLabel={listed ? `${name} waits to be broken up` : `${name} is not in it`}>
+        <Text style={[txt.xs, { color: C.muted }]}>{listed ? `${name} waits until a coordinator breaks it up` : `${name} is not in it`}</Text>
       </View>
     );
   }
   return (
     <View accessibilityLabel={`${name} in ${pieces.length} ${pieces.length === 1 ? 'piece' : 'pieces'}`}>
-      <View style={styles.bar}>
-        {pieces.map((p, i) => <View key={i} style={[styles.piece, { flexGrow: p.verses }]} />)}
+      <View style={[styles.bar, { gap: pieces.length > 100 ? 0 : pieces.length > 30 ? 1 : 3 }]}>
+        {pieces.map((p, i) => (
+          <View key={i} style={[styles.piece, { flexGrow: p.verses }, pieces.length > 100 && i % 2 === 1 && { backgroundColor: C.soft }]} />
+        ))}
       </View>
       {props.caption === false ? null : <Text style={[txt.xs, { color: C.muted, marginTop: 4 }]}>{name}: {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}</Text>}
     </View>
@@ -180,9 +184,11 @@ export function ApplySheet(props: {
       footer={<PrimaryBtn label={count === 1 ? 'Change it for this language' : `Change it for ${count} languages`} icon="check" busy={props.busy} onPress={() => props.onApply(chosen)} />}>
       {props.children}
       <View style={styles.list}>
-        <CheckRow label={props.users.find((u) => u.languageId === props.here)?.name ?? 'This language'} sub="The one you're changing" checked onToggle={() => undefined} disabled />
+        <CheckRow label={props.users.find((u) => u.languageId === props.here)?.name ?? 'This language'} sub="The one you're changing" checked onToggle={() => undefined} disabled
+          detail="The language you are changing always changes." />
         {others.map((u, i) => (
           <CheckRow key={u.languageId} label={u.name} sub={u.mayChange ? undefined : "You can't change this one"} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
+            detail={`Tick it to change ${u.name} the same way. Leave it, and ${u.name} keeps the template as it is.`}
             last={i === others.length - 1}
             onToggle={() => setChosen((cur) => { const next = new Set(cur); if (next.has(u.languageId)) next.delete(u.languageId); else next.add(u.languageId); return next; })} />
         ))}
@@ -269,8 +275,8 @@ export function OthersChoice(props: { empty: string; count: number; on: 'chapter
 
 const styles = StyleSheet.create({
   indent: { paddingLeft: 52, gap: space.sm },
-  bar: { flexDirection: 'row', gap: 3, height: 14 },
-  piece: { backgroundColor: C.primary, opacity: 0.85, borderRadius: 4, minWidth: 3, flexBasis: 0 },
+  bar: { flexDirection: 'row', height: 14, overflow: 'hidden', borderRadius: 4 },
+  piece: { backgroundColor: C.primary, opacity: 0.85, borderRadius: 3, minWidth: 1, flexBasis: 0, flexShrink: 1 },
   waitBar: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: space.xs },
   goes: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   peek: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', minHeight: 32 },

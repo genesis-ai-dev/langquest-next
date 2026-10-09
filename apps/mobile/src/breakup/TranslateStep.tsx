@@ -89,7 +89,7 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
       {t.what === 'bible' ? (
         <>
           <SectionLabel label="How should the Bible be broken up?" />
-          <Text style={[txt.sm, { color: C.muted, marginTop: -space.sm }]}>Each piece is recorded on its own. The bars show Ruth.</Text>
+          <Text style={[txt.sm, { color: C.muted, marginTop: -space.sm }]}>Each piece is recorded on its own. The bars show a book cut that way.</Text>
           {t.ways.rows.map((r) => (
             <WayCard key={r.choice.key} row={r} doc={t.ways.docOf(r.choice)} v11n={t.ways.v11nOf(t.ways.docOf(r.choice))} on={t.row === r}
               onPress={() => t.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
