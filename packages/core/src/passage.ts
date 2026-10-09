@@ -769,8 +769,9 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
     }
   }
   const canon = bookId ? BIBLE_BOOKS.findIndex((b) => b.itemId === bookId) : -1;
-  // A library template names its books in the language (its book unit's label).
-  const ownBook = libraryUnitRange(unitId) ? state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
+  // What the language calls the book (decision 74), else its template's name for it (the book unit's label).
+  const lib = libraryUnitRange(unitId);
+  const ownBook = lib ? state.bookNames?.[lib.book]?.value || state.units[state.units[unitId]?.parentUnitId ?? unitId]?.label : undefined;
   return {
     bookId,
     bookLabel: ownBook ?? (canon >= 0 ? BIBLE_BOOKS[canon]!.label : state.units[state.units[unitId]?.parentUnitId ?? '']?.label ?? 'Other'),
@@ -780,9 +781,26 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
   };
 }
 
-/** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3". */
+/** A unit's reference as people say it: "Luke 15:11-32", "Genesis 3", with the book as the language names it. */
 export function unitTitle(state: LanguageState, unitId: string): string {
-  return state.units[unitId]?.label ?? unitId;
+  const label = state.units[unitId]?.label ?? unitId;
+  return withBookName(state, unitId, label);
+}
+
+/**
+ * A library Bible unit's label with the language's own name for its book
+ * (`v1.BookNameSet`, decision 74): the template's book name at the start of
+ * the label is swapped for it ("Genesis 3" -> "1 Moses 3"). A passage the
+ * template named itself ("The lost son") keeps its name.
+ */
+export function withBookName(state: LanguageState, unitId: string, label: string): string {
+  const r = libraryUnitRange(unitId);
+  const own = r ? state.bookNames?.[r.book]?.value : undefined;
+  if (!r || !own) return label;
+  const templateName = state.units[`${unitId.slice(0, unitId.indexOf('/'))}/${r.book}`]?.label;
+  if (!templateName) return label;
+  if (label === templateName) return own;
+  return label.startsWith(`${templateName} `) ? own + label.slice(templateName.length) : label;
 }
 
 // ---- updates for the Inbox -----------------------------------------------------------

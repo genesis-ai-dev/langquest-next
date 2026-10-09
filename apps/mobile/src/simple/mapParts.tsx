@@ -51,8 +51,19 @@ function Pill(props: { label: string; on: boolean; onPress: () => void }) {
 export function BookBar(props: {
   name: string; total: number; recorded: number; done: number; count?: string;
   last: boolean; current?: boolean; accessibilityLabel: string; onPress: () => void;
+  /** Not broken up yet (decision 74): said in place of the bar. */
+  waiting?: boolean;
 }) {
-  const onPress = useHelpPress(props.name, 'Opens its chapters.', props.onPress);
+  const onPress = useHelpPress(props.name, props.waiting ? 'Waiting to be broken up before anyone records it.' : 'Opens its chapters.', props.onPress);
+  if (props.waiting) {
+    return (
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
+        style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
+        <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
+        <Text style={[styles.waiting]} numberOfLines={1}>Waiting to be broken up</Text>
+      </Pressable>
+    );
+  }
   const pct = (n: number) => `${props.total ? Math.min(100, (n / props.total) * 100) : 0}%` as const;
   const count = props.count ?? (props.recorded > 0 ? `${props.recorded.toLocaleString('en-US')}/${props.total.toLocaleString('en-US')}` : '');
   return (
@@ -155,6 +166,7 @@ export function QuietIconLink(props: { icon: IconName; label: string; onPress: (
 }
 
 const styles = StyleSheet.create({
+  waiting: { flex: 1, color: TINT.amberText, fontWeight: '700', fontSize: 14, textAlign: 'right' },
   pressed: { opacity: 0.7 },
   next: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.md, paddingVertical: space.md,
     borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },

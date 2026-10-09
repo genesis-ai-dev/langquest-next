@@ -13,8 +13,8 @@
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, deriveKinds, keyTermsFor, languageInfo, languageName, languageProgress, materialsFor,
-  recommendedFor, subscriptionItemId,
-  type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc, type TemplateDoc
+  goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
+  type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -34,14 +34,16 @@ import { contractsFor } from '../screenContracts';
 import { shareText } from '../share';
 import { C, space } from '../theme';
 import {
-  BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, Examples, InviteCode, NumberedSteps, Pills, Question, QuietLink, useGroupInvite
+  BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink, useGroupInvite
 } from '../simple/admin';
 import {
-  flowSub, flowTitle, flowWho, guideShortName, languageLabel, RECORD_LABEL, recordExamples, recordSummary, scopeOfBooks,
-  type PlainRoleId, type RecordKind
-} from '../simple/adminModel';
+  flowSub, flowTitle, flowWho, guideShortName, languageLabel, recordSummary, scopeOfBooks,
+  type PlainRoleId } from '../simple/adminModel';
 import { howItWorks, ReadyChecklist, usePlainRoles, useReadySummary } from '../simple/ready';
-import { useCheckChoices, useRecordChoices, type FlowEntry } from '../simple/choices';
+import { useCheckChoices, type FlowEntry } from '../simple/choices';
+import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
+import { NumberingNote } from '../breakup/parts';
+import { useVerseNumbering } from '../breakup/useBreakup';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
 
@@ -103,37 +105,31 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
   }
 }
 
-// ---- 1 What will they record? -----------------------------------------------------------------
-
-const ICON: Record<RecordKind, 'book' | 'file'> = { stories: 'book', chapters: 'book', books: 'book', outline: 'file' };
+// ---- 1 What will they translate? (decision 74) ----------------------------------------------------
 
 function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
   const sel = state.template?.value;
-  const { lib, choices, docs, current, kindOf, stories, chapters, others } = useRecordChoices(ctx, sel?.itemId, [sel?.docHash]);
-  const [picked, setPicked] = useState<string | null>(null);
+  const t = useTranslate(ctx, languageId);
+  const lib = t.ways.lib;
   const [scope, setScope] = useState<LanguageScope | null>(null);
   const [chosen, setChosen] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
-  const pick = choices.find((c) => c.key === (picked ?? current?.key ?? stories?.key ?? chapters?.key)) ?? null;
-  const doc = docs.get<TemplateDoc>(pick?.hash);
-  const inUse = !!pick && pick === current;
+  const doc = t.finalDoc;
+  const inUse = t.what === 'bible' ? !!t.row?.inUse && t.finalDoc === t.doc : t.outline === t.rec.current && !!t.outline;
   const books = chosen ?? new Set(inUse ? sel?.books ?? [] : []);
   const pills: LanguageScope = scope ?? (inUse && sel ? scopeOfBooks(doc, sel.books) : 'nt');
   const wanted = doc?.bible ? booksInScope(doc, pills, books) : undefined;
   const same = (a: readonly string[] | undefined, b: readonly string[] | undefined) =>
     a === b || (!!a && !!b && a.length === b.length && a.every((x) => b.includes(x)));
-  const changed = !!pick && (!inUse || !same(wanted, sel?.books));
+  const changed = t.ready && (!inUse || !same(wanted, sel?.books));
   const canUse = ctx.session.can('manage_templates');
   const recorded = useMemo(() => languageProgress(state, indexesFor(state)), [state]);
-  const kind = kindOf(pick);
-  // The footer names the answer as its card does: by kind in the questions, by its own name from a ready language's page.
-  const title = only ? (pick?.name ?? '').replace(/\s*\(English\)\s*$/, '') : kind ? RECORD_LABEL[kind].title : pick?.name ?? '';
 
   async function answer() {
     if (busy) return;
-    if (!changed || !pick) { next(); return; }
+    if (!changed) { next(); return; }
     if (!canUse) { ctx.toast('Only people who set up languages can change this.'); return; }
     if (wanted && wanted.length === 0) { ctx.toast('Choose at least one book.'); return; }
     setBusy(true);
@@ -143,69 +139,36 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
       const undo = prev?.itemId && prev.docHash
         ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null)
         : null;
-      // Another organization's is followed, with automatic updates, before it is used (as Choose a Template does).
-      const itemId = pick.source === 'shared' ? (pick.shared.subscribable ? await lib.subscribe(pick.shared, true) : await lib.copy(pick.shared)) : pick.item.itemId;
-      const specs = await lib.applySpecs(itemId, { docHash: pick.hash, ...(wanted ? { books: wanted } : {}) });
+      const use = await t.resolve();
+      const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}) });
       try {
-        await ctx.act(specs, `${lang} records ${recordSummary(doc, wanted, pick.name)}.`, undo ? () => undo : undefined);
+        await ctx.act(specs, `${lang} translates ${recordSummary(use.doc, wanted, use.doc.name)}.`, undo ? () => undo : undefined);
       } catch { setBusy(false); return; }
       setBusy(false);
       next();
     } catch (e) {
-      ctx.toast(failureMessage('get ready: what they record', e));
+      ctx.toast(failureMessage('get ready: what they translate', e));
       setBusy(false);
     }
   }
 
-  const card = (c: LibraryChoice | null, k: RecordKind) => {
-    if (!c) return null;
-    const on = pick === c;
-    const d = docs.get<TemplateDoc>(c.hash);
-    // From a ready language's page each answer is named as the library names it ("FIA passages"), with where it comes from.
-    const from = c.source === 'shared' ? `From ${c.shared.org_name}` : c.item.subscription ? `From ${c.item.subscription.sourceOrgName}` : 'Your organization\'s own';
-    const sub = !only ? RECORD_LABEL[k].sub
-      : c === current ? `In use · ${recordSummary(d, sel?.books, c.name).split(' · ').slice(1).join(' · ') || RECORD_LABEL[k].sub} · ${recorded.total.toLocaleString('en-US')} passages`
-      : from;
-    return (
-      <ChoiceCard key={c.key} on={on} icon={only ? 'file' : ICON[k]} title={only ? c.name.replace(/\s*\(English\)\s*$/, '') : RECORD_LABEL[k].title} sub={sub}
-        onPress={() => { setPicked(c.key); setScope(null); setChosen(null); }}>
-        {on ? <Examples rows={recordExamples(d)} /> : null}
-      </ChoiceCard>
-    );
-  };
-  const elseOn = !!pick && others.includes(pick);
   return (
     <Screen header={header} bodyStyle={PAD}
-      footer={<>
-        <PrimaryBtn label={only ? (changed ? `Use ${title}` : `Keep ${title}`) : 'Next'} icon={only ? 'check' : 'right'} busy={busy} disabled={!pick && !only}
-          onPress={() => void answer()} />
-        {canUse ? <QuietLinks items={[{ label: 'Make your own', icon: 'plus', onPress: () => ctx.go('template_editor', { new: '1' }) }]} /> : null}
-      </>}>
-      {only ? null : <Question>What will they record?</Question>}
-      {card(stories, 'stories')}
-      {card(chapters, 'chapters')}
-      <ChoiceCard on={elseOn} icon="file" title={RECORD_LABEL.outline.title} sub={RECORD_LABEL.outline.sub}
-        onPress={() => { if (others[0]) { setPicked(others[0].key); setScope(null); setChosen(null); } else if (canUse) ctx.go('template_editor', { new: '1' }); }}>
-        {elseOn ? (
-          <View style={{ paddingLeft: 52, gap: space.xs }}>
-            {others.map((c) => (
-              <Chip key={c.key} label={`${c.name}${c === current ? ' · in use' : ''}`} on={pick === c} onPress={() => setPicked(c.key)} />
-            ))}
-          </View>
-        ) : null}
-      </ChoiceCard>
+      footer={<PrimaryBtn label={only ? (changed ? 'Use this' : 'Keep it') : 'Next'} icon={only ? 'check' : 'right'} busy={busy} disabled={!t.ready && !only}
+        onPress={() => void answer()} />}>
+      <TranslateQuestion ctx={ctx} t={t} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1' })} />
       {doc?.bible ? (
         <>
-          {only ? <SectionLabel label="Which part of the Bible?" /> : null}
+          <SectionLabel label="Which part of the Bible?" />
           <Pills>
-            {(['nt', 'ot', 'all', 'custom'] as LanguageScope[]).map((s) => (
-              <Chip key={s} label={{ nt: 'New Testament', ot: 'Old Testament', all: 'Whole Bible', custom: 'Choose books' }[s]} on={pills === s}
-                onPress={() => { setScope(s); if (s === 'custom' && !chosen) setChosen(new Set(wanted ?? doc.bible!.books.map((b) => b.book))); }} />
+            {(['nt', 'ot', 'all', 'custom'] as LanguageScope[]).map((sc) => (
+              <Chip key={sc} label={{ nt: 'New Testament', ot: 'Old Testament', all: 'Whole Bible', custom: 'Choose books' }[sc]} on={pills === sc}
+                onPress={() => { setScope(sc); if (sc === 'custom' && !chosen) setChosen(new Set(wanted ?? templateBooks(doc).map((b) => b.book))); }} />
             ))}
           </Pills>
           {pills === 'custom' ? (
             <Pills>
-              {doc.bible.books.map((b) => (
+              {templateBooks(doc).map((b) => (
                 <Chip key={b.book} label={b.name || b.book} on={books.has(b.book)}
                   onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
               ))}
@@ -213,16 +176,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           ) : null}
         </>
       ) : null}
-      {only && canUse ? (
-        <Group>
-          <Row icon="edit" label="Divide a book differently" sub="Start or join passages at any verse" last
-            onPress={() => ctx.go('templates_home', { languageId })} />
-        </Group>
-      ) : null}
       {changed && recorded.recorded > 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Nothing recorded is lost: what no longer fits is set aside, and comes back if you change back.</Text>
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Pieces that stay the same keep their recordings. Anything recorded on a piece that changes stops showing, and comes back if you change back.</Text>
       ) : null}
-      {!canUse ? <Banner icon="lock" title="View only" body="Only people who set up languages can change what they record." /> : null}
+      {!canUse ? <Banner icon="lock" title="View only" body="Only people who set up languages can change what they translate." /> : null}
     </Screen>
   );
 }
@@ -312,9 +269,29 @@ function mediaOf(doc: SourceDoc, get: (h: string | null | undefined) => LibraryD
   return text && audio ? 'Audio and text' : audio ? 'Audio' : text ? 'Text' : 'Listed';
 }
 
+/**
+ * Whether a guide set was made for how this language's Bible is broken up
+ * (decision 74): "goes with your FIA passages", or, when it is broken up
+ * another way, that the guides follow FIA's passages.
+ */
+function useComesWith(ctx: Ctx) {
+  const sel = ctx.language.state?.template?.value;
+  const docs = useLibraryDocs(ctx.language.orgId, [sel?.docHash], { deps: false });
+  const t = docs.get(sel?.docHash);
+  return (g: HelpItem): string => {
+    if (g.kind !== 'guide' || g.doc.format !== 'collection@1') return '';
+    const c = g.doc as CollectionDoc;
+    const pattern = c.pattern ?? (/\bFIA\b/.test(c.title) ? 'FIA' : undefined);
+    if (!pattern || !t || !isTemplateDoc(t) || !t.bible) return '';
+    return goesWith(t, pattern) ? `goes with your ${pattern} passages` : `made for ${pattern}'s passages`;
+  };
+}
+
 function HelpsStep({ ctx, header, next }: StepProps) {
   const languageId = ctx.language.languageId;
   const h = useHelpItems(ctx);
+  const numbering = useVerseNumbering(ctx);
+  const comes = useComesWith(ctx);
   const bibles = h.items.filter((x) => x.kind === 'source');
   const guides = h.items.filter((x) => x.kind === 'guide');
   const notes = h.items.filter((x) => x.kind === 'note' || x.kind === 'other');
@@ -338,11 +315,12 @@ function HelpsStep({ ctx, header, next }: StepProps) {
         <Group>
           {guides.map((g, i) => (
             <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? 'Study guides' : `${guideShortName(g.name)} study guides`}
-              sub={`${guides.length === 1 ? guideShortName(g.name) : sourceShort(g.owner)} · ${g.on ? 'on' : 'off'}`}
+              sub={[guides.length === 1 ? guideShortName(g.name) : sourceShort(g.owner), g.on ? 'on' : 'off', comes(g)].filter(Boolean).join(' · ')}
               on={g.on} disabled={!h.may || h.busy} onToggle={() => void h.toggle(g)} last={i === guides.length - 1} />
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>Looking for study guides…</Text> : null}
+      {numbering.clash ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
       {notes.length ? (
         <>
           <SectionLabel label="Notes for translators" />

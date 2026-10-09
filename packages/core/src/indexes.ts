@@ -16,6 +16,12 @@ export interface Indexes {
   passages: string[];
   /** Units that contain others (books, chapters, folders), in display order. */
   containers: string[];
+  /**
+   * Books of the language's Bible template that are not broken up yet
+   * (decision 74): listed, with no part shown in them. Nobody records
+   * them until a coordinator breaks them up. Display order.
+   */
+  waiting: string[];
 }
 
 /**
@@ -28,28 +34,48 @@ export function unitPrefixOf(unitId: string): string | null {
 }
 
 export function buildIndexes(state: LanguageState): Indexes {
-  const parents = new Set<string>();
-  for (const u of Object.values(state.units)) if (u.parentUnitId) parents.add(u.parentUnitId);
   const sel = state.template?.value ?? null;
   const books = sel?.books ? new Set(sel.books) : null;
+  const inUse = (id: string): boolean => {
+    const prefix = unitPrefixOf(id);
+    if (prefix === null || !sel) return true;
+    if (prefix !== sel.unitPrefix) return false;
+    // A language may cover only some books of a Bible template (`books`).
+    return books === null || books.has(id.slice(prefix.length + 1, prefix.length + 4));
+  };
+  const parents = new Set<string>();
+  // Books with a part the language works on; a book with none is waiting to be broken up.
+  const shownParents = new Set<string>();
+  for (const [id, u] of Object.entries(state.units)) {
+    if (!u.parentUnitId) continue;
+    parents.add(u.parentUnitId);
+    if (state.hiddenUnits[id]?.value !== true && inUse(id)) shownParents.add(u.parentUnitId);
+  }
   const ordered = Object.entries(state.units).sort(([ia, a], [ib, b]) => (a.order < b.order ? -1 : a.order > b.order ? 1 : ia < ib ? -1 : 1));
   const passages: string[] = [];
   const containers: string[] = [];
-  for (const [id] of ordered) {
+  const waiting: string[] = [];
+  for (const [id, u] of ordered) {
+    const bookUnit = u.kind === 'book' && u.parentUnitId === null && unitPrefixOf(id) !== null;
+    if (bookUnit && !shownParents.has(id)) {
+      if (state.hiddenUnits[id]?.value !== true && inUse(id) && sel) waiting.push(id);
+      if (parents.has(id)) containers.push(id);
+      continue;
+    }
     if (parents.has(id)) {
       containers.push(id);
       continue;
     }
     if (state.hiddenUnits[id]?.value === true) continue;
-    const prefix = unitPrefixOf(id);
-    if (prefix !== null && sel) {
-      if (prefix !== sel.unitPrefix) continue;
-      // A language may cover only some books of a Bible template (`books`).
-      if (books !== null && !books.has(id.slice(prefix.length + 1, prefix.length + 4))) continue;
-    }
+    if (!inUse(id)) continue;
     passages.push(id);
   }
-  return { passages, containers };
+  return { passages, containers, waiting };
+}
+
+/** Books of the language waiting to be broken up (`Indexes.waiting`), as unit ids. */
+export function booksWaiting(state: LanguageState, idx: Indexes = buildIndexes(state)): string[] {
+  return idx.waiting;
 }
 
 /** The passages a language works on (`Indexes.passages`). */

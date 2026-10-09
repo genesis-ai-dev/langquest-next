@@ -7,9 +7,9 @@
 // book, read as verse ranges; FIA's breaks are read from core's bundled
 // pericope list.
 import {
-  bookIdOf, bookOrder, canonicalJson, languagePassages, libraryUnitRange, subscriptionItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
+  bookIdOf, bookOrder, canonicalJson, languagePassages, templateBooks, libraryUnitRange, subscriptionItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
   type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type LanguageState,
-  type TemplateDoc, type VersificationDoc
+  type TemplateBook, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
 import type { SharedItem } from './library/model';
@@ -230,6 +230,12 @@ export interface TemplateForm {
   passages: { ref: string; name?: string }[];
   /** A node with `children` is a folder, even while empty. */
   outline: OutlineNode[];
+  /**
+   * A template@2 Bible's books as they are broken up (decision 74), kept
+   * whole: the editor names and chooses books, and each keeps its parts.
+   * Absent for a template@1, which divides every book one way.
+   */
+  bookParts?: TemplateBook[];
 }
 
 export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc.description): TemplateForm {
@@ -237,10 +243,11 @@ export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc
     name, description, structure: doc.structure,
     levels: doc.levels.map((l) => ({ ...l })),
     versification: doc.bible?.versification ?? null,
-    books: sortBooks(doc.bible?.books ?? []),
-    divide: doc.bible?.divide ?? 'chapters',
-    passages: doc.bible?.passages ?? [],
-    outline: doc.outline ?? []
+    books: sortBooks((doc.bible?.books ?? []).map((b) => ({ book: b.book, name: b.name }))),
+    divide: doc.format === 'template@1' ? doc.bible?.divide ?? 'chapters' : 'passages',
+    passages: doc.format === 'template@1' ? doc.bible?.passages ?? [] : [],
+    outline: doc.outline ?? [],
+    ...(doc.format === 'template@2' && doc.bible ? { bookParts: templateBooks(doc) } : {})
   };
 }
 
@@ -248,6 +255,14 @@ export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc
 export function docFromForm(f: TemplateForm): TemplateDoc {
   const base = { format: 'template@1' as const, name: f.name.trim(), description: f.description.trim(), structure: f.structure, levels: f.levels, deps: [] };
   if (f.structure === 'outline') return { ...base, outline: f.outline };
+  if (f.bookParts) {
+    // Each book keeps how it is broken up; a book added here waits to be broken up.
+    const parts = new Map(f.bookParts.map((b) => [b.book, b]));
+    return {
+      ...base, format: 'template@2',
+      bible: { versification: f.versification ?? '', books: sortBooks(f.books).map((b) => ({ ...(parts.get(b.book) ?? {}), book: b.book, name: b.name })) }
+    };
+  }
   const books = sortBooks(f.books);
   const covered = new Set(books.map((b) => b.book));
   return {

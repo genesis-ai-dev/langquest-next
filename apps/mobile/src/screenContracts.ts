@@ -69,7 +69,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // And what its team is offered from the start (decision 71), and its first group invite code.
   new_language: { emits:['v1.LanguageAdded','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
     'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3'] },
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','library_template_users'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.LicenseSet'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
@@ -127,7 +127,12 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
     'v1.ReferenceRecommended','v1.ReferenceSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
-    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document'] }
+    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
+  // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the
+  // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book.
+  book_structure: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.BookNameSet','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],
+    reads:['library','derivePassage'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] }
 };
 export const SCREEN_CONTRACTS = Object.fromEntries(SCREEN_IDS.map((id) => [id, {
   emits:[],reads:[],rpcs:[],...declarations[id]

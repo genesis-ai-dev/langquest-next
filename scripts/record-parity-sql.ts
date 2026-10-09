@@ -102,6 +102,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.FlowStepLinksSet':
       variants.push({ ...p, allowed: 'yes' }, { ...p, stepId: '' });
       break;
+    case 'v1.BookNameSet':
+      variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
+      break;
     case 'v1.VersionReleased':
       variants.push({ ...p, live: 1 }, { ...p, channel: '' }, { ...p, channel: 'x'.repeat(61) }, { ...p, channel: '🎧'.repeat(60) }, { ...p, url: '' }, { ...p, url: ' ' });
       break;
