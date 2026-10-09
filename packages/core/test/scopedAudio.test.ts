@@ -25,7 +25,7 @@ function prepared() {
     fields: { audio: reg('question') }
   };
   state.keyTerms['earlier'] = {
-    term: 'Earlier', gloss: '', unitScope: ['luke'], renderings: {},
+    term: 'Earlier', gloss: '', unitScope: ['luke'], hlc: '1', renderings: {},
     adjustments: { audio: { blobHash: 'term', duringTakeId: 'take2', actorId: 't1', hlc: '1' } }
   };
   state.responses = { take2: { respondsToTakeId: 'take1', blobHash: 'response', actorId: 't1', hlc: '1' } };

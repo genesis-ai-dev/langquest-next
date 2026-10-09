@@ -10,8 +10,12 @@ import { headers, reply, serviceClient, signInAs } from '../_shared/session.ts';
  *
  * Safe to repeat: the phone sends one request id per join, and a repeat
  * (the reply was lost) signs the same account in again instead of making a
- * second one. Redeeming is idempotent per person.
+ * second one. Redeeming is idempotent per person. A repeat is a retry, not a
+ * way back in (decisions.md 75): it works for an hour, and only while the
+ * account is still looked after with no password of its own. After that,
+ * getting back in is a helper's code.
  */
+const REPEAT_MS = 60 * 60 * 1000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** What a dead invite means, in the words the app already shows (heldInvite.ts outcomeOfError). */
@@ -38,7 +42,7 @@ Deno.serve(async (request) => {
   const service = serviceClient();
 
   // The same request again: the account exists already.
-  const seen = await service.from('invite_join_requests').select('profile_id').eq('request_id', requestId).maybeSingle();
+  const seen = await service.from('invite_join_requests').select('profile_id, created_at').eq('request_id', requestId).maybeSingle();
   if (seen.error) return reply({ error: 'Unable to join right now. Please retry.' }, 503);
   let profileId: string | null = seen.data?.profile_id ?? null;
   let email: string | null = null;
@@ -48,6 +52,9 @@ Deno.serve(async (request) => {
     const user = await service.auth.admin.getUserById(profileId);
     email = user.data.user?.email ?? null;
     if (!email) return reply({ error: 'Unable to join right now. Please retry.' }, 503);
+    const fresh = Date.now() - Date.parse(String(seen.data?.created_at)) < REPEAT_MS;
+    const lookedAfter = email.endsWith(`@${MANAGED_DOMAIN}`) && user.data.user?.user_metadata?.['has_password'] === false;
+    if (!fresh || !lookedAfter) return reply({ error: 'This join was already used. Ask whoever invited you for a code to sign back in.' }, 410);
   } else {
     // What the server says the invite is; the link's own claims count for nothing.
     const preview = await service.rpc('preview_invite', { p_token: token });

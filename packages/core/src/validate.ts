@@ -54,6 +54,7 @@ export function validateEvent(e: AnyEvent): string | null {
   switch (e.type) {
     // ---- organization stream (org.ts)
     case 'v1.OrgCreated':
+    case 'v1.OrgRenamed':
       return str('name');
     case 'v1.RoleDefined':
       return str('roleId', 'name') ??
@@ -285,4 +286,30 @@ function anchor(v: unknown): string | null {
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * The entity a creating event names, as `kind:id`, or null for every other
+ * event. One event per entity in a stream: the server refuses a second one
+ * (`append_events`, SQL `_entity_key`, held to this by the parity script),
+ * and the fold keeps the earliest, so nobody can swap the audio under a
+ * reviewed version or replace someone's review (decisions.md 75). The
+ * translation guide's material and key terms are left out: two phones
+ * define them under the same id by design.
+ */
+export function entityKeyOf(e: AnyEvent): string | null {
+  const p = e.payload as Record<string, unknown>;
+  switch (e.type) {
+    case 'v1.RecordingAdded': return `recording:${String(p['recordingId'])}`;
+    case 'v1.TakeComposed': return `take:${String(p['takeId'])}`;
+    case 'v1.ResponseRecorded': return `response:${String(p['takeId'])}`;
+    case 'v1.ReviewRecorded': return `review:${String(p['reviewId'])}`;
+    case 'v1.DepartureRecorded': return `departure:${String(p['departureId'])}`;
+    case 'v1.RequestMade': return `request:${String(p['requestId'])}`;
+    case 'v1.NoteAdded': return `note:${String(p['noteId'])}`;
+    case 'v1.KeyTermRenderingAdded': return `rendering:${String(p['termId'])}/${String(p['renderingId'])}`;
+    case 'v1.KeyTermAdjusted': return `adjustment:${String(p['termId'])}/${String(p['adjustmentId'])}`;
+    case 'v1.AudioFormatSet': return `audioformat:${String(p['hash'])}`;
+    default: return null;
+  }
 }

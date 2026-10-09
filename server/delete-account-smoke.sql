@@ -9,7 +9,8 @@ insert into auth.users (id, email) values
   ('d0000000-0000-0000-0000-00000000000c', 'emailer@example.org');
 -- The leaver made the organization and its language, holds a role in both
 -- scopes, and authored work in the language.
-select set_config('request.jwt.claim.sub','d0000000-0000-0000-0000-00000000000a',true);
+-- Set up as the server would (an import): people here have joined by invite or request (decisions.md 75).
+select set_config('request.jwt.claim.sub','',true);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
     {"id":"del-test-o1","type":"v1.OrgCreated","orgId":"del-test-org","streamId":"_org","actorId":"d0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000001:000000:dev-a","payload":{"name":"Leaver Org"}},

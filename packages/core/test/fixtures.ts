@@ -51,7 +51,10 @@ export function buildFixture(): AnyEvent[] {
   const wrong = emit('dB', 't1', 'v1.RecordingAdded', {
     recordingId: 'recWrong', unitId: 'luke1', kind: 'target', cards: [{ hash: 'cWrong', durationMs: 500 }]
   });
-  emit('dA', 'lead', 'v1.Redacted', { eventId: wrong.id, reason: 'wrong passage' });
+  const redaction = emit('dA', 'lead', 'v1.Redacted', { eventId: wrong.id, reason: 'wrong passage' });
+  // A redaction aimed at that redaction (the server refuses these now). The
+  // fold ignores it, so the mistake stays out in any order.
+  emit('dC', 'lead2', 'v1.Redacted', { eventId: redaction.id, reason: 'undo the removal' });
 
   // Translator records offline on device B.
   emit('dB', 't1', 'v1.RecordingAdded', {
@@ -102,9 +105,8 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.BookNameSet', { book: 'LUK', name: 'Luka' });
   emit('dE', 'lead2', 'v1.BookNameSet', { book: 'LUK', name: 'Luqaas' });
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
-  // A voice note's format from two devices (decisions.md 75): the later clock wins in any order.
-  emit('dW', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'm4a' });
-  emit('dB', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'wav' });
+  // A voice note's format, said once by the device that has the file (decisions.md 77).
+  emit('dW', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'wav' });
 
   // Materials with per-field registers, a locked document, the community
   // question set for a kind, a translator-written set, and a living glossary
@@ -229,6 +231,24 @@ export function buildRecordFixture(): AnyEvent[] {
   raw('tie-h', 'lead2', 'dE', `${tie}dE`, 'v1.FlowSelected', { flowId: 'standard_bible', name: 'Standard Bible Flow' });
   raw('tie-i', 'lead2', 'dE', '001760000700000:000000:dE', 'v1.FlowStepRemoved', { stepId: 'standard_bible/s9' });
   raw('tie-j', 'lead', 'dA', '001760000990000:000000:dA', 'v1.FlowStepSet', { stepId: 'standard_bible/s9', order: 's09', kindIds: ['local'], checkpoint: false });
+  // Create-once ids used twice: a unit, a key term and a link to a take,
+  // each once later than the first (it loses) and once at the same clock
+  // with other content (author and content decide, never arrival).
+  raw('tie-k', 'lead2', 'dE', `${tie}dE`, 'v1.UnitAdded', { unitId: 'luke', parentUnitId: null, kind: 'book', label: 'Lucas', order: 'a9' });
+  raw('tie-l', 'lead', 'dA', `${tie}dA`, 'v1.UnitAdded', { unitId: 'luke-intro', parentUnitId: 'luke', kind: 'folder', label: 'Introduction', order: 'a1' });
+  raw('tie-m', 'lead2', 'dE', `${tie}dA`, 'v1.UnitAdded', { unitId: 'luke-intro', parentUnitId: 'luke', kind: 'folder', label: 'Intro', order: 'a1' });
+  raw('tie-n', 'lead', 'dA', `${tie}dA`, 'v1.KeyTermDefined', { termId: 'kt-logos', term: 'Word', gloss: 'A later redefinition', unitScope: [] });
+  raw('tie-o', 't1', 'dB', `${tie}dB`, 'v1.KeyTermDefined', { termId: 'kt-pneuma', term: 'Spirit (pneuma)', gloss: 'Breath, wind', unitScope: ['luke'] });
+  raw('tie-p', 't2', 'dG', `${tie}dB`, 'v1.KeyTermDefined', { termId: 'kt-pneuma', term: 'Spirit (pneuma)', gloss: 'The Holy Spirit', unitScope: ['luke'] });
+  raw('tie-q', 't1', 'dB', `${tie}dB`, 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-logos', note: 'A later link loses.' });
+  raw('tie-r', 't1', 'dB', `${tie}dB`, 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-sarx', note: 'Body sense.' });
+  raw('tie-s', 't1', 'dG', `${tie}dB`, 'v1.KeyTermLinked', { takeId: 'take2', termId: 'kt-sarx' });
+  // The same take submitted twice at one clock with different question
+  // sets, and one material defined by two people at one clock.
+  raw('tie-t', 't1', 'dB', `${tie}dB`, 'v1.TakeSubmitted', { takeId: 'take1' });
+  raw('tie-u', 't1', 'dG', `${tie}dB`, 'v1.TakeSubmitted', { takeId: 'take1', questionSetIds: ['q-luke1'] });
+  raw('tie-v', 't1', 'dB', `${tie}dB`, 'v1.MaterialDefined', { materialId: 'notes-luke', kind: 'tg', title: 'Luke notes', scope: { unitId: 'luke' } });
+  raw('tie-w', 'lead', 'dA', `${tie}dB`, 'v1.MaterialDefined', { materialId: 'notes-luke', kind: 'tg', title: 'Notes on Luke', scope: { unitId: 'luke' } });
   return events;
 }
 
@@ -285,6 +305,12 @@ export function buildOrgFixture(): AnyEvent[] {
   emit('v1.ReferenceRecommended', { itemId: 'langquest.source.bsb', recommended: true });
   raw('rec-a', 'dB', '001800000960500:000000:dB', 'v1.ReferenceRecommended', { itemId: 'langquest.source.esv', recommended: true });
   raw('rec-b', 'dC', '001800000960500:000000:dB', 'v1.ReferenceRecommended', { itemId: 'langquest.source.esv', recommended: false });
+  // An invite issued twice and a join request decided twice, each at one
+  // clock: who and what decide, never arrival.
+  raw('inv-a', 'dB', '001800000960600:000000:dB', 'v1.InviteIssued', { inviteId: 'inv2', roleId: 'translator', scope: { level: 'language', languageId: 'L1' }, expiresAt: '2030-01-01T00:00:00Z' });
+  raw('inv-b', 'dC', '001800000960600:000000:dB', 'v1.InviteIssued', { inviteId: 'inv2', roleId: 'reviewer', scope: { level: 'language', languageId: 'L1' }, expiresAt: '2030-01-01T00:00:00Z' });
+  raw('join-a', 'dB', '001800000960700:000000:dB', 'v1.JoinDecided', { requestId: 'jr2', profileId: 'asker2', accepted: true });
+  raw('join-b', 'dC', '001800000960700:000000:dB', 'v1.JoinDecided', { requestId: 'jr2', profileId: 'asker2', accepted: false });
   // A language's identity: added twice offline (earliest wins), renamed from
   // two devices, its country and target set, and a rename that arrives for
   // a language never added.
@@ -302,6 +328,11 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('lic-b', 'dC', '001800000970000:000000:dB', 'v1.LicenseSet', { license: 'CC-BY-SA-4.0' });
   raw('lic-c', 'dB', '001800000980000:000000:dB', 'v1.LicenseSet', { license: 'all-rights-reserved' });
   raw('red-a', 'dB', '001800000990000:000000:dB', 'v1.Redacted', { eventId: 'lang-f', reason: 'mistake' });
+  // The organization renamed from two devices at one clock (the higher id
+  // stands), and a rename stamped before them from an admin who was offline.
+  raw('org-a', 'dB', '001800000991000:000000:dB', 'v1.OrgRenamed', { name: 'Wycliffe Associates Kenya' });
+  raw('org-b', 'dC', '001800000991000:000000:dB', 'v1.OrgRenamed', { name: 'Wycliffe Kenya' });
+  raw('org-c', 'dB', '001800000985000:000000:dB', 'v1.OrgRenamed', { name: 'An older name' });
 
   return events;
 }

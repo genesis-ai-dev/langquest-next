@@ -148,7 +148,7 @@ describe('what is on this phone for offline use (shown per passage and in Settin
   });
 });
 
-describe('a voice note recorded in a browser keeps its format (decisions.md 58, 75)', () => {
+describe('a voice note recorded in a browser keeps its format (decisions.md 58, 77)', () => {
   // A browser without MP4 recording stores the note as WAV, at <hash>.wav.
   // The event that names the note has no format field, so unless the log
   // says so every device looks for <hash>.m4a: the recording browser cannot
@@ -173,6 +173,17 @@ describe('a voice note recorded in a browser keeps its format (decisions.md 58, 
     const stored = fold([...buildFixture(), formatSet('vn-web', 'wav'), comment('vn-web'),
       { ...formatSet('vn-web', 'wav'), id: 'st', type: 'v1.BlobStored', actorId: 'service', payload: { hash: 'vn-web', size: 10 } } as AnyEvent]);
     expect(deriveDownloadWork(stored, new Set()).find((r) => r.hash === 'vn-web')?.format).toBe('wav');
+  });
+
+  it('keeps the first format said for a note, in any order (decisions.md 75)', () => {
+    // Why: the recording device says the format in the batch that first
+    // names the note; a later event from anyone else must not re-label it
+    // and send every device to a file that is not there.
+    const later = { ...formatSet('vn-web', 'm4a'), id: 'fmt-late', hlc: '0017000003000000:000000:other', deviceId: 'other' } as AnyEvent;
+    for (const order of [[formatSet('vn-web', 'wav'), later], [later, formatSet('vn-web', 'wav')]]) {
+      const state = fold([...buildFixture(), ...order, comment('vn-web')]);
+      expect(referencedBlobs(state).get('vn-web')?.format).toBe('wav');
+    }
   });
 
   it('asks for a format event only for a WAV voice note the log does not describe yet', () => {

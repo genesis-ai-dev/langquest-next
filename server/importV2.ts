@@ -2,7 +2,7 @@
  * Import LangQuest v2 projects into the event log (PLAN.md build order 8).
  *
  *   npm run import:v2 -- --project <v2 project id> [--project ...] [--org langquest-v2]
- *       [--grant <email>=<role>] [--skip-audio] [--concurrency 8]
+ *       [--grant <email>=<role>] [--skip-audio] [--concurrency 8] [--existing-org]
  *
  * Reads v2 anonymously (its tables are world-readable) from V2_SUPABASE_URL /
  * V2_SUPABASE_ANON_KEY, copies audio from the public V2_BUCKET (default
@@ -98,6 +98,22 @@ function mp4DurationMs(bytes: Uint8Array): number {
     }
   }
   throw new Error('no mvhd box: not an MP4/M4A file');
+}
+
+// The organization must be this import's own (decisions.md 75). Anyone may
+// create an organization under an id nobody has used yet, and the default id
+// is well known, so one someone else created is refused rather than filled
+// with v2's work. --existing-org imports into it anyway, once you have
+// checked who runs it.
+{
+  const { data, error } = await service.from('events').select('id, actor_id')
+    .eq('org_id', orgId).eq('stream_id', '_org').eq('type', 'v1.OrgCreated');
+  if (error) throw new Error(`events: ${error.message}`);
+  const foreign = (data ?? []).filter((e) => e.id !== `v2:org:${orgId}`);
+  if (foreign.length > 0 && !flag('existing-org')) {
+    throw new Error(`organization ${orgId} was created by ${foreign.map((e) => e.actor_id).join(', ')}, not by this import. ` +
+      'Check who runs it, then pass --existing-org to import into it, or choose another --org.');
+  }
 }
 
 const transport = new SupabaseTransport(service);

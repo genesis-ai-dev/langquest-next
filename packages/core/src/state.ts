@@ -22,6 +22,8 @@ interface Unit {
   kind: string;
   label: string;
   order: string;
+  /** Clock of the UnitAdded that stands: the earliest (reducer `earlier`). */
+  hlc: Hlc;
 }
 
 interface Recording {
@@ -72,6 +74,8 @@ interface KeyTerm {
   term: string;
   gloss: string;
   unitScope: string[];
+  /** Clock of the KeyTermDefined that stands (the earliest), or '' for a placeholder left by an early rendering. */
+  hlc: Hlc;
   renderings: Record<string, { rendering: string; context: string; hlc: Hlc }>;
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }
@@ -105,7 +109,7 @@ export interface LanguageState extends RecordState, ReferenceState {
    * invalidated. Only the server writes these events.
    */
   blobs: Record<string, { size: number; hlc: Hlc; eventId: string; stored: boolean }>;
-  /** hash -> a voice note's format, when it is not m4a (v1.AudioFormatSet). */
+  /** hash -> a voice note's format, when it is not m4a (v1.AudioFormatSet; earliest wins). */
   audioFormats: Record<string, Register<'wav' | 'm4a'>>;
   /** Idempotency guard. Compacted away when a snapshot is taken. */
   appliedEventIds: Record<string, true>;

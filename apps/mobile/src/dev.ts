@@ -5,8 +5,9 @@ import { supabase } from './supabase';
 /**
  * Dev-only personas. Each is a real user on a local Supabase so every event
  * it emits passes the server's actor check. "Seed demo team" (run by the owner)
- * creates the accounts and appends their memberships and assignments to the
- * open organization; switching persona is a real sign-in as that user.
+ * creates the accounts, invites each to its role and redeems the invite as
+ * that persona (nobody is added without joining, decisions.md 75), then asks
+ * for work; switching persona is a real sign-in as that user.
  */
 export interface Persona {
   id: string;
@@ -95,16 +96,29 @@ function personaPassword(): string {
  * obfuscated user whose id is not the real one, and a membership written
  * against that id would point at nobody.
  */
-export async function ensurePersonaAccount(p: Pick<Persona, 'id' | 'email'>): Promise<string> {
+/** The persona signed in on a client of its own, beside the app's session. */
+async function personaSession(p: Pick<Persona, 'id' | 'email'>) {
   const password = personaPassword();
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL!;
   const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
   const side = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
   const inn = await side.auth.signInWithPassword({ email: p.email, password });
-  if (inn.data.user) return inn.data.user.id;
+  if (inn.data.user) return { side, userId: inn.data.user.id };
   const up = await side.auth.signUp({ email: p.email, password });
   if (up.error || !up.data.user) throw new Error(`persona ${p.id}: ${up.error?.message ?? inn.error?.message ?? 'no user'}`, { cause: up.error ?? inn.error });
-  return up.data.user.id;
+  return { side, userId: up.data.user.id };
+}
+
+export async function ensurePersonaAccount(p: Pick<Persona, 'id' | 'email'>): Promise<string> {
+  return (await personaSession(p)).userId;
+}
+
+/** The persona redeems an invite as itself, as someone scanning it would. Returns its profile id. */
+export async function joinAsPersona(p: Pick<Persona, 'id' | 'email'>, token: string): Promise<string> {
+  const { side, userId } = await personaSession(p);
+  const { error } = await side.rpc('redeem_invite_v2', { p_token: token });
+  if (error) throw new Error(`persona ${p.id} joining: ${error.message}`, { cause: error });
+  return userId;
 }
 
 /** Real sign-in as the persona on the app's own client. */

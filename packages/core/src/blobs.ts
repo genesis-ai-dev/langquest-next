@@ -30,7 +30,7 @@ const VOICE_NOTE_FIELD: Partial<Record<EventType, string>> = {
 /**
  * The voice note an event names: audio whose event has no format field
  * (decisions.md 30), so it is m4a unless `v1.AudioFormatSet` says
- * otherwise (decisions.md 75). Every field `referencedBlobs` reads as a
+ * otherwise (decisions.md 77). Every field `referencedBlobs` reads as a
  * voice note is here, so the app can say a note's format with the event
  * that names it.
  */
@@ -61,7 +61,7 @@ export function audioFormatsFor(
 /** Every blob the language references: recording cards and reference audio. */
 export function referencedBlobs(state: LanguageState): Map<string, BlobRef> {
   const out = new Map<string, BlobRef>();
-  // A voice note's format, as its recording device said (decisions.md 75).
+  // A voice note's format, as its recording device said (decisions.md 77).
   const voice = (hash: string): BlobRef['format'] => state.audioFormats[hash]?.value ?? 'm4a';
   for (const r of Object.values(state.recordings)) {
     for (const c of r.cards) {
@@ -85,7 +85,7 @@ export function referencedBlobs(state: LanguageState): Map<string, BlobRef> {
   // The record's own audio (decision 30): voice notes, spoken feedback and
   // reasons, directions, and what a producing kind made. Named only by the
   // event that uses it; voice notes are m4a unless the log says otherwise
-  // (75), artifacts carry their format.
+  // (77), artifacts carry their format.
   const add = (hash: string | undefined, unitId: string, format?: BlobRef['format']) => {
     if (hash && !out.has(hash)) out.set(hash, { hash, format: format ?? voice(hash), unitId });
   };

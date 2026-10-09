@@ -4,13 +4,14 @@ import { emptyLanguageState } from './state';
 import { validateEvent } from './validate';
 import { studyMarkKey, type Undo } from './record';
 import { applyReferenceEvent } from './references';
+import { earlier } from './ties';
 
 /**
  * Bump when a materializer changes in a way that alters output for existing
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 12;
+export const REDUCER_VERSION = 13;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -38,7 +39,10 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id]) return state;
+  // A redaction is never itself redacted: the server refuses one aimed at
+  // another, and the fold ignores any that got in, since which one stood
+  // would otherwise depend on the order redactions arrived in.
+  if (state.redactions[event.id] && event.type !== 'v1.Redacted') return state;
 
   switch (event.type) {
     case 'v1.TemplateSelected': {
@@ -49,7 +53,9 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
 
     case 'v1.UnitAdded': {
       const { unitId, ...unit } = event.payload;
-      state.units[unitId] ??= unit;
+      // Two phones applying one template add the same units; the earliest stands.
+      const prior = state.units[unitId];
+      if (!prior || earlier(event, unit, { hlc: prior.hlc, actorId: '' }, unitContent(prior), '')) state.units[unitId] = { ...unit, hlc: event.hlc };
       break;
     }
 
@@ -122,13 +128,20 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
 
     case 'v1.RecordingAdded': {
       const { recordingId, ...rest } = event.payload;
-      state.recordings[recordingId] ??= { ...rest, actorId: event.actorId, hlc: event.hlc };
+      const prior = state.recordings[recordingId];
+      if (!prior || earlier(event, rest, prior, { unitId: prior.unitId, kind: prior.kind, cards: prior.cards })) state.recordings[recordingId] = { ...rest, actorId: event.actorId, hlc: event.hlc };
       break;
     }
 
     case 'v1.TakeComposed': {
       const { takeId, ...rest } = event.payload;
       const prior = state.takes[takeId];
+      // A take is composed once. The earliest compose stands, so a second one
+      // reusing the id (the server refuses it now) can never swap the audio
+      // under a version people already reviewed. A placeholder left by an
+      // early archive has no unit yet and is always filled in.
+      const composed = prior && prior.unitId !== '';
+      if (composed && !earlier(event, rest, prior, { unitId: prior.unitId, cardHashes: prior.cardHashes, parentTakeId: prior.parentTakeId })) break;
       state.takes[takeId] = {
         ...rest,
         actorId: event.actorId,
@@ -152,18 +165,21 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     }
 
     case 'v1.TakeSubmitted': {
-      const { takeId, questionSetIds } = event.payload;
+      const { takeId } = event.payload;
+      const questionSetIds = event.payload.questionSetIds ?? [];
       // Grow-only, earliest wins: resubmitting the same take is a no-op.
       const prior = state.submissions[takeId];
-      if (!prior || event.hlc < prior.hlc) {
-        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds: questionSetIds ?? [] };
+      if (!prior || earlier(event, { questionSetIds }, prior, { questionSetIds: prior.questionSetIds })) {
+        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds };
       }
       break;
     }
 
     case 'v1.ResponseRecorded': {
       const { takeId, respondsToTakeId, note, blobHash } = event.payload;
-      state.responses[takeId] ??= {
+      const prior = state.responses[takeId];
+      if (prior && !earlier(event, { respondsToTakeId, note, blobHash }, prior, { respondsToTakeId: prior.respondsToTakeId, note: prior.note, blobHash: prior.blobHash })) break;
+      state.responses[takeId] = {
         respondsToTakeId,
         ...(note !== undefined ? { note } : {}),
         ...(blobHash !== undefined ? { blobHash } : {}),
@@ -218,7 +234,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
         kind, title, scope: { ...scope }, createdBy: event.actorId, hlc: event.hlc, fields: {}, locked: { value: false, hlc: '', eventId: '' },
         ...(templateRef !== undefined ? { templateRef } : {})
       });
-      if (m.hlc === '' || m.hlc > event.hlc) {
+      if (m.hlc === '' || earlier(event, { kind, title, scope, templateRef }, { hlc: m.hlc, actorId: m.createdBy }, { kind: m.kind, title: m.title, scope: m.scope, templateRef: m.templateRef })) {
         // Earliest definition wins (grow-only, first wins), like submissions.
         m.kind = kind; m.title = title; m.scope = { ...scope }; m.createdBy = event.actorId; m.hlc = event.hlc;
         if (templateRef !== undefined) m.templateRef = templateRef; else delete m.templateRef;
@@ -240,21 +256,29 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
 
     case 'v1.KeyTermDefined': {
       const { termId, term, gloss, unitScope } = event.payload;
-      const t = (state.keyTerms[termId] ??= { term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} });
-      // Placeholder from an early rendering has an empty term; fill it in.
-      if (t.term === '') { t.term = term; t.gloss = gloss; t.unitScope = [...unitScope]; }
+      const t = keyTerm(state, termId);
+      // Two phones may define the same term id; the earliest stands. A
+      // placeholder from an early rendering has no clock and is filled in.
+      if (t.hlc === '' || earlier(event, { term, gloss, unitScope }, { hlc: t.hlc, actorId: '' }, { term: t.term, gloss: t.gloss, unitScope: t.unitScope }, '')) {
+        t.term = term; t.gloss = gloss; t.unitScope = [...unitScope]; t.hlc = event.hlc;
+      }
       break;
     }
 
     case 'v1.KeyTermRenderingAdded': {
       const { termId, renderingId, rendering, context } = event.payload;
-      keyTerm(state, termId).renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
+      const renderings = keyTerm(state, termId).renderings;
+      const prior = renderings[renderingId];
+      if (!prior || earlier(event, { rendering, context }, { hlc: prior.hlc, actorId: '' }, { rendering: prior.rendering, context: prior.context }, '')) renderings[renderingId] = { rendering, context, hlc: event.hlc };
       break;
     }
 
     case 'v1.KeyTermAdjusted': {
       const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
-      keyTerm(state, termId).adjustments[adjustmentId] ??= {
+      const adjustments = keyTerm(state, termId).adjustments;
+      const prior = adjustments[adjustmentId];
+      if (prior && !earlier(event, { note, blobHash, duringTakeId }, prior, { note: prior.note, blobHash: prior.blobHash, duringTakeId: prior.duringTakeId })) break;
+      adjustments[adjustmentId] = {
         note, actorId: event.actorId, hlc: event.hlc,
         ...(blobHash !== undefined ? { blobHash } : {}), ...(duringTakeId !== undefined ? { duringTakeId } : {})
       };
@@ -264,7 +288,9 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.KeyTermLinked': {
       const { takeId, termId, note, adjustmentId } = event.payload;
       const byTerm = (state.keyTermLinks[takeId] ??= {});
-      byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...(note !== undefined ? { note } : {}), ...(adjustmentId !== undefined ? { adjustmentId } : {}) };
+      const prior = byTerm[termId];
+      if (prior && !earlier(event, { note, adjustmentId }, prior, { note: prior.note, adjustmentId: prior.adjustmentId })) break;
+      byTerm[termId] = { actorId: event.actorId, hlc: event.hlc, ...(note !== undefined ? { note } : {}), ...(adjustmentId !== undefined ? { adjustmentId } : {}) };
       break;
     }
 
@@ -282,9 +308,13 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       blobVerdict(state, event, { size: 0, stored: false });
       break;
 
-    case 'v1.AudioFormatSet':
-      lww(state.audioFormats, event.payload.hash, event, event.payload.format);
+    case 'v1.AudioFormatSet': {
+      // Once per hash, earliest wins (decisions.md 75): nobody re-labels someone else's note later.
+      const prior = state.audioFormats[event.payload.hash];
+      if (prior && (prior.hlc < event.hlc || (prior.hlc === event.hlc && prior.eventId <= event.id))) break;
+      state.audioFormats[event.payload.hash] = { value: event.payload.format, hlc: event.hlc, eventId: event.id };
       break;
+    }
 
     case 'v1.Redacted':
       // Only effective for targets not yet applied; `foldLanguage` applies
@@ -293,6 +323,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       break;
 
     case 'v1.OrgCreated':
+    case 'v1.OrgRenamed':
     case 'v1.RoleDefined':
     case 'v1.RoleRetired':
     case 'v1.MemberAdded':
@@ -377,7 +408,12 @@ function material(state: LanguageState, materialId: string): Material {
 }
 
 function keyTerm(state: LanguageState, termId: string) {
-  return (state.keyTerms[termId] ??= { term: '', gloss: '', unitScope: [], renderings: {}, adjustments: {} });
+  return (state.keyTerms[termId] ??= { term: '', gloss: '', unitScope: [], hlc: '', renderings: {}, adjustments: {} });
+}
+
+/** A unit's content without its clock, for `earlier`. */
+function unitContent(u: LanguageState['units'][string]) {
+  return { parentUnitId: u.parentUnitId, kind: u.kind, label: u.label, order: u.order };
 }
 
 /** Later HLC wins; equal HLC cannot happen across devices (node id suffix). */

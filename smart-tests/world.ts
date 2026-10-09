@@ -88,19 +88,19 @@ export async function seedTranslatorWorld(options: { reviewer?: boolean; coordin
   const orgId = randomUUID(), languageId = randomUUID();
   const passages = ['Luke 1:1-4', 'Luke 1:5-25'].map((label, i) => ({ unitId: `luke-${i}`, label }));
   const unassigned = { unitId: 'luke-2', label: 'Luke 2:1-7' };
-  const member = (p: Person, roleId: string) => intent('v1.MemberAdded', { profileId: p.id, roleId, scope: { level: 'org' } });
 
   const org = clientFor(owner, orgId, ORG_STREAM, ORG_MATERIALIZER);
   await org.load();
   await commit(org, [
     intent('v1.OrgCreated', { name: 'Smart test org' }),
     ...SEED_ROLES.map((r) => intent('v1.RoleDefined', { roleId: r.roleId, name: r.name, privileges: r.privileges })),
-    member(owner, 'org_admin'),
-    member(translator, 'translator'),
-    ...(reviewer ? [member(reviewer, 'reviewer')] : []),
-    ...(coordinator ? [member(coordinator, 'coordinator')] : []),
+    intent('v1.MemberAdded', { profileId: owner.id, roleId: 'org_admin', scope: { level: 'org' } }),
     intent('v1.LanguageAdded', { languageId, name: 'Luke', code: 'und', sourceCode: 'eng' })
   ], 'org');
+  // Everyone else joins by invite, as in the app: nobody is added without joining (decisions.md 75).
+  await joinByInvite(owner, translator, orgId, 'translator');
+  if (reviewer) await joinByInvite(owner, reviewer, orgId, 'reviewer');
+  if (coordinator) await joinByInvite(owner, coordinator, orgId, 'coordinator');
 
   const flow = options.flowId
     ? { selected: { flowId: options.flowId, name: flowTemplate(options.flowId)?.name ?? options.flowId }, steps: instantiateFlow(options.flowId) }
@@ -118,6 +118,18 @@ export async function seedTranslatorWorld(options: { reviewer?: boolean; coordin
   for (const p of [owner, translator, reviewer, coordinator]) if (p) await firstRunDone(p);
   return { orgId, languageId, passages, owner, translator, unassigned, stepId: flow.steps[0]!.stepId, kindId: flow.steps[0]!.kindIds[0]!,
     ...(reviewer ? { reviewer } : {}), ...(coordinator ? { coordinator } : {}) };
+}
+
+/** The owner invites someone to an org role, and they redeem it as themselves. */
+async function joinByInvite(owner: Person, who: Person, orgId: string, roleId: string) {
+  const token = createHash('sha256').update(randomUUID()).digest('hex');
+  const issued = await owner.sb.rpc('issue_invite_v3', {
+    p_org: orgId, p_invite_id: randomUUID(), p_token_hash: createHash('sha256').update(token).digest('hex'), p_role_id: roleId,
+    p_scope: { level: 'org' }, p_expires_at: new Date(Date.now() + 86_400_000).toISOString(), p_label: null, p_max_uses: 1
+  });
+  if (issued.error) throw new Error(`seed invite for ${roleId}: ${issued.error.message}`);
+  const redeemed = await who.sb.rpc('redeem_invite_v2', { p_token: token });
+  if (redeemed.error) throw new Error(`seed join as ${roleId}: ${redeemed.error.message}`);
 }
 
 function clientFor<S>(who: Person, orgId: string, streamId: string, materializer?: Materializer<S>): SyncClient<S> {

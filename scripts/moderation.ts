@@ -52,7 +52,7 @@ function list(): void {
   const rows = query<OpenRow>(`
     select r.id, r.created_at,
       coalesce((select e.payload->>'name' from public.events e where e.org_id = r.org_id and e.stream_id = '_org'
-        and e.type = 'v1.OrgCreated' order by e.hlc desc limit 1), r.org_id) || ' (' || r.org_id || ')' as org,
+        and e.type in ('v1.OrgCreated', 'v1.OrgRenamed') order by e.hlc collate "C" desc, e.id collate "C" desc limit 1), r.org_id) || ' (' || r.org_id || ')' as org,
       r.language_id, r.target_kind, r.target_id, r.unit_id, r.reported_profile,
       (select p.display_name from public.profiles p where p.id = r.reported_profile) as reported_name,
       (select u.email from auth.users u where u.id::text = r.reported_profile) as reported_email,

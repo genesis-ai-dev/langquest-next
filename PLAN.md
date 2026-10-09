@@ -153,7 +153,7 @@ when the databases were reset (decision 63); nothing older survives.
 
 | Event | Shape | Merge rule |
 | --- | --- | --- |
-| `v1.OrgCreated` | name | once |
+| `v1.OrgCreated` / `v1.OrgRenamed` | name | one register for both: later clock wins (decision 76) |
 | `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges[] / roleId | register per role; retired is add-wins |
 | `v1.MemberAdded` / `v1.MemberRemoved` | profileId, roleId, scope / profileId, scope; scope is `{ level: 'org' }` or `{ level: 'language', languageId }` | register per (profile, scope); one role per scope |
 | `v1.InviteIssued` / `v1.InviteRedeemed` | inviteId, roleId, scope, expiresAt / inviteId, profileId | issue fields latest wins; redeemed is server-only |
@@ -168,7 +168,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LibraryVersionPublished` | itemId, kind, docHash, note? | grow-only per (item, hash), earliest wins; numbered by clock |
 | `v1.LibrarySharingSet` / `v1.LibraryItemArchived` | itemId, kind, shared, subscribable / archived | register per item; subscribable implies shared |
 | `v1.LibrarySubscribed` / `v1.LibraryPinned` | itemId, kind, sourceOrgId, sourceOrgName, sourceItemId, name, autoUpdate, active / docHash | register per item; the server writes the pin for automatic updates |
-| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |
 
 **Language stream** (`streamId` the language id; no payload names a language):
 
@@ -182,8 +182,8 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.FlowStepSet` / `v1.FlowStepRemoved` | stepId, order, kindIds[], checkpoint / stepId | register per step; removal is add-wins; kinds in one step run in parallel, a checkpoint is the only gate |
 | `v1.ReviewKindDefined` | kindId, name, description?, usualReviewer?, withholdsContext?, produces? | register per kind; overrides the shipped kind of the same id |
 | `v1.ReviewTeamDefined` / `v1.ReviewTeamMemberSet` / `v1.ReviewTeamKindSet` | teamId, name / teamId, profileId, member / teamId, kindId (null = any) | register per team, per (team, profile), per team |
-| `v1.RecordingAdded` | recordingId, unitId, cards[{hash, durationMs}], kind | grow-only set |
-| `v1.TakeComposed` / `v1.TakeArchived` | takeId, unitId, cardHashes[], parentTakeId / takeId | grow-only set / flag, add-wins |
+| `v1.RecordingAdded` | recordingId, unitId, cards[{hash, durationMs}], kind | grow-only set; one event per id, earliest wins (decisions.md 75) |
+| `v1.TakeComposed` / `v1.TakeArchived` | takeId, unitId, cardHashes[], parentTakeId / takeId | grow-only set, one event per id, earliest wins (decisions.md 75) / flag, add-wins |
 | `v1.TakeSelected` | unitId, takeId | register per unit |
 | `v1.TakeSubmitted` | takeId, questionSetIds? | grow-only; the first submission counts |
 | `v1.ResponseRecorded` | takeId, respondsToTakeId, note?, blobHash? | grow-only (first wins) |
@@ -200,8 +200,8 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
-| `v1.AudioFormatSet` | hash, format | register per hash (LWW by clock); a voice note's format when not m4a (decisions.md 75) |
-| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded |
+| `v1.AudioFormatSet` | hash, format | one event per hash, earliest wins (decisions.md 75); a voice note's format when not m4a (decisions.md 77) |
+| `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |
 
 **Person stream** (org `_person`, `streamId` the profile id; written only by
 `record_user_event`): `v1.TermsAccepted`, `v1.VisionSeen`,

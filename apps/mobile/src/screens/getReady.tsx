@@ -495,10 +495,10 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
 
 function InviteStep({ ctx, lang, header, next }: StepProps) {
   const languageId = ctx.language.languageId;
-  const roles = usePlainRoles(ctx);
+  const scope = { level: 'language' as const, languageId };
+  const roles = usePlainRoles(ctx, scope);
   const [choice, setChoice] = useState<PlainRoleId | string>('translate');
   const [more, setMore] = useState(false);
-  const scope = { level: 'language' as const, languageId };
   const may = ctx.session.can('invite_members') && mayGrantAt(ctx.org.state, ctx.session.actorId, scope);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const invite = useGroupInvite(ctx.language.orgId, may ? roleId : null, may ? scope : null, `${lang} team`);
