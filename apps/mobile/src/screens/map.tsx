@@ -29,7 +29,7 @@ import { keptOfflineMap, OfflineMark, offlineWords, type KeptOffline } from '../
 import { languageFigures, oldestAsOf } from '../orgFigures';
 import { useOrgSummary } from '../useOrgSummary';
 import {
-  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
+  Card, Chip, ChipRow, EmptyState, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore,
   StepMarks, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { workIcon } from '../simple/homeModel';
@@ -61,6 +61,11 @@ interface Entry {
 const entryCache = new WeakMap<LanguageState, Entry[]>();
 
 /** Every passage the open language works on, with where it sits and where it stands; shared by the map and its books. */
+/** Books of the language waiting to be broken up (decision 74), as the app's book ids ("rut"). */
+function waitingBooks(state: LanguageState): string[] {
+  return indexesFor(state).waiting.map((unitId) => unitPlace(state, unitId).bookId).filter((b): b is string => !!b);
+}
+
 function languageEntries(state: LanguageState): Entry[] {
   const hit = entryCache.get(state);
   if (hit) return hit;
@@ -374,6 +379,8 @@ export function StatusHome(ctx: Ctx) {
 
 interface BookSummary {
   key: string;
+  /** Listed but not broken up yet (decision 74): nothing to record in it until a coordinator breaks it up. */
+  waiting?: boolean;
   book: CanonBook | null;
   name: string;
   group: string;
@@ -385,8 +392,12 @@ interface BookSummary {
   mine: number;
 }
 
-function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>): BookSummary[] {
+function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>, waiting: string[] = []): BookSummary[] {
   const by = new Map<string, BookSummary>();
+  for (const id of waiting) {
+    const book = canonBook(id);
+    if (book) by.set(book.id, { key: book.id, waiting: true, book, name: book.name, group: book.group, total: 0, recorded: 0, done: 0, feedback: 0, matching: 0, mine: 0 });
+  }
   for (const e of entries) {
     const book = canonBook(e.place.bookId) ?? null;
     const key = book?.id ?? OTHER;
@@ -409,10 +420,10 @@ function summarizeBooks(entries: Entry[], filter: MapFilter, forYou: Set<string>
 function BookRow(props: { b: BookSummary; filter: MapFilter; last: boolean; onPress: () => void }) {
   const { b, filter } = props;
   const noun = MAP_FILTERS.find((f) => f.id === filter)?.noun ?? '';
-  const sub = b.recorded > 0 ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? `, ${fmt(b.done)} done` : ''}` : 'Not started';
+  const sub = b.waiting ? 'Waiting to be broken up' : b.recorded > 0 ? `${fmt(b.recorded)} of ${fmt(b.total)} recorded${b.done ? `, ${fmt(b.done)} done` : ''}` : 'Not started';
   const beside = useOpenDetail();
   return (
-    <BookBar name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress}
+    <BookBar name={b.name} total={b.total} recorded={b.recorded} done={b.done} last={props.last} onPress={props.onPress} waiting={!!b.waiting}
       {...(filter !== 'all' ? { count: fmt(b.matching) } : {})}
       current={beside?.screen === 'book_map' && beside.params['bookId'] === b.key}
       accessibilityLabel={`${b.name}. ${sub}${filter !== 'all' ? `. ${fmt(b.matching)} ${noun}` : ''}${b.mine ? `. ${b.mine} for you` : ''}${b.feedback ? `. ${b.feedback} with feedback` : ''}`} />
@@ -495,13 +506,15 @@ export function MapHome(ctx: Ctx) {
   const forYou = useForYou(ctx, state);
   const next = useNextPassage(ctx, state);
   const entries = useMemo(() => (state ? languageEntries(state) : []), [state]);
-  const books = useMemo(() => summarizeBooks(entries, filter, forYou), [entries, filter, forYou]);
+  // Books not broken up yet (decision 74), by the app's book id.
+  const waiting = useMemo(() => (state ? waitingBooks(state) : []), [state]);
+  const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : 'Passage Map';
-  const outline = entries.length > 0 && entries.every((e) => !e.place.bookId);
+  const outline = entries.length > 0 && waiting.length === 0 && entries.every((e) => !e.place.bookId);
   const sel = state?.template?.value;
   const templateName = sel ? libraryItemView(ctx.org.state?.library ?? {}, sel.itemId)?.name : undefined;
   // What the header used to say under the title: in the Filter sheet now.
@@ -533,7 +546,7 @@ export function MapHome(ctx: Ctx) {
     </ChipRow>
   ) : null;
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && waiting.length === 0) {
     return (
       <Screen header={header}>
         {languageChips}
@@ -562,7 +575,7 @@ export function MapHome(ctx: Ctx) {
   // New Testament first (demo Map), then Old.
   const testaments = (['nt', 'ot'] as const).filter((t) => books.some((b) => b.book?.testament === t));
   const shownTestament = testament && testaments.includes(testament) ? testament : testaments[0];
-  const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0;
+  const inFilter = (b: BookSummary) => filter === 'all' || b.matching > 0 || !!b.waiting;
   const visible = books.filter((b) => b.book && b.book.testament === shownTestament && inFilter(b));
   const other = books.find((b) => !b.book && inFilter(b));
   const summary = [
@@ -729,6 +742,19 @@ export function BookMap(ctx: Ctx) {
   }
   if (!state) return <Screen header={header}><EmptyState icon="book" title="Loading…" /></Screen>;
 
+  if (book && entries.length === 0 && waitingBooks(state).includes(book.id)) {
+    const may = canGo(ctx, 'book_map', 'book_structure');
+    return (
+      <Screen header={header}
+        footer={may ? <PrimaryBtn label={`Break up ${book.name}`} icon="cut" onPress={() => ctx.go('book_structure', { languageId, bookId })} /> : undefined}>
+        <EmptyState icon="cut" title={`${book.name} isn't broken up yet`}
+          sub={may
+            ? `Choose how ${book.name} is cut into pieces, by chapter, FIA's passages or another way. Then it can be recorded.`
+            : `A coordinator decides how ${book.name} is cut into pieces. Then you can record it.`} />
+      </Screen>
+    );
+  }
+
   const open = (e: Entry) => ctx.openPassage(e.unitId, languageId);
   const sheet = openChapter ? chapters[openChapter - 1] : undefined;
   const summary = [`${fmt(recordedCount)} of ${plural(entries.length, 'passage')} recorded${language ? ` in ${language}` : ''}`];
@@ -747,8 +773,8 @@ export function BookMap(ctx: Ctx) {
     <View style={styles.quietRow}>
       <QuietIconLink icon="filter" label="Filter" onPress={() => setFilterOpen(true)} detail="Show only some passages, and the full key." />
       {canEdit ? (
-        <QuietIconLink icon="cut" label="Edit passages" onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })}
-          detail="Divide this book into passages your own way." />
+        <QuietIconLink icon="cut" label="Break up differently" onPress={() => ctx.go('book_structure', { languageId: languageId ?? '', bookId })}
+          detail="Change how this book is cut into pieces: by chapter, FIA's passages or another way." />
       ) : null}
     </View>
   );
