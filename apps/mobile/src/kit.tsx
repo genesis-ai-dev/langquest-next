@@ -23,6 +23,7 @@ import type { KindState } from '@langquest-next/core';
 import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
 import { HelpBadge } from './helpBadge';
 import { lift, shadow } from './shadow';
+import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
 
@@ -319,6 +320,8 @@ export function Row(props: {
   /** What this row opened is showing beside the list (a split on a wide window, panes.ts). */
   current?: boolean;
   accessibilityLabel?: string;
+  /** Text someone searched for: where it appears in the label and sub, it is bold (textMatch.ts). */
+  highlight?: string;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -342,8 +345,8 @@ export function Row(props: {
         </View>
       ) : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '600' }, props.muted && { color: C.muted }]} numberOfLines={2}>{props.label}</Text>
-        {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={props.role === 'switch' ? undefined : 2}>{props.sub}</Text> : null}
+        <Text style={[txt.body, { fontWeight: '600' }, props.muted && { color: C.muted }]} numberOfLines={2}>{marked(props.label, props.highlight)}</Text>
+        {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={props.role === 'switch' ? undefined : 2}>{marked(props.sub, props.highlight)}</Text> : null}
         {props.below ? <View style={{ marginTop: space.sm }}>{props.below}</View> : null}
       </View>
       {props.badge ? <Badge label={props.badge} {...(props.badgeTone ? { tone: props.badgeTone } : {})} /> : null}
@@ -359,6 +362,12 @@ export function Row(props: {
       <HelpBadge n={spot.n} current={spot.current} inset />
     </Pressable>
   );
+}
+
+/** `text` with what matches `query` in bold dark type, or `text` as it is. */
+function marked(text: string, query: string | undefined): ReactNode {
+  if (!query?.trim()) return text;
+  return markedParts(text, query).map((p, i) => (p.match ? <Text key={i} style={{ fontWeight: '800', color: C.dark }}>{p.text}</Text> : p.text));
 }
 
 /**
