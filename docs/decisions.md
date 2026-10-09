@@ -2228,7 +2228,7 @@ language keeps its own overrides on top of a shared template instead.
 
 ## 75. A voice note's format goes in the log when it is not m4a
 
-Date: 2026-10-08 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-09 · By: Ryder Wishart · Status: accepted
 
 Reason: a voice note is named only by the event that uses it (30), and none
 of those events has a format field, so core called every voice note m4a.
