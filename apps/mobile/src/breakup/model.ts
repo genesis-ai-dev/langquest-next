@@ -105,7 +105,7 @@ export function countLine(doc: TemplateDoc, v11n: VersificationDoc | null): stri
   const names = [...new Set(divided.map((b) => (b.part ?? doc.levels[doc.levels.length - 1]?.name ?? 'part').toLowerCase()))];
   const noun = names.length === 1 ? names[0]! : 'part';
   const plural = parts === 1 ? noun : noun.endsWith('y') ? `${noun.slice(0, -1)}ies` : `${noun}s`;
-  return divided.length === books.length ? `${fmt(parts)} ${plural}` : `${fmt(parts)} ${plural} in ${divided.length} books`;
+  return divided.length === books.length ? `${fmt(parts)} ${plural}` : `${fmt(parts)} ${plural} in ${divided.length} ${divided.length === 1 ? "book" : "books"}`;
 }
 
 /** Books a way leaves for later: "Romans, Hebrews and 18 more". */
