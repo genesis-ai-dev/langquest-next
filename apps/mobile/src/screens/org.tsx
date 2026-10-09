@@ -11,7 +11,7 @@
 import {
   CommandError, deriveFlow, isTemplateDoc, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
   libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
-  subscriptionItemId, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc, type TemplateDoc
+  subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -49,9 +49,10 @@ import { supabase } from '../supabase';
 import { C, radius, space, tile, TINT } from '../theme';
 import { useOrgSummary } from '../useOrgSummary';
 import { useHelpMode } from '../helpContext';
-import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, Examples, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow } from '../simple/admin';
-import { askedAgo, firstName, flowSub, guideShortName, joinAnd, QUESTIONS, RECORD_LABEL, recordExamples, stepTitle, type RecordKind } from '../simple/adminModel';
-import { useCheckChoices, useRecordChoices, type FlowEntry } from '../simple/choices';
+import { AmberNote, BigTop, ChoiceCard, CountBadge, DashedRow, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow } from '../simple/admin';
+import { askedAgo, firstName, flowSub, guideShortName, joinAnd, QUESTIONS, stepTitle } from '../simple/adminModel';
+import { useCheckChoices, type FlowEntry } from '../simple/choices';
+import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
 import { InviteSomeone } from '../simple/invite';
 import { languageOf, refKindOf } from '../reference/model';
 import { howItWorks, ReadyChecklist, usePendingRequests, usePlainRoles, useReadySummary } from '../simple/ready';
@@ -1096,7 +1097,6 @@ export function NewLanguage(ctx: Ctx) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [picked, setPicked] = useState<string | null>(null);
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   const [flowKey, setFlowKey] = useState<string | null>(null);
@@ -1104,20 +1104,19 @@ export function NewLanguage(ctx: Ctx) {
   const [created, setCreated] = useState<{ languageId: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  // Suggested: what the open language uses, else LangQuest's.
-  const rec = useRecordChoices(ctx, state?.template?.value.itemId);
+  // What it translates and how the Bible is broken up (decision 74); what other languages here use comes first.
+  const t = useTranslate(ctx, null);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
   const offers = useNewLanguageOffers(ctx);
-  const template = rec.choices.find((c) => c.key === (picked ?? rec.current?.key ?? rec.stories?.key ?? rec.chapters?.key)) ?? null;
-  const doc = rec.docs.get<TemplateDoc>(template?.hash);
+  const doc = t.finalDoc;
   const flow = chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
   const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
   const title = name.trim() || 'the language';
 
   async function create() {
     const languageName = name.trim();
-    if (!languageName || busy || !template || !flow) return;
+    if (!languageName || busy || !t.ready || !flow) return;
     setBusy(true);
     setError('');
     try {
@@ -1129,11 +1128,12 @@ export function NewLanguage(ctx: Ctx) {
       }
       const languoid = code.trim() || languageName.slice(0, 3);
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
-      const loaded = (await loadDocs(lib.orgId, [template.hash])).get(template.hash);
+      const use = await t.resolve();
+      const loaded = (await loadDocs(lib.orgId, [use.docHash])).get(use.docHash);
       if (!loaded || !isTemplateDoc(loaded)) throw new CommandError('Its template is not on this device yet. Try again when connected.');
       const books = booksInScope(loaded, scope, chosenBooks);
       if (books && books.length === 0) throw new CommandError('Choose at least one book.');
-      const templateItem = await adoptChoice(lib, template);
+      const templateItem = use.itemId;
       const flowItem = await adoptChoice(lib, flow.c);
       // What its team is offered, followed first when it is another organization's (as What helps them does).
       const offered: string[] = [];
@@ -1141,7 +1141,7 @@ export function NewLanguage(ctx: Ctx) {
       const fresh = emptyLanguageState();
       const plan = addLanguage(org, {
         languageId, code: languoid, name: languageName,
-        template: await lib.applySpecs(templateItem, { docHash: template.hash, into: fresh, ...(books ? { books } : {}) }),
+        template: await lib.applySpecs(templateItem, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
         flow: await lib.applySpecs(flowItem, { docHash: flow.c.hash, into: fresh })
       });
       const recommend: EventSpec[] = offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true)
@@ -1188,35 +1188,10 @@ export function NewLanguage(ctx: Ctx) {
   }
 
   if (step === 2) {
-    const card = (c: LibraryChoice | null, k: RecordKind) => {
-      if (!c) return null;
-      const on = template === c;
-      const suggested = c === (rec.current ?? rec.stories);
-      const t = k === 'stories' ? c.name.replace(/\s*\(.*?\)\s*/g, ' ').trim() : RECORD_LABEL[k].title;
-      const sub = k === 'stories' ? `${suggested ? 'Suggested · ' : ''}story-sized passages with study guides` : RECORD_LABEL[k].sub;
-      return (
-        <ChoiceCard key={c.key} on={on} icon="file" title={t} sub={sub} onPress={() => setPicked(c.key)}>
-          {on ? <Examples rows={recordExamples(rec.docs.get<TemplateDoc>(c.hash), 3)} /> : null}
-        </ChoiceCard>
-      );
-    };
-    const elseOn = !!template && rec.others.includes(template);
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label="Continue" icon="right" disabled={!template} onPress={() => setStep(3)} />{back}</>}>
-        <Question>What will {title} translate?</Question>
-        {card(rec.stories, 'stories')}
-        {card(rec.chapters, 'chapters')}
-        {rec.others.length ? (
-          <ChoiceCard on={elseOn} icon="file" title="Your own outline" sub="Stories, songs, health lessons, anything" onPress={() => setPicked(rec.others[0]!.key)}>
-            {elseOn ? (
-              <View style={{ paddingLeft: 52, gap: space.xs }}>
-                {rec.others.map((c) => <Chip key={c.key} label={c.name} on={template === c} onPress={() => setPicked(c.key)} />)}
-              </View>
-            ) : null}
-          </ChoiceCard>
-        ) : null}
-        {!rec.stories && !rec.chapters && !rec.others.length ? <Text style={txt.smMuted}>{rec.loaded ? 'Nothing to choose from yet.' : 'Loading…'}</Text> : null}
+        footer={<><PrimaryBtn label="Continue" icon="right" disabled={!t.ready} onPress={() => setStep(3)} />{back}</>}>
+        <TranslateQuestion ctx={ctx} t={t} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1' })} />
         {doc?.bible ? (
           <>
             <SectionLabel label="Which part of the Bible?" />
@@ -1225,13 +1200,13 @@ export function NewLanguage(ctx: Ctx) {
             </Pills>
             {scope === 'custom' ? (
               <Pills>
-                {doc.bible.books.map((b) => (
+                {templateBooks(doc).map((b) => (
                   <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)}
                     onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
                 ))}
               </Pills>
             ) : null}
-            <Text style={[txt.sm, { color: C.muted }]}>You can divide books differently later. Recordings move with their verses.</Text>
+            <Text style={[txt.sm, { color: C.muted }]}>A coordinator can break up any book differently later, from the map.</Text>
           </>
         ) : null}
       </Screen>
@@ -1254,7 +1229,7 @@ export function NewLanguage(ctx: Ctx) {
   };
   return (
     <Screen header={header} bodyStyle={bodyStyle}
-      footer={<><PrimaryBtn label="Continue" icon="right" busy={busy} disabled={!flow || !template || !name.trim()} onPress={() => void create()} />{back}</>}>
+      footer={<><PrimaryBtn label="Continue" icon="right" busy={busy} disabled={!flow || !t.ready || !name.trim()} onPress={() => void create()} />{back}</>}>
       <Question>How will recordings get checked?</Question>
       {[...chk.main, ...spoken].map(flowCard)}
       {rest.length ? (moreFlows ? rest.map(flowCard)
