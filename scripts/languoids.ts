@@ -291,8 +291,10 @@ if (command === 'explore') {
   const data = gzipSync(JSON.stringify(explorerData(tables, ids)), { level: 9 }).toString('base64');
   const page = await readFile(new URL('../apps/mobile/public/languages.html', import.meta.url), 'utf8');
   const script = await readFile(new URL('../apps/mobile/public/languages.js', import.meta.url), 'utf8');
-  // One file that opens anywhere: the script goes inline (the web app serves it apart).
-  await writeFile(out, page.replace('<script src="/languages.js"></script>', () => `<script>\n${script}</script>`).replace('__DATA__', () => data));
+  const globe = await readFile(new URL('../apps/mobile/public/languages-globe.js', import.meta.url), 'utf8');
+  // One file that opens anywhere: the scripts go inline (the web app serves them apart).
+  await writeFile(out, page.replace('<script src="/languages-globe.js"></script>', () => `<script>\n${globe}</script>`)
+    .replace('<script src="/languages.js"></script>', () => `<script>\n${script}</script>`).replace('__DATA__', () => data));
   console.log(`explorer: ${out}`);
 } else if (command === 'preview') {
   await stage(tables, ids);
