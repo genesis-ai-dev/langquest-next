@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, entityKeyOf, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
@@ -193,6 +193,9 @@ const single = withKinds.flatMap((e) => PRIVILEGES.map((priv) => ({ priv, type: 
 const scopedLanguage = [...events, ...broken.filter((e) => SCOPED.has(e.type) && validateEvent(e) === null)]
   .map((e) => ({ type: e.type, payload: e.payload, language: languageOfOrgEvent(e) ?? null }));
 
+// The entity a creating event names (one event per entity in a stream, decisions.md 75).
+const entities = events.map((e) => ({ type: e.type, payload: e.payload, key: entityKeyOf(e) }));
+
 writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r jsonb; begin
   for r in select * from jsonb_array_elements(${sql(rows)}) loop
     if (public.validate_payload(r->>'type', r->'payload') is null) is distinct from (r->>'valid')::boolean then
@@ -214,6 +217,12 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception 'language_of_org_event disagrees with core: %', r;
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(entities)}) loop
+    if public._entity_key(r->>'type', r->'payload') is distinct from r->>'key' then
+      raise exception '_entity_key disagrees with core: % (sql says %)', r, public._entity_key(r->>'type', r->'payload');
+    end if;
+  end loop;
 end $$;
-select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks;
+select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
+  ${entities.length} as entity_checks;
 `);

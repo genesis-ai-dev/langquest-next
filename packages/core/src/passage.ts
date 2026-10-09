@@ -155,6 +155,12 @@ export interface FlowStepStatus {
   index: number;
   kinds: KindStatus[];
   complete: boolean;
+  /**
+   * Do reviews given through a shared link count here (`v1.FlowStepLinksSet`,
+   * `stepAllowsLinks`)? Where they do not, a link review is read as feedback:
+   * it never completes the step, whenever it was given (decisions.md 75).
+   */
+  linksAllowed: boolean;
   /** Name of the checkpoint this step waits for. */
   lockedBy?: string;
   override?: DepartureView;
@@ -325,8 +331,8 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   });
   const openRequests = requests.filter((r) => r.status === 'open');
 
-  const kindStatus = (kindId: string): KindStatus => {
-    const review = [...reviews].reverse().find((r) => r.kindId === kindId);
+  const kindStatus = (kindId: string, linksAllowed: boolean): KindStatus => {
+    const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
     const base = { kindId, ...(review ? { review } : {}) };
@@ -346,7 +352,8 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   const steps: FlowStepStatus[] = [];
   let gate: string | undefined;
   flow.steps.forEach((step, index) => {
-    const statuses = step.kindIds.map(kindStatus);
+    const linksAllowed = stepAllowsLinks(state, step);
+    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed));
     const override = active((d) => d.type === 'override' && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => (s.state === 'todo' ? { ...s, state: 'locked' as const } : s)) : statuses;
@@ -358,7 +365,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     // reviewer is an override, which needs its own permission (decision 29).
     const clears = (s: KindStatus) => s.state === 'approved' && s.review?.via === 'app';
     const complete = statuses.every((s) => (step.checkpoint ? clears(s) : isCompleteState(s.state)));
-    steps.push({ step, index, kinds: kindsShown, complete, ...(lockedBy ? { lockedBy } : {}), ...(override ? { override } : {}) });
+    steps.push({ step, index, kinds: kindsShown, complete, linksAllowed, ...(lockedBy ? { lockedBy } : {}), ...(override ? { override } : {}) });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
   });
 
@@ -891,7 +898,8 @@ export function approvedVersion(s: PassageState): Version | null {
       const status = st.kinds[k];
       if (status?.state === 'skipped') return true;
       let last: ReviewView | undefined;
-      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId) last = r; // reviews are in clock order
+      // Reviews are in clock order; a link review does not count where the step does not take links.
+      for (const r of s.reviews) if (r.kindId === kindId && r.takeId === v.takeId && (st.linksAllowed || r.via !== 'link')) last = r;
       if (!last) return false;
       const approves = last.outcome === 'looks_good' || (last.outcome === 'recorded' && status?.state === 'approved');
       return approves && (!st.step.checkpoint || last.via === 'app');

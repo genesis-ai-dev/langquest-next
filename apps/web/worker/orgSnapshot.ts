@@ -37,6 +37,18 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.agentFor(orgId, '').spend(key);
   }
 
+  async agentSpendWrite(orgId: string, key: string): Promise<boolean> {
+    return this.agentFor(orgId, '').spendWrite(key);
+  }
+
+  async agentLinkOpen(orgId: string, link: ReviewLink): Promise<boolean> {
+    return this.agentFor(orgId, '').linkOpen(link);
+  }
+
+  async agentMayRevokeLink(orgId: string, profileId: string, link: ReviewLink): Promise<boolean> {
+    return this.agentFor(orgId, '').mayRevokeLink(profileId, link);
+  }
+
   async agentCheckLink(orgId: string, profileId: string, spec: LinkSpec) {
     return this.agentFor(orgId, '').checkLink(profileId, spec);
   }

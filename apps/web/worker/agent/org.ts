@@ -3,7 +3,7 @@ import type { AppendResult } from '@langquest-next/client';
 import type { OrgFolder } from '../orgFolder';
 import type { Grant } from './tokens';
 import {
-  checkLinkSpec, isRefusal, languageAccess, languagesFor, linkReviewEvent, linkView, passageFor, passagesFor, releaseEvent, reviewEvent,
+  checkLinkSpec, isRefusal, languageAccess, languagesFor, linkIsOpen, linkReviewEvent, linkView, mayRevokeLinks, passageFor, passagesFor, releaseEvent, reviewEvent,
   type LanguageView, type LinkReviewInput, type LinkSpec, type LinkView, type PassageDetail, type PassageFilter, type PassageSummary,
   type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
 } from './view';
@@ -29,6 +29,12 @@ export interface OrgAccess {
 
 /** Writes one token (or one review link) may make in an hour, across every language. */
 export const WRITES_PER_HOUR = 600;
+/**
+ * Voice notes one token or link may upload in an hour: ten answers' worth
+ * of clips. Each is up to 20 MB and is recorded in the language's log, so
+ * this is much lower than the writes (decisions.md 75).
+ */
+export const UPLOADS_PER_HOUR = 100;
 const HOUR_MS = 60 * 60 * 1000;
 
 const no = (r: Refusal): Answer<never> => ({ ok: false, ...r });
@@ -96,8 +102,13 @@ export class AgentOrg {
     return yes({ eventId: event.id, duplicate: appended.data, passage: passage && !isRefusal(passage) ? passage : null });
   }
 
-  /** Count an upload against a token's or a link's writes (voice notes). */
+  /** Count an upload (a voice note) against a token's or a link's hourly uploads. */
   async spend(key: string): Promise<boolean> {
+    return this.allow(`upload:${key}`, UPLOADS_PER_HOUR);
+  }
+
+  /** Count a write that is not an event (a review link shared with a token) against the token's writes. */
+  async spendWrite(key: string): Promise<boolean> {
     return this.allowWrite(key);
   }
 
@@ -109,6 +120,16 @@ export class AgentOrg {
     if (!held) return no({ status: 404, code: 'no_language', error: 'There is no such language.' });
     const out = checkLinkSpec(held.org, held.state, profileId, spec);
     return isRefusal(out) ? no(out) : yes(out);
+  }
+
+  /** Is the link open now: not revoked or expired, and its sharer can still record what it takes? */
+  async linkOpen(link: ReviewLink): Promise<boolean> {
+    return linkIsOpen(link, await this.folder.orgState(), this.now());
+  }
+
+  /** May this person take back a link someone else shared in the language? */
+  async mayRevokeLink(profileId: string, link: ReviewLink): Promise<boolean> {
+    return mayRevokeLinks(await this.folder.orgState(), profileId, link.languageId);
   }
 
   async linkInfo(link: ReviewLink): Promise<Answer<LinkView>> {
@@ -137,11 +158,15 @@ export class AgentOrg {
     return yes(result.reason === 'duplicate');
   }
 
-  /** A sliding hour, kept in the object's memory: one object per organization sees every write for its tokens and links. */
   private allowWrite(key: string): boolean {
+    return this.allow(key, WRITES_PER_HOUR);
+  }
+
+  /** A sliding hour, kept in the object's memory: one object per organization sees every write for its tokens and links. */
+  private allow(key: string, perHour: number): boolean {
     const now = this.now();
     const recent = (this.writes.get(key) ?? []).filter((t) => t > now - HOUR_MS);
-    if (recent.length >= WRITES_PER_HOUR) {
+    if (recent.length >= perHour) {
       this.writes.set(key, recent);
       return false;
     }

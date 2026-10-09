@@ -9,11 +9,12 @@ insert into auth.users (id, email, aud, role) values
   ('20000000-0000-0000-0000-00000000000c', 'nyibol-482@people.langquest.org', 'authenticated', 'authenticated'),
   ('20000000-0000-0000-0000-00000000000d', 'akol-117@people.langquest.org', 'authenticated', 'authenticated');
 -- The organization, its roles, its two admins and one language, in one batch.
-select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-00000000000a',true);
+-- Set up as the server would (an import): people here have joined by invite or request (decisions.md 75).
+select set_config('request.jwt.claim.sub','',true);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
     {"id":"keys-o1","type":"v1.OrgCreated","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000001:000000:dK","payload":{"name":"Keys test"}},
-    {"id":"keys-o2","type":"v1.RoleDefined","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000002:000000:dK","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure"]}},
+    {"id":"keys-o2","type":"v1.RoleDefined","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000002:000000:dK","payload":{"roleId":"admin","name":"Admin","privileges":["invite_members","manage_structure","translate"]}},
     {"id":"keys-o3","type":"v1.RoleDefined","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000003:000000:dK","payload":{"roleId":"translator","name":"Translator","privileges":["translate","invite_members"]}},
     {"id":"keys-o4","type":"v1.MemberAdded","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000004:000000:dK","payload":{"profileId":"20000000-0000-0000-0000-00000000000a","roleId":"admin","scope":{"level":"org"}}},
     {"id":"keys-o5","type":"v1.MemberAdded","orgId":"keys-org","streamId":"_org","actorId":"20000000-0000-0000-0000-00000000000a","deviceId":"dK","hlc":"000000000000005:000000:dK","payload":{"profileId":"20000000-0000-0000-0000-00000000000b","roleId":"admin","scope":{"level":"org"}}},
@@ -22,6 +23,7 @@ do $$ declare r record; begin
     if not r.accepted then raise exception 'bootstrap event % refused: %', r.id, r.reason; end if;
   end loop;
 end $$;
+select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-00000000000a',true);
 
 -- One person, scoped to one language, with a label; and a group of two.
 select public.issue_invite_v3('keys-org','30000000-0000-0000-0000-000000000001',

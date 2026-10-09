@@ -12,7 +12,8 @@ insert into auth.users (id, email) values
   ('e0000000-0000-0000-0000-00000000000e', 'mod-outsider@example.org');
 update public.server_config set min_client_version = 0;
 -- The organization, its roles and members, and two languages; l leads L2 only.
-select set_config('request.jwt.claim.sub','e0000000-0000-0000-0000-00000000000a',true);
+-- Set up as the server would (an import): people here have joined by invite or request (decisions.md 75).
+select set_config('request.jwt.claim.sub','',true);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
     {"id":"mod-o1","type":"v1.OrgCreated","orgId":"mod-org","streamId":"_org","actorId":"e0000000-0000-0000-0000-00000000000a","deviceId":"dev-a","hlc":"000000000000001:000000:dev-a","payload":{"name":"Moderation Org"}},

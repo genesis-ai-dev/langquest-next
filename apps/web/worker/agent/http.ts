@@ -20,8 +20,14 @@ export interface OrgStub {
   read(grant: Grant, q: AgentQuery): Promise<Answer<unknown>>;
   write(grant: Grant, w: AgentWrite): Promise<Answer<unknown>>;
   access(profileId: string): Promise<OrgAccess | null>;
-  /** Count one write (a voice note upload) against a token's or link's hourly budget; false when it is spent. */
+  /** Count one voice note upload against a token's or link's hourly uploads; false when they are spent. */
   spend(key: string): Promise<boolean>;
+  /** Count one write that is not an event (a review link made with a token) against the token's writes. */
+  spendWrite(key: string): Promise<boolean>;
+  /** Is the link open: not revoked or expired, and its sharer can still record (decisions.md 75)? */
+  linkOpen(link: ReviewLink): Promise<boolean>;
+  /** May this person take back a link someone else shared in its language? */
+  mayRevokeLink(profileId: string, link: ReviewLink): Promise<boolean>;
   checkLink(profileId: string, spec: LinkSpec): Promise<Answer<{ takeId: string }>>;
   linkInfo(link: ReviewLink): Promise<Answer<LinkView>>;
   linkReview(link: ReviewLink, input: LinkReviewInput): Promise<Answer<{ duplicate: boolean }>>;
@@ -168,7 +174,7 @@ async function tokenRoute(request: Request, parts: string[], url: URL, auth: { g
     const languages = await org.read(grant, { op: 'languages' });
     return json(200, { token: tokenOut(auth.token), languages: languages.ok ? languages.data : [] });
   }
-  if (parts[0] === 'review-links') return tokenLinks(request, parts.slice(1), url, grant, deps);
+  if (parts[0] === 'review-links') return tokenLinks(request, parts.slice(1), url, grant, auth.token, deps);
   if (parts[0] !== 'languages') return fail(404, 'not_found', 'Not found. GET /api/v1 lists what is here.');
   if (parts.length === 1 && get) return answer(await org.read(grant, { op: 'languages' }));
   const languageId = parts[1]!;

@@ -110,7 +110,10 @@ sequence, cursor, snapshots and blob folder.
 6. You may grant a role, or issue an invite, only at a scope where you hold
    `invite_members`: at org scope, or at your own language. The server
    enforces this. Today the UI offers language admins things the server then
-   refuses.
+   refuses. Since decision 75 you may also grant only a role whose
+   privileges you hold there, change or remove only a role you could have
+   granted, and add directly only someone who already joined the
+   organization; newcomers come in by invite or join request.
 7. Events restart at `v1`. Nothing shipped survives the reset, so no event is
    kept for compatibility.
 
@@ -120,7 +123,7 @@ sequence, cursor, snapshots and blob folder.
 
 | Event | Payload | Merge |
 | --- | --- | --- |
-| `v1.OrgCreated` | name | register |
+| `v1.OrgCreated` / `v1.OrgRenamed` | name | one register for both (decision 76) |
 | `v1.RoleDefined` / `v1.RoleRetired` | roleId, name, privileges / roleId | register per role |
 | `v1.MemberAdded` / `v1.MemberRemoved` | profileId, roleId, scope / profileId, scope | register per (profile, scope) |
 | `v1.InviteIssued` / `v1.InviteRedeemed` | inviteId, roleId, scope, expiresAt / inviteId, profileId | as today |

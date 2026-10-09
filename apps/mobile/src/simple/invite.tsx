@@ -40,12 +40,12 @@ export function InviteSomeone(props: {
   disabled?: string;
 }) {
   const { ctx } = props;
-  const roles = usePlainRoles(ctx);
   const [choice, setChoice] = useState<string>('translate');
   const [others, setOthers] = useState(false);
   const [scopeKey, setScopeKey] = useState(props.initialScope);
   const [shown, setShown] = useState(false);
   const scope = props.scopes.find((s) => s.key === scopeKey) ?? props.scopes[0] ?? null;
+  const roles = usePlainRoles(ctx, scope?.scope ?? null);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const invite = useGroupInvite(ctx.language.orgId, shown ? roleId : null, shown && scope ? scope.scope : null, scope ? props.label(scope) : '');
   const uri = invite && 'uri' in invite ? invite.uri : null;

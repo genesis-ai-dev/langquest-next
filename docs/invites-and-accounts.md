@@ -76,10 +76,13 @@ not collide.
 The **steward** is the person whose invite made the account (stored in
 `account_stewards`, set by the server when that account redeems its first
 invite). Since decision 59 it only says who to ask. Who may help is whoever
-holds Invite (`invite_members`) at a scope that covers one of the person's
-memberships, the organization or the person's language, while they hold it:
-the inviter can help because they could invite there, and stops when they
-leave or lose the role (`may_help_sign_in`).
+could invite the person back to everywhere they are, while they can: for
+every membership the person holds in an organization they joined
+themselves (an invite redeemed, a request admitted, or one they made),
+Invite (`invite_members`) at that scope and every privilege of the role
+(decision 75). The inviter can help because they could invite there, and
+stops when they leave or lose the role (`may_help_sign_in`). A membership
+someone else made for the person counts for nothing either way.
 
 ### Why not `inviter+username@inviter's-domain`
 
@@ -141,7 +144,9 @@ Server functions:
   account (a random password nobody sees), adds the membership with
   `redeem_invite_for` (redeem_invite_v2's body for a named account, service
   role only), and returns a session. A repeat of the same request id
-  (`invite_join_requests`) signs the same account in again.
+  (`invite_join_requests`) signs the same account in again, for an hour and
+  only while the account is still looked after with no password (75); after
+  that, getting back in is a helper's code.
 
 Phone state: one value, the **held key**, in `AsyncStorage` under
 `held-invite`:
@@ -217,7 +222,7 @@ and the steward row is removed.
 | A new phone, or signed out | F, from anyone who can invite them where they are | Every account has someone who can get it back in |
 | Phone lost or stolen | F with "Their old phone is lost": the old phone is signed out | The code ends every other session (59) |
 | Inviter leaves the organization | They can no longer help; anyone else with Invite there can | `may_help_sign_in` follows current roles (59) |
-| The reply to Join is lost | Tapping Join again signs the same account in | One request id per join (59) |
+| The reply to Join is lost | Tapping Join again within the hour signs the same account in | One request id per join (59, 75) |
 | Shared phone, several translators | Each can set a password for it; signing out keeps nobody's key | Claims bind to one account |
 | Signs out of a shared phone with work unsent | Signs out anyway; the work still goes, as them, when the phone is online | The hand-over keeps their session only until it has gone (60) |
 | Someone else signed in when a key is scanned | Asked "Join as X?", with "Not X?" | `unclaimed` never joins on its own |

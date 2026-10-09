@@ -7,7 +7,7 @@ import { readingsFor, sourceText } from '../src/scripture';
 
 function withUnits(units: Record<string, string>): LanguageState {
   const s = emptyLanguageState();
-  for (const [id, label] of Object.entries(units)) s.units[id] = { parentUnitId: null, kind: 'passage', label, order: id };
+  for (const [id, label] of Object.entries(units)) s.units[id] = { parentUnitId: null, kind: 'passage', label, order: id, hlc: '1' };
   return s;
 }
 

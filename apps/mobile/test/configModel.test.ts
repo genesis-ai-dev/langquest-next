@@ -54,7 +54,7 @@ describe('roles', () => {
     expect(translators[0]!.scope).toEqual({ level: 'language', languageId: 'L1' });
     expect(holdersOf(org, 'org_admin').map((h) => h.profileId)).toEqual(['lead']);
     expect(scopeName(translators[0]!.scope, org)).toBe('Dinka');
-    expect(scopeName({ level: 'org' }, org)).toBe('Wycliffe Associates');
+    expect(scopeName({ level: 'org' }, org)).toBe('Wycliffe Kenya');
   });
 
   it('reads the level the roles are seen from', () => {

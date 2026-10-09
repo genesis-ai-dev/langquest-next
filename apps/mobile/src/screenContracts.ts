@@ -72,9 +72,9 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','library_template_users'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
-  org_home: { emits:['v1.LicenseSet'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
+  org_home: { emits:['v1.LicenseSet','v1.OrgRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
   // A language's page reads the four questions from the record, and who is waiting to be let in (decision 71).
-  language_home: { rpcs:['set_language_visibility'],reads:['language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
+  language_home: { emits:['v1.LanguageRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   review_team_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },

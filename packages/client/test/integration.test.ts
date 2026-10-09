@@ -133,6 +133,19 @@ async function putAs(worker: BlobDeps, user: { sb: SupabaseClient }, key: string
 
 const up = ANON ? await reachable() : false;
 
+/** The lead invites someone, and they redeem it as themselves: nobody is added without joining (decisions.md 75). */
+async function joinByInvite(lead: { sb: SupabaseClient }, who: { sb: SupabaseClient }, orgId: string, roleId: string, scope: Scope) {
+  const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const issued = await lead.sb.rpc('issue_invite_v3', {
+    p_org: orgId, p_invite_id: crypto.randomUUID(), p_token_hash: hash, p_role_id: roleId, p_scope: scope,
+    p_expires_at: new Date(Date.now() + 86_400_000).toISOString(), p_label: null, p_max_uses: 1
+  });
+  if (issued.error) throw new Error(`invite: ${issued.error.message}`);
+  const redeemed = await who.sb.rpc('redeem_invite_v2', { p_token: token });
+  if (redeemed.error) throw new Error(`join: ${redeemed.error.message}`);
+}
+
 describe.skipIf(!up)('integration: two real users against local Supabase', () => {
   it('owner bootstraps, translator records, owner reviews, both converge', async () => {
     const stamp = Date.now();
@@ -142,8 +155,11 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     const languageId = `lang-${stamp}`;
     const org = await newOrg(lead, orgId, languageId);
     const inLanguage: Scope = { level: 'language', languageId };
+    // The lead may not add someone who never joined; the translator joins by invite.
     await org.append('v1.MemberAdded', { profileId: trans.userId, roleId: 'translator', scope: inLanguage });
-    expect((await org.sync()).rejected).toBe(0);
+    expect((await org.sync()).rejected).toBe(1);
+    await joinByInvite(lead, trans, orgId, 'translator', inLanguage);
+    await org.sync();
 
     const a = languageClient(orgId, languageId, lead, 'dA');
     const b = languageClient(orgId, languageId, trans, 'dB');

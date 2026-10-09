@@ -156,6 +156,8 @@ describe('blob reads', () => {
     const whole = await handleBlobs(new Request(url), deps);
     expect(whole.status).toBe(200);
     expect(whole.headers.get('content-type')).toBe('audio/wav');
+    // Never sniffed into a type a browser would run.
+    expect(whole.headers.get('x-content-type-options')).toBe('nosniff');
     expect(new Uint8Array(await whole.arrayBuffer())).toEqual(audio);
 
     const part = await handleBlobs(new Request(url, { headers: { range: 'bytes=4-7' } }), deps);
