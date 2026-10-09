@@ -2482,3 +2482,30 @@ Reverse if: external values grow past a set share of a language's events or
 slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
+
+## 80. A language's numbering is chosen first, for the whole Bible, and ways of dividing are converted into it
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: how a book is divided depends on its numbering. "By chapter" has
+no meaning until the chapters are known: English Malachi has 4, Hebrew-
+numbered Malachi 3. And the numbering decides which books exist. So when a
+language translates the Bible, its numbering is chosen first, for the whole
+Bible (by its Bible, by name, or with the quiz), and only then are books
+divided, all at once or one by one (Caleb, 2026-10-09). A numbering offered
+to admins is a source versification with exactly one tradition's books.
+FIA, unfoldingWord and OpenBible divide the text, not the numbers, so their
+English-numbered sections are converted into the language's numbering, with
+four rules: uncovered verses inside a chapter are a section of their own
+(Psalm headings included); uncovered verses inside a section split it
+(Catholic Daniel 3:19–23, 3:24–90, 3:91–97); a verse two sections want goes
+to the earlier one (Douay Judges 21:24); uncovered whole chapters are a
+section each (Catholic Daniel 13 and 14). Books a way does not cover wait
+for the admin. When a way publishes a new version, what was recorded on a
+changed section stays visible with a warning mark. `docs/breaking-up-the-bible.md`
+holds the rules with examples. Decision 74 stays as built; this extends it.
+The source files are rebuilt first, because their JSON copies lost every
+second line of a verse that matches two (96 lines).
+Reverse if: teams need one section made of two separate ranges (Daniel
+3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
+and every reader of a section's verses learns to read one.
