@@ -14,6 +14,9 @@ and publishes them; `docs/library.md` explains items, versions and documents.
 | `versifications/*.json` | The six standard systems: `org`, `eng`, `lxx`, `vul`, `rso`, `rsc` (Copenhagen Alliance JSON) | Frontier's versification-tool, MIT. Do not edit; replace from upstream. |
 | `books.eng.json` | English names for every book any of them lists, deuterocanon included | Written for this repo. |
 | `fia/pericope_*.json` | FIA API pericopes, as the API returns them (`{ "pericope": … }`) | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 (as stated on FIA's Aquifer releases, e.g. github.com/BibleAquifer/FIATranslationGuide). Every guide's `source` carries that attribution, and adaptations must stay CC BY-SA. `pericope_gen-p2.json` is the copy the app used to bundle. |
+| `fia/pericopes.tsv` | FIA's passage list from its API (`list_content.py` in genesis-ai-dev/fia, 2026-10-09): 2,376 passages in 46 books, in FIA's order | fia.bible; © 2025 Word Collective, CC BY-SA 4.0 |
+| `divisions/unfoldingword-chunks.json` | Where each chunk starts, every book, from unfoldingWord's Unlocked Literal Bible (`api.unfoldingword.org/bible/txt/1/<book>/chunks.json`, fetched 2026-10-08) | unfoldingWord; the ULB is CC BY-SA 4.0 (the chunk files state no licence of their own), attributed in the template's description |
+| `divisions/openbible-section-counts.tsv` | For every section, how many of 20 English Bibles start it there (BSB, ESV, NIV, NLT, NRSVue, NET, NABRE and more) | OpenBible.info (openbible.info/labs/bible-section-sankeys), CC BY 4.0, attributed in each template's description |
 | `fia/demo_*.study.json` | Luke 15:11–32 and John 3:1–21, written for the partner demo in FIA's format (their notes are the demo's, not FIA's) | Converted from the app's former `src/study/fia.ts`; `versification` names a code, which the seed turns into a hash. |
 
 Built from core as well: the flows (`FLOWS` and `DEFAULT_KINDS` in
@@ -28,6 +31,12 @@ Item ids are `langquest.<kind>.<slug>`:
 - `langquest.template.bible-chapters-<code>`: every book the versification
   has, by chapter; `bible-books-eng` (the 66 books, one part each);
   `nt-chapters-eng`; `fia-passages-eng` (FIA's passages, in FIA's order).
+- `langquest.bible.<way>` (`template@2`, decision 74): the ways to break up
+  the Bible: `chapters`, `fia` (FIA's full list; books it has none for
+  wait), `unfoldingword`, `openbible-long`, `openbible-usual`,
+  `openbible-short`, and `book-by-book` (every book waiting). The older
+  `langquest.template.*` items above are kept as they are for the languages
+  that use them.
 - `langquest.flow.<id>`: each core flow, carrying the review kinds it uses.
 - `langquest.questions.<id>`: each question set, for its review kind.
 - `langquest.fia.<language>`: "FIA study guides (English)" and so on, one
@@ -64,6 +73,7 @@ Every item is shared and subscribable.
 ```sh
 npm run library:seed -- --dry-run                 # counts and hashes, no network
 npm run library:seed -- --dry-run --fia-dir ../fia/output   # with more FIA pericopes
+npm run library:seed -- --dry-run --fia-dir ../fia/output/pericopes-2026-10   # every FIA pericope (2,376; 3,956 guides in 14 languages)
 ```
 
 Locally (after `npm run db:start`), take the URL and service role key from
