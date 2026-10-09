@@ -189,6 +189,36 @@ td .rn { display: block; font-size: 12px; color: var(--muted); }
 .bar .fill { height: 100%; background: var(--accent); border-radius: 4px; }
 .bar .val { font-variant-numeric: tabular-nums; color: var(--muted); }
 
+/* what was typed, in search results */
+b.hit { font-weight: 800; color: var(--ink); }
+
+/* family tree */
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul { margin-left: 8px; padding-left: 12px; border-left: 1px solid var(--line); }
+.trow { display: flex; align-items: center; gap: 7px; min-height: 28px; padding: 1px 0; min-width: 0; }
+.trow .tog { width: 18px; flex: none; border: 0; background: none; padding: 0; cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; text-align: center; }
+.trow .tn { border: 0; background: none; padding: 0; cursor: pointer; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.trow button.tn:hover { color: var(--accent); text-decoration: underline; }
+.trow.here { background: var(--accent-soft); border-radius: 6px; padding: 1px 8px 1px 6px; margin-left: -6px; width: fit-content; max-width: 100%; }
+.trow .num, .trow .mono { flex: none; font-size: 12px; }
+.tmore button { border: 0; background: none; padding: 3px 0 3px 25px; cursor: pointer; color: var(--accent); font-size: 12.5px; }
+.tmore button:hover { text-decoration: underline; }
+
+/* globe */
+.globewrap { margin: 0 0 20px; }
+.globe { position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); overflow: hidden; touch-action: none; }
+.globe-canvas { display: block; cursor: grab; touch-action: none; }
+.globe-canvas:active { cursor: grabbing; }
+.globe-tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 3px 8px; border-radius: 6px; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.globe-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
+.globe-bar .legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--ink); }
+.globe-bar .legend .lv { margin-left: 4px; }
+.globe-bar button { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 2px 10px; cursor: pointer; min-width: 30px; }
+.globe-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.globe-bar .spacer { flex: 1; }
+.globe-link { display: inline; border: 0; background: none; padding: 0; margin-left: 8px; cursor: pointer; font-size: 12.5px; color: var(--accent); }
+.globe-link:hover { text-decoration: underline; }
+
 .loading { margin: auto; text-align: center; color: var(--muted); padding: 40px 16px; }
 .empty { color: var(--muted); padding: 20px 14px; }
 
@@ -224,6 +254,7 @@ td .rn { display: block; font-size: 12px; color: var(--muted); }
 </div>
 
 <script id="data" type="application/octet-stream">__DATA__</script>
+<script src="/languages-globe.js"></script>
 <script src="/languages.js"></script>
 </body>
 </html>
