@@ -197,9 +197,10 @@ export function coveredBooks(doc: TemplateDoc, books: readonly string[] | undefi
 export function useVerseNumbering(ctx: Ctx) {
   const state = ctx.language.state;
   const languageId = ctx.language.languageId;
-  const library = ctx.org.state?.library;
-  const offered = useMemo(() => [...recommendedFor(ctx.org.state?.recommendations, state).keys()], [ctx.org.state?.recommendations, state]);
-  const hashes = useMemo(() => offered.map((id) => (library ? libraryItemView(library, id)?.current : null)), [offered, library]);
+  const org = ctx.org.state;
+  // Keyed on the org state itself: the fold changes its fields in place (orgStateDeps.test.ts).
+  const hashes = useMemo(() => [...recommendedFor(org?.recommendations, state).keys()]
+    .map((id) => (org ? libraryItemView(org.library, id)?.current : null)), [org, state]);
   const docs = useLibraryDocs(ctx.language.orgId, [...hashes, state?.template?.value.docHash]);
   const result = useMemo(() => {
     const bibles: { name: string; versification: VersificationDoc }[] = [];
