@@ -2205,7 +2205,7 @@ Amended (2026-10-09, Caleb Koster): the language explorer is part of the web app
 
 ## 74. A Bible template breaks up each book its own way, or not yet, and a change goes to the languages chosen
 
-Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+Date: 2026-10-09 · By: Caleb Koster · Status: partly superseded by 80
 
 Reason: an admin should first say what a language translates (the Bible or
 something else), then, if they want, how the Bible is broken up, and a book
@@ -2255,6 +2255,8 @@ Reverse if: teams need to break up one book differently from every other
 language using the same template, often enough that copies pile up; then a
 language keeps its own overrides on top of a shared template instead.
 
+
+Amended (2026-10-09, Caleb Koster): decision 80 puts the numbering first, for the whole Bible, and replaces the warning that recordings on old pieces "will no longer show": expired sections that overlap current ones stay reachable under "Earlier sections".
 ## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
