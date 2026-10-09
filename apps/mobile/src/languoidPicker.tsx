@@ -2,22 +2,27 @@
 // phones keep no copy of it. Adding a language offers what matches its name,
 // and a language's page links one added unlinked (v1.LanguageCodeSet).
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn, txt } from './kit';
 import { hitLine, languoidHits, type LanguoidHit, type LanguoidRow } from './languoidModel';
 import { supabase } from './supabase';
-import { space } from './theme';
+import { C, space } from './theme';
+
+/** How many matches one search shows, closest first; they scroll in a box of their own. */
+export const LANGUOID_RESULTS = 50;
 
 export interface LanguoidSearch {
   status: 'idle' | 'searching' | 'found' | 'none' | 'unreachable';
   hits: LanguoidHit[];
+  /** What was typed, trimmed: bold where it appears in each match. */
+  query: string;
   retry: () => void;
 }
 
 /** Searches the list a moment after someone stops typing; nothing under two letters. */
 export function useLanguoidSearch(query: string, enabled = true): LanguoidSearch {
   const q = query.trim();
-  const [result, setResult] = useState<Omit<LanguoidSearch, 'retry'>>({ status: 'idle', hits: [] });
+  const [result, setResult] = useState<Omit<LanguoidSearch, 'retry' | 'query'>>({ status: 'idle', hits: [] });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!enabled || q.length < 2) {
@@ -29,7 +34,7 @@ export function useLanguoidSearch(query: string, enabled = true): LanguoidSearch
     setResult((r) => ({ status: 'searching', hits: r.hits }));
     const unreachable = () => { if (live) setResult({ status: 'unreachable', hits: [] }); };
     const timer = setTimeout(() => {
-      supabase.rpc('search_languoids', { search_query: q, result_limit: 8, levels: ['language', 'dialect'] }).then(({ data, error }) => {
+      supabase.rpc('search_languoids', { search_query: q, result_limit: LANGUOID_RESULTS, levels: ['language', 'dialect'] }).then(({ data, error }) => {
         if (!live) return;
         if (error) return unreachable();
         const hits = languoidHits((data ?? []) as LanguoidRow[]);
@@ -38,7 +43,7 @@ export function useLanguoidSearch(query: string, enabled = true): LanguoidSearch
     }, 300);
     return () => { live = false; clearTimeout(timer); };
   }, [q, enabled, attempt]);
-  return { ...result, retry: () => setAttempt((n) => n + 1) };
+  return { ...result, query: q, retry: () => setAttempt((n) => n + 1) };
 }
 
 /** A languoid's name, read online; null offline or until it comes. */
@@ -87,18 +92,31 @@ export function LanguoidPicker(props: {
   if (search.status === 'none') {
     return <Text style={txt.smMuted}>Nothing in the language list goes by that name. {props.unlisted}</Text>;
   }
+  // While a search runs, a card with a spinner leads the list, over the last matches until the new ones come.
+  const searching = search.status === 'searching';
+  const n = search.hits.length;
   return (
     <View style={{ gap: space.xs }}>
-      <SectionLabel label={search.status === 'searching' && search.hits.length === 0 ? 'Looking in the language list…' : 'Is it one of these?'} />
-      {search.hits.length ? (
-        <Group>
+      {n ? <SectionLabel label="Is it one of these?" /> : null}
+      <Group>
+        <ScrollView style={{ maxHeight: LIST_HEIGHT }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+          {searching ? (
+            <Row leading={<View style={spinnerTile}><ActivityIndicator size="small" color={C.primary} /></View>}
+              label="Searching the language list…" muted last={n === 0} />
+          ) : null}
           {search.hits.map((h, i) => (
-            <Row key={h.id} icon="globe" label={h.name} sub={hitLine(h)} role="radio" selected={false} last={i === search.hits.length - 1}
+            <Row key={h.id} icon="globe" label={h.name} sub={hitLine(h)} highlight={search.query} role="radio" selected={false} last={i === n - 1}
               onPress={() => props.onPick(h)} />
           ))}
-        </Group>
-      ) : null}
-      {search.hits.length ? <Text style={txt.smMuted}>{props.unlisted}</Text> : null}
+        </ScrollView>
+      </Group>
+      {!searching && n >= LANGUOID_RESULTS ? <Text style={txt.smMuted}>These are the closest {LANGUOID_RESULTS}. Type more of its name to narrow them.</Text> : null}
+      {n ? <Text style={txt.smMuted}>{props.unlisted}</Text> : null}
     </View>
   );
 }
+
+/** About five matches show at once; the rest scroll. */
+const LIST_HEIGHT = 380;
+/** The size and look of a Row's icon tile (kit.tsx), with a spinner in it. */
+const spinnerTile = { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' } as const;
