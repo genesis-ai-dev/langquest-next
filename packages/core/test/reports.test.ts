@@ -19,7 +19,7 @@ import { buildFixture, buildRecordFixture, buildStep11Fixture, shuffle } from '.
 
 const DAY = 86_400_000;
 
-const DINKA: LanguageInfo = { languageId: 'din', name: 'Dinka', code: 'din', sourceCode: 'eng', country: null, target: null };
+const DINKA: LanguageInfo = { languageId: 'din', name: 'Dinka', code: 'din', languoidId: null, sourceCode: 'eng', country: null, target: null };
 const report = (state: LanguageState, now: number, info: LanguageInfo = DINKA) => languageReport(state, info, now);
 
 function language() {

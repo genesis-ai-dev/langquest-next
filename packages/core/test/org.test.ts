@@ -64,12 +64,28 @@ describe('organization stream fold', () => {
     // Why: a phone pulls only the languages it opens, so the organization
     // stream is where everyone learns which languages exist and what they are called.
     expect(orgLanguages(canonical).map((l) => [l.languageId, l.name])).toEqual([['nus', 'Nuer'], ['din', 'Thuɔŋjäŋ']]);
-    expect(languageInfo(canonical, 'din')).toEqual({ languageId: 'din', name: 'Thuɔŋjäŋ', code: 'din', sourceCode: 'eng', country: null, target: null });
+    expect(languageInfo(canonical, 'din')).toEqual({ languageId: 'din', name: 'Thuɔŋjäŋ', code: 'din', languoidId: null, sourceCode: 'eng', country: null, target: null });
     expect(languageInfo(canonical, 'later')).toBeNull();
     expect(languageName(canonical, 'din')).toBe('Thuɔŋjäŋ');
     expect(languageName(canonical, 'unknown')).toBe('unknown');
     expect(languageName(null, 'din')).toBe('din');
     expect(orgLanguages(null)).toEqual([]);
+  });
+
+  it('a language takes the latest code and link to the language list, by clock, whatever the arrival order', () => {
+    // Why: an admin who added a language offline links it to the language
+    // list later (docs/languoids.md); every phone must agree which languoid it is.
+    const at = (ms: number, deviceId: string) => encodeHlc(1_700_000_000_000 + ms, 0, deviceId);
+    const linked = [
+      ...events,
+      { id: 'c1', type: 'v1.LanguageCodeSet', orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId: 'dB', hlc: at(600, 'dB'), payload: { languageId: 'din', code: 'dip', languoidId: '0a1b2c3d-0000-4000-8000-000000000003' } },
+      { id: 'c2', type: 'v1.LanguageCodeSet', orgId: 'org1', streamId: '_org', actorId: 'lead', deviceId: 'dC', hlc: at(300, 'dC'), payload: { languageId: 'din', code: 'xxx', languoidId: null } }
+    ] as AnyEvent[];
+    for (let seed = 1; seed <= 10; seed++) {
+      expect(languageInfo(foldOrg(shuffle(linked, seed)), 'din')).toMatchObject({ code: 'dip', languoidId: '0a1b2c3d-0000-4000-8000-000000000003' });
+    }
+    expect(EVENT_PRIVILEGE['v1.LanguageCodeSet']).toBe('manage_structure');
+    expect(languageOfOrgEvent(linked[linked.length - 1]!)).toBe('din');
   });
 
   it('the organization takes its latest name, by clock, whatever the arrival order (decision 76)', () => {

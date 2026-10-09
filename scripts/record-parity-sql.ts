@@ -89,6 +89,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.LanguageCountrySet':
       variants.push({ ...p, country: 'ss' }, { ...p, country: 'SSD' });
       break;
+    case 'v1.LanguageCodeSet':
+      variants.push({ ...p, languoidId: 'nyan1308' }, { ...p, languoidId: '' }, { ...p, languoidId: 5 }, { ...p, code: '' },
+        { ...p, code: 'x'.repeat(41) }, { ...p, code: 'x'.repeat(40) }, { ...p, languoidId: '5870452D-7878-4328-916D-F4FECC0B79F2' });
+      break;
     case 'v1.LanguageTargetSet':
       variants.push({ ...p, scope: 'psalms' }, { ...p, startDate: '2026-1-1' }, { ...p, targetDate: p['startDate'] },
         { ...p, startDate: '2027-01-01', targetDate: '2026-01-01' }, { ...p, targetDate: 'soon' });

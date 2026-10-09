@@ -381,6 +381,27 @@ do $$ declare r record; l public.languages; begin
   if public.language_display_name(l) <> 'Thuɔŋjäŋ' then raise exception 'latest rename should win, got %', l; end if;
 end $$;
 
+-- 8b1. Linking a language to the language list is a later-wins register
+--      that takes over LanguageAdded's code; unlinking keeps the code.
+do $$ declare r record; l public.languages; begin
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if public.language_code(l) <> 'din' or l.languoid_id is not null then raise exception 'an unlinked language keeps its added code, got %', l; end if;
+  for r in select * from public.append_events('[
+    {"id":"oc1","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000116:000000:dA","payload":{"languageId":"din","code":"dik","languoidId":"6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10"}},
+    {"id":"oc2","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dB","hlc":"000000000000115:000002:dB","payload":{"languageId":"din","code":"dip","languoidId":null}}
+  ]'::jsonb) loop
+    if not r.accepted then raise exception 'language code event % refused: %', r.id, r.reason; end if;
+  end loop;
+  select * into l from public.languages where org_id = 'org1' and language_id = 'din';
+  if public.language_code(l) <> 'dik' or l.languoid_id <> '6d0c6d4e-3f0a-4c3e-9a51-6f3e2b9d7a10' or l.code <> 'din' then
+    raise exception 'latest LanguageCodeSet should win and keep the added code, got %', l;
+  end if;
+  select * into r from public.append_events('[
+    {"id":"oc3","type":"v1.LanguageCodeSet","orgId":"org1","streamId":"_org","actorId":"lead","deviceId":"dA","hlc":"000000000000117:000000:dA","payload":{"languageId":"din","code":"dik","languoidId":"nyan1308"}}
+  ]'::jsonb);
+  if r.accepted then raise exception 'a glottocode is not a languoid id and should be refused'; end if;
+end $$;
+
 -- 8b2. The organization's name is a later-wins register over OrgCreated and
 --      OrgRenamed (decisions.md 76), and only an Organization Admin renames it.
 do $$ declare r record; begin
