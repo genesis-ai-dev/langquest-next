@@ -123,22 +123,26 @@ waiting; the admin may go ahead.
 
 ## When divisions change
 
-**A way of dividing publishes a new version.** Example: FIA changed
-"Acts 2:41–47" to "Acts 2:42–47". Languages that use FIA get the new
-sections. What was recorded and reviewed on the old section stays visible
-on the sections it overlaps, marked with a warning that FIA's divisions
-have changed since it was recorded or reviewed. Nothing is deleted.
+Divisions change three ways: a way of dividing publishes a new version
+(FIA changed "Acts 2:41–47" to "Acts 2:42–47"), an admin divides a book
+again, or an admin changes the numbering. All three work the same:
+
+- The language gets the new sections. The old ones expire; nothing is
+  deleted.
+- An expired section that overlaps a current one, and has recordings or
+  reviews, stays reachable. The current section shows a warning mark, and
+  its page has an "Earlier sections" list, closed by default, with each
+  expired section that overlaps it and what was recorded and reviewed on
+  it.
+- Before an admin's own change, the warning says that what was recorded on
+  the old sections, including recordings on phones that have not synced,
+  moves to "Earlier sections" and will need to be done again on the new
+  ones.
 
 ```
 FIA before:  [ 37–41 ][ 41–47 · recorded ]
-FIA now:     [ 37–41 ][ 42–47 ⚠ recorded as 41–47 ]
+FIA now:     [ 37–41 ⚠ ][ 42–47 ⚠ ]       each lists "Earlier sections: 2:41–47"
 ```
-
-**An admin divides a book again, or changes the numbering.** It warns first
-that every recording and review on the old sections, including ones on
-phones that have not synced, will no longer show and will need to be done
-again; they are kept, not shown (decision 74). Open: whether these should
-also stay visible with the warning mark, as for a new FIA version.
 
 **Copying.** Anyone allowed to manage templates can copy a way and change
 it; the copy is the organization's own and no longer follows the

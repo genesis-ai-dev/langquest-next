@@ -2501,8 +2501,12 @@ four rules: uncovered verses inside a chapter are a section of their own
 (Catholic Daniel 3:19–23, 3:24–90, 3:91–97); a verse two sections want goes
 to the earlier one (Douay Judges 21:24); uncovered whole chapters are a
 section each (Catholic Daniel 13 and 14). Books a way does not cover wait
-for the admin. When a way publishes a new version, what was recorded on a
-changed section stays visible with a warning mark. `docs/breaking-up-the-bible.md`
+for the admin. When divisions change (a way's new version, an admin
+dividing a book again, a new numbering), sections expire but are not
+deleted: a current section that overlaps an expired one with recordings
+shows a warning mark and lists it under "Earlier sections", closed by
+default (Caleb, 2026-10-09); this replaces decision 74's "will no longer
+show" for an admin's own change. `docs/breaking-up-the-bible.md`
 holds the rules with examples. Decision 74 stays as built; this extends it.
 The source files are rebuilt first, because their JSON copies lost every
 second line of a verse that matches two (96 lines).
