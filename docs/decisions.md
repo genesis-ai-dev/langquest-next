@@ -2171,3 +2171,5 @@ details.
 Reverse if: people often need to pick a language they have never searched
 for while offline and cannot wait to link it; then phones keep a compact
 copy of the names (about 2.7 MB gzipped), and the tables stay the source.
+
+Amended (2026-10-09, Caleb Koster): the language explorer is part of the web app only, at `/languages`, reading `/api/languoids` (the Worker caches `languoid_explorer()` for an hour); the phone app does not show it. Names tagged with an umbrella ISO code take its main language as their label (nine codes, checked by Caleb), names of six words or more are `alias_type = 'description'`, retired ISO entries keep ISO's reason and their replacements as properties, and Glottolog's macroareas are `region.level = 'macroarea'`.

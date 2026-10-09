@@ -77,10 +77,17 @@ row from v2's Glottolog load (a unique ISO 639-3 code, else the chain of
 names from the root, else a name and level only one languoid has);
 otherwise a new UUID.
 
-`explore` writes a page (`scripts/languoidExplorer.html` with the data in
-it) to browse, search, filter and group the tables, follow parents and
-children, read names by the language they are written in, look by region,
-and page through each table as it will be stored. It needs no database.
+The language explorer is a page of the web app, at `/languages`
+(`apps/mobile/public/languages.html`; the phone app does not have it, and
+the web sidebar links to it). It reads `GET /api/languoids`, which the
+Worker answers from `languoid_explorer()` and caches for an hour (about
+3 MB gzipped). You can search, filter and group the languoids, follow
+parents and children, read names by the language they are written in
+(with descriptions, umbrella-code labels and retired ISO codes marked),
+look by region, and page through each table as it is stored.
+`npm run languoids -- explore` writes the same page with a release's
+tables inside it, to check a release before loading it; it needs no
+database.
 
 `preview` stages the tables and changes nothing: every languoid that is
 new, renamed, moved or gone goes to `languoid-diff.csv`, with counts of the

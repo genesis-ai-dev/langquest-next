@@ -684,7 +684,7 @@ returns jsonb language sql stable security definer set search_path = public, ext
       'name', jsonb_agg(l.name order by l.i),
       'level', jsonb_agg(case l.level when 'family' then 0 when 'language' then 1 else 2 end order by l.i),
       'parent', jsonb_agg(coalesce(p.i, -1) order by l.i),
-      'origin', jsonb_agg('' order by l.i),
+      'origin', jsonb_agg(''::text order by l.i),
       'lat', jsonb_agg(st_y(l.location::geometry) order by l.i),
       'lon', jsonb_agg(st_x(l.location::geometry) order by l.i))
       from l left join l p on p.id = l.parent_id left join gc on gc.languoid_id = l.id),
