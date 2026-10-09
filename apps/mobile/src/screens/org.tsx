@@ -43,7 +43,7 @@ import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToLanguage } from '../languageWriter';
 import { contractsFor } from '../screenContracts';
 import { languageFigures } from '../orgFigures';
-import { LanguoidPicker, useLanguoidSearch } from '../languoidPicker';
+import { LanguoidPicker, useLanguoidName, useLanguoidSearch } from '../languoidPicker';
 import type { LanguoidHit } from '../languoidModel';
 import { edgeAllowed } from '../session';
 import { shareText } from '../share';
@@ -347,6 +347,7 @@ function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; co
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const linked = !!props.languoidId;
+  const linkedName = useLanguoidName(props.languoidId);
   async function link() {
     if (!picked) return;
     setBusy(true);
@@ -363,7 +364,7 @@ function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; co
   }
   return (
     <>
-      <Row icon="globe" label="In the language list" sub={linked ? `Linked · ${props.code.toUpperCase()}` : 'Not linked yet: added offline, or not found there'}
+      <Row icon="globe" label="In the language list" sub={linked ? `Linked to ${linkedName ?? 'it'} · ${props.code.toUpperCase()}` : 'Not linked yet: added offline, or not found there'}
         last={props.last} {...(!linked && props.may ? { badge: 'Link it', badgeTone: 'amber' as const } : {})}
         {...(props.may ? { onPress: () => { setQuery(props.name); setPicked(null); setError(''); setOpen(true); } } : {})} />
       <Sheet visible={open} title={linked ? `Link ${props.name} again` : `Link ${props.name}`} onClose={() => setOpen(false)}

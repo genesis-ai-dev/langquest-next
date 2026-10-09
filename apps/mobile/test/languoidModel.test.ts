@@ -31,4 +31,9 @@ describe('language list matches', () => {
     expect(hits.map((h) => [h.id, h.alsoCalled])).toEqual([['a', null], ['b', null]]);
     expect(hitLine(hits[0]!)).toBe('HDY');
   });
+
+  it('names no family for a language Glottolog could not classify', () => {
+    const [gelao] = languoidHits([row({ name: 'Gelao', iso_code: 'gio', parent_name: 'Bookkeeping' })]);
+    expect(hitLine(gelao!)).toBe('GIO');
+  });
 });

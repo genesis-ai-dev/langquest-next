@@ -39,8 +39,15 @@ export function languoidHits(rows: readonly LanguoidRow[]): LanguoidHit[] {
   });
 }
 
+/**
+ * Glottolog's places for languages it cannot classify (its "pseudo
+ * families"), which say nothing as a family: "Bookkeeping family" would.
+ */
+const NO_FAMILY = new Set(['Bookkeeping', 'Unclassifiable', 'Unattested']);
+
 /** What a match says under its name: "DIK · Dinka family · also called Rek". */
 export function hitLine(h: LanguoidHit): string {
-  const where = h.parentName ? (h.dialect ? `Dialect of ${h.parentName}` : `${h.parentName} family`) : h.dialect ? 'Dialect' : null;
+  const parent = h.parentName && !NO_FAMILY.has(h.parentName) ? h.parentName : null;
+  const where = parent ? (h.dialect ? `Dialect of ${parent}` : `${parent} family`) : h.dialect ? 'Dialect' : null;
   return [h.code.toUpperCase(), where, h.alsoCalled ? `also called ${h.alsoCalled}` : null].filter(Boolean).join(' · ');
 }

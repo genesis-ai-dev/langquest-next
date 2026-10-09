@@ -41,6 +41,20 @@ export function useLanguoidSearch(query: string, enabled = true): LanguoidSearch
   return { ...result, retry: () => setAttempt((n) => n + 1) };
 }
 
+/** A languoid's name, read online; null offline or until it comes. */
+export function useLanguoidName(id: string | null): string | null {
+  const [name, setName] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    supabase.from('languoid').select('name').eq('id', id).maybeSingle().then(({ data }) => {
+      if (live && data?.name) setName({ id, name: data.name as string });
+    }, () => undefined);
+    return () => { live = false; };
+  }, [id]);
+  return name && name.id === id ? name.name : null;
+}
+
 /**
  * The matches to pick from, or the one picked with a way to change it.
  * `unlisted` says what happens when it is not there, `unreachable` when the
