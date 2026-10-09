@@ -256,6 +256,22 @@ describe('reading', () => {
     expect(d1.body.steps).toEqual([{ name: 'Peer Review', complete: true }]);
   });
 
+  it('links a voice note recorded in a browser under its real format (decisions.md 77)', async () => {
+    // Why: a browser without MP4 stores the note as <hash>.wav; a link to
+    // <hash>.m4a would point at nothing.
+    const { call, token, log } = setup();
+    const t = await token('admin', { scopes: ['read'] });
+    const web = 'w'.repeat(64);
+    const phone = 'p'.repeat(64);
+    log.add('din', 'v1.AudioFormatSet', { hash: web, format: 'wav' }, 'rev');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d2-web', takeId: 'take-d2', kindId: 'peer', outcome: 'needs_changes', via: 'app', commentBlobHash: web }, 'rev');
+    log.add('din', 'v1.ReviewRecorded', { reviewId: 'peer-d1-phone', takeId: 'take-d1', kindId: 'peer', outcome: 'looks_good', via: 'app', commentBlobHash: phone }, 'rev');
+    const d2 = await call('GET', '/api/v1/languages/din/passages/d2', t);
+    expect(d2.body.reviews[0].voiceNotes[0].url).toBe(`https://lq.test/api/blobs/${ORG}/din/${web}.wav?sig=x`);
+    const d1 = await call('GET', '/api/v1/languages/din/passages/d1', t);
+    expect(d1.body.reviews.find((r: any) => r.voiceNotes).voiceNotes[0].url).toBe(`https://lq.test/api/blobs/${ORG}/din/${phone}.m4a?sig=x`);
+  });
+
   it('never reaches past the person: a language list narrows, and their own access caps it', async () => {
     const { call, token } = setup();
     const onlyNuer = await token('admin', { scopes: ['read'], languageIds: ['nus'] });
@@ -481,7 +497,7 @@ describe('review links', () => {
     expect((await call('GET', '/api/v1/links/notarealcodeatallxxxxx')).status).toBe(404);
   });
 
-  it('stops playing, and taking clips, once its sharer leaves (decisions.md 75)', async () => {
+  it('stops playing, and taking clips, once its sharer leaves (decisions.md 77)', async () => {
     const { call, log, advance } = setup();
     const code = codeOf((await share(call, {})).body.url);
     expect((await call('GET', `/api/v1/links/${code}`)).body.audio).toHaveLength(2);

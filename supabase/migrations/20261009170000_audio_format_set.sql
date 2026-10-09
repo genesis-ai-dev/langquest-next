@@ -1,29 +1,84 @@
--- Which language in the world a language is (docs/languoids.md).
+-- v1.AudioFormatSet: a voice note's format (decisions.md 77).
 --
---   v1.LanguageCodeSet { languageId, code, languoidId: uuid | null }
---
--- A register per language in the organization stream (core org.ts): its
--- code and the languoid it is linked to, null while it is unlinked (typed
--- in offline, or not in Glottolog yet). It takes over the code
--- v1.LanguageAdded gave. Whoever manages the language's structure may set
--- it, as a rename (manage_structure, at the organization or the language).
--- validate_payload and event_privilege are restated whole, as `create or
--- replace`, from 20261009170000_audio_format_set.sql's; language_of_org_event
--- and _apply_org_event from the baseline's. scripts/record-parity-sql.ts
--- holds them to core.
+-- A voice note is named only by the event that uses it (decision 30), which
+-- has no format field, so every device took it for m4a. A browser that
+-- cannot record MP4 stores WAV (decision 58), and the note was then looked
+-- for, uploaded and fetched as <hash>.m4a. The device that has the file now
+-- says its format with an event of its own, appended ahead of the event that
+-- names the note. Whoever may name a voice note may say its format, once
+-- per hash: like the other create-once events (decisions.md 75), a second
+-- one is refused, so nobody re-labels someone else's note.
+-- core validate.ts and EVENT_PRIVILEGE are the same rules
+-- (scripts/record-parity-sql.ts); both functions are redefined whole, from
+-- 20261009160000_org_renamed.sql plus this event.
 
-alter table public.languages
-  add column code_set text,
-  -- No foreign key: a language may name a languoid this database does not have (yet).
-  add column languoid_id uuid,
-  add column code_hlc text not null default '' collate "C",
-  add column code_event text not null default '' collate "C";
-
--- A language's code as people see it: the latest LanguageCodeSet's, else the
--- one it was added with (core languageInfo).
-create or replace function public.language_code(l public.languages)
+create or replace function public.event_privilege(p_type text, p jsonb)
 returns text language sql immutable as $$
-  select coalesce(l.code_set, l.code);
+  select case p_type
+    -- organization stream
+    when 'v1.OrgCreated' then 'bootstrap'
+    when 'v1.OrgRenamed' then 'manage_roles'
+    when 'v1.RoleDefined' then 'manage_roles'
+    when 'v1.RoleRetired' then 'manage_roles'
+    when 'v1.MemberAdded' then 'invite_members'
+    when 'v1.MemberRemoved' then 'invite_members'
+    when 'v1.InviteIssued' then 'invite_members'
+    when 'v1.InviteRedeemed' then null
+    when 'v1.JoinDecided' then 'invite_members'
+    when 'v1.LicenseSet' then 'manage_roles'
+    when 'v1.LanguageAdded' then 'manage_structure'
+    when 'v1.LanguageRenamed' then 'manage_structure'
+    when 'v1.LanguageCountrySet' then 'manage_structure'
+    when 'v1.LanguageTargetSet' then 'manage_structure'
+    when 'v1.ReferenceRecommended' then 'manage_reference'
+    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
+    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
+    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
+    -- either stream
+    when 'v1.Redacted' then 'manage_structure'
+    -- language stream
+    when 'v1.TemplateSelected' then 'manage_templates'
+    when 'v1.UnitAdded' then 'manage_templates'
+    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
+    when 'v1.BookNameSet' then 'manage_templates'
+    when 'v1.FlowSelected' then 'manage_flows'
+    when 'v1.FlowStepSet' then 'manage_flows'
+    when 'v1.FlowStepRemoved' then 'manage_flows'
+    when 'v1.ReviewKindDefined' then 'manage_flows'
+    when 'v1.ReviewTeamDefined' then 'manage_teams'
+    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
+    when 'v1.ReviewTeamKindSet' then 'manage_teams'
+    when 'v1.FlowStepLinksSet' then 'manage_flows'
+    when 'v1.VersionReleased' then 'assign_work'
+    when 'v1.RecordingAdded' then 'translate'
+    when 'v1.TakeComposed' then 'translate'
+    when 'v1.TakeArchived' then 'translate'
+    when 'v1.TakeSubmitted' then 'translate'
+    when 'v1.ResponseRecorded' then 'translate'
+    when 'v1.AudioFormatSet' then 'translate,review,assign_work,send_to_reviewers,override_checkpoints,fill_reference'
+    when 'v1.ReviewRecorded' then case when p->>'via' in ('logged', 'link') then 'review,translate' else 'review' end
+    when 'v1.DepartureRecorded' then case p->>'type'
+      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
+    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
+    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
+    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
+    when 'v1.NoteAdded' then 'translate,review,fill_reference'
+    when 'v1.StudyStepMarked' then 'translate'
+    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
+    when 'v1.MaterialFieldSet' then 'fill_reference'
+    when 'v1.MaterialLocked' then 'manage_reference'
+    when 'v1.KeyTermDefined' then 'fill_reference'
+    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
+    when 'v1.KeyTermAdjusted' then 'fill_reference'
+    when 'v1.KeyTermLinked' then 'fill_reference'
+    when 'v1.ReferenceSet' then 'manage_reference'
+    when 'v1.PassageReferenceLinked' then 'manage_reference'
+    when 'v1.ReferencesUsed' then 'translate,review'
+    else null
+  end;
 $$;
 
 create or replace function public.validate_payload(p_type text, p jsonb)
@@ -77,13 +132,6 @@ begin
       if (p->>'languageId') !~ '^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$' then return 'languageId may use letters, digits, _ and - only'; end if;
     when 'v1.LanguageRenamed' then
       if not (public._is_str(p->'languageId') and public._is_str(p->'name')) then return 'languageId, name must be non-empty strings'; end if;
-    when 'v1.LanguageCodeSet' then
-      if not (public._is_str(p->'languageId') and public._is_str(p->'code')) then return 'languageId, code must be non-empty strings'; end if;
-      if length(p->>'code') > 40 then return 'code must be at most 40 characters'; end if;
-      if not (jsonb_typeof(p->'languoidId') is not distinct from 'null'
-        or coalesce(jsonb_typeof(p->'languoidId') = 'string' and (p->>'languoidId') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', false)) then
-        return 'languoidId must be a languoid id or null';
-      end if;
     when 'v1.LanguageCountrySet' then
       if not public._is_str(p->'languageId') then return 'languageId must be a non-empty string'; end if;
       if jsonb_typeof(p->'country') is distinct from 'string' or (p->>'country') !~ '^[A-Z]{2}$' then
@@ -329,138 +377,22 @@ begin
   return null;
 end $$;
 
-create or replace function public.event_privilege(p_type text, p jsonb)
+-- One format per voice note (decisions.md 75): core `entityKeyOf`, from
+-- 20261009130000_event_integrity_and_grants.sql plus this event. No row
+-- already in the log changes key (none of this type could be appended
+-- before this migration), so events_entity_idx needs no rebuild.
+create or replace function public._entity_key(p_type text, p jsonb)
 returns text language sql immutable as $$
   select case p_type
-    -- organization stream
-    when 'v1.OrgCreated' then 'bootstrap'
-    when 'v1.OrgRenamed' then 'manage_roles'
-    when 'v1.RoleDefined' then 'manage_roles'
-    when 'v1.RoleRetired' then 'manage_roles'
-    when 'v1.MemberAdded' then 'invite_members'
-    when 'v1.MemberRemoved' then 'invite_members'
-    when 'v1.InviteIssued' then 'invite_members'
-    when 'v1.InviteRedeemed' then null
-    when 'v1.JoinDecided' then 'invite_members'
-    when 'v1.LicenseSet' then 'manage_roles'
-    when 'v1.LanguageAdded' then 'manage_structure'
-    when 'v1.LanguageRenamed' then 'manage_structure'
-    when 'v1.LanguageCodeSet' then 'manage_structure'
-    when 'v1.LanguageCountrySet' then 'manage_structure'
-    when 'v1.LanguageTargetSet' then 'manage_structure'
-    when 'v1.ReferenceRecommended' then 'manage_reference'
-    when 'v1.LibraryItemDefined' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryVersionPublished' then public._library_privilege(p->>'kind')
-    when 'v1.LibrarySharingSet' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryItemArchived' then public._library_privilege(p->>'kind')
-    when 'v1.LibrarySubscribed' then public._library_privilege(p->>'kind')
-    when 'v1.LibraryPinned' then public._library_privilege(p->>'kind')
-    -- either stream
-    when 'v1.Redacted' then 'manage_structure'
-    -- language stream
-    when 'v1.TemplateSelected' then 'manage_templates'
-    when 'v1.UnitAdded' then 'manage_templates'
-    when 'v1.UnitHidden' then 'manage_templates,shape_templates'
-    when 'v1.BookNameSet' then 'manage_templates'
-    when 'v1.FlowSelected' then 'manage_flows'
-    when 'v1.FlowStepSet' then 'manage_flows'
-    when 'v1.FlowStepRemoved' then 'manage_flows'
-    when 'v1.ReviewKindDefined' then 'manage_flows'
-    when 'v1.ReviewTeamDefined' then 'manage_teams'
-    when 'v1.ReviewTeamMemberSet' then 'manage_teams'
-    when 'v1.ReviewTeamKindSet' then 'manage_teams'
-    when 'v1.FlowStepLinksSet' then 'manage_flows'
-    when 'v1.VersionReleased' then 'assign_work'
-    when 'v1.RecordingAdded' then 'translate'
-    when 'v1.TakeComposed' then 'translate'
-    when 'v1.TakeArchived' then 'translate'
-    when 'v1.TakeSubmitted' then 'translate'
-    when 'v1.ResponseRecorded' then 'translate'
-    when 'v1.AudioFormatSet' then 'translate,review,assign_work,send_to_reviewers,override_checkpoints,fill_reference'
-    when 'v1.ReviewRecorded' then case when p->>'via' in ('logged', 'link') then 'review,translate' else 'review' end
-    when 'v1.DepartureRecorded' then case p->>'type'
-      when 'override' then 'override_checkpoints' when 'keep' then 'translate' else 'translate,review,assign_work' end
-    when 'v1.DepartureUndone' then 'translate,review,assign_work,override_checkpoints'
-    when 'v1.RequestMade' then 'send_to_reviewers,assign_work'
-    when 'v1.RequestWithdrawn' then 'send_to_reviewers,assign_work'
-    when 'v1.NoteAdded' then 'translate,review,fill_reference'
-    when 'v1.StudyStepMarked' then 'translate'
-    when 'v1.MaterialDefined' then case when p->>'kind' = 'questions' then 'fill_reference' else 'manage_reference' end
-    when 'v1.MaterialFieldSet' then 'fill_reference'
-    when 'v1.MaterialLocked' then 'manage_reference'
-    when 'v1.KeyTermDefined' then 'fill_reference'
-    when 'v1.KeyTermRenderingAdded' then 'fill_reference'
-    when 'v1.KeyTermAdjusted' then 'fill_reference'
-    when 'v1.KeyTermLinked' then 'fill_reference'
-    when 'v1.ReferenceSet' then 'manage_reference'
-    when 'v1.PassageReferenceLinked' then 'manage_reference'
-    when 'v1.ReferencesUsed' then 'translate,review'
-    else null
+    when 'v1.RecordingAdded' then 'recording:' || (p->>'recordingId')
+    when 'v1.TakeComposed' then 'take:' || (p->>'takeId')
+    when 'v1.ResponseRecorded' then 'response:' || (p->>'takeId')
+    when 'v1.ReviewRecorded' then 'review:' || (p->>'reviewId')
+    when 'v1.DepartureRecorded' then 'departure:' || (p->>'departureId')
+    when 'v1.RequestMade' then 'request:' || (p->>'requestId')
+    when 'v1.NoteAdded' then 'note:' || (p->>'noteId')
+    when 'v1.KeyTermRenderingAdded' then 'rendering:' || (p->>'termId') || '/' || (p->>'renderingId')
+    when 'v1.KeyTermAdjusted' then 'adjustment:' || (p->>'termId') || '/' || (p->>'adjustmentId')
+    when 'v1.AudioFormatSet' then 'audioformat:' || (p->>'hash')
   end;
 $$;
-
--- The language an organization-stream event is authorized against, or null
--- for org scope. core languageOfOrgEvent.
-create or replace function public.language_of_org_event(p_type text, p jsonb)
-returns text language sql immutable as $$
-  select case
-    when p_type in ('v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet') then p->>'languageId'
-    when p_type in ('v1.MemberAdded', 'v1.MemberRemoved', 'v1.InviteIssued') and p->'scope'->>'level' = 'language'
-      then p->'scope'->>'languageId'
-    else null
-  end;
-$$;
-
-create or replace function public._apply_org_event(p_org text, p_id text, p_type text, p jsonb, p_hlc text, p_actor text)
-returns void language plpgsql set search_path = '' as $$
-declare v_key text; v_lang text := p->>'languageId';
-begin
-  if p_type = 'v1.RoleDefined' then
-    insert into public.org_roles (org_id, role_id) values (p_org, p->>'roleId') on conflict do nothing;
-    update public.org_roles r
-      set name = p->>'name', privileges = array(select jsonb_array_elements_text(p->'privileges') order by 1), hlc = p_hlc, event_id = p_id
-      where r.org_id = p_org and r.role_id = p->>'roleId' and public._lib_later(r.hlc, r.event_id, p_hlc, p_id);
-  elsif p_type = 'v1.RoleRetired' then
-    insert into public.org_roles (org_id, role_id, retired) values (p_org, p->>'roleId', true)
-    on conflict (org_id, role_id) do update set retired = true;
-  elsif p_type in ('v1.MemberAdded', 'v1.MemberRemoved') then
-    v_key := public._scope_key(p->'scope');
-    insert into public.org_memberships (org_id, profile_id, scope_key, scope_level, language_id)
-    values (p_org, p->>'profileId', v_key, p->'scope'->>'level', p->'scope'->>'languageId')
-    on conflict do nothing;
-    if p_type = 'v1.MemberAdded' then
-      update public.org_memberships m set role_id = p->>'roleId', role_hlc = p_hlc, role_event = p_id
-        where m.org_id = p_org and m.profile_id = p->>'profileId' and m.scope_key = v_key
-          and public._lib_later(m.role_hlc, m.role_event, p_hlc, p_id);
-    end if;
-    update public.org_memberships m set removed = (p_type = 'v1.MemberRemoved'), removed_hlc = p_hlc, removed_event = p_id
-      where m.org_id = p_org and m.profile_id = p->>'profileId' and m.scope_key = v_key
-        and public._lib_later(m.removed_hlc, m.removed_event, p_hlc, p_id);
-  elsif p_type in ('v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet') then
-    insert into public.languages (org_id, language_id) values (p_org, v_lang) on conflict do nothing;
-    case p_type
-      when 'v1.LanguageAdded' then
-        update public.languages l
-          set added_name = p->>'name', code = p->>'code', source_code = p->>'sourceCode', added_hlc = p_hlc, added_event = p_id
-          where l.org_id = p_org and l.language_id = v_lang and public._lib_earlier(l.added_hlc, l.added_event, p_hlc, p_id);
-      when 'v1.LanguageRenamed' then
-        update public.languages l set renamed = p->>'name', renamed_hlc = p_hlc, renamed_event = p_id
-          where l.org_id = p_org and l.language_id = v_lang and public._lib_later(l.renamed_hlc, l.renamed_event, p_hlc, p_id);
-      when 'v1.LanguageCodeSet' then
-        update public.languages l
-          set code_set = p->>'code', languoid_id = (p->>'languoidId')::uuid, code_hlc = p_hlc, code_event = p_id
-          where l.org_id = p_org and l.language_id = v_lang and public._lib_later(l.code_hlc, l.code_event, p_hlc, p_id);
-      when 'v1.LanguageCountrySet' then
-        update public.languages l set country = p->>'country', country_hlc = p_hlc, country_event = p_id
-          where l.org_id = p_org and l.language_id = v_lang and public._lib_later(l.country_hlc, l.country_event, p_hlc, p_id);
-      else
-        update public.languages l
-          set target = jsonb_build_object('scope', p->'scope', 'startDate', p->'startDate', 'targetDate', p->'targetDate'),
-              target_hlc = p_hlc, target_event = p_id
-          where l.org_id = p_org and l.language_id = v_lang and public._lib_later(l.target_hlc, l.target_event, p_hlc, p_id);
-    end case;
-  elsif p_type in ('v1.LibraryItemDefined', 'v1.LibraryVersionPublished', 'v1.LibrarySharingSet',
-                   'v1.LibraryItemArchived', 'v1.LibrarySubscribed', 'v1.LibraryPinned') then
-    perform public._apply_library_event(p_org, p_id, p_type, p, p_hlc, p_actor);
-  end if;
-end $$;

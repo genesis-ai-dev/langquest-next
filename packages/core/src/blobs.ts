@@ -1,3 +1,4 @@
+import type { EventPayloads, EventType } from './events';
 import { unitAncestry } from './materials';
 import { unitsAskedOf } from './passage';
 import type { LanguageState } from './state';
@@ -15,9 +16,53 @@ export interface BlobRef {
   unitId: string;
 }
 
+/** Where each event that can name a voice note keeps its hash. */
+const VOICE_NOTE_FIELD: Partial<Record<EventType, string>> = {
+  'v1.ReviewRecorded': 'commentBlobHash',
+  'v1.RequestMade': 'noteBlobHash',
+  'v1.DepartureRecorded': 'reasonBlobHash',
+  'v1.NoteAdded': 'blobHash',
+  'v1.ResponseRecorded': 'blobHash',
+  'v1.KeyTermAdjusted': 'blobHash',
+  'v1.MaterialFieldSet': 'blobHash'
+};
+
+/**
+ * The voice note an event names: audio whose event has no format field
+ * (decisions.md 30), so it is m4a unless `v1.AudioFormatSet` says
+ * otherwise (decisions.md 77). Every field `referencedBlobs` reads as a
+ * voice note is here, so the app can say a note's format with the event
+ * that names it.
+ */
+export function voiceNoteOf(event: { type: EventType; payload: unknown }): string | undefined {
+  const field = VOICE_NOTE_FIELD[event.type];
+  const hash = field ? (event.payload as Record<string, unknown>)[field] : undefined;
+  return typeof hash === 'string' && hash !== '' ? hash : undefined;
+}
+
+/**
+ * The `v1.AudioFormatSet` events a batch needs: one for each voice note it
+ * names whose file here is not m4a and whose format the log does not
+ * already say. `formatHere` is the local store's answer for a hash.
+ */
+export function audioFormatsFor(
+  state: LanguageState | null,
+  items: readonly { type: EventType; payload: unknown }[],
+  formatHere: (hash: string) => string | undefined
+): { type: 'v1.AudioFormatSet'; payload: EventPayloads['v1.AudioFormatSet'] }[] {
+  const out = new Map<string, 'wav'>();
+  for (const item of items) {
+    const hash = voiceNoteOf(item);
+    if (hash && formatHere(hash) === 'wav' && state?.audioFormats[hash]?.value !== 'wav') out.set(hash, 'wav');
+  }
+  return [...out].map(([hash, format]) => ({ type: 'v1.AudioFormatSet', payload: { hash, format } }));
+}
+
 /** Every blob the language references: recording cards and reference audio. */
 export function referencedBlobs(state: LanguageState): Map<string, BlobRef> {
   const out = new Map<string, BlobRef>();
+  // A voice note's format, as its recording device said (decisions.md 77).
+  const voice = (hash: string): BlobRef['format'] => state.audioFormats[hash]?.value ?? 'm4a';
   for (const r of Object.values(state.recordings)) {
     for (const c of r.cards) {
       if (!out.has(c.hash)) out.set(c.hash, { hash: c.hash, format: c.format ?? 'wav', unitId: r.unitId });
@@ -25,23 +70,24 @@ export function referencedBlobs(state: LanguageState): Map<string, BlobRef> {
   }
   for (const m of Object.values(state.materials)) {
     const unitId = m.scope.unitId ?? '';
-    for (const f of Object.values(m.fields)) if (f.value.blobHash && !out.has(f.value.blobHash)) out.set(f.value.blobHash, { hash: f.value.blobHash, format: 'm4a', unitId });
+    for (const f of Object.values(m.fields)) if (f.value.blobHash && !out.has(f.value.blobHash)) out.set(f.value.blobHash, { hash: f.value.blobHash, format: voice(f.value.blobHash), unitId });
   }
   for (const t of Object.values(state.keyTerms)) {
     for (const a of Object.values(t.adjustments)) {
       const unitId = a.duringTakeId ? state.takes[a.duringTakeId]?.unitId ?? '' : '';
-      if (a.blobHash && !out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: 'm4a', unitId });
+      if (a.blobHash && !out.has(a.blobHash)) out.set(a.blobHash, { hash: a.blobHash, format: voice(a.blobHash), unitId });
     }
   }
   for (const [takeId, r] of Object.entries(state.responses)) {
     const unitId = state.takes[takeId]?.unitId ?? '';
-    if (r.blobHash && !out.has(r.blobHash)) out.set(r.blobHash, { hash: r.blobHash, format: 'm4a', unitId });
+    if (r.blobHash && !out.has(r.blobHash)) out.set(r.blobHash, { hash: r.blobHash, format: voice(r.blobHash), unitId });
   }
   // The record's own audio (decision 30): voice notes, spoken feedback and
   // reasons, directions, and what a producing kind made. Named only by the
-  // event that uses it; voice notes are m4a, artifacts carry their format.
-  const add = (hash: string | undefined, unitId: string, format: BlobRef['format'] = 'm4a') => {
-    if (hash && !out.has(hash)) out.set(hash, { hash, format, unitId });
+  // event that uses it; voice notes are m4a unless the log says otherwise
+  // (77), artifacts carry their format.
+  const add = (hash: string | undefined, unitId: string, format?: BlobRef['format']) => {
+    if (hash && !out.has(hash)) out.set(hash, { hash, format: format ?? voice(hash), unitId });
   };
   for (const n of Object.values(state.notes)) add(n.blobHash, n.unitId);
   for (const d of Object.values(state.departures)) add(d.reasonBlobHash, d.unitId);

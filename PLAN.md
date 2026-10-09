@@ -161,7 +161,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LicenseSet` | license (all-rights-reserved, CC-BY-NC-ND-4.0, CC-BY-NC-SA-4.0, CC-BY-SA-4.0, CC-BY-4.0, CC0-1.0) | ratchet: the most open license ever set wins (docs/licensing.md, decision 38) |
 | `v1.LanguageAdded` | languageId, name, code, sourceCode | earliest wins; the language's stream accepts events only after this |
 | `v1.LanguageRenamed` | languageId, name | register per language |
-| `v1.LanguageCodeSet` | languageId, code, languoidId (a languoid's UUID, or null) | register per language; takes over `LanguageAdded`'s code and links the language to the language list; none means unlinked (decision 77) |
+| `v1.LanguageCodeSet` | languageId, code, languoidId (a languoid's UUID, or null) | register per language; takes over `LanguageAdded`'s code and links the language to the language list; none means unlinked (decision 78) |
 | `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; the dashboard's geography (decision 41) |
 | `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; the dashboard's pace (decision 41) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
@@ -201,6 +201,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
+| `v1.AudioFormatSet` | hash, format | one event per hash, earliest wins (decisions.md 75); a voice note's format when not m4a (decisions.md 77) |
 | `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |
 
 **Person stream** (org `_person`, `streamId` the profile id; written only by

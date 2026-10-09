@@ -29,7 +29,7 @@ these tables later needs its own grant to `anon` and `authenticated`.
 
 Every languoid has a UUID. A language in the app links to its languoid by
 that UUID with `v1.LanguageCodeSet { languageId, code, languoidId }` in the
-organization stream (decision 77); with none it is unlinked. Its `code`
+organization stream (decision 78); with none it is unlinked. Its `code`
 stays something people read: the languoid's ISO 639-3 code, else its
 glottocode, and `LanguageAdded`'s until a `LanguageCodeSet` replaces it.
 Languages imported from v2 still carry v2's languoid UUID as their

@@ -105,6 +105,8 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.BookNameSet', { book: 'LUK', name: 'Luka' });
   emit('dE', 'lead2', 'v1.BookNameSet', { book: 'LUK', name: 'Luqaas' });
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
+  // A voice note's format, said once by the device that has the file (decisions.md 77).
+  emit('dW', 't1', 'v1.AudioFormatSet', { hash: 'vn1', format: 'wav' });
 
   // Materials with per-field registers, a locked document, the community
   // question set for a kind, a translator-written set, and a living glossary
