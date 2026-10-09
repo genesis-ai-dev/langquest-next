@@ -24,7 +24,7 @@ import type { Ctx } from '../ctx';
 import { DEV_PASSWORD, ensurePersonaAccount, personasAvailable } from '../dev';
 import { previewInvite, redeemSignInCode, useRequestOutcome } from '../invites';
 import {
-  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, Screen, SectionLabel,
+  Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel,
   Segments, ShowMore, SmallBtn, txt, type IconName
 } from '../kit';
 import { PRIVACY_URL } from '../legal';
@@ -35,7 +35,7 @@ import { contractsFor } from '../screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../forgetBrowser';
 import { supabase } from '../supabase';
 import { lift } from '../shadow';
-import { C, radius, space, tile, type as T, withAlpha } from '../theme';
+import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 
 /**
@@ -680,8 +680,12 @@ export function IntentChooser(ctx: Ctx) {
     if (error) { setError(error.message); return; }
     await forgetThisBrowser();
   }
+  const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];
+  const first = me?.split(/\s+/)[0];
+  const main = INTENTS.filter((o) => o.to !== 'explore_home');
   return (
-    <Screen header={<Header title={waiting && !declined ? 'Request sent' : 'Join your team'} />}>
+    <Screen header={<Header title={waiting && !declined ? `Asked ${waitingFor}` : 'Join your team'} {...(first && !waiting ? { sub: `Welcome, ${first}` } : {})} />}
+      footer={<QuietLinks items={[{ label: 'Look around first', icon: 'globe', onPress: () => ctx.go('explore_home') }]} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
       {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title="Joining with your invite…" /> : null}
       {ctx.invite.status.kind === 'waiting' ? (
@@ -690,29 +694,27 @@ export function IntentChooser(ctx: Ctx) {
       {ctx.invite.status.kind === 'dead' ? <Banner icon="flag" tone="amber" title="Your invite couldn't be used" body={ctx.invite.status.message} /> : null}
       {waiting ? (
         <>
-          <View style={styles.waiting}>
-            <View style={styles.optionRow}>
-              <View style={[styles.tile, { borderRadius: 22 }]}><Ico name={declined ? 'flag' : 'clock'} size={22} color={C.primary} /></View>
-              <Text style={[txt.body, { fontWeight: '700', flex: 1 }]}>{declined ? `${waitingFor} didn't add you` : `Waiting for ${waitingFor}`}</Text>
-            </View>
-            <Text style={txt.body}>
+          {/* Asked, and waiting (demo a-waiting): the answer comes by itself. */}
+          <View style={styles.hero}>
+            <View style={[styles.heroCircle, declined && { backgroundColor: TINT.amber }]}><Ico name={declined ? 'flag' : 'clock'} size={40} color={declined ? TINT.amberText : C.primary} /></View>
+            <Text style={[txt.h2, { textAlign: 'center', fontWeight: '800' }]}>{declined ? `${waitingFor} didn't add you` : `Asked ${waitingFor}`}</Text>
+            <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>
               {declined
-                ? 'An admin there turned down your request. You can ask again below, or ask someone there for an invite.'
+                ? 'An admin there turned down your request. You can ask again below, or ask someone there to show you their code.'
                 : waiting.status === 'sent'
-                  ? "An admin will give you a role. Once they do, you'll be taken to your work."
+                  ? "You'll go straight in when they say yes. You can close the app; we'll let you know."
                   : 'Your request is saved on this device and sends when you have a connection.'}
             </Text>
-            {declined ? null : <Text style={txt.smMuted}>There's nothing else you need to do.</Text>}
           </View>
           <SectionLabel label="Meanwhile" />
         </>
       ) : null}
-      {INTENTS.map((o) => (
-        <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label}>
+      {main.map((o, i) => (
+        <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} current={i === 0 && !waiting}>
           <View style={styles.optionRow}>
-            <View style={styles.tile}><Ico name={o.icon} size={24} color={C.primary} /></View>
+            <View style={[styles.tile, i === 0 && !waiting && { backgroundColor: C.primary }]}><Ico name={o.icon} size={24} color={i === 0 && !waiting ? C.white : C.primary} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={[txt.body, { fontWeight: '600' }]}>{o.label}</Text>
+              <Text style={[txt.body, { fontWeight: '700', fontSize: 19 }]}>{o.label}</Text>
               <Text style={txt.smMuted}>{o.sub}</Text>
             </View>
             <Ico name="right" size={22} color={C.muted} />
@@ -721,10 +723,10 @@ export function IntentChooser(ctx: Ctx) {
       ))}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {!ctx.session.isGuest ? (
-        <>
-          <LinkBtn label="Sign out" color={C.muted} onPress={() => void signOut()} style={{ alignSelf: 'center' }} />
-          <LinkBtn label="Delete account" color={C.muted} onPress={() => ctx.go('delete_account')} style={{ alignSelf: 'center' }} />
-        </>
+        <QuietLinks items={[
+          { label: 'Sign out', icon: 'user', onPress: () => void signOut() },
+          { label: 'Delete account', icon: 'trash', onPress: () => ctx.go('delete_account') }
+        ]} />
       ) : null}
     </Screen>
   );
@@ -833,6 +835,17 @@ export function RequestAccess(ctx: Ctx) {
     ? listed.filter((o) => o.name.toLowerCase().includes(query) || o.languages.some((l) => l.toLowerCase().includes(query)))
     : listed;
 
+  async function sendTo(o: ListedOrganization) {
+    setBusy(true);
+    setError('');
+    try {
+      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', { orgId: o.org_id, message: '', orgName: o.name }));
+    } catch (e) {
+      setError(failure('request access', e));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function send() {
     setBusy(true);
     setError('');
@@ -851,64 +864,53 @@ export function RequestAccess(ctx: Ctx) {
     const failed = request?.status === 'failed';
     return (
       <Screen
-        header={<Header title="Request access" />}
+        header={<Header title={failed ? 'Not sent' : 'Asked'} />}
         footer={failed ? <GhostBtn label="Back" onPress={() => ctx.go('intent_chooser')} /> : <PrimaryBtn label="Done" onPress={() => ctx.go('intent_chooser')} />}
       >
-        <EmptyState icon={failed ? 'close' : 'check'}
-          title={failed ? 'Request not sent' : `Waiting for ${label}`}
+        <EmptyState icon={failed ? 'close' : 'clock'}
+          title={failed ? 'Request not sent' : `Asked ${label}`}
           sub={failed ? request?.error ?? 'The organization could not take the request.'
-            : request?.status === 'sent' ? `Your request to join ${label} is on its way. An admin will review it.`
+            : request?.status === 'sent' ? "You'll go straight in when they say yes. You can close the app; we'll let you know."
             : 'Saved on this device. It sends when you have a connection.'} />
       </Screen>
     );
   }
 
+  // Found from Explore: one organization, and a message if they like.
+  if (given) {
+    return (
+      <Screen
+        header={<Header title={`Ask ${label}`} onBack={ctx.back} />}
+        footer={<PrimaryBtn label="Ask to join" icon="arrowR" onPress={() => void send()} disabled={orgId === ''} busy={busy} />}
+      >
+        <Text style={txt.bodyMuted}>They'll let you in, and you'll go straight to your work.</Text>
+        <Field label="Say something (optional)" value={message} onChangeText={setMessage} placeholder="Who you are, and which team" multiline />
+        {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
+      </Screen>
+    );
+  }
+  // Find your organization (demo a-findOrg): the listed ones, each with Ask to join.
   return (
-    <Screen
-      header={<Header title="Request access" onBack={ctx.back} />}
-      footer={<PrimaryBtn label="Send request" icon="arrowR" onPress={() => void send()} disabled={orgId === ''} busy={busy} />}
-    >
-      <Text style={txt.bodyMuted}>Ask to join an existing organization. An admin will review your request.</Text>
-      {given ? (
-        <Card>
-          <View style={styles.optionRow}>
-            <View style={styles.tile}><Ico name="building" size={24} color={C.primary} /></View>
-            <Text style={[txt.body, { fontWeight: '600', flex: 1 }]}>{label}</Text>
-            <Ico name="check" size={22} color={C.primary} />
-          </View>
-        </Card>
-      ) : (
-        <View style={{ gap: space.sm }}>
-          <SectionLabel label="Organization" />
-          {loadMessage ? <Banner icon="cloud" title={loadMessage} /> : null}
-          {listed.length > FIND_FROM ? (
-            <Field value={find} onChangeText={(v) => { setFind(v); setShown(EXPLORE_STEP); }} placeholder="Find by organization or language" autoCapitalize="none" />
-          ) : null}
-          {matches.slice(0, shown).map((o) => {
-            const chosen = picked?.org_id === o.org_id;
-            return (
-              <Card key={o.org_id} current={chosen} accessibilityLabel={`${o.name}, ${o.languages.join(', ')}`} onPress={() => setPicked(o)}>
-                <View style={styles.optionRow}>
-                  <View style={styles.tile}><Ico name="building" size={24} color={C.primary} /></View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={[txt.body, { fontWeight: '600' }]}>{o.name}</Text>
-                    <Text style={txt.smMuted} numberOfLines={2}>{o.languages.join(', ')}</Text>
-                  </View>
-                  {chosen ? <Ico name="check" size={22} color={C.primary} /> : null}
-                </View>
-              </Card>
-            );
-          })}
-          <ShowMore remaining={matches.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
-          {listed.length && !matches.length ? <Text style={txt.smMuted}>No organization or language matches “{find.trim()}”.</Text> : null}
-          {loadMessage === 'Loading…' ? null : (
-            <Text style={txt.smMuted}>
-              {listed.length ? 'Not listed? ' : 'No organizations are listed yet. '}Ask someone in the organization for an invite.
-            </Text>
-          )}
-        </View>
+    <Screen header={<Header title="Find your organization" onBack={ctx.back} />}>
+      <SearchField value={find} onChangeText={(v) => { setFind(v); setShown(EXPLORE_STEP); }} placeholder="Name or language" />
+      {loadMessage ? <Banner icon="cloud" title={loadMessage} /> : null}
+      {matches.length > 0 ? (
+        <Group>
+          {matches.slice(0, shown).map((o, i, all) => (
+            <Row key={o.org_id} label={o.name} sub={o.languages.join(' · ')} last={i === all.length - 1}
+              accessibilityLabel={`Ask ${o.name} to let you in`}
+              right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? 'Asking…' : 'Ask to join'}</Text>}
+              onPress={() => { setPicked(o); void sendTo(o); }} />
+          ))}
+        </Group>
+      ) : null}
+      <ShowMore remaining={matches.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
+      {listed.length && !matches.length ? <Text style={txt.smMuted}>No organization or language matches “{find.trim()}”.</Text> : null}
+      {loadMessage === 'Loading…' ? null : (
+        <Text style={txt.smMuted}>
+          {listed.length ? 'Not here? ' : 'No organizations are listed yet. '}Ask someone on your team to show you their code.
+        </Text>
       )}
-      <Field label="Message" value={message} onChangeText={setMessage} placeholder="Why you want to join" multiline />
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -935,6 +937,7 @@ const styles = StyleSheet.create({
   viewfinderHint: { position: 'absolute', bottom: 18, left: 0, right: 0, textAlign: 'center', fontSize: T.xs, fontWeight: '600', color: withAlpha(C.white, 0.75) },
   waiting: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1.5, borderColor: C.primary, padding: space.lg, gap: space.sm },
   hero: { alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  heroCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   heroTile: { width: 64, height: 64, borderRadius: 24 }
 });
 

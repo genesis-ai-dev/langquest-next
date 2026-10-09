@@ -5,7 +5,7 @@
  * centres a column; a desktop-wide one gets a labelled sidebar and shows a
  * list beside what it opened (panes.ts).
  */
-import { TAB_SCREENS, type ScreenId } from './flow';
+import { PASSAGE_READING, TAB_SCREENS, type ScreenId } from './flow';
 import { breakpoint, measure, space } from './theme';
 
 export type LayoutKind = 'phone' | 'tablet' | 'desktop';
@@ -57,14 +57,22 @@ export function chapterColumns(contentWidth: number, kind: LayoutKind): number {
 export const WIDE_CHROME: readonly ScreenId[] = [
   'members_list', 'edit_member', 'invite_member', 'invite_qr', 'new_language', 'review_teams', 'review_team_editor',
   'roles_home', 'role_editor', 'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
-  'reference_home', 'material_editor', 'guide_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status',
+  'reference_home', 'material_editor', 'guide_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status', 'settings_more',
   'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage',
   // The Reports tab exists only on a wide window (decisions.md 57).
   'reports_home', 'reports_language'
 ];
 
-/** Whether the tabs (bar, rail or sidebar) show on this screen. On a phone, exactly the demo's tab screens. */
+/**
+ * A passage and what you read under it are tasks on a phone, as Ryder drew
+ * them (decision 71): the footer holds the one main button, with no tab bar
+ * under it; Back returns to the list it came from.
+ */
+const PHONE_TASKS: readonly ScreenId[] = ['passage_record', ...PASSAGE_READING];
+
+/** Whether the tabs (bar, rail or sidebar) show on this screen. On a phone, the demo's tab screens but a passage's own. */
 export function chromeVisible(kind: LayoutKind, screen: ScreenId): boolean {
+  if (kind === 'phone' && PHONE_TASKS.includes(screen)) return false;
   if (TAB_SCREENS.includes(screen)) return true;
   return kind !== 'phone' && WIDE_CHROME.includes(screen);
 }

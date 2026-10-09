@@ -17,7 +17,11 @@ describe('UX flow coverage', () => {
     const appOnly = ['sync_status', 'delete_account', 'reports_home', 'reports_language',
       'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage', 'passage_reference', 'guide_editor',
       // More Bibles beside a passage (docs/reference-material.md).
-      'bible_explore'] as const;
+      'bible_explore',
+      // Microphone setup and getting a language ready (decision 71).
+      'mic_setup', 'get_ready',
+      // Me keeps five rows; the rest of Settings is under More settings (decision 71).
+      'settings_more'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(TITLES[id]).toBeTruthy();
   });

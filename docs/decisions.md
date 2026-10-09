@@ -1972,6 +1972,90 @@ device, notes on a key term, and side-by-side panes on wide windows.
 Reverse if: field tests show translators miss what moved behind "Something
 else?" or "Versions and history", or admins need the Setup list back.
 
+Amended (2026-10-08, Caleb Koster): Home, the tabs, the Map and Me now look
+like the agreed design, not only relabelled. The tabs are Work, Map, Manage
+(admins) and Me, with no count on Work; the bell carries the unread count.
+My Work leads with one "Next for you" card (Start opens the passage for
+recording and feedback, Review it for a check, the back translation for
+one), then "Then" (three rows, the rest one tap on) and "Waiting on others"
+and "Opened lately" as quiet links that open in place. Getting started is
+gone (help mode and the Get ready card replace it); a coordinator's Home
+leads with "Get ‹language› ready · n of 4" and the next question, which opens
+the Get ready screen at that question (`step` 1 to 4), with join requests and
+checks asked of them under it. The sync chip shows only when work waits to
+send, the device is offline or sync is refused. A language's map is search,
+"Next", testament pills and one row per book with a bar and "25/97"; the stat
+tiles, filters and template and flow are behind "Filter". A book's chapters
+show three states (done ✓, started •, not started), the seven-tone key one tap
+deeper. Settings is Me: name, Ready for offline, Set up the microphone, How
+LangQuest works, More settings, then Sign out; More settings holds the rest,
+including Delete account (decision 56's "Settings" row; the deletion page and
+store declarations now say Me → More settings → Delete account).
+
+Amended (2026-10-08, Caleb Koster): Review it and back translation are the
+agreed screens (`screens/review.tsx`, `simple/review.tsx`,
+`simple/btWorkspace.tsx`). Review it is Listen, Questions (one per screen),
+Decide, then "What should change?" voice first; Background is one sheet
+(the passage in the Bible the translator used, the team's study, notes, key
+words, earlier checks). No new events; existing fields carry the new parts:
+- A note at a moment of the version is a review artifact with `atMs`, as on
+  review links.
+- An answer said aloud is a review artifact too; `answers` stay text and
+  name it ("Said aloud · 0:14 · recording 1"). Tying a clip to its question
+  exactly would need a `questionId` on Card (core, SQL `_is_cards`, a
+  migration), not done.
+- A note on the Bible in Background is a verse note (`verse`, `translation`,
+  `at`), as the study and the recorder leave.
+- Back translation is said part by part against the parts of the version;
+  each piece carries the moment its part starts (`atMs`), which
+  `produceContent` now keeps, so the consultant can pair them. Part cards
+  say "Part n" until parts have verse labels.
+
+Amended (2026-10-08, Caleb Koster): the admin screens now take the agreed
+shape, not only its words (Caleb: "go through the plan we agreed on and
+actually do it"). A language's page is the Get ready checklist until the
+language is ready, then the same four as a summary with join requests under
+them; everything else it had is under More. Ready means something to record,
+a way to check it, and someone given a role or a code for that language (the
+organization's own translators do not count, since they cover every
+language); what helps them is asked but never required. Each question is its
+own screen (`get_ready` with `step` 1 to 4, `helps` for What helps them). A
+guide or note in the library counts as offered unless the language hides it,
+as `reference/offered.ts` already offers it; a Bible only when recommended.
+Who checks, from a ready language, edits that language's own steps (core
+`saveFlowSteps`), so it stops following the library flow it used; Undo puts
+that flow back. New Language is four steps and offers the new team the
+organization's own English Bible and study guides, else LangQuest's (followed
+first). What someone will do reads as four plain choices given by the
+organization's roles (Back-translate gives the checking role unless a role of
+its own exists); the rest stay one tap away. A role's fifteen permissions are
+twelve switches in three groups: setting up languages covers the structure,
+templates and dividing books; choosing who checks covers flows and review
+groups. Inviting shows a group code (30 uses) first; email and a code for one
+named person are one quiet tap away.
+
+Amended (2026-10-08, Caleb Koster): the recording workspace, Publish, the
+study and microphone setup now follow the agreed images (`src/simple/`).
+The workspace's header names the passage; its chips are Bible, Guide, Key
+words, Notes and Earlier (versions, feedback, voice notes, back
+translations), the Bible a small player over its verses with a picker when
+there are several; key words play their verse and "Your word" (the latest
+voice adjustment) or record one ("Say yours", `adjustKeyTermRendering`), and
+"Add a key word" is `defineKeyTerm`. Parts are cards counted "Part 1, 2…"
+(still no verse labels), recorded ones under one card; each divider end is a
+one-line bar (the Bible bar, the recorder bar with the record button), and
+the footer holds the record button and Publish. Publish is a screen inside
+the workspace, so nothing offered or recorded is lost on the way. The study
+is one reader for `study_guide` and `study_step` (it no longer keeps the tab
+bar). Microphone setup measures the room's quiet for the sensitivity, takes
+three tries with pauses of 0.7, 1 and 1.5 s, and keeps the pick on the device
+(AsyncStorage `mic-setup:v1`), which every voice-detecting recorder starts
+from; the pause dots and the cutoff line left the workspace for "Adjust by
+hand" there. A voice-detected part now belongs only to the session that
+started the detector (`claimVad`), so a recorder left mounted under another
+screen keeps nothing it did not record. Still not built: notes on a key term
+(no screen writes a `term` note, so "Note on a word" is left out).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: accepted
