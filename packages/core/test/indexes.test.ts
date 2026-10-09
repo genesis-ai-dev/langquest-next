@@ -121,7 +121,7 @@ describe('read indexes', () => {
 
   it('with no template, every unit nothing contains is a passage', () => {
     const state = foldLanguage(buildFixture(), emptyLanguageState());
-    expect(buildIndexes(state)).toEqual({ passages: ['luke1'], containers: ['luke'] });
+    expect(buildIndexes(state)).toEqual({ passages: ['luke1'], containers: ['luke'], waiting: [] });
   });
 
   it('keeps My Work and progress linear in passages, not passages times people', () => {

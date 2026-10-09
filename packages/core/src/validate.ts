@@ -114,6 +114,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('unitId', 'kind', 'label', 'order') ?? (p['parentUnitId'] === null ? null : str('parentUnitId'));
     case 'v1.UnitHidden':
       return str('unitId') ?? bool('hidden');
+    case 'v1.BookNameSet':
+      return str('book', 'name') ?? (/^[A-Z0-9]{3}$/.test(p['book'] as string) ? null : 'book must be a USFM book code');
     case 'v1.FlowSelected':
       return str('flowId') ?? (/[/@\s]/.test(p['flowId'] as string) ? 'flowId may not contain /, @ or spaces' : null) ??
         optStr('itemId', 'name') ?? (p['docHash'] === undefined || hash(p['docHash']) ? null : 'docHash must be a SHA-256 hex digest');

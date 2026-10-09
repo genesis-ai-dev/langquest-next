@@ -37,7 +37,7 @@ import {
   bookOrder, canonicalJson, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, ORG_STREAM, parseRef,
   QUESTION_TEMPLATES, usfmOf, validateDoc, withDeps,
   type AnyEvent, type CollectionDoc, type FlowDoc, type LibraryDoc, type LibraryKind, type MaterialDoc, type StudyDoc,
-  type TemplateDoc, type VersificationDoc
+  type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
 import { sourcesFor } from './sources-seed';
@@ -153,14 +153,14 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
     publish(`langquest.template.bible-chapters-${v.code}`, name, description, {
       format: 'template@1', name, description, structure: 'bible', levels: [{ name: 'Book' }, { name: 'Chapter' }],
       bible: { versification: vHash[v.code]!, books: books(Object.keys(vDoc[v.code]!.maxVerses)), divide: 'chapters' }, deps: []
-    } satisfies TemplateDoc);
+    } satisfies TemplateDocV1);
   }
   const engBooks = Object.keys(vDoc['eng']!.maxVerses);
-  const template = (itemId: string, name: string, description: string, levels: string[], bible: Omit<NonNullable<TemplateDoc['bible']>, 'versification'>) =>
+  const template = (itemId: string, name: string, description: string, levels: string[], bible: Omit<NonNullable<TemplateDocV1['bible']>, 'versification'>) =>
     publish(itemId, name, description, {
       format: 'template@1', name, description, structure: 'bible', levels: levels.map((l) => ({ name: l })),
       bible: { versification: eng, ...bible }, deps: []
-    } satisfies TemplateDoc);
+    } satisfies TemplateDocV1);
   template('langquest.template.bible-books-eng', 'Bible books (English)', 'The 66 books of the Protestant canon (no deuterocanon), one part per book.', ['Book'],
     { books: books(engBooks.filter((b) => bookOrder(b) <= NT_LAST)), divide: 'books' });
   template('langquest.template.nt-chapters-eng', 'New Testament chapters (English)', 'The New Testament, divided into chapters, numbered as in English Bibles.', ['Book', 'Chapter'],
@@ -168,6 +168,20 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
   const fiaPassages = FIA_PERICOPES.map((p) => ({ ref: `${usfmOf(p.book)} ${p.verseRange}` }));
   template('langquest.template.fia-passages-eng', 'FIA passages (English)', "The passages FIA divides the Bible into, in FIA's order, numbered as in English Bibles.", ['Book', 'Passage'],
     { books: books([...new Set(fiaPassages.map((p) => parseRef(p.ref)!.book))]), divide: 'passages', passages: fiaPassages });
+
+  // 2b. Ways to break up the Bible (decision 74): the 66 books, each broken
+  // up its own way or not yet. The items above stay as they are, for the
+  // languages that use them; a new version of them would move those
+  // languages' parts.
+  for (const way of breakupWays(books(engBooks.filter((b) => bookOrder(b) <= NT_LAST)), vDoc['eng']!)) {
+    publish(`langquest.bible.${way.slug}`, way.name, way.description, {
+      format: 'template@2', name: way.name, description: way.description, structure: 'bible',
+      levels: [{ name: 'Book' }, { name: way.part }],
+      bible: { versification: eng, books: way.books },
+      ...(way.goesWith ? { goesWith: { pattern: way.goesWith } } : {}),
+      deps: []
+    } satisfies TemplateDocV2);
+  }
 
   // 3. Flows, each carrying the kinds it uses.
   for (const f of FLOWS) {
@@ -230,7 +244,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
     const title = `FIA study guides (${g.name})`;
     const description = `FIA's study guides in ${g.name}, found by the verses a passage covers. ${FIA_ATTRIBUTION}.`;
     publish(`langquest.fia.${lang}`, title, description, {
-      format: 'collection@1', title, description, language: lang, versification: eng, entries, deps: []
+      format: 'collection@1', title, description, language: lang, pattern: 'FIA', versification: eng, entries, deps: []
     } satisfies CollectionDoc);
   }
 
@@ -247,6 +261,118 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
   }
 
   return { documents: [...documents.values()], items };
+}
+
+// ---- ways to break up the Bible ---------------------------------------------------------
+
+/** OpenBible.info's OSIS book names, as USFM codes. */
+const OSIS: Record<string, string> = {
+  Gen: 'GEN', Exod: 'EXO', Lev: 'LEV', Num: 'NUM', Deut: 'DEU', Josh: 'JOS', Judg: 'JDG', Ruth: 'RUT', '1Sam': '1SA', '2Sam': '2SA',
+  '1Kgs': '1KI', '2Kgs': '2KI', '1Chr': '1CH', '2Chr': '2CH', Ezra: 'EZR', Neh: 'NEH', Esth: 'EST', Job: 'JOB', Ps: 'PSA', Prov: 'PRO',
+  Eccl: 'ECC', Song: 'SNG', Isa: 'ISA', Jer: 'JER', Lam: 'LAM', Ezek: 'EZK', Dan: 'DAN', Hos: 'HOS', Joel: 'JOL', Amos: 'AMO',
+  Obad: 'OBA', Jonah: 'JON', Mic: 'MIC', Nah: 'NAM', Hab: 'HAB', Zeph: 'ZEP', Hag: 'HAG', Zech: 'ZEC', Mal: 'MAL', Matt: 'MAT',
+  Mark: 'MRK', Luke: 'LUK', John: 'JHN', Acts: 'ACT', Rom: 'ROM', '1Cor': '1CO', '2Cor': '2CO', Gal: 'GAL', Eph: 'EPH', Phil: 'PHP',
+  Col: 'COL', '1Thess': '1TH', '2Thess': '2TH', '1Tim': '1TI', '2Tim': '2TI', Titus: 'TIT', Phlm: 'PHM', Heb: 'HEB', Jas: 'JAS',
+  '1Pet': '1PE', '2Pet': '2PE', '1John': '1JN', '2John': '2JN', '3John': '3JN', Jude: 'JUD', Rev: 'REV'
+};
+
+interface Way {
+  slug: string;
+  name: string;
+  description: string;
+  part: string;
+  goesWith?: string;
+  books: TemplateBook[];
+}
+
+/** "1:19b" -> [1, 19, "b"]. */
+const at = (s: string) => {
+  const m = /^(\d+):(\d+)([a-z]?)$/.exec(s.trim());
+  if (!m) throw new Error(`unreadable verse ${s}`);
+  return { c: Number(m[1]), v: Number(m[2]), part: m[3] ?? '' };
+};
+
+/** Passages from where each starts, the last running to the end of the book. */
+function fromStarts(book: string, starts: { c: number; v: number }[], v11n: VersificationDoc): { ref: string }[] {
+  const max = v11n.maxVerses[book] ?? [];
+  const sorted = [...starts].sort((a, b) => a.c - b.c || a.v - b.v).filter((s, i, all) => i === 0 || s.c !== all[i - 1]!.c || s.v !== all[i - 1]!.v);
+  return sorted.map((s, i) => {
+    const next = sorted[i + 1];
+    let end: { c: number; v: number };
+    if (next) end = next.v > 1 ? { c: next.c, v: next.v - 1 } : { c: next.c - 1, v: max[next.c - 2] ?? 1 };
+    else end = { c: max.length, v: max[max.length - 1] ?? 1 };
+    if (s.c === end.c) return { ref: s.v === end.v ? `${book} ${s.c}:${s.v}` : `${book} ${s.c}:${s.v}-${end.v}` };
+    return { ref: `${book} ${s.c}:${s.v}-${end.c}:${end.v}` };
+  });
+}
+
+/**
+ * The ways LangQuest offers (decision 74): by chapter; FIA's passages
+ * (library/fia/pericopes.tsv, FIA's API list); unfoldingWord's chunks
+ * (library/divisions/unfoldingword-chunks.json); OpenBible.info's sections
+ * where at least 15, 10 or 5 of 20 English Bibles start one
+ * (library/divisions/openbible-section-counts.tsv); and every book left to
+ * break up later.
+ */
+export function breakupWays(books: { book: string; name: string }[], v11n: VersificationDoc): Way[] {
+  const chapters = (part: string) => books.map((b) => ({ ...b, divide: 'chapters' as const, part }));
+  const passages = (part: string, byBook: Map<string, { ref: string }[]>) =>
+    books.map((b): TemplateBook => {
+      const list = byBook.get(b.book);
+      return list && list.length ? { ...b, divide: 'passages', part, passages: list } : { ...b };
+    });
+
+  // FIA, in FIA's order within each book.
+  const fiaRows = readFileSync(join(LIBRARY, 'fia', 'pericopes.tsv'), 'utf8').trim().split('\n').slice(1).map((l) => l.split('\t'));
+  const fia = new Map<string, { seq: number; split: string; ref: string }[]>();
+  for (const [, bookId, , seq, split, start, end] of fiaRows) {
+    const book = usfmOf(bookId!);
+    const a = at(start!);
+    const b = at(end!);
+    const ref = a.c === b.c ? `${book} ${start}-${b.v}${b.part}` : `${book} ${start}-${end}`;
+    if (!parseRef(ref)) throw new Error(`FIA passage ${ref} does not read`);
+    fia.set(book, [...(fia.get(book) ?? []), { seq: Number(seq), split: split ?? '', ref }]);
+  }
+  const fiaByBook = new Map([...fia].map(([book, list]) => [book, list.sort((x, y) => x.seq - y.seq || (x.split < y.split ? -1 : 1)).map((p) => ({ ref: p.ref }))]));
+
+  const uw = (readJson(join(LIBRARY, 'divisions', 'unfoldingword-chunks.json')) as { starts: Record<string, string[]> }).starts;
+  const uwByBook = new Map(Object.entries(uw).map(([book, starts]) => [book, fromStarts(book, starts.map(at), v11n)]));
+
+  const counts = new Map<string, number>();
+  for (const line of readFileSync(join(LIBRARY, 'divisions', 'openbible-section-counts.tsv'), 'utf8').split('\n')) {
+    if (!line || line.startsWith('#')) continue;
+    const [start, , , n] = line.split('\t');
+    counts.set(start!, (counts.get(start!) ?? 0) + Number(n));
+  }
+  const openBible = (atLeast: number) => {
+    const starts = new Map<string, { c: number; v: number }[]>();
+    for (const [start, n] of counts) {
+      const [osis, c, v] = start.split('.');
+      const book = OSIS[osis!];
+      if (!book) throw new Error(`unknown OpenBible book ${osis}`);
+      if (n < atLeast && !(c === '1' && v === '1')) continue;
+      starts.set(book, [...(starts.get(book) ?? []), { c: Number(c), v: Number(v) }]);
+    }
+    return new Map([...starts].map(([book, s]) => [book, fromStarts(book, s, v11n)]));
+  };
+  const OB = 'Section breaks from OpenBible.info (openbible.info/labs/bible-section-sankeys), CC BY 4.0.';
+  return [
+    { slug: 'chapters', name: 'By chapter', part: 'Chapter', description: 'Every book, one part a chapter, numbered as in English Bibles.', books: chapters('Chapter') },
+    {
+      slug: 'fia', name: 'FIA passages', part: 'Passage', goesWith: 'FIA',
+      description: `The passages FIA divides the Bible into, in FIA's order; books FIA has no passages for wait to be broken up. Made for FIA's study guides. ${FIA_ATTRIBUTION}.`,
+      books: passages('Passage', fiaByBook)
+    },
+    {
+      slug: 'unfoldingword', name: 'unfoldingWord chunks', part: 'Chunk',
+      description: "Short pieces of two or three verses, where unfoldingWord's Unlocked Literal Bible marks its chunks (api.unfoldingword.org). unfoldingWord, CC BY-SA 4.0.",
+      books: passages('Chunk', uwByBook)
+    },
+    { slug: 'openbible-long', name: 'OpenBible: long sections', part: 'Section', description: `Sections where at least 15 of 20 English Bibles start one. ${OB}`, books: passages('Section', openBible(15)) },
+    { slug: 'openbible-usual', name: 'OpenBible: usual sections', part: 'Section', description: `Sections where at least 10 of 20 English Bibles start one. ${OB}`, books: passages('Section', openBible(10)) },
+    { slug: 'openbible-short', name: 'OpenBible: short sections', part: 'Section', description: `Sections where at least 5 of 20 English Bibles start one. ${OB}`, books: passages('Section', openBible(5)) },
+    { slug: 'book-by-book', name: 'Book by book', part: 'Passage', description: 'Every book, waiting to be broken up one at a time.', books: books.map((b) => ({ ...b })) }
+  ];
 }
 
 // ---- events -------------------------------------------------------------------------

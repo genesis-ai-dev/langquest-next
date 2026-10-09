@@ -99,6 +99,8 @@ export function buildStep11Fixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.ReviewTeamMemberSet', { teamId: 'team1', profileId: 'r3', member: false });
   emit('dA', 'lead', 'v1.TemplateSelected', { itemId: 'langquest.fia-eng', docHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', unitPrefix: 'langquest.fia-eng', books: ['LUK'] });
   emit('dA', 'lead', 'v1.UnitHidden', { unitId: 'langquest.fia-eng/LUK.2.1-7', hidden: true });
+  emit('dA', 'lead', 'v1.BookNameSet', { book: 'LUK', name: 'Luka' });
+  emit('dE', 'lead2', 'v1.BookNameSet', { book: 'LUK', name: 'Luqaas' });
   emit('dB', 't1', 'v1.ResponseRecorded', { takeId: 'take2', respondsToTakeId: 'take1', note: 'Re-recorded card 2; kept the rest.' });
 
   // Materials with per-field registers, a locked document, the community
