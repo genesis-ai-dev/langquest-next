@@ -20,8 +20,10 @@ from Glottolog itself.
 Differences from v2: `download_profiles` is gone (it was PowerSync's
 per-user sync list), `ui_ready` is gone (it marked v2's interface
 languages; see "Interface languages" below), and `creator_id` names a
-profile here. Everyone may read; only the service role writes until adding
-a missing language has its request flow.
+profile here. Everyone may read every column but `creator_id`, which is
+the service role's only (decision 75), and only the service role writes
+until adding a missing language has its request flow. A column added to
+these tables later needs its own grant to `anon` and `authenticated`.
 
 ## Ids
 

@@ -48,6 +48,37 @@ describe('reducer invariants (PLAN.md section 4)', () => {
     expect(canonicalOrg.languages['L1']?.renamed?.value).toBe('Dinka');
   });
 
+  it('create-once ids used twice: the earliest stands, and a tie is settled by author and content', () => {
+    // Why: `??=` kept whichever arrived first, so two phones could disagree
+    // on a unit's label or a key term's gloss for good.
+    expect(canonical.units['luke']?.label).toBe('Luke');
+    expect(canonical.units['luke-intro']?.label).toBe('Intro');
+    expect(canonical.keyTerms['kt-logos']?.gloss).toBe('The eternal Word of God');
+    expect(canonical.keyTerms['kt-pneuma']?.gloss).toBe('Breath, wind');
+    expect(canonical.keyTermLinks['take2']?.['kt-logos']?.note).toBe('Used the divine sense.');
+    expect(canonical.keyTermLinks['take2']?.['kt-sarx']?.note).toBe('Body sense.');
+  });
+
+  it('same-clock ties in submissions, materials, invites and join decisions are settled by author and content', () => {
+    // Why: these compared clocks only, so at an equal clock whichever
+    // arrived first stayed, and two phones could keep different answers.
+    expect(canonical.submissions['take1']?.questionSetIds).toEqual(['q-luke1']);
+    expect(canonical.materials['notes-luke']).toMatchObject({ title: 'Notes on Luke', createdBy: 'lead' });
+    expect(canonicalOrg.invites['inv2']?.roleId).toBe('reviewer');
+    expect(canonicalOrg.joinDecisions['jr2']?.accepted).toBe(false);
+  });
+
+  it('a redaction of a redaction is ignored, in any order', () => {
+    // Why: redactions fold first, in arrival order; if one could cancel
+    // another, which one stood would depend on that order.
+    const redactions = language.filter((e): e is Extract<AnyEvent, { type: 'v1.Redacted' }> => e.type === 'v1.Redacted');
+    const others = language.filter((e) => e.type !== 'v1.Redacted');
+    expect(redactions.some((r) => redactions.some((t) => t.id === r.payload.eventId))).toBe(true);
+    for (const order of [redactions, [...redactions].reverse()]) {
+      expect(foldLanguage([...order, ...others], emptyLanguageState()).recordings['recWrong']).toBeUndefined();
+    }
+  });
+
   it('a removed step stays removed, whatever clock sets it later (add-wins)', () => {
     expect(canonical.removedSteps['standard_bible/s9']).toBe(true);
     expect(canonical.removedSteps['quick_check/extra']).toBe(true);

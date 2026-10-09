@@ -12,7 +12,7 @@ import {
 import type { LibraryChoice } from '../src/contentTemplates';
 import {
   addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, mayGrantAt, memberEntries,
-  membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, STARTER_FLOW, suggestedChoice,
+  membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, similarLanguages, STARTER_FLOW, suggestedChoice,
   sumProgress, teamMembers
 } from '../src/orgAdmin';
 import { STARTER_TEMPLATE } from '../src/contentTemplates';
@@ -195,6 +195,27 @@ describe('a new language (ORG-2)', () => {
     expect(() => addLanguage(org, { languageId: 'L3', code: 'x', name: 'X', template: template(), flow: [] })).toThrow('review flow');
     expect(() => addLanguage(org, { languageId: 'L3', code: 'x', name: 'X', template: [], flow: flow() })).toThrow('template');
     expect(() => addLanguage(org, { languageId: 'L1', code: 'x', name: 'X', template: template(), flow: flow() })).toThrow('already');
+  });
+
+  it('warns of a language already there under the same code or name, and only warns (decision 76)', () => {
+    // Why: a new language gets a fresh id, so nothing refuses a second
+    // Dinka; the admin is told before adding it, and may still go on.
+    const org = orgFixture();
+    const ids = (c: { code: string; name: string }) => similarLanguages(org, c).map((l) => l.languageId);
+    expect(ids({ code: 'DIN ', name: 'Something else' })).toEqual(['L1']);
+    expect(ids({ code: '', name: '  dinka ' })).toEqual(['L1']);
+    expect(ids({ code: '', name: 'Nüer' })).toEqual(['L2']);
+    expect(ids({ code: 'nus', name: 'Dinka' })).toEqual(['L1', 'L2']);
+    expect(ids({ code: 'hdy', name: 'Hadiyya' })).toEqual([]);
+    expect(ids({ code: '', name: '' })).toEqual([]);
+    expect(similarLanguages(null, { code: 'din', name: 'Dinka' })).toEqual([]);
+    // A renamed language is matched by the name it has now.
+    const renamed = applyOrg([{ type: 'v1.LanguageRenamed', payload: { languageId: 'L1', name: 'Thuɔŋjäŋ' } }], org);
+    expect(similarLanguages(renamed, { code: '', name: 'thuɔŋ jaŋ' }).map((l) => l.languageId)).toEqual(['L1']);
+    expect(similarLanguages(renamed, { code: '', name: 'Dinka' })).toEqual([]);
+    // Renaming a language: it is not a repeat of itself.
+    expect(similarLanguages(org, { code: '', name: 'Dinka', except: 'L1' })).toEqual([]);
+    expect(similarLanguages(org, { code: '', name: 'Nuer', except: 'L1' }).map((l) => l.languageId)).toEqual(['L2']);
   });
 
   it('suggests what the open language uses, else the LangQuest starter, else the first', () => {

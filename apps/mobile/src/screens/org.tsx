@@ -10,7 +10,7 @@
 // languages directly (docs/decisions.md 63).
 import {
   CommandError, deriveFlow, goesWith, isTemplateDoc, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
-  libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
+  libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -34,7 +34,7 @@ import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrar
 import {
   addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, LANGUAGE_SCOPES, LEVEL_LABEL,
   mayGrantAt, membersAbove, membersAt, memberEntries, newLanguageId, parseLevel, progressLine, removeMembership, reviewEligible,
-  saveTeam, sumProgress, teamMembers,
+  saveTeam, similarLanguages, sumProgress, teamMembers,
   type HomeProgress, type LanguageScope, type MemberEntry, type OrgOp
 } from '../orgAdmin';
 import { plural, when } from '../passageView';
@@ -280,8 +280,67 @@ export function OrgHome(ctx: Ctx) {
       </HomeSection>
       <ShowMore remaining={v.languages.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
       <PeopleRows ctx={ctx} level="org" />
-      <HomeSetup ctx={ctx} from="org_home" level="org" languageIds={v.languages} extra={{ label: 'license', rows: <LicenseSection ctx={ctx} /> }} />
+      <HomeSetup ctx={ctx} from="org_home" level="org" languageIds={v.languages}
+        extra={{ label: 'name and license', rows: <><OrgNameSection ctx={ctx} /><LicenseSection ctx={ctx} /></> }} />
     </Screen>
+  );
+}
+
+/**
+ * A name row that whoever may rename opens into a sheet: the organization's
+ * and a language's. Names identify nothing (decision 76), so a rename is
+ * how two alike are told apart. `warn` says what the new name repeats.
+ */
+function RenameRow(props: {
+  ctx: Ctx; current: string; may: boolean; title: string; sub: string; what: string;
+  warn?: (name: string) => string | null; save: (name: string) => Promise<void>; last?: boolean;
+}) {
+  const { ctx, current } = props;
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const next = name.trim();
+  const warning = next && next !== current ? props.warn?.(next) ?? null : null;
+  async function save() {
+    if (!next || next === current) return;
+    setBusy(true);
+    setError('');
+    try {
+      await props.save(next);
+      setOpen(false);
+      ctx.toast(`Renamed to ${next}.`);
+    } catch (e) {
+      setError(failure(props.what, e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Row icon="edit" label="Name" sub={current} last={props.last}
+        {...(props.may ? { onPress: () => { setName(current); setError(''); setOpen(true); } } : {})} />
+      <Sheet visible={open} title={props.title} sub={props.sub} onClose={() => setOpen(false)}
+        footer={<PrimaryBtn label="Save the name" icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
+        <Field label="Its name" value={name} onChangeText={setName} placeholder={current} autoCapitalize="words" />
+        {warning ? <Banner icon="flag" tone="amber" title="That name is taken here" body={warning} /> : null}
+        {error ? <Banner icon="flag" tone="amber" title="Not renamed" body={error} /> : null}
+      </Sheet>
+    </>
+  );
+}
+
+/**
+ * The organization's name. Two organizations made offline can share one,
+ * so an Organization Admin may rename theirs (decision 76). Everyone sees
+ * the name; only they may change it. Not in the partner demo.
+ */
+function OrgNameSection(props: { ctx: Ctx }) {
+  const { ctx } = props;
+  return (
+    <RenameRow ctx={ctx} current={orgName(ctx.org.state) ?? ''} may={mayRenameOrg(ctx.org.state, ctx.session.actorId)}
+      title="Rename the organization" sub="Its members see the new name, and so does anyone asking to join it." what="rename organization"
+      save={(name) => ctx.org.append('v1.OrgRenamed', { name }).then(() => undefined)} />
   );
 }
 
@@ -398,7 +457,7 @@ export function LanguageHome(ctx: Ctx) {
       right={<CountBadge n={requests.length} />} onPress={() => ctx.go('members_list', params)} />
   );
   const moreCard = (
-    <Disclosure icon="settings" title="More" summary={['Progress', 'members', 'review groups', 'roles', listing.may ? 'public listing' : ''].filter(Boolean).join(', ')}
+    <Disclosure icon="settings" title="More" summary={['Progress', 'members', 'review groups', 'roles', listing.may ? 'public listing' : '', 'name'].filter(Boolean).join(', ')}
       open={more.open} onToggle={more.onToggle}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Text style={txt.xs}>{v.orgName} · Code {info.code.toUpperCase()}</Text>
@@ -417,7 +476,15 @@ export function LanguageHome(ctx: Ctx) {
         <Row icon="globe" label="Show on the public list" sub="Only the language's name and progress" role="switch" checked={listing.listed} disabled={listing.busy}
           onPress={() => void listing.set(!listing.listed)} />
       ) : null}
-      <Row icon="building" label={v.orgName} sub="The organization's page" last onPress={() => ctx.go('org_home')} />
+      <Row icon="building" label={v.orgName} sub="The organization's page" onPress={() => ctx.go('org_home')} />
+      {/* Its name: whoever manages its structure, here or for the organization, renames it (decision 76). */}
+      <RenameRow ctx={ctx} current={name} may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last
+        title={`Rename ${name}`} sub={`Everyone in ${v.orgName} sees the new name. Its code, ${info.code.toUpperCase()}, stays.`} what="rename language"
+        warn={(next) => {
+          const alike = similarLanguages(v.org, { code: '', name: next, except: languageId });
+          return alike.length ? `${alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(', ')} already has this name. Two languages with one name are hard to tell apart.` : null;
+        }}
+        save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
     </Disclosure>
   );
   const listingError = listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null;
@@ -803,7 +870,6 @@ function MemberEditor(ctx: Ctx) {
   const entries = useMemo(() => memberEntries(v.org).filter((e) => e.profileId === memberId), [v.org, memberId]);
   const entry = entries.find((e) => e.key === ctx.params['entry']) ?? entries[0];
   const pending = !!requestId;
-  const roles = liveRoles(ctx);
   // The demo's "Assign a role and scope": deciding needs org-scope Invite, so every level is open.
   const levels: ScopeLevel[] = pending ? assignableLevels(v.org, ctx.session.actorId, 'org')
     : [...new Set([...(entry ? [entry.scope.level] : []), ...assignableLevels(v.org, ctx.session.actorId, viewLevel)])];
@@ -814,8 +880,12 @@ function MemberEditor(ctx: Ctx) {
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const allowed = ctx.session.can('invite_members');
+  // Nobody changes or removes a role that holds more than they do (decisions.md 75).
+  const outranked = !!entry && !mayChangeMembership(v.org, ctx.session.actorId, memberId, entry.scope);
+  const allowed = ctx.session.can('invite_members') && !outranked;
   const scope = scopeOf(form);
+  // Only roles they could grant at the chosen scope, and the one held now.
+  const roles = liveRoles(ctx).filter((r) => r.id === entry?.roleId || (!!scope && mayGrantRole(v.org, ctx.session.actorId, r.id, scope)));
   // A requester's name comes with the request (decisions.md 65), not from the members' names.
   const requesterName = pending ? ctx.params['name'] : undefined;
   const who = requesterName ?? ctx.name(memberId);
@@ -891,7 +961,7 @@ function MemberEditor(ctx: Ctx) {
         ? 'This person created an account and asked to join. Assign a role and scope to give them access.'
         : 'Pick a role, then choose the scope this assignment applies to. Scope can be this level or below.'}</Text>
       {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
-        : <Banner icon="lock" title="View only" body="Only people who can invite members change roles." />}
+        : <Banner icon="lock" title="View only" body={outranked ? `${who} holds more here than you do, so only someone who holds as much can change this.` : 'Only people who can invite members change roles.'} />}
       {error ? <Banner icon="flag" tone="amber" title="Not saved" body={error} /> : null}
       {allowed && !pending ? (
         // The demo has no Remove here; kept as a quiet link below the form,
@@ -976,7 +1046,8 @@ export function InviteQr(ctx: Ctx) {
   const scope: Scope = floor === 'language'
     ? { level: 'language', languageId: defaultLanguage(grantableLanguages(ctx.org.state, me), ctx.language.languageId) || ctx.language.languageId }
     : { level: 'org' };
-  const roles = liveRoles(ctx);
+  // Only roles this person may grant there: nobody invites to more than they hold (decisions.md 75).
+  const roles = liveRoles(ctx).filter((r) => mayGrantRole(ctx.org.state, me, r.id, scope));
   // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
   const preferred = ctx.params['roleId'];
   const [step, setStep] = useState(preferred && roles.some((r) => r.id === preferred) ? 1 : 0);
@@ -1113,6 +1184,8 @@ export function NewLanguage(ctx: Ctx) {
   const flow = chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
   const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
   const title = name.trim() || 'the language';
+  // Names and codes identify nothing, so a second Dinka is only warned about (decision 76).
+  const alike = useMemo(() => similarLanguages(ctx.org.state, { code, name }), [ctx.org.state, code, name]);
 
   async function create() {
     const languageName = name.trim();
@@ -1183,6 +1256,11 @@ export function NewLanguage(ctx: Ctx) {
         <Field label="Its name" value={name} onChangeText={setName} placeholder="e.g. Hadiyya" autoCapitalize="words" />
         <Field label="Its code, if it has one" value={code} onChangeText={setCode} placeholder="e.g. hdy" autoCapitalize="none" />
         <Text style={[txt.sm, { color: C.muted }]}>It goes in {orgName}. You can invite its translators at the end.</Text>
+        {alike.length ? (
+          <Banner icon="flag" tone="amber" title={`${orgName} may already have it`}
+            body={`${alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(', ')} ${alike.length === 1 ? 'is' : 'are'} already here. ` +
+              'Adding it again makes a separate language, and its work stays apart from the first. Go back and open that one if it is the same.'} />
+        ) : null}
       </Screen>
     );
   }

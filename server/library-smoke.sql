@@ -56,7 +56,8 @@ begin
       pg_temp.ev(o.org || '-2', o.org, o.actor, 'v1.RoleDefined', jsonb_build_object('roleId', 'admin', 'name', 'Admin', 'privileges', v_all)),
       pg_temp.ev(o.org || '-3', o.org, o.actor, 'v1.MemberAdded', jsonb_build_object('profileId', o.actor, 'roleId', 'admin', 'scope', jsonb_build_object('level', 'org')))));
   end loop;
-  perform set_config('request.jwt.claim.sub', 'bob', false);
+  -- Vic joins libB (by invite in the app; here as the server adds them, decisions.md 75).
+  perform set_config('request.jwt.claim.sub', '', false);
   perform pg_temp.push(jsonb_build_array(
     pg_temp.ev('libB-4', 'libB', 'bob', 'v1.RoleDefined', '{"roleId":"viewer","name":"Viewer","privileges":["view_status"]}'),
     pg_temp.ev('libB-5', 'libB', 'bob', 'v1.MemberAdded', '{"profileId":"vic","roleId":"viewer","scope":{"level":"org"}}')));

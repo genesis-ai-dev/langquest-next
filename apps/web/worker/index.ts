@@ -68,6 +68,9 @@ export default {
             write: (grant, w) => plain(object.agentWrite(orgId, grant, w, url.origin)),
             access: (profileId) => plain(object.agentAccess(orgId, profileId)),
             spend: (key) => plain(object.agentSpend(orgId, key)),
+            spendWrite: (key) => plain(object.agentSpendWrite(orgId, key)),
+            linkOpen: (link) => plain(object.agentLinkOpen(orgId, link)),
+            mayRevokeLink: (profileId, link) => plain(object.agentMayRevokeLink(orgId, profileId, link)),
             checkLink: (profileId, spec) => plain(object.agentCheckLink(orgId, profileId, spec)),
             linkInfo: (link) => plain(object.agentLinkInfo(orgId, link, url.origin)),
             linkReview: (link, input) => plain(object.agentLinkReview(orgId, link, input))

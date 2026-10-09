@@ -4,8 +4,8 @@
 // language's page (screens/org.tsx LanguageHome) and Get ready
 // (screens/getReady.tsx) both read it, so they always agree.
 import {
-  deriveFlow, deriveKinds, languageName, libraryItems, libraryItemView, recommendedFor,
-  type LibraryDoc, type SourceDoc, type TemplateDoc
+  deriveFlow, deriveKinds, languageName, libraryItems, libraryItemView, mayGrantRole, recommendedFor, scopeKey,
+  type LibraryDoc, type Scope, type SourceDoc, type TemplateDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -118,12 +118,19 @@ export function howItWorks(language: string): string {
 }
 
 /** The four plain choices of what someone will do, from this organization's roles. */
-export function usePlainRoles(ctx: Ctx) {
+/**
+ * The roles to offer as plain choices. With a scope, only those this person
+ * may grant there: nobody invites to more than they hold (decisions.md 75).
+ */
+export function usePlainRoles(ctx: Ctx, scope?: Scope | null) {
   // The fold changes its maps in place; the state object is new on every change.
   const org = ctx.org.state;
+  const me = ctx.session.actorId;
+  const key = scope ? scopeKey(scope) : '';
   return useMemo(() => {
-    const list: RoleInfo[] = Object.entries(org?.roles ?? {}).filter(([, r]) => !r.retired)
+    const list: RoleInfo[] = Object.entries(org?.roles ?? {}).filter(([id, r]) => !r.retired && (!scope || mayGrantRole(org, me, id, scope)))
       .map(([id, r]) => ({ id, name: r.name.value || id, privileges: r.privileges.value ?? [] }));
     return plainRoleChoices(list);
-  }, [org]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the scope is its key
+  }, [org, me, key]);
 }

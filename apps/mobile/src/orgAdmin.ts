@@ -6,7 +6,7 @@
 // ORG-6, ORG-7, FLOW-5.
 import {
   FLOWS, languagePeople, orgLanguages, privilegesFor, scopeKey,
-  type EventPayloads, type EventSpec, type EventType, type LanguageState, type OrgState, type Scope, type ScopeLevel, type TemplateDoc
+  type EventPayloads, type LanguageInfo, type EventSpec, type EventType, type LanguageState, type OrgState, type Scope, type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
 import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from './contentTemplates';
 
@@ -265,6 +265,24 @@ export function addLanguage(
     specs: [...c.template, ...c.flow]
   };
 }
+
+/**
+ * Languages already in the organization that a new one may repeat: the
+ * same code, or the same name once case, accents, spaces and punctuation
+ * are set aside. Ids identify a language, never its name or code, so two
+ * admins can add one language twice, offline above all (decision 76).
+ * This only warns: the screen says so and lets them go on. `except` is
+ * the language being renamed, which is not a repeat of itself.
+ */
+export function similarLanguages(org: OrgState | null, c: { code: string; name: string; except?: string }): LanguageInfo[] {
+  const code = c.code.trim().toLowerCase();
+  const name = nameKey(c.name);
+  if (!code && !name) return [];
+  return orgLanguages(org).filter((l) => l.languageId !== c.except &&
+    ((!!code && l.code.toLowerCase() === code) || (!!name && nameKey(l.name) === name)));
+}
+
+const nameKey = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 
 /**
  * The language source Bibles are offered in: the app ships English

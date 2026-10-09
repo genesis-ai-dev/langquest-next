@@ -22,6 +22,8 @@ interface Unit {
   kind: string;
   label: string;
   order: string;
+  /** Clock of the UnitAdded that stands: the earliest (reducer `earlier`). */
+  hlc: Hlc;
 }
 
 interface Recording {
@@ -72,6 +74,8 @@ interface KeyTerm {
   term: string;
   gloss: string;
   unitScope: string[];
+  /** Clock of the KeyTermDefined that stands (the earliest), or '' for a placeholder left by an early rendering. */
+  hlc: Hlc;
   renderings: Record<string, { rendering: string; context: string; hlc: Hlc }>;
   adjustments: Record<string, { note: string; blobHash?: string; duringTakeId?: string; actorId: string; hlc: Hlc }>;
 }

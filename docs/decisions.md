@@ -223,6 +223,14 @@ Amended (2026-09-30, Caleb Koster): one edit is now allowed, erasing a
 deleted person's name from the event that holds it (decision 47). Everything
 else here stands.
 
+Amended (2026-10-09, Carl Sauder): a redaction is never redacted. The fold
+applies every redaction before anything else, in the order they arrived, so
+one aimed at another made the outcome depend on that order: the first stood
+if it came first and vanished if it came second. `append_events` refuses a
+`v1.Redacted` whose target is a `v1.Redacted`, and the fold ignores any
+already in the log (reducer version 12). A removal that was a mistake is put
+right by recording the thing again, not by redacting the redaction.
+
 ## 17. Bytes are verified on both ends, and the bucket is reconciled
 
 Date: 2026-09-15 · By: Ryder Wishart · Status: accepted
@@ -318,6 +326,12 @@ any one of several privileges: 31.)
 
 Amended (2026-10-06, Carl Sauder): scope is `org` or `language` (63);
 the project and lane levels are gone, and a person holds one role per scope.
+
+Amended (2026-10-09, Carl Sauder): a grantor grants only what they hold (75).
+A role given, invited to or admitted to may carry no privilege the grantor
+lacks at that scope; a role changed or removed must be one they could have
+granted; a role defined or retired likewise. Holding Invite is no longer
+enough to make someone, or oneself, Owner.
 
 ## 24. Refusals carry a code, and membership refusals retry themselves
 
@@ -1501,6 +1515,13 @@ it was scanned offline, instead of 24 hours (`heldInvite.ts`): someone who
 scans in a village may find a signal days later, and claims already keep it
 from the next person on a shared phone.
 
+Amended (2026-10-09, Carl Sauder): "whoever can invite you" now means
+everywhere you are (75). A helper must hold, for every membership the
+person has in an organization they joined themselves, Invite at that scope
+and every privilege of the role; a membership someone else made for them
+counts for nothing. A repeated `join` request signs the account in again
+only within an hour and while it is still looked after with no password.
+
 ## 60. Signing out of a shared phone hands unsent work over, and it still goes as its author
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -2135,6 +2156,14 @@ OAuth authorization codes), shared links attract abuse that names and
 browser ids cannot contain (then one-person links with a contact), or Worker
 CPU from folds per request shows up in cost.
 
+Amended (2026-10-09, Carl Sauder): a link closes for listening, not only
+for answering, once its sharer can no longer record; whoever assigns work in
+the language may revoke anyone's link; a link made with a token closes with
+it, and a person may have 200 open in an organization. Voice notes take
+their own budget, 100 an hour per token or link. A review given by link
+counts toward a step only while the step takes links, read in the fold, so
+turning links off also stops links and tokens already out (75).
+
 ## 73. Languages and regions are LangQuest v2's reference tables, filled from Glottolog itself and kept outside the event log
 
 Date: 2026-10-08 · By: Caleb Koster · Status: accepted
@@ -2225,3 +2254,114 @@ verse that shows how (`verseNumbering`), which it may put away.
 Reverse if: teams need to break up one book differently from every other
 language using the same template, often enough that copies pile up; then a
 language keeps its own overrides on top of a shared template instead.
+
+## 75. Nobody is added without joining, nobody grants more than they hold, and one id names one event
+
+Date: 2026-10-09 · By: Carl Sauder · Status: accepted
+
+Reason: a security audit of who may post and read events (2026-10-09) found
+that the write path trusted too much of what a phone sends. Anyone who
+signed up could make an organization, add any profile id to it, and then,
+being an Invite holder who shares an organization with them, issue that
+person a sign-in code: a takeover of any looked-after account whose id they
+had seen. A Coordinator, who holds Invite but not Manage roles, could make
+themselves Owner or remove the Owner. Event ids are chosen by phones and
+the server's own are predictable (`removed:<event>`,
+`accountdeleted:<person>:<scope>`, `invitemember:<invite>`, the v2
+import's), and an id already in the log made the server skip its own
+event, so a content author could make a moderator's removal do nothing. A
+second `v1.TakeComposed` with a take's id replaced its audio under the
+reviews it had, and a backdated clock let a member replace someone else's
+review, note or request. Carl chose that the grantor may only grant scopes
+and roles they currently hold. Migration
+`20261009130000_event_integrity_and_grants.sql`:
+- A person's `v1.MemberAdded` may name only themselves or someone who has
+  held a membership in that organization; newcomers come in by invite or
+  join request, whose memberships the server appends. Sign-in help reads
+  only memberships the person joined themselves (`_joined_by_consent`) and
+  needs the helper to cover all of them (59).
+- `_grant_refusal`: a role given, invited to or admitted to carries no
+  privilege the grantor lacks at that scope; a role changed or removed, or
+  defined or retired, is one they could have granted. An invite redeems
+  only while its issuer could still issue it. Core `mayGrantRole` and
+  `mayChangeMembership` say the same, and the role pickers offer only
+  those roles.
+- An event id names one event: a resend is a duplicate, the same id on
+  anything else is refused (`event id already used`), and the server's id
+  prefixes are refused from people (`_server_event_id`).
+- One create, one entity: a recording, take, response, review, departure,
+  request, note, key-term rendering or adjustment id is used by one event in
+  its stream (`_entity_key`, core `entityKeyOf`, held together by the
+  parity script). The fold keeps the earliest of each in every order, so
+  logs that already hold a duplicate fold the same everywhere (reducer
+  version 12). The translation guide's material and key terms keep sharing
+  ids by design, as do units (two phones applying one template) and a
+  take's link to a key term; for those the fold keeps the earliest too, a
+  tie settled by author and content, instead of whichever arrived first.
+  Submissions, materials, invites and join decisions settle a same-clock
+  tie the same way (`ties.ts`).
+- A redaction is never redacted (16, amended).
+- An organization is bootstrapped only while nobody else has written to it,
+  so ids the library seed or an import used cannot be claimed, and the v2
+  import refuses an organization someone else created (`--existing-org`).
+- Review links and tokens: 72, amended.
+The service role (imports, seeds, the Worker) still writes as the actor it
+names, as 64 said; these checks are for people. A translator may still log
+a check from outside the app (29), which completes ordinary steps; that is
+the design, not a gap. SQL tests: `server/grantsSmoke.sql`, and the
+takeover in `server/joinSmoke.sql`.
+Reverse if: teams need to place people they have not invited (then a
+consent step on the person's side, not a direct add), or a partner's
+custom roles need someone to grant more than they hold (then a privilege
+that says so, held by owners only).
+
+Amended (2026-10-09, Carl Sauder): the audit's low findings that were cheap
+to close (migration `20261009140000_audit_low_findings.sql`). `may_emit` is
+service-role only, like `org_privileges`, since it answers for any profile.
+Writing a file needs more than reading its stream (`blob_access`): a
+language's files are written by whoever holds more than View there, once it
+is listed; the organization's guide files by whoever manages its library;
+a person's stream by nobody, so no upload makes a stream nobody listed. The
+language tables hide `creator_id` from everyone but the service role. In
+the Worker, a voice note must be stored no more than six hours before it is
+attached, since a redaction drops the event but not the file, so a hash
+seen before a removal cannot bring the audio back; a closed review link
+answers only that it closed; and files are served with `nosniff`.
+
+## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
+
+Date: 2026-10-09 · By: Carl Sauder · Status: accepted
+
+Reason: organizations and languages are identified by ids made on the
+phone (`org-<uuid>` in `createOrg.ts`, `L-<code>-<random>` in
+`newLanguageId`), so they can be created offline without asking anyone,
+and nothing on the phone or the server refuses a name already in use. Two
+people offline can start two organizations with one name, and two admins
+can add one language twice to the same organization; each stands, since
+no server check on names can reach a phone that is offline. Names stay
+labels, and two answers are added instead of a uniqueness rule. Adding a
+language warns when the organization already lists one with the same code,
+or the same name once case, accents, spaces and punctuation are set aside
+(`similarLanguages` in `orgAdmin.ts`, shown on the first step of New
+language). It only warns: the admin may still go on. It sees the
+languages this phone has synced, so a repeat added on another phone while
+both were offline still lands. An organization can be renamed with
+`v1.OrgRenamed { name }`, which writes the same name register as
+`v1.OrgCreated`, as `MemberAdded` and `MemberRemoved` share `removed`: the
+later clock wins, then the higher id. A rename is always stamped after the
+creation its phone saw. Only an Organization Admin may rename
+(`manage_roles`, as for the license), since the name is how everyone,
+Request Access included, tells the organization apart. Every server
+reader of the name reads that register (`org_name`, `library_shared_items`,
+`diag.find`; migration `20261009160000_org_renamed.sql`). A library
+subscription keeps the source's name as it was when subscribed
+(`sourceOrgName`). A language is renamed from its page (More, Name)
+with the `v1.LanguageRenamed` it always had, by whoever manages its
+structure there or for the whole organization (`mayRenameLanguage`), so a
+language admin may rename their own; the sheet warns when another
+language already has the name. Not built: a way to merge or retire a repeated
+language, a check after sync for repeats that landed offline, and a way
+to tell same-named organizations apart in Request Access beyond their
+listed languages.
+Reverse if: repeated languages keep landing despite the warning; then
+check for repeats after sync and give admins a way to retire one.

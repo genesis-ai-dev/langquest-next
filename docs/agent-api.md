@@ -82,7 +82,7 @@ curl -X POST -H "$T" -H 'content-type: application/json' \
 - `reviewerName` is shown to the team.
 - `takeId` defaults to `version`.
 - Voice notes, up to 10, each optionally about a moment of the recording:
-  1. `PUT …/languages/LANG/voice-notes` for each, with the audio as the body and a `Content-Length`. It must be AAC in MP4 (`.m4a`) or WAV, up to 20 MB, and counts as a write. It returns `{ "voiceNote": { hash, format, durationMs } }`.
+  1. `PUT …/languages/LANG/voice-notes` for each, with the audio as the body and a `Content-Length`. It must be AAC in MP4 (`.m4a`) or WAV, up to 20 MB, and counts as an upload. It returns `{ "voiceNote": { hash, format, durationMs } }`. Attach it within six hours: audio the server stored earlier, or audio already in the language, is refused.
   2. Send them as `"voiceNotes": [{ …voiceNote, "durationMs": 4200, "atMs": 41500 }]`. `atMs` is where in the version the note is about, in whole milliseconds from the start; leave it out for the whole version.
 - Reading a passage, each review's `voiceNotes` come back in order, each with a playable `url`, `durationMs` and `atMs` if it has one.
 
@@ -124,12 +124,15 @@ curl -X POST -H "$T" -H 'content-type: application/json' https://next.langquest.
   - A counting link needs a step that allows links. Every step does, except checkpoints, unless the language changes it (`v1.FlowStepLinksSet`).
   - A link answer never clears a checkpoint anyway.
 - `takeId` defaults to the latest version. `expiresInDays` defaults to 14 and can be at most 90.
-- The app uses `POST /api/v1/session/review-links` with the same body plus `orgId`. It lists a passage's links with `GET …/session/review-links?orgId&languageId&unitId` and revokes one with `POST …/session/review-links/:id/revoke`.
+- The app uses `POST /api/v1/session/review-links` with the same body plus `orgId`. It lists a passage's links with `GET …/session/review-links?orgId&languageId&unitId` and revokes one with `POST …/session/review-links/:id/revoke`. The sharer may revoke a link, and so may anyone who assigns work in its language.
+- A link made with a token belongs to the token too: revoking the token closes it, and it lasts no longer than the token. A person may have 200 open links in an organization.
 
 **Answers** are recorded as the person who shared the link, with the typed name as who gave it.
 - A browser's latest answer stands, and a resend records once.
 - A link takes 500 answers in all and 10 from one browser.
-- A link closes when revoked, when it expires, or when its sharer can no longer record reviews.
+- A link closes when revoked, when it expires, or when its sharer can no longer record reviews. A closed link answers `410 closed` and says nothing else: not who it was for, nor the passage, language or kind.
+- A link or token takes 100 voice notes an hour.
+- A review given by link (through a link or a token) counts toward a step only while the step takes links (`v1.FlowStepLinksSet`). Where it does not, the review is kept and completes nothing. A counting link whose step stopped taking links records its answers as listener feedback.
 
 ## MCP (Claude, ChatGPT and other agents)
 

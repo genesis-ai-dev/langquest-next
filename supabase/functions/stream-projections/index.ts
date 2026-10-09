@@ -21177,6 +21177,7 @@ function validateEvent(e) {
   switch (e.type) {
     // ---- organization stream (org.ts)
     case "v1.OrgCreated":
+    case "v1.OrgRenamed":
       return str("name");
     case "v1.RoleDefined":
       return str("roleId", "name") ?? (Array.isArray(p["privileges"]) && p["privileges"].every((x) => PRIVILEGES.includes(x)) ? null : "privileges must be known privileges");
@@ -21348,8 +21349,30 @@ function isObject(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+// packages/core/src/ties.ts
+function earlier(event, content, prior, priorContent, actorId = event.actorId) {
+  if (event.hlc !== prior.hlc) return event.hlc < prior.hlc;
+  return tieWins(content, prior, priorContent, actorId);
+}
+function later2(event, content, prior, priorContent, actorId = event.actorId) {
+  if (event.hlc !== prior.hlc) return event.hlc > prior.hlc;
+  return tieWins(content, prior, priorContent, actorId);
+}
+function tieWins(content, prior, priorContent, actorId) {
+  return `${actorId}
+${stable(content)}` < `${prior.actorId}
+${stable(priorContent)}`;
+}
+function stable(v) {
+  if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v).filter((k) => v[k] !== void 0).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v);
+}
+
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 11;
+var REDUCER_VERSION = 12;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21363,7 +21386,7 @@ function applyLanguageEvent(state, event) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id]) return state;
+  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
   switch (event.type) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
@@ -21372,7 +21395,8 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.UnitAdded": {
       const { unitId, ...unit } = event.payload;
-      state.units[unitId] ??= unit;
+      const prior = state.units[unitId];
+      if (!prior || earlier(event, unit, { hlc: prior.hlc, actorId: "" }, unitContent(prior), "")) state.units[unitId] = { ...unit, hlc: event.hlc };
       break;
     }
     case "v1.UnitHidden":
@@ -21432,12 +21456,15 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.RecordingAdded": {
       const { recordingId, ...rest } = event.payload;
-      state.recordings[recordingId] ??= { ...rest, actorId: event.actorId, hlc: event.hlc };
+      const prior = state.recordings[recordingId];
+      if (!prior || earlier(event, rest, prior, { unitId: prior.unitId, kind: prior.kind, cards: prior.cards })) state.recordings[recordingId] = { ...rest, actorId: event.actorId, hlc: event.hlc };
       break;
     }
     case "v1.TakeComposed": {
       const { takeId, ...rest } = event.payload;
       const prior = state.takes[takeId];
+      const composed = prior && prior.unitId !== "";
+      if (composed && !earlier(event, rest, prior, { unitId: prior.unitId, cardHashes: prior.cardHashes, parentTakeId: prior.parentTakeId })) break;
       state.takes[takeId] = {
         ...rest,
         actorId: event.actorId,
@@ -21457,16 +21484,19 @@ function applyLanguageEvent(state, event) {
       break;
     }
     case "v1.TakeSubmitted": {
-      const { takeId, questionSetIds } = event.payload;
+      const { takeId } = event.payload;
+      const questionSetIds = event.payload.questionSetIds ?? [];
       const prior = state.submissions[takeId];
-      if (!prior || event.hlc < prior.hlc) {
-        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds: questionSetIds ?? [] };
+      if (!prior || earlier(event, { questionSetIds }, prior, { questionSetIds: prior.questionSetIds })) {
+        state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds };
       }
       break;
     }
     case "v1.ResponseRecorded": {
       const { takeId, respondsToTakeId, note, blobHash } = event.payload;
-      state.responses[takeId] ??= {
+      const prior = state.responses[takeId];
+      if (prior && !earlier(event, { respondsToTakeId, note, blobHash }, prior, { respondsToTakeId: prior.respondsToTakeId, note: prior.note, blobHash: prior.blobHash })) break;
+      state.responses[takeId] = {
         respondsToTakeId,
         ...note !== void 0 ? { note } : {},
         ...blobHash !== void 0 ? { blobHash } : {},
@@ -21518,7 +21548,7 @@ function applyLanguageEvent(state, event) {
         locked: { value: false, hlc: "", eventId: "" },
         ...templateRef !== void 0 ? { templateRef } : {}
       };
-      if (m.hlc === "" || m.hlc > event.hlc) {
+      if (m.hlc === "" || earlier(event, { kind, title, scope: scope2, templateRef }, { hlc: m.hlc, actorId: m.createdBy }, { kind: m.kind, title: m.title, scope: m.scope, templateRef: m.templateRef })) {
         m.kind = kind;
         m.title = title;
         m.scope = { ...scope2 };
@@ -21541,22 +21571,28 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.KeyTermDefined": {
       const { termId, term, gloss, unitScope } = event.payload;
-      const t = state.keyTerms[termId] ??= { term, gloss, unitScope: [...unitScope], renderings: {}, adjustments: {} };
-      if (t.term === "") {
+      const t = keyTerm(state, termId);
+      if (t.hlc === "" || earlier(event, { term, gloss, unitScope }, { hlc: t.hlc, actorId: "" }, { term: t.term, gloss: t.gloss, unitScope: t.unitScope }, "")) {
         t.term = term;
         t.gloss = gloss;
         t.unitScope = [...unitScope];
+        t.hlc = event.hlc;
       }
       break;
     }
     case "v1.KeyTermRenderingAdded": {
       const { termId, renderingId, rendering, context } = event.payload;
-      keyTerm(state, termId).renderings[renderingId] ??= { rendering, context, hlc: event.hlc };
+      const renderings = keyTerm(state, termId).renderings;
+      const prior = renderings[renderingId];
+      if (!prior || earlier(event, { rendering, context }, { hlc: prior.hlc, actorId: "" }, { rendering: prior.rendering, context: prior.context }, "")) renderings[renderingId] = { rendering, context, hlc: event.hlc };
       break;
     }
     case "v1.KeyTermAdjusted": {
       const { termId, adjustmentId, note, blobHash, duringTakeId } = event.payload;
-      keyTerm(state, termId).adjustments[adjustmentId] ??= {
+      const adjustments = keyTerm(state, termId).adjustments;
+      const prior = adjustments[adjustmentId];
+      if (prior && !earlier(event, { note, blobHash, duringTakeId }, prior, { note: prior.note, blobHash: prior.blobHash, duringTakeId: prior.duringTakeId })) break;
+      adjustments[adjustmentId] = {
         note,
         actorId: event.actorId,
         hlc: event.hlc,
@@ -21568,7 +21604,9 @@ function applyLanguageEvent(state, event) {
     case "v1.KeyTermLinked": {
       const { takeId, termId, note, adjustmentId } = event.payload;
       const byTerm = state.keyTermLinks[takeId] ??= {};
-      byTerm[termId] ??= { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
+      const prior = byTerm[termId];
+      if (prior && !earlier(event, { note, adjustmentId }, prior, { note: prior.note, adjustmentId: prior.adjustmentId })) break;
+      byTerm[termId] = { actorId: event.actorId, hlc: event.hlc, ...note !== void 0 ? { note } : {}, ...adjustmentId !== void 0 ? { adjustmentId } : {} };
       break;
     }
     case "v1.ReferenceSet":
@@ -21586,6 +21624,7 @@ function applyLanguageEvent(state, event) {
       state.redactions[event.payload.eventId] = true;
       break;
     case "v1.OrgCreated":
+    case "v1.OrgRenamed":
     case "v1.RoleDefined":
     case "v1.RoleRetired":
     case "v1.MemberAdded":
@@ -21646,7 +21685,10 @@ function material(state, materialId) {
   return state.materials[materialId] ??= { kind: "", title: "", scope: {}, createdBy: "", hlc: "", fields: {}, locked: { value: false, hlc: "", eventId: "" } };
 }
 function keyTerm(state, termId) {
-  return state.keyTerms[termId] ??= { term: "", gloss: "", unitScope: [], renderings: {}, adjustments: {} };
+  return state.keyTerms[termId] ??= { term: "", gloss: "", unitScope: [], hlc: "", renderings: {}, adjustments: {} };
+}
+function unitContent(u) {
+  return { parentUnitId: u.parentUnitId, kind: u.kind, label: u.label, order: u.order };
 }
 function lww(table, key, event, value) {
   const current = table[key];
@@ -21863,8 +21905,8 @@ function derivePassage(state, unitId, idx) {
     return { ...r, status, ...team ? { team } : {} };
   });
   const openRequests = requests.filter((r) => r.status === "open");
-  const kindStatus = (kindId) => {
-    const review = [...reviews].reverse().find((r) => r.kindId === kindId);
+  const kindStatus = (kindId, linksAllowed) => {
+    const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== "link"));
     const request = openRequests.find((r) => r.what === "review" && r.kindId === kindId);
     const departure = active((d) => d.type === "skip" && d.kindId === kindId);
     const base = { kindId, ...review ? { review } : {} };
@@ -21881,13 +21923,14 @@ function derivePassage(state, unitId, idx) {
   const steps = [];
   let gate;
   flow.steps.forEach((step, index) => {
-    const statuses = step.kindIds.map(kindStatus);
+    const linksAllowed = stepAllowsLinks(state, step);
+    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed));
     const override = active((d) => d.type === "override" && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => s.state === "todo" ? { ...s, state: "locked" } : s) : statuses;
     const clears = (s) => s.state === "approved" && s.review?.via === "app";
     const complete = statuses.every((s) => step.checkpoint ? clears(s) : isCompleteState(s.state));
-    steps.push({ step, index, kinds: kindsShown, complete, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
+    steps.push({ step, index, kinds: kindsShown, complete, linksAllowed, ...lockedBy ? { lockedBy } : {}, ...override ? { override } : {} });
     if (!gate && step.checkpoint && !complete && !override) gate = stepName(ri.kinds, step);
   });
   const recorded = versions.length > 0;
@@ -21982,6 +22025,9 @@ function updatesFor(state, actorId, idx) {
   }
   return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
 }
+function stepAllowsLinks(state, step) {
+  return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;
+}
 
 // packages/core/src/library.ts
 var blank = { value: void 0, hlc: "", eventId: "" };
@@ -21998,8 +22044,8 @@ function newItem() {
     pinned: { value: null, hlc: "", eventId: "" }
   };
 }
-var later2 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
-var earlier = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
+var later3 = (current, e) => current.hlc === "" || current.hlc < e.hlc || current.hlc === e.hlc && current.eventId < e.id;
+var earlier2 = (current, e) => current.hlc === "" || e.hlc < current.hlc || e.hlc === current.hlc && e.id < current.eventId;
 var reg = (value, e) => ({ value, hlc: e.hlc, eventId: e.id });
 var LIBRARY_EVENT_TYPES = [
   "v1.LibraryItemDefined",
@@ -22012,13 +22058,13 @@ var LIBRARY_EVENT_TYPES = [
 function applyLibraryEvent(library, e) {
   const p = e.payload;
   const item = library[p.itemId] ??= newItem();
-  if (earlier(item.kind, e)) item.kind = reg(p.kind, e);
+  if (earlier2(item.kind, e)) item.kind = reg(p.kind, e);
   switch (e.type) {
     case "v1.LibraryItemDefined": {
       const d = p;
-      if (later2(item.name, e)) item.name = reg(d.name, e);
-      if (later2(item.description, e)) item.description = reg(d.description, e);
-      if (d.copiedFrom && earlier(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
+      if (later3(item.name, e)) item.name = reg(d.name, e);
+      if (later3(item.description, e)) item.description = reg(d.description, e);
+      if (d.copiedFrom && earlier2(item.copiedFrom, e)) item.copiedFrom = reg({ ...d.copiedFrom }, e);
       break;
     }
     case "v1.LibraryVersionPublished": {
@@ -22031,21 +22077,21 @@ function applyLibraryEvent(library, e) {
     }
     case "v1.LibrarySharingSet": {
       const d = p;
-      if (later2(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
+      if (later3(item.sharing, e)) item.sharing = reg({ shared: d.shared, subscribable: d.shared && d.subscribable }, e);
       break;
     }
     case "v1.LibraryItemArchived":
-      if (later2(item.archived, e)) item.archived = reg(p.archived, e);
+      if (later3(item.archived, e)) item.archived = reg(p.archived, e);
       break;
     case "v1.LibrarySubscribed": {
       const d = p;
-      if (later2(item.subscription, e)) {
+      if (later3(item.subscription, e)) {
         item.subscription = reg({ sourceOrgId: d.sourceOrgId, sourceOrgName: d.sourceOrgName, sourceItemId: d.sourceItemId, name: d.name, autoUpdate: d.autoUpdate, active: d.active }, e);
       }
       break;
     }
     case "v1.LibraryPinned":
-      if (later2(item.pinned, e)) item.pinned = reg(p.docHash, e);
+      if (later3(item.pinned, e)) item.pinned = reg(p.docHash, e);
       break;
   }
 }
@@ -22053,6 +22099,7 @@ function applyLibraryEvent(library, e) {
 // packages/core/src/org.ts
 var ORG_EVENT_TYPES = [
   "v1.OrgCreated",
+  "v1.OrgRenamed",
   "v1.RoleDefined",
   "v1.RoleRetired",
   "v1.MemberAdded",
@@ -22117,10 +22164,11 @@ function applyOrgEvent(state, event) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id]) return state;
+  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
   switch (event.type) {
     case "v1.OrgCreated":
-      state.org = set2(state.org, event, event.payload);
+    case "v1.OrgRenamed":
+      state.org = set2(state.org, event, { name: event.payload.name });
       break;
     case "v1.RoleDefined": {
       const r = state.roles[event.payload.roleId] ??= { name: empty, privileges: empty, retired: false };
@@ -22147,7 +22195,7 @@ function applyOrgEvent(state, event) {
     case "v1.InviteIssued": {
       const { inviteId, roleId, scope: scope2, expiresAt: expiresAt2 } = event.payload;
       const slot = state.invites[inviteId] ??= emptyInvite();
-      if (slot.hlc === "" || slot.hlc < event.hlc) {
+      if (slot.hlc === "" || later2(event, { roleId, scope: scope2, expiresAt: expiresAt2 }, { hlc: slot.hlc, actorId: slot.issuedBy }, { roleId: slot.roleId, scope: slot.scope, expiresAt: slot.expiresAt })) {
         slot.roleId = roleId;
         slot.scope = { ...scope2 };
         slot.expiresAt = expiresAt2;
@@ -22164,7 +22212,7 @@ function applyOrgEvent(state, event) {
     case "v1.JoinDecided": {
       const { requestId, profileId, accepted } = event.payload;
       const prior = state.joinDecisions[requestId];
-      if (!prior || prior.hlc < event.hlc) {
+      if (!prior || later2(event, { profileId, accepted }, { hlc: prior.hlc, actorId: prior.decidedBy }, { profileId: prior.profileId, accepted: prior.accepted })) {
         state.joinDecisions[requestId] = { profileId, accepted, decidedBy: event.actorId, hlc: event.hlc };
       }
       break;

@@ -117,8 +117,8 @@ describe('a language using library versions', () => {
 
   it('places a library unit on the Map by its id, with the book named in the language', () => {
     const state = emptyLanguageState();
-    state.units['ruth/RUT'] = { parentUnitId: null, kind: 'book', label: 'Rut', order: 'b' };
-    state.units['ruth/RUT.1.17-2.3'] = { parentUnitId: 'ruth/RUT', kind: 'passage', label: 'Rut 1:17–2:3', order: 'p' };
+    state.units['ruth/RUT'] = { parentUnitId: null, kind: 'book', label: 'Rut', order: 'b', hlc: '1' };
+    state.units['ruth/RUT.1.17-2.3'] = { parentUnitId: 'ruth/RUT', kind: 'passage', label: 'Rut 1:17–2:3', order: 'p', hlc: '1' };
     const place = unitPlace(state, 'ruth/RUT.1.17-2.3');
     expect([place.bookId, place.bookLabel, place.chapters, place.testament]).toEqual(['rut', 'Rut', [1, 2], 'ot']);
     expect(unitPlace(state, 'ruth/RUT').chapters).toEqual([1, 2, 3, 4]);
