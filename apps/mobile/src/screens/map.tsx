@@ -33,6 +33,8 @@ import {
   StepMarks, txt, useLayout, useOpenDetail, type IconName
 } from '../kit';
 import { workIcon } from '../simple/homeModel';
+import { NumberingNote } from '../breakup/parts';
+import { useVerseNumbering } from '../breakup/useBreakup';
 import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
 import { chapterColumns } from '../layout';
 import { plural } from '../passageView';
@@ -509,6 +511,8 @@ export function MapHome(ctx: Ctx) {
   // Books not broken up yet (decision 74), by the app's book id.
   const waiting = useMemo(() => (state ? waitingBooks(state) : []), [state]);
   const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
+  // The team's Bibles numbering verses differently is worth one note (decision 74); it may be put away.
+  const numbering = useVerseNumbering(ctx);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
@@ -619,6 +623,7 @@ export function MapHome(ctx: Ctx) {
       ) : (
         <>
           {nextLink}
+          {numbering.clash ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
           <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
           {testaments.length > 1 && shownTestament ? (
             <Pills items={testaments.map((t) => ({ id: t, label: t === 'ot' ? 'Old Testament' : 'New Testament' }))} on={shownTestament} onPick={setTestament} />

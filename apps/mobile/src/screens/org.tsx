@@ -9,7 +9,7 @@
 // Project Home and New Project are not ported: an organization holds its
 // languages directly (docs/decisions.md 63).
 import {
-  CommandError, deriveFlow, isTemplateDoc, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
+  CommandError, deriveFlow, goesWith, isTemplateDoc, deriveKinds, emptyLanguageState, isMoreOpen, keyTermsFor, kindOf, languageInfo, languageName, languageProgress, LICENSE_INFO,
   libraryItemView, materialsFor, mayChangeLicense, orgLicense, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
@@ -1237,7 +1237,7 @@ export function NewLanguage(ctx: Ctx) {
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? 'No ways to check to choose from yet.' : 'Loading…'}</Text> : null}
       {offers.names.length ? (
         <AmberNote icon="layers">
-          We'll offer {joinAnd(offers.names)} to {title}'s translators. Change that any time under <Text style={{ fontWeight: '800' }}>What helps</Text>.
+          We'll offer {joinAnd(offers.names)} to {title}'s translators.{goesWith(t.finalDoc, 'FIA') && offers.names.some((n) => /FIA/.test(n)) ? " FIA's guides go with the FIA passages you chose." : ''} Change that any time under <Text style={{ fontWeight: '800' }}>What helps</Text>.
         </AmberNote>
       ) : null}
       {error ? <Banner icon="flag" tone="amber" title="Not added" body={error} /> : null}

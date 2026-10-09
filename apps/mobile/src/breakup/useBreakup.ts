@@ -4,9 +4,11 @@
 // admin sees them, and publishing a change to a template for the languages
 // chosen. Pure parts are in model.ts.
 import {
-  CommandError, languageName, orgLanguages, privilegesFor, selectTemplateSpecs, subscriptionItemId, templateBooks,
+  CommandError, isTemplateDoc, languageName, libraryItemView, orgLanguages, privilegesFor, recommendedFor, selectTemplateSpecs, subscriptionItemId,
+  templateBooks, verseNumbering,
   type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
@@ -184,4 +186,51 @@ export function languageNames(ctx: Ctx): Map<string, string> {
 export function coveredBooks(doc: TemplateDoc, books: readonly string[] | undefined): string[] {
   const all = templateBooks(doc).map((b) => b.book);
   return books ? all.filter((b) => books.includes(b)) : all;
+}
+
+/**
+ * How the open language's Bibles number their verses (decision 74): the
+ * Bibles offered to its team, their numbering, and when they disagree one
+ * verse that shows how. Nothing depends on it; the note can be put away on
+ * this phone, until the Bibles change.
+ */
+export function useVerseNumbering(ctx: Ctx) {
+  const state = ctx.language.state;
+  const languageId = ctx.language.languageId;
+  const library = ctx.org.state?.library;
+  const offered = useMemo(() => [...recommendedFor(ctx.org.state?.recommendations, state).keys()], [ctx.org.state?.recommendations, state]);
+  const hashes = useMemo(() => offered.map((id) => (library ? libraryItemView(library, id)?.current : null)), [offered, library]);
+  const docs = useLibraryDocs(ctx.language.orgId, [...hashes, state?.template?.value.docHash]);
+  const result = useMemo(() => {
+    const bibles: { name: string; versification: VersificationDoc }[] = [];
+    let english: VersificationDoc | null = null;
+    for (const h of hashes) {
+      const d = docs.get(h);
+      if (d?.format !== 'source@1') continue;
+      const v = docs.get<VersificationDoc>(d.versification);
+      if (!v) continue;
+      bibles.push({ name: d.abbreviation || d.name, versification: v });
+      if (v.code === 'eng') english = v;
+    }
+    const t = docs.get(state?.template?.value.docHash);
+    if (!english && t && isTemplateDoc(t) && t.bible) {
+      const v = docs.get<VersificationDoc>(t.bible.versification);
+      if (v?.code === 'eng') english = v;
+    }
+    if (!english) return { code: bibles[0]?.versification.code ?? 'eng', clash: null, key: '' };
+    const n = verseNumbering(bibles, english);
+    return { ...n, key: bibles.map((b) => b.versification.code).sort().join(',') };
+    // docs.get changes when documents arrive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hashes, docs.get, state]);
+  const store = `numbering-ignored:${languageId}`;
+  const [ignored, setIgnored] = useState<string | null>(null);
+  useEffect(() => {
+    void AsyncStorage.getItem(store).then(setIgnored).catch(() => undefined);
+  }, [store]);
+  const ignore = useCallback(() => {
+    setIgnored(result.key);
+    void AsyncStorage.setItem(store, result.key).catch(() => undefined);
+  }, [store, result.key]);
+  return { code: result.code, clash: result.clash && ignored !== result.key ? result.clash : null, ignore };
 }

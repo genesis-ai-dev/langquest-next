@@ -13,7 +13,7 @@
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, deriveKinds, keyTermsFor, languageInfo, languageName, languageProgress, materialsFor,
-  recommendedFor, subscriptionItemId, templateBooks,
+  goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -42,6 +42,8 @@ import {
 import { howItWorks, ReadyChecklist, usePlainRoles, useReadySummary } from '../simple/ready';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
+import { NumberingNote } from '../breakup/parts';
+import { useVerseNumbering } from '../breakup/useBreakup';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
 
@@ -267,9 +269,29 @@ function mediaOf(doc: SourceDoc, get: (h: string | null | undefined) => LibraryD
   return text && audio ? 'Audio and text' : audio ? 'Audio' : text ? 'Text' : 'Listed';
 }
 
+/**
+ * Whether a guide set was made for how this language's Bible is broken up
+ * (decision 74): "goes with your FIA passages", or, when it is broken up
+ * another way, that the guides follow FIA's passages.
+ */
+function useComesWith(ctx: Ctx) {
+  const sel = ctx.language.state?.template?.value;
+  const docs = useLibraryDocs(ctx.language.orgId, [sel?.docHash], { deps: false });
+  const t = docs.get(sel?.docHash);
+  return (g: HelpItem): string => {
+    if (g.kind !== 'guide' || g.doc.format !== 'collection@1') return '';
+    const c = g.doc as CollectionDoc;
+    const pattern = c.pattern ?? (/\bFIA\b/.test(c.title) ? 'FIA' : undefined);
+    if (!pattern || !t || !isTemplateDoc(t) || !t.bible) return '';
+    return goesWith(t, pattern) ? `goes with your ${pattern} passages` : `made for ${pattern}'s passages`;
+  };
+}
+
 function HelpsStep({ ctx, header, next }: StepProps) {
   const languageId = ctx.language.languageId;
   const h = useHelpItems(ctx);
+  const numbering = useVerseNumbering(ctx);
+  const comes = useComesWith(ctx);
   const bibles = h.items.filter((x) => x.kind === 'source');
   const guides = h.items.filter((x) => x.kind === 'guide');
   const notes = h.items.filter((x) => x.kind === 'note' || x.kind === 'other');
@@ -293,11 +315,12 @@ function HelpsStep({ ctx, header, next }: StepProps) {
         <Group>
           {guides.map((g, i) => (
             <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? 'Study guides' : `${guideShortName(g.name)} study guides`}
-              sub={`${guides.length === 1 ? guideShortName(g.name) : sourceShort(g.owner)} · ${g.on ? 'on' : 'off'}`}
+              sub={[guides.length === 1 ? guideShortName(g.name) : sourceShort(g.owner), g.on ? 'on' : 'off', comes(g)].filter(Boolean).join(' · ')}
               on={g.on} disabled={!h.may || h.busy} onToggle={() => void h.toggle(g)} last={i === guides.length - 1} />
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>Looking for study guides…</Text> : null}
+      {numbering.clash ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
       {notes.length ? (
         <>
           <SectionLabel label="Notes for translators" />
