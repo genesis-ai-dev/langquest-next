@@ -153,6 +153,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('takeId') ?? (p['questionSetIds'] === undefined ? null : strArray('questionSetIds'));
     case 'v1.ResponseRecorded':
       return str('takeId', 'respondsToTakeId') ?? optStr('note', 'blobHash');
+    case 'v1.AudioFormatSet':
+      return str('hash') ?? oneOf('format', ['wav', 'm4a']);
     case 'v1.ReviewRecorded':
       return (
         str('reviewId', 'takeId', 'kindId') ??
@@ -307,6 +309,7 @@ export function entityKeyOf(e: AnyEvent): string | null {
     case 'v1.NoteAdded': return `note:${String(p['noteId'])}`;
     case 'v1.KeyTermRenderingAdded': return `rendering:${String(p['termId'])}/${String(p['renderingId'])}`;
     case 'v1.KeyTermAdjusted': return `adjustment:${String(p['termId'])}/${String(p['adjustmentId'])}`;
+    case 'v1.AudioFormatSet': return `audioformat:${String(p['hash'])}`;
     default: return null;
   }
 }

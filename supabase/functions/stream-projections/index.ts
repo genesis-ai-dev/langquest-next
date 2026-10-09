@@ -20939,6 +20939,7 @@ function emptyLanguageState() {
     takes: {},
     submissions: {},
     blobs: {},
+    audioFormats: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
@@ -21258,6 +21259,8 @@ function validateEvent(e) {
       return str("takeId") ?? (p["questionSetIds"] === void 0 ? null : strArray("questionSetIds"));
     case "v1.ResponseRecorded":
       return str("takeId", "respondsToTakeId") ?? optStr("note", "blobHash");
+    case "v1.AudioFormatSet":
+      return str("hash") ?? oneOf("format", ["wav", "m4a"]);
     case "v1.ReviewRecorded":
       return str("reviewId", "takeId", "kindId") ?? oneOf("outcome", ["looks_good", "needs_changes", "recorded"]) ?? oneOf("via", ["app", "link", "logged"]) ?? optStr("comment", "commentBlobHash", "place", "givenBy", "requestId") ?? optStrRecord("answers") ?? optStrRecord("skipped") ?? (p["people"] === void 0 || typeof p["people"] === "number" && p["people"] >= 0 ? null : "people must be a number") ?? (p["artifacts"] === void 0 ? null : cards("artifacts")) ?? (p["outcome"] === "recorded" && (!Array.isArray(p["artifacts"]) || p["artifacts"].length === 0) ? "recorded needs artifacts" : null);
     case "v1.DepartureRecorded":
@@ -21372,7 +21375,7 @@ function stable(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 12;
+var REDUCER_VERSION = 13;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21620,6 +21623,12 @@ function applyLanguageEvent(state, event) {
     case "v1.BlobInvalidated":
       blobVerdict(state, event, { size: 0, stored: false });
       break;
+    case "v1.AudioFormatSet": {
+      const prior = state.audioFormats[event.payload.hash];
+      if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.eventId <= event.id)) break;
+      state.audioFormats[event.payload.hash] = { value: event.payload.format, hlc: event.hlc, eventId: event.id };
+      break;
+    }
     case "v1.Redacted":
       state.redactions[event.payload.eventId] = true;
       break;

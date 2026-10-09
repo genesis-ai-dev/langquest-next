@@ -68,6 +68,8 @@ export class BlobStore {
   private readonly loading = new Set<string>();
   private readonly present = new Set<string>();
   private readonly sizeByHash = new Map<string, number>();
+  /** The format each present file was stored as: its name's extension. */
+  private readonly formatByHash = new Map<string, StoredFormat>();
   private listeners = new Set<() => void>();
   private urlListeners = new Set<() => void>();
 
@@ -80,10 +82,11 @@ export class BlobStore {
   async init(): Promise<void> {
     if (this.files) {
       for (const { name, size } of await this.files.list()) {
-        const hash = name.split('.')[0];
+        const [hash, ext] = name.split('.');
         if (hash) {
           this.present.add(hash);
           this.sizeByHash.set(hash, size);
+          if (isStoredFormat(ext)) this.formatByHash.set(hash, ext);
         }
       }
       return;
@@ -97,10 +100,11 @@ export class BlobStore {
           try { entry.delete(); } catch { /* retried next launch */ }
           continue;
         }
-        const hash = entry.name.split('.')[0];
+        const [hash, ext] = entry.name.split('.');
         if (hash) {
           this.present.add(hash);
           if (entry.size !== null) this.sizeByHash.set(hash, entry.size);
+          if (isStoredFormat(ext)) this.formatByHash.set(hash, ext);
         }
       }
     }
@@ -113,6 +117,21 @@ export class BlobStore {
 
   sizeOf(hash: string): number | undefined {
     return this.sizeByHash.get(hash);
+  }
+
+  /**
+   * The format this file is stored as here, whatever the log says: a voice
+   * note a browser recorded as WAV is `<hash>.wav` before any event says so
+   * (decisions.md 77).
+   */
+  formatOf(hash: string): StoredFormat | undefined {
+    return this.formatByHash.get(hash);
+  }
+
+  /** Its name here: a file this store holds keeps the format it was stored as. */
+  private here(ref: StoredFile): StoredFile {
+    const format = this.formatByHash.get(ref.hash);
+    return format && format !== ref.format ? { hash: ref.hash, format } : ref;
   }
 
   /** Bytes on disk across every present file. */
@@ -161,13 +180,13 @@ export class BlobStore {
 
   /** Web only: the bytes to upload. */
   async readBytes(ref: StoredFile): Promise<Uint8Array<ArrayBuffer> | null> {
-    return this.web().read(nameOf(ref));
+    return this.web().read(nameOf(this.here(ref)));
   }
 
   /** Web only: keep downloaded bytes the caller has verified against their hash. */
   async putVerified(ref: StoredFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     if (!this.present.has(ref.hash)) await this.web().write(nameOf(ref), bytes);
-    this.markPresent(ref.hash, bytes.byteLength);
+    this.markPresent(ref.hash, bytes.byteLength, ref.format);
   }
 
   private disk(): Directory {
@@ -189,7 +208,7 @@ export class BlobStore {
     const dest = this.fileFor(ref);
     if (dest.exists) staged.delete();
     else staged.move(dest);
-    this.markPresent(ref.hash, size);
+    this.markPresent(ref.hash, size, ref.format);
   }
 
   /**
@@ -221,6 +240,7 @@ export class BlobStore {
       }
       this.present.delete(ref.hash);
       this.sizeByHash.delete(ref.hash);
+      this.formatByHash.delete(ref.hash);
       removed.push(ref.hash);
     }
     if (removed.length) for (const l of this.listeners) l();
@@ -246,6 +266,7 @@ export class BlobStore {
       }
       this.present.delete(ref.hash);
       this.sizeByHash.delete(ref.hash);
+      this.formatByHash.delete(ref.hash);
       removed.push(ref.hash);
     }
     if (removed.length) for (const l of this.listeners) l();
@@ -257,9 +278,10 @@ export class BlobStore {
    * and answers null; listeners hear when its URL is ready, by which time a
    * screen that asked while drawing has it for the tap.
    */
-  uriFor(ref: StoredFile): string | null {
-    if (!this.present.has(ref.hash)) return null;
-    if (this.dir) return this.fileFor(ref).uri;
+  uriFor(asked: StoredFile): string | null {
+    if (!this.present.has(asked.hash)) return null;
+    if (this.dir) return this.fileFor(asked).uri;
+    const ref = this.here(asked);
     const url = this.urls.get(ref.hash);
     if (url) {
       this.urls.delete(ref.hash);
@@ -306,7 +328,7 @@ export class BlobStore {
     await beforeMove?.(ref, bytes.byteLength);
     if (!dest.exists) src.move(dest);
     else src.delete();
-    this.markPresent(hash, bytes.byteLength);
+    this.markPresent(hash, bytes.byteLength, format);
     return { ref, size: bytes.byteLength };
   }
 
@@ -318,7 +340,7 @@ export class BlobStore {
     await beforeMove?.(ref, bytes.byteLength);
     if (!this.present.has(hash)) await this.web().write(nameOf(ref), bytes);
     if (sourceUri.startsWith('blob:')) URL.revokeObjectURL(sourceUri);
-    this.markPresent(hash, bytes.byteLength);
+    this.markPresent(hash, bytes.byteLength, format);
     this.keepUrl(ref, bytes);
     return { ref, size: bytes.byteLength };
   }
@@ -341,14 +363,15 @@ export class BlobStore {
         dest.write(bytes);
       }
     }
-    this.markPresent(hash, bytes.byteLength);
+    this.markPresent(hash, bytes.byteLength, format);
     return { ...ref, size: bytes.byteLength };
   }
 
   /** Called by the downloader once a file is on disk and verified. */
-  markPresent(hash: string, size?: number): void {
+  markPresent(hash: string, size?: number, format?: StoredFormat): void {
     if (size !== undefined) this.sizeByHash.set(hash, size);
     if (this.present.has(hash)) return;
+    if (format) this.formatByHash.set(hash, format);
     this.present.add(hash);
     for (const l of this.listeners) l();
   }

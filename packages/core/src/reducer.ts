@@ -11,7 +11,7 @@ import { earlier } from './ties';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 12;
+export const REDUCER_VERSION = 13;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -307,6 +307,14 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.BlobInvalidated':
       blobVerdict(state, event, { size: 0, stored: false });
       break;
+
+    case 'v1.AudioFormatSet': {
+      // Once per hash, earliest wins (decisions.md 75): nobody re-labels someone else's note later.
+      const prior = state.audioFormats[event.payload.hash];
+      if (prior && (prior.hlc < event.hlc || (prior.hlc === event.hlc && prior.eventId <= event.id))) break;
+      state.audioFormats[event.payload.hash] = { value: event.payload.format, hlc: event.hlc, eventId: event.id };
+      break;
+    }
 
     case 'v1.Redacted':
       // Only effective for targets not yet applied; `foldLanguage` applies

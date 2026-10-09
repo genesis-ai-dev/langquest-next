@@ -224,10 +224,10 @@ export async function passageFor(
     const out: ReviewOut = { kindId: r.kindId, kind: kindOf(state, r.kindId).name, outcome: r.outcome, via: r.via, versionN: r.versionN, at: iso(r.hlc) };
     if (r.comment !== undefined) out.comment = r.comment;
     if (r.givenBy !== undefined) out.givenBy = r.givenBy;
-    // Voice notes: one m4a in commentBlobHash (the app's), and clips among the artifacts (from outside;
-    // for a kind that makes content, the artifacts are that content, not notes).
+    // Voice notes: one in commentBlobHash (the app's; m4a unless the log says otherwise, decisions.md 77), and
+    // clips among the artifacts (from outside; for a kind that makes content, the artifacts are that content, not notes).
     const notes: Card[] = [
-      ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: 'm4a' as const }] : []),
+      ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
       ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
     ];
     if (notes.length) {
@@ -360,7 +360,7 @@ export const VOICE_NOTE_FRESH_MS = 6 * 60 * 60 * 1000;
  * drops the event, not the file. So a note must not be referenced, and the
  * server must have stored it no more than a few hours ago (its BlobStored
  * is stamped with the server's clock, and a re-upload of the same bytes
- * keeps the first one, decisions.md 75). A note not folded in yet is new.
+ * keeps the first one, decisions.md 77). A note not folded in yet is new.
  */
 const fresh = (state: LanguageState, notes: VoiceNote[] | undefined, now: number) => {
   if (!notes?.length) return true;
@@ -415,7 +415,7 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
   if (!s.versions.some((v) => v.takeId === takeId)) return refuse(404, 'no_version', 'That takeId is not a version of this passage.');
   if (!canRead(grant, true) && takeId !== own.takeId) return refuse(404, 'no_version', 'This token hears only the approved version.');
   const kindId = input.kindId ?? LISTENER_KIND;
-  // A review from outside is given by link: where its step takes no links it is kept but completes nothing (passage.ts, decisions.md 75).
+  // A review from outside is given by link: where its step takes no links it is kept but completes nothing (passage.ts, decisions.md 77).
   if (!reviewableKinds(state, unitId).has(kindId)) return refuse(400, 'no_kind', `kindId must be "${LISTENER_KIND}" or a kind in this language's flow.`);
   if (!fresh(state, input.voiceNotes, ctx.now)) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
   const reviewer = (await sha256Hex(`${grant.tokenId}\n${input.reviewerId}`)).slice(0, 16);
@@ -459,7 +459,7 @@ export interface ReviewLink {
   counts: boolean;
   label: string | null;
   createdBy: string;
-  /** The token it was shared with, if any: revoking the token closes it (decisions.md 75). */
+  /** The token it was shared with, if any: revoking the token closes it (decisions.md 77). */
   tokenId: string | null;
   createdAt: string;
   expiresAt: string;

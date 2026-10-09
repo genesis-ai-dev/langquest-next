@@ -101,6 +101,14 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * Register per (version, channel).
    */
   'v1.VersionReleased': { takeId: string; channel: string; live: boolean; url?: string };
+  /**
+   * The format of a voice note's file (decisions.md 77). A voice note is
+   * named only by the event that uses it (30), which has no format field,
+   * so it is m4a unless this says otherwise: a browser that cannot record
+   * MP4 stores WAV (58). Appended with the event that names the note, by
+   * the device that has the file. Once per hash, earliest wins (75).
+   */
+  'v1.AudioFormatSet': { hash: string; format: 'wav' | 'm4a' };
 }
 
 export type EventType = keyof EventPayloads;
