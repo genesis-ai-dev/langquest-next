@@ -114,6 +114,14 @@ for (const project of projects) {
   // seeding it again for each project only adds the new language.
   const listing = mapV2Project(rows, { orgId, blobs: new Map(), grant });
   const languageId = listing.language.languageId;
+  // Many v2 projects name the wrong language (English, or a user-made copy
+  // of it); docs/v2-project-languages.md says which one each should have.
+  // Languages v2 users made are not in the language list (docs/languoids.md).
+  for (const code of new Set([listing.language.code, listing.language.sourceCode])) {
+    const { data, error } = await service.from('languoid').select('id').eq('id', code).maybeSingle();
+    if (error && !/invalid input syntax for type uuid/.test(error.message)) throw new Error(`languoid: ${error.message}`);
+    if (!data) console.log(`  language ${code} is not in the language list; check docs/v2-project-languages.md`);
+  }
   // Whoever you granted ownership to is the org's admin: that is the account
   // that will actually drive it. Otherwise fall back to v2's project owner.
   if (!orgOwner) {

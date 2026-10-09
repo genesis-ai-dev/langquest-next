@@ -37,6 +37,15 @@ export default {
       profileOf,
       reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
       bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
+      languoids: {
+        load: async () => {
+          const { data, error } = await serviceClient(env).rpc('languoid_explorer');
+          if (error) throw new Error(`languoid_explorer: ${error.message}`);
+          return data;
+        },
+        cache: caches.default,
+        waitUntil: (p) => ctx.waitUntil(p)
+      },
       blobs: {
         bucket: r2Bucket(env.BLOBS),
         serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,

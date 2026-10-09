@@ -1,4 +1,4 @@
--- v1.AudioFormatSet: a voice note's format (decisions.md 73).
+-- v1.AudioFormatSet: a voice note's format (decisions.md 74).
 --
 -- A voice note is named only by the event that uses it (decision 30), which
 -- has no format field, so every device took it for m4a. A browser that
