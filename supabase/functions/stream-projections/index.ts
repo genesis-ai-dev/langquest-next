@@ -21140,6 +21140,7 @@ function licenseRank(license) {
 }
 
 // packages/core/src/validate.ts
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function validateEvent(e) {
   for (const k of ["id", "type", "orgId", "streamId", "actorId", "deviceId", "hlc"]) {
     if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
@@ -21199,6 +21200,8 @@ function validateEvent(e) {
       return str("languageId", "name", "code", "sourceCode") ?? (/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(p["languageId"]) ? null : "languageId may use letters, digits, _ and - only") ?? (p["languageId"] === ORG_STREAM ? "languageId is reserved" : null);
     case "v1.LanguageRenamed":
       return str("languageId", "name");
+    case "v1.LanguageCodeSet":
+      return str("languageId", "code") ?? (p["code"].length <= 40 ? null : "code must be at most 40 characters") ?? (p["languoidId"] === null || typeof p["languoidId"] === "string" && UUID.test(p["languoidId"]) ? null : "languoidId must be a languoid id or null");
     case "v1.LanguageCountrySet":
       return str("languageId") ?? (typeof p["country"] === "string" && /^[A-Z]{2}$/.test(p["country"]) ? null : "country must be an ISO 3166 alpha-2 code");
     case "v1.LanguageTargetSet":
@@ -21635,6 +21638,7 @@ function applyLanguageEvent(state, event) {
     case "v1.LicenseSet":
     case "v1.LanguageAdded":
     case "v1.LanguageRenamed":
+    case "v1.LanguageCodeSet":
     case "v1.LanguageCountrySet":
     case "v1.LanguageTargetSet":
     case "v1.ReferenceRecommended":
@@ -22110,6 +22114,7 @@ var ORG_EVENT_TYPES = [
   "v1.LicenseSet",
   "v1.LanguageAdded",
   "v1.LanguageRenamed",
+  "v1.LanguageCodeSet",
   "v1.LanguageCountrySet",
   "v1.LanguageTargetSet",
   "v1.ReferenceRecommended",
@@ -22154,7 +22159,7 @@ function set2(current, event, value) {
   return { value, hlc: event.hlc, eventId: event.id };
 }
 function language(state, languageId) {
-  return state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null };
+  return state.languages[languageId] ??= { added: null, renamed: null, codeSet: null, country: null, target: null };
 }
 function applyOrgEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
@@ -22239,6 +22244,12 @@ function applyOrgEvent(state, event) {
       l.renamed = set2(l.renamed, event, event.payload.name);
       break;
     }
+    case "v1.LanguageCodeSet": {
+      const { languageId, code, languoidId } = event.payload;
+      const l = language(state, languageId);
+      l.codeSet = set2(l.codeSet, event, { code, languoidId });
+      break;
+    }
     case "v1.LanguageCountrySet": {
       const l = language(state, event.payload.languageId);
       l.country = set2(l.country, event, event.payload.country);
@@ -22289,7 +22300,8 @@ function languageInfo(org, languageId) {
   return {
     languageId,
     name: l.renamed?.value ?? l.added.name,
-    code: l.added.code,
+    code: l.codeSet?.value.code ?? l.added.code,
+    languoidId: l.codeSet?.value.languoidId ?? null,
     sourceCode: l.added.sourceCode,
     country: l.country?.value ?? null,
     target: l.target?.value ?? null
