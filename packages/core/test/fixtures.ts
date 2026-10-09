@@ -318,6 +318,11 @@ export function buildOrgFixture(): AnyEvent[] {
   raw('lang-d', 'dB', '001800000963000:000000:dB', 'v1.LanguageCountrySet', { languageId: 'L1', country: 'SS' });
   raw('lang-e', 'dB', '001800000964000:000000:dB', 'v1.LanguageTargetSet', { languageId: 'L1', scope: 'nt', startDate: '2026-01-01', targetDate: '2027-07-01' });
   raw('lang-f', 'dB', '001800000965000:000000:dB', 'v1.LanguageRenamed', { languageId: 'L-never', name: 'Ghost' });
+  // Linked to the language list from two devices at one clock (the higher id
+  // stands), then unlinked by an admin who was offline earlier.
+  raw('code-a', 'dB', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dib', languoidId: '0a1b2c3d-0000-4000-8000-000000000001' });
+  raw('code-b', 'dC', '001800000966000:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'dik', languoidId: '0a1b2c3d-0000-4000-8000-000000000002' });
+  raw('code-c', 'dB', '001800000962500:000000:dB', 'v1.LanguageCodeSet', { languageId: 'L1', code: 'din', languoidId: null });
   // The license only opens (license.ts): a later, more closed choice from
   // an admin who was offline changes nothing, and two devices opening to the
   // same license at the same clock settle on the lower id.

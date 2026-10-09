@@ -58,6 +58,14 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
   'v1.LanguageAdded': { languageId: string; name: string; code: string; sourceCode: string };
   /** A language's display name. Register per language. */
   'v1.LanguageRenamed': { languageId: string; name: string };
+  /**
+   * Which language in the world a language is: its code, and the languoid
+   * (docs/languoids.md) it is linked to, or null when it is not linked to
+   * the language list (typed in offline, or not in Glottolog yet). Register
+   * per language; it takes over the code `v1.LanguageAdded` gave. A language
+   * no event of this type names is unlinked.
+   */
+  'v1.LanguageCodeSet': { languageId: string; code: string; languoidId: string | null };
   /** Where a language's work happens (ISO 3166-1 alpha-2, "SS"), for the dashboard's geography. Register per language. */
   'v1.LanguageCountrySet': { languageId: string; country: string };
   /** What a language aims to record, from when and by when, for the dashboard's pace (decision 41). Register per language. */
@@ -67,7 +75,7 @@ export type OrgEventType = keyof OrgEventPayloads;
 export const ORG_EVENT_TYPES: readonly OrgEventType[] = [
   'v1.OrgCreated', 'v1.OrgRenamed', 'v1.RoleDefined', 'v1.RoleRetired', 'v1.MemberAdded', 'v1.MemberRemoved',
   'v1.InviteIssued', 'v1.InviteRedeemed', 'v1.JoinDecided', 'v1.LicenseSet',
-  'v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet',
+  'v1.LanguageAdded', 'v1.LanguageRenamed', 'v1.LanguageCodeSet', 'v1.LanguageCountrySet', 'v1.LanguageTargetSet',
   'v1.ReferenceRecommended', ...LIBRARY_EVENT_TYPES
 ];
 
@@ -99,6 +107,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.LicenseSet': 'manage_roles',
   'v1.LanguageAdded': 'manage_structure',
   'v1.LanguageRenamed': 'manage_structure',
+  'v1.LanguageCodeSet': 'manage_structure',
   'v1.LanguageCountrySet': 'manage_structure',
   'v1.LanguageTargetSet': 'manage_structure',
   'v1.ReferenceRecommended': 'manage_reference',
@@ -191,6 +200,7 @@ export function privilegeFor(event: AnyEvent): EventPrivilege {
 export function languageOfOrgEvent(event: AnyEvent): string | undefined {
   switch (event.type) {
     case 'v1.LanguageRenamed':
+    case 'v1.LanguageCodeSet':
     case 'v1.LanguageCountrySet':
     case 'v1.LanguageTargetSet':
       return event.payload.languageId;
@@ -287,6 +297,8 @@ interface OrgLanguage {
   /** `v1.LanguageAdded`, earliest wins; null while only later events have arrived. */
   added: { name: string; code: string; sourceCode: string; hlc: Hlc; eventId: string } | null;
   renamed: Register<string> | null;
+  /** `v1.LanguageCodeSet`; absent in states folded before it existed. */
+  codeSet?: Register<{ code: string; languoidId: string | null }> | null;
   country: Register<string> | null;
   target: Register<LanguageTarget> | null;
 }
@@ -343,7 +355,7 @@ function set<V>(current: Register<V> | null | undefined, event: EventEnvelope, v
 }
 
 function language(state: OrgState, languageId: string): OrgLanguage {
-  return (state.languages[languageId] ??= { added: null, renamed: null, country: null, target: null });
+  return (state.languages[languageId] ??= { added: null, renamed: null, codeSet: null, country: null, target: null });
 }
 
 /** Deterministic, order-independent, idempotent; same discipline as the language fold. */
@@ -441,6 +453,12 @@ export function applyOrgEvent(state: OrgState, event: AnyEvent): OrgState {
       l.renamed = set(l.renamed, event, event.payload.name);
       break;
     }
+    case 'v1.LanguageCodeSet': {
+      const { languageId, code, languoidId } = event.payload;
+      const l = language(state, languageId);
+      l.codeSet = set(l.codeSet, event, { code, languoidId });
+      break;
+    }
     case 'v1.LanguageCountrySet': {
       const l = language(state, event.payload.languageId);
       l.country = set(l.country, event, event.payload.country);
@@ -494,8 +512,10 @@ export function foldOrg(events: Iterable<AnyEvent>, initial: OrgState = emptyOrg
 export interface LanguageInfo {
   languageId: string;
   name: string;
-  /** The target language's code ("din"). */
+  /** The target language's code ("din"): the latest `LanguageCodeSet`'s, else the one it was added with. */
   code: string;
+  /** The languoid it is linked to (docs/languoids.md), or null while it is unlinked. */
+  languoidId: string | null;
   /** The language source Bibles are offered in ("eng"). */
   sourceCode: string;
   country: string | null;
@@ -509,7 +529,8 @@ export function languageInfo(org: OrgState | null, languageId: string): Language
   return {
     languageId,
     name: l.renamed?.value ?? l.added.name,
-    code: l.added.code,
+    code: l.codeSet?.value.code ?? l.added.code,
+    languoidId: l.codeSet?.value.languoidId ?? null,
     sourceCode: l.added.sourceCode,
     country: l.country?.value ?? null,
     target: l.target?.value ?? null
@@ -644,7 +665,8 @@ export function mayRenameOrg(state: OrgState | null, profileId: string): boolean
 }
 
 /**
- * May this person rename a language? It needs manage_structure there, at
+ * May this person rename a language, or link it to the language list
+ * (`v1.LanguageCodeSet`)? It needs manage_structure there, at
  * org scope or the language's own, so a language admin may rename theirs
  * (`languageOfOrgEvent`; the SQL `may_emit` is the same).
  */

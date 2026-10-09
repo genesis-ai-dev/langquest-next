@@ -131,6 +131,7 @@ sequence, cursor, snapshots and blob folder.
 | `v1.LicenseSet` | license | only opens (decision 38) |
 | `v1.LanguageAdded` | languageId, name, code, sourceCode | earliest wins; `sourceCode` is the language source Bibles are offered in (`eng` today), which the sources and reference screens read |
 | `v1.LanguageRenamed` | languageId, name | register |
+| `v1.LanguageCodeSet` | languageId, code, languoidId \| null | register; takes over `LanguageAdded`'s code and links the language to the language list (decision 77) |
 | `v1.LanguageCountrySet` | languageId, country | register |
 | `v1.LanguageTargetSet` | languageId, scope, startDate, targetDate | register |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item (decision 62) |
@@ -459,8 +460,6 @@ The new decision records this document. It:
 ## 8. Open points for implementation
 
 These don't change the concepts.
-- Whether `LanguageAdded.code` can change later (a `LanguageCodeSet`), or a
-  wrong code means a new language.
 - Whether a language admin may rename their language, or only an
   organization admin. The draft rule is: anyone with `manage_structure` for
   that language.

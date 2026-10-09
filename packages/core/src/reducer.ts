@@ -326,6 +326,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.LicenseSet':
     case 'v1.LanguageAdded':
     case 'v1.LanguageRenamed':
+    case 'v1.LanguageCodeSet':
     case 'v1.LanguageCountrySet':
     case 'v1.LanguageTargetSet':
     case 'v1.ReferenceRecommended':

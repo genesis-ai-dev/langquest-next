@@ -27,8 +27,14 @@ these tables later needs its own grant to `anon` and `authenticated`.
 
 ## Ids
 
-Every languoid has a UUID, and a language in the app names its languoid by
-it (`LanguageAdded` `code` and `sourceCode`). A languoid LangQuest v2 also
+Every languoid has a UUID. A language in the app links to its languoid by
+that UUID with `v1.LanguageCodeSet { languageId, code, languoidId }` in the
+organization stream (decision 77); with none it is unlinked. Its `code`
+stays something people read: the languoid's ISO 639-3 code, else its
+glottocode, and `LanguageAdded`'s until a `LanguageCodeSet` replaces it.
+Languages imported from v2 still carry v2's languoid UUID as their
+`LanguageAdded` code; moving that to `LanguageCodeSet` is not done yet.
+A languoid LangQuest v2 also
 had keeps v2's id, so imported v2 projects point at the same language; v2's
 ids are read for that match only, never its rows. A languoid's glottocode
 is a `languoid_source` row (`name = 'glottolog'`), which is how the next
@@ -109,14 +115,20 @@ name or any other name in any language, an ISO 639-3 code or a glottocode,
 ignoring accents, and tolerates typos from four letters. It ranks an exact
 code first, then exact names, names that start with the text, a word that
 starts with it, names that contain it, and near spellings; languages come
-before dialects and families. It can be narrowed to levels and to a nation
-or macroarea, and says which other name matched. `list_nations_with_languages`
-and `list_nation_names` are v2's.
+before dialects and families, and a languoid's own name before another's
+other name (`20261009210000_search_own_name_first.sql`). It can be narrowed
+to levels and to a nation or macroarea, and says which other name matched.
+`list_nations_with_languages` and `list_nation_names` are v2's.
 
-The app searches online. Offline, a person types the language's name and it
-is added unlinked; once online it is linked to a languoid or sent to us as a
-request (agreed 2026-10-07; needs `LanguageCodeSet`). Phones keep no copy
-of these tables.
+The app searches online, and phones keep no copy of these tables. Adding a
+language (New language, step 1) searches languages and dialects as its name
+is typed (`apps/mobile/src/languoidPicker.tsx`); picking one fills in the
+name and gives the language the languoid's code and a `LanguageCodeSet`
+linking it. Offline, or when nothing fits, the typed name and code are added
+unlinked. A language's page (More, In the language list) says whether it is
+linked, and whoever may rename it links it there, or links it again. Not
+built yet: sending a missing language to us as a request (agreed
+2026-10-07).
 
 ## Interface languages (proposed, not built)
 

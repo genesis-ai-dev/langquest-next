@@ -8,7 +8,7 @@ import type { AnyEvent, EventPayloads, EventType } from '../src/events';
 import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 const NOW = Date.parse('2026-09-30T12:00:00Z');
-const INFO = { languageId: 'L1', name: 'Dinka', code: 'din', sourceCode: 'eng', country: null, target: null };
+const INFO = { languageId: 'L1', name: 'Dinka', code: 'din', languoidId: null, sourceCode: 'eng', country: null, target: null };
 
 /**
  * A larger, messier language than the fixture: books from a template it

@@ -11,6 +11,9 @@ import { isLicense, LICENSES } from './license';
  * folding when a newer app emits events it does not know.
  */
 
+/** A languoid's id (docs/languoids.md): a UUID. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 export function validateEvent(e: AnyEvent): string | null {
   for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) {
     if (typeof e[k] !== 'string' || e[k] === '') return `${k} must be a non-empty string`;
@@ -79,6 +82,10 @@ export function validateEvent(e: AnyEvent): string | null {
         (p['languageId'] === ORG_STREAM ? 'languageId is reserved' : null);
     case 'v1.LanguageRenamed':
       return str('languageId', 'name');
+    case 'v1.LanguageCodeSet':
+      return str('languageId', 'code') ??
+        ((p['code'] as string).length <= 40 ? null : 'code must be at most 40 characters') ??
+        (p['languoidId'] === null || (typeof p['languoidId'] === 'string' && UUID.test(p['languoidId'])) ? null : 'languoidId must be a languoid id or null');
     case 'v1.LanguageCountrySet':
       return str('languageId') ?? (typeof p['country'] === 'string' && /^[A-Z]{2}$/.test(p['country']) ? null : 'country must be an ISO 3166 alpha-2 code');
     case 'v1.LanguageTargetSet':

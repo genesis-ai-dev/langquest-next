@@ -25,7 +25,7 @@ import { APP_URL } from '../appUrl';
 import { signInUri } from '../inviteCode';
 import {
   Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, KindIcon, LinkBtn, PrimaryBtn, ProgressBar, QuietLinks, Row,
-  Screen, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
+  Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, txt, useOpenDetail, type IconName
 } from '../kit';
 import { edgeFor } from '../flow';
 import { loadDocs } from '../library/docStore';
@@ -43,6 +43,8 @@ import { LicenseRow, LicenseSheet } from '../licenseSheet';
 import { appendToLanguage } from '../languageWriter';
 import { contractsFor } from '../screenContracts';
 import { languageFigures } from '../orgFigures';
+import { LanguoidPicker, useLanguoidSearch } from '../languoidPicker';
+import type { LanguoidHit } from '../languoidModel';
 import { edgeAllowed } from '../session';
 import { shareText } from '../share';
 import { supabase } from '../supabase';
@@ -331,6 +333,52 @@ function RenameRow(props: {
 }
 
 /**
+ * Which language in the world it is: its link to the language list
+ * (docs/languoids.md). One added offline, or not found there, is unlinked
+ * until someone who may rename it links it here (v1.LanguageCodeSet); the
+ * link also gives it the list's code. Its name stays its own.
+ */
+function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; code: string; languoidId: string | null; may: boolean; last?: boolean }) {
+  const { ctx } = props;
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [picked, setPicked] = useState<LanguoidHit | null>(null);
+  const search = useLanguoidSearch(query, open && !picked);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const linked = !!props.languoidId;
+  async function link() {
+    if (!picked) return;
+    setBusy(true);
+    setError('');
+    try {
+      await ctx.org.append('v1.LanguageCodeSet', { languageId: props.languageId, code: picked.code, languoidId: picked.id });
+      setOpen(false);
+      ctx.toast(`${props.name} is linked to ${picked.name}.`);
+    } catch (e) {
+      setError(failure('link language', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Row icon="globe" label="In the language list" sub={linked ? `Linked · ${props.code.toUpperCase()}` : 'Not linked yet: added offline, or not found there'}
+        last={props.last} {...(!linked && props.may ? { badge: 'Link it', badgeTone: 'amber' as const } : {})}
+        {...(props.may ? { onPress: () => { setQuery(props.name); setPicked(null); setError(''); setOpen(true); } } : {})} />
+      <Sheet visible={open} title={linked ? `Link ${props.name} again` : `Link ${props.name}`} onClose={() => setOpen(false)}
+        sub={`Find it by any of its names or its code. It keeps the name ${props.name} here, and takes the list's code.`}
+        footer={<PrimaryBtn label="Link it" icon="check" busy={busy} disabled={!picked} onPress={() => void link()} />}>
+        <SearchField value={query} onChangeText={(q) => { setQuery(q); setPicked(null); }} placeholder="Its name or code" />
+        <LanguoidPicker search={search} picked={picked} onPick={setPicked}
+          unlisted="Not there? Try another of its names, or its code." unreachable="Connect to the internet to search it." />
+        {error ? <Banner icon="flag" tone="amber" title="Not linked" body={error} /> : null}
+      </Sheet>
+    </>
+  );
+}
+
+/**
  * The organization's name. Two organizations made offline can share one,
  * so an Organization Admin may rename theirs (decision 76). Everyone sees
  * the name; only they may change it. Not in the partner demo.
@@ -457,7 +505,7 @@ export function LanguageHome(ctx: Ctx) {
       right={<CountBadge n={requests.length} />} onPress={() => ctx.go('members_list', params)} />
   );
   const moreCard = (
-    <Disclosure icon="settings" title="More" summary={['Progress', 'members', 'review groups', 'roles', listing.may ? 'public listing' : '', 'name'].filter(Boolean).join(', ')}
+    <Disclosure icon="settings" title="More" summary={['Progress', 'members', 'review groups', 'roles', listing.may ? 'public listing' : '', 'name', 'language list'].filter(Boolean).join(', ')}
       open={more.open} onToggle={more.onToggle}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Text style={txt.xs}>{v.orgName} · Code {info.code.toUpperCase()}</Text>
@@ -477,14 +525,16 @@ export function LanguageHome(ctx: Ctx) {
           onPress={() => void listing.set(!listing.listed)} />
       ) : null}
       <Row icon="building" label={v.orgName} sub="The organization's page" onPress={() => ctx.go('org_home')} />
-      {/* Its name: whoever manages its structure, here or for the organization, renames it (decision 76). */}
-      <RenameRow ctx={ctx} current={name} may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last
+      {/* Its name and its link to the language list: whoever manages its structure, here or for the organization, changes them (decision 76). */}
+      <RenameRow ctx={ctx} current={name} may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)}
         title={`Rename ${name}`} sub={`Everyone in ${v.orgName} sees the new name. Its code, ${info.code.toUpperCase()}, stays.`} what="rename language"
         warn={(next) => {
           const alike = similarLanguages(v.org, { code: '', name: next, except: languageId });
           return alike.length ? `${alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(', ')} already has this name. Two languages with one name are hard to tell apart.` : null;
         }}
         save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
+      <LanguoidLinkRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId}
+        may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last />
     </Disclosure>
   );
   const listingError = listing.error ? <Banner icon="flag" tone="amber" title="Could not read or change the listing" body={listing.error} /> : null;
@@ -1154,7 +1204,8 @@ async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice)
 /**
  * A new language (ORG-2, decision 63; decision 71 and the prototype's
  * NewLang and NewLangFlow): one question per step, the likely answer picked.
- *   1 its name and code
+ *   1 its name, found in the language list as it is typed (online), or
+ *     a name and code of its own, unlinked until someone links it
  *   2 what it will translate (its template, and which part of the Bible)
  *   3 how recordings get checked (its review flow); Continue adds it, and
  *     offers its team the Bible and study guides named in the note
@@ -1168,6 +1219,9 @@ export function NewLanguage(ctx: Ctx) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
+  const [picked, setPicked] = useState<LanguoidHit | null>(null);
+  const search = useLanguoidSearch(name, !picked);
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
   const [flowKey, setFlowKey] = useState<string | null>(null);
@@ -1185,7 +1239,8 @@ export function NewLanguage(ctx: Ctx) {
   const orgName = ctx.org.state?.org?.value.name ?? 'the organization';
   const title = name.trim() || 'the language';
   // Names and codes identify nothing, so a second Dinka is only warned about (decision 76).
-  const alike = useMemo(() => similarLanguages(ctx.org.state, { code, name }), [ctx.org.state, code, name]);
+  const theCode = picked?.code ?? code;
+  const alike = useMemo(() => similarLanguages(ctx.org.state, { code: theCode, name }), [ctx.org.state, theCode, name]);
 
   async function create() {
     const languageName = name.trim();
@@ -1199,7 +1254,7 @@ export function NewLanguage(ctx: Ctx) {
       if (!mine.has('manage_templates') || !mine.has('manage_flows')) {
         throw new CommandError('Adding a language needs permission to manage templates and review flows for the whole organization.');
       }
-      const languoid = code.trim() || languageName.slice(0, 3);
+      const languoid = theCode.trim() || languageName.slice(0, 3);
       const languageId = newLanguageId(languoid, Crypto.randomUUID());
       const use = await t.resolve();
       const loaded = (await loadDocs(lib.orgId, [use.docHash])).get(use.docHash);
@@ -1213,13 +1268,14 @@ export function NewLanguage(ctx: Ctx) {
       for (const o of offers.items) offered.push(o.itemId ?? (o.shared!.subscribable ? await lib.subscribe(o.shared!, true) : await lib.copy(o.shared!)));
       const fresh = emptyLanguageState();
       const plan = addLanguage(org, {
-        languageId, code: languoid, name: languageName,
+        languageId, code: languoid, name: languageName, languoidId: picked?.id ?? null,
         template: await lib.applySpecs(templateItem, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
         flow: await lib.applySpecs(flowItem, { docHash: flow.c.hash, into: fresh })
       });
       const recommend: EventSpec[] = offered.filter((id) => ctx.org.state?.recommendations[id]?.value !== true)
         .map((itemId, i) => ({ id: `${languageId}:offer:${i}`, type: 'v1.ReferenceSet', payload: { itemId, state: 'recommended' } } as EventSpec));
       await ctx.org.append('v1.LanguageAdded', plan.added);
+      if (plan.link) await ctx.org.append('v1.LanguageCodeSet', plan.link);
       // Its stream takes events once the organization's lists it: send that first when connected.
       await ctx.org.sync().catch((e: unknown) => noteExpected('new language listing', e));
       await appendToLanguage({ orgId: ctx.language.orgId, languageId, actorId: ctx.session.actorId, specs: [...plan.specs, ...recommend] });
@@ -1254,7 +1310,10 @@ export function NewLanguage(ctx: Ctx) {
         footer={<PrimaryBtn label="Continue" icon="right" disabled={!name.trim()} onPress={() => setStep(2)} />}>
         <Question>What is the language called?</Question>
         <Field label="Its name" value={name} onChangeText={setName} placeholder="e.g. Hadiyya" autoCapitalize="words" />
-        <Field label="Its code, if it has one" value={code} onChangeText={setCode} placeholder="e.g. hdy" autoCapitalize="none" />
+        <LanguoidPicker search={search} picked={picked} onPick={(h) => { setPicked(h); if (h) setName(h.name); }}
+          unlisted="Not there? Continue anyway. It is added unlinked, and you can link it from its page later."
+          unreachable="You can still add it. It is added unlinked; link it from its page once you are online." />
+        {picked ? null : <Field label="Its code, if it has one" value={code} onChangeText={setCode} placeholder="e.g. hdy" autoCapitalize="none" />}
         <Text style={[txt.sm, { color: C.muted }]}>It goes in {orgName}. You can invite its translators at the end.</Text>
         {alike.length ? (
           <Banner icon="flag" tone="amber" title={`${orgName} may already have it`}
