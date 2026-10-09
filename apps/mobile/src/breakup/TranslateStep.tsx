@@ -13,7 +13,7 @@ import { prepareDoc } from '../library/docStore';
 import { useRecordChoices } from '../simple/choices';
 import { ChoiceCard, Question, QuietLink } from '../simple/admin';
 import { C, space } from '../theme';
-import { CHAPTERS_ITEM, emptyLine, WAY_ITEMS, type WayRow } from './model';
+import { CHAPTERS_ITEM, emptyLine, WAY_ITEMS, wayOf, type WayRow } from './model';
 import { LessonSheet, OthersChoice, PreviewSheet, WayCard } from './parts';
 import { adoptWay, ownTemplate, useWays } from './useBreakup';
 
@@ -32,7 +32,12 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   const inUse = ways.rows.find((r) => r.inUse) ?? null;
   const outlineInUse = outlines.find((c) => c === rec.current) ?? null;
   const shownWhat = what ?? (outlineInUse ? 'else' : inUse || ways.rows.length ? 'bible' : null);
-  const row: WayRow | null = ways.rows.find((r) => r.choice.key === key) ?? inUse ?? ways.rows[0] ?? null;
+  // The suggestion does not move as documents arrive: what is in use, else what another language here uses,
+  // else FIA's passages (waiting for its document when it is offered), else the first there is.
+  const fiaOffered = ways.choices.some((c) => wayOf(c) === WAY_ITEMS[0]);
+  const suggested = inUse ?? ways.rows.find((r) => r.usedIn.length > 0)
+    ?? ways.rows.find((r) => wayOf(r.choice) === WAY_ITEMS[0]) ?? (fiaOffered ? null : ways.rows[0] ?? null);
+  const row: WayRow | null = ways.rows.find((r) => r.choice.key === key) ?? suggested;
   const outline: LibraryChoice | null = outlines.find((c) => c.key === outlineKey) ?? outlineInUse ?? outlines[0] ?? null;
   const doc = shownWhat === 'bible' ? ways.docOf(row?.choice) : shownWhat === 'else' ? rec.docs.get<TemplateDoc>(outline?.hash) : null;
   const v11n = ways.v11nOf(doc);

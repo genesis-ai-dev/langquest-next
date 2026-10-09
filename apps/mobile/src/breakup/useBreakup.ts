@@ -88,7 +88,7 @@ export function useWays(ctx: Ctx, forLanguage: string | null) {
   /** A LangQuest way by its item id, when it is offered. */
   const way = useCallback((sourceItemId: string): WayRow | null =>
     rows.find((r) => (r.choice.source === 'shared' ? r.choice.shared.item_id : r.choice.item.subscription?.sourceItemId) === sourceItemId) ?? null, [rows]);
-  return { lib, rows, docOf, v11nOf, way, loaded: shared.loaded, error: shared.error };
+  return { lib, rows, choices, docOf, v11nOf, way, loaded: shared.loaded, error: shared.error };
 }
 
 /**
