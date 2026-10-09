@@ -109,6 +109,14 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * the device that has the file. Once per hash, earliest wins (75).
    */
   'v1.AudioFormatSet': { hash: string; format: 'wav' | 'm4a' };
+  /**
+   * A value a third-party app stores with the language under a key it
+   * chooses (decisions.md 79). LangQuest keeps it and never acts on it.
+   * Register per key: the later clock wins, then the higher id; `data:
+   * null` is a deleted key. Only the app's Worker appends it, for a token
+   * with the `external_values` scope.
+   */
+  'v1.ExternalValueSet': { key: string; data: Record<string, unknown> | null };
 }
 
 export type EventType = keyof EventPayloads;

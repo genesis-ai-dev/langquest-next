@@ -42,6 +42,8 @@ export interface AgentStore {
   /** False when there is no such live token of theirs. */
   revokeToken(id: string, profileId: string): Promise<boolean>;
   touchToken(id: string, at: string): Promise<void>;
+  /** tokenId -> what its app is called (its client name, else the token's name), for tokens of this organization. */
+  tokenNames(orgId: string, ids: string[]): Promise<Record<string, string>>;
   insertGrant(grant: Omit<DeviceGrant, 'id' | 'createdAt' | 'lastPolledAt' | 'approvedAt' | 'deniedAt' | 'tokenId'> & { deviceCodeHash: string }): Promise<DeviceGrant>;
   grantByUserCode(userCode: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
   grantByDeviceHash(hash: string): Promise<(DeviceGrant & { deviceCodeHash: string }) | null>;
@@ -127,6 +129,13 @@ export function supabaseAgentStore(service: SupabaseClient): AgentStore {
     },
     async touchToken(id, at) {
       must('api_tokens touch', await service.from('api_tokens').update({ last_used_at: at }).eq('id', id));
+    },
+    async tokenNames(orgId, ids) {
+      // Token ids are uuids; anything else (a value written some other way) names no token.
+      const uuids = ids.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)).slice(0, 500);
+      if (uuids.length === 0) return {};
+      const data = must('api_tokens names', await service.from('api_tokens').select('id, name, client_name').eq('org_id', orgId).in('id', uuids));
+      return Object.fromEntries((data as Row[]).map((r) => [r['id'] as string, ((r['client_name'] as string | null) ?? (r['name'] as string))]));
     },
     async insertGrant(g) {
       const data = must('api_device_grants insert', await service.from('api_device_grants').insert({

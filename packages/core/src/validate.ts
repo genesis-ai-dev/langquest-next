@@ -162,6 +162,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('takeId', 'respondsToTakeId') ?? optStr('note', 'blobHash');
     case 'v1.AudioFormatSet':
       return str('hash') ?? oneOf('format', ['wav', 'm4a']);
+    case 'v1.ExternalValueSet':
+      return externalKeyError(p['key']) ?? (p['data'] === null || isObject(p['data']) ? null : 'data must be an object or null');
     case 'v1.ReviewRecorded':
       return (
         str('reviewId', 'takeId', 'kindId') ??
@@ -289,6 +291,23 @@ function anchor(v: unknown): string | null {
     case 'term': return nonEmpty(v['termId']) ? null : 'anchor.termId required';
     default: return 'anchor.kind must be passage, version, verse, study or term';
   }
+}
+
+/** The longest key a third-party app may use, in characters. */
+export const EXTERNAL_KEY_MAX = 256;
+
+/**
+ * Why a key a third-party app chose cannot be used, or null (decisions.md
+ * 79): path segments of URL-safe characters joined by `/`, none of them
+ * `.` or `..`, so it reads back unchanged as the rest of a URL path. SQL
+ * validate_payload says the same.
+ */
+export function externalKeyError(v: unknown): string | null {
+  if (typeof v !== 'string' || v === '') return 'key must be a non-empty string';
+  if (v.length > EXTERNAL_KEY_MAX) return `key must be at most ${EXTERNAL_KEY_MAX} characters`;
+  if (!/^[A-Za-z0-9._~:@+-]+(\/[A-Za-z0-9._~:@+-]+)*$/.test(v)) return 'key must be segments of letters, digits and . _ ~ : @ + - joined by /';
+  if (/(^|\/)\.\.?(\/|$)/.test(v)) return 'key segments may not be . or ..';
+  return null;
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

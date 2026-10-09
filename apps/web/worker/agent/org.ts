@@ -1,30 +1,34 @@
-import { languageName, privilegesFor, mayViewLanguage, orgLanguages, type AnyEvent } from '@langquest-next/core';
+import { languageName, privilegesFor, mayViewLanguage, orgLanguages, type AnyEvent, type LanguageState, type OrgState } from '@langquest-next/core';
 import type { AppendResult } from '@langquest-next/client';
 import type { OrgFolder } from '../orgFolder';
 import type { Grant } from './tokens';
 import {
-  checkLinkSpec, isRefusal, languageAccess, languagesFor, linkIsOpen, linkReviewEvent, linkView, mayRevokeLinks, passageFor, passagesFor, releaseEvent, reviewEvent,
-  type LanguageView, type LinkReviewInput, type LinkSpec, type LinkView, type PassageDetail, type PassageFilter, type PassageSummary,
-  type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
+  checkLinkSpec, externalValueEvent, externalValueFor, externalValuesFor, isRefusal, languageAccess, languagesFor, linkIsOpen, linkReviewEvent, linkView,
+  mayRevokeLinks, mayStoreValues, passageFor, passagesFor, releaseEvent, reviewEvent,
+  type ExternalValueFilter, type ExternalValueOut, type LanguageView, type LinkReviewInput, type LinkSpec, type LinkView, type PassageDetail,
+  type PassageFilter, type PassageSummary, type Refusal, type ReleaseInput, type ReviewInput, type ReviewLink, type Signer
 } from './view';
 
 export type AgentQuery =
   | { op: 'languages' }
   | { op: 'can'; languageId: string }
   | { op: 'passages'; languageId: string; filter: PassageFilter }
-  | { op: 'passage'; languageId: string; unitId: string };
+  | { op: 'passage'; languageId: string; unitId: string }
+  | { op: 'externalValues'; languageId: string; filter: ExternalValueFilter }
+  | { op: 'externalValue'; languageId: string; key: string };
 
 export type AgentWrite =
   | { op: 'review'; languageId: string; unitId: string; input: ReviewInput }
-  | { op: 'release'; languageId: string; unitId: string; input: ReleaseInput };
+  | { op: 'release'; languageId: string; unitId: string; input: ReleaseInput }
+  | { op: 'externalValue'; languageId: string; key: string; data: Record<string, unknown> | null };
 
 export type Answer<T> = { ok: true; data: T } | (Refusal & { ok: false });
 
 export interface OrgAccess {
   orgId: string;
   name: string;
-  /** Languages the person may view, and whether they may review there (what the review scope needs). */
-  languages: { languageId: string; name: string; mayReview: boolean }[];
+  /** Languages the person may view, whether they may review there (what the review scope needs), and store values (the external_values scope). */
+  languages: { languageId: string; name: string; mayReview: boolean; mayStoreValues: boolean }[];
 }
 
 /** Writes one token (or one review link) may make in an hour, across every language. */
@@ -68,26 +72,33 @@ export class AgentOrg {
         .filter((l) => mayViewLanguage(org, profileId, l.languageId))
         .map((l) => {
           const privs = privilegesFor(org, profileId, l.languageId);
-          return { languageId: l.languageId, name: languageName(org, l.languageId), mayReview: privs.has('review') || privs.has('translate') };
+          return { languageId: l.languageId, name: languageName(org, l.languageId), mayReview: privs.has('review') || privs.has('translate'), mayStoreValues: mayStoreValues(privs) };
         })
     };
   }
 
-  async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | PassageSummary[] | PassageDetail>> {
+  async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | PassageSummary[] | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor>>> {
     if (q.op === 'languages') return yes(languagesFor(grant, await this.folder.orgState()));
     const held = await this.folder.languageState(q.languageId);
     const can = held ? languageAccess(grant, held.org, q.languageId) : null;
     if (!held || !can) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
     if (q.op === 'can') return yes(can);
+    if (q.op === 'externalValues' || q.op === 'externalValue') {
+      if (!can.externalValues.read) return no({ status: 403, code: 'scope', error: 'Reading external values needs the read or external_values scope.' });
+      if (q.op === 'externalValues') return yes(externalValuesFor(held.state, q.filter));
+      const one = externalValueFor(held.state, q.key);
+      return isRefusal(one) ? no(one) : yes(one);
+    }
     if (!can.read) return no({ status: 403, code: 'scope', error: 'This token was not given a read scope.' });
     if (q.op === 'passages') return yes(passagesFor(grant, held.state, q.filter));
     const detail = await passageFor(grant, grant.orgId, q.languageId, held.state, q.unitId, this.deps.sign);
     return isRefusal(detail) ? no(detail) : yes(detail);
   }
 
-  async write(grant: Grant, w: AgentWrite): Promise<Answer<{ eventId: string; duplicate: boolean; passage: PassageDetail | null }>> {
+  async write(grant: Grant, w: AgentWrite): Promise<Answer<{ eventId: string; duplicate: boolean; passage: PassageDetail | null } | ExternalValueOut | { key: string; deleted: true }>> {
     const held = await this.folder.languageState(w.languageId);
     if (!held) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
+    if (w.op === 'externalValue') return this.storeValue(grant, held, w);
     const ctx = { grant, org: held.org, state: held.state, languageId: w.languageId, unitId: w.unitId, now: this.now() };
     const event = w.op === 'review' ? await reviewEvent(ctx, w.input) : await releaseEvent(ctx, w.input);
     if (isRefusal(event)) return no(event);
@@ -100,6 +111,21 @@ export class AgentOrg {
     const after = await this.folder.languageState(w.languageId);
     const passage = after ? await passageFor(grant, grant.orgId, w.languageId, after.state, w.unitId, this.deps.sign) : null;
     return yes({ eventId: event.id, duplicate: appended.data, passage: passage && !isRefusal(passage) ? passage : null });
+  }
+
+  /** Store a value, or delete its key with null, and answer with what the fold now holds (decisions.md 79). */
+  private async storeValue(grant: Grant, held: { org: OrgState; state: LanguageState }, w: Extract<AgentWrite, { op: 'externalValue' }>): Promise<Answer<ExternalValueOut | { key: string; deleted: true }>> {
+    const event = externalValueEvent({ grant, org: held.org, state: held.state, languageId: w.languageId, now: this.now() }, w.key, w.data);
+    if (isRefusal(event)) return no(event);
+    if (!this.allowWrite(grant.tokenId)) {
+      return no({ status: 429, code: 'rate_limited', error: `This token has made ${WRITES_PER_HOUR} writes in the last hour. Try again later.` });
+    }
+    const appended = await this.append(event);
+    if (!appended.ok) return appended;
+    const after = await this.folder.languageState(w.languageId);
+    if (w.data === null) return yes({ key: w.key, deleted: true as const });
+    const value = after ? externalValueFor(after.state, w.key) : null;
+    return value && !isRefusal(value) ? yes(value) : no({ status: 502, code: 'unavailable', error: 'Stored, but it could not be read back just now. Read the key again.' });
   }
 
   /** Count an upload (a voice note) against a token's or a link's hourly uploads. */

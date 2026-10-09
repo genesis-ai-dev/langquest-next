@@ -1,7 +1,7 @@
 import type { OrgStub } from './http';
 import type { Answer } from './org';
-import { canRead, SCOPE_TEXT, type Grant } from './tokens';
-import { isRefusal, parseRelease, parseReview, type ApiStatus, type PassageFilter } from './view';
+import { canRead, canReadValues, SCOPE_TEXT, type Grant } from './tokens';
+import { isRefusal, parseExternalValue, parseRelease, parseReview, type ApiStatus, type ExternalValueFilter, type PassageFilter } from './view';
 
 /**
  * The same API as Model Context Protocol tools, so an agent (Claude, ChatGPT,
@@ -27,6 +27,8 @@ interface Tool {
   inputSchema: Record<string, unknown>;
   /** Shown only when the token may use it. */
   allowed(g: Grant): boolean;
+  /** Its answer holds external values, which get their app's name (http.ts withAppNames). */
+  labels?: boolean;
   run(args: Record<string, unknown>, g: Grant, org: OrgStub): Promise<Answer<unknown>>;
 }
 
@@ -36,6 +38,8 @@ const LANGUAGE = s('A languageId from list_languages.');
 const UNIT = s('A unitId from list_passages.');
 const bad = (error: string): Answer<never> => ({ ok: false, status: 400, code: 'bad_request', error });
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
+
+const KEY = s('A key your app chose: segments of letters, digits and . _ ~ : @ + - joined by /, at most 256 characters. Start it with your app\'s own name, such as org.example.app/plays/…');
 
 const TOOLS: Tool[] = [
   {
@@ -111,6 +115,47 @@ const TOOLS: Tool[] = [
       return isRefusal(input) ? Promise.resolve({ ok: false, ...input })
         : org.write(g, { op: 'release', languageId: str(a['languageId']), unitId: str(a['unitId']), input });
     }
+  },
+  {
+    name: 'set_external_value',
+    description: 'Store your app\'s own value with a language under a key you choose, as the token\'s person; the newest write to a key wins. LangQuest keeps it and never acts on it. data is a JSON object of at most 4 KB, or null to delete the key. Every token in the organization can read it.',
+    inputSchema: obj({
+      languageId: LANGUAGE, key: KEY,
+      data: { type: ['object', 'null'], description: 'The value: a JSON object, or null to delete the key.' }
+    }, ['languageId', 'key', 'data']),
+    allowed: (g) => g.scopes.includes('external_values'),
+    labels: true,
+    run: (a, g, org) => {
+      if (a['data'] === null) return org.write(g, { op: 'externalValue', languageId: str(a['languageId']), key: str(a['key']), data: null });
+      const input = parseExternalValue(a);
+      return isRefusal(input) ? Promise.resolve({ ok: false, ...input })
+        : org.write(g, { op: 'externalValue', languageId: str(a['languageId']), key: str(a['key']), data: input.data });
+    }
+  },
+  {
+    name: 'get_external_values',
+    description: 'Values third-party apps stored with a language, each with who wrote it: one key, or every key (by key, 500 at a time; pass the answer\'s nextAfter as after for more). With changedSince, deleted keys come back with data null.',
+    inputSchema: obj({
+      languageId: LANGUAGE, key: s('One key; leave out to list.'),
+      keyPrefix: s('Only keys that start with this.'),
+      changedSince: s('ISO date-time: only values written after it.'),
+      after: s('The nextAfter of the previous answer.')
+    }, ['languageId']),
+    allowed: (g) => canReadValues(g),
+    labels: true,
+    run: (a, g, org) => {
+      const languageId = str(a['languageId']);
+      if (a['key'] !== undefined) return org.read(g, { op: 'externalValue', languageId, key: str(a['key']) });
+      const filter: ExternalValueFilter = {};
+      if (a['keyPrefix'] !== undefined) filter.keyPrefix = str(a['keyPrefix']);
+      if (a['after'] !== undefined) filter.after = str(a['after']);
+      if (a['changedSince'] !== undefined) {
+        const ms = Date.parse(str(a['changedSince']));
+        if (Number.isNaN(ms)) return Promise.resolve(bad('changedSince must be an ISO date-time.'));
+        filter.changedSince = new Date(ms).toISOString();
+      }
+      return org.read(g, { op: 'externalValues', languageId, filter });
+    }
   }
 ];
 
@@ -122,7 +167,10 @@ const HEADERS = {
   'access-control-allow-origin': '*', 'access-control-expose-headers': 'mcp-session-id'
 };
 
-async function one(m: Rpc, grant: Grant, org: OrgStub): Promise<object | null> {
+/** Adds each external value's app name (http.ts withAppNames). */
+type Labeler = (data: unknown) => Promise<unknown>;
+
+async function one(m: Rpc, grant: Grant, org: OrgStub, label: Labeler): Promise<object | null> {
   if (!m || m.jsonrpc !== '2.0' || typeof m.method !== 'string') return error(null, -32600, 'Invalid request.');
   if (m.id === undefined) return null; // a notification: nothing to answer
   switch (m.method) {
@@ -145,7 +193,7 @@ async function one(m: Rpc, grant: Grant, org: OrgStub): Promise<object | null> {
       const args = (m.params?.['arguments'] ?? {}) as Record<string, unknown>;
       const out = await tool.run(args, grant, org);
       return reply(m.id, out.ok
-        ? { content: [{ type: 'text', text: JSON.stringify(out.data, null, 2) }], isError: false }
+        ? { content: [{ type: 'text', text: JSON.stringify(tool.labels ? await label(out.data) : out.data, null, 2) }], isError: false }
         : { content: [{ type: 'text', text: `${out.error} (${out.code})` }], isError: true });
     }
     default:
@@ -153,7 +201,7 @@ async function one(m: Rpc, grant: Grant, org: OrgStub): Promise<object | null> {
   }
 }
 
-export async function handleMcp(request: Request, grant: Grant, org: OrgStub, _url: URL): Promise<Response> {
+export async function handleMcp(request: Request, grant: Grant, org: OrgStub, _url: URL, label: Labeler = async (d) => d): Promise<Response> {
   if (request.method === 'GET') return new Response(null, { status: 405, headers: { ...HEADERS, allow: 'POST' } });
   if (request.method === 'DELETE') return new Response(null, { status: 204, headers: HEADERS });
   if (request.method !== 'POST') return new Response(null, { status: 405, headers: HEADERS });
@@ -166,7 +214,7 @@ export async function handleMcp(request: Request, grant: Grant, org: OrgStub, _u
   const batch = Array.isArray(parsed);
   const messages: unknown[] = batch ? (parsed as unknown[]) : [parsed];
   if (messages.length > MAX_BATCH) return new Response(JSON.stringify(error(null, -32600, `At most ${MAX_BATCH} messages in a batch.`)), { status: 400, headers: HEADERS });
-  const answers = (await Promise.all(messages.map((m) => one(m as Rpc, grant, org)))).filter((a) => a !== null);
+  const answers = (await Promise.all(messages.map((m) => one(m as Rpc, grant, org, label)))).filter((a) => a !== null);
   if (answers.length === 0) return new Response(null, { status: 202, headers: HEADERS });
   return new Response(JSON.stringify(batch ? answers : answers[0]), { status: 200, headers: HEADERS });
 }

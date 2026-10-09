@@ -29,7 +29,8 @@ const SMOKES = [
   'server/moderation-smoke.sql',
   'server/inviteKeysSmoke.sql',
   'server/joinSmoke.sql',
-  'server/grantsSmoke.sql'
+  'server/grantsSmoke.sql',
+  'server/externalValuesSmoke.sql'
 ];
 
 function run(cmd, args, input) {

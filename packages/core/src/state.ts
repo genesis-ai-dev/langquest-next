@@ -17,6 +17,13 @@ export interface Register<V> {
   eventId: string;
 }
 
+/** A third-party app's value under one key (v1.ExternalValueSet), with who wrote it: a person, through a token's device (`api-<tokenId>`). */
+export interface ExternalValue {
+  data: Record<string, unknown> | null;
+  actorId: string;
+  deviceId: string;
+}
+
 interface Unit {
   parentUnitId: string | null;
   kind: string;
@@ -128,6 +135,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   stepLinks: Record<string, Register<boolean>>;
   /** takeId -> channel -> live there (v1.VersionReleased). */
   releases: Record<string, Record<string, Register<{ live: boolean; url?: string; by: string }>>>;
+  /** key -> a third-party app's value (v1.ExternalValueSet); never read by anything else in core. */
+  externalValues: Record<string, Register<ExternalValue>>;
   /** takeId -> the translator's response that produced it */
   responses: Record<string, { respondsToTakeId: string; note?: string; blobHash?: string; actorId: string; hlc: Hlc }>;
   materials: Record<string, Material>;
@@ -153,6 +162,7 @@ export function emptyLanguageState(): LanguageState {
     teams: {},
     stepLinks: {},
     releases: {},
+    externalValues: {},
     responses: {},
     materials: {},
     keyTerms: {},

@@ -1,9 +1,9 @@
 import {
-  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
+  approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
   privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
   type AnyEvent, type Card, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
-import { canRead, coversLanguage, sha256Hex, type Grant } from './tokens';
+import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
 
 /**
  * What a token may see and write, read from the same folded state the
@@ -19,7 +19,7 @@ export interface LanguageView {
   code: string;
   country: string | null;
   /** What this token can do here, given its scopes and the person's privileges today. */
-  can: { read: 'all' | 'published' | null; review: boolean; release: boolean };
+  can: { read: 'all' | 'published' | null; review: boolean; release: boolean; externalValues: { read: boolean; write: boolean } };
 }
 
 export interface PassageSummary {
@@ -104,9 +104,13 @@ function abilities(grant: Grant, org: OrgState, languageId: string): LanguageVie
     read: canRead(grant, true) ? 'all' : canRead(grant) ? 'published' : null,
     // Recorded like a check logged from outside the app: review or translate (core privilegeFor, via link).
     review: (privs.has('review') || privs.has('translate')) && grant.scopes.includes('review'),
-    release: privs.has('assign_work') && grant.scopes.includes('release')
+    release: privs.has('assign_work') && grant.scopes.includes('release'),
+    externalValues: { read: canReadValues(grant), write: mayStoreValues(privs) && grant.scopes.includes('external_values') }
   };
 }
+
+/** Whoever contributes to a language's work may store values there through a token (core EVENT_PRIVILEGE, decisions.md 79). */
+export const mayStoreValues = (privs: ReadonlySet<string>): boolean => privs.has('translate') || privs.has('review') || privs.has('fill_reference');
 
 /** Null when the token may not open this language; otherwise what it may do there. */
 export function languageAccess(grant: Grant, org: OrgState, languageId: string): LanguageView['can'] | null {
@@ -443,6 +447,90 @@ export async function releaseEvent(ctx: WriteContext, input: ReleaseInput): Prom
   const id = `api-release-${(await sha256Hex([grant.tokenId, takeId, input.channel, String(input.live), String(ctx.now)].join('\n'))).slice(0, 32)}`;
   return checked(envelope(grant.orgId, languageId, grant.profileId, deviceOf(grant.tokenId), ctx.now, 'v1.VersionReleased', id,
     { takeId, channel: input.channel, live: input.live, ...(input.url !== undefined ? { url: input.url } : {}) }));
+}
+
+// ---- external values (decisions.md 79) -----------------------------------------------
+
+/** The most a value's data may hold, as UTF-8 JSON. Only the Worker writes them, so the cap is kept here. */
+export const EXTERNAL_DATA_MAX_BYTES = 4096;
+/** Values in one answer; `after` (the last key) asks for the next ones. */
+export const EXTERNAL_VALUES_PAGE = 500;
+
+/** A third-party app's value as the API gives it, with who wrote it. */
+export interface ExternalValueOut {
+  key: string;
+  /** Null when the key was deleted (listed only with changedSince, so a follower sees deletions). */
+  data: Record<string, unknown> | null;
+  /** The person, and the token by its id; http.ts adds the app's name. */
+  writtenBy: { profileId: string; tokenId: string | null; app?: string };
+  at: string;
+}
+
+export interface ExternalValueFilter {
+  keyPrefix?: string;
+  changedSince?: string;
+  /** Keys after this one, for the next page. */
+  after?: string;
+}
+
+/** The token behind a device, `api-<tokenId>` (deviceOf), or null for a review link's (`api-link-…`) or anything else. */
+export const tokenOfDevice = (deviceId: string): string | null =>
+  deviceId.startsWith('api-') && !deviceId.startsWith('api-link-') ? deviceId.slice(4) : null;
+
+function valueOut(key: string, r: LanguageState['externalValues'][string]): ExternalValueOut {
+  return { key, data: r.value.data, writtenBy: { profileId: r.value.actorId, tokenId: tokenOfDevice(r.value.deviceId) }, at: iso(r.hlc) };
+}
+
+/** The latest value per key, in key order. A deleted key is left out unless the caller follows changes. */
+export function externalValuesFor(state: LanguageState, filter: ExternalValueFilter = {}): { values: ExternalValueOut[]; nextAfter: string | null } {
+  const since = filter.changedSince ? Date.parse(filter.changedSince) : null;
+  const keys = Object.keys(state.externalValues ?? {})
+    .filter((k) => (!filter.keyPrefix || k.startsWith(filter.keyPrefix)) && (!filter.after || k > filter.after))
+    .sort();
+  const values: ExternalValueOut[] = [];
+  for (const k of keys) {
+    const r = state.externalValues[k]!;
+    if (since !== null ? wallOf(r.hlc) <= since : r.value.data === null) continue;
+    if (values.length === EXTERNAL_VALUES_PAGE) return { values, nextAfter: values[values.length - 1]!.key };
+    values.push(valueOut(k, r));
+  }
+  return { values, nextAfter: null };
+}
+
+/** One key's value, or why not: a key never written, or deleted, is not found. */
+export function externalValueFor(state: LanguageState, key: string): ExternalValueOut | Refusal {
+  const r = state.externalValues?.[key];
+  return r && r.value.data !== null ? valueOut(key, r) : refuse(404, 'no_value', 'There is no value under that key in this language.');
+}
+
+/** A PUT's body: `{ "data": { … } }`, at most 4 KB as JSON. */
+export function parseExternalValue(body: unknown): { data: Record<string, unknown> } | Refusal {
+  const data = (body as Record<string, unknown> | null)?.['data'];
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return refuse(400, 'bad_request', 'Send { "data": { … } }: data is a JSON object. DELETE removes a key.');
+  if (new TextEncoder().encode(JSON.stringify(data)).length > EXTERNAL_DATA_MAX_BYTES) {
+    return refuse(413, 'too_large', `data can be at most ${EXTERNAL_DATA_MAX_BYTES} bytes of JSON. Keep totals, not one value per event.`);
+  }
+  return { data: data as Record<string, unknown> };
+}
+
+/** A value stored (or a key deleted, with null) as the token's person, from the token's device. Only this ever appends v1.ExternalValueSet. */
+export function externalValueEvent(ctx: Omit<WriteContext, 'unitId'>, key: string, data: Record<string, unknown> | null): AnyEvent | Refusal {
+  const { grant, org, state, languageId } = ctx;
+  if (!grant.scopes.includes('external_values')) return refuse(403, 'scope', 'This token was not given the "external_values" scope.');
+  const can = languageAccess(grant, org, languageId);
+  if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
+  if (!can.externalValues.write) return refuse(403, 'privilege', 'The account behind this token cannot translate, review or fill reference material in this language, which storing values needs.');
+  const bad = externalKeyError(key);
+  if (bad) return refuse(400, 'bad_key', `${bad}. Start keys with your app's own name, such as org.example.app/…`);
+  const device = deviceOf(grant.tokenId);
+  const event = envelope(grant.orgId, languageId, grant.profileId, device, ctx.now, 'v1.ExternalValueSet', `api-ev-${crypto.randomUUID()}`, { key, data });
+  // Stamped after the value it replaces, so a second write in the same millisecond wins as the newer one.
+  const prior = state.externalValues?.[key];
+  if (prior && prior.hlc >= event.hlc) {
+    const p = decodeHlc(prior.hlc);
+    event.hlc = encodeHlc(p.wallMs, p.counter + 1, device);
+  }
+  return checked(event);
 }
 
 // ---- review links ------------------------------------------------------------------

@@ -141,6 +141,8 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ResponseRecorded': 'translate',
   // Whoever may append an event that names a voice note (voiceNotesOf, blobs.ts).
   'v1.AudioFormatSet': ['translate', 'review', 'assign_work', 'send_to_reviewers', 'override_checkpoints', 'fill_reference'],
+  // Whoever contributes to the language's work (decisions.md 79); only the Worker appends it, for a token with the external_values scope.
+  'v1.ExternalValueSet': ['translate', 'review', 'fill_reference'],
   'v1.ReviewRecorded': 'by_kind',
   'v1.DepartureRecorded': 'by_kind',
   'v1.DepartureUndone': ['translate', 'review', 'assign_work', 'override_checkpoints'],
