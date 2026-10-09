@@ -20957,6 +20957,146 @@ function emptyLanguageState() {
   };
 }
 
+// packages/core/src/versification.ts
+var USFM_BOOKS = [
+  "GEN",
+  "EXO",
+  "LEV",
+  "NUM",
+  "DEU",
+  "JOS",
+  "JDG",
+  "RUT",
+  "1SA",
+  "2SA",
+  "1KI",
+  "2KI",
+  "1CH",
+  "2CH",
+  "EZR",
+  "NEH",
+  "EST",
+  "JOB",
+  "PSA",
+  "PRO",
+  "ECC",
+  "SNG",
+  "ISA",
+  "JER",
+  "LAM",
+  "EZK",
+  "DAN",
+  "HOS",
+  "JOL",
+  "AMO",
+  "OBA",
+  "JON",
+  "MIC",
+  "NAM",
+  "HAB",
+  "ZEP",
+  "HAG",
+  "ZEC",
+  "MAL",
+  "MAT",
+  "MRK",
+  "LUK",
+  "JHN",
+  "ACT",
+  "ROM",
+  "1CO",
+  "2CO",
+  "GAL",
+  "EPH",
+  "PHP",
+  "COL",
+  "1TH",
+  "2TH",
+  "1TI",
+  "2TI",
+  "TIT",
+  "PHM",
+  "HEB",
+  "JAS",
+  "1PE",
+  "2PE",
+  "1JN",
+  "2JN",
+  "3JN",
+  "JUD",
+  "REV",
+  "TOB",
+  "JDT",
+  "ESG",
+  "WIS",
+  "SIR",
+  "BAR",
+  "LJE",
+  "S3Y",
+  "SUS",
+  "BEL",
+  "1MA",
+  "2MA",
+  "3MA",
+  "4MA",
+  "1ES",
+  "2ES",
+  "MAN",
+  "PS2",
+  "ODA",
+  "PSS",
+  "EZA",
+  "5EZ",
+  "6EZ",
+  "DAG",
+  "PS3",
+  "2BA",
+  "LBA",
+  "JUB",
+  "ENO",
+  "1MQ",
+  "2MQ",
+  "3MQ",
+  "REP",
+  "4BA",
+  "LAO",
+  // Paratext's alternate Greek texts, which the standard versifications list.
+  "JSA",
+  "JDB",
+  "TBS",
+  "SST",
+  "DNT",
+  "BLT"
+];
+var BOOK_ORDER = new Map(USFM_BOOKS.map((b, i) => [b, i]));
+var LEGACY_BOOK_IDS = { joe: "JOL", nah: "NAM", mar: "MRK", joh: "JHN", phi: "PHP" };
+var TO_LEGACY = Object.fromEntries(Object.entries(LEGACY_BOOK_IDS).map(([k, v]) => [v, k]));
+function libraryUnitRange(unitId, versesIn) {
+  const slash = unitId.indexOf("/");
+  if (slash < 0 || unitId.slice(0, slash).includes("@")) return null;
+  const node = unitId.slice(slash + 1);
+  return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
+}
+var REF = /^([A-Z0-9]{3})(?:[ .](\d+)(?:[:.](\d+)[a-z]?)?(?:-(?:(\d+)[:.])?(\d+)[a-z]?)?)?$/;
+function parseRef(text, versesIn) {
+  const m = REF.exec(text.trim());
+  if (!m) return null;
+  const book = m[1];
+  const last = (c) => versesIn?.(book, c) ?? 999;
+  if (m[2] === void 0) {
+    return { book, start: { chapter: 1, verse: 1 }, end: { chapter: 999, verse: 999 } };
+  }
+  const c1 = Number(m[2]);
+  if (m[3] === void 0) {
+    const c22 = m[5] !== void 0 && m[4] === void 0 ? Number(m[5]) : c1;
+    return { book, start: { chapter: c1, verse: 1 }, end: { chapter: c22, verse: last(c22) } };
+  }
+  const v1 = Number(m[3]);
+  if (m[5] === void 0) return { book, start: { chapter: c1, verse: v1 }, end: { chapter: c1, verse: v1 } };
+  const c2 = m[4] !== void 0 ? Number(m[4]) : c1;
+  return { book, start: { chapter: c1, verse: v1 }, end: { chapter: c2, verse: Number(m[5]) } };
+}
+
 // packages/core/src/libraryDocs.ts
 var LIBRARY_KINDS = ["template", "flow", "material", "versification"];
 
@@ -21086,6 +21226,8 @@ function validateEvent(e) {
       return str("unitId", "kind", "label", "order") ?? (p["parentUnitId"] === null ? null : str("parentUnitId"));
     case "v1.UnitHidden":
       return str("unitId") ?? bool("hidden");
+    case "v1.BookNameSet":
+      return str("book", "name") ?? (/^[A-Z0-9]{3}$/.test(p["book"]) ? null : "book must be a USFM book code");
     case "v1.FlowSelected":
       return str("flowId") ?? (/[/@\s]/.test(p["flowId"]) ? "flowId may not contain /, @ or spaces" : null) ?? optStr("itemId", "name") ?? (p["docHash"] === void 0 || hash(p["docHash"]) ? null : "docHash must be a SHA-256 hex digest");
     case "v1.FlowStepSet":
@@ -21235,6 +21377,9 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.UnitHidden":
       lww(state.hiddenUnits, event.payload.unitId, event, event.payload.hidden);
+      break;
+    case "v1.BookNameSet":
+      lww(state.bookNames ??= {}, event.payload.book, event, event.payload.name);
       break;
     case "v1.FlowSelected": {
       const { flowId, itemId, docHash, name } = event.payload;
@@ -21535,27 +21680,41 @@ function unitPrefixOf(unitId) {
   return cut > 0 ? unitId.slice(0, cut) : null;
 }
 function buildIndexes(state) {
-  const parents = /* @__PURE__ */ new Set();
-  for (const u of Object.values(state.units)) if (u.parentUnitId) parents.add(u.parentUnitId);
   const sel = state.template?.value ?? null;
   const books = sel?.books ? new Set(sel.books) : null;
+  const inUse = (id) => {
+    const prefix = unitPrefixOf(id);
+    if (prefix === null || !sel) return true;
+    if (prefix !== sel.unitPrefix) return false;
+    return books === null || books.has(id.slice(prefix.length + 1, prefix.length + 4));
+  };
+  const parents = /* @__PURE__ */ new Set();
+  const shownParents = /* @__PURE__ */ new Set();
+  for (const [id, u] of Object.entries(state.units)) {
+    if (!u.parentUnitId) continue;
+    parents.add(u.parentUnitId);
+    if (state.hiddenUnits[id]?.value !== true && inUse(id)) shownParents.add(u.parentUnitId);
+  }
   const ordered = Object.entries(state.units).sort(([ia, a], [ib, b]) => a.order < b.order ? -1 : a.order > b.order ? 1 : ia < ib ? -1 : 1);
   const passages = [];
   const containers = [];
-  for (const [id] of ordered) {
+  const waiting = [];
+  for (const [id, u] of ordered) {
+    const bookUnit = u.kind === "book" && u.parentUnitId === null && unitPrefixOf(id) !== null;
+    if (bookUnit && !shownParents.has(id)) {
+      if (state.hiddenUnits[id]?.value !== true && inUse(id) && sel) waiting.push(id);
+      if (parents.has(id)) containers.push(id);
+      continue;
+    }
     if (parents.has(id)) {
       containers.push(id);
       continue;
     }
     if (state.hiddenUnits[id]?.value === true) continue;
-    const prefix = unitPrefixOf(id);
-    if (prefix !== null && sel) {
-      if (prefix !== sel.unitPrefix) continue;
-      if (books !== null && !books.has(id.slice(prefix.length + 1, prefix.length + 4))) continue;
-    }
+    if (!inUse(id)) continue;
     passages.push(id);
   }
-  return { passages, containers };
+  return { passages, containers, waiting };
 }
 
 // packages/core/src/passage.ts
@@ -21780,7 +21939,17 @@ function languageProgress(state, idx) {
   };
 }
 function unitTitle(state, unitId) {
-  return state.units[unitId]?.label ?? unitId;
+  const label = state.units[unitId]?.label ?? unitId;
+  return withBookName(state, unitId, label);
+}
+function withBookName(state, unitId, label) {
+  const r = libraryUnitRange(unitId);
+  const own = r ? state.bookNames?.[r.book]?.value : void 0;
+  if (!r || !own) return label;
+  const templateName = state.units[`${unitId.slice(0, unitId.indexOf("/"))}/${r.book}`]?.label;
+  if (!templateName) return label;
+  if (label === templateName) return own;
+  return label.startsWith(`${templateName} `) ? own + label.slice(templateName.length) : label;
 }
 function updatesFor(state, actorId, idx) {
   const ri = recordIndexes(state, idx);
