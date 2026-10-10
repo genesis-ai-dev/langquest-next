@@ -107,13 +107,19 @@ describe('the catalogs', () => {
         const wrong: string[] = [];
         for (const [key, text] of tr) {
           const base = key.replace(PLURAL, '');
-          const source = pluralBases.has(base) ? en.get(`${base}_other`) : en.get(key);
+          // A plural form answers to English's form of the same name ("_one"), else to "_other".
+          const form = /_(zero|one|two|few|many|other)$/.exec(key)?.[1];
+          const source = pluralBases.has(base) ? (en.get(`${base}_${form}`) ?? en.get(`${base}_other`)) : en.get(key);
           if (source === undefined) continue;
           const want = placeholders(source);
           const have = placeholders(text);
+          // Any placeholder English uses in some form of the key may appear ("{{part}}" or "{{parts}}").
+          const known = pluralBases.has(base)
+            ? new Set([...en].filter(([k]) => k.replace(PLURAL, '') === base).flatMap(([, v]) => [...placeholders(v)]))
+            : placeholders(source);
           // A plural form may leave the number out ("one passage" said as a word).
           if (pluralBases.has(base)) want.delete('count');
-          if ([...want].some((p) => !have.has(p)) || [...have].some((p) => !placeholders(source).has(p))) wrong.push(`${key}: ${text}`);
+          if ([...want].some((p) => !have.has(p)) || [...have].some((p) => !known.has(p))) wrong.push(`${key}: ${text}`);
           if (tags(source).join() !== tags(text).join()) wrong.push(`${key} (tags): ${text}`);
           if (!text.trim()) wrong.push(`${key}: empty`);
         }

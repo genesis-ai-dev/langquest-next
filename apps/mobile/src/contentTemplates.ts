@@ -11,6 +11,7 @@ import {
   type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type LanguageState,
   type TemplateBook, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
+import { latinDigits } from './textMatch';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
 import { bookName } from './coreText';
 import { t } from './i18n';
@@ -46,7 +47,7 @@ function lastVerse(book: BibleBook): VerseRef {
  * count as the whole verse). Hyphen or en dash. Null when it does not parse.
  */
 export function parseRange(ref: string, book: BibleBook): { from: VerseRef; to: VerseRef } | null {
-  const m = /^(\d+)(?::(\d+)[a-z]?)?(?:\s*[-–]\s*(\d+)[a-z]?(?::(\d+)[a-z]?)?)?$/.exec(ref.trim());
+  const m = /^(\d+)(?::(\d+)[a-z]?)?(?:\s*[-–]\s*(\d+)[a-z]?(?::(\d+)[a-z]?)?)?$/.exec(latinDigits(ref).trim());
   if (!m) return null;
   const c1 = Number(m[1]);
   let from: VerseRef;

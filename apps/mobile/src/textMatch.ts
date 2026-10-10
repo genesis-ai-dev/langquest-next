@@ -45,3 +45,19 @@ export function markedParts(text: string, query: string): { text: string; match:
   if (from < text.length) parts.push({ text: text.slice(from), match: false });
   return parts;
 }
+
+/** The zero of each script's digits that phones' keyboards type: Arabic, Persian, Devanagari, Bengali, Thai, Myanmar, full-width. */
+const ZEROS = [0x660, 0x6f0, 0x966, 0x9e6, 0xe50, 0x1040, 0xff10];
+
+/**
+ * Digits typed in any of the app's scripts ("١٢", "১২", "१२", "๑๒", "၁၂")
+ * as 0–9, so a search, a reference or a date reads the same whatever
+ * keyboard typed it. Everything else is left as it is.
+ */
+export function latinDigits(text: string): string {
+  return text.replace(/\p{Nd}/gu, (d) => {
+    const c = d.codePointAt(0)!;
+    const zero = ZEROS.find((z) => c >= z && c < z + 10);
+    return zero === undefined ? d : String(c - zero);
+  });
+}

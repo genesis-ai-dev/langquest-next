@@ -11,6 +11,7 @@ import {
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version
 } from '@langquest-next/core';
+import { latinDigits } from '../textMatch';
 import { stateLabel, stepName } from '../coreText';
 import { t } from '../i18n';
 import type { IconName } from '../kit';
@@ -567,7 +568,7 @@ export function dueChoices(): { label: string; days: number | null }[] {
 
 /** Why a typed due date can't be used, or null when it can (empty = no date). Any day from today on. */
 export function dueError(value: string, today: string): string | null {
-  const v = value.trim();
+  const v = latinDigits(value).trim();
   if (!v) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
   if (!m) return t('passage.record.due.format');

@@ -7,6 +7,7 @@
 // sections. The Map's filters and chapter colours (MAP-3, MAP-5; demo
 // screens/map.tsx) sit at the end, so they can be tested without React.
 import { BIBLE_BOOKS } from '@langquest-next/core';
+import { latinDigits } from './textMatch';
 import { bookName } from './coreText';
 import { currentLanguage, t } from './i18n';
 
@@ -103,7 +104,7 @@ export function canonBook(id: string | null | undefined): CanonBook | undefined 
  * lists 1 Samuel, 1 Kings, ...), not every chapter 1 in the Bible.
  */
 export function parseQuery(query: string): { book: string; chapter?: number } {
-  const q = query.trim().toLowerCase().replace(/\s+/g, ' ');
+  const q = latinDigits(query).trim().toLowerCase().replace(/\s+/g, ' ');
   const m = /^(.*?)\s*(\d+)?(?::\d*(?:[-–]\d*)?)?$/.exec(q);
   const book = (m?.[1] ?? q).trim();
   if (!book) return { book: q.replace(/:.*$/, '').trim() };
@@ -114,7 +115,7 @@ export function parseQuery(query: string): { book: string; chapter?: number } {
 export function bookMatches(b: CanonBook, prefix: string): boolean {
   if (!prefix) return true;
   const p = prefix.toLowerCase();
-  return [b.name, ...b.aliases].map((n) => n.toLowerCase()).some((n) => n.startsWith(p) || n.replace(/^\d /, '').startsWith(p));
+  return [b.name, ...b.aliases].map((n) => latinDigits(n).toLowerCase()).some((n) => n.startsWith(p) || n.replace(/^\d /, '').startsWith(p));
 }
 
 /** Books a search names, in canon order. */
