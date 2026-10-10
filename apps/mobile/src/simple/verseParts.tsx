@@ -225,9 +225,9 @@ function PartRow(props: {
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'longpress') props.onHold(); }}
         style={({ pressed }) => [styles.gutter, pressed && { transform: [{ scale: 0.94 }] }, props.shake && { transform: [{ translateX: 4 }] }]}>
         {l ? (
-          // The same verse as the part above is drawn hollow: one verse said in pieces.
+          // The same verse as the part above is drawn hollow and grey: one verse said in pieces.
           <View style={[styles.badge, l.kind === 'join' && styles.badgeSame]}>
-            <Text style={[l.s === l.e ? styles.badgeText : styles.badgeRange, l.kind === 'join' && { color: C.primary }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+            <Text style={[l.s === l.e ? styles.badgeText : styles.badgeRange, l.kind === 'join' && { color: C.dark }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
             {l.kind === 'set' ? <View style={styles.pin} /> : null}
           </View>
         ) : (
@@ -322,7 +322,8 @@ const styles = StyleSheet.create({
   badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '800', color: C.white },
   badgeRange: { fontSize: T.base, fontWeight: '800', color: C.white },
-  badgeSame: { backgroundColor: C.card, borderWidth: 2, borderColor: C.primary },
+  // More of the verse above: grey like an empty space, but solid and darker, so it reads as labelled.
+  badgeSame: { backgroundColor: 'transparent', borderWidth: 2, borderColor: C.dark, opacity: 0.35 },
   pin: { position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 7, backgroundColor: C.card, borderWidth: 2, borderColor: C.primary },
   // An empty space is barely there (Caleb, 2026-10-09): grey at a tenth, so it never competes with a verse.
   ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
