@@ -1,5 +1,5 @@
 // The passage's verses and how a verse label reads, for the recorder's
-// verse gutter (decisions.md 80; core verses.ts does the numbering). Pure.
+// verse gutter (decisions.md 81; core verses.ts does the numbering). Pure.
 import type { VerseRange } from '@langquest-next/core';
 
 /** Every verse of the passage in order, as "chapter:verse"; empty for a unit with no verses. */

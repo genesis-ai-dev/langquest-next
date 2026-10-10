@@ -33,7 +33,7 @@ export interface Commands {
   addRecording(c: { commandId: string; unitId: string; recordingId: string; kind: 'source' | 'target'; card: Card }): EventSpec[];
   /**
    * Compose cards into a draft of a passage. A person may keep several drafts
-   * (decisions.md 81): `parentTakeId` is the take this one continues, the
+   * (decisions.md 82): `parentTakeId` is the take this one continues, the
    * draft being changed (its take is retired), a version to start from, or
    * null for a draft started empty. A draft already set aside continues as
    * it was (the Undo of deleting it). Left out, it continues the person's
@@ -41,10 +41,10 @@ export interface Commands {
    * retired (archiving is add-wins).
    */
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
-  /** Set one of the person's drafts aside (decisions.md 81). Undo is `keepTake` with its cards and the draft as parent. */
+  /** Set one of the person's drafts aside (decisions.md 82). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
   /**
-   * Which verses each part holds (decisions.md 80): one 'v1.CardVerseSet'
+   * Which verses each part holds (decisions.md 81): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
    */
   setCardVerses(c: { commandId: string; unitId: string; cards: readonly string[]; marks: readonly PartMark[]; verses: readonly string[] }): EventSpec[];
@@ -63,7 +63,7 @@ export interface Commands {
   publishVersion(c: { commandId: string; unitId: string; cardHashes: string[]; note?: string; noteBlobHash?: string;
     /** The publisher: only their own draft is replaced, never a teammate's (archiving is add-wins). */
     actorId?: string;
-    /** The draft being published, or the version it was started from (decisions.md 81). Left out: the publisher's latest draft. */
+    /** The draft being published, or the version it was started from (decisions.md 82). Left out: the publisher's latest draft. */
     parentTakeId?: string | null }): EventSpec[];
   /** A review of a version for one kind; one per passage when a session covered several (REV-6). */
   recordReview(c: {
@@ -130,7 +130,7 @@ export type { QuestionSpec };
 
 export function commands(state: LanguageState, idx: Indexes = buildIndexes(state)): Commands {
   /**
-   * What a new take of a draft continues (decisions.md 81), and the take it
+   * What a new take of a draft continues (decisions.md 82), and the take it
    * retires: the person's own open draft it replaces, never a teammate's.
    */
   const continuing = (passage: PassageState, c: { unitId: string; actorId: string; parentTakeId?: string | null }) => {

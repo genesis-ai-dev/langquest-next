@@ -1,6 +1,6 @@
 import { draftName, draftOf, startedFrom } from '../src/passage/versionsModel';
 
-describe('what drafts are called (decisions.md 81)', () => {
+describe('what drafts are called (decisions.md 82)', () => {
   const d = (rootTakeId: string, takeId = rootTakeId, hlc = '1') => ({ rootTakeId, takeId, hlc });
 
   it('says Draft for one, numbers them in the order started for more, and New draft before a first save', () => {

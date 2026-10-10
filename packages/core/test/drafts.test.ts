@@ -6,7 +6,7 @@ import { emptyLanguageState as emptyState } from '../src/state';
 import { derivePassage, draftsBy, highlightsFor, latestDraftBy } from '../src/passage';
 
 /**
- * Several drafts of one passage per person (decisions.md 81): each is the
+ * Several drafts of one passage per person (decisions.md 82): each is the
  * line of takes its changes composed, kept apart from the others, and any
  * of them can be changed, deleted (and brought back) or published.
  */

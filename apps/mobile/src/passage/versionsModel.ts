@@ -1,5 +1,5 @@
 // What the Versions page and the workspace call a person's drafts
-// (decisions.md 81). Pure, tested in test/versionsModel.test.ts.
+// (decisions.md 82). Pure, tested in test/versionsModel.test.ts.
 import type { DraftView, Version } from '@langquest-next/core';
 
 /**

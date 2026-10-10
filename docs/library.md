@@ -75,6 +75,9 @@ subscription update), the next device of someone who may apply it does so.
 
 ### Breaking up the Bible book by book (decision 74)
 
+The rules for numbering and dividing, with examples, are in
+`docs/breaking-up-the-bible.md` (decision 80).
+
 A `template@2` Bible lists its books, and each says how it is broken up:
 `divide: chapters` (one part a chapter, from the versification), `divide:
 passages` with its ranges, or nothing yet. A book with nothing in it is

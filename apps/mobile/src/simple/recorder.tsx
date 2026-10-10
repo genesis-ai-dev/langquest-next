@@ -5,7 +5,7 @@
 // when the pane is small, the one-line bar when the reference has the
 // screen, and the footer with the big red button and Publish. When the
 // passage has verses, each part in the card has a space beside it to tap a
-// verse in (verseParts.tsx, decisions.md 80).
+// verse in (verseParts.tsx, decisions.md 81).
 import { useState, type ReactNode } from 'react';
 import type { PartMark as VerseMark } from '@langquest-next/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';

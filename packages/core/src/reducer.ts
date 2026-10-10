@@ -48,6 +48,9 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     case 'v1.TemplateSelected': {
       const { itemId, docHash, unitPrefix, books } = event.payload;
       state.template = set(state.template, event, { itemId, docHash, unitPrefix, ...(books ? { books: [...books].sort() } : {}) });
+      const history = (state.templateHistory ??= {});
+      const had = history[docHash];
+      if (!had || event.hlc < had.hlc || (event.hlc === had.hlc && event.id < had.eventId)) history[docHash] = { unitPrefix, hlc: event.hlc, eventId: event.id };
       break;
     }
 
@@ -132,7 +135,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       break;
 
     case 'v1.CardVerseSet': {
-      // A register per (unit, card): the later clock wins, then the higher id (decisions.md 80).
+      // A register per (unit, card): the later clock wins, then the higher id (decisions.md 81).
       const { unitId, hash, ...mark } = event.payload;
       lww((state.cardVerses ??= {})[unitId] ??= {}, hash, event, mark);
       break;

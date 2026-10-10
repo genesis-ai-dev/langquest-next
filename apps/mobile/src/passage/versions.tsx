@@ -1,4 +1,4 @@
-// The passage record's Versions page (decisions.md 81): everything recorded
+// The passage record's Versions page (decisions.md 82): everything recorded
 // for the passage, to work on freely. A person's drafts first, each one to
 // hear, edit, publish or delete (with Undo); then the published versions,
 // newest first, each to hear, open, or edit into a new draft (a published

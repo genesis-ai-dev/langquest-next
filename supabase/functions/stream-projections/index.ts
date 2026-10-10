@@ -21077,7 +21077,7 @@ var TO_LEGACY = Object.fromEntries(Object.entries(LEGACY_BOOK_IDS).map(([k, v]) 
 function libraryUnitRange(unitId, versesIn) {
   const slash = unitId.indexOf("/");
   if (slash < 0 || unitId.slice(0, slash).includes("@")) return null;
-  const node = unitId.slice(slash + 1);
+  const node = unitId.slice(slash + 1).replace(/~[a-z0-9-]+$/, "");
   return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
 }
 var REF = /^([A-Z0-9]{3})(?:[ .](\d+)(?:[:.](\d+)[a-z]?)?(?:-(?:(\d+)[:.])?(\d+)[a-z]?)?)?$/;
@@ -21424,6 +21424,9 @@ function applyLanguageEvent(state, event) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
       state.template = set(state.template, event, { itemId, docHash, unitPrefix, ...books ? { books: [...books].sort() } : {} });
+      const history = state.templateHistory ??= {};
+      const had = history[docHash];
+      if (!had || event.hlc < had.hlc || event.hlc === had.hlc && event.id < had.eventId) history[docHash] = { unitPrefix, hlc: event.hlc, eventId: event.id };
       break;
     }
     case "v1.UnitAdded": {
@@ -21985,6 +21988,7 @@ function derivePassage(state, unitId, idx) {
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
   const latest = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
+  const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
   const next = recorded ? open.find((s) => !s.override) ?? open[0] : void 0;
   const result = {
     unitId,
@@ -21996,6 +22000,7 @@ function derivePassage(state, unitId, idx) {
     requests,
     openRequests,
     steps,
+    drafts,
     drafting: draftTakeId !== void 0,
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
@@ -22006,6 +22011,33 @@ function derivePassage(state, unitId, idx) {
   };
   ri.passages.set(key, result);
   return result;
+}
+function draftView(state, takeId) {
+  const t = state.takes[takeId];
+  const seen = /* @__PURE__ */ new Set([takeId]);
+  let root = takeId;
+  let basedOn;
+  for (; ; ) {
+    const parent = state.takes[root].parentTakeId;
+    if (!parent || seen.has(parent)) break;
+    if (state.submissions[parent]) {
+      basedOn = parent;
+      break;
+    }
+    const pt = state.takes[parent];
+    if (!pt || pt.unitId !== t.unitId) break;
+    seen.add(parent);
+    root = parent;
+  }
+  return {
+    takeId,
+    rootTakeId: root,
+    by: t.actorId,
+    cardHashes: t.cardHashes,
+    startedHlc: state.takes[root].hlc,
+    hlc: t.hlc,
+    ...basedOn ? { basedOnTakeId: basedOn } : {}
+  };
 }
 function teamMemberIds(state, teamId) {
   const team = state.teams[teamId];

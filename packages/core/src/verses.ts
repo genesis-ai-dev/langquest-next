@@ -1,4 +1,4 @@
-// Which verses each recorded part holds (decisions.md 80). A part never
+// Which verses each recorded part holds (decisions.md 81). A part never
 // stores a number. It stores how it relates to the parts around it: the
 // next verse after the part above, the same verses as the part right above
 // (one verse recorded in pieces), verses someone chose, or nothing yet. The

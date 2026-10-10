@@ -7,6 +7,7 @@
 // Everything shown is derived from the event log
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
+import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earlier';
 import {
   CommandError, commands, draftsBy, feedbackIsMine, isCompleteState, keyTermLinksFor, KIND_STATE_LABEL, questionsForKind, recordTimeline,
   reviewGrid, stepName,
@@ -156,7 +157,7 @@ interface RecordCan extends KindRowCan {
  * Everything else is one labelled tap away: "Something else?" (a page of the
  * other ways forward) and "Versions and history" (a page of the person's
  * drafts and every published version to work on freely, then the full
- * record, decisions.md 81). With several drafts, Record opens that page to
+ * record, decisions.md 82). With several drafts, Record opens that page to
  * pick one. Publishing comes back here to "Version N published" with the
  * likely next check picked (demo ADR-034).
  */
@@ -166,7 +167,7 @@ export function PassageRecord(ctx: Ctx) {
   const [skipping, setSkipping] = useState<{ kindId: string; stepId: string } | null>(null);
   const [overriding, setOverriding] = useState<string | null>(null);
   const [noting, setNoting] = useState<null | 'note' | 'say'>(null);
-  // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 81).
+  // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 82).
   const publishedParam = ctx.params['published'];
   const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>(() => (publishedParam ? 'ask' : 'path'));
   const [askAfterPublish, setAskAfterPublish] = useState(!!publishedParam);
@@ -214,7 +215,7 @@ export function PassageRecord(ctx: Ctx) {
   const mine = requestIsMine(v.state, me);
   const teamName = teamNameIn(v.state);
   const answersMine = can.record && can.keep && feedbackIsMine(p, me);
-  // A person may keep several drafts (decisions.md 81): with more than one, Record opens Versions to pick.
+  // A person may keep several drafts (decisions.md 82): with more than one, Record opens Versions to pick.
   const myDrafts = draftsBy(p, me);
   const myDraft = myDrafts.length > 0;
   const recordOrPick = () => (myDrafts.length > 1 ? setPage('versions') : go('workspace'));
@@ -315,7 +316,15 @@ export function PassageRecord(ctx: Ctx) {
       onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: openCheck.kindId }) };
   }
 
+  // An earlier section (decision 80) is kept to be heard, not worked on.
+  const earlierHere = isEarlierSection(ctx.language.state, unitId);
+  if (earlierHere) main = null;
+
   const onStep = (st: PathStep): (() => void) | undefined => {
+    if (earlierHere) {
+      const take = (st.kind === 'record' || st.kind === 'publish') && st.state === 'done' ? p.latest?.takeId : undefined;
+      return take ? () => go('version_detail', { takeId: take }) : undefined;
+    }
     if (st.kind === 'study') return () => go('study_guide');
     if (st.kind === 'record') {
       if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
@@ -329,7 +338,7 @@ export function PassageRecord(ctx: Ctx) {
     return undefined;
   };
   const canAct = can.ask || can.log || can.review;
-  const onTeamStep = (t: TeamStep): (() => void) | undefined => (canAct ? () => setOpenStepId(t.stepId) : undefined);
+  const onTeamStep = (t: TeamStep): (() => void) | undefined => (canAct && !earlierHere ? () => setOpenStepId(t.stepId) : undefined);
   const passageNote = p.notes.filter((n) => n.anchor.kind === 'passage' && n.by !== me).at(-1);
   const extraFor = (st: PathStep): ReactNode => {
     if (st.state !== 'current') return null;
@@ -481,7 +490,7 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- every version (decisions.md 81): drafts, published versions, then the history ----
+  // ---- every version (decisions.md 82): drafts, published versions, then the history ----
   const history = (
     <>
       {study ? (
@@ -557,7 +566,9 @@ export function PassageRecord(ctx: Ctx) {
           Waiting on {p.latest ? ctx.name(p.latest.by, true) : 'the translator'} to answer the {fbNames} feedback.
         </Text>
       ) : null}
+      <EarlierNote ctx={ctx} unitId={unitId} languageId={languageId} />
       <PassagePath steps={steps} team={team} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
+      <EarlierSections ctx={ctx} unitId={unitId} languageId={languageId} />
       {sheets}
     </Screen>
   );

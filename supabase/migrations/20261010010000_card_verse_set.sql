@@ -1,4 +1,4 @@
--- v1.CardVerseSet: which verses a recorded part holds (decisions.md 80).
+-- v1.CardVerseSet: which verses a recorded part holds (decisions.md 81).
 --
 --   v1.CardVerseSet { unitId, hash, mark: next | join | set | none, from?, to? }
 --

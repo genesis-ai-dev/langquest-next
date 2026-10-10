@@ -130,6 +130,13 @@ export interface LanguageState extends RecordState, ReferenceState {
   /** eventId -> true. Targets of v1.Redacted; never applied. */
   redactions: Record<string, true>;
   template: Register<TemplateSelection> | null;
+  /**
+   * Every template version the language has used (docHash -> its unit
+   * prefix and when it was first chosen), so work on sections that have
+   * since expired can be read in the numbering it was made in (decision
+   * 80). Grow-only; absent in older snapshots.
+   */
+  templateHistory?: Record<string, { unitPrefix: string; hlc: Hlc; eventId: string }>;
   /** unitId -> hidden (TPL-7): parts the template's current version no longer has. */
   hiddenUnits: Record<string, Register<boolean>>;
   /** USFM book -> what this language calls it (v1.BookNameSet, decision 74); absent in older snapshots. */

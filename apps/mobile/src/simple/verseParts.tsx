@@ -1,5 +1,5 @@
 // The recorded parts as one list, each with a space on its left for its
-// verse (decisions.md 80; Caleb's tap-to-number lab). Tap the space: the
+// verse (decisions.md 81; Caleb's tap-to-number lab). Tap the space: the
 // part takes the next verse after the label above, or the verse above when
 // no next verse fits. Tap a number: the part takes the same verse as the
 // part above (a verse said in pieces), and again to make it the next verse.

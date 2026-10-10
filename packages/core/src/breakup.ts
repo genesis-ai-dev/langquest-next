@@ -1,5 +1,7 @@
 import { asTemplateV2, templateBooks, type TemplateBook, type TemplateDoc, type TemplateDocV2 } from './libraryDocs';
-import { mapRange, parseRef, type VersificationDoc } from './versification';
+import {
+  libraryUnitRange, mapRange, orgVerses, parseRef, refId, sharedVerses, verseFromOrg, versesOf, verseToOrg, type VerseRange, type VersificationDoc
+} from './versification';
 
 /**
  * Breaking up the Bible (decision 74). A Bible template lists its books,
@@ -45,7 +47,7 @@ export function withBookBrokenUp(doc: TemplateDoc, book: string, way: TemplateDo
   const from = way ? bookParts(way, book) : null;
   if (way && !from) throw new Error(`${way.name} does not break up ${book}`);
   const books = templateBooks(v2).map((b) => (b.book === book ? partsOf(b, from) : b));
-  return { ...v2, bible: { versification: v2.bible!.versification, books } };
+  return { ...v2, bible: { ...v2.bible!, books } };
 }
 
 /**
@@ -60,7 +62,7 @@ export function withEmptyBooksFilled(doc: TemplateDoc, way: TemplateDoc): Templa
     const from = bookParts(way, b.book);
     return from ? partsOf(b, from) : b;
   });
-  return { ...v2, bible: { versification: v2.bible!.versification, books } };
+  return { ...v2, bible: { ...v2.bible!, books } };
 }
 
 function partsOf(b: TemplateBook, from: TemplateBook | null): TemplateBook {
@@ -69,6 +71,7 @@ function partsOf(b: TemplateBook, from: TemplateBook | null): TemplateBook {
   out.divide = from.divide!;
   if (from.part) out.part = from.part;
   if (from.divide === 'passages') out.passages = (from.passages ?? []).map((p) => ({ ...p }));
+  if (from.renumbered?.length) out.renumbered = [...from.renumbered];
   return out;
 }
 
@@ -136,4 +139,180 @@ export function verseNumbering(
     if (new Set(places.map((p) => p.ref)).size > 1) return { code: codes[0]!, clash: { says: t.says, places } };
   }
   return { code: codes[0]!, clash: null };
+}
+
+// ---- a way of dividing in another numbering (decision 80) ----------------------------
+
+/**
+ * A way of dividing written in one numbering (`from`), as the same sections
+ * in another numbering, with that numbering's books. FIA, unfoldingWord and
+ * OpenBible divide the text, so each section is the same verses wherever
+ * they are numbered; "by chapter" is the target numbering's own chapters.
+ * The rules (docs/breaking-up-the-bible.md):
+ *
+ * 1. Verses no section covers, inside a chapter, are a section of their own
+ *    (Luther's Psalm 51:1–2).
+ * 2. Uncovered verses in the middle of a section split it (Catholic Daniel
+ *    3:19–23, 3:24–90, 3:91–97); both parts keep the section's name.
+ * 3. A verse two sections both reach goes to the earlier one (Douay Judges
+ *    21:24); a section left with nothing is not made.
+ * 4. Uncovered whole chapters are a section each (Catholic Daniel 13, 14).
+ *
+ * A book the way leaves out, or covers nowhere, is listed with nothing in
+ * it: it waits to be divided. The same numbering keeps the way as it is.
+ */
+export function convertWay(
+  way: TemplateDoc,
+  from: VersificationDoc,
+  to: { doc: VersificationDoc; hash: string; books: { book: string; name: string }[] }
+): TemplateDocV2 {
+  const src = templateBooks(way);
+  const byBook = new Map(src.map((b) => [b.book, b]));
+  const goes = way.format === 'template@2' && way.goesWith ? { goesWith: way.goesWith } : {};
+  const base = { format: 'template@2' as const, name: way.name, description: way.description, structure: 'bible' as const, levels: way.levels, ...goes, deps: [] as string[] };
+  if (from.code === to.doc.code) {
+    const books = to.books.map((b): TemplateBook => {
+      const s = byBook.get(b.book);
+      return s ? { ...s, name: b.name } : { book: b.book, name: b.name };
+    });
+    return { ...base, bible: { versification: to.hash, books } };
+  }
+
+  // Every target verse a section reaches, owned by the earliest section (rule 3).
+  const owner = new Map<string, number>();
+  const pieces: { name?: string; part?: string }[] = [];
+  const vkey = (v: { book: string; chapter: number; verse: number }) => `${v.book} ${v.chapter}:${v.verse}`;
+  for (const b of src) {
+    if (b.divide !== 'passages') continue;
+    for (const p of b.passages ?? []) {
+      const r = parseRef(p.ref, (bk, c) => from.maxVerses[bk]?.[c - 1]);
+      const g = pieces.length;
+      pieces.push({ ...(p.name ? { name: p.name } : {}), ...(b.part ? { part: b.part } : {}) });
+      if (!r) continue;
+      for (const v of versesOf(from, r)) {
+        for (const o of verseToOrg(from, v)) {
+          for (const t of verseFromOrg(to.doc, o)) {
+            if (t.verse === 0) continue;
+            const k = vkey(t);
+            const had = owner.get(k);
+            if (had === undefined || g < had) owner.set(k, g);
+          }
+        }
+      }
+    }
+  }
+
+  // A part whose verses are not those of the part with the same numbers in the way's own numbering
+  // gets an id of its own (`renumbered`), so a language changing numbering keeps only what is the same.
+  const fromVerses = (bk: string, c: number) => from.maxVerses[bk]?.[c - 1];
+  const toVerses = (bk: string, c: number) => to.doc.maxVerses[bk]?.[c - 1];
+  const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((k) => b.has(k));
+  const renumbered = (nodes: string[]) => nodes.filter((node) => {
+    const there = parseRef(node, fromVerses);
+    const here = parseRef(node, toVerses);
+    return !there || !here || !same(orgVerses(from, there), orgVerses(to.doc, here));
+  });
+  const marked = (b: TemplateBook): TemplateBook => {
+    const nodes = b.divide === 'chapters'
+      ? (to.doc.maxVerses[b.book] ?? []).map((_, i) => `${b.book}.${i + 1}`)
+      : b.divide === 'passages' ? (b.passages ?? []).map((p) => parseRef(p.ref, toVerses)).filter((r): r is VerseRange => !!r).map(refId) : [];
+    const changed = renumbered(nodes);
+    return changed.length ? { ...b, renumbered: changed } : b;
+  };
+
+  const books = to.books.map((tb): TemplateBook => marked(bookIn(tb)));
+  return { ...base, bible: { versification: to.hash, books, numbering: to.doc.code } };
+
+  function bookIn(tb: { book: string; name: string }): TemplateBook {
+    const s = byBook.get(tb.book);
+    const out: TemplateBook = { book: tb.book, name: tb.name };
+    if (s?.divide === 'chapters') return { ...out, divide: 'chapters', ...(s.part ? { part: s.part } : {}) };
+    if (s?.divide === 'book') return { ...out, divide: 'book' };
+    const max = to.doc.maxVerses[tb.book] ?? [];
+    const runs: { owner: number | null; c1: number; v1: number; c2: number; v2: number }[] = [];
+    max.forEach((count, i) => {
+      const c = i + 1;
+      for (let v = 1; v <= count; v++) {
+        const o = owner.get(`${tb.book} ${c}:${v}`) ?? null;
+        const last = runs[runs.length - 1];
+        // A covered run goes on across chapters; an uncovered one ends with its chapter (rules 1 and 4).
+        if (last && last.owner === o && (o !== null || last.c2 === c)) { last.c2 = c; last.v2 = v; }
+        else runs.push({ owner: o, c1: c, v1: v, c2: c, v2: v });
+      }
+    });
+    if (!runs.some((r) => r.owner !== null)) return out;
+    const part = s?.part ?? runs.map((r) => (r.owner !== null ? pieces[r.owner]!.part : undefined)).find(Boolean);
+    return {
+      ...out,
+      divide: 'passages',
+      ...(part ? { part } : {}),
+      passages: runs.map((r) => {
+        const ref = r.c1 === r.c2
+          ? (r.v1 === r.v2 ? `${tb.book} ${r.c1}:${r.v1}` : `${tb.book} ${r.c1}:${r.v1}-${r.v2}`)
+          : `${tb.book} ${r.c1}:${r.v1}-${r.c2}:${r.v2}`;
+        const name = r.owner !== null ? pieces[r.owner]!.name : undefined;
+        return name ? { ref, name } : { ref };
+      })
+    };
+  }
+}
+
+/**
+ * Sections a language no longer has that hold its work, each with the
+ * current sections it overlaps (decision 80): what was recorded before a way
+ * changed its divisions, a book was divided again or the numbering changed.
+ * `numberingOf` says which numbering an expired section was written in (the
+ * template version it came from), else the current one is assumed.
+ */
+export function earlierSections(c: {
+  current: string[];
+  expired: string[];
+  currentNumbering: VersificationDoc | null;
+  numberingOf: (unitId: string) => VersificationDoc | null;
+}): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (!c.currentNumbering) return out;
+  const cur = c.currentNumbering;
+  const rangeIn = (unitId: string, doc: VersificationDoc) => libraryUnitRange(unitId, (b, ch) => doc.maxVerses[b]?.[ch - 1]);
+  const byBook = new Map<string, { unitId: string; range: VerseRange }[]>();
+  for (const u of c.current) {
+    const r = rangeIn(u, cur);
+    if (r) byBook.set(r.book, [...(byBook.get(r.book) ?? []), { unitId: u, range: r }]);
+  }
+  for (const e of c.expired) {
+    const doc = c.numberingOf(e) ?? cur;
+    const r = rangeIn(e, doc);
+    if (!r) continue;
+    // The same book in the other numbering, or one its verses land in.
+    const books = new Set([r.book, ...[...orgVerses(doc, r)].map((k) => k.slice(0, 3))]);
+    for (const book of books) {
+      for (const u of byBook.get(book) ?? []) {
+        if (sharedVerses({ doc, range: r }, { doc: cur, range: u.range }) > 0) out.set(u.unitId, [...(out.get(u.unitId) ?? []), e]);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * A numbering as an admin chooses it (decision 80): a source numbering with
+ * exactly one tradition's books, and only the mappings of those books, so
+ * a book this tradition does not print (the Vulgate file's Greek Daniel,
+ * `DAG`) cannot claim verses.
+ */
+export function numberingOf(doc: VersificationDoc, books: readonly string[], name?: string): VersificationDoc {
+  const keep = new Set(books);
+  const inBooks = (ref: string) => keep.has(ref.slice(0, 3));
+  const mapped = Object.fromEntries(Object.entries(doc.mappedVerses).filter(([k]) => inBooks(k)));
+  const more = (doc.moreMappedVerses ?? []).filter(([k]) => inBooks(k));
+  return {
+    format: 'versification@1',
+    code: doc.code,
+    name: name ?? doc.name,
+    basedOn: doc.code,
+    maxVerses: Object.fromEntries(books.filter((b) => doc.maxVerses[b]).map((b) => [b, [...doc.maxVerses[b]!]])),
+    mappedVerses: mapped,
+    ...(more.length ? { moreMappedVerses: more } : {}),
+    ...(doc.excludedVerses?.length ? { excludedVerses: doc.excludedVerses.filter(inBooks) } : {})
+  };
 }

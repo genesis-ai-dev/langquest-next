@@ -142,7 +142,7 @@ export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
   draftTakeId?: string;
   /**
    * What the list continues when the person keeps several drafts
-   * (decisions.md 81): the draft open in the workspace, the version it is
+   * (decisions.md 82): the draft open in the workspace, the version it is
    * being started from, or null for one started empty. Left out, their
    * latest draft.
    */

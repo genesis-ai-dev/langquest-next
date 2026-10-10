@@ -14,14 +14,14 @@
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the
 // next part lit; when the passage has verses they are grouped into cards by
-// verse, with a space beside each part to tap a verse in (decisions.md 80); the big red button and Publish are in the footer, or in
+// verse, with a space beside each part to tap a verse in (decisions.md 81); the big red button and Publish are in the footer, or in
 // the recorder's one line. Publish is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. The sensitivity and the
 // pause between parts are set in microphone setup (`mic_setup`).
 //
 // Every change persists: each part is kept as the draft on the record, so
 // nothing is lost if you leave, and Save says so. A person may keep several
-// drafts of a passage (decisions.md 81): the workspace opens one of them, a
+// drafts of a passage (decisions.md 82): the workspace opens one of them, a
 // new one from a version's parts, or a new empty one, and publishes that one. Back translation: the same tools, but you
 // listen to the latest version and what you save is content for the next
 // check, not a version.
@@ -76,7 +76,7 @@ import { useRecorder, type RecordedCard } from '../useRecorder';
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={TITLES.workspace} />;
-  // Each draft opened is its own workspace (decisions.md 81).
+  // Each draft opened is its own workspace (decisions.md 82).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
   return <WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} />;
 }
@@ -97,7 +97,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const nextN = p.versions.length + 1;
   const isFirst = !latest;
 
-  // ---- which draft (decisions.md 81) ----
+  // ---- which draft (decisions.md 82) ----
   // A person may keep several drafts. `draftId` opens one (by the take it
   // started with); `from` starts a new one from a version's parts and
   // `fresh` an empty one; with none of them, their latest draft, else a new
@@ -143,7 +143,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const draftCards = draft?.cardHashes;
   const [cleared, setCleared] = useState(false);
-  // Recording into a gap left for later (decisions.md 80): new parts go before this part.
+  // Recording into a gap left for later (decisions.md 81): new parts go before this part.
   const [insertBefore, setInsertBefore] = useState<string | null>(null);
   const list = useMemo(() => {
     const base = workingCards({
@@ -272,7 +272,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const usage = useUsage();
   const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
-  // ---- verse labels on the parts (decisions.md 80) ----
+  // ---- verse labels on the parts (decisions.md 81) ----
   const v11n = bible.passage.versification;
   const verseKeys = useMemo(() => passageVerseKeys(bible.passage.range,
     (b, c) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c)), [bible.passage.range, v11n]);

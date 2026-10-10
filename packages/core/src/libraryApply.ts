@@ -101,8 +101,12 @@ export function templateUnits(doc: TemplateDoc, unitPrefix: string, versificatio
 function bookByBookUnits(doc: TemplateDoc, id: (node: string) => string, versification: VersificationDoc | null): EventPayloads['v1.UnitAdded'][] {
   const out: EventPayloads['v1.UnitAdded'][] = [];
   const books = [...templateBooks(doc)].sort((a, b) => bookOrder(a.book) - bookOrder(b.book));
+  const numbering = doc.format === 'template@2' ? doc.bible?.numbering : undefined;
   for (const b of books) {
     const at = `b${pad(bookOrder(b.book), 4)}`;
+    // Parts whose verses changed with the numbering get ids of their own (decision 80).
+    const renumbered = new Set(numbering ? b.renumbered ?? [] : []);
+    const part = (node: string) => id(renumbered.has(node) ? `${node}~${numbering}` : node);
     if (b.divide === 'book') {
       out.push({ unitId: id(b.book), parentUnitId: null, kind: 'book_unit', label: b.name, order: at });
       continue;
@@ -111,7 +115,7 @@ function bookByBookUnits(doc: TemplateDoc, id: (node: string) => string, versifi
     if (b.divide === 'chapters') {
       const chapters = versification ? chaptersInBook(versification, b.book) : 0;
       for (let c = 1; c <= chapters; c++) {
-        out.push({ unitId: id(`${b.book}.${c}`), parentUnitId: id(b.book), kind: 'chapter', label: `${b.name} ${c}`, order: `${at}c${pad(c, 3)}` });
+        out.push({ unitId: part(`${b.book}.${c}`), parentUnitId: id(b.book), kind: 'chapter', label: `${b.name} ${c}`, order: `${at}c${pad(c, 3)}` });
       }
     } else if (b.divide === 'passages') {
       const seen = new Set<string>();
@@ -121,7 +125,7 @@ function bookByBookUnits(doc: TemplateDoc, id: (node: string) => string, versifi
         const node = refId(r);
         if (seen.has(node)) return;
         seen.add(node);
-        out.push({ unitId: id(node), parentUnitId: id(b.book), kind: 'passage', label: p.name ?? `${b.name} ${refLabel(r)}`, order: `${at}p${pad(i, 5)}` });
+        out.push({ unitId: part(node), parentUnitId: id(b.book), kind: 'passage', label: p.name ?? `${b.name} ${refLabel(r)}`, order: `${at}p${pad(i, 5)}` });
       });
     }
   }

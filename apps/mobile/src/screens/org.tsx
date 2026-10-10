@@ -1328,9 +1328,12 @@ export function NewLanguage(ctx: Ctx) {
   if (step === 2) {
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label="Continue" icon="right" disabled={!t.ready} onPress={() => setStep(3)} />{back}</>}>
+        footer={<>
+          {t.showContinue ? <PrimaryBtn label="Continue" icon="right" disabled={t.last ? !t.ready : !t.canContinue} onPress={() => { if (!t.advance()) setStep(3); }} /> : null}
+          <QuietLinks items={[{ label: 'Back', icon: 'arrowL', onPress: () => { if (!t.retreat()) setStep(1); } }]} />
+        </>}>
         <TranslateQuestion ctx={ctx} t={t} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1' })} />
-        {doc?.bible ? (
+        {doc?.bible && t.page === 'ways' ? (
           <>
             <SectionLabel label="Which part of the Bible?" />
             <Pills>
