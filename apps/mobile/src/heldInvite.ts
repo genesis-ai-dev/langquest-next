@@ -8,6 +8,7 @@
  * part of it (`claim`), so it is used by the account the person chose and
  * never by whoever signs in next on a shared phone.
  */
+import { t } from './i18n';
 
 /** Who the held invite is for. */
 type Claim =
@@ -105,11 +106,12 @@ type Outcome =
  * dropping a good invite is the one mistake the person cannot undo.
  */
 export function outcomeOfError(message: string): Outcome {
+  // The server's English refusals, matched, never shown.
   const m = message.toLowerCase();
-  if (m.includes('expired')) return { kind: 'dead', reason: 'expired' };
-  if (m.includes('already used')) return { kind: 'dead', reason: 'used' };
-  if (m.includes('not found') || m.includes('does not look like an invite')) return { kind: 'dead', reason: 'not_found' };
-  if (m.includes('no longer available')) return { kind: 'dead', reason: 'retired' };
+  if (/expired/.test(m)) return { kind: 'dead', reason: 'expired' };
+  if (/already used/.test(m)) return { kind: 'dead', reason: 'used' };
+  if (/not found|does not look like an invite/.test(m)) return { kind: 'dead', reason: 'not_found' };
+  if (/no longer available/.test(m)) return { kind: 'dead', reason: 'retired' };
   return { kind: 'retry' };
 }
 
@@ -129,12 +131,11 @@ export interface InvitePreview {
 
 /** Why a key cannot be used, in the words the person sees. */
 export function deadMessage(reason: DeadReason, from?: string | null): string {
-  const ask = from ? `Ask ${from} for a new one.` : 'Ask for a new one.';
   switch (reason) {
-    case 'expired': return `This invite has expired. ${ask}`;
-    case 'used': return `This invite has already been used. ${ask}`;
-    case 'not_found': return `This invite isn't valid. Check you scanned the whole code, or ${ask.charAt(0).toLowerCase()}${ask.slice(1)}`;
-    case 'retired': return `This invite can no longer be used. ${ask}`;
+    case 'expired': return from ? t('entry.invite.expiredFrom', { name: from }) : t('entry.invite.expired');
+    case 'used': return from ? t('entry.invite.usedFrom', { name: from }) : t('entry.invite.used');
+    case 'not_found': return from ? t('entry.invite.notFoundFrom', { name: from }) : t('entry.invite.notFound');
+    case 'retired': return from ? t('entry.invite.retiredFrom', { name: from }) : t('entry.invite.retired');
   }
 }
 
@@ -143,8 +144,10 @@ export function deadMessage(reason: DeadReason, from?: string | null): string {
  * the server's preview only. Without one (offline), a neutral line.
  */
 export function inviteCard(p: InvitePreview | null): { title: string; detail: string | null; from: string | null } {
-  if (!p || p.status === 'not_found') return { title: 'Invitation to join an organization', detail: null, from: null };
-  const title = p.label && !p.group ? `Invite for ${p.label}` : p.label ? p.label : `Invitation to ${p.orgName ?? 'an organization'}`;
+  if (!p || p.status === 'not_found') return { title: t('entry.invite.cardGeneric'), detail: null, from: null };
+  // A group invite's label is the group's name, as its maker wrote it.
+  const title = p.label && !p.group ? t('entry.invite.cardFor', { name: p.label }) : p.label ? p.label
+    : p.orgName ? t('entry.invite.cardTo', { org: p.orgName }) : t('entry.invite.cardToAnOrg');
   const where = p.scopeLevel === 'language' && p.languageName ? `${p.languageName} · ${p.orgName ?? ''}`.replace(/ · $/, '') : p.orgName ?? null;
   const detail = [p.roleName, where].filter(Boolean).join(' · ') || null;
   return { title, detail, from: p.invitedBy ?? null };

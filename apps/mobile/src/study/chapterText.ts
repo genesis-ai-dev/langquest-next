@@ -1,3 +1,4 @@
+// i18n-ignore-file: Bible text (content in English translations), not the app's words.
 // Whole chapters of the World English Bible (public domain) for the chapters
 // the demo's stories divide into passages (the UX demo's src/chapterText.ts).
 // Keyed "book chapter" by core's book ids; verse n is at index n - 1.

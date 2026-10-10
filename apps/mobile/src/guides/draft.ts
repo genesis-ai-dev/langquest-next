@@ -8,6 +8,8 @@ import {
   CALLOUT_KINDS, isHash, isLicense, LICENSE_INFO, parseRef, validateDoc, withDeps,
   type CalloutKind, type MaterialLink, type MediaRef, type StudyDoc, type StudyDoc2
 } from '@langquest-next/core';
+import { licenseText } from '../coreText';
+import { t } from '../i18n';
 import type { StudyMediaKind } from '../study/guides';
 import { inlineParts } from '../study/text';
 import type { Method } from './methods';
@@ -129,9 +131,9 @@ export function draftFromDoc(doc: StudyDoc | StudyDoc2, basis: { docHash: string
       ref: r.ref, kind: r.kind as 'media' | 'map', title: r.title, description: r.description ?? '',
       media: (r.media ?? []).map((m) => ({ id: m.id, kind: m.kind, title: m.title, caption: m.caption, file: urlRef(m.url) ?? {} }))
     }));
-  const terms: DraftTerm[] = doc.terms.map((t) => {
-    const audio = 'audio' in t ? t.audio : urlRef('audioUrl' in t ? t.audioUrl : undefined);
-    return { id: t.id, term: t.term, hint: t.hint ?? '', body: t.body, ...(audio ? { audio } : {}) };
+  const terms: DraftTerm[] = doc.terms.map((term) => {
+    const audio = 'audio' in term ? term.audio : urlRef('audioUrl' in term ? term.audioUrl : undefined);
+    return { id: term.id, term: term.term, hint: term.hint ?? '', body: term.body, ...(audio ? { audio } : {}) };
   });
   const steps: DraftStep[] = doc.steps.map((s) => {
     const audio = doc.format === 'study@2' ? s.audio : urlRef(s.audio?.url, s.audio?.seconds);
@@ -149,11 +151,12 @@ export function draftFromDoc(doc: StudyDoc | StudyDoc2, basis: { docHash: string
   const info = sourceLicense && isLicense(sourceLicense) ? LICENSE_INFO[sourceLicense] : null;
   const shareAlike = info?.terms.shareAlike ? sourceLicense : undefined;
   const noAdapt = info && !info.terms.mayAdapt ? sourceLicense : undefined;
+  // The adapter's own words in the guide (they can change them), so in the language showing.
   return {
     ...base,
-    source: `${basis.adapt.orgName} · adapted from ${doc.source}`,
+    source: t('guides.draft.adaptedSource', { org: basis.adapt.orgName, source: doc.source }),
     license: shareAlike ?? basis.adapt.license,
-    credit: `${creditOfSource(doc)}; adapted by ${basis.adapt.orgName}`,
+    credit: t('guides.draft.adaptedCredit', { credit: creditOfSource(doc), org: basis.adapt.orgName }),
     basis: { docHash: basis.docHash, adapted: true, ...(shareAlike ? { shareAlike } : {}), ...(noAdapt ? { noAdapt } : {}) }
   };
 }
@@ -170,7 +173,7 @@ export function nextId(prefix: string, taken: Iterable<string>): string {
 
 /** Every ref a step may link to: pictures, maps and glossary terms. */
 function draftRefs(d: GuideDraft): string[] {
-  return [...d.resources.map((r) => r.ref), ...d.terms.map((t) => t.id)];
+  return [...d.resources.map((r) => r.ref), ...d.terms.map((term) => term.id)];
 }
 
 // ---- actions ------------------------------------------------------------------------------
@@ -216,7 +219,8 @@ export function draftReducer(d: GuideDraft, a: DraftAction): GuideDraft {
       const id = nextId('s', d.steps.map((s) => s.id));
       const at = a.after ? d.steps.findIndex((s) => s.id === a.after) + 1 : d.steps.length;
       const prev = d.steps[at - 1];
-      const step: DraftStep = { id, title: `Step ${d.steps.length + 1}`, phase: prev?.phase ?? '', purpose: '', text: '' };
+      // A title for the author to change, in the language showing.
+      const step: DraftStep = { id, title: t('guides.draft.stepTitle', { n: d.steps.length + 1 }), phase: prev?.phase ?? '', purpose: '', text: '' };
       const steps = [...d.steps];
       steps.splice(at <= 0 ? d.steps.length : at, 0, step);
       return { ...d, steps };
@@ -260,11 +264,11 @@ export function draftReducer(d: GuideDraft, a: DraftAction): GuideDraft {
       return { ...d, terms: [...d.terms, { id, term: a.term ?? '', hint: '', body: '' }] };
     }
     case 'updateTerm':
-      return { ...d, terms: d.terms.map((t) => (t.id === a.id ? { ...t, ...a.patch } : t)) };
+      return { ...d, terms: d.terms.map((term) => (term.id === a.id ? { ...term, ...a.patch } : term)) };
     case 'setTermAudio':
-      return { ...d, terms: d.terms.map((t) => (t.id === a.id ? withoutAudio(t, a.audio) : t)) };
+      return { ...d, terms: d.terms.map((term) => (term.id === a.id ? withoutAudio(term, a.audio) : term)) };
     case 'deleteTerm':
-      return { ...d, terms: d.terms.filter((t) => t.id !== a.id) };
+      return { ...d, terms: d.terms.filter((term) => term.id !== a.id) };
   }
 }
 
@@ -288,8 +292,13 @@ export function draftFiles(d: GuideDraft): { hash: string; format?: string; kind
   };
   for (const s of d.steps) add(s.audio, 'audio');
   for (const r of d.resources) for (const m of r.media) add(m.file, m.kind === 'video' ? 'video' : 'image');
-  for (const t of d.terms) add(t.audio, 'audio');
+  for (const term of d.terms) add(term.audio, 'audio');
   return out;
+}
+
+/** The name of a set of pictures or a map nobody has named yet: "Pictures", "Map". */
+export function untitledResource(kind: 'media' | 'map'): string {
+  return kind === 'map' ? t('guides.draft.untitledMap') : t('guides.draft.untitledPictures');
 }
 
 /** The `study@2` document the draft publishes as, its `deps` set. */
@@ -317,7 +326,8 @@ export function buildDoc(d: GuideDraft): StudyDoc2 {
     }),
     resources: [
       ...d.resources.map((r) => ({
-        ref: r.ref, kind: r.kind, title: r.title.trim() || r.media[0]?.title.trim() || (r.kind === 'map' ? 'Map' : 'Pictures'),
+        // An untitled set is named for the author, in the language showing.
+        ref: r.ref, kind: r.kind, title: r.title.trim() || r.media[0]?.title.trim() || untitledResource(r.kind),
         ...(r.description.trim() ? { description: r.description.trim() } : {}),
         media: r.media.flatMap((m) => {
           const file = cleanMedia(m.file);
@@ -325,11 +335,11 @@ export function buildDoc(d: GuideDraft): StudyDoc2 {
         })
       })),
       // Each glossary entry is also a resource, so a link to it (`#t1`) opens it, as FIA's do.
-      ...d.terms.map((t) => ({ ref: t.id, kind: 'term' as const, title: t.term.trim(), ...(t.hint.trim() ? { description: t.hint.trim() } : {}) }))
+      ...d.terms.map((term) => ({ ref: term.id, kind: 'term' as const, title: term.term.trim(), ...(term.hint.trim() ? { description: term.hint.trim() } : {}) }))
     ],
-    terms: d.terms.map((t) => {
-      const audio = cleanMedia(t.audio);
-      return { id: t.id, term: t.term.trim(), ...(t.hint.trim() ? { hint: t.hint.trim() } : {}), body: t.body.trim(), ...(audio ? { audio } : {}) };
+    terms: d.terms.map((term) => {
+      const audio = cleanMedia(term.audio);
+      return { id: term.id, term: term.term.trim(), ...(term.hint.trim() ? { hint: term.hint.trim() } : {}), body: term.body.trim(), ...(audio ? { audio } : {}) };
     }),
     deps: []
   });
@@ -348,13 +358,14 @@ export interface DraftProblem {
 
 /** core validateDoc's reasons, in the words the editor uses. */
 function plainDocProblem(reason: string): DraftProblem {
-  if (/title/.test(reason)) return { panel: 'details', text: 'Give the guide a title.' };
-  if (/ref or links|ref needs|links are/.test(reason)) return { panel: 'details', text: 'Say where the guide applies: verses with their numbering, or a part of a template.' };
-  if (/steps/.test(reason)) return { panel: 'steps', text: 'Every step needs a title. Step audio must be a recording or a file.' };
-  if (/media|resources/.test(reason)) return { panel: 'media', text: 'Every picture, map and film needs a file.' };
-  if (/terms/.test(reason)) return { panel: 'glossary', text: 'Every glossary entry needs its term.' };
-  if (/deps/.test(reason)) return { panel: 'details', text: 'The verse numbering is missing. Choose it again.' };
-  return { panel: 'details', text: `This guide can't be published yet (${reason}).` };
+  if (/title/.test(reason)) return { panel: 'details', text: t('guides.problems.giveTitle') };
+  if (/ref or links|ref needs|links are/.test(reason)) return { panel: 'details', text: t('guides.problems.sayWhereNumbered') };
+  if (/steps/.test(reason)) return { panel: 'steps', text: t('guides.problems.stepsInvalid') };
+  if (/media|resources/.test(reason)) return { panel: 'media', text: t('guides.problems.mediaNeedsFile') };
+  if (/terms/.test(reason)) return { panel: 'glossary', text: t('guides.problems.termsNeedTerm') };
+  if (/deps/.test(reason)) return { panel: 'details', text: t('guides.problems.numberingMissing') };
+  // Core's reason stays as it is: a technical detail for whoever reads it to us.
+  return { panel: 'details', text: t('guides.problems.cannotPublish', { reason }) };
 }
 
 /**
@@ -366,28 +377,38 @@ function plainDocProblem(reason: string): DraftProblem {
 export function draftProblems(d: GuideDraft): DraftProblem[] {
   const out: DraftProblem[] = [];
   if (d.basis?.noAdapt) {
-    out.push({ panel: 'details', text: `Its license (${isLicense(d.basis.noAdapt) ? LICENSE_INFO[d.basis.noAdapt].name : d.basis.noAdapt}) doesn't allow changes. Ask whoever made it.` });
+    const license = isLicense(d.basis.noAdapt) ? licenseText(d.basis.noAdapt).name : d.basis.noAdapt;
+    out.push({ panel: 'details', text: t('guides.problems.licenseNoChanges', { license }) });
   }
-  if (!d.title.trim()) out.push({ panel: 'details', text: 'Give the guide a title.' });
+  if (!d.title.trim()) out.push({ panel: 'details', text: t('guides.problems.giveTitle') });
   const ref = d.ref.trim();
-  if (!ref && d.parts.length === 0) out.push({ panel: 'details', text: 'Say where the guide applies: a verse range, or a part of a template.' });
-  if (ref && !parseRef(ref)) out.push({ panel: 'details', text: `Can't read “${ref}”. Write it like LUK 15:11-32.` });
-  if (ref && parseRef(ref) && !isHash(d.versification)) out.push({ panel: 'details', text: 'Choose how the verses are numbered.' });
-  if (d.steps.length === 0) out.push({ panel: 'steps', text: 'Add at least one step.' });
+  if (!ref && d.parts.length === 0) out.push({ panel: 'details', text: t('guides.problems.sayWhere') });
+  if (ref && !parseRef(ref)) out.push({ panel: 'details', text: t('guides.problems.cantReadRef', { ref }) });
+  if (ref && parseRef(ref) && !isHash(d.versification)) out.push({ panel: 'details', text: t('guides.problems.chooseNumbering') });
+  if (d.steps.length === 0) out.push({ panel: 'steps', text: t('guides.problems.addStep') });
   const refs = new Set(draftRefs(d));
   d.steps.forEach((s, i) => {
-    const name = s.title.trim() ? `“${s.title.trim()}”` : `Step ${i + 1}`;
-    if (!s.title.trim()) out.push({ panel: 'steps', id: s.id, text: `Step ${i + 1} needs a title.` });
+    const title = s.title.trim();
+    if (!title) out.push({ panel: 'steps', id: s.id, text: t('guides.problems.stepNeedsTitle', { n: i + 1 }) });
     const missing = [...new Set(inlineParts(s.text).flatMap((p) => (p.type === 'link' && !refs.has(p.ref) ? [p.ref] : [])))];
-    if (missing.length) out.push({ panel: 'steps', id: s.id, text: `${name} links to ${missing.map((m) => `#${m}`).join(', ')}, which isn't in the media or glossary.` });
+    if (missing.length) {
+      const links = missing.map((m) => `#${m}`).join(t('study.listSeparator'));
+      out.push({ panel: 'steps', id: s.id, text: title ? t('guides.problems.stepLinksMissing', { title, links }) : t('guides.problems.untitledStepLinksMissing', { n: i + 1, links }) });
+    }
   });
   for (const r of d.resources) {
-    const name = r.title.trim() || (r.kind === 'map' ? 'A map' : 'A set of pictures');
-    if (r.media.length === 0) out.push({ panel: 'media', id: r.ref, text: `${name} has no picture yet.` });
-    for (const m of r.media) if (!cleanMedia(m.file)) out.push({ panel: 'media', id: r.ref, text: `“${m.title || name}” has no file.` });
+    const title = r.title.trim();
+    if (r.media.length === 0) {
+      out.push({ panel: 'media', id: r.ref, text: title ? t('guides.problems.noPicture', { title }) : r.kind === 'map' ? t('guides.problems.mapNoPicture') : t('guides.problems.picturesNoPicture') });
+    }
+    for (const m of r.media) {
+      if (cleanMedia(m.file)) continue;
+      const named = m.title || title;
+      out.push({ panel: 'media', id: r.ref, text: named ? t('guides.problems.noFile', { title: named }) : r.kind === 'map' ? t('guides.problems.mapNoFile') : t('guides.problems.picturesNoFile') });
+    }
   }
-  d.terms.forEach((t, i) => {
-    if (!t.term.trim()) out.push({ panel: 'glossary', id: t.id, text: `Glossary entry ${i + 1} needs its term.` });
+  d.terms.forEach((term, i) => {
+    if (!term.term.trim()) out.push({ panel: 'glossary', id: term.id, text: t('guides.problems.termNeedsTerm', { n: i + 1 }) });
   });
   if (out.length) return out;
   const reason = validateDoc(buildDoc(d));
@@ -440,20 +461,22 @@ function asBlock(text: string, at: Selection, block: string): Edited {
   return { text: before + lead + block + tail + after, selection: { start, end: start + block.length } };
 }
 
-/** Words a new callout starts with, so the writer sees what kind it is. */
-const CALLOUT_PROMPT: Record<CalloutKind, string> = {
-  action: 'Stop here and discuss as a group.',
-  note: 'Something to keep in mind.',
-  question: 'A question for the group?',
-  culture: 'What people did or believed then.',
-  warning: 'Something easy to get wrong.'
-};
+/** Words a new callout starts with, so the writer sees what kind it is: the author's to write over, in the language showing. */
+function calloutPrompt(kind: CalloutKind): string {
+  switch (kind) {
+    case 'action': return t('guides.draft.calloutPrompt.action');
+    case 'note': return t('guides.draft.calloutPrompt.note');
+    case 'question': return t('guides.draft.calloutPrompt.question');
+    case 'culture': return t('guides.draft.calloutPrompt.culture');
+    case 'warning': return t('guides.draft.calloutPrompt.warning');
+  }
+}
 
 /** Turn the selection into a callout of a kind (`> [!kind] …`), or add one with a prompt to write over. */
 export function calloutText(text: string, sel: Selection, kind: CalloutKind): Edited {
   if (!(CALLOUT_KINDS as readonly string[]).includes(kind)) throw new Error(`unknown callout kind ${kind}`);
   const s = clampSel(text, sel);
-  const inner = text.slice(s.start, s.end).replace(/\s*\n\s*/g, ' ').trim() || CALLOUT_PROMPT[kind];
+  const inner = text.slice(s.start, s.end).replace(/\s*\n\s*/g, ' ').trim() || calloutPrompt(kind);
   const marker = `> [!${kind}] `;
   const r = asBlock(text, s, `${marker}${inner}`);
   // Select the words, not the marker, so typing replaces them.

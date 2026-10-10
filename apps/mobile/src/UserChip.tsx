@@ -1,8 +1,10 @@
 // The one way to show a person: avatar + name, tap for name and full id.
 // Names are not unique and can change, so the id is always one tap away.
 import { createContext, useContext, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from './text';
 import Svg, { Circle, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+import { t } from './i18n';
 import { personLook, type PersonLook } from './people';
 import { txt } from './kit';
 import { lift } from './shadow';
@@ -57,20 +59,20 @@ export function UserChip(props: { id: string }) {
   return (
     <>
       <Pressable ref={ref} onPress={open} hitSlop={6} accessibilityRole="button"
-        accessibilityLabel={`${look.name}. Show id`} style={[styles.chip, { backgroundColor: withAlpha(look.color, 0.12) }]}>
+        accessibilityLabel={t('shell.person.showId', { name: look.name })} style={[styles.chip, { backgroundColor: withAlpha(look.color, 0.12) }]}>
         <PersonAvatar look={look} size={16} />
         <Text style={[txt.xs, styles.chipName]} numberOfLines={1}>{look.name}</Text>
       </Pressable>
       <Modal visible={!!at} transparent animationType="fade" onRequestClose={() => setAt(null)}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel="Close">
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setAt(null)} accessibilityLabel={t('common.close')}>
           {at ? (
             <View style={[styles.tip, { top: at.y, left: Math.max(space.lg, Math.min(at.x, width - TIP_WIDTH - space.lg)) }]}>
               <View style={styles.tipHead}>
                 <PersonAvatar look={look} size={24} />
                 <Text style={txt.body} numberOfLines={2}>{look.name}</Text>
               </View>
-              {look.anonymous ? <Text style={txt.xs}>No name set yet</Text> : null}
-              <Text style={txt.xs} selectable>ID {look.id}</Text>
+              {look.anonymous ? <Text style={txt.xs}>{t('shell.person.noName')}</Text> : null}
+              <Text style={txt.xs} selectable>{t('shell.person.id', { id: look.id })}</Text>
             </View>
           ) : null}
         </Pressable>

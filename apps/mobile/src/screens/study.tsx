@@ -18,15 +18,18 @@
 // the study is advice: nothing waits on it (STUDY-6). App only: Write a
 // guide (`guide_editor`), from the steps sheet, for whoever manages
 // reference material; the editor itself is in src/guides/.
-import { commands, isLicense, keyTermsForUnit, LICENSE_INFO, type EventSpec, type PassageNote } from '@langquest-next/core';
+import { commands, isLicense, keyTermsForUnit, type EventSpec, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
+import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn, txt } from '../kit';
-import { plural, usePassage, type PassageView } from '../passageView';
+import { usePassage, type PassageView } from '../passageView';
 import { termsInText } from '../recording/workspaceModel';
 import { noteExpected } from '../report';
 import { contractsFor } from '../screenContracts';
@@ -53,9 +56,9 @@ function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress }
 
 function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
   return (
-    <Screen header={<Header title={props.v?.title ?? props.title} sub="Study" onBack={props.ctx.back} close />}>
-      <EmptyState icon="star" title={props.v ? "There's no study guide for this passage." : 'This passage is not in this language.'}
-        {...(props.v ? { sub: 'Guides come with the reference material your organization uses, and cover more passages as it grows.' } : {})} />
+    <Screen header={<Header title={props.v?.title ?? props.title} sub={t('study.screen.study')} onBack={props.ctx.back} close />}>
+      <EmptyState icon="star" title={props.v ? t('study.screen.noGuide') : t('study.screen.notInLanguage')}
+        {...(props.v ? { sub: t('study.screen.noGuideSub') } : {})} />
     </Screen>
   );
 }
@@ -63,11 +66,11 @@ function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
 // ---- the reader (STUDY-2..5, STUDY-7) ------------------------------------------------------
 
 export function StudyGuide(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={TITLES.study_guide} />;
+  return <StudyReader ctx={ctx} title={screenTitle('study_guide')} />;
 }
 
 export function StudyStep(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={TITLES.study_step} stepId={ctx.params['stepId']} />;
+  return <StudyReader ctx={ctx} title={screenTitle('study_step')} stepId={ctx.params['stepId']} />;
 }
 
 function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
@@ -97,11 +100,11 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const chipIds = refChips('study', { guide: true, bible: bible.hasVerses, terms: terms.length > 0, notes: notes.length > 0, earlier: false });
   const chip = chipIds.includes(chipState) ? chipState : 'guide';
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
-    guide: { id: 'guide' as const, label: 'Guide', icon: 'star' as const, hint: "The guide's steps for this passage." },
-    bible: { id: 'bible' as const, label: 'Bible', icon: 'listen' as const, hint: 'Hear and read the passage.' },
-    terms: { id: 'terms' as const, label: 'Key words', icon: 'key' as const, hint: 'Words to say the same way every time.' },
-    notes: { id: 'notes' as const, label: 'Notes', icon: 'chat' as const, count: notes.length, hint: "The team's notes on this passage." },
-    earlier: { id: 'earlier' as const, label: 'Earlier', icon: 'clock' as const }
+    guide: { id: 'guide' as const, label: t('study.screen.chips.guide'), icon: 'star' as const, hint: t('study.screen.chips.guideHint') },
+    bible: { id: 'bible' as const, label: t('study.screen.chips.bible'), icon: 'listen' as const, hint: t('study.screen.chips.bibleHint') },
+    terms: { id: 'terms' as const, label: t('study.screen.chips.terms'), icon: 'key' as const, hint: t('study.screen.chips.termsHint') },
+    notes: { id: 'notes' as const, label: t('study.screen.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('study.screen.chips.notesHint') },
+    earlier: { id: 'earlier' as const, label: t('study.screen.chips.earlier'), icon: 'clock' as const }
   })[c]);
   const openTerm = (termId: string) => ctx.go('key_term_detail', { ...scope, termId });
 
@@ -115,7 +118,8 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
     };
     const next = stepAfterDone(sp.steps.map((st) => ({ done: !!st.done })), index);
     try {
-      await ctx.act(mark(true), next !== null ? `${status.step.title} done · ${sp.doneCount + 1} of ${sp.steps.length}` : 'Every step is done', () => mark(false));
+      const said = next !== null ? t('study.screen.stepDone', { step: status.step.title, done: sp.doneCount + 1, total: sp.steps.length }) : t('study.screen.allDone');
+      await ctx.act(mark(true), said, () => mark(false));
     } catch (e) {
       // ctx.act already said "Not saved"; stay on this step.
       noteExpected('study: mark step', e);
@@ -127,9 +131,9 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const allDone = !sp.next;
   const recorded = v.p.versions.length > 0;
   const footer = chip !== 'guide' ? (
-    <PrimaryBtn label="Back to the guide" icon="arrowL" onPress={() => setChip('guide')} />
+    <PrimaryBtn label={t('study.screen.backToGuide')} icon="arrowL" onPress={() => setChip('guide')} />
   ) : canStudy && !status.done ? (
-    <PrimaryBtn label="Done with this step" icon="check" onPress={() => void done()} />
+    <PrimaryBtn label={t('study.screen.doneWithStep')} icon="check" onPress={() => void done()} />
   ) : (
     <>
       {status.done ? (
@@ -139,9 +143,9 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
         </View>
       ) : null}
       {allDone && canStudy ? (
-        <PrimaryBtn label={recorded ? 'Open the recording workspace' : 'Record the first draft'} icon="mic" onPress={() => ctx.go('workspace', scope)} />
+        <PrimaryBtn label={recorded ? t('study.screen.openWorkspace') : t('study.screen.recordFirstDraft')} icon="mic" onPress={() => ctx.go('workspace', scope)} />
       ) : sp.steps[index + 1] ? (
-        <GhostBtn label={`Next: ${sp.steps[index + 1]!.step.title}`} onPress={() => setIndex(index + 1)} />
+        <GhostBtn label={t('study.screen.nextStep', { step: sp.steps[index + 1]!.step.title })} onPress={() => setIndex(index + 1)} />
       ) : null}
     </>
   );
@@ -149,24 +153,24 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   // Whoever manages reference material edits the organization's own guide, or adapts anyone else's (guides/GuideEditor.tsx).
   const origin = guide.origin;
   // Who made the material and its license, as its license asks (a study@1 guide carries both in its source line).
-  const credit = [guide.credit, guide.license && isLicense(guide.license) ? LICENSE_INFO[guide.license].name : guide.license].filter(Boolean).join(' · ')
-    || (guide.source ? `Source: ${guide.source}` : '');
+  const credit = [guide.credit, guide.license && isLicense(guide.license) ? licenseText(guide.license).name : guide.license].filter(Boolean).join(' · ')
+    || (guide.source ? t('study.screen.source', { source: guide.source }) : '');
   const sheetFooter = (
     <View style={{ gap: space.sm, paddingTop: space.sm }}>
       {credit ? <Text style={txt.xs}>{credit}</Text> : null}
       {ctx.session.can('manage_reference') && origin ? (
         origin.itemId
-          ? <SmallBtn label="Edit this guide" icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
-          : <SmallBtn label="Copy this guide to adapt it" icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />
+          ? <SmallBtn label={t('study.screen.editGuide')} icon="edit" onPress={() => ctx.go('guide_editor', { itemId: origin.itemId!, languageId: v.languageId })} />
+          : <SmallBtn label={t('study.screen.adaptGuide')} icon="edit" onPress={() => ctx.go('guide_editor', { from: origin.docHash, languageId: v.languageId })} />
       ) : null}
-      <Text style={txt.xs}>What you add while studying stays with this passage. Reviewers see it next to the draft{sp.noteCount ? ` (${plural(sp.noteCount, 'note')} so far)` : ''}.</Text>
+      <Text style={txt.xs}>{sp.noteCount ? t('study.screen.addedStaysNotes', { count: sp.noteCount }) : t('study.screen.addedStays')}</Text>
     </View>
   );
 
   const dock = bible.hasAudio && chip !== 'bible';
   return (
     <Screen fixed footer={footer}
-      header={<Header title={v.title} sub="Study" onBack={ctx.back} close />}>
+      header={<Header title={v.title} sub={t('study.screen.study')} onBack={ctx.back} close />}>
       <RefChips items={chips} value={chip} onChange={setChip} />
       {chip === 'guide' ? <GuideNav ctx={ctx} sp={sp} index={index} onIndex={setIndex} sheetFooter={sheetFooter} /> : null}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
@@ -183,7 +187,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
         )}
       </ScrollView>
       {dock ? (
-        <Dock title={`The passage · ${v.title}`} sub={bible.line()} playing={bible.player.playing} available={!bible.player.loading}
+        <Dock title={t('study.screen.passageDock', { title: v.title })} sub={bible.line()} playing={bible.player.playing} available={!bible.player.loading}
           onToggle={bible.player.toggle} onBack10={() => bible.player.skip(-10)} backDisabled={!bible.player.started} />
       ) : null}
     </Screen>

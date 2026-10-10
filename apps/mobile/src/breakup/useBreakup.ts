@@ -13,6 +13,7 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { appendToLanguage } from '../languageWriter';
 import { flushOutbox, keepNewDoc, loadDocs, prepareDoc } from '../library/docStore';
 import { newItemId } from '../library/model';
@@ -172,7 +173,7 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
 }): Promise<EventSpec[]> {
   const state = ctx.language.state;
   const sel = state?.template?.value;
-  if (!state || !sel) throw new CommandError('This language has no template yet.');
+  if (!state || !sel) throw new CommandError(t('breakup.errors.noTemplate'));
   const plan = planChange({ item: c.item, users: c.users, chosen: c.chosen });
   let itemId = c.item.itemId;
   let docHash: string;
@@ -196,7 +197,7 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
   }
   const docs = await loadDocs(ctx.language.orgId, [docHash]);
   const v11n = c.doc.bible ? ((docs.get(c.doc.bible.versification) as VersificationDoc | undefined) ?? null) : null;
-  if (c.doc.bible && !v11n) throw new CommandError('Its versification is not on this device yet. Try again when connected.');
+  if (c.doc.bible && !v11n) throw new CommandError(t('breakup.errors.versificationMissing'));
   return selectTemplateSpecs(state, {
     commandId: Crypto.randomUUID(), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
     ...(sel.books ? { books: sel.books } : {})
@@ -239,9 +240,9 @@ export function useVerseNumbering(ctx: Ctx) {
       bibles.push({ name: d.abbreviation || d.name, versification: v });
       if (v.code === 'eng') english = v;
     }
-    const t = docs.get(state?.template?.value.docHash);
-    if (!english && t && isTemplateDoc(t) && t.bible) {
-      const v = docs.get<VersificationDoc>(t.bible.versification);
+    const tpl = docs.get(state?.template?.value.docHash);
+    if (!english && tpl && isTemplateDoc(tpl) && tpl.bible) {
+      const v = docs.get<VersificationDoc>(tpl.bible.versification);
       if (v?.code === 'eng') english = v;
     }
     if (!english) return { code: bibles[0]?.versification.code ?? 'eng', clash: null, key: '' };

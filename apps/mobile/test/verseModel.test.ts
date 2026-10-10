@@ -3,7 +3,7 @@ import { passageVerseKeys, spanName, spanShort, verseName } from '../src/simple/
 
 const versesIn = (_book: string, chapter: number) => (chapter === 1 ? 31 : 25);
 
-describe('the passage verses for the recorder gutter (decisions.md 81)', () => {
+describe('the passage verses for the recorder gutter (decisions.md 82)', () => {
   it('lists one chapter and names verses by number alone', () => {
     const keys = passageVerseKeys({ book: 'LUK', start: { chapter: 15, verse: 1 }, end: { chapter: 15, verse: 7 } }, versesIn);
     expect(keys).toEqual(['15:1', '15:2', '15:3', '15:4', '15:5', '15:6', '15:7']);

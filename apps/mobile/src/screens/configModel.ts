@@ -6,45 +6,58 @@
 // published as in the library (docs/library.md). ORG-3, ORG-4, ORG-8,
 // TERM-1..6, FLOW-1..4.
 import {
-  CommandError, commands, deriveFlow, deriveKinds, formatQuestionField, formatRef, languageName, materialView, parseQuestionField,
-  parseRef, SEED_ROLES, unitAncestry,
+  CommandError, commands, CUSTOM_FLOW, deriveFlow, flowTemplate, formatQuestionField, formatRef, languageName, materialView, parseQuestionField,
+  parseRef, PRIVILEGES, SEED_ROLES, unitAncestry,
   type EventSpec, type FlowDoc, type FlowSelection, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type MaterialDoc,
   type MaterialView, type OrgState, type Privilege, type LanguageState, type QuestionSpec, type Scope
 } from '@langquest-next/core';
+import { deriveKinds } from '../coreText';
+import { t } from '../i18n';
 
 // ---- roles (ORG-3, ORG-4) ----------------------------------------------------------
 
-/** The demo's permission names and what each one lets someone do (data.ts PRIVILEGE_DESC). */
-export const PRIVILEGE_INFO: Record<Privilege, { label: string; desc: string }> = {
-  manage_structure: { label: 'Manage Org Structure', desc: 'Change org structures in their scope (languages)' },
-  invite_members: { label: 'Invite Members', desc: 'Invite people in their scope' },
-  manage_roles: { label: 'Manage Roles', desc: 'Create and edit roles in their scope' },
-  manage_templates: { label: 'Manage Content Templates', desc: 'Make and edit content templates in their scope' },
-  shape_templates: { label: 'Shape Content Templates', desc: 'Divide books into passages, name them, and publish those changes for their language' },
-  manage_reference: { label: 'Manage Reference Material', desc: 'Make and edit reference material in their scope' },
-  manage_flows: { label: 'Manage Review Flows', desc: 'Make review flows, mark checkpoints, and apply flows to languages' },
-  manage_teams: { label: 'Manage Review Teams', desc: 'Make and edit review teams (groups) in their scope' },
-  assign_work: { label: 'Assign Work', desc: 'Ask anyone in their scope to record or review a passage' },
-  override_checkpoints: { label: 'Override Checkpoints', desc: 'Move a passage past a checkpoint, with the reason logged' },
-  translate: { label: 'Translate', desc: 'Record and revise translations (turn off to keep, say, consultants from drafting)' },
-  fill_reference: { label: 'Fill Reference Content', desc: 'Add key terms, notes, and reference content' },
-  send_to_reviewers: { label: 'Ask for Reviews', desc: 'Ask teammates, or someone outside the app by link, to review' },
-  review: { label: 'Review', desc: 'Give reviews, and record checks that happened outside the app' },
-  view_status: { label: 'View Status', desc: 'See the map and passage records read-only in their scope' }
-};
+/** The demo's permission names and what each one lets someone do (data.ts PRIVILEGE_DESC), in the language showing. */
+function privilegeInfo(p: Privilege): { label: string; desc: string } {
+  switch (p) {
+    case 'manage_structure': return { label: t('config.privileges.manageStructure.label'), desc: t('config.privileges.manageStructure.desc') };
+    case 'invite_members': return { label: t('config.privileges.inviteMembers.label'), desc: t('config.privileges.inviteMembers.desc') };
+    case 'manage_roles': return { label: t('config.privileges.manageRoles.label'), desc: t('config.privileges.manageRoles.desc') };
+    case 'manage_templates': return { label: t('config.privileges.manageTemplates.label'), desc: t('config.privileges.manageTemplates.desc') };
+    case 'shape_templates': return { label: t('config.privileges.shapeTemplates.label'), desc: t('config.privileges.shapeTemplates.desc') };
+    case 'manage_reference': return { label: t('config.privileges.manageReference.label'), desc: t('config.privileges.manageReference.desc') };
+    case 'manage_flows': return { label: t('config.privileges.manageFlows.label'), desc: t('config.privileges.manageFlows.desc') };
+    case 'manage_teams': return { label: t('config.privileges.manageTeams.label'), desc: t('config.privileges.manageTeams.desc') };
+    case 'assign_work': return { label: t('config.privileges.assignWork.label'), desc: t('config.privileges.assignWork.desc') };
+    case 'override_checkpoints': return { label: t('config.privileges.overrideCheckpoints.label'), desc: t('config.privileges.overrideCheckpoints.desc') };
+    case 'translate': return { label: t('config.privileges.translate.label'), desc: t('config.privileges.translate.desc') };
+    case 'fill_reference': return { label: t('config.privileges.fillReference.label'), desc: t('config.privileges.fillReference.desc') };
+    case 'send_to_reviewers': return { label: t('config.privileges.sendToReviewers.label'), desc: t('config.privileges.sendToReviewers.desc') };
+    case 'review': return { label: t('config.privileges.review.label'), desc: t('config.privileges.review.desc') };
+    case 'view_status': return { label: t('config.privileges.viewStatus.label'), desc: t('config.privileges.viewStatus.desc') };
+  }
+}
+
+/** Each permission's name and what it lets someone do, read when shown (so in the language showing). */
+export const PRIVILEGE_INFO = Object.fromEntries(PRIVILEGES.map((p) => [p, {
+  get label() { return privilegeInfo(p).label; },
+  get desc() { return privilegeInfo(p).desc; }
+}])) as Record<Privilege, { readonly label: string; readonly desc: string }>;
 
 /**
  * The role editor's three groups (demo ADR-039): doing the work, checking
  * it, and running the team. Every permission is in exactly one.
  */
-export const PRIVILEGE_GROUPS: { title: string; privileges: Privilege[] }[] = [
-  { title: 'Do the work', privileges: ['translate', 'fill_reference', 'send_to_reviewers'] },
-  { title: 'Check the work', privileges: ['review', 'view_status'] },
-  { title: 'Run the team', privileges: ['invite_members', 'assign_work', 'manage_teams', 'manage_structure', 'manage_templates', 'shape_templates', 'manage_reference', 'manage_flows', 'override_checkpoints', 'manage_roles'] }
+export const PRIVILEGE_GROUPS: { readonly title: string; privileges: Privilege[] }[] = [
+  { get title() { return t('config.privilegeGroups.doTheWork'); }, privileges: ['translate', 'fill_reference', 'send_to_reviewers'] },
+  { get title() { return t('config.privilegeGroups.checkTheWork'); }, privileges: ['review', 'view_status'] },
+  { get title() { return t('config.privilegeGroups.runTheTeam'); }, privileges: ['invite_members', 'assign_work', 'manage_teams', 'manage_structure', 'manage_templates', 'shape_templates', 'manage_reference', 'manage_flows', 'override_checkpoints', 'manage_roles'] }
 ];
 
 type ViewLevel = Scope['level'];
-export const LEVEL_LABEL: Record<ViewLevel, string> = { org: 'Organization', language: 'Language' };
+/** The level the roles are seen from, by name. */
+export function levelLabel(level: ViewLevel): string {
+  return level === 'org' ? t('config.levels.org') : t('config.levels.language');
+}
 
 /**
  * Which home the roles screens are seen from (demo `roleViewLevel`): an
@@ -112,12 +125,8 @@ export function roleRows(org: OrgState | null, level: ViewLevel): RoleRow[] {
 
 /** The organization's name, or the language's name. */
 export function scopeName(scope: Scope, org: OrgState | null): string {
-  if (scope.level === 'org') return org?.org?.value.name ?? 'Organization';
+  if (scope.level === 'org') return org?.org?.value.name ?? t('config.unnamedOrg');
   return languageName(org, scope.languageId);
-}
-
-export function plural(n: number, one: string, many = `${one}s`): string {
-  return `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 }
 
 // ---- review flows (FLOW-1..4) --------------------------------------------------------
@@ -138,12 +147,24 @@ interface FlowUse {
 /** The flow the language uses (FLOW-4). */
 export function flowUse(state: LanguageState): FlowUse {
   const flow = deriveFlow(state);
-  return { flowName: flow.name, itemId: flow.itemId, docHash: flow.docHash, steps: flow.steps, chosen: !!state.flow };
+  return { flowName: flowName(state), itemId: flow.itemId, docHash: flow.docHash, steps: flow.steps, chosen: !!state.flow };
+}
+
+/**
+ * Core's `deriveFlow(...).name` in the language showing: a library flow by
+ * its own name (the organization's words), and core's English names for a
+ * language's own steps, no flow, and a flow without a name, as the app says them.
+ */
+export function flowName(state: LanguageState): string {
+  const selection = state.flow?.value;
+  if (!selection) return t('config.flows.noReviewFlow');
+  if (selection.flowId === CUSTOM_FLOW) return t('config.flows.customFlow');
+  return selection.name ?? flowTemplate(selection.flowId)?.name ?? t('config.flows.reviewFlow');
 }
 
 /** What a language's flow is called: its flow's name, or none yet. */
 export function flowLabel(use: Pick<FlowUse, 'flowName' | 'chosen'>): string {
-  return use.chosen ? use.flowName : 'No flow chosen yet';
+  return use.chosen ? use.flowName : t('config.flows.noneChosen');
 }
 
 /**
@@ -236,15 +257,17 @@ export function newKindId(name: string, taken: Iterable<string>): string {
 
 // ---- reference material (ORG-8) -----------------------------------------------------
 
-/** The kinds of reference material, with the codes the UX spec gives them (Q7). */
-export const REFERENCE_KINDS: { id: string; code: string; name: string }[] = [
-  { id: 'tmf', code: 'TMF', name: 'Translation Management Framework' },
-  { id: 'brief', code: 'Brief', name: 'Translation Brief' },
-  { id: 'tg', code: 'TG', name: 'Translation Guidelines' },
-  { id: 'fia_study', code: 'FIA', name: 'FIA Study Material' },
-  { id: 'key_terms', code: 'KT', name: 'Key Terms' },
-  { id: 'questions', code: 'Q', name: 'Review Questions' }
-];
+/** The kinds of reference material, with the codes the UX spec gives them (Q7), in the language showing. */
+export function referenceKinds(): { id: string; code: string; name: string }[] {
+  return [
+    { id: 'tmf', code: t('config.referenceKinds.tmf.code'), name: t('config.referenceKinds.tmf.name') },
+    { id: 'brief', code: t('config.referenceKinds.brief.code'), name: t('config.referenceKinds.brief.name') },
+    { id: 'tg', code: t('config.referenceKinds.tg.code'), name: t('config.referenceKinds.tg.name') },
+    { id: 'fia_study', code: t('config.referenceKinds.fiaStudy.code'), name: t('config.referenceKinds.fiaStudy.name') },
+    { id: 'key_terms', code: t('config.referenceKinds.keyTerms.code'), name: t('config.referenceKinds.keyTerms.name') },
+    { id: 'questions', code: t('config.referenceKinds.questions.code'), name: t('config.referenceKinds.questions.name') }
+  ];
+}
 
 /**
  * The language's own material, written in the app. Material for every
@@ -277,7 +300,7 @@ export function questionCount(m: Pick<MaterialView, 'fields'>): number {
 }
 
 export function questionCountLabel(n: number): string {
-  return n === 0 ? 'No questions yet' : plural(n, 'question');
+  return n === 0 ? t('config.questions.none') : t('config.questions.count', { count: n });
 }
 
 /** The kind of review a question set belongs to, by name; null for an older set tied to none. */
@@ -318,8 +341,10 @@ export function fieldLabel(fieldId: string): string {
 /** A reference kind's name ("Translation Guidelines"), or its id as words for a partner's own. */
 export function referenceKindName(kind: string): string {
   // Notes for translators are library material only (docs/reference-material.md).
-  if (kind === 'note') return 'Note for translators';
-  return REFERENCE_KINDS.find((k) => k.id === kind)?.name ?? fieldLabel(kind);
+  if (kind === 'note') return t('config.referenceKinds.note');
+  // A kind the library editor offers (LIBRARY_MATERIAL_KINDS in config.tsx).
+  if (kind === 'document') return t('config.referenceKinds.document');
+  return referenceKinds().find((k) => k.id === kind)?.name ?? fieldLabel(kind);
 }
 
 // ---- reference material in the library (docs/library.md) ----------------------------
@@ -375,9 +400,9 @@ export function libraryQuestions(doc: MaterialDoc): QuestionSpec[] {
  */
 export function questionSetToReviews(state: LanguageState, c: { commandId: string; itemId: string; doc: MaterialDoc }): { materialId: string; specs: EventSpec[]; undo: EventSpec[] } {
   const kindId = c.doc.reviewKindId;
-  if (!kindId) throw new CommandError('This question set is not for a kind of review.');
+  if (!kindId) throw new CommandError(t('config.errors.setNotForKind'));
   const questions = libraryQuestions(c.doc);
-  if (questions.length === 0) throw new CommandError('This question set has no questions.');
+  if (questions.length === 0) throw new CommandError(t('config.errors.setHasNoQuestions'));
   const materialId = `qs.${c.itemId}`;
   const cmd = commands(state);
   const used = new Set<string>();
@@ -413,23 +438,25 @@ export function parseRefLinks(text: string): { refs: string[]; bad: string[] } {
 /** What a library material is, in one line under its name; null while its document loads. */
 export function libraryMaterialLine(doc: LibraryDoc | null, versificationName: string | null, kinds: KindDef[]): { type: 'study' | 'questions' | 'material'; line: string } | null {
   if (!doc) return null;
-  const v = versificationName ? ` · ${versificationName}` : '';
+  // Facts about it, a dot between each; the versification last when it has one.
+  const line = (...parts: string[]) => parts.join(' · ');
+  const v = versificationName ? [versificationName] : [];
   switch (doc.format) {
-    case 'study@1': return { type: 'study', line: `Study guide · ${doc.ref} · 1 passage${v}` };
-    case 'collection@1': return { type: 'study', line: `Study guides · ${plural(doc.entries.length, 'passage')}${v}` };
+    case 'study@1': return { type: 'study', line: line(t('config.libraryLine.studyGuide'), doc.ref, t('config.libraryLine.passages', { count: 1 }), ...v) };
+    case 'collection@1': return { type: 'study', line: line(t('config.libraryLine.studyGuides'), t('config.libraryLine.passages', { count: doc.entries.length }), ...v) };
     case 'material@1': {
       if (doc.kind === 'questions') {
-        const kind = doc.reviewKindId ? kinds.find((k) => k.id === doc.reviewKindId)?.name ?? fieldLabel(doc.reviewKindId) : 'Not tied to a kind of review';
-        return { type: 'questions', line: `Question set · ${kind} · ${questionCountLabel(libraryQuestions(doc).length)}` };
+        const kind = doc.reviewKindId ? kinds.find((k) => k.id === doc.reviewKindId)?.name ?? fieldLabel(doc.reviewKindId) : t('config.libraryLine.notTiedToKind');
+        return { type: 'questions', line: line(t('config.libraryLine.questionSet'), kind, questionCountLabel(libraryQuestions(doc).length)) };
       }
       return { type: 'material', line: referenceKindName(doc.kind) };
     }
     case 'study@2': {
-      const where = doc.ref ?? (doc.links?.length ? plural(doc.links.length, 'place') : 'Not placed yet');
-      return { type: 'study', line: `Study guide · ${where} · ${plural(doc.steps.length, 'step')}${doc.ref ? v : ''}` };
+      const where = doc.ref ?? (doc.links?.length ? t('config.libraryLine.places', { count: doc.links.length }) : t('config.libraryLine.notPlaced'));
+      return { type: 'study', line: line(t('config.libraryLine.studyGuide'), where, t('config.libraryLine.steps', { count: doc.steps.length }), ...(doc.ref ? v : [])) };
     }
-    case 'source@1': return { type: 'material', line: `Bible · ${doc.abbreviation} · ${doc.language}` };
-    default: return { type: 'material', line: 'Not reference material' };
+    case 'source@1': return { type: 'material', line: line(t('config.libraryLine.bible'), doc.abbreviation, doc.language) };
+    default: return { type: 'material', line: t('config.libraryLine.notReference') };
   }
 }
 
@@ -440,14 +467,14 @@ export function libraryMaterialLine(doc: LibraryDoc | null, versificationName: s
  * source field for a term yet, so FIA terms are known by their id prefix
  * (`fia:`), the convention for terms imported from FIA's glossary.
  */
-export function isFiaTerm(t: Pick<KeyTermView, 'termId'>): boolean {
-  return /^fia[:/-]/i.test(t.termId);
+export function isFiaTerm(term: Pick<KeyTermView, 'termId'>): boolean {
+  return /^fia[:/-]/i.test(term.termId);
 }
 
 /** Search on the term and its meaning (TERM-2). */
-export function matchesTerm(t: Pick<KeyTermView, 'term' | 'gloss'>, q: string): boolean {
+export function matchesTerm(term: Pick<KeyTermView, 'term' | 'gloss'>, q: string): boolean {
   const needle = q.trim().toLowerCase();
-  return !needle || `${t.term} ${t.gloss}`.toLowerCase().includes(needle);
+  return !needle || `${term.term} ${term.gloss}`.toLowerCase().includes(needle);
 }
 
 /** The words a term is found by in a text: "Word (Logos)" -> ["word", "logos"]. */
@@ -467,14 +494,14 @@ export function termsInPassage(state: LanguageState, terms: KeyTermView[], unitI
   const ancestors = unitAncestry(state, unitId);
   const text = source?.toLowerCase() ?? '';
   const out = new Set<string>();
-  for (const t of terms) {
-    if (t.unitScope.some((u) => ancestors.has(u))) { out.add(t.termId); continue; }
-    if (text && termWords(t.term).some((w) => new RegExp(`(^|[^\\p{L}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'u').test(text))) out.add(t.termId);
+  for (const term of terms) {
+    if (term.unitScope.some((u) => ancestors.has(u))) { out.add(term.termId); continue; }
+    if (text && termWords(term.term).some((w) => new RegExp(`(^|[^\\p{L}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'u').test(text))) out.add(term.termId);
   }
   return out;
 }
 
-/** Kinds known to the organization, for the flow editor's picker. */
+/** Kinds known to the organization, for the flow editor's picker (the shipped ones in the language showing). */
 export function allKinds(state: LanguageState): KindDef[] {
   return deriveKinds(state);
 }

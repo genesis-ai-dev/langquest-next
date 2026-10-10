@@ -2,7 +2,9 @@
 // phones keep no copy of it. Adding a language offers what matches its name,
 // and a language's page links one added unlinked (v1.LanguageCodeSet).
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { Text } from './text';
+import { t } from './i18n';
 import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn, txt } from './kit';
 import { hitLine, languoidHits, type LanguoidHit, type LanguoidRow } from './languoidModel';
 import { supabase } from './supabase';
@@ -73,9 +75,9 @@ export function LanguoidPicker(props: {
   if (picked) {
     return (
       <View style={{ gap: space.xs }}>
-        <SectionLabel label="In the language list" />
+        <SectionLabel label={t('languoid.picker.inList')} />
         <Group>
-          <Row icon="globe" label={picked.name} sub={hitLine(picked)} last right={<SmallBtn label="Change" onPress={() => props.onPick(null)} />} />
+          <Row icon="globe" label={picked.name} sub={hitLine(picked)} last right={<SmallBtn label={t('languoid.picker.change')} onPress={() => props.onPick(null)} />} />
         </Group>
       </View>
     );
@@ -84,25 +86,25 @@ export function LanguoidPicker(props: {
   if (search.status === 'unreachable') {
     return (
       <View style={{ gap: space.xs }}>
-        <Banner icon="cloud" tone="amber" title="Can't search the language list" body={props.unreachable} />
-        <LinkBtn label="Try again" onPress={search.retry} />
+        <Banner icon="cloud" tone="amber" title={t('languoid.picker.cannotSearch')} body={props.unreachable} />
+        <LinkBtn label={t('common.tryAgain')} onPress={search.retry} />
       </View>
     );
   }
   if (search.status === 'none') {
-    return <Text style={txt.smMuted}>Nothing in the language list goes by that name. {props.unlisted}</Text>;
+    return <Text style={txt.smMuted}>{`${t('languoid.picker.noMatch')} ${props.unlisted}`}</Text>;
   }
   // While a search runs, a card with a spinner leads the list, over the last matches until the new ones come.
   const searching = search.status === 'searching';
   const n = search.hits.length;
   return (
     <View style={{ gap: space.xs }}>
-      {n ? <SectionLabel label="Is it one of these?" /> : null}
+      {n ? <SectionLabel label={t('languoid.picker.oneOfThese')} /> : null}
       <Group>
         <ScrollView style={{ maxHeight: LIST_HEIGHT }} nestedScrollEnabled keyboardShouldPersistTaps="handled">
           {searching ? (
             <Row leading={<View style={spinnerTile}><ActivityIndicator size="small" color={C.primary} /></View>}
-              label="Searching the language list…" muted last={n === 0} />
+              label={t('languoid.picker.searching')} muted last={n === 0} />
           ) : null}
           {search.hits.map((h, i) => (
             <Row key={h.id} icon="globe" label={h.name} sub={hitLine(h)} highlight={search.query} role="radio" selected={false} last={i === n - 1}
@@ -110,7 +112,7 @@ export function LanguoidPicker(props: {
           ))}
         </ScrollView>
       </Group>
-      {!searching && n >= LANGUOID_RESULTS ? <Text style={txt.smMuted}>These are the closest {LANGUOID_RESULTS}. Type more of its name to narrow them.</Text> : null}
+      {!searching && n >= LANGUOID_RESULTS ? <Text style={txt.smMuted}>{t('languoid.picker.closest', { count: LANGUOID_RESULTS })}</Text> : null}
       {n ? <Text style={txt.smMuted}>{props.unlisted}</Text> : null}
     </View>
   );

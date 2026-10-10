@@ -12,6 +12,9 @@ import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrar
 import { STARTER_FLOW } from '../orgAdmin';
 import { flowTitle, recordKind, type RecordKind } from './adminModel';
 
+/** A flow with one check by the community, by the title flowTitle gives it in the language showing ("Just the community"). */
+const communityOnly = () => flowTitle([{ kindIds: ['community'] }], []);
+
 /** Templates by the kind of work they give: the likely stories and chapters, and something else. */
 export function useRecordChoices(ctx: Ctx, inUseItemId: string | null | undefined, extraHashes: (string | null | undefined)[] = []) {
   const lib = useLibrary(ctx);
@@ -48,7 +51,8 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const titleOf = (doc: FlowDoc) => flowTitle(doc.steps, kindsOf(doc));
   const starter = entries.find((e) => e.c.name === STARTER_FLOW.name || (e.c.source === 'ours' && e.c.item.name === STARTER_FLOW.name)) ?? null;
   const first = (current ? entries.find((e) => e.c === current) : null) ?? starter ?? entries[0] ?? null;
-  const single = entries.find((e) => e !== first && titleOf(e.doc) === 'Just the community') ?? null;
+  const community = communityOnly();
+  const single = entries.find((e) => e !== first && titleOf(e.doc) === community) ?? null;
   const main = [first, single, ...entries.filter((e) => e !== first && e !== single && e.c.source === 'ours')].filter((e): e is FlowEntry => !!e);
   const rest = entries.filter((e) => !main.includes(e));
   return { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded: shared.loaded };

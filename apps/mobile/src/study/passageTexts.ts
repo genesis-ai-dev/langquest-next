@@ -1,3 +1,4 @@
+// i18n-ignore-file: Bible text (content in English translations), not the app's words.
 // The passages the study guides cover, in three public-domain English
 // translations (the UX demo's src/bible.ts, STUDY-5). Verse numbers only;
 // `scripture.ts` adds references and reading-pace timings.

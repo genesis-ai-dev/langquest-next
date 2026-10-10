@@ -16,13 +16,17 @@
 // versification follow it first ('v1.LibrarySubscribed', 'v1.LibraryPinned').
 // Drafts stay on the device (draftStore.ts) until published.
 import {
-  CALLOUT_KINDS, LICENSE_INFO, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
+  CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
 import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { Text } from '../text';
+import { licenseText } from '../coreText';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatNumber, formatTime } from '../i18n/format';
 import {
   Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField,
   SectionLabel, Sheet, SmallBtn, txt, useLayout
@@ -32,12 +36,11 @@ import { failureMessage } from '../report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
 import { useStudyFileUri } from '../study/media';
-import { AudioBar, CALLOUT_LOOK, GlossarySheet, MediaSheet, StepPreview, useStudyAudio } from '../study/ui';
-import { clock } from '../study/text';
+import { AudioBar, CALLOUT_LOOK, calloutLabel, GlossarySheet, mediaKindLabel, MediaSheet, shownClock, StepPreview, useStudyAudio } from '../study/ui';
 import { C, measure, radius, space, target, TINT, type as T } from '../theme';
 import { VoiceNote } from '../voiceNote';
 import {
-  boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId,
+  boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection
 } from './draft';
 import { draftKey, dropDraft, loadDraft, saveDraft } from './draftStore';
@@ -46,20 +49,31 @@ import { BLANK_METHOD, FIA_METHOD, methodFromDoc, type Method } from './methods'
 
 type Dispatch = (a: DraftAction) => void;
 
-const PANELS: { id: DraftPanel; label: string; icon: 'edit' | 'sparkle' | 'media' | 'book' }[] = [
-  { id: 'details', label: 'Details', icon: 'edit' },
-  { id: 'steps', label: 'Steps', icon: 'sparkle' },
-  { id: 'media', label: 'Media', icon: 'media' },
-  { id: 'glossary', label: 'Glossary', icon: 'book' }
+const PANELS: { id: DraftPanel; icon: 'edit' | 'sparkle' | 'media' | 'book' }[] = [
+  { id: 'details', icon: 'edit' },
+  { id: 'steps', icon: 'sparkle' },
+  { id: 'media', icon: 'media' },
+  { id: 'glossary', icon: 'book' }
 ];
 
+function panelLabel(panel: DraftPanel): string {
+  switch (panel) {
+    case 'details': return t('guides.editor.panels.details');
+    case 'steps': return t('guides.editor.panels.steps');
+    case 'media': return t('guides.editor.panels.media');
+    case 'glossary': return t('guides.editor.panels.glossary');
+  }
+}
+
+/** A license's name, or its id when the app does not know it. */
+const licenseName = (license: string) => (isLicense(license) ? licenseText(license).name : license);
+
 const isStudy = (d: unknown): d is StudyDoc | StudyDoc2 => !!d && typeof d === 'object' && ['study@1', 'study@2'].includes((d as { format?: string }).format ?? '');
-const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 /** A stand-in while the draft or its source loads, or when this person may not write guides. */
 function Waiting(props: { ctx: Ctx; title: string; sub?: string }) {
   return (
-    <Screen header={<Header title="Write a guide" onBack={props.ctx.back} />}>
+    <Screen header={<Header title={t('guides.editor.writeGuide')} onBack={props.ctx.back} />}>
       <EmptyState icon="sparkle" title={props.title} {...(props.sub ? { sub: props.sub } : {})} />
     </Screen>
   );
@@ -76,7 +90,8 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   const own = useMemo(() => lib.items('material').filter((i) => i.current && !i.archived && i.source !== 'subscription'), [lib]);
   const docs = useLibraryDocs(orgId, [sourceHash, ...own.map((i) => i.current)]);
   const source = docs.get(sourceHash);
-  const orgName = ctx.org.state?.org?.value.name ?? 'Our organization';
+  // Written into a new guide's source and credit (the author can change them), so in the language showing.
+  const orgName = ctx.org.state?.org?.value.name ?? t('guides.editor.ourOrganization');
   const license = orgLicense(ctx.org.state);
   const key = draftKey(orgId, { ...(itemId ? { itemId } : {}), ...(from ? { from } : {}) });
 
@@ -113,19 +128,19 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     if (!draft) return;
     if (first.current) { first.current = false; return; }
-    const t = setTimeout(() => { void saveDraft(key, draft).then(setSavedAt).catch(() => undefined); }, 600);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { void saveDraft(key, draft).then(setSavedAt).catch(() => undefined); }, 600);
+    return () => clearTimeout(timer);
   }, [draft, key]);
 
-  if (!canManage) return <Waiting ctx={ctx} title="Only people who manage reference material can write guides." />;
+  if (!canManage) return <Waiting ctx={ctx} title={t('guides.editor.notAllowed')} />;
   if (!draft) {
     const gone = looked && sourceHash && docs.get(sourceHash) && !isStudy(source);
-    return <Waiting ctx={ctx} title={gone ? 'That is not a study guide.' : 'Loading…'} {...(itemId && !it && ctx.org.state ? { sub: 'This guide is not in your library any more.' } : {})} />;
+    return <Waiting ctx={ctx} title={gone ? t('guides.editor.notAGuide') : t('common.loading')} {...(itemId && !it && ctx.org.state ? { sub: t('guides.editor.gone') } : {})} />;
   }
   return (
     <Editor ctx={ctx} draft={draft} setDraft={setDraft} dispatch={dispatch} draftKey={key} restored={restored} savedAt={savedAt}
       own={own.flatMap((i) => { const d = docs.get(i.current); return isStudy(d) && i.current !== sourceHash ? [methodFromDoc(i.itemId, d)] : []; })}
-      isNew={!sourceHash} title={itemId ? 'Edit guide' : from ? 'Adapt a guide' : 'Write a guide'}
+      isNew={!sourceHash} title={itemId ? t('guides.editor.editGuide') : from ? t('guides.editor.adaptGuide') : t('guides.editor.writeGuide')}
       newer={!!(itemId && it?.current && draft.basis?.docHash && draft.basis.docHash !== it.current)} />
   );
 }
@@ -163,56 +178,56 @@ function Editor(props: {
     if (problems.length) {
       setTried(true);
       goTo(problems[0]!);
-      ctx.toast(problems.length === 1 ? 'One thing to fix before publishing.' : `${problems.length} things to fix before publishing.`);
+      ctx.toast(problems.length === 1 ? t('guides.editor.oneToFix') : t('guides.editor.toFix', { count: problems.length }));
       return;
     }
-    setBusy('Publishing…');
+    setBusy(t('guides.editor.publishing'));
     try {
       await ensureVersification();
-      await uploadDraftFiles(lib.orgId, draft, (done, total) => { if (total) setBusy(`Uploading ${Math.min(done + 1, total)} of ${total}…`); });
-      setBusy('Publishing…');
+      await uploadDraftFiles(lib.orgId, draft, (done, total) => { if (total) setBusy(t('guides.editor.uploading', { n: Math.min(done + 1, total), total })); });
+      setBusy(t('guides.editor.publishing'));
       const doc = buildDoc(draft);
       await lib.publish({
         kind: 'material', ...(draft.basis?.itemId ? { itemId: draft.basis.itemId } : {}), name: doc.title,
-        description: `Study guide${doc.pattern ? ` · ${doc.pattern}` : ''}`, doc
+        // The item's description, like its name, is the author's: in the language showing.
+        description: doc.pattern ? t('guides.editor.itemDescriptionPattern', { pattern: doc.pattern }) : t('guides.editor.itemDescription'), doc
       });
       await dropDraft(props.draftKey);
-      ctx.toast(`${doc.title} is published. Devices get it when they next sync.`);
+      ctx.toast(t('guides.editor.published', { title: doc.title }));
       ctx.back();
     } catch (e) {
       // The draft stays on the device; publishing again picks up where this stopped.
-      ctx.toast(`${failureMessage('publish guide', e)} Your draft is kept.`);
+      ctx.toast(t('guides.editor.notPublished', { reason: failureMessage('publish guide', e) }));
       setBusy(null);
     }
   }
 
   const counts: Record<DraftPanel, number | null> = { details: null, steps: draft.steps.length, media: draft.resources.length, glossary: draft.terms.length };
-  const saved = props.savedAt ? `Draft saved on this device at ${time(props.savedAt)}.` : 'Drafts are saved on this device as you write.';
+  const saved = props.savedAt ? t('guides.editor.savedAt', { time: formatTime(props.savedAt) }) : t('guides.editor.savedAsYouWrite');
   return (
     <Screen fixed={false} columnWidth={wide ? measure.report : undefined}
       header={<Header title={draft.title.trim() || props.title} {...(draft.title.trim() ? { sub: props.title } : {})} onBack={ctx.back} columnWidth={wide ? measure.report : undefined} />}
-      footer={<PrimaryBtn label={busy ?? (draft.basis?.itemId ? 'Publish new version' : 'Publish')} onPress={() => void publish()} disabled={!!busy} />}>
+      footer={<PrimaryBtn label={busy ?? (draft.basis?.itemId ? t('guides.editor.publishNewVersion') : t('common.publish'))} onPress={() => void publish()} disabled={!!busy} />}>
       {/* Forms keep the reading width; only the steps use the whole window, side by side. */}
       <View style={[{ gap: space.md }, panel === 'steps' ? null : s.reading]}>
         {/* Tabs within the screen (kit ChipRow): they scroll sideways on a phone instead of shrinking. */}
         <View accessibilityRole="tablist">
           <ChipRow>
             {PANELS.map((p) => (
-              <Chip key={p.id} icon={p.icon} label={p.label} on={panel === p.id} onPress={() => setPanel(p.id)}
+              <Chip key={p.id} icon={p.icon} label={panelLabel(p.id)} on={panel === p.id} onPress={() => setPanel(p.id)}
                 {...(counts[p.id] !== null ? { count: counts[p.id]! } : {})} />
             ))}
           </ChipRow>
         </View>
-        <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{saved} One person edits a guide at a time.</Text>
+        <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{saved}</Text>
         {props.restored && panel === 'details' ? (
-          <Banner icon="history" title={`Your draft from ${time(props.restored)} is open.`} body="Publish it, or keep writing. Nothing is published until you do." />
+          <Banner icon="history" title={t('guides.editor.restored', { time: formatTime(props.restored) })} body={t('guides.editor.restoredBody')} />
         ) : null}
         {props.newer ? (
-          <Banner icon="history" tone="amber" title="A newer version was published after you started this draft."
-            body="Publishing yours makes it the next version, without their changes." />
+          <Banner icon="history" tone="amber" title={t('guides.editor.newer')} body={t('guides.editor.newerBody')} />
         ) : null}
         {tried && problems.length > 0 ? <Problems problems={problems} current={panel} onPick={goTo} /> : null}
-        {tried && problems.length === 0 ? <Banner icon="check" tone="green" title="Ready to publish." /> : null}
+        {tried && problems.length === 0 ? <Banner icon="check" tone="green" title={t('guides.editor.ready')} /> : null}
         {panel === 'details' ? <DetailsPanel ctx={ctx} draft={draft} dispatch={dispatch} isNew={props.isNew} own={props.own} setDraft={props.setDraft} /> : null}
         {panel === 'steps' ? <StepsPanel ctx={ctx} draft={draft} dispatch={dispatch} stepId={stepId} setStepId={setStepId} preview={preview} setDraft={props.setDraft} /> : null}
         {panel === 'media' ? <MediaPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
@@ -225,12 +240,12 @@ function Editor(props: {
 function Problems(props: { problems: DraftProblem[]; current: DraftPanel; onPick: (p: DraftProblem) => void }) {
   return (
     <View style={s.problems} accessibilityRole="alert">
-      <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>Before publishing</Text>
+      <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('guides.editor.beforePublishing')}</Text>
       {props.problems.map((p, i) => (
         <Pressable key={`${p.panel}-${p.id ?? ''}-${i}`} onPress={() => props.onPick(p)} accessibilityRole="button"
           style={({ pressed }) => [s.problem, pressed && s.pressed]}>
           <Text style={[txt.sm, { flex: 1 }]}>{p.text}</Text>
-          {p.panel !== props.current ? <Text style={[txt.xsStrong, { color: C.primary }]}>{PANELS.find((x) => x.id === p.panel)?.label}</Text> : null}
+          {p.panel !== props.current ? <Text style={[txt.xsStrong, { color: C.primary }]}>{panelLabel(p.panel)}</Text> : null}
         </Pressable>
       ))}
     </View>
@@ -238,6 +253,13 @@ function Problems(props: { problems: DraftProblem[]; current: DraftPanel; onPick
 }
 
 // ─── Details ───────────────────────────────────────────────────────────────────
+
+/** What Undo's toast says after a method replaced the steps. */
+function replacedWith(m: Method): string {
+  if (m === FIA_METHOD) return t('guides.details.replacedFia');
+  if (m === BLANK_METHOD) return t('guides.details.replacedBlank');
+  return t('guides.details.replacedStepsOf', { title: m.from ?? m.label });
+}
 
 function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; isNew: boolean; own: Method[]; setDraft: (d: GuideDraft) => void }) {
   const { ctx, draft, dispatch } = props;
@@ -248,58 +270,58 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
   const useMethod = (m: Method) => {
     const before = draft;
     dispatch({ type: 'useMethod', method: m });
-    if (written) ctx.toast(`Steps replaced with ${m.label.toLowerCase()}.`, () => props.setDraft(before));
+    if (written) ctx.toast(replacedWith(m), () => props.setDraft(before));
   };
   return (
     <View style={{ gap: space.md }}>
       {draft.basis?.adapted ? (
-        <Banner icon="share" title="Adapted from someone else's guide"
-          body={shareAlike
-            ? `It is shared under ${LICENSE_INFO[shareAlike as keyof typeof LICENSE_INFO]?.name ?? shareAlike}, which is share-alike: what you make from it stays under the same license, with their credit.`
-            : 'Their credit stays with it. Your changes publish as your own guide; theirs never changes.'} />
+        <Banner icon="share" title={t('guides.details.adapted')}
+          body={shareAlike ? t('guides.details.adaptedShareAlike', { license: licenseName(shareAlike) }) : t('guides.details.adaptedCredit')} />
       ) : null}
-      <Field label="Title" value={draft.title} onChangeText={(v) => set({ title: v })} placeholder="e.g. Luke 15:11–32, or Clean water" autoCapitalize="sentences" />
-      <SectionLabel label="Method" />
+      <Field label={t('guides.details.title')} value={draft.title} onChangeText={(v) => set({ title: v })} placeholder={t('guides.details.titlePlaceholder')} autoCapitalize="sentences" />
+      <SectionLabel label={t('guides.details.method')} />
       <ChipRow>
         {[...new Set(['FIA', ...props.own.map((m) => m.pattern).filter(Boolean), draft.pattern].filter(Boolean))].map((p) => (
           <Chip key={p} label={p} on={draft.pattern === p} onPress={() => set({ pattern: p })} />
         ))}
       </ChipRow>
-      <Field label="Or your own name for it" value={draft.pattern} onChangeText={(v) => set({ pattern: v })} placeholder="e.g. Story study" autoCapitalize="words" />
+      <Field label={t('guides.details.ownMethod')} value={draft.pattern} onChangeText={(v) => set({ pattern: v })} placeholder={t('guides.details.ownMethodPlaceholder')} autoCapitalize="words" />
       {props.isNew ? (
         <>
-          <Text style={txt.xsStrong}>Start with these steps</Text>
+          <Text style={txt.xsStrong}>{t('guides.details.startWith')}</Text>
           <ChipRow>
             {methods.map((m) => <Chip key={m.id} label={m.label} on={false} onPress={() => useMethod(m)} />)}
           </ChipRow>
-          <Text style={txt.xs}>{written ? 'Choosing replaces the steps you have. You can undo it.' : `Now: ${draft.steps.length} step${draft.steps.length === 1 ? '' : 's'}.`}</Text>
+          <Text style={txt.xs}>{written ? t('guides.details.choosingReplaces') : t('guides.details.nowSteps', { count: draft.steps.length })}</Text>
         </>
       ) : null}
-      <Field label="About" value={draft.about} onChangeText={(v) => set({ about: v })} placeholder="What the guide does, in a sentence or two" autoCapitalize="sentences" multiline />
-      <Field label="Language of the text" value={draft.language} onChangeText={(v) => set({ language: v.trim().toLowerCase() })} placeholder="eng" autoCapitalize="none" />
+      <Field label={t('guides.details.about')} value={draft.about} onChangeText={(v) => set({ about: v })} placeholder={t('guides.details.aboutPlaceholder')} autoCapitalize="sentences" multiline />
+      {/* i18n-ignore: the placeholder is a language code, the form the field takes */}
+      <Field label={t('guides.details.language')} value={draft.language} onChangeText={(v) => set({ language: v.trim().toLowerCase() })} placeholder="eng" autoCapitalize="none" />
 
-      <SectionLabel label="Where it applies" />
+      <SectionLabel label={t('guides.details.whereItApplies')} />
       <Placement ctx={ctx} draft={draft} dispatch={dispatch} />
 
-      <SectionLabel label="License and credit" />
+      <SectionLabel label={t('guides.details.licenseAndCredit')} />
       {shareAlike ? (
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
             <Ico name="lock" size={18} color={C.muted} />
-            <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{LICENSE_INFO[shareAlike as keyof typeof LICENSE_INFO]?.name ?? shareAlike}</Text>
+            <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{licenseName(shareAlike)}</Text>
           </View>
-          <Text style={txt.xs}>Share-alike applies: an adaptation keeps the license of what it adapts.</Text>
+          <Text style={txt.xs}>{t('guides.details.shareAlike')}</Text>
         </Card>
       ) : (
         <>
           <ChipRow>
-            {LICENSES.map((l) => <Chip key={l} label={LICENSE_INFO[l].name} on={draft.license === l} onPress={() => set({ license: l })} />)}
+            {LICENSES.map((l) => <Chip key={l} label={licenseText(l).name} on={draft.license === l} onPress={() => set({ license: l })} />)}
           </ChipRow>
-          {isLicense(draft.license) ? <Text style={txt.xs}>{LICENSE_INFO[draft.license].means}</Text> : null}
+          {isLicense(draft.license) ? <Text style={txt.xs}>{licenseText(draft.license).means}</Text> : null}
         </>
       )}
-      <Field label="Credit" value={draft.credit} onChangeText={(v) => set({ credit: v })} placeholder="© 2026 Your organization" autoCapitalize="sentences" />
-      <Field label="Where it comes from (shown with the guide)" value={draft.source} onChangeText={(v) => set({ source: v })} placeholder="Your organization" autoCapitalize="sentences" />
+      <Field label={t('guides.details.credit')} value={draft.credit} onChangeText={(v) => set({ credit: v })}
+        placeholder={t('guides.details.creditPlaceholder', { year: formatNumber(new Date().getFullYear(), { useGrouping: false }) })} autoCapitalize="sentences" />
+      <Field label={t('guides.details.source')} value={draft.source} onChangeText={(v) => set({ source: v })} placeholder={t('guides.details.sourcePlaceholder')} autoCapitalize="sentences" />
     </View>
   );
 }
@@ -319,7 +341,7 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
     ...sharedV.rows.filter((r) => !ownV.some((v) => v.current === r.latest_hash)).map((r) => ({ key: `${r.org_id}/${r.item_id}`, label: `${r.name} · ${r.org_name}`, hash: r.latest_hash }))
   ];
   if (draft.versification && !choices.some((c) => c.hash === draft.versification)) {
-    choices.unshift({ key: 'doc', label: docs.get<VersificationDoc>(draft.versification)?.name ?? 'Its numbering', hash: draft.versification });
+    choices.unshift({ key: 'doc', label: docs.get<VersificationDoc>(draft.versification)?.name ?? t('guides.placement.itsNumbering'), hash: draft.versification });
   }
   const units = useMemo(() => {
     if (!state || !picking) return [];
@@ -337,10 +359,11 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
   };
   return (
     <View style={{ gap: space.md }}>
-      <Field label="Verses" value={draft.ref} onChangeText={(v) => dispatch({ type: 'set', patch: { ref: v } })} placeholder="LUK 15:11-32" autoCapitalize="none" />
+      {/* i18n-ignore: the placeholder is a verse reference in the form the field reads */}
+      <Field label={t('guides.placement.verses')} value={draft.ref} onChangeText={(v) => dispatch({ type: 'set', patch: { ref: v } })} placeholder="LUK 15:11-32" autoCapitalize="none" />
       {draft.ref.trim() ? (
         <>
-          <Text style={txt.xsStrong}>Numbered as in</Text>
+          <Text style={txt.xsStrong}>{t('guides.placement.numberedAs')}</Text>
           <ChipRow>
             {choices.map((c) => <Chip key={c.key} label={c.label} on={draft.versification === c.hash} onPress={() => dispatch({ type: 'set', patch: { versification: c.hash } })} />)}
           </ChipRow>
@@ -349,17 +372,17 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
       {draft.parts.length ? (
         <Group>
           {draft.parts.map((p, i) => (
-            <Row key={`${p.template}/${p.node}`} icon="template" label={partLabel(p)} sub="A part of a content template" last={i === draft.parts.length - 1}
-              right={<IconBtn name="close" label={`Remove ${partLabel(p)}`} bg={C.light} color={C.primary}
+            <Row key={`${p.template}/${p.node}`} icon="template" label={partLabel(p)} sub={t('guides.placement.partSub')} last={i === draft.parts.length - 1}
+              right={<IconBtn name="close" label={t('guides.editor.remove', { name: partLabel(p) })} bg={C.light} color={C.primary}
                 onPress={() => dispatch({ type: 'set', patch: { parts: draft.parts.filter((_, j) => j !== i) } })} />} />
           ))}
         </Group>
       ) : null}
-      <SmallBtn label="Link a part of a template" icon="link" onPress={() => setPicking(true)} />
-      <Text style={txt.xs}>Bible passages are found by their verses. Lessons and stories in an outline template are found by the part you link.</Text>
-      <Sheet visible={picking} title="Link a part" sub="Parts of the content templates your languages use." onClose={() => setPicking(false)}>
-        <SearchField value={q} onChangeText={setQ} placeholder="Search parts" />
-        {units.length === 0 ? <Text style={txt.smMuted}>{q ? `Nothing matches “${q}”.` : 'No language uses a library template yet.'}</Text> : null}
+      <SmallBtn label={t('guides.placement.linkPart')} icon="link" onPress={() => setPicking(true)} />
+      <Text style={txt.xs}>{t('guides.placement.help')}</Text>
+      <Sheet visible={picking} title={t('guides.placement.sheetTitle')} sub={t('guides.placement.sheetSub')} onClose={() => setPicking(false)}>
+        <SearchField value={q} onChangeText={setQ} placeholder={t('guides.placement.search')} />
+        {units.length === 0 ? <Text style={txt.smMuted}>{q ? t('common.nothingMatches', { query: q }) : t('guides.placement.noTemplate')}</Text> : null}
         <Group>
           {units.map((u, i) => (
             <Row key={u.unitId} icon="template" label={u.label} last={i === units.length - 1} onPress={() => {
@@ -387,7 +410,7 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
     const before = draft;
     dispatch({ type: 'deleteStep', id: st.id });
     if (props.stepId === st.id) props.setStepId(null);
-    ctx.toast(`${st.title || 'The step'} was removed.`, () => props.setDraft(before));
+    ctx.toast(st.title ? t('guides.editor.removed', { name: st.title }) : t('guides.steps.stepRemoved'), () => props.setDraft(before));
   };
   const add = () => {
     // The reducer names a new step the same way, so it can be opened straight away.
@@ -404,8 +427,8 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
             onOpen={() => props.setStepId(st.id)} onMove={(by) => dispatch({ type: 'moveStep', id: st.id, by })} onDelete={() => remove(st)} />
         ))}
       </Group>
-      {draft.steps.length === 0 ? <Text style={txt.smMuted}>No steps yet.</Text> : null}
-      <SmallBtn label={step ? 'Add a step after this one' : 'Add a step'} icon="plus" onPress={add} />
+      {draft.steps.length === 0 ? <Text style={txt.smMuted}>{t('guides.steps.none')}</Text> : null}
+      <SmallBtn label={step ? t('guides.steps.addAfter') : t('guides.steps.add')} icon="plus" onPress={add} />
     </View>
   );
   if (sideBySide) {
@@ -414,7 +437,7 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
         <View style={s.splitList}>{list}</View>
         <View style={{ flex: 1, minWidth: 0 }}>
           {step ? <StepEditor key={step.id} ctx={ctx} draft={draft} step={step} index={index} dispatch={dispatch} preview={props.preview} />
-            : <EmptyState icon="sparkle" title="Pick a step" sub="It opens here to write." />}
+            : <EmptyState icon="sparkle" title={t('guides.steps.pick')} sub={t('guides.steps.pickSub')} />}
         </View>
       </View>
     );
@@ -422,7 +445,7 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
   if (step) {
     return (
       <View style={{ gap: space.md }}>
-        <LinkBtn label="‹ All steps" onPress={() => props.setStepId(null)} />
+        <LinkBtn label={t('guides.steps.all')} onPress={() => props.setStepId(null)} />
         <StepEditor key={step.id} ctx={ctx} draft={draft} step={step} index={index} dispatch={dispatch} preview={props.preview} />
       </View>
     );
@@ -433,21 +456,22 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
 function StepRow(props: { step: DraftStep; index: number; count: number; on: boolean; last: boolean; onOpen: () => void; onMove: (by: -1 | 1) => void; onDelete: () => void }) {
   const st = props.step;
   const words = st.text.trim() ? st.text.trim().split(/\s+/).length : 0;
-  const sub = [st.phase, words ? `${words} words` : 'No text yet', st.audio ? 'audio' : null].filter(Boolean).join(' · ');
+  const sub = [st.phase, words ? t('guides.steps.words', { count: words }) : t('guides.steps.noText'), st.audio ? t('guides.steps.hasAudio') : null].filter(Boolean).join(' · ');
+  const n = props.index + 1;
   return (
     <View style={[s.stepRow, !props.last && s.rowBorder, props.on && { backgroundColor: C.light }]}>
       <Pressable onPress={props.onOpen} accessibilityRole="button" accessibilityState={{ selected: props.on }}
-        accessibilityLabel={`Step ${props.index + 1}: ${st.title || 'untitled'}. ${sub}`}
+        accessibilityLabel={st.title ? t('guides.steps.rowLabel', { n, title: st.title, details: sub }) : t('guides.steps.rowLabelUntitled', { n, details: sub })}
         style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row }, pressed && s.pressed]}>
-        <View style={s.stepNum}><Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{props.index + 1}</Text></View>
+        <View style={s.stepNum}><Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{formatNumber(n)}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>{st.title || 'Untitled step'}</Text>
+          <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>{st.title || t('guides.steps.untitled')}</Text>
           <Text style={txt.xs} numberOfLines={1}>{sub}</Text>
         </View>
       </Pressable>
-      <IconBtn name="up" label={`Move ${st.title} up`} onPress={() => props.onMove(-1)} disabled={props.index === 0} bg="transparent" color={C.primary} />
-      <IconBtn name="down" label={`Move ${st.title} down`} onPress={() => props.onMove(1)} disabled={props.index === props.count - 1} bg="transparent" color={C.primary} />
-      <IconBtn name="trash" label={`Remove ${st.title}`} onPress={props.onDelete} bg="transparent" color={TINT.redText} />
+      <IconBtn name="up" label={t('guides.steps.moveUp', { title: st.title })} onPress={() => props.onMove(-1)} disabled={props.index === 0} bg="transparent" color={C.primary} />
+      <IconBtn name="down" label={t('guides.steps.moveDown', { title: st.title })} onPress={() => props.onMove(1)} disabled={props.index === props.count - 1} bg="transparent" color={C.primary} />
+      <IconBtn name="trash" label={t('guides.editor.remove', { name: st.title })} onPress={props.onDelete} bg="transparent" color={TINT.redText} />
     </View>
   );
 }
@@ -466,22 +490,22 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
   const editor = <TextEditor draft={draft} text={step.text} onChange={(text) => update({ text })} />;
   const preview = (
     <View style={{ gap: space.sm }}>
-      <Text style={txt.xs}>As the study step shows it. Tap a link to check it.</Text>
+      <Text style={txt.xs}>{t('guides.steps.previewHelp')}</Text>
       <StepPreview text={step.text} onOpenRef={openRef} />
     </View>
   );
   return (
     <View style={{ gap: space.md }}>
       <Card>
-        <Text style={txt.label}>Step {props.index + 1}</Text>
-        <Field label="Title" value={step.title} onChangeText={(v) => update({ title: v })} placeholder="e.g. Setting the Stage" autoCapitalize="words" />
-        <Field label="Phase (a group of steps)" value={step.phase} onChangeText={(v) => update({ phase: v })} placeholder="e.g. Familiarize" autoCapitalize="words" />
+        <Text style={txt.label}>{t('guides.steps.stepNumber', { n: props.index + 1 })}</Text>
+        <Field label={t('guides.steps.title')} value={step.title} onChangeText={(v) => update({ title: v })} placeholder={t('guides.steps.titlePlaceholder')} autoCapitalize="words" />
+        <Field label={t('guides.steps.phase')} value={step.phase} onChangeText={(v) => update({ phase: v })} placeholder={t('guides.steps.phasePlaceholder')} autoCapitalize="words" />
         {phases.length > 1 ? (
           <ChipRow>{phases.map((p) => <Chip key={p} label={p} on={step.phase.trim() === p} onPress={() => update({ phase: p })} />)}</ChipRow>
         ) : null}
-        <Field label="Purpose (one line under the title)" value={step.purpose} onChangeText={(v) => update({ purpose: v })} placeholder="What this step is for" autoCapitalize="sentences" />
+        <Field label={t('guides.steps.purpose')} value={step.purpose} onChangeText={(v) => update({ purpose: v })} placeholder={t('guides.steps.purposePlaceholder')} autoCapitalize="sentences" />
       </Card>
-      <AudioSlot ctx={ctx} label="Step audio" audio={step.audio} recordLabel="Record this step"
+      <AudioSlot ctx={ctx} label={t('guides.steps.audio')} removeLabel={t('guides.steps.removeAudio')} audio={step.audio} recordLabel={t('guides.steps.record')}
         onChange={(audio) => dispatch({ type: 'setStepAudio', id: step.id, audio })} />
       {sideBySide ? (
         <View style={s.split}>
@@ -491,13 +515,13 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
       ) : (
         <>
           <ChipRow>
-            <Chip icon="edit" label="Write" on={view === 'write'} onPress={() => setView('write')} />
-            <Chip icon="sparkle" label="Preview" on={view === 'preview'} onPress={() => setView('preview')} />
+            <Chip icon="edit" label={t('guides.steps.write')} on={view === 'write'} onPress={() => setView('write')} />
+            <Chip icon="sparkle" label={t('common.preview')} on={view === 'preview'} onPress={() => setView('preview')} />
           </ChipRow>
           {view === 'write' ? editor : preview}
         </>
       )}
-      {opened && opened.kind !== 'term' ? <MediaSheet resource={opened} source={`${props.preview.pattern || 'Guide'} media`} orgId={ctx.language.orgId} onClose={() => setOpened(null)} /> : null}
+      {opened && opened.kind !== 'term' ? <MediaSheet resource={opened} source={props.preview.pattern ? t('guides.steps.mediaOf', { pattern: props.preview.pattern }) : t('guides.steps.guideMedia')} orgId={ctx.language.orgId} onClose={() => setOpened(null)} /> : null}
       {opened && entry ? (
         <GlossarySheet entry={entry} source={props.preview.source} orgId={ctx.language.orgId} hasKeyTerm={false} onOpenTerm={() => undefined} onClose={() => setOpened(null)} />
       ) : null}
@@ -533,19 +557,19 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
     if (forced) setForced(undefined);
   };
   const linkables = [
-    ...props.draft.resources.map((r) => ({ ref: r.ref, title: r.title || r.media[0]?.title || (r.kind === 'map' ? 'Map' : 'Pictures'), icon: (r.kind === 'map' ? 'map' : 'camera') as 'map' | 'camera' })),
-    ...props.draft.terms.map((t) => ({ ref: t.id, title: t.term || 'Term', icon: 'book' as const }))
+    ...props.draft.resources.map((r) => ({ ref: r.ref, title: r.title || r.media[0]?.title || untitledResource(r.kind), icon: (r.kind === 'map' ? 'map' : 'camera') as 'map' | 'camera' })),
+    ...props.draft.terms.map((term) => ({ ref: term.id, title: term.term || t('guides.text.untitledTerm'), icon: 'book' as const }))
   ];
   return (
     <View style={{ gap: space.sm }}>
       <View style={s.toolbar} accessibilityRole="toolbar">
-        <ToolBtn icon={Bold} label="Bold" onPress={() => apply(boldText(props.text, sel.current))} />
-        <ToolBtn icon={List} label="List" onPress={() => apply(listText(props.text, sel.current))} />
-        <ToolBtn icon={TextQuote} label="Callout" on={tray === 'callout'} onPress={() => setTray(tray === 'callout' ? null : 'callout')} />
-        <Pressable onPress={() => setTray(tray === 'link' ? null : 'link')} accessibilityRole="button" accessibilityLabel="Link a picture, map or term"
+        <ToolBtn icon={Bold} label={t('guides.text.bold')} onPress={() => apply(boldText(props.text, sel.current))} />
+        <ToolBtn icon={List} label={t('guides.text.list')} onPress={() => apply(listText(props.text, sel.current))} />
+        <ToolBtn icon={TextQuote} label={t('guides.text.callout')} on={tray === 'callout'} onPress={() => setTray(tray === 'callout' ? null : 'callout')} />
+        <Pressable onPress={() => setTray(tray === 'link' ? null : 'link')} accessibilityRole="button" accessibilityLabel={t('guides.text.linkLabel')}
           accessibilityState={{ expanded: tray === 'link' }} style={({ pressed }) => [s.tool, tray === 'link' && { backgroundColor: C.light, borderColor: C.primary }, pressed && s.pressed]}>
           <Ico name="link" size={18} color={C.primary} />
-          <Text style={[txt.xsStrong, { color: C.primary }]}>Link</Text>
+          <Text style={[txt.xsStrong, { color: C.primary }]}>{t('guides.text.link')}</Text>
         </Pressable>
       </View>
       {tray === 'callout' ? (
@@ -555,16 +579,16 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
       ) : null}
       {tray === 'link' ? (
         <View style={s.tray}>
-          {linkables.length === 0 ? <Text style={txt.smMuted}>Add pictures, maps or glossary terms first; then link them here.</Text> : null}
+          {linkables.length === 0 ? <Text style={txt.smMuted}>{t('guides.text.nothingToLink')}</Text> : null}
           {linkables.map((l) => (
             <SmallBtn key={l.ref} label={`${l.title} · #${l.ref}`} icon={l.icon} onPress={() => apply(linkText(props.text, sel.current, l.ref, l.title))} />
           ))}
         </View>
       ) : null}
       <TextInput value={props.text} onChangeText={props.onChange} onSelectionChange={onSelection} {...(forced ? { selection: forced } : {})}
-        multiline accessibilityLabel="Step text" placeholder={'Write the step. A blank line starts a new paragraph.\n\n> [!action] Stop here and discuss…'}
+        multiline accessibilityLabel={t('guides.text.label')} placeholder={t('guides.text.placeholder')}
         placeholderTextColor={C.faint} autoCapitalize="sentences" style={s.textArea} textAlignVertical="top" />
-      <Text style={txt.xs}>Select words before Bold, Callout or Link to use them. Each paragraph, list item and callout is a part the team can note.</Text>
+      <Text style={txt.xs}>{t('guides.text.help')}</Text>
     </View>
   );
 }
@@ -573,10 +597,10 @@ function CalloutChoice(props: { kind: CalloutKind; onPress: () => void }) {
   const look = CALLOUT_LOOK[props.kind];
   const Icon = look.icon;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={`Insert a ${look.label} callout`}
+    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={t('guides.text.insertCallout', { kind: calloutLabel(props.kind) })}
       style={({ pressed }) => [s.calloutChoice, { backgroundColor: look.bg, borderColor: look.edge }, pressed && s.pressed]}>
       <Icon size={16} color={look.ink} strokeWidth={2.4} />
-      <Text style={[txt.xsStrong, { color: look.ink }]}>{look.label}</Text>
+      <Text style={[txt.xsStrong, { color: look.ink }]}>{calloutLabel(props.kind)}</Text>
     </Pressable>
   );
 }
@@ -584,7 +608,7 @@ function CalloutChoice(props: { kind: CalloutKind; onPress: () => void }) {
 // ─── Audio for a step or a term ────────────────────────────────────────────────────
 
 /** Play what is there, or record it (any device), or upload a file (web). */
-function AudioSlot(props: { ctx: Ctx; label: string; recordLabel: string; audio: MediaRef | undefined; onChange: (a: MediaRef | null) => void }) {
+function AudioSlot(props: { ctx: Ctx; label: string; removeLabel: string; recordLabel: string; audio: MediaRef | undefined; onChange: (a: MediaRef | null) => void }) {
   const { ctx } = props;
   const [error, setError] = useState('');
   const has = !!(props.audio?.hash || props.audio?.url);
@@ -603,13 +627,13 @@ function AudioSlot(props: { ctx: Ctx; label: string; recordLabel: string; audio:
       {has ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <View style={{ flex: 1, minWidth: 0 }}><MediaPlayer orgId={ctx.language.orgId} audio={props.audio!} label={props.label} /></View>
-          <IconBtn name="trash" label={`Remove ${props.label.toLowerCase()}`} onPress={() => props.onChange(null)} bg="transparent" color={TINT.redText} />
+          <IconBtn name="trash" label={props.removeLabel} onPress={() => props.onChange(null)} bg="transparent" color={TINT.redText} />
         </View>
       ) : (
         <>
           <VoiceNote ctx={ctx} label={props.recordLabel} hash={null}
             onChange={(hash, card) => { if (hash) props.onChange({ hash, format: card?.format ?? 'm4a', ...(card ? { seconds: Math.round(card.durationMs / 1000) } : {}) }); }} />
-          {canPickFiles ? <SmallBtn label="Or upload an audio file" icon="download" onPress={() => void upload()} /> : null}
+          {canPickFiles ? <SmallBtn label={t('guides.audio.upload')} icon="download" onPress={() => void upload()} /> : null}
         </>
       )}
       {error ? <Text style={txt.error}>{error}</Text> : null}
@@ -622,7 +646,7 @@ function MediaPlayer(props: { orgId: string; audio: MediaRef; label: string }) {
   const { uri } = useStudyFileUri(props.orgId, file, props.audio.url);
   const audio = useStudyAudio(uri, props.audio.seconds ?? 30);
   useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps
-  return <AudioBar audio={audio} label={props.label} sub={props.audio.seconds ? clock(props.audio.seconds) : undefined} />;
+  return <AudioBar audio={audio} label={props.label} sub={props.audio.seconds ? shownClock(props.audio.seconds) : undefined} />;
 }
 
 // ─── Media ─────────────────────────────────────────────────────────────────────
@@ -651,28 +675,28 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; se
   const remove = (r: DraftResource) => {
     const before = draft;
     dispatch({ type: 'deleteResource', ref: r.ref });
-    ctx.toast(`${r.title || 'It'} was removed.`, () => props.setDraft(before));
+    ctx.toast(r.title ? t('guides.editor.removed', { name: r.title }) : t('guides.media.removed'), () => props.setDraft(before));
   };
   const section = (kind: 'media' | 'map') => draft.resources.filter((r) => r.kind === kind);
   return (
     <View style={{ gap: space.md }}>
-      {!canPickFiles ? <Banner icon="globe" title="Add pictures, maps and films in the web app." body="Here you can rename them and write their captions." /> : null}
+      {!canPickFiles ? <Banner icon="globe" title={t('guides.media.onWeb')} body={t('guides.media.onWebBody')} /> : null}
       {error ? <Text style={txt.error}>{error}</Text> : null}
-      <SectionLabel label={`Pictures and films · ${section('media').length}`} />
+      <SectionLabel label={t('guides.media.picturesAndFilms', { n: section('media').length })} />
       {section('media').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('media', kind, r)} />)}
       {canPickFiles ? (
         <View style={s.buttons}>
-          <SmallBtn label="Add a picture" icon="camera" onPress={() => void add('media', 'image')} disabled={busy} />
-          <SmallBtn label="Add a film" icon="video" onPress={() => void add('media', 'video')} disabled={busy} />
+          <SmallBtn label={t('guides.media.addPicture')} icon="camera" onPress={() => void add('media', 'image')} disabled={busy} />
+          <SmallBtn label={t('guides.media.addFilm')} icon="video" onPress={() => void add('media', 'video')} disabled={busy} />
         </View>
       ) : null}
-      <SectionLabel label={`Maps · ${section('map').length}`} />
+      <SectionLabel label={t('guides.media.maps', { n: section('map').length })} />
       {section('map').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />)}
-      {canPickFiles ? <SmallBtn label="Add a map" icon="map" onPress={() => void add('map', 'image')} disabled={busy} /> : null}
+      {canPickFiles ? <SmallBtn label={t('guides.media.addMap')} icon="map" onPress={() => void add('map', 'image')} disabled={busy} /> : null}
       <Text style={txt.xs}>
-        {busy ? 'Keeping the file and making a small copy…' : 'Pictures get a small copy for phones and tablets (500 pixels, JPEG). Films are kept as they are: no small copy is made yet, so phones and tablets get the full film.'}
+        {busy ? t('guides.media.keeping') : t('guides.media.copies', { pixels: formatNumber(500) })}
       </Text>
-      <Text style={txt.xs}>Link one from a step with Link, or by writing its ref: [the well](#m1).</Text>
+      <Text style={txt.xs}>{t('guides.media.linkHelp')}</Text>
     </View>
   );
 }
@@ -683,13 +707,15 @@ function ResourceCard(props: { ctx: Ctx; r: DraftResource; dispatch: Dispatch; o
     <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <Badge label={`#${r.ref}`} tone="brand" />
-        <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{r.title || (r.kind === 'map' ? 'Map' : 'Pictures')}</Text>
-        <IconBtn name="trash" label={`Remove ${r.title || r.ref}`} onPress={props.onRemove} bg="transparent" color={TINT.redText} />
+        <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{r.title || untitledResource(r.kind)}</Text>
+        <IconBtn name="trash" label={t('guides.editor.remove', { name: r.title || r.ref })} onPress={props.onRemove} bg="transparent" color={TINT.redText} />
       </View>
-      <Field label="Title" value={r.title} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { title: v } })} placeholder={r.kind === 'map' ? 'e.g. Judea and Samaria' : 'e.g. Carob pods'} autoCapitalize="sentences" />
-      <Field label="Description (optional)" value={r.description} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { description: v } })} placeholder="Shown above the pictures" autoCapitalize="sentences" />
+      <Field label={t('guides.media.title')} value={r.title} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { title: v } })}
+        placeholder={r.kind === 'map' ? t('guides.media.mapTitlePlaceholder') : t('guides.media.picturesTitlePlaceholder')} autoCapitalize="sentences" />
+      <Field label={t('guides.media.description')} value={r.description} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { description: v } })}
+        placeholder={t('guides.media.descriptionPlaceholder')} autoCapitalize="sentences" />
       {r.media.map((m) => <MediaItem key={m.id} ctx={props.ctx} r={r} m={m} dispatch={dispatch} />)}
-      {canPickFiles && r.kind === 'media' ? <SmallBtn label="Add another picture to this set" icon="plus" onPress={() => props.onAdd('image')} /> : null}
+      {canPickFiles && r.kind === 'media' ? <SmallBtn label={t('guides.media.addAnother')} icon="plus" onPress={() => props.onAdd('image')} /> : null}
     </Card>
   );
 }
@@ -699,8 +725,8 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
   const file = m.file.lowHash ? { hash: m.file.lowHash, format: m.kind === 'video' ? 'mp4' : 'jpg' } : m.file.hash ? { hash: m.file.hash, format: m.file.format ?? 'jpg' } : undefined;
   const { uri } = useStudyFileUri(props.ctx.language.orgId, m.kind === 'video' ? undefined : file, m.file.url);
   const patch = (p: Partial<Omit<DraftMedia, 'id'>>) => dispatch({ type: 'updateMedia', ref: r.ref, id: m.id, patch: p });
-  const status = m.kind === 'video' ? (m.file.lowHash ? 'Film · small copy ready' : 'Film · small copy not made yet')
-    : m.file.lowHash ? 'Picture · small copy ready' : m.file.url ? 'Picture from a link' : 'Picture';
+  const status = m.kind === 'video' ? (m.file.lowHash ? t('guides.media.filmCopyReady') : t('guides.media.filmNoCopy'))
+    : m.file.lowHash ? t('guides.media.pictureCopyReady') : m.file.url ? t('guides.media.pictureFromLink') : t('guides.media.picture');
   return (
     <View style={s.mediaItem}>
       <View style={s.thumb}>
@@ -709,15 +735,15 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
       <View style={{ flex: 1, minWidth: 0, gap: space.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Text style={[txt.xs, { flex: 1 }]}>{status}</Text>
-          <IconBtn name="close" label={`Remove ${m.title || 'this picture'}`} onPress={() => dispatch({ type: 'deleteMedia', ref: r.ref, id: m.id })} bg="transparent" color={C.muted} />
+          <IconBtn name="close" label={m.title ? t('guides.editor.remove', { name: m.title }) : t('guides.media.removeThisPicture')} onPress={() => dispatch({ type: 'deleteMedia', ref: r.ref, id: m.id })} bg="transparent" color={C.muted} />
         </View>
         {r.kind === 'media' && m.kind !== 'video' ? (
           <ChipRow>
-            {(['photo', 'illustration'] as const).map((k) => <Chip key={k} label={k === 'photo' ? 'Photo' : 'Illustration'} on={m.kind === k} onPress={() => patch({ kind: k })} />)}
+            {(['photo', 'illustration'] as const).map((k) => <Chip key={k} label={mediaKindLabel(k)} on={m.kind === k} onPress={() => patch({ kind: k })} />)}
           </ChipRow>
         ) : null}
-        {r.media.length > 1 ? <Field label="Picture title" value={m.title} onChangeText={(v) => patch({ title: v })} placeholder="Title" autoCapitalize="sentences" /> : null}
-        <Field label="Caption" value={m.caption} onChangeText={(v) => patch({ caption: v })} placeholder="One sentence under it" autoCapitalize="sentences" />
+        {r.media.length > 1 ? <Field label={t('guides.media.pictureTitle')} value={m.title} onChangeText={(v) => patch({ title: v })} placeholder={t('guides.media.pictureTitlePlaceholder')} autoCapitalize="sentences" /> : null}
+        <Field label={t('guides.media.caption')} value={m.caption} onChangeText={(v) => patch({ caption: v })} placeholder={t('guides.media.captionPlaceholder')} autoCapitalize="sentences" />
       </View>
     </View>
   );
@@ -731,28 +757,29 @@ function ThumbImage(props: { uri: string; label: string }) {
 
 function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; setDraft: (d: GuideDraft) => void }) {
   const { ctx, draft, dispatch } = props;
-  const remove = (t: DraftTerm) => {
+  const remove = (term: DraftTerm) => {
     const before = draft;
-    dispatch({ type: 'deleteTerm', id: t.id });
-    ctx.toast(`${t.term || 'The term'} was removed.`, () => props.setDraft(before));
+    dispatch({ type: 'deleteTerm', id: term.id });
+    ctx.toast(term.term ? t('guides.editor.removed', { name: term.term }) : t('guides.glossary.removed'), () => props.setDraft(before));
   };
   return (
     <View style={{ gap: space.md }}>
-      {draft.terms.length === 0 ? <Text style={txt.smMuted}>No glossary terms yet. A term opens from a step's link, with its meaning and audio.</Text> : null}
-      {draft.terms.map((t) => (
-        <Card key={t.id}>
+      {draft.terms.length === 0 ? <Text style={txt.smMuted}>{t('guides.glossary.none')}</Text> : null}
+      {draft.terms.map((term) => (
+        <Card key={term.id}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <Badge label={`#${t.id}`} tone="brand" />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t.term || 'New term'}</Text>
-            <IconBtn name="trash" label={`Remove ${t.term || 'this term'}`} onPress={() => remove(t)} bg="transparent" color={TINT.redText} />
+            <Badge label={`#${term.id}`} tone="brand" />
+            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{term.term || t('guides.glossary.newTerm')}</Text>
+            <IconBtn name="trash" label={term.term ? t('guides.editor.remove', { name: term.term }) : t('guides.glossary.removeThisTerm')} onPress={() => remove(term)} bg="transparent" color={TINT.redText} />
           </View>
-          <Field label="Term" value={t.term} onChangeText={(v) => dispatch({ type: 'updateTerm', id: t.id, patch: { term: v } })} placeholder="e.g. sin" autoCapitalize="none" />
-          <Field label="Hint (a few words)" value={t.hint} onChangeText={(v) => dispatch({ type: 'updateTerm', id: t.id, patch: { hint: v } })} placeholder="e.g. doing wrong" autoCapitalize="sentences" />
-          <Field label="Meaning" value={t.body} onChangeText={(v) => dispatch({ type: 'updateTerm', id: t.id, patch: { body: v } })} placeholder="What it means, in plain words" autoCapitalize="sentences" multiline />
-          <AudioSlot ctx={ctx} label="Term audio" recordLabel="Record the term" audio={t.audio} onChange={(audio) => dispatch({ type: 'setTermAudio', id: t.id, audio })} />
+          <Field label={t('guides.glossary.term')} value={term.term} onChangeText={(v) => dispatch({ type: 'updateTerm', id: term.id, patch: { term: v } })} placeholder={t('guides.glossary.termPlaceholder')} autoCapitalize="none" />
+          <Field label={t('guides.glossary.hint')} value={term.hint} onChangeText={(v) => dispatch({ type: 'updateTerm', id: term.id, patch: { hint: v } })} placeholder={t('guides.glossary.hintPlaceholder')} autoCapitalize="sentences" />
+          <Field label={t('guides.glossary.meaning')} value={term.body} onChangeText={(v) => dispatch({ type: 'updateTerm', id: term.id, patch: { body: v } })} placeholder={t('guides.glossary.meaningPlaceholder')} autoCapitalize="sentences" multiline />
+          <AudioSlot ctx={ctx} label={t('guides.glossary.audio')} removeLabel={t('guides.glossary.removeAudio')} recordLabel={t('guides.glossary.record')} audio={term.audio}
+            onChange={(audio) => dispatch({ type: 'setTermAudio', id: term.id, audio })} />
         </Card>
       ))}
-      <SmallBtn label="Add a term" icon="plus" onPress={() => dispatch({ type: 'addTerm' })} />
+      <SmallBtn label={t('guides.glossary.add')} icon="plus" onPress={() => dispatch({ type: 'addTerm' })} />
     </View>
   );
 }

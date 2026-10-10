@@ -135,7 +135,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       break;
 
     case 'v1.CardVerseSet': {
-      // A register per (unit, card): the later clock wins, then the higher id (decisions.md 81).
+      // A register per (unit, card): the later clock wins, then the higher id (decisions.md 82).
       const { unitId, hash, ...mark } = event.payload;
       lww((state.cardVerses ??= {})[unitId] ??= {}, hash, event, mark);
       break;

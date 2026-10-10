@@ -1,5 +1,5 @@
 // The recorded parts as one list, each with a space on its left for its
-// verse (decisions.md 81; Caleb's tap-to-number lab). Tap the space: the
+// verse (decisions.md 82; Caleb's tap-to-number lab). Tap the space: the
 // part takes the next verse after the label above, or the verse above when
 // no next verse fits. Tap a number: the part takes the same verse as the
 // part above (a verse said in pieces), and again to make it the next verse.
@@ -8,20 +8,22 @@
 // grouped by verse (Caleb, 2026-10-10): one list, as before. The numbering
 // is core's (verses.ts); this file only draws it and passes on what was tapped.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import {
   derivePartVerses, markForSpan, settlePartMarks, skippedVerses, tapPart, withPartMark,
   type PartLabel, type PartMark
 } from '@langquest-next/core';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
 import { Ico, IconBtn, Sheet, txt } from '../kit';
 import { C, radius, space, target, TINT, type as T } from '../theme';
-import { mmss } from './model';
+import { mmss, partLabel } from './model';
 import { styles as ps } from './parts';
 import type { Part } from './recorder';
 import { useClip } from './useClip';
-import { spanName, spanShort } from './verseModel';
+import { partIs, spanName, spanShort } from './verseModel';
 
 const GUTTER = 64;
 const HOLD_MS = 420;
@@ -116,7 +118,7 @@ export function VerseParts(props: {
     const before = derivePartVerses(base, latest.current.count).labels;
     const after = derivePartVerses(m, latest.current.count).labels;
     const n = after.filter((l, j) => l && !before[j]).length;
-    if (n > 0) latest.current.save(m, `${n} part${n === 1 ? '' : 's'} numbered.`);
+    if (n > 0) latest.current.save(m, t('recording.verses.numbered', { count: n }));
   };
   const responder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponderCapture: (_e, g) => { arm(g.x0, g.y0); return false; },
@@ -160,9 +162,7 @@ export function VerseParts(props: {
     const r = tapPart(marks, i, count);
     if (!r.ok) { setShake(i); setTimeout(() => setShake(-1), 400); return; }
     const l = r.labels[i]!;
-    const name = spanName(verses, l.s, l.e);
-    const message = r.how === 'join' || r.how === 'joinFallback' ? `Part ${i + 1} is more of ${name.toLowerCase()}.` : `Part ${i + 1} is ${name.toLowerCase()}.`;
-    save(r.marks, message);
+    save(r.marks, partIs(partLabel(i), verses, l.s, l.e, r.how === 'join' || r.how === 'joinFallback'));
   };
 
   const ghost = (i: number): { text: string; join: boolean } | null => {
@@ -178,7 +178,7 @@ export function VerseParts(props: {
         const gap = gaps.find((g) => g.before === i);
         return (
           <View key={`${part.hash}-${i}`}>
-            {gap ? <GapRow text={`${spanName(verses, gap.s, gap.e)} · left for later`} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
+            {gap ? <GapRow text={t('recording.verses.leftForLater', { verses: spanName(verses, gap.s, gap.e) })} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
             <PartRow ctx={props.ctx} part={part} index={i} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
               flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
               gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
@@ -193,11 +193,11 @@ export function VerseParts(props: {
             const i = sheet.i;
             setSheet({ i, anchor });
             const st = settlePartMarks(withPartMark(marks, i, markForSpan(marks, i, s, e, count)), i, count);
-            if (st) save(st.marks, `Part ${i + 1} is ${spanName(verses, s, e).toLowerCase()}.`);
+            if (st) save(st.marks, partIs(partLabel(i), verses, s, e));
           }}
-          onAuto={() => { const i = sheet.i; setSheet({ i, anchor: null }); const next = withPartMark(marks, i, { t: 'next' }); if (derivePartVerses(next, count).ok) save(next, `Part ${i + 1} follows the order.`); }}
-          onNone={() => { const i = sheet.i; setSheet({ i, anchor: null }); save(withPartMark(marks, i, null), `Part ${i + 1} has no verse.`); }}
-          onDelete={() => { const i = sheet.i; setSheet(null); props.onDelete(parts[i]!.hash, `Part ${i + 1}`); }} />
+          onAuto={() => { const i = sheet.i; setSheet({ i, anchor: null }); const next = withPartMark(marks, i, { t: 'next' }); if (derivePartVerses(next, count).ok) save(next, t('recording.verses.follows', { part: partLabel(i) })); }}
+          onNone={() => { const i = sheet.i; setSheet({ i, anchor: null }); save(withPartMark(marks, i, null), t('recording.verses.none', { part: partLabel(i) })); }}
+          onDelete={() => { const i = sheet.i; setSheet(null); props.onDelete(parts[i]!.hash, partLabel(i)); }} />
       ) : null}
     </View>
   );
@@ -208,20 +208,21 @@ function PartRow(props: {
   ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
   gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void;
 }) {
-  const name = `Part ${props.index + 1}`;
+  const name = partLabel(props.index);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
-  const play = useHelpPress(clip.playing ? 'Pause' : `Play ${name}`, undefined, clip.toggle);
+  const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
+  const play = useHelpPress(playLabel, undefined, clip.toggle);
   const l = props.label;
-  const verseName = l ? spanName(props.verses, l.s, l.e).toLowerCase() : null;
-  const tap = useHelpPress(l ? (l.kind === 'join' ? `Give ${name} the next verse` : `Give ${name} the verse above`) : `Give ${name} a verse`,
-    'Tap: the app works out the verse from the parts around it. Hold: choose it yourself.', props.onTap);
+  const verses = l ? spanName(props.verses, l.s, l.e) : null;
+  const tap = useHelpPress(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
+    t('recording.verses.tapHelp'), props.onTap);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder, props.flash && { backgroundColor: C.light }, props.editing && styles.editing]}>
       <Pressable ref={props.gutterRef} onPress={tap} onLongPress={props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
-        accessibilityLabel={l ? `${name}, ${verseName}${l.kind === 'join' ? ', same as the part above' : ''}` : `${name}, no verse yet`}
-        accessibilityHint={l ? (l.kind === 'join' ? 'Tap to make it the next verse. Hold to choose.' : 'Tap to give it the same verse as the part above. Hold to choose.') : 'Tap to give it the next verse. Hold to choose.'}
-        accessibilityActions={[{ name: 'longpress', label: 'Choose verses' }]}
+        accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
+        accessibilityHint={l ? (l.kind === 'join' ? t('recording.verses.hintSame') : t('recording.verses.hintLabelled')) : t('recording.verses.hintEmpty')}
+        accessibilityActions={[{ name: 'longpress', label: t('recording.verses.choose') }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'longpress') props.onHold(); }}
         style={({ pressed }) => [styles.gutter, pressed && { transform: [{ scale: 0.94 }] }, props.shake && { transform: [{ translateX: 4 }] }]}>
         {l ? (
@@ -236,7 +237,7 @@ function PartRow(props: {
           </View>
         )}
       </Pressable>
-      <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={`${clip.playing ? 'Pause' : 'Play'} ${name}`}
+      <Pressable onPress={play} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.play, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
         <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
         <Text style={[txt.body, { fontWeight: '700', color: C.dark }]}>{name}</Text>
@@ -247,14 +248,14 @@ function PartRow(props: {
 }
 
 function GapRow(props: { text: string; disabled: boolean; onRecord: () => void }) {
-  const record = useHelpPress('Record here', 'Record the verse you left for later; it goes in its place.', props.onRecord);
+  const record = useHelpPress(t('recording.verses.recordHere'), t('recording.verses.recordHereHelp'), props.onRecord);
   return (
     <View style={styles.gap}>
       <Text style={[txt.body, { flex: 1, fontWeight: '700', color: TINT.amberText }]}>{props.text}</Text>
-      <Pressable onPress={record} disabled={props.disabled} accessibilityRole="button" accessibilityLabel="Record here"
+      <Pressable onPress={record} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.verses.recordHere')}
         style={({ pressed }) => [styles.gapBtn, props.disabled && ps.off, pressed && ps.pressed]}>
         <Ico name="mic" size={18} color={TINT.amberText} />
-        <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>Record here</Text>
+        <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('recording.verses.recordHere')}</Text>
       </Pressable>
     </View>
   );
@@ -273,7 +274,7 @@ function VerseSheet(props: {
   const mark = marks[i];
   const autoOk = derivePartVerses(withPartMark(marks, i, { t: 'next' }), count).ok;
   return (
-    <Sheet visible title={`Part ${i + 1}`} onClose={props.onClose}>
+    <Sheet visible title={partLabel(i)} onClose={props.onClose}>
       <View style={styles.grid}>
         {verses.map((_, v) => {
           const range = anchor !== null && v > anchor;
@@ -283,7 +284,7 @@ function VerseSheet(props: {
           const ends = isSel && (v === cur!.s || v === cur!.e);
           return (
             <Pressable key={v} disabled={!ok || props.disabled} accessibilityRole="button" accessibilityState={{ selected: isSel, disabled: !ok }}
-              accessibilityLabel={`${spanName(verses, v, v)}${link ? ', same as the part above' : ''}`}
+              accessibilityLabel={link ? t('recording.verses.verseSame', { verse: spanName(verses, v, v) }) : spanName(verses, v, v)}
               onPress={() => {
                 if (anchor !== null && v > anchor && legal(anchor, v)) props.onPick(anchor, v, anchor);
                 else if (!(cur && cur.s === v && cur.e === v)) props.onPick(v, v, v);
@@ -296,10 +297,10 @@ function VerseSheet(props: {
         })}
       </View>
       <View style={styles.tools}>
-        <Tool label="Auto" on={mark?.t === 'next'} disabled={!autoOk || props.disabled} onPress={props.onAuto} />
-        <Tool label="None" on={!mark} disabled={props.disabled} onPress={props.onNone} />
+        <Tool label={t('recording.verses.auto')} on={mark?.t === 'next'} disabled={!autoOk || props.disabled} onPress={props.onAuto} />
+        <Tool label={t('recording.verses.noVerse')} on={!mark} disabled={props.disabled} onPress={props.onNone} />
         <View style={{ flex: 1 }} />
-        <IconBtn name="trash" label={`Delete part ${i + 1}`} bg={TINT.red} color={TINT.redText} disabled={props.disabled} onPress={props.onDelete} />
+        <IconBtn name="trash" label={t('recording.verses.deletePart', { part: partLabel(i) })} bg={TINT.red} color={TINT.redText} disabled={props.disabled} onPress={props.onDelete} />
       </View>
     </Sheet>
   );

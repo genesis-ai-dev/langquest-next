@@ -7,9 +7,11 @@
 // Not ported: the practice tours (ADR-022, ONB-3/4) and Listen. "Show me
 // how" opens My Work with its Getting started card instead of a tour.
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { firstName, teamLabel, welcomeRoleFor, WELCOME_POINTS, withArticle } from '../accountText';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { firstName, roleWords, teamLabel, welcomeRoleFor, WELCOME_POINTS } from '../accountText';
 import type { Ctx } from '../ctx';
+import { t, Trans } from '../i18n';
 import { Banner, GhostBtn, Group, Ico, LinkBtn, PrimaryBtn, Row, Screen, txt } from '../kit';
 import { signInName } from '../accounts';
 import { languageInfo } from '@langquest-next/core';
@@ -20,10 +22,6 @@ import { contractsFor } from '../screenContracts';
 import { homeScreenFor } from '../session';
 import { C, space, type as T } from '../theme';
 import { useDisplayNames } from '../useAccount';
-
-const ROLE_WORDS: Record<string, string> = {
-  owner: 'Organization Admin', coordinator: 'Coordinator', translator: 'Translator', reviewer: 'Reviewer', viewer: 'Viewer'
-};
 
 export function Welcome(ctx: Ctx) {
   const me = ctx.session.actorId;
@@ -36,13 +34,13 @@ export function Welcome(ctx: Ctx) {
     const mine = Object.values(org?.members[me] ?? {}).filter((m) => !m.removed.value);
     const scoped = mine.find((m) => m.scope.level === 'language') ?? mine[0];
     const roleName = (scoped && org?.roles[scoped.roleId.value]?.name.value)
-      ?? (ctx.session.role ? ROLE_WORDS[ctx.session.role] : undefined) ?? 'member';
+      ?? (ctx.session.role ? roleWords(ctx.session.role) : undefined) ?? t('entry.welcome.member');
     // Who invited you: the invite you redeemed, when the log has it.
     const invite = Object.values(org?.invites ?? {}).find((i) => i.redeemedBy === me);
     const invitedBy = invite?.issuedBy && invite.issuedBy !== me ? ctx.name(invite.issuedBy) : undefined;
     const displayName = profiles[me] ?? ctx.session.email?.split('@')[0] ?? '';
     const team = teamLabel(scoped?.scope, {
-      org: org?.org?.value.name ?? 'your organization',
+      org: org?.org?.value.name ?? t('entry.welcome.yourOrganization'),
       language: (id) => languageInfo(org, id)?.name
     });
     return { roleName, invitedBy, inviterId: invite?.issuedBy, displayName, team };
@@ -59,7 +57,7 @@ export function Welcome(ctx: Ctx) {
     setBusy(true);
     try { await ctx.markWelcomed(); }
     // Saved to the account outbox, which retries; a failure to queue is a fault.
-    catch (e) { ctx.toast(`Something went wrong (code ${reportError('welcome seen', e)}). Nothing was lost.`); }
+    catch (e) { ctx.toast(t('common.somethingWentWrong', { code: reportError('welcome seen', e) })); }
     setBusy(false);
     // Along the home_hub edge: My Work for everyone who does or asks for work, the overview for viewers.
     ctx.go(home, showGettingStarted && hasGettingStarted ? { showGettingStarted: '1' } : undefined);
@@ -72,10 +70,10 @@ export function Welcome(ctx: Ctx) {
       bodyStyle={styles.body}
       footer={hasGettingStarted ? (
         <>
-          <PrimaryBtn label="Show me how" icon="play" onPress={() => void leave(true)} disabled={busy} />
-          <GhostBtn label="Skip for now" onPress={() => void leave(false)} disabled={busy} />
+          <PrimaryBtn label={t('entry.welcome.showMe')} icon="play" onPress={() => void leave(true)} disabled={busy} />
+          <GhostBtn label={t('entry.welcome.skip')} onPress={() => void leave(false)} disabled={busy} />
         </>
-      ) : <PrimaryBtn label="Get started" onPress={() => void leave(false)} disabled={busy} />}
+      ) : <PrimaryBtn label={t('entry.welcome.getStarted')} onPress={() => void leave(false)} disabled={busy} />}
     >
       <View style={styles.hero}>
         {who.inviterId ? (
@@ -83,21 +81,23 @@ export function Welcome(ctx: Ctx) {
         ) : (
           <View style={styles.logo}><Ico name="book" size={36} color={C.white} /></View>
         )}
-        {who.invitedBy ? <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>{who.invitedBy} invited you</Text> : null}
-        <Text style={styles.title} accessibilityRole="header">{first ? `Welcome, ${first}` : 'Welcome'}</Text>
+        {who.invitedBy ? <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>{t('entry.welcome.invitedYou', { name: who.invitedBy })}</Text> : null}
+        <Text style={styles.title} accessibilityRole="header">{first ? t('entry.welcome.greeting', { name: first }) : t('entry.welcome.title')}</Text>
         <Text style={[txt.body, { textAlign: 'center' }]}>
-          You're {withArticle(who.roleName).split(' ')[0]} <Text style={{ fontWeight: '700' }}>{who.roleName}</Text> on {who.team}.
+          {/* English says "an" before a vowel; other languages translate both the same. */}
+          <Trans i18nKey={/^[aeiou]/i.test(who.roleName) ? 'entry.welcome.youAreAn' : 'entry.welcome.youAreA'}
+            values={{ role: who.roleName, team: who.team }} components={{ b: <Text style={{ fontWeight: '700' }} /> }} />
         </Text>
       </View>
       {handle ? (
         // Joined by invite with no email or password: nothing to remember (decisions.md 59).
-        <Banner icon="lock" title="Nothing to remember"
-          body={`This device keeps you signed in. On a new device, ask ${who.invitedBy ?? 'the person who invited you'} to help you sign in.`} />
+        <Banner icon="lock" title={t('entry.welcome.nothingTitle')}
+          body={who.invitedBy ? t('entry.welcome.nothingBody', { name: who.invitedBy }) : t('entry.welcome.nothingBodyNoName')} />
       ) : null}
       <Group>
         {points.map((p, i) => <Row key={p.text} icon={p.icon} label={p.text} last={i === points.length - 1} />)}
       </Group>
-      <LinkBtn label="What is LangQuest?" onPress={() => ctx.go('vision')} style={{ alignSelf: 'center' }} />
+      <LinkBtn label={t('entry.vision.title')} onPress={() => ctx.go('vision')} style={{ alignSelf: 'center' }} />
     </Screen>
   );
 }

@@ -4,6 +4,7 @@
 import {
   libraryItemView, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState
 } from '@langquest-next/core';
+import { t } from '../i18n';
 
 /** One organization-stream write, in the order to apply it. */
 export type LibraryOp = { [T in keyof EventPayloads]: { type: T; payload: EventPayloads[T] } }[
@@ -107,10 +108,10 @@ interface Behind {
  */
 export function behindLibrary(state: LanguageState, library: Record<string, LibraryItemState>): Behind[] {
   const out: Behind[] = [];
-  const t = state.template?.value;
-  if (t?.itemId && t.docHash) {
-    const current = libraryItemView(library, t.itemId)?.current;
-    if (current && current !== t.docHash) out.push({ kind: 'template', itemId: t.itemId, docHash: current, ...(t.books ? { books: t.books } : {}) });
+  const tpl = state.template?.value;
+  if (tpl?.itemId && tpl.docHash) {
+    const current = libraryItemView(library, tpl.itemId)?.current;
+    if (current && current !== tpl.docHash) out.push({ kind: 'template', itemId: tpl.itemId, docHash: current, ...(tpl.books ? { books: tpl.books } : {}) });
   }
   const f = state.flow?.value;
   if (f?.itemId && f.docHash) {
@@ -130,10 +131,13 @@ export function sourceLine(it: ReturnType<typeof libraryItemView>): string {
   if (!it) return '';
   const n = it.versions.length;
   if (it.source === 'subscription') {
-    const from = it.subscription!.sourceOrgName;
-    if (!it.subscription!.active) return `Stopped following ${from}`;
-    return `Following ${from} · ${it.subscription!.autoUpdate ? 'updates automatically' : 'you take updates'}`;
+    const org = it.subscription!.sourceOrgName;
+    if (!it.subscription!.active) return t('library.sourceLine.stopped', { org });
+    return it.subscription!.autoUpdate ? t('library.sourceLine.followingAuto', { org }) : t('library.sourceLine.followingManual', { org });
   }
-  const v = n ? `Version ${n}` : 'Not published yet';
-  return it.source === 'copy' ? `${v} · copied from ${it.copiedFrom!.orgName}` : v;
+  if (it.source === 'copy') {
+    const org = it.copiedFrom!.orgName;
+    return n ? t('library.sourceLine.versionCopied', { version: n, org }) : t('library.sourceLine.notPublishedCopied', { org });
+  }
+  return n ? t('library.sourceLine.version', { version: n }) : t('library.sourceLine.notPublished');
 }

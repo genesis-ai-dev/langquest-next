@@ -1,6 +1,7 @@
 import { fetchOrgReports, ReportsError } from '@langquest-next/client';
 import type { LanguageRow } from '@langquest-next/core';
 import { useEffect, useSyncExternalStore } from 'react';
+import { t } from '../i18n';
 import { reportsServer } from '../useOrgSummary';
 
 /**
@@ -42,7 +43,7 @@ function loadReports(orgId: string, fresh = false): Promise<void> {
   const e = entry(orgId);
   if (e.inflight && !fresh) return e.inflight;
   if (!reportsServer) {
-    set(e, { status: 'error', message: 'This build does not know where the reports server is.', offline: false });
+    set(e, { status: 'error', message: t('reports.errors.noServer'), offline: false });
     return Promise.resolve();
   }
   if (e.state.status === 'ready') set(e, { ...e.state, refreshing: true });
@@ -59,7 +60,7 @@ function loadReports(orgId: string, fresh = false): Promise<void> {
       }
     } catch (err) {
       const offline = err instanceof ReportsError && err.offline;
-      const message = offline ? 'Reports need a connection. They load when you are back online.' : err instanceof Error ? err.message : 'The reports could not be read.';
+      const message = offline ? t('reports.errors.offline') : failureText(err);
       // Keep what is showing; only a first load turns into an error.
       if (e.state.status === 'ready') set(e, { ...e.state, refreshing: false });
       else set(e, { status: 'error', message, offline });
@@ -69,6 +70,17 @@ function loadReports(orgId: string, fresh = false): Promise<void> {
   })();
   e.inflight = run;
   return run;
+}
+
+/** Why the server's answer could not be read, by its status (its own message is English). */
+function failureText(err: unknown): string {
+  if (!(err instanceof ReportsError) || err.status === null) return t('reports.errors.couldNotRead');
+  switch (err.status) {
+    case 401: return t('reports.errors.signIn');
+    case 403: return t('reports.errors.notMember');
+    case 502: return t('reports.errors.busy');
+    default: return t('reports.errors.serverAnswered', { status: err.status });
+  }
 }
 
 /** The organization's reports, loading them on first use. */

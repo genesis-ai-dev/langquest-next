@@ -116,7 +116,7 @@ describe('deleting a take', () => {
   });
 });
 
-describe('deleting a take with several drafts (decisions.md 82)', () => {
+describe('deleting a take with several drafts (decisions.md 83)', () => {
   it('changes only the draft open in the workspace', () => {
     // Why: removing a part used to rewrite the person's latest draft, whichever was open.
     const h = history();

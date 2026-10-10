@@ -6,6 +6,8 @@ import {
   commands,
   type Card, type EventSpec, type Indexes, type KeyTermView, type LanguageState
 } from '@langquest-next/core';
+import { t } from '../i18n';
+import { formatClock, formatNumber } from '../i18n/format';
 
 export function sameCards(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((x, i) => x === b[i]);
@@ -40,11 +42,11 @@ export function canPublish(list: readonly string[], latestCards: readonly string
  * and new ones are "New take 1", "New take 2".
  */
 export function cardLabels(list: readonly string[], latestCards: readonly string[] | undefined): string[] {
-  if (!latestCards || latestCards.length === 0) return list.map((_, i) => `Take ${i + 1}`);
+  if (!latestCards || latestCards.length === 0) return list.map((_, i) => t('recording.workspace.take', { n: formatNumber(i + 1) }));
   let fresh = 0;
   return list.map((h) => {
     const at = latestCards.indexOf(h);
-    return at >= 0 ? `Take ${at + 1}` : `New take ${++fresh}`;
+    return at >= 0 ? t('recording.workspace.take', { n: formatNumber(at + 1) }) : t('recording.workspace.newTake', { n: formatNumber(++fresh) });
   });
 }
 
@@ -60,8 +62,7 @@ export function cardDurations(state: LanguageState, unitId: string): Map<string,
 
 /** "0:07", "1:32". */
 export function mmss(ms: number | undefined): string {
-  const s = Math.max(0, Math.round((ms ?? 0) / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  return formatClock(ms ?? 0);
 }
 
 /**
@@ -142,7 +143,7 @@ export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
   draftTakeId?: string;
   /**
    * What the list continues when the person keeps several drafts
-   * (decisions.md 82): the draft open in the workspace, the version it is
+   * (decisions.md 83): the draft open in the workspace, the version it is
    * being started from, or null for one started empty. Left out, their
    * latest draft.
    */

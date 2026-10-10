@@ -16,7 +16,7 @@ const tapAll = (marks: PartMark[], order: number[]) => {
   return m;
 };
 
-describe('tapping the space beside a part (decisions.md 81)', () => {
+describe('tapping the space beside a part (decisions.md 82)', () => {
   it('numbers parts in order, and parts tapped first move down when one above is tapped', () => {
     const empty: PartMark[] = Array(5).fill(null);
     expect(show(tapAll(empty, [2]))).toBe('_ _ 1 _ _');

@@ -4,9 +4,10 @@
 // hooks (useSources.ts), the player (player.ts) and the reader
 // (SourceReader.tsx) do the I/O.
 import {
-  BIBLE_BOOKS, bookIdOf, FIA_PERICOPES, libraryUnitRange, mapRange, parseRef, segmentAt, segmentsFromStarts, testamentOf, usedSummary, usfmOf, verseSpan,
+  BIBLE_BOOKS, bookIdOf, FIA_PERICOPES, libraryUnitRange, mapRange, parseRef, segmentAt, segmentsFromStarts, testamentOf, usfmOf, verseSpan,
   type RecommendationSource, type SourceDoc, type SourceBookDoc, type TimingDoc, type UsedReference, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
+import { t } from '../i18n';
 import type { BibleDetail } from './bibleBrain';
 
 // ---- the options ---------------------------------------------------------------------
@@ -114,12 +115,12 @@ interface ChipFacts {
  */
 export function chipMarks(f: ChipFacts): string[] {
   const out: string[] = [];
-  if (!f.audio) out.push('no audio');
+  if (!f.audio) out.push(t('sources.chip.noAudio'));
   const textOk = !f.text || f.textOnPhone;
   const audioOk = !f.audio || f.audioOnPhone;
-  if ((f.text || f.audio) && textOk && audioOk) out.push('offline ✓');
-  else if (f.text && f.textOnPhone && f.audio) out.push('audio streams');
-  else out.push('needs connection');
+  if ((f.text || f.audio) && textOk && audioOk) out.push(t('sources.chip.offline'));
+  else if (f.text && f.textOnPhone && f.audio) out.push(t('sources.chip.audioStreams'));
+  else out.push(t('sources.chip.needsConnection'));
   return out;
 }
 
@@ -367,8 +368,11 @@ export function usedItems(offered: ReadonlyMap<string, UsedReference>, opened: R
   return [...offered.values()].map((u) => ({ ...u, opened: u.opened || opened.has(u.itemId) }));
 }
 
-/** "Made with Berean Standard Bible (opened), FIA" (core `usedSummary`): opened items first, and marked. */
+/** "Made with Berean Standard Bible (opened), FIA" (as core's `usedSummary`, in the language showing): opened items first, and marked. */
 export function madeWithLine(items: Pick<UsedReference, 'name' | 'opened'>[], limit = 3): string {
   if (items.length === 0) return '';
-  return `Made with ${usedSummary(items.map((i) => ({ name: i.opened ? `${i.name} (opened)` : i.name, opened: i.opened })), limit)}`;
+  const sorted = [...items].sort((a, b) => Number(b.opened) - Number(a.opened));
+  const names = sorted.slice(0, limit).map((i) => (i.opened ? t('sources.used.openedName', { name: i.name }) : i.name)).join(t('sources.listSeparator'));
+  const more = sorted.length - Math.min(limit, sorted.length);
+  return more > 0 ? t('sources.used.madeWithMore', { names, count: more }) : t('sources.used.madeWith', { names });
 }

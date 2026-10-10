@@ -57,7 +57,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   };
   'v1.TakeArchived': { takeId: string };
   /**
-   * Which verses a recorded part holds (decisions.md 81). A part keeps how
+   * Which verses a recorded part holds (decisions.md 82). A part keeps how
    * it relates to the parts around it, not a number: `next` is the verse
    * after the part above, `join` is the same verses as the part right above
    * (one verse recorded in pieces), `set` is verses someone chose, `from` to

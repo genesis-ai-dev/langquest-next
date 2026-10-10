@@ -1,0 +1,23 @@
+{
+  "invite": {
+    "subject": "คำเชิญเข้าร่วม LangQuest ของคุณ",
+    "heading": "คำเชิญเข้าร่วม LangQuest ของคุณ",
+    "intro": "คุณได้รับเชิญให้เข้าร่วมทีมใน LangQuest",
+    "openLink": "เปิดลิงก์นี้:",
+    "openLinkOnPhone": "เปิดลิงก์นี้ในโทรศัพท์ของคุณ:",
+    "openButton": "เปิด LangQuest",
+    "openButtonOnPhone": "เปิด LangQuest ในโทรศัพท์ของคุณ",
+    "orPasteCode": "หรือใน LangQuest แตะ {{screen}} แล้ววางรหัสนี้",
+    "joinScreen": "สแกนรหัส",
+    "expires": "คำเชิญนี้หมดอายุวันที่ {{date}}",
+    "ignore": "ถ้าคุณไม่ได้คาดว่าจะได้รับคำเชิญนี้ ไม่ต้องสนใจอีเมลนี้ก็ได้"
+  },
+  "reset": {
+    "subject": "ตั้งรหัสผ่าน LangQuest ใหม่",
+    "heading": "ตั้งรหัสผ่านใหม่",
+    "intro": "มีคนขอเปลี่ยนรหัสผ่านของ {{email}} ใน LangQuest",
+    "openButton": "ตั้งรหัสผ่านใหม่",
+    "expires": "ลิงก์นี้ใช้ได้ {{minutes}} นาที",
+    "ignore": "ถ้าคุณไม่ได้ขอ ไม่ต้องสนใจอีเมลนี้ รหัสผ่านของคุณจะยังเหมือนเดิม"
+  }
+}

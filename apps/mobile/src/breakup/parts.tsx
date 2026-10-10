@@ -5,36 +5,38 @@
 // again, and the note when a language's Bibles number verses differently.
 import { templateBooks, type NumberingClash, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { englishBookName } from '../contentTemplates';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
+import { bookNameOf } from '../contentTemplates';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
 import { Chip, GhostBtn, Ico, PrimaryBtn, Sheet, txt } from '../kit';
 import { AmberNote, CheckRow, ChoiceCard, Pills } from '../simple/admin';
 import { C, radius, space, TINT } from '../theme';
-import { countLine, LESSON, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, type TemplateUser, type WayRow } from './model';
+import { countLine, lessonSlides, piecesOf, PREVIEW_BOOKS, SAMPLE_BOOK, usedLine, verseSays, type TemplateUser, type WayRow } from './model';
 
 /** A book cut into its pieces, each as wide as its verses. Nothing drawn when the way leaves the book for later. */
 export function PieceBar(props: { doc: TemplateDoc | null; book?: string; v11n: VersificationDoc | null; caption?: boolean }) {
   // Ruth, unless the way leaves Ruth out (FIA's older list): then the first book it does break up.
   const book = props.book ?? (props.doc ? PREVIEW_BOOKS.find((b) => piecesOf(props.doc!, b, props.v11n).length > 0) : undefined) ?? SAMPLE_BOOK;
   const pieces = props.doc ? piecesOf(props.doc, book, props.v11n) : [];
-  const name = englishBookName(book);
+  const name = bookNameOf(book);
   if (pieces.length === 0) {
     const listed = !!props.doc && templateBooks(props.doc).some((b) => b.book === book);
     return (
-      <View style={styles.waitBar} accessibilityLabel={listed ? `${name} waits to be broken up` : `${name} is not in it`}>
-        <Text style={[txt.xs, { color: C.muted }]}>{listed ? `${name} waits until a coordinator breaks it up` : `${name} is not in it`}</Text>
+      <View style={styles.waitBar} accessibilityLabel={listed ? t('breakup.pieceBar.waitsLabel', { book: name }) : t('breakup.pieceBar.notInIt', { book: name })}>
+        <Text style={[txt.xs, { color: C.muted }]}>{listed ? t('breakup.pieceBar.waits', { book: name }) : t('breakup.pieceBar.notInIt', { book: name })}</Text>
       </View>
     );
   }
   return (
-    <View accessibilityLabel={`${name} in ${pieces.length} ${pieces.length === 1 ? 'piece' : 'pieces'}`}>
+    <View accessibilityLabel={t('breakup.pieceBar.label', { book: name, count: pieces.length })}>
       <View style={[styles.bar, { gap: pieces.length > 100 ? 0 : pieces.length > 30 ? 1 : 3 }]}>
         {pieces.map((p, i) => (
           <View key={i} style={[styles.piece, { flexGrow: p.verses }, pieces.length > 100 && i % 2 === 1 && { backgroundColor: C.soft }]} />
         ))}
       </View>
-      {props.caption === false ? null : <Text style={[txt.xs, { color: C.muted, marginTop: 4 }]}>{name}: {pieces.length} {pieces.length === 1 ? 'piece' : 'pieces'}</Text>}
+      {props.caption === false ? null : <Text style={[txt.xs, { color: C.muted, marginTop: 4 }]}>{t('breakup.pieceBar.caption', { book: name, count: pieces.length })}</Text>}
     </View>
   );
 }
@@ -49,10 +51,10 @@ export function WayCard(props: {
 }) {
   const { row, doc } = props;
   const lines = [
-    row.inUse ? 'In use here' : usedLine(row.usedIn),
-    doc ? (props.oneBook ? '' : countLine(doc, props.v11n)) : 'Loading…'
+    row.inUse ? t('breakup.way.inUse') : usedLine(row.usedIn),
+    doc ? (props.oneBook ? '' : countLine(doc, props.v11n)) : t('common.loading')
   ].filter(Boolean);
-  const preview = useHelpPress('Preview', `Every piece ${row.choice.name} cuts a book into.`, props.onPreview);
+  const preview = useHelpPress(t('common.preview'), t('breakup.way.previewHelp', { way: row.choice.name }), props.onPreview);
   const goes = doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined;
   return (
     <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={row.choice.name} sub={lines.join(' · ')} onPress={props.onPress}>
@@ -60,14 +62,14 @@ export function WayCard(props: {
         {goes ? (
           <View style={styles.goes}>
             <Ico name="layers" size={14} color={C.muted} />
-            <Text style={[txt.xs, { color: C.muted }]}>Comes with {goes} study guides</Text>
+            <Text style={[txt.xs, { color: C.muted }]}>{t('breakup.way.comesWith', { pattern: goes })}</Text>
           </View>
         ) : null}
         {row.later && !props.oneBook ? null : <PieceBar doc={doc} v11n={props.v11n} book={props.oneBook ?? SAMPLE_BOOK} />}
         {row.later ? null : (
-          <Pressable onPress={preview} accessibilityRole="button" accessibilityLabel={`Preview ${row.choice.name}`} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
+          <Pressable onPress={preview} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: row.choice.name })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
             <Ico name="search" size={16} color={C.primary} />
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>Preview</Text>
+            <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{t('common.preview')}</Text>
           </Pressable>
         )}
         {props.children}
@@ -84,11 +86,11 @@ export function PreviewSheet(props: {
   const shown = props.book ?? book;
   const pieces = props.doc ? piecesOf(props.doc, shown, props.v11n) : [];
   return (
-    <Sheet visible={props.visible} title={props.name} sub="Preview" onClose={props.onClose}
-      footer={props.onUse ? <PrimaryBtn label="Use this" icon="check" onPress={props.onUse} /> : undefined}>
+    <Sheet visible={props.visible} title={props.name} sub={t('common.preview')} onClose={props.onClose}
+      footer={props.onUse ? <PrimaryBtn label={t('breakup.preview.useThis')} icon="check" onPress={props.onUse} /> : undefined}>
       {props.book ? null : (
         <Pills>
-          {PREVIEW_BOOKS.map((b) => <Chip key={b} label={englishBookName(b)} on={shown === b} onPress={() => setBook(b)} />)}
+          {PREVIEW_BOOKS.map((b) => <Chip key={b} label={bookNameOf(b)} on={shown === b} onPress={() => setBook(b)} />)}
         </Pills>
       )}
       <PieceBar doc={props.doc} v11n={props.v11n} book={shown} />
@@ -109,20 +111,21 @@ export function PreviewSheet(props: {
 /** "How is material broken up?": five slides, a bar that fills as you go, and Skip on every one. */
 export function LessonSheet(props: { visible: boolean; onClose: () => void; wayDoc: (item: string) => TemplateDoc | null; v11n: VersificationDoc | null }) {
   const [n, setN] = useState(0);
-  const slide = LESSON[n]!;
-  const last = n === LESSON.length - 1;
+  const lesson = lessonSlides();
+  const slide = lesson[n]!;
+  const last = n === lesson.length - 1;
   const close = () => { setN(0); props.onClose(); };
   return (
-    <Sheet visible={props.visible} title="How material is broken up" sub={`${n + 1} of ${LESSON.length}`} onClose={close}
+    <Sheet visible={props.visible} title={t('breakup.lesson.sheetTitle')} sub={t('breakup.lesson.progress', { step: n + 1, total: lesson.length })} onClose={close}
       footer={<>
-        <PrimaryBtn label={last ? 'Done' : 'Next'} icon={last ? 'check' : 'right'} onPress={() => (last ? close() : setN(n + 1))} />
+        <PrimaryBtn label={last ? t('common.done') : t('common.next')} icon={last ? 'check' : 'right'} onPress={() => (last ? close() : setN(n + 1))} />
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.lg }}>
-          {n > 0 ? <GhostBtn label="Back" icon="left" onPress={() => setN(n - 1)} /> : null}
-          {last ? null : <GhostBtn label="Skip the walk-through" icon="close" onPress={close} />}
+          {n > 0 ? <GhostBtn label={t('common.back')} icon="left" onPress={() => setN(n - 1)} /> : null}
+          {last ? null : <GhostBtn label={t('breakup.lesson.skip')} icon="close" onPress={close} />}
         </View>
       </>}>
-      <View style={styles.progress} accessibilityLabel={`Step ${n + 1} of ${LESSON.length}`}>
-        {LESSON.map((_, i) => (
+      <View style={styles.progress} accessibilityLabel={t('breakup.lesson.stepLabel', { step: n + 1, total: lesson.length })}>
+        {lesson.map((_, i) => (
           <View key={i} style={[styles.step, i < n && { backgroundColor: C.green }, i === n && { backgroundColor: C.primary }]}>
             {i < n ? <Ico name="check" size={12} color={C.white} strokeWidth={3} /> : null}
           </View>
@@ -180,23 +183,21 @@ export function ApplySheet(props: {
   const others = props.users.filter((u) => u.languageId !== props.here);
   const count = chosen.size;
   return (
-    <Sheet visible={props.visible} title="Which languages should change?" sub="These languages use the same template." onClose={props.onClose}
-      footer={<PrimaryBtn label={count === 1 ? 'Change it for this language' : `Change it for ${count} languages`} icon="check" busy={props.busy} onPress={() => props.onApply(chosen)} />}>
+    <Sheet visible={props.visible} title={t('breakup.apply.title')} sub={t('breakup.apply.sub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={count === 1 ? t('breakup.apply.changeThis') : t('breakup.apply.changeFor', { count })} icon="check" busy={props.busy} onPress={() => props.onApply(chosen)} />}>
       {props.children}
       <View style={styles.list}>
-        <CheckRow label={props.users.find((u) => u.languageId === props.here)?.name ?? 'This language'} sub="The one you're changing" checked onToggle={() => undefined} disabled
-          detail="The language you are changing always changes." />
+        <CheckRow label={props.users.find((u) => u.languageId === props.here)?.name ?? t('breakup.apply.thisLanguage')} sub={t('breakup.apply.hereSub')} checked onToggle={() => undefined} disabled
+          detail={t('breakup.apply.hereDetail')} />
         {others.map((u, i) => (
-          <CheckRow key={u.languageId} label={u.name} sub={u.mayChange ? undefined : "You can't change this one"} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
-            detail={`Tick it to change ${u.name} the same way. Leave it, and ${u.name} keeps the template as it is.`}
+          <CheckRow key={u.languageId} label={u.name} sub={u.mayChange ? undefined : t('breakup.apply.cannotChange')} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
+            detail={t('breakup.apply.otherDetail', { language: u.name })}
             last={i === others.length - 1}
             onToggle={() => setChosen((cur) => { const next = new Set(cur); if (next.has(u.languageId)) next.delete(u.languageId); else next.add(u.languageId); return next; })} />
         ))}
       </View>
       <Text style={txt.smMuted}>
-        {count - 1 === others.length
-          ? 'Every language using it changes.'
-          : 'The languages you leave out keep the template as it is. The ones you choose get their own copy with this change.'}
+        {count - 1 === others.length ? t('breakup.apply.everyLanguage') : t('breakup.apply.someLanguages')}
       </Text>
     </Sheet>
   );
@@ -210,66 +211,63 @@ export function ApplySheet(props: {
  * synced. Nothing is deleted.
  */
 export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean }) {
-  const what = props.numbering ? 'the sections that change' : `${props.book}'s old sections`;
   return (
-    <Sheet visible={props.visible} title={props.numbering ? 'Some sections will change' : `${props.book} will be divided again`} onClose={props.onClose}
+    <Sheet visible={props.visible} title={props.numbering ? t('breakup.redo.titleNumbering') : t('breakup.redo.titleBook', { book: props.book })} onClose={props.onClose}
       footer={<>
-        <PrimaryBtn label="Change it anyway" tone="red" busy={props.busy} onPress={props.onConfirm} />
-        <GhostBtn label="Keep it as it is" icon="close" onPress={props.onClose} />
+        <PrimaryBtn label={t('breakup.redo.changeAnyway')} tone="red" busy={props.busy} onPress={props.onConfirm} />
+        <GhostBtn label={t('breakup.redo.keep')} icon="close" onPress={props.onClose} />
       </>}>
       <View style={styles.danger}>
         <Ico name="flag" size={28} color={TINT.redText} />
       </View>
-      <Text style={txt.body}>
-        Everything recorded and reviewed on {what} moves to "Earlier sections" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.
-      </Text>
-      <Text style={txt.smMuted}>Nothing is deleted.</Text>
+      <Text style={txt.body}>{props.numbering ? t('breakup.redo.bodyNumbering') : t('breakup.redo.bodyBook', { book: props.book })}</Text>
+      <Text style={txt.smMuted}>{t('breakup.redo.nothingDeleted')}</Text>
     </Sheet>
   );
 }
 
 /** A language's Bibles number some verses differently: one verse to show how, and it may be ignored (decision 74). */
 export function NumberingNote(props: { clash: NumberingClash; onIgnore?: () => void }) {
-  const ignore = useHelpPress('OK, ignore', 'Hide this note. Nothing depends on it.', props.onIgnore);
+  const ignore = useHelpPress(t('breakup.numbering.ignore'), t('breakup.numbering.ignoreHelp'), props.onIgnore);
+  const says = verseSays(props.clash.says);
   return (
     <View style={styles.warn}>
-      <Text style={[txt.h3, { color: TINT.amberText }]}>These Bibles number some verses differently</Text>
+      <Text style={[txt.h3, { color: TINT.amberText }]}>{t('breakup.numbering.title')}</Text>
       {props.clash.places.map((p) => (
         <View key={p.name} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.md }}>
-          <Text style={[txt.sm, { flex: 1 }]}>“{props.clash.says}” in {p.name}</Text>
+          <Text style={[txt.sm, { flex: 1 }]}>{t('breakup.numbering.verseIn', { verse: says, bible: p.name })}</Text>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{readable(p.ref)}</Text>
         </View>
       ))}
-      <Text style={txt.smMuted}>LangQuest lines them up verse by verse. Nothing to do unless something looks wrong.</Text>
+      <Text style={txt.smMuted}>{t('breakup.numbering.linedUp')}</Text>
       {props.onIgnore ? (
         <Pressable onPress={ignore} accessibilityRole="button" style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
           <Ico name="check" size={16} color={C.muted} />
-          <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>OK, ignore</Text>
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('breakup.numbering.ignore')}</Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-/** "PSA 22:1" -> "Psalm 22:1". */
+/** "PSA 22:1" -> "Psalm 22:1": one psalm is "Psalm", not the book's "Psalms". */
 function readable(ref: string): string {
   const m = /^([1-3A-Z]{3}) (.*)$/.exec(ref);
   if (!m) return ref;
-  const name = englishBookName(m[1]!);
-  return `${m[1] === 'PSA' ? 'Psalm' : name} ${m[2]}`;
+  return m[1] === 'PSA' ? t('breakup.numbering.psalm', { place: m[2] }) : `${bookNameOf(m[1]!)} ${m[2]}`;
 }
 
 /** A quiet line under the ways: FIA covers some books; what the rest get. */
 export function OthersChoice(props: { empty: string; count: number; on: 'chapters' | 'later'; onPick: (v: 'chapters' | 'later') => void }) {
   return (
     <AmberNote icon="help">
-      FIA has no passages for {props.count} books ({props.empty}). Those books:{'\n'}
+      {t('breakup.others.intro', { count: props.count, books: props.empty })}{'\n'}
       <Text onPress={() => props.onPick('chapters')} style={{ fontWeight: props.on === 'chapters' ? '800' : '400', textDecorationLine: props.on === 'chapters' ? 'none' : 'underline' }}>
-        {props.on === 'chapters' ? '● ' : ''}by chapter
+        {props.on === 'chapters' ? '● ' : ''}{t('breakup.others.byChapter')}
       </Text>
       {'   '}
       <Text onPress={() => props.onPick('later')} style={{ fontWeight: props.on === 'later' ? '800' : '400', textDecorationLine: props.on === 'later' ? 'none' : 'underline' }}>
-        {props.on === 'later' ? '● ' : ''}wait to be broken up
+        {props.on === 'later' ? '● ' : ''}{t('breakup.others.wait')}
       </Text>
     </AmberNote>
   );

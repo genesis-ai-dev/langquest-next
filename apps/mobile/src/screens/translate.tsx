@@ -14,14 +14,14 @@
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the
 // next part lit; when the passage has verses they are grouped into cards by
-// verse, with a space beside each part to tap a verse in (decisions.md 81); the big red button and Publish are in the footer, or in
+// verse, with a space beside each part to tap a verse in (decisions.md 82); the big red button and Publish are in the footer, or in
 // the recorder's one line. Publish is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. The sensitivity and the
 // pause between parts are set in microphone setup (`mic_setup`).
 //
 // Every change persists: each part is kept as the draft on the record, so
 // nothing is lost if you leave, and Save says so. A person may keep several
-// drafts of a passage (decisions.md 82): the workspace opens one of them, a
+// drafts of a passage (decisions.md 83): the workspace opens one of them, a
 // new one from a version's parts, or a new empty one, and publishes that one. Back translation: the same tools, but you
 // listen to the latest version and what you save is content for the next
 // check, not a version.
@@ -31,9 +31,11 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
+import { t } from '../i18n';
 import { indexesFor } from '../indexes';
 import {
   Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, Sheet, SmallBtn, txt
@@ -41,7 +43,7 @@ import {
 import { ReferenceRecordings, SourcePlayer } from '../passageSourceAudio';
 import { feedbackSource, passageCrumbs, usePassage, versionTitle, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
-import { CardList, problemText, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
+import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
@@ -52,6 +54,7 @@ import {
 } from '../recording/workspaceModel';
 import { getReferenceSlides } from '../passageResources';
 import { pendingPassageCards } from '../recordingFlow';
+import { failureMessage } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { contractsFor } from '../screenContracts';
 import { BackTranslationBody } from '../simple/btWorkspace';
@@ -75,8 +78,8 @@ import { useRecorder, type RecordedCard } from '../useRecorder';
 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
-  if (!v) return <Missing ctx={ctx} title={TITLES.workspace} />;
-  // Each draft opened is its own workspace (decisions.md 82).
+  if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
+  // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
   return <WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} />;
 }
@@ -84,7 +87,7 @@ export function Workspace(ctx: Ctx) {
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   return (
     <Screen header={<Header title={props.title} onBack={props.ctx.back} close />}>
-      <EmptyState icon="mic" title={props.text ?? "This passage isn't on this device yet."} sub={props.text ? undefined : 'It may still be loading.'} />
+      <EmptyState icon="mic" title={props.text ?? t('translate.missing')} sub={props.text ? undefined : t('translate.missingSub')} />
     </Screen>
   );
 }
@@ -97,7 +100,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const nextN = p.versions.length + 1;
   const isFirst = !latest;
 
-  // ---- which draft (decisions.md 82) ----
+  // ---- which draft (decisions.md 83) ----
   // A person may keep several drafts. `draftId` opens one (by the take it
   // started with); `from` starts a new one from a version's parts and
   // `fresh` an empty one; with none of them, their latest draft, else a new
@@ -143,7 +146,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const draftCards = draft?.cardHashes;
   const [cleared, setCleared] = useState(false);
-  // Recording into a gap left for later (decisions.md 81): new parts go before this part.
+  // Recording into a gap left for later (decisions.md 82): new parts go before this part.
   const [insertBefore, setInsertBefore] = useState<string | null>(null);
   const list = useMemo(() => {
     const base = workingCards({
@@ -172,7 +175,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const persist = useCallback(async (card: RecordedCard) => {
     const current = latestCtx.current;
     const s = current.language.state;
-    if (!s) throw new Error('Your organization is still loading.');
+    if (!s) throw new Error(t('translate.orgLoading'));
     await current.language.run(commands(s, indexesFor(s)).addRecording({
       commandId: card.id, recordingId: card.id, unitId, kind: 'target',
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
@@ -209,12 +212,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     } catch (e) {
       composeLock.current = false;
       setComposing(false);
-      setComposeError(problemText('workspace: compose draft', e));
+      setComposeError(failureMessage('workspace: compose draft', e));
       return;
     }
     adopt(specs);
     ctx.language.run(specs)
-      .catch((e: unknown) => setComposeError(`Your takes are saved on this device but not yet in your draft. ${problemText('workspace: save draft', e)}`))
+      .catch((e: unknown) => setComposeError(t('translate.takesNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
   }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore]);
@@ -242,7 +245,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     // Set first so the list does not flash back to the latest version's takes.
     setCleared(nowCleared);
     try {
-      await ctx.act(specs, `${label} deleted.`, () => {
+      await ctx.act(specs, t('translate.partDeleted', { part: label }), () => {
         setCleared(false);
         if (startCards && sameCards(before, startCards)) return [];
         const s = stateRef.current;
@@ -272,7 +275,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const usage = useUsage();
   const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
-  // ---- verse labels on the parts (decisions.md 81) ----
+  // ---- verse labels on the parts (decisions.md 82) ----
   const v11n = bible.passage.versification;
   const verseKeys = useMemo(() => passageVerseKeys(bible.passage.range,
     (b, c) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c)), [bible.passage.range, v11n]);
@@ -289,7 +292,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     try {
       specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
     } catch (e) {
-      ctx.toast(`Not saved: ${problemText('workspace: verse labels', e)}`);
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: verse labels', e) }));
       return;
     }
     if (specs.length === 0) return;
@@ -337,11 +340,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (c === 'guide' && guideItem) usage.open(guideItem);
   };
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
-    bible: { id: 'bible' as const, label: 'Bible', icon: 'listen' as const, hint: 'Hear and read the passage.' },
-    guide: { id: 'guide' as const, label: 'Guide', icon: 'star' as const, hint: "The study guide's steps for this passage." },
-    terms: { id: 'terms' as const, label: 'Key words', icon: 'key' as const, hint: 'Words to say the same way every time: hear each, and say yours.' },
-    notes: { id: 'notes' as const, label: 'Notes', icon: 'chat' as const, count: notes.length, hint: "The team's notes on this passage." },
-    earlier: { id: 'earlier' as const, label: 'Earlier', icon: 'clock' as const, hint: 'Everything recorded for this passage so far: versions, feedback and notes.' }
+    bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') },
+    guide: { id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') },
+    terms: { id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') },
+    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') },
+    earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
   // ---- microphone: offered when parts keep coming out clipped (demo ADR-037) ----
@@ -361,12 +364,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
       if (takeId) specs = [...specs, ...commands(state, idx).referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
     } catch (e) {
-      ctx.toast(`Not published: ${problemText('workspace: publish', e)}`);
+      ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));
       return;
     }
     setPublishing(true);
     try {
-      await ctx.act(specs, `${versionTitle(nextN)} published.`);
+      await ctx.act(specs, t('translate.versionPublished', { n: nextN }));
       setConfirming(false);
       // Publish, then ask (demo ADR-034): the record opens with the likely check ready to send.
       ctx.go('passage_record', { unitId, languageId, published: `${nextN}:${Date.now()}` });
@@ -376,7 +379,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 
   const parts: Part[] = list.map((hash) => ({ hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
   const problem = rec.failureCount > 0
-    ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+    ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
     : rec.error ? <SaveProblem message={rec.error} /> : null;
   const record = () => void loop.toggle();
@@ -394,18 +397,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Which draft this is, when the person keeps more than one, and the version it started from when not the latest.
   const fromN = startedFrom(p.versions, startFrom);
   const several = mine.length + (draft ? 0 : 1) > 1;
-  const recordingSub = [several ? name : `Recording ${versionTitle(nextN)}`, fromN && fromN !== latest?.n ? `from ${versionTitle(fromN)}` : null]
-    .filter(Boolean).join(' · ');
+  const recordingName = several ? name : t('translate.recordingVersion', { n: nextN });
+  const recordingSub = fromN && fromN !== latest?.n ? t('passage.versions.nameFrom', { name: recordingName, version: versionTitle(fromN) }) : recordingName;
   // Every change is kept as it happens; Save says so and goes back.
   const save = () => {
-    if (draft || list.length > 0 && !(startCards && sameCards(list, startCards))) ctx.toast(`${several ? name : 'Draft'} saved.`);
+    if (draft || list.length > 0 && !(startCards && sameCards(list, startCards))) ctx.toast(t('passage.versions.savedToast', { name: several ? name : t('passage.versions.draft') }));
     ctx.back();
   };
   const recorderLine = split >= 1;
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close
-        action={<SmallBtn label="Save" icon="check" disabled={blocked} onPress={save} />} />}
+      header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
+        action={<SmallBtn label={t('common.save')} icon="check" disabled={blocked} onPress={save} />} />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
@@ -414,9 +417,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
         top={({ compact, open }) => compact ? (
           bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : (
-            <Pressable onPress={open} accessibilityRole="button" accessibilityLabel="Open the reference" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+            <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('translate.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
               <Ico name="book" size={18} color={C.primary} />
-              <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>Drag down for the guide, key words, notes and earlier recordings</Text>
+              <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t('translate.dragDown')}</Text>
             </Pressable>
           )
         ) : (
@@ -435,7 +438,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 <>
                   <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={false}
                     canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId })} />
-                  <LinkBtn label="Open the study" style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
+                  <LinkBtn label={t('translate.openStudy')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
                 </>
               ) : chip === 'terms' ? (
                 <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
@@ -452,24 +455,24 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         bottom={({ compact, open, height }) => compact ? (
           <RecorderBar count={list.length} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
         ) : (
-          <ScrollView contentContainerStyle={styles.recordBody} accessibilityLabel="Your recording">
+          <ScrollView contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')}>
             {problem}
             <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
               onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow}
               verses={{ keys: verseKeys, marks, onMarks: setMarks, onRecordHere: recordHere }} />
             {list.length === 0 && !session ? (
-              <Text style={[txt.smMuted, { textAlign: 'center' }]}>Tap the red button and speak. Pause between parts: each part is kept by itself.</Text>
+              <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('translate.tapRed')}</Text>
             ) : null}
             {!isFirst && !changed && list.length > 0 ? (
-              <Text style={[txt.xs, { textAlign: 'center' }]}>These are {versionTitle(latest.n)}'s parts. Record a new part or delete one to publish a new version.</Text>
+              <Text style={[txt.xs, { textAlign: 'center' }]}>{t('translate.latestParts', { n: latest.n })}</Text>
             ) : null}
             {clipped ? (
               <View style={styles.clipped}>
-                <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>Parts are coming out very short. Words may be cut off.</Text>
-                <SmallBtn label="Set up the microphone" icon="sliders" onPress={() => ctx.go('mic_setup')} />
+                <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
+                <SmallBtn label={t('translate.micSetup')} icon="sliders" onPress={() => ctx.go('mic_setup')} />
               </View>
             ) : !session ? (
-              <QuietLink label="Set up the microphone" icon="sliders" hint="Tune how the device hears you: sensitivity and pauses." onPress={() => ctx.go('mic_setup')} />
+              <QuietLink label={t('translate.micSetup')} icon="sliders" hint={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
             ) : null}
           </ScrollView>
         )} />
@@ -482,9 +485,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 export function BackTranslation(ctx: Ctx) {
   const v = usePassage(ctx);
   const kindId = ctx.params['kindId'] ?? '';
-  if (!v) return <Missing ctx={ctx} title={TITLES.back_translation} />;
+  if (!v) return <Missing ctx={ctx} title={screenTitle('back_translation')} />;
   const kind = v.kind(kindId);
-  if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={TITLES.back_translation} text="There's no recording to back-translate yet." />;
+  if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={screenTitle('back_translation')} text={t('backTranslation.noRecording')} />;
   // The same split workspace, with only the version being back-translated on top (simple/btWorkspace.tsx).
   return <BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
 }

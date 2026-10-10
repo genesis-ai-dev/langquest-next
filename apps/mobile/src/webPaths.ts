@@ -1,4 +1,4 @@
-import { TITLES, type ScreenId } from './flow';
+import { screenTitle, type ScreenId } from './flow';
 import type { Route } from './nav';
 
 /**
@@ -29,5 +29,5 @@ export function sectionOfPath(path: string): ScreenId | null {
 }
 
 export function titleFor(screen: ScreenId): string {
-  return `${TITLES[screen]} · LangQuest`;
+  return `${screenTitle(screen)} · LangQuest`;
 }

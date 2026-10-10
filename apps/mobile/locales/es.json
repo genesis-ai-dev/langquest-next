@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "LangQuest graba tu voz para traducir pasajes.",
+    "NSCameraUsageDescription": "LangQuest usa la cámara para escanear códigos QR de invitación."
+  }
+}

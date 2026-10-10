@@ -1,6 +1,7 @@
 // The passage's verses and how a verse label reads, for the recorder's
-// verse gutter (decisions.md 81; core verses.ts does the numbering). Pure.
+// verse gutter (decisions.md 82; core verses.ts does the numbering). Pure.
 import type { VerseRange } from '@langquest-next/core';
+import { t } from '../i18n';
 
 /** Every verse of the passage in order, as "chapter:verse"; empty for a unit with no verses. */
 export function passageVerseKeys(range: VerseRange | null, versesIn: (book: string, chapter: number) => number | undefined): string[] {
@@ -32,5 +33,12 @@ export function spanShort(keys: readonly string[], s: number, e: number): string
 
 /** "Verse 4", "Verses 4–5". */
 export function spanName(keys: readonly string[], s: number, e: number): string {
-  return `${s === e ? 'Verse' : 'Verses'} ${spanShort(keys, s, e)}`;
+  return s === e ? t('recording.verses.verse', { verse: verseName(keys, s) })
+    : t('recording.verses.range', { first: verseName(keys, s), last: verseName(keys, e) });
+}
+
+/** What a part now holds, said once it is labelled: "Part 4 is verse 4.", "Part 5 is more of verse 4." */
+export function partIs(part: string, keys: readonly string[], s: number, e: number, more = false): string {
+  if (s === e) return t(more ? 'recording.verses.moreOfOne' : 'recording.verses.isOne', { part, verse: verseName(keys, s) });
+  return t(more ? 'recording.verses.moreOfRange' : 'recording.verses.isRange', { part, first: verseName(keys, s), last: verseName(keys, e) });
 }

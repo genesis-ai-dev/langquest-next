@@ -1,6 +1,7 @@
 // What the Versions page and the workspace call a person's drafts
-// (decisions.md 82). Pure, tested in test/versionsModel.test.ts.
+// (decisions.md 83). Pure, tested in test/versionsModel.test.ts.
 import type { DraftView, Version } from '@langquest-next/core';
+import { t } from '../i18n';
 
 /**
  * "Draft" when the person keeps one; "Draft 1", "Draft 2" in the order they
@@ -8,8 +9,8 @@ import type { DraftView, Version } from '@langquest-next/core';
  */
 export function draftName(mine: readonly Pick<DraftView, 'rootTakeId'>[], rootTakeId: string | null): string {
   const i = rootTakeId ? mine.findIndex((d) => d.rootTakeId === rootTakeId) : -1;
-  if (i < 0) return 'New draft';
-  return mine.length > 1 ? `Draft ${i + 1}` : 'Draft';
+  if (i < 0) return t('passage.versions.newDraft');
+  return mine.length > 1 ? t('passage.versions.draftN', { n: i + 1 }) : t('passage.versions.draft');
 }
 
 /** The draft of a person a workspace has open: the newest take of the draft that started at `rootTakeId`. */

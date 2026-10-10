@@ -4,11 +4,14 @@
 // someone else made opens a sheet, never a flow node, so the demo's flow is
 // unchanged. Kept in its own file so kit.tsx stays free of I/O.
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import type { Ctx } from './ctx';
 import { Field, GhostBtn, Group, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Sheet, txt } from './kit';
+import { t } from './i18n';
 import {
-  HIDDEN_TEXT, personTarget, REPORT_REASONS, thingLabel, type ReportKind, type ReportReason, type ReportTarget
+  hiddenText, personTarget, reasonLabel, reasonSub, removeThingTitle, REPORT_REASON_IDS, reportThingLabel, thingByLine,
+  type ReportKind, type ReportReason, type ReportTarget
 } from './moderation';
 import { dismissReports, queueReport, removeContent, reportsChanged } from './moderationData';
 import { failureMessage, noteExpected } from './report';
@@ -20,9 +23,12 @@ export function recordTarget(ctx: Ctx, kind: Exclude<ReportKind, 'person'>, id: 
 }
 
 /** May this person take it out of the record, or act on a report about someone? The server checks again. */
-function canModerate(ctx: Ctx, t: ReportTarget): boolean {
-  return t.kind === 'person' ? ctx.session.can('invite_members') : ctx.session.can('manage_structure');
+function canModerate(ctx: Ctx, target: ReportTarget): boolean {
+  return target.kind === 'person' ? ctx.session.can('invite_members') : ctx.session.can('manage_structure');
 }
+
+/** A server's refusal or a lost connection, as a reason to show: never the server's own English. */
+const looksOffline = (e: unknown) => !(e instanceof Error) || /network|fetch|offline|timed? ?out|not connected/i.test(e.message);
 
 /**
  * The flag on something someone else made: opens Report or block. Nothing
@@ -34,7 +40,7 @@ export function ReportFlag(props: { ctx: Ctx; target: ReportTarget; size?: numbe
   if (ctx.session.isGuest || target.profileId === ctx.session.actorId || !target.profileId) return null;
   return (
     <>
-      <IconBtn name="flag" label={`Report or block ${ctx.name(target.profileId)}`} onPress={() => setOpen(true)}
+      <IconBtn name="flag" label={t('moderation.flagLabel', { name: ctx.name(target.profileId) })} onPress={() => setOpen(true)}
         size={props.size ?? 40} color={C.muted} bg={C.card} />
       {open ? <ReportSheet ctx={ctx} target={target} onClose={() => setOpen(false)} /> : null}
     </>
@@ -53,7 +59,6 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   const [busy, setBusy] = useState(false);
   const who = ctx.name(target.profileId);
   const blocked = ctx.blocks.has(target.profileId);
-  const thing = target.kind === 'person' ? who : thingLabel(target.kind);
 
   async function send(of: ReportTarget) {
     if (!reason) return;
@@ -61,7 +66,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     try {
       await queueReport(ctx.session.actorId, of, reason, details);
       if (alsoBlock && !blocked) await ctx.blocks.set(target.profileId, true);
-      ctx.toast(alsoBlock ? `Reported and blocked ${who}. Thank you.` : 'Reported. Thank you. It is sent when you are connected.');
+      ctx.toast(alsoBlock ? t('moderation.toast.reportedAndBlocked', { name: who }) : t('moderation.toast.reported'));
       props.onClose();
     } catch (e) {
       ctx.toast(failureMessage('report content', e));
@@ -73,7 +78,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   async function toggleBlock() {
     try {
       await ctx.blocks.set(target.profileId, !blocked);
-      ctx.toast(blocked ? `Unblocked ${who}.` : `Blocked ${who}. What they add is hidden for you.`, async () => {
+      ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }), async () => {
         await ctx.blocks.set(target.profileId, blocked);
       });
       props.onClose();
@@ -85,14 +90,15 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   async function remove() {
     setBusy(true);
     try {
+      // i18n-ignore: the reason stored with the removal on the server
       await removeContent(target, 'Removed by a moderator');
       reportsChanged();
-      ctx.toast('Removed from the record. Devices stop showing it when they next sync.');
+      ctx.toast(t('moderation.toast.removed'));
       props.onClose();
     } catch (e) {
       // Offline or refused: the server's answer says which.
       noteExpected('remove content', e);
-      ctx.toast(`Not removed: ${e instanceof Error ? e.message : 'try again when connected'}`);
+      ctx.toast(looksOffline(e) ? t('moderation.toast.notRemovedOffline') : t('moderation.toast.notRemovedRefused'));
     } finally {
       setBusy(false);
     }
@@ -102,62 +108,59 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     const of = step.of;
     const ready = !!reason && (reason !== 'other' || details.trim().length > 0);
     return (
-      <Sheet visible title={of.kind === 'person' ? `Report ${who}` : `Report ${thingLabel(of.kind)}`}
-        sub="What is wrong with it?" onClose={props.onClose}
-        footer={<PrimaryBtn label="Send report" icon="flag" disabled={!ready || busy} busy={busy} onPress={() => void send(of)} />}>
+      <Sheet visible title={of.kind === 'person' ? t('moderation.reportPerson', { name: who }) : reportThingLabel(of.kind)}
+        sub={t('moderation.report.whatIsWrong')} onClose={props.onClose}
+        footer={<PrimaryBtn label={t('moderation.report.send')} icon="flag" disabled={!ready || busy} busy={busy} onPress={() => void send(of)} />}>
         <Group>
-          {REPORT_REASONS.map((r, i) => (
-            <Row key={r.id} label={r.label} sub={r.sub} role="radio" selected={reason === r.id} last={i === REPORT_REASONS.length - 1}
-              right={<View style={[styles.radio, reason === r.id && styles.radioOn]}>{reason === r.id ? <Ico name="check" size={16} color={C.white} /> : null}</View>}
-              onPress={() => setReason(r.id)} />
+          {REPORT_REASON_IDS.map((id, i) => (
+            <Row key={id} label={reasonLabel(id)} sub={reasonSub(id)} role="radio" selected={reason === id} last={i === REPORT_REASON_IDS.length - 1}
+              right={<View style={[styles.radio, reason === id && styles.radioOn]}>{reason === id ? <Ico name="check" size={16} color={C.white} /> : null}</View>}
+              onPress={() => setReason(id)} />
           ))}
         </Group>
-        <Field value={details} onChangeText={setDetails} placeholder={reason === 'other' ? 'What is wrong with it?' : 'Anything else? (optional)'} multiline />
+        <Field value={details} onChangeText={setDetails} placeholder={reason === 'other' ? t('moderation.report.whatIsWrong') : t('moderation.report.anythingElse')} multiline />
         {!blocked ? (
           <Group>
-            <Row icon="block" iconColor={TINT.redText} label={`Also block ${who}`} sub="Hide what they add, for you only"
+            <Row icon="block" iconColor={TINT.redText} label={t('moderation.report.alsoBlock', { name: who })} sub={t('moderation.report.alsoBlockSub')}
               role="checkbox" checked={alsoBlock} onPress={() => setAlsoBlock((b) => !b)} last
               right={<View style={[styles.radio, styles.box, alsoBlock && styles.radioOn]}>{alsoBlock ? <Ico name="check" size={16} color={C.white} /> : null}</View>} />
           </Group>
         ) : null}
-        <Text style={txt.xs}>
-          Your organization's admins and the LangQuest team see the report. {who} is not told, and your organization does not see who sent it.
-        </Text>
+        <Text style={txt.xs}>{t('moderation.report.whoSees', { name: who })}</Text>
       </Sheet>
     );
   }
 
-  if (step.at === 'remove') {
+  // Only something someone made can be removed; a person is removed under Members.
+  if (step.at === 'remove' && target.kind !== 'person') {
     return (
-      <Sheet visible title={`Remove ${thing}?`} sub="It leaves the record for everyone in the organization." onClose={props.onClose}
+      <Sheet visible title={removeThingTitle(target.kind)} sub={t('moderation.remove.sub')} onClose={props.onClose}
         footer={(
           <>
-            <PrimaryBtn label="Remove for everyone" icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void remove()} />
-            <GhostBtn label="Cancel" onPress={() => setStep({ at: 'menu' })} />
+            <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void remove()} />
+            <GhostBtn label={t('common.cancel')} onPress={() => setStep({ at: 'menu' })} />
           </>
         )}>
-        <Text style={txt.body}>
-          Use this for content that breaks the terms of use. The passage's status is worked out again without it. It needs a connection.
-        </Text>
+        <Text style={txt.body}>{t('moderation.remove.body')}</Text>
       </Sheet>
     );
   }
 
   return (
-    <Sheet visible title="Report or block" sub={target.kind === 'person' ? who : `${thing.charAt(0).toUpperCase()}${thing.slice(1)} by ${who}`}
+    <Sheet visible title={t('moderation.menu.title')} sub={target.kind === 'person' ? who : thingByLine(target.kind, who)}
       onClose={props.onClose}>
       <Group>
         {target.kind !== 'person' ? (
-          <Row icon="flag" iconColor={TINT.redText} label={`Report ${thing}`} sub="It is offensive, harmful or does not belong here"
+          <Row icon="flag" iconColor={TINT.redText} label={reportThingLabel(target.kind)} sub={t('moderation.menu.reportThingSub')}
             onPress={() => setStep({ at: 'report', of: target })} />
         ) : null}
-        <Row icon="flag" iconColor={TINT.redText} label={`Report ${who}`} sub="For how they behave, not one thing they made"
+        <Row icon="flag" iconColor={TINT.redText} label={t('moderation.reportPerson', { name: who })} sub={t('moderation.menu.reportPersonSub')}
           onPress={() => setStep({ at: 'report', of: personTarget(target) })} />
-        <Row icon="block" iconColor={TINT.redText} label={blocked ? `Unblock ${who}` : `Block ${who}`}
-          sub={blocked ? 'Show what they add again' : "Hide what they add, for you only. They aren't told."}
+        <Row icon="block" iconColor={TINT.redText} label={blocked ? t('moderation.menu.unblock', { name: who }) : t('moderation.menu.block', { name: who })}
+          sub={blocked ? t('moderation.menu.unblockSub') : t('moderation.menu.blockSub')}
           onPress={() => void toggleBlock()} last={!(target.kind !== 'person' && canModerate(ctx, target))} />
         {target.kind !== 'person' && canModerate(ctx, target) ? (
-          <Row icon="trash" iconColor={TINT.redText} label="Remove from the record" sub="For everyone. Needs a connection."
+          <Row icon="trash" iconColor={TINT.redText} label={t('moderation.removeFromRecord')} sub={t('moderation.menu.removeSub')}
             onPress={() => setStep({ at: 'remove' })} last />
         ) : null}
       </Group>
@@ -176,14 +179,15 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
   async function run(what: 'remove' | 'keep') {
     setBusy(true);
     try {
+      // i18n-ignore: the reason stored with the removal on the server
       if (what === 'remove') await removeContent(target, 'Removed after a report');
       else await dismissReports(target);
       reportsChanged();
-      ctx.toast(what === 'remove' ? 'Removed from the record. Devices stop showing it when they next sync.' : 'Kept. The report is closed.');
+      ctx.toast(what === 'remove' ? t('moderation.toast.removed') : t('moderation.toast.kept'));
       props.onDone();
     } catch (e) {
       noteExpected(`report ${what}`, e);
-      ctx.toast(`Not saved: ${e instanceof Error ? e.message : 'try again when connected'}`);
+      ctx.toast(looksOffline(e) ? t('moderation.toast.notSavedOffline') : t('moderation.toast.notSavedRefused'));
     } finally {
       setBusy(false);
     }
@@ -191,14 +195,14 @@ export function ReportActions(props: { ctx: Ctx; target: ReportTarget; onDone: (
   return (
     <>
       {target.kind === 'person' ? (
-        <PrimaryBtn label="Open Members" icon="people" onPress={props.onOpen} />
+        <PrimaryBtn label={t('moderation.actions.openMembers')} icon="people" onPress={props.onOpen} />
       ) : (
         <>
-          <PrimaryBtn label="Remove from the record" icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
-          {target.unitId ? <GhostBtn label="Open the passage" onPress={props.onOpen} /> : null}
+          <PrimaryBtn label={t('moderation.removeFromRecord')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void run('remove')} />
+          {target.unitId ? <GhostBtn label={t('moderation.actions.openPassage')} onPress={props.onOpen} /> : null}
         </>
       )}
-      <GhostBtn label={target.kind === 'person' ? 'Close the report' : 'Keep it'} disabled={busy} onPress={() => void run('keep')} />
+      <GhostBtn label={target.kind === 'person' ? t('moderation.actions.closeReport') : t('moderation.actions.keep')} disabled={busy} onPress={() => void run('keep')} />
     </>
   );
 }
@@ -214,15 +218,15 @@ export function Authored(props: { ctx: Ctx; by: string; children: ReactNode }) {
   return (
     <View style={styles.hidden}>
       <Ico name="block" size={18} color={C.muted} />
-      <Text style={[txt.sm, { flex: 1, color: C.muted }]}>Hidden because you blocked {props.ctx.name(props.by)}</Text>
-      <LinkBtn label="Show" onPress={() => setShown(true)} accessibilityLabel={`Show what ${props.ctx.name(props.by)} added`} />
+      <Text style={[txt.sm, { flex: 1, color: C.muted }]}>{t('moderation.hidden.byName', { name: props.ctx.name(props.by) })}</Text>
+      <LinkBtn label={t('moderation.hidden.show')} onPress={() => setShown(true)} accessibilityLabel={t('moderation.hidden.showLabel', { name: props.ctx.name(props.by) })} />
     </View>
   );
 }
 
 /** Someone's words in a line of text, unless this person blocked them. */
 export function authoredText(ctx: Ctx, by: string | undefined, text: string): string {
-  return by && by !== ctx.session.actorId && ctx.blocks.has(by) ? HIDDEN_TEXT : text;
+  return by && by !== ctx.session.actorId && ctx.blocks.has(by) ? hiddenText() : text;
 }
 
 const styles = StyleSheet.create({

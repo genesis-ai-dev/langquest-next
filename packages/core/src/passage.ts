@@ -167,7 +167,7 @@ export interface FlowStepStatus {
 }
 
 /**
- * An unpublished draft (decisions.md 82). Every change to a draft composes a
+ * An unpublished draft (decisions.md 83). Every change to a draft composes a
  * new take whose parent is the one before, so a draft is that line of takes:
  * `takeId` is where it is now, `rootTakeId` where it started, which stays the
  * same through every change and so names the draft.
@@ -195,7 +195,7 @@ export interface PassageState {
   /** The draft changed last, anyone's. */
   draftTakeId?: string;
   draftBy?: string;
-  /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 82). */
+  /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 83). */
   drafts: DraftView[];
   reviews: ReviewView[];
   departures: DepartureView[];

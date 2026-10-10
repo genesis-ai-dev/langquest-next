@@ -1,6 +1,7 @@
 // The number on a part of the screen while help is on (demo a-helpMode), and
 // the amber ring on the part being explained. Drawn only: taps go to the part.
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './text';
 import { C, radius, TINT } from './theme';
 
 /** The number on a part while help is on; amber while it is being explained (demo a-helpMode). */

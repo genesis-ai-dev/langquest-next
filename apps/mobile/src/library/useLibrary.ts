@@ -6,10 +6,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
 import { noteExpected } from '../report';
 import { supabase } from '../supabase';
 import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
 import { copyOps, followOps, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
+
+/**
+ * Why `library_adopt` refused, in the language showing: its known reasons
+ * (supabase/migrations, `library_adopt`) by their words and code, else a
+ * general message. The server's own English is never shown.
+ */
+function adoptError(error: { message?: string; code?: string }): CommandError {
+  const said = error.message ?? '';
+  if (said === 'not a member') return new CommandError(t('library.errors.notMember'));
+  if (said === 'that item is not shared') return new CommandError(t('library.errors.notShared'));
+  // i18n-ignore: the server's words, matched to choose a catalog message
+  if (said.startsWith('not allowed to manage')) return new CommandError(t('library.errors.notAllowed'));
+  if (said === 'that is not a version of the item') return new CommandError(t('library.errors.notAVersion'));
+  // i18n-ignore: the server's words, matched to choose a catalog message
+  if (said.startsWith('that version') && said.endsWith('has not been published yet')) return new CommandError(t('library.errors.notPublishedYet'));
+  if (error.code === '42501') return new CommandError(t('library.errors.notAllowed'));
+  // No code: the request never reached the server.
+  if (!error.code) return new CommandError(t('common.notConnected'));
+  return new CommandError(t('library.errors.couldNotGet'));
+}
 
 /**
  * The organization's library for screens (docs/library.md): its items, the
@@ -47,7 +68,7 @@ export function useLibrary(ctx: Ctx) {
   /** Get access to a shared version (and what it depends on) before naming it here. */
   const adopt = useCallback(async (s: SharedItem, hash = s.latest_hash) => {
     const { error } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: s.org_id, p_source_item: s.item_id, p_hash: hash });
-    if (error) throw new CommandError(error.message);
+    if (error) throw adoptError(error);
     await loadDocs(orgId, [hash]);
   }, [orgId]);
 
@@ -61,7 +82,7 @@ export function useLibrary(ctx: Ctx) {
   /** Make a followed item this organization's own, from the version it is at (readable here even if the owner stopped sharing). */
   const copyFollowed = useCallback(async (it: LibraryItemView) => {
     const sub = it.subscription;
-    if (!sub || !it.current) throw new CommandError('There is no version to copy yet.');
+    if (!sub || !it.current) throw new CommandError(t('library.errors.noVersionToCopy'));
     const itemId = newItemId(it.name, Crypto.randomUUID());
     await run(copyOps({
       org_id: sub.sourceOrgId, org_name: sub.sourceOrgName, item_id: sub.sourceItemId, kind: it.kind, name: it.name, description: it.description,
@@ -85,7 +106,7 @@ export function useLibrary(ctx: Ctx) {
     const sub = it.subscription;
     if (!sub) return;
     const { error } = await supabase.rpc('library_adopt', { p_org: orgId, p_source_org: sub.sourceOrgId, p_source_item: sub.sourceItemId, p_hash: hash });
-    if (error) throw new CommandError(error.message);
+    if (error) throw adoptError(error);
     await loadDocs(orgId, [hash]);
     await run([{ type: 'v1.LibraryPinned', payload: { itemId: it.itemId, kind: it.kind, docHash: hash } }]);
   }, [orgId, run]);
@@ -99,20 +120,20 @@ export function useLibrary(ctx: Ctx) {
     const state = opts.into ?? ctx.language.state;
     // With `docHash`, the item may be one this phone has only just followed (not folded yet).
     const hash = opts.docHash ?? libraryItemView(library ?? {}, itemId)?.current;
-    if (!state || !hash) throw new CommandError('That item has no version to use yet.');
+    if (!state || !hash) throw new CommandError(t('library.errors.noVersionToUse'));
     const docs = await loadDocs(orgId, [hash]);
     const doc = docs.get(hash);
-    if (!doc) throw new CommandError('Its document is not on this device yet. Try again when connected.');
+    if (!doc) throw new CommandError(t('library.errors.documentNotHere'));
     const commandId = Crypto.randomUUID();
     if (isTemplateDoc(doc)) {
       const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
-      if (doc.bible && !v11n) throw new CommandError('Its versification is not on this device yet. Try again when connected.');
+      if (doc.bible && !v11n) throw new CommandError(t('library.errors.versificationNotHere'));
       return selectTemplateSpecs(state, {
         commandId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}), ...(opts.unitPrefix ? { unitPrefix: opts.unitPrefix } : {})
       });
     }
     if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, itemId, docHash: hash, doc: doc as FlowDoc });
-    throw new CommandError('Only templates and flows are used by a language.');
+    throw new CommandError(t('library.errors.onlyTemplatesAndFlows'));
   }, [ctx.language.state, library, orgId]);
 
   return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs };
@@ -130,7 +151,8 @@ export function useLibraryDocs(orgId: string, hashes: (string | null | undefined
     loadDocs(orgId, key.split(','), opts.deps === false ? { deps: false } : {}).catch((e: unknown) => {
       // Offline: what is on the phone is shown; the rest says it is waiting.
       noteExpected('library documents', e);
-      if (active) setError(e instanceof Error ? e.message : 'Not connected.');
+      // A flag for the screens, which say what is missing in their own words.
+      if (active) setError(t('library.errors.notConnected'));
     });
     return () => { active = false; };
   }, [orgId, key, opts.deps]);
@@ -161,7 +183,7 @@ export function useSharedItems(kind: LibraryKind, orgId: string, enabled = true)
       await AsyncStorage.setItem(key, JSON.stringify(list));
     } catch (e) {
       noteExpected('shared library', e);
-      setError(e instanceof Error ? e.message : 'Not connected.');
+      setError(t('library.errors.notConnected'));
     } finally {
       setLoaded(true);
     }
