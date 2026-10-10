@@ -92,3 +92,34 @@ missing.
 
 To release a draft: a fluent speaker reads the whole app in it, corrects the
 catalog, and their name and the date go in its `reviewed` field.
+
+## Emails and the Worker's own pages
+
+- Emails (`apps/invite-email/src/i18n/`) go in the sender's app language: the
+  phone sends `locale` with an invite, `send-invite` passes it on, and the
+  Worker writes the invite in that catalog (English when it has none). The
+  password reset email's words are there too (`passwordResetContent`), ready
+  for Forgot password.
+- The shared review link page (`/r/<code>`) and the connect page
+  (`/connect`) are written by the web Worker (`apps/web/worker/i18n/`). They
+  follow `?lang=`, then the browser's languages (reviewed catalogs only),
+  then English, and offer every language in a picker at the top.
+- `apps/web/test/pages.test.ts` and `apps/invite-email/test/message.test.ts`
+  hold these catalogs to English's keys and check the pages write no English
+  of their own.
+
+## Help audio
+
+Help mode says each screen's intro, and each part's name and explanation.
+Where a line has been recorded in the app's language it plays the recording;
+otherwise a phone shows the words and a browser reads them aloud.
+
+- A recording is named by the first 16 hex digits of SHA-256 over
+  `<language>\n<words>`, so changing the words retires it.
+- `npm run help-audio -- lines <lang>` writes the sheet of lines to record,
+  each with its file name.
+- `npm run help-audio -- upload <lang> <folder> [preview|production]` puts
+  the recordings in the blobs bucket under `help-audio/<lang>/` and rewrites
+  that language's list; the Worker serves them at `/api/help-audio`.
+- Phones keep every recorded line of their language once online, so help
+  speaks offline too.
