@@ -11,7 +11,7 @@ import { languageInfo, libraryItems, testamentOf, type SourceDoc, type VerseRang
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
 import {
   Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, txt
 } from '../kit';
@@ -85,7 +85,7 @@ export function BibleExplore(ctx: Ctx) {
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
   const back = () => (picked ? setPicked(null) : ctx.back());
-  const header = <Header title={TITLES.bible_explore} sub={passageLabel ? `For ${passageLabel}` : 'Find a Bible to read and hear'} onBack={back} />;
+  const header = <Header title={screenTitle('bible_explore')} sub={passageLabel ? `For ${passageLabel}` : 'Find a Bible to read and hear'} onBack={back} />;
 
   if (picked) {
     const lib = picked.kind === 'library' ? librarySources.find((s) => s.itemId === picked.itemId) : undefined;

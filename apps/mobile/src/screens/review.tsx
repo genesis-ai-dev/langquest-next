@@ -30,7 +30,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
 import { indexesFor } from '../indexes';
 import {
   Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout
@@ -140,7 +140,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 
   if (!v || !kind) {
     return (
-      <Screen header={<Header title={logged ? TITLES.add_record : TITLES.review_capture} onBack={ctx.back} close />}>
+      <Screen header={<Header title={logged ? screenTitle('add_record') : screenTitle('review_capture')} onBack={ctx.back} close />}>
         <EmptyState icon="book" title={ctx.language.state ? "This passage isn't in this language" : 'Loading…'} />
       </Screen>
     );
@@ -575,7 +575,7 @@ export function GuestReview(ctx: Ctx) {
   const kindId = request?.kindId ?? 'community';
   const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request).slice(0, 3) : [], [v, kindId, request]);
 
-  const header = <Header title={TITLES.guest_review} sub="Preview · what someone without the app sees" onBack={ctx.back} close />;
+  const header = <Header title={screenTitle('guest_review')} sub="Preview · what someone without the app sees" onBack={ctx.back} close />;
   if (!v) return <Screen header={header}><EmptyState icon="link" title={state ? 'No link to preview' : 'Loading…'} sub="Ask someone without the app from a passage to see what they get." /></Screen>;
 
   const kind: KindDef = v.kind(kindId);

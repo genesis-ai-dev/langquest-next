@@ -19,7 +19,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
 import { useHelpPress } from '../helpContext';
 import { indexesFor } from '../indexes';
 import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, txt, useLayout } from '../kit';
@@ -146,7 +146,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   return (
     <Screen fixed
       header={wide
-        ? <Header title={capitalize(produces.what)} sub={`${v.language} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />
+        ? <Header title={capitalize(produces.what)} sub={`${v.language} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close />
         : <Header title={v.title} sub={`${capitalize(produces.what)} · into ${produces.into}`} onBack={ctx.back} close />}
       footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.footer}>

@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
-import { edgeFor, TITLES, type ScreenId } from '../flow';
+import { edgeFor, screenTitle, type ScreenId } from '../flow';
 import { indexesFor } from '../indexes';
 import {
   Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, Ico, IconBtn, KindIcon, kindIcon, LinkBtn,
@@ -115,7 +115,7 @@ const undoDepart = (applied: EventSpec[]) => (c: Commands) => c.undoDeparture({ 
 function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?: string }) {
   const { ctx } = props;
   return (
-    <Screen header={<Header title={TITLES[props.id]} onBack={ctx.back} {...(props.crumbsOf ? { crumbs: passageCrumbs(ctx, props.crumbsOf, TITLES[props.id]) } : {})} />}>
+    <Screen header={<Header title={screenTitle(props.id)} onBack={ctx.back} {...(props.crumbsOf ? { crumbs: passageCrumbs(ctx, props.crumbsOf, screenTitle(props.id)) } : {})} />}>
       <EmptyState icon="book" title={props.text ?? (ctx.language.state ? "This passage isn't in this language." : 'Loading the language…')} />
     </Screen>
   );

@@ -30,7 +30,7 @@ import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
 import { indexesFor } from '../indexes';
 import {
   Banner, Card, Chip, ChipRow, EmptyState, Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, Sheet, SmallBtn, txt
@@ -69,7 +69,7 @@ import { useRecorder, type RecordedCard } from '../useRecorder';
 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
-  if (!v) return <Missing ctx={ctx} title={TITLES.workspace} />;
+  if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
   return <WorkspaceBody key={`${v.unitId}:${v.languageId}`} ctx={ctx} v={v} />;
 }
 
@@ -290,7 +290,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const recorderLine = split >= 1;
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={`Recording ${versionTitle(nextN)}`} crumbs={passageCrumbs(ctx, v, TITLES.workspace)} onBack={ctx.back} close />}
+      header={<Header title={v.title} sub={`Recording ${versionTitle(nextN)}`} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
@@ -366,9 +366,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
 export function BackTranslation(ctx: Ctx) {
   const v = usePassage(ctx);
   const kindId = ctx.params['kindId'] ?? '';
-  if (!v) return <Missing ctx={ctx} title={TITLES.back_translation} />;
+  if (!v) return <Missing ctx={ctx} title={screenTitle('back_translation')} />;
   const kind = v.kind(kindId);
-  if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={TITLES.back_translation} text="There's no recording to back-translate yet." />;
+  if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={screenTitle('back_translation')} text="There's no recording to back-translate yet." />;
   // The same split workspace, with only the version being back-translated on top (simple/btWorkspace.tsx).
   return <BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
 }

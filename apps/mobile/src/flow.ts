@@ -10,6 +10,7 @@
  * Project) is not here: an organization holds languages directly
  * (docs/decisions.md 63), and the parity test lists what that drops.
  */
+import { t } from './i18n';
 
 export const SCREEN_IDS = [
   // 1 Getting in
@@ -52,7 +53,9 @@ export type ScreenId = (typeof SCREEN_IDS)[number];
  * edge to or from one of them goes with it; the parity tests hold the rest.
  */
 export const DROPPED_SCREENS: Record<string, string> = {
+  // i18n-ignore: reasons for developers, read by the parity tests
   project_home: 'no project level (docs/decisions.md 63): an organization holds languages directly',
+  // i18n-ignore: reasons for developers, read by the parity tests
   new_project: 'no project level (docs/decisions.md 63): languages are added from the organization (New Language)'
 };
 export type NodeId = ScreenId | 'home_hub';
@@ -388,27 +391,7 @@ export function edgeFor(from: NodeId, to: NodeId): Edge | undefined {
   return EDGES.find((x) => x.from === from && x.to === to && x.mode !== 'back') ?? EDGES.find((x) => x.from === from && x.to === to);
 }
 
-export const TITLES: Record<ScreenId, string> = {
-  sign_in: 'Sign In', terms_privacy: 'Terms & Privacy', explore_home: 'Explore', create_account: 'Create Account',
-  scan_qr: 'Scan QR Code', welcome: 'Welcome', vision: 'What is LangQuest?',
-  intent_chooser: 'What brings you here?', create_org: 'Create Organization', request_access: 'Request Access',
-  my_work: 'My Work', status_home: 'All Languages', map_home: 'Passage Map', book_map: 'Book Chapters',
-  passage_record: 'Passage Record', version_detail: 'Version', review_detail: 'Review', ask_someone: 'Ask Someone',
-  guest_review: 'Review by Link', add_record: 'Already Happened',
-  study_guide: 'Study Guide', study_step: 'Study Step', workspace: 'Record', review_capture: 'Review It',
-  back_translation: 'Back-translate', key_terms: 'Key Terms', key_term_detail: 'Key Term',
-  inbox_home: 'Inbox', settings_home: 'Me', profile_edit: 'Edit Profile', org_switcher: 'Switch Org', sign_out_confirm: 'Sign Out',
-  org_home: 'Org Home', language_home: 'Language Home',
-  new_language: 'New Language', members_list: 'Members', invite_member: 'Invite Member', invite_qr: 'Invite by QR',
-  edit_member: 'Edit Member Role', roles_home: 'Roles', role_editor: 'Role Editor', review_teams: 'Review Teams',
-  review_team_editor: 'Edit Review Team',
-  flows_home: 'Review Flows', flow_editor: 'Flow Editor', templates_home: 'Content Templates', template_picker: 'Choose a Template',
-  template_editor: 'Template Outline', book_structure: 'Divide a Book', reference_home: 'Reference Library', material_editor: 'Edit Material',
-  sync_status: 'Sync', delete_account: 'Delete Account', reports_home: 'Reports', reports_language: 'Language Report',
-  reference_bibles: 'Bibles', reference_source: 'Bible', reference_guides: 'Guides and Notes', reference_coverage: 'Coverage',
-  passage_reference: 'Reference',
-  guide_editor: 'Write a Guide',
-  bible_explore: 'More Bibles',
-  mic_setup: 'Set up your microphone', get_ready: 'Get ready',
-  settings_more: 'More settings'
-};
+/** A screen's name, for the browser tab and headers that name a screen (the demo's titles), in the language showing. */
+export function screenTitle(id: ScreenId): string {
+  return t(`screens.${id}`);
+}

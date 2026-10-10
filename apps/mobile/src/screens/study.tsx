@@ -23,7 +23,7 @@ import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
 import { indexesFor } from '../indexes';
 import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn, txt } from '../kit';
 import { plural, usePassage, type PassageView } from '../passageView';
@@ -63,11 +63,11 @@ function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
 // ---- the reader (STUDY-2..5, STUDY-7) ------------------------------------------------------
 
 export function StudyGuide(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={TITLES.study_guide} />;
+  return <StudyReader ctx={ctx} title={screenTitle('study_guide')} />;
 }
 
 export function StudyStep(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={TITLES.study_step} stepId={ctx.params['stepId']} />;
+  return <StudyReader ctx={ctx} title={screenTitle('study_step')} stepId={ctx.params['stepId']} />;
 }
 
 function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {

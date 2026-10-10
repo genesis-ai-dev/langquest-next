@@ -1,3 +1,4 @@
+// i18n-ignore-file: developer tools, shown only in development builds.
 import type { Role } from '@langquest-next/core';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from './supabase';
