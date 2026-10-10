@@ -3,7 +3,7 @@
 // so a phone showing English never builds the others in memory.
 import type { UiLanguage } from './languages';
 
-export function loadCatalog(code: Exclude<UiLanguage, 'en'>): object {
+export function loadCatalog(code: Exclude<UiLanguage, 'en'>): object | null {
   switch (code) {
     case 'es': return require('./es.json');
     case 'pt': return require('./pt.json');
@@ -20,4 +20,9 @@ export function loadCatalog(code: Exclude<UiLanguage, 'en'>): object {
     case 'th': return require('./th.json');
     case 'my': return require('./my.json');
   }
+}
+
+/** The same, for the web's way of loading (catalogs.web.ts); on a phone it is already here. */
+export async function loadCatalogAsync(code: Exclude<UiLanguage, 'en'>): Promise<object> {
+  return loadCatalog(code)!;
 }

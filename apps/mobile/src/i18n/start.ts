@@ -7,7 +7,7 @@
 import { getLocales } from 'expo-localization';
 import * as Updates from 'expo-updates';
 import { DevSettings, I18nManager, Platform } from 'react-native';
-import { loadCatalog } from './catalogs';
+import { loadCatalog, loadCatalogAsync } from './catalogs';
 import { lastDirectionReload, noteDirectionReload, readChoice, writeChoice } from './choice';
 import { addCatalog, currentLanguage, showLanguage } from './index';
 import { catalogFor, isUiLanguage, languageInfo, pickLanguage, type UiLanguage } from './languages';
@@ -16,9 +16,27 @@ function deviceTags(): string[] {
   try { return getLocales().map((l) => l.languageTag); } catch { return []; }
 }
 
+let ready = true;
+const waiting: (() => void)[] = [];
+
 function show(code: UiLanguage) {
-  if (code !== 'en') addCatalog(code, loadCatalog(code));
-  showLanguage(code);
+  if (code === 'en') { showLanguage(code); return; }
+  const catalog = loadCatalog(code);
+  if (catalog) { addCatalog(code, catalog); showLanguage(code); return; }
+  // A browser fetches the catalog; the first screen waits for it (languageReady).
+  ready = false;
+  const done = () => { ready = true; waiting.splice(0).forEach((f) => f()); };
+  loadCatalogAsync(code).then((c) => { addCatalog(code, c); showLanguage(code); }, () => { /* stays in English */ }).finally(done);
+}
+
+/** Whether the language's words are here; on a phone always, in a browser once its catalog arrives. */
+export function languageReady(): boolean {
+  return ready;
+}
+
+export function onLanguageReady(then: () => void) {
+  if (ready) then();
+  else waiting.push(then);
 }
 
 function restart() {

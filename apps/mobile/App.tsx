@@ -1,6 +1,7 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
 import { HelpModeProvider, useScreenIntro } from './src/helpMode';
 import { keepHelpAudio } from './src/helpAudio';
+import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpContext';
 import { CommandError, highlightsFor, orgLanguages, updatesFor, type EventSpec } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -270,6 +271,9 @@ function Fatal(props: { title: string; detail: string; id?: string }) {
 
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined);
+  // In a browser the chosen language's words arrive as a file; draw nothing until they have (src/i18n/start.ts).
+  const [wordsReady, setWordsReady] = useState(languageReady);
+  useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
   // Help speaks offline too: keep the recorded help lines of the app's language (decision 80).
   useEffect(() => { void keepHelpAudio(); }, []);
@@ -288,7 +292,7 @@ export default function App() {
         <UpdateBanner />
         {supabaseConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={supabaseConfigError} />
-        ) : auth === undefined ? null : (
+        ) : auth === undefined || !wordsReady ? null : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
             <HelpModeProvider>
