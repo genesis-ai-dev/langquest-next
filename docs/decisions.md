@@ -2623,7 +2623,8 @@ audio itself (alignment) rather than taps.
 Amended (2026-10-10, Caleb Koster): no grouping by verse for now. The
 recorder keeps its one card of parts as before, and each part has its verse
 space; a part with the same verse as the part above shows that verse hollow
-and grey (only a part's own verse is purple) instead of joining a card. The marks, the event and the tap rules are
+and grey instead of joining a card; a part's own verse is a soft grey tile
+with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
 unchanged.
 
 ## 83. A person may keep several drafts of a passage, each one the line of takes its changes made

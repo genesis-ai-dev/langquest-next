@@ -320,12 +320,13 @@ const styles = StyleSheet.create({
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   editing: { backgroundColor: C.light },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
-  badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: 20, fontWeight: '800', color: C.white },
-  badgeRange: { fontSize: T.base, fontWeight: '800', color: C.white },
+  // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
+  badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: TINT.gray, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: 20, fontWeight: '700', color: C.dark },
+  badgeRange: { fontSize: T.base, fontWeight: '700', color: C.dark },
   // More of the verse above: grey like an empty space, but solid and darker, so it reads as labelled.
   badgeSame: { backgroundColor: 'transparent', borderWidth: 2, borderColor: C.dark, opacity: 0.35 },
-  pin: { position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 7, backgroundColor: C.card, borderWidth: 2, borderColor: C.primary },
+  pin: { position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 7, backgroundColor: C.card, borderWidth: 2, borderColor: C.muted },
   // An empty space is barely there (Caleb, 2026-10-09): grey at a tenth, so it never competes with a verse.
   ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: 18, fontWeight: '700', color: C.dark },
