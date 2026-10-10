@@ -2521,3 +2521,9 @@ joins and choices (one register per card is simpler to merge).
 Reverse if: the same recording needs different verses in different
 versions (then marks belong on the take), or teams want labels from the
 audio itself (alignment) rather than taps.
+
+Amended (2026-10-10, Caleb Koster): no grouping by verse for now. The
+recorder keeps its one card of parts as before, and each part has its verse
+space; a part with the same verse as the part above shows that verse hollow
+instead of joining a card. The marks, the event and the tap rules are
+unchanged.

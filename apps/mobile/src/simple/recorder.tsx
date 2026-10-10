@@ -4,10 +4,9 @@
 // delete each), the next part lit, the line that says how many are done
 // when the pane is small, the one-line bar when the reference has the
 // screen, and the footer with the big red button and Publish. When the
-// passage has verses, the parts are grouped into cards by verse instead,
-// with a space beside each to tap a verse in (verseParts.tsx, decisions.md
-// 80); a passage with no verses keeps the one card of numbered parts.
-import { useState } from 'react';
+// passage has verses, each part in the card has a space beside it to tap a
+// verse in (verseParts.tsx, decisions.md 80).
+import { useState, type ReactNode } from 'react';
 import type { PartMark as VerseMark } from '@langquest-next/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
@@ -38,11 +37,12 @@ export function RecorderPane(props: {
   const showGroup = parts.length > 0 && !props.small;
   return (
     <View style={{ gap: space.sm }}>
-      {showGroup && props.verses && props.verses.keys.length > 0 ? (
-        <VerseParts ctx={props.ctx} parts={parts} verses={props.verses.keys} marks={props.verses.marks} disabled={props.disabled}
-          onMarks={props.verses.onMarks} onDelete={props.onDelete} onRecordHere={props.verses.onRecordHere} />
-      ) : showGroup ? (
-        <GroupCard ctx={props.ctx} parts={parts} title={lines.group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
+      {showGroup ? (
+        <GroupCard
+          body={props.verses && props.verses.keys.length > 0 ? (
+            <VerseParts ctx={props.ctx} parts={parts} verses={props.verses.keys} marks={props.verses.marks} disabled={props.disabled}
+              onMarks={props.verses.onMarks} onDelete={props.onDelete} onRecordHere={props.verses.onRecordHere} />
+          ) : undefined} ctx={props.ctx} parts={parts} title={lines.group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
           open={expanded} onToggle={() => setOpen(!expanded)} disabled={props.disabled} onDelete={props.onDelete} />
       ) : null}
       <NextCard label={lines.next} phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
@@ -53,7 +53,9 @@ export function RecorderPane(props: {
   );
 }
 
-function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void }) {
+function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string; open: boolean; onToggle: () => void; disabled: boolean; onDelete: (hash: string, label: string) => void;
+  /** The parts with their verse spaces, in place of the plain rows. */
+  body?: ReactNode }) {
   const clip = useClip(props.ctx.language, props.parts.map((p) => p.hash), { disabled: props.disabled });
   const toggle = useHelpPress(props.title, props.open ? 'Hide the parts.' : 'Show each part, to hear or delete it.', props.onToggle);
   const play = useHelpPress(clip.playing ? 'Pause' : `Play ${props.title}`, 'Hear everything recorded so far, one part after another.', clip.toggle);
@@ -74,7 +76,7 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
           <Ico name={props.open ? 'down' : 'right'} size={22} color={C.muted} />
         </Pressable>
       </View>
-      {props.open ? (
+      {props.open && props.body ? <View style={styles.versePart}>{props.body}</View> : props.open ? (
         <View style={styles.parts}>
           {props.parts.map((p, i) => <PartRow key={`${p.hash}-${i}`} ctx={props.ctx} part={p} index={i} disabled={props.disabled} onDelete={props.onDelete} />)}
         </View>
@@ -180,6 +182,7 @@ const styles = StyleSheet.create({
   title: { fontSize: T.base, fontWeight: '800', color: C.dark },
   iconTap: { width: 44, height: target.min, alignItems: 'center', justifyContent: 'center' },
   parts: { borderTopWidth: 1, borderColor: C.border, paddingLeft: 50, paddingRight: space.xs, paddingVertical: space.xs },
+  versePart: { borderTopWidth: 1, borderColor: C.border },
   partRow: { flexDirection: 'row', alignItems: 'center' },
   partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 40 },
   next: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },

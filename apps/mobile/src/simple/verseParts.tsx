@@ -1,11 +1,12 @@
-// The recorded parts grouped into cards by verse (decisions.md 80; demo
-// ADR-036's "recorder groups parts into cards by label"; Caleb's tap-to-number
-// lab). Each part has a space on its left: tap it and the part takes the next
-// verse after the label above, or joins the verse above when no next verse
-// fits; tap a number to join the part above, again to split it out. Hold it
-// to choose a verse or a range, or to delete the part. Slide a finger down
-// the spaces to number several parts at once. The numbering is core's
-// (verses.ts); this file only draws it and passes on what was tapped.
+// The recorded parts as one list, each with a space on its left for its
+// verse (decisions.md 80; Caleb's tap-to-number lab). Tap the space: the
+// part takes the next verse after the label above, or the verse above when
+// no next verse fits. Tap a number: the part takes the same verse as the
+// part above (a verse said in pieces), and again to make it the next verse.
+// Hold it to choose a verse or a range, or to delete the part. Slide a
+// finger down the spaces to number several parts at once. Parts are not
+// grouped by verse (Caleb, 2026-10-10): one list, as before. The numbering
+// is core's (verses.ts); this file only draws it and passes on what was tapped.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
@@ -160,18 +161,10 @@ export function VerseParts(props: {
     if (!r.ok) { setShake(i); setTimeout(() => setShake(-1), 400); return; }
     const l = r.labels[i]!;
     const name = spanName(verses, l.s, l.e);
-    const message = r.how === 'join' || r.how === 'joinFallback' ? `Part ${i + 1} joins ${name.toLowerCase()}.` : `Part ${i + 1} is ${name.toLowerCase()}.`;
+    const message = r.how === 'join' || r.how === 'joinFallback' ? `Part ${i + 1} is more of ${name.toLowerCase()}.` : `Part ${i + 1} is ${name.toLowerCase()}.`;
     save(r.marks, message);
   };
 
-  // ---- cards: a labelled part and the parts that join it, or one part with no verse ----
-  const cards: number[][] = [];
-  for (let i = 0; i < parts.length; i++) {
-    const run = [i];
-    if (labels[i]) while (run[run.length - 1]! + 1 < parts.length && labels[run[run.length - 1]! + 1]?.kind === 'join') run.push(run[run.length - 1]! + 1);
-    cards.push(run);
-    i = run[run.length - 1]!;
-  }
   const ghost = (i: number): { text: string; join: boolean } | null => {
     const r = tapPart(marks, i, count);
     if (!r.ok) return null;
@@ -180,23 +173,16 @@ export function VerseParts(props: {
   };
 
   return (
-    <View ref={box} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} style={{ gap: space.sm }} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
-      {cards.map((run) => {
-        const head = labels[run[0]!];
-        const gap = gaps.find((g) => g.before === run[0]);
+    <View ref={box} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
+      {parts.map((part, i) => {
+        const gap = gaps.find((g) => g.before === i);
         return (
-          <View key={parts[run[0]!]!.hash} style={{ gap: space.sm }}>
-            {gap ? <GapRow text={`${spanName(verses, gap.s, gap.e)} · left for later`} disabled={disabled} onRecord={() => props.onRecordHere(run[0]!)} /> : null}
-            <View style={[styles.card, run.length > 1 && styles.group]}>
-              {run.length > 1 && head ? <Text style={styles.cap}>{spanName(verses, head.s, head.e)} · {run.length} parts</Text> : null}
-              {run.map((i, k) => (
-                <PartRow key={`${parts[i]!.hash}-${i}`} ctx={props.ctx} part={parts[i]!} index={i} label={labels[i] ?? null}
-                  joined={k > 0} last={k === run.length - 1} verses={verses} ghost={labels[i] ? null : ghost(i)}
-                  flash={flash.has(parts[i]!.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
-                  gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
-                  onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
-              ))}
-            </View>
+          <View key={`${part.hash}-${i}`}>
+            {gap ? <GapRow text={`${spanName(verses, gap.s, gap.e)} · left for later`} disabled={disabled} onRecord={() => props.onRecordHere(i)} /> : null}
+            <PartRow ctx={props.ctx} part={part} index={i} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
+              flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
+              gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
+              onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
           </View>
         );
       })}
@@ -218,7 +204,7 @@ export function VerseParts(props: {
 }
 
 function PartRow(props: {
-  ctx: Ctx; part: Part; index: number; label: PartLabel | null; joined: boolean; last: boolean; verses: string[];
+  ctx: Ctx; part: Part; index: number; label: PartLabel | null; verses: string[];
   ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
   gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void;
 }) {
@@ -227,27 +213,22 @@ function PartRow(props: {
   const play = useHelpPress(clip.playing ? 'Pause' : `Play ${name}`, undefined, clip.toggle);
   const l = props.label;
   const verseName = l ? spanName(props.verses, l.s, l.e).toLowerCase() : null;
-  const tap = useHelpPress(l ? (l.kind === 'join' ? `Split ${name} out` : `Join ${name} to the verse above`) : `Give ${name} a verse`,
+  const tap = useHelpPress(l ? (l.kind === 'join' ? `Give ${name} the next verse` : `Give ${name} the verse above`) : `Give ${name} a verse`,
     'Tap: the app works out the verse from the parts around it. Hold: choose it yourself.', props.onTap);
   return (
-    <View style={[styles.row, props.joined && styles.rowJoined, props.flash && { backgroundColor: C.light }, props.editing && styles.editing]}>
+    <View style={[styles.row, props.index > 0 && styles.rowBorder, props.flash && { backgroundColor: C.light }, props.editing && styles.editing]}>
       <Pressable ref={props.gutterRef} onPress={tap} onLongPress={props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
-        accessibilityLabel={l ? `${name}, ${verseName}${l.kind === 'join' ? ', joined to the part above' : ''}` : `${name}, no verse yet`}
-        accessibilityHint={l ? (l.kind === 'join' ? 'Tap to split it out as the next verse. Hold to choose.' : 'Tap to join the verse above. Hold to choose.') : 'Tap to give it the next verse. Hold to choose.'}
+        accessibilityLabel={l ? `${name}, ${verseName}${l.kind === 'join' ? ', same as the part above' : ''}` : `${name}, no verse yet`}
+        accessibilityHint={l ? (l.kind === 'join' ? 'Tap to make it the next verse. Hold to choose.' : 'Tap to give it the same verse as the part above. Hold to choose.') : 'Tap to give it the next verse. Hold to choose.'}
         accessibilityActions={[{ name: 'longpress', label: 'Choose verses' }]}
         onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'longpress') props.onHold(); }}
         style={({ pressed }) => [styles.gutter, pressed && { transform: [{ scale: 0.94 }] }, props.shake && { transform: [{ translateX: 4 }] }]}>
-        {l && l.kind !== 'join' ? (
-          <View style={styles.badge}>
-            <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+        {l ? (
+          // The same verse as the part above is drawn hollow: one verse said in pieces.
+          <View style={[styles.badge, l.kind === 'join' && styles.badgeSame]}>
+            <Text style={[l.s === l.e ? styles.badgeText : styles.badgeRange, l.kind === 'join' && { color: C.primary }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
             {l.kind === 'set' ? <View style={styles.pin} /> : null}
-          </View>
-        ) : l ? (
-          <View style={styles.hook}>
-            <View style={styles.cord} />
-            <View style={styles.knot}><Text style={styles.knotText}>{spanShort(props.verses, l.s, l.s)}</Text></View>
-            <View style={[styles.cord, props.last && { opacity: 0 }]} />
           </View>
         ) : (
           <View style={styles.ghost}>
@@ -334,28 +315,22 @@ function Tool(props: { label: string; on: boolean; disabled: boolean; onPress: (
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  group: { borderColor: C.soft },
-  cap: { fontSize: T.sm, fontWeight: '700', color: C.primary, paddingTop: space.sm, paddingLeft: GUTTER + space.sm },
   row: { flexDirection: 'row', alignItems: 'stretch', minHeight: target.row },
-  rowJoined: { borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.border },
-  editing: { borderWidth: 2, borderColor: C.primary, borderRadius: radius.lg },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  editing: { backgroundColor: C.light },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '800', color: C.white },
   badgeRange: { fontSize: T.base, fontWeight: '800', color: C.white },
+  badgeSame: { backgroundColor: C.card, borderWidth: 2, borderColor: C.primary },
   pin: { position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 7, backgroundColor: C.card, borderWidth: 2, borderColor: C.primary },
-  hook: { width: 44, alignSelf: 'stretch', alignItems: 'center' },
-  cord: { width: 4, flex: 1, backgroundColor: C.primary, opacity: 0.5, borderRadius: 2 },
-  knot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2.5, borderColor: C.primary, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', marginVertical: 4 },
-  knotText: { fontSize: 12, fontWeight: '800', color: C.primary },
   // An empty space is barely there (Caleb, 2026-10-09): grey at a tenth, so it never competes with a verse.
   ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: 18, fontWeight: '700', color: C.dark },
   play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: target.row },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs, borderRadius: radius.lg,
-    borderWidth: 2, borderStyle: 'dashed', borderColor: C.amber, backgroundColor: TINT.amber },
+  gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: TINT.amber },
   gapBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.md, backgroundColor: C.card },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   verse: { width: 56, height: 56, borderRadius: radius.md + 2, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
