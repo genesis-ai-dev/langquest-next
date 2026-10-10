@@ -12,7 +12,7 @@
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  languageInfo, languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
+  languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
   type LibraryDoc, type LanguageState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -33,13 +33,15 @@ import { noteExpected } from '../report';
 import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../bibleBrain';
 import { coverage, coverageSummary, itemReaches, type Reach, type ReachWhy } from '../reference/coverage';
 import {
-  biblebrainItemId, booksOf, languageOf, offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone, refKindLabel,
+  biblebrainItemId, booksOf, offlineLine, orgLevelCan, recActions, recLabel, recOn, recState, recTone, refKindLabel,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level, type RefKind
 } from '../reference/model';
 import {
   levelOf, publishTimingJob, referenceFailure, requestTimings, useRecommend, useRefItems, useTimingJobs, useTimingPublisher,
   versificationHash, type RefItem, type TimingJob
 } from '../reference/useReference';
+import { docLanguage, languagesLine, teamLanguage } from '../reference/languages';
+import { languageLabel } from '../simple/adminModel';
 import { contractsFor } from '../screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
 import { space, TINT } from '../theme';
@@ -124,7 +126,7 @@ export function ReferenceBibles(ctx: Ctx) {
           <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
           <Badge label={label} tone={recTone(st)} />
         </View>
-        <Text style={txt.xs}>{[doc.abbreviation, doc.language.toUpperCase(), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
+        <Text style={txt.xs}>{[doc.abbreviation, languageLabel(doc.language), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
         <Text style={txt.sm}>{sourceSummary(facts)}</Text>
         {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
       </Card>
@@ -167,7 +169,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const readyDocs = useLibraryDocs(lib.orgId, shared.rows.map((s) => s.latest_hash));
   const ready = shared.rows.filter((s) => readyDocs.get(s.latest_hash)?.format === 'source@1')
     .filter((s) => !lib.items('material').some((it) => it.subscription?.sourceItemId === s.item_id && it.subscription.sourceOrgId === s.org_id && it.subscription.active));
-  const fallback = languageInfo(ctx.org.state, ctx.language.languageId)?.sourceCode ?? 'eng';
+  const fallback = teamLanguage(ctx.org.state, ctx.language.state, ctx.language.languageId);
   const [q, setQ] = useState(fallback);
   const [languages, setLanguages] = useState<BibleLanguage[]>([]);
   const [lang, setLang] = useState<string | null>(null);
@@ -265,7 +267,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                   {ready.map((s, i) => {
                     const doc = readyDocs.get(s.latest_hash) as SourceDoc;
                     return <Row key={`${s.org_id}/${s.item_id}`} icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
-                      sub={[s.org_name, sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} onPress={() => void addReady(s)} />;
+                      sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} onPress={() => void addReady(s)} />;
                   })}
                 </Group>
               )
@@ -381,7 +383,7 @@ export function ReferenceSource(ctx: Ctx) {
 
   const timedBooks = facts.books.filter((b) => b.timed > 0).length;
   return (
-    <Screen header={<Header title={it.name} sub={[source.abbreviation, source.language.toUpperCase(), providerName(source.provider.kind)].join(' · ')} onBack={ctx.back} />}
+    <Screen header={<Header title={it.name} sub={[source.abbreviation, languageLabel(source.language), providerName(source.provider.kind)].join(' · ')} onBack={ctx.back} />}
       footer={mayAsk ? <PrimaryBtn label={t('reference.source.generate')} icon="clock" onPress={() => void ask()} busy={asking} /> : undefined}>
       <Card>
         <View style={styles.titleRow}>
@@ -581,10 +583,10 @@ export function ReferenceGuides(ctx: Ctx) {
   const inApp = useMemo(() => (state && languageId ? materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms') : []), [state, languageId]);
 
   if (!state) return <Screen header={<Header title={t('reference.guides.title')} onBack={ctx.back} />}><EmptyState title={t('common.loading')} /></Screen>;
-  const languages = [...new Set(items.map((r) => languageOf(r.doc)).filter((l): l is string => !!l))].sort();
+  const languages = [...new Set(items.map((r) => docLanguage(r.doc)).filter((l): l is string => !!l))].sort();
   const books = [...new Set(items.flatMap((r) => booksOf(r.doc)))];
   const shown = items.filter((r) => (kind === 'all' || r.kind === kind)
-    && (!language || languageOf(r.doc) === language)
+    && (!language || docLanguage(r.doc) === language)
     && (!book || booksOf(r.doc).includes(book))
     && (!reach || itemReaches(reach, r.it.itemId) > 0));
   const active = [kind !== 'all', !!language, !!book, covers].filter(Boolean).length;
@@ -641,7 +643,7 @@ export function ReferenceGuides(ctx: Ctx) {
             <Text style={txt.xsStrong}>{t('reference.guides.language')}</Text>
             <ChipRow>
               <Chip label={t('reference.guides.any')} on={!language} onPress={() => setLanguage(null)} />
-              {languages.map((l) => <Chip key={l} label={l.toUpperCase()} on={language === l} onPress={() => setLanguage(l)} />)}
+              {languages.map((l) => <Chip key={l} label={languageLabel(l)} on={language === l} onPress={() => setLanguage(l)} />)}
             </ChipRow>
           </>
         ) : null}
@@ -666,9 +668,8 @@ export function ReferenceGuides(ctx: Ctx) {
 
 function guideLine(r: RefItem, reaches: number | null): string {
   const doc = r.doc;
-  const parts: string[] = [refKindLabel(r.kind ?? 'other')];
-  const lang = languageOf(doc);
-  if (lang) parts.push(lang.toUpperCase());
+  // Every item says its language, or that it gives none, so whoever chooses knows whether the team can read it (decision 84).
+  const parts: string[] = [refKindLabel(r.kind ?? 'other'), languagesLine([docLanguage(doc)])];
   if (doc?.format === 'collection@1') parts.push(t('reference.passages', { count: doc.entries.length }));
   else {
     const books = booksOf(doc);
@@ -827,7 +828,7 @@ export function PassageReference(ctx: Ctx) {
     const prior = passageLink(state, unitId, r.itemId);
     return (
       <Row key={r.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={name} last={last} muted={hidden}
-        sub={hidden ? t('reference.passage.hiddenHere') : [whyLabel(r.why), facts].filter(Boolean).join(' · ')}
+        sub={hidden ? t('reference.passage.hiddenHere') : [whyLabel(r.why), languagesLine([docLanguage(item?.doc)]), facts].filter(Boolean).join(' · ')}
         right={canManage ? (hidden
           ? <SmallBtn label={t('reference.passage.showHere')} disabled={busy} onPress={() => void link(r.itemId, true, t('reference.passage.shownAgain', { name }), false)} />
           : <SmallBtn label={t('reference.passage.hideHere')} disabled={busy} onPress={() => void link(r.itemId, false, t('reference.passage.hidden', { name }), prior ?? true)} />) : undefined} />
@@ -869,7 +870,7 @@ export function PassageReference(ctx: Ctx) {
           <Group>
             {addable.slice(0, 50).map((r, i) => (
               <Row key={r.it.itemId} icon={r.kind === 'source' ? 'book' : r.kind === 'guide' ? 'sparkle' : 'note'} label={r.it.name}
-                sub={refKindLabel(r.kind!)} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
+                sub={[refKindLabel(r.kind!), languagesLine([docLanguage(r.doc)])].join(' · ')} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
                 onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
             ))}
           </Group>

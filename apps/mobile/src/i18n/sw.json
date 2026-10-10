@@ -887,11 +887,13 @@
       "offerNoteFia": "Tutawapa watafsiri wa {{language}} {{offers}}. Miongozo ya FIA inaenda pamoja na vifungu vya FIA ulivyochagua. Badilisha hilo wakati wowote chini ya <b>Kinachowasaidia</b>.",
       "notAdded": "Haijaongezwa",
       "inviteLater": "Waalike watafsiri wa {{language}} kutoka kwenye ukurasa wake baadaye.",
-      "later": "Baadaye"
+      "later": "Baadaye",
+      "offerNothing": "LangQuest bado haina Biblia wala miongozo ya kujifunza kwa {{reads}}. Tafuta Biblia au andika madokezo kwa watafsiri wa {{language}} chini ya <b>Kinachowasaidia</b>."
     },
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "miongozo ya kujifunza ya {{name}} kwa {{language}}"
     },
     "teams": {
       "thisLanguage": "lugha hii",
@@ -1082,7 +1084,14 @@
       "tha": "Kithai",
       "vie": "Kivietinamu",
       "din": "Kidinka",
-      "nus": "Kinuer"
+      "nus": "Kinuer",
+      "apd": "Kiarabu cha Sudani",
+      "fas": "Kiajemi",
+      "ben": "Kibengali",
+      "npi": "Kinepali",
+      "mya": "Kiburma",
+      "tpi": "Kitok Pisin",
+      "bis": "Kibislama"
     },
     "helps": {
       "bibles_one": "Biblia ya {{languages}}",
@@ -1090,7 +1099,8 @@
       "guides": "Miongozo ya {{names}}",
       "notes_one": "Dokezo {{count, number}}",
       "notes_other": "Madokezo {{count, number}}",
-      "nothing": "Bado hakuna kilichotolewa"
+      "nothing": "Bado hakuna kilichotolewa",
+      "guidesIn": "Miongozo ya {{name}} kwa {{languages}}"
     },
     "ready": {
       "translators_one": "Mtafsiri {{count, number}}",
@@ -1192,7 +1202,11 @@
       "notesForTranslators": "Madokezo kwa watafsiri",
       "on": "Imewashwa",
       "off": "Imezimwa",
-      "viewOnly": "Watu wanaochagua Biblia na miongozo tu ndio wanaweza kubadilisha hili."
+      "viewOnly": "Watu wanaochagua Biblia na miongozo tu ndio wanaweza kubadilisha hili.",
+      "inLanguages_one": "Kwa lugha {{count, number}}",
+      "inLanguages_other": "Kwa lugha {{count, number}}",
+      "setChosen": "Miongozo ya kujifunza ya {{name}} sasa iko kwa {{language}}",
+      "setOff": "Miongozo ya kujifunza ya {{name}} imezimwa kwa timu hii"
     },
     "page": {
       "title": "Kinachowasaidia",
@@ -1239,6 +1253,9 @@
       "somethingElse": "Kitu kingine",
       "cannotTitle": "Watu wanaoweza kualika hapa tu ndio wanaweza kuonyesha msimbo",
       "cannotBody": "Mwombe mtu anayeongoza timu ya {{language}} awaalike watafsiri wako."
+    },
+    "language": {
+      "saved": "Biblia na miongozo ya {{team}} sasa iko kwa {{language}}"
     }
   },
   "content": {
@@ -1954,7 +1971,8 @@
       "steps_one": "Hatua {{count, number}}",
       "steps_other": "Hatua {{count, number}}",
       "bible": "Biblia",
-      "notReference": "Si nyenzo za marejeo"
+      "notReference": "Si nyenzo za marejeo",
+      "numbering": "Mpangilio wa namba wa {{name}}"
     },
     "errors": {
       "setNotForKind": "Seti hii ya maswali si kwa aina ya ukaguzi.",
@@ -5802,6 +5820,27 @@
       "theirNoteOnVerse": "Dokezo la {{name}} kwenye mstari {{verse}}",
       "empty": "Bado hakuna kilichorekodiwa kwa kifungu hiki. Hili litakuwa toleo la kwanza.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "Lugha haijatajwa",
+      "another": "Lugha nyingine",
+      "searchPlaceholder": "Tafuta lugha",
+      "unlisted": "Haipo kwenye orodha? Chagua lugha iliyo karibu nayo zaidi.",
+      "unreachable": "Kutafuta kunahitaji mtandao. Kwa sasa chagua mojawapo ya lugha zilizo juu.",
+      "writtenIn": "Imeandikwa kwa"
+    },
+    "setLanguage": {
+      "title": "{{name}} iwe kwa lugha gani?",
+      "sub_one": "Inapatikana kwa lugha {{count, number}}. Chagua ile ambayo timu ya {{team}} inasoma vizuri zaidi.",
+      "sub_other": "Inapatikana kwa lugha {{count, number}}. Chagua ile ambayo timu ya {{team}} inasoma vizuri zaidi.",
+      "use": "Tumia {{language}}",
+      "keep": "Endelea na {{language}}",
+      "off": "Usitoe {{name}}",
+      "passages_one": "Miongozo ya kifungu {{count, number}}",
+      "passages_other": "Miongozo ya vifungu {{count, number}}",
+      "yours": "Lugha ya programu yako",
+      "gaps_one": "Kwa {{language}}, {{name}} ina mwongozo wa kifungu {{count, number}}. Vifungu visivyo na mwongozo havionyeshi mwongozo wa kujifunza.",
+      "gaps_other": "Kwa {{language}}, {{name}} ina miongozo ya vifungu {{count, number}}. Vifungu visivyo na mwongozo havionyeshi mwongozo wa kujifunza."
     }
   },
   "sources": {
@@ -5937,5 +5976,19 @@
       "previousChapter": "Sura iliyotangulia",
       "nextChapter": "Sura inayofuata"
     }
+  },
+  "referenceLanguage": {
+    "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe kwa lugha gani?",
+    "sub": "Chagua lugha ambayo timu ya {{language}} inasoma vizuri zaidi. Kila moja inaonyesha kile LangQuest inacho kwa lugha hiyo.",
+    "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
+    "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
+    "bibles_one": "Biblia {{count, number}}",
+    "bibles_other": "Biblia {{count, number}}",
+    "otherGuides_one": "Mwongozo au dokezo jingine {{count, number}}",
+    "otherGuides_other": "Miongozo au madokezo mengine {{count, number}}",
+    "nothing": "Bado hakuna kitu kwa lugha hii",
+    "chip": "Biblia na miongozo kwa {{language}}",
+    "chipHelp": "Lugha ya Biblia na miongozo yao ya kujifunza. Gusa ili kuibadilisha.",
+    "change": "Badilisha"
   }
 }

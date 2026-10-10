@@ -234,6 +234,12 @@ export interface MaterialDoc {
   /** tmf, brief, tg, questions, key_terms, document, or a partner's own. */
   kind: string;
   title: string;
+  /**
+   * ISO 639-3 language its words are in ("eng"), so whoever chooses it
+   * knows whether their team can read it (decision 84). Absent on
+   * material made before languages were asked for.
+   */
+  language?: string;
   body?: string;
   fields?: { id: string; label?: string; text: string }[];
   questions?: QuestionSpec[];
@@ -534,6 +540,7 @@ export function validateDoc(value: unknown): string | null {
       break;
     case 'material@1':
       if (!str(d['kind']) || !str(d['title'])) return 'a material needs a kind and a title';
+      if (d['language'] !== undefined && !str(d['language'])) return 'language must be a language code';
       if (d['versification'] !== undefined && !isHash(d['versification'])) return 'versification must be a hash';
       if (d['links'] !== undefined) {
         if (!Array.isArray(d['links'])) return 'links must be an array';

@@ -887,11 +887,13 @@
       "offerNoteFia": "We'll offer {{offers}} to {{language}}'s translators. FIA's guides go with the FIA passages you chose. Change that any time under <b>What helps</b>.",
       "notAdded": "Not added",
       "inviteLater": "Invite {{language}}'s translators from its page later.",
-      "later": "Later"
+      "later": "Later",
+      "offerNothing": "LangQuest has no Bibles or study guides in {{reads}} yet. Find a Bible or write notes for {{language}}'s translators under <b>What helps</b>."
     },
     "offers": {
       "guides": "{{name}}'s study guides",
-      "theBible": "the {{name}}"
+      "theBible": "the {{name}}",
+      "guidesIn": "{{name}}'s study guides in {{language}}"
     },
     "teams": {
       "thisLanguage": "this language",
@@ -1082,7 +1084,14 @@
       "tha": "Thai",
       "vie": "Vietnamese",
       "din": "Dinka",
-      "nus": "Nuer"
+      "nus": "Nuer",
+      "apd": "Sudanese Arabic",
+      "fas": "Persian",
+      "ben": "Bengali",
+      "npi": "Nepali",
+      "mya": "Burmese",
+      "tpi": "Tok Pisin",
+      "bis": "Bislama"
     },
     "helps": {
       "bibles_one": "{{languages}} Bible",
@@ -1090,7 +1099,8 @@
       "guides": "{{names}} guides",
       "notes_one": "{{count, number}} note",
       "notes_other": "{{count, number}} notes",
-      "nothing": "Nothing offered yet"
+      "nothing": "Nothing offered yet",
+      "guidesIn": "{{name}} guides in {{languages}}"
     },
     "ready": {
       "translators_one": "{{count, number}} translator",
@@ -1192,7 +1202,11 @@
       "notesForTranslators": "Notes for translators",
       "on": "On",
       "off": "Off",
-      "viewOnly": "Only people who choose Bibles and guides can change this."
+      "viewOnly": "Only people who choose Bibles and guides can change this.",
+      "inLanguages_one": "In {{count, number}} language",
+      "inLanguages_other": "In {{count, number}} languages",
+      "setChosen": "{{name}} study guides are now in {{language}}",
+      "setOff": "{{name}} study guides are off for this team"
     },
     "page": {
       "title": "What helps them",
@@ -1239,6 +1253,9 @@
       "somethingElse": "Something else",
       "cannotTitle": "Only people who can invite here can show a code",
       "cannotBody": "Ask someone who runs {{language}}'s team to invite your translators."
+    },
+    "language": {
+      "saved": "{{team}}'s Bibles and guides are now in {{language}}"
     }
   },
   "content": {
@@ -1954,7 +1971,8 @@
       "steps_one": "{{count, number}} step",
       "steps_other": "{{count, number}} steps",
       "bible": "Bible",
-      "notReference": "Not reference material"
+      "notReference": "Not reference material",
+      "numbering": "{{name}} numbering"
     },
     "errors": {
       "setNotForKind": "This question set is not for a kind of review.",
@@ -5802,6 +5820,27 @@
       "theirNoteOnVerse": "{{name}}'s note on verse {{verse}}",
       "empty": "Nothing recorded for this passage yet. This will be the first version.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "Language not given",
+      "another": "Another language",
+      "searchPlaceholder": "Search for a language",
+      "unlisted": "Not in the list? Pick the language closest to it.",
+      "unreachable": "Searching needs a connection. Pick one of the languages above for now.",
+      "writtenIn": "Written in"
+    },
+    "setLanguage": {
+      "title": "Which language should {{name}} be in?",
+      "sub_one": "It comes in {{count, number}} language. Choose the one {{team}}'s team reads best.",
+      "sub_other": "It comes in {{count, number}} languages. Choose the one {{team}}'s team reads best.",
+      "use": "Use {{language}}",
+      "keep": "Keep {{language}}",
+      "off": "Don't offer {{name}}",
+      "passages_one": "Guides for {{count, number}} passage",
+      "passages_other": "Guides for {{count, number}} passages",
+      "yours": "Your app's language",
+      "gaps_one": "In {{language}}, {{name}} has a guide for {{count, number}} passage. Passages without one show no study guide.",
+      "gaps_other": "In {{language}}, {{name}} has guides for {{count, number}} passages. Passages without one show no study guide."
     }
   },
   "sources": {
@@ -5937,5 +5976,19 @@
       "previousChapter": "Previous chapter",
       "nextChapter": "Next chapter"
     }
+  },
+  "referenceLanguage": {
+    "question": "Which language should {{language}}'s Bibles and study guides be in?",
+    "sub": "Choose the language {{language}}'s team reads best. Each one says what LangQuest has in it.",
+    "setPassages_one": "{{name}} guides for {{count, number}} passage",
+    "setPassages_other": "{{name}} guides for {{count, number}} passages",
+    "bibles_one": "{{count, number}} Bible",
+    "bibles_other": "{{count, number}} Bibles",
+    "otherGuides_one": "{{count, number}} other guide or note",
+    "otherGuides_other": "{{count, number}} other guides or notes",
+    "nothing": "Nothing in this language yet",
+    "chip": "Bibles and guides in {{language}}",
+    "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
+    "change": "Change"
   }
 }

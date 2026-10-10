@@ -29,6 +29,13 @@ reference material review and design" (2026-10-05).
   the same versification can be highlighted against it. Order of preference
   for a chapter: a person's correction, our aligner or FCBH's timestamps as
   stored in the source's book, then FCBH's live `/timestamps`.
+- **Every item says its language, and each team has one** (decision 84).
+  Sources, guides and collections name it (ISO 639-3) and `material@1` may;
+  every list where someone chooses material shows it by name. A team's
+  reference language is chosen on its own page (New language step 4, What
+  will help them), kept as `sourceCode` and then `v1.ReferenceLanguageSet`,
+  and drives what is offered. A guide set published in several languages
+  (FIA) is one row that follows it (`apps/mobile/src/reference/guideSets.ts`).
 - **The record keeps what was used.** Publishing a version and recording a
   review add `v1.ReferencesUsed`: what was offered, and which items were
   opened or played. It is the record, not the work, so it never leaves the

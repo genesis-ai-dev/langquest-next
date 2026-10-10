@@ -211,6 +211,8 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dE', 'lead2', 'v1.ReferenceSet', { itemId: 'langquest.source.bsb', state: 'hidden' });
   emit('dA', 'lead', 'v1.ReferenceSet', { itemId: 'langquest.source.bsb', state: 'recommended' });
   emit('dA', 'lead', 'v1.ReferenceSet', { itemId: 'langquest.source.esv', state: 'inherit' });
+  emit('dA', 'lead', 'v1.ReferenceLanguageSet', { language: 'fra' });
+  emit('dE', 'lead2', 'v1.ReferenceLanguageSet', { language: 'swa' });
   emit('dA', 'lead', 'v1.PassageReferenceLinked', { unitId: 'luke1', itemId: 'health-notes', linked: true });
   emit('dE', 'lead2', 'v1.PassageReferenceLinked', { unitId: 'luke1', itemId: 'health-notes', linked: false });
   emit('dB', 't1', 'v1.ReferencesUsed', { unitId: 'luke1', takeId: 'take2', items: [

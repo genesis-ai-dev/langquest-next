@@ -32,6 +32,8 @@ import {
   SectionLabel, Sheet, SmallBtn, txt, useLayout
 } from '../kit';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
+import { LanguageField } from '../reference/LanguageField';
+import { readerLanguage } from '../reference/languages';
 import { failureMessage } from '../report';
 import type { StudyGuide, StudyResource } from '../study/guides';
 import { guideFromDoc, glossaryEntryOf } from '../study/guideMatch';
@@ -114,7 +116,7 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   }, [key]);
   useEffect(() => {
     if (!looked || draft) return;
-    if (!sourceHash) { setDraft(newDraft({ method: FIA_METHOD, orgName, license })); return; }
+    if (!sourceHash) { setDraft(newDraft({ method: FIA_METHOD, orgName, license, language: readerLanguage() })); return; }
     if (isStudy(source)) {
       setDraft(draftFromDoc(source, {
         docHash: sourceHash,
@@ -296,8 +298,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
         </>
       ) : null}
       <Field label={t('guides.details.about')} value={draft.about} onChangeText={(v) => set({ about: v })} placeholder={t('guides.details.aboutPlaceholder')} autoCapitalize="sentences" multiline />
-      {/* i18n-ignore: the placeholder is a language code, the form the field takes */}
-      <Field label={t('guides.details.language')} value={draft.language} onChangeText={(v) => set({ language: v.trim().toLowerCase() })} placeholder="eng" autoCapitalize="none" />
+      <LanguageField label={t('guides.details.language')} value={draft.language || null} onChange={(code) => set({ language: code })} />
 
       <SectionLabel label={t('guides.details.whereItApplies')} />
       <Placement ctx={ctx} draft={draft} dispatch={dispatch} />

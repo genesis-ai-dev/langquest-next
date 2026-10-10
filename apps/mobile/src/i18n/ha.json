@@ -887,11 +887,13 @@
       "offerNoteFia": "Za mu ba masu fassarar {{language}} {{offers}}. Jagororin FIA suna tafiya tare da nassosin FIA da kuka zaɓa. Ku canja hakan kowane lokaci a ƙarƙashin <b>Abin da ke taimaka musu</b>.",
       "notAdded": "Ba a ƙara ba",
       "inviteLater": "Ku gayyaci masu fassarar {{language}} daga shafinsa daga baya.",
-      "later": "Daga baya"
+      "later": "Daga baya",
+      "offerNothing": "LangQuest ba ta da Littafi Mai Tsarki ko jagororin nazari cikin {{reads}} tukuna. Nemo Littafi Mai Tsarki ko rubuta bayanai ga masu fassarar {{language}} a ƙarƙashin <b>Abin da ke taimaka musu</b>."
     },
     "offers": {
       "guides": "jagororin nazari na {{name}}",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "jagororin nazari na {{name}} cikin {{language}}"
     },
     "teams": {
       "thisLanguage": "wannan harshe",
@@ -1082,7 +1084,14 @@
       "tha": "Thai",
       "vie": "Harshen Vietnam",
       "din": "Dinka",
-      "nus": "Nuer"
+      "nus": "Nuer",
+      "apd": "Larabcin Sudan",
+      "fas": "Farisanci",
+      "ben": "Bangaranci",
+      "npi": "Nepalanci",
+      "mya": "Burmanci",
+      "tpi": "Tok Pisin",
+      "bis": "Bislama"
     },
     "helps": {
       "bibles_one": "Littafi Mai Tsarki na {{languages}}",
@@ -1090,7 +1099,8 @@
       "guides": "Jagororin {{names}}",
       "notes_one": "Bayani {{count, number}}",
       "notes_other": "Bayanai {{count, number}}",
-      "nothing": "Ba a bayar da komai ba tukuna"
+      "nothing": "Ba a bayar da komai ba tukuna",
+      "guidesIn": "Jagororin {{name}} cikin {{languages}}"
     },
     "ready": {
       "translators_one": "Mai fassara {{count, number}}",
@@ -1192,7 +1202,11 @@
       "notesForTranslators": "Bayanai ga masu fassara",
       "on": "A kunne",
       "off": "A kashe",
-      "viewOnly": "Masu zaɓar Littattafai Masu Tsarki da jagorori kaɗai ne za su iya canja wannan."
+      "viewOnly": "Masu zaɓar Littattafai Masu Tsarki da jagorori kaɗai ne za su iya canja wannan.",
+      "inLanguages_one": "Cikin harshe {{count, number}}",
+      "inLanguages_other": "Cikin harsuna {{count, number}}",
+      "setChosen": "Jagororin nazari na {{name}} yanzu suna cikin {{language}}",
+      "setOff": "An kashe jagororin nazari na {{name}} ga wannan ƙungiya"
     },
     "page": {
       "title": "Abin da ke taimaka musu",
@@ -1239,6 +1253,9 @@
       "somethingElse": "Wani abu daban",
       "cannotTitle": "Masu iya gayyata a nan kaɗai ne za su iya nuna lamba",
       "cannotBody": "Ku roƙi wani da ke gudanar da tawagar {{language}} ya gayyaci masu fassararku."
+    },
+    "language": {
+      "saved": "Littafi Mai Tsarki da jagororin {{team}} yanzu suna cikin {{language}}"
     }
   },
   "content": {
@@ -1954,7 +1971,8 @@
       "steps_one": "Mataki {{count, number}}",
       "steps_other": "Matakai {{count, number}}",
       "bible": "Littafi Mai Tsarki",
-      "notReference": "Ba kayan bincike ba ne"
+      "notReference": "Ba kayan bincike ba ne",
+      "numbering": "Tsarin lamba na {{name}}"
     },
     "errors": {
       "setNotForKind": "Wannan rukunin tambayoyi ba na wani irin bita ba ne.",
@@ -5802,6 +5820,27 @@
       "theirNoteOnVerse": "Bayanin {{name}} a kan aya ta {{verse}}",
       "empty": "Ba a naɗa komai ba don wannan nassi tukuna. Wannan zai zama siga ta farko.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "Ba a faɗi harshe ba",
+      "another": "Wani harshe",
+      "searchPlaceholder": "Nemi harshe",
+      "unlisted": "Ba ya cikin jerin? Zaɓi harshen da ya fi kusa da shi.",
+      "unreachable": "Nema yana bukatar haɗi. Yanzu zaɓi ɗaya daga cikin harsunan da ke sama.",
+      "writtenIn": "An rubuta cikin"
+    },
+    "setLanguage": {
+      "title": "Da wane harshe {{name}} zai kasance?",
+      "sub_one": "Yana cikin harshe {{count, number}}. Zaɓi wanda ƙungiyar {{team}} ta fi karantawa da kyau.",
+      "sub_other": "Yana cikin harsuna {{count, number}}. Zaɓi wanda ƙungiyar {{team}} ta fi karantawa da kyau.",
+      "use": "Yi amfani da {{language}}",
+      "keep": "Ci gaba da {{language}}",
+      "off": "Kada a bayar da {{name}}",
+      "passages_one": "Jagora don nassi {{count, number}}",
+      "passages_other": "Jagorori don nassosi {{count, number}}",
+      "yours": "Harshen manhajarka",
+      "gaps_one": "A {{language}}, {{name}} yana da jagora don nassi {{count, number}}. Nassosin da ba su da jagora ba za su nuna jagorar nazari ba.",
+      "gaps_other": "A {{language}}, {{name}} yana da jagorori don nassosi {{count, number}}. Nassosin da ba su da jagora ba za su nuna jagorar nazari ba."
     }
   },
   "sources": {
@@ -5937,5 +5976,19 @@
       "previousChapter": "Babin baya",
       "nextChapter": "Babi na gaba"
     }
+  },
+  "referenceLanguage": {
+    "question": "Da wane harshe Littafi Mai Tsarki da jagororin nazari na {{language}} za su kasance?",
+    "sub": "Zaɓi harshen da ƙungiyar {{language}} ta fi karantawa da kyau. Kowane yana nuna abin da LangQuest ke da shi a cikinsa.",
+    "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
+    "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
+    "bibles_one": "Littafi Mai Tsarki {{count, number}}",
+    "bibles_other": "Littattafai Masu Tsarki {{count, number}}",
+    "otherGuides_one": "Wani jagora ko bayani {{count, number}}",
+    "otherGuides_other": "Wasu jagorori ko bayanai {{count, number}}",
+    "nothing": "Babu komai a wannan harshe tukuna",
+    "chip": "Littafi Mai Tsarki da jagorori cikin {{language}}",
+    "chipHelp": "Harshen Littafi Mai Tsarki da jagororin nazarinsu. Taɓa don canja shi.",
+    "change": "Canja"
   }
 }

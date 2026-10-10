@@ -907,11 +907,13 @@
       "offerNoteFia": "Nous proposerons {{offers}} aux traducteurs de {{language}}. Les guides FIA vont avec les passages FIA que vous avez choisis. Changez cela à tout moment sous <b>Ce qui les aide</b>.",
       "notAdded": "Non ajoutée",
       "inviteLater": "Invitez les traducteurs de {{language}} plus tard depuis sa page.",
-      "later": "Plus tard"
+      "later": "Plus tard",
+      "offerNothing": "LangQuest n’a pas encore de Bible ni de guide d’étude en {{reads}}. Trouvez une Bible ou écrivez des notes pour les traducteurs de {{language}} sous <b>Ce qui les aide</b>."
     },
     "offers": {
       "guides": "les guides d’étude de {{name}}",
-      "theBible": "la {{name}}"
+      "theBible": "la {{name}}",
+      "guidesIn": "les guides d’étude de {{name}} en {{language}}"
     },
     "teams": {
       "thisLanguage": "cette langue",
@@ -1108,7 +1110,14 @@
       "tha": "Thaï",
       "vie": "Vietnamien",
       "din": "Dinka",
-      "nus": "Nuer"
+      "nus": "Nuer",
+      "apd": "Arabe soudanais",
+      "fas": "Persan",
+      "ben": "Bengali",
+      "npi": "Népalais",
+      "mya": "Birman",
+      "tpi": "Tok pisin",
+      "bis": "Bichelamar"
     },
     "helps": {
       "bibles_one": "Bible : {{languages}}",
@@ -1118,7 +1127,8 @@
       "notes_one": "{{count, number}} note",
       "notes_many": "{{count, number}} notes",
       "notes_other": "{{count, number}} notes",
-      "nothing": "Rien de proposé pour l’instant"
+      "nothing": "Rien de proposé pour l’instant",
+      "guidesIn": "Guides {{name}} en {{languages}}"
     },
     "ready": {
       "translators_one": "{{count, number}} traducteur",
@@ -1222,7 +1232,12 @@
       "notesForTranslators": "Notes pour les traducteurs",
       "on": "Activé",
       "off": "Désactivé",
-      "viewOnly": "Seules les personnes qui choisissent les Bibles et les guides peuvent changer cela."
+      "viewOnly": "Seules les personnes qui choisissent les Bibles et les guides peuvent changer cela.",
+      "inLanguages_one": "En {{count, number}} langue",
+      "inLanguages_many": "En {{count, number}} de langues",
+      "inLanguages_other": "En {{count, number}} langues",
+      "setChosen": "Les guides d’étude {{name}} sont maintenant en {{language}}",
+      "setOff": "Les guides d’étude {{name}} sont désactivés pour cette équipe"
     },
     "page": {
       "title": "Ce qui les aide",
@@ -1271,6 +1286,9 @@
       "somethingElse": "Autre chose",
       "cannotTitle": "Seules les personnes qui peuvent inviter ici peuvent montrer un code",
       "cannotBody": "Demandez à quelqu’un qui dirige l’équipe de {{language}} d’inviter vos traducteurs."
+    },
+    "language": {
+      "saved": "Les Bibles et guides de {{team}} sont maintenant en {{language}}"
     }
   },
   "content": {
@@ -2024,7 +2042,8 @@
       "steps_many": "{{count, number}} étapes",
       "steps_other": "{{count, number}} étapes",
       "bible": "Bible",
-      "notReference": "Pas un document de référence"
+      "notReference": "Pas un document de référence",
+      "numbering": "Numérotation {{name}}"
     },
     "errors": {
       "setNotForKind": "Cette série de questions n’est pas destinée à un type de révision.",
@@ -6071,6 +6090,30 @@
       "theirNoteOnVerse": "Note de {{name}} sur le verset {{verse}}",
       "empty": "Rien d’enregistré pour ce passage pour l’instant. Ce sera la première version.",
       "quoted": "« {{text}} »"
+    },
+    "language": {
+      "notGiven": "Langue non indiquée",
+      "another": "Une autre langue",
+      "searchPlaceholder": "Chercher une langue",
+      "unlisted": "Absente de la liste ? Choisissez la langue la plus proche.",
+      "unreachable": "La recherche demande une connexion. Pour l’instant, choisissez l’une des langues ci-dessus.",
+      "writtenIn": "Écrit en"
+    },
+    "setLanguage": {
+      "title": "En quelle langue {{name}} doit-il être ?",
+      "sub_one": "Il existe en {{count, number}} langue. Choisissez celle que l’équipe de {{team}} lit le mieux.",
+      "sub_many": "Il existe en {{count, number}} de langues. Choisissez celle que l’équipe de {{team}} lit le mieux.",
+      "sub_other": "Il existe en {{count, number}} langues. Choisissez celle que l’équipe de {{team}} lit le mieux.",
+      "use": "Utiliser : {{language}}",
+      "keep": "Garder : {{language}}",
+      "off": "Ne pas proposer {{name}}",
+      "passages_one": "Guides pour {{count, number}} passage",
+      "passages_many": "Guides pour {{count, number}} de passages",
+      "passages_other": "Guides pour {{count, number}} passages",
+      "yours": "La langue de votre application",
+      "gaps_one": "En {{language}}, {{name}} a un guide pour {{count, number}} passage. Les passages sans guide n’affichent aucun guide d’étude.",
+      "gaps_many": "En {{language}}, {{name}} a des guides pour {{count, number}} de passages. Les passages sans guide n’affichent aucun guide d’étude.",
+      "gaps_other": "En {{language}}, {{name}} a des guides pour {{count, number}} passages. Les passages sans guide n’affichent aucun guide d’étude."
     }
   },
   "sources": {
@@ -6209,5 +6252,22 @@
       "previousChapter": "Chapitre précédent",
       "nextChapter": "Chapitre suivant"
     }
+  },
+  "referenceLanguage": {
+    "question": "En quelle langue doivent être les Bibles et les guides d’étude de {{language}} ?",
+    "sub": "Choisissez la langue que l’équipe de {{language}} lit le mieux. Chacune indique ce que LangQuest propose dans cette langue.",
+    "setPassages_one": "Guides {{name}} pour {{count, number}} passage",
+    "setPassages_many": "Guides {{name}} pour {{count, number}} de passages",
+    "setPassages_other": "Guides {{name}} pour {{count, number}} passages",
+    "bibles_one": "{{count, number}} Bible",
+    "bibles_many": "{{count, number}} de Bibles",
+    "bibles_other": "{{count, number}} Bibles",
+    "otherGuides_one": "{{count, number}} autre guide ou note",
+    "otherGuides_many": "{{count, number}} d’autres guides ou notes",
+    "otherGuides_other": "{{count, number}} autres guides ou notes",
+    "nothing": "Rien dans cette langue pour l’instant",
+    "chip": "Bibles et guides en {{language}}",
+    "chipHelp": "La langue de leurs Bibles et guides d’étude. Touchez pour la changer.",
+    "change": "Changer"
   }
 }

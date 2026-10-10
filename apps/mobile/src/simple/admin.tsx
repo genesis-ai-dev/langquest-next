@@ -193,7 +193,7 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
 }
 
 /** A radio row ("Translate"), with the icon on a tile (inviting) or bare (letting someone in). */
-export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean }) {
+export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean; subLines?: number }) {
   const onPress = useHelpPress(props.label, props.sub, props.onPress);
   return (
     <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
@@ -201,7 +201,7 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
       {props.tile ? <IconTile icon={props.icon} size={44} /> : <Glyph name={props.icon} size={24} />}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[styles.radioLabel, props.tile && { fontWeight: '800' }]}>{props.label}</Text>
-        {props.sub ? <Text style={[txt.xs]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.sub ? <Text style={[txt.xs]} numberOfLines={props.subLines ?? 2}>{props.sub}</Text> : null}
       </View>
       <Radio on={props.on} size={26} />
     </Pressable>

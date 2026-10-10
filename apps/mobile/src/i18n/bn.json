@@ -887,11 +887,13 @@
       "offerNoteFia": "আমরা {{language}}-এর অনুবাদকদের {{offers}} দেব। FIA-এর নির্দেশিকাগুলো আপনার বেছে নেওয়া FIA অংশগুলোর সাথে যায়। যেকোনো সময় <b>কী সাহায্য করে</b> থেকে এটি বদলান।",
       "notAdded": "যোগ হয়নি",
       "inviteLater": "পরে এর পাতা থেকে {{language}}-এর অনুবাদকদের আমন্ত্রণ জানান।",
-      "later": "পরে"
+      "later": "পরে",
+      "offerNothing": "LangQuest-এর কাছে এখনো {{reads}} ভাষায় কোনো বাইবেল বা অধ্যয়ন নির্দেশিকা নেই। <b>কী সাহায্য করে</b> থেকে {{language}}-এর অনুবাদকদের জন্য বাইবেল খুঁজুন বা নোট লিখুন।"
     },
     "offers": {
       "guides": "{{name}}-এর অধ্যয়ন নির্দেশিকা",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "{{language}} ভাষায় {{name}}-এর অধ্যয়ন নির্দেশিকা"
     },
     "teams": {
       "thisLanguage": "এই ভাষা",
@@ -1082,7 +1084,14 @@
       "tha": "থাই",
       "vie": "ভিয়েতনামি",
       "din": "ডিংকা",
-      "nus": "নুয়ের"
+      "nus": "নুয়ের",
+      "apd": "সুদানি আরবি",
+      "fas": "ফারসি",
+      "ben": "বাংলা",
+      "npi": "নেপালি",
+      "mya": "বর্মি",
+      "tpi": "টোক পিসিন",
+      "bis": "বিসলামা"
     },
     "helps": {
       "bibles_one": "{{languages}} বাইবেল",
@@ -1090,7 +1099,8 @@
       "guides": "{{names}} নির্দেশিকা",
       "notes_one": "{{count, number}}টি নোট",
       "notes_other": "{{count, number}}টি নোট",
-      "nothing": "এখনও কিছু দেওয়া হয়নি"
+      "nothing": "এখনও কিছু দেওয়া হয়নি",
+      "guidesIn": "{{languages}} ভাষায় {{name}} নির্দেশিকা"
     },
     "ready": {
       "translators_one": "{{count, number}} জন অনুবাদক",
@@ -1192,7 +1202,11 @@
       "notesForTranslators": "অনুবাদকদের জন্য নোট",
       "on": "চালু",
       "off": "বন্ধ",
-      "viewOnly": "যারা বাইবেল ও নির্দেশিকা বেছে নেন শুধু তারাই এটি বদলাতে পারেন।"
+      "viewOnly": "যারা বাইবেল ও নির্দেশিকা বেছে নেন শুধু তারাই এটি বদলাতে পারেন।",
+      "inLanguages_one": "{{count, number}}টি ভাষায়",
+      "inLanguages_other": "{{count, number}}টি ভাষায়",
+      "setChosen": "{{name}} অধ্যয়ন নির্দেশিকা এখন {{language}} ভাষায়",
+      "setOff": "এই দলের জন্য {{name}} অধ্যয়ন নির্দেশিকা বন্ধ"
     },
     "page": {
       "title": "কী তাদের সাহায্য করে",
@@ -1239,6 +1253,9 @@
       "somethingElse": "অন্য কিছু",
       "cannotTitle": "যারা এখানে আমন্ত্রণ জানাতে পারেন শুধু তারাই কোড দেখাতে পারেন",
       "cannotBody": "{{language}}-এর দল যিনি চালান তাকে আপনার অনুবাদকদের আমন্ত্রণ জানাতে বলুন।"
+    },
+    "language": {
+      "saved": "{{team}}-এর বাইবেল ও নির্দেশিকা এখন {{language}} ভাষায়"
     }
   },
   "content": {
@@ -1954,7 +1971,8 @@
       "steps_one": "{{count, number}}টি ধাপ",
       "steps_other": "{{count, number}}টি ধাপ",
       "bible": "বাইবেল",
-      "notReference": "সহায়ক উপকরণ নয়"
+      "notReference": "সহায়ক উপকরণ নয়",
+      "numbering": "{{name}} সংখ্যায়ন"
     },
     "errors": {
       "setNotForKind": "এই প্রশ্নের সেট কোনো পর্যালোচনার ধরনের জন্য নয়।",
@@ -5802,6 +5820,27 @@
       "theirNoteOnVerse": "পদ {{verse}}-এ {{name}}-এর নোট",
       "empty": "এই অংশের জন্য এখনও কিছু রেকর্ড হয়নি। এটি হবে প্রথম সংস্করণ।",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "ভাষা দেওয়া হয়নি",
+      "another": "অন্য ভাষা",
+      "searchPlaceholder": "একটি ভাষা খুঁজুন",
+      "unlisted": "তালিকায় নেই? এর সবচেয়ে কাছের ভাষাটি বেছে নিন।",
+      "unreachable": "খুঁজতে সংযোগ লাগে। আপাতত ওপরের ভাষাগুলোর একটি বেছে নিন।",
+      "writtenIn": "যে ভাষায় লেখা"
+    },
+    "setLanguage": {
+      "title": "{{name}} কোন ভাষায় থাকবে?",
+      "sub_one": "এটি {{count, number}}টি ভাষায় আছে। {{team}}-এর দল যেটি সবচেয়ে ভালো পড়ে সেটি বেছে নিন।",
+      "sub_other": "এটি {{count, number}}টি ভাষায় আছে। {{team}}-এর দল যেটি সবচেয়ে ভালো পড়ে সেটি বেছে নিন।",
+      "use": "{{language}} ব্যবহার করুন",
+      "keep": "{{language}} রাখুন",
+      "off": "{{name}} দেবেন না",
+      "passages_one": "{{count, number}}টি অংশের নির্দেশিকা",
+      "passages_other": "{{count, number}}টি অংশের নির্দেশিকা",
+      "yours": "আপনার অ্যাপের ভাষা",
+      "gaps_one": "{{language}} ভাষায় {{name}}-এর {{count, number}}টি অংশের নির্দেশিকা আছে। যে অংশের নির্দেশিকা নেই সেখানে কোনো অধ্যয়ন নির্দেশিকা দেখাবে না।",
+      "gaps_other": "{{language}} ভাষায় {{name}}-এর {{count, number}}টি অংশের নির্দেশিকা আছে। যে অংশের নির্দেশিকা নেই সেখানে কোনো অধ্যয়ন নির্দেশিকা দেখাবে না।"
     }
   },
   "sources": {
@@ -5937,5 +5976,19 @@
       "previousChapter": "আগের অধ্যায়",
       "nextChapter": "পরের অধ্যায়"
     }
+  },
+  "referenceLanguage": {
+    "question": "{{language}}-এর বাইবেল ও অধ্যয়ন নির্দেশিকা কোন ভাষায় থাকবে?",
+    "sub": "{{language}}-এর দল যে ভাষা সবচেয়ে ভালো পড়ে সেটি বেছে নিন। প্রতিটি ভাষায় LangQuest-এর কী আছে তা দেখানো আছে।",
+    "setPassages_one": "{{count, number}}টি অংশের জন্য {{name}} নির্দেশিকা",
+    "setPassages_other": "{{count, number}}টি অংশের জন্য {{name}} নির্দেশিকা",
+    "bibles_one": "{{count, number}}টি বাইবেল",
+    "bibles_other": "{{count, number}}টি বাইবেল",
+    "otherGuides_one": "আরও {{count, number}}টি নির্দেশিকা বা নোট",
+    "otherGuides_other": "আরও {{count, number}}টি নির্দেশিকা বা নোট",
+    "nothing": "এই ভাষায় এখনো কিছু নেই",
+    "chip": "{{language}} ভাষায় বাইবেল ও নির্দেশিকা",
+    "chipHelp": "তাদের বাইবেল ও অধ্যয়ন নির্দেশিকার ভাষা। বদলাতে ট্যাপ করুন।",
+    "change": "বদলান"
   }
 }

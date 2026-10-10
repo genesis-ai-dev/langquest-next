@@ -7,11 +7,12 @@
 // Sources in the organization's library that nobody recommended can be
 // added the same way. Every Bible says whether it has audio and whether it
 // can be kept offline.
-import { languageInfo, libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
+import { libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
+import { teamLanguage } from '../reference/languages';
 import { screenTitle } from '../flow';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -50,7 +51,8 @@ export function BibleExplore(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId ?? null;
   const unitId = ctx.params['unitId'];
   const mine = useMyBibles(ctx.session.actorId, ctx.language.orgId, languageId);
-  const sourceLanguage = (languageId ? languageInfo(ctx.org.state, languageId)?.sourceCode : undefined) ?? 'eng';
+  // Bibles are explored first in the team's reference language (decision 84).
+  const sourceLanguage = teamLanguage(ctx.org.state, languageId === ctx.language.languageId ? state : null, languageId);
   const [lang, setLang] = useState<{ code: string; name: string }>({ code: ctx.params['lang'] ?? sourceLanguage, name: '' });
   const [query, setQuery] = useState('');
   const [languages, setLanguages] = useState<BibleLanguage[] | null>(null);

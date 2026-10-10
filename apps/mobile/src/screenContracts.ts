@@ -129,7 +129,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
   // chooses it), and a group invite code (as invite_qr issues it).
   get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
-    'v1.ReferenceRecommended','v1.ReferenceSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
+    'v1.ReferenceRecommended','v1.ReferenceSet','v1.ReferenceLanguageSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
     rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
   // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the

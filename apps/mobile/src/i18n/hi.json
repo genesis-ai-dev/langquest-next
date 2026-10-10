@@ -887,11 +887,13 @@
       "offerNoteFia": "हम {{language}} के अनुवादकों को {{offers}} देंगे। FIA की गाइड आपके चुने हुए FIA अंशों के साथ जाती हैं। इसे कभी भी <b>मदद के लिए क्या है</b> में बदलें।",
       "notAdded": "नहीं जोड़ी गई",
       "inviteLater": "बाद में {{language}} के पेज से उसके अनुवादकों को बुलाएँ।",
-      "later": "बाद में"
+      "later": "बाद में",
+      "offerNothing": "LangQuest के पास अभी {{reads}} में कोई बाइबल या अध्ययन गाइड नहीं है। <b>मदद के लिए क्या है</b> में {{language}} के अनुवादकों के लिए बाइबल खोजें या नोट लिखें।"
     },
     "offers": {
       "guides": "{{name}} की अध्ययन गाइड",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "{{language}} में {{name}} की अध्ययन गाइड"
     },
     "teams": {
       "thisLanguage": "यह भाषा",
@@ -1082,7 +1084,14 @@
       "tha": "थाई",
       "vie": "वियतनामी",
       "din": "डिंका",
-      "nus": "नुएर"
+      "nus": "नुएर",
+      "apd": "सूडानी अरबी",
+      "fas": "फ़ारसी",
+      "ben": "बांग्ला",
+      "npi": "नेपाली",
+      "mya": "बर्मी",
+      "tpi": "टोक पिसिन",
+      "bis": "बिस्लामा"
     },
     "helps": {
       "bibles_one": "{{languages}} बाइबल",
@@ -1090,7 +1099,8 @@
       "guides": "{{names}} की गाइड",
       "notes_one": "{{count, number}} नोट",
       "notes_other": "{{count, number}} नोट",
-      "nothing": "अभी कुछ नहीं दिया गया"
+      "nothing": "अभी कुछ नहीं दिया गया",
+      "guidesIn": "{{languages}} में {{name}} की गाइड"
     },
     "ready": {
       "translators_one": "{{count, number}} अनुवादक",
@@ -1192,7 +1202,11 @@
       "notesForTranslators": "अनुवादकों के लिए नोट",
       "on": "चालू",
       "off": "बंद",
-      "viewOnly": "सिर्फ़ बाइबलें और गाइड चुनने वाले लोग इसे बदल सकते हैं।"
+      "viewOnly": "सिर्फ़ बाइबलें और गाइड चुनने वाले लोग इसे बदल सकते हैं।",
+      "inLanguages_one": "{{count, number}} भाषा में",
+      "inLanguages_other": "{{count, number}} भाषाओं में",
+      "setChosen": "{{name}} की अध्ययन गाइड अब {{language}} में है",
+      "setOff": "{{name}} की अध्ययन गाइड इस टीम के लिए बंद है"
     },
     "page": {
       "title": "उनकी मदद के लिए क्या है",
@@ -1239,6 +1253,9 @@
       "somethingElse": "कुछ और",
       "cannotTitle": "सिर्फ़ यहाँ बुलाने वाले लोग कोड दिखा सकते हैं",
       "cannotBody": "{{language}} की टीम चलाने वाले किसी व्यक्ति से अपने अनुवादकों को बुलाने को कहें।"
+    },
+    "language": {
+      "saved": "{{team}} की बाइबलें और गाइड अब {{language}} में हैं"
     }
   },
   "content": {
@@ -1954,7 +1971,8 @@
       "steps_one": "{{count, number}} चरण",
       "steps_other": "{{count, number}} चरण",
       "bible": "बाइबल",
-      "notReference": "संदर्भ सामग्री नहीं"
+      "notReference": "संदर्भ सामग्री नहीं",
+      "numbering": "{{name}} क्रमांकन"
     },
     "errors": {
       "setNotForKind": "सवालों का यह सेट किसी प्रकार की समीक्षा के लिए नहीं है।",
@@ -5802,6 +5820,27 @@
       "theirNoteOnVerse": "पद {{verse}} पर {{name}} का नोट",
       "empty": "इस अंश के लिए अभी कुछ रिकॉर्ड नहीं हुआ। यह पहला वर्शन होगा।",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "भाषा नहीं बताई गई",
+      "another": "कोई और भाषा",
+      "searchPlaceholder": "भाषा खोजें",
+      "unlisted": "सूची में नहीं है? उसके सबसे क़रीब की भाषा चुनें।",
+      "unreachable": "खोजने के लिए कनेक्शन चाहिए। अभी ऊपर दी गई भाषाओं में से एक चुनें।",
+      "writtenIn": "किस भाषा में लिखा है"
+    },
+    "setLanguage": {
+      "title": "{{name}} किस भाषा में हो?",
+      "sub_one": "यह {{count, number}} भाषा में मिलती है। वह भाषा चुनें जिसे {{team}} की टीम सबसे अच्छी तरह पढ़ती है।",
+      "sub_other": "यह {{count, number}} भाषाओं में मिलती है। वह भाषा चुनें जिसे {{team}} की टीम सबसे अच्छी तरह पढ़ती है।",
+      "use": "{{language}} इस्तेमाल करें",
+      "keep": "{{language}} ही रखें",
+      "off": "{{name}} न दें",
+      "passages_one": "{{count, number}} अंश के लिए गाइड",
+      "passages_other": "{{count, number}} अंशों के लिए गाइड",
+      "yours": "आपके ऐप की भाषा",
+      "gaps_one": "{{language}} में {{name}} के पास {{count, number}} अंश के लिए गाइड है। जिन अंशों की गाइड नहीं है, उनमें कोई अध्ययन गाइड नहीं दिखेगी।",
+      "gaps_other": "{{language}} में {{name}} के पास {{count, number}} अंशों के लिए गाइड हैं। जिन अंशों की गाइड नहीं है, उनमें कोई अध्ययन गाइड नहीं दिखेगी।"
     }
   },
   "sources": {
@@ -5937,5 +5976,19 @@
       "previousChapter": "पिछला अध्याय",
       "nextChapter": "अगला अध्याय"
     }
+  },
+  "referenceLanguage": {
+    "question": "{{language}} की बाइबलें और अध्ययन गाइड किस भाषा में हों?",
+    "sub": "वह भाषा चुनें जिसे {{language}} की टीम सबसे अच्छी तरह पढ़ती है। हर भाषा बताती है कि उसमें LangQuest के पास क्या है।",
+    "setPassages_one": "{{count, number}} अंश के लिए {{name}} गाइड",
+    "setPassages_other": "{{count, number}} अंशों के लिए {{name}} गाइड",
+    "bibles_one": "{{count, number}} बाइबल",
+    "bibles_other": "{{count, number}} बाइबलें",
+    "otherGuides_one": "{{count, number}} और गाइड या नोट",
+    "otherGuides_other": "{{count, number}} और गाइड या नोट",
+    "nothing": "इस भाषा में अभी कुछ नहीं है",
+    "chip": "{{language}} में बाइबलें और गाइड",
+    "chipHelp": "उनकी बाइबलों और अध्ययन गाइड की भाषा। बदलने के लिए टैप करें।",
+    "change": "बदलें"
   }
 }

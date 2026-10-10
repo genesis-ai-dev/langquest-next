@@ -14,6 +14,8 @@ import type { Ctx } from '../ctx';
 import { t } from '../i18n';
 import { pendingRequests, type PendingRequest } from '../invites';
 import { useLibraryDocs } from '../library/useLibrary';
+import { guideSets, setReach } from '../reference/guideSets';
+import { docLanguage } from '../reference/languages';
 import { noteExpected } from '../report';
 import { space } from '../theme';
 import { ChecklistRow } from './admin';
@@ -47,19 +49,27 @@ export function useReadySummary(ctx: Ctx): ReadySummary {
     const templateDoc = docs.get<TemplateDoc>(sel?.docHash);
     const templateName = sel ? libraryItemView(org?.library ?? {}, sel.itemId)?.name ?? templateDoc?.name : undefined;
     const bibles: string[] = [];
-    const guides: string[] = [];
+    const guides: (string | { name: string; language: string })[] = [];
     let notes = 0;
     // What reaches the team: recommended items, and the library's guides and notes not hidden here (reference/offered.ts).
     const reach = new Set(offered.keys());
-    for (const it of libraryItems(org?.library ?? {}, 'material')) {
-      if (it.current && !it.archived && state?.languageReferences[it.itemId]?.value !== 'hidden') reach.add(it.itemId);
+    const held = libraryItems(org?.library ?? {}, 'material').filter((it) => it.current && !it.archived);
+    for (const it of held) {
+      if (state?.languageReferences[it.itemId]?.value !== 'hidden') reach.add(it.itemId);
+    }
+    // A guide set (FIA) reaches in the languages chosen for the team; the rest of it does not (decision 84).
+    const sets = guideSets(held.map((it) => ({ it, doc: docs.get(it.current) })), []);
+    for (const set of sets) {
+      const chosen = setReach(set, org?.recommendations, state);
+      for (const m of set.members) if (m.itemId && !chosen.includes(m)) reach.delete(m.itemId);
     }
     for (const id of reach) {
       const it = libraryItemView(org?.library ?? {}, id);
       const doc: LibraryDoc | null = docs.get(it?.current);
       if (!it || it.archived || !doc) continue;
+      const language = docLanguage(doc);
       if (doc.format === 'source@1') { if (offered.has(id)) bibles.push(languageLabel((doc as SourceDoc).language)); }
-      else if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'collection@1') guides.push(guideShortName(it.name));
+      else if (doc.format === 'study@1' || doc.format === 'study@2' || doc.format === 'collection@1') guides.push(language ? { name: guideShortName(it.name), language: languageLabel(language) } : guideShortName(it.name));
       else if (doc.format === 'material@1' && doc.kind === 'note') notes++;
     }
     const flow = state?.flow ? deriveFlow(state) : null;

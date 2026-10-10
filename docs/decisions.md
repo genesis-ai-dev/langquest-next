@@ -2669,3 +2669,61 @@ a check always means the latest version. Sending an older version for review
 would need a new event with the version in it.
 Reverse if: teams need drafts others can pick up and change (then a draft
 would need an owner other than whoever composed its takes).
+
+## 84. Reference material says the language it is in, and FIA is chosen with its language
+
+Date: 2026-10-10 · By: Caleb Koster · Status: accepted
+
+Reason: nobody chose the language of the FIA guides a team read. `bestGuide`
+preferred English for every team because its one caller passed no language,
+and a new language was offered English guides only because `sourceCode` on
+`v1.LanguageAdded` is always `eng`. LangQuest publishes FIA as one
+collection per language (fourteen of them), so admins saw look-alike rows
+for each language. Notes, question sets and other material said nothing
+about their language at all. Caleb chose (2026-10-10): turning FIA on asks
+which language it should be in, defaulting to the admin's own (the app
+language, decision 81), and every piece of reference material is tied to a
+language that shows wherever someone chooses it. So:
+- The language a team's reference material is in is a setting with a page
+  of its own (Caleb, 2026-10-10: "give the language setting its own page
+  (for reference material in general)"): step 4 of New language, and the
+  first page of What will help them. It lists every language LangQuest or
+  the organization has material in, each saying what is there (a guide
+  set's passages, Bibles, other guides), and starts on the admin's app
+  language when there is anything in it, else English
+  (`apps/mobile/src/reference/ReferenceLanguagePage.tsx`). New language
+  writes it as `sourceCode` on `v1.LanguageAdded`; changing it later is
+  `v1.ReferenceLanguageSet { language }`, a register in the language's
+  stream (Manage Reference). It decides what New language offers (a Bible
+  and FIA in that language, nothing in a language with none), which
+  language FIA follows when the team has FIA on, which Bibles are listed
+  first, which other organizations' guides are shown, and which guide a
+  passage prefers when several fit as well.
+- Collections that follow one method from one organization (`pattern` and
+  `language`, such as LangQuest's `langquest.fia.<code>`) form one guide set
+  (`apps/mobile/src/reference/guideSets.ts`). What will help them shows the
+  set as one row; tapping it opens a sheet listing each language with how
+  many passages it covers, for a team that wants FIA in a language other
+  than its own.
+- Choosing a language writes the team's say in its own log with
+  `v1.ReferenceSet`, so there is no new event. The chosen collection is
+  recommended (followed from LangQuest first when needed), and the set's
+  other collections in the library are hidden. A team has one language per
+  set. Passages the chosen language does not cover show no guide rather than
+  another language's: `chosenOnly` leaves a set's unchosen languages out of
+  the library fallback of decision 62.
+- `material@1` gains an optional `language` (ISO 639-3). The library
+  material editor, the in-app material editor (when the material goes to
+  the library) and the guide editor ask for it, starting with the writer's
+  app language. The lists of Bibles, guides and notes, a passage's reference
+  page, the library and the translator's Bible picker name each item's
+  language, or say "Language not given". LangQuest's seeded question sets
+  now say English; production gets that with the next hosted seed.
+- Language names come from the catalogs (all fourteen of FIA's), else the
+  platform's `Intl.DisplayNames`, else the code.
+Toasts stay clear of a screen's buttons on phones too: they sit just above
+its footer, show a bar counting down to their going, and have an X.
+Reverse if: teams need two languages of one set at once (then the sheet
+becomes a pick-many and `bestGuide` ranks the team's languages), or teams
+want another language's guide where theirs has none (then `chosenOnly`
+keeps the rest of the set as a fallback).

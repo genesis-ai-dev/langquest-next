@@ -967,11 +967,13 @@
       "offerNoteFia": "سنقدّم {{offers}} لمترجمي {{language}}. أدلة FIA تأتي مع مقاطع FIA التي اخترتها. غيّر ذلك في أي وقت من <b>ما يساعدهم</b>.",
       "notAdded": "لم تُضف",
       "inviteLater": "ادعُ مترجمي {{language}} من صفحتها لاحقًا.",
-      "later": "لاحقًا"
+      "later": "لاحقًا",
+      "offerNothing": "ليس لدى LangQuest بعد كتب مقدسة أو أدلة دراسة باللغة {{reads}}. ابحث عن كتاب مقدس أو اكتب ملاحظات لمترجمي {{language}} في <b>ما يساعدهم</b>."
     },
     "offers": {
       "guides": "أدلة الدراسة من {{name}}",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "أدلة الدراسة من {{name}} باللغة {{language}}"
     },
     "teams": {
       "thisLanguage": "هذه اللغة",
@@ -1186,7 +1188,14 @@
       "tha": "التايلاندية",
       "vie": "الفيتنامية",
       "din": "الدينكا",
-      "nus": "النوير"
+      "nus": "النوير",
+      "apd": "العربية السودانية",
+      "fas": "الفارسية",
+      "ben": "البنغالية",
+      "npi": "النيبالية",
+      "mya": "البورمية",
+      "tpi": "توك بيسين",
+      "bis": "البيسلامية"
     },
     "helps": {
       "bibles_zero": "الكتاب المقدس باللغات {{languages}}",
@@ -1202,7 +1211,8 @@
       "notes_few": "{{count, number}} ملاحظات",
       "notes_many": "{{count, number}} ملاحظة",
       "notes_other": "{{count, number}} ملاحظة",
-      "nothing": "لم يُقدَّم شيء بعد"
+      "nothing": "لم يُقدَّم شيء بعد",
+      "guidesIn": "أدلة {{name}} باللغة {{languages}}"
     },
     "ready": {
       "translators_zero": "{{count, number}} مترجم",
@@ -1312,7 +1322,15 @@
       "notesForTranslators": "ملاحظات للمترجمين",
       "on": "مفعّل",
       "off": "متوقف",
-      "viewOnly": "فقط من يختارون ترجمات الكتاب المقدس والأدلة يمكنهم تغيير هذا."
+      "viewOnly": "فقط من يختارون ترجمات الكتاب المقدس والأدلة يمكنهم تغيير هذا.",
+      "inLanguages_zero": "بـ {{count, number}} لغة",
+      "inLanguages_one": "بلغة واحدة",
+      "inLanguages_two": "بلغتين",
+      "inLanguages_few": "بـ {{count, number}} لغات",
+      "inLanguages_many": "بـ {{count, number}} لغة",
+      "inLanguages_other": "بـ {{count, number}} لغة",
+      "setChosen": "أدلة الدراسة {{name}} الآن باللغة {{language}}",
+      "setOff": "أدلة الدراسة {{name}} متوقفة لهذا الفريق"
     },
     "page": {
       "title": "ما يساعدهم",
@@ -1367,6 +1385,9 @@
       "somethingElse": "شيء آخر",
       "cannotTitle": "فقط من يمكنهم الدعوة هنا يمكنهم عرض رمز",
       "cannotBody": "اطلب من شخص يدير فريق {{language}} أن يدعو مترجميك."
+    },
+    "language": {
+      "saved": "الكتب المقدسة والأدلة لفريق {{team}} الآن باللغة {{language}}"
     }
   },
   "content": {
@@ -2234,7 +2255,8 @@
       "steps_many": "{{count, number}} خطوة",
       "steps_other": "{{count, number}} خطوة",
       "bible": "الكتاب المقدس",
-      "notReference": "ليست مادة مرجعية"
+      "notReference": "ليست مادة مرجعية",
+      "numbering": "ترقيم {{name}}"
     },
     "errors": {
       "setNotForKind": "مجموعة الأسئلة هذه ليست لنوع مراجعة.",
@@ -6878,6 +6900,39 @@
       "theirNoteOnVerse": "ملاحظة {{name}} على الآية {{verse}}",
       "empty": "لم يُسجَّل شيء لهذا المقطع بعد. ستكون هذه النسخة الأولى.",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "اللغة غير محددة",
+      "another": "لغة أخرى",
+      "searchPlaceholder": "ابحث عن لغة",
+      "unlisted": "ليست في القائمة؟ اختر أقرب لغة إليها.",
+      "unreachable": "البحث يحتاج إلى اتصال. اختر الآن إحدى اللغات أعلاه.",
+      "writtenIn": "مكتوب باللغة"
+    },
+    "setLanguage": {
+      "title": "بأي لغة يكون {{name}}؟",
+      "sub_zero": "متوفر بـ {{count, number}} لغة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_one": "متوفر بلغة واحدة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_two": "متوفر بلغتين. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_few": "متوفر بـ {{count, number}} لغات. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_many": "متوفر بـ {{count, number}} لغة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "sub_other": "متوفر بـ {{count, number}} لغة. اختر اللغة التي يقرؤها فريق {{team}} أفضل.",
+      "use": "استخدم {{language}}",
+      "keep": "أبقِ {{language}}",
+      "off": "لا تعرض {{name}}",
+      "passages_zero": "أدلة لـ {{count, number}} مقطع",
+      "passages_one": "دليل لمقطع واحد",
+      "passages_two": "أدلة لمقطعين",
+      "passages_few": "أدلة لـ {{count, number}} مقاطع",
+      "passages_many": "أدلة لـ {{count, number}} مقطعًا",
+      "passages_other": "أدلة لـ {{count, number}} مقطع",
+      "yours": "لغة تطبيقك",
+      "gaps_zero": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_one": "باللغة {{language}}، لدى {{name}} دليل لمقطع واحد. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_two": "باللغة {{language}}، لدى {{name}} أدلة لمقطعين. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_few": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقاطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_many": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطعًا. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة.",
+      "gaps_other": "باللغة {{language}}، لدى {{name}} أدلة لـ {{count, number}} مقطع. المقاطع التي ليس لها دليل لا يظهر فيها دليل دراسة."
     }
   },
   "sources": {
@@ -7025,5 +7080,31 @@
       "previousChapter": "الأصحاح السابق",
       "nextChapter": "الأصحاح التالي"
     }
+  },
+  "referenceLanguage": {
+    "question": "بأي لغة تكون أناجيل وأدلة دراسة {{language}}؟",
+    "sub": "اختر اللغة التي يقرؤها فريق {{language}} أفضل. كل لغة تبيّن ما لدى LangQuest بها.",
+    "setPassages_zero": "أدلة {{name}} لـ {{count, number}} مقطع",
+    "setPassages_one": "أدلة {{name}} لمقطع واحد",
+    "setPassages_two": "أدلة {{name}} لمقطعين",
+    "setPassages_few": "أدلة {{name}} لـ {{count, number}} مقاطع",
+    "setPassages_many": "أدلة {{name}} لـ {{count, number}} مقطعًا",
+    "setPassages_other": "أدلة {{name}} لـ {{count, number}} مقطع",
+    "bibles_zero": "{{count, number}} كتاب مقدس",
+    "bibles_one": "كتاب مقدس واحد",
+    "bibles_two": "كتابان مقدسان",
+    "bibles_few": "{{count, number}} كتب مقدسة",
+    "bibles_many": "{{count, number}} كتابًا مقدسًا",
+    "bibles_other": "{{count, number}} كتاب مقدس",
+    "otherGuides_zero": "{{count, number}} دليل أو ملاحظة أخرى",
+    "otherGuides_one": "دليل أو ملاحظة أخرى",
+    "otherGuides_two": "دليلان أو ملاحظتان أخريان",
+    "otherGuides_few": "{{count, number}} أدلة أو ملاحظات أخرى",
+    "otherGuides_many": "{{count, number}} دليلًا أو ملاحظة أخرى",
+    "otherGuides_other": "{{count, number}} دليل أو ملاحظة أخرى",
+    "nothing": "لا شيء بهذه اللغة بعد",
+    "chip": "الكتب المقدسة والأدلة باللغة {{language}}",
+    "chipHelp": "لغة كتبهم المقدسة وأدلة الدراسة. انقر لتغييرها.",
+    "change": "تغيير"
   }
 }

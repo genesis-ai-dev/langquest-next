@@ -262,7 +262,7 @@ export function suggestedChoice(inUse: string | null | undefined, choices: Libra
  */
 export function addLanguage(
   org: OrgState | null,
-  c: { languageId: string; code: string; name: string; template: EventSpec[]; flow: EventSpec[]; languoidId?: string | null }
+  c: { languageId: string; code: string; name: string; template: EventSpec[]; flow: EventSpec[]; languoidId?: string | null; sourceCode?: string }
 ): { added: EventPayloads['v1.LanguageAdded']; link: EventPayloads['v1.LanguageCodeSet'] | null; specs: EventSpec[] } {
   const code = c.code.trim().toLowerCase();
   const name = c.name.trim();
@@ -271,7 +271,7 @@ export function addLanguage(
   if (!c.template.some((s) => s.type === 'v1.TemplateSelected')) throw new Error('Choose a template.');
   if (!c.flow.some((s) => s.type === 'v1.FlowSelected')) throw new Error('Choose a review flow.');
   return {
-    added: { languageId: c.languageId, name: name || code.toUpperCase(), code, sourceCode: SOURCE_CODE },
+    added: { languageId: c.languageId, name: name || code.toUpperCase(), code, sourceCode: c.sourceCode || SOURCE_CODE },
     // Picked from the language list: linked to it from the start. Typed in, it stays unlinked until someone links it.
     link: c.languoidId ? { languageId: c.languageId, code, languoidId: c.languoidId } : null,
     specs: [...c.template, ...c.flow]
@@ -297,8 +297,8 @@ export function similarLanguages(org: OrgState | null, c: { code: string; name: 
 const nameKey = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 
 /**
- * The language source Bibles are offered in: the app ships English
- * readings (BSB, WEB, KJV), so a new language starts from them.
+ * The language its reference material is in when New language does not
+ * say (decision 84): English, the language of most of what LangQuest shares.
  */
 const SOURCE_CODE = 'eng';
 

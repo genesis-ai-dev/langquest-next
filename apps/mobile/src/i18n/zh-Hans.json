@@ -867,11 +867,13 @@
       "offerNoteFia": "我们会向{{language}}的译者提供{{offers}}。FIA 指南会配合你选择的 FIA 经段。随时可以在<b>帮助他们的资料</b>中更改。",
       "notAdded": "未添加",
       "inviteLater": "以后可以在{{language}}的页面上邀请它的译者。",
-      "later": "以后再说"
+      "later": "以后再说",
+      "offerNothing": "LangQuest 目前还没有{{reads}}的圣经或学习指南。可以在<b>帮助他们的资料</b>中为{{language}}的译者查找圣经或撰写笔记。"
     },
     "offers": {
       "guides": "{{name}}的学习指南",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "{{language}}的{{name}}学习指南"
     },
     "teams": {
       "thisLanguage": "这个语言",
@@ -1056,13 +1058,21 @@
       "tha": "泰语",
       "vie": "越南语",
       "din": "丁卡语",
-      "nus": "努尔语"
+      "nus": "努尔语",
+      "apd": "苏丹阿拉伯语",
+      "fas": "波斯语",
+      "ben": "孟加拉语",
+      "npi": "尼泊尔语",
+      "mya": "缅甸语",
+      "tpi": "托克皮辛语",
+      "bis": "比斯拉马语"
     },
     "helps": {
       "bibles_other": "{{languages}}圣经",
       "guides": "{{names}}指南",
       "notes_other": "{{count, number}} 条注释",
-      "nothing": "还没有提供资料"
+      "nothing": "还没有提供资料",
+      "guidesIn": "{{languages}}的{{name}}指南"
     },
     "ready": {
       "translators_other": "{{count, number}} 位译者",
@@ -1162,7 +1172,10 @@
       "notesForTranslators": "译者注释",
       "on": "开",
       "off": "关",
-      "viewOnly": "只有负责选择圣经和指南的人可以更改这一项。"
+      "viewOnly": "只有负责选择圣经和指南的人可以更改这一项。",
+      "inLanguages_other": "共 {{count, number}} 种语言",
+      "setChosen": "{{name}}学习指南现在使用{{language}}",
+      "setOff": "已为此团队关闭{{name}}学习指南"
     },
     "page": {
       "title": "帮助他们的资料",
@@ -1207,6 +1220,9 @@
       "somethingElse": "其他",
       "cannotTitle": "只有可以在这里邀请的人才能出示邀请码",
       "cannotBody": "请负责{{language}}团队的人邀请你的译者。"
+    },
+    "language": {
+      "saved": "{{team}}的圣经和指南现在使用{{language}}"
     }
   },
   "content": {
@@ -1884,7 +1900,8 @@
       "notPlaced": "还没有放置",
       "steps_other": "{{count, number}} 个步骤",
       "bible": "圣经",
-      "notReference": "不是参考资料"
+      "notReference": "不是参考资料",
+      "numbering": "{{name}}编号"
     },
     "errors": {
       "setNotForKind": "这个问题集不属于任何审核类型。",
@@ -5533,6 +5550,24 @@
       "theirNoteOnVerse": "{{name}}对第 {{verse}} 节的备注",
       "empty": "这个经段还没有录音。这将是第一个版本。",
       "quoted": "“{{text}}”"
+    },
+    "language": {
+      "notGiven": "未注明语言",
+      "another": "其他语言",
+      "searchPlaceholder": "搜索语言",
+      "unlisted": "列表里没有？请选最接近的语言。",
+      "unreachable": "搜索需要联网。现在请先从上面的语言中选一种。",
+      "writtenIn": "书写语言"
+    },
+    "setLanguage": {
+      "title": "{{name}}用哪种语言？",
+      "sub_other": "共有 {{count, number}} 种语言。请选择{{team}}团队读得最好的一种。",
+      "use": "使用{{language}}",
+      "keep": "保留{{language}}",
+      "off": "不提供{{name}}",
+      "passages_other": "涵盖 {{count, number}} 个经段的指南",
+      "yours": "你的应用语言",
+      "gaps_other": "{{name}}的{{language}}版有 {{count, number}} 个经段的指南。没有指南的经段不会显示学习指南。"
     }
   },
   "sources": {
@@ -5665,5 +5700,16 @@
       "previousChapter": "上一章",
       "nextChapter": "下一章"
     }
+  },
+  "referenceLanguage": {
+    "question": "{{language}}的圣经和学习指南应该用哪种语言？",
+    "sub": "请选择{{language}}团队读得最好的语言。每种语言都显示 LangQuest 在这种语言里有什么。",
+    "setPassages_other": "{{name}}指南涵盖 {{count, number}} 个经段",
+    "bibles_other": "{{count, number}} 本圣经",
+    "otherGuides_other": "另有 {{count, number}} 份指南或笔记",
+    "nothing": "这种语言里暂时还没有内容",
+    "chip": "{{language}}的圣经和指南",
+    "chipHelp": "他们的圣经和学习指南所用的语言。点按即可更改。",
+    "change": "更改"
   }
 }

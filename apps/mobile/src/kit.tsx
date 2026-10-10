@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  AccessibilityInfo, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
+  AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
 } from 'react-native';
 import { Text } from './text';
@@ -92,9 +92,8 @@ export const txt = StyleSheet.create({
 // ---- layout ----------------------------------------------------------------------------
 
 /**
- * Wide windows only (decisions.md 55): how tall this screen's footer is, so
- * the toast can sit just above its buttons rather than over them (App.tsx).
- * Not provided on phones, where nothing is measured.
+ * How tall this screen's footer is, so the toast sits just above its
+ * buttons rather than over them (App.tsx), on a phone as on a wide window.
  */
 export const FooterHeightContext = createContext<((height: number) => void) | null>(null);
 
@@ -792,19 +791,31 @@ export interface ToastSpec {
   message: string;
   /** Offered for about 7 s (CORE-5). */
   undo?: () => void | Promise<void>;
+  /** How long it shows, for the bar that counts down to its going (the host sets it). */
+  ms?: number;
 }
 
 /**
  * What changed, and Undo when it can be (CORE-5). The message and Undo are
  * separate elements so a screen reader can reach Undo, and the message is
- * announced as it appears. Tapping the message dismisses it.
+ * announced as it appears. A bar along its foot shrinks until it goes, and
+ * a big X (or tapping the message) closes it sooner. The host places it
+ * above the screen's buttons, never over them.
  */
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
+  const left = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (toast) AccessibilityInfo.announceForAccessibility(toast.undo ? t('shell.toast.announceUndo', { message: toast.message }) : toast.message);
   }, [toast?.id]);
+  useEffect(() => {
+    if (!toast?.ms) return;
+    left.setValue(1);
+    const run = Animated.timing(left, { toValue: 0, duration: toast.ms, easing: Easing.linear, useNativeDriver: false });
+    run.start();
+    return () => run.stop();
+  }, [toast?.id, toast?.ms, left]);
   if (!toast) return null;
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
@@ -819,6 +830,12 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
             accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
             <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
           </Pressable>
+        ) : null}
+        <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
+        {toast.ms ? (
+          <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
+            <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+          </View>
         ) : null}
       </View>
     </View>
@@ -890,7 +907,9 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.sm },
   quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center' },
   toastWrap: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.sm, minHeight: 56, width: '100%', ...lift({ opacity: 0.25 }) },
-  toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.xs, paddingTop: space.xs, paddingBottom: space.xs + 4, minHeight: 56, width: '100%', overflow: 'hidden', ...lift({ opacity: 0.25 }) },
+  toastTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.15)' },
+  toastLeft: { height: 4, backgroundColor: C.light },
+  toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingVertical: space.xs },
   toastUndo: { minHeight: 48, minWidth: 64, alignItems: 'center', justifyContent: 'center' }
 });

@@ -887,11 +887,13 @@
       "offerNoteFia": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። የFIA መመሪያዎች ከመረጧቸው የFIA ክፍሎች ጋር አብረው ይሄዳሉ። ይህን በማንኛውም ጊዜ በ<b>የሚረዳቸው</b> ሥር ይቀይሩ።",
       "notAdded": "አልታከለም",
       "inviteLater": "የ{{language}} ተርጓሚዎችን በኋላ ከገጹ ይጋብዙ።",
-      "later": "በኋላ"
+      "later": "በኋላ",
+      "offerNothing": "LangQuest እስካሁን በ{{reads}} መጽሐፍ ቅዱስም ሆነ የጥናት መመሪያ የለውም። ለ{{language}} ተርጓሚዎች መጽሐፍ ቅዱስ ይፈልጉ ወይም ማስታወሻ ይጻፉ፤ በ<b>የሚረዳቸው</b> ሥር።"
     },
     "offers": {
       "guides": "የ{{name}} የጥናት መመሪያዎች",
-      "theBible": "{{name}}"
+      "theBible": "{{name}}",
+      "guidesIn": "የ{{name}} የጥናት መመሪያዎች በ{{language}}"
     },
     "teams": {
       "thisLanguage": "ይህ ቋንቋ",
@@ -1082,7 +1084,14 @@
       "tha": "ታይኛ",
       "vie": "ቬትናምኛ",
       "din": "ዲንካ",
-      "nus": "ኑዌር"
+      "nus": "ኑዌር",
+      "apd": "የሱዳን ዓረብኛ",
+      "fas": "ፋርስኛ",
+      "ben": "ቤንጋሊኛ",
+      "npi": "ኔፓሊኛ",
+      "mya": "በርምኛ",
+      "tpi": "ቶክ ፒሲን",
+      "bis": "ቢስላማ"
     },
     "helps": {
       "bibles_one": "{{languages}} መጽሐፍ ቅዱስ",
@@ -1090,7 +1099,8 @@
       "guides": "የ{{names}} መመሪያዎች",
       "notes_one": "{{count, number}} ማስታወሻ",
       "notes_other": "{{count, number}} ማስታወሻዎች",
-      "nothing": "እስካሁን ምንም አልቀረበም"
+      "nothing": "እስካሁን ምንም አልቀረበም",
+      "guidesIn": "የ{{name}} መመሪያዎች በ{{languages}}"
     },
     "ready": {
       "translators_one": "{{count, number}} ተርጓሚ",
@@ -1192,7 +1202,11 @@
       "notesForTranslators": "ለተርጓሚዎች ማስታወሻዎች",
       "on": "በርቷል",
       "off": "ጠፍቷል",
-      "viewOnly": "ይህን መለወጥ የሚችሉት መጽሐፍ ቅዱሶችንና መመሪያዎችን የሚመርጡ ሰዎች ብቻ ናቸው።"
+      "viewOnly": "ይህን መለወጥ የሚችሉት መጽሐፍ ቅዱሶችንና መመሪያዎችን የሚመርጡ ሰዎች ብቻ ናቸው።",
+      "inLanguages_one": "በ{{count, number}} ቋንቋ",
+      "inLanguages_other": "በ{{count, number}} ቋንቋዎች",
+      "setChosen": "የ{{name}} የጥናት መመሪያዎች አሁን በ{{language}} ናቸው",
+      "setOff": "የ{{name}} የጥናት መመሪያዎች ለዚህ ቡድን ጠፍተዋል"
     },
     "page": {
       "title": "የሚረዳቸው",
@@ -1239,6 +1253,9 @@
       "somethingElse": "ሌላ ነገር",
       "cannotTitle": "ኮድ ማሳየት የሚችሉት እዚህ መጋበዝ የሚችሉ ሰዎች ብቻ ናቸው",
       "cannotBody": "የ{{language}}ን ቡድን የሚመራ ሰው ተርጓሚዎችዎን እንዲጋብዝ ይጠይቁ።"
+    },
+    "language": {
+      "saved": "የ{{team}} መጽሐፍ ቅዱሶችና መመሪያዎች አሁን በ{{language}} ናቸው"
     }
   },
   "content": {
@@ -1954,7 +1971,8 @@
       "steps_one": "{{count, number}} ደረጃ",
       "steps_other": "{{count, number}} ደረጃዎች",
       "bible": "መጽሐፍ ቅዱስ",
-      "notReference": "የማጣቀሻ ጽሑፍ አይደለም"
+      "notReference": "የማጣቀሻ ጽሑፍ አይደለም",
+      "numbering": "የ{{name}} ቁጥር አሰጣጥ"
     },
     "errors": {
       "setNotForKind": "ይህ የጥያቄ ስብስብ ለአንድ የግምገማ ዓይነት አይደለም።",
@@ -5802,6 +5820,27 @@
       "theirNoteOnVerse": "በቁጥር {{verse}} ላይ የ{{name}} ማስታወሻ",
       "empty": "እስካሁን ለዚህ ክፍል ምንም አልተቀረጸም። ይህ የመጀመሪያው ስሪት ይሆናል።",
       "quoted": "«{{text}}»"
+    },
+    "language": {
+      "notGiven": "ቋንቋ አልተገለጸም",
+      "another": "ሌላ ቋንቋ",
+      "searchPlaceholder": "ቋንቋ ይፈልጉ",
+      "unlisted": "ዝርዝሩ ውስጥ የለም? ለእሱ በጣም ቅርብ የሆነውን ቋንቋ ይምረጡ።",
+      "unreachable": "መፈለግ ግንኙነት ይፈልጋል። ለአሁን ከላይ ካሉት ቋንቋዎች አንዱን ይምረጡ።",
+      "writtenIn": "የተጻፈበት ቋንቋ"
+    },
+    "setLanguage": {
+      "title": "{{name}} በየትኛው ቋንቋ ይሁን?",
+      "sub_one": "በ{{count, number}} ቋንቋ ይገኛል። የ{{team}} ቡድን በተሻለ የሚያነበውን ይምረጡ።",
+      "sub_other": "በ{{count, number}} ቋንቋዎች ይገኛል። የ{{team}} ቡድን በተሻለ የሚያነበውን ይምረጡ።",
+      "use": "{{language}} ይጠቀሙ",
+      "keep": "{{language}} ይቆይ",
+      "off": "{{name}} አይቅረብ",
+      "passages_one": "ለ{{count, number}} ክፍል መመሪያ",
+      "passages_other": "ለ{{count, number}} ክፍሎች መመሪያዎች",
+      "yours": "የመተግበሪያዎ ቋንቋ",
+      "gaps_one": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍል መመሪያ አለው። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።",
+      "gaps_other": "በ{{language}}፣ {{name}} ለ{{count, number}} ክፍሎች መመሪያዎች አሉት። መመሪያ የሌላቸው ክፍሎች የጥናት መመሪያ አያሳዩም።"
     }
   },
   "sources": {
@@ -5937,5 +5976,19 @@
       "previousChapter": "የቀድሞው ምዕራፍ",
       "nextChapter": "ቀጣዩ ምዕራፍ"
     }
+  },
+  "referenceLanguage": {
+    "question": "የ{{language}} መጽሐፍ ቅዱሶችና የጥናት መመሪያዎች በየትኛው ቋንቋ ይሁኑ?",
+    "sub": "የ{{language}} ቡድን በተሻለ የሚያነበውን ቋንቋ ይምረጡ። እያንዳንዱ LangQuest በዚያ ቋንቋ ያለውን ያሳያል።",
+    "setPassages_one": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍል",
+    "setPassages_other": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍሎች",
+    "bibles_one": "{{count, number}} መጽሐፍ ቅዱስ",
+    "bibles_other": "{{count, number}} መጽሐፍ ቅዱሶች",
+    "otherGuides_one": "{{count, number}} ሌላ መመሪያ ወይም ማስታወሻ",
+    "otherGuides_other": "{{count, number}} ሌሎች መመሪያዎች ወይም ማስታወሻዎች",
+    "nothing": "በዚህ ቋንቋ እስካሁን ምንም የለም",
+    "chip": "መጽሐፍ ቅዱሶችና መመሪያዎች በ{{language}}",
+    "chipHelp": "የመጽሐፍ ቅዱሶቻቸውና የጥናት መመሪያዎቻቸው ቋንቋ። ለመቀየር ይንኩ።",
+    "change": "ቀይር"
   }
 }
