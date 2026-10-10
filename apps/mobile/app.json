@@ -103,7 +103,28 @@
       ],
       "expo-notifications",
       "./plugins/withSceneLifecycle",
-      "expo-localization"
+      [
+        "expo-localization",
+        {
+          "supportedLocales": [
+            "en",
+            "es",
+            "pt-BR",
+            "fr",
+            "ar",
+            "sw",
+            "ha",
+            "am",
+            "hi",
+            "bn",
+            "ne",
+            "id",
+            "zh-Hans",
+            "th",
+            "my"
+          ]
+        }
+      ]
     ],
     "scheme": "langquestnext",
     "extra": {

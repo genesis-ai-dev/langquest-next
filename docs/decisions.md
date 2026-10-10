@@ -2077,6 +2077,10 @@ started the detector (`claimVad`), so a recorder left mounted under another
 screen keeps nothing it did not record. Still not built: notes on a key term
 (no screen writes a `term` note, so "Note on a word" is left out).
 
+Amended (2026-10-09, Caleb Koster): spoken help on a device plays recorded
+lines in the app's language, downloaded and kept on the phone (decision 80);
+none are recorded yet, so a device still shows the words.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -2482,3 +2486,52 @@ Reverse if: external values grow past a set share of a language's events or
 slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
+
+## 80. The app's words come from catalogs in the app, in the language chosen on the device; English is the source and drafts are chosen by hand
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: field teams who do not read English could not use the app (LAN-42);
+every word was written into the screens. Chosen (`docs/localization.md`):
+- `i18next` and `react-i18next`, with one JSON catalog per language in
+  `apps/mobile/src/i18n/` and English the source. Fifteen languages: LAN-42's
+  thirteen (`en`, `es`, `pt` in Brazilian wording, `fr`, `ar`, `sw`, `ha`,
+  `am`, `hi`, `bn`, `ne`, `id`, `zh-Hans`) and Thai and Burmese from
+  LangQuest v2's list. Dates and numbers through `Intl`; plurals by each
+  language's own rules (`src/i18n/plurals.ts` stands in where the engine has
+  no `Intl.PluralRules`).
+- The language is a setting of the device, not an event: Me → Language (and
+  a globe on the sign-in screen) keeps it in expo-sqlite's key-value store,
+  read before the first screen draws, or the browser's localStorage. Nothing
+  to sync and no migration; people sharing a phone share it. Without a
+  choice the phone's language is followed (`expo-localization`), but only
+  for a catalog a fluent speaker has reviewed (`reviewed` in
+  `src/i18n/languages.ts`): every catalog but English starts as a machine
+  draft, which anyone may pick and which says it is a draft.
+- Arabic lays the app out right to left; on a phone the app restarts once to
+  change direction (`src/i18n/start.ts`).
+- "No hard-coded words" is a test, run by `npm test` and before a push:
+  `apps/mobile/test/i18n.test.ts` fails on a word written into the code
+  where a person would see it, a key used but missing or defined but unused,
+  and a catalog that lacks keys, adds keys, has the wrong plural forms or
+  drops a placeholder. `t()` keys are typed, so a wrong key fails the
+  typecheck.
+- `packages/core` stays English and pure; `src/coreText.ts` says its words
+  (review states, shipped kinds unless renamed, a passage's state, command
+  errors, licenses, book names). Library documents (36), names people typed,
+  and words stored in the event log are shown as written.
+- Emails go in the sender's app language: the invite now (the phone sends its
+  language; `apps/invite-email/src/i18n/`), and the password reset email's
+  words are ready for Forgot password.
+- Help mode speaks recorded lines per language: files named by a hash of the
+  language and the words, listed and served by the Worker
+  (`/api/help-audio`, `npm run help-audio`), kept on the phone once heard.
+  A line nobody has recorded shows as words, read aloud on the web.
+This departs from `docs/languoids.md`'s proposal that interface translations
+be library items an organization publishes: bundled catalogs work offline
+from the first launch and need no server; a published localization could
+later sit over them. Push notifications' words are still written in English
+by the database (the Inbox shows its own words by kind).
+Reverse if: translators need to change words between app releases (then the
+library localization), or people want their language to follow them to
+other devices (then an event in the person stream).

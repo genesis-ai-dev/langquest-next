@@ -15,8 +15,10 @@ export class InviteDelivery extends DurableObject<Env> {
   }
 
   async send(p: InviteMessage): Promise<Response> {
+    // The language is left out: a retry in another language is the same invitation.
+    const { locale: _language, ...details } = p;
     const bytes = await crypto.subtle.digest('SHA-256',
-      new TextEncoder().encode(JSON.stringify(p)));
+      new TextEncoder().encode(JSON.stringify(details)));
     const fingerprint = Array.from(new Uint8Array(bytes),
       b => b.toString(16).padStart(2, '0')).join('');
     // No await between lookup and reservation. Only hashes and delivery

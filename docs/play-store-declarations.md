@@ -122,6 +122,12 @@ The Reports section's map and country names (`d3-geo`, `topojson-client`,
 `world-atlas`, `i18n-iso-countries`) are code and data inside the app: they
 make no network calls and collect nothing.
 
+The app's own words come in the person's language (LAN-42, decisions.md 80,
+`docs/localization.md`). `expo-localization` reads the phone's language list
+on the phone to choose one; `i18next` and `react-i18next` are code inside the
+app, and every language's words ship in the app. The language someone picks
+stays on the device. Nothing is collected or sent, so no data type changes.
+
 Bible text and audio (docs/reference-material.md, decisions.md 62) come
 from Faith Comes By Hearing's Bible Brain through our Worker, which holds the
 key and sends Bible Brain no user data; phones then download the audio from
@@ -164,6 +170,7 @@ this block.
     "./plugins/withSceneLifecycle",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
+    "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\"]}",
     "expo-notifications",
     "expo-sqlite"
   ],
@@ -171,9 +178,9 @@ this block.
     "@expo/metro-runtime", "@langquest-next/client", "@langquest-next/core",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system",
+    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-localization",
     "expo-notifications", "expo-screen-orientation", "expo-sqlite", "expo-status-bar", "expo-updates",
-    "i18n-iso-countries", "lucide-react-native", "react", "react-dom", "react-native", "react-native-qrcode-svg",
+    "i18n-iso-countries", "i18next", "lucide-react-native", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
     "react-native-url-polyfill", "react-native-web", "topojson-client", "world-atlas"
   ],
