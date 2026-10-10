@@ -8,7 +8,8 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { bookNameOf } from '../contentTemplates';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { Chip, GhostBtn, Ico, PrimaryBtn, Sheet, txt } from '../kit';
 import { AmberNote, CheckRow, ChoiceCard, Pills } from '../simple/admin';
@@ -54,7 +55,7 @@ export function WayCard(props: {
     row.inUse ? t('breakup.way.inUse') : usedLine(row.usedIn),
     doc ? (props.oneBook ? '' : countLine(doc, props.v11n)) : t('common.loading')
   ].filter(Boolean);
-  const preview = useHelpPress(t('common.preview'), t('breakup.way.previewHelp', { way: row.choice.name }), props.onPreview);
+  const preview = useHelpSpot(t('common.preview'), t('breakup.way.previewHelp', { way: row.choice.name }), props.onPreview);
   const goes = doc?.format === 'template@2' ? doc.goesWith?.pattern : undefined;
   return (
     <ChoiceCard on={props.on} icon={row.later ? 'clock' : 'book'} title={row.choice.name} sub={lines.join(' · ')} onPress={props.onPress}>
@@ -67,9 +68,10 @@ export function WayCard(props: {
         ) : null}
         {row.later && !props.oneBook ? null : <PieceBar doc={doc} v11n={props.v11n} book={props.oneBook ?? SAMPLE_BOOK} />}
         {row.later ? null : (
-          <Pressable onPress={preview} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: row.choice.name })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
+          <Pressable onPress={preview.onPress} accessibilityRole="button" accessibilityLabel={t('breakup.way.previewLabel', { way: row.choice.name })} style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
             <Ico name="search" size={16} color={C.primary} />
             <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{t('common.preview')}</Text>
+            <HelpBadge spot={preview} />
           </Pressable>
         )}
         {props.children}
@@ -228,7 +230,7 @@ export function RedoSheet(props: { visible: boolean; book: string; busy: boolean
 
 /** A language's Bibles number some verses differently: one verse to show how, and it may be ignored (decision 74). */
 export function NumberingNote(props: { clash: NumberingClash; onIgnore?: () => void }) {
-  const ignore = useHelpPress(t('breakup.numbering.ignore'), t('breakup.numbering.ignoreHelp'), props.onIgnore);
+  const ignore = useHelpSpot(t('breakup.numbering.ignore'), t('breakup.numbering.ignoreHelp'), props.onIgnore);
   const says = verseSays(props.clash.says);
   return (
     <View style={styles.warn}>
@@ -241,9 +243,10 @@ export function NumberingNote(props: { clash: NumberingClash; onIgnore?: () => v
       ))}
       <Text style={txt.smMuted}>{t('breakup.numbering.linedUp')}</Text>
       {props.onIgnore ? (
-        <Pressable onPress={ignore} accessibilityRole="button" style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
+        <Pressable onPress={ignore.onPress} accessibilityRole="button" style={({ pressed }) => [styles.peek, pressed && { opacity: 0.6 }]}>
           <Ico name="check" size={16} color={C.muted} />
           <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('breakup.numbering.ignore')}</Text>
+          <HelpBadge spot={ignore} />
         </Pressable>
       ) : null}
     </View>

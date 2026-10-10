@@ -5,7 +5,8 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, PrimaryBtn, txt } from '../kit';
@@ -18,9 +19,9 @@ import { C, onColor, radius, space, target, type as T } from '../theme';
  */
 export function Bell(props: { count: number; onPress: () => void }) {
   const label = props.count ? t('work.bell.labelNew', { count: props.count }) : t('work.bell.label');
-  const onPress = useHelpPress(t('work.bell.label'), t('work.bell.help'), props.onPress);
+  const spot = useHelpSpot(t('work.bell.label'), t('work.bell.help'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.bell, pressed && styles.pressed]}>
       <Ico name="notif" size={24} color={C.dark} />
       {props.count > 0 ? (
@@ -28,6 +29,7 @@ export function Bell(props: { count: number; onPress: () => void }) {
           <Text style={styles.badgeText}>{props.count > 99 ? t('work.bell.overMax', { max: formatNumber(99) }) : formatNumber(props.count)}</Text>
         </View>
       ) : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -76,14 +78,15 @@ export function ReadyCard(props: { language: string; done: number; total: number
  * ADR-032). 48pt tall.
  */
 export function QuietToggle(props: { label: string; onPress: () => void; open?: boolean; detail?: string }) {
-  const onPress = useHelpPress(props.label, props.detail, props.onPress);
+  const spot = useHelpSpot(props.label, props.detail, props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
       {...(props.open !== undefined ? { accessibilityState: { expanded: props.open } } : {})}
       style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Text style={styles.quietText}>{props.label}</Text>
       {/* Open, it says how to fold it away again; closed, the words alone (demo Home). */}
       {props.open ? <Ico name="up" size={18} color={C.muted} /> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

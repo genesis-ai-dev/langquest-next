@@ -12,7 +12,8 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
 import { Ico, txt, type IconName } from '../kit';
@@ -43,12 +44,13 @@ function speak(text: string) {
 /** A round speaker beside a question: reads it aloud. Not drawn where nothing can speak. */
 export function SpeakBtn(props: { text: string; size?: number }) {
   const size = props.size ?? 64;
-  const press = useHelpPress(t('review.voice.hearIt'), t('review.voice.hearItHelp'), () => speak(props.text));
+  const spot = useHelpSpot(t('review.voice.hearIt'), t('review.voice.hearItHelp'), () => speak(props.text));
   if (!canSpeak()) return null;
   return (
-    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={t('review.voice.hearItA11y', { text: props.text })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('review.voice.hearItA11y', { text: props.text })}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }, pressed && styles.pressed]}>
       <Ico name="sound" size={Math.round(size * 0.42)} color={C.primary} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -80,15 +82,16 @@ export function BigMic(props: {
   const recording = rec.manualOn;
   const size = props.size ?? 112;
   const fill = props.tone === 'brand' ? C.primary : C.red;
-  const press = useHelpPress(recording ? t('review.voice.stop') : props.label, t('review.voice.recordHelp'), () => void (recording ? rec.manualUp() : rec.manualDown()));
+  const spot = useHelpSpot(recording ? t('review.voice.stop') : props.label, t('review.voice.recordHelp'), () => void (recording ? rec.manualUp() : rec.manualDown()));
   return (
     <View style={{ alignItems: 'center', gap: space.md }}>
       <View style={[styles.halo, { width: size + 28, height: size + 28, borderRadius: (size + 28) / 2, backgroundColor: withAlpha(fill, recording ? 0.22 : 0.1) }]}>
-        <Pressable onPress={press} disabled={(rec.busy && !recording) || props.disabled} accessibilityRole="button"
+        <Pressable onPress={spot.onPress} disabled={(rec.busy && !recording) || props.disabled} accessibilityRole="button"
           accessibilityLabel={recording ? t('common.stopRecording') : props.label}
           style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' },
             lift({ color: fill, opacity: 0.35, radius: 18, y: 8, elevation: 4 }), props.disabled && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]}>
           <Ico name={recording ? 'stop' : 'mic'} size={Math.round(size * 0.4)} color={C.white} />
+          <HelpBadge spot={spot} />
         </Pressable>
       </View>
       <Text style={styles.bigLabel} accessibilityLiveRegion="polite">
@@ -132,17 +135,18 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
       setError(t('common.audioCouldNotPlay', { code: reportError('review clip play', e) }));
     }
   }
-  const press = useHelpPress(props.label, t('review.voice.playsRecorded'), () => void toggle());
+  const spot = useHelpSpot(props.label, t('review.voice.playsRecorded'), () => void toggle());
   const length = formatClock(props.clip.durationMs);
   return (
     <View style={{ alignItems: 'center', gap: space.xs }}>
-      <Pressable onPress={press} accessibilityRole="button"
+      <Pressable onPress={spot.onPress} accessibilityRole="button"
         accessibilityLabel={playing ? t('review.voice.pauseClip', { label: props.label, length }) : t('review.voice.playClip', { label: props.label, length })}
         style={({ pressed }) => [styles.chip, { backgroundColor: bg }, pressed && styles.pressed]}>
         <View style={[styles.chipPlay, { backgroundColor: fill }]}>
           <Ico name={playing ? 'pause' : 'play'} size={22} color={C.white} />
         </View>
         <Text style={[styles.chipLabel, { color: fg }]} numberOfLines={1}>{props.label} · {length}</Text>
+        <HelpBadge spot={spot} />
       </Pressable>
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </View>
@@ -151,11 +155,12 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
 
 /** A small outlined button under a clip: "Record again". */
 export function AgainBtn(props: { label: string; icon?: IconName; onPress: () => void }) {
-  const press = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={press} accessibilityRole="button" style={({ pressed }) => [styles.again, pressed && styles.pressed]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.again, pressed && styles.pressed]}>
       <Ico name={props.icon ?? 'restart'} size={20} color={C.dark} />
       <Text style={[txt.body, { fontWeight: '600' }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -169,9 +174,9 @@ export function AgainBtn(props: { label: string; icon?: IconName; onPress: () =>
  * the word at its end, usually "optional" (review.shared.optional) or "Change".
  */
 export function DashedRow(props: { icon: IconName; label: string; sub?: string; right?: string; onPress: () => void; tile?: boolean; done?: boolean; trailing?: ReactNode }) {
-  const press = useHelpPress(props.label, props.sub ?? (props.right === t('review.shared.optional') ? t('review.voice.optionalHelp') : undefined), props.onPress);
+  const spot = useHelpSpot(props.label, props.sub ?? (props.right === t('review.shared.optional') ? t('review.voice.optionalHelp') : undefined), props.onPress);
   return (
-    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={[props.label, props.sub, props.right].filter(Boolean).join(', ')}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={[props.label, props.sub, props.right].filter(Boolean).join(', ')}
       style={({ pressed }) => [styles.dashed, props.done && styles.dashedDone, pressed && styles.pressed]}>
       {props.tile ? (
         <View style={[styles.tile, props.done && { backgroundColor: TINT.green }]}><Ico name={props.icon} size={22} color={props.done ? TINT.greenText : C.primary} /></View>
@@ -182,6 +187,7 @@ export function DashedRow(props: { icon: IconName; label: string; sub?: string; 
       </View>
       {props.trailing}
       {props.right ? <Text style={[txt.sm, { color: C.muted, fontWeight: '600' }]}>{props.right}</Text> : null}
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

@@ -14,7 +14,8 @@ import { Text } from '../text';
 import MicrophoneEnergy from '../../modules/microphone-energy';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Header, Ico, PrimaryBtn, Screen, txt } from '../kit';
@@ -271,11 +272,12 @@ export function MicSetupScreen(props: { ctx: Ctx }) {
 }
 
 function HearIt(props: { onPress: () => void }) {
-  const onPress = useHelpPress(t('recording.micSetup.hearIt'), t('recording.micSetup.hearItHelp'), props.onPress);
+  const spot = useHelpSpot(t('recording.micSetup.hearIt'), t('recording.micSetup.hearItHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.hear, pressed && ps.pressed]}>
       <Ico name="listen" size={18} color={C.primary} />
       <Text style={[txt.sm, { color: C.primary, fontWeight: '700' }]}>{t('recording.micSetup.hearIt')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -284,17 +286,19 @@ function TryRow(props: { id: string; parts: Segment[]; on: boolean; playing: boo
   const ms = props.parts.reduce((a, p) => a + p.durationMs, 0);
   const name = t('recording.micSetup.tryName', { id: props.id });
   const playLabel = props.playing ? t('common.pause') : t('recording.micSetup.playTry', { id: props.id });
-  const play = useHelpPress(playLabel, t('recording.micSetup.playTryHelp'), props.onPlay);
-  const pick = useHelpPress(name, t('recording.micSetup.chooseThis'), props.onPick);
+  const play = useHelpSpot(playLabel, t('recording.micSetup.playTryHelp'), props.onPlay);
+  const pick = useHelpSpot(name, t('recording.micSetup.chooseThis'), props.onPick);
   return (
-    <Pressable onPress={pick} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={t('recording.micSetup.tryLabel', { id: props.id, length: mmss(ms) })}
+    <Pressable onPress={pick.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={t('recording.micSetup.tryLabel', { id: props.id, length: mmss(ms) })}
       style={({ pressed }) => [styles.tryRow, props.on && { borderColor: C.primary }, pressed && ps.pressed]}>
-      <Pressable onPress={play} accessibilityRole="button" accessibilityLabel={playLabel}
+      <Pressable onPress={play.onPress} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.tryPlay, pressed && ps.pressed]}>
         <Ico name={props.playing ? 'pause' : 'play'} size={24} color={C.white} strokeWidth={2.6} fill={C.white} />
+        <HelpBadge spot={play} />
       </Pressable>
       <Text style={[styles.tryName, { flex: 1 }]}>{name} <Text style={styles.tryLength}>· {mmss(ms)}</Text></Text>
       <View style={[styles.radio, props.on && { borderColor: C.primary }]}>{props.on ? <View style={styles.radioDot} /> : null}</View>
+      <HelpBadge spot={pick} />
     </Pressable>
   );
 }
@@ -364,14 +368,15 @@ function Bars() {
 }
 
 function PauseChip(props: { label: string; dots: number; on: boolean; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, t('recording.micSetup.pauseHelp'), props.onPress);
+  const spot = useHelpSpot(props.label, t('recording.micSetup.pauseHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.pause, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && ps.pressed]}>
       <View style={{ flexDirection: 'row', gap: 5 }}>
         {Array.from({ length: props.dots }, (_, i) => <View key={i} style={[styles.pauseDot, { backgroundColor: props.on ? C.white : C.primary }]} />)}
       </View>
       <Text style={[txt.xsStrong, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

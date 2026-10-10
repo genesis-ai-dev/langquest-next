@@ -1105,8 +1105,7 @@
     },
     "help": {
       "turnOff": "Zima msaada",
-      "turnOn": "Msaada: eleza skrini hii",
-      "isOn": "Msaada umewashwa. Gusa chochote usikie kinachofanya."
+      "turnOn": "Msaada: eleza skrini hii"
     },
     "checklist": {
       "answered": "Limejibiwa. Gusa ili kulibadilisha.",
@@ -3738,35 +3737,13 @@
   "help": {
     "explainScreen": "Msaada: eleza skrini hii",
     "turnOff": "Zima msaada",
-    "banner": "Msaada umewashwa. Gusa chochote usikie kinachofanya.",
-    "gotIt": "Nimeelewa",
-    "nextPart": "Sehemu inayofuata",
+    "listen": "Sikiliza",
+    "stop": "Acha",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
-    "card": {
-      "partPlaying": "{{part, number}} kati ya {{total, number}} · inacheza",
-      "quoted": "“{{text}}”"
-    },
-    "intro": {
-      "playing": "Inacheza: “{{text}}”",
-      "explain": "Mara ya kwanza unapofungua skrini, LangQuest inasema ni ya nini. Gusa ? wakati wowote kusikia tena na kuona kila sehemu inafanya nini.",
-      "showParts": "Nionyeshe sehemu"
-    },
     "details": {
       "primary": "Jambo kuu la kufanya kwenye skrini hii.",
       "quiet": "Njia nyingine ya kuendelea, haihitajiki mara nyingi."
-    },
-    "intros": {
-      "myWork": "Hii ni kazi yako. Kadi kubwa ni unachofanya baadaye: gusa Anza ili kuanza.",
-      "passageRecord": "Hiki ni kifungu chako. Hatua zinaenda kutoka juu hadi chini. Kitufe kikubwa chini ni hatua yako inayofuata.",
-      "workspace": "Hapa ndipo unaporekodi. Kinachokusaidia kiko juu, rekodi yako iko chini. Gusa kitufe chekundu ili kuzungumza, na ukiguse tena ili kuacha.",
-      "reviewCapture": "Hapa unakagua rekodi. Sikiliza kwanza, kisha jibu maswali, kisha sema kama iko wazi.",
-      "backTranslation": "Hapa unasema rekodi tena katika lugha nyingine, sehemu moja baada ya nyingine.",
-      "studyGuide": "Huu ni mwongozo wa kujifunza. Pitieni kila hatua pamoja kabla ya kurekodi.",
-      "studyStep": "Hii ni hatua moja ya mwongozo wa kujifunza. Isikilize, mzungumze kuihusu, kisha gusa Nimemaliza hatua hii.",
-      "mapHome": "Hivi ni vifungu vyote. Tafuta kimoja, au gusa Kinachofuata ili kuendelea na kazi yako.",
-      "settingsHome": "Hii inakuhusu wewe: jina lako, maikrofoni, na jinsi LangQuest inavyofanya kazi.",
-      "getReady": "Jibu maswali manne ili kuandaa lugha kwa ajili ya watafsiri."
     }
   },
   "offline": {

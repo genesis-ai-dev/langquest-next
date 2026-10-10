@@ -27,7 +27,8 @@ import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
 import { OfflineCard, useOfflineSummary } from '../offline';
 import { offlineCount, moreSettingsSub } from '../simple/meModel';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { diagnosticsEnabled, setDiagnosticsEnabled } from '../diagnostics';
 import { groupReports, reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation';
 import { openReports } from '../moderationData';
@@ -407,11 +408,12 @@ export function SettingsHome(ctx: Ctx) {
 
 /** A red line of text for leaving (Sign out): plain, centred, 56pt, never louder than the card above it. */
 function DangerLink(props: { label: string; onPress: () => void }) {
-  const onPress = useHelpPress(props.label, t('account.me.signOutHelp'), props.onPress);
+  const spot = useHelpSpot(props.label, t('account.me.signOutHelp'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
       style={({ pressed }) => [styles.dangerLink, pressed && { opacity: 0.7 }]}>
       <Text style={styles.dangerText}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

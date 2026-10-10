@@ -11,7 +11,8 @@ import { Text } from './text';
 import { audioFormat } from './audioClip';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from './audioSession';
 import type { ListenHooks } from './recording/useListenLoop';
-import { useHelpPress } from './helpContext';
+import { useHelpSpot } from './helpContext';
+import { HelpBadge } from './helpBadge';
 import { t } from './i18n';
 import { formatClock, formatNumber } from './i18n/format';
 import { Ico, txt } from './kit';
@@ -229,9 +230,9 @@ export function ClipPlayer(props: {
     await playFrom(i, within, run);
   }
 
-  const back10 = useHelpPress(t('common.backTenSeconds'), t('recording.player.back10Help'), () => void seekTo(elapsed - 10));
-  const note = useHelpPress(t('recording.player.note'), t('recording.player.noteHelp'), props.onNote ? () => { halt(); props.onNote?.(elapsed); } : undefined);
-  const play = useHelpPress(playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), t('recording.player.playHelp'), () => void toggle());
+  const back10 = useHelpSpot(t('common.backTenSeconds'), t('recording.player.back10Help'), () => void seekTo(elapsed - 10));
+  const note = useHelpSpot(t('recording.player.note'), t('recording.player.noteHelp'), props.onNote ? () => { halt(); props.onNote?.(elapsed); } : undefined);
+  const play = useHelpSpot(playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }), t('recording.player.playHelp'), () => void toggle());
 
   // The timeline: tap anywhere, or drag the thumb.
   const width = useRef(1);
@@ -268,21 +269,24 @@ export function ClipPlayer(props: {
       </View>
       <View style={styles.controls}>
         <Text style={[txt.xs, styles.time]}>{clock(elapsed)}</Text>
-        <Pressable onPress={back10} disabled={!available || props.disabled} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
+        <Pressable onPress={back10.onPress} disabled={!available || props.disabled} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
           style={({ pressed }) => [styles.side, pressed && styles.pressed, (!available || props.disabled) && styles.off]}>
           <Ico name="restart" size={20} color={C.dark} />
           <Text style={styles.sideLabel}>{formatNumber(10)}</Text>
+          <HelpBadge spot={back10} />
         </Pressable>
-        <Pressable onPress={play} disabled={!available || props.disabled} accessibilityRole="button"
+        <Pressable onPress={play.onPress} disabled={!available || props.disabled} accessibilityRole="button"
           accessibilityLabel={available ? playing ? t('common.pause') : t('recording.player.playTitle', { title: props.title }) : t('recording.player.notOnDevice')}
           style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: available ? tone : C.faint, alignItems: 'center', justifyContent: 'center' }, pressed && styles.pressed]}>
           <Ico name={available ? playing ? 'pause' : 'play' : 'download'} size={Math.round(size * 0.4)} color={C.white} />
+          <HelpBadge spot={play} />
         </Pressable>
         {props.onNote ? (
-          <Pressable onPress={note} accessibilityRole="button" accessibilityLabel={t('recording.player.addNoteAtMoment')}
+          <Pressable onPress={note.onPress} accessibilityRole="button" accessibilityLabel={t('recording.player.addNoteAtMoment')}
             style={({ pressed }) => [styles.side, pressed && styles.pressed]}>
             <Ico name="chat" size={18} color={TINT.amberText} />
             <Text style={[styles.sideLabel, { color: TINT.amberText }]}>{t('recording.player.note')}</Text>
+            <HelpBadge spot={note} />
           </Pressable>
         ) : <View style={{ width: 52 }} />}
         <Text style={[txt.xs, styles.time, { textAlign: 'right' }]}>{clock(total)}</Text>

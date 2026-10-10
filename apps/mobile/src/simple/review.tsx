@@ -7,7 +7,7 @@
 // with a Bible picker, Back 10 s and Note (a note on the verse playing), and
 // the passage's verses with the team's notes marked in amber with their
 // author. Built from kit.tsx and theme tokens; every press goes through the
-// kit or useHelpPress so help mode explains it.
+// kit or useHelpSpot (with its HelpBadge) so help mode explains it.
 import {
   commands, usedOn,
   type KeyTermView, type KindDef, type PassageNote, type ReviewView, type SourcedQuestion
@@ -19,7 +19,8 @@ import { Text } from '../text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge, HelpClip } from '../helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
@@ -57,11 +58,11 @@ export function StepStrip(props: { stages: Stage[]; at: number; onGo: (id: Stage
 
 function StripStep(props: { stage: Stage; index: number; count: number; done: boolean; current: boolean; onGo: (id: StageId) => void }) {
   const { stage, done, current } = props;
-  const press = useHelpPress(stage.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: props.index + 1, total: props.count }), () => props.onGo(stage.id));
+  const spot = useHelpSpot(stage.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: props.index + 1, total: props.count }), () => props.onGo(stage.id));
   const icon: IconName = done ? 'check' : stage.icon === 'help' ? 'help' : stage.icon;
   const fg = done ? TINT.greenText : current ? C.primary : C.muted;
   return (
-    <Pressable onPress={press} disabled={!done} accessibilityRole="button"
+    <Pressable onPress={spot.onPress} disabled={!done} accessibilityRole="button"
       accessibilityLabel={done ? t('review.simple.stepDone', { stage: stage.label }) : t('review.simple.stepA11y', { stage: stage.label, index: props.index + 1, total: props.count })}
       accessibilityState={{ selected: current, disabled: !done }}
       style={({ pressed }) => [styles.step, pressed && styles.pressed]}>
@@ -69,6 +70,7 @@ function StripStep(props: { stage: Stage; index: number; count: number; done: bo
         <Ico name={icon} size={20} color={done || current ? C.white : C.muted} strokeWidth={done ? 3 : 2.2} />
       </View>
       <Text style={[styles.stepLabel, { color: fg }]} numberOfLines={1}>{stage.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -107,9 +109,9 @@ export function QuestionCard(props: { question: SourcedQuestion; asker?: string 
 /** One of the two big Decide cards: Looks good (green) or Needs changes (amber). */
 export function DecideCard(props: { tone: 'green' | 'amber'; label: string; icon: IconName; onPress: () => void; busy?: boolean; disabled?: boolean }) {
   const green = props.tone === 'green';
-  const press = useHelpPress(props.label, green ? t('review.simple.looksGoodHelp') : t('review.simple.needsChangesHelp'), props.onPress);
+  const spot = useHelpSpot(props.label, green ? t('review.simple.looksGoodHelp') : t('review.simple.needsChangesHelp'), props.onPress);
   return (
-    <Pressable onPress={press} disabled={props.disabled || props.busy} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled || props.busy} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled, busy: !!props.busy }}
       style={({ pressed }) => [styles.decide, green ? { backgroundColor: TINT.green, borderColor: C.green } : { backgroundColor: TINT.amber, borderColor: C.amber },
         props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
@@ -117,6 +119,7 @@ export function DecideCard(props: { tone: 'green' | 'amber'; label: string; icon
         <Ico name={props.icon} size={40} color={C.white} strokeWidth={green ? 3 : 2.4} />
       </View>
       <Text style={[styles.decideLabel, { color: green ? TINT.greenText : TINT.amberText }]}>{props.busy ? t('common.saving') : props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -273,16 +276,16 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
     return out;
   }, [v.p.notes]);
 
-  const back = useHelpPress(t('common.backTenSeconds'), t('review.simple.backHelp'), () => player.skip(-10));
-  const play = useHelpPress(player.playing ? t('common.pause') : t('review.simple.playPassage'), t('review.simple.playHelp'), player.toggle);
+  const back = useHelpSpot(t('common.backTenSeconds'), t('review.simple.backHelp'), () => player.skip(-10));
+  const play = useHelpSpot(player.playing ? t('common.pause') : t('review.simple.playPassage'), t('review.simple.playHelp'), player.toggle);
   const rows = src?.rows ?? [];
   const noteHere = () => {
     player.pause();
     const row = player.current ?? rows.find((x) => x.key === picked) ?? rows[0];
     if (row) setNoting({ verse: row.key, at: player.started ? clockMs(player.ms) : '' });
   };
-  const note = useHelpPress(t('review.simple.note'), t('review.simple.noteHelp'), noteHere);
-  const pick = useHelpPress(t('review.simple.chooseBible'), t('review.simple.chooseBibleHelp'), () => setPicking((x) => !x));
+  const note = useHelpSpot(t('review.simple.note'), t('review.simple.noteHelp'), noteHere);
+  const pick = useHelpSpot(t('review.simple.chooseBible'), t('review.simple.chooseBibleHelp'), () => setPicking((x) => !x));
 
   if (!passage.range) {
     return <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noVerses')}</Text>;
@@ -307,10 +310,11 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
             </Text>
           </View>
           {(
-            <Pressable onPress={pick} accessibilityRole="button" accessibilityLabel={option ? t('review.simple.chooseBibleNow', { bible: option.name }) : t('review.simple.chooseBible')}
+            <Pressable onPress={pick.onPress} accessibilityRole="button" accessibilityLabel={option ? t('review.simple.chooseBibleNow', { bible: option.name }) : t('review.simple.chooseBible')}
               accessibilityState={{ expanded: picking }} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
               <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]} numberOfLines={1}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
               <Ico name={picking ? 'up' : 'down'} size={18} color={TINT.amberText} strokeWidth={2.6} />
+              <HelpBadge spot={pick} />
             </Pressable>
           )}
         </View>
@@ -335,20 +339,23 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
             </View>
             <View style={styles.controls}>
               <Text style={[txt.xs, styles.time]}>{formatClock(elapsed)}</Text>
-              <Pressable onPress={back} disabled={!player.started} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
+              <Pressable onPress={back.onPress} disabled={!player.started} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
                 style={({ pressed }) => [styles.side, !player.started && styles.off, pressed && styles.pressed]}>
                 <Ico name="restart" size={20} color={C.dark} />
                 <Text style={styles.sideLabel}>{formatNumber(10)}</Text>
+                <HelpBadge spot={back} />
               </Pressable>
-              <Pressable onPress={play} disabled={!canPlay} accessibilityRole="button"
+              <Pressable onPress={play.onPress} disabled={!canPlay} accessibilityRole="button"
                 accessibilityLabel={plan ? player.playing ? t('common.pause') : t('review.simple.playTitleIn', { title: v.title, bible: option.abbreviation }) : t('review.simple.noAudioIn', { bible: option.abbreviation })}
                 style={({ pressed }) => [styles.play, !plan && { backgroundColor: C.faint }, pressed && styles.pressed]}>
                 <Ico name={player.playing ? 'pause' : 'play'} size={24} color={C.white} />
+                <HelpBadge spot={play} />
               </Pressable>
-              <Pressable onPress={note} disabled={rows.length === 0} accessibilityRole="button" accessibilityLabel={t('review.simple.noteOnPlaying')}
+              <Pressable onPress={note.onPress} disabled={rows.length === 0} accessibilityRole="button" accessibilityLabel={t('review.simple.noteOnPlaying')}
                 style={({ pressed }) => [styles.side, rows.length === 0 && styles.off, pressed && styles.pressed]}>
                 <Ico name="chat" size={18} color={TINT.amberText} />
                 <Text style={[styles.sideLabel, { color: TINT.amberText }]}>{t('review.simple.note')}</Text>
+                <HelpBadge spot={note} />
               </Pressable>
               <Text style={[txt.xs, styles.time, { textAlign: 'right' }]}>{total ? formatClock(total) : ''}</Text>
             </View>
@@ -492,22 +499,24 @@ export function BigChoices(props: { type: 'rating' | 'yesno'; value: string | un
 }
 
 function BigChoice(props: { label: string; icon?: IconName; on: boolean; tall?: boolean; onPress: () => void }) {
-  const press = useHelpPress(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
+  const spot = useHelpSpot(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
-    <Pressable onPress={press} accessibilityRole="radio" accessibilityState={{ checked: props.on }} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.tall && { minHeight: 112 }, props.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={30} color={props.on ? C.white : C.primary} strokeWidth={2.6} /> : null}
       <Text style={[styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 /** "Skip": small beside the main button, so it is there without competing. */
 export function SkipBtn(props: { onPress: () => void }) {
-  const press = useHelpPress(t('review.simple.skip'), t('review.simple.skipHelp'), props.onPress);
+  const spot = useHelpSpot(t('review.simple.skip'), t('review.simple.skipHelp'), props.onPress);
   return (
-    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={t('review.simple.skipA11y')} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('review.simple.skipA11y')} style={({ pressed }) => [styles.skip, pressed && styles.pressed]}>
       <Text style={[txt.body, { fontWeight: '700' }]}>{t('review.simple.skip')}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -526,7 +535,9 @@ export function TallSheet(props: { title: string; onClose: () => void; children:
             <Text style={styles.tallTitle} accessibilityRole="header">{props.title}</Text>
             <IconBtn name="close" label={t('common.close')} onPress={props.onClose} bg={C.bg} color={C.muted} />
           </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tallBody} keyboardShouldPersistTaps="handled">{props.children}</ScrollView>
+          <HelpClip style={{ flex: 1 }}>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.tallBody} keyboardShouldPersistTaps="handled">{props.children}</ScrollView>
+          </HelpClip>
         </View>
       </View>
     </Modal>

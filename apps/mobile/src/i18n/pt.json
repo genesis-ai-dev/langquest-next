@@ -1134,8 +1134,7 @@
     },
     "help": {
       "turnOff": "Desligar a ajuda",
-      "turnOn": "Ajuda: explicar esta tela",
-      "isOn": "A ajuda está ligada. Toque em qualquer coisa para ouvir o que ela faz."
+      "turnOn": "Ajuda: explicar esta tela"
     },
     "checklist": {
       "answered": "Respondida. Toque para mudar.",
@@ -3865,35 +3864,13 @@
   "help": {
     "explainScreen": "Ajuda: explicar esta tela",
     "turnOff": "Desligar a ajuda",
-    "banner": "A ajuda está ligada. Toque em qualquer coisa para ouvir o que ela faz.",
-    "gotIt": "Entendi",
-    "nextPart": "Próxima parte",
+    "listen": "Ouvir",
+    "stop": "Parar",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
-    "card": {
-      "partPlaying": "{{part, number}} de {{total, number}} · tocando",
-      "quoted": "“{{text}}”"
-    },
-    "intro": {
-      "playing": "Tocando: “{{text}}”",
-      "explain": "Na primeira vez que você abre uma tela, o LangQuest diz para que ela serve. Toque em ? a qualquer momento para ouvir de novo e ver o que cada parte faz.",
-      "showParts": "Mostrar as partes"
-    },
     "details": {
       "primary": "A principal coisa a fazer nesta tela.",
       "quiet": "Outro caminho, usado com menos frequência."
-    },
-    "intros": {
-      "myWork": "Este é o seu trabalho. O cartão grande é o que fazer agora: toque em Começar para iniciar.",
-      "passageRecord": "Esta é a sua passagem. As etapas vão de cima para baixo. O botão grande lá embaixo é a sua próxima etapa.",
-      "workspace": "Aqui você grava. O que ajuda você fica em cima, a sua gravação fica embaixo. Toque no botão vermelho para falar e toque de novo para parar.",
-      "reviewCapture": "Aqui você verifica uma gravação. Primeiro ouça, depois responda às perguntas e então diga se está claro.",
-      "backTranslation": "Aqui você fala a gravação de novo no outro idioma, uma parte de cada vez.",
-      "studyGuide": "Este é o guia de estudo. Passem juntos por cada etapa antes de gravar.",
-      "studyStep": "Esta é uma etapa do guia de estudo. Ouçam, conversem sobre ela e depois toquem em Terminei esta etapa.",
-      "mapHome": "Estas são todas as passagens. Encontre uma ou toque em Próximo para continuar o seu trabalho.",
-      "settingsHome": "Isto é sobre você: o seu nome, o microfone e como o LangQuest funciona.",
-      "getReady": "Responda a quatro perguntas para deixar o idioma pronto para os tradutores."
     }
   },
   "offline": {

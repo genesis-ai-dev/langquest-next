@@ -1105,8 +1105,7 @@
     },
     "help": {
       "turnOff": "Kashe taimako",
-      "turnOn": "Taimako: bayyana wannan shafi",
-      "isOn": "Taimako yana kunne. Taɓa komai don jin abin da yake yi."
+      "turnOn": "Taimako: bayyana wannan shafi"
     },
     "checklist": {
       "answered": "An amsa. Taɓa don canja shi.",
@@ -3738,35 +3737,13 @@
   "help": {
     "explainScreen": "Taimako: bayyana wannan shafi",
     "turnOff": "Kashe taimako",
-    "banner": "Taimako yana kunne. Taɓa komai don jin abin da yake yi.",
-    "gotIt": "Na gane",
-    "nextPart": "Sashe na gaba",
+    "listen": "Saurara",
+    "stop": "Tsaya",
     "line": "{{label}}. {{detail}}",
     "lineAfterSentence": "{{label}} {{detail}}",
-    "card": {
-      "partPlaying": "{{part, number}} cikin {{total, number}} · ana kunnawa",
-      "quoted": "“{{text}}”"
-    },
-    "intro": {
-      "playing": "Ana kunnawa: “{{text}}”",
-      "explain": "Duk lokacin da kuka fara buɗe wani shafi, LangQuest zai faɗi amfaninsa. Taɓa ? a kowane lokaci don sake ji da ganin abin da kowane sashe yake yi.",
-      "showParts": "Nuna mini sassan"
-    },
     "details": {
       "primary": "Babban abin da za a yi a wannan shafi.",
       "quiet": "Wata hanyar ci gaba, ba a cika buƙatarta ba."
-    },
-    "intros": {
-      "myWork": "Wannan shi ne aikinku. Babban katin shi ne abin da za ku yi na gaba: taɓa Fara don farawa.",
-      "passageRecord": "Wannan shi ne nassinku. Matakan suna farawa daga sama zuwa ƙasa. Babban maɓallin da ke ƙasa shi ne matakinku na gaba.",
-      "workspace": "A nan ne kuke naɗawa. Abin da zai taimake ku yana sama, naɗinku yana ƙasa. Taɓa jan maɓalli don yin magana, ku sake taɓa shi don tsayawa.",
-      "reviewCapture": "A nan kuke duba naɗi. Ku fara saurara, sannan ku amsa tambayoyin, sannan ku faɗi ko yana da sauƙin fahimta.",
-      "backTranslation": "A nan kuke sake faɗin naɗin a ɗayan harshen, sashe bayan sashe.",
-      "studyGuide": "Wannan ita ce jagorar nazari. Ku bi kowane mataki tare kafin ku naɗa.",
-      "studyStep": "Wannan mataki ɗaya ne na jagorar nazari. Ku saurare shi, ku tattauna shi, sannan ku taɓa An gama da wannan mataki.",
-      "mapHome": "Waɗannan su ne dukan nassosin. Ku nemi ɗaya, ko ku taɓa Gaba don ci gaba da aikinku.",
-      "settingsHome": "Wannan game da ku ne: sunanku, makirufo, da yadda LangQuest yake aiki.",
-      "getReady": "Ku amsa tambayoyi huɗu don shirya harshen domin masu fassara."
     }
   },
   "offline": {

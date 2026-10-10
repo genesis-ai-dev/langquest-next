@@ -1,5 +1,5 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
-import { HelpModeProvider, useScreenIntro } from './src/helpMode';
+import { HelpModeProvider } from './src/helpMode';
 import { keepHelpAudio } from './src/helpAudio';
 import { languageReady, onLanguageReady } from './src/i18n/start';
 import { HelpScopeContext } from './src/helpContext';
@@ -141,9 +141,7 @@ function hostFor(id: ScreenId) {
   const Screen = SCREENS[id];
   function Host(props: HostProps) {
     const ctx = useContext(CtxContext);
-    // What the screen is for, said the first time it opens (decision 71, demo a-helpFirst).
     const focused = useFocusedSafe();
-    useScreenIntro(id, focused);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;

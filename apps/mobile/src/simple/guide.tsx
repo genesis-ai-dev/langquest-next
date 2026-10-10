@@ -10,7 +10,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../text';
 import type { Ctx } from '../ctx';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { t } from '../i18n';
 import { Ico, SmallBtn, txt, type IconName } from '../kit';
 import type { PassageView } from '../passageView';
@@ -173,7 +174,7 @@ function SectionView(props: {
   const links = inlineParts(sec.text).flatMap((p) => (p.type === 'link' ? [p] : []));
   const media = links.map((l) => props.resources.find((r) => r.ref === l.ref)).filter((r): r is StudyResource => !!r && r.kind !== 'term');
   const inline = <Inline text={sec.text} resources={props.resources} onOpenRef={props.onOpenRef} />;
-  const select = useHelpPress(question ? t('study.guide.help.question') : t('study.guide.help.part'),
+  const select = useHelpSpot(question ? t('study.guide.help.question') : t('study.guide.help.part'),
     props.canContribute ? (question ? t('study.guide.help.tapToAnswer') : t('study.guide.help.tapToNote')) : undefined, props.onSelect);
   const body = isCallout(sec.kind) ? (
     <Callout {...CALLOUTS[sec.kind]} label={calloutLabel(sec.kind)}>{inline}</Callout>
@@ -185,10 +186,11 @@ function SectionView(props: {
   ) : sec.kind === 'heading' ? <Text style={txt.h3}>{inline}</Text> : <Text style={styles.reading}>{inline}</Text>;
   return (
     <View style={{ gap: space.sm }}>
-      <Pressable disabled={!props.canContribute} onPress={select} accessibilityRole={props.canContribute ? 'button' : undefined}
+      <Pressable disabled={!props.canContribute} onPress={select.onPress} accessibilityRole={props.canContribute ? 'button' : undefined}
         accessibilityState={{ selected: props.selected }} style={[styles.section, props.selected && styles.sectionOn]}>
         {body}
         {props.notes.length > 0 && !props.selected ? <View style={styles.count}><Text style={styles.countText}>{props.notes.length}</Text></View> : null}
+        <HelpBadge spot={select} />
       </Pressable>
       {props.selected && props.canContribute ? (
         <View style={{ flexDirection: 'row' }}>
@@ -206,16 +208,17 @@ function MediaCard(props: { resource: StudyResource; orgId: string | null; onPre
   const first = props.resource.media?.[0];
   const { uri } = useStudyFileUri(props.orgId, first?.file, first?.url);
   const [failed, setFailed] = useState(false);
-  const onPress = useHelpPress(props.resource.title, t('study.guide.help.picture'), props.onPress);
+  const spot = useHelpSpot(props.resource.title, t('study.guide.help.picture'), props.onPress);
   const picture = uri && !failed && first?.kind !== 'video';
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('study.guide.picture', { title: props.resource.title })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('study.guide.picture', { title: props.resource.title })}
       style={({ pressed }) => [styles.media, pressed && ps.pressed]}>
       <View style={styles.thumb}>
         {picture ? <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setFailed(true)} />
           : <Ico name={props.resource.kind === 'map' ? 'map' : first?.kind === 'video' ? 'video' : 'media'} size={26} color={C.faint} />}
       </View>
       <Text style={[txt.body, { flex: 1, fontWeight: '700' }]} numberOfLines={2}>{props.resource.title}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }

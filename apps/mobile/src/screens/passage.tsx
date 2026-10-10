@@ -37,7 +37,8 @@ import { PassagePath } from '../passage/path';
 import { VersionsPage } from '../passage/versions';
 import { pathSteps, teamSteps, type PathInput, type PathStep, type TeamStep } from '../passage/pathModel';
 import { clipSeconds, clock as clockOf } from '../clipPlayer';
-import { useHelpPress } from '../helpContext';
+import { useHelpSpot } from '../helpContext';
+import { HelpBadge } from '../helpBadge';
 import { requestIsMine, sendToInput, teamNameIn, usualTargetFor, type UsualTarget } from '../passage/sendTarget';
 import {
   commaList, dueText, dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, usePassage, versionTitle, viaText, when, type PassageView
@@ -593,11 +594,12 @@ function BigOption(props: { icon: IconName; label: string; sub: string; onPress:
 }
 
 function SmallOption(props: { icon: IconName; label: string; onPress: () => void }) {
-  const press = useHelpPress(props.label, undefined, props.onPress);
+  const spot = useHelpSpot(props.label, undefined, props.onPress);
   return (
-    <Pressable onPress={press} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
+    <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.tile, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={20} color={props.icon === 'chat' ? TINT.amberText : C.primary} />
       <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
