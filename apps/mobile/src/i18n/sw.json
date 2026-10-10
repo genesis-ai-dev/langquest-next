@@ -1161,7 +1161,8 @@
       "useThis": "Tumia hiki",
       "keepIt": "Kiache",
       "whichPart": "Sehemu ipi ya Biblia?",
-      "viewOnly": "Watu wanaoandaa lugha tu ndio wanaweza kubadilisha wanachotafsiri."
+      "viewOnly": "Watu wanaoandaa lugha tu ndio wanaweza kubadilisha wanachotafsiri.",
+      "keepEarlier": "Vipande visivyobadilika vinabaki na rekodi zake. Kilichorekodiwa kwenye kipande kinachobadilika kinahifadhiwa chini ya \"Sehemu za awali\" kwenye vipande vipya."
     },
     "media": {
       "both": "Sauti na maandishi",
@@ -1617,7 +1618,12 @@
     },
     "redo": {
       "changeAnyway": "Badilisha hata hivyo",
-      "keep": "Kiache kama kilivyo"
+      "keep": "Kiache kama kilivyo",
+      "titleNumbering": "Baadhi ya sehemu zitabadilika",
+      "titleBook": "{{book}} kitagawanywa upya",
+      "bodyNumbering": "Kila kilichorekodiwa na kukaguliwa kwenye sehemu zinazobadilika kinahamia \"Sehemu za awali\" chini ya zile mpya, kikiwa na alama ya tahadhari, na kitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa.",
+      "bodyBook": "Kila kilichorekodiwa na kukaguliwa kwenye sehemu za zamani za {{book}} kinahamia \"Sehemu za awali\" chini ya zile mpya, kikiwa na alama ya tahadhari, na kitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa.",
+      "nothingDeleted": "Hakuna kinachofutwa."
     },
     "numbering": {
       "ignore": "Sawa, puuza",
@@ -1670,11 +1676,138 @@
       "ourOwn": "Za shirika lako mwenyewe",
       "noneReady": "Bado hakuna zilizotengenezwa tayari kwa hili. Tengeneza zako: folda za jinsi kinavyopangwa, na vitu ambavyo watu wanarekodi ndani yake.",
       "makeOwn": "Tengeneza yako mwenyewe",
-      "makeOwnDetail": "Folda, na cha kurekodi ndani yake."
+      "makeOwnDetail": "Folda, na cha kurekodi ndani yake.",
+      "elseKinds": "Hadithi, nyimbo, masomo"
     },
     "errors": {
       "noTemplate": "Lugha hii bado haina kiolezo.",
       "versificationMissing": "Mpangilio wake wa mistari bado haupo kwenye kifaa hiki. Jaribu tena ukiunganishwa."
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "Namba kama Biblia nyingi za Kiingereza",
+        "org": "Namba kama Kiebrania na Kigiriki",
+        "vul": "Namba kama Vulgata ya Kilatini",
+        "russian": "Namba kama Biblia ya Sinodi ya Kirusi"
+      },
+      "note_one": "Sehemu ya awali. Migawanyo ilibadilika baada ya hii kurekodiwa. Imehifadhiwa ili iweze kusikilizwa; mistari yake inarekodiwa tena katika sehemu iliyo hapa chini.",
+      "note_other": "Sehemu ya awali. Migawanyo ilibadilika baada ya hii kurekodiwa. Imehifadhiwa ili iweze kusikilizwa; mistari yake inarekodiwa tena katika sehemu zilizo hapa chini.",
+      "noteHow_one": "Sehemu ya awali ({{how}}). Migawanyo ilibadilika baada ya hii kurekodiwa. Imehifadhiwa ili iweze kusikilizwa; mistari yake inarekodiwa tena katika sehemu iliyo hapa chini.",
+      "noteHow_other": "Sehemu ya awali ({{how}}). Migawanyo ilibadilika baada ya hii kurekodiwa. Imehifadhiwa ili iweze kusikilizwa; mistari yake inarekodiwa tena katika sehemu zilizo hapa chini.",
+      "whereNow": "Mistari hii iko wapi sasa",
+      "changedMark": "Migawanyo imebadilika tangu hii iliporekodiwa",
+      "changedHere": "Migawanyo imebadilika tangu sehemu ya hii iliporekodiwa. Kazi ya awali imehifadhiwa hapa chini; inahitaji kufanywa upya hapa.",
+      "title": "Sehemu za awali",
+      "anEarlier": "Sehemu ya awali",
+      "row": "{{how}} · {{versions}}",
+      "versions_one": "toleo {{count, number}}",
+      "versions_other": "matoleo {{count, number}}",
+      "openOne": "Fungua moja ili usikilize kilichorekodiwa na kukaguliwa juu yake."
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_one": "Kitabu {{count, number}}",
+        "booksCount_other": "Vitabu {{count, number}}",
+        "books_one": "kitabu",
+        "books_other": "vitabu",
+        "malachiHas_one": "{{book}} ina sura {{count, number}}",
+        "malachiHas_other": "{{book}} ina sura {{count, number}}",
+        "chapters_one": "Sura {{count, number}}",
+        "chapters_other": "Sura {{count, number}}",
+        "headingsNumbered": "Vichwa vya zaburi ni mstari wa 1",
+        "headingsUnnumbered": "Vichwa vya zaburi havina namba",
+        "headings": "Vichwa vya zaburi",
+        "verseOne": "mstari wa 1",
+        "noNumber": "hakuna namba"
+      },
+      "psalm3": {
+        "title": "Zaburi 3",
+        "heading": "Zaburi ya Daudi",
+        "firstLine": "Bwana, watesi wangu wamezidi kuwa wengi namna gani!"
+      },
+      "find": {
+        "question": "Unatafsiri kutoka Biblia ipi?",
+        "placeholder": "NIV, Reina-Valera, Luther…",
+        "showAll_one": "Onyesha yote {{count, number}}",
+        "showAll_other": "Onyesha zote {{count, number}}",
+        "notFound": "Haikupatikana.",
+        "quiz": "Haipo kwenye orodha? Jibu maswali machache"
+      },
+      "chooseFromList": "Chagua kutoka kwenye orodha",
+      "quiz": {
+        "step": "Swali {{n}}",
+        "quoted": "“{{text}}”",
+        "notSure": "Sina uhakika",
+        "psalm23": {
+          "title": "Ni zaburi ipi katika Biblia yako?",
+          "quote": "Bwana ndiye mchungaji wangu",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "Ipi inafanana na Zaburi 3 katika Biblia yako?",
+          "noNumber": "Kichwa hakina namba",
+          "verseOne": "Kichwa ni mstari wa 1"
+        },
+        "malachi": {
+          "title": "{{book}} ina sura ngapi?",
+          "small": "Kitabu cha mwisho cha Agano la Kale"
+        },
+        "romans16": {
+          "title": "{{book}} 16 inaishia na mstari…",
+          "verse": "Mstari {{n}}"
+        },
+        "extraBooks": {
+          "title": "Je, Biblia yako ina vitabu hivi?"
+        },
+        "church": {
+          "title": "Biblia yako ni ya kanisa gani?",
+          "slavic": "Kirusi au Kislavoni",
+          "greek": "Kigiriki au Orthodoksi nyingine",
+          "catholic": "Katoliki",
+          "protestant": "Kiprotestanti au kiinjili",
+          "slavicOrthodox": "Orthodoksi ya Kirusi au Kislavoni",
+          "ethiopian": "Orthodoksi ya Ethiopia au Eritrea",
+          "jewish": "Kiyahudi (Tanakh)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "Tobiti",
+        "judith": "Yudithi",
+        "maccabees": "Wamakabayo"
+      },
+      "list": {
+        "question": "Chagua mpangilio wa namba",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "Vichwa ni mstari wa 1",
+        "headingsUnnumbered": "Vichwa havina namba",
+        "connect": "Unganisha ili kupakia mipangilio ya namba."
+      },
+      "chosen": {
+        "like": "Kama {{bible}}",
+        "match": "Namba za mistari katika LangQuest zitalingana na Biblia yako.",
+        "another": "Chagua nyingine"
+      },
+      "context": {
+        "label": "Mpangilio wa namba",
+        "help": "Gusa ili kubadilisha mpangilio wa namba.",
+        "a11y": "Mpangilio wa namba: {{name}}. Badilisha",
+        "change": "Badilisha"
+      },
+      "notes": {
+        "mixes": "Biblia yako inachanganya mipangilio ya namba. Huu ndio ulio karibu zaidi.",
+        "notOffered": "Mpangilio wa namba wa Agano la Kale la Kigiriki bado haupatikani. Chagua ulio karibu zaidi kutoka kwenye orodha.",
+        "notSure": "Huna uhakika? Chagua kutoka kwenye orodha."
+      },
+      "bibleLanguages": {
+        "portuguese": "Kireno",
+        "chinese": "Kichina",
+        "german": "Kijerumani",
+        "russian": "Kirusi",
+        "greek": "Kigiriki",
+        "latin": "Kilatini",
+        "hebrew": "Kiebrania",
+        "korean": "Kikorea"
+      }
     }
   },
   "canon": {
@@ -3427,6 +3560,11 @@
       "everyLanguage": "Ona jinsi kila lugha inavyoendelea",
       "everything": "Kila kitu katika {{language}}",
       "help": "Kila kifungu, na kimefika wapi."
+    },
+    "divide": {
+      "title": "Gawa {{book}}",
+      "waiting_one": "Kinasubiri kugawanywa kabla mtu yeyote hajakirekodi",
+      "waiting_other": "Vitabu {{count, number}} vinasubiri kugawanywa kabla mtu yeyote hajavirekodi"
     }
   },
   "shell": {
@@ -4221,8 +4359,10 @@
       "keptSome_one": "sehemu {{kept}} kati ya {{count, number}} iko kwenye kifaa hiki",
       "keptSome_other": "sehemu {{kept}} kati ya {{count, number}} ziko kwenye kifaa hiki",
       "downloading": "{{kept}} (inapakua)",
-      "outsideFilter": "nje ya kichujio"
-    }
+      "outsideFilter": "nje ya kichujio",
+      "changedSinceRecorded": "migawanyo imebadilika tangu kurekodiwa"
+    },
+    "changedSinceRecorded": "Migawanyo imebadilika tangu kiliporekodiwa"
   },
   "reports": {
     "title": "Ripoti",

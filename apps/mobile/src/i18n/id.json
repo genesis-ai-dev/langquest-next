@@ -1131,7 +1131,8 @@
       "useThis": "Pakai ini",
       "keepIt": "Biarkan",
       "whichPart": "Bagian Alkitab yang mana?",
-      "viewOnly": "Hanya orang yang mengatur bahasa yang dapat mengubah apa yang diterjemahkan."
+      "viewOnly": "Hanya orang yang mengatur bahasa yang dapat mengubah apa yang diterjemahkan.",
+      "keepEarlier": "Potongan yang tetap sama mempertahankan rekamannya. Apa yang direkam pada potongan yang berubah disimpan di bawah \"Potongan sebelumnya\" pada potongan yang baru."
     },
     "media": {
       "both": "Audio dan teks",
@@ -1561,7 +1562,12 @@
     },
     "redo": {
       "changeAnyway": "Tetap ubah",
-      "keep": "Biarkan seperti sekarang"
+      "keep": "Biarkan seperti sekarang",
+      "titleNumbering": "Beberapa potongan akan berubah",
+      "titleBook": "{{book}} akan dibagi ulang",
+      "bodyNumbering": "Semua yang direkam dan diperiksa pada potongan yang berubah pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
+      "bodyBook": "Semua yang direkam dan diperiksa pada potongan lama {{book}} pindah ke \"Potongan sebelumnya\" di bawah potongan yang baru, diberi tanda peringatan, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron.",
+      "nothingDeleted": "Tidak ada yang dihapus."
     },
     "numbering": {
       "ignore": "Oke, abaikan",
@@ -1612,11 +1618,130 @@
       "ourOwn": "Milik organisasi Anda sendiri",
       "noneReady": "Belum ada yang siap pakai untuk ini. Buat sendiri: folder untuk cara penyusunannya, dan hal-hal yang direkam orang di dalamnya.",
       "makeOwn": "Buat sendiri",
-      "makeOwnDetail": "Folder, dan apa yang akan direkam di dalamnya."
+      "makeOwnDetail": "Folder, dan apa yang akan direkam di dalamnya.",
+      "elseKinds": "Cerita, lagu, pelajaran"
     },
     "errors": {
       "noTemplate": "Bahasa ini belum punya templat.",
       "versificationMissing": "Penomoran ayatnya belum ada di perangkat ini. Coba lagi saat terhubung."
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "Dinomori seperti kebanyakan Alkitab bahasa Inggris",
+        "org": "Dinomori seperti naskah Ibrani dan Yunani",
+        "vul": "Dinomori seperti Vulgata Latin",
+        "russian": "Dinomori seperti Alkitab Sinodal Rusia"
+      },
+      "note_other": "Potongan sebelumnya. Pembagiannya berubah setelah ini direkam. Potongan ini disimpan agar tetap bisa didengar; ayat-ayatnya direkam ulang di potongan-potongan di bawah.",
+      "noteHow_other": "Potongan sebelumnya ({{how}}). Pembagiannya berubah setelah ini direkam. Potongan ini disimpan agar tetap bisa didengar; ayat-ayatnya direkam ulang di potongan-potongan di bawah.",
+      "whereNow": "Di mana ayat-ayat ini sekarang",
+      "changedMark": "Pembagian berubah sejak ini direkam",
+      "changedHere": "Pembagian sudah berubah sejak sebagian dari ini direkam. Pekerjaan sebelumnya disimpan di bawah; perlu dikerjakan ulang di sini.",
+      "title": "Potongan sebelumnya",
+      "anEarlier": "Sebuah potongan sebelumnya",
+      "row": "{{how}} · {{versions}}",
+      "versions_other": "{{count, number}} versi",
+      "openOne": "Buka salah satunya untuk mendengar apa yang direkam dan diperiksa di sana."
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_other": "{{count, number}} kitab",
+        "books_other": "kitab",
+        "malachiHas_other": "{{book}} punya {{count, number}} pasal",
+        "chapters_other": "{{count, number}} pasal",
+        "headingsNumbered": "Judul mazmur adalah ayat 1",
+        "headingsUnnumbered": "Judul mazmur tidak bernomor",
+        "headings": "Judul mazmur",
+        "verseOne": "ayat 1",
+        "noNumber": "tanpa nomor"
+      },
+      "psalm3": {
+        "title": "Mazmur 3",
+        "heading": "Mazmur Daud",
+        "firstLine": "Ya TUHAN, betapa banyaknya lawanku!"
+      },
+      "find": {
+        "question": "Dari Alkitab mana Anda menerjemahkan?",
+        "placeholder": "TB, BIS, NIV…",
+        "showAll_other": "Tampilkan semua {{count, number}}",
+        "notFound": "Tidak ditemukan.",
+        "quiz": "Tidak ada di daftar? Jawab beberapa pertanyaan"
+      },
+      "chooseFromList": "Pilih dari daftar",
+      "quiz": {
+        "step": "Pertanyaan {{n}}",
+        "quoted": "“{{text}}”",
+        "notSure": "Tidak yakin",
+        "psalm23": {
+          "title": "Di mazmur mana ayat ini dalam Alkitab Anda?",
+          "quote": "TUHAN adalah gembalaku",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "Mana yang mirip Mazmur 3 dalam Alkitab Anda?",
+          "noNumber": "Judulnya tidak bernomor",
+          "verseOne": "Judulnya adalah ayat 1"
+        },
+        "malachi": {
+          "title": "Berapa pasal dalam kitab {{book}}?",
+          "small": "Kitab terakhir Perjanjian Lama"
+        },
+        "romans16": {
+          "title": "{{book}} 16 berakhir pada ayat…",
+          "verse": "Ayat {{n}}"
+        },
+        "extraBooks": {
+          "title": "Apakah Alkitab Anda punya kitab-kitab ini?"
+        },
+        "church": {
+          "title": "Dari gereja mana Alkitab Anda?",
+          "slavic": "Rusia atau Slavia",
+          "greek": "Yunani atau Ortodoks lain",
+          "catholic": "Katolik",
+          "protestant": "Protestan atau Injili",
+          "slavicOrthodox": "Ortodoks Rusia atau Slavia",
+          "ethiopian": "Ortodoks Etiopia atau Eritrea",
+          "jewish": "Yahudi (Tanakh)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "Tobit",
+        "judith": "Yudit",
+        "maccabees": "Makabe"
+      },
+      "list": {
+        "question": "Pilih penomorannya",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "Judul ayat 1",
+        "headingsUnnumbered": "Judul tanpa nomor",
+        "connect": "Sambungkan untuk memuat pilihan penomoran."
+      },
+      "chosen": {
+        "like": "Seperti {{bible}}",
+        "match": "Nomor ayat di LangQuest akan sama dengan Alkitab Anda.",
+        "another": "Pilih yang lain"
+      },
+      "context": {
+        "label": "Penomoran",
+        "help": "Ketuk untuk mengganti penomoran.",
+        "a11y": "Penomoran: {{name}}. Ganti",
+        "change": "Ganti"
+      },
+      "notes": {
+        "mixes": "Alkitab Anda mencampur beberapa penomoran. Ini yang paling mirip.",
+        "notOffered": "Penomoran Perjanjian Lama Yunani belum tersedia. Pilih yang paling mirip dari daftar.",
+        "notSure": "Tidak yakin? Pilih dari daftar."
+      },
+      "bibleLanguages": {
+        "portuguese": "Portugis",
+        "chinese": "Tionghoa",
+        "german": "Jerman",
+        "russian": "Rusia",
+        "greek": "Yunani",
+        "latin": "Latin",
+        "hebrew": "Ibrani",
+        "korean": "Korea"
+      }
     }
   },
   "canon": {
@@ -3310,6 +3435,10 @@
       "everyLanguage": "Lihat perkembangan setiap bahasa",
       "everything": "Semua dalam {{language}}",
       "help": "Setiap perikop, dan sejauh mana perkembangannya."
+    },
+    "divide": {
+      "title": "Bagi {{book}}",
+      "waiting_other": "{{count, number}} kitab menunggu dibagi sebelum ada yang merekamnya"
     }
   },
   "shell": {
@@ -4058,8 +4187,10 @@
       "kept": "disimpan di perangkat ini",
       "keptSome_other": "{{kept}} dari {{count, number}} bagian di perangkat ini",
       "downloading": "{{kept}} (sedang diunduh)",
-      "outsideFilter": "di luar saringan"
-    }
+      "outsideFilter": "di luar saringan",
+      "changedSinceRecorded": "pembagian berubah sejak direkam"
+    },
+    "changedSinceRecorded": "Pembagian berubah sejak perikop ini direkam"
   },
   "reports": {
     "title": "Laporan",

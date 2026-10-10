@@ -1191,7 +1191,8 @@
       "useThis": "Utiliser ceci",
       "keepIt": "Le garder",
       "whichPart": "Quelle partie de la Bible ?",
-      "viewOnly": "Seules les personnes qui configurent les langues peuvent changer ce qu’elles traduisent."
+      "viewOnly": "Seules les personnes qui configurent les langues peuvent changer ce qu’elles traduisent.",
+      "keepEarlier": "Les morceaux qui ne changent pas gardent leurs enregistrements. Ce qui a été enregistré sur un morceau qui change est gardé sous « Sections précédentes » dans les nouveaux morceaux."
     },
     "media": {
       "both": "Audio et texte",
@@ -1673,7 +1674,12 @@
     },
     "redo": {
       "changeAnyway": "Changer quand même",
-      "keep": "Le garder tel quel"
+      "keep": "Le garder tel quel",
+      "titleNumbering": "Certaines sections vont changer",
+      "titleBook": "{{book}} va être découpé à nouveau",
+      "bodyNumbering": "Tout ce qui a été enregistré et révisé sur les sections qui changent passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "bodyBook": "Tout ce qui a été enregistré et révisé sur les anciennes sections de {{book}} passe sous « Sections précédentes » dans les nouvelles, avec un avertissement, et devra être refait. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés.",
+      "nothingDeleted": "Rien n’est supprimé."
     },
     "numbering": {
       "ignore": "OK, ignorer",
@@ -1728,11 +1734,146 @@
       "ourOwn": "Ceux de votre organisation",
       "noneReady": "Il n’y en a pas encore de tout prêts pour cela. Créez le vôtre : des dossiers pour l’organisation, et ce que les gens enregistrent dedans.",
       "makeOwn": "Créer le vôtre",
-      "makeOwnDetail": "Des dossiers, et ce qu’il faut y enregistrer."
+      "makeOwnDetail": "Des dossiers, et ce qu’il faut y enregistrer.",
+      "elseKinds": "Récits, chants, leçons"
     },
     "errors": {
       "noTemplate": "Cette langue n’a pas encore de modèle.",
       "versificationMissing": "Sa versification n’est pas encore sur cet appareil. Réessayez une fois connecté."
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "Numérotation de la plupart des Bibles anglaises",
+        "org": "Numérotation des textes hébreu et grec",
+        "vul": "Numérotation de la Vulgate latine",
+        "russian": "Numérotation de la Bible synodale russe"
+      },
+      "note_one": "Une section précédente. Le découpage a changé après cet enregistrement. Elle est gardée pour pouvoir l’écouter ; ses versets sont enregistrés à nouveau dans la section ci-dessous.",
+      "note_many": "Une section précédente. Le découpage a changé après cet enregistrement. Elle est gardée pour pouvoir l’écouter ; ses versets sont enregistrés à nouveau dans les sections ci-dessous.",
+      "note_other": "Une section précédente. Le découpage a changé après cet enregistrement. Elle est gardée pour pouvoir l’écouter ; ses versets sont enregistrés à nouveau dans les sections ci-dessous.",
+      "noteHow_one": "Une section précédente ({{how}}). Le découpage a changé après cet enregistrement. Elle est gardée pour pouvoir l’écouter ; ses versets sont enregistrés à nouveau dans la section ci-dessous.",
+      "noteHow_many": "Une section précédente ({{how}}). Le découpage a changé après cet enregistrement. Elle est gardée pour pouvoir l’écouter ; ses versets sont enregistrés à nouveau dans les sections ci-dessous.",
+      "noteHow_other": "Une section précédente ({{how}}). Le découpage a changé après cet enregistrement. Elle est gardée pour pouvoir l’écouter ; ses versets sont enregistrés à nouveau dans les sections ci-dessous.",
+      "whereNow": "Où se trouvent ces versets maintenant",
+      "changedMark": "Découpage changé depuis l’enregistrement",
+      "changedHere": "Le découpage a changé depuis qu’une partie de ceci a été enregistrée. Le travail précédent est gardé ci-dessous ; il doit être refait ici.",
+      "title": "Sections précédentes",
+      "anEarlier": "Une section précédente",
+      "row": "{{how}} · {{versions}}",
+      "versions_one": "{{count, number}} version",
+      "versions_many": "{{count, number}} versions",
+      "versions_other": "{{count, number}} versions",
+      "openOne": "Ouvrez-en une pour écouter ce qui y a été enregistré et révisé."
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_one": "{{count, number}} livre",
+        "booksCount_many": "{{count, number}} livres",
+        "booksCount_other": "{{count, number}} livres",
+        "books_one": "livre",
+        "books_many": "livres",
+        "books_other": "livres",
+        "malachiHas_one": "{{book}} a {{count, number}} chapitre",
+        "malachiHas_many": "{{book}} a {{count, number}} chapitres",
+        "malachiHas_other": "{{book}} a {{count, number}} chapitres",
+        "chapters_one": "{{count, number}} chapitre",
+        "chapters_many": "{{count, number}} chapitres",
+        "chapters_other": "{{count, number}} chapitres",
+        "headingsNumbered": "Les titres des psaumes sont le verset 1",
+        "headingsUnnumbered": "Les titres des psaumes n’ont pas de numéro",
+        "headings": "Titres des psaumes",
+        "verseOne": "verset 1",
+        "noNumber": "sans numéro"
+      },
+      "psalm3": {
+        "title": "Psaume 3",
+        "heading": "Psaume de David",
+        "firstLine": "Ô Éternel, que mes ennemis sont nombreux !"
+      },
+      "find": {
+        "question": "À partir de quelle Bible traduisez-vous ?",
+        "placeholder": "Louis Segond, Semeur, Parole de Vie…",
+        "showAll_one": "Tout afficher ({{count, number}})",
+        "showAll_many": "Afficher les {{count, number}}",
+        "showAll_other": "Afficher les {{count, number}}",
+        "notFound": "Introuvable.",
+        "quiz": "Pas dans la liste ? Répondez à quelques questions"
+      },
+      "chooseFromList": "Choisir dans la liste",
+      "quiz": {
+        "step": "Question {{n}}",
+        "quoted": "« {{text}} »",
+        "notSure": "Je ne sais pas",
+        "psalm23": {
+          "title": "Dans quel psaume est-ce, dans votre Bible ?",
+          "quote": "L’Éternel est mon berger",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "Lequel ressemble au Psaume 3 de votre Bible ?",
+          "noNumber": "Le titre n’a pas de numéro",
+          "verseOne": "Le titre est le verset 1"
+        },
+        "malachi": {
+          "title": "Combien de chapitres a {{book}} ?",
+          "small": "Le dernier livre de l’Ancien Testament"
+        },
+        "romans16": {
+          "title": "{{book}} 16 se termine au verset…",
+          "verse": "Verset {{n}}"
+        },
+        "extraBooks": {
+          "title": "Votre Bible a-t-elle ces livres ?"
+        },
+        "church": {
+          "title": "De quelle Église vient votre Bible ?",
+          "slavic": "Russe ou slave",
+          "greek": "Orthodoxe grecque ou autre",
+          "catholic": "Catholique",
+          "protestant": "Protestante ou évangélique",
+          "slavicOrthodox": "Orthodoxe russe ou slave",
+          "ethiopian": "Orthodoxe éthiopienne ou érythréenne",
+          "jewish": "Juive (Tanakh)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "Tobie",
+        "judith": "Judith",
+        "maccabees": "Maccabées"
+      },
+      "list": {
+        "question": "Choisissez la numérotation",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "Titres = verset 1",
+        "headingsUnnumbered": "Titres sans numéro",
+        "connect": "Connectez-vous pour charger les numérotations."
+      },
+      "chosen": {
+        "like": "Comme {{bible}}",
+        "match": "Les numéros de versets dans LangQuest correspondront à votre Bible.",
+        "another": "En choisir une autre"
+      },
+      "context": {
+        "label": "Numérotation",
+        "help": "Touchez pour changer la numérotation.",
+        "a11y": "Numérotation : {{name}}. Changer",
+        "change": "Changer"
+      },
+      "notes": {
+        "mixes": "Votre Bible mélange plusieurs numérotations. Celle-ci est la plus proche.",
+        "notOffered": "La numérotation de l’Ancien Testament grec n’est pas encore proposée. Choisissez la plus proche dans la liste.",
+        "notSure": "Vous ne savez pas ? Choisissez dans la liste."
+      },
+      "bibleLanguages": {
+        "portuguese": "Portugais",
+        "chinese": "Chinois",
+        "german": "Allemand",
+        "russian": "Russe",
+        "greek": "Grec",
+        "latin": "Latin",
+        "hebrew": "Hébreu",
+        "korean": "Coréen"
+      }
     }
   },
   "canon": {
@@ -3544,6 +3685,12 @@
       "everyLanguage": "Voir où en est chaque langue",
       "everything": "Tout en {{language}}",
       "help": "Chaque passage, et où il en est."
+    },
+    "divide": {
+      "title": "Découper {{book}}",
+      "waiting_one": "Attend d’être découpé avant que quiconque l’enregistre",
+      "waiting_many": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre",
+      "waiting_other": "{{count, number}} livres attendent d’être découpés avant que quiconque les enregistre"
     }
   },
   "shell": {
@@ -4384,8 +4531,10 @@
       "keptSome_many": "{{kept}} parties sur {{count, number}} sur cet appareil",
       "keptSome_other": "{{kept}} parties sur {{count, number}} sur cet appareil",
       "downloading": "{{kept}} (téléchargement)",
-      "outsideFilter": "hors du filtre"
-    }
+      "outsideFilter": "hors du filtre",
+      "changedSinceRecorded": "découpage changé depuis l’enregistrement"
+    },
+    "changedSinceRecorded": "Découpage changé depuis l’enregistrement"
   },
   "reports": {
     "title": "Rapports",

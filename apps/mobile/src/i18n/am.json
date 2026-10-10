@@ -1161,7 +1161,8 @@
       "useThis": "ይህን ይጠቀሙ",
       "keepIt": "እንዳለ ያቆዩት",
       "whichPart": "የትኛው የመጽሐፍ ቅዱስ ክፍል?",
-      "viewOnly": "የሚተረጎመውን መለወጥ የሚችሉት ቋንቋዎችን የሚያዋቅሩ ሰዎች ብቻ ናቸው።"
+      "viewOnly": "የሚተረጎመውን መለወጥ የሚችሉት ቋንቋዎችን የሚያዋቅሩ ሰዎች ብቻ ናቸው።",
+      "keepEarlier": "ሳይለወጡ የሚቀሩ ቁራጮች ቀረጻዎቻቸውን ይይዛሉ። በሚለወጥ ቁራጭ ላይ የተቀረጸው በአዲሶቹ ቁራጮች ላይ በ«ቀደም ያሉ ክፍሎች» ሥር ይቀመጣል።"
     },
     "media": {
       "both": "ድምፅና ጽሑፍ",
@@ -1577,7 +1578,7 @@
     "verses": {
       "shepherd": "እግዚአብሔር እረኛዬ ነው",
       "dayIsComing": "እንደ እቶን የሚነድድ ቀን ይመጣል",
-      "haveMercy": "አቤቱ፣ ማረኝ",
+      "haveMercy": "አቤቱ፥ ማረኝ",
       "pourOutSpirit": "መንፈሴን አፈስሳለሁ",
       "ableToStrengthen": "ሊያጸናችሁ ለሚችለው",
       "nebuchadnezzar": "ንጉሡ ናቡከደነፆር ለአሕዛብ ሁሉ",
@@ -1617,7 +1618,12 @@
     },
     "redo": {
       "changeAnyway": "ቢሆንም ይቀይሩት",
-      "keep": "እንዳለ ያቆዩት"
+      "keep": "እንዳለ ያቆዩት",
+      "titleNumbering": "አንዳንድ ክፍሎች ይለወጣሉ",
+      "titleBook": "{{book}} እንደገና ይከፋፈላል",
+      "bodyNumbering": "በሚለወጡት ክፍሎች ላይ የተቀረጸውና የተገመገመው ሁሉ በአዲሶቹ ሥር ወዳለው «ቀደም ያሉ ክፍሎች» ይዛወራል፣ በማስጠንቀቂያ ምልክት ይደረግበታል፣ እንደገናም መሠራት ይኖርበታል። ይህ ገና ያልተመሳሰሉ፣ በአንድ ሰው ስልክ ላይ ያሉ ቀረጻዎችንም ይጨምራል።",
+      "bodyBook": "በ{{book}} የቀድሞ ክፍሎች ላይ የተቀረጸውና የተገመገመው ሁሉ በአዲሶቹ ሥር ወዳለው «ቀደም ያሉ ክፍሎች» ይዛወራል፣ በማስጠንቀቂያ ምልክት ይደረግበታል፣ እንደገናም መሠራት ይኖርበታል። ይህ ገና ያልተመሳሰሉ፣ በአንድ ሰው ስልክ ላይ ያሉ ቀረጻዎችንም ይጨምራል።",
+      "nothingDeleted": "ምንም ነገር አይሰረዝም።"
     },
     "numbering": {
       "ignore": "እሺ፣ ይተዉት",
@@ -1670,11 +1676,138 @@
       "ourOwn": "የድርጅትዎ የራሱ",
       "noneReady": "ለዚህ እስካሁን የተዘጋጁ የሉም። የራስዎን ይሥሩ፦ እንዴት እንደተደራጀ የሚያሳዩ አቃፊዎች፣ በውስጣቸውም ሰዎች የሚቀርጿቸው ነገሮች።",
       "makeOwn": "የራስዎን ይሥሩ",
-      "makeOwnDetail": "አቃፊዎችና በውስጣቸው የሚቀረጸው።"
+      "makeOwnDetail": "አቃፊዎችና በውስጣቸው የሚቀረጸው።",
+      "elseKinds": "ታሪኮች፣ መዝሙሮች፣ ትምህርቶች"
     },
     "errors": {
       "noTemplate": "ይህ ቋንቋ እስካሁን አብነት የለውም።",
       "versificationMissing": "የቁጥር አከፋፈሉ ገና በዚህ መሣሪያ ላይ የለም። ኢንተርኔት ሲገናኝ እንደገና ይሞክሩ።"
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "እንደ አብዛኞቹ የእንግሊዝኛ መጽሐፍ ቅዱሶች የተቆጠረ",
+        "org": "እንደ ዕብራይስጡና ግሪኩ የተቆጠረ",
+        "vul": "እንደ ላቲኑ ቩልጌት የተቆጠረ",
+        "russian": "እንደ ሩሲያ ሲኖዶስ መጽሐፍ ቅዱስ የተቆጠረ"
+      },
+      "note_one": "ቀደም ያለ ክፍል። ይህ ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል። እንዲሰማ ተቀምጧል፤ ቁጥሮቹ ከታች ባለው ክፍል ውስጥ እንደገና ይቀረጻሉ።",
+      "note_other": "ቀደም ያለ ክፍል። ይህ ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል። እንዲሰማ ተቀምጧል፤ ቁጥሮቹ ከታች ባሉት ክፍሎች ውስጥ እንደገና ይቀረጻሉ።",
+      "noteHow_one": "ቀደም ያለ ክፍል ({{how}})። ይህ ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል። እንዲሰማ ተቀምጧል፤ ቁጥሮቹ ከታች ባለው ክፍል ውስጥ እንደገና ይቀረጻሉ።",
+      "noteHow_other": "ቀደም ያለ ክፍል ({{how}})። ይህ ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል። እንዲሰማ ተቀምጧል፤ ቁጥሮቹ ከታች ባሉት ክፍሎች ውስጥ እንደገና ይቀረጻሉ።",
+      "whereNow": "እነዚህ ቁጥሮች አሁን ያሉበት",
+      "changedMark": "ይህ ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል",
+      "changedHere": "ከዚህ የተወሰነው ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል። ቀደም ያለው ሥራ ከታች ተቀምጧል፤ እዚህ እንደገና መሠራት አለበት።",
+      "title": "ቀደም ያሉ ክፍሎች",
+      "anEarlier": "ቀደም ያለ ክፍል",
+      "row": "{{how}} · {{versions}}",
+      "versions_one": "{{count, number}} ስሪት",
+      "versions_other": "{{count, number}} ስሪቶች",
+      "openOne": "በእሱ ላይ የተቀረጸውንና የተገመገመውን ለማዳመጥ አንዱን ይክፈቱ።"
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_one": "{{count, number}} መጽሐፍ",
+        "booksCount_other": "{{count, number}} መጻሕፍት",
+        "books_one": "መጽሐፍ",
+        "books_other": "መጻሕፍት",
+        "malachiHas_one": "{{book}} {{count, number}} ምዕራፍ አለው",
+        "malachiHas_other": "{{book}} {{count, number}} ምዕራፎች አሉት",
+        "chapters_one": "{{count, number}} ምዕራፍ",
+        "chapters_other": "{{count, number}} ምዕራፎች",
+        "headingsNumbered": "የመዝሙራት አርዕስቶች ቁጥር 1 ናቸው",
+        "headingsUnnumbered": "የመዝሙራት አርዕስቶች ቁጥር የላቸውም",
+        "headings": "የመዝሙራት አርዕስቶች",
+        "verseOne": "ቁጥር 1",
+        "noNumber": "ቁጥር የለም"
+      },
+      "psalm3": {
+        "title": "መዝሙር 3",
+        "heading": "የዳዊት መዝሙር",
+        "firstLine": "አቤቱ፥ የሚያስጨንቁኝ እንዴት በዙ!"
+      },
+      "find": {
+        "question": "የሚተረጉሙት ከየትኛው መጽሐፍ ቅዱስ ነው?",
+        "placeholder": "የ1954 ትርጉም፣ NIV፣ Reina-Valera…",
+        "showAll_one": "{{count, number}}ን ያሳዩ",
+        "showAll_other": "ሁሉንም {{count, number}} ያሳዩ",
+        "notFound": "አልተገኘም።",
+        "quiz": "በዝርዝሩ ውስጥ የለም? ጥቂት ጥያቄዎችን ይመልሱ"
+      },
+      "chooseFromList": "ከዝርዝሩ ይምረጡ",
+      "quiz": {
+        "step": "ጥያቄ {{n}}",
+        "quoted": "«{{text}}»",
+        "notSure": "እርግጠኛ አይደለሁም",
+        "psalm23": {
+          "title": "በእርስዎ መጽሐፍ ቅዱስ ውስጥ የትኛው መዝሙር ነው?",
+          "quote": "እግዚአብሔር እረኛዬ ነው",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "በእርስዎ መጽሐፍ ቅዱስ ውስጥ መዝሙር 3 የትኛውን ይመስላል?",
+          "noNumber": "አርዕስቱ ቁጥር የለውም",
+          "verseOne": "አርዕስቱ ቁጥር 1 ነው"
+        },
+        "malachi": {
+          "title": "{{book}} ስንት ምዕራፎች አሉት?",
+          "small": "የብሉይ ኪዳን የመጨረሻው መጽሐፍ"
+        },
+        "romans16": {
+          "title": "{{book}} 16 የሚያበቃው በቁጥር…",
+          "verse": "ቁጥር {{n}}"
+        },
+        "extraBooks": {
+          "title": "መጽሐፍ ቅዱስዎ እነዚህ መጻሕፍት አሉት?"
+        },
+        "church": {
+          "title": "መጽሐፍ ቅዱስዎ ከየትኛው ቤተ ክርስቲያን ነው?",
+          "slavic": "ሩሲያ ወይም ስላቪክ",
+          "greek": "ግሪክ ወይም ሌላ ኦርቶዶክስ",
+          "catholic": "ካቶሊክ",
+          "protestant": "ፕሮቴስታንት ወይም ወንጌላዊ",
+          "slavicOrthodox": "የሩሲያ ወይም የስላቪክ ኦርቶዶክስ",
+          "ethiopian": "የኢትዮጵያ ወይም የኤርትራ ኦርቶዶክስ",
+          "jewish": "አይሁዳዊ (ታናክ)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "ጦቢት",
+        "judith": "ዮዲት",
+        "maccabees": "መቃብያን"
+      },
+      "list": {
+        "question": "አቆጣጠሩን ይምረጡ",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "አርዕስቶች ቁጥር 1",
+        "headingsUnnumbered": "አርዕስቶች ቁጥር የላቸውም",
+        "connect": "አቆጣጠሮቹን ለመጫን ከኢንተርኔት ጋር ይገናኙ።"
+      },
+      "chosen": {
+        "like": "እንደ {{bible}}",
+        "match": "በLangQuest ውስጥ ያሉ የቁጥር አቆጣጠሮች ከመጽሐፍ ቅዱስዎ ጋር ይስማማሉ።",
+        "another": "ሌላ ይምረጡ"
+      },
+      "context": {
+        "label": "አቆጣጠር",
+        "help": "አቆጣጠሩን ለመቀየር ይንኩ።",
+        "a11y": "አቆጣጠር፦ {{name}}። ይቀይሩ",
+        "change": "ይቀይሩ"
+      },
+      "notes": {
+        "mixes": "መጽሐፍ ቅዱስዎ አቆጣጠሮችን ይቀላቅላል። ይህ በጣም ቅርብ የሆነው ነው።",
+        "notOffered": "የግሪኩ ብሉይ ኪዳን አቆጣጠር ገና አልቀረበም። ከዝርዝሩ በጣም ቅርብ የሆነውን ይምረጡ።",
+        "notSure": "እርግጠኛ አይደሉም? ከዝርዝሩ ይምረጡ።"
+      },
+      "bibleLanguages": {
+        "portuguese": "ፖርቱጋልኛ",
+        "chinese": "ቻይንኛ",
+        "german": "ጀርመንኛ",
+        "russian": "ሩሲያኛ",
+        "greek": "ግሪክኛ",
+        "latin": "ላቲን",
+        "hebrew": "ዕብራይስጥ",
+        "korean": "ኮሪያኛ"
+      }
     }
   },
   "canon": {
@@ -3427,6 +3560,11 @@
       "everyLanguage": "እያንዳንዱ ቋንቋ እንዴት እንደሆነ ይመልከቱ",
       "everything": "በ{{language}} ያለው ሁሉ",
       "help": "እያንዳንዱ ክፍልና ምን ያህል እንደደረሰ።"
+    },
+    "divide": {
+      "title": "{{book}}ን ይከፋፍሉ",
+      "waiting_one": "ማንም ከመቅረጹ በፊት እስኪከፋፈል በመጠበቅ ላይ",
+      "waiting_other": "{{count, number}} መጻሕፍት ማንም ከመቅረጻቸው በፊት እስኪከፋፈሉ በመጠበቅ ላይ ናቸው"
     }
   },
   "shell": {
@@ -4221,8 +4359,10 @@
       "keptSome_one": "ከ{{count, number}} ክፍል {{kept}} በዚህ መሣሪያ ላይ",
       "keptSome_other": "ከ{{count, number}} ክፍሎች {{kept}} በዚህ መሣሪያ ላይ",
       "downloading": "{{kept}} (በማውረድ ላይ)",
-      "outsideFilter": "ከማጣሪያው ውጭ"
-    }
+      "outsideFilter": "ከማጣሪያው ውጭ",
+      "changedSinceRecorded": "ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል"
+    },
+    "changedSinceRecorded": "ከተቀረጸ በኋላ ክፍፍሉ ተለውጧል"
   },
   "reports": {
     "title": "ሪፖርቶች",

@@ -1131,7 +1131,8 @@
       "useThis": "使用这个",
       "keepIt": "保持不变",
       "whichPart": "翻译圣经的哪一部分？",
-      "viewOnly": "只有负责设置语言的人可以更改要翻译的内容。"
+      "viewOnly": "只有负责设置语言的人可以更改要翻译的内容。",
+      "keepEarlier": "没有变化的部分会保留原来的录音。有变化的部分，上面录的内容会保留在新部分的“之前的部分”下。"
     },
     "media": {
       "both": "音频和文字",
@@ -1561,7 +1562,12 @@
     },
     "redo": {
       "changeAnyway": "仍然更改",
-      "keep": "保持原样"
+      "keep": "保持原样",
+      "titleNumbering": "有些部分会改变",
+      "titleBook": "{{book}}将重新划分",
+      "bodyNumbering": "在有变化的部分上录制和审核的所有内容，都会移到新部分下的“之前的部分”中，并带有警告标记，需要重新做。这也包括还在别人手机上、尚未同步的录音。",
+      "bodyBook": "在{{book}}原来各部分上录制和审核的所有内容，都会移到新部分下的“之前的部分”中，并带有警告标记，需要重新做。这也包括还在别人手机上、尚未同步的录音。",
+      "nothingDeleted": "不会删除任何内容。"
     },
     "numbering": {
       "ignore": "好的，忽略",
@@ -1612,11 +1618,130 @@
       "ourOwn": "你的机构自己的",
       "noneReady": "这一项还没有现成的划分方式。请自己制作：用文件夹表示组织方式，把大家要录的内容放在里面。",
       "makeOwn": "自己制作",
-      "makeOwnDetail": "文件夹，以及里面要录的内容。"
+      "makeOwnDetail": "文件夹，以及里面要录的内容。",
+      "elseKinds": "故事、歌曲、课程"
     },
     "errors": {
       "noTemplate": "这个语言还没有模板。",
       "versificationMissing": "它的经节编排还不在本设备上。请在联网后重试。"
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "编号与大多数英文圣经相同",
+        "org": "编号与希伯来文和希腊文原文相同",
+        "vul": "编号与拉丁文武加大译本相同",
+        "russian": "编号与俄文主教公会译本相同"
+      },
+      "note_other": "这是之前的一个部分。录音之后划分改变了。保留它是为了还能听；它的经节会在下面的部分中重新录音。",
+      "noteHow_other": "这是之前的一个部分（{{how}}）。录音之后划分改变了。保留它是为了还能听；它的经节会在下面的部分中重新录音。",
+      "whereNow": "这些经节现在在哪里",
+      "changedMark": "录音之后划分已改变",
+      "changedHere": "其中一些内容录音之后，划分已经改变。之前的工作保留在下面；需要在这里重新做。",
+      "title": "之前的部分",
+      "anEarlier": "之前的一个部分",
+      "row": "{{how}} · {{versions}}",
+      "versions_other": "{{count, number}} 个版本",
+      "openOne": "打开一个，听听在上面录制和审核过的内容。"
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_other": "{{count, number}} 卷书",
+        "books_other": "卷书",
+        "malachiHas_other": "{{book}}有 {{count, number}} 章",
+        "chapters_other": "{{count, number}} 章",
+        "headingsNumbered": "诗篇标题算作第 1 节",
+        "headingsUnnumbered": "诗篇标题没有编号",
+        "headings": "诗篇标题",
+        "verseOne": "第 1 节",
+        "noNumber": "无编号"
+      },
+      "psalm3": {
+        "title": "诗篇第 3 篇",
+        "heading": "大卫的诗",
+        "firstLine": "耶和华啊，我的敌人何其加增！"
+      },
+      "find": {
+        "question": "你根据哪本圣经翻译？",
+        "placeholder": "和合本、新译本、NIV……",
+        "showAll_other": "显示全部 {{count, number}} 个",
+        "notFound": "没有找到。",
+        "quiz": "列表里没有？回答几个问题"
+      },
+      "chooseFromList": "从列表中选择",
+      "quiz": {
+        "step": "第 {{n}} 题",
+        "quoted": "“{{text}}”",
+        "notSure": "不确定",
+        "psalm23": {
+          "title": "在你的圣经里，这句话在哪一篇诗篇？",
+          "quote": "耶和华是我的牧者",
+          "psalm": "{{book}}第 {{n}} 篇"
+        },
+        "psalmHeading": {
+          "title": "你的圣经中诗篇第 3 篇是哪个样子？",
+          "noNumber": "标题没有编号",
+          "verseOne": "标题是第 1 节"
+        },
+        "malachi": {
+          "title": "{{book}}有几章？",
+          "small": "旧约的最后一卷书"
+        },
+        "romans16": {
+          "title": "{{book}}第 16 章最后一节是……",
+          "verse": "第 {{n}} 节"
+        },
+        "extraBooks": {
+          "title": "你的圣经里有这些书卷吗？"
+        },
+        "church": {
+          "title": "你的圣经来自哪个教会？",
+          "slavic": "俄罗斯或斯拉夫教会",
+          "greek": "希腊或其他东正教会",
+          "catholic": "天主教",
+          "protestant": "新教或福音派",
+          "slavicOrthodox": "俄罗斯或斯拉夫东正教会",
+          "ethiopian": "埃塞俄比亚或厄立特里亚正教会",
+          "jewish": "犹太教（塔纳赫）"
+        }
+      },
+      "extraBooks": {
+        "tobit": "多俾亚传",
+        "judith": "友弟德传",
+        "maccabees": "玛加伯"
+      },
+      "list": {
+        "question": "选择编号方式",
+        "malachi": "{{book}} {{n}} 章",
+        "headingsNumbered": "标题为第 1 节",
+        "headingsUnnumbered": "标题无编号",
+        "connect": "联网后可以加载各种编号方式。"
+      },
+      "chosen": {
+        "like": "与{{bible}}相同",
+        "match": "LangQuest 中的经节编号会与你的圣经一致。",
+        "another": "选择其他"
+      },
+      "context": {
+        "label": "编号方式",
+        "help": "点按可以更改编号方式。",
+        "a11y": "编号方式：{{name}}。更改",
+        "change": "更改"
+      },
+      "notes": {
+        "mixes": "你的圣经混用了几种编号方式。这是最接近的。",
+        "notOffered": "目前还不提供希腊文旧约的编号方式。请从列表中选择最接近的。",
+        "notSure": "不确定？请从列表中选择。"
+      },
+      "bibleLanguages": {
+        "portuguese": "葡萄牙语",
+        "chinese": "中文",
+        "german": "德语",
+        "russian": "俄语",
+        "greek": "希腊语",
+        "latin": "拉丁语",
+        "hebrew": "希伯来语",
+        "korean": "韩语"
+      }
     }
   },
   "canon": {
@@ -3310,6 +3435,10 @@
       "everyLanguage": "查看每个语言的进展",
       "everything": "{{language}}的全部内容",
       "help": "所有经段，以及各自的进展。"
+    },
+    "divide": {
+      "title": "划分{{book}}",
+      "waiting_other": "有 {{count, number}} 卷书在等待划分，划分后才能开始录音"
     }
   },
   "shell": {
@@ -4058,8 +4187,10 @@
       "kept": "已保存在本设备上",
       "keptSome_other": "{{count, number}} 个部分中有 {{kept}} 个在本设备上",
       "downloading": "{{kept}}（正在下载）",
-      "outsideFilter": "不在筛选范围内"
-    }
+      "outsideFilter": "不在筛选范围内",
+      "changedSinceRecorded": "录音之后划分已改变"
+    },
+    "changedSinceRecorded": "录音之后划分已改变"
   },
   "reports": {
     "title": "报告",

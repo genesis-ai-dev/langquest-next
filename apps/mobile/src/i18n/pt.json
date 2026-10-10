@@ -1191,7 +1191,8 @@
       "useThis": "Usar este",
       "keepIt": "Manter",
       "whichPart": "Qual parte da Bíblia?",
-      "viewOnly": "Só quem configura idiomas pode mudar o que eles traduzem."
+      "viewOnly": "Só quem configura idiomas pode mudar o que eles traduzem.",
+      "keepEarlier": "As partes que continuam iguais mantêm as gravações. O que foi gravado numa parte que muda fica guardado em \"Seções anteriores\" nas partes novas."
     },
     "media": {
       "both": "Áudio e texto",
@@ -1673,7 +1674,12 @@
     },
     "redo": {
       "changeAnyway": "Mudar assim mesmo",
-      "keep": "Deixar como está"
+      "keep": "Deixar como está",
+      "titleNumbering": "Algumas seções vão mudar",
+      "titleBook": "{{book}} vai ser dividido de novo",
+      "bodyNumbering": "Tudo o que foi gravado e revisado nas seções que mudam vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
+      "bodyBook": "Tudo o que foi gravado e revisado nas seções antigas de {{book}} vai para \"Seções anteriores\", abaixo das novas, marcado com um aviso, e vai precisar ser feito de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas.",
+      "nothingDeleted": "Nada é excluído."
     },
     "numbering": {
       "ignore": "OK, ignorar",
@@ -1728,11 +1734,146 @@
       "ourOwn": "Da sua organização",
       "noneReady": "Ainda não há modelos prontos para isto. Crie o seu: pastas para mostrar como está organizado e, dentro delas, o que as pessoas gravam.",
       "makeOwn": "Criar o seu",
-      "makeOwnDetail": "Pastas, e o que gravar nelas."
+      "makeOwnDetail": "Pastas, e o que gravar nelas.",
+      "elseKinds": "Histórias, cânticos, lições"
     },
     "errors": {
       "noTemplate": "Este idioma ainda não tem modelo.",
       "versificationMissing": "A versificação dele ainda não está neste aparelho. Tente de novo quando tiver conexão."
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "Com a numeração da maioria das Bíblias em inglês",
+        "org": "Com a numeração do hebraico e do grego",
+        "vul": "Com a numeração da Vulgata latina",
+        "russian": "Com a numeração da Bíblia Sinodal russa"
+      },
+      "note_one": "Uma seção anterior. As divisões mudaram depois que isto foi gravado. Ela fica guardada para poder ser ouvida; os versículos dela são gravados de novo na seção abaixo.",
+      "note_many": "Uma seção anterior. As divisões mudaram depois que isto foi gravado. Ela fica guardada para poder ser ouvida; os versículos dela são gravados de novo nas seções abaixo.",
+      "note_other": "Uma seção anterior. As divisões mudaram depois que isto foi gravado. Ela fica guardada para poder ser ouvida; os versículos dela são gravados de novo nas seções abaixo.",
+      "noteHow_one": "Uma seção anterior ({{how}}). As divisões mudaram depois que isto foi gravado. Ela fica guardada para poder ser ouvida; os versículos dela são gravados de novo na seção abaixo.",
+      "noteHow_many": "Uma seção anterior ({{how}}). As divisões mudaram depois que isto foi gravado. Ela fica guardada para poder ser ouvida; os versículos dela são gravados de novo nas seções abaixo.",
+      "noteHow_other": "Uma seção anterior ({{how}}). As divisões mudaram depois que isto foi gravado. Ela fica guardada para poder ser ouvida; os versículos dela são gravados de novo nas seções abaixo.",
+      "whereNow": "Onde estes versículos estão agora",
+      "changedMark": "As divisões mudaram desde que isto foi gravado",
+      "changedHere": "As divisões mudaram desde que parte disto foi gravada. O trabalho anterior fica guardado abaixo; ele precisa ser feito de novo aqui.",
+      "title": "Seções anteriores",
+      "anEarlier": "Uma seção anterior",
+      "row": "{{how}} · {{versions}}",
+      "versions_one": "{{count, number}} versão",
+      "versions_many": "{{count, number}} de versões",
+      "versions_other": "{{count, number}} versões",
+      "openOne": "Abra uma para ouvir o que foi gravado e revisado nela."
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_one": "{{count, number}} livro",
+        "booksCount_many": "{{count, number}} de livros",
+        "booksCount_other": "{{count, number}} livros",
+        "books_one": "livro",
+        "books_many": "livros",
+        "books_other": "livros",
+        "malachiHas_one": "{{book}} tem {{count, number}} capítulo",
+        "malachiHas_many": "{{book}} tem {{count, number}} de capítulos",
+        "malachiHas_other": "{{book}} tem {{count, number}} capítulos",
+        "chapters_one": "{{count, number}} capítulo",
+        "chapters_many": "{{count, number}} de capítulos",
+        "chapters_other": "{{count, number}} capítulos",
+        "headingsNumbered": "Os títulos dos salmos são o versículo 1",
+        "headingsUnnumbered": "Os títulos dos salmos não têm número",
+        "headings": "Títulos dos salmos",
+        "verseOne": "versículo 1",
+        "noNumber": "sem número"
+      },
+      "psalm3": {
+        "title": "Salmo 3",
+        "heading": "Salmo de Davi",
+        "firstLine": "Senhor, como tem crescido o número dos meus adversários!"
+      },
+      "find": {
+        "question": "De qual Bíblia você traduz?",
+        "placeholder": "NVI, Almeida, NTLH…",
+        "showAll_one": "Mostrar {{count, number}}",
+        "showAll_many": "Mostrar todas as {{count, number}}",
+        "showAll_other": "Mostrar todas as {{count, number}}",
+        "notFound": "Não encontrada.",
+        "quiz": "Não está na lista? Responda a algumas perguntas"
+      },
+      "chooseFromList": "Escolher da lista",
+      "quiz": {
+        "step": "Pergunta {{n}}",
+        "quoted": "“{{text}}”",
+        "notSure": "Não tenho certeza",
+        "psalm23": {
+          "title": "Em qual salmo está isto na sua Bíblia?",
+          "quote": "O Senhor é o meu pastor",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "Qual se parece com o Salmo 3 da sua Bíblia?",
+          "noNumber": "O título não tem número",
+          "verseOne": "O título é o versículo 1"
+        },
+        "malachi": {
+          "title": "Quantos capítulos {{book}} tem?",
+          "small": "O último livro do Antigo Testamento"
+        },
+        "romans16": {
+          "title": "{{book}} 16 termina no versículo…",
+          "verse": "Versículo {{n}}"
+        },
+        "extraBooks": {
+          "title": "A sua Bíblia tem estes livros?"
+        },
+        "church": {
+          "title": "De qual igreja é a sua Bíblia?",
+          "slavic": "Russa ou eslava",
+          "greek": "Grega ou outra ortodoxa",
+          "catholic": "Católica",
+          "protestant": "Protestante ou evangélica",
+          "slavicOrthodox": "Ortodoxa russa ou eslava",
+          "ethiopian": "Ortodoxa etíope ou eritreia",
+          "jewish": "Judaica (Tanakh)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "Tobias",
+        "judith": "Judite",
+        "maccabees": "Macabeus"
+      },
+      "list": {
+        "question": "Escolha a numeração",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "Títulos: versículo 1",
+        "headingsUnnumbered": "Títulos: sem número",
+        "connect": "Conecte-se para carregar as numerações."
+      },
+      "chosen": {
+        "like": "Como a {{bible}}",
+        "match": "Os números dos versículos no LangQuest vão corresponder aos da sua Bíblia.",
+        "another": "Escolher outra"
+      },
+      "context": {
+        "label": "Numeração",
+        "help": "Toque para mudar a numeração.",
+        "a11y": "Numeração: {{name}}. Mudar",
+        "change": "Mudar"
+      },
+      "notes": {
+        "mixes": "A sua Bíblia mistura numerações. Esta é a mais próxima.",
+        "notOffered": "A numeração do Antigo Testamento grego ainda não está disponível. Escolha a mais próxima na lista.",
+        "notSure": "Não tem certeza? Escolha da lista."
+      },
+      "bibleLanguages": {
+        "portuguese": "Português",
+        "chinese": "Chinês",
+        "german": "Alemão",
+        "russian": "Russo",
+        "greek": "Grego",
+        "latin": "Latim",
+        "hebrew": "Hebraico",
+        "korean": "Coreano"
+      }
     }
   },
   "canon": {
@@ -3544,6 +3685,12 @@
       "everyLanguage": "Ver como está cada idioma",
       "everything": "Tudo em {{language}}",
       "help": "Cada passagem e até onde ela chegou."
+    },
+    "divide": {
+      "title": "Dividir {{book}}",
+      "waiting_one": "Esperando ser dividido antes que alguém o grave",
+      "waiting_many": "{{count, number}} de livros estão esperando ser divididos antes que alguém os grave",
+      "waiting_other": "{{count, number}} livros estão esperando ser divididos antes que alguém os grave"
     }
   },
   "shell": {
@@ -4384,8 +4531,10 @@
       "keptSome_many": "{{kept}} de {{count, number}} de partes neste aparelho",
       "keptSome_other": "{{kept}} de {{count, number}} partes neste aparelho",
       "downloading": "{{kept}} (baixando)",
-      "outsideFilter": "fora do filtro"
-    }
+      "outsideFilter": "fora do filtro",
+      "changedSinceRecorded": "divisões mudaram desde a gravação"
+    },
+    "changedSinceRecorded": "As divisões mudaram desde que foi gravado"
   },
   "reports": {
     "title": "Relatórios",

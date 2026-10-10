@@ -1161,7 +1161,8 @@
       "useThis": "Yi amfani da wannan",
       "keepIt": "Bar shi",
       "whichPart": "Wane sashe na Littafi Mai Tsarki?",
-      "viewOnly": "Masu tsara harsuna kaɗai ne za su iya canja abin da suke fassarawa."
+      "viewOnly": "Masu tsara harsuna kaɗai ne za su iya canja abin da suke fassarawa.",
+      "keepEarlier": "Gutsuttsuran da ba su canja ba za su riƙe naɗe-naɗensu. Abin da aka naɗa a gutsuren da ya canja ana ajiye shi a ƙarƙashin \"Sassan da suka gabata\" a sababbin gutsuttsuran."
     },
     "media": {
       "both": "Sauti da rubutu",
@@ -1617,7 +1618,12 @@
     },
     "redo": {
       "changeAnyway": "Canja shi duk da haka",
-      "keep": "Bar shi yadda yake"
+      "keep": "Bar shi yadda yake",
+      "titleNumbering": "Wasu sassa za su canja",
+      "titleBook": "Za a sake raba {{book}}",
+      "bodyNumbering": "Duk abin da aka naɗa aka yi masa bita a sassan da suka canja zai koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin sa. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna.",
+      "bodyBook": "Duk abin da aka naɗa aka yi masa bita a tsofaffin sassan {{book}} zai koma \"Sassan da suka gabata\" a ƙarƙashin sababbin, da alamar gargaɗi, kuma za a buƙaci a sake yin sa. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna.",
+      "nothingDeleted": "Ba a goge komai ba."
     },
     "numbering": {
       "ignore": "To, a ƙyale",
@@ -1670,11 +1676,138 @@
       "ourOwn": "Na ƙungiyarku",
       "noneReady": "Babu wanda aka riga aka yi don wannan tukuna. Ku yi naku: foldoji don yadda aka tsara shi, da abubuwan da mutane suke naɗawa a ciki.",
       "makeOwn": "Ku yi naku",
-      "makeOwnDetail": "Foldoji, da abin da za a naɗa a ciki."
+      "makeOwnDetail": "Foldoji, da abin da za a naɗa a ciki.",
+      "elseKinds": "Labarai, waƙoƙi, darussa"
     },
     "errors": {
       "noTemplate": "Wannan harshe ba shi da samfuri tukuna.",
       "versificationMissing": "Tsarin ayoyinsa ba ya kan wannan na'ura tukuna. Ku sake gwadawa idan an haɗa."
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "An ƙidaya kamar yawancin Littattafai Masu Tsarki na Turanci",
+        "org": "An ƙidaya kamar na Ibrananci da Hellenanci",
+        "vul": "An ƙidaya kamar Vulgate na Latin",
+        "russian": "An ƙidaya kamar Littafi Mai Tsarki na Synodal na Rasha"
+      },
+      "note_one": "Sashen da ya gabata. Rabe-rabe sun canja bayan an naɗa wannan. An ajiye shi don a iya ji; ana sake naɗa ayoyinsa a sashen da ke ƙasa.",
+      "note_other": "Sashen da ya gabata. Rabe-rabe sun canja bayan an naɗa wannan. An ajiye shi don a iya ji; ana sake naɗa ayoyinsa a sassan da ke ƙasa.",
+      "noteHow_one": "Sashen da ya gabata ({{how}}). Rabe-rabe sun canja bayan an naɗa wannan. An ajiye shi don a iya ji; ana sake naɗa ayoyinsa a sashen da ke ƙasa.",
+      "noteHow_other": "Sashen da ya gabata ({{how}}). Rabe-rabe sun canja bayan an naɗa wannan. An ajiye shi don a iya ji; ana sake naɗa ayoyinsa a sassan da ke ƙasa.",
+      "whereNow": "Inda waɗannan ayoyi suke yanzu",
+      "changedMark": "Rabe-rabe sun canja tun da aka naɗa wannan",
+      "changedHere": "Rabe-rabe sun canja tun da aka naɗa wasu daga cikin wannan. An ajiye aikin baya a ƙasa; ana buƙatar a sake yin sa a nan.",
+      "title": "Sassan da suka gabata",
+      "anEarlier": "Sashen da ya gabata",
+      "row": "{{how}} · {{versions}}",
+      "versions_one": "siga {{count, number}}",
+      "versions_other": "sigogi {{count, number}}",
+      "openOne": "Ku buɗe ɗaya don sauraron abin da aka naɗa da bitar da aka yi a kansa."
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_one": "Littafi {{count, number}}",
+        "booksCount_other": "Littattafai {{count, number}}",
+        "books_one": "littafi",
+        "books_other": "littattafai",
+        "malachiHas_one": "{{book}} yana da babi {{count, number}}",
+        "malachiHas_other": "{{book}} yana da babobi {{count, number}}",
+        "chapters_one": "Babi {{count, number}}",
+        "chapters_other": "Babobi {{count, number}}",
+        "headingsNumbered": "Taken zabura aya ta 1 ne",
+        "headingsUnnumbered": "Taken zabura ba shi da lamba",
+        "headings": "Taken zabura",
+        "verseOne": "aya ta 1",
+        "noNumber": "babu lamba"
+      },
+      "psalm3": {
+        "title": "Zabura ta 3",
+        "heading": "Zabura ta Dawuda",
+        "firstLine": "Ya Ubangiji, maƙiyana sun yi yawa!"
+      },
+      "find": {
+        "question": "Daga wane Littafi Mai Tsarki kuke fassarawa?",
+        "placeholder": "NIV, Reina-Valera, Luther…",
+        "showAll_one": "Nuna duka {{count, number}}",
+        "showAll_other": "Nuna duka {{count, number}}",
+        "notFound": "Ba a samu ba.",
+        "quiz": "Ba ya cikin jerin? Ku amsa 'yan tambayoyi"
+      },
+      "chooseFromList": "Zaɓi daga jerin",
+      "quiz": {
+        "step": "Tambaya ta {{n}}",
+        "quoted": "“{{text}}”",
+        "notSure": "Ban tabbata ba",
+        "psalm23": {
+          "title": "Wace zabura ce a Littafi Mai Tsarki naku?",
+          "quote": "Ubangiji makiyayina ne",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "Wanne ya yi kama da Zabura ta 3 a Littafi Mai Tsarki naku?",
+          "noNumber": "Taken ba shi da lamba",
+          "verseOne": "Taken aya ta 1 ne"
+        },
+        "malachi": {
+          "title": "Babobi nawa {{book}} yake da su?",
+          "small": "Littafin ƙarshe na Tsohon Alkawari"
+        },
+        "romans16": {
+          "title": "{{book}} 16 yana ƙarewa da aya…",
+          "verse": "Aya ta {{n}}"
+        },
+        "extraBooks": {
+          "title": "Littafi Mai Tsarki naku yana da waɗannan littattafai?"
+        },
+        "church": {
+          "title": "Littafi Mai Tsarki naku na wace ikilisiya ne?",
+          "slavic": "Ta Rasha ko Slavic",
+          "greek": "Ta Girka ko wata Orthodox",
+          "catholic": "Katolika",
+          "protestant": "Furotesta ko Ibanjelika",
+          "slavicOrthodox": "Orthodox ta Rasha ko Slavic",
+          "ethiopian": "Orthodox ta Habasha ko Eritiriya",
+          "jewish": "Ta Yahudawa (Tanakh)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "Tobit",
+        "judith": "Yudit",
+        "maccabees": "Makabiyawa"
+      },
+      "list": {
+        "question": "Zaɓi tsarin ƙidaya",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "Take aya ta 1",
+        "headingsUnnumbered": "Take babu lamba",
+        "connect": "Ku haɗa intanet don loda tsare-tsaren ƙidaya."
+      },
+      "chosen": {
+        "like": "Kamar {{bible}}",
+        "match": "Lambobin ayoyi a LangQuest za su dace da Littafi Mai Tsarki naku.",
+        "another": "Zaɓi wani"
+      },
+      "context": {
+        "label": "Tsarin ƙidaya",
+        "help": "Taɓa don canja tsarin ƙidaya.",
+        "a11y": "Tsarin ƙidaya: {{name}}. Canja",
+        "change": "Canja"
+      },
+      "notes": {
+        "mixes": "Littafi Mai Tsarki naku yana haɗa tsare-tsaren ƙidaya. Wannan shi ne mafi kusa.",
+        "notOffered": "Ba a bayar da tsarin ƙidaya na Tsohon Alkawari na Hellenanci ba tukuna. Ku zaɓi mafi kusa daga jerin.",
+        "notSure": "Ba ku tabbata ba? Ku zaɓa daga jerin."
+      },
+      "bibleLanguages": {
+        "portuguese": "Fotugis",
+        "chinese": "Sinanci",
+        "german": "Jamusanci",
+        "russian": "Rashanci",
+        "greek": "Hellenanci",
+        "latin": "Latin",
+        "hebrew": "Ibrananci",
+        "korean": "Koreanci"
+      }
     }
   },
   "canon": {
@@ -3427,6 +3560,11 @@
       "everyLanguage": "Ga yadda kowane harshe yake tafiya",
       "everything": "Komai a {{language}}",
       "help": "Kowane nassi, da nisan da ya kai."
+    },
+    "divide": {
+      "title": "Raba {{book}}",
+      "waiting_one": "Yana jiran a raba shi kafin kowa ya naɗa shi",
+      "waiting_other": "Littattafai {{count, number}} suna jiran a raba su kafin kowa ya naɗa su"
     }
   },
   "shell": {
@@ -4221,8 +4359,10 @@
       "keptSome_one": "Sashe {{kept}} cikin {{count, number}} a wannan na'ura",
       "keptSome_other": "Sassa {{kept}} cikin {{count, number}} a wannan na'ura",
       "downloading": "{{kept}} (ana saukewa)",
-      "outsideFilter": "a wajen tacewa"
-    }
+      "outsideFilter": "a wajen tacewa",
+      "changedSinceRecorded": "rabe-rabe sun canja tun da aka naɗa"
+    },
+    "changedSinceRecorded": "Rabe-rabe sun canja tun da aka naɗa shi"
   },
   "reports": {
     "title": "Rahotanni",
