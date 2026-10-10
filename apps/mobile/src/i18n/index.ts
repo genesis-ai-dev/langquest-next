@@ -1,4 +1,4 @@
-// The app's words in the person's language (LAN-42, decisions.md 80).
+// The app's words in the person's language (LAN-42, decisions.md 81).
 //
 // Every word the app shows or says is a key in `en.json` (English is the
 // source) and reaches the screen through `t('area.key')`. The other

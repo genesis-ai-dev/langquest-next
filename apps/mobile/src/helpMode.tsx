@@ -3,7 +3,7 @@
 // the explanation card, which steps through the parts with Back and Next
 // part. The first time a screen opens it says what the screen is for, once
 // per device. It speaks in the recorded voice for the app's language where
-// the line has been recorded (helpAudio.ts, decision 80); otherwise the
+// the line has been recorded (helpAudio.ts, decision 81); otherwise the
 // browser reads the words aloud on the web, and a device shows them.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';

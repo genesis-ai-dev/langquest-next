@@ -1161,8 +1161,8 @@
       "useThis": "Use this",
       "keepIt": "Keep it",
       "whichPart": "Which part of the Bible?",
-      "keepRecordings": "Pieces that stay the same keep their recordings. Anything recorded on a piece that changes stops showing, and comes back if you change back.",
-      "viewOnly": "Only people who set up languages can change what they translate."
+      "viewOnly": "Only people who set up languages can change what they translate.",
+      "keepEarlier": "Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under \"Earlier sections\" on the new pieces."
     },
     "media": {
       "both": "Audio and text",
@@ -1617,11 +1617,13 @@
       "someLanguages": "The languages you leave out keep the template as it is. The ones you choose get their own copy with this change."
     },
     "redo": {
-      "title": "Recordings of {{book}} will stop showing",
       "changeAnyway": "Change it anyway",
       "keep": "Keep it as it is",
-      "body": "Every recording and review made on {{book}}'s old pieces will no longer show, and will need to be done again. That includes recordings still on someone's phone that haven't synced, so you may not see them all here.",
-      "kept": "They aren't deleted. They're kept, just not shown."
+      "titleNumbering": "Some sections will change",
+      "titleBook": "{{book}} will be divided again",
+      "bodyNumbering": "Everything recorded and reviewed on the sections that change moves to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.",
+      "bodyBook": "Everything recorded and reviewed on {{book}}'s old sections moves to \"Earlier sections\" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.",
+      "nothingDeleted": "Nothing is deleted."
     },
     "numbering": {
       "ignore": "OK, ignore",
@@ -1666,22 +1668,146 @@
     "translate": {
       "question": "What will {{language}} translate?",
       "bible": "The Bible",
-      "bibleSub": "Then choose how it is broken up",
       "else": "Something else",
-      "elseSub": "Stories, songs, lessons. Make folders, and put what to record in them.",
       "howBrokenUp": "How is material broken up?",
       "howBrokenUpDetail": "A short walk-through in five steps.",
       "howBible": "How should the Bible be broken up?",
-      "eachPiece": "Each piece is recorded on its own. The bars show a book cut that way.",
       "nothingYet": "Nothing to choose from yet. Connect to load the ways LangQuest offers.",
       "ourOwn": "Your organization's own",
       "noneReady": "There are no ready-made ones for this yet. Make your own: folders for how it's organized, and the things people record inside them.",
       "makeOwn": "Make your own",
-      "makeOwnDetail": "Folders, and what to record in them."
+      "makeOwnDetail": "Folders, and what to record in them.",
+      "elseKinds": "Stories, songs, lessons"
     },
     "errors": {
       "noTemplate": "This language has no template yet.",
       "versificationMissing": "Its versification is not on this device yet. Try again when connected."
+    },
+    "earlier": {
+      "numbered": {
+        "eng": "Numbered like most English Bibles",
+        "org": "Numbered like the Hebrew and Greek",
+        "vul": "Numbered like the Latin Vulgate",
+        "russian": "Numbered like the Russian Synodal Bible"
+      },
+      "note_one": "An earlier section. The divisions changed after this was recorded. It is kept so it can be heard; its verses are recorded again in the section below.",
+      "note_other": "An earlier section. The divisions changed after this was recorded. It is kept so it can be heard; its verses are recorded again in the sections below.",
+      "noteHow_one": "An earlier section ({{how}}). The divisions changed after this was recorded. It is kept so it can be heard; its verses are recorded again in the section below.",
+      "noteHow_other": "An earlier section ({{how}}). The divisions changed after this was recorded. It is kept so it can be heard; its verses are recorded again in the sections below.",
+      "whereNow": "Where these verses are now",
+      "changedMark": "Divisions changed since this was recorded",
+      "changedHere": "The divisions have changed since some of this was recorded. Earlier work is kept below; it needs to be done again here.",
+      "title": "Earlier sections",
+      "anEarlier": "An earlier section",
+      "row": "{{how}} · {{versions}}",
+      "versions_one": "{{count, number}} version",
+      "versions_other": "{{count, number}} versions",
+      "openOne": "Open one to listen to what was recorded and reviewed on it."
+    },
+    "numberingStep": {
+      "facts": {
+        "booksCount_one": "{{count, number}} book",
+        "booksCount_other": "{{count, number}} books",
+        "books_one": "book",
+        "books_other": "books",
+        "malachiHas_one": "{{book}} has {{count, number}} chapter",
+        "malachiHas_other": "{{book}} has {{count, number}} chapters",
+        "chapters_one": "{{count, number}} chapter",
+        "chapters_other": "{{count, number}} chapters",
+        "headingsNumbered": "Psalm headings are verse 1",
+        "headingsUnnumbered": "Psalm headings have no number",
+        "headings": "Psalm headings",
+        "verseOne": "verse 1",
+        "noNumber": "no number"
+      },
+      "psalm3": {
+        "title": "Psalm 3",
+        "heading": "A psalm of David",
+        "firstLine": "Lord, how many are my foes!"
+      },
+      "find": {
+        "question": "Which Bible do you translate from?",
+        "placeholder": "NIV, Reina-Valera, Luther…",
+        "showAll_one": "Show all {{count, number}}",
+        "showAll_other": "Show all {{count, number}}",
+        "notFound": "Not found.",
+        "quiz": "Not listed? Answer a few questions"
+      },
+      "chooseFromList": "Choose from the list",
+      "quiz": {
+        "step": "Question {{n}}",
+        "quoted": "“{{text}}”",
+        "notSure": "Not sure",
+        "psalm23": {
+          "title": "Which psalm is it in your Bible?",
+          "quote": "The Lord is my shepherd",
+          "psalm": "{{book}} {{n}}"
+        },
+        "psalmHeading": {
+          "title": "Which looks like Psalm 3 in your Bible?",
+          "noNumber": "The heading has no number",
+          "verseOne": "The heading is verse 1"
+        },
+        "malachi": {
+          "title": "How many chapters does {{book}} have?",
+          "small": "The last book of the Old Testament"
+        },
+        "romans16": {
+          "title": "{{book}} 16 ends with verse…",
+          "verse": "Verse {{n}}"
+        },
+        "extraBooks": {
+          "title": "Does your Bible have these books?"
+        },
+        "church": {
+          "title": "Which church is your Bible from?",
+          "slavic": "Russian or Slavic",
+          "greek": "Greek or other Orthodox",
+          "catholic": "Catholic",
+          "protestant": "Protestant or evangelical",
+          "slavicOrthodox": "Russian or Slavic Orthodox",
+          "ethiopian": "Ethiopian or Eritrean Orthodox",
+          "jewish": "Jewish (Tanakh)"
+        }
+      },
+      "extraBooks": {
+        "tobit": "Tobit",
+        "judith": "Judith",
+        "maccabees": "Maccabees"
+      },
+      "list": {
+        "question": "Choose the numbering",
+        "malachi": "{{book}} {{n}}",
+        "headingsNumbered": "Headings verse 1",
+        "headingsUnnumbered": "Headings no number",
+        "connect": "Connect to load the numberings."
+      },
+      "chosen": {
+        "like": "Like {{bible}}",
+        "match": "Verse numbers in LangQuest will match your Bible.",
+        "another": "Choose another"
+      },
+      "context": {
+        "label": "Numbering",
+        "help": "Tap to change the numbering.",
+        "a11y": "Numbering: {{name}}. Change",
+        "change": "Change"
+      },
+      "notes": {
+        "mixes": "Your Bible mixes numberings. This is the closest.",
+        "notOffered": "The Greek Old Testament numbering is not offered yet. Choose the closest from the list.",
+        "notSure": "Not sure? Choose from the list."
+      },
+      "bibleLanguages": {
+        "portuguese": "Portuguese",
+        "chinese": "Chinese",
+        "german": "German",
+        "russian": "Russian",
+        "greek": "Greek",
+        "latin": "Latin",
+        "hebrew": "Hebrew",
+        "korean": "Korean"
+      }
     }
   },
   "canon": {
@@ -3434,6 +3560,11 @@
       "everyLanguage": "See how every language is doing",
       "everything": "Everything in {{language}}",
       "help": "Every passage, and how far it has come."
+    },
+    "divide": {
+      "title": "Divide {{book}}",
+      "waiting_one": "Waiting to be divided before anyone records it",
+      "waiting_other": "{{count, number}} books are waiting to be divided before anyone records them"
     }
   },
   "shell": {
@@ -4228,8 +4359,10 @@
       "keptSome_one": "{{kept}} of {{count, number}} part on this device",
       "keptSome_other": "{{kept}} of {{count, number}} parts on this device",
       "downloading": "{{kept}} (downloading)",
-      "outsideFilter": "outside the filter"
-    }
+      "outsideFilter": "outside the filter",
+      "changedSinceRecorded": "divisions changed since recorded"
+    },
+    "changedSinceRecorded": "Divisions changed since it was recorded"
   },
   "reports": {
     "title": "Reports",

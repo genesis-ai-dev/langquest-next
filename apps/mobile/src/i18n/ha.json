@@ -1161,7 +1161,6 @@
       "useThis": "Yi amfani da wannan",
       "keepIt": "Bar shi",
       "whichPart": "Wane sashe na Littafi Mai Tsarki?",
-      "keepRecordings": "Gutsuttsuran da ba su canja ba za su riƙe naɗe-naɗensu. Duk abin da aka naɗa a gutsuren da ya canja zai daina bayyana, kuma zai dawo idan kuka mayar da shi.",
       "viewOnly": "Masu tsara harsuna kaɗai ne za su iya canja abin da suke fassarawa."
     },
     "media": {
@@ -1617,11 +1616,8 @@
       "someLanguages": "Harsunan da kuka bari za su riƙe samfurin yadda yake. Waɗanda kuka zaɓa za su sami nasu kwafin da wannan canji."
     },
     "redo": {
-      "title": "Naɗe-naɗen {{book}} za su daina bayyana",
       "changeAnyway": "Canja shi duk da haka",
-      "keep": "Bar shi yadda yake",
-      "body": "Kowane naɗi da bita da aka yi a kan tsofaffin gutsuttsuran {{book}} ba za su ƙara bayyana ba, kuma za a buƙaci a sake yin su. Wannan ya haɗa da naɗe-naɗen da ke kan wayar wani da ba a daidaita ba tukuna, don haka wataƙila ba za ku ga duka a nan ba.",
-      "kept": "Ba a goge su ba. An ajiye su, kawai ba a nuna su."
+      "keep": "Bar shi yadda yake"
     },
     "numbering": {
       "ignore": "To, a ƙyale",
@@ -1666,13 +1662,10 @@
     "translate": {
       "question": "Me {{language}} zai fassara?",
       "bible": "Littafi Mai Tsarki",
-      "bibleSub": "Sannan ku zaɓi yadda za a raba shi",
       "else": "Wani abu daban",
-      "elseSub": "Labarai, waƙoƙi, darussa. Ku yi foldoji, ku sa abin da za a naɗa a ciki.",
       "howBrokenUp": "Yaya ake raba kaya?",
       "howBrokenUpDetail": "Gajeren bayani a matakai biyar.",
       "howBible": "Yaya za a raba Littafi Mai Tsarki?",
-      "eachPiece": "Ana naɗa kowane gutsure shi kaɗai. Sandunan suna nuna littafin da aka yanka haka.",
       "nothingYet": "Babu abin da za a zaɓa tukuna. Ku haɗa intanet don loda hanyoyin da LangQuest yake bayarwa.",
       "ourOwn": "Na ƙungiyarku",
       "noneReady": "Babu wanda aka riga aka yi don wannan tukuna. Ku yi naku: foldoji don yadda aka tsara shi, da abubuwan da mutane suke naɗawa a ciki.",

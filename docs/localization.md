@@ -1,6 +1,6 @@
 # Localization
 
-The app's own words are in the person's language (LAN-42, decisions.md 80).
+The app's own words are in the person's language (LAN-42, decisions.md 81).
 English is the source. Library documents (templates, flows, reference
 material, study guides) are the organization's content and are shown as
 written (decision 36); so are names people typed and anything stored in the
@@ -83,7 +83,7 @@ too.
 who approved it for release. The app follows the phone's language into any
 approved catalog, and Me → Language (and the globe on the sign-in screen)
 offers every language. The first fourteen are machine translations approved
-as they are (decision 80): corrections come from the teams using them. A
+as they are (decision 81): corrections come from the teams using them. A
 language not yet approved is a draft: it can be picked by hand and says so,
 and the phone's language never switches to it.
 

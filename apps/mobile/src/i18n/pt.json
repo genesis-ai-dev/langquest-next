@@ -1191,7 +1191,6 @@
       "useThis": "Usar este",
       "keepIt": "Manter",
       "whichPart": "Qual parte da Bíblia?",
-      "keepRecordings": "As partes que continuam iguais mantêm as gravações. O que foi gravado numa parte que muda deixa de aparecer, e volta se você desfizer a mudança.",
       "viewOnly": "Só quem configura idiomas pode mudar o que eles traduzem."
     },
     "media": {
@@ -1673,11 +1672,8 @@
       "someLanguages": "Os idiomas que você deixar de fora mantêm o modelo como está. Os que você escolher recebem uma cópia própria com esta mudança."
     },
     "redo": {
-      "title": "As gravações de {{book}} vão deixar de aparecer",
       "changeAnyway": "Mudar assim mesmo",
-      "keep": "Deixar como está",
-      "body": "Todas as gravações e revisões feitas nas partes antigas de {{book}} deixarão de aparecer e precisarão ser feitas de novo. Isso inclui gravações que ainda estão no celular de alguém e não foram sincronizadas, então talvez você não veja todas aqui.",
-      "kept": "Elas não são excluídas. Ficam guardadas, só não aparecem."
+      "keep": "Deixar como está"
     },
     "numbering": {
       "ignore": "OK, ignorar",
@@ -1724,13 +1720,10 @@
     "translate": {
       "question": "O que {{language}} vai traduzir?",
       "bible": "A Bíblia",
-      "bibleSub": "Depois escolha como ela é dividida",
       "else": "Outra coisa",
-      "elseSub": "Histórias, cânticos, lições. Crie pastas e coloque nelas o que gravar.",
       "howBrokenUp": "Como o material é dividido?",
       "howBrokenUpDetail": "Uma explicação curta em cinco etapas.",
       "howBible": "Como a Bíblia deve ser dividida?",
-      "eachPiece": "Cada parte é gravada separadamente. As barras mostram um livro cortado desse jeito.",
       "nothingYet": "Ainda não há nada para escolher. Conecte-se para carregar as formas que o LangQuest oferece.",
       "ourOwn": "Da sua organização",
       "noneReady": "Ainda não há modelos prontos para isto. Crie o seu: pastas para mostrar como está organizado e, dentro delas, o que as pessoas gravam.",

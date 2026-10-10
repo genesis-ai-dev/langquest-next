@@ -1191,7 +1191,6 @@
       "useThis": "Usar esto",
       "keepIt": "Dejarlo así",
       "whichPart": "¿Qué parte de la Biblia?",
-      "keepRecordings": "Las partes que no cambian conservan sus grabaciones. Lo grabado en una parte que cambia deja de verse, y vuelve si regresas al cambio anterior.",
       "viewOnly": "Solo quienes configuran idiomas pueden cambiar lo que traducen."
     },
     "media": {
@@ -1673,11 +1672,8 @@
       "someLanguages": "Los idiomas que no marques conservan la plantilla como está. Los que elijas reciben su propia copia con este cambio."
     },
     "redo": {
-      "title": "Las grabaciones de {{book}} dejarán de verse",
       "changeAnyway": "Cambiarlo de todos modos",
-      "keep": "Dejarlo como está",
-      "body": "Todas las grabaciones y revisiones hechas en las partes anteriores de {{book}} ya no se verán y habrá que hacerlas de nuevo. Eso incluye grabaciones que todavía están en el teléfono de alguien y no se han sincronizado, así que puede que aquí no las veas todas.",
-      "kept": "No se eliminan. Se guardan, solo que no se muestran."
+      "keep": "Dejarlo como está"
     },
     "numbering": {
       "ignore": "Bien, ignorar",
@@ -1724,13 +1720,10 @@
     "translate": {
       "question": "¿Qué traducirá {{language}}?",
       "bible": "La Biblia",
-      "bibleSub": "Luego elige cómo se divide",
       "else": "Otra cosa",
-      "elseSub": "Historias, cantos, lecciones. Crea carpetas y pon dentro lo que hay que grabar.",
       "howBrokenUp": "¿Cómo se divide el material?",
       "howBrokenUpDetail": "Una explicación corta en cinco pasos.",
       "howBible": "¿Cómo se debe dividir la Biblia?",
-      "eachPiece": "Cada parte se graba por separado. Las barras muestran un libro cortado de esa forma.",
       "nothingYet": "Todavía no hay nada para elegir. Conéctate para cargar las formas que ofrece LangQuest.",
       "ourOwn": "Las de tu organización",
       "noneReady": "Todavía no hay ninguna lista para esto. Crea la tuya: carpetas para cómo se organiza, y dentro las cosas que las personas graban.",

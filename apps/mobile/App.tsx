@@ -275,7 +275,7 @@ export default function App() {
   const [wordsReady, setWordsReady] = useState(languageReady);
   useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
-  // Help speaks offline too: keep the recorded help lines of the app's language (decision 80).
+  // Help speaks offline too: keep the recorded help lines of the app's language (decision 81).
   useEffect(() => { void keepHelpAudio(); }, []);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);

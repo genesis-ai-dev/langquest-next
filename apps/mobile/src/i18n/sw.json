@@ -1161,7 +1161,6 @@
       "useThis": "Tumia hiki",
       "keepIt": "Kiache",
       "whichPart": "Sehemu ipi ya Biblia?",
-      "keepRecordings": "Vipande visivyobadilika vinabaki na rekodi zake. Chochote kilichorekodiwa kwenye kipande kinachobadilika kinaacha kuonekana, na kinarudi ukibadilisha tena kama ilivyokuwa.",
       "viewOnly": "Watu wanaoandaa lugha tu ndio wanaweza kubadilisha wanachotafsiri."
     },
     "media": {
@@ -1617,11 +1616,8 @@
       "someLanguages": "Lugha unazoziacha zinabaki na kiolezo kama kilivyo. Zile unazochagua zinapata nakala yao wenyewe yenye mabadiliko haya."
     },
     "redo": {
-      "title": "Rekodi za {{book}} zitaacha kuonekana",
       "changeAnyway": "Badilisha hata hivyo",
-      "keep": "Kiache kama kilivyo",
-      "body": "Kila rekodi na ukaguzi uliofanywa kwenye vipande vya zamani vya {{book}} havitaonekana tena, na vitahitaji kufanywa upya. Hii inajumuisha rekodi ambazo bado ziko kwenye simu ya mtu na hazijasawazishwa, kwa hiyo huenda usizione zote hapa.",
-      "kept": "Hazifutwi. Zinahifadhiwa, ila hazionyeshwi."
+      "keep": "Kiache kama kilivyo"
     },
     "numbering": {
       "ignore": "Sawa, puuza",
@@ -1666,13 +1662,10 @@
     "translate": {
       "question": "{{language}} itatafsiri nini?",
       "bible": "Biblia",
-      "bibleSub": "Kisha chagua jinsi inavyogawanywa",
       "else": "Kitu kingine",
-      "elseSub": "Hadithi, nyimbo, masomo. Tengeneza folda, na uweke ndani yake cha kurekodi.",
       "howBrokenUp": "Nyenzo hugawanywaje?",
       "howBrokenUpDetail": "Maelezo mafupi katika hatua tano.",
       "howBible": "Biblia igawanywe vipi?",
-      "eachPiece": "Kila kipande kinarekodiwa peke yake. Michoro inaonyesha kitabu kilichokatwa kwa njia hiyo.",
       "nothingYet": "Bado hakuna cha kuchagua. Unganisha ili kupakia njia ambazo LangQuest inatoa.",
       "ourOwn": "Za shirika lako mwenyewe",
       "noneReady": "Bado hakuna zilizotengenezwa tayari kwa hili. Tengeneza zako: folda za jinsi kinavyopangwa, na vitu ambavyo watu wanarekodi ndani yake.",

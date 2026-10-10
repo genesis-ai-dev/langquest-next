@@ -28,6 +28,13 @@ export interface VersificationDoc {
   maxVerses: Record<string, number[]>;
   /** "GEN 31:55" (this system) -> "GEN 32:1" (org). Either side may be a same-chapter range. */
   mappedVerses: Record<string, string>;
+  /**
+   * More mappings for a left side `mappedVerses` already has: a verse that
+   * holds two org verses is two lines in Paratext's files ("LEV 14:55 =
+   * LEV 14:55", "LEV 14:55 = LEV 14:56"), and a JSON object keeps one
+   * (decision 80).
+   */
+  moreMappedVerses?: [string, string][];
   excludedVerses?: string[];
   partialVerses?: Record<string, string[]>;
   mergedVerses?: string[];
@@ -35,7 +42,7 @@ export interface VersificationDoc {
 }
 
 /** One verse: book (USFM), chapter, verse (0 = a Psalm title). */
-interface Verse {
+export interface Verse {
   book: string;
   chapter: number;
   verse: number;
@@ -90,7 +97,8 @@ export function bookIdOf(usfm: string): string {
 export function libraryUnitRange(unitId: string, versesIn?: (book: string, chapter: number) => number | undefined): VerseRange | null {
   const slash = unitId.indexOf('/');
   if (slash < 0 || unitId.slice(0, slash).includes('@')) return null;
-  const node = unitId.slice(slash + 1);
+  // A renumbered part carries its numbering ("MAL.3~org", decision 80); its verses are the same reading.
+  const node = unitId.slice(slash + 1).replace(/~[a-z0-9-]+$/, '');
   return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
 }
 
@@ -168,10 +176,13 @@ function compile(doc: VersificationDoc): Compiled {
   if (hit) return hit;
   const toOrg = new Map<string, Verse[]>();
   const fromOrg = new Map<string, Verse[]>();
-  const keys = Object.keys(doc.mappedVerses).sort();
-  for (const k of keys) {
+  const pairs: [string, string][] = [
+    ...Object.keys(doc.mappedVerses).sort().map((k) => [k, doc.mappedVerses[k]!] as [string, string]),
+    ...(doc.moreMappedVerses ?? [])
+  ];
+  for (const [k, v] of pairs) {
     const src = parseVerseKey(k);
-    const dst = parseVerseKey(doc.mappedVerses[k]!);
+    const dst = parseVerseKey(v);
     // Equal lengths pair verse by verse; a merge or split maps every verse
     // on one side to the whole other side.
     src.forEach((s, i) => {
@@ -197,7 +208,7 @@ export function chaptersInBook(doc: VersificationDoc, book: string): number {
 }
 
 /** Every verse a range covers under this system, in order. */
-function versesOf(doc: VersificationDoc, r: VerseRange): Verse[] {
+export function versesOf(doc: VersificationDoc, r: VerseRange): Verse[] {
   const max = compile(doc).max.get(r.book);
   if (!max) return [];
   const out: Verse[] = [];
@@ -263,4 +274,31 @@ export function mapRange(from: VersificationDoc, to: VersificationDoc, r: VerseR
   const first = verses[0]!;
   const last = verses[verses.length - 1]!;
   return { book, start: { chapter: first.chapter, verse: first.verse }, end: { chapter: last.chapter, verse: last.verse } };
+}
+
+/**
+ * Every verse mapping in a Paratext `.vrs` file, as [this system, org]
+ * pairs: the ordinary `A = B` lines and Paratext 7.3's one-to-many lines
+ * (`#! &A = B`). A verse that holds two org verses is two lines, which a
+ * JSON object cannot keep (decision 80). Lines naming verse segments
+ * (`#! *`) are left out.
+ */
+export function paratextMappings(text: string): [string, string][] {
+  const out: [string, string][] = [];
+  for (const raw of text.split('\n')) {
+    let line = raw.trim();
+    if (line.startsWith('#! &')) line = line.slice(4).trim();
+    else if (line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq < 0) continue;
+    const a = line.slice(0, eq).trim();
+    const b = line.slice(eq + 1).trim();
+    if (/^[A-Z0-9]{3} \d+:\d+(-\d+)?$/.test(a) && /^[A-Z0-9]{3} \d+:\d+(-\d+)?$/.test(b)) out.push([a, b]);
+  }
+  return out;
+}
+
+/** The pairs a document's `mappedVerses` lacks: what `moreMappedVerses` should carry. */
+export function missingMappings(doc: VersificationDoc, pairs: [string, string][]): [string, string][] {
+  return pairs.filter(([a, b]) => doc.mappedVerses[a] !== b);
 }

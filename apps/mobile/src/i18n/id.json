@@ -1131,7 +1131,6 @@
       "useThis": "Pakai ini",
       "keepIt": "Biarkan",
       "whichPart": "Bagian Alkitab yang mana?",
-      "keepRecordings": "Potongan yang tetap sama mempertahankan rekamannya. Apa pun yang direkam pada potongan yang berubah tidak akan ditampilkan lagi, dan akan muncul kembali jika Anda mengubahnya kembali.",
       "viewOnly": "Hanya orang yang mengatur bahasa yang dapat mengubah apa yang diterjemahkan."
     },
     "media": {
@@ -1561,11 +1560,8 @@
       "someLanguages": "Bahasa yang tidak Anda pilih tetap memakai templat seperti sekarang. Bahasa yang Anda pilih mendapat salinannya sendiri dengan perubahan ini."
     },
     "redo": {
-      "title": "Rekaman {{book}} tidak akan ditampilkan lagi",
       "changeAnyway": "Tetap ubah",
-      "keep": "Biarkan seperti sekarang",
-      "body": "Setiap rekaman dan pemeriksaan yang dibuat pada potongan lama {{book}} tidak akan ditampilkan lagi, dan perlu dikerjakan ulang. Termasuk rekaman yang masih ada di ponsel seseorang dan belum tersinkron, jadi mungkin Anda tidak melihat semuanya di sini.",
-      "kept": "Rekaman itu tidak dihapus. Hanya disimpan, tetapi tidak ditampilkan."
+      "keep": "Biarkan seperti sekarang"
     },
     "numbering": {
       "ignore": "Oke, abaikan",
@@ -1608,13 +1604,10 @@
     "translate": {
       "question": "Apa yang akan diterjemahkan {{language}}?",
       "bible": "Alkitab",
-      "bibleSub": "Lalu pilih cara membaginya",
       "else": "Yang lain",
-      "elseSub": "Cerita, lagu, pelajaran. Buat folder, dan masukkan apa yang akan direkam ke dalamnya.",
       "howBrokenUp": "Bagaimana bahan dibagi?",
       "howBrokenUpDetail": "Penjelasan singkat dalam lima langkah.",
       "howBible": "Bagaimana Alkitab sebaiknya dibagi?",
-      "eachPiece": "Setiap potongan direkam tersendiri. Batang-batang ini menunjukkan sebuah kitab yang dibagi dengan cara itu.",
       "nothingYet": "Belum ada yang bisa dipilih. Sambungkan untuk memuat cara-cara yang ditawarkan LangQuest.",
       "ourOwn": "Milik organisasi Anda sendiri",
       "noneReady": "Belum ada yang siap pakai untuk ini. Buat sendiri: folder untuk cara penyusunannya, dan hal-hal yang direkam orang di dalamnya.",

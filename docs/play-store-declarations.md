@@ -122,7 +122,7 @@ The Reports section's map and country names (`d3-geo`, `topojson-client`,
 `world-atlas`, `i18n-iso-countries`) are code and data inside the app: they
 make no network calls and collect nothing.
 
-The app's own words come in the person's language (LAN-42, decisions.md 80,
+The app's own words come in the person's language (LAN-42, decisions.md 81,
 `docs/localization.md`). `expo-localization` reads the phone's language list
 on the phone to choose one; `i18next` and `react-i18next` are code inside the
 app, and every language's words ship in the app. The language someone picks

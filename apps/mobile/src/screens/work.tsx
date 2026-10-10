@@ -254,9 +254,18 @@ export function MyWork(ctx: Ctx) {
   const nothing = !lead && items.length === 0;
   const map = () => ctx.go(mapScreenFor(ctx.session));
 
+  // On the admin's list (decision 80): books waiting to be divided before anyone can record them.
+  const toDivide = languageId && ctx.session.can('manage_templates') ? idx.waiting : [];
   return (
     <Screen header={header}>
       {lead}
+      {toDivide.length > 0 ? (
+        <Group>
+          <Row icon="cut" label={t('work.divide.title', { book: unitTitle(state, toDivide[0]!) })}
+            sub={t('work.divide.waiting', { count: toDivide.length })}
+            last onPress={map} />
+        </Group>
+      ) : null}
       {nothing ? (
         <Card style={styles.caughtUp}>
           <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={24} color={TINT.greenText} /></View>

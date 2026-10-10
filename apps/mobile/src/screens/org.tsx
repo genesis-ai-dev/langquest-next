@@ -1369,9 +1369,12 @@ export function NewLanguage(ctx: Ctx) {
   if (step === 2) {
     return (
       <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label={t('org.continue')} icon="right" disabled={!tq.ready} onPress={() => setStep(3)} />{back}</>}>
+        footer={<>
+          {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
+          <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { if (!tq.retreat()) setStep(1); } }]} />
+        </>}>
         <TranslateQuestion ctx={ctx} t={tq} lang={title} canMake={ctx.session.can('manage_templates')} onMake={() => ctx.go('template_editor', { new: '1' })} />
-        {doc?.bible ? (
+        {doc?.bible && tq.page === 'ways' ? (
           <>
             <SectionLabel label={t('getReady.record.whichPart')} />
             <Pills>

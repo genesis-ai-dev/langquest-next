@@ -46,7 +46,7 @@ import { shareInvite } from '../simple/invite';
 import { howItWorks, ReadyChecklist, usePlainRoles, useReadySummary } from '../simple/ready';
 import { useCheckChoices, type FlowEntry } from '../simple/choices';
 import { TranslateQuestion, useTranslate } from '../breakup/TranslateStep';
-import { NumberingNote } from '../breakup/parts';
+import { NumberingNote, RedoSheet } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
@@ -129,11 +129,16 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
     a === b || (!!a && !!b && a.length === b.length && a.every((x) => b.includes(x)));
   const changed = tq.ready && (!inUse || !same(wanted, sel?.books));
   const canUse = ctx.session.can('manage_templates');
-  const recorded = useMemo(() => languageProgress(state, indexesFor(state)), [state]);
+  // Any work at all, published or not: a change of numbering moves it (decision 80).
+  const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
+  const [warn, setWarn] = useState(false);
 
-  async function answer() {
+  async function answer(confirmed = false) {
     if (busy) return;
     if (!changed) { next(); return; }
+    // A new numbering changes sections that may hold work: say so first (decision 80).
+    if (tq.numberingChanged && worked && !confirmed) { setWarn(true); return; }
+    setWarn(false);
     if (!canUse) { ctx.toast(t('getReady.record.onlySetUp')); return; }
     if (wanted && wanted.length === 0) { ctx.toast(t('getReady.record.chooseABook')); return; }
     setBusy(true);
@@ -144,7 +149,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null)
         : null;
       const use = await tq.resolve();
-      const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}) });
+      const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}), ...(use.unitPrefix ? { unitPrefix: use.unitPrefix } : {}) });
       try {
         await ctx.act(specs, t('getReady.record.saved', { language: lang, what: recordSummary(use.doc, wanted, use.doc.name) }), undo ? () => undo : undefined);
       } catch { setBusy(false); return; }
@@ -158,10 +163,18 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
 
   return (
     <Screen header={header} bodyStyle={PAD}
-      footer={<PrimaryBtn label={only ? (changed ? t('getReady.record.useThis') : t('getReady.record.keepIt')) : t('common.next')} icon={only ? 'check' : 'right'} busy={busy}
-        disabled={!tq.ready && !only} onPress={() => void answer()} />}>
+      footer={<>
+        {/* One question a screen: the pages before the last move on inside the question (decision 80). */}
+        {!tq.last ? (
+          tq.showContinue ? <PrimaryBtn label={t('common.next')} icon="right" disabled={!tq.canContinue} onPress={() => { tq.advance(); }} /> : null
+        ) : (
+          <PrimaryBtn label={only ? (changed ? t('getReady.record.useThis') : t('getReady.record.keepIt')) : t('common.next')} icon={only ? 'check' : 'right'} busy={busy} disabled={!tq.ready && !only}
+            onPress={() => void answer()} />
+        )}
+        {tq.page !== 'what' ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', onPress: () => { tq.retreat(); } }]} /> : null}
+      </>}>
       <TranslateQuestion ctx={ctx} t={tq} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1' })} />
-      {doc?.bible ? (
+      {doc?.bible && tq.last ? (
         <>
           <SectionLabel label={t('getReady.record.whichPart')} />
           <Pills>
@@ -180,10 +193,11 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           ) : null}
         </>
       ) : null}
-      {changed && recorded.recorded > 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('getReady.record.keepRecordings')}</Text>
+      {changed && worked && tq.last ? (
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('getReady.record.keepEarlier')}</Text>
       ) : null}
       {!canUse ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.record.viewOnly')} /> : null}
+      <RedoSheet visible={warn} book={lang} numbering busy={busy} onClose={() => setWarn(false)} onConfirm={() => void answer(true)} />
     </Screen>
   );
 }

@@ -62,7 +62,7 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // A fitness function (decisions.md 58): the JavaScript a first visit downloads.
 // 4.8 MB when this was set (catalog data, study texts, the map's shapes); a
 // rise past it is a change someone should notice, not drift. Raised to 6 MB
-// with localization (decision 80): the app's words moved from the code into
+// with localization (decision 81): the app's words moved from the code into
 // the English catalog, which also carries their keys, and i18next came with
 // them (5.67 MB then). The other languages' catalogs stay out of it: a browser
 // fetches only the one chosen (src/i18n/catalogs.web.ts).

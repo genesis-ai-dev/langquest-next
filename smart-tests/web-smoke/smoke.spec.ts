@@ -46,6 +46,11 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, 'input[aria-label="Its name"]').fill('Dinka');
   await vis(page, 'input[aria-label="Its code, if it has one"]').fill('din');
   await button(page, 'Continue').click();
+  // One question a screen (decision 80): the Bible, its numbering (from the list here), how it is divided.
+  await button(page, 'Continue').click({ timeout: 60_000 });
+  await button(page, 'Choose from the list').click({ timeout: 60_000 });
+  await page.getByText('Like most English Bibles', { exact: true }).locator('visible=true').first().click({ timeout: 60_000 });
+  await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Continue').click({ timeout: 60_000 });
   await button(page, 'Later').click({ timeout: 60_000 });

@@ -7,6 +7,7 @@
 // Everything shown is derived from the event log
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
+import { EarlierNote, EarlierSections, isEarlierSection } from '../breakup/earlier';
 import {
   CommandError, commands, feedbackIsMine, isCompleteState, keyTermLinksFor, questionsForKind, recordTimeline, reviewGrid,
   type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type PassageNote, type QuestionSpec, type ReviewView
@@ -320,7 +321,15 @@ export function PassageRecord(ctx: Ctx) {
       onPress: () => go(kind.produces ? 'back_translation' : 'review_capture', { kindId: openCheck.kindId }) };
   }
 
+  // An earlier section (decision 80) is kept to be heard, not worked on.
+  const earlierHere = isEarlierSection(ctx.language.state, unitId);
+  if (earlierHere) main = null;
+
   const onStep = (st: PathStep): (() => void) | undefined => {
+    if (earlierHere) {
+      const take = (st.kind === 'record' || st.kind === 'publish') && st.state === 'done' ? p.latest?.takeId : undefined;
+      return take ? () => go('version_detail', { takeId: take }) : undefined;
+    }
     if (st.kind === 'study') return () => go('study_guide');
     if (st.kind === 'record') {
       if (st.state === 'done' && p.latest) { const takeId = p.latest.takeId; return () => go('version_detail', { takeId }); }
@@ -334,7 +343,7 @@ export function PassageRecord(ctx: Ctx) {
     return undefined;
   };
   const canAct = can.ask || can.log || can.review;
-  const onTeamStep = (step: TeamStep): (() => void) | undefined => (canAct ? () => setOpenStepId(step.stepId) : undefined);
+  const onTeamStep = (step: TeamStep): (() => void) | undefined => (canAct && !earlierHere ? () => setOpenStepId(step.stepId) : undefined);
   const passageNote = p.notes.filter((n) => n.anchor.kind === 'passage' && n.by !== me).at(-1);
   const extraFor = (st: PathStep): ReactNode => {
     if (st.state !== 'current') return null;
@@ -502,7 +511,9 @@ export function PassageRecord(ctx: Ctx) {
           {t('passage.page.waitingOnAnswer', { name: p.latest ? ctx.name(p.latest.by, true) : t('passage.record.theTranslator'), kinds: fbNames })}
         </Text>
       ) : null}
+      <EarlierNote ctx={ctx} unitId={unitId} languageId={languageId} />
       <PassagePath steps={steps} team={team} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
+      <EarlierSections ctx={ctx} unitId={unitId} languageId={languageId} />
 
       {historyOpen ? <SectionLabel label={t('passage.page.history')} /> : null}
       {historyOpen && study ? (

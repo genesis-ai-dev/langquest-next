@@ -114,8 +114,9 @@ export function useLibrary(ctx: Ctx) {
   /**
    * The events that make a language use an item's current version (template or flow).
    * `into`: the language's state when it is not the open one (a new language's, decisions.md 37).
+   * `unitPrefix`: keep the language's part ids (the same way in another numbering, decision 80).
    */
-  const applySpecs = useCallback(async (itemId: string, opts: { books?: string[]; docHash?: string; into?: LanguageState } = {}) => {
+  const applySpecs = useCallback(async (itemId: string, opts: { books?: string[]; docHash?: string; into?: LanguageState; unitPrefix?: string } = {}) => {
     const state = opts.into ?? ctx.language.state;
     // With `docHash`, the item may be one this phone has only just followed (not folded yet).
     const hash = opts.docHash ?? libraryItemView(library ?? {}, itemId)?.current;
@@ -127,7 +128,9 @@ export function useLibrary(ctx: Ctx) {
     if (isTemplateDoc(doc)) {
       const v11n = doc.bible ? (docs.get(doc.bible.versification) as VersificationDoc | undefined) ?? null : null;
       if (doc.bible && !v11n) throw new CommandError(t('library.errors.versificationNotHere'));
-      return selectTemplateSpecs(state, { commandId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}) });
+      return selectTemplateSpecs(state, {
+        commandId, itemId, docHash: hash, doc: doc as TemplateDoc, versification: v11n, ...(opts.books ? { books: opts.books } : {}), ...(opts.unitPrefix ? { unitPrefix: opts.unitPrefix } : {})
+      });
     }
     if (doc.format === 'flow@1') return selectFlowSpecs(state, { commandId, itemId, docHash: hash, doc: doc as FlowDoc });
     throw new CommandError(t('library.errors.onlyTemplatesAndFlows'));

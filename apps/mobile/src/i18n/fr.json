@@ -1191,7 +1191,6 @@
       "useThis": "Utiliser ceci",
       "keepIt": "Le garder",
       "whichPart": "Quelle partie de la Bible ?",
-      "keepRecordings": "Les morceaux qui ne changent pas gardent leurs enregistrements. Ce qui a été enregistré sur un morceau qui change n’est plus affiché, et revient si vous revenez en arrière.",
       "viewOnly": "Seules les personnes qui configurent les langues peuvent changer ce qu’elles traduisent."
     },
     "media": {
@@ -1673,11 +1672,8 @@
       "someLanguages": "Les langues que vous laissez de côté gardent le modèle tel qu’il est. Celles que vous choisissez reçoivent leur propre copie avec ce changement."
     },
     "redo": {
-      "title": "Les enregistrements de {{book}} ne seront plus affichés",
       "changeAnyway": "Changer quand même",
-      "keep": "Le garder tel quel",
-      "body": "Tous les enregistrements et révisions faits sur les anciens morceaux de {{book}} ne seront plus affichés, et devront être refaits. Cela comprend les enregistrements encore sur le téléphone de quelqu’un et pas encore synchronisés, donc vous ne les voyez peut-être pas tous ici.",
-      "kept": "Ils ne sont pas supprimés. Ils sont gardés, simplement pas affichés."
+      "keep": "Le garder tel quel"
     },
     "numbering": {
       "ignore": "OK, ignorer",
@@ -1724,13 +1720,10 @@
     "translate": {
       "question": "Que va traduire {{language}} ?",
       "bible": "La Bible",
-      "bibleSub": "Puis choisissez comment elle est découpée",
       "else": "Autre chose",
-      "elseSub": "Récits, chants, leçons. Créez des dossiers, et mettez-y ce qu’il faut enregistrer.",
       "howBrokenUp": "Comment le contenu est-il découpé ?",
       "howBrokenUpDetail": "Une courte présentation en cinq étapes.",
       "howBible": "Comment découper la Bible ?",
-      "eachPiece": "Chaque morceau est enregistré séparément. Les barres montrent un livre coupé de cette façon.",
       "nothingYet": "Rien à choisir pour l’instant. Connectez-vous pour charger les découpages que propose LangQuest.",
       "ourOwn": "Ceux de votre organisation",
       "noneReady": "Il n’y en a pas encore de tout prêts pour cela. Créez le vôtre : des dossiers pour l’organisation, et ce que les gens enregistrent dedans.",

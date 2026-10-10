@@ -4,7 +4,7 @@
 // a draft: it can be picked in Me → Language, says it is a draft, and the
 // phone's language never switches someone into it. The first fourteen are
 // machine translations Caleb approved on 2026-10-10, so field teams can use
-// them and say what reads wrong (decision 80).
+// them and say what reads wrong (decision 81).
 
 export type UiLanguage =
   | 'en' | 'es' | 'pt' | 'fr' | 'ar' | 'sw' | 'ha' | 'am' | 'hi' | 'bn' | 'ne' | 'id' | 'zh-Hans' | 'th' | 'my';

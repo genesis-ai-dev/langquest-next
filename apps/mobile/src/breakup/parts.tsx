@@ -204,14 +204,15 @@ export function ApplySheet(props: {
 }
 
 /**
- * The warning before a book that is already broken up is broken up again
- * (Caleb, 2026-10-09): what was recorded on its old pieces stops showing,
- * including recordings still on phones that have not synced. Nothing is
- * deleted.
+ * The warning before a change to sections that may hold work (decisions 74
+ * and 80): a book divided again, or a new numbering. What was recorded and
+ * reviewed on the old sections moves to "Earlier sections" on the new ones
+ * and needs doing again; that includes recordings on phones that have not
+ * synced. Nothing is deleted.
  */
-export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean }) {
   return (
-    <Sheet visible={props.visible} title={t('breakup.redo.title', { book: props.book })} onClose={props.onClose}
+    <Sheet visible={props.visible} title={props.numbering ? t('breakup.redo.titleNumbering') : t('breakup.redo.titleBook', { book: props.book })} onClose={props.onClose}
       footer={<>
         <PrimaryBtn label={t('breakup.redo.changeAnyway')} tone="red" busy={props.busy} onPress={props.onConfirm} />
         <GhostBtn label={t('breakup.redo.keep')} icon="close" onPress={props.onClose} />
@@ -219,8 +220,8 @@ export function RedoSheet(props: { visible: boolean; book: string; busy: boolean
       <View style={styles.danger}>
         <Ico name="flag" size={28} color={TINT.redText} />
       </View>
-      <Text style={txt.body}>{t('breakup.redo.body', { book: props.book })}</Text>
-      <Text style={txt.smMuted}>{t('breakup.redo.kept')}</Text>
+      <Text style={txt.body}>{props.numbering ? t('breakup.redo.bodyNumbering') : t('breakup.redo.bodyBook', { book: props.book })}</Text>
+      <Text style={txt.smMuted}>{t('breakup.redo.nothingDeleted')}</Text>
     </Sheet>
   );
 }

@@ -6,7 +6,7 @@ import { catalogFor, pickLanguage, UI_LANGUAGES } from '../src/i18n/languages';
 import { fallbackRule } from '../src/i18n/plurals';
 import { appFiles, findModuleScopeT, findUiText, keysNamed } from './uiText';
 
-// The app's words (LAN-42, decisions.md 80): none written into the code,
+// The app's words (LAN-42, decisions.md 81): none written into the code,
 // every key used and defined, and every language holding the same keys as
 // English, with the plural forms that language needs.
 
