@@ -236,6 +236,9 @@ export interface TemplateForm {
    * Absent for a template@1, which divides every book one way.
    */
   bookParts?: TemplateBook[];
+  /** A template@2 Bible's numbering code and study pattern (decision 80), kept as they were. */
+  numbering?: string;
+  goesWith?: { pattern: string };
 }
 
 export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc.description): TemplateForm {
@@ -247,7 +250,9 @@ export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc
     divide: doc.format === 'template@1' ? doc.bible?.divide ?? 'chapters' : 'passages',
     passages: doc.format === 'template@1' ? doc.bible?.passages ?? [] : [],
     outline: doc.outline ?? [],
-    ...(doc.format === 'template@2' && doc.bible ? { bookParts: templateBooks(doc) } : {})
+    ...(doc.format === 'template@2' && doc.bible ? { bookParts: templateBooks(doc) } : {}),
+    ...(doc.format === 'template@2' && doc.bible?.numbering ? { numbering: doc.bible.numbering } : {}),
+    ...(doc.format === 'template@2' && doc.goesWith ? { goesWith: doc.goesWith } : {})
   };
 }
 
@@ -260,7 +265,11 @@ export function docFromForm(f: TemplateForm): TemplateDoc {
     const parts = new Map(f.bookParts.map((b) => [b.book, b]));
     return {
       ...base, format: 'template@2',
-      bible: { versification: f.versification ?? '', books: sortBooks(f.books).map((b) => ({ ...(parts.get(b.book) ?? {}), book: b.book, name: b.name })) }
+      bible: {
+        versification: f.versification ?? '', books: sortBooks(f.books).map((b) => ({ ...(parts.get(b.book) ?? {}), book: b.book, name: b.name })),
+        ...(f.numbering ? { numbering: f.numbering } : {})
+      },
+      ...(f.goesWith ? { goesWith: f.goesWith } : {})
     };
   }
   const books = sortBooks(f.books);

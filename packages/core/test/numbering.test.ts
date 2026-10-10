@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { convertWay, earlierSections, numberingOf, templateBooks, type TemplateDocV2 } from '../src/index';
+import { convertWay, earlierSections, numberingOf, templateBooks, templateUnits, validateDoc, type TemplateDocV2 } from '../src/index';
 import { missingMappings, paratextMappings, sharedVerses, parseRef, type VersificationDoc } from '../src/versification';
 
 const dir = path.resolve(__dirname, '../../../library/versifications');
@@ -80,6 +80,30 @@ describe('a way of dividing in another numbering', () => {
     const same = convertWay(way([{ book: 'RUT', name: 'Ruth', divide: 'passages', passages: [{ ref: 'RUT 1:1-7' }, { ref: 'RUT 1:8-19a' }, { ref: 'RUT 1:19b-2:2' }] }]),
       eng, { doc: eng, hash: H('e'), books: [{ book: 'RUT', name: 'Ruth' }] });
     expect(passagesOf(same, 'RUT')).toEqual(['RUT 1:1-7', 'RUT 1:8-19a', 'RUT 1:19b-2:2']);
+  });
+});
+
+describe('a language that changes numbering keeps only the parts that stay the same', () => {
+  it('marks the parts whose verses changed, and gives them ids of their own', () => {
+    const chapters = convertWay(way([{ book: 'MAL', name: 'Malachi', divide: 'chapters', part: 'Chapter' }, { book: 'RUT', name: 'Ruth', divide: 'chapters', part: 'Chapter' }]),
+      eng, to(org, ['MAL', 'RUT']));
+    expect(chapters.bible?.numbering).toBe('org');
+    // Hebrew Malachi 3 holds English 3 and 4; chapters 1 and 2 and all of Ruth are the same verses.
+    expect(templateBooks(chapters).find((b) => b.book === 'MAL')?.renumbered).toEqual(['MAL.3']);
+    expect(templateBooks(chapters).find((b) => b.book === 'RUT')?.renumbered).toBeUndefined();
+    const ids = templateUnits(chapters, 't', org).map((u) => u.unitId);
+    expect(ids).toEqual(expect.arrayContaining(['t/MAL.1', 't/MAL.2', 't/MAL.3~org', 't/RUT.1']));
+    expect(validateDoc({ ...chapters, bible: { ...chapters.bible!, versification: H('a') }, deps: [H('a')] })).toBeNull();
+
+    const psalms = convertWay(way([{ book: 'PSA', name: 'Psalms', divide: 'passages', part: 'Passage', passages: [{ ref: 'PSA 23:1-6' }, { ref: 'PSA 51:1-19' }] }]), eng, to(org, ['PSA']));
+    const marked = templateBooks(psalms).find((b) => b.book === 'PSA')!.renumbered!;
+    expect(marked).toEqual(expect.arrayContaining(['PSA.51.1-2', 'PSA.51.3-21']));
+    expect(marked).not.toContain('PSA.23.1-6');
+  });
+
+  it('reads a renumbered part as its verses', () => {
+    const found = earlierSections({ current: ['t/MAL.3~org'], expired: ['t/MAL.4'], currentNumbering: org, numberingOf: () => eng });
+    expect(found.get('t/MAL.3~org')).toEqual(['t/MAL.4']);
   });
 });
 

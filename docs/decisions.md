@@ -2511,7 +2511,16 @@ default (Caleb, 2026-10-09); this replaces decision 74's "will no longer
 show" for an admin's own change. `docs/breaking-up-the-bible.md`
 holds the rules with examples. Decision 74 stays as built; this extends it.
 The source files are rebuilt first, because their JSON copies lost every
-second line of a verse that matches two (96 lines).
+second line of a verse that matches two (96 lines). Five numberings are
+offered (English, Hebrew, Vulgate 73 books, Russian Synodal 66 and 77);
+every way is published once in each, converted by the seed. A language's
+numbering is its template's versification, so no new event is needed; a
+language's state keeps every template version it used, to read an expired
+section in the numbering it was made in. Changing numbering keeps the
+work on sections whose verses stay the same: a converted way marks the
+parts whose verses differ from the same numbers in English, and only
+those get new ids (`2CO.13~org`). The Septuagint numbering and Catholic
+Bibles numbered like the Hebrew are not offered yet.
 Reverse if: teams need one section made of two separate ranges (Daniel
 3:19–23 with 3:91–97) often enough; then a section holds a list of ranges,
 and every reader of a section's verses learns to read one.

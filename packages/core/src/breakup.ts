@@ -1,6 +1,6 @@
 import { asTemplateV2, templateBooks, type TemplateBook, type TemplateDoc, type TemplateDocV2 } from './libraryDocs';
 import {
-  libraryUnitRange, mapRange, orgVerses, parseRef, sharedVerses, verseFromOrg, versesOf, verseToOrg, type VerseRange, type VersificationDoc
+  libraryUnitRange, mapRange, orgVerses, parseRef, refId, sharedVerses, verseFromOrg, versesOf, verseToOrg, type VerseRange, type VersificationDoc
 } from './versification';
 
 /**
@@ -47,7 +47,7 @@ export function withBookBrokenUp(doc: TemplateDoc, book: string, way: TemplateDo
   const from = way ? bookParts(way, book) : null;
   if (way && !from) throw new Error(`${way.name} does not break up ${book}`);
   const books = templateBooks(v2).map((b) => (b.book === book ? partsOf(b, from) : b));
-  return { ...v2, bible: { versification: v2.bible!.versification, books } };
+  return { ...v2, bible: { ...v2.bible!, books } };
 }
 
 /**
@@ -62,7 +62,7 @@ export function withEmptyBooksFilled(doc: TemplateDoc, way: TemplateDoc): Templa
     const from = bookParts(way, b.book);
     return from ? partsOf(b, from) : b;
   });
-  return { ...v2, bible: { versification: v2.bible!.versification, books } };
+  return { ...v2, bible: { ...v2.bible!, books } };
 }
 
 function partsOf(b: TemplateBook, from: TemplateBook | null): TemplateBook {
@@ -71,6 +71,7 @@ function partsOf(b: TemplateBook, from: TemplateBook | null): TemplateBook {
   out.divide = from.divide!;
   if (from.part) out.part = from.part;
   if (from.divide === 'passages') out.passages = (from.passages ?? []).map((p) => ({ ...p }));
+  if (from.renumbered?.length) out.renumbered = [...from.renumbered];
   return out;
 }
 
@@ -201,7 +202,28 @@ export function convertWay(
     }
   }
 
-  const books = to.books.map((tb): TemplateBook => {
+  // A part whose verses are not those of the part with the same numbers in the way's own numbering
+  // gets an id of its own (`renumbered`), so a language changing numbering keeps only what is the same.
+  const fromVerses = (bk: string, c: number) => from.maxVerses[bk]?.[c - 1];
+  const toVerses = (bk: string, c: number) => to.doc.maxVerses[bk]?.[c - 1];
+  const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((k) => b.has(k));
+  const renumbered = (nodes: string[]) => nodes.filter((node) => {
+    const there = parseRef(node, fromVerses);
+    const here = parseRef(node, toVerses);
+    return !there || !here || !same(orgVerses(from, there), orgVerses(to.doc, here));
+  });
+  const marked = (b: TemplateBook): TemplateBook => {
+    const nodes = b.divide === 'chapters'
+      ? (to.doc.maxVerses[b.book] ?? []).map((_, i) => `${b.book}.${i + 1}`)
+      : b.divide === 'passages' ? (b.passages ?? []).map((p) => parseRef(p.ref, toVerses)).filter((r): r is VerseRange => !!r).map(refId) : [];
+    const changed = renumbered(nodes);
+    return changed.length ? { ...b, renumbered: changed } : b;
+  };
+
+  const books = to.books.map((tb): TemplateBook => marked(bookIn(tb)));
+  return { ...base, bible: { versification: to.hash, books, numbering: to.doc.code } };
+
+  function bookIn(tb: { book: string; name: string }): TemplateBook {
     const s = byBook.get(tb.book);
     const out: TemplateBook = { book: tb.book, name: tb.name };
     if (s?.divide === 'chapters') return { ...out, divide: 'chapters', ...(s.part ? { part: s.part } : {}) };
@@ -232,8 +254,7 @@ export function convertWay(
         return name ? { ref, name } : { ref };
       })
     };
-  });
-  return { ...base, bible: { versification: to.hash, books } };
+  }
 }
 
 /**

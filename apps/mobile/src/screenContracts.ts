@@ -31,11 +31,13 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // People asking to join show under a coordinator's Get ready card (decision 71).
   my_work: { reads:['highlightsFor','waitingOn','derivePassage','upNext','recommendedFor','join_requests','profiles'] },
   status_home: { reads:['languageProgress'] },
-  map_home: { reads:['derivePassage','unitPlace','languageProgress'] },
-  book_map: { reads:['derivePassage','unitPlace'] },
+  // A section whose divisions changed since it was recorded is marked (earlier.tsx, decision 80):
+  // the numberings come from the library.
+  map_home: { reads:['derivePassage','unitPlace','languageProgress','earlierSections','library'],rpcs:['library_get_documents'] },
+  book_map: { reads:['derivePassage','unitPlace','earlierSections','library'],rpcs:['library_get_documents'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
   passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded'],
-    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor'],rpcs:REPORTS },
+    reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor','earlierSections','library'],rpcs:[...REPORTS,'library_get_documents'] },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },
   review_detail: { emits:['v1.DepartureRecorded','v1.DepartureUndone'],reads:['derivePassage','questionsForKind'],rpcs:REPORTS },
   ask_someone: { emits:['v1.RequestMade','v1.RequestWithdrawn'],reads:['derivePassage','questionsForKind'] },

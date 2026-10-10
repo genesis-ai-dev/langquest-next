@@ -13,12 +13,19 @@ import { Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
 import { Card, Field, GhostBtn, Header, PrimaryBtn, Row, Group, Screen, Sheet, txt } from '../kit';
+import { useLibraryDocs } from '../library/useLibrary';
 import { failureMessage } from '../report';
 import { Question } from '../simple/admin';
 import { C, space } from '../theme';
 import { usedLine, type WayRow } from './model';
 import { ApplySheet, PieceBar, PreviewSheet, RedoSheet, WayCard } from './parts';
 import { publishChange, templateUsersOf, useTemplateUsers, useWays } from './useBreakup';
+
+/** The numbering a template is in (decision 80): its versification document's code. */
+function useNumberingCode(ctx: Ctx, doc: TemplateDoc | null): string | null {
+  const docs = useLibraryDocs(ctx.language.orgId, [doc?.bible?.versification]);
+  return doc?.bible ? docs.get<VersificationDoc>(doc.bible.versification)?.code ?? null : null;
+}
 
 /** Which of the ways this book is broken up by now, if any matches it exactly. */
 export function wayNow(rows: WayRow[], docOf: (r: WayRow) => TemplateDoc | null, doc: TemplateDoc | null, book: string): WayRow | null {
@@ -31,7 +38,8 @@ export function BookHead(props: {
   ctx: Ctx; book: string; templateName: string; language: string; doc: TemplateDoc | null; v11n: VersificationDoc | null; canShape: boolean; onChange: () => void;
 }) {
   const { ctx, book } = props;
-  const ways = useWays(ctx, ctx.language.languageId);
+  const code = useNumberingCode(ctx, props.doc);
+  const ways = useWays(ctx, ctx.language.languageId, code);
   const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book);
   const own = ctx.language.state?.bookNames?.[book]?.value;
   const [naming, setNaming] = useState(false);
@@ -76,7 +84,8 @@ export function BreakUpBook(props: {
   ctx: Ctx; book: string; bookName: string; language: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onClose: () => void;
 }) {
   const { ctx, book } = props;
-  const ways = useWays(ctx, ctx.language.languageId);
+  const code = useNumberingCode(ctx, props.doc);
+  const ways = useWays(ctx, ctx.language.languageId, code);
   const { users: rows } = useTemplateUsers(ctx);
   const sel = ctx.language.state?.template?.value;
   const now = wayNow(ways.rows, (r) => ways.docOf(r.choice), props.doc, book);

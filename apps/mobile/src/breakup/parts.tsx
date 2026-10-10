@@ -203,14 +203,16 @@ export function ApplySheet(props: {
 }
 
 /**
- * The warning before a book that is already broken up is broken up again
- * (Caleb, 2026-10-09): what was recorded on its old pieces stops showing,
- * including recordings still on phones that have not synced. Nothing is
- * deleted.
+ * The warning before a change to sections that may hold work (decisions 74
+ * and 80): a book divided again, or a new numbering. What was recorded and
+ * reviewed on the old sections moves to "Earlier sections" on the new ones
+ * and needs doing again; that includes recordings on phones that have not
+ * synced. Nothing is deleted.
  */
-export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+export function RedoSheet(props: { visible: boolean; book: string; busy: boolean; onClose: () => void; onConfirm: () => void; numbering?: boolean }) {
+  const what = props.numbering ? 'the sections that change' : `${props.book}'s old sections`;
   return (
-    <Sheet visible={props.visible} title={`Recordings of ${props.book} will stop showing`} onClose={props.onClose}
+    <Sheet visible={props.visible} title={props.numbering ? 'Some sections will change' : `${props.book} will be divided again`} onClose={props.onClose}
       footer={<>
         <PrimaryBtn label="Change it anyway" tone="red" busy={props.busy} onPress={props.onConfirm} />
         <GhostBtn label="Keep it as it is" icon="close" onPress={props.onClose} />
@@ -219,9 +221,9 @@ export function RedoSheet(props: { visible: boolean; book: string; busy: boolean
         <Ico name="flag" size={28} color={TINT.redText} />
       </View>
       <Text style={txt.body}>
-        Every recording and review made on {props.book}'s old pieces will no longer show, and will need to be done again. That includes recordings still on someone's phone that haven't synced, so you may not see them all here.
+        Everything recorded and reviewed on {what} moves to "Earlier sections" under the new ones, marked with a warning, and will need to be done again. That includes recordings still on someone's phone that haven't synced.
       </Text>
-      <Text style={txt.smMuted}>They aren't deleted. They're kept, just not shown.</Text>
+      <Text style={txt.smMuted}>Nothing is deleted.</Text>
     </Sheet>
   );
 }

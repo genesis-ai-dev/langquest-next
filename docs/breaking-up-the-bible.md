@@ -139,6 +139,17 @@ again, or an admin changes the numbering. All three work the same:
   moves to "Earlier sections" and will need to be done again on the new
   ones.
 
+- An expired section's own page says it is an earlier section, and in
+  which numbering, and links to the sections its verses are in now. It
+  can be heard but not worked on.
+- Changing the numbering expires only the sections whose verses change.
+  English 2 Corinthians 1 is the same verses in Hebrew numbering and keeps
+  its recordings; English 2 Corinthians 13 (14 verses) is not, so the
+  Hebrew 2 Corinthians 13 (13 verses) is a new section and lists the
+  English one under "Earlier sections". Of 1,189 chapters, 139 differ
+  between English and Hebrew numbering, most of them psalms with a
+  numbered heading.
+
 ```
 FIA before:  [ 37–41 ][ 41–47 · recorded ]
 FIA now:     [ 37–41 ⚠ ][ 42–47 ⚠ ]       each lists "Earlier sections: 2:41–47"
@@ -152,3 +163,48 @@ original's versions.
 
 Coordinators and admins (`manage_templates`) choose the numbering and
 divide books. Everyone else sees a book waiting to be divided, and why.
+
+## What the app offers today
+
+Five numberings, each a source numbering with one tradition's books
+(`scripts/library-seed.ts` `NUMBERINGS`, published as
+`langquest.numbering.<code>-<books>`):
+
+| Numbering | Source |
+| --- | --- |
+| Like most English Bibles · 66 books | eng |
+| Like the Hebrew and Greek · 66 books | org |
+| Like the Latin Vulgate · 73 books (Catholic) | vul |
+| Russian Synodal · 66 books | rsc |
+| Russian Synodal · 77 books (Orthodox) | rso |
+
+Every way of dividing is published once per numbering, already converted
+with the four rules (`langquest.bible.fia` in English numbering,
+`langquest.bible.fia.org-66` in Hebrew numbering, and so on). A language's
+numbering is its template's numbering; the app offers only the ways in it.
+
+An admin finds the numbering three ways: **Find our Bible** (49 Bibles,
+checked against their text: `apps/mobile/src/breakup/numberingGuide.ts`),
+**Choose the numbering** by name, or **Take the quiz** (a few questions
+with the Bible open). A Bible that mixes numberings gets the nearest, with
+a note that a consultant may want to check where it differs.
+
+Not offered yet:
+
+- The Greek Old Testament (Septuagint) numbering. The quiz and the Bible
+  list say so and ask the admin to choose the nearest.
+- Catholic Bibles numbered like the Hebrew (NABRE, NJB). The nearest is
+  the Vulgate's.
+- Esther with the Greek additions (the Vulgate numbering's Esther). No way
+  of dividing covers it, so it waits for the admin.
+
+In the code: `convertWay`, `numberingOf` and `earlierSections` are in
+`packages/core/src/breakup.ts`; the numbering step is
+`apps/mobile/src/breakup/NumberingStep.tsx`; Earlier sections and the
+warning mark are `apps/mobile/src/breakup/earlier.tsx`. A language keeps
+every template version it has used (`templateHistory` in its state), so an
+expired section is read in the numbering it was made in. A converted way
+lists, per book, the parts whose verses differ from the same numbers in
+English (`renumbered`); their unit ids carry the numbering
+(`2CO.13~org`), and the same way in another numbering keeps the
+language's unit prefix, so every other part keeps its id and its work.

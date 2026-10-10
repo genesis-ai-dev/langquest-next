@@ -35,6 +35,7 @@ import {
 import { workIcon } from '../simple/homeModel';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
+import { ChangedMark, useEarlierSections } from '../breakup/earlier';
 import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../simple/mapParts';
 import { chapterColumns } from '../layout';
 import { plural } from '../passageView';
@@ -148,7 +149,7 @@ function PassageDisc(props: { s: PassageState }) {
   );
 }
 
-function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void }) {
+function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e: Entry; mine: boolean; last: boolean; onPress: () => void; changed?: boolean }) {
   const { e, ctx } = props;
   const me = ctx.session.actorId;
   const title = unitTitle(props.state, e.unitId);
@@ -158,13 +159,14 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   return (
     <Row label={title} sub={summary} last={props.last} onPress={props.onPress}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
-      accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}. ${offlineWords(offline)}`}
+      accessibilityLabel={`${title}. ${summary}${props.mine ? '. For you' : ''}${props.changed ? '. Divisions changed since it was recorded' : ''}. ${offlineWords(offline)}`}
       {...(props.mine ? { badge: 'For you', badgeTone: 'amber' as const } : {})}
       leading={(
         <View>
           <PassageDisc s={e.s} />
           {props.mine ? <View style={styles.discDot} /> : null}
           <OfflineMark u={offline} />
+          {props.changed ? <ChangedMark /> : null}
         </View>
       )}
       {...(e.s.recorded && e.s.steps.length > 0
@@ -513,6 +515,8 @@ export function MapHome(ctx: Ctx) {
   const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
   // The team's Bibles numbering verses differently is worth one note (decision 74); it may be put away.
   const numbering = useVerseNumbering(ctx);
+  // Sections whose divisions changed since work was recorded on them (decision 80).
+  const earlier = useEarlierSections(ctx, state);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
@@ -612,7 +616,7 @@ export function MapHome(ctx: Ctx) {
             {passageHits.length > 0 ? (
               <Group>
                 {passageHits.slice(0, limit).map((e, i, shown) => (
-                  <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1}
+                  <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1} changed={earlier.over.has(e.unitId)}
                     onPress={() => ctx.openPassage(e.unitId, languageId)} />
                 ))}
               </Group>
@@ -681,17 +685,17 @@ interface ChapterTile {
  * device) stays in its spoken label and under Filter's key; a kept chapter
  * keeps its mark at the corner.
  */
-function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline> }) {
+function Tile(props: { c: ChapterTile; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline>; changed?: boolean }) {
   const { c } = props;
   const t = TONES[c.tone];
   const parts = c.list.length;
   // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
   const keptLabel = kept.length === 0 ? '' : `, ${kept.length === parts ? (parts > 1 ? 'all parts' : 'kept') : `${kept.length} of ${parts} parts`} on this device${kept.every((u) => u.ready) ? '' : ' (downloading)'}`;
-  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${c.matches ? '' : ', outside the filter'}`;
+  const label = `Chapter ${c.n}: ${t.label}${c.tone === 'review' && c.steps ? ` (${c.cleared} of ${c.steps} steps)` : ''}${parts > 1 ? `, ${parts} parts` : ''}${c.mine ? ', for you' : ''}${keptLabel}${props.changed ? ', divisions changed since recorded' : ''}${c.matches ? '' : ', outside the filter'}`;
   return (
     <ChapterTileView n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
-      corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : undefined} />
+      corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : props.changed ? <ChangedMark /> : undefined} />
   );
 }
 
@@ -706,6 +710,7 @@ export function BookMap(ctx: Ctx) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const forYou = useForYou(ctx, state);
+  const earlier = useEarlierSections(ctx, state);
   const layout = useLayout();
   const beside = useOpenDetail();
   const book = canonBook(bookId);
@@ -793,7 +798,7 @@ export function BookMap(ctx: Ctx) {
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>Nothing here matches this filter.</Text> : (
           <Group>
             {shown.slice(0, limit).map((e, i, list) => (
-              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} />
+              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
             ))}
           </Group>
         )}
@@ -816,7 +821,7 @@ export function BookMap(ctx: Ctx) {
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
-              <Tile key={c.n} c={c} offline={offline} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
+              <Tile key={c.n} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
                 if (c.list.length === 1) open(c.list[0]!);
                 else if (c.list.length > 1) setOpenChapter(c.n);
               }} />
@@ -832,7 +837,7 @@ export function BookMap(ctx: Ctx) {
         {sheet ? (
           <Group>
             {sheet.list.map((e, i) => (
-              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1}
+              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1} changed={earlier.over.has(e.unitId)}
                 onPress={() => { setOpenChapter(null); open(e); }} />
             ))}
           </Group>

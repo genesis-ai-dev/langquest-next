@@ -97,7 +97,8 @@ export function bookIdOf(usfm: string): string {
 export function libraryUnitRange(unitId: string, versesIn?: (book: string, chapter: number) => number | undefined): VerseRange | null {
   const slash = unitId.indexOf('/');
   if (slash < 0 || unitId.slice(0, slash).includes('@')) return null;
-  const node = unitId.slice(slash + 1);
+  // A renumbered part carries its numbering ("MAL.3~org", decision 80); its verses are the same reading.
+  const node = unitId.slice(slash + 1).replace(/~[a-z0-9-]+$/, '');
   return /^[A-Z0-9]{3}(\.|$)/.test(node) ? parseRef(node, versesIn) : null;
 }
 

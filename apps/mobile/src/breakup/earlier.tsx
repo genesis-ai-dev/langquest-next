@@ -1,0 +1,140 @@
+// Earlier sections (decision 80, docs/breaking-up-the-bible.md): when a way
+// of dividing changes, a book is divided again or the numbering changes,
+// the old sections expire but their work is kept. A current section that
+// overlaps an expired one holding recordings shows a warning mark, and its
+// page lists the expired sections, closed by default.
+import {
+  earlierSections, isTemplateDoc, templateUnits, unitPrefixOf, unitTitle,
+  type LanguageState, type VersificationDoc
+} from '@langquest-next/core';
+import { useMemo, useState } from 'react';
+import { Text, View } from 'react-native';
+import type { Ctx } from '../ctx';
+import { indexesFor } from '../indexes';
+import { Disclosure, Group, Ico, Row, txt } from '../kit';
+import { useLibraryDocs } from '../library/useLibrary';
+import { C, space, TINT } from '../theme';
+
+/** How an earlier section's numbering is named beside it (the seed's `short` names). */
+const NUMBERED: Record<string, string> = {
+  eng: 'Numbered like most English Bibles',
+  org: 'Numbered like the Hebrew and Greek',
+  vul: 'Numbered like the Latin Vulgate',
+  rsc: 'Numbered like the Russian Synodal Bible',
+  rso: 'Numbered like the Russian Synodal Bible'
+};
+
+export interface Earlier {
+  /** Current section -> the expired sections with work that overlap it. */
+  over: Map<string, string[]>;
+  /** An expired section -> how it was numbered, when that is not how the language numbers now. */
+  numbered: Map<string, string>;
+}
+
+export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earlier {
+  const history = state?.templateHistory ?? {};
+  const current = state?.template?.value;
+  const hashes = [...Object.keys(history), current?.docHash];
+  const docs = useLibraryDocs(ctx.language.orgId, hashes);
+  return useMemo(() => {
+    const out: Earlier = { over: new Map(), numbered: new Map() };
+    if (!state || !current) return out;
+    const idx = indexesFor(state);
+    const now = new Set(idx.passages);
+    const worked = new Set([...Object.values(state.recordings).map((r) => r.unitId), ...Object.values(state.takes).map((t) => t.unitId)]);
+    const expired = [...worked].filter((u) => !now.has(u) && state.units[u] && unitPrefixOf(u) !== null && !idx.containers.includes(u));
+    if (expired.length === 0) return out;
+    const want = new Set(expired);
+    // The numbering each expired section was made in: the earliest template version that had it.
+    const madeIn = new Map<string, VersificationDoc>();
+    const versions = Object.entries(history).sort(([, a], [, b]) => (a.hlc < b.hlc ? -1 : 1));
+    for (const [hash, h] of versions) {
+      const d = docs.get(hash);
+      if (!d || !isTemplateDoc(d) || !d.bible) continue;
+      const v = docs.get<VersificationDoc>(d.bible.versification);
+      if (!v) continue;
+      for (const u of templateUnits(d, h.unitPrefix, v)) if (want.has(u.unitId) && !madeIn.has(u.unitId)) madeIn.set(u.unitId, v);
+    }
+    const doc = docs.get(current.docHash);
+    const numbering = doc && isTemplateDoc(doc) && doc.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
+    for (const [u, v] of madeIn) if (numbering && v.code !== numbering.code) out.numbered.set(u, NUMBERED[v.code] ?? v.name);
+    out.over = earlierSections({ current: idx.passages, expired, currentNumbering: numbering, numberingOf: (u) => madeIn.get(u) ?? null });
+    return out;
+    // docs.get changes when documents arrive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, current, docs.get]);
+}
+
+/** A section the language no longer has: a library part outside the current divisions. */
+export function isEarlierSection(state: LanguageState | null, unitId: string): boolean {
+  if (!state || !state.units[unitId] || unitPrefixOf(unitId) === null) return false;
+  const idx = indexesFor(state);
+  return !idx.passages.includes(unitId) && !idx.containers.includes(unitId);
+}
+
+/** At the top of an earlier section's page: what it is, and the sections its verses are in now. */
+export function EarlierNote(props: { ctx: Ctx; unitId: string; languageId: string }) {
+  const { ctx } = props;
+  const state = ctx.language.state;
+  const found = useEarlierSections(ctx, state);
+  if (!state || !isEarlierSection(state, props.unitId)) return null;
+  const now = [...found.over].filter(([, olds]) => olds.includes(props.unitId)).map(([u]) => u);
+  const how = found.numbered.get(props.unitId);
+  return (
+    <View style={{ gap: space.sm }}>
+      <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>
+        <Ico name="flag" size={18} color={TINT.amberText} />
+        <Text style={[txt.sm, { flex: 1, color: TINT.amberText }]}>
+          An earlier section{how ? ` (${how.charAt(0).toLowerCase()}${how.slice(1)})` : ''}. The divisions changed after this was recorded. It is kept so it can be heard; its verses are recorded again in {now.length === 1 ? 'the section below' : 'the sections below'}.
+        </Text>
+      </View>
+      {now.length ? (
+        <Group>
+          {now.map((u, i) => (
+            <Row key={u} icon="right" label={unitTitle(state, u)} sub="Where these verses are now" last={i === now.length - 1} onPress={() => ctx.openPassage(u, props.languageId)} />
+          ))}
+        </Group>
+      ) : null}
+    </View>
+  );
+}
+
+/** The warning mark on a section whose divisions changed since work was recorded on it. */
+export function ChangedMark() {
+  return (
+    <View accessibilityLabel="Divisions changed since this was recorded" style={{ position: 'absolute', bottom: -4, left: -4 }}>
+      <Ico name="flag" size={14} color={TINT.amberText} />
+    </View>
+  );
+}
+
+/** On a section's page: what was recorded on sections that have since expired, closed by default. */
+export function EarlierSections(props: { ctx: Ctx; unitId: string; languageId: string }) {
+  const { ctx } = props;
+  const state = ctx.language.state;
+  const found = useEarlierSections(ctx, state);
+  const earlier = found.over.get(props.unitId) ?? [];
+  const [open, setOpen] = useState(false);
+  if (!state || earlier.length === 0) return null;
+  const versions = (u: string) => Object.values(state.takes).filter((t) => t.unitId === u && !t.archived).length;
+  return (
+    <View style={{ gap: space.sm }}>
+      <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>
+        <Ico name="flag" size={18} color={TINT.amberText} />
+        <Text style={[txt.sm, { flex: 1, color: TINT.amberText }]}>
+          The divisions have changed since some of this was recorded. Earlier work is kept below; it needs to be done again here.
+        </Text>
+      </View>
+      <Disclosure icon="history" title="Earlier sections" summary={earlier.map((u) => unitTitle(state, u)).join(', ')} open={open} onToggle={() => setOpen((o) => !o)}>
+        {earlier.map((u, i) => {
+          const n = versions(u);
+          return (
+            <Row key={u} icon="history" label={unitTitle(state, u)} sub={`${found.numbered.get(u) ?? 'An earlier section'} · ${n} ${n === 1 ? 'version' : 'versions'}`} last={i === earlier.length - 1}
+              onPress={() => ctx.openPassage(u, props.languageId)} />
+          );
+        })}
+        <Text style={[txt.xs, { color: C.muted }]}>Open one to listen to what was recorded and reviewed on it.</Text>
+      </Disclosure>
+    </View>
+  );
+}
