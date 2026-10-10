@@ -1968,7 +1968,8 @@
       "steps_one": "Mataki {{count, number}}",
       "steps_other": "Matakai {{count, number}}",
       "bible": "Littafi Mai Tsarki",
-      "notReference": "Ba kayan bincike ba ne"
+      "notReference": "Ba kayan bincike ba ne",
+      "numbering": "Tsarin lamba na {{name}}"
     },
     "errors": {
       "setNotForKind": "Wannan rukunin tambayoyi ba na wani irin bita ba ne.",

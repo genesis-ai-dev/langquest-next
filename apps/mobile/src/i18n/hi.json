@@ -1968,7 +1968,8 @@
       "steps_one": "{{count, number}} चरण",
       "steps_other": "{{count, number}} चरण",
       "bible": "बाइबल",
-      "notReference": "संदर्भ सामग्री नहीं"
+      "notReference": "संदर्भ सामग्री नहीं",
+      "numbering": "{{name}} क्रमांकन"
     },
     "errors": {
       "setNotForKind": "सवालों का यह सेट किसी प्रकार की समीक्षा के लिए नहीं है।",

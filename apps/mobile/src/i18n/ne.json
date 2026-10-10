@@ -1968,7 +1968,8 @@
       "steps_one": "{{count, number}} चरण",
       "steps_other": "{{count, number}} चरण",
       "bible": "बाइबल",
-      "notReference": "सन्दर्भ सामग्री होइन"
+      "notReference": "सन्दर्भ सामग्री होइन",
+      "numbering": "{{name}} क्रमाङ्कन"
     },
     "errors": {
       "setNotForKind": "यो प्रश्न सूची कुनै जाँचको प्रकारका लागि होइन।",

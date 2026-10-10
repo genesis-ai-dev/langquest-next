@@ -1897,7 +1897,8 @@
       "notPlaced": "还没有放置",
       "steps_other": "{{count, number}} 个步骤",
       "bible": "圣经",
-      "notReference": "不是参考资料"
+      "notReference": "不是参考资料",
+      "numbering": "{{name}}编号"
     },
     "errors": {
       "setNotForKind": "这个问题集不属于任何审核类型。",

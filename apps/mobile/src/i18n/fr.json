@@ -2039,7 +2039,8 @@
       "steps_many": "{{count, number}} étapes",
       "steps_other": "{{count, number}} étapes",
       "bible": "Bible",
-      "notReference": "Pas un document de référence"
+      "notReference": "Pas un document de référence",
+      "numbering": "Numérotation {{name}}"
     },
     "errors": {
       "setNotForKind": "Cette série de questions n’est pas destinée à un type de révision.",

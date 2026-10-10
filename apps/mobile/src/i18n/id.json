@@ -1897,7 +1897,8 @@
       "notPlaced": "Belum ditempatkan",
       "steps_other": "{{count, number}} langkah",
       "bible": "Alkitab",
-      "notReference": "Bukan bahan referensi"
+      "notReference": "Bukan bahan referensi",
+      "numbering": "Penomoran {{name}}"
     },
     "errors": {
       "setNotForKind": "Kumpulan pertanyaan ini bukan untuk jenis pemeriksaan.",

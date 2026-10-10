@@ -441,7 +441,8 @@ export function libraryMaterialLine(doc: LibraryDoc | null, versificationName: s
   if (!doc) return null;
   // Facts about it, a dot between each: what it is, the language it is in (decision 84), then the rest; the versification last when it has one.
   const line = (...parts: string[]) => parts.join(' · ');
-  const v = versificationName ? [versificationName] : [];
+  // "English numbering", so a numbering's name never reads as the language the material is in.
+  const v = versificationName ? [t('config.libraryLine.numbering', { name: versificationName })] : [];
   const language = languagesLine([docLanguage(doc)]);
   switch (doc.format) {
     case 'study@1': return { type: 'study', line: line(t('config.libraryLine.studyGuide'), language, doc.ref, t('config.libraryLine.passages', { count: 1 }), ...v) };

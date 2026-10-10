@@ -1968,7 +1968,8 @@
       "steps_one": "Hatua {{count, number}}",
       "steps_other": "Hatua {{count, number}}",
       "bible": "Biblia",
-      "notReference": "Si nyenzo za marejeo"
+      "notReference": "Si nyenzo za marejeo",
+      "numbering": "Mpangilio wa namba wa {{name}}"
     },
     "errors": {
       "setNotForKind": "Seti hii ya maswali si kwa aina ya ukaguzi.",

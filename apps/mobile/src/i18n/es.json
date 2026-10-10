@@ -2039,7 +2039,8 @@
       "steps_many": "{{count, number}} pasos",
       "steps_other": "{{count, number}} pasos",
       "bible": "Biblia",
-      "notReference": "No es material de referencia"
+      "notReference": "No es material de referencia",
+      "numbering": "Numeración {{name}}"
     },
     "errors": {
       "setNotForKind": "Este grupo de preguntas no es para un tipo de revisión.",

@@ -236,7 +236,7 @@ describe('reference material in the library', () => {
     const hash = 'c'.repeat(64);
     expect(libraryMaterialLine({ format: 'collection@1', title: 'FIA', description: '', language: 'fra', versification: hash, entries: [
       { ref: 'LUK 15:11-32', title: 'Lost son', doc: hash }, { ref: 'JHN 3:1-21', title: 'Nicodemus', doc: hash }
-    ], deps: [] }, 'English', [])).toEqual({ type: 'study', line: 'Study guides · French · 2 passages · English' });
+    ], deps: [] }, 'English', [])).toEqual({ type: 'study', line: 'Study guides · French · 2 passages · English numbering' });
     expect(libraryMaterialLine(null, null, [])).toBeNull();
   });
 });

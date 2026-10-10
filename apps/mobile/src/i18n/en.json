@@ -1968,7 +1968,8 @@
       "steps_one": "{{count, number}} step",
       "steps_other": "{{count, number}} steps",
       "bible": "Bible",
-      "notReference": "Not reference material"
+      "notReference": "Not reference material",
+      "numbering": "{{name}} numbering"
     },
     "errors": {
       "setNotForKind": "This question set is not for a kind of review.",

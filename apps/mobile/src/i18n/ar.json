@@ -2252,7 +2252,8 @@
       "steps_many": "{{count, number}} خطوة",
       "steps_other": "{{count, number}} خطوة",
       "bible": "الكتاب المقدس",
-      "notReference": "ليست مادة مرجعية"
+      "notReference": "ليست مادة مرجعية",
+      "numbering": "ترقيم {{name}}"
     },
     "errors": {
       "setNotForKind": "مجموعة الأسئلة هذه ليست لنوع مراجعة.",

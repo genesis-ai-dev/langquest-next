@@ -1968,7 +1968,8 @@
       "steps_one": "{{count, number}} ደረጃ",
       "steps_other": "{{count, number}} ደረጃዎች",
       "bible": "መጽሐፍ ቅዱስ",
-      "notReference": "የማጣቀሻ ጽሑፍ አይደለም"
+      "notReference": "የማጣቀሻ ጽሑፍ አይደለም",
+      "numbering": "የ{{name}} ቁጥር አሰጣጥ"
     },
     "errors": {
       "setNotForKind": "ይህ የጥያቄ ስብስብ ለአንድ የግምገማ ዓይነት አይደለም።",

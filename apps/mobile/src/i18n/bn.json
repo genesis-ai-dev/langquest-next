@@ -1968,7 +1968,8 @@
       "steps_one": "{{count, number}}টি ধাপ",
       "steps_other": "{{count, number}}টি ধাপ",
       "bible": "বাইবেল",
-      "notReference": "সহায়ক উপকরণ নয়"
+      "notReference": "সহায়ক উপকরণ নয়",
+      "numbering": "{{name}} সংখ্যায়ন"
     },
     "errors": {
       "setNotForKind": "এই প্রশ্নের সেট কোনো পর্যালোচনার ধরনের জন্য নয়।",
