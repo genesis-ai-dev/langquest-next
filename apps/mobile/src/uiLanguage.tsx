@@ -47,12 +47,12 @@ export function LanguageSheet(props: { visible: boolean; onClose: () => void }) 
         <View style={styles.list}>
           <Row label={follow} sub={t('uiLanguage.phoneLanguageSub', { language: languageInfo(phone ?? 'en').name })}
             role="radio" selected={!chosen} onPress={() => pick(null)}
-            right={!chosen ? <Ico name="check" size={22} color={C.primary} /> : null} />
+            right={!chosen ? <Ico name="check" size={22} color={C.primary} /> : <View style={styles.noMark} />} />
           {UI_LANGUAGES.map((l, i) => (
             <Row key={l.code} label={l.name} sub={l.code === currentLanguage() ? undefined : nameHere(l.code)}
               role="radio" selected={chosen === l.code} onPress={() => pick(l.code)}
               {...(l.reviewed ? {} : { badge: t('uiLanguage.draftBadge'), badgeTone: 'amber' as const })}
-              right={chosen === l.code ? <Ico name="check" size={22} color={C.primary} /> : null}
+              right={chosen === l.code ? <Ico name="check" size={22} color={C.primary} /> : <View style={styles.noMark} />}
               last={i === UI_LANGUAGES.length - 1} />
           ))}
         </View>
@@ -95,5 +95,7 @@ export function LanguageChip() {
 const styles = StyleSheet.create({
   list: { backgroundColor: C.card, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
   chip: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full },
-  chipText: { fontSize: 15, fontWeight: '700', color: C.primary }
+  chipText: { fontSize: 15, fontWeight: '700', color: C.primary },
+  // A choice, not a way somewhere: no chevron, the same width as the check.
+  noMark: { width: 22 }
 });
