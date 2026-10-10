@@ -57,6 +57,17 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   };
   'v1.TakeArchived': { takeId: string };
   /**
+   * Which verses a recorded part holds (decisions.md 80). A part keeps how
+   * it relates to the parts around it, not a number: `next` is the verse
+   * after the part above, `join` is the same verses as the part right above
+   * (one verse recorded in pieces), `set` is verses someone chose, `from` to
+   * `to` as "chapter:verse", and `none` takes the mark away. The numbers are
+   * worked out down a take's cards (verses.ts), so labelling or moving one
+   * part renumbers the ones that follow and the order always holds.
+   * Register per (unit, card hash).
+   */
+  'v1.CardVerseSet': { unitId: string; hash: string; mark: 'next' | 'join' | 'set' | 'none'; from?: string; to?: string };
+  /**
    * The translator hands a take to review. Until this, a take is a draft:
    * recordings save immediately, submission is the explicit act (UX spec A30).
    */

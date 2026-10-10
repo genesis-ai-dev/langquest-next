@@ -45,7 +45,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
-    'v1.ResponseRecorded','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
+    'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
   back_translation: { emits:['v1.ReviewRecorded'],reads:['derivePassage'],rpcs:REPORTS },

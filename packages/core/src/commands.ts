@@ -4,6 +4,7 @@ import { TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
 import { derivePassage } from './passage';
 import type { UsedReference } from './references';
+import { cardVerseEvents, type PartMark } from './verses';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
@@ -36,6 +37,11 @@ export interface Commands {
    * is add-wins).
    */
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string }): EventSpec[];
+  /**
+   * Which verses each part holds (decisions.md 80): one 'v1.CardVerseSet'
+   * per card whose mark changed, from the marks of a whole list of cards.
+   */
+  setCardVerses(c: { commandId: string; unitId: string; cards: readonly string[]; marks: readonly PartMark[]; verses: readonly string[] }): EventSpec[];
   /** Record a deliberate discard of pending cards so recovery never resurrects them. */
   discardCards(c: { commandId: string; unitId: string; cardHashes: string[] }): EventSpec[];
   /** Set a passage note in the language's translation guidelines, defining the material on first use. */
@@ -142,6 +148,10 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       ];
       if (mine) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: mine } });
       return out;
+    },
+
+    setCardVerses(c) {
+      return cardVerseEvents(state, c) satisfies EventSpec<'v1.CardVerseSet'>[];
     },
 
     discardCards(c) {

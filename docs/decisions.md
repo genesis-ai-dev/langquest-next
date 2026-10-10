@@ -2482,3 +2482,42 @@ Reverse if: external values grow past a set share of a language's events or
 slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
+
+## 80. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: The recorder groups parts into cards by verse (demo ADR-036,
+SIMPLE-7), which needs verse labels on parts. Caleb asked for labelling
+simple enough to need no reading: an empty space on the left of each part
+that, when tapped, infers the right verse from the parts above and below,
+and a long press for a chosen verse or range. Rules: labels come from the
+passage's verses (the template's range in its versification), go up the
+list, never overlap, may be one verse or a range, several parts may share
+one verse, and verses may be skipped for later. What was chosen:
+- A part stores a mark, not a number: `next` (the verse after the label
+  above), `join` (the same verses as the part right above), `set` (verses
+  chosen, as `chapter:verse` from and to) or `none`. Core `verses.ts`
+  derives the numbers down a take's cards, so labelling a part higher up
+  renumbers the ones after it and the order cannot break; `tapPart`
+  picks the first legal change (next, else join the verse above), and a
+  chosen verse wins over the parts after it that no longer fit, which lose
+  their mark (`settlePartMarks`).
+- One new event, `v1.CardVerseSet { unitId, hash, mark, from?, to? }`, a
+  register per (unit, card hash) in the language stream (privilege
+  translate; migration `20261010010000_card_verse_set.sql`). Keyed by card,
+  not take: every list change composes a new draft take, and a card keeps
+  its mark through them and into the version it is published in.
+- The workspace (`simple/verseParts.tsx`): tap a space to give the part a
+  verse, tap a number to join the part above and again to split it out,
+  hold for the verse grid with Auto, None and Delete (each tap applies at
+  once), slide down the spaces to number many parts, and a gap left for
+  later has Record here, which records into its place as the next verse.
+  A unit with no verses keeps the one card of numbered parts.
+Rejected: storing numbers on parts (moving or labelling one would leave
+the rest out of order); labels on the take (each draft change makes a new
+take, so marks would have to be copied forward); separate events for
+joins and choices (one register per card is simpler to merge).
+Reverse if: the same recording needs different verses in different
+versions (then marks belong on the take), or teams want labels from the
+audio itself (alignment) rather than taps.

@@ -160,6 +160,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('takeId') ?? (p['questionSetIds'] === undefined ? null : strArray('questionSetIds'));
     case 'v1.ResponseRecorded':
       return str('takeId', 'respondsToTakeId') ?? optStr('note', 'blobHash');
+    case 'v1.CardVerseSet':
+      return str('unitId', 'hash') ?? oneOf('mark', ['next', 'join', 'set', 'none']) ?? cardVerseError(p);
     case 'v1.AudioFormatSet':
       return str('hash') ?? oneOf('format', ['wav', 'm4a']);
     case 'v1.ExternalValueSet':
@@ -338,4 +340,22 @@ export function entityKeyOf(e: AnyEvent): string | null {
     case 'v1.AudioFormatSet': return `audioformat:${String(p['hash'])}`;
     default: return null;
   }
+}
+
+const VERSE_REF = /^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/;
+
+/** "15:4" -> 15004, for ordering; null when it is not chapter:verse. */
+export function verseRefOrder(ref: unknown): number | null {
+  if (typeof ref !== 'string' || !VERSE_REF.test(ref)) return null;
+  const [c, v] = ref.split(':').map(Number) as [number, number];
+  return c * 1000 + v;
+}
+
+/** `set` needs from and to in order; the other marks carry neither. */
+function cardVerseError(p: Record<string, unknown>): string | null {
+  if (p['mark'] !== 'set') return p['from'] === undefined && p['to'] === undefined ? null : 'from and to belong to set only';
+  const a = verseRefOrder(p['from']);
+  const b = verseRefOrder(p['to']);
+  if (a === null || b === null) return 'from and to must be chapter:verse';
+  return a <= b ? null : 'from must not come after to';
 }

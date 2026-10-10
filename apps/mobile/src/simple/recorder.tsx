@@ -3,10 +3,12 @@
 // recorded so far under one card with a green check (open it to hear or
 // delete each), the next part lit, the line that says how many are done
 // when the pane is small, the one-line bar when the reference has the
-// screen, and the footer with the big red button and Publish. Parts carry
-// no verse labels yet, so they are counted ("Part 4") rather than grouped
-// by verse.
+// screen, and the footer with the big red button and Publish. When the
+// passage has verses, the parts are grouped into cards by verse instead,
+// with a space beside each to tap a verse in (verseParts.tsx, decisions.md
+// 80); a passage with no verses keeps the one card of numbered parts.
 import { useState } from 'react';
+import type { PartMark as VerseMark } from '@langquest-next/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
@@ -17,6 +19,7 @@ import { useEnergyHistory } from '../useRecorder';
 import { mmss, recorderLines, totalMs } from './model';
 import { PartMark, RecordBtn, styles as ps } from './parts';
 import { useClip } from './useClip';
+import { VerseParts } from './verseParts';
 
 export interface Part { hash: string; durationMs?: number }
 
@@ -24,6 +27,8 @@ export interface Part { hash: string; durationMs?: number }
 export function RecorderPane(props: {
   ctx: Ctx; parts: Part[]; phase: LoopPhase; capturing: boolean; small: boolean; disabled: boolean;
   onDelete: (hash: string, label: string) => void; onResume: () => void;
+  /** The passage's verses and each part's mark: given, the parts are grouped by verse. */
+  verses?: { keys: string[]; marks: VerseMark[]; onMarks: (marks: VerseMark[], message: string) => void; onRecordHere: (beforeIndex: number) => void };
 }) {
   const { parts } = props;
   const lines = recorderLines(parts.length);
@@ -33,7 +38,10 @@ export function RecorderPane(props: {
   const showGroup = parts.length > 0 && !props.small;
   return (
     <View style={{ gap: space.sm }}>
-      {showGroup ? (
+      {showGroup && props.verses && props.verses.keys.length > 0 ? (
+        <VerseParts ctx={props.ctx} parts={parts} verses={props.verses.keys} marks={props.verses.marks} disabled={props.disabled}
+          onMarks={props.verses.onMarks} onDelete={props.onDelete} onRecordHere={props.verses.onRecordHere} />
+      ) : showGroup ? (
         <GroupCard ctx={props.ctx} parts={parts} title={lines.group} sub={lines.groupSub(totalMs(parts.map((p) => p.durationMs)))}
           open={expanded} onToggle={() => setOpen(!expanded)} disabled={props.disabled} onDelete={props.onDelete} />
       ) : null}

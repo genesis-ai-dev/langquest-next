@@ -201,6 +201,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
+| `v1.CardVerseSet` | unitId, hash, mark (next, join, set, none), from?, to? | register per (unit, card); which verses a recorded part holds, worked out down a take's cards (verses.ts, decisions.md 80) |
 | `v1.AudioFormatSet` | hash, format | one event per hash, earliest wins (decisions.md 75); a voice note's format when not m4a (decisions.md 77) |
 | `v1.ExternalValueSet` | key, data (object or null) | register per key (later clock, then higher id); a third-party app's own value, kept and never acted on; only the app's Worker appends it, for a token with the `external_values` scope (decisions.md 79) |
 | `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |

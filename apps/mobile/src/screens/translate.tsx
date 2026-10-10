@@ -13,7 +13,8 @@
 // everything recorded so far. Playing the Bible while recording pauses the
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the
-// next part lit; the big red button and Publish are in the footer, or in
+// next part lit; when the passage has verses they are grouped into cards by
+// verse, with a space beside each part to tap a verse in (decisions.md 80); the big red button and Publish are in the footer, or in
 // the recorder's one line. Publish is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. The sensitivity and the
 // pause between parts are set in microphone setup (`mic_setup`).
@@ -23,8 +24,8 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  commands, keyTermsForUnit,
-  type EventSpec, type KindDef, type PassageNote, type Version
+  commands, keyTermsForUnit, partMarksFor, versesInChapter,
+  type EventSpec, type KindDef, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -55,6 +56,8 @@ import { BackTranslationBody } from '../simple/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
 import { GuideNav, GuideStep } from '../simple/guide';
 import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../simple/model';
+import { passageVerseKeys } from '../simple/verseModel';
+import { catalogVerses } from '../sources/model';
 import { QuietLink, RefChips, type ChipItem } from '../simple/parts';
 import { PublishScreen } from '../simple/publish';
 import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../simple/recorder';
@@ -95,9 +98,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const draftCards = p.draftTakeId ? state.takes[p.draftTakeId]?.cardHashes : undefined;
   const [cleared, setCleared] = useState(false);
-  const list = useMemo(() => workingCards({
-    ...(draftCards ? { draftCards } : {}), ...(latest ? { latestCards: latest.cardHashes } : {}), pending, cleared
-  }), [draftCards, latest, pending, cleared]);
+  // Recording into a gap left for later (decisions.md 80): new parts go before this part.
+  const [insertBefore, setInsertBefore] = useState<string | null>(null);
+  const list = useMemo(() => {
+    const base = workingCards({
+      ...(draftCards ? { draftCards } : {}), ...(latest ? { latestCards: latest.cardHashes } : {}), pending, cleared
+    });
+    if (!insertBefore || !base.includes(insertBefore)) return base;
+    const fresh = new Set(pending.filter((h) => !draftCards?.includes(h)));
+    const rest = base.filter((h) => !fresh.has(h));
+    const at = rest.indexOf(insertBefore);
+    return [...rest.slice(0, at), ...base.filter((h) => fresh.has(h)), ...rest.slice(at)];
+  }, [draftCards, latest, pending, cleared, insertBefore]);
   const changed = canPublish(list, latest?.cardHashes);
   const [split, setSplit] = useState(() => rememberedSplit('workspace'));
   const [confirming, setConfirming] = useState(false);
@@ -140,6 +152,12 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     let specs: EventSpec[];
     try {
       specs = commands(state, idx).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: list, actorId: me });
+      // A part recorded into a gap takes the next verse, so it fills the gap.
+      if (insertBefore && verseKeysRef.current.length > 0) {
+        const fresh = new Set(pending);
+        const marks = partMarksFor(state, unitId, list, verseKeysRef.current).map((m, i) => (fresh.has(list[i]!) && !m ? { t: 'next' as const } : m));
+        specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses: verseKeysRef.current })];
+      }
     } catch (e) {
       composeLock.current = false;
       setComposing(false);
@@ -150,7 +168,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       .catch((e: unknown) => setComposeError(`Your takes are saved on this device but not yet in your draft. ${problemText('workspace: save draft', e)}`))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
-  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me]);
+  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore]);
+  // The verses of the passage, set once the Bible's range is known (below); read by the compose effect.
+  const verseKeysRef = useRef<string[]>([]);
+  // A gap is filled for one recording session.
+  useEffect(() => { if (!recording && !rec.busy) setInsertBefore(null); }, [recording, rec.busy]);
 
   // ---- deleting a take ----
   const [working, setWorking] = useState(false);
@@ -199,6 +221,37 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const usage = useUsage();
   const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
+  // ---- verse labels on the parts (decisions.md 80) ----
+  const v11n = bible.passage.versification;
+  const verseKeys = useMemo(() => passageVerseKeys(bible.passage.range,
+    (b, c) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c)), [bible.passage.range, v11n]);
+  verseKeysRef.current = verseKeys;
+  const storedMarks = useMemo(() => partMarksFor(state, unitId, list, verseKeys), [state, unitId, list, verseKeys]);
+  // What was just tapped shows at once; the record catches up a moment later.
+  const [shownMarks, setShownMarks] = useState<{ list: string[]; marks: PartMark[] } | null>(null);
+  useEffect(() => { setShownMarks(null); }, [state]);
+  const marks = shownMarks && sameCards(shownMarks.list, list) ? shownMarks.marks : storedMarks;
+  const setMarks = (next: PartMark[], message: string) => {
+    const before = marks;
+    const cards = list;
+    let specs: EventSpec[];
+    try {
+      specs = commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: next, verses: verseKeys });
+    } catch (e) {
+      ctx.toast(`Not saved: ${problemText('workspace: verse labels', e)}`);
+      return;
+    }
+    if (specs.length === 0) return;
+    setShownMarks({ list: cards, marks: next });
+    ctx.act(specs, message, () => commands(stateRef.current, indexesFor(stateRef.current)).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: before, verses: verseKeys }))
+      .catch(() => setShownMarks(null));
+  };
+  const recordHere = (beforeIndex: number) => {
+    const hash = list[beforeIndex];
+    if (!hash || blocked) return;
+    setInsertBefore(hash);
+    void loop.toggle();
+  };
   const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
   const tied = useMemo(() => tiedTermIds(state, p.draftTakeId ?? latest?.takeId), [state, p.draftTakeId, latest?.takeId]);
   // Tying a term is reference work (KeyTermLinked needs fill_reference), so
@@ -340,7 +393,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           <ScrollView contentContainerStyle={styles.recordBody} accessibilityLabel="Your recording">
             {problem}
             <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
-              onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow} />
+              onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow}
+              verses={{ keys: verseKeys, marks, onMarks: setMarks, onRecordHere: recordHere }} />
             {list.length === 0 && !session ? (
               <Text style={[txt.smMuted, { textAlign: 'center' }]}>Tap the red button and speak. Pause between parts: each part is kept by itself.</Text>
             ) : null}
