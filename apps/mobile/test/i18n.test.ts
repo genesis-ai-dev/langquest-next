@@ -147,13 +147,21 @@ describe('choosing the language', () => {
     expect(catalogFor('de-DE')).toBeNull();
   });
 
-  it('follows a choice made on the device, else a reviewed phone language, else English', () => {
+  it('follows a choice made on the device, else an approved phone language, else English', () => {
     expect(pickLanguage('fr', ['es-MX'])).toBe('fr');
     expect(pickLanguage(null, ['de-DE', 'en-GB'])).toBe('en');
-    // Drafts are picked by hand only: a phone in Spanish stays in English until Spanish is reviewed.
-    const es = UI_LANGUAGES.find((l) => l.code === 'es')!;
-    expect(pickLanguage(null, ['es-MX'])).toBe(es.reviewed ? 'es' : 'en');
+    expect(pickLanguage(null, ['es-MX'])).toBe('es');
     expect(pickLanguage('xx', [])).toBe('en');
+    // A draft (not approved) is picked by hand only: a phone in its language stays in English.
+    const es = UI_LANGUAGES.find((l) => l.code === 'es')! as { approved: unknown };
+    const approved = es.approved;
+    es.approved = null;
+    try {
+      expect(pickLanguage(null, ['es-MX'])).toBe('en');
+      expect(pickLanguage('es', ['es-MX'])).toBe('es');
+    } finally {
+      es.approved = approved;
+    }
   });
 });
 

@@ -80,18 +80,21 @@ too.
 ## Languages
 
 `src/i18n/languages.ts` lists them, each with its own name, direction and
-whether a fluent speaker has reviewed it. Me → Language (and the globe on the
-sign-in screen) offers every language; a draft says so. The phone's language
-is followed only for reviewed catalogs, so nobody is switched into a machine
-draft without choosing it.
+who approved it for release. The app follows the phone's language into any
+approved catalog, and Me → Language (and the globe on the sign-in screen)
+offers every language. The first fourteen are machine translations approved
+as they are (decision 80): corrections come from the teams using them. A
+language not yet approved is a draft: it can be picked by hand and says so,
+and the phone's language never switches to it.
 
 To add a language: add it to `languages.ts`, add `<code>.json` with every key,
 add its line to `catalogs.ts`, and add it to `supportedLocales` for
 `expo-localization` in `app.json` (a new build). The test says what is
 missing.
 
-To release a draft: a fluent speaker reads the whole app in it, corrects the
-catalog, and their name and the date go in its `reviewed` field.
+To correct a translation, change its catalog; the test checks the keys,
+placeholders and plural forms. To release a draft, put who approved it and
+the date in its `approved` field.
 
 ## Emails and the Worker's own pages
 
@@ -102,7 +105,7 @@ catalog, and their name and the date go in its `reviewed` field.
   for Forgot password.
 - The shared review link page (`/r/<code>`) and the connect page
   (`/connect`) are written by the web Worker (`apps/web/worker/i18n/`). They
-  follow `?lang=`, then the browser's languages (reviewed catalogs only),
+  follow `?lang=`, then the browser's languages (approved catalogs only),
   then English, and offer every language in a picker at the top.
 - `apps/web/test/pages.test.ts` and `apps/invite-email/test/message.test.ts`
   hold these catalogs to English's keys and check the pages write no English

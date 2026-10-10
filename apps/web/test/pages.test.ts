@@ -10,12 +10,12 @@ const keys = (o: Tree, prefix = ''): string[] => Object.entries(o).flatMap(([k, 
 const marked = (o: Tree): Tree => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/[^{}\s]+(?![^{]*\}\})/g, 'ж') : marked(v)]));
 
 describe('pages the Worker serves, in the reader’s language', () => {
-  it('follows ?lang=, then the browser’s reviewed languages, then English', () => {
+  it('follows ?lang=, then the browser’s approved languages, then English', () => {
     const req = (url: string, accept = '') => new Request(url, { headers: { 'accept-language': accept } });
     expect(pageLanguage(req('https://x/r/abc?lang=ar'))).toBe('ar');
     expect(pageLanguage(req('https://x/r/abc?lang=xx'))).toBe('en');
-    const es = UI_LANGUAGES.find((l) => l.code === 'es')!;
-    expect(pageLanguage(req('https://x/r/abc', 'es-MX,es;q=0.9'))).toBe(es.reviewed ? 'es' : 'en');
+    expect(pageLanguage(req('https://x/r/abc', 'es-MX,es;q=0.9'))).toBe('es');
+    expect(pageLanguage(req('https://x/r/abc', 'de-DE,de;q=0.9'))).toBe('en');
   });
 
   it('lays Arabic out right to left and offers every language by its own name', async () => {

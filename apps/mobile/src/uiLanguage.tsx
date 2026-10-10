@@ -1,8 +1,8 @@
 // Me → Language, and the same choice on the sign-in screen (LAN-42): the
 // language LangQuest speaks to you in. Each language is named in itself, so
 // someone who reads only that language finds it, with its name in the
-// language showing under it. Drafts (machine translations nobody has checked
-// yet, i18n/languages.ts) say so. Picking one restarts the app in it.
+// language showing under it. A draft (not yet approved, i18n/languages.ts)
+// says so. Picking one restarts the app in it.
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './text';
@@ -52,13 +52,13 @@ export function LanguageSheet(props: { visible: boolean; onClose: () => void }) 
           {UI_LANGUAGES.map((l, i) => (
             <Row key={l.code} label={l.name} sub={l.code === currentLanguage() ? undefined : nameHere(l.code)}
               role="radio" selected={chosen === l.code} onPress={() => pick(l.code)}
-              {...(l.reviewed ? {} : { badge: t('uiLanguage.draftBadge'), badgeTone: 'amber' as const })}
+              {...(l.approved ? {} : { badge: t('uiLanguage.draftBadge'), badgeTone: 'amber' as const })}
               right={chosen === l.code ? <Ico name="check" size={22} color={C.primary} /> : <View style={styles.noMark} />}
               last={i === UI_LANGUAGES.length - 1} />
           ))}
         </View>
       )}
-      <Text style={txt.xs}>{t('uiLanguage.draftNote')}</Text>
+      {UI_LANGUAGES.some((l) => !l.approved) ? <Text style={txt.xs}>{t('uiLanguage.draftNote')}</Text> : null}
     </Sheet>
   );
 }
@@ -69,7 +69,7 @@ export function LanguageRow(props: { last?: boolean }) {
   const info = languageInfo(currentLanguage());
   return (
     <>
-      <Row icon="globe" label={t('uiLanguage.row')} sub={info.reviewed ? info.name : t('uiLanguage.draftSub', { language: info.name })}
+      <Row icon="globe" label={t('uiLanguage.row')} sub={info.approved ? info.name : t('uiLanguage.draftSub', { language: info.name })}
         onPress={() => setOpen(true)} {...(props.last ? { last: true } : {})} />
       <LanguageSheet visible={open} onClose={() => setOpen(false)} />
     </>

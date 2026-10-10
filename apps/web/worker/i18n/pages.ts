@@ -1,7 +1,7 @@
 // Words for the pages the Worker serves itself (a shared review link), in
 // the reader's language (LAN-42, docs/localization.md). The reader chose it
 // on the page (`?lang=`), or their browser asks for a language whose app
-// catalog has been reviewed (apps/mobile/src/i18n/languages.ts); else
+// catalog is approved (apps/mobile/src/i18n/languages.ts); else
 // English. A missing word falls back to English.
 import { pickLanguage, UI_LANGUAGES, type UiLanguage } from '../../../mobile/src/i18n/languages';
 import am from './am.json';
@@ -27,7 +27,7 @@ export const PAGE_CATALOGS: Record<UiLanguage, { [A in Area]?: Partial<PageWords
   en, es, pt, fr, ar, sw, ha, am, hi, bn, ne, id, 'zh-Hans': zhHans, th, my
 };
 
-/** The language a page is shown in: `?lang=`, else the browser's languages (reviewed catalogs only), else English. */
+/** The language a page is shown in: `?lang=`, else the browser's languages (approved catalogs only), else English. */
 export function pageLanguage(request: Request): UiLanguage {
   const asked = new URL(request.url).searchParams.get('lang');
   const tags = (request.headers.get('accept-language') ?? '').split(',').map((p) => p.split(';')[0]!.trim()).filter(Boolean);

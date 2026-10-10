@@ -2487,7 +2487,7 @@ slow its downloads (then a sibling stream phones do not pull), partners
 that do not trust each other share a language (then a namespace per app),
 or values start to drive anything in LangQuest.
 
-## 80. The app's words come from catalogs in the app, in the language chosen on the device; English is the source and drafts are chosen by hand
+## 80. The app's words come from catalogs in the app, in the language chosen on the device or the phone's; English is the source
 
 Date: 2026-10-09 · By: Caleb Koster · Status: accepted
 
@@ -2504,10 +2504,13 @@ every word was written into the screens. Chosen (`docs/localization.md`):
   a globe on the sign-in screen) keeps it in expo-sqlite's key-value store,
   read before the first screen draws, or the browser's localStorage. Nothing
   to sync and no migration; people sharing a phone share it. Without a
-  choice the phone's language is followed (`expo-localization`), but only
-  for a catalog a fluent speaker has reviewed (`reviewed` in
-  `src/i18n/languages.ts`): every catalog but English starts as a machine
-  draft, which anyone may pick and which says it is a draft.
+  choice the phone's language is followed (`expo-localization`) for any
+  catalog approved for release (`approved` in `src/i18n/languages.ts`). The
+  fourteen first catalogs are machine translations Caleb approved as they
+  are: the teams who read them are the reviewers there are, and they can
+  only say what reads wrong once the app speaks their language. A language
+  added later may stay a draft until approved: anyone may pick it, it says
+  it is a draft, and the phone's language never switches to it.
 - Arabic lays the app out right to left; on a phone the app restarts once to
   change direction (`src/i18n/start.ts`).
 - "No hard-coded words" is a test, run by `npm test` and before a push:

@@ -1,7 +1,7 @@
 // Picks the app's language on a phone or in a browser, before the first
 // screen draws (apps/mobile/index.ts imports this before App): the person's
-// choice on this device, else the phone's language when its catalog has been
-// reviewed, else English (languages.ts). Arabic turns the layout right to
+// choice on this device, else the phone's language when its catalog is
+// approved, else English (languages.ts). Arabic turns the layout right to
 // left; on a phone that takes a restart, so the app restarts once when the
 // direction it opened in is not the language's.
 import { getLocales } from 'expo-localization';
@@ -70,7 +70,7 @@ export function startLanguage() {
   }
 }
 
-/** The phone's own language, if the app has a catalog for it (reviewed or not). */
+/** The phone's own language, if the app has a catalog for it (approved or not). */
 export function phoneLanguage(): UiLanguage | null {
   for (const tag of deviceTags()) {
     const code = catalogFor(tag);
