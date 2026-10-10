@@ -40,6 +40,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReferencesUsed': ['takeId', 'reviewId'],
   'v1.TakeSubmitted': ['questionSetIds'],
   'v1.ResponseRecorded': ['note', 'blobHash'],
+  'v1.CardVerseSet': ['from', 'to'],
   'v1.MaterialDefined': ['templateRef'],
   'v1.MaterialFieldSet': ['text', 'blobHash'],
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],

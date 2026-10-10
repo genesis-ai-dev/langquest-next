@@ -169,7 +169,10 @@
       "stepNeedsKind": "हर चरण के लिए समीक्षा का प्रकार चाहिए।",
       "nameTerm": "शब्द लिखें।",
       "giveTitle": "इसका शीर्षक लिखें।",
-      "versionOrReview": "वर्शन या समीक्षा में से एक लिखें, दोनों नहीं।"
+      "versionOrReview": "वर्शन या समीक्षा में से एक लिखें, दोनों नहीं।",
+      "draftGone": "वह ड्राफ़्ट अब नहीं है।",
+      "draftNotYours": "ड्राफ़्ट को वही हटा सकता है जिसने उसे रिकॉर्ड किया।",
+      "draftNotHere": "वह ड्राफ़्ट इस खंड का नहीं है।"
     },
     "licenses": {
       "allRightsReserved": {
@@ -3306,7 +3309,6 @@
         "confirm": "चेकपॉइंट पार करें",
         "done": "चेकपॉइंट पार किया · कारण सहेजा गया"
       },
-      "hideHistory": "वर्शन और इतिहास छिपाएँ",
       "history": "वर्शन और इतिहास",
       "waitingOnAnswer": "{{name}} के {{kinds}} फ़ीडबैक का जवाब देने का इंतज़ार।",
       "study": "{{pattern}} अध्ययन",
@@ -3469,6 +3471,27 @@
     },
     "resources": {
       "sourceAudio": "स्रोत ऑडियो"
+    },
+    "versions": {
+      "title": "वर्शन",
+      "newVersion": "नया वर्शन",
+      "yourDraft": "आपका ड्राफ़्ट",
+      "yourDrafts": "आपके ड्राफ़्ट",
+      "noDrafts": "कोई ड्राफ़्ट नहीं। नीचे कोई वर्शन बदलें, या नया शुरू करें।",
+      "published": "प्रकाशित",
+      "latest": "सबसे नया",
+      "saved": "{{when}} सहेजा गया",
+      "savedJustNow": "अभी-अभी सहेजा गया",
+      "savedToast": "{{name}} सहेजा गया।",
+      "notDeleted": "हटाया नहीं गया। {{reason}}",
+      "deleted": "{{name}} हटाया गया।",
+      "delete": "{{name}} हटाएँ",
+      "open": "{{title}} खोलें",
+      "lengthFrom": "{{length}} · {{version}} से",
+      "nameFrom": "{{name}} · {{version}} से",
+      "newDraft": "नया ड्राफ़्ट",
+      "draft": "ड्राफ़्ट",
+      "draftN": "ड्राफ़्ट {{n, number}}"
     }
   },
   "work": {
@@ -4188,6 +4211,36 @@
     "workspace": {
       "take": "टेक {{n}}",
       "newTake": "नया टेक {{n}}"
+    },
+    "verses": {
+      "verse": "पद {{verse}}",
+      "range": "पद {{first}}–{{last}}",
+      "isOne": "{{part}} पद {{verse}} है।",
+      "isRange": "{{part}} पद {{first}}–{{last}} है।",
+      "moreOfOne": "{{part}} पद {{verse}} का अगला हिस्सा है।",
+      "moreOfRange": "{{part}} पद {{first}}–{{last}} का अगला हिस्सा है।",
+      "numbered_one": "{{count, number}} हिस्से पर नंबर लगा।",
+      "numbered_other": "{{count, number}} हिस्सों पर नंबर लगे।",
+      "leftForLater": "{{verses}} · बाद के लिए छोड़ा",
+      "follows": "{{part}} क्रम के अनुसार है।",
+      "none": "{{part}} का कोई पद नहीं है।",
+      "giveNext": "{{part}} को अगला पद दें",
+      "giveAbove": "{{part}} को ऊपर वाला पद दें",
+      "giveVerse": "{{part}} को पद दें",
+      "tapHelp": "टैप करें: आसपास के हिस्सों से ऐप पद तय करता है। दबाकर रखें: खुद चुनें।",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, ऊपर वाले हिस्से जैसा",
+      "labelEmpty": "{{part}}, अभी कोई पद नहीं",
+      "hintSame": "इसे अगला पद बनाने के लिए टैप करें। चुनने के लिए दबाकर रखें।",
+      "hintLabelled": "ऊपर वाले हिस्से जैसा पद देने के लिए टैप करें। चुनने के लिए दबाकर रखें।",
+      "hintEmpty": "अगला पद देने के लिए टैप करें। चुनने के लिए दबाकर रखें।",
+      "choose": "पद चुनें",
+      "recordHere": "यहाँ रिकॉर्ड करें",
+      "recordHereHelp": "बाद के लिए छोड़ा गया पद रिकॉर्ड करें; वह अपनी जगह पर आ जाएगा।",
+      "verseSame": "{{verse}}, ऊपर वाले हिस्से जैसा",
+      "auto": "अपने-आप",
+      "noVerse": "कोई नहीं",
+      "deletePart": "{{part}} हटाएँ"
     }
   },
   "map": {

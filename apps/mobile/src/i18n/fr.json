@@ -171,7 +171,10 @@
       "stepNeedsKind": "Chaque étape a besoin d’un type de révision.",
       "nameTerm": "Donnez un nom au terme.",
       "giveTitle": "Donnez-lui un titre.",
-      "versionOrReview": "Indiquez la version ou la révision, pas les deux."
+      "versionOrReview": "Indiquez la version ou la révision, pas les deux.",
+      "draftGone": "Ce brouillon n’existe plus.",
+      "draftNotYours": "Seule la personne qui a enregistré un brouillon peut le supprimer.",
+      "draftNotHere": "Ce brouillon n’est pas dans ce passage."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3417,7 +3420,6 @@
         "confirm": "Franchir le point de contrôle",
         "done": "Point de contrôle franchi · raison sauvegardée"
       },
-      "hideHistory": "Masquer les versions et l’historique",
       "history": "Versions et historique",
       "waitingOnAnswer": "En attente de la réponse de {{name}} aux remarques ({{kinds}}).",
       "study": "Étude {{pattern}}",
@@ -3588,6 +3590,27 @@
     },
     "resources": {
       "sourceAudio": "Audio source"
+    },
+    "versions": {
+      "title": "Versions",
+      "newVersion": "Nouvelle version",
+      "yourDraft": "Votre brouillon",
+      "yourDrafts": "Vos brouillons",
+      "noDrafts": "Aucun brouillon. Modifiez une version ci-dessous ou commencez-en une nouvelle.",
+      "published": "Publiées",
+      "latest": "La plus récente",
+      "saved": "Enregistré {{when}}",
+      "savedJustNow": "Enregistré à l’instant",
+      "savedToast": "{{name}} enregistré.",
+      "notDeleted": "Non supprimé. {{reason}}",
+      "deleted": "{{name}} supprimé.",
+      "delete": "Supprimer {{name}}",
+      "open": "Ouvrir {{title}}",
+      "lengthFrom": "{{length}} · à partir de {{version}}",
+      "nameFrom": "{{name}} · à partir de {{version}}",
+      "newDraft": "Nouveau brouillon",
+      "draft": "Brouillon",
+      "draftN": "Brouillon {{n, number}}"
     }
   },
   "work": {
@@ -4338,6 +4361,37 @@
     "workspace": {
       "take": "Prise {{n}}",
       "newTake": "Nouvelle prise {{n}}"
+    },
+    "verses": {
+      "verse": "Verset {{verse}}",
+      "range": "Versets {{first}}–{{last}}",
+      "isOne": "{{part}} est le verset {{verse}}.",
+      "isRange": "{{part}} correspond aux versets {{first}}–{{last}}.",
+      "moreOfOne": "{{part}} est la suite du verset {{verse}}.",
+      "moreOfRange": "{{part}} est la suite des versets {{first}}–{{last}}.",
+      "numbered_one": "{{count, number}} partie numérotée.",
+      "numbered_many": "{{count, number}} de parties numérotées.",
+      "numbered_other": "{{count, number}} parties numérotées.",
+      "leftForLater": "{{verses}} · pour plus tard",
+      "follows": "{{part}} suit l’ordre.",
+      "none": "{{part}} n’a pas de verset.",
+      "giveNext": "Donner à {{part}} le verset suivant",
+      "giveAbove": "Donner à {{part}} le verset du dessus",
+      "giveVerse": "Donner un verset à {{part}}",
+      "tapHelp": "Touchez : l’app trouve le verset d’après les parties autour. Maintenez : choisissez-le vous-même.",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, comme la partie du dessus",
+      "labelEmpty": "{{part}}, pas encore de verset",
+      "hintSame": "Touchez pour en faire le verset suivant. Maintenez pour choisir.",
+      "hintLabelled": "Touchez pour lui donner le même verset que la partie du dessus. Maintenez pour choisir.",
+      "hintEmpty": "Touchez pour lui donner le verset suivant. Maintenez pour choisir.",
+      "choose": "Choisir les versets",
+      "recordHere": "Enregistrer ici",
+      "recordHereHelp": "Enregistrez le verset laissé pour plus tard ; il se place au bon endroit.",
+      "verseSame": "{{verse}}, comme la partie du dessus",
+      "auto": "Auto",
+      "noVerse": "Aucun",
+      "deletePart": "Supprimer {{part}}"
     }
   },
   "map": {

@@ -141,12 +141,20 @@ export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
   list: readonly string[];
   hash: string;
   draftTakeId?: string;
+  /**
+   * What the list continues when the person keeps several drafts
+   * (decisions.md 83): the draft open in the workspace, the version it is
+   * being started from, or null for one started empty. Left out, their
+   * latest draft.
+   */
+  parentTakeId?: string | null;
   latestCards?: readonly string[];
   pending: ReadonlySet<string>;
 }): { specs: EventSpec[]; cleared: boolean } {
   const cmd = commands(state, idx);
   const next = c.list.filter((h) => h !== c.hash);
   const specs: EventSpec[] = [];
+  const parent = c.parentTakeId !== undefined ? { parentTakeId: c.parentTakeId } : {};
   const backToLatest = next.length === 0 || (!!c.latestCards && sameCards(next, c.latestCards));
   if (backToLatest) {
     // Setting a whole draft aside has no core command (keepTake needs cards,
@@ -154,10 +162,10 @@ export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
     // declared in the workspace's screen contract.
     if (c.draftTakeId) specs.push({ id: `${c.commandId}:archive`, type: 'v1.TakeArchived', payload: { takeId: c.draftTakeId } });
   } else {
-    specs.push(...cmd.keepTake({ commandId: c.commandId, unitId: c.unitId, cardHashes: next, actorId: c.actorId }));
+    specs.push(...cmd.keepTake({ commandId: c.commandId, unitId: c.unitId, cardHashes: next, actorId: c.actorId, ...parent }));
   }
   if (c.pending.has(c.hash)) {
-    specs.push(...cmd.discardCards({ commandId: `${c.commandId}:discard`, unitId: c.unitId, cardHashes: [c.hash] }));
+    specs.push(...cmd.discardCards({ commandId: `${c.commandId}:discard`, unitId: c.unitId, cardHashes: [c.hash], ...parent }));
   }
   return { specs, cleared: next.length === 0 };
 }

@@ -167,7 +167,10 @@
       "stepNeedsKind": "每个步骤都需要一种审核类型。",
       "nameTerm": "请填写术语名称。",
       "giveTitle": "请填写标题。",
-      "versionOrReview": "请指明版本或审核，不能两个都填。"
+      "versionOrReview": "请指明版本或审核，不能两个都填。",
+      "draftGone": "那份草稿已经不在了。",
+      "draftNotYours": "只有录制草稿的人才能删除它。",
+      "draftNotHere": "那份草稿不属于这个段落。"
     },
     "licenses": {
       "allRightsReserved": {
@@ -3195,7 +3198,6 @@
         "confirm": "越过检查点",
         "done": "已越过检查点 · 原因已保存"
       },
-      "hideHistory": "隐藏版本和历史记录",
       "history": "版本和历史记录",
       "waitingOnAnswer": "等待{{name}}回应{{kinds}}的反馈。",
       "study": "{{pattern}}学习",
@@ -3350,6 +3352,27 @@
     },
     "resources": {
       "sourceAudio": "源音频"
+    },
+    "versions": {
+      "title": "版本",
+      "newVersion": "新版本",
+      "yourDraft": "你的草稿",
+      "yourDrafts": "你的草稿",
+      "noDrafts": "没有草稿。编辑下面的某个版本，或开始一个新版本。",
+      "published": "已发布",
+      "latest": "最新",
+      "saved": "{{when}}保存",
+      "savedJustNow": "刚刚保存",
+      "savedToast": "{{name}}已保存。",
+      "notDeleted": "未删除。{{reason}}",
+      "deleted": "{{name}}已删除。",
+      "delete": "删除{{name}}",
+      "open": "打开{{title}}",
+      "lengthFrom": "{{length}} · 来自{{version}}",
+      "nameFrom": "{{name}} · 来自{{version}}",
+      "newDraft": "新草稿",
+      "draft": "草稿",
+      "draftN": "草稿 {{n, number}}"
     }
   },
   "work": {
@@ -4038,6 +4061,35 @@
     "workspace": {
       "take": "片段 {{n}}",
       "newTake": "新片段 {{n}}"
+    },
+    "verses": {
+      "verse": "第 {{verse}} 节",
+      "range": "第 {{first}}–{{last}} 节",
+      "isOne": "{{part}}是第 {{verse}} 节。",
+      "isRange": "{{part}}是第 {{first}}–{{last}} 节。",
+      "moreOfOne": "{{part}}接着第 {{verse}} 节。",
+      "moreOfRange": "{{part}}接着第 {{first}}–{{last}} 节。",
+      "numbered_other": "已为 {{count, number}} 段编号。",
+      "leftForLater": "{{verses}} · 留待以后",
+      "follows": "{{part}}按顺序编号。",
+      "none": "{{part}}没有经节。",
+      "giveNext": "给{{part}}下一节",
+      "giveAbove": "给{{part}}上面那一节",
+      "giveVerse": "给{{part}}一个经节",
+      "tapHelp": "轻点：应用根据前后的段判断经节。长按：自己选择。",
+      "label": "{{part}}，{{verses}}",
+      "labelSame": "{{part}}，{{verses}}，与上面一段相同",
+      "labelEmpty": "{{part}}，还没有经节",
+      "hintSame": "轻点使其成为下一节。长按选择。",
+      "hintLabelled": "轻点给它与上面一段相同的经节。长按选择。",
+      "hintEmpty": "轻点给它下一节。长按选择。",
+      "choose": "选择经节",
+      "recordHere": "在这里录音",
+      "recordHereHelp": "录下你留待以后的经节；它会放在原来的位置。",
+      "verseSame": "{{verse}}，与上面一段相同",
+      "auto": "自动",
+      "noVerse": "无",
+      "deletePart": "删除{{part}}"
     }
   },
   "map": {

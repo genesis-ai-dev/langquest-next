@@ -166,6 +166,24 @@ export interface FlowStepStatus {
   override?: DepartureView;
 }
 
+/**
+ * An unpublished draft (decisions.md 83). Every change to a draft composes a
+ * new take whose parent is the one before, so a draft is that line of takes:
+ * `takeId` is where it is now, `rootTakeId` where it started, which stays the
+ * same through every change and so names the draft.
+ */
+export interface DraftView {
+  takeId: string;
+  rootTakeId: string;
+  by: string;
+  cardHashes: string[];
+  /** When it was started, and last changed. */
+  startedHlc: Hlc;
+  hlc: Hlc;
+  /** The version it started from, when it started from one. */
+  basedOnTakeId?: string;
+}
+
 export interface PassageState {
   unitId: string;
   flow: LanguageFlow;
@@ -174,8 +192,11 @@ export interface PassageState {
   recorded: boolean;
   /** An unpublished take exists (someone's draft). */
   drafting: boolean;
+  /** The draft changed last, anyone's. */
   draftTakeId?: string;
   draftBy?: string;
+  /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 83). */
+  drafts: DraftView[];
   reviews: ReviewView[];
   departures: DepartureView[];
   requests: RequestView[];
@@ -373,9 +394,11 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
   const latest = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
+  const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId))
+    .sort((a, b) => (a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1));
   const next = recorded ? open.find((s) => !s.override) ?? open[0] : undefined;
   const result: PassageState = {
-    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps,
+    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -386,6 +409,39 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   };
   ri.passages.set(key, result);
   return result;
+}
+
+/** A draft's line: back through its parents while they are unpublished takes of the passage. */
+function draftView(state: LanguageState, takeId: string): DraftView {
+  const t = state.takes[takeId]!;
+  const seen = new Set<string>([takeId]);
+  let root = takeId;
+  let basedOn: string | undefined;
+  for (;;) {
+    const parent = state.takes[root]!.parentTakeId;
+    if (!parent || seen.has(parent)) break;
+    if (state.submissions[parent]) { basedOn = parent; break; }
+    const pt = state.takes[parent];
+    if (!pt || pt.unitId !== t.unitId) break;
+    seen.add(parent);
+    root = parent;
+  }
+  return {
+    takeId, rootTakeId: root, by: t.actorId, cardHashes: t.cardHashes, startedHlc: state.takes[root]!.hlc, hlc: t.hlc,
+    ...(basedOn ? { basedOnTakeId: basedOn } : {})
+  };
+}
+
+/** A person's open drafts of a passage, in the order they started them. */
+export function draftsBy(s: Pick<PassageState, 'drafts'>, actorId: string): DraftView[] {
+  return s.drafts.filter((d) => d.by === actorId);
+}
+
+/** The draft a person changed last, if they have one. */
+export function latestDraftBy(s: Pick<PassageState, 'drafts'>, actorId: string): DraftView | undefined {
+  let out: DraftView | undefined;
+  for (const d of s.drafts) if (d.by === actorId && (!out || d.hlc > out.hlc || (d.hlc === out.hlc && d.takeId > out.takeId))) out = d;
+  return out;
 }
 
 /** Feedback waits on whoever recorded the latest version: only they can answer it (REC-5). */
@@ -570,8 +626,10 @@ export function highlightsFor(
   }
   if (opts.canRecord) {
     for (const [unitId, drafts] of ri.drafts) {
-      const t = state.takes[drafts[0]!]!;
-      if (t.actorId !== actorId) continue;
+      // Their own newest draft, even when a teammate changed theirs since.
+      const mine = drafts.find((id) => state.takes[id]!.actorId === actorId);
+      if (!mine) continue;
+      const t = state.takes[mine]!;
       if (out.some((h) => h.unitId === unitId)) continue;
       out.push({ id: `draft-${unitId}`, kind: 'draft', unitId, hlc: t.hlc });
     }

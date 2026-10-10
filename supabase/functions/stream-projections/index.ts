@@ -20940,6 +20940,7 @@ function emptyLanguageState() {
     submissions: {},
     blobs: {},
     audioFormats: {},
+    cardVerses: {},
     appliedEventIds: {},
     invalidEvents: {},
     redactions: {},
@@ -21263,6 +21264,8 @@ function validateEvent(e) {
       return str("takeId") ?? (p["questionSetIds"] === void 0 ? null : strArray("questionSetIds"));
     case "v1.ResponseRecorded":
       return str("takeId", "respondsToTakeId") ?? optStr("note", "blobHash");
+    case "v1.CardVerseSet":
+      return str("unitId", "hash") ?? oneOf("mark", ["next", "join", "set", "none"]) ?? cardVerseError(p);
     case "v1.AudioFormatSet":
       return str("hash") ?? oneOf("format", ["wav", "m4a"]);
     case "v1.ExternalValueSet":
@@ -21365,6 +21368,19 @@ function externalKeyError(v) {
 function isObject(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
+var VERSE_REF = /^[1-9][0-9]{0,2}:[1-9][0-9]{0,2}$/;
+function verseRefOrder(ref) {
+  if (typeof ref !== "string" || !VERSE_REF.test(ref)) return null;
+  const [c, v] = ref.split(":").map(Number);
+  return c * 1e3 + v;
+}
+function cardVerseError(p) {
+  if (p["mark"] !== "set") return p["from"] === void 0 && p["to"] === void 0 ? null : "from and to belong to set only";
+  const a = verseRefOrder(p["from"]);
+  const b = verseRefOrder(p["to"]);
+  if (a === null || b === null) return "from and to must be chapter:verse";
+  return a <= b ? null : "from must not come after to";
+}
 
 // packages/core/src/ties.ts
 function earlier(event, content, prior, priorContent, actorId = event.actorId) {
@@ -21389,7 +21405,7 @@ function stable(v) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 14;
+var REDUCER_VERSION = 15;
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
@@ -21477,6 +21493,11 @@ function applyLanguageEvent(state, event) {
     case "v1.ExternalValueSet":
       lww(state.externalValues ??= {}, event.payload.key, event, { data: event.payload.data, actorId: event.actorId, deviceId: event.deviceId });
       break;
+    case "v1.CardVerseSet": {
+      const { unitId, hash, ...mark } = event.payload;
+      lww((state.cardVerses ??= {})[unitId] ??= {}, hash, event, mark);
+      break;
+    }
     case "v1.RecordingAdded": {
       const { recordingId, ...rest } = event.payload;
       const prior = state.recordings[recordingId];
@@ -21967,6 +21988,7 @@ function derivePassage(state, unitId, idx) {
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
   const latest = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
+  const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
   const next = recorded ? open.find((s) => !s.override) ?? open[0] : void 0;
   const result = {
     unitId,
@@ -21978,6 +22000,7 @@ function derivePassage(state, unitId, idx) {
     requests,
     openRequests,
     steps,
+    drafts,
     drafting: draftTakeId !== void 0,
     done: recorded && steps.every((s) => s.complete),
     awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
@@ -21988,6 +22011,33 @@ function derivePassage(state, unitId, idx) {
   };
   ri.passages.set(key, result);
   return result;
+}
+function draftView(state, takeId) {
+  const t = state.takes[takeId];
+  const seen = /* @__PURE__ */ new Set([takeId]);
+  let root = takeId;
+  let basedOn;
+  for (; ; ) {
+    const parent = state.takes[root].parentTakeId;
+    if (!parent || seen.has(parent)) break;
+    if (state.submissions[parent]) {
+      basedOn = parent;
+      break;
+    }
+    const pt = state.takes[parent];
+    if (!pt || pt.unitId !== t.unitId) break;
+    seen.add(parent);
+    root = parent;
+  }
+  return {
+    takeId,
+    rootTakeId: root,
+    by: t.actorId,
+    cardHashes: t.cardHashes,
+    startedHlc: state.takes[root].hlc,
+    hlc: t.hlc,
+    ...basedOn ? { basedOnTakeId: basedOn } : {}
+  };
 }
 function teamMemberIds(state, teamId) {
   const team = state.teams[teamId];

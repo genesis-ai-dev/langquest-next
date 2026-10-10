@@ -177,7 +177,10 @@
       "stepNeedsKind": "كل خطوة تحتاج إلى نوع مراجعة.",
       "nameTerm": "اكتب اسم المصطلح.",
       "giveTitle": "أعطه عنوانًا.",
-      "versionOrReview": "اذكر النسخة أو المراجعة، وليس الاثنتين."
+      "versionOrReview": "اذكر النسخة أو المراجعة، وليس الاثنتين.",
+      "draftGone": "تلك المسودة لم تعد موجودة.",
+      "draftNotYours": "لا يحذف المسودة إلا من سجّلها.",
+      "draftNotHere": "تلك المسودة ليست من هذا المقطع."
     },
     "licenses": {
       "allRightsReserved": {
@@ -3750,7 +3753,6 @@
         "confirm": "تجاوز نقطة التحقق",
         "done": "تم تجاوز نقطة التحقق · حُفظ السبب"
       },
-      "hideHistory": "أخفِ النسخ والسجل",
       "history": "النسخ والسجل",
       "waitingOnAnswer": "بانتظار رد {{name}} على ملاحظات {{kinds}}.",
       "study": "دراسة {{pattern}}",
@@ -3945,6 +3947,27 @@
     },
     "resources": {
       "sourceAudio": "صوت المصدر"
+    },
+    "versions": {
+      "title": "النسخ",
+      "newVersion": "نسخة جديدة",
+      "yourDraft": "مسودتك",
+      "yourDrafts": "مسوداتك",
+      "noDrafts": "لا توجد مسودات. عدّل نسخة أدناه أو ابدأ نسخة جديدة.",
+      "published": "المنشورة",
+      "latest": "الأحدث",
+      "saved": "حُفظت {{when}}",
+      "savedJustNow": "حُفظت الآن",
+      "savedToast": "حُفظت {{name}}.",
+      "notDeleted": "لم تُحذف. {{reason}}",
+      "deleted": "حُذفت {{name}}.",
+      "delete": "احذف {{name}}",
+      "open": "افتح {{title}}",
+      "lengthFrom": "{{length}} · من {{version}}",
+      "nameFrom": "{{name}} · من {{version}}",
+      "newDraft": "مسودة جديدة",
+      "draft": "مسودة",
+      "draftN": "المسودة {{n, number}}"
     }
   },
   "work": {
@@ -4788,6 +4811,40 @@
     "workspace": {
       "take": "المحاولة {{n}}",
       "newTake": "محاولة جديدة {{n}}"
+    },
+    "verses": {
+      "verse": "الآية {{verse}}",
+      "range": "الآيات {{first}}–{{last}}",
+      "isOne": "{{part}} هو الآية {{verse}}.",
+      "isRange": "{{part}} هو الآيات {{first}}–{{last}}.",
+      "moreOfOne": "{{part}} تكملة للآية {{verse}}.",
+      "moreOfRange": "{{part}} تكملة للآيات {{first}}–{{last}}.",
+      "numbered_zero": "لم يُرقَّم أي جزء.",
+      "numbered_one": "رُقِّم جزء واحد.",
+      "numbered_two": "رُقِّم جزءان.",
+      "numbered_few": "رُقِّمت {{count, number}} أجزاء.",
+      "numbered_many": "رُقِّم {{count, number}} جزءًا.",
+      "numbered_other": "رُقِّم {{count, number}} جزء.",
+      "leftForLater": "{{verses}} · مؤجلة لاحقًا",
+      "follows": "{{part}} يتبع الترتيب.",
+      "none": "{{part}} بلا آية.",
+      "giveNext": "أعطِ {{part}} الآية التالية",
+      "giveAbove": "أعطِ {{part}} الآية التي فوقه",
+      "giveVerse": "أعطِ {{part}} آية",
+      "tapHelp": "المس: يحدد التطبيق الآية من الأجزاء المحيطة. اضغط مطولًا: اخترها بنفسك.",
+      "label": "{{part}}، {{verses}}",
+      "labelSame": "{{part}}، {{verses}}، مثل الجزء الذي فوقه",
+      "labelEmpty": "{{part}}، بلا آية بعد",
+      "hintSame": "المس لتجعله الآية التالية. اضغط مطولًا للاختيار.",
+      "hintLabelled": "المس لتعطيه آية الجزء الذي فوقه نفسها. اضغط مطولًا للاختيار.",
+      "hintEmpty": "المس لتعطيه الآية التالية. اضغط مطولًا للاختيار.",
+      "choose": "اختر الآيات",
+      "recordHere": "سجّل هنا",
+      "recordHereHelp": "سجّل الآية التي أجّلتها؛ ستوضع في مكانها.",
+      "verseSame": "{{verse}}، مثل الجزء الذي فوقه",
+      "auto": "تلقائي",
+      "noVerse": "لا شيء",
+      "deletePart": "احذف {{part}}"
     }
   },
   "map": {

@@ -169,7 +169,10 @@
       "stepNeedsKind": "প্রতিটি ধাপে একটি পর্যালোচনার ধরন থাকতে হবে।",
       "nameTerm": "শব্দটির নাম দিন।",
       "giveTitle": "একটি শিরোনাম দিন।",
-      "versionOrReview": "সংস্করণ অথবা পর্যালোচনার নাম দিন, দুটোরই নয়।"
+      "versionOrReview": "সংস্করণ অথবা পর্যালোচনার নাম দিন, দুটোরই নয়।",
+      "draftGone": "সেই খসড়াটি আর নেই।",
+      "draftNotYours": "যিনি খসড়াটি রেকর্ড করেছেন শুধু তিনিই এটি মুছতে পারেন।",
+      "draftNotHere": "সেই খসড়াটি এই অংশের নয়।"
     },
     "licenses": {
       "allRightsReserved": {
@@ -3306,7 +3309,6 @@
         "confirm": "চেকপয়েন্ট পার করুন",
         "done": "চেকপয়েন্ট পার করা হয়েছে · কারণ সংরক্ষিত"
       },
-      "hideHistory": "সংস্করণ ও ইতিহাস লুকান",
       "history": "সংস্করণ ও ইতিহাস",
       "waitingOnAnswer": "{{name}} {{kinds}}-এর মতামতের উত্তর দেবেন, তার অপেক্ষা।",
       "study": "{{pattern}} অধ্যয়ন",
@@ -3469,6 +3471,27 @@
     },
     "resources": {
       "sourceAudio": "উৎসের অডিও"
+    },
+    "versions": {
+      "title": "সংস্করণ",
+      "newVersion": "নতুন সংস্করণ",
+      "yourDraft": "আপনার খসড়া",
+      "yourDrafts": "আপনার খসড়াগুলো",
+      "noDrafts": "কোনো খসড়া নেই। নিচের একটি সংস্করণ সম্পাদনা করুন, বা নতুন একটি শুরু করুন।",
+      "published": "প্রকাশিত",
+      "latest": "সর্বশেষ",
+      "saved": "{{when}} সংরক্ষিত",
+      "savedJustNow": "এইমাত্র সংরক্ষিত",
+      "savedToast": "{{name}} সংরক্ষিত হয়েছে।",
+      "notDeleted": "মোছা হয়নি। {{reason}}",
+      "deleted": "{{name}} মুছে ফেলা হয়েছে।",
+      "delete": "{{name}} মুছুন",
+      "open": "{{title}} খুলুন",
+      "lengthFrom": "{{length}} · {{version}} থেকে",
+      "nameFrom": "{{name}} · {{version}} থেকে",
+      "newDraft": "নতুন খসড়া",
+      "draft": "খসড়া",
+      "draftN": "খসড়া {{n, number}}"
     }
   },
   "work": {
@@ -4188,6 +4211,36 @@
     "workspace": {
       "take": "টেক {{n}}",
       "newTake": "নতুন টেক {{n}}"
+    },
+    "verses": {
+      "verse": "পদ {{verse}}",
+      "range": "পদ {{first}}–{{last}}",
+      "isOne": "{{part}} হলো পদ {{verse}}।",
+      "isRange": "{{part}} হলো পদ {{first}}–{{last}}।",
+      "moreOfOne": "{{part}} পদ {{verse}}-এর আরও অংশ।",
+      "moreOfRange": "{{part}} পদ {{first}}–{{last}}-এর আরও অংশ।",
+      "numbered_one": "{{count, number}}টি ভাগে নম্বর দেওয়া হয়েছে।",
+      "numbered_other": "{{count, number}}টি ভাগে নম্বর দেওয়া হয়েছে।",
+      "leftForLater": "{{verses}} · পরের জন্য রাখা",
+      "follows": "{{part}} ক্রম অনুসরণ করে।",
+      "none": "{{part}}-এর কোনো পদ নেই।",
+      "giveNext": "{{part}}-কে পরের পদ দিন",
+      "giveAbove": "{{part}}-কে উপরের পদ দিন",
+      "giveVerse": "{{part}}-কে একটি পদ দিন",
+      "tapHelp": "ট্যাপ করুন: আশেপাশের ভাগ দেখে অ্যাপ পদ ঠিক করে। ধরে রাখুন: নিজে বেছে নিন।",
+      "label": "{{part}}, {{verses}}",
+      "labelSame": "{{part}}, {{verses}}, উপরের ভাগের মতোই",
+      "labelEmpty": "{{part}}, এখনও পদ নেই",
+      "hintSame": "পরের পদ করতে ট্যাপ করুন। বেছে নিতে ধরে রাখুন।",
+      "hintLabelled": "উপরের ভাগের একই পদ দিতে ট্যাপ করুন। বেছে নিতে ধরে রাখুন।",
+      "hintEmpty": "পরের পদ দিতে ট্যাপ করুন। বেছে নিতে ধরে রাখুন।",
+      "choose": "পদ বেছে নিন",
+      "recordHere": "এখানে রেকর্ড করুন",
+      "recordHereHelp": "পরের জন্য রাখা পদটি রেকর্ড করুন; এটি নিজের জায়গায় বসবে।",
+      "verseSame": "{{verse}}, উপরের ভাগের মতোই",
+      "auto": "স্বয়ংক্রিয়",
+      "noVerse": "কোনোটি নয়",
+      "deletePart": "{{part}} মুছুন"
     }
   },
   "map": {

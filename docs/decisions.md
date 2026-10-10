@@ -2580,3 +2580,92 @@ by the database (the Inbox shows its own words by kind).
 Reverse if: translators need to change words between app releases (then the
 library localization), or people want their language to follow them to
 other devices (then an event in the person stream).
+
+## 82. A recorded part keeps how it relates to its neighbours, and its verse numbers are worked out down the list
+
+Date: 2026-10-09 · By: Caleb Koster · Status: accepted
+
+Reason: The recorder groups parts into cards by verse (demo ADR-036,
+SIMPLE-7), which needs verse labels on parts. Caleb asked for labelling
+simple enough to need no reading: an empty space on the left of each part
+that, when tapped, infers the right verse from the parts above and below,
+and a long press for a chosen verse or range. Rules: labels come from the
+passage's verses (the template's range in its versification), go up the
+list, never overlap, may be one verse or a range, several parts may share
+one verse, and verses may be skipped for later. What was chosen:
+- A part stores a mark, not a number: `next` (the verse after the label
+  above), `join` (the same verses as the part right above), `set` (verses
+  chosen, as `chapter:verse` from and to) or `none`. Core `verses.ts`
+  derives the numbers down a take's cards, so labelling a part higher up
+  renumbers the ones after it and the order cannot break; `tapPart`
+  picks the first legal change (next, else join the verse above), and a
+  chosen verse wins over the parts after it that no longer fit, which lose
+  their mark (`settlePartMarks`).
+- One new event, `v1.CardVerseSet { unitId, hash, mark, from?, to? }`, a
+  register per (unit, card hash) in the language stream (privilege
+  translate; migration `20261010010000_card_verse_set.sql`). Keyed by card,
+  not take: every list change composes a new draft take, and a card keeps
+  its mark through them and into the version it is published in.
+- The workspace (`simple/verseParts.tsx`): tap a space to give the part a
+  verse, tap a number to join the part above and again to split it out,
+  hold for the verse grid with Auto, None and Delete (each tap applies at
+  once), slide down the spaces to number many parts, and a gap left for
+  later has Record here, which records into its place as the next verse.
+  A unit with no verses keeps the one card of numbered parts.
+Rejected: storing numbers on parts (moving or labelling one would leave
+the rest out of order); labels on the take (each draft change makes a new
+take, so marks would have to be copied forward); separate events for
+joins and choices (one register per card is simpler to merge).
+Reverse if: the same recording needs different verses in different
+versions (then marks belong on the take), or teams want labels from the
+audio itself (alignment) rather than taps.
+
+Amended (2026-10-10, Caleb Koster): no grouping by verse for now. The
+recorder keeps its one card of parts as before, and each part has its verse
+space; a part with the same verse as the part above shows that verse hollow
+and grey instead of joining a card; a part's own verse is a soft grey tile
+with a dark number, so the labels stay quiet beside the parts. The marks, the event and the tap rules are
+unchanged.
+
+## 83. A person may keep several drafts of a passage, each one the line of takes its changes made
+
+Date: 2026-10-10 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked that people can make several versions of a passage and
+save, delete, edit, publish and send each for review freely. Until now each
+person had one draft per passage: every change composed a new take and
+retired their previous draft, so starting over meant losing the last try.
+What was chosen:
+- No new event. A draft is the line of takes its changes composed
+  (`v1.TakeComposed` with `parentTakeId`); the take it started with names
+  it. Core `derivePassage` lists every open draft (`drafts`, anyone's, in
+  the order started, each with its first take and the version it started
+  from), and `keepTake`, `publishVersion` and `discardCards` take the take a
+  change continues (`parentTakeId`): the draft open in the workspace (whose
+  take is retired), a version to start from, or null for a draft started
+  empty. Left out, they continue the person's latest draft as before.
+- Deleting a draft is `deleteDraft` (`v1.TakeArchived`, only the person's
+  own). Its Undo composes the same parts continuing the deleted take, so it
+  is the same draft again.
+- A published version never changes. Editing one starts a new draft from its
+  parts; it publishes as a new version, as every change does (REC-W3).
+- Screens: the passage record's "Versions and history" is now a page: the
+  person's drafts (play, Edit, Publish, Delete with Undo), then the
+  published versions (play, open, Edit, and on the latest, Ask for its next
+  check), "New version" to start empty, then the study, reviews and history
+  that used to open in place. Record opens the person's only draft, or the
+  page when they keep several. The workspace opens one draft, says which
+  ("Draft 2"), and has Save, which says the draft is kept (every change
+  already is) and goes back. Publishing then asking for a check is
+  unchanged (demo ADR-034).
+- Verse marks (decision 82) stay on cards, so drafts that share parts share
+  their marks. A mark relative to its neighbours (next, join) still reads
+  right in each draft; a chosen verse is the same in all of them.
+Rejected: a name per draft (a new event, and typed names suit oral teams
+poorly; drafts are numbered in the order started instead); deleting a
+published version (reviews and requests point at it; nothing removes one).
+Open: a request for review names the passage, not a version, so asking for
+a check always means the latest version. Sending an older version for review
+would need a new event with the version in it.
+Reverse if: teams need drafts others can pick up and change (then a draft
+would need an owner other than whoever composed its takes).

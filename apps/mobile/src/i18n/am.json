@@ -169,7 +169,10 @@
       "stepNeedsKind": "እያንዳንዱ ደረጃ የግምገማ ዓይነት ያስፈልገዋል።",
       "nameTerm": "ቃሉን ይሰይሙ።",
       "giveTitle": "ርዕስ ይስጡት።",
-      "versionOrReview": "ስሪቱን ወይም ግምገማውን ይሰይሙ፣ ሁለቱንም አይደለም።"
+      "versionOrReview": "ስሪቱን ወይም ግምገማውን ይሰይሙ፣ ሁለቱንም አይደለም።",
+      "draftGone": "ያ ረቂቅ ከእንግዲህ የለም።",
+      "draftNotYours": "ረቂቁን መሰረዝ የሚችለው የቀረጸው ብቻ ነው።",
+      "draftNotHere": "ያ ረቂቅ የዚህ ክፍል አይደለም።"
     },
     "licenses": {
       "allRightsReserved": {
@@ -3306,7 +3309,6 @@
         "confirm": "ኬላውን ያሳልፉ",
         "done": "ኬላው ታልፏል · ምክንያቱ ተቀምጧል"
       },
-      "hideHistory": "ስሪቶችንና ታሪክን ይደብቁ",
       "history": "ስሪቶችና ታሪክ",
       "waitingOnAnswer": "{{name}} የ{{kinds}} አስተያየቱን እስኪመልስ በመጠበቅ ላይ።",
       "study": "የ{{pattern}} ጥናት",
@@ -3469,6 +3471,27 @@
     },
     "resources": {
       "sourceAudio": "የምንጩ ድምፅ"
+    },
+    "versions": {
+      "title": "ስሪቶች",
+      "newVersion": "አዲስ ስሪት",
+      "yourDraft": "ረቂቅዎ",
+      "yourDrafts": "ረቂቆችዎ",
+      "noDrafts": "ረቂቅ የለም። ከታች ያለን ስሪት ያርትዑ ወይም አዲስ ይጀምሩ።",
+      "published": "የታተሙ",
+      "latest": "የቅርብ ጊዜው",
+      "saved": "{{when}} ተቀምጧል",
+      "savedJustNow": "አሁን ተቀምጧል",
+      "savedToast": "{{name}} ተቀምጧል።",
+      "notDeleted": "አልተሰረዘም። {{reason}}",
+      "deleted": "{{name}} ተሰርዟል።",
+      "delete": "{{name}}ን ይሰርዙ",
+      "open": "{{title}}ን ይክፈቱ",
+      "lengthFrom": "{{length}} · ከ{{version}}",
+      "nameFrom": "{{name}} · ከ{{version}}",
+      "newDraft": "አዲስ ረቂቅ",
+      "draft": "ረቂቅ",
+      "draftN": "ረቂቅ {{n, number}}"
     }
   },
   "work": {
@@ -4188,6 +4211,36 @@
     "workspace": {
       "take": "ሙከራ {{n}}",
       "newTake": "አዲስ ሙከራ {{n}}"
+    },
+    "verses": {
+      "verse": "ቁጥር {{verse}}",
+      "range": "ቁጥሮች {{first}}–{{last}}",
+      "isOne": "{{part}} ቁጥር {{verse}} ነው።",
+      "isRange": "{{part}} ቁጥሮች {{first}}–{{last}} ነው።",
+      "moreOfOne": "{{part}} የቁጥር {{verse}} ቀጣይ ነው።",
+      "moreOfRange": "{{part}} የቁጥሮች {{first}}–{{last}} ቀጣይ ነው።",
+      "numbered_one": "{{count, number}} ቁራጭ ተቆጠረ።",
+      "numbered_other": "{{count, number}} ቁራጮች ተቆጠሩ።",
+      "leftForLater": "{{verses}} · ለበኋላ የተተወ",
+      "follows": "{{part}} ቅደም ተከተሉን ይከተላል።",
+      "none": "{{part}} ቁጥር የለውም።",
+      "giveNext": "ለ{{part}} ቀጣዩን ቁጥር ይስጡ",
+      "giveAbove": "ለ{{part}} ከላይ ያለውን ቁጥር ይስጡ",
+      "giveVerse": "ለ{{part}} ቁጥር ይስጡ",
+      "tapHelp": "ይንኩ፦ መተግበሪያው ከዙሪያው ቁራጮች ቁጥሩን ያገኛል። ይያዙ፦ እርስዎ ይምረጡ።",
+      "label": "{{part}}፣ {{verses}}",
+      "labelSame": "{{part}}፣ {{verses}}፣ ከላይ ካለው ቁራጭ ጋር አንድ",
+      "labelEmpty": "{{part}}፣ ገና ቁጥር የለውም",
+      "hintSame": "ቀጣዩ ቁጥር ለማድረግ ይንኩ። ለመምረጥ ይያዙ።",
+      "hintLabelled": "ከላይ ያለውን ቁራጭ ቁጥር ለመስጠት ይንኩ። ለመምረጥ ይያዙ።",
+      "hintEmpty": "ቀጣዩን ቁጥር ለመስጠት ይንኩ። ለመምረጥ ይያዙ።",
+      "choose": "ቁጥሮችን ይምረጡ",
+      "recordHere": "እዚህ ይቅረጹ",
+      "recordHereHelp": "ለበኋላ የተዉትን ቁጥር ይቅረጹ፤ በቦታው ይገባል።",
+      "verseSame": "{{verse}}፣ ከላይ ካለው ቁራጭ ጋር አንድ",
+      "auto": "ራስ-ሰር",
+      "noVerse": "ምንም",
+      "deletePart": "{{part}}ን ይሰርዙ"
     }
   },
   "map": {
