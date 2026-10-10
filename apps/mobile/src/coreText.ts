@@ -44,7 +44,9 @@ export function localKind(kind: KindDef): KindDef {
     out.produces = {
       ...kind.produces,
       ...(same(kind.produces.what, shipped.produces.what) ? { what: t('core.kinds.bt.produces.what') } : {}),
-      ...(same(kind.produces.action, shipped.produces.action) ? { action: t('core.kinds.bt.produces.action') } : {})
+      ...(same(kind.produces.action, shipped.produces.action) ? { action: t('core.kinds.bt.produces.action') } : {}),
+      // The language it goes into, named in the language showing ("English", "Inglés").
+      ...(same(kind.produces.into, shipped.produces.into) && shipped.produces.into === 'English' ? { into: t('uiLanguage.names.en') } : {})
     };
   }
   return out;
