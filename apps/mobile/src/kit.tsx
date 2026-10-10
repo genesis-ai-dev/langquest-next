@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
 import { useHelpMode, useHelpPress, useHelpSpot } from './helpContext';
+import { isRtl } from './i18n';
 import { HelpBadge } from './helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
@@ -46,9 +47,13 @@ const ICONS = {
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
+/** Icons that point along the line of reading, so right to left mirrors them (media controls stay as they are). */
+const MIRRORED = new Set<IconName>(['arrowR', 'arrowL', 'left', 'right', 'send', 'undo']);
+
 export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
   const Icon = ICONS[props.name];
-  return <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} {...(props.fill ? { fill: props.fill } : {})} />;
+  const icon = <Icon size={props.size ?? 20} color={props.color ?? C.dark} strokeWidth={props.strokeWidth ?? 2.2} {...(props.fill ? { fill: props.fill } : {})} />;
+  return isRtl() && MIRRORED.has(props.name) ? <View style={{ transform: [{ scaleX: -1 }] }}>{icon}</View> : icon;
 }
 
 /** The icon each shipped review kind reads by (the demo's REVIEW_KINDS icons). */

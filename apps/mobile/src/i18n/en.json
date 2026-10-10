@@ -1,0 +1,276 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "done": "Done",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No",
+    "notNow": "Not now",
+    "tryAgain": "Try again",
+    "play": "Play",
+    "pause": "Pause",
+    "record": "Record",
+    "publish": "Publish",
+    "remove": "Remove",
+    "edit": "Edit",
+    "copy": "Copy",
+    "filter": "Filter",
+    "preview": "Preview",
+    "required": "Required",
+    "you": "You",
+    "someone": "Someone",
+    "viewOnly": "View only",
+    "undone": "Undone.",
+    "notSaved": "Not saved. {{reason}}",
+    "notUndone": "Not undone. {{reason}}",
+    "somethingWentWrong": "Something went wrong (code {{code}}). Nothing was lost.",
+    "notConnected": "Not connected. Try again when you are online.",
+    "tryWhenConnected": "Try again when connected.",
+    "audioCouldNotLoad": "Audio could not load. Check your connection and try again.",
+    "audioCouldNotPlay": "Audio could not play (code {{code}}).",
+    "nothingMatches": "Nothing matches “{{query}}”.",
+    "backTenSeconds": "Back 10 seconds",
+    "stopRecording": "Stop recording",
+    "voiceNote": "Voice note",
+    "addNote": "Add a note",
+    "orTypeIt": "Or type it",
+    "sayIt": "Say it"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo_one": "{{count, number}} min ago",
+    "minutesAgo_other": "{{count, number}} min ago",
+    "hoursAgo_one": "{{count, number}} h ago",
+    "hoursAgo_other": "{{count, number}} h ago",
+    "clock": "{{minutes}}:{{seconds}}"
+  },
+  "units": {
+    "kilobytes": "{{value}} KB",
+    "megabytes": "{{value}} MB",
+    "gigabytes": "{{value}} GB"
+  },
+  "uiLanguage": {
+    "row": "Language",
+    "title": "Language",
+    "phoneLanguage": "Same as this phone",
+    "browserLanguage": "Same as this browser",
+    "phoneLanguageSub": "Now {{language}}",
+    "draftNote": "Draft translations were made by machine and are still being checked. Some words may be wrong.",
+    "restarting": "Changing the language…",
+    "help": "Choose the language LangQuest speaks to you in.",
+    "draftBadge": "Draft",
+    "draftSub": "{{language}} · draft translation",
+    "chipLabel": "Language: {{language}}. Change it",
+    "names": {
+      "en": "English",
+      "es": "Spanish",
+      "pt": "Portuguese (Brazil)",
+      "fr": "French",
+      "ar": "Arabic",
+      "sw": "Swahili",
+      "ha": "Hausa",
+      "am": "Amharic",
+      "hi": "Hindi",
+      "bn": "Bengali",
+      "ne": "Nepali",
+      "id": "Indonesian",
+      "zhHans": "Chinese (Simplified)",
+      "th": "Thai",
+      "my": "Burmese"
+    }
+  },
+  "core": {
+    "states": {
+      "todo": "Not yet",
+      "asked": "Asked",
+      "suggestions": "Needs changes",
+      "addressed": "Feedback answered",
+      "approved": "Looks good",
+      "skipped": "Set aside",
+      "locked": "Waits for checkpoint"
+    },
+    "kinds": {
+      "peer": {
+        "name": "Peer Review",
+        "usualReviewer": "Another translator",
+        "description": "Another translator listens for accuracy and natural speech."
+      },
+      "bt": {
+        "name": "Back Translation",
+        "usualReviewer": "A bilingual speaker",
+        "description": "A bilingual speaker records the passage back into English, in their own words. It's new content, not a verdict: the Consultant Check uses it to compare meaning.",
+        "produces": {
+          "what": "back translation",
+          "action": "Back-translate it"
+        }
+      },
+      "community": {
+        "name": "Community Check",
+        "usualReviewer": "Community members",
+        "description": "Play it for people in the community and capture what they understood."
+      },
+      "consultant": {
+        "name": "Consultant Check",
+        "usualReviewer": "A translation consultant",
+        "description": "A consultant checks meaning against the source, verse by verse."
+      },
+      "final": {
+        "name": "Final Approval",
+        "usualReviewer": "The language coordinator",
+        "description": "Sign-off that the passage is ready to share."
+      },
+      "retell": {
+        "name": "Retell Check",
+        "usualReviewer": "A listener",
+        "description": "A listener retells the passage in their own words."
+      },
+      "local": {
+        "name": "Local Check",
+        "usualReviewer": "Local listeners",
+        "description": "Local listeners hear the polished recording and say whether it sounds natural and acceptable."
+      }
+    },
+    "summary": {
+      "recordedDone": "Recorded · done",
+      "done": "Done",
+      "recording": "Recording in progress",
+      "notStarted": "Not started",
+      "feedbackForYou": "Feedback for you to answer",
+      "waitingOnFeedback": "Waiting on {{name}} to answer feedback",
+      "aReview": "a review",
+      "yourTurn": "Your turn: {{kind}}",
+      "waitingOnTeam": "Waiting on {{team}} · {{kind}}",
+      "theReviewTeam": "the review team",
+      "waitingOnPerson": "Waiting on {{name}} · {{kind}}",
+      "aReviewer": "a reviewer",
+      "next": "Next: {{step}}",
+      "version": "Version {{n}}"
+    },
+    "errors": {
+      "nothingToKeep": "Nothing to keep.",
+      "recordBeforePublishing": "Record something before publishing.",
+      "nothingChanged": "Nothing changed since the last version.",
+      "sayWhatChanged": "Say what changed.",
+      "pickVersionHeard": "Pick the version that was heard.",
+      "onlyPublishedReviewed": "Only a published version can be reviewed.",
+      "sayWhatToChange": "Say what to change.",
+      "recordBeforeSaving": "Record something before saving.",
+      "onlyPublishedBackTranslated": "Only a published version can be back-translated.",
+      "sayWhy": "Say why.",
+      "pickWhoToAsk": "Pick who to ask.",
+      "teamOrPerson": "Ask a team or a person, not both.",
+      "requestNamesKind": "A review request names its kind.",
+      "noteNeedsContent": "A note needs words, a voice note or a photo.",
+      "nameKind": "Name the kind of review.",
+      "stepNeedsKind": "Every step needs a kind of review.",
+      "nameTerm": "Name the term.",
+      "giveTitle": "Give it a title.",
+      "versionOrReview": "Name the version or the review, not both."
+    },
+    "licenses": {
+      "allRightsReserved": {
+        "name": "All rights reserved",
+        "short": "Only your organization",
+        "means": "Only your members can see and use your work. Nobody else may copy or share it."
+      },
+      "ccByNcNd": {
+        "name": "CC BY-NC-ND 4.0",
+        "short": "Share unchanged, not for sale",
+        "means": "Anyone may see and pass on your work as it is, if they credit you. They may not change it or sell it."
+      },
+      "ccByNcSa": {
+        "name": "CC BY-NC-SA 4.0",
+        "short": "Share and adapt, not for sale",
+        "means": "Anyone may see, pass on and adapt your work, if they credit you and share what they make the same way. They may not sell it."
+      },
+      "ccBySa": {
+        "name": "CC BY-SA 4.0",
+        "short": "Share and adapt, same terms",
+        "means": "Anyone may use, adapt and even sell your work, if they credit you and share what they make the same way."
+      },
+      "ccBy": {
+        "name": "CC BY 4.0",
+        "short": "Any use, with credit",
+        "means": "Anyone may use, adapt and sell your work for any purpose, as long as they credit you."
+      },
+      "cc0": {
+        "name": "CC0 (public domain)",
+        "short": "No conditions",
+        "means": "You give up your rights. Anyone may use your work for anything, without asking or crediting you."
+      }
+    }
+  },
+  "books": {
+    "gen": "Genesis",
+    "exo": "Exodus",
+    "lev": "Leviticus",
+    "num": "Numbers",
+    "deu": "Deuteronomy",
+    "jos": "Joshua",
+    "jdg": "Judges",
+    "rut": "Ruth",
+    "1sa": "1 Samuel",
+    "2sa": "2 Samuel",
+    "1ki": "1 Kings",
+    "2ki": "2 Kings",
+    "1ch": "1 Chronicles",
+    "2ch": "2 Chronicles",
+    "ezr": "Ezra",
+    "neh": "Nehemiah",
+    "est": "Esther",
+    "job": "Job",
+    "psa": "Psalms",
+    "pro": "Proverbs",
+    "ecc": "Ecclesiastes",
+    "sng": "Song of Solomon",
+    "isa": "Isaiah",
+    "jer": "Jeremiah",
+    "lam": "Lamentations",
+    "ezk": "Ezekiel",
+    "dan": "Daniel",
+    "hos": "Hosea",
+    "joe": "Joel",
+    "amo": "Amos",
+    "oba": "Obadiah",
+    "jon": "Jonah",
+    "mic": "Micah",
+    "nah": "Nahum",
+    "hab": "Habakkuk",
+    "zep": "Zephaniah",
+    "hag": "Haggai",
+    "zec": "Zechariah",
+    "mal": "Malachi",
+    "mat": "Matthew",
+    "mar": "Mark",
+    "luk": "Luke",
+    "joh": "John",
+    "act": "Acts",
+    "rom": "Romans",
+    "1co": "1 Corinthians",
+    "2co": "2 Corinthians",
+    "gal": "Galatians",
+    "eph": "Ephesians",
+    "phi": "Philippians",
+    "col": "Colossians",
+    "1th": "1 Thessalonians",
+    "2th": "2 Thessalonians",
+    "1ti": "1 Timothy",
+    "2ti": "2 Timothy",
+    "tit": "Titus",
+    "phm": "Philemon",
+    "heb": "Hebrews",
+    "jas": "James",
+    "1pe": "1 Peter",
+    "2pe": "2 Peter",
+    "1jn": "1 John",
+    "2jn": "2 John",
+    "3jn": "3 John",
+    "jud": "Jude",
+    "rev": "Revelation"
+  }
+}

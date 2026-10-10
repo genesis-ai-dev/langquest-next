@@ -102,7 +102,8 @@
         }
       ],
       "expo-notifications",
-      "./plugins/withSceneLifecycle"
+      "./plugins/withSceneLifecycle",
+      "expo-localization"
     ],
     "scheme": "langquestnext",
     "extra": {

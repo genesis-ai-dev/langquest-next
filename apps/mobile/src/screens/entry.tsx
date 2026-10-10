@@ -37,6 +37,7 @@ import { supabase } from '../supabase';
 import { lift } from '../shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
+import { LanguageChip } from '../uiLanguage';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -96,6 +97,7 @@ export function SignIn(ctx: Ctx) {
   const joining = ctx.invite.held?.claim.kind === 'next-account';
   return (
     <Screen bodyStyle={styles.signInBody}>
+      <LanguageChip />
       <View style={styles.brand}>
         <View style={styles.logo}><Ico name="book" size={32} color={C.white} /></View>
         <Text style={styles.wordmark} accessibilityRole="header">LangQuest</Text>

@@ -45,6 +45,7 @@ import { C, radius, space, target, tile, TINT, type as T } from '../theme';
 import { useAccountActions, useDisplayNames } from '../useAccount';
 import { runningBuildLabel } from '../updateStatus';
 import { PersonAvatar } from '../UserChip';
+import { LanguageRow } from '../uiLanguage';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -385,6 +386,7 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="download" label="Ready for offline" sub={offlineCount(offline)} onPress={() => ctx.go('sync_status')} />
         <Row icon="mic" label="Set up the microphone" sub="Say a sentence, pick what sounds best" onPress={() => ctx.go('mic_setup')} />
         <Row icon="help" label="How LangQuest works" sub="Listen to a short tour" onPress={() => ctx.go('vision')} />
+        <LanguageRow />
         <Row icon="settings" label="More settings" sub={moreSub} onPress={() => ctx.go('settings_more')}
           {...(p.pending > 0 ? { badge: String(p.pending) } : {})} last />
       </Group>
