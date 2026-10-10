@@ -11,13 +11,27 @@ import {
   type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { bookMatches, canonBook, parseQuery } from '../canon';
+import { currentLanguage, t } from '../i18n';
+import { formatClock } from '../i18n/format';
 
-/** The demo's quick reasons for leaving a required question unanswered (REV-2). */
-export const CANT_ANSWER = [
-  "Listeners weren't able to judge this",
-  'Not relevant for this passage',
-  'Ran out of time in the session'
-];
+/**
+ * The demo's quick reasons for leaving a required question unanswered
+ * (REV-2), in the language showing. The one picked is saved as the reason,
+ * like a reason typed in.
+ */
+export function cantAnswerReasons(): string[] {
+  return [t('review.capture.cantAnswer.notAbleToJudge'), t('review.capture.cantAnswer.notRelevant'), t('review.capture.cantAnswer.outOfTime')];
+}
+
+/** A yes/no answer as the record keeps it ("Yes", "No"): stored words, shown through `yesNoLabel`. */
+export type YesNo = 'Yes' | 'No';
+// i18n-ignore: the values a yes/no answer is stored with in the event log; yesNoLabel shows them
+export const YES_NO: readonly YesNo[] = ['Yes', 'No'];
+
+/** A stored yes/no answer in the language showing. */
+export function yesNoLabel(v: YesNo): string {
+  return v === 'Yes' ? t('common.yes') : t('common.no');
+}
 
 // ---- what is being reviewed ----------------------------------------------------------
 
@@ -84,9 +98,9 @@ export function readiness(questions: SourcedQuestion[], answers: Answers, skippe
 
 /** The line above the buttons: what still stands between you and sending. */
 export function footHint(r: Readiness, makes?: { what: string; has: boolean }): string | null {
-  if (!r.ready) return `${r.open} required question${r.open === 1 ? '' : 's'} left — answer, or say why not`;
-  if (makes) return makes.has ? null : `Record the ${makes.what}.`;
-  return r.saysWhat ? null : 'To ask for changes, say what to change above';
+  if (!r.ready) return t('review.capture.requiredLeft', { count: r.open });
+  if (makes) return makes.has ? null : t('review.capture.recordThe', { what: makes.what });
+  return r.saysWhat ? null : t('review.capture.sayWhatToChange');
 }
 
 // ---- stages (REV-0, ADR-029; demo SIMPLE-10) ------------------------------------------------
@@ -102,9 +116,9 @@ export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | '
  */
 export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean }): Stage[] {
   return [
-    { id: 'listen', label: 'Listen', icon: 'listen' },
-    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: 'Questions', icon: 'help' as const }] : []),
-    opts.makes ? { id: 'decide', label: 'Record it', icon: 'mic' } : { id: 'decide', label: 'Decide', icon: 'check' }
+    { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
+    ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'help' as const }] : []),
+    opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }
   ];
 }
 
@@ -115,35 +129,50 @@ export function stageAt(stages: Stage[], id: StageId): number {
 
 /** The footer's main button before the last stage: "Next: questions", "Next: decide". */
 export function nextLabel(stage: Stage): string {
-  return `Next: ${stage.label.toLowerCase()}`;
+  switch (stage.id) {
+    case 'listen': return t('review.capture.next.listen');
+    case 'questions': return t('review.capture.next.questions');
+    case 'decide': return stage.icon === 'mic' ? t('review.capture.next.recordIt') : t('review.capture.next.decide');
+  }
 }
 
 /**
  * A kind's name as the simple screens say it under the passage: "Community
  * check", "Peer review". Words after the first lose their capital unless
- * they are an abbreviation ("FIA check" stays).
+ * they are an abbreviation ("FIA check" stays). That is English's title
+ * case undone; other languages write their names as they are said, so the
+ * name is shown as it is.
  */
 export function kindLabel(name: string): string {
+  if (currentLanguage() !== 'en') return name;
   const words = name.trim().split(/\s+/);
   return words.map((w, i) => (i === 0 || w.length < 2 || w === w.toUpperCase() ? w : w.charAt(0).toLowerCase() + w.slice(1))).join(' ');
+}
+
+/**
+ * A kind's name inside an English sentence ("For a peer review that
+ * happened..."): lower case in English, as it is in other languages.
+ */
+export function kindInSentence(name: string): string {
+  return currentLanguage() === 'en' ? name.toLowerCase() : name;
 }
 
 /** The question the Decide stage asks, by kind (the shipped kinds; anything else asks whether it is clear). */
 export function verdictQuestion(kindId: string): string {
   switch (kindId) {
-    case 'peer': return 'Is it accurate and natural?';
-    case 'consultant': return 'Does it carry the meaning?';
-    case 'final': return 'Is it ready to share?';
-    case 'retell': return 'Did they understand it?';
-    case 'local': return 'Does it sound natural?';
-    default: return 'Is it clear?';
+    case 'peer': return t('review.capture.verdict.peer');
+    case 'consultant': return t('review.capture.verdict.consultant');
+    case 'final': return t('review.capture.verdict.final');
+    case 'retell': return t('review.capture.verdict.retell');
+    case 'local': return t('review.capture.verdict.local');
+    default: return t('review.capture.verdict.other');
   }
 }
 
 /** Under the version on Listen: a group hears it together; anyone else listens alone. */
 export function listenLine(kindId: string, logged: boolean): string {
-  if (logged) return 'The version that was played';
-  return isGroupKind(kindId) || kindId === 'local' ? 'Play it for the group' : 'Listen to all of it first';
+  if (logged) return t('review.capture.listenLine.played');
+  return isGroupKind(kindId) || kindId === 'local' ? t('review.capture.listenLine.group') : t('review.capture.listenLine.alone');
 }
 
 // ---- one question per screen (SIMPLE-10) ----------------------------------------------------
@@ -161,7 +190,7 @@ export function firstOpenAt(questions: SourcedQuestion[], answers: Answers, skip
   return questions.findIndex((q) => !canLeave(q, answers, skipped, voice));
 }
 
-/** "0:14". */
+/** "0:14", as the record writes it (stored answers and note anchors); screens show formatClock. */
 export function clockMs(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -188,6 +217,7 @@ export function reviewCapture(c: {
     const v = c.voice[q.q.id];
     if (!v) continue;
     artifacts.push({ hash: v.hash, durationMs: v.durationMs, format: v.format });
+    // i18n-ignore: stored in the event log as the answer (decision 71 amendment); storedAnswerText shows it
     const said = `Said aloud · ${clockMs(v.durationMs)} · recording ${artifacts.length}`;
     const typed = out[q.q.id]?.trim();
     out[q.q.id] = typed ? `${typed} (${said.charAt(0).toLowerCase()}${said.slice(1)})` : said;
@@ -197,6 +227,25 @@ export function reviewCapture(c: {
   }
   if (c.evidence) artifacts.push({ hash: c.evidence.hash, durationMs: c.evidence.durationMs, format: c.evidence.format });
   return { answers: out, artifacts };
+}
+
+const SAID_ALOUD = /^Said aloud · (\d+):(\d{2}) · recording (\d+)$/;
+const TYPED_AND_SAID = /^([\s\S]*) \(said aloud · (\d+):(\d{2}) · recording (\d+)\)$/;
+const clockOf = (m: string, s: string) => (Number(m) * 60 + Number(s)) * 1000;
+
+/**
+ * A stored answer in the language showing: "Yes" and "No", and an answer
+ * said aloud ("Said aloud · 0:14 · recording 1", or typed words followed by
+ * "(said aloud · ...)"), which the record keeps in English (reviewCapture).
+ * Anything else is the reviewer's own words, shown as typed.
+ */
+export function storedAnswerText(answer: string): string {
+  if (answer === 'Yes' || answer === 'No') return yesNoLabel(answer);
+  const said = SAID_ALOUD.exec(answer);
+  if (said) return t('review.capture.saidAloud', { time: formatClock(clockOf(said[1]!, said[2]!)), n: Number(said[3]) });
+  const both = TYPED_AND_SAID.exec(answer);
+  if (both) return t('review.capture.typedAndSaidAloud', { typed: both[1]!, time: formatClock(clockOf(both[2]!, both[3]!)), n: Number(both[4]) });
+  return answer;
 }
 
 /** One line for a collapsed card: the parts that have something, joined with " · ". */
@@ -223,9 +272,9 @@ export function cleanSkips(questions: SourcedQuestion[], answers: Answers, skipp
 /** Where a question comes from, as the demo labels it (REV-2). */
 export function questionSource(q: SourcedQuestion, asker?: string): string {
   switch (q.source) {
-    case 'org': return 'Organization';
-    case 'language': return 'Language team';
-    case 'request': return asker ? `From ${asker}` : 'From whoever asked';
+    case 'org': return t('review.capture.source.org');
+    case 'language': return t('review.capture.source.language');
+    case 'request': return asker ? t('review.capture.source.fromName', { name: asker }) : t('review.capture.source.fromWhoeverAsked');
   }
 }
 
@@ -234,14 +283,14 @@ export function questionSource(q: SourcedQuestion, asker?: string): string {
 /** What a note is about, as the demo says it: "Verse 4", "Key term · Shepherd", "Whole passage". */
 export function noteAnchorText(anchor: NoteAnchor, look: { term: (termId: string) => string | undefined; versionN: (takeId: string) => number | undefined }): string {
   switch (anchor.kind) {
-    case 'passage': return 'Whole passage';
-    case 'verse': return `Verse ${anchor.verse}${anchor.translation ? ` · ${anchor.translation}` : ''}${anchor.at ? ` · ${anchor.at}` : ''}`;
-    case 'term': return `Key term · ${look.term(anchor.termId) ?? 'term'}`;
+    case 'passage': return t('review.capture.anchor.passage');
+    case 'verse': return summaryLine([t('review.capture.anchor.verse', { verse: anchor.verse }), anchor.translation, anchor.at]);
+    case 'term': return t('review.capture.anchor.term', { term: look.term(anchor.termId) ?? t('review.capture.anchor.someTerm') });
     case 'version': {
       const n = look.versionN(anchor.takeId);
-      return n ? `Version ${n}` : 'A version';
+      return n ? t('review.capture.anchor.version', { n }) : t('review.capture.anchor.aVersion');
     }
-    case 'study': return 'Study';
+    case 'study': return t('review.capture.anchor.study');
   }
 }
 

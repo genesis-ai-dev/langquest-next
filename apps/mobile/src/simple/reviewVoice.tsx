@@ -8,13 +8,16 @@
 // starting one stops every other player.
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audioSession';
 import type { Ctx } from '../ctx';
 import { useHelpPress } from '../helpContext';
+import { t } from '../i18n';
+import { formatClock } from '../i18n/format';
 import { Ico, txt, type IconName } from '../kit';
 import { reportError } from '../report';
-import { clockMs, type VoiceAnswer } from '../reviewing/capture';
+import type { VoiceAnswer } from '../reviewing/capture';
 import { lift } from '../shadow';
 import { C, onColor, radius, space, target, TINT, type as T, withAlpha } from '../theme';
 import { useRecorder, type RecordedCard } from '../useRecorder';
@@ -40,10 +43,10 @@ function speak(text: string) {
 /** A round speaker beside a question: reads it aloud. Not drawn where nothing can speak. */
 export function SpeakBtn(props: { text: string; size?: number }) {
   const size = props.size ?? 64;
-  const press = useHelpPress('Hear it', 'Reads the question aloud.', () => speak(props.text));
+  const press = useHelpPress(t('review.voice.hearIt'), t('review.voice.hearItHelp'), () => speak(props.text));
   if (!canSpeak()) return null;
   return (
-    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`Hear it: ${props.text}`}
+    <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={t('review.voice.hearItA11y', { text: props.text })}
       style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }, pressed && styles.pressed]}>
       <Ico name="sound" size={Math.round(size * 0.42)} color={C.primary} />
     </Pressable>
@@ -77,19 +80,19 @@ export function BigMic(props: {
   const recording = rec.manualOn;
   const size = props.size ?? 112;
   const fill = props.tone === 'brand' ? C.primary : C.red;
-  const press = useHelpPress(recording ? 'Stop' : props.label, 'Records your voice. Tap again to stop.', () => void (recording ? rec.manualUp() : rec.manualDown()));
+  const press = useHelpPress(recording ? t('review.voice.stop') : props.label, t('review.voice.recordHelp'), () => void (recording ? rec.manualUp() : rec.manualDown()));
   return (
     <View style={{ alignItems: 'center', gap: space.md }}>
       <View style={[styles.halo, { width: size + 28, height: size + 28, borderRadius: (size + 28) / 2, backgroundColor: withAlpha(fill, recording ? 0.22 : 0.1) }]}>
         <Pressable onPress={press} disabled={(rec.busy && !recording) || props.disabled} accessibilityRole="button"
-          accessibilityLabel={recording ? 'Stop recording' : props.label}
+          accessibilityLabel={recording ? t('common.stopRecording') : props.label}
           style={({ pressed }) => [{ width: size, height: size, borderRadius: size / 2, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' },
             lift({ color: fill, opacity: 0.35, radius: 18, y: 8, elevation: 4 }), props.disabled && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]}>
           <Ico name={recording ? 'stop' : 'mic'} size={Math.round(size * 0.4)} color={C.white} />
         </Pressable>
       </View>
       <Text style={styles.bigLabel} accessibilityLiveRegion="polite">
-        {recording ? `Recording · ${clockMs(elapsed * 1000)} · tap to stop` : rec.busy ? 'Saving…' : props.label}
+        {recording ? t('review.voice.recordingTime', { time: formatClock(elapsed * 1000) }) : rec.busy ? t('common.saving') : props.label}
       </Text>
       {rec.error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{rec.error}</Text> : null}
     </View>
@@ -113,7 +116,7 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
     stopAudioPlayback();
     setError('');
     const uri = props.ctx.language.blobs.uriFor({ hash: props.clip.hash, format: props.clip.format });
-    if (!uri) { setError('This recording is not on this device.'); return; }
+    if (!uri) { setError(t('review.voice.notOnDevice')); return; }
     try {
       await setSessionAudioMode({ allowsRecording: false, playsInSilentMode: true });
       const p = createAudioPlayer({ uri });
@@ -126,18 +129,20 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
       setPlaying(true);
     } catch (e) {
       stop();
-      setError(`Audio could not play (code ${reportError('review clip play', e)}).`);
+      setError(t('common.audioCouldNotPlay', { code: reportError('review clip play', e) }));
     }
   }
-  const press = useHelpPress(props.label, 'Plays what was recorded.', () => void toggle());
+  const press = useHelpPress(props.label, t('review.voice.playsRecorded'), () => void toggle());
+  const length = formatClock(props.clip.durationMs);
   return (
     <View style={{ alignItems: 'center', gap: space.xs }}>
-      <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={`${playing ? 'Pause' : 'Play'} ${props.label}, ${clockMs(props.clip.durationMs)}`}
+      <Pressable onPress={press} accessibilityRole="button"
+        accessibilityLabel={playing ? t('review.voice.pauseClip', { label: props.label, length }) : t('review.voice.playClip', { label: props.label, length })}
         style={({ pressed }) => [styles.chip, { backgroundColor: bg }, pressed && styles.pressed]}>
         <View style={[styles.chipPlay, { backgroundColor: fill }]}>
           <Ico name={playing ? 'pause' : 'play'} size={22} color={C.white} />
         </View>
-        <Text style={[styles.chipLabel, { color: fg }]} numberOfLines={1}>{props.label} · {clockMs(props.clip.durationMs)}</Text>
+        <Text style={[styles.chipLabel, { color: fg }]} numberOfLines={1}>{props.label} · {length}</Text>
       </Pressable>
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
     </View>
@@ -160,10 +165,11 @@ export function AgainBtn(props: { label: string; icon?: IconName; onPress: () =>
 /**
  * A dashed row for something optional ("Who is listening? · optional"): it
  * reads as a choice, not a step. With `tile` the icon sits in a round tile
- * and the label is dark (Ryder's "Record a listener retelling").
+ * and the label is dark (Ryder's "Record a listener retelling"). `right` is
+ * the word at its end, usually "optional" (review.shared.optional) or "Change".
  */
 export function DashedRow(props: { icon: IconName; label: string; sub?: string; right?: string; onPress: () => void; tile?: boolean; done?: boolean; trailing?: ReactNode }) {
-  const press = useHelpPress(props.label, props.sub ?? (props.right === 'optional' ? 'Optional.' : undefined), props.onPress);
+  const press = useHelpPress(props.label, props.sub ?? (props.right === t('review.shared.optional') ? t('review.voice.optionalHelp') : undefined), props.onPress);
   return (
     <Pressable onPress={press} accessibilityRole="button" accessibilityLabel={[props.label, props.sub, props.right].filter(Boolean).join(', ')}
       style={({ pressed }) => [styles.dashed, props.done && styles.dashedDone, pressed && styles.pressed]}>

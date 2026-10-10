@@ -7,11 +7,14 @@
 // so help mode explains it instead of pressing it.
 import { FileText, Play, Route } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import QRCode from 'react-native-qrcode-svg';
 import { scopeKey, type Scope } from '@langquest-next/core';
 import { APP_URL } from '../appUrl';
 import { useHelpMode, useHelpPress } from '../helpContext';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { inviteUri, issueInvite } from '../invites';
 import { Ico, txt, type IconName } from '../kit';
 import { noteExpected } from '../report';
@@ -50,7 +53,7 @@ export function HelpButton() {
   const help = useHelpMode();
   if (!help) return <View style={{ width: target.min }} />;
   return (
-    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? 'Turn help off' : 'Help: explain this screen'}
+    <Pressable onPress={() => help.setOn(!help.on)} accessibilityRole="button" accessibilityLabel={help.on ? t('admin.help.turnOff') : t('admin.help.turnOn')}
       accessibilityState={{ selected: help.on }}
       style={({ pressed }) => [styles.round, help.on && { backgroundColor: C.primary, borderColor: C.primary }, pressed && styles.pressed]}>
       <Ico name="help" size={24} color={help.on ? C.white : C.primary} />
@@ -70,16 +73,16 @@ export function BigTop(props: { onBack?: () => void; over?: string; title: strin
     <View>
       {help?.on ? (
         <View style={styles.helpBanner} accessibilityLiveRegion="polite">
-          <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>Help is on. Tap anything to hear what it does.</Text>
+          <Text style={[txt.sm, { flex: 1, color: C.white, fontWeight: '700' }]}>{t('admin.help.isOn')}</Text>
           <Pressable onPress={() => help.setOn(false)} accessibilityRole="button" style={({ pressed }) => [styles.helpDone, pressed && styles.pressed]}>
-            <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>Done</Text>
+            <Text style={[txt.sm, { color: C.primary, fontWeight: '800' }]}>{t('common.done')}</Text>
           </Pressable>
         </View>
       ) : null}
       <View style={styles.bigTop}>
         <View style={styles.bigTopBar}>
           {props.onBack ? (
-            <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
+            <Pressable onPress={props.onBack} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
               <Ico name="arrowL" size={24} color={C.dark} />
             </Pressable>
           ) : <View />}
@@ -103,9 +106,10 @@ export function Question(props: { children: ReactNode }) {
 /** One of the four questions: done (green tick), now (lit, brand border), or later (muted). */
 export function ChecklistRow(props: { state: 'done' | 'now' | 'later'; icon: AdminIcon; label: string; sub?: string; onPress?: () => void }) {
   const { state } = props;
-  const onPress = useHelpPress(props.label, props.sub ?? (state === 'done' ? 'Answered. Tap to change it.' : 'Tap to answer it.'), props.onPress);
+  const onPress = useHelpPress(props.label, props.sub ?? (state === 'done' ? t('admin.checklist.answered') : t('admin.checklist.answerIt')), props.onPress);
   return (
-    <Pressable onPress={onPress} disabled={!props.onPress} accessibilityRole="button" accessibilityLabel={`${props.label}${state === 'done' ? ', done' : ''}`}
+    <Pressable onPress={onPress} disabled={!props.onPress} accessibilityRole="button"
+      accessibilityLabel={state === 'done' ? t('admin.checklist.doneLabel', { label: props.label }) : props.label}
       accessibilityState={{ disabled: !props.onPress, selected: state === 'now' }}
       style={({ pressed }) => [styles.checkRow, state === 'now' && styles.checkRowNow, pressed && styles.pressed]}>
       <View style={[styles.checkCircle, state === 'done' ? { backgroundColor: C.green } : state === 'now' ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
@@ -179,7 +183,7 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
     <View style={[styles.indent, { gap: 2 }]}>
       {props.items.map((s, i) => (
         <View key={`${s.label}-${i}`} style={styles.numbered}>
-          <View style={styles.num}><Text style={styles.numText}>{i + 1}</Text></View>
+          <View style={styles.num}><Text style={styles.numText}>{formatNumber(i + 1)}</Text></View>
           <Text style={{ fontSize: 14, fontWeight: '600', color: C.dark }}>{s.label}</Text>
           {s.lock ? <Ico name="lock" size={15} color={C.muted} /> : null}
         </View>
@@ -222,8 +226,9 @@ export function Pills(props: { children: ReactNode }) {
 
 /** A pick-many row with a checkbox, and a play button that opens what it is. */
 export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string }) {
-  const onToggle = useHelpPress(props.label, props.detail ?? (props.checked ? 'Offered to the team. Tap to stop offering it.' : 'Not offered. Tap to offer it to the team.'), props.onToggle);
-  const onPlay = useHelpPress(props.playLabel ?? `Hear ${props.label}`, undefined, props.onPlay);
+  const onToggle = useHelpPress(props.label, props.detail ?? (props.checked ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered')), props.onToggle);
+  const playLabel = props.playLabel ?? t('admin.checkRow.hear', { name: props.label });
+  const onPlay = useHelpPress(playLabel, undefined, props.onPlay);
   return (
     <View style={[styles.checkLine, !props.last && styles.rowBorder]}>
       <Pressable onPress={onToggle} disabled={props.disabled} accessibilityRole="checkbox" accessibilityState={{ checked: props.checked, disabled: !!props.disabled }}
@@ -237,7 +242,7 @@ export function CheckRow(props: { label: string; sub?: string; checked: boolean;
         </View>
       </Pressable>
       {props.onPlay ? (
-        <Pressable onPress={onPlay} accessibilityRole="button" accessibilityLabel={props.playLabel ?? `Hear ${props.label}`} hitSlop={4}
+        <Pressable onPress={onPlay} accessibilityRole="button" accessibilityLabel={playLabel} hitSlop={4}
           style={({ pressed }) => [styles.play, pressed && styles.pressed]}>
           <Ico name="play" size={22} color={C.primary} />
         </Pressable>
@@ -257,7 +262,7 @@ export function Pill(props: { on: boolean; disabled?: boolean }) {
 
 /** A row that is one switch: the whole row takes the tap (a 64pt target) and speaks as the switch. */
 export function SwitchRow(props: { label: string; sub?: string; on: boolean; onToggle: () => void; disabled?: boolean; last?: boolean; icon?: AdminIcon }) {
-  const onPress = useHelpPress(props.label, props.on ? 'On. Tap to turn it off.' : 'Off. Tap to turn it on.', props.onToggle);
+  const onPress = useHelpPress(props.label, props.on ? t('admin.switchRow.on') : t('admin.switchRow.off'), props.onToggle);
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
       accessibilityLabel={props.label} style={({ pressed }) => [styles.switchRow, !props.last && styles.rowBorder, pressed && styles.pressed]}>
@@ -274,15 +279,15 @@ export function SwitchRow(props: { label: string; sub?: string; on: boolean; onT
 /** A count on a solid amber disc (join requests waiting). */
 export function CountBadge(props: { n: number }) {
   return (
-    <View style={styles.count} accessibilityLabel={`${props.n} waiting`}>
-      <Text style={[txt.xsStrong, { color: C.white }]}>{props.n}</Text>
+    <View style={styles.count} accessibilityLabel={t('admin.waiting', { count: props.n })}>
+      <Text style={[txt.xsStrong, { color: C.white }]}>{formatNumber(props.n)}</Text>
     </View>
   );
 }
 
 /** Must this step pass before the next ones? A round lock, dashed when not. */
 export function LockToggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
-  const onPress = useHelpPress(props.label, props.on ? 'Must pass before the next steps. Tap so it need not.' : 'Can be set aside with a reason. Tap so it must pass first.', props.onToggle);
+  const onPress = useHelpPress(props.label, props.on ? t('admin.lock.on') : t('admin.lock.off'), props.onToggle);
   return (
     <Pressable onPress={onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
       accessibilityLabel={props.label} hitSlop={4}
@@ -310,6 +315,18 @@ export const GROUP_USES = 30;
 type InviteState = { uri: string } | { error: string } | null;
 
 /**
+ * Why the server made no invite code, in the language showing. Its own
+ * words are a developer's English (the invite RPCs' `raise exception`), so
+ * only a refusal is told apart; anything else reads as a connection to try
+ * again on.
+ */
+export function inviteFailureText(e: unknown): string {
+  const message = e instanceof Error ? e.message : '';
+  if (/not allowed|may only invite/i.test(message)) return t('admin.inviteCode.notAllowed');
+  return t('common.tryWhenConnected');
+}
+
+/**
  * A group code for one role at one scope, issued when first shown (the same
  * RPC as Invite by QR) and kept while the screen is up, so switching back to
  * a role shows the code already made. Offline, it says so.
@@ -325,7 +342,7 @@ export function useGroupInvite(orgId: string, roleId: string | null, scope: Scop
       .catch((e: unknown) => {
         // Offline or refused by the server: its words say which.
         noteExpected('issue group invite', e);
-        if (live) setMade((m) => ({ ...m, [key]: { error: e instanceof Error ? e.message : 'Try again when connected.' } }));
+        if (live) setMade((m) => ({ ...m, [key]: { error: inviteFailureText(e) } }));
       });
     return () => { live = false; };
     // `made` is read to skip a code already made; it must not re-run the effect.
@@ -341,11 +358,11 @@ export function InviteCode(props: { state: InviteState }) {
     <View style={{ alignItems: 'center', gap: space.md }}>
       <View style={styles.qr}>
         {s && 'uri' in s ? <QRCode value={s.uri} size={196} backgroundColor={C.white} color={C.dark} />
-          : <Text style={[txt.smMuted, { textAlign: 'center' }]}>{s && 'error' in s ? 'No code was made. Try again when connected.' : 'Making the code…'}</Text>}
+          : <Text style={[txt.smMuted, { textAlign: 'center' }]}>{s && 'error' in s ? t('admin.inviteCode.notMade') : t('admin.inviteCode.making')}</Text>}
       </View>
-      <Text style={[txt.body, { fontWeight: '700' }]}>Ask them to scan this</Text>
+      <Text style={[txt.body, { fontWeight: '700' }]}>{t('admin.inviteCode.askToScan')}</Text>
       <Text style={[txt.sm, { color: C.muted, textAlign: 'center' }]}>
-        {s && 'error' in s ? s.error : 'No password needed. Works for a whole group.'}
+        {s && 'error' in s ? s.error : t('admin.inviteCode.noPassword')}
       </Text>
     </View>
   );

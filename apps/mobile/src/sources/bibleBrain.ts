@@ -7,7 +7,9 @@
 // Worker says the fileset may be kept.
 //
 // No React Native here: the cache and fetch are given, so tests run it
-// against a small fake Worker.
+// against a small fake Worker. Errors are worded in the language showing;
+// the Worker's own error text is English, so it is never shown.
+import { t } from '../i18n';
 
 type Testaments = { OT?: string; NT?: string };
 
@@ -33,7 +35,7 @@ export interface BibleLanguage { code: string; name: string; autonym?: string; b
 interface AudioLink { url: string; durationMs?: number; bytes?: number; expiresAt: string; offline: boolean }
 type VerseText = [number, number, string];
 
-/** Why an answer did not come: no connection, Bible Brain not set up on the server (or its routes not deployed), nothing there, or signed out. */
+/** Why an answer did not come: no connection, Bible Brain not set up on the server (or its routes not deployed), nothing there, or signed out. Its message is for the person. */
 type BibleErrorKind = 'offline' | 'unavailable' | 'not_found' | 'signed_out' | 'failed';
 
 export class BibleError extends Error {
@@ -67,22 +69,24 @@ export class BibleBrainClient {
 
   private async ask<T>(path: string): Promise<T> {
     const token = await this.server.token();
-    if (!token) throw new BibleError('Sign in again to reach Bible Brain.', 'signed_out', 401);
+    if (!token) throw new BibleError(t('sources.bibleBrain.signIn'), 'signed_out', 401);
     let res: Response;
     try {
       res = await (this.server.fetch ?? fetch)(`${this.server.baseUrl}/api/bible/${path}`, { headers: { authorization: `Bearer ${token}` } });
     } catch {
-      throw new BibleError('No connection.', 'offline');
+      throw new BibleError(t('sources.bibleBrain.noConnection'), 'offline');
     }
     const body = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
-    if (res.status === 503) throw new BibleError('Bible Brain is not set up on the server yet.', 'unavailable', 503);
+    if (res.status === 503) throw new BibleError(t('sources.bibleBrain.notSetUp'), 'unavailable', 503);
     if (res.status === 404) {
       // A route that is not deployed answers 404 without our JSON shape; an empty chapter answers with it.
-      if (!body || typeof body !== 'object' || !('error' in body)) throw new BibleError('Bible Brain is not available on this server yet.', 'unavailable', 404);
-      throw new BibleError(body.error ?? 'Not found.', 'not_found', 404);
+      if (!body || typeof body !== 'object' || !('error' in body)) throw new BibleError(t('sources.bibleBrain.notAvailable'), 'unavailable', 404);
+      throw new BibleError(t('sources.bibleBrain.notFound'), 'not_found', 404);
     }
-    if (res.status === 401 || res.status === 403) throw new BibleError('Sign in again to reach Bible Brain.', 'signed_out', res.status);
-    if (!res.ok || !body) throw new BibleError(body?.error ?? `The server answered ${res.status}.`, 'failed', res.status);
+    if (res.status === 401 || res.status === 403) throw new BibleError(t('sources.bibleBrain.signIn'), 'signed_out', res.status);
+    if (!res.ok || !body) {
+      throw new BibleError(res.status === 502 ? t('sources.bibleBrain.noAnswer') : t('sources.bibleBrain.serverAnswered', { status: res.status }), 'failed', res.status);
+    }
     return body;
   }
 
@@ -162,12 +166,12 @@ export const textKey = (filesetId: string, book: string, chapter: number) => `te
 export function bibleErrorText(e: unknown): string {
   if (e instanceof BibleError) {
     switch (e.kind) {
-      case 'offline': return "You're offline, and this isn't on this device yet.";
-      case 'unavailable': return "Bible Brain isn't available on this server yet.";
-      case 'not_found': return 'Not in this Bible.';
-      case 'signed_out': return 'Sign in again to reach Bible Brain.';
+      case 'offline': return t('sources.bibleBrain.offline');
+      case 'unavailable': return t('sources.bibleBrain.unavailable');
+      case 'not_found': return t('sources.bibleBrain.notInBible');
+      case 'signed_out': return t('sources.bibleBrain.signIn');
       default: return e.message;
     }
   }
-  return 'Something went wrong. Try again.';
+  return t('sources.bibleBrain.failed');
 }

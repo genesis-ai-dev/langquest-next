@@ -7,6 +7,8 @@
 // this (no `atMs`) fill the first parts not yet said, in order. Pure, so it
 // is tested directly (test/backTranslationParts.test.ts).
 import type { Card } from '@langquest-next/core';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 
 /** One part of the version being back-translated. */
 export interface SourcePart {
@@ -88,7 +90,7 @@ export function piecesInOrder(parts: readonly BackPart[]): Card[] {
 /** "3 of 5 parts said". */
 export function saidLine(parts: readonly BackPart[]): string {
   const said = parts.filter((p) => p.cards.length > 0).length;
-  return `${said} of ${parts.length} part${parts.length === 1 ? '' : 's'} said`;
+  return t('recording.backTranslation.partsSaid', { count: parts.length, said: formatNumber(said) });
 }
 
 /** A note the back translator left at a moment of a part, for whoever checks it. */
@@ -106,6 +108,7 @@ function clock(ms: number): string {
  * anything typed when publishing.
  */
 export function noteText(notes: readonly MomentNote[], extra: string): string {
+  // i18n-ignore: stored in the event log (the saved review's note), not words of the app's own
   const lines = [...notes].sort((a, b) => a.part - b.part || a.atMs - b.atMs).map((n) => `Part ${n.part + 1} · ${clock(n.atMs)}: ${n.text}`);
   if (extra.trim()) lines.push(extra.trim());
   return lines.join('\n');

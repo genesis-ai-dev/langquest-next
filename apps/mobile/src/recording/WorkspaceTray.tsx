@@ -6,9 +6,12 @@
 import { commands, keyTermView, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import {
   Badge, Chip, ChipRow, Field, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn, txt
@@ -26,11 +29,11 @@ export type TrayTab = 'terms' | 'study' | 'notes' | 'history';
 /** "Help" in the recording screen's header (ADR-029): icon and word, 48pt. */
 export function HelpButton(props: { onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel="Help"
-      accessibilityHint="Key terms, the study, notes and history for this passage" accessibilityState={{ disabled: !!props.disabled }}
+    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('recording.tray.help')}
+      accessibilityHint={t('recording.tray.helpHint')} accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.help, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
       <Ico name="help" size={20} color={C.primary} />
-      <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>Help</Text>
+      <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('recording.tray.help')}</Text>
     </Pressable>
   );
 }
@@ -64,12 +67,12 @@ export function HelpSheet(props: {
     <Chip key={id} label={label} on={tab === id} onPress={() => props.onTab(id)} {...(count !== undefined ? { count } : {})} />
   );
   return (
-    <Sheet visible title="Help" sub="What the team knows about this passage." onClose={onClose}>
+    <Sheet visible title={t('recording.tray.help')} sub={t('recording.tray.helpSub')} onClose={onClose}>
       <ChipRow>
-        {pill('terms', 'Key terms', props.terms.length)}
-        {props.study ? pill('study', `${props.study.guide.pattern} study ${props.study.doneCount}/${props.study.steps.length}`) : null}
-        {pill('notes', 'Notes', props.notes.length)}
-        {pill('history', 'History', props.v.p.versions.length)}
+        {pill('terms', t('recording.tray.keyTerms'), props.terms.length)}
+        {props.study ? pill('study', t('recording.tray.studyPill', { pattern: props.study.guide.pattern, done: formatNumber(props.study.doneCount), total: formatNumber(props.study.steps.length) })) : null}
+        {pill('notes', t('recording.tray.notes'), props.notes.length)}
+        {pill('history', t('recording.tray.history'), props.v.p.versions.length)}
       </ChipRow>
       <View style={styles.body}>
         {tab === 'terms' ? <TermsTab {...props} ctx={ctx} /> : null}
@@ -114,42 +117,43 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
       // TERM-4: ties the term to the take being recorded; publishing carries
       // it onto the version. A tie is grow-only, so there is no Undo.
       await ctx.act(commands(state, indexesFor(state)).linkKeyTerms({ commandId: Crypto.randomUUID(), takeId: props.draftTakeId, termIds: [termId] }),
-        'Tied to your draft.');
+        t('recording.tray.tied'));
     } catch { /* ctx.act said what went wrong */ }
     finally { setTying(null); }
   }
   const scope = { unitId: v.unitId, languageId: v.languageId };
   return (
     <>
-      {props.terms.length === 0 ? <Text style={[txt.smMuted, styles.pad]}>No key terms matched this passage's source.</Text> : null}
-      {props.terms.slice(0, shown).map((t) => {
-        const tied = props.tied.has(t.termId);
-        const renderings = t.renderings.map((r) => r.rendering).filter(Boolean);
+      {props.terms.length === 0 ? <Text style={[txt.smMuted, styles.pad]}>{t('recording.tray.noTerms')}</Text> : null}
+      {props.terms.slice(0, shown).map((term) => {
+        const tied = props.tied.has(term.termId);
+        const renderings = term.renderings.map((r) => r.rendering).filter(Boolean);
+        const rendered = renderings.length ? renderings.join(', ') : t('recording.tray.noRendering');
         return (
-          <View key={t.termId} style={styles.item}>
-            <Pressable onPress={() => ctx.go('key_term_detail', { ...scope, termId: t.termId })} accessibilityRole="button"
-              accessibilityLabel={`${t.term}. ${renderings.length ? renderings.join(', ') : 'No rendering yet'}${tied ? '. Tied to your draft' : ''}`}
+          <View key={term.termId} style={styles.item}>
+            <Pressable onPress={() => ctx.go('key_term_detail', { ...scope, termId: term.termId })} accessibilityRole="button"
+              accessibilityLabel={tied ? t('recording.tray.termLabelTied', { term: term.term, rendered }) : t('recording.tray.termLabel', { term: term.term, rendered })}
               style={({ pressed }) => [styles.itemHead, pressed && { opacity: 0.7 }]}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{t.term}</Text>
+                <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{term.term}</Text>
                 <Text style={[txt.xsStrong, { color: renderings.length ? C.primary : TINT.amberText, marginTop: 2 }]} numberOfLines={1}>
-                  {renderings.length ? renderings.join(' · ') : `No ${v.language} rendering yet`}
+                  {renderings.length ? renderings.join(' · ') : t('recording.tray.noLanguageRendering', { language: v.language })}
                 </Text>
               </View>
-              {tied ? <View style={styles.tied}><Ico name="link" size={14} color={TINT.greenText} /><Badge label="Tied" tone="green" /></View> : null}
+              {tied ? <View style={styles.tied}><Ico name="link" size={14} color={TINT.greenText} /><Badge label={t('recording.tray.tiedBadge')} tone="green" /></View> : null}
               <Ico name="right" size={20} color={C.muted} />
             </Pressable>
             {!tied && props.canTie ? (
-              <SmallBtn label={tying === t.termId ? 'Tying…' : 'Tie to your draft'} icon="link"
-                disabled={!props.draftTakeId || props.disabled || !!tying} onPress={() => void tie(t.termId)} />
+              <SmallBtn label={tying === term.termId ? t('recording.tray.tying') : t('recording.tray.tie')} icon="link"
+                disabled={!props.draftTakeId || props.disabled || !!tying} onPress={() => void tie(term.termId)} />
             ) : null}
           </View>
         );
       })}
       <ShowMore remaining={props.terms.length - shown} step={TERM_STEP} onMore={() => setShown((n) => n + TERM_STEP)} />
-      {props.canTie && !props.draftTakeId && props.terms.some((t) => !props.tied.has(t.termId))
-        ? <Text style={[txt.xs, styles.pad]}>Record a take first; then you can tie terms to your draft.</Text> : null}
-      <LinkBtn label="All key terms →" onPress={() => ctx.go('key_terms', scope)} style={styles.pad} />
+      {props.canTie && !props.draftTakeId && props.terms.some((term) => !props.tied.has(term.termId))
+        ? <Text style={[txt.xs, styles.pad]}>{t('recording.tray.recordFirst')}</Text> : null}
+      <LinkBtn label={t('recording.tray.allTerms')} onPress={() => ctx.go('key_terms', scope)} style={styles.pad} />
     </>
   );
 }
@@ -161,7 +165,7 @@ function StudyTab(props: { ctx: Ctx; v: PassageView; study: StudyProgress }) {
     <>
       <View style={[styles.pad, { gap: space.sm }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
-          <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]} numberOfLines={2}>{study.guide.pattern} study · {study.guide.passage}</Text>
+          <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]} numberOfLines={2}>{t('recording.tray.studyTitle', { pattern: study.guide.pattern, passage: study.guide.passage })}</Text>
           <Text style={txt.xs}>{studySummary(study)}</Text>
         </View>
         <ProgressBar value={study.steps.length ? Math.round((study.doneCount / study.steps.length) * 100) : 0} color={study.next ? C.primary : C.green} />
@@ -172,7 +176,7 @@ function StudyTab(props: { ctx: Ctx; v: PassageView; study: StudyProgress }) {
             last={i === study.steps.length - 1} onPress={() => ctx.go('study_step', { ...scope, stepId: s.step.id })} />
         ))}
       </View>
-      <LinkBtn label="Open the study →" onPress={() => ctx.go('study_guide', scope)} style={styles.pad} />
+      <LinkBtn label={t('recording.tray.openStudy')} onPress={() => ctx.go('study_guide', scope)} style={styles.pad} />
     </>
   );
 }
@@ -187,30 +191,30 @@ function NotesTab(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disab
   const latestId = v.p.latest?.takeId;
   const anchor = (n: PassageNote): string => {
     switch (n.anchor.kind) {
-      case 'passage': return 'Whole passage';
-      case 'version': { const at = versionN.get(n.anchor.takeId); return at ? versionTitle(at) : 'A draft'; }
-      case 'verse': return `Verse ${n.anchor.verse}`;
-      case 'term': return keyTermView(v.state, n.anchor.termId)?.term ?? 'Key term';
-      case 'study': return 'Study';
+      case 'passage': return t('recording.tray.anchor.passage');
+      case 'version': { const at = versionN.get(n.anchor.takeId); return at ? versionTitle(at) : t('recording.tray.anchor.draft'); }
+      case 'verse': return t('recording.tray.anchor.verse', { verse: n.anchor.verse });
+      case 'term': return keyTermView(v.state, n.anchor.termId)?.term ?? t('recording.tray.anchor.term');
+      case 'study': return t('recording.tray.anchor.study');
     }
   };
   const newest = [...props.notes].reverse();
   return (
     <>
-      <Pressable onPress={() => setAdding(true)} disabled={props.disabled} accessibilityRole="button" accessibilityLabel="Add a note"
+      <Pressable onPress={() => setAdding(true)} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.addNote')}
         style={({ pressed }) => [styles.addNote, props.disabled && { opacity: 0.5 }, pressed && { opacity: 0.7 }]}>
         <Ico name="plus" size={18} color={TINT.amberText} />
-        <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>Add a note</Text>
+        <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('common.addNote')}</Text>
       </Pressable>
       {props.notes.length === 0
-        ? <Text style={[txt.smMuted, styles.pad]}>Notes you leave here follow the passage — reviewers and the next translator will see them.</Text> : null}
+        ? <Text style={[txt.smMuted, styles.pad]}>{t('recording.tray.notesEmpty')}</Text> : null}
       {newest.slice(0, shown).map((n) => {
         const older = n.onTakeId && n.onTakeId !== latestId ? versionN.get(n.onTakeId) : undefined;
         return (
           <Authored key={n.id} ctx={ctx} by={n.by}>
             <NoteCard anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
               {...(older ? { olderVersion: versionTitle(older) } : {})}
-              {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label="Play voice note" /> } : {})}
+              {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('recording.voiceNote.play')} /> } : {})}
               action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
           </Authored>
         );
@@ -235,16 +239,16 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
         commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
-      await ctx.act(specs, 'Note added.');
+      await ctx.act(specs, t('recording.tray.noteAdded'));
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
   }
   return (
-    <Sheet visible title="Add a note" sub="Anchored to the whole passage. It follows the passage into reviews and later versions." onClose={props.onClose}
-      footer={<PrimaryBtn label="Save note" busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} />}>
-      <VoiceNote ctx={ctx} label="Say it" hash={hash} onChange={setHash} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it" multiline />
+    <Sheet visible title={t('common.addNote')} sub={t('recording.tray.noteSheetSub')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('recording.tray.saveNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void save()} />}>
+      <VoiceNote ctx={ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
+      <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} multiline />
     </Sheet>
   );
 }
@@ -255,14 +259,14 @@ function HistoryTab(props: { ctx: Ctx; v: PassageView }) {
   const { ctx, v } = props;
   const [shown, setShown] = useState(HISTORY_STEP);
   const versions = [...v.p.versions].reverse();
-  if (versions.length === 0) return <Text style={[txt.smMuted, styles.pad]}>This will be the first version.</Text>;
+  if (versions.length === 0) return <Text style={[txt.smMuted, styles.pad]}>{t('recording.tray.firstVersion')}</Text>;
   return (
     <>
       {versions.slice(0, shown).map((x) => (
         <View key={x.takeId} style={styles.history}>
           <Text style={[txt.sm, { fontWeight: '700' }]}>{versionTitle(x.n)} <Text style={[txt.sm, { fontWeight: '400', color: C.muted }]}>· {ctx.name(x.by)} · {when(x.hlc)}</Text></Text>
-          <Text style={[txt.sm, { marginTop: 2 }]}>{x.changeNote ?? (x.n === 1 ? 'First recording.' : 'Said in a voice note.')}</Text>
-          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip language={ctx.language} hashes={[x.changeBlobHash]} label={`Play what changed in ${versionTitle(x.n)}`} /></View> : null}
+          <Text style={[txt.sm, { marginTop: 2 }]}>{x.changeNote ?? (x.n === 1 ? t('recording.tray.firstRecording') : t('recording.tray.saidInVoiceNote'))}</Text>
+          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip language={ctx.language} hashes={[x.changeBlobHash]} label={t('recording.tray.playWhatChanged', { version: versionTitle(x.n) })} /></View> : null}
         </View>
       ))}
       <ShowMore remaining={versions.length - shown} step={HISTORY_STEP} onMore={() => setShown((n) => n + HISTORY_STEP)} />

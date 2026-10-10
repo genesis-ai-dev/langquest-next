@@ -9,9 +9,12 @@
 // can be kept offline.
 import { languageInfo, libraryItems, testamentOf, type SourceDoc, type VerseRange } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
+import { t } from '../i18n';
+import { formatNumber } from '../i18n/format';
 import {
   Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, txt
 } from '../kit';
@@ -25,12 +28,12 @@ import { C, space } from '../theme';
 
 /** "Audio: New Testament only", "Text and audio", "Text only". */
 function mediaLine(b: Pick<BibleSummary, 'text' | 'audio'>): string {
-  const t = [b.text.OT && 'OT', b.text.NT && 'NT'].filter(Boolean);
-  const a = [b.audio.OT && 'OT', b.audio.NT && 'NT'].filter(Boolean);
-  const span = (x: unknown[]) => (x.length === 2 ? 'whole Bible' : x[0] === 'OT' ? 'Old Testament only' : 'New Testament only');
-  if (a.length === 0) return t.length ? `Text only · ${span(t)}` : 'Nothing to read or hear yet';
-  if (t.length === 0) return `Audio only · ${span(a)}`;
-  return a.length === t.length && a.join() === t.join() ? `Text and audio · ${span(a)}` : `Text · ${span(t)}. Audio · ${span(a)}`;
+  const text = [b.text.OT && 'OT', b.text.NT && 'NT'].filter(Boolean);
+  const audio = [b.audio.OT && 'OT', b.audio.NT && 'NT'].filter(Boolean);
+  const span = (x: unknown[]) => (x.length === 2 ? t('sources.media.wholeBible') : x[0] === 'OT' ? t('sources.media.otOnly') : t('sources.media.ntOnly'));
+  if (audio.length === 0) return text.length ? t('sources.media.textOnly', { span: span(text) }) : t('sources.media.nothing');
+  if (text.length === 0) return t('sources.media.audioOnly', { span: span(audio) });
+  return audio.length === text.length && audio.join() === text.join() ? t('sources.media.both', { span: span(audio) }) : t('sources.media.mixed', { text: span(text), audio: span(audio) });
 }
 
 /** The language most of these Bibles name ("English" from "English: USA", "English: Aboriginal"). */
@@ -85,7 +88,7 @@ export function BibleExplore(ctx: Ctx) {
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
   const back = () => (picked ? setPicked(null) : ctx.back());
-  const header = <Header title={TITLES.bible_explore} sub={passageLabel ? `For ${passageLabel}` : 'Find a Bible to read and hear'} onBack={back} />;
+  const header = <Header title={screenTitle('bible_explore')} sub={passageLabel ? t('sources.explore.forPassage', { passage: passageLabel }) : t('sources.explore.sub')} onBack={back} />;
 
   if (picked) {
     const lib = picked.kind === 'library' ? librarySources.find((s) => s.itemId === picked.itemId) : undefined;
@@ -95,27 +98,27 @@ export function BibleExplore(ctx: Ctx) {
   return (
     <Screen header={header}>
       {!bibleBrain ? (
-        <EmptyState icon="globe" title="Bible Brain isn't set up on this device" sub="Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server." />
+        <EmptyState icon="globe" title={t('sources.explore.notSetUp')} sub={t('sources.explore.notSetUpSub')} />
       ) : (
         <>
-          <SearchField value={query} onChangeText={setQuery} placeholder="Search for a language" />
+          <SearchField value={query} onChangeText={setQuery} placeholder={t('sources.explore.searchPlaceholder')} />
           {languages ? (
             <Group>
-              {languages.length === 0 ? <Row label="No languages found" sub={problem || 'Try the name in English, or its three-letter code.'} last /> : null}
+              {languages.length === 0 ? <Row label={t('sources.explore.noLanguages')} sub={problem || t('sources.explore.noLanguagesSub')} last /> : null}
               {languages.slice(0, 30).map((l, i, all) => (
-                <Row key={l.code} label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={`${l.code} · ${l.bibles} Bible${l.bibles === 1 ? '' : 's'}`}
+                <Row key={l.code} label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={t('sources.explore.languageBibles', { code: l.code, count: l.bibles })}
                   onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
               ))}
             </Group>
           ) : null}
-          <SectionLabel label={`Bibles in ${lang.name || languageOf(bibles) || lang.code}`} />
-          {bibles === null ? <Text style={txt.smMuted}>Loading…</Text> : bibles.length === 0 ? (
-            <Card><Text style={txt.smMuted}>{problem || 'No Bibles in this language on Bible Brain.'}</Text></Card>
+          <SectionLabel label={t('sources.explore.biblesIn', { language: lang.name || languageOf(bibles) || lang.code })} />
+          {bibles === null ? <Text style={txt.smMuted}>{t('common.loading')}</Text> : bibles.length === 0 ? (
+            <Card><Text style={txt.smMuted}>{problem || t('sources.explore.noBibles')}</Text></Card>
           ) : (
             <Group>
               {bibles.map((b, i) => (
                 <Row key={b.bibleId} label={`${b.abbreviation} · ${b.name}`} sub={mediaLine(b)}
-                  {...(mine.has(`biblebrain.${b.bibleId}`) ? { badge: 'My Bible', badgeTone: 'brand' as const } : {})}
+                  {...(mine.has(`biblebrain.${b.bibleId}`) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
                   onPress={() => setPicked({ kind: 'biblebrain', bibleId: b.bibleId })} last={i === bibles.length - 1} />
               ))}
             </Group>
@@ -124,19 +127,17 @@ export function BibleExplore(ctx: Ctx) {
       )}
       {librarySources.length > 0 ? (
         <>
-          <SectionLabel label="In your organization's library" />
+          <SectionLabel label={t('sources.explore.inLibrary')} />
           <Group>
             {librarySources.map((s, i) => (
-              <Row key={s.itemId} label={`${s.doc.abbreviation} · ${s.doc.name}`} sub={s.doc.offline === 'allowed' ? 'Can be kept offline' : 'Streams only: needs a connection'}
-                {...(mine.has(s.itemId) ? { badge: 'My Bible', badgeTone: 'brand' as const } : {})}
+              <Row key={s.itemId} label={`${s.doc.abbreviation} · ${s.doc.name}`} sub={s.doc.offline === 'allowed' ? t('sources.explore.keptOffline') : t('sources.explore.streamsOnlyLine')}
+                {...(mine.has(s.itemId) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
                 onPress={() => setPicked({ kind: 'library', itemId: s.itemId })} last={i === librarySources.length - 1} />
             ))}
           </Group>
         </>
       ) : null}
-      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-        Bibles you add are yours, on this device, for this language. Your team's recommended Bibles always come first.
-      </Text>
+      <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('sources.explore.footnote')}</Text>
     </Screen>
   );
 }
@@ -186,34 +187,34 @@ function BibleDetailView(props: {
         itemId: option.itemId, kind: option.kind === 'library' ? 'library' : 'biblebrain', name: option.name, abbreviation: option.abbreviation,
         language: option.language, ...(option.kind === 'biblebrain' && bible ? { bibleId: bible.bibleId } : {})
       });
-      ctx.toast(`${option.abbreviation} added to My Bibles`, () => mine.remove(option.itemId));
+      ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }), () => mine.remove(option.itemId));
       ctx.back();
     } catch {
-      ctx.toast('Not added. Try again.');
+      ctx.toast(t('sources.explore.notAdded'));
     } finally { setBusy(false); }
   }
 
   const footer = option && props.languageId ? (
-    has ? <PrimaryBtn label="In My Bibles" icon="check" disabled onPress={() => undefined} />
-      : <PrimaryBtn label="Add to My Bibles" icon="plus" busy={busy} onPress={() => void add()} />
+    has ? <PrimaryBtn label={t('sources.explore.inMyBibles')} icon="check" disabled onPress={() => undefined} />
+      : <PrimaryBtn label={t('sources.explore.addToMyBibles')} icon="plus" busy={busy} onPress={() => void add()} />
   ) : undefined;
 
   return (
     <Screen fixed header={props.header} footer={footer}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {!option ? (
-          <EmptyState icon="book" title={problem || 'Loading…'} />
+          <EmptyState icon="book" title={problem || t('common.loading')} />
         ) : (
           <>
             <Card>
               <Text style={txt.title}>{option.name}</Text>
               <Text style={txt.xs}>{option.abbreviation} · {bible?.languageName ?? option.language}</Text>
               <View style={styles.badges}>
-                <Badge label={offlineAllowed(option) ? 'Can be kept offline' : 'Streams only'} tone={offlineAllowed(option) ? 'green' : 'default'} />
+                <Badge label={offlineAllowed(option) ? t('sources.explore.keptOffline') : t('sources.explore.streamsOnly')} tone={offlineAllowed(option) ? 'green' : 'default'} />
                 {bible ? <Badge label={mediaLine(bible)} /> : null}
-                {offers && !offers.audio && current ? <Badge label={`No audio for ${testamentOf(current) === 'OT' ? 'the Old' : 'the New'} Testament`} tone="amber" /> : null}
+                {offers && !offers.audio && current ? <Badge label={testamentOf(current) === 'OT' ? t('sources.explore.noAudioOT') : t('sources.explore.noAudioNT')} tone="amber" /> : null}
               </View>
-              {has ? <LinkBtn label="Remove from My Bibles" color={C.muted} style={{ alignSelf: 'flex-start' }} onPress={() => void mine.remove(option.itemId)} /> : null}
+              {has ? <LinkBtn label={t('sources.explore.remove')} color={C.muted} style={{ alignSelf: 'flex-start' }} onPress={() => void mine.remove(option.itemId)} /> : null}
             </Card>
             {books.length > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -223,14 +224,14 @@ function BibleDetailView(props: {
             {chapters > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                 {Array.from({ length: chapters }, (_, i) => i + 1).map((c) => (
-                  <Chip key={c} label={String(c)} on={c === chapter} accessibilityLabel={`Chapter ${c}`} onPress={() => setChapter(c)} />
+                  <Chip key={c} label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} onPress={() => setChapter(c)} />
                 ))}
               </ScrollView>
             ) : picked.kind === 'library' ? (
               <View style={styles.chapterStep}>
-                <LinkBtn label="Previous chapter" onPress={() => setChapter((c) => Math.max(1, c - 1))} />
-                <Text style={txt.sm}>Chapter {chapter}</Text>
-                <LinkBtn label="Next chapter" onPress={() => setChapter((c) => c + 1)} />
+                <LinkBtn label={t('sources.explore.previousChapter')} onPress={() => setChapter((c) => Math.max(1, c - 1))} />
+                <Text style={txt.sm}>{t('sources.explore.chapter', { n: chapter })}</Text>
+                <LinkBtn label={t('sources.explore.nextChapter')} onPress={() => setChapter((c) => c + 1)} />
               </View>
             ) : null}
             <SourceView ctx={ctx} unitId={props.unitId ?? ''} languageId={props.languageId ?? ''} passage={passage} option={option} chips={false} />

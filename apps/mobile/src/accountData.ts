@@ -19,6 +19,7 @@ export function accountOutbox(actorId: string): DurableOutbox {
       const { data } = await supabase.auth.getSession();
       const client = data.session?.user.id === actorId ? supabase : keptFor.get(actorId);
       if (!client) {
+        // i18n-ignore: kept in the account outbox; shown through outboxErrorText (accountText.ts)
         throw new DeliveryError('Sign in again to send your saved changes.', true);
       }
       const p = action.payload;

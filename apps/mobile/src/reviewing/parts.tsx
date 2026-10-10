@@ -8,19 +8,23 @@
 // (REV-6, ADR-028). Built from kit.tsx only.
 import type { KindDef, KeyTermView, PassageNote, RequestView, ReviewView, SourcedQuestion, Version } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import type { Ctx } from '../ctx';
 import {
   Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt, useLayout
 } from '../kit';
-import { dueText, feedbackSource, outcomeText, plural, versionTitle, when } from '../passageView';
+import { t } from '../i18n';
+import { dueText, feedbackSource, outcomeText, versionTitle, when } from '../passageView';
 import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
 import { StepMark, stepLine } from '../study/ui';
 import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../theme';
-import { questionSource, searchPassages, nearbyPassages, summaryLine, type Answers, type PassageChoice, type Skips, type Stage, type StageId } from './capture';
+import {
+  questionSource, searchPassages, nearbyPassages, summaryLine, YES_NO, yesNoLabel, type Answers, type PassageChoice, type Skips, type Stage, type StageId
+} from './capture';
 
 // ---- answers --------------------------------------------------------------------------
 
@@ -49,11 +53,11 @@ export function AnswerInput(props: { type: SourcedQuestion['q']['type']; value?:
   if (props.type === 'yesno') {
     return (
       <View style={styles.choices} accessibilityRole="radiogroup">
-        {['Yes', 'No'].map((v) => <Choice key={v} label={v} on={props.value === v} onPress={() => props.onChange(v)} />)}
+        {YES_NO.map((v) => <Choice key={v} label={yesNoLabel(v)} on={props.value === v} onPress={() => props.onChange(v)} />)}
       </View>
     );
   }
-  return <Field value={props.value ?? ''} onChangeText={props.onChange} placeholder="Your answer" multiline />;
+  return <Field value={props.value ?? ''} onChangeText={props.onChange} placeholder={t('review.parts.yourAnswer')} multiline />;
 }
 
 /** The combined question list, labelled by source; required ones need an answer or a reason (REV-2). */
@@ -70,7 +74,7 @@ export function QuestionList(props: {
   if (questions.length === 0) return null;
   return (
     <View style={{ gap: space.sm }}>
-      <SectionLabel label="Questions" action={<Text style={txt.xs}>{questions.filter((q) => q.required).length} required</Text>} />
+      <SectionLabel label={t('review.parts.questions')} action={<Text style={txt.xs}>{t('review.parts.requiredCount', { count: questions.filter((q) => q.required).length })}</Text>} />
       {questions.map((sq) => {
         const id = sq.q.id;
         const skip = skipped[id];
@@ -80,18 +84,18 @@ export function QuestionList(props: {
           <Card key={id} style={waiting ? { borderColor: withAlpha(C.primary, 0.5), borderWidth: 1.5 } : null}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <Text style={txt.label}>{questionSource(sq, props.asker)}</Text>
-              {sq.required ? <Badge label="Required" tone="brand" /> : null}
+              {sq.required ? <Badge label={t('common.required')} tone="brand" /> : null}
             </View>
             <Text style={[txt.body, { fontWeight: '600' }]}>{sq.q.text}</Text>
             {skip !== undefined ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                <Text style={[txt.smMuted, { flex: 1 }]}><Text style={{ fontWeight: '700' }}>Left unanswered:</Text> {skip}</Text>
-                <LinkBtn label="Answer" onPress={() => props.onUnskip(id)} />
+                <Text style={[txt.smMuted, { flex: 1 }]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skip}</Text>
+                <LinkBtn label={t('review.parts.answer')} onPress={() => props.onUnskip(id)} />
               </View>
             ) : (
               <>
                 <AnswerInput type={sq.q.type} value={answers[id]} onChange={(v) => props.onAnswer(id, v)} />
-                {sq.required && unanswered ? <LinkBtn label="Can't answer this?" color={C.muted} onPress={() => props.onSkip(id)} /> : null}
+                {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} onPress={() => props.onSkip(id)} /> : null}
               </>
             )}
           </Card>
@@ -106,16 +110,16 @@ export function QuestionList(props: {
 /** Listen to the version, with what changed (REV-1). */
 export function ListenCard(props: { ctx: Ctx; version: Version }) {
   const v = props.version;
-  const change = v.changeNote ?? (v.n === 1 ? 'First recording.' : undefined);
+  const change = v.changeNote ?? (v.n === 1 ? t('review.parts.firstRecording') : undefined);
   return (
     <View style={{ gap: space.sm }}>
-      <SectionLabel label="Listen" />
+      <SectionLabel label={t('review.parts.listen')} />
       <Card>
         <Text style={txt.h3}>{versionTitle(v.n)}</Text>
-        <AudioClip language={props.ctx.language} hashes={v.cardHashes} label={`Play ${versionTitle(v.n)}`} />
-        {change ? <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>What changed:</Text> {change}</Text> : null}
-        {v.changeBlobHash ? <AudioClip language={props.ctx.language} hashes={[v.changeBlobHash]} label="Play what changed" /> : null}
-        <Text style={txt.xs}>Published by {props.ctx.name(v.by)} · {when(v.hlc)}</Text>
+        <AudioClip language={props.ctx.language} hashes={v.cardHashes} label={t('review.parts.playVersion', { n: v.n })} />
+        {change ? <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{t('review.parts.whatChanged')}</Text> {change}</Text> : null}
+        {v.changeBlobHash ? <AudioClip language={props.ctx.language} hashes={[v.changeBlobHash]} label={t('review.parts.playWhatChanged')} /> : null}
+        <Text style={txt.xs}>{t('review.parts.publishedBy', { name: props.ctx.name(v.by), when: when(v.hlc) })}</Text>
       </Card>
     </View>
   );
@@ -124,13 +128,14 @@ export function ListenCard(props: { ctx: Ctx; version: Version }) {
 /** Who asked, by when, and their note. */
 export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
   const r = props.request;
-  const who = r.by ? props.ctx.name(r.by) : 'Someone';
+  const who = r.by ? props.ctx.name(r.by) : t('common.someone');
   return (
     <View style={{ gap: space.sm }}>
-      <Banner icon={r.guest ? 'link' : 'assign'} title={`${who} asked${r.dueDate ? ` · ${dueText(r.dueDate)}` : ''}`} {...(r.note ? { body: authoredText(props.ctx, r.by, r.note) } : {})} />
+      <Banner icon={r.guest ? 'link' : 'assign'} title={r.dueDate ? t('review.parts.askedDue', { name: who, due: dueText(r.dueDate) }) : t('review.parts.asked', { name: who })}
+        {...(r.note ? { body: authoredText(props.ctx, r.by, r.note) } : {})} />
       {r.noteBlobHash ? (
         <Authored ctx={props.ctx} by={r.by}>
-          <AudioClip language={props.ctx.language} hashes={[r.noteBlobHash]} label="Play their directions" />
+          <AudioClip language={props.ctx.language} hashes={[r.noteBlobHash]} label={t('review.parts.playDirections')} />
         </Authored>
       ) : null}
       {r.by && (r.note || r.noteBlobHash) ? (
@@ -142,6 +147,11 @@ export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
   );
 }
 
+/** A kind that makes a back translation: the shipped one (its words may be in another language now), or one that says so. */
+function makesBackTranslation(k: KindDef): boolean {
+  return k.id === 'bt' || k.produces?.what === 'back translation';
+}
+
 /**
  * Content made for this check (a back translation for the Consultant
  * Check), at the top as the material to compare with the source, warned
@@ -151,26 +161,31 @@ export function CompareCard(props: { ctx: Ctx; review: ReviewView; kind: KindDef
   const r = props.review;
   const k = props.kind;
   const recordings = (r.artifacts ?? []).map((c) => c.hash);
+  const bt = makesBackTranslation(k);
+  const into = k.produces?.into ?? t('review.parts.aRecording');
   return (
     <Card style={{ borderColor: withAlpha(C.primary, 0.4), borderWidth: 1.5 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <Ico name="swap" size={18} color={C.primary} />
-        <Text style={[txt.label, { color: C.primary }]}>{k.name} to compare</Text>
+        <Text style={[txt.label, { color: C.primary }]}>{t('review.parts.toCompare', { kind: k.name })}</Text>
       </View>
       <Text style={txt.smMuted}>
-        Made for this check: {k.produces?.into ?? 'a recording'} in the {k.produces?.what === 'back translation' ? "back translator's" : "maker's"} own words. Compare its meaning with the source.
+        {bt ? t('review.parts.madeForCheckBt', { into }) : t('review.parts.madeForCheck', { into })}
       </Text>
-      <Text style={[txt.sm, { fontWeight: '700' }]}>{feedbackSource(r, props.ctx.name)} · from {versionTitle(r.versionN)} · {when(r.hlc)}</Text>
+      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('review.parts.compareFrom', { who: feedbackSource(r, props.ctx.name), n: r.versionN, when: when(r.hlc) })}</Text>
       {r.versionN !== props.version.n ? (
-        <Banner icon="history" tone="amber" title={`Made from ${versionTitle(r.versionN)} — you're reviewing ${versionTitle(props.version.n)}. Check what changed.`} />
+        <Banner icon="history" tone="amber" title={t('review.parts.madeFromOlder', { from: r.versionN, now: props.version.n })} />
       ) : null}
       <Authored ctx={props.ctx} by={r.by}>
-        {recordings.length ? <AudioClip language={props.ctx.language} hashes={recordings} label={`Play the ${k.produces?.what ?? 'recording'}`} /> : <Text style={txt.xs}>No recording attached.</Text>}
+        {recordings.length ? (
+          <AudioClip language={props.ctx.language} hashes={recordings}
+            label={k.produces?.what ? t('review.parts.playThe', { what: k.produces.what }) : t('review.parts.playTheRecording')} />
+        ) : <Text style={txt.xs}>{t('review.parts.noRecording')}</Text>}
         {r.comment || r.commentBlobHash ? (
           <View style={styles.inset}>
-            <Text style={txt.xsStrong}>{k.produces?.what === 'back translation' ? "Back translator's note" : 'Their note'}</Text>
+            <Text style={txt.xsStrong}>{bt ? t('review.parts.btNote') : t('review.parts.theirNote')}</Text>
             {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
-            {r.commentBlobHash ? <AudioClip language={props.ctx.language} hashes={[r.commentBlobHash]} label="Play their note" /> : null}
+            {r.commentBlobHash ? <AudioClip language={props.ctx.language} hashes={[r.commentBlobHash]} label={t('review.parts.playTheirNote')} /> : null}
           </View>
         ) : null}
       </Authored>
@@ -184,7 +199,7 @@ export function WithheldNotice(props: { kind: KindDef }) {
     <View style={styles.withheld}>
       <Ico name="lock" size={18} color={TINT.grayText} />
       <Text style={[txt.sm, { flex: 1, color: TINT.grayText }]}>
-        Notes and earlier reviews are hidden for {props.kind.name}, so what you hear isn't shaped by what others said. They're still on the record.
+        {t('review.parts.withheld', { kind: props.kind.name })}
       </Text>
     </View>
   );
@@ -198,25 +213,25 @@ function EarlierReview(props: { ctx: Ctx; review: ReviewView; kind: KindDef | un
   const r = props.review;
   const good = r.outcome !== 'needs_changes';
   const recordings = [...(r.artifacts ?? []).map((c) => c.hash), ...(r.commentBlobHash ? [r.commentBlobHash] : [])];
-  const sub = `${feedbackSource(r, props.ctx.name)} · ${versionTitle(r.versionN)} · ${when(r.hlc)}${recordings.length ? ` · ${plural(recordings.length, 'recording')}` : ''}`;
+  const sub = `${feedbackSource(r, props.ctx.name)} · ${versionTitle(r.versionN)} · ${when(r.hlc)}${recordings.length ? ` · ${t('review.parts.recordings', { count: recordings.length })}` : ''}`;
   return (
     <View style={!props.last ? styles.divider : null}>
       <Row
         leading={<View style={[styles.mark, { backgroundColor: good ? TINT.green : TINT.amber }]}><Ico name={good ? 'check' : 'chat'} size={18} color={good ? TINT.greenText : TINT.amberText} /></View>}
-        label={`${props.kind?.name ?? 'Review'} · ${outcomeText(props.kind, r.outcome)}`} sub={sub} last
+        label={`${props.kind?.name ?? t('review.parts.review')} · ${outcomeText(props.kind, r.outcome)}`} sub={sub} last
         right={<Ico name={open ? 'up' : 'down'} size={20} color={C.muted} />} onPress={() => setOpen((o) => !o)} expanded={open} />
       {open ? (
         <View style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm }}>
           <Authored ctx={props.ctx} by={r.by}>
             {r.comment ? <Text style={txt.sm}>{r.comment}</Text> : null}
-            {recordings.length ? <AudioClip language={props.ctx.language} hashes={recordings} label="Play what they recorded" /> : null}
+            {recordings.length ? <AudioClip language={props.ctx.language} hashes={recordings} label={t('review.parts.playRecorded')} /> : null}
           </Authored>
           {r.response ? (
             <Text style={txt.smMuted}>
-              <Text style={{ fontWeight: '700', color: C.dark }}>{r.response.decision === 'revised' ? 'Revised' : 'Kept'}:</Text> {r.response.note ? authoredText(props.ctx, r.response.by, r.response.note) : (r.response.decision === 'revised' ? 'A new version answered it.' : 'Kept as it is.')}
+              <Text style={{ fontWeight: '700', color: C.dark }}>{r.response.decision === 'revised' ? t('review.parts.revised') : t('review.parts.kept')}</Text> {r.response.note ? authoredText(props.ctx, r.response.by, r.response.note) : (r.response.decision === 'revised' ? t('review.parts.newVersionAnswered') : t('review.parts.keptAsIs'))}
             </Text>
           ) : null}
-          {!r.comment && !recordings.length && !r.response ? <Text style={txt.xs}>Nothing else was said.</Text> : null}
+          {!r.comment && !recordings.length && !r.response ? <Text style={txt.xs}>{t('review.parts.nothingElse')}</Text> : null}
         </View>
       ) : null}
     </View>
@@ -231,7 +246,7 @@ export function EarlierReviewsPart(props: { ctx: Ctx; reviews: ReviewView[]; kin
   const list = props.reviews.slice(0, shown);
   return (
     <View>
-      <PartLabel label={`Earlier reviews · ${names.join(', ')}`} />
+      <PartLabel label={t('review.parts.earlierReviews', { kinds: names.join(', ') })} />
       {list.map((r, i) => <EarlierReview key={r.id} ctx={props.ctx} review={r} kind={props.kind(r.kindId)} last={i === list.length - 1} />)}
       {props.reviews.length > shown ? (
         <View style={{ padding: space.md }}>
@@ -255,12 +270,12 @@ function FromTranslatorPart(props: {
   const notes = props.notes.slice(0, shown);
   return (
     <View style={{ paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm }}>
-      <PartLabel label="From the translator" inset={false} />
+      <PartLabel label={t('review.parts.fromTranslator')} inset={false} />
       {props.terms.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {props.terms.map((t) => {
-            const rendering = t.renderings.at(-1)?.rendering;
-            return <Chip key={t.termId} icon="book" label={`${t.term}${rendering ? ` · ${rendering}` : ''}`} on={false} onPress={() => props.onOpenTerm(t.termId)} />;
+          {props.terms.map((term) => {
+            const rendering = term.renderings.at(-1)?.rendering;
+            return <Chip key={term.termId} icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} onPress={() => props.onOpenTerm(term.termId)} />;
           })}
         </View>
       ) : null}
@@ -270,7 +285,7 @@ function FromTranslatorPart(props: {
           <Authored key={n.id} ctx={props.ctx} by={n.by}>
             <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
               {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-              {...(n.blobHash ? { audio: <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label="Play note" /> } : {})}
+              {...(n.blobHash ? { audio: <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
               action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
           </Authored>
         );
@@ -286,14 +301,14 @@ export function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenSte
   const started = s.doneCount > 0 || s.noteCount > 0;
   return (
     <View>
-      <PartLabel label={`The team's study · ${s.guide.pattern}`} />
+      <PartLabel label={t('review.parts.teamStudy', { pattern: s.guide.pattern })} />
       <Text style={[txt.smMuted, { paddingHorizontal: space.lg }]}>
-        {started ? studySummary(s) : 'Not started'}. What the team worked through before drafting, and what they said. Tap a step to see their answers and notes in place.
+        {t('review.parts.studyIntro', { summary: started ? studySummary(s) : t('review.parts.notStarted') })}
       </Text>
       {s.steps.map((st) => (
         <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpenStep(st.step.id)} />
       ))}
-      <Row icon="sparkle" label="Open the study" onPress={props.onOpenStudy} last />
+      <Row icon="sparkle" label={t('review.parts.openStudy')} onPress={props.onOpenStudy} last />
     </View>
   );
 }
@@ -329,10 +344,10 @@ export function Background(props: {
   const fromTranslator = props.terms.length > 0 || props.notes.length > 0;
   if (!fromTranslator && !props.study && props.reviews.length === 0 && !props.source) return null;
   const summary = summaryLine([
-    !!props.source && 'the source',
-    fromTranslator && `${plural(props.terms.length, 'term')} · ${plural(props.notes.length, 'note')}`,
-    props.study && "the team's study",
-    props.reviews.length > 0 && plural(props.reviews.length, 'earlier review')
+    !!props.source && t('review.parts.bg.source'),
+    fromTranslator && `${t('review.parts.bg.terms', { count: props.terms.length })} · ${t('review.parts.bg.notes', { count: props.notes.length })}`,
+    props.study && t('review.parts.bg.study'),
+    props.reviews.length > 0 && t('review.parts.bg.earlier', { count: props.reviews.length })
   ]);
   const parts: ReactNode[] = [];
   if (props.source) parts.push(<View key="source" style={{ padding: space.md }}>{props.source}</View>);
@@ -343,7 +358,7 @@ export function Background(props: {
   if (props.study) parts.push(<TeamStudyPart key="study" ctx={props.ctx} study={props.study} onOpenStep={props.onOpenStep} onOpenStudy={props.onOpenStudy} />);
   if (props.reviews.length > 0) parts.push(<EarlierReviewsPart key="earlier" ctx={props.ctx} reviews={props.reviews} kind={props.kind} />);
   return (
-    <Disclosure icon="book" title="Background" summary={summary} open={d.open} onToggle={d.onToggle}>
+    <Disclosure icon="book" title={t('review.parts.background')} summary={summary} open={d.open} onToggle={d.onToggle}>
       {parts.map((part, i) => <View key={i} style={i > 0 ? styles.partTop : null}>{part}</View>)}
     </Disclosure>
   );
@@ -361,13 +376,13 @@ export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: Stag
   const wide = useLayout().kind !== 'phone';
   return (
     <View style={styles.strip}>
-      <View style={[styles.stripRow, wide && { maxWidth: measure.column, alignSelf: 'center', width: '100%' }]} accessibilityLabel="Review stages">
+      <View style={[styles.stripRow, wide && { maxWidth: measure.column, alignSelf: 'center', width: '100%' }]} accessibilityLabel={t('review.parts.stagesLabel')}>
         {props.stages.map((st, i) => {
           const current = i === props.at;
           const done = i < props.at;
           return (
             <Pressable key={st.id} onPress={() => props.onGo(st.id)} disabled={!done} accessibilityRole="button"
-              accessibilityLabel={done ? `Back to ${st.label}` : `${st.label}, stage ${i + 1} of ${props.stages.length}`}
+              accessibilityLabel={done ? t('review.parts.backToStage', { stage: st.label }) : t('review.parts.stageOf', { stage: st.label, index: i + 1, total: props.stages.length })}
               accessibilityState={{ selected: current, disabled: !done }}
               style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
               <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
@@ -395,15 +410,15 @@ export function PeopleCounter(props: { value: number; onChange: (n: number) => v
   const n = props.value;
   return (
     <View style={styles.counter}>
-      <Pressable onPress={() => props.onChange(Math.max(0, n - 1))} disabled={n === 0} accessibilityRole="button" accessibilityLabel="One fewer person"
+      <Pressable onPress={() => props.onChange(Math.max(0, n - 1))} disabled={n === 0} accessibilityRole="button" accessibilityLabel={t('review.parts.oneFewer')}
         style={({ pressed }) => [styles.counterBtn, n === 0 && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
         <Text style={styles.counterSign}>−</Text>
       </Pressable>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
         <Ico name="people" size={22} color={C.muted} />
-        <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted }]}>{n ? `${n} ${n === 1 ? 'person' : 'people'}` : 'How many listened?'}</Text>
+        <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
       </View>
-      <Pressable onPress={() => props.onChange(n + 1)} accessibilityRole="button" accessibilityLabel="One more person"
+      <Pressable onPress={() => props.onChange(n + 1)} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
         style={({ pressed }) => [styles.counterBtn, pressed && { opacity: 0.6 }]}>
         <Text style={styles.counterSign}>+</Text>
       </Pressable>
@@ -428,17 +443,17 @@ export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoi
   if (all.every((p) => p.unitId === here.unitId)) return null;
   return (
     <View style={{ gap: space.sm }}>
-      <SectionLabel label="Also covered in this session" />
-      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>The same review is added to each passage you pick.</Text>
+      <SectionLabel label={t('review.parts.alsoCovered')} />
+      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.alsoCoveredHint')}</Text>
       {pickedChoices.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on accessibilityLabel={`Remove ${p.title}`} onPress={() => toggle(p.unitId)} />)}
+          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on accessibilityLabel={t('review.parts.removePassage', { title: p.title })} onPress={() => toggle(p.unitId)} />)}
         </View>
       ) : null}
-      <SearchField value={query} onChangeText={setQuery} placeholder="Find another — “Mark 2”" />
+      <SearchField value={query} onChangeText={setQuery} placeholder={t('review.parts.findAnother')} />
       {list.length ? (
         <View style={styles.pickList}>
-          {!searching ? <Text style={[txt.label, { paddingHorizontal: space.lg, paddingTop: space.md }]}>Nearby in {here.bookLabel}</Text> : null}
+          {!searching ? <Text style={[txt.label, { paddingHorizontal: space.lg, paddingTop: space.md }]}>{t('review.parts.nearbyIn', { book: here.bookLabel })}</Text> : null}
           {list.map((p, i) => {
             const on = picked.includes(p.unitId);
             return (
@@ -449,7 +464,7 @@ export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoi
           })}
         </View>
       ) : null}
-      {searching && hits.length === 0 ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>No recorded passage matches “{query.trim()}”.</Text> : null}
+      {searching && hits.length === 0 ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.noMatch', { query: query.trim() })}</Text> : null}
     </View>
   );
 }

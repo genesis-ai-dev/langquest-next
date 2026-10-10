@@ -8,21 +8,26 @@ import {
   type LanguageState, type VersificationDoc
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { currentLocale, t } from '../i18n';
+import { Text } from '../text';
 import type { Ctx } from '../ctx';
 import { indexesFor } from '../indexes';
 import { Disclosure, Group, Ico, Row, txt } from '../kit';
 import { useLibraryDocs } from '../library/useLibrary';
 import { C, space, TINT } from '../theme';
 
-/** How an earlier section's numbering is named beside it (the seed's `short` names). */
-const NUMBERED: Record<string, string> = {
-  eng: 'Numbered like most English Bibles',
-  org: 'Numbered like the Hebrew and Greek',
-  vul: 'Numbered like the Latin Vulgate',
-  rsc: 'Numbered like the Russian Synodal Bible',
-  rso: 'Numbered like the Russian Synodal Bible'
-};
+/** How an earlier section's numbering is named beside it (the seed's `short` names), in the language showing. */
+function numberedLike(code: string): string | undefined {
+  switch (code) {
+    case 'eng': return t('breakup.earlier.numbered.eng');
+    case 'org': return t('breakup.earlier.numbered.org');
+    case 'vul': return t('breakup.earlier.numbered.vul');
+    case 'rsc':
+    case 'rso': return t('breakup.earlier.numbered.russian');
+    default: return undefined;
+  }
+}
 
 export interface Earlier {
   /** Current section -> the expired sections with work that overlap it. */
@@ -41,7 +46,7 @@ export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earli
     if (!state || !current) return out;
     const idx = indexesFor(state);
     const now = new Set(idx.passages);
-    const worked = new Set([...Object.values(state.recordings).map((r) => r.unitId), ...Object.values(state.takes).map((t) => t.unitId)]);
+    const worked = new Set([...Object.values(state.recordings).map((r) => r.unitId), ...Object.values(state.takes).map((take) => take.unitId)]);
     const expired = [...worked].filter((u) => !now.has(u) && state.units[u] && unitPrefixOf(u) !== null && !idx.containers.includes(u));
     if (expired.length === 0) return out;
     const want = new Set(expired);
@@ -57,7 +62,7 @@ export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earli
     }
     const doc = docs.get(current.docHash);
     const numbering = doc && isTemplateDoc(doc) && doc.bible ? docs.get<VersificationDoc>(doc.bible.versification) : null;
-    for (const [u, v] of madeIn) if (numbering && v.code !== numbering.code) out.numbered.set(u, NUMBERED[v.code] ?? v.name);
+    for (const [u, v] of madeIn) if (numbering && v.code !== numbering.code) out.numbered.set(u, numberedLike(v.code) ?? v.name);
     out.over = earlierSections({ current: idx.passages, expired, currentNumbering: numbering, numberingOf: (u) => madeIn.get(u) ?? null });
     return out;
     // docs.get changes when documents arrive.
@@ -85,13 +90,15 @@ export function EarlierNote(props: { ctx: Ctx; unitId: string; languageId: strin
       <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>
         <Ico name="flag" size={18} color={TINT.amberText} />
         <Text style={[txt.sm, { flex: 1, color: TINT.amberText }]}>
-          An earlier section{how ? ` (${how.charAt(0).toLowerCase()}${how.slice(1)})` : ''}. The divisions changed after this was recorded. It is kept so it can be heard; its verses are recorded again in {now.length === 1 ? 'the section below' : 'the sections below'}.
+          {how
+            ? t('breakup.earlier.noteHow', { how: `${how.charAt(0).toLocaleLowerCase(currentLocale())}${how.slice(1)}`, count: now.length })
+            : t('breakup.earlier.note', { count: now.length })}
         </Text>
       </View>
       {now.length ? (
         <Group>
           {now.map((u, i) => (
-            <Row key={u} icon="right" label={unitTitle(state, u)} sub="Where these verses are now" last={i === now.length - 1} onPress={() => ctx.openPassage(u, props.languageId)} />
+            <Row key={u} icon="right" label={unitTitle(state, u)} sub={t('breakup.earlier.whereNow')} last={i === now.length - 1} onPress={() => ctx.openPassage(u, props.languageId)} />
           ))}
         </Group>
       ) : null}
@@ -102,7 +109,7 @@ export function EarlierNote(props: { ctx: Ctx; unitId: string; languageId: strin
 /** The warning mark on a section whose divisions changed since work was recorded on it. */
 export function ChangedMark() {
   return (
-    <View accessibilityLabel="Divisions changed since this was recorded" style={{ position: 'absolute', bottom: -4, left: -4 }}>
+    <View accessibilityLabel={t('breakup.earlier.changedMark')} style={{ position: 'absolute', bottom: -4, left: -4 }}>
       <Ico name="flag" size={14} color={TINT.amberText} />
     </View>
   );
@@ -116,24 +123,24 @@ export function EarlierSections(props: { ctx: Ctx; unitId: string; languageId: s
   const earlier = found.over.get(props.unitId) ?? [];
   const [open, setOpen] = useState(false);
   if (!state || earlier.length === 0) return null;
-  const versions = (u: string) => Object.values(state.takes).filter((t) => t.unitId === u && !t.archived).length;
+  const versions = (u: string) => Object.values(state.takes).filter((take) => take.unitId === u && !take.archived).length;
   return (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>
         <Ico name="flag" size={18} color={TINT.amberText} />
         <Text style={[txt.sm, { flex: 1, color: TINT.amberText }]}>
-          The divisions have changed since some of this was recorded. Earlier work is kept below; it needs to be done again here.
+          {t('breakup.earlier.changedHere')}
         </Text>
       </View>
-      <Disclosure icon="history" title="Earlier sections" summary={earlier.map((u) => unitTitle(state, u)).join(', ')} open={open} onToggle={() => setOpen((o) => !o)}>
+      <Disclosure icon="history" title={t('breakup.earlier.title')} summary={earlier.map((u) => unitTitle(state, u)).join(t('admin.list.separator'))} open={open} onToggle={() => setOpen((o) => !o)}>
         {earlier.map((u, i) => {
           const n = versions(u);
           return (
-            <Row key={u} icon="history" label={unitTitle(state, u)} sub={`${found.numbered.get(u) ?? 'An earlier section'} · ${n} ${n === 1 ? 'version' : 'versions'}`} last={i === earlier.length - 1}
+            <Row key={u} icon="history" label={unitTitle(state, u)} sub={t('breakup.earlier.row', { how: found.numbered.get(u) ?? t('breakup.earlier.anEarlier'), versions: t('breakup.earlier.versions', { count: n }) })} last={i === earlier.length - 1}
               onPress={() => ctx.openPassage(u, props.languageId)} />
           );
         })}
-        <Text style={[txt.xs, { color: C.muted }]}>Open one to listen to what was recorded and reviewed on it.</Text>
+        <Text style={[txt.xs, { color: C.muted }]}>{t('breakup.earlier.openOne')}</Text>
       </Disclosure>
     </View>
   );

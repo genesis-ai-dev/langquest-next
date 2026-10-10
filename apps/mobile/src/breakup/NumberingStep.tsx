@@ -5,13 +5,17 @@
 // it open, or (one tap deeper) choose from the list. The result is shown
 // as three facts that tell the numberings apart at a glance.
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { bookName } from '../coreText';
+import { formatNumber } from '../i18n/format';
+import { t } from '../i18n';
+import { Text } from '../text';
 import { useHelpPress } from '../helpContext';
 import { GhostBtn, Ico, SearchField, type IconName } from '../kit';
 import { ChoiceCard, Question, RadioRow } from '../simple/admin';
 import { C, radius, space, TINT, type as T } from '../theme';
 import {
-  COMMON_BIBLES, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
+  bibleLanguage, COMMON_BIBLES, KNOWN_BIBLES, QUIZ, resolveNumbering, shortName, type KnownBible, type NumberingCode, type NumberingFacts, type QuizOption
 } from './numberingGuide';
 
 export interface NumberingChoice {
@@ -28,19 +32,19 @@ export function FactTiles(props: { facts: NumberingFacts | null }) {
   if (!f) return null;
   return (
     <View style={styles.tiles}>
-      <View style={styles.tile} accessibilityLabel={`${f.books} books`}>
-        <Text style={styles.big}>{f.books}</Text>
-        <Text style={styles.tileLabel}>books</Text>
+      <View style={styles.tile} accessibilityLabel={t('breakup.numberingStep.facts.booksCount', { count: f.books })}>
+        <Text style={styles.big}>{formatNumber(f.books)}</Text>
+        <Text style={styles.tileLabel}>{t('breakup.numberingStep.facts.books', { count: f.books })}</Text>
       </View>
-      <View style={styles.tile} accessibilityLabel={`Malachi has ${f.malachi} chapters`}>
+      <View style={styles.tile} accessibilityLabel={t('breakup.numberingStep.facts.malachiHas', { book: bookName('mal'), count: f.malachi })}>
         <View style={styles.bars}>{Array.from({ length: f.malachi }, (_, i) => <View key={i} style={styles.bar} />)}</View>
-        <Text style={styles.tileLabel}>Malachi</Text>
-        <Text style={styles.tileValue}>{f.malachi} chapters</Text>
+        <Text style={styles.tileLabel}>{bookName('mal')}</Text>
+        <Text style={styles.tileValue}>{t('breakup.numberingStep.facts.chapters', { count: f.malachi })}</Text>
       </View>
-      <View style={styles.tile} accessibilityLabel={f.headings ? 'Psalm headings are verse 1' : 'Psalm headings have no number'}>
+      <View style={styles.tile} accessibilityLabel={f.headings ? t('breakup.numberingStep.facts.headingsNumbered') : t('breakup.numberingStep.facts.headingsUnnumbered')}>
         <PsalmLines numbered={f.headings} small />
-        <Text style={styles.tileLabel}>Psalm headings</Text>
-        <Text style={styles.tileValue}>{f.headings ? 'verse 1' : 'no number'}</Text>
+        <Text style={styles.tileLabel}>{t('breakup.numberingStep.facts.headings')}</Text>
+        <Text style={styles.tileValue}>{f.headings ? t('breakup.numberingStep.facts.verseOne') : t('breakup.numberingStep.facts.noNumber')}</Text>
       </View>
     </View>
   );
@@ -58,8 +62,8 @@ function PsalmLines(props: { numbered: boolean; small?: boolean }) {
   );
   return (
     <View style={{ gap: s ? 4 : 6, alignSelf: 'stretch' }}>
-      {line(props.numbered ? '1' : null, true, 'A psalm of David')}
-      {line(props.numbered ? '2' : '1', false, 'Lord, how many are my foes!')}
+      {line(props.numbered ? formatNumber(1) : null, true, t('breakup.numberingStep.psalm3.heading'))}
+      {line(props.numbered ? formatNumber(2) : formatNumber(1), false, t('breakup.numberingStep.psalm3.firstLine'))}
     </View>
   );
 }
@@ -88,8 +92,8 @@ export function FindBiblePage(props: {
   const [note, setNote] = useState('');
   const offered = props.numberings.map((n) => n.code);
   const shown = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    if (t) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language}`.toLowerCase().includes(t)).slice(0, 20);
+    const typed = q.trim().toLowerCase();
+    if (typed) return KNOWN_BIBLES.filter((b) => `${b.name} ${b.abbr} ${b.language} ${bibleLanguage(b.language)}`.toLowerCase().includes(typed)).slice(0, 20);
     return all ? KNOWN_BIBLES : COMMON_BIBLES.map((a) => KNOWN_BIBLES.find((b) => b.abbr === a)!).filter(Boolean);
   }, [q, all]);
   const choose = (b: KnownBible) => {
@@ -99,20 +103,20 @@ export function FindBiblePage(props: {
   const used = Object.entries(props.usedIn).map(([code, langs]) => ({ n: props.numberings.find((x) => x.code === code), langs })).filter((x) => x.n);
   return (
     <>
-      <Question>Which Bible do you translate from?</Question>
+      <Question>{t('breakup.numberingStep.find.question')}</Question>
       {used.map(({ n, langs }) => (
-        <ChoiceCard key={n!.code} on={false} icon="people" title={shortName(n!.name)} sub={`Used in ${langs.join(', ')}`} onPress={() => props.onPick(n!.code)} />
+        <ChoiceCard key={n!.code} on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })} onPress={() => props.onPick(n!.code)} />
       ))}
-      <SearchField value={q} onChangeText={setQ} placeholder="NIV, Reina-Valera, Luther…" />
+      <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} />
       {note ? <Text style={[txt2.note]}>{note}</Text> : null}
       <View style={{ gap: space.sm }}>
-        {shown.map((b) => <RadioRow key={b.abbr} icon="book" label={b.name} sub={b.language} on={false} onPress={() => choose(b)} />)}
-        {!q.trim() && !all ? <GhostBtn label={`Show all ${KNOWN_BIBLES.length}`} icon="down" onPress={() => setAll(true)} /> : null}
-        {q.trim() && shown.length === 0 ? <Text style={txt2.muted}>Not found.</Text> : null}
+        {shown.map((b) => <RadioRow key={b.abbr} icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} onPress={() => choose(b)} />)}
+        {!q.trim() && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" onPress={() => setAll(true)} /> : null}
+        {q.trim() && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
       </View>
       <View style={{ gap: space.sm, marginTop: space.sm }}>
-        <OtherWay icon="help" label="Not listed? Answer a few questions" onPress={props.onQuiz} />
-        <OtherWay icon="list" label="Choose from the list" onPress={props.onList} />
+        <OtherWay icon="help" label={t('breakup.numberingStep.find.quiz')} onPress={props.onQuiz} />
+        <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} onPress={props.onList} />
       </View>
     </>
   );
@@ -123,7 +127,7 @@ export function QuizPage(props: {
   numberings: NumberingChoice[];
   /** The questions asked so far, the current one last; Back steps through them. */
   trail: string[];
-  setTrail: (f: (t: string[]) => string[]) => void;
+  setTrail: (f: (asked: string[]) => string[]) => void;
   onDone: (code: string, note?: string) => void;
   onList: () => void;
 }) {
@@ -132,19 +136,19 @@ export function QuizPage(props: {
   const at = trail[trail.length - 1]!;
   const q = QUIZ.questions[at]!;
   const answer = (o: QuizOption) => {
-    if (o.next) { setNote(''); setTrail((t) => [...t, o.next!]); return; }
+    if (o.next) { setNote(''); setTrail((asked) => [...asked, o.next!]); return; }
     const r = resolveNumbering((o.to ?? 'eng') as NumberingCode, o.to === 'custom' ? 'eng' : undefined, props.numberings.map((n) => n.code));
     if (r.code) props.onDone(r.code, r.note); else setNote(r.note ?? '');
   };
   const tiles = q.options.every((o) => o.tile);
   return (
     <>
-      <Text style={txt2.step}>Question {trail.length}</Text>
+      <Text style={txt2.step}>{t('breakup.numberingStep.quiz.step', { n: formatNumber(trail.length) })}</Text>
       <Question>{q.title}</Question>
       {q.small ? <Text style={[txt2.muted, { marginTop: -space.sm }]}>{q.small}</Text> : null}
-      {q.quote ? <View style={styles.quote}><Text style={styles.quoteText}>“{q.quote}”</Text></View> : null}
+      {q.quote ? <View style={styles.quote}><Text style={styles.quoteText}>{t('breakup.numberingStep.quiz.quoted', { text: q.quote })}</Text></View> : null}
       {q.picture === 'extraBooks' ? (
-        <View style={styles.booksRow}>{['Tobit', 'Judith', 'Maccabees'].map((b) => (
+        <View style={styles.booksRow}>{[t('breakup.numberingStep.extraBooks.tobit'), t('breakup.numberingStep.extraBooks.judith'), t('breakup.numberingStep.extraBooks.maccabees')].map((b) => (
           <View key={b} style={styles.bookChip}><Ico name="book" size={18} color={C.primary} /><Text style={styles.bookText}>{b}</Text></View>
         ))}</View>
       ) : null}
@@ -153,7 +157,7 @@ export function QuizPage(props: {
           {q.options.map((o, i) => (
             <Pressable key={o.label} onPress={() => answer(o)} accessibilityRole="button" accessibilityLabel={o.label}
               style={({ pressed }) => [styles.page, pressed && styles.pressed]}>
-              <Text style={styles.pageTitle}>Psalm 3</Text>
+              <Text style={styles.pageTitle}>{t('breakup.numberingStep.psalm3.title')}</Text>
               <PsalmLines numbered={i === 1} />
             </Pressable>
           ))}
@@ -174,7 +178,7 @@ export function QuizPage(props: {
       )}
       {note ? <Text style={txt2.note}>{note}</Text> : null}
       {q.notSure ? <GhostBtn label={q.notSure.label} icon="help" onPress={() => answer(q.notSure!)} /> : null}
-      {note ? <OtherWay icon="list" label="Choose from the list" onPress={props.onList} /> : null}
+      {note ? <OtherWay icon="list" label={t('breakup.numberingStep.chooseFromList')} onPress={props.onList} /> : null}
     </>
   );
 }
@@ -183,22 +187,22 @@ export function QuizPage(props: {
 export function NumberingListPage(props: { numberings: NumberingChoice[]; factsFor: (n: NumberingChoice) => NumberingFacts | null; onPick: (code: string) => void }) {
   return (
     <>
-      <Question>Choose the numbering</Question>
+      <Question>{t('breakup.numberingStep.list.question')}</Question>
       {props.numberings.map((n) => {
         const f = props.factsFor(n);
         return (
           <ChoiceCard key={n.code} on={false} icon="book" title={shortName(n.name)} onPress={() => props.onPick(n.code)}>
             {f ? (
               <View style={styles.chips}>
-                <Text style={styles.chip}>{f.books} books</Text>
-                <Text style={styles.chip}>Malachi {f.malachi}</Text>
-                <Text style={styles.chip}>{f.headings ? 'Headings verse 1' : 'Headings no number'}</Text>
+                <Text style={styles.chip}>{t('breakup.numberingStep.facts.booksCount', { count: f.books })}</Text>
+                <Text style={styles.chip}>{t('breakup.numberingStep.list.malachi', { book: bookName('mal'), n: formatNumber(f.malachi) })}</Text>
+                <Text style={styles.chip}>{f.headings ? t('breakup.numberingStep.list.headingsNumbered') : t('breakup.numberingStep.list.headingsUnnumbered')}</Text>
               </View>
             ) : null}
           </ChoiceCard>
         );
       })}
-      {props.numberings.length === 0 ? <Text style={txt2.muted}>Connect to load the numberings.</Text> : null}
+      {props.numberings.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.list.connect')}</Text> : null}
     </>
   );
 }
@@ -209,24 +213,24 @@ export function NumberingChosenPage(props: { choice: NumberingChoice; facts: Num
     <>
       <View style={styles.done}><Ico name="done" size={40} color={C.green} /></View>
       <Question>{shortName(props.choice.name)}</Question>
-      {props.from ? <Text style={[txt2.muted, { marginTop: -space.sm }]}>Like {props.from}</Text> : null}
+      {props.from ? <Text style={[txt2.muted, { marginTop: -space.sm }]}>{t('breakup.numberingStep.chosen.like', { bible: props.from })}</Text> : null}
       <FactTiles facts={props.facts} />
       {props.note ? <Text style={txt2.note}>{props.note}</Text> : null}
-      <Text style={txt2.muted}>Verse numbers in LangQuest will match your Bible.</Text>
-      <GhostBtn label="Choose another" icon="swap" onPress={props.onChange} />
+      <Text style={txt2.muted}>{t('breakup.numberingStep.chosen.match')}</Text>
+      <GhostBtn label={t('breakup.numberingStep.chosen.another')} icon="swap" onPress={props.onChange} />
     </>
   );
 }
 
 /** Above the next questions: the numbering chosen, and a way back to change it. */
 export function NumberingContext(props: { choice: NumberingChoice; onPress: () => void }) {
-  const onPress = useHelpPress('Numbering', 'Tap to change the numbering.', props.onPress);
+  const onPress = useHelpPress(t('breakup.numberingStep.context.label'), t('breakup.numberingStep.context.help'), props.onPress);
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Numbering: ${shortName(props.choice.name)}. Change`}
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={t('breakup.numberingStep.context.a11y', { name: shortName(props.choice.name) })}
       style={({ pressed }) => [styles.context, pressed && styles.pressed]}>
       <Ico name="book" size={18} color={C.primary} />
       <Text style={styles.contextText} numberOfLines={1}>{shortName(props.choice.name)}</Text>
-      <Text style={styles.contextChange}>Change</Text>
+      <Text style={styles.contextChange}>{t('breakup.numberingStep.context.change')}</Text>
     </Pressable>
   );
 }

@@ -3,9 +3,11 @@
 // one in a card, then the team's checks under "Then the team". The steps
 // come from pathModel.ts; this only draws them.
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { useHelpSpot } from '../helpContext';
 import { HelpBadge } from '../helpBadge';
+import { t } from '../i18n';
 import { Ico, txt, type IconName } from '../kit';
 import { C, radius, space, target, TINT } from '../theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
@@ -13,13 +15,15 @@ import type { PathStep, PathStepKind, TeamStep } from './pathModel';
 const STEP_ICON: Record<PathStepKind, IconName> = { study: 'star', record: 'mic', publish: 'send', feedback: 'chat', fix: 'mic' };
 
 /** What each step does, as help mode says it. */
-const STEP_HELP: Record<PathStepKind, string> = {
-  study: 'Go through the study guide together before you record. Nothing waits on it.',
-  record: 'Record the passage in your language. As many tries as you like.',
-  publish: 'Publishing saves your version for the team to hear, then you ask for a check.',
-  feedback: 'Someone listened and asked for changes. Hear what they said.',
-  fix: 'Record a new version with the change, or keep this one and say why.'
-};
+function stepHelp(kind: PathStepKind): string {
+  switch (kind) {
+    case 'study': return t('passage.path.help.study');
+    case 'record': return t('passage.path.help.record');
+    case 'publish': return t('passage.path.help.publish');
+    case 'feedback': return t('passage.path.help.feedback');
+    case 'fix': return t('passage.path.help.fix');
+  }
+}
 
 function Dot(props: { n: number; state: PathStep['state'] }) {
   const { state } = props;
@@ -46,7 +50,7 @@ function StepRow(props: {
 }) {
   const { step } = props;
   const lit = step.state === 'current';
-  const spot = useHelpSpot(step.title, STEP_HELP[step.kind], props.onPress);
+  const spot = useHelpSpot(step.title, stepHelp(step.kind), props.onPress);
   const press = spot.onPress;
   const body = (
     <View style={lit ? styles.litCard : styles.plain}>
@@ -79,7 +83,7 @@ function StepRow(props: {
 
 function TeamRow(props: { step: TeamStep; onPress?: () => void }) {
   const { step } = props;
-  const spot = useHelpSpot(step.name, `A check by the team: ${step.status}. Tap for who and the options.`, props.onPress);
+  const spot = useHelpSpot(step.name, t('passage.path.help.team', { status: step.status }), props.onPress);
   const press = spot.onPress;
   const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
   const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
@@ -113,8 +117,8 @@ export function PassagePath(props: {
       ))}
       {props.team.length > 0 ? (
         <View style={styles.team}>
-          <Text style={[txt.label, { marginBottom: space.xs }]}>Then the team</Text>
-          {props.team.map((t) => <TeamRow key={t.stepId} step={t} {...(props.onTeamStep(t) ? { onPress: props.onTeamStep(t)! } : {})} />)}
+          <Text style={[txt.label, { marginBottom: space.xs }]}>{t('passage.path.thenTheTeam')}</Text>
+          {props.team.map((step) => <TeamRow key={step.stepId} step={step} {...(props.onTeamStep(step) ? { onPress: props.onTeamStep(step)! } : {})} />)}
         </View>
       ) : null}
     </View>

@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { joinErrorText } from './accountText';
+import { t } from './i18n';
 import { claim, deadMessage, holdScanned, nextStep, outcomeOfError, withExpiry, type HeldInvite, type InvitePreview } from './heldInvite';
 import { writeHeld, useHeld } from './heldInviteStore';
 import { FunctionError, joinByInvite, redeemInvite } from './invites';
@@ -93,8 +95,8 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
   // Waiting for a connection: try again when the app comes back and now and then.
   useEffect(() => {
     if (status.kind !== 'waiting') return;
-    const timer = setInterval(() => setTick((t) => t + 1), RETRY_MS);
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') setTick((t) => t + 1); });
+    const timer = setInterval(() => setTick((n) => n + 1), RETRY_MS);
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') setTick((n) => n + 1); });
     return () => { clearInterval(timer); sub.remove(); };
   }, [status.kind]);
 
@@ -108,7 +110,7 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
     await writeHeld(claim(held, who === 'me' ? { actorId: actorId! } : 'next-account'));
   }, [held, actorId]);
   const joinAsNew = useCallback(async (name?: string, signedIn?: (actorId: string) => Promise<void>) => {
-    if (!held) return { message: 'Scan the invite again.' };
+    if (!held) return { message: t('entry.invite.scanAgain') };
     // One id per invite, saved first, so a retry after a lost reply makes no second account.
     // Claimed for the account this makes: once signed in, the redeemer
     // finishes (redeeming again changes nothing) and opens the welcome.
@@ -131,10 +133,9 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
         return { message: deadMessage(outcome.reason) };
       }
       setStatus({ kind: 'idle' });
-      if (e instanceof FunctionError && e.needsName) return { message, needsName: true };
-      return { message: /fetch|network|failed to send|timed? ?out/i.test(message)
-        ? 'Joining needs a connection. Your invite is saved on this device.'
-        : message };
+      // The function's reply is English: say it in the language showing.
+      if (e instanceof FunctionError && e.needsName) return { message: joinErrorText(message), needsName: true };
+      return { message: joinErrorText(message) };
     }
   }, [held]);
   const learn = useCallback(async (preview: InvitePreview | null) => {

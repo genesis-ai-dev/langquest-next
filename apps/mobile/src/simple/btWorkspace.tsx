@@ -12,27 +12,31 @@
 // part starts (`atMs`), and Publish puts them in one core produceContent,
 // in part order. Publishing returns to the passage record with
 // `published=bt:<time>`, where the next check is asked (demo ADR-034).
-import { commands, type EventSpec, type KindDef, type Version } from '@langquest-next/core';
+import { commands, DEFAULT_KINDS, type EventSpec, type KindDef, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../text';
 import { AudioClip } from '../audioClip';
 import { ClipPlayer } from '../clipPlayer';
+import { localKind } from '../coreText';
 import type { Ctx } from '../ctx';
-import { TITLES } from '../flow';
+import { screenTitle } from '../flow';
 import { useHelpPress } from '../helpContext';
+import { currentLocale, t } from '../i18n';
+import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../indexes';
 import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, txt, useLayout } from '../kit';
-import { passageCrumbs, versionTitle, type PassageView } from '../passageView';
+import { passageCrumbs, type PassageView } from '../passageView';
 import { useBackTranslationDraft } from '../recording/backTranslationDraft';
 import { backParts, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from '../recording/backTranslationParts';
-import { problemText, SaveProblem } from '../recording/parts';
+import { SaveProblem } from '../recording/parts';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
 import { VadControls, VadPanel } from '../recording/VadTakeover';
-import { backTranslationDraftKey, cardDurations, mmss, unsavedParts } from '../recording/workspaceModel';
-import { reportError } from '../report';
+import { backTranslationDraftKey, cardDurations, unsavedParts } from '../recording/workspaceModel';
+import { failureMessage, reportError } from '../report';
 import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../theme';
@@ -42,6 +46,7 @@ import { VoiceNote } from '../voiceNote';
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
   const produces = kind.produces!;
+  const shipped = shippedBackTranslation(kind);
   const me = ctx.session.actorId;
   const checkedBy = produces.checkedBy ? v.kind(produces.checkedBy).name : undefined;
   // A wide window names the passage in the crumbs above the title.
@@ -95,11 +100,11 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     try {
       for (const c of target.cards) await drafts.remove(c.hash);
       setPicked(target.index);
-      ctx.toast(`Part ${target.index + 1} deleted.`, async () => {
-        try { for (const c of target.cards) await drafts.add(c); } catch (e) { ctx.toast(`Not restored: ${problemText('back translation: restore part', e)}`); }
+      ctx.toast(t('backTranslation.partDeleted', { n: target.index + 1 }), async () => {
+        try { for (const c of target.cards) await drafts.add(c); } catch (e) { ctx.toast(t('backTranslation.notRestored', { reason: failureMessage('back translation: restore part', e) })); }
       });
     } catch (e) {
-      ctx.toast(`Not deleted: ${problemText('back translation: delete part', e)}`);
+      ctx.toast(t('backTranslation.notDeleted', { reason: failureMessage('back translation: delete part', e) }));
     } finally { setWorking(false); }
   }
 
@@ -119,12 +124,12 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
         ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
       });
     } catch (e) {
-      ctx.toast(`Not published: ${problemText('back translation: save', e)}`);
+      ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }));
       return;
     }
     setSaving(true);
     try {
-      await ctx.act(specs, `${capitalize(produces.what)} published.`);
+      await ctx.act(specs, shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) }));
     } catch {
       setSaving(false); // ctx.act said what went wrong
       return;
@@ -138,20 +143,25 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   }
 
   const problem = drafts.problem ? <SaveProblem message={drafts.problem} />
-    : rec.failureCount > 0 ? <SaveProblem message={rec.error || 'A part did not save.'} retryLabel="Retry saving" busy={rec.busy} onRetry={() => void rec.retryFailed()} />
+    : rec.failureCount > 0 ? <SaveProblem message={rec.error || t('backTranslation.partNotSaved')} retryLabel={t('backTranslation.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : rec.error ? <SaveProblem message={rec.error} /> : null;
-  const who = of.by === me ? 'You' : ctx.name(of.by).split(' ')[0] ?? ctx.name(of.by);
-  const partLabel = part ? `Part ${part.index + 1}` : '';
+  const mine = of.by === me;
+  const who = ctx.name(of.by).split(' ')[0] ?? ctx.name(of.by);
+  const partN = part ? part.index + 1 : null;
+  const partLabel = partN ? t('backTranslation.part', { n: partN }) : '';
+  const playerTitle = partN ? t('backTranslation.barTitle', { language: v.language, n: of.n, part: partN }) : t('backTranslation.barTitleNoPart', { language: v.language, n: of.n });
 
   return (
     <Screen fixed
       header={wide
-        ? <Header title={capitalize(produces.what)} sub={`${v.language} → ${produces.into}`} crumbs={passageCrumbs(ctx, v, TITLES.back_translation)} onBack={ctx.back} close />
-        : <Header title={v.title} sub={`${capitalize(produces.what)} · into ${produces.into}`} onBack={ctx.back} close />}
+        ? <Header title={shipped ? t('backTranslation.title') : capitalize(produces.what)} sub={t('backTranslation.fromInto', { from: v.language, into: produces.into })}
+          crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close />
+        : <Header title={v.title} sub={shipped ? t('backTranslation.subInto', { into: produces.into }) : t('backTranslation.whatInto', { what: capitalize(produces.what), into: produces.into })}
+          onBack={ctx.back} close />}
       footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>
-          <BigRecord disabled={blocked || rec.failureCount > 0 || !part} label={partLabel} onPress={() => void loop.toggle()} />
+          <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
             <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
           </View>
@@ -160,44 +170,48 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       <SplitPane memoryKey="back_translation" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM}
         topStyle={styles.topPane} bottomStyle={styles.bottomPane}
         top={({ compact, open }) => compact ? (
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Open ${v.language} ${versionTitle(of.n)}, ${partLabel}`} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+          <Pressable onPress={open} accessibilityRole="button" style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}
+            accessibilityLabel={partN ? t('backTranslation.openPart', { language: v.language, n: of.n, part: partN }) : t('backTranslation.openVersion', { language: v.language, n: of.n })}>
             <Ico name="listen" size={18} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{v.language} · {versionTitle(of.n)} · {partLabel.toLowerCase()}</Text>
-            <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
+            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{playerTitle}</Text>
+            <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
           </Pressable>
         ) : (
-          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Listen to ${versionTitle(of.n)}, ${partLabel}`}>
+          <ScrollView contentContainerStyle={styles.paneBody}
+            accessibilityLabel={partN ? t('backTranslation.listenToPart', { n: of.n, part: partN }) : t('backTranslation.listenTo', { n: of.n })}>
             {request && (request.note || request.noteBlobHash) ? <RequestBanner ctx={ctx} request={request} /> : null}
             {madeFrom ? (
-              <Banner icon="history" tone="amber" title={`Your parts were made from ${versionTitle(madeFrom.n)}`}
-                body={`${versionTitle(of.n)} is out now, and publishing puts your ${produces.what} with it. Listen again and redo any part that changed.`} />
+              <Banner icon="history" tone="amber" title={t('backTranslation.madeFrom', { n: madeFrom.n })}
+                body={t('backTranslation.madeFromBody', { n: of.n, what: produces.what })} />
             ) : null}
             {part ? (
               <ClipPlayer language={ctx.language} hashes={[part.hash]} listen={loop.hooks}
-                title={`${v.language} · ${versionTitle(of.n)} · ${partLabel.toLowerCase()}`}
-                sub={`${who} · drag back and forth as often as you like`}
+                title={playerTitle}
+                sub={mine ? t('backTranslation.youDrag') : t('backTranslation.nameDrag', { name: who })}
                 onNote={(s) => setNoteAt(Math.round(s * 1000))} />
             ) : null}
             <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-              Say each part in {produces.into}, in your own words. Notes and earlier checks are hidden on purpose, so only the recording shapes what you say.
+              {t('backTranslation.sayEachPart', { into: produces.into })}
             </Text>
           </ScrollView>
         )}
         bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={part?.cards.length ?? 0} noun="piece" onResume={loop.resumeNow} /> : compact ? (
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Open your ${produces.what}`} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('backTranslation.openYour', { what: produces.what })} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
             <Ico name="mic" size={18} color={C.primary} />
             <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]}>{partLabel} · {saidLine(parts)}</Text>
-            <Text style={[txt.xsStrong, { color: C.primary }]}>Open</Text>
+            <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
           </Pressable>
         ) : (
-          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={`Your ${produces.what}, ${saidLine(parts)}`}>
+          <ScrollView contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
             {problem}
-            {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>Loading your parts…</Text> : parts.map((x) => (
+            {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
               <PartCard key={x.index} ctx={ctx} part={x} into={produces.into} focused={x.index === focus} disabled={blocked}
                 onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
             ))}
             {notes.length ? (
-              <Text style={[txt.xs, { textAlign: 'center' }]}>{notes.length} note{notes.length === 1 ? '' : 's'} for the {checkedBy ?? 'next check'} · they go with it when you publish</Text>
+              <Text style={[txt.xs, { textAlign: 'center' }]}>
+                {checkedBy ? t('backTranslation.notesFor', { count: notes.length, check: checkedBy }) : t('backTranslation.notesForNext', { count: notes.length })}
+              </Text>
             ) : null}
           </ScrollView>
         )} />
@@ -205,7 +219,11 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       {noteAt !== null && part ? (
         <MomentSheet ctx={ctx} part={part.index} atMs={noteAt} hash={noteHash} onHash={setNoteHash} checkedBy={checkedBy}
           onClose={() => setNoteAt(null)}
-          onSave={(text) => { setNotes((n) => [...n, { part: part.index, atMs: noteAt, text: text || 'said in the voice note' }]); setNoteAt(null); }} />
+          onSave={(text) => {
+            // i18n-ignore: stored in the event log with the back translation's note (noteText)
+            setNotes((n) => [...n, { part: part.index, atMs: noteAt, text: text || 'said in the voice note' }]);
+            setNoteAt(null);
+          }} />
       ) : null}
       {confirming ? (
         <PublishSheet ctx={ctx} what={produces.what} of={of} checkedBy={checkedBy} parts={parts} notes={notes} busy={saving}
@@ -219,13 +237,16 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: boolean; disabled: boolean; onPick: () => void; onDelete: () => void }) {
   const { part, focused } = props;
   const said = part.cards.length > 0;
-  const label = `Part ${part.index + 1}`;
-  const sub = focused ? (said ? `${mmss(part.saidMs)} in ${props.into} · record to add more` : 'Saying it next') : said ? `${mmss(part.saidMs)} in ${props.into}` : '';
-  const press = useHelpPress(label, said ? 'Said. Tap to hear the part again or redo it.' : 'Tap to work on this part.', props.onPick);
+  const n = part.index + 1;
+  const label = t('backTranslation.part', { n });
+  const length = formatClock(part.saidMs);
+  const sub = focused ? (said ? t('backTranslation.saidInMore', { length, into: props.into }) : t('backTranslation.sayingNext'))
+    : said ? t('backTranslation.saidIn', { length, into: props.into }) : '';
+  const press = useHelpPress(label, said ? t('backTranslation.partSaidHelp') : t('backTranslation.partTapHelp'), props.onPick);
   return (
     <View style={[styles.part, focused && styles.partNow]}>
       <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
-        accessibilityLabel={`${label}${sub ? `, ${sub}` : ''}`} style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
+        accessibilityLabel={sub ? t('backTranslation.partA11y', { part: label, sub }) : label} style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
         <View style={[styles.partMark, said ? { backgroundColor: C.green } : focused ? { backgroundColor: C.primary } : { backgroundColor: C.light }]}>
           <Ico name={said ? 'check' : 'mic'} size={said ? 20 : 18} color={said || focused ? C.white : withAlpha(C.primary, 0.35)} strokeWidth={said ? 3 : 2.2} />
         </View>
@@ -236,9 +257,9 @@ function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: bool
       </Pressable>
       {focused && said ? (
         <View style={styles.partActions}>
-          <AudioClip language={props.ctx.language} hashes={part.cards.map((c) => c.hash)} label={`Play your ${label.toLowerCase()}`} disabled={props.disabled} />
-          <Text style={[txt.sm, { flex: 1 }]}>Hear what you said</Text>
-          <IconBtn name="trash" label={`Delete ${label.toLowerCase()} to say it again`} bg="transparent" color={C.muted} disabled={props.disabled} onPress={props.onDelete} />
+          <AudioClip language={props.ctx.language} hashes={part.cards.map((c) => c.hash)} label={t('backTranslation.playYourPart', { n })} disabled={props.disabled} />
+          <Text style={[txt.sm, { flex: 1 }]}>{t('backTranslation.hearWhatYouSaid')}</Text>
+          <IconBtn name="trash" label={t('backTranslation.deletePart', { n })} bg="transparent" color={C.muted} disabled={props.disabled} onPress={props.onDelete} />
         </View>
       ) : null}
     </View>
@@ -246,12 +267,14 @@ function PartCard(props: { ctx: Ctx; part: BackPart; into: string; focused: bool
 }
 
 /** The big red record button with its halo, sized for the footer. */
-function BigRecord(props: { disabled: boolean; label: string; onPress: () => void }) {
-  const press = useHelpPress('Record', `Say ${props.label.toLowerCase()} in your own words. Pause between thoughts; tap stop when you finish.`, props.onPress);
+/** `part` is the part's number (from 1), or null when there is no part to say. */
+function BigRecord(props: { disabled: boolean; part: number | null; onPress: () => void }) {
+  const n = props.part;
+  const press = useHelpPress(t('common.record'), n ? t('backTranslation.recordHelp', { n }) : undefined, props.onPress);
   return (
     <View style={[styles.halo, props.disabled && { opacity: 0.45 }]}>
-      <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={`Record ${props.label.toLowerCase()}`}
-        accessibilityHint="Speak, pausing between parts. Tap stop when you finish." accessibilityState={{ disabled: props.disabled }}
+      <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={n ? t('backTranslation.recordPart', { n }) : t('common.record')}
+        accessibilityHint={t('backTranslation.recordHint')} accessibilityState={{ disabled: props.disabled }}
         style={({ pressed }) => [styles.record, pressed && { transform: [{ scale: 0.95 }] }]}>
         <Ico name="mic" size={34} color={C.white} />
       </Pressable>
@@ -260,11 +283,11 @@ function BigRecord(props: { disabled: boolean; label: string; onPress: () => voi
 }
 
 function PublishBtn(props: { disabled: boolean; onPress: () => void }) {
-  const press = useHelpPress('Publish', 'Saves the back translation for the team, then asks for the next check.', props.onPress);
+  const press = useHelpPress(t('common.publish'), t('backTranslation.publishHelp'), props.onPress);
   return (
-    <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityLabel="Publish" accessibilityState={{ disabled: props.disabled }}
+    <Pressable onPress={press} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={t('common.publish')} accessibilityState={{ disabled: props.disabled }}
       style={({ pressed }) => [styles.publish, props.disabled && { opacity: 0.45 }, pressed && { opacity: 0.7 }]}>
-      <Text style={styles.publishLabel}>Publish</Text>
+      <Text style={styles.publishLabel}>{t('common.publish')}</Text>
     </Pressable>
   );
 }
@@ -276,11 +299,11 @@ function MomentSheet(props: {
 }) {
   const [text, setText] = useState('');
   return (
-    <Sheet visible title={`A note at ${mmss(props.atMs)} in part ${props.part + 1}`}
-      sub={`What was hard to say here? The ${props.checkedBy ?? 'next check'} hears it with your back translation.`} onClose={props.onClose}
-      footer={<PrimaryBtn label="Add note" disabled={!text.trim() && !props.hash} onPress={() => props.onSave(text.trim())} />}>
-      <VoiceNote ctx={props.ctx} label="Say it" hash={props.hash} onChange={(h) => props.onHash(h)} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it — e.g. a word with no English match" multiline />
+    <Sheet visible title={t('backTranslation.noteAtPart', { time: formatClock(props.atMs), part: props.part + 1 })}
+      sub={props.checkedBy ? t('backTranslation.noteSub', { check: props.checkedBy }) : t('backTranslation.noteSubNext')} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('backTranslation.addNote')} disabled={!text.trim() && !props.hash} onPress={() => props.onSave(text.trim())} />}>
+      <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />
+      <Field value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
     </Sheet>
   );
 }
@@ -293,24 +316,37 @@ function PublishSheet(props: {
   const [text, setText] = useState('');
   const missing = props.parts.filter((x) => x.cards.length === 0).map((x) => x.index + 1);
   return (
-    <Sheet visible title={`Publish the ${props.what}?`}
-      sub={`Of ${versionTitle(props.of.n)}. ${props.checkedBy ? `The ${props.checkedBy} listens to it next.` : 'It goes on the passage record.'}`}
+    <Sheet visible title={t('backTranslation.publishThe', { what: props.what })}
+      sub={props.checkedBy ? t('backTranslation.publishSubCheck', { n: props.of.n, check: props.checkedBy }) : t('backTranslation.publishSub', { n: props.of.n })}
       onClose={props.onClose}
-      footer={<PrimaryBtn label={`Publish ${props.what}`} icon="send" busy={props.busy} onPress={() => props.onPublish(text)} />}>
+      footer={<PrimaryBtn label={t('backTranslation.publishWhat', { what: props.what })} icon="send" busy={props.busy} onPress={() => props.onPublish(text)} />}>
       <View style={styles.checks}>
         <Text style={txt.sm}>✓ {saidLine(props.parts)}</Text>
-        {missing.length ? <Text style={[txt.sm, { color: TINT.amberText }]}>Nothing yet for part {missing.join(', ')}</Text> : null}
-        {props.notes.length ? <Text style={txt.sm}>✓ {props.notes.length} note{props.notes.length === 1 ? '' : 's'} at moments</Text> : null}
+        {missing.length ? (
+          <Text style={[txt.sm, { color: TINT.amberText }]}>{t('backTranslation.nothingYet', { count: missing.length, parts: missing.map((n) => formatNumber(n)).join(', ') })}</Text>
+        ) : null}
+        {props.notes.length ? <Text style={txt.sm}>✓ {t('backTranslation.notesAtMoments', { count: props.notes.length })}</Text> : null}
       </View>
-      <Text style={[txt.sm, { fontWeight: '700' }]}>Anything that was hard to say back? <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}>Optional</Text></Text>
-      <VoiceNote ctx={props.ctx} label="Say it" hash={props.hash} onChange={(h) => props.onHash(h)} />
-      <Field value={text} onChangeText={setText} placeholder="Or type it — e.g. a word with no English match" multiline />
+      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('backTranslation.hardToSayBack')} <Text style={[txt.sm, { color: C.muted, fontWeight: '400' }]}>{t('backTranslation.optional')}</Text></Text>
+      <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={props.hash} onChange={(h) => props.onHash(h)} />
+      <Field value={text} onChangeText={setText} placeholder={t('backTranslation.typeNoMatch')} multiline />
     </Sheet>
   );
 }
 
+/**
+ * Whether this is the shipped back translation in its shipped words (in the
+ * language showing): its heading and toast are then whole catalog strings.
+ */
+function shippedBackTranslation(kind: KindDef): boolean {
+  if (kind.id !== 'bt') return false;
+  const shipped = DEFAULT_KINDS.find((k) => k.id === 'bt');
+  return !!shipped && localKind(shipped).produces?.what === kind.produces?.what;
+}
+
+/** An organization's own word for what its kind makes (library content), as a heading: its first letter capitalised. */
 function capitalize(s: string): string {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  return s ? s.charAt(0).toLocaleUpperCase(currentLocale()) + s.slice(1) : s;
 }
 
 const styles = StyleSheet.create({

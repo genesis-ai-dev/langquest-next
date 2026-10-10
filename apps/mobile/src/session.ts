@@ -3,6 +3,7 @@ import {
   type OrgState, type Privilege, type Role, type Scope
 } from '@langquest-next/core';
 import { isManagedEmail } from './accounts';
+import { t } from './i18n';
 import type { Edge, ScreenId } from './flow';
 
 /**
@@ -175,12 +176,12 @@ export interface Tab {
 export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
   const tabs: Tab[] = [];
   const hasMyWork = homeScreenFor(s) === 'my_work';
-  if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: 'Work' });
-  tabs.push({ id: 'map', screen: mapScreenFor(s), label: 'Map' });
-  if (opts.wide && !s.hasNoOrg && s.can('view_status')) tabs.push({ id: 'reports', screen: 'reports_home', label: 'Reports' });
+  if (hasMyWork) tabs.push({ id: 'work', screen: 'my_work', label: t('account.tabs.work') });
+  tabs.push({ id: 'map', screen: mapScreenFor(s), label: t('account.tabs.map') });
+  if (opts.wide && !s.hasNoOrg && s.can('view_status')) tabs.push({ id: 'reports', screen: 'reports_home', label: t('account.tabs.reports') });
   const manage = manageHomeFor(s);
-  if (manage) tabs.push({ id: 'manage', screen: manage, label: 'Manage' });
-  if (!hasMyWork) tabs.push({ id: 'inbox', screen: 'inbox_home', label: 'Inbox', badge: counts.unread });
-  tabs.push({ id: 'me', screen: 'settings_home', label: 'Me' });
+  if (manage) tabs.push({ id: 'manage', screen: manage, label: t('account.tabs.manage') });
+  if (!hasMyWork) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread });
+  tabs.push({ id: 'me', screen: 'settings_home', label: t('account.tabs.me') });
   return tabs;
 }

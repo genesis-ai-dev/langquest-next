@@ -45,7 +45,8 @@
     "secrets": "node scripts/secrets.mjs",
     "smart": "smart-tests/run.sh",
     "diag": "tsx scripts/diag.ts",
-    "moderation": "tsx scripts/moderation.ts"
+    "moderation": "tsx scripts/moderation.ts",
+    "help-audio": "tsx scripts/help-audio.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

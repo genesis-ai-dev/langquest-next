@@ -1,0 +1,23 @@
+{
+  "invite": {
+    "subject": "你的 LangQuest 邀请",
+    "heading": "你的 LangQuest 邀请",
+    "intro": "有人邀请你加入 LangQuest 中的一个团队。",
+    "openLink": "打开这个链接：",
+    "openLinkOnPhone": "在手机上打开这个链接：",
+    "openButton": "打开 LangQuest",
+    "openButtonOnPhone": "在手机上打开 LangQuest",
+    "orPasteCode": "或在 LangQuest 中点按“{{screen}}”，然后粘贴此代码：",
+    "joinScreen": "扫码",
+    "expires": "这个邀请将于 {{date}}过期。",
+    "ignore": "如果你没有想到会收到这个邀请，可以忽略它。"
+  },
+  "reset": {
+    "subject": "设置新的 LangQuest 密码",
+    "heading": "设置新密码",
+    "intro": "有人请求更改 LangQuest 中 {{email}} 的密码。",
+    "openButton": "设置新密码",
+    "expires": "这个链接在 {{minutes}} 分钟内有效。",
+    "ignore": "如果你没有提出这个请求，请忽略这封邮件。你的密码保持不变。"
+  }
+}
