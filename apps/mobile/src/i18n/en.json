@@ -888,7 +888,7 @@
       "notAdded": "Not added",
       "inviteLater": "Invite {{language}}'s translators from its page later.",
       "later": "Later",
-      "guideLanguage": "Choose the language of {{name}}'s guides"
+      "offerNothing": "LangQuest has no Bibles or study guides in {{reads}} yet. Find a Bible or write notes for {{language}}'s translators under <b>What helps</b>."
     },
     "offers": {
       "guides": "{{name}}'s study guides",
@@ -1253,6 +1253,9 @@
       "somethingElse": "Something else",
       "cannotTitle": "Only people who can invite here can show a code",
       "cannotBody": "Ask someone who runs {{language}}'s team to invite your translators."
+    },
+    "language": {
+      "saved": "{{team}}'s Bibles and guides are now in {{language}}"
     }
   },
   "content": {
@@ -5973,5 +5976,19 @@
       "previousChapter": "Previous chapter",
       "nextChapter": "Next chapter"
     }
+  },
+  "referenceLanguage": {
+    "question": "Which language should {{language}}'s Bibles and study guides be in?",
+    "sub": "Choose the language {{language}}'s team reads best. Each one says what LangQuest has in it.",
+    "setPassages_one": "{{name}} guides for {{count, number}} passage",
+    "setPassages_other": "{{name}} guides for {{count, number}} passages",
+    "bibles_one": "{{count, number}} Bible",
+    "bibles_other": "{{count, number}} Bibles",
+    "otherGuides_one": "{{count, number}} other guide or note",
+    "otherGuides_other": "{{count, number}} other guides or notes",
+    "nothing": "Nothing in this language yet",
+    "chip": "Bibles and guides in {{language}}",
+    "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
+    "change": "Change"
   }
 }

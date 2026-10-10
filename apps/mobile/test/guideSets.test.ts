@@ -8,7 +8,8 @@ import {
 } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
 import { chooseSetLanguage, chosenOnly, guideSets, hideSet, setReach, suggestedMember, type GuideSet } from '../src/reference/guideSets';
-import { docLanguage, languagesLine, readerLanguage, sameLanguage } from '../src/reference/languages';
+import { languageChoices, memberIn, startingLanguage } from '../src/reference/languageChoices';
+import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../src/reference/languages';
 import { helpsSummary, languageLabel } from '../src/simple/adminModel';
 
 const H = (c: string) => c.repeat(64);
@@ -173,5 +174,37 @@ describe('a guide set in several languages', () => {
     // FIA from another organization is another set: it stays.
     const theirs = { ...src(eng), origin: 'someone' };
     expect(chosenOnly([[src(fra)], [theirs]], get)).toEqual([[src(fra)], [theirs]]);
+  });
+});
+
+describe('the language a team’s reference material is in', () => {
+  it('lists each language with what is in it, the most to read first, and keeps the chosen, the reader’s and English', () => {
+    const { own } = library();
+    const sets = guideSets(own, []);
+    const bible = { format: 'source@1', name: 'Swahili Union Version', abbreviation: 'SUV', language: 'swh', versification: H('e'), provider: { kind: 'library' }, offline: 'allowed', copyright: {}, books: [], deps: [] } as LibraryDoc;
+    const note = { format: 'material@1', kind: 'note', title: 'Names in Ruth', language: 'fra', deps: [] } as LibraryDoc;
+    const questions = { format: 'material@1', kind: 'questions', title: 'Checks', language: 'amh', deps: [] } as LibraryDoc;
+    const choices = languageChoices(sets, [bible, note, questions, null], ['amh', 'eng']);
+    expect(choices.map((c) => c.language)).toEqual(['eng', 'fra', 'swh', 'amh']);
+    expect(choices[1]).toEqual({ language: 'fra', sets: [{ name: 'FIA study guides', passages: 12 }], bibles: 0, other: 1 });
+    expect(choices[3]).toEqual({ language: 'amh', sets: [], bibles: 0, other: 0 });
+    // Swahili is one language whether FIA or Bible Brain wrote it.
+    expect(languageChoices(sets, [bible], ['swa']).filter((c) => sameLanguage(c.language, 'swa'))).toHaveLength(1);
+  });
+
+  it('starts from the reader’s language when there is anything in it, else English', () => {
+    const { own } = library();
+    const choices = languageChoices(guideSets(own, []), [], ['amh']);
+    expect(startingLanguage(choices, 'fra')).toBe('fra');
+    expect(startingLanguage(choices, 'amh')).toBe('eng');
+    expect(memberIn(guideSets(own, [])[0]!, 'fra')?.passages).toBe(12);
+    expect(memberIn(guideSets(own, [])[0]!, 'amh')).toBeNull();
+  });
+
+  it('is the team’s own setting, else the language it was added with, else English', () => {
+    const org = foldOrg([envelope('v1.LanguageAdded', { languageId: 'L1', name: 'Sidamo', code: 'sid', sourceCode: 'fra' })]);
+    expect(teamLanguage(org, foldLanguage([]), 'L1')).toBe('fra');
+    expect(teamLanguage(org, foldLanguage([languageEnvelope('v1.ReferenceLanguageSet', { language: 'swa' })]), 'L1')).toBe('swa');
+    expect(teamLanguage(null, null, 'L1')).toBe('eng');
   });
 });

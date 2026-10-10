@@ -181,6 +181,8 @@ describe('a new language (ORG-2)', () => {
     const org = orgFixture();
     const plan = addLanguage(org, { languageId: 'L3', code: 'SHK', name: 'Shilluk', template: template(booksInScope(doc, 'nt')), flow: flow() });
     expect(plan.added).toEqual({ languageId: 'L3', name: 'Shilluk', code: 'shk', sourceCode: 'eng' });
+    // Its reference material's language, when New language chose one (decision 84).
+    expect(addLanguage(org, { languageId: 'L3', code: 'SHK', name: 'Shilluk', template: template(booksInScope(doc, 'nt')), flow: flow(), sourceCode: 'fra' }).added.sourceCode).toBe('fra');
     expect(languageName(applyOrg([{ type: 'v1.LanguageAdded', payload: plan.added }], org), 'L3')).toBe('Shilluk');
     expect(new Set(plan.specs.map((s) => s.id)).size).toBe(plan.specs.length);
     const after = foldLanguage(fromSpecs(plan.specs, 'L3'));

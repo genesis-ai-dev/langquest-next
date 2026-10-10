@@ -3,7 +3,7 @@
 // and the library write them ("eng", "fra"), so whoever chooses one sees
 // whether their team can read it. The app's own language (decision 81) is
 // the reader's first guess at what they read. Pure, so it is tested.
-import type { LibraryDoc } from '@langquest-next/core';
+import { languageInfo, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import { currentLanguage, t, type UiLanguage } from '../i18n';
 import { joinAnd, languageLabel } from '../simple/adminModel';
 
@@ -47,4 +47,13 @@ export function docLanguage(doc: LibraryDoc | null | undefined): string | null {
 export function languagesLine(codes: readonly (string | null | undefined)[]): string {
   const known = codes.filter((c): c is string => !!c);
   return known.length ? joinAnd(known.map(languageLabel)) : t('reference.language.notGiven');
+}
+
+/**
+ * The language a team's reference material is in (decision 84): its own
+ * setting (`v1.ReferenceLanguageSet`), else the language it was added with
+ * (`sourceCode`), else English.
+ */
+export function teamLanguage(org: OrgState | null | undefined, state: LanguageState | null | undefined, languageId: string | null | undefined): string {
+  return state?.referenceLanguage?.value ?? (languageId ? languageInfo(org ?? null, languageId)?.sourceCode : undefined) ?? 'eng';
 }

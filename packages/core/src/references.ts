@@ -52,6 +52,8 @@ export interface ReferenceOrgEvents {
 export interface ReferenceWorkEvents {
   /** The language's own say on one item: recommend it to the team, hide the organization's recommendation, or follow the organization. Register per item. */
   'v1.ReferenceSet': { itemId: string; state: LanguageRecommendation };
+  /** The language the team's reference material is in (ISO 639-3, or a glottocode): its Bibles, guides and notes (decision 84). Register. */
+  'v1.ReferenceLanguageSet': { language: string };
   /** An admin places an item on one passage by hand, or hides a match there. Register per passage and item. */
   'v1.PassageReferenceLinked': { unitId: string; itemId: string; linked: boolean };
   /** What was in front of the person for a version (`takeId`) or a review (`reviewId`); exactly one of the two. Grow-only. */
@@ -65,6 +67,8 @@ export interface ReferenceState {
   passageLinks: Record<string, Record<string, Register<boolean>>>;
   /** `take:<id>` or `review:<id>` -> itemId -> what was used. */
   referencesUsed: Record<string, Record<string, UsedReference & { by: string; hlc: Hlc; eventId: string }>>;
+  /** The language the team's reference material is in (`v1.ReferenceLanguageSet`); absent until set, and in older snapshots. */
+  referenceLanguage?: Register<string>;
 }
 
 export function emptyReferenceState(): ReferenceState {
@@ -81,6 +85,11 @@ export function applyReferenceEvent(state: ReferenceState, e: EventEnvelope): vo
     case 'v1.ReferenceSet': {
       const p = e.payload as ReferenceWorkEvents['v1.ReferenceSet'];
       if (later(state.languageReferences[p.itemId], e)) state.languageReferences[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case 'v1.ReferenceLanguageSet': {
+      const p = e.payload as ReferenceWorkEvents['v1.ReferenceLanguageSet'];
+      if (later(state.referenceLanguage, e)) state.referenceLanguage = { value: p.language, hlc: e.hlc, eventId: e.id };
       break;
     }
     case 'v1.PassageReferenceLinked': {

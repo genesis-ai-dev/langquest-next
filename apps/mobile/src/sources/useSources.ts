@@ -8,11 +8,12 @@
 // study guides do), and when nothing at all has this passage's text, the
 // text the app carries is the last resort, labelled as built in.
 import {
-  bookIdOf, languageInfo, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
+  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import type { Ctx } from '../ctx';
+import { teamLanguage } from '../reference/languages';
 import { t } from '../i18n';
 import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { readingsForRange } from '../scripture';
@@ -103,7 +104,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
 
   const options = useMemo(() => {
     const out: SourceOption[] = [];
-    const sourceLanguage = (languageId ? languageInfo(ctx.org.state, languageId)?.sourceCode : undefined) ?? 'eng';
+    const sourceLanguage = teamLanguage(ctx.org.state, languageId === ctx.language.languageId ? ctx.language.state : null, languageId);
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
       const doc = get<SourceDoc>(hash);

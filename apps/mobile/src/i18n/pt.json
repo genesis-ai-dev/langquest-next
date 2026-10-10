@@ -908,7 +908,7 @@
       "notAdded": "Não foi adicionado",
       "inviteLater": "Convide os tradutores de {{language}} mais tarde, na página dele.",
       "later": "Mais tarde",
-      "guideLanguage": "Escolher o idioma dos guias de {{name}}"
+      "offerNothing": "O LangQuest ainda não tem Bíblias nem guias de estudo em {{reads}}. Encontre uma Bíblia ou escreva notas para os tradutores de {{language}} em <b>O que os ajuda</b>."
     },
     "offers": {
       "guides": "os guias de estudo de {{name}}",
@@ -1286,6 +1286,9 @@
       "somethingElse": "Outra coisa",
       "cannotTitle": "Só quem pode convidar aqui pode mostrar um código",
       "cannotBody": "Peça a alguém que coordena a equipe de {{language}} para convidar os seus tradutores."
+    },
+    "language": {
+      "saved": "As Bíblias e os guias de {{team}} agora estão em {{language}}"
     }
   },
   "content": {
@@ -6249,5 +6252,22 @@
       "previousChapter": "Capítulo anterior",
       "nextChapter": "Próximo capítulo"
     }
+  },
+  "referenceLanguage": {
+    "question": "Em que idioma devem estar as Bíblias e os guias de estudo de {{language}}?",
+    "sub": "Escolha o idioma que a equipe de {{language}} lê melhor. Cada um mostra o que o LangQuest tem nele.",
+    "setPassages_one": "Guias de {{name}} para {{count, number}} passagem",
+    "setPassages_many": "Guias de {{name}} para {{count, number}} de passagens",
+    "setPassages_other": "Guias de {{name}} para {{count, number}} passagens",
+    "bibles_one": "{{count, number}} Bíblia",
+    "bibles_many": "{{count, number}} de Bíblias",
+    "bibles_other": "{{count, number}} Bíblias",
+    "otherGuides_one": "Mais {{count, number}} guia ou nota",
+    "otherGuides_many": "Mais {{count, number}} de guias ou notas",
+    "otherGuides_other": "Mais {{count, number}} guias ou notas",
+    "nothing": "Ainda não há nada neste idioma",
+    "chip": "Bíblias e guias em {{language}}",
+    "chipHelp": "O idioma das Bíblias e dos guias de estudo deles. Toque para mudar.",
+    "change": "Mudar"
   }
 }

@@ -868,7 +868,7 @@
       "notAdded": "未添加",
       "inviteLater": "以后可以在{{language}}的页面上邀请它的译者。",
       "later": "以后再说",
-      "guideLanguage": "选择{{name}}指南的语言"
+      "offerNothing": "LangQuest 目前还没有{{reads}}的圣经或学习指南。可以在<b>帮助他们的资料</b>中为{{language}}的译者查找圣经或撰写笔记。"
     },
     "offers": {
       "guides": "{{name}}的学习指南",
@@ -1220,6 +1220,9 @@
       "somethingElse": "其他",
       "cannotTitle": "只有可以在这里邀请的人才能出示邀请码",
       "cannotBody": "请负责{{language}}团队的人邀请你的译者。"
+    },
+    "language": {
+      "saved": "{{team}}的圣经和指南现在使用{{language}}"
     }
   },
   "content": {
@@ -5697,5 +5700,16 @@
       "previousChapter": "上一章",
       "nextChapter": "下一章"
     }
+  },
+  "referenceLanguage": {
+    "question": "{{language}}的圣经和学习指南应该用哪种语言？",
+    "sub": "请选择{{language}}团队读得最好的语言。每种语言都显示 LangQuest 在这种语言里有什么。",
+    "setPassages_other": "{{name}}指南涵盖 {{count, number}} 个经段",
+    "bibles_other": "{{count, number}} 本圣经",
+    "otherGuides_other": "另有 {{count, number}} 份指南或笔记",
+    "nothing": "这种语言里暂时还没有内容",
+    "chip": "{{language}}的圣经和指南",
+    "chipHelp": "他们的圣经和学习指南所用的语言。点按即可更改。",
+    "change": "更改"
   }
 }

@@ -310,6 +310,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     }
 
     case 'v1.ReferenceSet':
+    case 'v1.ReferenceLanguageSet':
     case 'v1.PassageReferenceLinked':
     case 'v1.ReferencesUsed':
       applyReferenceEvent(state, event);

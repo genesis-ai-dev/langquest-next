@@ -888,7 +888,7 @@
       "notAdded": "नहीं जोड़ी गई",
       "inviteLater": "बाद में {{language}} के पेज से उसके अनुवादकों को बुलाएँ।",
       "later": "बाद में",
-      "guideLanguage": "{{name}} की गाइड की भाषा चुनें"
+      "offerNothing": "LangQuest के पास अभी {{reads}} में कोई बाइबल या अध्ययन गाइड नहीं है। <b>मदद के लिए क्या है</b> में {{language}} के अनुवादकों के लिए बाइबल खोजें या नोट लिखें।"
     },
     "offers": {
       "guides": "{{name}} की अध्ययन गाइड",
@@ -1253,6 +1253,9 @@
       "somethingElse": "कुछ और",
       "cannotTitle": "सिर्फ़ यहाँ बुलाने वाले लोग कोड दिखा सकते हैं",
       "cannotBody": "{{language}} की टीम चलाने वाले किसी व्यक्ति से अपने अनुवादकों को बुलाने को कहें।"
+    },
+    "language": {
+      "saved": "{{team}} की बाइबलें और गाइड अब {{language}} में हैं"
     }
   },
   "content": {
@@ -5973,5 +5976,19 @@
       "previousChapter": "पिछला अध्याय",
       "nextChapter": "अगला अध्याय"
     }
+  },
+  "referenceLanguage": {
+    "question": "{{language}} की बाइबलें और अध्ययन गाइड किस भाषा में हों?",
+    "sub": "वह भाषा चुनें जिसे {{language}} की टीम सबसे अच्छी तरह पढ़ती है। हर भाषा बताती है कि उसमें LangQuest के पास क्या है।",
+    "setPassages_one": "{{count, number}} अंश के लिए {{name}} गाइड",
+    "setPassages_other": "{{count, number}} अंशों के लिए {{name}} गाइड",
+    "bibles_one": "{{count, number}} बाइबल",
+    "bibles_other": "{{count, number}} बाइबलें",
+    "otherGuides_one": "{{count, number}} और गाइड या नोट",
+    "otherGuides_other": "{{count, number}} और गाइड या नोट",
+    "nothing": "इस भाषा में अभी कुछ नहीं है",
+    "chip": "{{language}} में बाइबलें और गाइड",
+    "chipHelp": "उनकी बाइबलों और अध्ययन गाइड की भाषा। बदलने के लिए टैप करें।",
+    "change": "बदलें"
   }
 }

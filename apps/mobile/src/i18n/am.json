@@ -888,7 +888,7 @@
       "notAdded": "አልታከለም",
       "inviteLater": "የ{{language}} ተርጓሚዎችን በኋላ ከገጹ ይጋብዙ።",
       "later": "በኋላ",
-      "guideLanguage": "የ{{name}} መመሪያዎችን ቋንቋ ይምረጡ"
+      "offerNothing": "LangQuest እስካሁን በ{{reads}} መጽሐፍ ቅዱስም ሆነ የጥናት መመሪያ የለውም። ለ{{language}} ተርጓሚዎች መጽሐፍ ቅዱስ ይፈልጉ ወይም ማስታወሻ ይጻፉ፤ በ<b>የሚረዳቸው</b> ሥር።"
     },
     "offers": {
       "guides": "የ{{name}} የጥናት መመሪያዎች",
@@ -1253,6 +1253,9 @@
       "somethingElse": "ሌላ ነገር",
       "cannotTitle": "ኮድ ማሳየት የሚችሉት እዚህ መጋበዝ የሚችሉ ሰዎች ብቻ ናቸው",
       "cannotBody": "የ{{language}}ን ቡድን የሚመራ ሰው ተርጓሚዎችዎን እንዲጋብዝ ይጠይቁ።"
+    },
+    "language": {
+      "saved": "የ{{team}} መጽሐፍ ቅዱሶችና መመሪያዎች አሁን በ{{language}} ናቸው"
     }
   },
   "content": {
@@ -5973,5 +5976,19 @@
       "previousChapter": "የቀድሞው ምዕራፍ",
       "nextChapter": "ቀጣዩ ምዕራፍ"
     }
+  },
+  "referenceLanguage": {
+    "question": "የ{{language}} መጽሐፍ ቅዱሶችና የጥናት መመሪያዎች በየትኛው ቋንቋ ይሁኑ?",
+    "sub": "የ{{language}} ቡድን በተሻለ የሚያነበውን ቋንቋ ይምረጡ። እያንዳንዱ LangQuest በዚያ ቋንቋ ያለውን ያሳያል።",
+    "setPassages_one": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍል",
+    "setPassages_other": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍሎች",
+    "bibles_one": "{{count, number}} መጽሐፍ ቅዱስ",
+    "bibles_other": "{{count, number}} መጽሐፍ ቅዱሶች",
+    "otherGuides_one": "{{count, number}} ሌላ መመሪያ ወይም ማስታወሻ",
+    "otherGuides_other": "{{count, number}} ሌሎች መመሪያዎች ወይም ማስታወሻዎች",
+    "nothing": "በዚህ ቋንቋ እስካሁን ምንም የለም",
+    "chip": "መጽሐፍ ቅዱሶችና መመሪያዎች በ{{language}}",
+    "chipHelp": "የመጽሐፍ ቅዱሶቻቸውና የጥናት መመሪያዎቻቸው ቋንቋ። ለመቀየር ይንኩ።",
+    "change": "ቀይር"
   }
 }

@@ -2684,12 +2684,27 @@ about their language at all. Caleb chose (2026-10-10): turning FIA on asks
 which language it should be in, defaulting to the admin's own (the app
 language, decision 81), and every piece of reference material is tied to a
 language that shows wherever someone chooses it. So:
+- The language a team's reference material is in is a setting with a page
+  of its own (Caleb, 2026-10-10: "give the language setting its own page
+  (for reference material in general)"): step 4 of New language, and the
+  first page of What will help them. It lists every language LangQuest or
+  the organization has material in, each saying what is there (a guide
+  set's passages, Bibles, other guides), and starts on the admin's app
+  language when there is anything in it, else English
+  (`apps/mobile/src/reference/ReferenceLanguagePage.tsx`). New language
+  writes it as `sourceCode` on `v1.LanguageAdded`; changing it later is
+  `v1.ReferenceLanguageSet { language }`, a register in the language's
+  stream (Manage Reference). It decides what New language offers (a Bible
+  and FIA in that language, nothing in a language with none), which
+  language FIA follows when the team has FIA on, which Bibles are listed
+  first, which other organizations' guides are shown, and which guide a
+  passage prefers when several fit as well.
 - Collections that follow one method from one organization (`pattern` and
   `language`, such as LangQuest's `langquest.fia.<code>`) form one guide set
-  (`apps/mobile/src/reference/guideSets.ts`). New language and What helps
-  them show the set as one row. Turning it on opens a sheet listing each
-  language with how many passages it covers, with the admin's app language
-  picked when the set has it, else English.
+  (`apps/mobile/src/reference/guideSets.ts`). What will help them shows the
+  set as one row; tapping it opens a sheet listing each language with how
+  many passages it covers, for a team that wants FIA in a language other
+  than its own.
 - Choosing a language writes the team's say in its own log with
   `v1.ReferenceSet`, so there is no new event. The chosen collection is
   recommended (followed from LangQuest first when needed), and the set's
@@ -2706,6 +2721,8 @@ language that shows wherever someone chooses it. So:
   now say English; production gets that with the next hosted seed.
 - Language names come from the catalogs (all fourteen of FIA's), else the
   platform's `Intl.DisplayNames`, else the code.
+Toasts stay clear of a screen's buttons on phones too: they sit just above
+its footer, show a bar counting down to their going, and have an X.
 Reverse if: teams need two languages of one set at once (then the sheet
 becomes a pick-many and `bestGuide` ranks the team's languages), or teams
 want another language's guide where theirs has none (then `chosenOnly`

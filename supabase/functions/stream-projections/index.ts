@@ -20788,6 +20788,11 @@ function applyReferenceEvent(state, e) {
       if (later(state.languageReferences[p.itemId], e)) state.languageReferences[p.itemId] = { value: p.state, hlc: e.hlc, eventId: e.id };
       break;
     }
+    case "v1.ReferenceLanguageSet": {
+      const p = e.payload;
+      if (later(state.referenceLanguage, e)) state.referenceLanguage = { value: p.language, hlc: e.hlc, eventId: e.id };
+      break;
+    }
     case "v1.PassageReferenceLinked": {
       const p = e.payload;
       const links = state.passageLinks[p.unitId] ??= {};
@@ -21300,6 +21305,8 @@ function validateEvent(e) {
       return str("takeId", "termId") ?? optStr("note", "adjustmentId");
     case "v1.ReferenceSet":
       return str("itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
+    case "v1.ReferenceLanguageSet":
+      return str("language") ?? (/^[a-z0-9-]{2,40}$/.test(p["language"]) ? null : "language must be a language code");
     case "v1.PassageReferenceLinked":
       return str("unitId", "itemId") ?? bool("linked");
     case "v1.ReferencesUsed":
@@ -21654,6 +21661,7 @@ function applyLanguageEvent(state, event) {
       break;
     }
     case "v1.ReferenceSet":
+    case "v1.ReferenceLanguageSet":
     case "v1.PassageReferenceLinked":
     case "v1.ReferencesUsed":
       applyReferenceEvent(state, event);

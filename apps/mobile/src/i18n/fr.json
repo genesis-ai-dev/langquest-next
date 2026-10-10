@@ -908,7 +908,7 @@
       "notAdded": "Non ajoutée",
       "inviteLater": "Invitez les traducteurs de {{language}} plus tard depuis sa page.",
       "later": "Plus tard",
-      "guideLanguage": "Choisir la langue des guides de {{name}}"
+      "offerNothing": "LangQuest n’a pas encore de Bible ni de guide d’étude en {{reads}}. Trouvez une Bible ou écrivez des notes pour les traducteurs de {{language}} sous <b>Ce qui les aide</b>."
     },
     "offers": {
       "guides": "les guides d’étude de {{name}}",
@@ -1286,6 +1286,9 @@
       "somethingElse": "Autre chose",
       "cannotTitle": "Seules les personnes qui peuvent inviter ici peuvent montrer un code",
       "cannotBody": "Demandez à quelqu’un qui dirige l’équipe de {{language}} d’inviter vos traducteurs."
+    },
+    "language": {
+      "saved": "Les Bibles et guides de {{team}} sont maintenant en {{language}}"
     }
   },
   "content": {
@@ -6249,5 +6252,22 @@
       "previousChapter": "Chapitre précédent",
       "nextChapter": "Chapitre suivant"
     }
+  },
+  "referenceLanguage": {
+    "question": "En quelle langue doivent être les Bibles et les guides d’étude de {{language}} ?",
+    "sub": "Choisissez la langue que l’équipe de {{language}} lit le mieux. Chacune indique ce que LangQuest propose dans cette langue.",
+    "setPassages_one": "Guides {{name}} pour {{count, number}} passage",
+    "setPassages_many": "Guides {{name}} pour {{count, number}} de passages",
+    "setPassages_other": "Guides {{name}} pour {{count, number}} passages",
+    "bibles_one": "{{count, number}} Bible",
+    "bibles_many": "{{count, number}} de Bibles",
+    "bibles_other": "{{count, number}} Bibles",
+    "otherGuides_one": "{{count, number}} autre guide ou note",
+    "otherGuides_many": "{{count, number}} d’autres guides ou notes",
+    "otherGuides_other": "{{count, number}} autres guides ou notes",
+    "nothing": "Rien dans cette langue pour l’instant",
+    "chip": "Bibles et guides en {{language}}",
+    "chipHelp": "La langue de leurs Bibles et guides d’étude. Touchez pour la changer.",
+    "change": "Changer"
   }
 }

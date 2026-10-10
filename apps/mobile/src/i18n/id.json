@@ -868,7 +868,7 @@
       "notAdded": "Tidak ditambahkan",
       "inviteLater": "Undang penerjemah {{language}} dari halamannya nanti.",
       "later": "Nanti",
-      "guideLanguage": "Pilih bahasa panduan {{name}}"
+      "offerNothing": "LangQuest belum memiliki Alkitab atau panduan studi dalam bahasa {{reads}}. Cari Alkitab atau tulis catatan untuk penerjemah {{language}} di <b>Yang membantu</b>."
     },
     "offers": {
       "guides": "panduan studi {{name}}",
@@ -1220,6 +1220,9 @@
       "somethingElse": "Yang lain",
       "cannotTitle": "Hanya orang yang dapat mengundang di sini yang dapat menunjukkan kode",
       "cannotBody": "Minta orang yang memimpin tim {{language}} untuk mengundang penerjemah Anda."
+    },
+    "language": {
+      "saved": "Alkitab dan panduan {{team}} sekarang dalam bahasa {{language}}"
     }
   },
   "content": {
@@ -5697,5 +5700,16 @@
       "previousChapter": "Pasal sebelumnya",
       "nextChapter": "Pasal berikutnya"
     }
+  },
+  "referenceLanguage": {
+    "question": "Alkitab dan panduan studi {{language}} sebaiknya dalam bahasa apa?",
+    "sub": "Pilih bahasa yang paling baik dibaca oleh tim {{language}}. Setiap bahasa menunjukkan apa yang dimiliki LangQuest dalam bahasa itu.",
+    "setPassages_other": "Panduan {{name}} untuk {{count, number}} perikop",
+    "bibles_other": "{{count, number}} Alkitab",
+    "otherGuides_other": "{{count, number}} panduan atau catatan lain",
+    "nothing": "Belum ada apa pun dalam bahasa ini",
+    "chip": "Alkitab dan panduan dalam bahasa {{language}}",
+    "chipHelp": "Bahasa Alkitab dan panduan studi mereka. Ketuk untuk mengubahnya.",
+    "change": "Ubah"
   }
 }

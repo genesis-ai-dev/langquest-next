@@ -888,7 +888,7 @@
       "notAdded": "Ba a ƙara ba",
       "inviteLater": "Ku gayyaci masu fassarar {{language}} daga shafinsa daga baya.",
       "later": "Daga baya",
-      "guideLanguage": "Zaɓi harshen jagororin {{name}}"
+      "offerNothing": "LangQuest ba ta da Littafi Mai Tsarki ko jagororin nazari cikin {{reads}} tukuna. Nemo Littafi Mai Tsarki ko rubuta bayanai ga masu fassarar {{language}} a ƙarƙashin <b>Abin da ke taimaka musu</b>."
     },
     "offers": {
       "guides": "jagororin nazari na {{name}}",
@@ -1253,6 +1253,9 @@
       "somethingElse": "Wani abu daban",
       "cannotTitle": "Masu iya gayyata a nan kaɗai ne za su iya nuna lamba",
       "cannotBody": "Ku roƙi wani da ke gudanar da tawagar {{language}} ya gayyaci masu fassararku."
+    },
+    "language": {
+      "saved": "Littafi Mai Tsarki da jagororin {{team}} yanzu suna cikin {{language}}"
     }
   },
   "content": {
@@ -5973,5 +5976,19 @@
       "previousChapter": "Babin baya",
       "nextChapter": "Babi na gaba"
     }
+  },
+  "referenceLanguage": {
+    "question": "Da wane harshe Littafi Mai Tsarki da jagororin nazari na {{language}} za su kasance?",
+    "sub": "Zaɓi harshen da ƙungiyar {{language}} ta fi karantawa da kyau. Kowane yana nuna abin da LangQuest ke da shi a cikinsa.",
+    "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
+    "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
+    "bibles_one": "Littafi Mai Tsarki {{count, number}}",
+    "bibles_other": "Littattafai Masu Tsarki {{count, number}}",
+    "otherGuides_one": "Wani jagora ko bayani {{count, number}}",
+    "otherGuides_other": "Wasu jagorori ko bayanai {{count, number}}",
+    "nothing": "Babu komai a wannan harshe tukuna",
+    "chip": "Littafi Mai Tsarki da jagorori cikin {{language}}",
+    "chipHelp": "Harshen Littafi Mai Tsarki da jagororin nazarinsu. Taɓa don canja shi.",
+    "change": "Canja"
   }
 }

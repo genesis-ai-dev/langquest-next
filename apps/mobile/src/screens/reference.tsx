@@ -12,7 +12,7 @@
 // One main action per screen, the rest one labelled tap away (decision 56).
 // Pure reading lives in src/reference/ (model.ts, coverage.ts, timings.ts, offered.ts).
 import {
-  languageInfo, languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
+  languageName, languagePassages, libraryUnitRange, linkedTo, materialsFor, passageLink, recommendedFor, testamentOf, unitTitle, versesInChapter,
   type LibraryDoc, type LanguageState, type RecommendationSource, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -40,7 +40,7 @@ import {
   levelOf, publishTimingJob, referenceFailure, requestTimings, useRecommend, useRefItems, useTimingJobs, useTimingPublisher,
   versificationHash, type RefItem, type TimingJob
 } from '../reference/useReference';
-import { docLanguage, languagesLine } from '../reference/languages';
+import { docLanguage, languagesLine, teamLanguage } from '../reference/languages';
 import { languageLabel } from '../simple/adminModel';
 import { contractsFor } from '../screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
@@ -169,7 +169,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const readyDocs = useLibraryDocs(lib.orgId, shared.rows.map((s) => s.latest_hash));
   const ready = shared.rows.filter((s) => readyDocs.get(s.latest_hash)?.format === 'source@1')
     .filter((s) => !lib.items('material').some((it) => it.subscription?.sourceItemId === s.item_id && it.subscription.sourceOrgId === s.org_id && it.subscription.active));
-  const fallback = languageInfo(ctx.org.state, ctx.language.languageId)?.sourceCode ?? 'eng';
+  const fallback = teamLanguage(ctx.org.state, ctx.language.state, ctx.language.languageId);
   const [q, setQ] = useState(fallback);
   const [languages, setLanguages] = useState<BibleLanguage[]>([]);
   const [lang, setLang] = useState<string | null>(null);

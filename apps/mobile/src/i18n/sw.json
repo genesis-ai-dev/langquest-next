@@ -888,7 +888,7 @@
       "notAdded": "Haijaongezwa",
       "inviteLater": "Waalike watafsiri wa {{language}} kutoka kwenye ukurasa wake baadaye.",
       "later": "Baadaye",
-      "guideLanguage": "Chagua lugha ya miongozo ya {{name}}"
+      "offerNothing": "LangQuest bado haina Biblia wala miongozo ya kujifunza kwa {{reads}}. Tafuta Biblia au andika madokezo kwa watafsiri wa {{language}} chini ya <b>Kinachowasaidia</b>."
     },
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",
@@ -1253,6 +1253,9 @@
       "somethingElse": "Kitu kingine",
       "cannotTitle": "Watu wanaoweza kualika hapa tu ndio wanaweza kuonyesha msimbo",
       "cannotBody": "Mwombe mtu anayeongoza timu ya {{language}} awaalike watafsiri wako."
+    },
+    "language": {
+      "saved": "Biblia na miongozo ya {{team}} sasa iko kwa {{language}}"
     }
   },
   "content": {
@@ -5973,5 +5976,19 @@
       "previousChapter": "Sura iliyotangulia",
       "nextChapter": "Sura inayofuata"
     }
+  },
+  "referenceLanguage": {
+    "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe kwa lugha gani?",
+    "sub": "Chagua lugha ambayo timu ya {{language}} inasoma vizuri zaidi. Kila moja inaonyesha kile LangQuest inacho kwa lugha hiyo.",
+    "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
+    "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
+    "bibles_one": "Biblia {{count, number}}",
+    "bibles_other": "Biblia {{count, number}}",
+    "otherGuides_one": "Mwongozo au dokezo jingine {{count, number}}",
+    "otherGuides_other": "Miongozo au madokezo mengine {{count, number}}",
+    "nothing": "Bado hakuna kitu kwa lugha hii",
+    "chip": "Biblia na miongozo kwa {{language}}",
+    "chipHelp": "Lugha ya Biblia na miongozo yao ya kujifunza. Gusa ili kuibadilisha.",
+    "change": "Badilisha"
   }
 }

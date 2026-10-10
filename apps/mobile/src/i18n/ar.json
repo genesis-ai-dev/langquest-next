@@ -968,7 +968,7 @@
       "notAdded": "لم تُضف",
       "inviteLater": "ادعُ مترجمي {{language}} من صفحتها لاحقًا.",
       "later": "لاحقًا",
-      "guideLanguage": "اختر لغة أدلة {{name}}"
+      "offerNothing": "ليس لدى LangQuest بعد كتب مقدسة أو أدلة دراسة باللغة {{reads}}. ابحث عن كتاب مقدس أو اكتب ملاحظات لمترجمي {{language}} في <b>ما يساعدهم</b>."
     },
     "offers": {
       "guides": "أدلة الدراسة من {{name}}",
@@ -1385,6 +1385,9 @@
       "somethingElse": "شيء آخر",
       "cannotTitle": "فقط من يمكنهم الدعوة هنا يمكنهم عرض رمز",
       "cannotBody": "اطلب من شخص يدير فريق {{language}} أن يدعو مترجميك."
+    },
+    "language": {
+      "saved": "الكتب المقدسة والأدلة لفريق {{team}} الآن باللغة {{language}}"
     }
   },
   "content": {
@@ -7077,5 +7080,31 @@
       "previousChapter": "الأصحاح السابق",
       "nextChapter": "الأصحاح التالي"
     }
+  },
+  "referenceLanguage": {
+    "question": "بأي لغة تكون أناجيل وأدلة دراسة {{language}}؟",
+    "sub": "اختر اللغة التي يقرؤها فريق {{language}} أفضل. كل لغة تبيّن ما لدى LangQuest بها.",
+    "setPassages_zero": "أدلة {{name}} لـ {{count, number}} مقطع",
+    "setPassages_one": "أدلة {{name}} لمقطع واحد",
+    "setPassages_two": "أدلة {{name}} لمقطعين",
+    "setPassages_few": "أدلة {{name}} لـ {{count, number}} مقاطع",
+    "setPassages_many": "أدلة {{name}} لـ {{count, number}} مقطعًا",
+    "setPassages_other": "أدلة {{name}} لـ {{count, number}} مقطع",
+    "bibles_zero": "{{count, number}} كتاب مقدس",
+    "bibles_one": "كتاب مقدس واحد",
+    "bibles_two": "كتابان مقدسان",
+    "bibles_few": "{{count, number}} كتب مقدسة",
+    "bibles_many": "{{count, number}} كتابًا مقدسًا",
+    "bibles_other": "{{count, number}} كتاب مقدس",
+    "otherGuides_zero": "{{count, number}} دليل أو ملاحظة أخرى",
+    "otherGuides_one": "دليل أو ملاحظة أخرى",
+    "otherGuides_two": "دليلان أو ملاحظتان أخريان",
+    "otherGuides_few": "{{count, number}} أدلة أو ملاحظات أخرى",
+    "otherGuides_many": "{{count, number}} دليلًا أو ملاحظة أخرى",
+    "otherGuides_other": "{{count, number}} دليل أو ملاحظة أخرى",
+    "nothing": "لا شيء بهذه اللغة بعد",
+    "chip": "الكتب المقدسة والأدلة باللغة {{language}}",
+    "chipHelp": "لغة كتبهم المقدسة وأدلة الدراسة. انقر لتغييرها.",
+    "change": "تغيير"
   }
 }

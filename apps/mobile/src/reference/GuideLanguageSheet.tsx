@@ -18,6 +18,8 @@ export function GuideLanguageSheet(props: {
   chosen: readonly SetMember[];
   /** The language whose team it is for, by name. */
   team: string;
+  /** The language to suggest when the set has it: the team's reference language; else the reader's. */
+  prefer?: string;
   busy?: boolean;
   onUse: (m: SetMember) => void;
   /** Offered when the set is on: stop offering it to the team. */
@@ -26,7 +28,7 @@ export function GuideLanguageSheet(props: {
 }) {
   const { set } = props;
   const reader = readerLanguage();
-  const [language, setLanguage] = useState(() => suggestedMember(set, reader, props.chosen).language);
+  const [language, setLanguage] = useState(() => suggestedMember(set, props.prefer ?? reader, props.chosen).language);
   const picked = set.members.find((m) => m.language === language) ?? set.members[0]!;
   const short = guideShortName(set.name);
   const now = props.chosen.length === 1 && props.chosen[0]!.language === picked.language;

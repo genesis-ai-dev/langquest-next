@@ -732,7 +732,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       goFrom(split.list.screen, split.list.key, 'passage_record', { unitId, languageId: inLanguage, ...extra });
     }
   } : null;
-  // The toast on a wide window: over the content, just above the top screen's footer.
+  // The toast sits over the content, just above the top screen's footer, so it never covers its buttons.
   const [footers, setFooters] = useState<Record<string, number>>({});
   const reportFooter = useCallback((key: string, height: number) => {
     setFooters((f) => (f[key] === height ? f : { ...f, [key]: height }));
@@ -750,7 +750,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
           {split && paneCtx ? <PaneSlot key={split.list.key} route={split.list} ctx={paneCtx} layout={paneLayout} open={openDetail} /> : null}
           <LayoutContext.Provider value={stackLayout}>
           <PaneKeyContext.Provider value={paneKey}>
-          <FooterReportContext.Provider value={wide ? reportFooter : null}>
+          <FooterReportContext.Provider value={reportFooter}>
           <CtxContext.Provider value={ctx}>
             <StudyPrefetch ctx={ctx} />
             {/* Its own box, so the native stack ends where the tab bar begins
@@ -771,7 +771,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                 ))}
               </Stack.Navigator>
             </NavigationContainer>
-            {wide ? toastHost(toastAbove) : null}
+            {toastHost(toastAbove)}
             </View>
           </CtxContext.Provider>
           </FooterReportContext.Provider>
@@ -780,7 +780,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
-      {wide ? null : toastHost(showTabs ? 96 : 24)}
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}
@@ -812,8 +811,8 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     props.register((next) => {
       if (timer.current) clearTimeout(timer.current);
-      setSpec(next);
       const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
     });
   }, [props.register]);
