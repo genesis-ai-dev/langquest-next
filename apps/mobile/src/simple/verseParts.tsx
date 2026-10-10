@@ -172,7 +172,6 @@ export function VerseParts(props: {
     cards.push(run);
     i = run[run.length - 1]!;
   }
-  const firstEmpty = labels.findIndex((l) => !l);
   const ghost = (i: number): { text: string; join: boolean } | null => {
     const r = tapPart(marks, i, count);
     if (!r.ok) return null;
@@ -192,7 +191,7 @@ export function VerseParts(props: {
               {run.length > 1 && head ? <Text style={styles.cap}>{spanName(verses, head.s, head.e)} · {run.length} parts</Text> : null}
               {run.map((i, k) => (
                 <PartRow key={`${parts[i]!.hash}-${i}`} ctx={props.ctx} part={parts[i]!} index={i} label={labels[i] ?? null}
-                  joined={k > 0} last={k === run.length - 1} verses={verses} ghost={labels[i] ? null : ghost(i)} lit={i === firstEmpty}
+                  joined={k > 0} last={k === run.length - 1} verses={verses} ghost={labels[i] ? null : ghost(i)}
                   flash={flash.has(parts[i]!.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
                   gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
                   onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
@@ -220,7 +219,7 @@ export function VerseParts(props: {
 
 function PartRow(props: {
   ctx: Ctx; part: Part; index: number; label: PartLabel | null; joined: boolean; last: boolean; verses: string[];
-  ghost: { text: string; join: boolean } | null; lit: boolean; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
+  ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
   gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void;
 }) {
   const name = `Part ${props.index + 1}`;
@@ -241,12 +240,7 @@ function PartRow(props: {
         style={({ pressed }) => [styles.gutter, pressed && { transform: [{ scale: 0.94 }] }, props.shake && { transform: [{ translateX: 4 }] }]}>
         {l && l.kind !== 'join' ? (
           <View style={styles.badge}>
-            {l.s === l.e ? <Text style={styles.badgeText}>{spanShort(props.verses, l.s, l.e)}</Text> : (
-              <>
-                <Text style={styles.badgeRange}>{spanShort(props.verses, l.s, l.s)}</Text>
-                <Text style={styles.badgeTo}>to {spanShort(props.verses, l.e, l.e)}</Text>
-              </>
-            )}
+            <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
             {l.kind === 'set' ? <View style={styles.pin} /> : null}
           </View>
         ) : l ? (
@@ -256,8 +250,8 @@ function PartRow(props: {
             <View style={[styles.cord, props.last && { opacity: 0 }]} />
           </View>
         ) : (
-          <View style={[styles.ghost, props.lit && styles.ghostLit]}>
-            <Text style={[styles.ghostText, props.lit && { color: C.primary }, props.ghost?.join && { fontSize: T.sm }]}>{props.ghost?.text ?? '·'}</Text>
+          <View style={styles.ghost}>
+            <Text style={[styles.ghostText, props.ghost?.join && { fontSize: T.sm }]}>{props.ghost?.text ?? '·'}</Text>
           </View>
         )}
       </Pressable>
@@ -349,16 +343,15 @@ const styles = StyleSheet.create({
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   badge: { minWidth: 44, height: 44, paddingHorizontal: space.sm, borderRadius: radius.md + 2, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 20, fontWeight: '800', color: C.white },
-  badgeRange: { fontSize: T.base, fontWeight: '800', color: C.white, lineHeight: 18 },
-  badgeTo: { fontSize: 11, fontWeight: '700', color: C.white, opacity: 0.85 },
+  badgeRange: { fontSize: T.base, fontWeight: '800', color: C.white },
   pin: { position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: 7, backgroundColor: C.card, borderWidth: 2, borderColor: C.primary },
   hook: { width: 44, alignSelf: 'stretch', alignItems: 'center' },
   cord: { width: 4, flex: 1, backgroundColor: C.primary, opacity: 0.5, borderRadius: 2 },
   knot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2.5, borderColor: C.primary, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', marginVertical: 4 },
   knotText: { fontSize: 12, fontWeight: '800', color: C.primary },
-  ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
-  ghostLit: { borderColor: C.primary, backgroundColor: C.light },
-  ghostText: { fontSize: 18, fontWeight: '700', color: C.faint },
+  // An empty space is barely there (Caleb, 2026-10-09): grey at a tenth, so it never competes with a verse.
+  ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
+  ghostText: { fontSize: 18, fontWeight: '700', color: C.dark },
   play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, minHeight: target.row },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs, borderRadius: radius.lg,
