@@ -183,11 +183,14 @@ with the four rules (`langquest.bible.fia` in English numbering,
 `langquest.bible.fia.org-66` in Hebrew numbering, and so on). A language's
 numbering is its template's numbering; the app offers only the ways in it.
 
-An admin finds the numbering three ways: **Find our Bible** (49 Bibles,
-checked against their text: `apps/mobile/src/breakup/numberingGuide.ts`),
-**Choose the numbering** by name, or **Take the quiz** (a few questions
-with the Bible open). A Bible that mixes numberings gets the nearest, with
-a note that a consultant may want to check where it differs.
+An admin finds the numbering one question a screen. First, "Which Bible do
+you translate from?": tap it in a short list or search 49 Bibles checked
+against their text (`apps/mobile/src/breakup/numberingGuide.ts`). If it is
+not listed, a few questions answered with big buttons and the Bible open
+("The Lord is my shepherd": 23 or 22?), or, one tap deeper, the list of
+numberings. The answer shows as three facts that tell the numberings
+apart: how many books, Malachi's chapters, and whether psalm headings are
+verse 1. A Bible that mixes numberings gets the closest, with a note.
 
 Not offered yet:
 

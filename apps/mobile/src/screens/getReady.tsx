@@ -159,10 +159,18 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
 
   return (
     <Screen header={header} bodyStyle={PAD}
-      footer={<PrimaryBtn label={only ? (changed ? 'Use this' : 'Keep it') : 'Next'} icon={only ? 'check' : 'right'} busy={busy} disabled={!t.ready && !only}
-        onPress={() => void answer()} />}>
+      footer={<>
+        {/* One question a screen: the pages before the last move on inside the question (decision 80). */}
+        {!t.last ? (
+          t.showContinue ? <PrimaryBtn label="Next" icon="right" disabled={!t.canContinue} onPress={() => { t.advance(); }} /> : null
+        ) : (
+          <PrimaryBtn label={only ? (changed ? 'Use this' : 'Keep it') : 'Next'} icon={only ? 'check' : 'right'} busy={busy} disabled={!t.ready && !only}
+            onPress={() => void answer()} />
+        )}
+        {t.page !== 'what' ? <QuietLinks items={[{ label: 'Back', icon: 'arrowL', onPress: () => { t.retreat(); } }]} /> : null}
+      </>}>
       <TranslateQuestion ctx={ctx} t={t} lang={lang} canMake={canUse} onMake={() => ctx.go('template_editor', { new: '1' })} />
-      {doc?.bible ? (
+      {doc?.bible && t.last ? (
         <>
           <SectionLabel label="Which part of the Bible?" />
           <Pills>
@@ -181,7 +189,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           ) : null}
         </>
       ) : null}
-      {changed && worked ? (
+      {changed && worked && t.last ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>Pieces that stay the same keep their recordings. What was recorded on a piece that changes is kept under "Earlier sections" on the new pieces.</Text>
       ) : null}
       {!canUse ? <Banner icon="lock" title="View only" body="Only people who set up languages can change what they translate." /> : null}

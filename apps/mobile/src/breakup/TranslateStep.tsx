@@ -12,7 +12,8 @@ import type { Ctx } from '../ctx';
 import { Chip, SectionLabel, txt } from '../kit';
 import { prepareDoc } from '../library/docStore';
 import { useLibraryDocs } from '../library/useLibrary';
-import { NumberingStep } from './NumberingStep';
+import { FindBiblePage, NumberingChosenPage, NumberingContext, NumberingListPage, QuizPage, type NumberingChoice } from './NumberingStep';
+import { factsOf, QUIZ } from './numberingGuide';
 import { useRecordChoices } from '../simple/choices';
 import { ChoiceCard, Question, QuietLink } from '../simple/admin';
 import { C, space } from '../theme';
@@ -87,14 +88,49 @@ export function useTranslate(ctx: Ctx, forLanguage: string | null) {
   }
 
   const numbering = ways.numberings.find((n) => n.code === code) ?? null;
+  const ready = shownWhat === 'bible' ? !!code && !!row && !!doc : shownWhat === 'else' ? !!outline : false;
+
+  // One question a screen (decision 80): what they translate, then the numbering (found, asked, or listed,
+  // then shown), then how it is divided. The screen holding these asks `advance` and `retreat` first.
+  const [page, setPage] = useState<TranslatePage>('what');
+  const [found, setFound] = useState<{ from?: string; note?: string }>({});
+  const [quizTrail, setQuizTrail] = useState<string[]>([QUIZ.start]);
+  const choose = (c: string, from?: string, note?: string) => {
+    setNumberingCode(c);
+    setKey(null);
+    setFound({ ...(from ? { from } : {}), ...(note ? { note } : {}) });
+    setPage('numbered');
+  };
+  const advance = (): boolean => {
+    if (page === 'what' && shownWhat === 'bible') { setPage(numbering ? 'numbered' : 'find'); return true; }
+    if (page === 'numbered') { setPage('ways'); return true; }
+    return false;
+  };
+  const retreat = (): boolean => {
+    if (page === 'ways') { setPage('numbered'); return true; }
+    if (page === 'numbered') { setPage('what'); return true; }
+    if (page === 'find') { setPage(numbering ? 'numbered' : 'what'); return true; }
+    if (page === 'quiz' && quizTrail.length > 1) { setQuizTrail((q) => q.slice(0, -1)); return true; }
+    if (page === 'quiz' || page === 'list') { setPage('find'); return true; }
+    return false;
+  };
+  const canContinue = page === 'what' ? (shownWhat === 'bible' || (shownWhat === 'else' && !!outline))
+    : page === 'numbered' ? !!numbering : page === 'ways' ? ready : false;
   return {
     ways, rec, what: shownWhat, setWhat, row, setKey, outlines, outline, setOutlineKey, others, setOthers, empty, doc, finalDoc, v11n, resolve,
     numbering, setNumbering: (c: string) => { setNumberingCode(c); setKey(null); }, numberingChanged: !!hereCode && !!code && code !== hereCode,
-    ready: shownWhat === 'bible' ? !!code && !!row && !!doc : shownWhat === 'else' ? !!outline : false
+    ready, page, found, choose, advance, retreat, canContinue, quizTrail, setQuizTrail,
+    setPage: (p: TranslatePage) => { if (p === 'quiz') setQuizTrail([QUIZ.start]); setPage(p); },
+    /** Pages answered by tapping a choice have no Continue. */
+    showContinue: page === 'what' || page === 'numbered' || page === 'ways',
+    /** The last page: what follows belongs to the screen holding the question. */
+    last: page === 'ways' || (page === 'what' && shownWhat === 'else')
   };
 }
 
-/** The question on screen. `lang` names the language ("Hadiyya"). */
+export type TranslatePage = 'what' | 'find' | 'quiz' | 'list' | 'numbered' | 'ways';
+
+/** The question on screen, one page at a time. `lang` names the language ("Hadiyya"). */
 export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string; canMake: boolean; onMake: () => void }) {
   const { t } = props;
   const [lesson, setLesson] = useState(false);
@@ -102,33 +138,47 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
   const bibleUsed = t.ways.rows.find((r) => r.usedIn.length > 0);
   const wayDoc = (item: string) => t.ways.docOf(t.ways.way(item)?.choice);
   const fiaV11n = t.ways.v11nOf(wayDoc(WAY_ITEMS[0]));
+  const nDocs = useLibraryDocs(props.ctx.language.orgId, t.ways.numberings.map((n) => n.hash));
+  const factsFor = (n: NumberingChoice) => factsOf(nDocs.get<VersificationDoc>(n.hash));
+
+  if (t.page === 'find') {
+    return <FindBiblePage numberings={t.ways.numberings} usedIn={t.ways.usedInByNumbering} onPick={t.choose} onQuiz={() => t.setPage('quiz')} onList={() => t.setPage('list')} />;
+  }
+  if (t.page === 'quiz') {
+    return <QuizPage numberings={t.ways.numberings} trail={t.quizTrail} setTrail={t.setQuizTrail} onDone={(c, note) => t.choose(c, undefined, note)} onList={() => t.setPage('list')} />;
+  }
+  if (t.page === 'list') return <NumberingListPage numberings={t.ways.numberings} factsFor={factsFor} onPick={(c) => t.choose(c)} />;
+  if (t.page === 'numbered' && t.numbering) {
+    return <NumberingChosenPage choice={t.numbering} facts={factsFor(t.numbering)} {...t.found} onChange={() => t.setPage('find')} />;
+  }
+  if (t.page === 'ways' || t.page === 'numbered') {
+    return (
+      <>
+        {t.numbering ? <NumberingContext choice={t.numbering} onPress={() => t.setPage('find')} /> : null}
+        <Question>How should the Bible be broken up?</Question>
+        {t.ways.rows.map((r) => (
+          <WayCard key={r.choice.key} row={r} doc={t.ways.docOf(r.choice)} v11n={t.ways.v11nOf(t.ways.docOf(r.choice))} on={t.row === r}
+            onPress={() => t.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
+            {t.row === r && t.empty.length ? (
+              <OthersChoice empty={emptyLine(t.doc!)} count={t.empty.length} on={t.others} onPick={t.setOthers} />
+            ) : null}
+          </WayCard>
+        ))}
+        {t.ways.rows.length === 0 ? <Text style={txt.smMuted}>{t.ways.loaded ? 'Nothing to choose from yet. Connect to load the ways LangQuest offers.' : 'Loading…'}</Text> : null}
+        <QuietLink icon="help" label="How is material broken up?" detail="A short walk-through in five steps." onPress={() => setLesson(true)} />
+        <LessonSheet visible={lesson} onClose={() => setLesson(false)} wayDoc={wayDoc} v11n={fiaV11n} />
+        <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={t.ways.docOf(peek?.choice)} v11n={t.ways.v11nOf(t.ways.docOf(peek?.choice))}
+          onClose={() => setPeek(null)} onUse={peek ? () => { t.setKey(peek.choice.key); setPeek(null); } : undefined} />
+      </>
+    );
+  }
   return (
     <>
       <Question>What will {props.lang} translate?</Question>
       <ChoiceCard on={t.what === 'bible'} icon="book" title="The Bible"
-        sub={bibleUsed ? `Used in ${bibleUsed.usedIn[0]}` : 'Then choose how it is broken up'} onPress={() => t.setWhat('bible')} />
+        sub={bibleUsed ? `Used in ${bibleUsed.usedIn[0]}` : undefined} onPress={() => t.setWhat('bible')} />
       <ChoiceCard on={t.what === 'else'} icon="folder" title="Something else"
-        sub="Stories, songs, lessons. Make folders, and put what to record in them." onPress={() => t.setWhat('else')} />
-      <QuietLink icon="help" label="How is material broken up?" detail="A short walk-through in five steps." onPress={() => setLesson(true)} />
-
-      {t.what === 'bible' ? (
-        <NumberingStep numberings={t.ways.numberings} value={t.numbering} onChange={(n) => t.setNumbering(n.code)} usedIn={t.ways.usedInByNumbering} />
-      ) : null}
-      {t.what === 'bible' && t.numbering ? (
-        <>
-          <SectionLabel label="How should the Bible be broken up?" />
-          <Text style={[txt.sm, { color: C.muted, marginTop: -space.sm }]}>Each piece is recorded on its own. The bars show a book cut that way.</Text>
-          {t.ways.rows.map((r) => (
-            <WayCard key={r.choice.key} row={r} doc={t.ways.docOf(r.choice)} v11n={t.ways.v11nOf(t.ways.docOf(r.choice))} on={t.row === r}
-              onPress={() => t.setKey(r.choice.key)} onPreview={() => setPeek(r)}>
-              {t.row === r && t.empty.length ? (
-                <OthersChoice empty={emptyLine(t.doc!)} count={t.empty.length} on={t.others} onPick={t.setOthers} />
-              ) : null}
-            </WayCard>
-          ))}
-          {t.ways.rows.length === 0 ? <Text style={txt.smMuted}>{t.ways.loaded ? 'Nothing to choose from yet. Connect to load the ways LangQuest offers.' : 'Loading…'}</Text> : null}
-        </>
-      ) : null}
+        sub="Stories, songs, lessons" onPress={() => t.setWhat('else')} />
 
       {t.what === 'else' ? (
         <>
@@ -144,9 +194,6 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
         </>
       ) : null}
 
-      <LessonSheet visible={lesson} onClose={() => setLesson(false)} wayDoc={wayDoc} v11n={fiaV11n} />
-      <PreviewSheet key={peek?.choice.key ?? 'none'} visible={!!peek} name={peek?.choice.name ?? ''} doc={t.ways.docOf(peek?.choice)} v11n={t.ways.v11nOf(t.ways.docOf(peek?.choice))}
-        onClose={() => setPeek(null)} onUse={peek ? () => { t.setKey(peek.choice.key); setPeek(null); } : undefined} />
     </>
   );
 }
